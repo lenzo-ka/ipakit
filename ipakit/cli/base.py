@@ -215,9 +215,9 @@ class CommandGroup(ABC):
 def add_format_arg(
     parser: argparse.ArgumentParser, choices: list[str] | None = None
 ) -> None:
+    """Add --format argument to parser."""
     if choices is None:
         choices = ["text", "json"]
-    """Add --format argument to parser."""
     parser.add_argument(
         "--format", "-f", choices=choices, default="text", help="Output format"
     )

@@ -132,32 +132,14 @@ def main() -> int:
             print(f"Error: {e}", file=sys.stderr)
             return 1
 
-    # Command groups - check for missing subcommand
-    group_names = {
-        "analyze": "analyze_cmd",
-        "a": "analyze_cmd",
-        "analysis": "analysis_cmd",
-        "an": "analysis_cmd",
-        "convert": "convert_cmd",
-        "c": "convert_cmd",
-        "distance": "distance_cmd",
-        "d": "distance_cmd",
-        "hierarchy": "hierarchy_cmd",
-        "h": "hierarchy_cmd",
-        "info": "info_cmd",
-        "i": "info_cmd",
-        "query": "query_cmd",
-        "q": "query_cmd",
-    }
-
-    if args.command in group_names:
-        subcmd_attr = group_names[args.command]
-        if not getattr(args, subcmd_attr, None):
-            # Show help for the group
-            parser.parse_args([args.command, "-h"])
-            return 0
-
-    return 0
+    # Every real command and subcommand sets `cmd_cls` (see create_parser and
+    # CommandGroup.register), and an empty command line is handled above. So if
+    # we reach here, a command GROUP was named with no subcommand (e.g.
+    # `ipakit convert`, or its alias `ipakit c`). Show that group's help:
+    # parse_args([group, "-h"]) prints the help and exits via SystemExit, so
+    # control never returns past this call.
+    parser.parse_args([args.command, "-h"])
+    return 0  # unreachable (argparse -h exits); kept for the type checker
 
 
 if __name__ == "__main__":
