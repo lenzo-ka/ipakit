@@ -31,6 +31,7 @@ from .constants import (
     TIE_BAR,
 )
 from .distance import WordDistanceResult
+from .distance_model import DistanceModel
 from .features import IPAFeatures
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
@@ -53,6 +54,11 @@ def _get_ipa() -> IPAFeatures:
 @functools.lru_cache(maxsize=1)
 def _get_cmu() -> CMUMapper:
     return CMUMapper()
+
+
+@functools.lru_cache(maxsize=1)
+def _get_default_model() -> DistanceModel:
+    return DistanceModel.global_(_get_ipa())
 
 
 def load_ipa_features(xml_path: Path = DEFAULT_IPA_FEATS) -> IPAFeatures:
@@ -116,6 +122,49 @@ def word_similarity(ipa1: str, ipa2: str, weighted: bool = True) -> float:
         0.9...
     """
     return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted)
+
+
+def normalized_distance(phone1: str, phone2: str) -> float:
+    """CDF-renormalized distance (percentile within the bundled IPA inventory)."""
+    return _get_default_model().distance(phone1, phone2)
+
+
+def distance_model(
+    reference: Phoneset | list[str] | None = None,
+    *,
+    gamma: float = 1.0,
+    sub_mode: str = "simple",
+    insert_cost: float = 1.0,
+    delete_cost: float = 1.0,
+    threshold: float | None = None,
+    max_length_ratio: float | None = None,
+) -> DistanceModel:
+    """Build a distribution-aware distance model over a reference inventory.
+
+    ``reference=None`` uses the bundled global IPA inventory (default).
+    """
+    ipa = _get_ipa()
+    if reference is None:
+        return DistanceModel.global_(
+            ipa,
+            gamma=gamma,
+            sub_mode=sub_mode,
+            insert_cost=insert_cost,
+            delete_cost=delete_cost,
+            threshold=threshold,
+            max_length_ratio=max_length_ratio,
+        )
+    ps = reference if isinstance(reference, Phoneset) else Phoneset.from_list(reference)
+    return DistanceModel.for_phoneset(
+        ipa,
+        ps,
+        gamma=gamma,
+        sub_mode=sub_mode,
+        insert_cost=insert_cost,
+        delete_cost=delete_cost,
+        threshold=threshold,
+        max_length_ratio=max_length_ratio,
+    )
 
 
 def features(phone: str, with_defaults: bool = True) -> dict[str, str]:
@@ -376,6 +425,7 @@ def is_valid_ipa(ipa: str) -> bool:
 __all__ = [
     # Classes
     "CMUMapper",
+    "DistanceModel",
     "Feature",
     "IPAFeatures",
     "Phone",
@@ -393,6 +443,7 @@ __all__ = [
     "add_ties",
     "describe",
     "distance",
+    "distance_model",
     "feature_bundles",
     "features",
     "features_from_cmu",
@@ -408,6 +459,7 @@ __all__ = [
     "nearest_phones",
     "normalize",
     "normalize_lookalikes",
+    "normalized_distance",
     "phones_matching",
     "segment",
     "shorts_to_features",

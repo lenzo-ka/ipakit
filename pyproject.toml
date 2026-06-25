@@ -45,7 +45,7 @@ where = ["."]
 include = ["ipakit*"]
 
 [tool.setuptools.package-data]
-ipakit = ["data/*.xml", "data/phonemaps/*.xml", "py.typed"]
+ipakit = ["data/*.xml", "data/phonemaps/*.xml", "data/*.json", "py.typed"]
 
 [tool.pytest.ini_options]
 markers = [

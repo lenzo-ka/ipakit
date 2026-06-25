@@ -66,6 +66,45 @@ ipakit.to_cmu("k4t")                # ['K', 'T']  (the '4' is skipped)
 ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert to CMU ARPABET: ...
 ```
 
+### Distribution-aware distance
+
+`distance()` is the **raw feature metric** — an absolute, inventory-independent
+mean over phonetic features (so `distance("p", "b")` is always `0.043`). Raw
+distances bunch up in a narrow band, which makes fixed thresholds hard to pick.
+`normalized_distance()` renormalizes a raw distance to its **percentile** within
+the bundled IPA inventory's pairwise distribution, spreading values across
+`[0, 1]`:
+
+```python
+ipakit.distance("p", "b")             # 0.043   raw feature distance
+ipakit.normalized_distance("p", "b")  # 0.155   percentile within bundled IPA
+ipakit.normalized_distance("p", "a")  # 0.602
+```
+
+For a model over a chosen reference inventory — percentiles are **relative** to
+it and not comparable across inventories — use `distance_model()`:
+
+```python
+from ipakit import Phoneset
+
+eng = ipakit.distance_model(
+    Phoneset.from_list(
+        ["p", "b", "t", "d", "k", "ɡ", "s", "z", "m", "n", "l", "ɹ", "a", "i", "u"],
+        name="english",
+    )
+)
+eng.distance("p", "b")                       # 0.267   percentile within this 15-phone set
+eng.nearest("p", n=3)                        # [('t', 0.048), ('s', 0.086), ('k', 0.21)]
+eng.word_similarity("kæt", "kæd")            # 0.956
+eng.is_similar("kæt", "kæd", threshold=0.8)  # True
+```
+
+`distance_model()` also accepts `gamma` (power transform to push dissimilar
+pairs apart), `sub_mode="di"` (delete+insert substitution cost for word
+alignment), and `threshold` / `max_length_ratio` defaults for `is_similar`. The
+raw pairwise matrix ships as `ipakit/data/confusion.json`; per-inventory models
+reuse it and only re-slice the percentile distribution.
+
 ## Conventions
 
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable

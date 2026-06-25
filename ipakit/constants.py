@@ -7,6 +7,7 @@ DEFAULT_IPA_FEATS = DATA_DIR / "ipa.xml"
 PHONEMAPS_DIR = DATA_DIR / "phonemaps"
 DEFAULT_CMU_MAP = PHONEMAPS_DIR / "cmu.xml"
 DEFAULT_LOOKALIKES = PHONEMAPS_DIR / "lookalikes.xml"
+DEFAULT_CONFUSION = DATA_DIR / "confusion.json"
 
 # Attributes stored on phones/diacritics that are structural metadata, NOT
 # phonetic features. These are excluded from natural-class intersection and

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ._base import IPAFeaturesBase
@@ -81,17 +82,73 @@ class DistanceMixin(IPAFeaturesBase):
                     matrix[j][i] = d
         return matrix
 
+    def _align(
+        self,
+        tokens1: list[str],
+        tokens2: list[str],
+        sub_cost: Callable[[str, str], float],
+        insert_cost: float = 1.0,
+        delete_cost: float = 1.0,
+        return_alignment: bool = False,
+    ) -> tuple[float, Alignment | None]:
+        """Weighted-Levenshtein DP shared by word_distance and DistanceModel.
+
+        Costs are parameterized so callers choose unit indel (default) or a
+        weighted/di-mode policy. Returns (distance, alignment).
+        """
+        n, m = len(tokens1), len(tokens2)
+        dp = [[0.0] * (m + 1) for _ in range(n + 1)]
+        for i in range(n + 1):
+            dp[i][0] = i * delete_cost
+        for j in range(m + 1):
+            dp[0][j] = j * insert_cost
+        for i in range(1, n + 1):
+            for j in range(1, m + 1):
+                dp[i][j] = min(
+                    dp[i - 1][j] + delete_cost,
+                    dp[i][j - 1] + insert_cost,
+                    dp[i - 1][j - 1] + sub_cost(tokens1[i - 1], tokens2[j - 1]),
+                )
+
+        alignment: Alignment | None = None
+        if return_alignment:
+            alignment = []
+            i, j = n, m
+            while i > 0 or j > 0:
+                if (
+                    i > 0
+                    and j > 0
+                    and dp[i][j]
+                    == dp[i - 1][j - 1] + sub_cost(tokens1[i - 1], tokens2[j - 1])
+                ):
+                    alignment.append((tokens1[i - 1], tokens2[j - 1]))
+                    i -= 1
+                    j -= 1
+                    continue
+                if i > 0 and dp[i][j] == dp[i - 1][j] + delete_cost:
+                    alignment.append((tokens1[i - 1], None))
+                    i -= 1
+                elif j > 0:
+                    alignment.append((None, tokens2[j - 1]))
+                    j -= 1
+            alignment.reverse()
+
+        return dp[n][m], alignment
+
     def word_distance(
         self,
         ipa1: str,
         ipa2: str,
         weighted: bool = True,
         return_alignment: bool = False,
+        sub_cost: Callable[[str, str], float] | None = None,
     ) -> WordDistanceResult:
         """Compute phonetic edit distance between two IPA words.
 
         Uses Levenshtein-style dynamic programming with phonetic feature costs
-        for substitutions when weighted=True.
+        for substitutions when weighted=True. Pass ``sub_cost`` to inject a
+        custom substitution policy (used by DistanceModel); otherwise the
+        default feature-distance policy applies.
 
         Args:
             ipa1: First IPA string
@@ -99,95 +156,43 @@ class DistanceMixin(IPAFeaturesBase):
             weighted: If True, use feature distance for substitution costs (0-1).
                       If False, use standard Levenshtein (cost=1 for any sub).
             return_alignment: If True, include the alignment path in result.
+            sub_cost: Optional substitution-cost callable overriding ``weighted``.
 
         Returns:
-            WordDistanceResult with distance, similarity, and optional alignment.
-            - distance: Total edit distance (insertions + deletions + substitutions)
-            - similarity: 1 - (distance / max_len), with lower bound of 0
-            - alignment: List of (phone1, phone2) pairs showing the alignment
+            WordDistanceResult with distance, similarity (1 - distance/max_len,
+            floored at 0), and optional alignment.
 
         Examples:
             word_distance("kæt", "kæd")   # Small (minimal pair, ~0.04)
             word_distance("kæt", "dɒɡ")   # Large (different word)
         """
-        # Tokenize both strings into phone segments
         tokens1 = self.tokenize_ipa(ipa1)
         tokens2 = self.tokenize_ipa(ipa2)
-
         n, m = len(tokens1), len(tokens2)
 
-        # Handle edge cases
+        if sub_cost is None:
+
+            def _default_sub(t1: str, t2: str) -> float:
+                if t1 == t2:
+                    return 0.0
+                return self.segment_distance(t1, t2) if weighted else 1.0
+
+            cost_fn: Callable[[str, str], float] = _default_sub
+        else:
+            cost_fn = sub_cost
+
         if n == 0 and m == 0:
-            return WordDistanceResult(distance=0.0, similarity=1.0, alignment=[])
-        if n == 0:
-            empty1: Alignment | None = (
-                [(None, t) for t in tokens2] if return_alignment else None
-            )
             return WordDistanceResult(
-                distance=float(m), similarity=0.0, alignment=empty1
-            )
-        if m == 0:
-            empty2: Alignment | None = (
-                [(t, None) for t in tokens1] if return_alignment else None
-            )
-            return WordDistanceResult(
-                distance=float(n), similarity=0.0, alignment=empty2
+                distance=0.0,
+                similarity=1.0,
+                alignment=[] if return_alignment else None,
             )
 
-        def sub_cost(t1: str, t2: str) -> float:
-            """Cost of substituting t1 with t2 (0 if equal; feature-weighted or flat)."""
-            if t1 == t2:
-                return 0.0
-            if weighted:
-                return self.segment_distance(t1, t2)
-            return 1.0
-
-        # DP table: dp[i][j] = min cost to align tokens1[:i] with tokens2[:j]
-        dp = [[0.0] * (m + 1) for _ in range(n + 1)]
-
-        # Initialize base cases (insertions/deletions cost 1 each)
-        for i in range(n + 1):
-            dp[i][0] = float(i)
-        for j in range(m + 1):
-            dp[0][j] = float(j)
-
-        # Fill DP table
-        for i in range(1, n + 1):
-            for j in range(1, m + 1):
-                t1, t2 = tokens1[i - 1], tokens2[j - 1]
-                dp[i][j] = min(
-                    dp[i - 1][j] + 1.0,  # deletion
-                    dp[i][j - 1] + 1.0,  # insertion
-                    dp[i - 1][j - 1] + sub_cost(t1, t2),  # substitution
-                )
-
-        distance = dp[n][m]
+        distance, alignment = self._align(
+            tokens1, tokens2, cost_fn, return_alignment=return_alignment
+        )
         max_len = max(n, m)
         similarity = max(0.0, 1.0 - (distance / max_len))
-
-        # Backtrace for alignment if requested
-        alignment: Alignment | None = None
-        if return_alignment:
-            alignment = []
-            i, j = n, m
-            while i > 0 or j > 0:
-                if i > 0 and j > 0:
-                    t1, t2 = tokens1[i - 1], tokens2[j - 1]
-                    if dp[i][j] == dp[i - 1][j - 1] + sub_cost(t1, t2):
-                        alignment.append((t1, t2))
-                        i -= 1
-                        j -= 1
-                        continue
-
-                if i > 0 and dp[i][j] == dp[i - 1][j] + 1.0:
-                    alignment.append((tokens1[i - 1], None))
-                    i -= 1
-                elif j > 0:
-                    alignment.append((None, tokens2[j - 1]))
-                    j -= 1
-
-            alignment.reverse()
-
         return WordDistanceResult(
             distance=distance, similarity=similarity, alignment=alignment
         )
