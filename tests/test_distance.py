@@ -43,6 +43,15 @@ class TestPhoneDistance:
         d = ipa.distance("t͡ʃ", "d͡ʒ")
         assert 0 < d < 0.5  # differ in voicing
 
+    def test_distance_excludes_metadata_attrs(self, ipa: IPAFeatures) -> None:
+        # Regression for I13: every phone carries a unique `href` (wiki slug),
+        # so distinct phones always differ on it. If href/xsampa were counted as
+        # features, distance("p","b") would be inflated to 2/24 ≈ 0.083 instead
+        # of the true single-feature (voicing) distance of 1/23 ≈ 0.043.
+        d = ipa.distance("p", "b")
+        assert d == pytest.approx(1 / 23, abs=1e-4)
+        assert d < 0.05  # would be ~0.083 if metadata leaked in
+
 
 class TestSegmentDistance:
     """Tests for distance between segments (phones with diacritics)."""

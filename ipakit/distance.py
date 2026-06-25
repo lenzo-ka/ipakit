@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import IPAFeaturesBase
+from .constants import METADATA_ATTRS
 
 # One alignment step pairs a token from each word; None marks an insertion/deletion.
 Alignment = list[tuple[str | None, str | None]]
@@ -24,7 +25,7 @@ class DistanceMixin(IPAFeaturesBase):
 
     def _feature_dict_distance(self, f1: dict[str, str], f2: dict[str, str]) -> float:
         """Compute distance between two feature dictionaries."""
-        all_keys = (set(f1) | set(f2)) - {"name", "class"}
+        all_keys = (set(f1) | set(f2)) - METADATA_ATTRS
         if not all_keys:
             return 1.0
         total = sum(
