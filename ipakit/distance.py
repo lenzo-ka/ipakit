@@ -134,6 +134,14 @@ class DistanceMixin(IPAFeaturesBase):
                 distance=float(n), similarity=0.0, alignment=empty2
             )
 
+        def sub_cost(t1: str, t2: str) -> float:
+            """Cost of substituting t1 with t2 (0 if equal; feature-weighted or flat)."""
+            if t1 == t2:
+                return 0.0
+            if weighted:
+                return self.segment_distance(t1, t2)
+            return 1.0
+
         # DP table: dp[i][j] = min cost to align tokens1[:i] with tokens2[:j]
         dp = [[0.0] * (m + 1) for _ in range(n + 1)]
 
@@ -147,19 +155,10 @@ class DistanceMixin(IPAFeaturesBase):
         for i in range(1, n + 1):
             for j in range(1, m + 1):
                 t1, t2 = tokens1[i - 1], tokens2[j - 1]
-
-                if t1 == t2:
-                    sub_cost = 0.0
-                elif weighted:
-                    # Use segment distance for weighted substitution cost
-                    sub_cost = self.segment_distance(t1, t2)
-                else:
-                    sub_cost = 1.0
-
                 dp[i][j] = min(
                     dp[i - 1][j] + 1.0,  # deletion
                     dp[i][j - 1] + 1.0,  # insertion
-                    dp[i - 1][j - 1] + sub_cost,  # substitution
+                    dp[i - 1][j - 1] + sub_cost(t1, t2),  # substitution
                 )
 
         distance = dp[n][m]
@@ -174,14 +173,7 @@ class DistanceMixin(IPAFeaturesBase):
             while i > 0 or j > 0:
                 if i > 0 and j > 0:
                     t1, t2 = tokens1[i - 1], tokens2[j - 1]
-                    if t1 == t2:
-                        sub_cost = 0.0
-                    elif weighted:
-                        sub_cost = self.segment_distance(t1, t2)
-                    else:
-                        sub_cost = 1.0
-
-                    if dp[i][j] == dp[i - 1][j - 1] + sub_cost:
+                    if dp[i][j] == dp[i - 1][j - 1] + sub_cost(t1, t2):
                         alignment.append((t1, t2))
                         i -= 1
                         j -= 1
