@@ -1,0 +1,108 @@
+# ipakit
+
+A pure-Python IPA (International Phonetic Alphabet) phonetic toolkit:
+phonetic features, distances, natural classes, and conversion between IPA and
+CMU ARPABET, X-SAMPA, Kirshenbaum, and TIMIT notations.
+
+- **Zero runtime dependencies** — all phonetic data ships as XML in the package.
+- **Typed** (`py.typed`, mypy-strict clean).
+- **Both a library and a CLI** (`ipakit`).
+
+## Install
+
+```bash
+pip install ipakit
+```
+
+For development (tests, linters, and the X-SAMPA table tooling):
+
+```bash
+pip install -e ".[dev]"
+```
+
+## Quick start (Python)
+
+```python
+import ipakit
+
+# Phonetic features and descriptions
+ipakit.describe("p")            # 'voiceless bilabial plosive'
+ipakit.features("p")            # {'manner': 'plosive', 'place': 'bilabial', ...}
+
+# Phonetic distance (0.0 identical … 1.0 maximally different)
+ipakit.distance("p", "b")       # 0.043   (differ only in voicing)
+ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.008), ('p͡f', 0.008)]
+ipakit.word_similarity("kæt", "kæd")   # 0.986
+
+# Tokenize / normalize (tie-bar affricates, diphthongs)
+ipakit.tokenize("t͡ʃe͡ɪnd͡ʒ")   # ['t͡ʃ', 'e͡ɪ', 'n', 'd͡ʒ']
+
+# Validate
+ipakit.validate_ipa("kæt")      # []  (valid)
+ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', ...}]
+```
+
+### Conversions
+
+```python
+# CMU ARPABET
+ipakit.to_cmu("ˈkæt")             # ['K', 'AE1', 'T']
+ipakit.to_ipa(["K", "AE1", "T"])  # 'kˈæt'
+
+# X-SAMPA (ASCII)
+ipakit.ipa_to_xsampa("t͡ʃ")        # 't_S'
+ipakit.xsampa_to_ipa("t_S")        # 't͡ʃ'
+
+# Kirshenbaum / TIMIT
+ipakit.to_kirshenbaum("kæt")       # 'k&t'
+ipakit.to_timit("kæt")             # ['k', 'ae', 't']
+```
+
+## Conventions
+
+- **Stress is placed on the vowel** (the syllable nucleus), not the syllable
+  onset: `to_ipa(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
+  across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
+- **Affricates and diphthongs use the tie bar** (`t͡ʃ`, `e͡ɪ`).
+- **Round-trip guarantee:** IPA written in these conventions round-trips through
+  X-SAMPA (`ipa → xsampa → ipa`). The only exceptions are `b͡v` and `t͡θ`, where
+  the X-SAMPA tie encoding `_` collides with a diacritic/tone encoding (`_v`,
+  `_T`) — an inherent X-SAMPA ambiguity that ICU shares.
+
+## CLI
+
+```text
+ipakit features p                    # Get features for 'p'
+ipakit describe p                    # "voiceless bilabial plosive"
+ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
+ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
+ipakit convert to-xsampa "t͡ʃ"        # IPA to X-SAMPA: t_S
+ipakit query match plosive bilabial  # Find phones by feature
+ipakit analysis natural-class p t k  # Shared features of a set
+ipakit analysis minimal-pairs p      # Find similar phones
+ipakit distance pair p b             # Distance between p and b
+```
+
+Most commands accept `--format json` (or `-j`) for machine-readable output.
+Run `ipakit`, `ipakit <group>`, or append `help`/`-h` anywhere for usage.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pre-commit install        # black, ruff, mypy --strict, hygiene hooks
+pytest                    # run the test suite
+```
+
+The IPA ↔ X-SAMPA table (`ipakit/data/phonemaps/xsampa.xml`) is reproducible
+from ICU transliteration plus a small set of curated overrides. `icukit` is a
+**dev-only** dependency (never imported at runtime):
+
+```bash
+python scripts/xsampa_table.py validate   # CI guard: shipped table == derived
+python scripts/xsampa_table.py generate   # print the derived table
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
