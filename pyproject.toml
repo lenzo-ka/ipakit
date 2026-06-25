@@ -28,7 +28,10 @@ keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "ar
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "ruff>=0.1", "mypy>=1.0"]
+# icukit (ICU transliteration) is dev-only: it powers scripts/xsampa_table.py
+# (table generation/validation) and the X-SAMPA cross-check tests. It is NOT
+# imported at runtime — ipakit ships the generated table in data/phonemaps/.
+dev = ["pytest>=7.0", "ruff>=0.1", "mypy>=1.0", "icukit>=0.1.2"]
 
 [project.urls]
 Homepage = "https://github.com/lenzo/ipakit"

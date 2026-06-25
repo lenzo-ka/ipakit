@@ -36,6 +36,10 @@ from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
 from .phonemaps import from_kirshenbaum, from_timit, to_kirshenbaum, to_timit
 
+# X-SAMPA string conversion lives in ipakit.xsampa, the single source of truth
+# for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
+from .xsampa import ipa_to_xsampa, xsampa_to_ipa
+
 # =============================================================================
 # Module-level API (lazy singletons)
 # =============================================================================
@@ -125,45 +129,6 @@ def features_from_cmu(
     """Get feature bundles from CMU ARPABET symbols."""
     ipa_str = _get_cmu().cmu_to_ipa(cmu_symbols)
     return _get_ipa().compose(ipa_str, with_defaults=with_defaults)
-
-
-@functools.lru_cache(maxsize=1)
-def _get_xsampa_map() -> dict[str, str]:
-    """Load X-SAMPA to IPA mapping."""
-    import xml.etree.ElementTree as ET
-
-    from .constants import PHONEMAPS_DIR
-
-    xsampa_file = PHONEMAPS_DIR / "xsampa.xml"
-    if not xsampa_file.exists():
-        return {}
-    root = ET.parse(xsampa_file).getroot()
-    mapping: dict[str, str] = {}
-    for m in root.findall("map"):
-        xs, ip = m.get("xsampa"), m.get("ipa")
-        if xs and ip:
-            mapping[xs] = ip
-    return mapping
-
-
-def xsampa_to_ipa(xsampa: str) -> str:
-    """Convert X-SAMPA string to IPA."""
-    mapping = _get_xsampa_map()
-    result = []
-    i = 0
-    while i < len(xsampa):
-        # Try longest match first (some X-SAMPA symbols are multi-char)
-        matched = False
-        for length in range(min(4, len(xsampa) - i), 0, -1):
-            candidate = xsampa[i : i + length]
-            if candidate in mapping:
-                result.append(mapping[candidate])
-                i += length
-                matched = True
-                break
-        if not matched:
-            i += 1  # Skip unknown
-    return "".join(result)
 
 
 def features_from_xsampa(
@@ -419,6 +384,7 @@ __all__ = [
     "features_to_shorts",
     "from_kirshenbaum",
     "from_timit",
+    "ipa_to_xsampa",
     "is_valid_ipa",
     "load_ipa_features",
     "minimal_pairs",

@@ -625,27 +625,21 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # X-SAMPA conversion
     # -------------------------------------------------------------------------
 
-    def ipa_to_xsampa(self, ipa: str) -> str | None:
-        """Convert IPA symbol to X-SAMPA."""
-        if ipa in self.phones:
-            return self.phones[ipa].features.get("xsampa")
-        if ipa in self.diacritics:
-            return self.diacritics[ipa].features.get("xsampa")
-        return None
+    def ipa_to_xsampa(self, ipa: str) -> str:
+        """Convert an IPA string to X-SAMPA notation.
 
-    @functools.cached_property
-    def _xsampa_lookup(self) -> dict[str, str]:
-        lookup = {}
-        for symbol, phone in self.phones.items():
-            if xs := phone.features.get("xsampa"):
-                lookup[xs] = symbol
-        for symbol, phone in self.diacritics.items():
-            if xs := phone.features.get("xsampa"):
-                lookup[xs] = symbol
-        return lookup
+        Delegates to :mod:`ipakit.xsampa`, the single source of truth for the
+        IPA <-> X-SAMPA table (``data/phonemaps/xsampa.xml``).
+        """
+        from .xsampa import ipa_to_xsampa
 
-    def xsampa_to_ipa(self, xsampa: str) -> str | None:
-        return self._xsampa_lookup.get(xsampa)
+        return ipa_to_xsampa(ipa)
+
+    def xsampa_to_ipa(self, xsampa: str) -> str:
+        """Convert an X-SAMPA string to IPA. See :meth:`ipa_to_xsampa`."""
+        from .xsampa import xsampa_to_ipa
+
+        return xsampa_to_ipa(xsampa)
 
     # -------------------------------------------------------------------------
     # Derived properties
