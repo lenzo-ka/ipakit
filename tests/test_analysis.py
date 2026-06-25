@@ -214,6 +214,14 @@ class TestValidateIPA:
         issues = ipa.validate_ipa("hɛ.loʊ")
         assert issues == []
 
+    def test_valid_with_word_boundary(self, ipa: IPAFeatures) -> None:
+        # '#' is a word separator in ipa.xml (data-driven; was rejected before).
+        assert ipa.validate_ipa("kæt#dɒɡ") == []
+
+    def test_valid_tone_letter(self, ipa: IPAFeatures) -> None:
+        # Spacing tone letters are standalone suprasegmentals.
+        assert ipa.validate_ipa("ma˥") == []
+
     def test_unknown_symbol(self, ipa: IPAFeatures) -> None:
         # Use actual non-IPA characters (note: x, y, z ARE valid IPA)
         issues = ipa.validate_ipa("k@t")  # @ is not IPA

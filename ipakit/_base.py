@@ -21,6 +21,7 @@ class IPAFeaturesBase:
     # Data populated by IPAFeatures._load()
     phones: dict[str, Phone]
     diacritics: dict[str, Phone]
+    separators: dict[str, Phone]
     features: dict[str, Feature]
 
     @property
@@ -29,6 +30,18 @@ class IPAFeaturesBase:
 
     @property
     def consonant_manners(self) -> frozenset[str]:
+        raise NotImplementedError
+
+    @property
+    def stress_markers(self) -> dict[str, int]:
+        raise NotImplementedError
+
+    @property
+    def stress_to_marker(self) -> dict[int, str]:
+        raise NotImplementedError
+
+    @property
+    def syllable_break(self) -> str:
         raise NotImplementedError
 
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:

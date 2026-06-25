@@ -13,7 +13,7 @@ stays in the caller; only these shared steps live here.
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 
 from .constants import TIE_BAR
 
@@ -55,3 +55,39 @@ def longest_match(
             if all(p in tie_set or p == "" for p in parts):
                 return candidate, length
     return None, 0
+
+
+def convert_greedy(
+    text: str,
+    lookup: Mapping[str, str],
+    *,
+    max_len: int | None = None,
+    strict: bool = False,
+    what: str = "",
+) -> list[str]:
+    """Greedy longest-match conversion of ``text`` through a string->string map.
+
+    Walks left to right, replacing the longest matching key with its value;
+    unmatched characters are skipped. With ``strict=True`` the skipped symbols
+    raise ``ValueError`` via ``require_convertible`` (``what`` names the
+    direction). ``max_len`` defaults to the longest key length.
+    """
+    if not lookup:
+        return []
+    if max_len is None:
+        max_len = max(len(k) for k in lookup)
+    out: list[str] = []
+    skipped: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        key, length = longest_match(text, i, lookup, max_len)
+        if key is not None:
+            out.append(lookup[key])
+            i += length
+        else:
+            skipped.append(text[i])
+            i += 1
+    if strict:
+        require_convertible(skipped, what)
+    return out

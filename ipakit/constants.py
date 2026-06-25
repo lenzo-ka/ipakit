@@ -20,9 +20,6 @@ METADATA_ATTRS = frozenset({"name", "class", "href", "xsampa"})
 
 TIE_BAR = "\u0361"  # ͡
 
-STRESS_MARKERS = {"ˈ": 1, "ˌ": 2}
-STRESS_TO_MARKER = {v: k for k, v in STRESS_MARKERS.items()}
-
 # Display/formatting constants
 DEFAULT_SHORT_NAME_LEN = 3  # Default length for auto-generated short names
 MAX_EXAMPLE_PHONES = 5  # Max example phones to show in listings

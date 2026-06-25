@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
 
-from ._tokenize import longest_match
+from ._convert import longest_match
 from .analysis import AnalysisMixin
 from .constants import (
     DEFAULT_IPA_FEATS,
@@ -30,8 +30,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.features: dict[str, Feature] = {}
         self.phones: dict[str, Phone] = {}
         self.diacritics: dict[str, Phone] = {}
+        self.separators: dict[str, Phone] = {}
         self.ligature_map: dict[str, str] = {}
-        self.tie_normalizations: list[tuple[str, str]] = []
         self.lookalikes: dict[str, str] = {}  # lookalike char -> IPA char
         self.wiki_base: str = ""  # Base URL for Wikipedia links
         self.references: dict[str, str] = {}  # name -> href (article name)
@@ -110,13 +110,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 for child_elem in elem.findall(child_name):
                     self._load_element(child_elem, child_name)
 
-        # Derive tie normalizations from phones with tie bars
-        # e.g., t͡ʃ → derive that tʃ should map to t͡ʃ
-        for symbol in self.phones:
-            if TIE_BAR in symbol:
-                untied = symbol.replace(TIE_BAR, "")
-                self.tie_normalizations.append((untied, symbol))
-
         # Load references
         if (refs_elem := root.find("references")) is not None:
             for ref in refs_elem.findall("ref"):
@@ -153,6 +146,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             self.phones[symbol] = phone
         elif element_type in ("diacritic", "suprasegmental"):
             self.diacritics[symbol] = phone
+        elif element_type == "separator":
+            self.separators[symbol] = phone
 
         # Aliases become normalization entries (alias → canonical)
         # Supports multiple space-separated aliases
@@ -228,42 +223,29 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         if isinstance(query, (list, set)):
             for s in query:
-                # First: check if entire string is a short name (e.g., '-voi', '+voi', '0trt')
+                # Whole string is a short name (e.g. '-voi', '+voi', '0trt').
                 if s in self._short_to_feature:
                     feat, val = self._short_to_feature[s]
                     positive[feat] = val
-                elif s.startswith("+"):
-                    term = s[1:]
-                    # Try feature name for binary/ternary (e.g., +voiced)
-                    if term in self.features and "+" in self.features[term].values:
-                        positive[term] = "+"
-                    else:
-                        resolved = self._resolve_query_term(term, prefix="+")
-                        if resolved:
-                            positive[resolved[0]] = resolved[1]
-                elif s.startswith("-"):
-                    term = s[1:]
-                    # Try feature name for binary/ternary (e.g., -voiced)
-                    if term in self.features and "-" in self.features[term].values:
-                        positive[term] = "-"
-                    else:
-                        # Negation for non-binary values (e.g., -aspirated)
-                        resolved = self._resolve_query_term(term, prefix="-")
-                        if resolved:
-                            negative.setdefault(resolved[0], set()).add(resolved[1])
-                elif s.startswith("0"):
-                    term = s[1:]
-                    # Try feature name for ternary (e.g., 0tongue-root)
-                    if term in self.features and "0" in self.features[term].values:
-                        positive[term] = "0"
-                    else:
-                        resolved = self._resolve_query_term(term)
-                        if resolved:
-                            positive[resolved[0]] = resolved[1]
+                    continue
+                # Optional +/-/0 prefix selects a feature value directly.
+                prefix = s[0] if s[:1] in ("+", "-", "0") else ""
+                term = s[1:] if prefix else s
+                if (
+                    prefix
+                    and term in self.features
+                    and prefix in self.features[term].values
+                ):
+                    positive[term] = prefix
+                    continue
+                resolved = self._resolve_query_term(term, prefix=prefix)
+                if not resolved:
+                    continue
+                feat, val = resolved
+                if prefix == "-":
+                    negative.setdefault(feat, set()).add(val)
                 else:
-                    resolved = self._resolve_query_term(s)
-                    if resolved:
-                        positive[resolved[0]] = resolved[1]
+                    positive[feat] = val
         else:
             positive = query
 
@@ -348,10 +330,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             ˈɛ.ləʊ → ˈɛ.ləʊ (already before nucleus)
             ˌɪn.təˈnæʃ → ˌɪn.tə.nˈæʃ
         """
-        PRIMARY = "ˈ"  # U+02C8
-        SECONDARY = "ˌ"  # U+02CC
-        SYLLABLE_BREAK = "."
-
         expanded = self.expand_ligatures(ipa)
 
         result: list[str] = []
@@ -363,18 +341,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             char = expanded[i]
 
             # Check for stress marker
-            if char in (PRIMARY, SECONDARY):
+            if char in self.stress_markers:
                 # Stress marker implies syllable boundary - add explicit break
                 # (unless at start or already have one)
-                if result and result[-1] != SYLLABLE_BREAK:
-                    result.append(SYLLABLE_BREAK)
+                if result and result[-1] != self.syllable_break:
+                    result.append(self.syllable_break)
                 pending_stress = char
                 onset_seen = False  # Reset onset tracking
                 i += 1
                 continue
 
             # Preserve syllable breaks
-            if char == SYLLABLE_BREAK:
+            if char == self.syllable_break:
                 result.append(char)
                 onset_seen = False  # Reset for new syllable
                 i += 1
@@ -390,7 +368,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 diacritics = []
                 j = i + best_len
                 while j < len(expanded) and expanded[j] in self.diacritics:
-                    if expanded[j] in (PRIMARY, SECONDARY):
+                    if expanded[j] in self.stress_markers:
                         break
                     diacritics.append(expanded[j])
                     j += 1
@@ -408,8 +386,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     if not onset_seen and result:
                         # No onset - syllable starts with nucleus (not at word start)
                         # Add explicit . so we don't lose syllable boundary on output
-                        if result[-1] != SYLLABLE_BREAK:
-                            result.append(SYLLABLE_BREAK)
+                        if result[-1] != self.syllable_break:
+                            result.append(self.syllable_break)
                     # Put stress BEFORE the nucleus
                     result.append(pending_stress)
                     result.append(best_phone)
@@ -429,9 +407,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         onset_seen = True
 
                 i = j
-            elif expanded[i] in self.diacritics and expanded[i] not in (
-                PRIMARY,
-                SECONDARY,
+            elif (
+                expanded[i] in self.diacritics
+                and expanded[i] not in self.stress_markers
             ):
                 result.append(expanded[i])
                 i += 1
@@ -448,7 +426,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
     def strip_syllable_breaks(self, ipa: str) -> str:
         """Remove syllable break markers (.) from IPA string."""
-        return ipa.replace(".", "")
+        return ipa.replace(self.syllable_break, "")
 
     def normalize_stress_to_syllable(
         self, ipa: str, keep_syllables: bool = False
@@ -466,19 +444,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             keep_syllables: If True, preserve syllable breaks in output.
                            If False (default), strip all syllable breaks.
         """
-        PRIMARY = "ˈ"
-        SECONDARY = "ˌ"
-        SYLLABLE_BREAK = "."
-
         result = list(ipa)
         i = 0
 
         while i < len(result):
             char = result[i]
 
-            if char in (PRIMARY, SECONDARY):
+            if char in self.stress_markers:
                 # Check if preceded by syllable break (vowel-initial syllable)
-                if i > 0 and result[i - 1] == SYLLABLE_BREAK:
+                if i > 0 and result[i - 1] == self.syllable_break:
                     if not keep_syllables:
                         # Remove the redundant . before stress (stress serves as boundary)
                         result.pop(i - 1)
@@ -494,7 +468,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
                 # Find the preceding syllable break or start
                 j = i - 1
-                while j >= 0 and result[j] != SYLLABLE_BREAK:
+                while j >= 0 and result[j] != self.syllable_break:
                     j -= 1
 
                 # Remove stress from current position
@@ -513,8 +487,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # Remove leading . if followed by stress marker (from word-initial stressed vowel)
         if (
             len(result) >= 2
-            and result[0] == SYLLABLE_BREAK
-            and result[1] in (PRIMARY, SECONDARY)
+            and result[0] == self.syllable_break
+            and result[1] in self.stress_markers
         ):
             result.pop(0)
 
@@ -522,7 +496,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         # Strip syllable breaks unless explicitly kept
         if not keep_syllables:
-            output = output.replace(SYLLABLE_BREAK, "")
+            output = output.replace(self.syllable_break, "")
 
         return output
 
@@ -641,6 +615,32 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if "manner" not in self.features:
             return frozenset()
         return frozenset(self.features["manner"].values_set - {"silence", "vowel"})
+
+    @functools.cached_property
+    def stress_markers(self) -> dict[str, int]:
+        """Stress marker chars -> level, from the `stress` feature (short = level)."""
+        markers: dict[str, int] = {}
+        for sym, supra in self.diacritics.items():
+            value = supra.features.get("stress")
+            if value is None:
+                continue
+            short = self._feature_to_short.get(("stress", value))
+            if short is not None and short.isdigit():
+                markers[sym] = int(short)
+        return markers
+
+    @functools.cached_property
+    def stress_to_marker(self) -> dict[int, str]:
+        """Stress level -> marker char (inverse of stress_markers)."""
+        return {level: sym for sym, level in self.stress_markers.items()}
+
+    @functools.cached_property
+    def syllable_break(self) -> str:
+        """Syllable-boundary char (the separator declared at level 'syllable')."""
+        for sym, sep in self.separators.items():
+            if sep.features.get("level") == "syllable":
+                return sym
+        return "."
 
     # -------------------------------------------------------------------------
     # Dunder methods

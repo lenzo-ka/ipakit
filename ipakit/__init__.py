@@ -27,7 +27,6 @@ from .constants import (
     DEFAULT_CMU_MAP,
     DEFAULT_IPA_FEATS,
     PHONEMAPS_DIR,
-    STRESS_MARKERS,
     TIE_BAR,
 )
 from .distance import WordDistanceResult
@@ -437,7 +436,6 @@ __all__ = [
     "DEFAULT_CMU_MAP",
     "DEFAULT_IPA_FEATS",
     "PHONEMAPS_DIR",
-    "STRESS_MARKERS",
     "TIE_BAR",
     # Functions
     "add_ties",

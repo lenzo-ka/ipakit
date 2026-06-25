@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._tokenize import longest_match, require_convertible
+from ._convert import convert_greedy, require_convertible
 from .constants import PHONEMAPS_DIR, TIE_BAR
 
 
@@ -78,24 +78,7 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
     """
     ipa_to_target, _ = _load_phonemap(phonemap)
     ipa = _normalize_for_map(ipa, ipa_to_target)
-
-    result = []
-    skipped = []
-    i = 0
-
-    while i < len(ipa):
-        key, length = longest_match(ipa, i, ipa_to_target, 6)
-        if key:
-            result.append(ipa_to_target[key])
-            i += length
-        else:
-            # Skip unknown characters (stress markers, etc.)
-            skipped.append(ipa[i])
-            i += 1
-
-    if strict:
-        require_convertible(skipped, f"IPA -> {phonemap}")
-    return result
+    return convert_greedy(ipa, ipa_to_target, strict=strict, what=f"IPA -> {phonemap}")
 
 
 def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> str:
@@ -189,21 +172,6 @@ def from_kirshenbaum(text: str, strict: bool = False) -> str:
         'kæt'
     """
     _, target_to_ipa = _load_phonemap("kirshenbaum")
-
-    result = []
-    skipped = []
-    i = 0
-
-    while i < len(text):
-        # Some Kirshenbaum symbols are multi-char, so take the longest match.
-        key, length = longest_match(text, i, target_to_ipa, 8)
-        if key:
-            result.append(target_to_ipa[key])
-            i += length
-        else:
-            skipped.append(text[i])
-            i += 1
-
-    if strict:
-        require_convertible(skipped, "Kirshenbaum -> IPA")
-    return "".join(result)
+    return "".join(
+        convert_greedy(text, target_to_ipa, strict=strict, what="Kirshenbaum -> IPA")
+    )

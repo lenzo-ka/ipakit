@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ._base import IPAFeaturesBase
-from ._tokenize import longest_match
+from ._convert import longest_match
 from .constants import METADATA_ATTRS, TIE_BAR
 
 # Feature ordering for description generation (most salient first)
@@ -251,12 +251,20 @@ class AnalysisMixin(IPAFeaturesBase):
         ipa = self.expand_ligatures(ipa)
 
         # Known symbols
-        known_phones = set(self.phones.keys())
-        known_diacritics = set(self.diacritics.keys())
-        # Stress markers are in diacritics but should be handled specially
-        stress_markers = {"ˈ", "ˌ"}
-        # Suprasegmentals that don't require a preceding phone
-        suprasegmentals = stress_markers | {".", " ", "ː", "ˑ", "|", "‖"}
+        known_phones = set(self.phones)
+        known_diacritics = {
+            s
+            for s, p in self.diacritics.items()
+            if p.features.get("class") == "diacritic"
+        }
+        suprasegmentals = {
+            s
+            for s, p in self.diacritics.items()
+            if p.features.get("class") == "suprasegmental"
+        }
+        # Stress, length, tone, breaks, separators, and space stand alone (no
+        # base phone required). The tie bar is a suprasegmental but checked below.
+        standalone = (suprasegmentals | set(self.separators) | {" "}) - {TIE_BAR}
 
         i = 0
         last_was_phone = False
@@ -277,8 +285,8 @@ class AnalysisMixin(IPAFeaturesBase):
                 i += matched_len
                 continue
 
-            # Check for suprasegmentals (stress, length, breaks) - these don't need a base
-            if char in suprasegmentals:
+            # Standalone symbols (stress, length, tone, breaks, separators)
+            if char in standalone:
                 # These are valid on their own or after phones
                 last_was_phone = False
                 current_segment_diacritics = set()
@@ -287,10 +295,6 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Check for diacritics (modifiers that require a base phone)
             if char in known_diacritics:
-                # Skip suprasegmentals that are also in diacritics
-                if char in suprasegmentals:
-                    i += 1
-                    continue
                 if not last_was_phone:
                     issues.append(
                         {
@@ -313,13 +317,6 @@ class AnalysisMixin(IPAFeaturesBase):
                     )
                 else:
                     current_segment_diacritics.add(char)
-                i += 1
-                continue
-
-            # Check for stress/syllable markers (legacy check, mostly handled above)
-            if char in stress_markers | {".", " "}:
-                last_was_phone = False
-                current_segment_diacritics = set()
                 i += 1
                 continue
 

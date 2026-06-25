@@ -157,11 +157,22 @@ class TestAliases:
         assert "ʧ" in ipa.ligature_map
         assert ipa.ligature_map["ʧ"] == "t͡ʃ"
 
-    def test_tie_normalizations_derived(self, ipa: IPAFeatures) -> None:
-        # Tie normalizations should be derived from phones with tie bars
-        assert len(ipa.tie_normalizations) > 0
-        # e.g., "tʃ" -> "t͡ʃ"
-        untied_forms = [frm for frm, _ in ipa.tie_normalizations]
-        tied_forms = [to for _, to in ipa.tie_normalizations]
-        assert all("͡" not in frm for frm in untied_forms)
-        assert all("͡" in to for to in tied_forms)
+
+class TestDerivedInventory:
+    """Inventory pieces derived from ipa.xml (no hard-coded symbol tables)."""
+
+    @pytest.fixture
+    def ipa(self) -> IPAFeatures:
+        return IPAFeatures()
+
+    def test_separators_loaded(self, ipa: IPAFeatures) -> None:
+        # '.' (syllable) and '#' (word) are separators, not phones.
+        assert "." in ipa.separators
+        assert "#" in ipa.separators
+        assert "." not in ipa.phones
+
+    def test_syllable_break_derived(self, ipa: IPAFeatures) -> None:
+        assert ipa.syllable_break == "."
+
+    def test_stress_to_marker_inverts(self, ipa: IPAFeatures) -> None:
+        assert ipa.stress_to_marker == {1: "ˈ", 2: "ˌ"}

@@ -5,9 +5,14 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ._tokenize import longest_match, require_convertible
-from .constants import DEFAULT_CMU_MAP, STRESS_MARKERS, STRESS_TO_MARKER, TIE_BAR
+from ._convert import longest_match, require_convertible
+from .constants import DEFAULT_CMU_MAP, TIE_BAR
 from .models import PhoneMapping
+
+# CMU/ARPABET stress: IPA marker -> level digit (0/1/2). ARPABET-specific; the
+# canonical stress inventory lives in ipa.xml's `stress` feature.
+_STRESS_MARKERS = {"ˈ": 1, "ˌ": 2}
+_STRESS_TO_MARKER = {level: marker for marker, level in _STRESS_MARKERS.items()}
 
 
 class CMUMapper:
@@ -57,6 +62,12 @@ class CMUMapper:
             ipa = ipa.replace(old, new)
         return ipa
 
+    def _ipa_lookup(self, include_extras: bool) -> dict[str, PhoneMapping]:
+        """IPA->mapping lookup; extras are a fallback, the main map wins."""
+        if include_extras:
+            return {**self._extras_ipa_to_cmu, **self._ipa_to_cmu}
+        return self._ipa_to_cmu
+
     def ipa_to_cmu(
         self,
         ipa_string: str,
@@ -84,17 +95,12 @@ class CMUMapper:
         i = 0
         pending_stress = None
 
-        # extras (when enabled) are a fallback; main map wins on key collisions
-        lookup = (
-            {**self._extras_ipa_to_cmu, **self._ipa_to_cmu}
-            if include_extras
-            else self._ipa_to_cmu
-        )
+        lookup = self._ipa_lookup(include_extras)
 
         while i < len(ipa_string):
             char = ipa_string[i]
-            if char in STRESS_MARKERS:
-                pending_stress = STRESS_MARKERS[char]
+            if char in _STRESS_MARKERS:
+                pending_stress = _STRESS_MARKERS[char]
                 i += 1
                 continue
 
@@ -136,15 +142,11 @@ class CMUMapper:
         ipa_string = self._normalize_ipa(ipa_string)
         i = 0
 
-        lookup = (
-            {**self._extras_ipa_to_cmu, **self._ipa_to_cmu}
-            if include_extras
-            else self._ipa_to_cmu
-        )
+        lookup = self._ipa_lookup(include_extras)
 
         while i < len(ipa_string):
             char = ipa_string[i]
-            if char in STRESS_MARKERS:
+            if char in _STRESS_MARKERS:
                 i += 1
                 continue
 
@@ -188,7 +190,7 @@ class CMUMapper:
                 or stress_map.get(0)
                 or next(iter(stress_map.values()))
             )
-            if marker := STRESS_TO_MARKER.get(stress):
+            if marker := _STRESS_TO_MARKER.get(stress):
                 result.append(f"{marker}{ipa}")
             else:
                 result.append(ipa)

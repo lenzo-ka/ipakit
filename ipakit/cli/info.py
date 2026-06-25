@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 
-from ..constants import STRESS_MARKERS
 from .base import Command, CommandGroup, add_format_arg
 
 
@@ -39,11 +38,11 @@ class StressCommand(Command):
 
     def run(self) -> int:
         if self.format == "json":
-            self.output_json(STRESS_MARKERS)
+            self.output_json(self.ipa.stress_markers)
         else:
             print("IPA STRESS MARKERS")
             print("-" * 40)
-            for marker, level in STRESS_MARKERS.items():
+            for marker, level in self.ipa.stress_markers.items():
                 name = "primary" if level == 1 else "secondary"
                 codepoint = f"U+{ord(marker):04X}"
                 print(f"  {marker}  {name:12}  level {level}  ({codepoint})")

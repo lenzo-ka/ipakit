@@ -1,7 +1,7 @@
 """Tests for data models."""
 
-from ipakit import Feature, Phone, Phoneset
-from ipakit.constants import STRESS_MARKERS, TIE_BAR
+from ipakit import Feature, IPAFeatures, Phone, Phoneset
+from ipakit.constants import TIE_BAR
 
 
 class TestFeatureModel:
@@ -92,8 +92,6 @@ class TestConstants:
     def test_tie_bar_value(self) -> None:
         assert TIE_BAR == "\u0361"
 
-    def test_stress_markers(self) -> None:
-        assert STRESS_MARKERS == {"ˈ": 1, "ˌ": 2}
-        assert "ˈ" in STRESS_MARKERS
-        assert STRESS_MARKERS["ˈ"] == 1
-        assert STRESS_MARKERS["ˌ"] == 2
+    def test_stress_markers_derived(self) -> None:
+        # Derived from ipa.xml's `stress` feature (value shorts are the levels).
+        assert IPAFeatures().stress_markers == {"ˈ": 1, "ˌ": 2}

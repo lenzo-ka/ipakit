@@ -13,7 +13,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._tokenize import longest_match, require_convertible
+from ._convert import convert_greedy
 from .constants import PHONEMAPS_DIR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -35,32 +35,6 @@ def _maps() -> tuple[dict[str, str], dict[str, str]]:
     return xs2ipa, ipa2xs
 
 
-def _convert(text: str, lookup: dict[str, str], strict: bool, what: str) -> str:
-    """Greedy longest-match conversion of ``text`` via ``lookup``.
-
-    Unknown characters are skipped by default; with ``strict=True`` they raise
-    ``ValueError`` instead.
-    """
-    if not lookup:
-        return ""
-    max_len = max(len(k) for k in lookup)
-    out: list[str] = []
-    skipped: list[str] = []
-    i = 0
-    n = len(text)
-    while i < n:
-        key, length = longest_match(text, i, lookup, max_len)
-        if key:
-            out.append(lookup[key])
-            i += length
-        else:
-            skipped.append(text[i])
-            i += 1
-    if strict:
-        require_convertible(skipped, what)
-    return "".join(out)
-
-
 def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     """Convert an X-SAMPA string to IPA (greedy longest-match).
 
@@ -68,7 +42,7 @@ def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     converted instead of skipping them.
     """
     xs2ipa, _ = _maps()
-    return _convert(xsampa, xs2ipa, strict, "X-SAMPA -> IPA")
+    return "".join(convert_greedy(xsampa, xs2ipa, strict=strict, what="X-SAMPA -> IPA"))
 
 
 def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
@@ -78,4 +52,4 @@ def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     converted instead of skipping them.
     """
     _, ipa2xs = _maps()
-    return _convert(ipa, ipa2xs, strict, "IPA -> X-SAMPA")
+    return "".join(convert_greedy(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA"))
