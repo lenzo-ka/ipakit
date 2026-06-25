@@ -1,11 +1,14 @@
-"""Shared greedy longest-match scanner for IPA/symbol tokenization.
+"""Shared tokenization/conversion helpers.
 
-Several converters (feature parsing, stress normalization, IPA validation, CMU
-and phonemap conversion) all walk a string left to right, taking the longest
-substring that is a key in some lookup. This is that one loop, extracted.
+Several converters (feature parsing, stress normalization, IPA validation, CMU,
+X-SAMPA and phonemap conversion) all walk a string left to right, taking the
+longest substring that is a key in some lookup. That one loop is ``longest_match``.
+
+They also share an opt-in ``strict`` error policy: collect the symbols that could
+not be converted and, when strict, raise via ``require_convertible``.
 
 Per-site state (diacritic collection, stress handling, validation tracking)
-stays in the caller; only the match step is shared.
+stays in the caller; only these shared steps live here.
 """
 
 from __future__ import annotations
@@ -13,6 +16,17 @@ from __future__ import annotations
 from collections.abc import Collection
 
 from .constants import TIE_BAR
+
+
+def require_convertible(skipped: list[str], what: str) -> None:
+    """Raise ``ValueError`` if any input symbols could not be converted.
+
+    Used by converters called with ``strict=True``. ``what`` names the
+    conversion, e.g. ``"to CMU ARPABET"`` or ``"IPA -> X-SAMPA"``.
+    """
+    if skipped:
+        unknown = sorted(set(skipped))
+        raise ValueError(f"Cannot convert {what}: unknown symbols {unknown}")
 
 
 def longest_match(

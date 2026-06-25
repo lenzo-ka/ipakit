@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._tokenize import longest_match
+from ._tokenize import longest_match, require_convertible
 from .constants import PHONEMAPS_DIR, TIE_BAR
 
 
@@ -64,12 +64,14 @@ def _normalize_for_map(ipa: str, ipa_to_target: dict[str, str]) -> str:
     return ipa
 
 
-def ipa_to_phonemap(ipa: str, phonemap: str) -> list[str]:
+def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
     """Convert IPA string to target phonemap symbols.
 
     Args:
         ipa: IPA string to convert
         phonemap: Name of phonemap ("timit", "kirshenbaum")
+        strict: If True, raise ValueError for unconvertible symbols instead of
+            skipping them.
 
     Returns:
         List of target symbols
@@ -78,6 +80,7 @@ def ipa_to_phonemap(ipa: str, phonemap: str) -> list[str]:
     ipa = _normalize_for_map(ipa, ipa_to_target)
 
     result = []
+    skipped = []
     i = 0
 
     while i < len(ipa):
@@ -87,17 +90,22 @@ def ipa_to_phonemap(ipa: str, phonemap: str) -> list[str]:
             i += length
         else:
             # Skip unknown characters (stress markers, etc.)
+            skipped.append(ipa[i])
             i += 1
 
+    if strict:
+        require_convertible(skipped, f"IPA -> {phonemap}")
     return result
 
 
-def phonemap_to_ipa(symbols: list[str], phonemap: str) -> str:
+def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> str:
     """Convert phonemap symbols to IPA string.
 
     Args:
         symbols: List of phonemap symbols
         phonemap: Name of phonemap ("timit", "kirshenbaum")
+        strict: If True, raise ValueError for unknown symbols instead of
+            skipping them.
 
     Returns:
         IPA string
@@ -105,22 +113,27 @@ def phonemap_to_ipa(symbols: list[str], phonemap: str) -> str:
     _, target_to_ipa = _load_phonemap(phonemap)
 
     result = []
+    skipped = []
     for symbol in symbols:
         if symbol in target_to_ipa:
             result.append(target_to_ipa[symbol])
-        # Skip unknown symbols
+        else:
+            skipped.append(symbol)
 
+    if strict:
+        require_convertible(skipped, f"{phonemap} -> IPA")
     return "".join(result)
 
 
 # --- TIMIT-specific functions ---
 
 
-def to_timit(ipa: str) -> list[str]:
+def to_timit(ipa: str, strict: bool = False) -> list[str]:
     """Convert IPA string to TIMIT phoneset symbols.
 
     TIMIT uses a 61-phone set with lowercase symbols.
-    Commonly used in speech recognition research.
+    Commonly used in speech recognition research. With ``strict=True``, raise
+    ``ValueError`` on unconvertible symbols instead of skipping them.
 
     Examples:
         >>> to_timit("kæt")
@@ -128,27 +141,30 @@ def to_timit(ipa: str) -> list[str]:
         >>> to_timit("hɛloʊ")
         ['hh', 'eh', 'l', 'ow']
     """
-    return ipa_to_phonemap(ipa, "timit")
+    return ipa_to_phonemap(ipa, "timit", strict=strict)
 
 
-def from_timit(symbols: list[str]) -> str:
+def from_timit(symbols: list[str], strict: bool = False) -> str:
     """Convert TIMIT phoneset symbols to IPA string.
+
+    With ``strict=True``, raise ``ValueError`` on unknown symbols.
 
     Examples:
         >>> from_timit(["k", "ae", "t"])
         'kæt'
     """
-    return phonemap_to_ipa(symbols, "timit")
+    return phonemap_to_ipa(symbols, "timit", strict=strict)
 
 
 # --- Kirshenbaum-specific functions ---
 
 
-def to_kirshenbaum(ipa: str) -> str:
+def to_kirshenbaum(ipa: str, strict: bool = False) -> str:
     """Convert IPA string to Kirshenbaum ASCII-IPA notation.
 
-    Kirshenbaum is an ASCII representation of IPA for plain text.
-    Uses uppercase for IPA extensions and special character combinations.
+    Kirshenbaum is an ASCII representation of IPA for plain text. Uses uppercase
+    for IPA extensions and special character combinations. With ``strict=True``,
+    raise ``ValueError`` on unconvertible symbols instead of skipping them.
 
     Examples:
         >>> to_kirshenbaum("ʃɑk")
@@ -156,14 +172,15 @@ def to_kirshenbaum(ipa: str) -> str:
         >>> to_kirshenbaum("kæt")
         'k&t'
     """
-    symbols = ipa_to_phonemap(ipa, "kirshenbaum")
+    symbols = ipa_to_phonemap(ipa, "kirshenbaum", strict=strict)
     return "".join(symbols)
 
 
-def from_kirshenbaum(text: str) -> str:
+def from_kirshenbaum(text: str, strict: bool = False) -> str:
     """Convert Kirshenbaum ASCII-IPA notation to IPA string.
 
-    Parses Kirshenbaum notation and converts to proper IPA Unicode.
+    Parses Kirshenbaum notation and converts to proper IPA Unicode. With
+    ``strict=True``, raise ``ValueError`` on unknown symbols instead of skipping.
 
     Examples:
         >>> from_kirshenbaum("SAk")
@@ -174,6 +191,7 @@ def from_kirshenbaum(text: str) -> str:
     _, target_to_ipa = _load_phonemap("kirshenbaum")
 
     result = []
+    skipped = []
     i = 0
 
     while i < len(text):
@@ -183,7 +201,9 @@ def from_kirshenbaum(text: str) -> str:
             result.append(target_to_ipa[key])
             i += length
         else:
-            # Keep unknown characters as-is
+            skipped.append(text[i])
             i += 1
 
+    if strict:
+        require_convertible(skipped, "Kirshenbaum -> IPA")
     return "".join(result)

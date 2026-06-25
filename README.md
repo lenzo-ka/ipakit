@@ -58,6 +58,14 @@ ipakit.to_kirshenbaum("kæt")       # 'k&t'
 ipakit.to_timit("kæt")             # ['k', 'ae', 't']
 ```
 
+By default converters skip symbols they can't map. Pass `strict=True` to any of
+them to raise `ValueError` on unconvertible input instead:
+
+```python
+ipakit.to_cmu("k4t")                # ['K', 'T']  (the '4' is skipped)
+ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert to CMU ARPABET: ...
+```
+
 ## Conventions
 
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable

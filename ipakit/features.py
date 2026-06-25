@@ -609,21 +609,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # X-SAMPA conversion
     # -------------------------------------------------------------------------
 
-    def ipa_to_xsampa(self, ipa: str) -> str:
+    def ipa_to_xsampa(self, ipa: str, strict: bool = False) -> str:
         """Convert an IPA string to X-SAMPA notation.
 
         Delegates to :mod:`ipakit.xsampa`, the single source of truth for the
-        IPA <-> X-SAMPA table (``data/phonemaps/xsampa.xml``).
+        IPA <-> X-SAMPA table (``data/phonemaps/xsampa.xml``). With
+        ``strict=True``, raise ``ValueError`` on unconvertible symbols.
         """
         from .xsampa import ipa_to_xsampa
 
-        return ipa_to_xsampa(ipa)
+        return ipa_to_xsampa(ipa, strict=strict)
 
-    def xsampa_to_ipa(self, xsampa: str) -> str:
+    def xsampa_to_ipa(self, xsampa: str, strict: bool = False) -> str:
         """Convert an X-SAMPA string to IPA. See :meth:`ipa_to_xsampa`."""
         from .xsampa import xsampa_to_ipa
 
-        return xsampa_to_ipa(xsampa)
+        return xsampa_to_ipa(xsampa, strict=strict)
 
     # -------------------------------------------------------------------------
     # Derived properties

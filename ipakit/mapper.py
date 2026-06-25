@@ -5,7 +5,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ._tokenize import longest_match
+from ._tokenize import longest_match, require_convertible
 from .constants import DEFAULT_CMU_MAP, STRESS_MARKERS, STRESS_TO_MARKER, TIE_BAR
 from .models import PhoneMapping
 
@@ -120,11 +120,8 @@ class CMUMapper:
                 skipped.append(ipa_string[i])
                 i += 1
 
-        if strict and skipped:
-            unique_skipped = sorted(set(skipped))
-            raise ValueError(
-                f"Cannot convert to CMU ARPABET: unknown phones {unique_skipped}"
-            )
+        if strict:
+            require_convertible(skipped, "to CMU ARPABET")
 
         return result
 
@@ -160,9 +157,19 @@ class CMUMapper:
 
         return skipped
 
-    def cmu_to_ipa(self, cmu_symbols: list[str], include_extras: bool = True) -> str:
-        """Convert list of CMU symbols to IPA string."""
+    def cmu_to_ipa(
+        self,
+        cmu_symbols: list[str],
+        include_extras: bool = True,
+        strict: bool = False,
+    ) -> str:
+        """Convert list of CMU symbols to IPA string.
+
+        With ``strict=True``, raise ``ValueError`` on unknown CMU symbols
+        instead of skipping them.
+        """
         result = []
+        skipped = []
         for symbol in cmu_symbols:
             stress, base = -1, symbol
             if symbol and symbol[-1].isdigit():
@@ -172,6 +179,7 @@ class CMUMapper:
             if stress_map is None and include_extras:
                 stress_map = self._extras_cmu_to_ipa.get(base)
             if stress_map is None:
+                skipped.append(symbol)
                 continue
 
             ipa = (
@@ -185,6 +193,8 @@ class CMUMapper:
             else:
                 result.append(ipa)
 
+        if strict:
+            require_convertible(skipped, "CMU ARPABET -> IPA")
         return "".join(result)
 
     def get_cmu_symbols(self, include_extras: bool = False) -> set[str]:

@@ -143,17 +143,33 @@ def features_from_xsampa(
 
 
 def to_cmu(
-    ipa_string: str, with_stress: bool = True, include_extras: bool = False
+    ipa_string: str,
+    with_stress: bool = True,
+    include_extras: bool = False,
+    strict: bool = False,
 ) -> list[str]:
-    """Convert IPA string to list of CMU ARPABET symbols."""
+    """Convert IPA string to list of CMU ARPABET symbols.
+
+    With ``strict=True``, raise ``ValueError`` on unconvertible phones.
+    """
     return _get_cmu().ipa_to_cmu(
-        ipa_string, with_stress=with_stress, include_extras=include_extras
+        ipa_string,
+        with_stress=with_stress,
+        include_extras=include_extras,
+        strict=strict,
     )
 
 
-def to_ipa(cmu_symbols: list[str], include_extras: bool = True) -> str:
-    """Convert list of CMU ARPABET symbols to IPA string."""
-    return _get_cmu().cmu_to_ipa(cmu_symbols, include_extras=include_extras)
+def to_ipa(
+    cmu_symbols: list[str], include_extras: bool = True, strict: bool = False
+) -> str:
+    """Convert list of CMU ARPABET symbols to IPA string.
+
+    With ``strict=True``, raise ``ValueError`` on unknown CMU symbols.
+    """
+    return _get_cmu().cmu_to_ipa(
+        cmu_symbols, include_extras=include_extras, strict=strict
+    )
 
 
 # --- Tokenization & Normalization ---

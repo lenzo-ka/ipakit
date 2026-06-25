@@ -13,7 +13,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._tokenize import longest_match
+from ._tokenize import longest_match, require_convertible
 from .constants import PHONEMAPS_DIR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -35,16 +35,17 @@ def _maps() -> tuple[dict[str, str], dict[str, str]]:
     return xs2ipa, ipa2xs
 
 
-def _convert(text: str, lookup: dict[str, str]) -> str:
+def _convert(text: str, lookup: dict[str, str], strict: bool, what: str) -> str:
     """Greedy longest-match conversion of ``text`` via ``lookup``.
 
-    Unknown characters are skipped (mirrors the historical behavior of the
-    X-SAMPA converters).
+    Unknown characters are skipped by default; with ``strict=True`` they raise
+    ``ValueError`` instead.
     """
     if not lookup:
         return ""
     max_len = max(len(k) for k in lookup)
     out: list[str] = []
+    skipped: list[str] = []
     i = 0
     n = len(text)
     while i < n:
@@ -53,17 +54,28 @@ def _convert(text: str, lookup: dict[str, str]) -> str:
             out.append(lookup[key])
             i += length
         else:
-            i += 1  # skip unknown character
+            skipped.append(text[i])
+            i += 1
+    if strict:
+        require_convertible(skipped, what)
     return "".join(out)
 
 
-def xsampa_to_ipa(xsampa: str) -> str:
-    """Convert an X-SAMPA string to IPA (greedy longest-match)."""
+def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
+    """Convert an X-SAMPA string to IPA (greedy longest-match).
+
+    With ``strict=True``, raise ``ValueError`` on symbols that cannot be
+    converted instead of skipping them.
+    """
     xs2ipa, _ = _maps()
-    return _convert(xsampa, xs2ipa)
+    return _convert(xsampa, xs2ipa, strict, "X-SAMPA -> IPA")
 
 
-def ipa_to_xsampa(ipa: str) -> str:
-    """Convert an IPA string to X-SAMPA (greedy longest-match)."""
+def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
+    """Convert an IPA string to X-SAMPA (greedy longest-match).
+
+    With ``strict=True``, raise ``ValueError`` on symbols that cannot be
+    converted instead of skipping them.
+    """
     _, ipa2xs = _maps()
-    return _convert(ipa, ipa2xs)
+    return _convert(ipa, ipa2xs, strict, "IPA -> X-SAMPA")
