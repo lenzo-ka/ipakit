@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Keep GitHub Actions (checkout, setup-python, pypi-publish, ...) current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+
+  # ipakit has zero runtime deps; this tracks the dev/test/lint tool floors.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps

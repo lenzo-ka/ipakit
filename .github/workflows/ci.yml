@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint (ruff / black / mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[lint]"
+      - run: ruff check ipakit tests scripts
+      - run: black --check ipakit tests scripts
+      - run: mypy --config-file=pyproject.toml
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --upgrade pip
+      # Test extra is pure-stdlib: the icukit-backed X-SAMPA cross-check
+      # self-skips (importorskip); the confusion-matrix guard is stdlib and runs.
+      - run: pip install -e ".[test]"
+      - run: pytest
+
+  guards:
+    name: derived-artifact guards (ICU)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --upgrade pip
+      # dev pulls icukit (bundled-ICU wheel) so the X-SAMPA table can be derived.
+      - run: pip install -e ".[dev]"
+      - name: X-SAMPA table matches ICU + overrides
+        run: python scripts/xsampa_table.py validate
+      - name: Confusion matrix matches the metric
+        run: python scripts/confusion.py validate
+      - name: ICU cross-check tests (skipped in the matrix job)
+        run: pytest tests/test_xsampa.py

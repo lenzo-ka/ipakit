@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "ipakit"
 version = "0.1.0"
 description = "IPA phonetic toolkit"
+readme = "README.md"
 authors = [
     {name = "Kevin Lenzo"}
 ]
@@ -20,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Human Machine Interfaces",
     "Topic :: Text Processing :: Linguistic",
     "Typing :: Typed",
@@ -28,14 +30,22 @@ keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "ar
 dependencies = []
 
 [project.optional-dependencies]
-# icukit (ICU transliteration) is dev-only: it powers scripts/xsampa_table.py
-# (table generation/validation) and the X-SAMPA cross-check tests. It is NOT
-# imported at runtime — ipakit ships the generated table in data/phonemaps/.
-dev = ["pytest>=7.0", "ruff>=0.1", "mypy>=1.0", "icukit>=0.1.2"]
+# Split so each CI job installs only what it needs:
+#   test - run the suite (pure stdlib; the ICU cross-check self-skips)
+#   lint - ruff / black / mypy (pinned to the pre-commit style year)
+#   icu  - icukit (ICU transliteration), shipped as a bundled-ICU wheel; powers
+#          scripts/xsampa_table.py and the X-SAMPA cross-check. Dev-only, NEVER
+#          imported at runtime (ipakit ships the generated table in data/).
+#   dev  - everything, for local development.
+test = ["pytest>=7.0"]
+lint = ["ruff>=0.15", "mypy>=2.1", "black>=26.5,<27"]
+icu = ["icukit>=0.1.2"]
+dev = ["ipakit[test,lint,icu]"]
 
 [project.urls]
-Homepage = "https://github.com/lenzo/ipakit"
-Repository = "https://github.com/lenzo/ipakit"
+Homepage = "https://github.com/lenzo-ka/ipakit"
+Repository = "https://github.com/lenzo-ka/ipakit"
+Issues = "https://github.com/lenzo-ka/ipakit/issues"
 
 [project.scripts]
 ipakit = "ipakit.cli:main"
