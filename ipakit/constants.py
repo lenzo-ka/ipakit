@@ -8,6 +8,15 @@ PHONEMAPS_DIR = DATA_DIR / "phonemaps"
 DEFAULT_CMU_MAP = PHONEMAPS_DIR / "cmu.xml"
 DEFAULT_LOOKALIKES = PHONEMAPS_DIR / "lookalikes.xml"
 
+# Attributes stored on phones/diacritics that are structural metadata, NOT
+# phonetic features. These are excluded from natural-class intersection and
+# from validation of declared feature values.
+#   name   - the symbol itself (stripped during load, but guard anyway)
+#   class  - structural element type (phone/diacritic/suprasegmental)
+#   href   - Wikipedia article slug for the symbol
+#   xsampa - X-SAMPA encoding of the symbol
+METADATA_ATTRS = frozenset({"name", "class", "href", "xsampa"})
+
 TIE_BAR = "\u0361"  # ͡
 
 STRESS_MARKERS = {"ˈ": 1, "ˌ": 2}

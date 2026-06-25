@@ -1,7 +1,6 @@
 """Tests for IPAFeatures class - loading and basic operations."""
 
 import pytest
-
 from ipakit import IPAFeatures
 
 

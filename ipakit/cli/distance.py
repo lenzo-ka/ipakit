@@ -142,8 +142,8 @@ class MatrixCommand(Command):
         elif self.format == "tsv":
             print("\t" + "\t".join(phones))
             for i, p1 in enumerate(phones):
-                row = [f"{matrix[i][j]:.3f}" for j in range(len(phones))]
-                print(f"{p1}\t" + "\t".join(row))
+                cells = [f"{matrix[i][j]:.3f}" for j in range(len(phones))]
+                print(f"{p1}\t" + "\t".join(cells))
         else:
             width = max(len(p) for p in phones)
             header = " " * (width + 1) + "  ".join(p.center(5) for p in phones)

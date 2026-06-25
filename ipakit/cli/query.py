@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
 from ..constants import MAX_EXAMPLE_PHONES
+from ..models import Feature
 from .base import (
     Command,
     CommandGroup,
@@ -123,7 +125,7 @@ class ListCommand(Command):
             # Include aliases in JSON output
             result = []
             for p in sorted(phones):
-                entry = {"name": p}
+                entry: dict[str, Any] = {"name": p}
                 if aliases := self.get_aliases(p):
                     entry["aliases"] = aliases
                 result.append(entry)
@@ -214,9 +216,11 @@ class FeaturesListCommand(Command):
         add_format_arg(parser)
         add_output_arg(parser)
 
-    def _build_feature_data(self, feat, include_examples: bool = False) -> dict:
+    def _build_feature_data(
+        self, feat: Feature, include_examples: bool = False
+    ) -> dict[str, Any]:
         """Build a data dict for a feature."""
-        data = {
+        data: dict[str, Any] = {
             "name": feat.name,
             "desc": feat.desc,
             "type": feat.type,

@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .features import IPAFeatures
-
+from ._base import IPAFeaturesBase
+from .constants import METADATA_ATTRS
 
 # Feature ordering for description generation (most salient first)
 _CONSONANT_DESC_ORDER = ["voiced", "place", "manner"]
@@ -16,7 +13,7 @@ _VOWEL_DESC_ORDER = ["height", "backness", "rounded"]
 _SKIP_FEATURES = {"class", "href", "xsampa", "airstream"}
 
 # Binary feature labels for descriptions
-_BINARY_LABELS = {
+_BINARY_LABELS: dict[str, dict[str, str | None]] = {
     "voiced": {"+": "voiced", "-": "voiceless"},
     "rounded": {"+": "rounded", "-": "unrounded"},
     "lateral": {"+": "lateral", "-": None},
@@ -26,10 +23,10 @@ _BINARY_LABELS = {
 }
 
 
-class AnalysisMixin:
+class AnalysisMixin(IPAFeaturesBase):
     """Mixin providing phonetic analysis functions."""
 
-    def describe(self: IPAFeatures, phone: str, with_defaults: bool = True) -> str:
+    def describe(self, phone: str, with_defaults: bool = True) -> str:
         """Generate human-readable IPA description for a phone.
 
         Examples:
@@ -88,7 +85,7 @@ class AnalysisMixin:
         return " ".join(parts)
 
     def natural_class(
-        self: IPAFeatures,
+        self,
         phones: list[str],
         with_defaults: bool = True,
         exclude_features: set[str] | None = None,
@@ -109,7 +106,7 @@ class AnalysisMixin:
         if not phones:
             return {}
 
-        exclude = exclude_features or {"class", "href", "xsampa"}
+        exclude = exclude_features or set(METADATA_ATTRS)
 
         # Get features for all phones
         all_feats = [self.get_features(p, with_defaults=with_defaults) for p in phones]
@@ -132,11 +129,11 @@ class AnalysisMixin:
         return shared
 
     def minimal_pairs(
-        self: IPAFeatures,
+        self,
         phone: str,
         with_defaults: bool = True,
         max_distance: float = 0.3,
-    ) -> list[tuple[str, str, str]]:
+    ) -> list[tuple[str, str, str | None]]:
         """Find phones that differ by approximately one feature (minimal pairs).
 
         Returns list of (phone, differing_feature, differing_value) tuples,
@@ -172,7 +169,7 @@ class AnalysisMixin:
             # Find the differing features
             diffs = []
             for feat in ref_feats:
-                if feat in ("class", "href", "xsampa"):
+                if feat in METADATA_ATTRS:
                     continue
                 ref_val = ref_feats.get(feat)
                 cand_val = cand_feats.get(feat)
@@ -192,7 +189,7 @@ class AnalysisMixin:
         return [(p, f, v) for p, f, v, _ in results]
 
     def nearest_phones(
-        self: IPAFeatures,
+        self,
         phone: str,
         n: int = 10,
         with_defaults: bool = True,
@@ -220,7 +217,7 @@ class AnalysisMixin:
         return distances[:n]
 
     def validate_ipa(
-        self: IPAFeatures,
+        self,
         ipa: str,
         strict: bool = False,
     ) -> list[dict[str, str]]:
@@ -373,7 +370,7 @@ class AnalysisMixin:
 
         return issues
 
-    def is_valid_ipa(self: IPAFeatures, ipa: str) -> bool:
+    def is_valid_ipa(self, ipa: str) -> bool:
         """Check if an IPA string is valid (no errors).
 
         Returns True if the string has no validation errors.

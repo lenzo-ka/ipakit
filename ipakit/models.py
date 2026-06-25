@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -110,9 +111,9 @@ class Phoneset:
         return cls(name=name, phones=phones)
 
     def __contains__(self, phone: str) -> bool:
-        return phone in self._phones_set  # type: ignore[operator]
+        return phone in self._phones_set
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.phones)
 
     def __len__(self) -> int:

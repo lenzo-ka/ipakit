@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .features import IPAFeatures
+from ._base import IPAFeaturesBase
+
+# One alignment step pairs a token from each word; None marks an insertion/deletion.
+Alignment = list[tuple[str | None, str | None]]
 
 
 @dataclass
@@ -15,28 +16,28 @@ class WordDistanceResult:
 
     distance: float
     similarity: float
-    alignment: list[tuple[str | None, str | None]] | None = None
+    alignment: Alignment | None = None
 
 
-class DistanceMixin:
+class DistanceMixin(IPAFeaturesBase):
     """Mixin providing phonetic distance calculations."""
 
-    def _feature_dict_distance(
-        self: IPAFeatures, f1: dict[str, str], f2: dict[str, str]
-    ) -> float:
+    def _feature_dict_distance(self, f1: dict[str, str], f2: dict[str, str]) -> float:
         """Compute distance between two feature dictionaries."""
         all_keys = (set(f1) | set(f2)) - {"name", "class"}
         if not all_keys:
             return 1.0
         total = sum(
-            self.features[k].value_distance(f1.get(k), f2.get(k))
-            if k in self.features
-            else (0.0 if f1.get(k) == f2.get(k) else 1.0)
+            (
+                self.features[k].value_distance(f1.get(k), f2.get(k))
+                if k in self.features
+                else (0.0 if f1.get(k) == f2.get(k) else 1.0)
+            )
             for k in all_keys
         )
         return total / len(all_keys)
 
-    def distance(self: IPAFeatures, phone1: str, phone2: str) -> float:
+    def distance(self, phone1: str, phone2: str) -> float:
         """Compute feature distance between two phones (0.0-1.0)."""
         f1 = self.get_features(phone1, with_defaults=True)
         f2 = self.get_features(phone2, with_defaults=True)
@@ -44,7 +45,7 @@ class DistanceMixin:
             return 1.0
         return self._feature_dict_distance(f1, f2)
 
-    def segment_distance(self: IPAFeatures, seg1: str, seg2: str) -> float:
+    def segment_distance(self, seg1: str, seg2: str) -> float:
         """Compute distance between two segments (potentially multi-phone)."""
         f1, f2 = self.compose(seg1), self.compose(seg2)
         if not f1 or not f2:
@@ -55,14 +56,16 @@ class DistanceMixin:
         len_penalty = abs(len(f1) - len(f2)) / max(len(f1), len(f2))
         max_len = max(len(f1), len(f2))
         total = sum(
-            self._feature_dict_distance(f1[i], f2[i])
-            if i < len(f1) and i < len(f2)
-            else 1.0
+            (
+                self._feature_dict_distance(f1[i], f2[i])
+                if i < len(f1) and i < len(f2)
+                else 1.0
+            )
             for i in range(max_len)
         )
         return (total / max_len + len_penalty) / 2
 
-    def pairwise_distances(self: IPAFeatures, phones: list[str]) -> list[list[float]]:
+    def pairwise_distances(self, phones: list[str]) -> list[list[float]]:
         """Compute pairwise distance matrix for a list of phones.
 
         Returns a 2D list where matrix[i][j] is the distance between phones[i] and phones[j].
@@ -78,7 +81,7 @@ class DistanceMixin:
         return matrix
 
     def word_distance(
-        self: IPAFeatures,
+        self,
         ipa1: str,
         ipa2: str,
         weighted: bool = True,
@@ -116,14 +119,18 @@ class DistanceMixin:
         if n == 0 and m == 0:
             return WordDistanceResult(distance=0.0, similarity=1.0, alignment=[])
         if n == 0:
-            alignment = [(None, t) for t in tokens2] if return_alignment else None
+            empty1: Alignment | None = (
+                [(None, t) for t in tokens2] if return_alignment else None
+            )
             return WordDistanceResult(
-                distance=float(m), similarity=0.0, alignment=alignment
+                distance=float(m), similarity=0.0, alignment=empty1
             )
         if m == 0:
-            alignment = [(t, None) for t in tokens1] if return_alignment else None
+            empty2: Alignment | None = (
+                [(t, None) for t in tokens1] if return_alignment else None
+            )
             return WordDistanceResult(
-                distance=float(n), similarity=0.0, alignment=alignment
+                distance=float(n), similarity=0.0, alignment=empty2
             )
 
         # DP table: dp[i][j] = min cost to align tokens1[:i] with tokens2[:j]
@@ -159,7 +166,7 @@ class DistanceMixin:
         similarity = max(0.0, 1.0 - (distance / max_len))
 
         # Backtrace for alignment if requested
-        alignment = None
+        alignment: Alignment | None = None
         if return_alignment:
             alignment = []
             i, j = n, m
@@ -193,7 +200,7 @@ class DistanceMixin:
         )
 
     def word_similarity(
-        self: IPAFeatures,
+        self,
         ipa1: str,
         ipa2: str,
         weighted: bool = True,

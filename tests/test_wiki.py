@@ -1,10 +1,9 @@
 """Tests for Wikipedia link validation."""
 
-import urllib.request
 import urllib.error
+import urllib.request
 
 import pytest
-
 from ipakit import IPAFeatures
 
 

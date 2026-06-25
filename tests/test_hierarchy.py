@@ -1,7 +1,6 @@
 """Tests for hierarchy generation."""
 
 import pytest
-
 from ipakit import IPAFeatures
 
 

@@ -39,6 +39,7 @@ ipakit = "ipakit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["ipakit*"]
 
 [tool.setuptools.package-data]
 ipakit = ["data/*.xml", "data/phonemaps/*.xml", "py.typed"]
@@ -49,3 +50,25 @@ markers = [
 ]
 # Don't run slow tests by default
 addopts = "-m 'not slow'"
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+src = ["ipakit", "tests"]
+
+[tool.ruff.lint]
+# black owns formatting; ruff lints only. E501 (line length) is left to black.
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+# mypy no longer supports targeting 3.9, so type-check at the 3.10 floor.
+# Runtime still supports 3.9 (annotations are deferred via __future__ import).
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+files = ["ipakit"]

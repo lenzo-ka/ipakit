@@ -1,8 +1,7 @@
 """Tests for analysis functions: describe, natural_class, minimal_pairs, validate_ipa."""
 
-import pytest
-
 import ipakit
+import pytest
 from ipakit import IPAFeatures
 
 

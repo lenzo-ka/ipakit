@@ -1,0 +1,38 @@
+# Pre-commit hooks for ipakit.
+# Mirrors the HSG repo's hook set, adapted for ipakit's flat layout (package at
+# ./ipakit, tests at ./tests). Tool settings live in pyproject.toml.
+# Install once with:  pip install -e ".[dev]" && pre-commit install
+minimum_pre_commit_version: "3.0.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        files: ^(ipakit|tests)/
+      - id: end-of-file-fixer
+        files: ^(ipakit|tests)/
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1
+    hooks:
+      - id: black
+        files: ^(ipakit|tests)/
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.18
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+        files: ^(ipakit|tests)/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        files: ^ipakit/
+        args: ["--config-file=pyproject.toml"]

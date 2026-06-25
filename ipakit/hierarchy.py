@@ -3,27 +3,28 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import Any
 
+from ._base import IPAFeaturesBase
 from .constants import MAX_EXAMPLE_PHONES
 
-if TYPE_CHECKING:
-    from .features import IPAFeatures
+# A hierarchy node is one of {"phones": [...]} or {"children": {...}, "feature": str}
+HierarchyNode = dict[str, Any]
 
 
-class HierarchyMixin:
+class HierarchyMixin(IPAFeaturesBase):
     """Mixin providing phone hierarchy generation."""
 
     def build_hierarchy(
-        self: IPAFeatures,
+        self,
         phones: list[str] | None = None,
         feature_order: list[str] | None = None,
-    ) -> dict:
+    ) -> HierarchyNode:
         """Build a hierarchical grouping of phones by features."""
         phones = phones or list(self.phones.keys())
         feature_order = feature_order or self.feature_order
 
-        def build_node(phone_set: list[str], remaining: list[str]) -> dict:
+        def build_node(phone_set: list[str], remaining: list[str]) -> HierarchyNode:
             if not phone_set:
                 return {}
             if len(phone_set) == 1 or not remaining:
@@ -61,7 +62,7 @@ class HierarchyMixin:
         return build_node(phones, feature_order)
 
     def hierarchy_to_text(
-        self: IPAFeatures,
+        self,
         phones: list[str] | None = None,
         feature_order: list[str] | None = None,
         indent: str = "  ",
@@ -70,7 +71,7 @@ class HierarchyMixin:
         tree = self.build_hierarchy(phones, feature_order)
         lines: list[str] = []
 
-        def render(node: dict, depth: int = 0, prefix: str = "") -> None:
+        def render(node: HierarchyNode, depth: int = 0, prefix: str = "") -> None:
             ind = indent * depth
             if "phones" in node:
                 lines.append(f"{ind}{prefix}[{', '.join(sorted(node['phones']))}]")
@@ -84,7 +85,7 @@ class HierarchyMixin:
         return "\n".join(lines)
 
     def hierarchy_to_dot(
-        self: IPAFeatures,
+        self,
         phones: list[str] | None = None,
         feature_order: list[str] | None = None,
         title: str = "Phone Hierarchy",
@@ -105,7 +106,7 @@ class HierarchyMixin:
         def escape_dot(s: str) -> str:
             return s.replace("\\", "\\\\").replace('"', '\\"')
 
-        def emit(node: dict) -> str:
+        def emit(node: HierarchyNode) -> str:
             node_id = f"n{counter[0]}"
             counter[0] += 1
 

@@ -7,7 +7,7 @@ import json
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import IO, TYPE_CHECKING, Any, Callable
 
 from ..constants import DEFAULT_CMU_MAP, DEFAULT_IPA_FEATS
 
@@ -27,7 +27,7 @@ class Command(ABC):
         self.args = args
         self._ipa: IPAFeatures | None = None
         self._cmu: CMUMapper | None = None
-        self._output_file: Any = None
+        self._output_file: IO[str] | None = None
 
     @property
     def ipa(self) -> IPAFeatures:
@@ -72,7 +72,7 @@ class Command(ABC):
 
     # --- Output helpers ---
 
-    def _get_output(self):
+    def _get_output(self) -> IO[str]:
         """Get output stream (file or stdout)."""
         if self._output_file is not None:
             return self._output_file
@@ -81,13 +81,13 @@ class Command(ABC):
             return self._output_file
         return sys.stdout
 
-    def _close_output(self):
+    def _close_output(self) -> None:
         """Close output file if opened."""
         if self._output_file is not None:
             self._output_file.close()
             self._output_file = None
 
-    def print(self, *args, **kwargs) -> None:
+    def print(self, *args: Any, **kwargs: Any) -> None:
         """Print to output (file or stdout)."""
         kwargs.setdefault("file", self._get_output())
         print(*args, **kwargs)
@@ -108,7 +108,7 @@ class Command(ABC):
             if canon == canonical
         ]
 
-    def order_features(self, features: dict) -> dict:
+    def order_features(self, features: dict[str, Any]) -> dict[str, Any]:
         """Order a feature dict according to feature_order.
 
         Puts 'name' first, then 'aliases', then 'class' (structural metadata),
@@ -189,7 +189,9 @@ class CommandGroup(ABC):
     commands: list[type[Command]] = []  # Subcommands
 
     @classmethod
-    def register(cls, subparsers: argparse._SubParsersAction) -> None:
+    def register(
+        cls, subparsers: argparse._SubParsersAction[argparse.ArgumentParser]
+    ) -> None:
         """Register this command group and its subcommands."""
         parser = subparsers.add_parser(
             cls.name,

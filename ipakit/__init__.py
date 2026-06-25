@@ -131,17 +131,19 @@ def features_from_cmu(
 def _get_xsampa_map() -> dict[str, str]:
     """Load X-SAMPA to IPA mapping."""
     import xml.etree.ElementTree as ET
+
     from .constants import PHONEMAPS_DIR
 
     xsampa_file = PHONEMAPS_DIR / "xsampa.xml"
     if not xsampa_file.exists():
         return {}
     root = ET.parse(xsampa_file).getroot()
-    return {
-        m.get("xsampa"): m.get("ipa")
-        for m in root.findall("map")
-        if m.get("xsampa") and m.get("ipa")
-    }
+    mapping: dict[str, str] = {}
+    for m in root.findall("map"):
+        xs, ip = m.get("xsampa"), m.get("ipa")
+        if xs and ip:
+            mapping[xs] = ip
+    return mapping
 
 
 def xsampa_to_ipa(xsampa: str) -> str:
@@ -245,7 +247,7 @@ def shorts_to_features(shorts: list[str] | set[str]) -> dict[str, str]:
     return _get_ipa().shorts_to_features(shorts)
 
 
-def _make_wiki_url(ipa, href: str | None) -> str | None:
+def _make_wiki_url(ipa: IPAFeatures, href: str | None) -> str | None:
     """Construct full Wikipedia URL from article name."""
     if href and ipa.wiki_base and not href.startswith("http"):
         return ipa.wiki_base + href
@@ -288,7 +290,11 @@ def wiki_refs() -> dict[str, str]:
     Returns dict mapping reference names to full Wikipedia URLs.
     """
     ipa = _get_ipa()
-    return {name: _make_wiki_url(ipa, href) for name, href in ipa.references.items()}
+    return {
+        name: url
+        for name, href in ipa.references.items()
+        if (url := _make_wiki_url(ipa, href)) is not None
+    }
 
 
 # --- Analysis functions ---
@@ -330,7 +336,7 @@ def minimal_pairs(
     phone: str,
     with_defaults: bool = True,
     max_distance: float = 0.3,
-) -> list[tuple[str, str, str]]:
+) -> list[tuple[str, str, str | None]]:
     """Find phones that differ by approximately one feature (minimal pairs).
 
     Returns list of (phone, differing_feature, differing_value) tuples.

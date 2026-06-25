@@ -1,7 +1,6 @@
 """Tests for phonetic distance calculation."""
 
 import pytest
-
 from ipakit import IPAFeatures
 
 

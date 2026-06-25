@@ -1,7 +1,6 @@
 """Tests for validation and statistics."""
 
 import pytest
-
 from ipakit import IPAFeatures
 
 
@@ -16,6 +15,12 @@ class TestValidate:
         errors = ipa.validate()
         critical = [e for e in errors if "Missing" in e]
         assert len(critical) == 0
+
+    def test_shipped_data_validates_clean(self, ipa: IPAFeatures) -> None:
+        # The bundled ipa.xml must pass validate() with zero errors. Metadata
+        # attributes (href, xsampa, ...) are not phonetic features and must not
+        # be reported as "undeclared". See METADATA_ATTRS in constants.py.
+        assert ipa.validate() == []
 
     def test_validate_returns_list(self, ipa: IPAFeatures) -> None:
         errors = ipa.validate()

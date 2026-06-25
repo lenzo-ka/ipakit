@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
 from pathlib import Path
 
 from .analysis import AnalysisMixin
@@ -34,13 +35,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.wiki_base: str = ""  # Base URL for Wikipedia links
         self.references: dict[str, str] = {}  # name -> href (article name)
         self._value_aliases: dict[str, dict[str, str]] = {}
-        self._short_to_feature: dict[
-            str, tuple[str, str]
-        ] = {}  # short -> (feature, value)
-        self._feature_to_short: dict[
-            tuple[str, str], str
-        ] = {}  # (feature, value) -> short
-        self._type_defaults: dict[str, str] = {}
+        self._short_to_feature: dict[str, tuple[str, str]] = (
+            {}
+        )  # short -> (feature, value)
+        self._feature_to_short: dict[tuple[str, str], str] = (
+            {}
+        )  # (feature, value) -> short
+        self._type_defaults: dict[str, str | None] = {}
         self._load()
         self._load_lookalikes()
 
@@ -53,21 +54,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.wiki_base = root.get("wiki", "")
 
         # Load type definitions (values and defaults)
-        self._type_defaults: dict[str, str | None] = {}
         if (types_elem := root.find("types")) is not None:
             for type_elem in types_elem.findall("type"):
                 if type_name := type_elem.get("name"):
                     self.types[type_name] = [
-                        v.get("name")
+                        name
                         for v in type_elem.findall("value")
-                        if v.get("name")
+                        if (name := v.get("name"))
                     ]
                     self._type_defaults[type_name] = type_elem.get("default")
 
         # Load class definitions (structural categories, not phonetic features)
         if (classes_elem := root.find("classes")) is not None:
             self.classes = [
-                c.get("name") for c in classes_elem.findall("class") if c.get("name")
+                name for c in classes_elem.findall("class") if (name := c.get("name"))
             ]
 
         # Load feature definitions
@@ -92,9 +92,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                             values.append(val_name)
                             if alias := v.get("alias"):
                                 self._value_aliases[name][alias] = val_name
-                            if short := v.get("short"):
-                                self._short_to_feature[short] = (name, val_name)
-                                self._feature_to_short[(name, val_name)] = short
+                            if vshort := v.get("short"):
+                                self._short_to_feature[vshort] = (name, val_name)
+                                self._feature_to_short[(name, val_name)] = vshort
                 # Use feature default, or fall back to type default
                 default = feat_elem.get("default") or self._type_defaults.get(feat_type)
                 desc = feat_elem.get("desc")
@@ -353,7 +353,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         expanded = self.expand_ligatures(ipa)
 
-        result = []
+        result: list[str] = []
         pending_stress = None
         onset_seen = False  # Track if we've seen onset consonants since stress marker
         i = 0
@@ -670,7 +670,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def __contains__(self, phone: str) -> bool:
         return phone in self.phones
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.phones.keys())
 
     def __len__(self) -> int:

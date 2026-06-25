@@ -1,7 +1,6 @@
 """Tests for CMU ARPABET mapping."""
 
 import pytest
-
 from ipakit import CMUMapper
 
 

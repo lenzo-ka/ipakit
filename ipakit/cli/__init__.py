@@ -22,8 +22,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from .analyze import AnalyzeGroup
 from .analysis_cmds import AnalysisGroup, DescribeCommand
+from .analyze import AnalyzeGroup
+from .base import Command
 from .convert import ConvertGroup
 from .distance import DistanceGroup
 from .features import FeaturesCommand
@@ -125,7 +126,7 @@ def main() -> int:
     # Direct command (features)
     if hasattr(args, "cmd_cls") and args.cmd_cls is not None:
         try:
-            cmd = args.cmd_cls(args)
+            cmd: Command = args.cmd_cls(args)
             return cmd.run()
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)

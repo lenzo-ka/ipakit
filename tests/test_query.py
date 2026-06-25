@@ -1,7 +1,6 @@
 """Tests for query and matching functionality."""
 
 import pytest
-
 from ipakit import IPAFeatures
 
 

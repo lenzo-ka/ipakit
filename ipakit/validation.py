@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from .features import IPAFeatures
+from ._base import IPAFeaturesBase
+from .constants import METADATA_ATTRS
 
 
-class ValidationMixin:
+class ValidationMixin(IPAFeaturesBase):
     """Mixin providing validation and statistics methods."""
 
-    def validate(self: IPAFeatures) -> list[str]:
+    def validate(self) -> list[str]:
         """Validate phones against feature definitions."""
         errors = []
         undeclared: set[str] = set()
@@ -21,7 +21,7 @@ class ValidationMixin:
             manner = phone.features.get("manner")
 
             for feat, value in phone.features.items():
-                if feat in ("name", "class"):  # Skip structural metadata
+                if feat in METADATA_ATTRS:  # Skip structural metadata
                     continue
                 if feat not in self.features and feat != "manner":
                     undeclared.add(feat)
@@ -45,7 +45,7 @@ class ValidationMixin:
 
         return errors
 
-    def feature_counts(self: IPAFeatures) -> dict[str, dict[str, int]]:
+    def feature_counts(self) -> dict[str, dict[str, int]]:
         """Count occurrences of each feature value across phones."""
         counts: dict[str, Counter[str]] = {name: Counter() for name in self.features}
         for phone in self.phones.values():
@@ -54,7 +54,7 @@ class ValidationMixin:
                     counts[feat][value] += 1
         return {k: dict(v) for k, v in counts.items()}
 
-    def feature_usage(self: IPAFeatures) -> dict[str, int]:
+    def feature_usage(self) -> dict[str, int]:
         """Count how many phones specify each feature (explicitly)."""
         counts = {name: 0 for name in self.features}
         for phone in self.phones.values():
@@ -63,7 +63,7 @@ class ValidationMixin:
                     counts[feat] += 1
         return counts
 
-    def summary(self: IPAFeatures) -> dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Generate summary statistics."""
         manner_counts = Counter(p.features.get("manner") for p in self.phones.values())
         return {

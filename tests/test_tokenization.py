@@ -1,7 +1,6 @@
 """Tests for IPA tokenization and normalization."""
 
 import pytest
-
 from ipakit import IPAFeatures
 
 
