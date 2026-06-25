@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
+from ._tokenize import longest_match
 from .constants import PHONEMAPS_DIR, TIE_BAR
 
 
@@ -80,17 +81,11 @@ def ipa_to_phonemap(ipa: str, phonemap: str) -> list[str]:
     i = 0
 
     while i < len(ipa):
-        # Try longest match first
-        matched = False
-        for length in range(min(6, len(ipa) - i), 0, -1):
-            candidate = ipa[i : i + length]
-            if candidate in ipa_to_target:
-                result.append(ipa_to_target[candidate])
-                i += length
-                matched = True
-                break
-
-        if not matched:
+        key, length = longest_match(ipa, i, ipa_to_target, 6)
+        if key:
+            result.append(ipa_to_target[key])
+            i += length
+        else:
             # Skip unknown characters (stress markers, etc.)
             i += 1
 
@@ -182,17 +177,12 @@ def from_kirshenbaum(text: str) -> str:
     i = 0
 
     while i < len(text):
-        matched = False
-        # Try longest match first (some Kirshenbaum symbols are multi-char)
-        for length in range(min(8, len(text) - i), 0, -1):
-            candidate = text[i : i + length]
-            if candidate in target_to_ipa:
-                result.append(target_to_ipa[candidate])
-                i += length
-                matched = True
-                break
-
-        if not matched:
+        # Some Kirshenbaum symbols are multi-char, so take the longest match.
+        key, length = longest_match(text, i, target_to_ipa, 8)
+        if key:
+            result.append(target_to_ipa[key])
+            i += length
+        else:
             # Keep unknown characters as-is
             i += 1
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from ._tokenize import longest_match
 from .constants import DEFAULT_CMU_MAP, STRESS_MARKERS, STRESS_TO_MARKER, TIE_BAR
 from .models import PhoneMapping
 
@@ -83,6 +84,13 @@ class CMUMapper:
         i = 0
         pending_stress = None
 
+        # extras (when enabled) are a fallback; main map wins on key collisions
+        lookup = (
+            {**self._extras_ipa_to_cmu, **self._ipa_to_cmu}
+            if include_extras
+            else self._ipa_to_cmu
+        )
+
         while i < len(ipa_string):
             char = ipa_string[i]
             if char in STRESS_MARKERS:
@@ -90,15 +98,8 @@ class CMUMapper:
                 i += 1
                 continue
 
-            match, match_len = None, 0
-            for length in range(min(5, len(ipa_string) - i), 0, -1):
-                candidate = ipa_string[i : i + length]
-                if candidate in self._ipa_to_cmu:
-                    match, match_len = self._ipa_to_cmu[candidate], length
-                    break
-                if include_extras and candidate in self._extras_ipa_to_cmu:
-                    match, match_len = self._extras_ipa_to_cmu[candidate], length
-                    break
+            key, match_len = longest_match(ipa_string, i, lookup, 5)
+            match = lookup[key] if key else None
 
             if match:
                 cmu = match.cmu
@@ -138,25 +139,22 @@ class CMUMapper:
         ipa_string = self._normalize_ipa(ipa_string)
         i = 0
 
+        lookup = (
+            {**self._extras_ipa_to_cmu, **self._ipa_to_cmu}
+            if include_extras
+            else self._ipa_to_cmu
+        )
+
         while i < len(ipa_string):
             char = ipa_string[i]
             if char in STRESS_MARKERS:
                 i += 1
                 continue
 
-            match_found = False
-            for length in range(min(5, len(ipa_string) - i), 0, -1):
-                candidate = ipa_string[i : i + length]
-                if candidate in self._ipa_to_cmu:
-                    i += length
-                    match_found = True
-                    break
-                if include_extras and candidate in self._extras_ipa_to_cmu:
-                    i += length
-                    match_found = True
-                    break
-
-            if not match_found:
+            key, match_len = longest_match(ipa_string, i, lookup, 5)
+            if key:
+                i += match_len
+            else:
                 skipped.append(ipa_string[i])
                 i += 1
 

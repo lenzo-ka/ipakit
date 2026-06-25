@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
 
+from ._tokenize import longest_match
 from .analysis import AnalysisMixin
 from .constants import (
     DEFAULT_IPA_FEATS,
@@ -380,17 +381,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 continue
 
             # Try to match a phone
-            best_phone, best_len = None, 0
-            for length in range(min(6, len(expanded) - i), 0, -1):
-                candidate = expanded[i : i + length]
-                if candidate in self.phones:
-                    best_phone, best_len = candidate, length
-                    break
-                if TIE_BAR in candidate:
-                    parts = candidate.split(TIE_BAR)
-                    if all(p in self.phones or p == "" for p in parts):
-                        best_phone, best_len = candidate, length
-                        break
+            best_phone, best_len = longest_match(
+                expanded, i, self.phones, 6, tie_set=self.phones
+            )
 
             if best_phone:
                 # Collect any diacritics
@@ -565,18 +558,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         result = []
         i = 0
         while i < len(segment):
-            best_phone, best_len = None, 0
-
-            for length in range(min(6, len(segment) - i), 0, -1):
-                candidate = segment[i : i + length]
-                if candidate in phone_lookup:
-                    best_phone, best_len = candidate, length
-                    break
-                if TIE_BAR in candidate:
-                    parts = candidate.split(TIE_BAR)
-                    if all(p in phone_lookup or p == "" for p in parts):
-                        best_phone, best_len = candidate, length
-                        break
+            best_phone, best_len = longest_match(
+                segment, i, phone_lookup, 6, tie_set=phone_lookup
+            )
 
             if best_phone:
                 diacritics = []

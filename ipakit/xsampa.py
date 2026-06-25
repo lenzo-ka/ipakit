@@ -13,6 +13,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
+from ._tokenize import longest_match
 from .constants import PHONEMAPS_DIR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -47,12 +48,10 @@ def _convert(text: str, lookup: dict[str, str]) -> str:
     i = 0
     n = len(text)
     while i < n:
-        for length in range(min(max_len, n - i), 0, -1):
-            candidate = text[i : i + length]
-            if candidate in lookup:
-                out.append(lookup[candidate])
-                i += length
-                break
+        key, length = longest_match(text, i, lookup, max_len)
+        if key:
+            out.append(lookup[key])
+            i += length
         else:
             i += 1  # skip unknown character
     return "".join(out)

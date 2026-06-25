@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from ._base import IPAFeaturesBase
-from .constants import METADATA_ATTRS
+from ._tokenize import longest_match
+from .constants import METADATA_ATTRS, TIE_BAR
 
 # Feature ordering for description generation (most salient first)
 _CONSONANT_DESC_ORDER = ["voiced", "place", "manner"]
@@ -246,8 +247,6 @@ class AnalysisMixin(IPAFeaturesBase):
             ipa: The IPA string to validate
             strict: If True, treat warnings as errors
         """
-        from .constants import TIE_BAR
-
         issues: list[dict[str, str]] = []
         ipa = self.expand_ligatures(ipa)
 
@@ -267,24 +266,15 @@ class AnalysisMixin(IPAFeaturesBase):
             char = ipa[i]
 
             # Try to match multi-character phones first (affricates, etc.)
-            matched_phone = None
-            for length in range(min(6, len(ipa) - i), 0, -1):
-                candidate = ipa[i : i + length]
-                if candidate in known_phones:
-                    matched_phone = candidate
-                    break
-                # Check for tied phones (e.g., t͡ʃ)
-                if TIE_BAR in candidate:
-                    parts = candidate.split(TIE_BAR)
-                    if all(p in known_phones or p == "" for p in parts):
-                        matched_phone = candidate
-                        break
+            matched_phone, matched_len = longest_match(
+                ipa, i, known_phones, 6, tie_set=known_phones
+            )
 
             if matched_phone:
                 # Valid phone found
                 last_was_phone = True
                 current_segment_diacritics = set()
-                i += len(matched_phone)
+                i += matched_len
                 continue
 
             # Check for suprasegmentals (stress, length, breaks) - these don't need a base
