@@ -4,9 +4,9 @@ Prioritized additions for the IPA phonetic features toolkit.
 
 ---
 
-## Priority 1: High Impact, Low Effort ✅ COMPLETE
+## Priority 1: High Impact, Low Effort — COMPLETE
 
-### 1.1 `describe(phone)` — Human-readable description ✅
+### 1.1 `describe(phone)` — Human-readable description (done)
 Generate standard IPA naming conventions from features.
 
 ```python
@@ -19,7 +19,7 @@ ipakit.describe("t͡ʃ")  # "voiceless postalveolar affricate"
 
 ---
 
-### 1.2 `natural_class(phones)` — Find unifying features ✅
+### 1.2 `natural_class(phones)` — Find unifying features (done)
 Given a set of phones, return features they all share.
 
 ```python
@@ -34,7 +34,7 @@ ipakit.natural_class(["i", "e", "ɛ", "æ"])
 
 ---
 
-### 1.3 `minimal_pairs(phone)` — Phones differing by one feature ✅
+### 1.3 `minimal_pairs(phone)` — Phones differing by one feature (done)
 Find phonetically similar phones for teaching/analysis.
 
 ```python
@@ -85,7 +85,7 @@ ipakit.syllabify("hɛloʊ", return_structure=True)
 
 ---
 
-### 2.3 `validate_ipa(ipa)` — Check well-formedness ✅
+### 2.3 `validate_ipa(ipa)` — Check well-formedness (done)
 Validate IPA strings for structural issues.
 
 ```python
@@ -103,15 +103,15 @@ ipakit.is_valid_ipa("k@t")     # False
 
 ## Priority 3: Medium Impact, Low Effort
 
-### 3.1 Additional phoneme mappings ✅
+### 3.1 Additional phoneme mappings (done)
 Expand conversion support beyond CMU and X-SAMPA.
 
 | Format | Status | Description |
 |--------|--------|-------------|
-| TIMIT | ✅ | Speech corpus standard |
-| Kirshenbaum | ✅ | ASCII-IPA for email/plain text |
-| Worldbet | ⏳ | Cross-linguistic ASCII (future) |
-| Epitran | ❌ | Skip (G2P tool, not encoding) |
+| TIMIT | done | Speech corpus standard |
+| Kirshenbaum | done | ASCII-IPA for email/plain text |
+| Worldbet | planned | Cross-linguistic ASCII (future) |
+| Epitran | no | Skip (G2P tool, not encoding) |
 
 ```python
 ipakit.to_timit("kæt")           # ["k", "ae", "t"]

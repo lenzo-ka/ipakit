@@ -273,13 +273,13 @@ class ValidateCommand(Command):
             )
         else:
             if not issues:
-                print(f"✓ Valid: {ipa}")
+                print(f"Valid: {ipa}")
             else:
                 print(f"Issues in: {ipa}")
                 print("-" * 40)
                 for issue in issues:
-                    icon = "✗" if issue["type"] == "error" else "⚠"
-                    print(f"  {icon} [{issue['code']}] {issue['message']}")
+                    label = "ERROR" if issue["type"] == "error" else "WARNING"
+                    print(f"  {label} [{issue['code']}] {issue['message']}")
                     print(f"      at position {issue['position']}")
 
         return 1 if has_errors else 0

@@ -38,3 +38,8 @@ export/
 
 # Local working docs (not part of the published package)
 REVIEW_PLAN.md
+omp-review-*.md
+omp-review-*.session.jsonl
+
+# Agent / local tooling (not part of the repo)
+.claude/

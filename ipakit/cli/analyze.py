@@ -271,7 +271,7 @@ class DiacriticsCommand(Command):
 
 
 class ReportCommand(Command):
-    """Generate a comprehensive analysis report.
+    """Generate a full analysis report.
 
     Combines multiple analyses into a single report:
     - Summary statistics
@@ -359,7 +359,7 @@ class AnalyzeGroup(CommandGroup):
         counts      Feature value distributions
         phones      List all phones with features
         diacritics  List all diacritics
-        report      Comprehensive analysis report
+        report      Full analysis report
 
     Examples:
         ipakit analyze validate           # Check for errors
