@@ -99,7 +99,7 @@ Run `ipakit`, `ipakit <group>`, or append `help`/`-h` anywhere for usage.
 ```bash
 pip install -e ".[dev]"
 pre-commit install        # black, ruff, mypy --strict, hygiene hooks
-pytest                    # run the test suite
+pytest                    # unit tests + docstring examples (--doctest-modules)
 ```
 
 The IPA ↔ X-SAMPA table (`ipakit/data/phonemaps/xsampa.xml`) is reproducible

@@ -112,8 +112,8 @@ def word_similarity(ipa1: str, ipa2: str, weighted: bool = True) -> float:
     Examples:
         >>> ipakit.word_similarity("kæt", "kæd")
         0.98...
-        >>> ipakit.word_similarity("kæt", "dɒɡ")
-        0.3...
+        >>> ipakit.word_similarity("kæt", "dɒɡ")  # weighted subs are cheap (shared features)
+        0.9...
     """
     return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted)
 
@@ -303,10 +303,10 @@ def natural_class(
     """Find features shared by all phones in a set (natural class).
 
     Examples:
-        >>> ipakit.natural_class(["p", "t", "k"])
-        {'manner': 'plosive', 'voiced': '-'}
+        >>> ipakit.natural_class(["p", "t", "k"])  # shared features (incl. defaults)
+        {'manner': 'plosive', ...'voiced': '-', ...}
         >>> ipakit.natural_class(["i", "e", "ɛ"])
-        {'manner': 'vowel', 'backness': 'front'}
+        {'manner': 'vowel', ...'backness': 'front', ...}
     """
     return _get_ipa().natural_class(
         phones, with_defaults=with_defaults, exclude_features=exclude_features
@@ -324,7 +324,7 @@ def minimal_pairs(
 
     Examples:
         >>> ipakit.minimal_pairs("p")
-        [('b', 'voiced', '+'), ('t', 'place', 'alveolar'), ...]
+        [('ɸ', 'manner', 'fricative'), ('f', 'manner', 'fricative'), ...]
     """
     return _get_ipa().minimal_pairs(
         phone, with_defaults=with_defaults, max_distance=max_distance
@@ -367,7 +367,7 @@ def is_valid_ipa(ipa: str) -> bool:
     Examples:
         >>> ipakit.is_valid_ipa("kæt")
         True
-        >>> ipakit.is_valid_ipa("xyz")
+        >>> ipakit.is_valid_ipa("k4t")  # 'x', 'y', 'z' are valid IPA; '4' is not
         False
     """
     return _get_ipa().is_valid_ipa(ipa)

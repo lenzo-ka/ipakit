@@ -51,8 +51,13 @@ ipakit = ["data/*.xml", "data/phonemaps/*.xml", "py.typed"]
 markers = [
     "slow: marks tests as slow (require network, deselect with '-m \"not slow\"')",
 ]
+# Scope collection to the package and tests (keeps --doctest-modules from
+# importing scripts/). Run docstring examples as part of the suite so they
+# can't silently rot; ELLIPSIS lets examples elide volatile output (floats).
+testpaths = ["ipakit", "tests"]
+doctest_optionflags = ["ELLIPSIS"]
 # Don't run slow tests by default
-addopts = "-m 'not slow'"
+addopts = "-m 'not slow' --doctest-modules"
 
 [tool.black]
 line-length = 88
