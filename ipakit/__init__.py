@@ -360,8 +360,8 @@ def nearest_phones(
     Returns list of (phone, distance) tuples sorted by distance.
 
     Examples:
-        >>> ipakit.nearest_phones("p", n=3)
-        [('b', 0.08), ('t', 0.12), ('k', 0.15)]
+        >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
+        [('ɸ', 0.005), ('f', 0.008), ('p͡f', 0.008)]
     """
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 
@@ -374,8 +374,8 @@ def validate_ipa(ipa: str, strict: bool = False) -> list[dict[str, str]]:
     Examples:
         >>> ipakit.validate_ipa("kæt")
         []
-        >>> ipakit.validate_ipa("xyz")
-        [{'type': 'error', 'code': 'unknown_symbol', ...}, ...]
+        >>> ipakit.validate_ipa("k4t")  # 'x', 'y', 'z' are all valid IPA; '4' is not
+        [{'type': 'error', 'code': 'unknown_symbol', 'message': "Unknown symbol '4' (U+0034)", 'position': '1', 'symbol': '4'}]
     """
     return _get_ipa().validate_ipa(ipa, strict=strict)
 

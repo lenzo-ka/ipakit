@@ -239,7 +239,7 @@ class AnalysisMixin(IPAFeaturesBase):
         Examples:
             validate_ipa("kæt")     # [] (valid)
             validate_ipa("kæt̪")     # [] (valid - dental diacritic on t)
-            validate_ipa("xyz")     # [{"type": "error", "code": "unknown_symbol", ...}, ...]
+            validate_ipa("k4t")     # [{"type": "error", "code": "unknown_symbol", ...}]  ('x','y','z' are valid IPA)
             validate_ipa("̃a")       # [{"type": "error", "code": "orphan_diacritic", ...}]
 
         Args:
