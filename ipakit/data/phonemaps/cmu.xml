@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='utf-8'?>
+<phonemap description="IPA to CMU Pronouncing Dictionary" from="ipa" to="cmu">
+    <!--
+    stress="0 1 2" indicates valid stress levels:
+      0 = unstressed, 1 = primary, 2 = secondary
+    Code derives: i → IY0, ˈi → IY1, ˌi → IY2
+    For stressless systems (PocketSphinx): use base cmu value (IY)
+    -->
+
+    <!-- Silence -->
+    <map ipa="␣" cmu="SIL"/>
+
+    <!-- Vowels (monophthongs) -->
+    <map ipa="i" cmu="IY" stress="0 1 2"/>
+    <map ipa="ɪ" cmu="IH" stress="0 1 2"/>
+    <map ipa="ɛ" cmu="EH" stress="0 1 2"/>
+    <map ipa="æ" cmu="AE" stress="0 1 2"/>
+    <map ipa="ɑ" cmu="AA" stress="0 1 2"/>
+    <map ipa="ɔ" cmu="AO" stress="0 1 2"/>
+    <map ipa="ʊ" cmu="UH" stress="0 1 2"/>
+    <map ipa="u" cmu="UW" stress="0 1 2"/>
+    <map ipa="ʌ" cmu="AH" stress="1 2"/>
+    <map ipa="ə" cmu="AH" stress="0"/>
+    <map ipa="ɚ" cmu="ER" stress="0"/>
+    <map ipa="ɝ" cmu="ER" stress="1 2"/>
+
+    <!-- Diphthongs -->
+    <map ipa="e͡ɪ" cmu="EY" stress="0 1 2"/>
+    <map ipa="o͡ʊ" cmu="OW" stress="0 1 2"/>
+    <map ipa="a͡ɪ" cmu="AY" stress="0 1 2"/>
+    <map ipa="a͡ʊ" cmu="AW" stress="0 1 2"/>
+    <map ipa="ɔ͡ɪ" cmu="OY" stress="0 1 2"/>
+
+    <!-- Glides -->
+    <map ipa="j" cmu="Y"/>
+    <map ipa="w" cmu="W"/>
+
+    <!-- Nasals -->
+    <map ipa="m" cmu="M"/>
+    <map ipa="n" cmu="N"/>
+    <map ipa="ŋ" cmu="NG"/>
+
+    <!-- Liquids -->
+    <map ipa="l" cmu="L"/>
+    <map ipa="ɹ" cmu="R"/>
+
+    <!-- Plosives -->
+    <map ipa="p" cmu="P"/>
+    <map ipa="b" cmu="B"/>
+    <map ipa="t" cmu="T"/>
+    <map ipa="d" cmu="D"/>
+    <map ipa="k" cmu="K"/>
+    <map ipa="ɡ" cmu="G"/>
+
+    <!-- Affricates -->
+    <map ipa="t͡ʃ" cmu="CH"/>
+    <map ipa="d͡ʒ" cmu="JH"/>
+
+    <!-- Fricatives -->
+    <map ipa="f" cmu="F"/>
+    <map ipa="v" cmu="V"/>
+    <map ipa="θ" cmu="TH"/>
+    <map ipa="ð" cmu="DH"/>
+    <map ipa="s" cmu="S"/>
+    <map ipa="z" cmu="Z"/>
+    <map ipa="ʃ" cmu="SH"/>
+    <map ipa="ʒ" cmu="ZH"/>
+    <map ipa="h" cmu="HH"/>
+
+    <!-- Extended CMU symbols (not in standard CMUdict) -->
+    <extras>
+        <!-- Schwa: explicit symbol (standard CMUdict uses AH0) -->
+        <map ipa="ə" cmu="AX" stress="0"/>
+
+        <!-- Glottal stop: "uh-oh" -->
+        <map ipa="ʔ" cmu="Q"/>
+
+        <!-- Alveolar flap: "butter", "ladder" -->
+        <map ipa="ɾ" cmu="DX"/>
+
+        <!-- Nasal flap: "winter" (some dialects) -->
+        <map ipa="ɾ̃" cmu="NX"/>
+
+        <!-- Close central unrounded vowel: "roses" (some dialects) -->
+        <map ipa="ɨ" cmu="IX" stress="0 1 2"/>
+
+        <!-- Syllabic L: "bottle", "middle" -->
+        <map ipa="l̩" cmu="EL" stress="0 1 2"/>
+
+        <!-- Syllabic M: "rhythm", "prism" -->
+        <map ipa="m̩" cmu="EM" stress="0 1 2"/>
+
+        <!-- Syllabic N: "button", "hidden" -->
+        <map ipa="n̩" cmu="EN" stress="0 1 2"/>
+
+        <!-- Syllabic NG: rare, some dialects -->
+        <map ipa="ŋ̩" cmu="ENG" stress="0 1 2"/>
+    </extras>
+</phonemap>

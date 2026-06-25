@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='utf-8'?>
+<phonemap description="IPA to Kirshenbaum ASCII-IPA" from="ipa" to="kirshenbaum">
+    <!--
+    Kirshenbaum: ASCII representation of IPA for email/plain text.
+    Also known as ASCII-IPA. Developed by Evan Kirshenbaum.
+    Reference: https://en.wikipedia.org/wiki/Kirshenbaum
+
+    Conventions:
+    - Uppercase = IPA extensions (like X-SAMPA)
+    - Modifiers follow base: p[h] = aspirated p
+    - Digraphs for affricates: tS = t͡ʃ
+    -->
+
+    <!-- Vowels - Unrounded -->
+    <map ipa="i" kirshenbaum="i"/>
+    <map ipa="ɪ" kirshenbaum="I"/>
+    <map ipa="e" kirshenbaum="e"/>
+    <map ipa="ɛ" kirshenbaum="E"/>
+    <map ipa="æ" kirshenbaum="&amp;"/>
+    <map ipa="a" kirshenbaum="a"/>
+    <map ipa="ɑ" kirshenbaum="A"/>
+    <map ipa="ʌ" kirshenbaum="V"/>
+    <map ipa="ə" kirshenbaum="@"/>
+    <map ipa="ɨ" kirshenbaum="i&quot;"/>
+    <map ipa="ɘ" kirshenbaum="@&lt;rnd&gt;"/>
+    <map ipa="ɜ" kirshenbaum="V&quot;"/>
+    <map ipa="ɐ" kirshenbaum="&amp;&quot;"/>
+    <map ipa="ɯ" kirshenbaum="u-"/>
+
+    <!-- Vowels - Rounded -->
+    <map ipa="y" kirshenbaum="y"/>
+    <map ipa="ʏ" kirshenbaum="I."/>
+    <map ipa="ø" kirshenbaum="Y"/>
+    <map ipa="œ" kirshenbaum="W"/>
+    <map ipa="ɶ" kirshenbaum="&amp;."/>
+    <map ipa="u" kirshenbaum="u"/>
+    <map ipa="ʊ" kirshenbaum="U"/>
+    <map ipa="o" kirshenbaum="o"/>
+    <map ipa="ɔ" kirshenbaum="O"/>
+    <map ipa="ɒ" kirshenbaum="A."/>
+    <map ipa="ʉ" kirshenbaum="u&quot;"/>
+    <map ipa="ɵ" kirshenbaum="@."/>
+
+    <!-- R-colored vowels -->
+    <map ipa="ɚ" kirshenbaum="@&lt;r&gt;"/>
+    <map ipa="ɝ" kirshenbaum="V&quot;&lt;r&gt;"/>
+
+    <!-- Plosives -->
+    <map ipa="p" kirshenbaum="p"/>
+    <map ipa="b" kirshenbaum="b"/>
+    <map ipa="t" kirshenbaum="t"/>
+    <map ipa="d" kirshenbaum="d"/>
+    <map ipa="ʈ" kirshenbaum="t."/>
+    <map ipa="ɖ" kirshenbaum="d."/>
+    <map ipa="c" kirshenbaum="c"/>
+    <map ipa="ɟ" kirshenbaum="J"/>
+    <map ipa="k" kirshenbaum="k"/>
+    <map ipa="ɡ" kirshenbaum="g"/>
+    <map ipa="q" kirshenbaum="q"/>
+    <map ipa="ɢ" kirshenbaum="G"/>
+    <map ipa="ʔ" kirshenbaum="?"/>
+
+    <!-- Nasals -->
+    <map ipa="m" kirshenbaum="m"/>
+    <map ipa="ɱ" kirshenbaum="m&lt;lbd&gt;"/>
+    <map ipa="n" kirshenbaum="n"/>
+    <map ipa="ɳ" kirshenbaum="n."/>
+    <map ipa="ɲ" kirshenbaum="n^"/>
+    <map ipa="ŋ" kirshenbaum="N"/>
+    <map ipa="ɴ" kirshenbaum="n&quot;"/>
+
+    <!-- Trills -->
+    <map ipa="ʙ" kirshenbaum="b&lt;trl&gt;"/>
+    <map ipa="r" kirshenbaum="r&lt;trl&gt;"/>
+    <map ipa="ʀ" kirshenbaum="r&quot;"/>
+
+    <!-- Taps/Flaps -->
+    <map ipa="ɾ" kirshenbaum="*"/>
+    <map ipa="ɽ" kirshenbaum="*."/>
+
+    <!-- Fricatives -->
+    <map ipa="ɸ" kirshenbaum="P"/>
+    <map ipa="β" kirshenbaum="B"/>
+    <map ipa="f" kirshenbaum="f"/>
+    <map ipa="v" kirshenbaum="v"/>
+    <map ipa="θ" kirshenbaum="T"/>
+    <map ipa="ð" kirshenbaum="D"/>
+    <map ipa="s" kirshenbaum="s"/>
+    <map ipa="z" kirshenbaum="z"/>
+    <map ipa="ʃ" kirshenbaum="S"/>
+    <map ipa="ʒ" kirshenbaum="Z"/>
+    <map ipa="ʂ" kirshenbaum="s."/>
+    <map ipa="ʐ" kirshenbaum="z."/>
+    <map ipa="ç" kirshenbaum="C"/>
+    <map ipa="ʝ" kirshenbaum="C&lt;vcd&gt;"/>
+    <map ipa="x" kirshenbaum="x"/>
+    <map ipa="ɣ" kirshenbaum="Q"/>
+    <map ipa="χ" kirshenbaum="X"/>
+    <map ipa="ʁ" kirshenbaum="g&quot;"/>
+    <map ipa="ħ" kirshenbaum="H"/>
+    <map ipa="ʕ" kirshenbaum="H&lt;vcd&gt;"/>
+    <map ipa="h" kirshenbaum="h"/>
+    <map ipa="ɦ" kirshenbaum="h&lt;vcd&gt;"/>
+
+    <!-- Lateral Fricatives -->
+    <map ipa="ɬ" kirshenbaum="s&lt;lat&gt;"/>
+    <map ipa="ɮ" kirshenbaum="z&lt;lat&gt;"/>
+
+    <!-- Approximants -->
+    <map ipa="ʋ" kirshenbaum="v&lt;lbd&gt;"/>
+    <map ipa="ɹ" kirshenbaum="r"/>
+    <map ipa="ɻ" kirshenbaum="r."/>
+    <map ipa="j" kirshenbaum="j"/>
+    <map ipa="ɰ" kirshenbaum="j&lt;vel&gt;"/>
+    <map ipa="w" kirshenbaum="w"/>
+    <map ipa="ʍ" kirshenbaum="w&lt;vls&gt;"/>
+
+    <!-- Lateral Approximants -->
+    <map ipa="l" kirshenbaum="l"/>
+    <map ipa="ɭ" kirshenbaum="l."/>
+    <map ipa="ʎ" kirshenbaum="l^"/>
+    <map ipa="ʟ" kirshenbaum="L"/>
+
+    <!-- Affricates (common combinations) -->
+    <map ipa="t͡ʃ" kirshenbaum="tS"/>
+    <map ipa="d͡ʒ" kirshenbaum="dZ"/>
+    <map ipa="t͡s" kirshenbaum="ts"/>
+    <map ipa="d͡z" kirshenbaum="dz"/>
+
+    <!-- Implosives -->
+    <map ipa="ɓ" kirshenbaum="b`"/>
+    <map ipa="ɗ" kirshenbaum="d`"/>
+    <map ipa="ʄ" kirshenbaum="J`"/>
+    <map ipa="ɠ" kirshenbaum="g`"/>
+    <map ipa="ʛ" kirshenbaum="G`"/>
+
+    <!-- Clicks -->
+    <map ipa="ʘ" kirshenbaum="p!"/>
+    <map ipa="ǀ" kirshenbaum="t!"/>
+    <map ipa="ǃ" kirshenbaum="c!"/>
+    <map ipa="ǂ" kirshenbaum="c!!"/>
+    <map ipa="ǁ" kirshenbaum="l!"/>
+
+    <!-- Diacritics encoded in extras -->
+    <extras>
+        <!-- Aspirated -->
+        <map ipa="pʰ" kirshenbaum="p[h]"/>
+        <map ipa="tʰ" kirshenbaum="t[h]"/>
+        <map ipa="kʰ" kirshenbaum="k[h]"/>
+
+        <!-- Syllabic consonants -->
+        <map ipa="m̩" kirshenbaum="m="/>
+        <map ipa="n̩" kirshenbaum="n="/>
+        <map ipa="l̩" kirshenbaum="l="/>
+        <map ipa="ɹ̩" kirshenbaum="r="/>
+
+        <!-- Length -->
+        <map ipa="ː" kirshenbaum=":"/>
+
+        <!-- Stress -->
+        <map ipa="ˈ" kirshenbaum="'"/>
+        <map ipa="ˌ" kirshenbaum=","/>
+
+        <!-- Nasalization -->
+        <map ipa="̃" kirshenbaum="~"/>
+    </extras>
+</phonemap>

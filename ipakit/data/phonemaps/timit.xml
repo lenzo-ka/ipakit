@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='utf-8'?>
+<phonemap description="IPA to TIMIT phoneset" from="ipa" to="timit">
+    <!--
+    TIMIT: Texas Instruments/MIT speech corpus phoneset (61 phones)
+    Based on CMU/ARPABET but lowercase, with additional allophones.
+    Reference: TIMIT Acoustic-Phonetic Continuous Speech Corpus (LDC93S1)
+    -->
+
+    <!-- Silence and closures -->
+    <map ipa="␣" timit="h#"/>
+
+    <!-- Vowels -->
+    <map ipa="i" timit="iy"/>
+    <map ipa="ɪ" timit="ih"/>
+    <map ipa="ɛ" timit="eh"/>
+    <map ipa="æ" timit="ae"/>
+    <map ipa="ɑ" timit="aa"/>
+    <map ipa="ɔ" timit="ao"/>
+    <map ipa="ʊ" timit="uh"/>
+    <map ipa="u" timit="uw"/>
+    <map ipa="ʌ" timit="ah"/>
+    <map ipa="ə" timit="ax"/>
+    <map ipa="ɚ" timit="axr"/>
+    <map ipa="ɝ" timit="er"/>
+    <map ipa="ɨ" timit="ix"/>
+
+    <!-- Diphthongs -->
+    <map ipa="e͡ɪ" timit="ey"/>
+    <map ipa="o͡ʊ" timit="ow"/>
+    <map ipa="a͡ɪ" timit="ay"/>
+    <map ipa="a͡ʊ" timit="aw"/>
+    <map ipa="ɔ͡ɪ" timit="oy"/>
+
+    <!-- Semivowels/Glides -->
+    <map ipa="j" timit="y"/>
+    <map ipa="w" timit="w"/>
+    <map ipa="ɹ" timit="r"/>
+    <map ipa="l" timit="l"/>
+
+    <!-- Nasals -->
+    <map ipa="m" timit="m"/>
+    <map ipa="n" timit="n"/>
+    <map ipa="ŋ" timit="ng"/>
+    <map ipa="m̩" timit="em"/>
+    <map ipa="n̩" timit="en"/>
+    <map ipa="ŋ̩" timit="eng"/>
+
+    <!-- Fricatives -->
+    <map ipa="f" timit="f"/>
+    <map ipa="v" timit="v"/>
+    <map ipa="θ" timit="th"/>
+    <map ipa="ð" timit="dh"/>
+    <map ipa="s" timit="s"/>
+    <map ipa="z" timit="z"/>
+    <map ipa="ʃ" timit="sh"/>
+    <map ipa="ʒ" timit="zh"/>
+    <map ipa="h" timit="hh"/>
+    <map ipa="ɦ" timit="hv"/>
+
+    <!-- Affricates -->
+    <map ipa="t͡ʃ" timit="ch"/>
+    <map ipa="d͡ʒ" timit="jh"/>
+
+    <!-- Plosives -->
+    <map ipa="p" timit="p"/>
+    <map ipa="b" timit="b"/>
+    <map ipa="t" timit="t"/>
+    <map ipa="d" timit="d"/>
+    <map ipa="k" timit="k"/>
+    <map ipa="ɡ" timit="g"/>
+    <map ipa="ʔ" timit="q"/>
+
+    <!-- Flaps -->
+    <map ipa="ɾ" timit="dx"/>
+    <map ipa="ɾ̃" timit="nx"/>
+
+    <!-- TIMIT-specific allophones (extras section for less common) -->
+    <extras>
+        <!-- Closures (silence before plosive release) -->
+        <map ipa="p" timit="pcl" note="closure"/>
+        <map ipa="b" timit="bcl" note="closure"/>
+        <map ipa="t" timit="tcl" note="closure"/>
+        <map ipa="d" timit="dcl" note="closure"/>
+        <map ipa="k" timit="kcl" note="closure"/>
+        <map ipa="ɡ" timit="gcl" note="closure"/>
+
+        <!-- Syllabic L -->
+        <map ipa="l̩" timit="el"/>
+
+        <!-- Glottal closure -->
+        <map ipa="ʔ" timit="epi" note="epenthetic"/>
+
+        <!-- Pause markers -->
+        <map ipa="␣" timit="pau" note="pause"/>
+    </extras>
+</phonemap>

@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<phonemap description="IPA characters with common lookalikes">
+    <!--
+    Maps IPA characters to visually similar characters that have
+    different Unicode codepoints. These lookalikes are commonly
+    typed by mistake when using a standard keyboard.
+    -->
+
+    <!-- True visual lookalikes only -->
+    <map ipa="ɡ" lookalike="g"/>      <!-- U+0261 LATIN SMALL LETTER SCRIPT G ← U+0067 LATIN SMALL LETTER G -->
+    <map ipa="ʼ" lookalike="'"/>      <!-- U+02BC MODIFIER LETTER APOSTROPHE ← U+0027 APOSTROPHE -->
+    <map ipa="ː" lookalike=":"/>      <!-- U+02D0 MODIFIER LETTER TRIANGULAR COLON ← U+003A COLON -->
+    <map ipa="ʔ" lookalike="?"/>      <!-- U+0294 LATIN LETTER GLOTTAL STOP ← U+003F QUESTION MARK -->
+    <map ipa="ǃ" lookalike="!"/>      <!-- U+01C3 LATIN LETTER RETROFLEX CLICK ← U+0021 EXCLAMATION MARK -->
+</phonemap>

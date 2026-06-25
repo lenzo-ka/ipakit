@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipakit"
+version = "0.1.0"
+description = "IPA phonetic toolkit"
+authors = [
+    {name = "Kevin Lenzo"}
+]
+license = "MIT"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Human Machine Interfaces",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
+keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.1", "mypy>=1.0"]
+
+[project.urls]
+Homepage = "https://github.com/lenzo/ipakit"
+Repository = "https://github.com/lenzo/ipakit"
+
+[project.scripts]
+ipakit = "ipakit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+ipakit = ["data/*.xml", "data/phonemaps/*.xml", "py.typed"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (require network, deselect with '-m \"not slow\"')",
+]
+# Don't run slow tests by default
+addopts = "-m 'not slow'"

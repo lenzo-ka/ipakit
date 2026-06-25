@@ -1,0 +1,208 @@
+<?xml version='1.0' encoding='utf-8'?>
+<phonemap description="IPA to X-SAMPA">
+    <!-- Silence -->
+    <map ipa="␣" xsampa="*"/>
+
+    <!-- Basic Latin consonants -->
+    <map ipa="b" xsampa="b"/>
+    <map ipa="c" xsampa="c"/>
+    <map ipa="d" xsampa="d"/>
+    <map ipa="f" xsampa="f"/>
+    <map ipa="ɡ" xsampa="g"/>
+    <map ipa="h" xsampa="h"/>
+    <map ipa="j" xsampa="j"/>
+    <map ipa="k" xsampa="k"/>
+    <map ipa="l" xsampa="l"/>
+    <map ipa="m" xsampa="m"/>
+    <map ipa="n" xsampa="n"/>
+    <map ipa="p" xsampa="p"/>
+    <map ipa="q" xsampa="q"/>
+    <map ipa="r" xsampa="r"/>
+    <map ipa="s" xsampa="s"/>
+    <map ipa="t" xsampa="t"/>
+    <map ipa="v" xsampa="v"/>
+    <map ipa="w" xsampa="w"/>
+    <map ipa="x" xsampa="x"/>
+    <map ipa="z" xsampa="z"/>
+
+    <!-- Basic Latin vowels -->
+    <map ipa="a" xsampa="a"/>
+    <map ipa="e" xsampa="e"/>
+    <map ipa="i" xsampa="i"/>
+    <map ipa="o" xsampa="o"/>
+    <map ipa="u" xsampa="u"/>
+    <map ipa="y" xsampa="y"/>
+
+    <!-- Uppercase = IPA extensions -->
+    <map ipa="ɑ" xsampa="A"/>
+    <map ipa="β" xsampa="B"/>
+    <map ipa="ç" xsampa="C"/>
+    <map ipa="ð" xsampa="D"/>
+    <map ipa="ɛ" xsampa="E"/>
+    <map ipa="ɱ" xsampa="F"/>
+    <map ipa="ɣ" xsampa="G"/>
+    <map ipa="ɥ" xsampa="H"/>
+    <map ipa="ɪ" xsampa="I"/>
+    <map ipa="ɲ" xsampa="J"/>
+    <map ipa="ɬ" xsampa="K"/>
+    <map ipa="ʎ" xsampa="L"/>
+    <map ipa="ɯ" xsampa="M"/>
+    <map ipa="ŋ" xsampa="N"/>
+    <map ipa="ɔ" xsampa="O"/>
+    <map ipa="ʋ" xsampa="P"/>
+    <map ipa="ɒ" xsampa="Q"/>
+    <map ipa="ʁ" xsampa="R"/>
+    <map ipa="ʃ" xsampa="S"/>
+    <map ipa="θ" xsampa="T"/>
+    <map ipa="ʊ" xsampa="U"/>
+    <map ipa="ʌ" xsampa="V"/>
+    <map ipa="ʍ" xsampa="W"/>
+    <map ipa="χ" xsampa="X"/>
+    <map ipa="ʏ" xsampa="Y"/>
+    <map ipa="ʒ" xsampa="Z"/>
+
+    <!-- Numbers -->
+    <map ipa="ɨ" xsampa="1"/>
+    <map ipa="ø" xsampa="2"/>
+    <map ipa="ɜ" xsampa="3"/>
+    <map ipa="ɾ" xsampa="4"/>
+    <map ipa="ɫ" xsampa="5"/>
+    <map ipa="ɐ" xsampa="6"/>
+    <map ipa="ɤ" xsampa="7"/>
+    <map ipa="ɵ" xsampa="8"/>
+    <map ipa="œ" xsampa="9"/>
+
+    <!-- Symbols -->
+    <map ipa="ə" xsampa="@"/>
+    <map ipa="æ" xsampa="{"/>
+    <map ipa="ʉ" xsampa="}"/>
+    <map ipa="ɶ" xsampa="&amp;"/>
+    <map ipa="ʔ" xsampa="?"/>
+
+    <!-- Backslash sequences (X\) -->
+    <map ipa="ʙ" xsampa="B\"/>
+    <map ipa="ɢ" xsampa="G\"/>
+    <map ipa="ʜ" xsampa="H\"/>
+    <map ipa="ɟ" xsampa="J\"/>
+    <map ipa="ɮ" xsampa="K\"/>
+    <map ipa="ʟ" xsampa="L\"/>
+    <map ipa="ɰ" xsampa="M\"/>
+    <map ipa="ɴ" xsampa="N\"/>
+    <map ipa="ʘ" xsampa="O\"/>
+    <map ipa="ʀ" xsampa="R\"/>
+    <map ipa="ħ" xsampa="X\"/>
+    <map ipa="ɦ" xsampa="h\"/>
+    <map ipa="ʝ" xsampa="j\"/>
+    <map ipa="ɺ" xsampa="l\"/>
+    <map ipa="ɸ" xsampa="p\"/>
+    <map ipa="ɹ" xsampa="r\"/>
+    <map ipa="ɕ" xsampa="s\"/>
+    <map ipa="ɧ" xsampa="x\"/>
+    <map ipa="ʑ" xsampa="z\"/>
+    <map ipa="ɘ" xsampa="@\"/>
+    <map ipa="ɞ" xsampa="3\"/>
+    <map ipa="ˑ" xsampa=":\"/>
+    <map ipa="ʕ" xsampa="?\"/>
+    <map ipa="‿" xsampa="-\"/>
+    <map ipa="ǀ" xsampa="|\"/>
+    <map ipa="ǃ" xsampa="!\"/>
+    <map ipa="ǂ" xsampa="=\"/>
+    <map ipa="ʡ" xsampa="&gt;\"/>
+    <map ipa="ʢ" xsampa="&lt;\"/>
+
+    <!-- Backtick sequences (retroflex) -->
+    <map ipa="ɖ" xsampa="d`"/>
+    <map ipa="ɭ" xsampa="l`"/>
+    <map ipa="ɳ" xsampa="n`"/>
+    <map ipa="ɽ" xsampa="r`"/>
+    <map ipa="ɻ" xsampa="r\`"/>
+    <map ipa="ʂ" xsampa="s`"/>
+    <map ipa="ʈ" xsampa="t`"/>
+    <map ipa="ʐ" xsampa="z`"/>
+    <map ipa="ɚ" xsampa="@`"/>
+    <map ipa="ɝ" xsampa="3`"/>
+
+    <!-- Underscore sequences (diacritics) -->
+    <map ipa="ʰ" xsampa="_h"/>
+    <map ipa="ʱ" xsampa="_hh"/>
+    <map ipa="ʷ" xsampa="_w"/>
+    <map ipa="ˠ" xsampa="_G"/>
+    <map ipa="ˡ" xsampa="_l"/>
+    <map ipa="ⁿ" xsampa="_n"/>
+    <map ipa="ʼ" xsampa="_&gt;"/>
+    <map ipa="ˤ" xsampa="_?\"/>
+    <map ipa="̈" xsampa="_&quot;"/>
+    <map ipa="̘" xsampa="_A"/>
+    <map ipa="̙" xsampa="_q"/>
+    <map ipa="̚" xsampa="_}"/>
+    <map ipa="̜" xsampa="_c"/>
+    <map ipa="̝" xsampa="_r"/>
+    <map ipa="̟" xsampa="_+"/>
+    <map ipa="̠" xsampa="_-"/>
+    <map ipa="̤" xsampa="_t"/>
+    <map ipa="̥" xsampa="_0"/>
+    <map ipa="̪" xsampa="_d"/>
+    <map ipa="̬" xsampa="_v"/>
+    <map ipa="̯" xsampa="_^"/>
+    <map ipa="̰" xsampa="_k"/>
+    <map ipa="̴" xsampa="_e"/>
+    <map ipa="̹" xsampa="_O"/>
+    <map ipa="̺" xsampa="_a"/>
+    <map ipa="̻" xsampa="_m"/>
+    <map ipa="̼" xsampa="_N"/>
+    <map ipa="̽" xsampa="_x"/>
+    <map ipa="̆" xsampa="_X"/>
+    <map ipa="ᶣ" xsampa="_H_w"/>
+
+    <!-- Implosives -->
+    <map ipa="ɓ" xsampa="b_&lt;"/>
+    <map ipa="ɗ" xsampa="d_&lt;"/>
+    <map ipa="ɠ" xsampa="g_&lt;"/>
+    <map ipa="ʛ" xsampa="G\_&lt;"/>
+    <map ipa="ʄ" xsampa="J\_&lt;"/>
+
+    <!-- Ejective -->
+    <map ipa="ť" xsampa="t_&gt;"/>
+
+    <!-- Sino-Tibetan extensions -->
+    <map ipa="ȡ" xsampa="d_j\"/>
+    <map ipa="ȴ" xsampa="l_j\"/>
+    <map ipa="ȶ" xsampa="t_j\"/>
+
+    <!-- Palatalization -->
+    <map ipa="ʲ" xsampa="'"/>
+
+    <!-- Clicks -->
+    <map ipa="ǁ" xsampa="|\|\"/>
+
+    <!-- Suprasegmentals -->
+    <map ipa="ˈ" xsampa="&quot;"/>
+    <map ipa="ˌ" xsampa="%"/>
+    <map ipa="ː" xsampa=":"/>
+    <map ipa="̃" xsampa="~"/>
+    <map ipa="̩" xsampa="="/>
+    <map ipa="ʴ" xsampa="`"/>
+    <map ipa="˥" xsampa="_T"/>
+    <map ipa="˦" xsampa="_H"/>
+    <map ipa="˧" xsampa="_M"/>
+    <map ipa="˨" xsampa="_L"/>
+    <map ipa="˩" xsampa="_B"/>
+    <map ipa="̌" xsampa="_R"/>
+    <map ipa="̂" xsampa="_F"/>
+    <map ipa="᷄" xsampa="_H_T"/>
+    <map ipa="᷅" xsampa="_B_L"/>
+    <map ipa="͡" xsampa="_"/>
+    <map ipa="↗" xsampa="&lt;R&gt;"/>
+    <map ipa="↘" xsampa="&lt;F&gt;"/>
+    <map ipa="ꜛ" xsampa="^"/>
+    <map ipa="ꜜ" xsampa="!"/>
+    <map ipa="|" xsampa="|"/>
+    <map ipa="‖" xsampa="||"/>
+
+    <!-- Separators -->
+    <map ipa="." xsampa="."/>
+    <map ipa="#" xsampa="#"/>
+
+    <!-- Centralized a -->
+    <map ipa="ä" xsampa="a_&quot;"/>
+</phonemap>
