@@ -20,7 +20,7 @@ import bisect
 import functools
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from .constants import DEFAULT_CONFUSION
 from .distance import WordDistanceResult
@@ -134,7 +134,7 @@ class DistanceModel:
         sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
-    ) -> DistanceModel:
+    ) -> Self:
         """Default model: shipped global IPA matrix, CDF over all its pairs."""
         phones, m, space = _global_matrix()
         return cls(
@@ -163,7 +163,7 @@ class DistanceModel:
         sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
-    ) -> DistanceModel:
+    ) -> Self:
         """Reuse the shipped global matrix values; re-slice the CDF to `phoneset`."""
         phones, m, space = _global_matrix()
         index = {p: i for i, p in enumerate(phones)}
@@ -196,7 +196,7 @@ class DistanceModel:
         sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
-    ) -> DistanceModel:
+    ) -> Self:
         """External confusion matrix (TSV grid or JSON model). CDF over its pairs."""
         p = Path(path)
         if p.suffix == ".tsv":

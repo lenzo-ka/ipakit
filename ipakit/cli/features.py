@@ -135,21 +135,17 @@ class FeaturesCommand(Command):
             self._output_single(data)
             return 0
 
-        # Composed or multi-segment string
-        bundles = self.ipa.compose(phone, with_defaults=with_defaults)
-        if not bundles:
+        # Composed or multi-segment string. compose_segments keeps each token
+        # aligned with its feature bundle (markers without features are dropped).
+        segments = self.ipa.compose_segments(phone, with_defaults=with_defaults)
+        if not segments:
             return self.error(f"Could not parse: {phone}")
 
-        tokens = self.ipa.tokenize_ipa(phone)
-
-        # Build entries for each segment
         entries = []
-        # tokens may include suprasegmentals (stress/breaks) that compose() drops,
-        # so the two can differ in length; pair up to the shorter (strict=False).
-        for t, b in zip(tokens, bundles, strict=False):
-            # A segment is composed if it's longer than 1 char and not a known multi-char phone
-            is_composed = len(t) > 1 and t not in self.ipa.phones
-            entries.append(self._build_entry(t, b, is_composed))
+        for token, feats in segments:
+            # A segment is composed if it's multi-char and not a known phone.
+            is_composed = len(token) > 1 and token not in self.ipa.phones
+            entries.append(self._build_entry(token, feats, is_composed))
 
         # Single segment - output without wrapper
         if len(entries) == 1:

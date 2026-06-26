@@ -6,6 +6,7 @@ import functools
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
 
 
 @dataclass
@@ -96,7 +97,7 @@ class Phoneset:
         return frozenset(self.phones)
 
     @classmethod
-    def from_file(cls, path: Path) -> Phoneset:
+    def from_file(cls, path: Path) -> Self:
         """Load phoneset from text file (one phone per line)."""
         path = Path(path)
         phones = [
@@ -107,7 +108,7 @@ class Phoneset:
         return cls(name=path.stem, phones=phones)
 
     @classmethod
-    def from_list(cls, phones: list[str], name: str = "custom") -> Phoneset:
+    def from_list(cls, phones: list[str], name: str = "custom") -> Self:
         return cls(name=name, phones=phones)
 
     def __contains__(self, phone: str) -> bool:

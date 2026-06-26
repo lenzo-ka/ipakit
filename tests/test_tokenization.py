@@ -179,3 +179,14 @@ class TestCompose:
         # Devoicing diacritic should set voiced to -
         bundles = ipa.compose("b̥")  # devoiced b
         assert bundles[0]["voiced"] == "-"
+
+    def test_compose_segments_aligns_tokens(self, ipa: IPAFeatures) -> None:
+        # Featureless markers (stress, syllable break) are dropped, so each
+        # token lines up with its own feature bundle -- not the next one.
+        segs = ipa.compose_segments("ˈkæt.dɒɡ")
+        assert [t for t, _ in segs] == ["k", "æ", "t", "d", "ɒ", "ɡ"]
+        by_token = dict(segs)
+        assert by_token["k"]["manner"] == "plosive"
+        assert by_token["æ"]["manner"] == "vowel"
+        # Features stay in sync with compose().
+        assert [f for _, f in segs] == ipa.compose("ˈkæt.dɒɡ")

@@ -560,7 +560,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self, segment: str, with_defaults: bool = True, phoneset: Phoneset | None = None
     ) -> list[dict[str, str]]:
         """Get features for a segment, composing base phones with diacritics."""
-        result = []
+        return [
+            feats
+            for _, feats in self.compose_segments(
+                segment, with_defaults=with_defaults, phoneset=phoneset
+            )
+        ]
+
+    def compose_segments(
+        self, segment: str, with_defaults: bool = True, phoneset: Phoneset | None = None
+    ) -> list[tuple[str, dict[str, str]]]:
+        """Compose ``segment`` into aligned ``(token, features)`` pairs.
+
+        Same segmentation as :meth:`tokenize_ipa`, but suprasegmentals and
+        separators that carry no phonetic features (stress, syllable breaks) are
+        dropped, so every token lines up with its composed feature bundle.
+        """
+        result: list[tuple[str, dict[str, str]]] = []
         for base, diacritics in self.parse(segment, phoneset=phoneset):
             if not (feats := self.get_features(base, with_defaults=with_defaults)):
                 continue
@@ -569,7 +585,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     for k, v in self.diacritics[diac].features.items():
                         if k not in ("class", "manner"):
                             feats[k] = v
-            result.append(feats)
+            result.append((base + "".join(diacritics), feats))
         return result
 
     def compose_single(
