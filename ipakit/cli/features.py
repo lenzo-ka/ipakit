@@ -144,7 +144,9 @@ class FeaturesCommand(Command):
 
         # Build entries for each segment
         entries = []
-        for t, b in zip(tokens, bundles):
+        # tokens may include suprasegmentals (stress/breaks) that compose() drops,
+        # so the two can differ in length; pair up to the shorter (strict=False).
+        for t, b in zip(tokens, bundles, strict=False):
             # A segment is composed if it's longer than 1 char and not a known multi-char phone
             is_composed = len(t) > 1 and t not in self.ipa.phones
             entries.append(self._build_entry(t, b, is_composed))

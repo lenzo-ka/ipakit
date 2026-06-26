@@ -6,8 +6,9 @@ import argparse
 import json
 import sys
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Callable
+from typing import IO, TYPE_CHECKING, Any
 
 from ..constants import DEFAULT_CMU_MAP, DEFAULT_IPA_FEATS
 
@@ -146,10 +147,14 @@ class Command(ABC):
             max(len(str(row[i])) for row in all_rows) for i in range(len(all_rows[0]))
         ]
         if headers:
-            self.print("  ".join(h.ljust(w) for h, w in zip(headers, widths)))
+            self.print(
+                "  ".join(h.ljust(w) for h, w in zip(headers, widths, strict=True))
+            )
             self.print("  ".join("-" * w for w in widths))
         for row in rows:
-            self.print("  ".join(str(c).ljust(w) for c, w in zip(row, widths)))
+            self.print(
+                "  ".join(str(c).ljust(w) for c, w in zip(row, widths, strict=True))
+            )
 
     def output_result(
         self, data: Any, text_formatter: Callable[[Any], str] | None = None

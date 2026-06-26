@@ -70,7 +70,11 @@ def cmd_validate(_: argparse.Namespace) -> int:
         print(f"DRIFT: space shipped={s.get('space')!r} derived={d['space']!r}.")
         return 1
     if d["triangle"] != s.get("triangle"):
-        diffs = sum(a != b for a, b in zip(d["triangle"], s.get("triangle", [])))
+        # triangles can differ in length when the inventory changed; count the
+        # overlap (strict=False) -- the phones check above already flags resize.
+        diffs = sum(
+            a != b for a, b in zip(d["triangle"], s.get("triangle", []), strict=False)
+        )
         print(f"DRIFT: {diffs} matrix cells differ; regenerate confusion.json.")
         return 1
     print(f"OK: shipped confusion.json matches derived ({len(d['phones'])} phones).")

@@ -148,7 +148,7 @@ pytest                    # unit tests + docstring examples (--doctest-modules)
 
 CI (`.github/workflows/ci.yml`) mirrors these checks on every push/PR: `ruff` +
 `black --check` + `mypy --strict` (the `lint` extra), `pytest` across Python
-3.9–3.13 (the `test` extra), and the two derived-artifact guards below (the
+3.11–3.13 (the `test` extra), and the two derived-artifact guards below (the
 `dev` extra, which adds ICU). Install a lean subset with `pip install -e
 ".[test]"` or `".[lint]"`.
 
