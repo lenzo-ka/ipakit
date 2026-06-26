@@ -11,8 +11,12 @@ class StressCommand(Command):
     """Show IPA stress marker information.
 
     IPA uses two stress markers:
-        ˈ (U+02C8) - Primary stress (placed before stressed syllable)
-        ˌ (U+02CC) - Secondary stress (placed before syllable)
+        ˈ (U+02C8) - Primary stress
+        ˌ (U+02CC) - Secondary stress
+
+    Standard IPA writes the marker before the stressed syllable; ipakit
+    normalizes it onto the syllable nucleus (the vowel) so conversions
+    round-trip, e.g. /hˈɛlo͡ʊ/.
 
     In CMU ARPABET, stress is indicated by numbers on vowels:
         1 = primary stress
@@ -47,8 +51,9 @@ class StressCommand(Command):
                 codepoint = f"U+{ord(marker):04X}"
                 print(f"  {marker}  {name:12}  level {level}  ({codepoint})")
             print()
-            print("Usage: Placed immediately before the stressed syllable")
-            print("  Example: /ˈhɛloʊ/ (primary stress on first syllable)")
+            print("Usage: standard IPA writes the marker before the stressed")
+            print("  syllable; ipakit normalizes it onto the nucleus (vowel),")
+            print("  e.g. /hˈɛlo͡ʊ/, so converters round-trip.")
         return 0
 
 

@@ -307,7 +307,7 @@ class ShortsCommand(Command):
         frt = backness:front     clo = height:close
 
     Examples:
-        ipakit query shorts plo bil -voi       # → manner=plosive place=bilabial voiced=-
+        ipakit query shorts plo bil +voi       # → manner=plosive place=bilabial voiced=+
         ipakit q shorts manner=plosive -s      # → plo
         ipakit q shorts +voi plo               # Expand to full features
     """

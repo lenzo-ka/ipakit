@@ -17,7 +17,7 @@ class DescribeCommand(Command):
         ipakit describe p              # voiceless bilabial plosive
         ipakit describe ɛ              # open-mid front unrounded vowel
         ipakit describe t͡ʃ             # voiceless postalveolar affricate
-        ipakit describe l              # voiced alveolar lateral approximant
+        ipakit describe l              # voiced lateral alveolar approximant
         ipakit desc ŋ                  # voiced velar nasal
     """
 
@@ -53,12 +53,15 @@ class NaturalClassCommand(Command):
     phonetic features. This command finds the intersection of features
     that unify the given phones.
 
+    By default every shared feature (including defaults) is shown; use
+    --no-defaults to see only the explicitly-set ones, as below.
+
     Examples:
-        ipakit natural-class p t k           # manner=plosive voiced=-
-        ipakit natural-class b d ɡ           # manner=plosive voiced=+
-        ipakit natural-class i e ɛ           # manner=vowel backness=front
-        ipakit nc m n ŋ                      # manner=nasal voiced=+
-        ipakit nc p t k -f json              # JSON output
+        ipakit analysis natural-class p t k --no-defaults  # manner=plosive
+        ipakit an natural-class b d ɡ --no-defaults        # manner=plosive voiced=+
+        ipakit an natural-class i e ɛ --no-defaults        # backness=front manner=vowel
+        ipakit an nc m n ŋ --no-defaults                   # manner=nasal voiced=+
+        ipakit an nc p t k -f json                         # JSON output
     """
 
     name = "natural-class"
@@ -101,16 +104,16 @@ class MinimalPairsCommand(Command):
     language teaching (learners confuse similar sounds).
 
     Examples:
-        ipakit minimal-pairs p             # b (voiced), t (place), m (manner)...
-        ipakit minimal-pairs i             # y (rounded), ɪ (height)...
-        ipakit mp s                        # z (voiced), ʃ (place), θ (place)...
-        ipakit mp p -f json                # JSON output
-        ipakit mp p --max-distance 0.5     # Include more distant phones
+        ipakit analysis minimal-pairs p    # ɸ, f, p͡f (manner)...
+        ipakit an minimal-pairs i          # e, e͡ə (height)...
+        ipakit an mp s                     # ɧ, ʃ, θ (place)...
+        ipakit an mp p -f json             # JSON output
+        ipakit an mp p --max-distance 0.5  # Include more distant phones
     """
 
     name = "minimal-pairs"
     aliases = ["mp"]
-    help = "Find phones differing by one feature (e.g., 'p' → 'b' differs in voicing)"
+    help = "Find phones differing by ~one feature (e.g., 'p' → 'ɸ', 'f', 't'...)"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -161,14 +164,14 @@ class NearestCommand(Command):
     potential confusion pairs.
 
     Examples:
-        ipakit nearest p                   # Show 10 nearest phones to p
-        ipakit nearest p -n 5              # Show 5 nearest
-        ipakit near ɛ -f json              # JSON output
+        ipakit analysis nearest p          # Show 10 nearest phones to p
+        ipakit an nearest p -n 5           # Show 5 nearest
+        ipakit an near ɛ -f json           # JSON output
     """
 
     name = "nearest"
     aliases = ["near"]
-    help = "Find n nearest phones by distance (e.g., 'p' → 'b', 't', 'm'...)"
+    help = "Find n nearest phones by distance (e.g., 'p' → 'ɸ', 'f'...)"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -222,10 +225,10 @@ class ValidateCommand(Command):
         1: Invalid (has errors)
 
     Examples:
-        ipakit validate "kæt"              # Valid - exit 0
-        ipakit validate "kæt̪"              # Valid - dental diacritic
-        ipakit validate "xyz"              # Invalid - unknown symbols
-        ipakit validate "̃a"                # Invalid - orphan diacritic
+        ipakit analysis validate "kæt"     # Valid - exit 0
+        ipakit an validate "kæt̪"           # Valid - dental diacritic
+        ipakit an validate "k@t"           # Invalid - unknown symbol
+        ipakit an validate "̃a"             # Invalid - orphan diacritic
         ipakit an val "kæt" -f json        # JSON output
         ipakit an val "kæt" --strict       # Treat warnings as errors
     """

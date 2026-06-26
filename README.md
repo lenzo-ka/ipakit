@@ -61,6 +61,10 @@ ipakit.xsampa_to_ipa("t_S")        # 't͡ʃ'
 # Kirshenbaum / TIMIT
 ipakit.to_kirshenbaum("kæt")       # 'k&t'
 ipakit.to_timit("kæt")             # ['k', 'ae', 't']
+
+# Features straight from a non-IPA symbol (list of per-segment dicts)
+ipakit.features_from_xsampa("t_S")  # [{'manner': 'affricate', 'place': 'postalveolar', ...}]
+ipakit.features_from_cmu("K")       # [{'manner': 'plosive', 'place': 'velar', ...}]
 ```
 
 By default converters skip symbols they can't map. Pass `strict=True` to any of

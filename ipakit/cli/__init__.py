@@ -57,8 +57,8 @@ Examples:
   ipakit describe p                    # "voiceless bilabial plosive"
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
-  ipakit query match plosive bilabial  # Find: b p ...
-  ipakit query match +voi plo bil      # Same with short names
+  ipakit query match plosive bilabial  # Find: b p ɓ
+  ipakit query match +voi plo bil      # Voiced bilabial plosives: b ɓ
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Distance between p and b

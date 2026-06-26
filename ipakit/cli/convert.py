@@ -52,8 +52,8 @@ class ToIpaCommand(Command):
 
     Examples:
         ipakit convert to-ipa K AE1 T      # kˈæt
-        ipakit convert to-ipa HH EH1 L OW0 # ˈhɛloʊ
-        ipakit c to-ipa P IY1 T S AH0      # ˈpitsə
+        ipakit convert to-ipa HH EH1 L OW0 # hˈɛlo͡ʊ
+        ipakit c to-ipa P IY1 T S AH0      # pˈitsə
     """
 
     name = "to-ipa"
@@ -149,7 +149,7 @@ class NormalizeCommand(Command):
     Examples:
         ipakit convert normalize "tʃ"      # t͡ʃ (adds tie bar)
         ipakit convert normalize "ʧ"       # t͡ʃ (legacy ligature)
-        ipakit c norm "t ʃ e ɪ n"          # t͡ʃe͡ɪn
+        ipakit c norm "tʃ eɪ n"            # t͡ʃe͡ɪn (ties added within segments)
     """
 
     name = "normalize"
@@ -278,7 +278,7 @@ class FromTimitCommand(Command):
 
     Examples:
         ipakit convert from-timit k ae t       # kæt
-        ipakit convert from-timit hh eh l ow   # hɛloʊ
+        ipakit convert from-timit hh eh l ow   # hɛlo͡ʊ
         ipakit c from-timit sh aa k            # ʃɑk
     """
 

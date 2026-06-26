@@ -17,8 +17,8 @@ class PairCommand(Command):
     Examples:
         ipakit distance pair p b           # 0.0435 (voicing difference)
         ipakit distance pair p t           # 0.0100 (place difference)
-        ipakit d pair a i                  # ~0.15 (vowel height/backness)
-        ipakit d pair p ɑ                  # ~0.5 (consonant vs vowel)
+        ipakit d pair a i                  # 0.0417 (vowel height/backness)
+        ipakit d pair p ɑ                  # 0.1467 (consonant vs vowel)
         ipakit d pair p b -f json          # {"phone1": "p", "phone2": "b", "distance": 0.0435}
     """
 
@@ -48,7 +48,7 @@ class PairCommand(Command):
                 {
                     "phone1": self.args.phone1,
                     "phone2": self.args.phone2,
-                    "distance": d,
+                    "distance": round(d, 4),
                 }
             )
         else:
@@ -91,7 +91,7 @@ class SegmentCommand(Command):
                 {
                     "segment1": self.args.seg1,
                     "segment2": self.args.seg2,
-                    "distance": d,
+                    "distance": round(d, 4),
                 }
             )
         else:

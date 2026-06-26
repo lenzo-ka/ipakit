@@ -103,6 +103,25 @@ class DistanceModel:
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> None:
+        """Construct a model from a phone x phone ``matrix``.
+
+        Prefer the :meth:`global_`, :meth:`for_phoneset`, and
+        :meth:`from_matrix_file` constructors over calling this directly.
+
+        Args:
+            ipa: IPAFeatures, used to tokenize words and as a fallback metric.
+            reference_name: Label for the reference inventory (used in repr).
+            phones: Phones indexing ``matrix`` rows/columns.
+            matrix: Symmetric phone x phone values.
+            space: ``"distance"`` or ``"similarity"`` -- how to read ``matrix``.
+            ref_phones: Sub-inventory the CDF is built over (default: ``phones``).
+            gamma: Exponent applied to the percentile (>1 spreads dissimilar pairs).
+            insert_cost: Per-token insertion cost in word alignment.
+            delete_cost: Per-token deletion cost in word alignment.
+            sub_mode: ``"simple"`` or ``"di"`` (scale substitution by indel costs).
+            threshold: Default similarity threshold for :meth:`is_similar`.
+            max_length_ratio: Default length-ratio gate for :meth:`is_similar`.
+        """
         if sub_mode not in ("simple", "di"):
             raise ValueError(f"sub_mode must be 'simple' or 'di', got {sub_mode!r}")
         if space not in ("distance", "similarity"):
@@ -244,6 +263,12 @@ class DistanceModel:
     # -- phone-level API ------------------------------------------------------
 
     def confusability(self, a: str, b: str) -> float:
+        """Normalized confusability of two phones, in [0, 1].
+
+        The percentile of the pair's raw similarity within the reference
+        inventory's distribution (then raised to ``gamma``). 1.0 for identical
+        phones; 0.0 if either phone is outside the model's matrix.
+        """
         if a == b:
             return 1.0
         i = self._index.get(a)
@@ -253,12 +278,19 @@ class DistanceModel:
         return self._norm_conf(self._cell_sim(i, j))
 
     def similarity(self, a: str, b: str) -> float:
+        """Alias for :meth:`confusability`."""
         return self.confusability(a, b)
 
     def distance(self, a: str, b: str) -> float:
+        """Renormalized phone distance: ``1 - confusability(a, b)``."""
         return 1.0 - self.confusability(a, b)
 
     def nearest(self, phone: str, n: int = 10) -> list[tuple[str, float]]:
+        """The ``n`` reference phones closest to ``phone``.
+
+        Returns ``(phone, distance)`` pairs sorted by ascending distance; empty
+        if ``phone`` is outside the model's matrix.
+        """
         if phone not in self._index:
             return []
         ds = [(p, self.distance(phone, p)) for p in self._ref if p != phone]
@@ -268,6 +300,12 @@ class DistanceModel:
     # -- word-level API -------------------------------------------------------
 
     def sub_cost(self, t1: str, t2: str) -> float:
+        """Substitution cost between two tokens for the edit-distance DP.
+
+        ``1 - confusability`` for in-inventory pairs, falling back to the
+        feature distance for out-of-inventory tokens. In ``sub_mode='di'`` the
+        cost is scaled by ``insert + delete``.
+        """
         if t1 == t2:
             return 0.0
         i = self._index.get(t1)
@@ -284,6 +322,12 @@ class DistanceModel:
     def word_distance(
         self, ipa1: str, ipa2: str, *, return_alignment: bool = False
     ) -> WordDistanceResult:
+        """Phonetic edit distance between two IPA words under this model.
+
+        Uses the model's renormalized substitution costs (and indel costs) in a
+        weighted-Levenshtein alignment. Returns a :class:`WordDistanceResult`;
+        pass ``return_alignment=True`` to include the aligned token pairs.
+        """
         t1 = self._ipa.tokenize_ipa(ipa1)
         t2 = self._ipa.tokenize_ipa(ipa2)
         n, m = len(t1), len(t2)
@@ -305,6 +349,7 @@ class DistanceModel:
         )
 
     def word_similarity(self, ipa1: str, ipa2: str) -> float:
+        """The ``similarity`` field of :meth:`word_distance` (in [0, 1])."""
         return self.word_distance(ipa1, ipa2).similarity
 
     def _max_word_similarity(self, n: int, m: int) -> float:
@@ -323,6 +368,13 @@ class DistanceModel:
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> bool:
+        """Whether two words' similarity meets ``threshold``.
+
+        ``threshold`` (and optional ``max_length_ratio``) fall back to the
+        model defaults; a missing threshold raises ``ValueError``. Words whose
+        length ratio exceeds ``max_length_ratio``, or that cannot reach the
+        threshold given an upper-bound check, short-circuit before the DP runs.
+        """
         th = threshold if threshold is not None else self._threshold
         if th is None:
             raise ValueError(

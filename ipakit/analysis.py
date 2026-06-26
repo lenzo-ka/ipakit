@@ -31,10 +31,14 @@ class AnalysisMixin(IPAFeaturesBase):
         """Generate human-readable IPA description for a phone.
 
         Examples:
-            describe("p") → "voiceless bilabial plosive"
-            describe("ɛ") → "open-mid front unrounded vowel"
-            describe("t͡ʃ") → "voiceless postalveolar affricate"
-            describe("l") → "voiced alveolar lateral approximant"
+            >>> ipakit.describe("p")
+            'voiceless bilabial plosive'
+            >>> ipakit.describe("ɛ")
+            'open-mid front unrounded vowel'
+            >>> ipakit.describe("t͡ʃ")
+            'voiceless postalveolar affricate'
+            >>> ipakit.describe("l")
+            'voiced lateral alveolar approximant'
         """
         feats = self.get_features(phone, with_defaults=with_defaults)
         if not feats:
@@ -96,8 +100,10 @@ class AnalysisMixin(IPAFeaturesBase):
         Returns the intersection of features that all phones share.
 
         Examples:
-            natural_class(["p", "t", "k"]) → {"manner": "plosive", "voiced": "-"}
-            natural_class(["i", "e", "ɛ"]) → {"manner": "vowel", "backness": "front"}
+            >>> ipakit.natural_class(["p", "t", "k"])  # shared features (incl. defaults)
+            {'manner': 'plosive', ...'voiced': '-', ...}
+            >>> ipakit.natural_class(["i", "e", "ɛ"])
+            {'manner': 'vowel', ...'backness': 'front', ...}
 
         Args:
             phones: List of IPA phone symbols
@@ -141,8 +147,8 @@ class AnalysisMixin(IPAFeaturesBase):
         sorted by phonetic distance.
 
         Examples:
-            minimal_pairs("p") → [("b", "voiced", "+"), ("t", "place", "alveolar"), ...]
-            minimal_pairs("i") → [("y", "rounded", "+"), ("ɪ", "height", "near-close"), ...]
+            >>> ipakit.minimal_pairs("p")
+            [('ɸ', 'manner', 'fricative'), ('f', 'manner', 'fricative'), ...]
 
         Args:
             phone: The reference phone

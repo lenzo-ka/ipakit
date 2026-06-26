@@ -109,6 +109,7 @@ class Phoneset:
 
     @classmethod
     def from_list(cls, phones: list[str], name: str = "custom") -> Self:
+        """Build a Phoneset from a list of phone strings."""
         return cls(name=name, phones=phones)
 
     def __contains__(self, phone: str) -> bool:

@@ -3,10 +3,10 @@
 Simple API:
     import ipakit as ipa
 
-    ipa.distance("p", "b")              # 0.12
+    ipa.distance("p", "b")              # 0.043
     ipa.features("p")                   # {'manner': 'plosive', ...}
     ipa.to_cmu("ˈhɛloʊ")                # ['HH', 'EH1', 'L', 'OW0']
-    ipa.to_ipa(["HH", "EH1", "L"])      # 'ˈhɛl'
+    ipa.to_ipa(["HH", "EH1", "L"])      # 'hˈɛl'
     ipa.tokenize("t͡ʃe͡ɪnd͡ʒ")          # ['t͡ʃ', 'e͡ɪ', 'n', 'd͡ʒ']
     ipa.normalize("tʃ eɪ n dʒ")         # 't͡ʃe͡ɪnd͡ʒ'
 
