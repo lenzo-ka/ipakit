@@ -61,7 +61,9 @@ Examples:
   ipakit query match +voi plo bil      # Voiced bilabial plosives: b ɓ
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
-  ipakit distance pair p b             # Distance between p and b
+  ipakit distance pair p b             # Raw feature distance: ~0.04
+  ipakit distance confusability p b    # Inventory-relative: 0.8454
+  ipakit distance word kæt kæd         # Word similarity: 0.9742
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
 """,

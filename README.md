@@ -88,6 +88,7 @@ the bundled IPA inventory's pairwise distribution, spreading values across
 ipakit.distance("p", "b")             # 0.043   raw feature distance
 ipakit.normalized_distance("p", "b")  # 0.155   percentile within bundled IPA
 ipakit.normalized_distance("p", "a")  # 0.602
+ipakit.confusability("p", "b")        # 0.845   complement of normalized_distance
 ```
 
 For a model over a chosen reference inventory — percentiles are **relative** to
@@ -136,8 +137,13 @@ ipakit convert to-xsampa "t͡ʃ"        # IPA to X-SAMPA: t_S
 ipakit query match plosive bilabial  # Find phones by feature
 ipakit analysis natural-class p t k  # Shared features of a set
 ipakit analysis minimal-pairs p      # Find similar phones
-ipakit distance pair p b             # Distance between p and b
+ipakit distance pair p b             # Raw feature distance: ~0.04
+ipakit distance confusability p b    # Inventory-relative: 0.8454
+ipakit distance word kæt kæd         # Word similarity: 0.9742
 ```
+
+The `distance confusability`/`word` commands use the distribution-aware model;
+scope them to a reference inventory with `--phoneset FILE` (one phone per line).
 
 Most commands accept `--format json` (or `-j`) for machine-readable output.
 Run `ipakit`, `ipakit <group>`, or append `help`/`-h` anywhere for usage.

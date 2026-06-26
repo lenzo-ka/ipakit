@@ -128,6 +128,21 @@ def normalized_distance(phone1: str, phone2: str) -> float:
     return _get_default_model().distance(phone1, phone2)
 
 
+def confusability(phone1: str, phone2: str) -> float:
+    """Normalized confusability (percentile similarity) in the bundled IPA inventory.
+
+    The complement of :func:`normalized_distance`; 1.0 for identical phones.
+    For an inventory-scoped model, build one with :func:`distance_model`.
+
+    Examples:
+        >>> round(ipakit.confusability("p", "b"), 3)
+        0.845
+        >>> ipakit.confusability("p", "p")
+        1.0
+    """
+    return _get_default_model().confusability(phone1, phone2)
+
+
 def distance_model(
     reference: Phoneset | list[str] | None = None,
     *,
@@ -439,6 +454,7 @@ __all__ = [
     "TIE_BAR",
     # Functions
     "add_ties",
+    "confusability",
     "describe",
     "distance",
     "distance_model",

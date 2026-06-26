@@ -236,6 +236,28 @@ class DistanceModel:
             max_length_ratio=max_length_ratio,
         )
 
+    # -- introspection --------------------------------------------------------
+
+    @property
+    def reference_name(self) -> str:
+        """Name of the reference inventory the CDF is built over."""
+        return self._name
+
+    @property
+    def reference_phones(self) -> list[str]:
+        """Copy of the reference inventory the percentiles are relative to."""
+        return list(self._ref)
+
+    @property
+    def gamma(self) -> float:
+        """Percentile exponent (>1 spreads dissimilar pairs apart)."""
+        return self._gamma
+
+    @property
+    def sub_mode(self) -> str:
+        """Substitution-cost mode for word alignment ('simple' or 'di')."""
+        return self._sub_mode
+
     # -- internals ------------------------------------------------------------
 
     def _cell_sim(self, i: int, j: int) -> float:

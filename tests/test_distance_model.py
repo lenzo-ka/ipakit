@@ -169,3 +169,66 @@ class TestLoaders:
         ph, m, sp = _load_matrix_tsv(p)
         assert sp == "similarity"
         assert m[ph.index("p")][ph.index("b")] == m[ph.index("b")][ph.index("p")] == 0.9
+
+
+class TestPublicApi:
+    def test_confusability_complements_normalized_distance(self):
+        import ipakit
+
+        assert ipakit.confusability("p", "p") == 1.0
+        c = ipakit.confusability("p", "b")
+        d = ipakit.normalized_distance("p", "b")
+        assert c == pytest.approx(1.0 - d)
+        assert "confusability" in ipakit.__all__
+
+    def test_introspection_properties(self, ipa):
+        from ipakit.models import Phoneset
+
+        m = DistanceModel.for_phoneset(
+            ipa, Phoneset.from_list(["p", "b", "t"], name="tiny")
+        )
+        assert m.reference_name == "tiny"
+        assert set(m.reference_phones) <= {"p", "b", "t"}
+        assert m.gamma == 1.0
+        assert m.sub_mode == "simple"
+
+
+class TestDistanceCli:
+    def _run(self, monkeypatch, capsys, *argv):
+        import sys
+
+        import ipakit.cli
+
+        monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+        rc = ipakit.cli.main()
+        return rc, capsys.readouterr().out
+
+    def test_confusability_command(self, monkeypatch, capsys):
+        rc, out = self._run(monkeypatch, capsys, "distance", "confusability", "p", "b")
+        assert rc == 0
+        assert "confusability=" in out and "reference: ipa" in out
+
+    def test_word_command_json(self, monkeypatch, capsys):
+        import json
+
+        rc, out = self._run(monkeypatch, capsys, "distance", "word", "kæt", "kæd", "-j")
+        assert rc == 0
+        data = json.loads(out)
+        assert data["word1"] == "kæt" and 0.0 <= data["similarity"] <= 1.0
+        assert data["reference"] == "ipa"
+
+    def test_word_threshold(self, monkeypatch, capsys):
+        rc, out = self._run(
+            monkeypatch, capsys, "distance", "word", "kæt", "kæd", "--threshold", "0.9"
+        )
+        assert rc == 0
+        assert "similar=True" in out
+
+    def test_confusability_phoneset(self, tmp_path, monkeypatch, capsys):
+        pf = tmp_path / "tiny.txt"
+        pf.write_text("p\nb\nt\nd\nk\n")
+        rc, out = self._run(
+            monkeypatch, capsys, "distance", "conf", "p", "b", "--phoneset", str(pf)
+        )
+        assert rc == 0
+        assert "reference: tiny" in out
