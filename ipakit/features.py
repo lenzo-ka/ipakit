@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
 
-from ._convert import longest_match
+from ._convert import longest_match, require_convertible
 from .analysis import AnalysisMixin
 from .constants import (
     DEFAULT_IPA_FEATS,
@@ -516,9 +516,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return " ".join(self.tokenize_ipa(ipa, phoneset=phoneset))
 
     def parse(
-        self, segment: str, phoneset: Phoneset | None = None
+        self,
+        segment: str,
+        phoneset: Phoneset | None = None,
+        strict: bool = False,
     ) -> list[tuple[str, list[str]]]:
-        """Parse an IPA segment string into (base, diacritics) tuples."""
+        """Parse an IPA segment string into (base, diacritics) tuples.
+
+        Unmatched characters (neither a phone nor a diacritic) are skipped. With
+        ``strict=True`` they instead raise ``ValueError`` listing the symbols
+        that could not be parsed.
+        """
         if not segment:
             return []
 
@@ -530,6 +538,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             return [(segment, [])]
 
         result = []
+        skipped: list[str] = []
         i = 0
         while i < len(segment):
             best_phone, best_len = longest_match(
@@ -552,7 +561,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 result.append((segment[i], []))
                 i += 1
             else:
+                skipped.append(segment[i])
                 i += 1
+
+        if strict:
+            require_convertible(skipped, "IPA segment")
 
         return result
 

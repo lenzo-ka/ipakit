@@ -25,7 +25,11 @@ class DistanceMixin(IPAFeaturesBase):
     """Mixin providing phonetic distance calculations."""
 
     def _feature_dict_distance(self, f1: dict[str, str], f2: dict[str, str]) -> float:
-        """Compute distance between two feature dictionaries."""
+        """Compute distance between two feature dictionaries.
+
+        Returns the sentinel ``1.0`` (maximally different) when the two dicts
+        share no non-metadata feature keys -- there is nothing to compare on.
+        """
         all_keys = (set(f1) | set(f2)) - METADATA_ATTRS
         if not all_keys:
             return 1.0
@@ -40,7 +44,14 @@ class DistanceMixin(IPAFeaturesBase):
         return total / len(all_keys)
 
     def distance(self, phone1: str, phone2: str) -> float:
-        """Compute feature distance between two phones (0.0-1.0)."""
+        """Compute feature distance between two phones (0.0-1.0).
+
+        An unknown phone (no features) yields the sentinel ``1.0`` (maximally
+        different). Note the package uses several "not found" idioms:
+        ``get_features`` returns ``{}``, ``get_phone`` returns ``None``, and
+        ``DistanceModel.confusability`` returns ``0.0`` for out-of-inventory
+        phones.
+        """
         f1 = self.get_features(phone1, with_defaults=True)
         f2 = self.get_features(phone2, with_defaults=True)
         if not f1 or not f2:

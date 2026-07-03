@@ -16,6 +16,12 @@ class TestPhoneDistance:
         d = ipa.distance("p", "b")
         assert 0 < d < 0.5
 
+    def test_distance_unknown_phone_is_max(self, ipa: IPAFeatures) -> None:
+        # An unknown phone has no features; distance returns the sentinel 1.0.
+        assert ipa.distance("p", "@") == 1.0
+        assert ipa.distance("@", "p") == 1.0
+        assert ipa.distance("@", "@") == 1.0
+
     def test_distance_different_place(self, ipa: IPAFeatures) -> None:
         # p and t differ in place
         d = ipa.distance("p", "t")

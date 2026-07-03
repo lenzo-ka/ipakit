@@ -52,8 +52,13 @@ def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str]:
 def _load_matrix_tsv(
     path: Path, space: str = "similarity"
 ) -> tuple[list[str], Matrix, str]:
-    """External confusion matrix: labeled phone x phone grid; symmetrized
-    (non-zero wins; both present -> average). Default space is 'similarity'."""
+    """External confusion matrix: labeled phone x phone grid; symmetrized.
+
+    A cell that is genuinely ``0`` is a real value, not "missing": when both
+    directions are present the value is their average (so a ``0``/``x`` pair
+    averages to ``x/2``, not ``x``); only a truly absent cell falls back to the
+    other direction. Default space is 'similarity'.
+    """
     lines = [
         ln for ln in Path(path).read_text(encoding="utf-8").splitlines() if ln.strip()
     ]
@@ -72,9 +77,15 @@ def _load_matrix_tsv(
         for b in phones:
             if a == b:
                 continue
-            ab = raw.get((a, b), 0.0)
-            ba = raw.get((b, a), 0.0)
-            m[idx[a]][idx[b]] = (ab + ba) / 2 if (ab and ba) else (ab or ba)
+            ab = raw.get((a, b))
+            ba = raw.get((b, a))
+            if ab is not None and ba is not None:
+                m[idx[a]][idx[b]] = (ab + ba) / 2
+            elif ab is not None:
+                m[idx[a]][idx[b]] = ab
+            elif ba is not None:
+                m[idx[a]][idx[b]] = ba
+            # else: both absent -> keep the initialized default
     return phones, m, space
 
 
@@ -327,6 +338,13 @@ class DistanceModel:
         ``1 - confusability`` for in-inventory pairs, falling back to the
         feature distance for out-of-inventory tokens. In ``sub_mode='di'`` the
         cost is scaled by ``insert + delete``.
+
+        Note: the OOV fallback similarity is feature-derived and is currently
+        routed through the same CDF (``_norm_conf``) as matrix-derived
+        similarities, even though the two live on different scales. This keeps
+        in-inventory and OOV costs in one [0, 1] range for the DP, but the
+        percentile is only strictly meaningful for in-inventory pairs. Left as
+        a deliberate modeling choice pending empirical calibration.
         """
         if t1 == t2:
             return 0.0

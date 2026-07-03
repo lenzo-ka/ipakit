@@ -1,6 +1,23 @@
 """Tests for IPA tokenization and normalization."""
 
+import pytest
 from ipakit import IPAFeatures
+
+
+class TestParseStrict:
+    """Tests for the strict= policy on parse()."""
+
+    def test_parse_drops_unknown_by_default(self, ipa: IPAFeatures) -> None:
+        # Non-strict: unmatched '4' is silently dropped.
+        assert ipa.parse("k4t") == [("k", []), ("t", [])]
+
+    def test_parse_strict_raises_on_unknown(self, ipa: IPAFeatures) -> None:
+        with pytest.raises(ValueError, match="4"):
+            ipa.parse("k4t", strict=True)
+
+    def test_parse_strict_ok_on_valid(self, ipa: IPAFeatures) -> None:
+        # Valid input parses identically with strict=True.
+        assert ipa.parse("kat", strict=True) == ipa.parse("kat")
 
 
 class TestTokenization:

@@ -157,12 +157,16 @@ class TestLoaders:
         assert ph == phones and sp == "distance"
         assert m[0][1] == m[1][0] == tri[0] and m[0][0] == 0.0
 
-    def test_tsv_symmetrizes(self, tmp_path):
+    def test_tsv_symmetrizes_averages_genuine_zero(self, tmp_path):
+        # Both directions present: p->b=0.9, b->p=0.0. A genuine 0 is a real
+        # value, so the symmetrized cell is the average (0.45), not 0.9.
         p = tmp_path / "c.tsv"
         p.write_text("\tp\tb\np\t1.0\t0.9\nb\t0.0\t1.0\n")
         ph, m, sp = _load_matrix_tsv(p)
         assert sp == "similarity"
-        assert m[ph.index("p")][ph.index("b")] == m[ph.index("b")][ph.index("p")] == 0.9
+        pb = m[ph.index("p")][ph.index("b")]
+        bp = m[ph.index("b")][ph.index("p")]
+        assert pb == bp == pytest.approx(0.45)
 
 
 class TestPublicApi:
