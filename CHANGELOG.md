@@ -7,40 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- `from_cmu` as the canonical CMU→IPA function name (`to_ipa` kept as an alias).
-- Generic `ipa_to_phonemap` / `phonemap_to_ipa` are now part of the public API.
-- CLI: every `convert` subcommand accepts `--format`/`-j`; the eight real
-  converters accept `--strict` (fail on unconvertible symbols, exit 1).
-- CLI: `data` alias for the `analyze` group.
-- `IPAFeatures.parse(..., strict=True)` raises on unmatched characters instead
-  of dropping them silently.
-
-### Changed
-
-- Packaging: version is single-sourced from `ipakit.__version__` (dynamic);
-  build-system floor raised to `setuptools>=77` for the PEP 639 license form.
-- CLI: clearer flag names — `features --no-lookalikes` and
-  `analysis validate --warnings-as-errors` (old `--strict` spellings still work).
-
-### Fixed
-
-- External TSV confusion matrices: a genuine `0` is treated as a real value
-  (averaged when both directions are present) rather than as "missing".
-- `DistanceModel` output files opened with `-o` are now flushed/closed.
-- Guard against a division-by-zero for a hypothetical single-value ordinal
-  feature.
-- A lone or dangling tie bar is no longer accepted as a phone by the tokenizer,
-  so `validate_ipa` now reports it (`malformed_tie`) instead of silently
-  swallowing it. Well-formed composites (`t͡ʃ`) are unaffected.
-
-### Performance
-
-- `word_distance` memoizes substitution costs per alignment; `pairwise_distances`
-  skips the redundant half of the grid; ordinal `value_distance` is O(1);
-  hierarchy building composes each phone's features once. All byte-identical.
-
 ## [0.1.0] - 2026-07-03
 
 Initial public release.
@@ -55,16 +21,39 @@ Initial public release.
   `normalized_distance`, `is_similar`).
 - Conversions between IPA and CMU/ARPAbet, X-SAMPA, TIMIT, and Kirshenbaum,
   with a consistent `strict=` error policy across all converters and a tested
-  IPA↔X-SAMPA round-trip guarantee.
+  IPA↔X-SAMPA round-trip guarantee. `from_cmu` is the canonical CMU→IPA name
+  (`to_ipa` is a kept alias); the generic `ipa_to_phonemap` / `phonemap_to_ipa`
+  entry points are public.
 - Analysis and validation helpers (`describe`, `validate_ipa`, minimal pairs,
-  nearest phones).
-- A `ipakit` command-line interface with grouped subcommands.
+  nearest phones). `IPAFeatures.parse(..., strict=True)` raises on unmatched
+  characters instead of dropping them silently.
+- A `ipakit` command-line interface with grouped subcommands. Every `convert`
+  subcommand accepts `--format`/`-j`; the eight real converters accept
+  `--strict` (fail on unconvertible symbols, exit 1). Flag names are explicit
+  (`features --no-lookalikes`, `analysis validate --warnings-as-errors`, with
+  `--strict` kept as an alias), and `data` aliases the `analyze` group.
 - Reproducible derived data (`xsampa.xml`, `confusion.json`) with
   generate/validate scripts and CI drift guards.
 
+### Correctness & robustness
+
+- External TSV confusion matrices treat a genuine `0` as a real value (averaged
+  when both directions are present) rather than as "missing".
+- A lone or dangling tie bar is not accepted as a phone by the tokenizer, so
+  `validate_ipa` reports it (`malformed_tie`); well-formed composites (`t͡ʃ`)
+  are unaffected.
+- `DistanceModel` output files opened with `-o` are flushed/closed; ordinal
+  `value_distance` guards the single-value (division-by-zero) case.
+- Hot paths optimized without changing results: `word_distance` memoizes
+  substitution costs, `pairwise_distances` skips the redundant half-grid,
+  ordinal `value_distance` is O(1), and hierarchy building composes each phone's
+  features once.
+
 ### Packaging & tooling
 
-- `py.typed` shipped; `mypy --strict` clean.
+- `py.typed` shipped; `mypy --strict` clean. Version single-sourced from
+  `ipakit.__version__`; build-system floor `setuptools>=77` for the PEP 639
+  license form.
 - CI across Python 3.11–3.13; docstring examples enforced via
   `--doctest-modules`.
 - PyPI publishing via OIDC Trusted Publishing.
