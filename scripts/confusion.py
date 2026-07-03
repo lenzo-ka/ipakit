@@ -25,6 +25,20 @@ from ipakit.features import IPAFeatures  # noqa: E402
 
 VERSION = "1.0"
 
+# The matrix holds feature distances in [0, 1]. Cross-CPython-version float
+# rounding can differ in the last bit (~1e-16), so the derived cache is validated
+# to a tolerance rather than bit-exactly. A genuine metric/inventory change moves
+# values by orders of magnitude more than this, so real drift is still caught.
+TOLERANCE = 1e-9
+
+
+def triangles_match(a: list[float], b: list[float], tol: float = TOLERANCE) -> bool:
+    """True if two distance triangles have equal length and agree within ``tol``."""
+    # len check short-circuits before the zip, so strict=True never raises.
+    return len(a) == len(b) and all(
+        abs(x - y) <= tol for x, y in zip(a, b, strict=True)
+    )
+
 
 def derive(space: str = "distance") -> dict[str, Any]:
     """Canonical model from ipa.xml + the metric. Deterministic and reproducible."""
@@ -69,13 +83,17 @@ def cmd_validate(_: argparse.Namespace) -> int:
     if d["space"] != s.get("space"):
         print(f"DRIFT: space shipped={s.get('space')!r} derived={d['space']!r}.")
         return 1
-    if d["triangle"] != s.get("triangle"):
+    s_tri = s.get("triangle", [])
+    if not triangles_match(d["triangle"], s_tri):
         # triangles can differ in length when the inventory changed; count the
         # overlap (strict=False) -- the phones check above already flags resize.
         diffs = sum(
-            a != b for a, b in zip(d["triangle"], s.get("triangle", []), strict=False)
+            abs(a - b) > TOLERANCE for a, b in zip(d["triangle"], s_tri, strict=False)
         )
-        print(f"DRIFT: {diffs} matrix cells differ; regenerate confusion.json.")
+        print(
+            f"DRIFT: {diffs} matrix cells differ beyond {TOLERANCE:g}; "
+            "regenerate confusion.json."
+        )
         return 1
     print(f"OK: shipped confusion.json matches derived ({len(d['phones'])} phones).")
     return 0

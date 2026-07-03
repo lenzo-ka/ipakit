@@ -24,7 +24,12 @@ def _load_script():  # type: ignore[no-untyped-def]
 
 def test_shipped_confusion_matches_derived() -> None:
     c = _load_script()
-    assert c.derive() == c.shipped()
+    d, s = c.derive(), c.shipped()
+    # Metadata must match exactly; the float triangle is compared to a tolerance
+    # because last-bit rounding differs across CPython versions (see confusion.py).
+    assert d["phones"] == s["phones"]
+    assert d["space"] == s["space"]
+    assert c.triangles_match(d["triangle"], s["triangle"])
 
 
 def test_validate_subcommand_exit_zero() -> None:
