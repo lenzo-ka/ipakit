@@ -223,6 +223,18 @@ class TestValidateIPA:
         codes = [i["code"] for i in issues]
         assert "orphan_diacritic" in codes
 
+    def test_malformed_tie_at_boundary(self, ipa: IPAFeatures) -> None:
+        # A tie bar with nothing to tie on one side is malformed. Covers a lone
+        # tie, a leading tie, and a trailing tie -- none is a valid composite.
+        tie = "͡"
+        for bad in (tie, tie + "a", "a" + tie):
+            codes = [i["code"] for i in ipa.validate_ipa(bad)]
+            assert "malformed_tie" in codes, f"{bad!r} should flag malformed_tie"
+
+    def test_valid_tie_composite_is_clean(self, ipa: IPAFeatures) -> None:
+        # A well-formed affricate must NOT be flagged.
+        assert ipa.validate_ipa("t͡ʃ") == []
+
     def test_duplicate_diacritic_warning(self, ipa: IPAFeatures) -> None:
         # Same diacritic twice on one segment
         issues = ipa.validate_ipa("t̪̪")

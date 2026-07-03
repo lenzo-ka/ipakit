@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DistanceModel` output files opened with `-o` are now flushed/closed.
 - Guard against a division-by-zero for a hypothetical single-value ordinal
   feature.
+- A lone or dangling tie bar is no longer accepted as a phone by the tokenizer,
+  so `validate_ipa` now reports it (`malformed_tie`) instead of silently
+  swallowing it. Well-formed composites (`t͡ʃ`) are unaffected.
 
 ### Performance
 
