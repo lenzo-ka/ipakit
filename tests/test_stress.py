@@ -13,11 +13,6 @@ import pytest
 from ipakit import IPAFeatures
 
 
-@pytest.fixture
-def ipa() -> IPAFeatures:
-    return IPAFeatures()
-
-
 class TestStressToNucleus:
     @pytest.mark.parametrize(
         "src,expected",

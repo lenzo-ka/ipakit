@@ -1,16 +1,11 @@
 """Tests for analysis functions: describe, natural_class, minimal_pairs, validate_ipa."""
 
 import ipakit
-import pytest
 from ipakit import IPAFeatures
 
 
 class TestDescribe:
     """Tests for describe() function."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_describe_voiceless_plosive(self, ipa: IPAFeatures) -> None:
         desc = ipa.describe("p")
@@ -64,10 +59,6 @@ class TestDescribe:
 class TestNaturalClass:
     """Tests for natural_class() function."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_voiceless_plosives(self, ipa: IPAFeatures) -> None:
         shared = ipa.natural_class(["p", "t", "k"])
         assert shared.get("manner") == "plosive"
@@ -110,10 +101,6 @@ class TestNaturalClass:
 class TestMinimalPairs:
     """Tests for minimal_pairs() function."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_minimal_pairs_p(self, ipa: IPAFeatures) -> None:
         pairs = ipa.minimal_pairs("p")
         phones = [p for p, _, _ in pairs]
@@ -148,10 +135,6 @@ class TestMinimalPairs:
 
 class TestNearestPhones:
     """Tests for nearest_phones() function."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_nearest_returns_list(self, ipa: IPAFeatures) -> None:
         nearest = ipa.nearest_phones("p", n=5)
@@ -188,10 +171,6 @@ class TestNearestPhones:
 
 class TestValidateIPA:
     """Tests for validate_ipa() function."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_valid_simple(self, ipa: IPAFeatures) -> None:
         issues = ipa.validate_ipa("kæt")

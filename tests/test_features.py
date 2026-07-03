@@ -1,15 +1,10 @@
 """Tests for IPAFeatures class - loading and basic operations."""
 
-import pytest
 from ipakit import IPAFeatures
 
 
 class TestLoading:
     """Tests for loading IPA data from XML."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_load_phones(self, ipa: IPAFeatures) -> None:
         assert len(ipa.phones) > 100
@@ -62,10 +57,6 @@ class TestLoading:
 class TestGetFeatures:
     """Tests for getting features of phones."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_get_features_consonant(self, ipa: IPAFeatures) -> None:
         feats = ipa.get_features("p")
         assert feats["manner"] == "plosive"
@@ -104,10 +95,6 @@ class TestGetFeatures:
 class TestFeatureDefinitions:
     """Tests for feature definitions loaded from XML."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_feature_has_values(self, ipa: IPAFeatures) -> None:
         manner = ipa.features["manner"]
         assert "plosive" in manner.values
@@ -139,10 +126,6 @@ class TestFeatureDefinitions:
 class TestAliases:
     """Tests for character aliases."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_ligature_map_loaded(self, ipa: IPAFeatures) -> None:
         assert len(ipa.ligature_map) > 0
         assert "ʧ" in ipa.ligature_map  # legacy ligature
@@ -160,10 +143,6 @@ class TestAliases:
 
 class TestDerivedInventory:
     """Inventory pieces derived from ipa.xml (no hard-coded symbol tables)."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_separators_loaded(self, ipa: IPAFeatures) -> None:
         # '.' (syllable) and '#' (word) are separators, not phones.

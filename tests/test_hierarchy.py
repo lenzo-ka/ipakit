@@ -1,15 +1,10 @@
 """Tests for hierarchy generation."""
 
-import pytest
 from ipakit import IPAFeatures
 
 
 class TestBuildHierarchy:
     """Tests for building phone hierarchies."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_build_hierarchy_basic(self, ipa: IPAFeatures) -> None:
         tree = ipa.build_hierarchy(phones=["p", "b", "t", "d"])
@@ -25,10 +20,6 @@ class TestBuildHierarchy:
 class TestHierarchyToText:
     """Tests for text hierarchy output."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_hierarchy_to_text_basic(self, ipa: IPAFeatures) -> None:
         text = ipa.hierarchy_to_text(phones=["p", "b"])
         assert len(text) > 0
@@ -42,10 +33,6 @@ class TestHierarchyToText:
 
 class TestHierarchyToDot:
     """Tests for DOT format hierarchy output."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_hierarchy_to_dot_basic(self, ipa: IPAFeatures) -> None:
         dot = ipa.hierarchy_to_dot(phones=["p", "b"])

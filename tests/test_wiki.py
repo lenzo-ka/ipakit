@@ -10,10 +10,6 @@ from ipakit import IPAFeatures
 class TestWikiLinks:
     """Tests for Wikipedia documentation links."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_wiki_base_loaded(self, ipa: IPAFeatures) -> None:
         """Wiki base URL should be loaded from XML."""
         assert ipa.wiki_base
@@ -71,10 +67,6 @@ class TestWikiLinksNetwork:
 
     Run with: pytest -m slow tests/test_wiki.py
     """
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def _check_url_exists(self, url: str) -> tuple[bool, str]:
         """Check if a URL exists (returns 200)."""

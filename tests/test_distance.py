@@ -7,10 +7,6 @@ from ipakit import IPAFeatures
 class TestPhoneDistance:
     """Tests for distance between individual phones."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_distance_identical(self, ipa: IPAFeatures) -> None:
         assert ipa.distance("p", "p") == 0.0
         assert ipa.distance("a", "a") == 0.0
@@ -56,10 +52,6 @@ class TestPhoneDistance:
 class TestSegmentDistance:
     """Tests for distance between segments (phones with diacritics)."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_segment_distance_simple(self, ipa: IPAFeatures) -> None:
         d = ipa.segment_distance("p", "b")
         assert 0 < d < 1.0
@@ -74,10 +66,6 @@ class TestSegmentDistance:
 
 class TestPairwiseDistances:
     """Tests for pairwise distance matrix."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_pairwise_distances_shape(self, ipa: IPAFeatures) -> None:
         phones = ["p", "b", "t"]

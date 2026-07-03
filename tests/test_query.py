@@ -1,15 +1,10 @@
 """Tests for query and matching functionality."""
 
-import pytest
 from ipakit import IPAFeatures
 
 
 class TestPhonesMatching:
     """Tests for phones_matching query method."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_match_single_feature(self, ipa: IPAFeatures) -> None:
         # Match by manner
@@ -69,10 +64,6 @@ class TestPhonesMatching:
 
 class TestShortsConversion:
     """Tests for short name conversion."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_features_to_shorts(self, ipa: IPAFeatures) -> None:
         feats = {"manner": "plosive", "place": "bilabial", "voiced": "-"}

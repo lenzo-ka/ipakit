@@ -1,15 +1,10 @@
 """Tests for CMU ARPABET mapping."""
 
-import pytest
 from ipakit import CMUMapper
 
 
 class TestIPAtoCMU:
     """Tests for IPA to CMU conversion."""
-
-    @pytest.fixture
-    def mapper(self) -> CMUMapper:
-        return CMUMapper()
 
     def test_consonants(self, mapper: CMUMapper) -> None:
         assert mapper.ipa_to_cmu("p", with_stress=False) == ["P"]
@@ -45,10 +40,6 @@ class TestIPAtoCMU:
 class TestCMUtoIPA:
     """Tests for CMU to IPA conversion."""
 
-    @pytest.fixture
-    def mapper(self) -> CMUMapper:
-        return CMUMapper()
-
     def test_consonants(self, mapper: CMUMapper) -> None:
         assert mapper.cmu_to_ipa(["P"]) == "p"
         assert mapper.cmu_to_ipa(["T"]) == "t"
@@ -73,10 +64,6 @@ class TestCMUtoIPA:
 
 class TestRoundTrip:
     """Tests for IPA <-> CMU round trips."""
-
-    @pytest.fixture
-    def mapper(self) -> CMUMapper:
-        return CMUMapper()
 
     def test_consonants_round_trip(self, mapper: CMUMapper) -> None:
         consonants = ["p", "t", "k", "b", "d", "s", "z", "m", "n", "l"]

@@ -1,7 +1,6 @@
 """Tests for the distribution-aware DistanceModel (CDF renormalization)."""
 
 import pytest
-from ipakit import IPAFeatures
 from ipakit.distance_model import DistanceModel, _load_matrix_json, _load_matrix_tsv
 
 CORE = [
@@ -23,11 +22,6 @@ CORE = [
     "i",
     "u",
 ]
-
-
-@pytest.fixture(scope="module")
-def ipa():
-    return IPAFeatures()
 
 
 @pytest.fixture(scope="module")

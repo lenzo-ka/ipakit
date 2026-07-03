@@ -1,15 +1,10 @@
 """Tests for IPA tokenization and normalization."""
 
-import pytest
 from ipakit import IPAFeatures
 
 
 class TestTokenization:
     """Tests for IPA tokenization."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_tokenize_simple(self, ipa: IPAFeatures) -> None:
         tokens = ipa.tokenize_ipa("pat")
@@ -48,10 +43,6 @@ class TestTokenization:
 class TestSegmentation:
     """Tests for IPA segmentation (space-separated output)."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_segment_simple(self, ipa: IPAFeatures) -> None:
         result = ipa.segment_ipa("pat")
         assert result == "p a t"
@@ -67,10 +58,6 @@ class TestSegmentation:
 
 class TestLigatureExpansion:
     """Tests for legacy ligature expansion."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_expand_legacy_ligatures(self, ipa: IPAFeatures) -> None:
         assert ipa.expand_ligatures("ʧ") == "t͡ʃ"
@@ -88,10 +75,6 @@ class TestLigatureExpansion:
 class TestNormalization:
     """Tests for IPA normalization."""
 
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
-
     def test_normalize_adds_ties(self, ipa: IPAFeatures) -> None:
         result = ipa.normalize_ipa("tʃ eɪ n dʒ")
         assert "t͡ʃ" in result
@@ -108,10 +91,6 @@ class TestNormalization:
 
 class TestLookalikes:
     """Tests for lookalike character normalization."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_lookalikes_loaded(self, ipa: IPAFeatures) -> None:
         assert len(ipa.lookalikes) > 0
@@ -147,10 +126,6 @@ class TestLookalikes:
 
 class TestCompose:
     """Tests for composing features from phone + diacritics."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_compose_simple(self, ipa: IPAFeatures) -> None:
         bundles = ipa.compose("p")

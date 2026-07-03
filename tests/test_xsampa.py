@@ -25,11 +25,6 @@ from ipakit.constants import TIE_BAR
 KNOWN_NON_ROUNDTRIP = {"b͡v", "t͡θ"}
 
 
-@pytest.fixture
-def ipa() -> IPAFeatures:
-    return IPAFeatures()
-
-
 class TestBasicConversion:
     def test_ipa_to_xsampa(self) -> None:
         assert ipakit.ipa_to_xsampa("pʃɑ") == "pSA"

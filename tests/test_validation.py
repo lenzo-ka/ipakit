@@ -1,15 +1,10 @@
 """Tests for validation and statistics."""
 
-import pytest
 from ipakit import IPAFeatures
 
 
 class TestValidate:
     """Tests for validate method."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_validate_no_critical_errors(self, ipa: IPAFeatures) -> None:
         errors = ipa.validate()
@@ -29,10 +24,6 @@ class TestValidate:
 
 class TestStatistics:
     """Tests for statistical methods."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_feature_counts(self, ipa: IPAFeatures) -> None:
         counts = ipa.feature_counts()
@@ -61,10 +52,6 @@ class TestStatistics:
 
 class TestMixinIntegration:
     """Tests for mixin integration with IPAFeatures."""
-
-    @pytest.fixture
-    def ipa(self) -> IPAFeatures:
-        return IPAFeatures()
 
     def test_distance_mixin_methods(self, ipa: IPAFeatures) -> None:
         assert hasattr(ipa, "distance")
