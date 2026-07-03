@@ -71,3 +71,26 @@ class TestRoundTrip:
             cmu = mapper.ipa_to_cmu(ipa_in, with_stress=False)
             ipa_out = mapper.cmu_to_ipa(cmu)
             assert ipa_out == ipa_in, f"Round trip failed for {ipa_in}"
+
+
+class TestMapperIntrospection:
+    """Tests for the mapper's validation and inventory-listing methods."""
+
+    def test_validate_ipa_for_cmu_ok(self, mapper: CMUMapper) -> None:
+        assert mapper.validate_ipa_for_cmu("kæt") == []
+
+    def test_validate_ipa_for_cmu_reports_unconvertible(
+        self, mapper: CMUMapper
+    ) -> None:
+        assert mapper.validate_ipa_for_cmu("kæt4") == ["4"]
+
+    def test_get_cmu_symbols(self, mapper: CMUMapper) -> None:
+        syms = mapper.get_cmu_symbols()
+        assert "K" in syms and "AE" in syms
+        # include_extras is a superset.
+        assert mapper.get_cmu_symbols(include_extras=True) >= syms
+
+    def test_get_ipa_phones(self, mapper: CMUMapper) -> None:
+        phones = mapper.get_ipa_phones()
+        assert "p" in phones and "k" in phones
+        assert mapper.get_ipa_phones(include_extras=True) >= phones

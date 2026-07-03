@@ -48,11 +48,20 @@ class TestPhoneDistance:
     def test_distance_excludes_metadata_attrs(self, ipa: IPAFeatures) -> None:
         # Regression for I13: every phone carries a unique `href` (wiki slug),
         # so distinct phones always differ on it. If href/xsampa were counted as
-        # features, distance("p","b") would be inflated to 2/24 ≈ 0.083 instead
-        # of the true single-feature (voicing) distance of 1/23 ≈ 0.043.
+        # features, distance("p","b") would be inflated by those metadata keys.
+        # p and b differ in exactly one feature (voicing), so the distance is
+        # 1 / (comparable non-metadata features). Derive that denominator from
+        # the phones' own feature dicts so the test survives feature changes.
+        from ipakit.constants import METADATA_ATTRS
+
+        f1 = ipa.get_features("p", with_defaults=True)
+        f2 = ipa.get_features("b", with_defaults=True)
+        n_comparable = len((set(f1) | set(f2)) - METADATA_ATTRS)
+        n_with_metadata = len(set(f1) | set(f2))
         d = ipa.distance("p", "b")
-        assert d == pytest.approx(1 / 23, abs=1e-4)
-        assert d < 0.05  # would be ~0.083 if metadata leaked in
+        assert d == pytest.approx(1 / n_comparable, abs=1e-4)
+        # Sanity: metadata really is excluded (would be a larger denominator).
+        assert n_with_metadata > n_comparable
 
 
 class TestSegmentDistance:

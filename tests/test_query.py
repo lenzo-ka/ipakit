@@ -58,8 +58,8 @@ class TestPhonesMatching:
         # Negation for ordinal features: -aspirated means NOT aspirated
         result = ipa.phones_matching(["plo", "-asp"], with_defaults=True)
         assert "p" in result
-        # pʰ is aspirated so shouldn't be in simple phones
-        # (pʰ is not a base phone, it's composed)
+        # pʰ is aspirated (and composed, not a base phone), so it must not match.
+        assert "pʰ" not in result
 
 
 class TestShortsConversion:

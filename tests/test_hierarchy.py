@@ -3,18 +3,36 @@
 from ipakit import IPAFeatures
 
 
+def _leaf_phones(node: dict) -> set[str]:
+    """Collect every phone in the leaves of a hierarchy node."""
+    if "phones" in node:
+        return set(node["phones"])
+    if "children" in node:
+        out: set[str] = set()
+        for child in node["children"].values():
+            out |= _leaf_phones(child)
+        return out
+    return set()
+
+
 class TestBuildHierarchy:
     """Tests for building phone hierarchies."""
 
     def test_build_hierarchy_basic(self, ipa: IPAFeatures) -> None:
         tree = ipa.build_hierarchy(phones=["p", "b", "t", "d"])
-        assert "feature" in tree or "phones" in tree
+        # 4 distinct phones must split into a feature node with children.
+        assert "feature" in tree
+        assert "children" in tree
+        # Every input phone is reachable in the leaves; none is dropped.
+        assert _leaf_phones(tree) == {"p", "b", "t", "d"}
 
     def test_build_hierarchy_custom_order(self, ipa: IPAFeatures) -> None:
         tree = ipa.build_hierarchy(
             phones=["p", "b", "t", "d"], feature_order=["voiced", "place"]
         )
-        assert "feature" in tree or "phones" in tree
+        # Top split is the first feature in the requested order.
+        assert tree["feature"] == "voiced"
+        assert _leaf_phones(tree) == {"p", "b", "t", "d"}
 
 
 class TestHierarchyToText:
@@ -27,8 +45,8 @@ class TestHierarchyToText:
     def test_hierarchy_to_text_custom_indent(self, ipa: IPAFeatures) -> None:
         text = ipa.hierarchy_to_text(phones=["p", "b", "t"], indent="    ")
         assert len(text) > 0
-        # Should contain the custom indent
-        assert "    " in text or text.startswith("manner")
+        # Nested groups are rendered with the custom 4-space indent.
+        assert "    " in text
 
 
 class TestHierarchyToDot:

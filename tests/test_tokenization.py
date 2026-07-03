@@ -4,6 +4,35 @@ import pytest
 from ipakit import IPAFeatures
 
 
+class TestTokenizerRobustness:
+    """The tokenizer must never raise on adversarial input (non-strict)."""
+
+    _ADVERSARIAL = [
+        "",
+        " ",
+        "͡",  # lone tie bar
+        "͡͡͡",  # stacked tie bars
+        "̃",  # lone combining mark (nasalization)
+        "ppppp͡",  # trailing tie bar
+        "kæt" * 500,  # long input
+        "k͡͡t",  # ties mid-word
+        "4@#$%",  # all non-IPA
+        "p̃̃̃",  # stacked diacritics
+        "ǃǂǀ",  # clicks (may be unknown)
+        "\U0001f600",  # emoji
+    ]
+
+    def test_tokenize_never_raises(self, ipa: IPAFeatures) -> None:
+        for s in self._ADVERSARIAL:
+            tokens = ipa.tokenize_ipa(s)
+            assert isinstance(tokens, list)
+
+    def test_parse_never_raises_nonstrict(self, ipa: IPAFeatures) -> None:
+        for s in self._ADVERSARIAL:
+            result = ipa.parse(s)
+            assert isinstance(result, list)
+
+
 class TestParseStrict:
     """Tests for the strict= policy on parse()."""
 

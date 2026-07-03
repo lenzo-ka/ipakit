@@ -21,6 +21,26 @@ class TestValidate:
         errors = ipa.validate()
         assert isinstance(errors, list)
 
+    def test_validate_reports_invalid_feature_value(self) -> None:
+        # Fresh (non-shared) instance: corrupt one phone's feature to an
+        # undeclared value and confirm validate() flags it.
+        bad = IPAFeatures()
+        bad.phones["p"].features["voiced"] = "bogus"
+        errors = bad.validate()
+        assert any("bogus" in e and "'p'" in e for e in errors)
+
+    def test_validate_reports_missing_place_for_consonant(self) -> None:
+        bad = IPAFeatures()
+        bad.phones["t"].features.pop("place", None)
+        errors = bad.validate()
+        assert any("Missing 'place'" in e and "'t'" in e for e in errors)
+
+    def test_validate_reports_undeclared_feature(self) -> None:
+        bad = IPAFeatures()
+        bad.phones["p"].features["madeup"] = "x"
+        errors = bad.validate()
+        assert any("Undeclared feature 'madeup'" in e for e in errors)
+
 
 class TestStatistics:
     """Tests for statistical methods."""

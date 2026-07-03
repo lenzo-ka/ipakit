@@ -113,3 +113,26 @@ class TestQueryFunctions:
         feats = ipakit.shorts_to_features(["plo", "bil"])
         assert feats["manner"] == "plosive"
         assert feats["place"] == "bilabial"
+
+
+class TestEmptyInputs:
+    """Edge cases: empty strings must not raise."""
+
+    def test_tokenize_empty(self) -> None:
+        assert ipakit.tokenize("") == []
+
+    def test_distance_empty_is_max(self) -> None:
+        # Empty strings have no features -> the 1.0 sentinel.
+        assert ipakit.distance("", "") == 1.0
+
+    def test_word_distance_both_empty_identical(self) -> None:
+        r = ipakit.word_distance("", "")
+        assert r.distance == 0.0
+        assert r.similarity == 1.0
+
+    def test_feature_bundles_empty(self) -> None:
+        assert ipakit.feature_bundles("") == []
+
+    def test_describe_empty_does_not_raise(self) -> None:
+        # describe on empty input returns a string rather than raising.
+        assert isinstance(ipakit.describe(""), str)
