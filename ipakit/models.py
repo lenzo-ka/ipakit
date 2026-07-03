@@ -11,12 +11,18 @@ from typing import Self
 
 @dataclass
 class Feature:
-    """A phonological feature definition."""
+    """A phonological feature definition.
+
+    ``type`` is the declared value-set type from the XML (e.g. ``"ordinal"``);
+    it drives :attr:`is_ordinal` (scale distance) vs categorical comparison.
+    :attr:`is_binary` is a *separate*, value-derived notion -- true iff the
+    values are exactly ``{"+", "-"}`` -- and does not depend on ``type``.
+    """
 
     name: str
     values: list[str]  # Ordered - defines dimensional scale for ordinal
     default: str | None = None
-    type: str = "ordinal"  # "ordinal", "binary", or "ternary"
+    type: str = "ordinal"  # declared value-set type (from XML); see is_ordinal
     desc: str | None = None  # Brief description
 
     def __repr__(self) -> str:

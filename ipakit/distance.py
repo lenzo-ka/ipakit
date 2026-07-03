@@ -21,6 +21,15 @@ class WordDistanceResult:
     alignment: Alignment | None = None
 
 
+def _empty_pair_result(return_alignment: bool) -> WordDistanceResult:
+    """Result for two empty token sequences: identical, zero distance."""
+    return WordDistanceResult(
+        distance=0.0,
+        similarity=1.0,
+        alignment=[] if return_alignment else None,
+    )
+
+
 class DistanceMixin(IPAFeaturesBase):
     """Mixin providing phonetic distance calculations."""
 
@@ -206,11 +215,7 @@ class DistanceMixin(IPAFeaturesBase):
             return cached
 
         if n == 0 and m == 0:
-            return WordDistanceResult(
-                distance=0.0,
-                similarity=1.0,
-                alignment=[] if return_alignment else None,
-            )
+            return _empty_pair_result(return_alignment)
 
         distance, alignment = self._align(
             tokens1, tokens2, cost_fn, return_alignment=return_alignment

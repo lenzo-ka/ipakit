@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 from .constants import DEFAULT_CONFUSION
-from .distance import WordDistanceResult
+from .distance import WordDistanceResult, _empty_pair_result
 from .models import Phoneset
 
 if TYPE_CHECKING:
@@ -372,11 +372,7 @@ class DistanceModel:
         t2 = self._ipa.tokenize_ipa(ipa2)
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
-            return WordDistanceResult(
-                distance=0.0,
-                similarity=1.0,
-                alignment=[] if return_alignment else None,
-            )
+            return _empty_pair_result(return_alignment)
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
         )

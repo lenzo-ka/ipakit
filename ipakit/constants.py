@@ -24,6 +24,11 @@ TIE_BAR = "\u0361"  # ͡
 # feature. Chosen to never collide with a real feature value.
 MISSING_FEATURE_VALUE = "_none"
 
+# Longest-match window (in characters) for phone segmentation. Wide enough to
+# span a tie-bar composite like ``t͡ʃ`` (base + tie + base), so it is a deliberate
+# bound, not the longest single key length.
+MAX_MATCH_LEN = 6
+
 # Display/formatting constants
 DEFAULT_SHORT_NAME_LEN = 3  # Default length for auto-generated short names
 MAX_EXAMPLE_PHONES = 5  # Max example phones to show in listings

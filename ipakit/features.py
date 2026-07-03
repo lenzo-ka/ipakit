@@ -12,6 +12,7 @@ from .analysis import AnalysisMixin
 from .constants import (
     DEFAULT_IPA_FEATS,
     DEFAULT_SHORT_NAME_LEN,
+    MAX_MATCH_LEN,
     TIE_BAR,
 )
 from .distance import DistanceMixin
@@ -360,7 +361,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
             # Try to match a phone
             best_phone, best_len = longest_match(
-                expanded, i, self.phones, 6, tie_set=self.phones
+                expanded, i, self.phones, MAX_MATCH_LEN, tie_set=self.phones
             )
 
             if best_phone:
@@ -542,7 +543,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         i = 0
         while i < len(segment):
             best_phone, best_len = longest_match(
-                segment, i, phone_lookup, 6, tie_set=phone_lookup
+                segment, i, phone_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
             )
 
             if best_phone:
