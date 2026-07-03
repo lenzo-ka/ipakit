@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+# setuptools>=77 is required for the PEP 639 SPDX `license = "MIT"` string form below.
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ipakit"
-version = "0.1.0"
+dynamic = ["version"]
 description = "IPA phonetic toolkit"
 readme = "README.md"
 authors = [
@@ -47,6 +48,10 @@ Issues = "https://github.com/lenzo-ka/ipakit/issues"
 
 [project.scripts]
 ipakit = "ipakit.cli:main"
+
+# Single source of truth for the version: ipakit.__version__ (see ipakit/__init__.py).
+[tool.setuptools.dynamic]
+version = {attr = "ipakit.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]

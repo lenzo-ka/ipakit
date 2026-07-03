@@ -42,8 +42,8 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          echo "pyproject=$VERSION release tag=$TAG"
+          VERSION=$(python -c "import ipakit; print(ipakit.__version__)")
+          echo "ipakit.__version__=$VERSION release tag=$TAG"
           test "$VERSION" = "${TAG#v}"
       - uses: actions/upload-artifact@v4
         with:
