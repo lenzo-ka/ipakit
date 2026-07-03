@@ -26,6 +26,11 @@ class Feature:
     def values_set(self) -> set[str]:
         return set(self.values)
 
+    @functools.cached_property
+    def _value_index(self) -> dict[str, int]:
+        """value -> declaration-order index, for O(1) ordinal distance."""
+        return {v: i for i, v in enumerate(self.values)}
+
     @property
     def is_binary(self) -> bool:
         return self.values_set == {"+", "-"}
@@ -45,12 +50,14 @@ class Feature:
         if v1 is None or v2 is None:
             return 1.0
         if self.is_ordinal:
-            try:
-                return abs(self.values.index(v1) - self.values.index(v2)) / (
-                    len(self.values) - 1
-                )
-            except ValueError:
-                return 1.0
+            idx = self._value_index
+            if v1 in idx and v2 in idx:
+                # Guard against a single-value ordinal feature (span == 0).
+                span = len(self.values) - 1
+                if span <= 0:
+                    return 0.0
+                return abs(idx[v1] - idx[v2]) / span
+            return 1.0
         return 1.0
 
 

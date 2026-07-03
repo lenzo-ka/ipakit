@@ -74,12 +74,11 @@ class DistanceMixin(IPAFeaturesBase):
         """
         n = len(phones)
         matrix = [[0.0] * n for _ in range(n)]
-        for i, p1 in enumerate(phones):
-            for j, p2 in enumerate(phones):
-                if i < j:
-                    d = self.distance(p1, p2)
-                    matrix[i][j] = d
-                    matrix[j][i] = d
+        for i in range(n):
+            for j in range(i + 1, n):
+                d = self.distance(phones[i], phones[j])
+                matrix[i][j] = d
+                matrix[j][i] = d
         return matrix
 
     def _align(
@@ -177,9 +176,23 @@ class DistanceMixin(IPAFeaturesBase):
                     return 0.0
                 return self.segment_distance(t1, t2) if weighted else 1.0
 
-            cost_fn: Callable[[str, str], float] = _default_sub
+            raw_cost: Callable[[str, str], float] = _default_sub
         else:
-            cost_fn = sub_cost
+            raw_cost = sub_cost
+
+        # Memoize per call: _align evaluates the cost for every DP cell (and
+        # again during backtrace), so without a cache each identical token pair
+        # is re-tokenized and re-composed O(n*m) times. The cost is a pure
+        # function of (t1, t2), so caching is exact.
+        _cost_cache: dict[tuple[str, str], float] = {}
+
+        def cost_fn(t1: str, t2: str) -> float:
+            key = (t1, t2)
+            cached = _cost_cache.get(key)
+            if cached is None:
+                cached = raw_cost(t1, t2)
+                _cost_cache[key] = cached
+            return cached
 
         if n == 0 and m == 0:
             return WordDistanceResult(

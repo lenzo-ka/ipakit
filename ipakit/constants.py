@@ -20,6 +20,10 @@ METADATA_ATTRS = frozenset({"name", "class", "href", "xsampa"})
 
 TIE_BAR = "\u0361"  # ͡
 
+# Sentinel used by hierarchy building for a phone that lacks the splitting
+# feature. Chosen to never collide with a real feature value.
+MISSING_FEATURE_VALUE = "_none"
+
 # Display/formatting constants
 DEFAULT_SHORT_NAME_LEN = 3  # Default length for auto-generated short names
 MAX_EXAMPLE_PHONES = 5  # Max example phones to show in listings

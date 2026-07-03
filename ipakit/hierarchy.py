@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from ._base import IPAFeaturesBase
-from .constants import MAX_EXAMPLE_PHONES
+from .constants import MAX_EXAMPLE_PHONES, MISSING_FEATURE_VALUE
 
 # A hierarchy node is one of {"phones": [...]} or {"children": {...}, "feature": str}
 HierarchyNode = dict[str, Any]
@@ -24,6 +24,10 @@ class HierarchyMixin(IPAFeaturesBase):
         phones = phones or list(self.phones.keys())
         feature_order = feature_order or self.feature_order
 
+        # Compose each phone's full feature dict once, rather than recomputing it
+        # at every recursion level and for every candidate split feature.
+        feats = {p: self.get_features(p, with_defaults=True) for p in phones}
+
         def build_node(phone_set: list[str], remaining: list[str]) -> HierarchyNode:
             if not phone_set:
                 return {}
@@ -33,11 +37,8 @@ class HierarchyMixin(IPAFeaturesBase):
             # Find next feature that splits this set
             split_feat = None
             for f in remaining:
-                values = {
-                    self.get_features(p, with_defaults=True).get(f, "")
-                    for p in phone_set
-                }
-                values.discard("")
+                values = {feats[p].get(f, MISSING_FEATURE_VALUE) for p in phone_set}
+                values.discard(MISSING_FEATURE_VALUE)
                 if len(values) > 1:
                     split_feat = f
                     break
@@ -47,7 +48,7 @@ class HierarchyMixin(IPAFeaturesBase):
 
             groups: dict[str, list[str]] = defaultdict(list)
             for p in phone_set:
-                val = self.get_features(p, with_defaults=True).get(split_feat, "_none")
+                val = feats[p].get(split_feat, MISSING_FEATURE_VALUE)
                 groups[val].append(p)
 
             next_remaining = [f for f in remaining if f != split_feat]
