@@ -368,8 +368,8 @@ class AnalyzeGroup(CommandGroup):
     """
 
     name = "analyze"
-    aliases = ["a"]
-    help = "Analyze and validate (validate, summary, counts, phones, report)"
+    aliases = ["a", "data"]
+    help = "Inspect/validate the feature data files (not phones; cf. 'analysis')"
     commands = [
         ValidateCommand,
         SummaryCommand,

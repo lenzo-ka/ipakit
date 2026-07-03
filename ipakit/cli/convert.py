@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from .base import Command, CommandGroup, add_format_arg
+from .base import Command, CommandGroup, add_convert_strict_arg, add_format_arg
 
 
 class ToCmuCommand(Command):
@@ -18,6 +18,7 @@ class ToCmuCommand(Command):
         ipakit convert to-cmu "ˈhɛloʊ"     # HH EH1 L OW0
         ipakit c to-cmu "kæt" --no-stress  # K AE T
         ipakit c to-cmu "kæt" -f json      # ["K", "AE0", "T"]
+        ipakit c to-cmu "k4t" --strict     # error: unknown symbols ['4']
     """
 
     name = "to-cmu"
@@ -34,13 +35,18 @@ class ToCmuCommand(Command):
             "--no-stress", action="store_true", help="Omit stress markers from vowels"
         )
         add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
-        result = self.cmu.ipa_to_cmu(self.args.ipa, with_stress=not self.args.no_stress)
+        result = self.cmu.ipa_to_cmu(
+            self.args.ipa,
+            with_stress=not self.args.no_stress,
+            strict=self.args.strict,
+        )
         if self.format == "json":
             self.output_json(result)
         else:
-            print(" ".join(result))
+            self.print(" ".join(result))
         return 0
 
 
@@ -68,13 +74,18 @@ class ToIpaCommand(Command):
         parser.add_argument(
             "cmu", nargs="+", help="CMU symbols (space-separated, e.g., K AE1 T)"
         )
+        add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
         symbols = (
             self.args.cmu if isinstance(self.args.cmu, list) else self.args.cmu.split()
         )
-        result = self.cmu.cmu_to_ipa(symbols)
-        print(result)
+        result = self.cmu.cmu_to_ipa(symbols, strict=self.args.strict)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -100,10 +111,15 @@ class ToXsampaCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("ipa", help="IPA string to convert")
+        add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
-        result = self.ipa.ipa_to_xsampa(self.args.ipa)
-        print(result)
+        result = self.ipa.ipa_to_xsampa(self.args.ipa, strict=self.args.strict)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -129,12 +145,17 @@ class FromXsampaCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("xsampa", help="X-SAMPA string to convert")
+        add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
         from .. import xsampa_to_ipa
 
-        result = xsampa_to_ipa(self.args.xsampa)
-        print(result)
+        result = xsampa_to_ipa(self.args.xsampa, strict=self.args.strict)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -164,10 +185,14 @@ class NormalizeCommand(Command):
         parser.add_argument(
             "ipa", help="IPA string to normalize (may be space-separated)"
         )
+        add_format_arg(parser)
 
     def run(self) -> int:
         result = self.ipa.normalize_ipa(self.args.ipa)
-        print(result)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -201,7 +226,7 @@ class TokenizeCommand(Command):
         if self.format == "json":
             self.output_json(tokens)
         else:
-            print(" ".join(tokens))
+            self.print(" ".join(tokens))
         return 0
 
 
@@ -229,10 +254,14 @@ class AddTiesCommand(Command):
         parser.add_argument(
             "segment", help="Segment to add tie bars to (e.g., 'ts', 'dʒ', 'aɪ')"
         )
+        add_format_arg(parser)
 
     def run(self) -> int:
         result = self.ipa.add_tie_bars(self.args.segment)
-        print(result)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -259,15 +288,16 @@ class ToTimitCommand(Command):
 
         parser.add_argument("ipa", help="IPA string to convert")
         add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
         from ..phonemaps import to_timit
 
-        result = to_timit(self.args.ipa)
+        result = to_timit(self.args.ipa, strict=self.args.strict)
         if self.format == "json":
             self.output_json(result)
         else:
-            print(" ".join(result))
+            self.print(" ".join(result))
         return 0
 
 
@@ -292,12 +322,17 @@ class FromTimitCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("timit", nargs="+", help="TIMIT symbols (space-separated)")
+        add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
         from ..phonemaps import from_timit
 
-        result = from_timit(self.args.timit)
-        print(result)
+        result = from_timit(self.args.timit, strict=self.args.strict)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -323,12 +358,17 @@ class ToKirshenbaumCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("ipa", help="IPA string to convert")
+        add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
         from ..phonemaps import to_kirshenbaum
 
-        result = to_kirshenbaum(self.args.ipa)
-        print(result)
+        result = to_kirshenbaum(self.args.ipa, strict=self.args.strict)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 
@@ -353,12 +393,17 @@ class FromKirshenbaumCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("kirshenbaum", help="Kirshenbaum string to convert")
+        add_format_arg(parser)
+        add_convert_strict_arg(parser)
 
     def run(self) -> int:
         from ..phonemaps import from_kirshenbaum
 
-        result = from_kirshenbaum(self.args.kirshenbaum)
-        print(result)
+        result = from_kirshenbaum(self.args.kirshenbaum, strict=self.args.strict)
+        if self.format == "json":
+            self.output_json(result)
+        else:
+            self.print(result)
         return 0
 
 

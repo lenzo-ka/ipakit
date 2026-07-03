@@ -245,11 +245,27 @@ def add_output_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def add_strict_arg(parser: argparse.ArgumentParser) -> None:
-    """Add --strict argument to reject lookalike characters."""
+    """Add the lookalike-rejection flag (``features`` command).
+
+    Primary name is ``--no-lookalikes``; ``--strict`` is kept as a backward-
+    compatible alias. Distinct from the converter ``--strict`` (see
+    ``add_convert_strict_arg``), which is about unconvertible symbols.
+    """
+    parser.add_argument(
+        "--no-lookalikes",
+        "--strict",
+        dest="strict",
+        action="store_true",
+        help="Reject lookalike characters instead of normalizing them",
+    )
+
+
+def add_convert_strict_arg(parser: argparse.ArgumentParser) -> None:
+    """Add the converter ``--strict`` flag (fail on unconvertible symbols)."""
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="Strict mode: reject lookalike characters instead of normalizing them",
+        help="Raise an error on symbols that cannot be converted (default: skip)",
     )
 
 

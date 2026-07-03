@@ -230,7 +230,7 @@ class ValidateCommand(Command):
         ipakit an validate "k@t"           # Invalid - unknown symbol
         ipakit an validate "̃a"             # Invalid - orphan diacritic
         ipakit an val "kæt" -f json        # JSON output
-        ipakit an val "kæt" --strict       # Treat warnings as errors
+        ipakit an val "kæt" --warnings-as-errors   # Treat warnings as errors
     """
 
     name = "validate"
@@ -243,9 +243,13 @@ class ValidateCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("ipa", help="IPA string to validate")
+        # Primary name is --warnings-as-errors; --strict/-s kept as aliases.
+        # (Distinct from the converter --strict, which fails on unknown symbols.)
         parser.add_argument(
+            "--warnings-as-errors",
             "--strict",
             "-s",
+            dest="strict",
             action="store_true",
             help="Treat warnings as errors",
         )

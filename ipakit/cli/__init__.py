@@ -2,12 +2,17 @@
 
 Organized into subcommands:
     ipakit features <phone>     Get features for an IPA phone
-    ipakit convert ...          Convert between IPA/CMU/X-SAMPA
+    ipakit describe <phone>     Human-readable phone description
+    ipakit convert ...          Convert IPA/CMU/X-SAMPA/TIMIT/Kirshenbaum
     ipakit query ...            Query phones by features
     ipakit distance ...         Calculate phonetic distances
     ipakit hierarchy ...        Generate phone hierarchies
-    ipakit analyze ...          Analyze and validate data
+    ipakit analysis ...         Analyze phones (describe, natural-class, minimal-pairs)
+    ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
+
+Note the two similarly-named groups: `analysis` analyzes phones, while
+`analyze` (alias `data`) inspects and validates the underlying data files.
 
 Use 'help' anywhere to get help on the next command:
     ipakit help                 General help
@@ -125,14 +130,17 @@ def main() -> int:
         parser.print_help()
         return 0
 
-    # Direct command (features)
+    # Every leaf command (standalone or group subcommand) is dispatched here.
     if hasattr(args, "cmd_cls") and args.cmd_cls is not None:
+        cmd: Command = args.cmd_cls(args)
         try:
-            cmd: Command = args.cmd_cls(args)
             return cmd.run()
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             return 1
+        finally:
+            # Flush/close the output file if the command opened one (-o).
+            cmd._close_output()
 
     # Every real command and subcommand sets `cmd_cls` (see create_parser and
     # CommandGroup.register), and an empty command line is handled above. So if
