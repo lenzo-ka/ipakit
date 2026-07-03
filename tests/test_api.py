@@ -23,6 +23,19 @@ class TestConvenienceFunctions:
         result = ipakit.to_ipa(["P"])
         assert result == "p"
 
+    def test_from_cmu_is_canonical_alias_of_to_ipa(self) -> None:
+        # from_cmu is the canonical name; to_ipa delegates to it.
+        assert ipakit.from_cmu(["K", "AE1", "T"]) == "kˈæt"
+        assert ipakit.from_cmu(["P"]) == ipakit.to_ipa(["P"])
+        assert "from_cmu" in ipakit.__all__
+
+    def test_generic_phonemap_functions_exported(self) -> None:
+        # ipa_to_phonemap / phonemap_to_ipa are now part of the public surface.
+        assert ipakit.ipa_to_phonemap("kæt", "timit") == ["k", "ae", "t"]
+        assert ipakit.phonemap_to_ipa(["k", "ae", "t"], "timit") == "kæt"
+        assert "ipa_to_phonemap" in ipakit.__all__
+        assert "phonemap_to_ipa" in ipakit.__all__
+
     def test_tokenize(self) -> None:
         result = ipakit.tokenize("pat")
         assert result == ["p", "a", "t"]

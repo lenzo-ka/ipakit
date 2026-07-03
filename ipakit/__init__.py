@@ -12,6 +12,10 @@ Simple API:
 
 Class API:
     from ipakit import IPAFeatures, CMUMapper
+
+Converter return types follow the target format: converters to a token-oriented
+phone set (``to_cmu``, ``to_timit``) return ``list[str]``, while converters to a
+transcription string (``ipa_to_xsampa``, ``to_kirshenbaum``) return ``str``.
 """
 
 from __future__ import annotations
@@ -34,7 +38,14 @@ from .distance_model import DistanceModel
 from .features import IPAFeatures
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
-from .phonemaps import from_kirshenbaum, from_timit, to_kirshenbaum, to_timit
+from .phonemaps import (
+    from_kirshenbaum,
+    from_timit,
+    ipa_to_phonemap,
+    phonemap_to_ipa,
+    to_kirshenbaum,
+    to_timit,
+)
 
 # X-SAMPA string conversion lives in ipakit.xsampa, the single source of truth
 # for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
@@ -223,16 +234,32 @@ def to_cmu(
     )
 
 
-def to_ipa(
+def from_cmu(
     cmu_symbols: list[str], include_extras: bool = True, strict: bool = False
 ) -> str:
     """Convert list of CMU ARPABET symbols to IPA string.
 
     With ``strict=True``, raise ``ValueError`` on unknown CMU symbols.
+
+    Examples:
+        >>> ipakit.from_cmu(["K", "AE1", "T"])
+        'kˈæt'
     """
     return _get_cmu().cmu_to_ipa(
         cmu_symbols, include_extras=include_extras, strict=strict
     )
+
+
+def to_ipa(
+    cmu_symbols: list[str], include_extras: bool = True, strict: bool = False
+) -> str:
+    """Alias for :func:`from_cmu` (CMU ARPABET -> IPA).
+
+    ``from_cmu`` is the canonical name -- it names the source format, matching
+    ``from_xsampa``/``from_timit``/``from_kirshenbaum``, which also produce IPA.
+    ``to_ipa`` is kept for backward compatibility.
+    """
+    return from_cmu(cmu_symbols, include_extras=include_extras, strict=strict)
 
 
 # --- Tokenization & Normalization ---
@@ -463,8 +490,10 @@ __all__ = [
     "features_from_cmu",
     "features_from_xsampa",
     "features_to_shorts",
+    "from_cmu",
     "from_kirshenbaum",
     "from_timit",
+    "ipa_to_phonemap",
     "ipa_to_xsampa",
     "is_valid_ipa",
     "load_ipa_features",
@@ -474,6 +503,7 @@ __all__ = [
     "normalize",
     "normalize_lookalikes",
     "normalized_distance",
+    "phonemap_to_ipa",
     "phones_matching",
     "segment",
     "shorts_to_features",
