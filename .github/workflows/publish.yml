@@ -1,25 +1,16 @@
 name: Publish
 
 # Build once, then publish via PyPI Trusted Publishing (OIDC) -- no API tokens.
-# Cut a GitHub Release (tag vX.Y.Z) to publish to PyPI. Use the manual
-# "Run workflow" button to dry-run a build to TestPyPI first.
+# Cut a GitHub Release (tag vX.Y.Z) to publish to PyPI.
 #
-# One-time setup (see README "Releasing"):
-#   - PyPI:    add a Trusted Publisher (project ipakit, this repo, workflow
-#              publish.yml, environment "pypi").
-#   - TestPyPI: same, environment "testpypi".
-#   - GitHub:  create environments "pypi" and "testpypi" (Settings > Environments).
+# One-time setup (see docs/releasing.md):
+#   - PyPI:   add a Trusted Publisher (project ipakit, this repo, workflow
+#             publish.yml, environment "pypi").
+#   - GitHub: create environment "pypi" (Settings > Environments).
 
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      target:
-        description: "Where to publish"
-        type: choice
-        options: [testpypi, pypi]
-        default: testpypi
 
 permissions:
   contents: read
@@ -38,7 +29,6 @@ jobs:
       - name: Check distribution metadata
         run: python -m twine check dist/*
       - name: Verify version matches release tag
-        if: github.event_name == 'release'
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
@@ -50,29 +40,9 @@ jobs:
           name: dist
           path: dist/
 
-  publish-testpypi:
-    name: publish to TestPyPI
-    needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/ipakit
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-
   publish-pypi:
     name: publish to PyPI
     needs: build
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
     runs-on: ubuntu-latest
     environment:
       name: pypi

@@ -19,7 +19,7 @@ Do these once. The automation cannot run until they exist.
   in `pyproject.toml` already point there).
 - Push `main`.
 
-### 2. PyPI + TestPyPI trusted publishers  ⚠️ pending-publisher gotcha
+### 2. PyPI trusted publisher  ⚠️ pending-publisher gotcha
 
 `ipakit` does **not** exist on PyPI yet (first release). You cannot attach a
 trusted publisher to a project that doesn't exist, so use a **pending
@@ -30,32 +30,14 @@ publisher**:
   - Owner: `lenzo-ka`   Repository: `ipakit`
   - Workflow name: `publish.yml`
   - Environment name: `pypi`
-- Repeat on **TestPyPI** (https://test.pypi.org) with Environment name
-  `testpypi` (used for dry runs).
 
 After the first successful upload the pending publisher becomes a normal one
 automatically.
 
-### 3. GitHub Environments
+### 3. GitHub Environment
 
-Repo → **Settings → Environments** → create two environments:
-
-- `pypi`
-- `testpypi`
-
-(The publish jobs reference these; the OIDC identity is scoped per environment.)
-
----
-
-## Dry run to TestPyPI (recommended before the real thing)
-
-- GitHub → **Actions → Publish → Run workflow** → target `testpypi`.
-- This builds the sdist+wheel and uploads to TestPyPI via OIDC.
-- Verify install:
-  ```bash
-  pip install --index-url https://test.pypi.org/simple/ \
-              --extra-index-url https://pypi.org/simple/ ipakit
-  ```
+Repo → **Settings → Environments** → create the `pypi` environment (the publish
+job references it; the OIDC identity is scoped to it).
 
 ---
 
