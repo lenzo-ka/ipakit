@@ -182,29 +182,6 @@ python scripts/confusion.py validate         # shipped matrix == derived
 python scripts/confusion.py generate --write # regenerate after a metric/data change
 ```
 
-## Releasing
-
-Publishing uses **PyPI Trusted Publishing** (OIDC) via
-`.github/workflows/publish.yml` — no API tokens or stored secrets.
-
-One-time setup:
-
-1. **PyPI** → project `ipakit` → *Publishing* → add a Trusted Publisher: owner
-   `lenzo-ka`, repository `ipakit`, workflow `publish.yml`, environment `pypi`.
-   For the very first upload, add it as a *pending* publisher.
-2. **TestPyPI** → same, with environment `testpypi`.
-3. **GitHub** → *Settings → Environments* → create `pypi` and `testpypi`
-   (optionally require a reviewer to approve `pypi` deployments).
-
-To cut a release:
-
-1. Bump `version` in `pyproject.toml` and commit.
-2. *(Optional)* Actions → **Publish** → **Run workflow** → `testpypi` to
-   dry-run the build and upload.
-3. Create a GitHub Release with tag `vX.Y.Z` (matching `pyproject.toml`). The
-   workflow builds the sdist + wheel, runs `twine check`, verifies the tag
-   matches the version, and publishes to PyPI.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
