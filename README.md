@@ -153,34 +153,14 @@ Run `ipakit`, `ipakit <group>`, or append `help`/`-h` anywhere for usage.
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev]"   # or ".[test]" / ".[lint]" for a lean subset
 pre-commit install        # black, ruff, mypy --strict, hygiene hooks
-pytest                    # unit tests + docstring examples (--doctest-modules)
+pytest                    # unit tests + docstring examples
 ```
 
-CI (`.github/workflows/ci.yml`) mirrors these checks on every push/PR: `ruff` +
-`black --check` + `mypy --strict` (the `lint` extra), `pytest` across Python
-3.11–3.13 (the `test` extra), and the two derived-artifact guards below (the
-`dev` extra, which adds ICU). Install a lean subset with `pip install -e
-".[test]"` or `".[lint]"`.
-
-The IPA ↔ X-SAMPA table (`ipakit/data/phonemaps/xsampa.xml`) is reproducible
-from ICU transliteration plus a small set of curated overrides. `icukit-pyicu`
-is a **dev-only** dependency (never imported at runtime):
-
-```bash
-python scripts/xsampa_table.py validate   # CI guard: shipped table == derived
-python scripts/xsampa_table.py generate   # print the derived table
-```
-
-The global phone distance matrix (`ipakit/data/confusion.json`) is a committed
-cache derived from `ipa.xml` plus the distance metric — regenerate it whenever
-either changes. The test suite guards it against drift (pure stdlib, no dev dep):
-
-```bash
-python scripts/confusion.py validate         # shipped matrix == derived
-python scripts/confusion.py generate --write # regenerate after a metric/data change
-```
+CI (`.github/workflows/ci.yml`) mirrors these on every push/PR across Python
+3.11–3.13, and validates the committed derived artifacts (the IPA ↔ X-SAMPA
+table and the phone-distance matrix) against their generators in `scripts/`.
 
 ## License
 
