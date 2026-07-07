@@ -95,12 +95,12 @@ def _load_script():  # type: ignore[no-untyped-def]
 class TestICUCrossCheck:
     def test_shipped_table_matches_icu(self) -> None:
         """The shipped table equals what ICU + curated overrides produce."""
-        pytest.importorskip("icukit")
+        pytest.importorskip("icu")
         xt = _load_script()
         assert xt.canonical_pairs() == xt.shipped_pairs()
 
     def test_validate_subcommand_exit_zero(self) -> None:
-        pytest.importorskip("icukit")
+        pytest.importorskip("icu")
         result = subprocess.run(
             [sys.executable, str(_SCRIPT), "validate"],
             capture_output=True,
@@ -109,7 +109,7 @@ class TestICUCrossCheck:
         assert result.returncode == 0, result.stdout + result.stderr
 
     def test_generate_reproduces_shipped(self) -> None:
-        pytest.importorskip("icukit")
+        pytest.importorskip("icu")
         xt = _load_script()
         import xml.etree.ElementTree as ET
 

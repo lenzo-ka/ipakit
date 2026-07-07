@@ -32,13 +32,13 @@ dependencies = []
 # Split so each CI job installs only what it needs:
 #   test - run the suite (pure stdlib; the ICU cross-check self-skips)
 #   lint - ruff / black / mypy (pinned to the pre-commit style year)
-#   icu  - icukit (ICU transliteration), shipped as a bundled-ICU wheel; powers
+#   icu  - icukit-pyicu (bundled ICU + PyICU wheel, `import icu`); powers
 #          scripts/xsampa_table.py and the X-SAMPA cross-check. Dev-only, NEVER
 #          imported at runtime (ipakit ships the generated table in data/).
 #   dev  - everything, for local development.
 test = ["pytest>=7.0"]
 lint = ["ruff>=0.15", "mypy>=2.1", "black>=26.5,<27"]
-icu = ["icukit>=0.1.2"]
+icu = ["icukit-pyicu>=78.3.0"]
 dev = ["ipakit[test,lint,icu]"]
 
 [project.urls]

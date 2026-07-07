@@ -21,7 +21,7 @@ Usage:
     python scripts/xsampa_table.py generate          # print derived table to stdout
     python scripts/xsampa_table.py generate --write   # overwrite xsampa.xml
 
-Requires the dev dependency `icukit` (ICU transliteration).
+Requires the dev dependency `icukit-pyicu` (bundled ICU + PyICU, `import icu`).
 """
 
 from __future__ import annotations
@@ -74,13 +74,13 @@ EXCLUDE: set[str] = {"˞", "̀", "́", "̄", "̞"}
 def _icu_forward():  # type: ignore[no-untyped-def]
     """Return the ICU IPA->X-SAMPA transliterator, or exit with guidance."""
     try:
-        import icukit
+        import icu
     except ImportError:
         sys.exit(
-            "icukit is required (dev dependency). Install with:\n"
+            "icukit-pyicu is required (dev dependency). Install with:\n"
             '    pip install -e ".[dev]"'
         )
-    return icukit.Transliterator("IPA-XSampa")
+    return icu.Transliterator.createInstance("IPA-XSampa")
 
 
 def canonical_pairs() -> dict[str, str]:

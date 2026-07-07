@@ -165,8 +165,8 @@ CI (`.github/workflows/ci.yml`) mirrors these checks on every push/PR: `ruff` +
 ".[test]"` or `".[lint]"`.
 
 The IPA ↔ X-SAMPA table (`ipakit/data/phonemaps/xsampa.xml`) is reproducible
-from ICU transliteration plus a small set of curated overrides. `icukit` is a
-**dev-only** dependency (never imported at runtime):
+from ICU transliteration plus a small set of curated overrides. `icukit-pyicu`
+is a **dev-only** dependency (never imported at runtime):
 
 ```bash
 python scripts/xsampa_table.py validate   # CI guard: shipped table == derived
