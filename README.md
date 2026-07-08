@@ -3,7 +3,7 @@
 [![CI](https://github.com/lenzo-ka/ipakit/actions/workflows/ci.yml/badge.svg)](https://github.com/lenzo-ka/ipakit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/ipakit.svg)](https://pypi.org/project/ipakit/)
 [![Python versions](https://img.shields.io/pypi/pyversions/ipakit.svg)](https://pypi.org/project/ipakit/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: BSD 2-Clause](https://img.shields.io/badge/License-BSD_2--Clause-blue.svg)](LICENSE)
 
 A pure-Python IPA (International Phonetic Alphabet) phonetic toolkit:
 phonetic features, distances, natural classes, and conversion between IPA and
@@ -164,4 +164,4 @@ table and the phone-distance matrix) against their generators in `scripts/`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+BSD 2-Clause — see [LICENSE](LICENSE).
