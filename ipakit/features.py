@@ -161,14 +161,71 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # -------------------------------------------------------------------------
 
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
-        """Get features for a phone, optionally filling in defaults."""
-        if phone not in self.phones:
+        """Get features for a phone, optionally filling in defaults.
+
+        Tie-barred sequences (e.g. "t͡ɬ") that aren't themselves a
+        registered compound phone are composed on the fly from their parts,
+        mirroring how :func:`ipakit._convert.longest_match` already accepts
+        any tie-bar-joined sequence of known phones during tokenization.
+        """
+        if phone in self.phones:
+            feats = dict(self.phones[phone].features)
+        elif (composed := self._compose_tie_bar_features(phone)) is not None:
+            feats = composed
+        else:
             return {}
-        feats = dict(self.phones[phone].features)
         if with_defaults:
             for name, feat in self.features.items():
                 if name not in feats and feat.default is not None:
                     feats[name] = feat.default
+        return feats
+
+    # Place pairs with a dedicated combined value in the "place" feature
+    # (used by the atomic symbols "w" and "ɥ"), keyed by unordered place pair.
+    # See data/ipa.xml for list of valid place features
+    _COARTICULATED_PLACES = {
+        frozenset({"bilabial", "velar"}): "labial-velar",
+        frozenset({"bilabial", "dental"}): "labiodental",
+        frozenset({"bilabial", "palatal"}): "labial-palatal",
+        frozenset({"alveolar", "palatal"}): "alveolo-palatal",
+    }
+
+    def _compose_tie_bar_features(self, phone: str) -> dict[str, str] | None:
+        """Merge features for an ad hoc tie-barred sequence of known phones.
+
+        Returns ``None`` if ``phone`` has no tie bar or any part isn't a
+        known phone. Feature dicts are merged left to right; a differing
+        manner across parts collapses to "affricate", since that's what a
+        tie bar between two differently-articulated consonants denotes
+        (e.g. plosive + fricative). Same-manner parts with different places
+        are a double articulation (e.g. "ɡ͡b"); when the place pair has a
+        dedicated combined value (labial-velar, labial-palatal), that value
+        is used instead of just keeping the last part's place. ``href`` is
+        dropped since it names a specific Wikipedia article that doesn't
+        apply to an ad hoc compound.
+        """
+        if TIE_BAR not in phone:
+            return None
+        parts = phone.split(TIE_BAR)
+        if len(parts) < 2 or any(p not in self.phones for p in parts):
+            return None
+        feats: dict[str, str] = {}
+        manners = set()
+        places = []
+        for part in parts:
+            part_feats = self.phones[part].features
+            manners.add(part_feats.get("manner"))
+            if "place" in part_feats:
+                places.append(part_feats["place"])
+            feats.update(part_feats)
+        feats.pop("href", None)
+        if len(manners) > 1:
+            feats["manner"] = "affricate"
+        elif len(set(places)) > 1:
+            # TODO: this will produce "bilabial" for things like /t̪͡p/
+            #       since bilabial is the place feature for p. I'm not sure this is correct.
+            if combined := self._COARTICULATED_PLACES.get(frozenset(places)):
+                feats["place"] = combined
         return feats
 
     def get_phone(self, symbol: str) -> Phone | None:
@@ -677,7 +734,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # -------------------------------------------------------------------------
 
     def __contains__(self, phone: str) -> bool:
-        return phone in self.phones
+        """True if ``phone`` is a registered phone or a composable tie-barred
+        sequence of known phones (e.g. "t͡ɬ"), matching what
+        :meth:`get_features` can resolve. Not the same set as
+        :meth:`__iter__`/:meth:`__len__`, which cover the registered
+        inventory only.
+        """
+        return phone in self.phones or self._compose_tie_bar_features(phone) is not None
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.phones.keys())
