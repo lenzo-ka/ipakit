@@ -123,9 +123,9 @@ reuse it and only re-slice the percentile distribution.
 - **Affricates and diphthongs use the tie bar** (`t͡ʃ`, `e͡ɪ`).
 - **Round-trip guarantee (X-SAMPA only):** IPA written in these conventions
   round-trips through X-SAMPA (`ipa → xsampa → ipa`). The only exceptions are
-  `b͡v` and `t͡θ`, where the X-SAMPA tie encoding `_` collides with a
-  diacritic/tone encoding (`_v`, `_T`) — an inherent X-SAMPA ambiguity that ICU
-  shares. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA
+  `b͡v`, `t͡θ`, and `ŋ͡m`, where the X-SAMPA tie encoding `_` collides with a
+  diacritic/tone encoding (`_v`, `_T`, `_m`) — an inherent X-SAMPA ambiguity
+  that ICU shares. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA
   distinctions) and carry no round-trip guarantee.
 
 ## CLI
