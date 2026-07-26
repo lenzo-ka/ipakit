@@ -80,10 +80,12 @@ class TestTokenization:
         assert tokens == ["iː"]
 
     def test_tokenize_nasalized_vowel(self, ipa: IPAFeatures) -> None:
-        # IPA nasalization uses combining tilde (U+0303)
+        # IPA nasalization uses combining tilde (U+0303); tokens are emitted
+        # in NFC, so both input forms yield the precomposed token.
         nasalized_a = "a\u0303"  # a + combining tilde
-        tokens = ipa.tokenize_ipa(nasalized_a)
-        assert tokens == [nasalized_a]
+        precomposed_a = "\u00e3"  # \u00e3
+        assert ipa.tokenize_ipa(nasalized_a) == [precomposed_a]
+        assert ipa.tokenize_ipa(precomposed_a) == [precomposed_a]
 
 
 class TestSegmentation:

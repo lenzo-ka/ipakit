@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
@@ -46,6 +47,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self._type_defaults: dict[str, str | None] = {}
         self._load()
         self._load_lookalikes()
+        # Registered symbols whose NFC form differs from NFD (e.g. ä, ç, ť),
+        # mapped from their NFD decomposition back to the registered form.
+        # Built after loading so canonicalize_unicode can recompose them.
+        self._nfd_to_registered: dict[str, str] = {
+            decomposed: sym
+            for sym in (
+                list(self.phones)
+                + list(self.diacritics)
+                + list(self.separators)
+                + list(self.ligature_map)
+                + list(self.lookalikes)
+            )
+            if (decomposed := unicodedata.normalize("NFD", sym)) != sym
+        }
 
     def _load(self) -> None:
         """Load features and phones from XML."""
@@ -168,6 +183,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         mirroring how :func:`ipakit._convert.longest_match` already accepts
         any tie-bar-joined sequence of known phones during tokenization.
         """
+        phone = self.canonicalize_unicode(phone)
         if phone in self.phones:
             feats = dict(self.phones[phone].features)
         elif (composed := self._compose_tie_bar_features(phone)) is not None:
@@ -239,10 +255,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return feats
 
     def get_phone(self, symbol: str) -> Phone | None:
-        return self.phones.get(symbol)
+        return self.phones.get(self.canonicalize_unicode(symbol))
 
     def get_diacritic(self, symbol: str) -> Phone | None:
-        return self.diacritics.get(symbol)
+        return self.diacritics.get(self.canonicalize_unicode(symbol))
 
     def phones_by_feature(self, feature: str, value: str) -> list[str]:
         """Get all phones with a given feature value."""
@@ -343,6 +359,19 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # IPA normalization
     # -------------------------------------------------------------------------
 
+    def canonicalize_unicode(self, text: str) -> str:
+        """Canonicalize Unicode so matching is independent of input form.
+
+        NFD-decomposes the text (so precomposed characters like "ã" expose
+        their base + combining mark to the parser), then recomposes the few
+        registered symbols that are stored precomposed (e.g. "ç", "ä", "ť")
+        so they still match their inventory keys. Idempotent.
+        """
+        text = unicodedata.normalize("NFD", text)
+        for decomposed, sym in self._nfd_to_registered.items():
+            text = text.replace(decomposed, sym)
+        return text
+
     def normalize_lookalikes(self, text: str) -> str:
         """Replace lookalike characters with proper IPA equivalents.
 
@@ -355,7 +384,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
     def expand_ligatures(self, ipa: str) -> str:
         """Expand deprecated IPA ligatures (ʧ, ʤ) to modern tie-bar form."""
-        # First normalize any lookalike characters
+        # Canonicalize Unicode form, then normalize lookalike characters
+        ipa = self.canonicalize_unicode(ipa)
         ipa = self.normalize_lookalikes(ipa)
         for lig, expanded in self.ligature_map.items():
             ipa = ipa.replace(lig, expanded)
@@ -378,7 +408,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def normalize_ipa(self, segments: str) -> str:
         """Normalize whitespace-separated IPA segments into decodable IPA string."""
         segments = self.expand_ligatures(segments)
-        return "".join(self.add_tie_bars(seg) for seg in segments.split())
+        return unicodedata.normalize(
+            "NFC", "".join(self.add_tie_bars(seg) for seg in segments.split())
+        )
 
     # -------------------------------------------------------------------------
     # Stress normalization
@@ -566,17 +598,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if not keep_syllables:
             output = output.replace(self.syllable_break, "")
 
-        return output
+        return unicodedata.normalize("NFC", output)
 
     # -------------------------------------------------------------------------
     # Tokenization & parsing
     # -------------------------------------------------------------------------
 
     def tokenize_ipa(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
-        """Parse IPA string into list of segment tokens."""
+        """Parse IPA string into list of segment tokens.
+
+        Tokens are emitted in NFC so both precomposed and decomposed input
+        yield identical output.
+        """
         ipa = self.expand_ligatures(ipa)
         return [
-            base + "".join(diacs) for base, diacs in self.parse(ipa, phoneset=phoneset)
+            unicodedata.normalize("NFC", base + "".join(diacs))
+            for base, diacs in self.parse(ipa, phoneset=phoneset)
         ]
 
     def segment_ipa(self, ipa: str, phoneset: Phoneset | None = None) -> str:
@@ -598,6 +635,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if not segment:
             return []
 
+        segment = self.canonicalize_unicode(segment)
         phone_lookup = set(self.phones.keys())
         if phoneset:
             phone_lookup |= set(phoneset.phones)
@@ -666,7 +704,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     for k, v in self.diacritics[diac].features.items():
                         if k not in ("class", "manner"):
                             feats[k] = v
-            result.append((base + "".join(diacritics), feats))
+            token = unicodedata.normalize("NFC", base + "".join(diacritics))
+            result.append((token, feats))
         return result
 
     def compose_single(
@@ -750,6 +789,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         :meth:`__iter__`/:meth:`__len__`, which cover the registered
         inventory only.
         """
+        phone = self.canonicalize_unicode(phone)
         return phone in self.phones or self._is_composable(phone)
 
     def __iter__(self) -> Iterator[str]:
