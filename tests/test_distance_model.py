@@ -107,6 +107,44 @@ class TestNearest:
         assert all(p in phones for p, _ in near)
 
 
+class TestPhoneLevelOOVFallback:
+    """Phones outside the matrix fall back to feature-derived similarity,
+    matching the fallback sub_cost already applies at word level. Phones
+    whose features cannot be derived keep the explicit out-of-model
+    sentinels (0.0 / 1.0 / [])."""
+
+    def test_registered_phone_outside_model_inventory(self, ipa):
+        m = _model(ipa, _core_phones(ipa))  # t͡ʃ not in the core inventory
+        assert m.confusability("t͡ʃ", "s") > 0.0
+        assert m.distance("t͡ʃ", "s") == pytest.approx(
+            1.0 - m.confusability("t͡ʃ", "s")
+        )
+
+    def test_composed_tie_sequence(self, ipa, full):
+        assert "q͡χ" not in ipa.phones  # composable, not registered
+        assert full.confusability("q͡χ", "χ") > 0.0
+        near = full.nearest("q͡χ", n=3)
+        assert len(near) == 3
+        assert "χ" in [p for p, _ in near]
+
+    def test_both_sides_oov(self, ipa):
+        m = _model(ipa, _core_phones(ipa))
+        assert m.confusability("t͡ʃ", "q͡χ") > 0.0
+
+    def test_underivable_keeps_sentinels(self, ipa):
+        m = _model(ipa, _core_phones(ipa))
+        assert m.confusability("p", "ZZZ") == 0.0
+        assert m.distance("p", "ZZZ") == 1.0
+        assert m.nearest("ZZZ") == []
+
+    def test_oov_nearest_sorted_and_excludes_self(self, ipa):
+        m = _model(ipa, _core_phones(ipa))
+        near = m.nearest("t͡ʃ", n=5)
+        assert len(near) == 5
+        assert [d for _, d in near] == sorted(d for _, d in near)
+        assert "t͡ʃ" not in [p for p, _ in near]
+
+
 class TestWord:
     def test_identical_and_minimal_pair(self, full):
         assert full.word_similarity("kæt", "kæt") == 1.0
