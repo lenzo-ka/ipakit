@@ -69,6 +69,17 @@ class TestGetFeatures:
         assert feats["height"] == "close"
         assert feats["backness"] == "front"
 
+    def test_get_features_unknown_ties(self, ipa: IPAFeatures) -> None:
+        assert "t͡ɬ" not in ipa.phones
+        feats_affricate = ipa.get_features("t͡ɬ")
+        assert feats_affricate["manner"] == "affricate"
+        assert feats_affricate["place"] == "alveolar"
+        assert feats_affricate["lateral"] == "+"
+        assert "ɡ͡b" not in ipa.phones
+        feats_coarticulated_plosive = ipa.get_features("ɡ͡b")
+        assert feats_coarticulated_plosive["manner"] == "plosive"
+        assert feats_coarticulated_plosive["place"] == "labial-velar"
+
     def test_get_features_unknown(self, ipa: IPAFeatures) -> None:
         assert ipa.get_features("X") == {}
 
