@@ -295,20 +295,29 @@ class DistanceModel:
 
     # -- phone-level API ------------------------------------------------------
 
+    def _resolves(self, token: str) -> bool:
+        """Whether the wrapped IPAFeatures can derive features for ``token``."""
+        return bool(self._ipa.compose(token, with_defaults=False))
+
     def confusability(self, a: str, b: str) -> float:
         """Normalized confusability of two phones, in [0, 1].
 
         The percentile of the pair's raw similarity within the reference
         inventory's distribution (then raised to ``gamma``). 1.0 for identical
-        phones; 0.0 if either phone is outside the model's matrix.
+        phones. A phone outside the model's matrix falls back to
+        feature-derived similarity through the same CDF, matching
+        :meth:`sub_cost` (and sharing its calibration caveat); 0.0 if a
+        phone's features cannot be derived at all.
         """
         if a == b:
             return 1.0
         i = self._index.get(a)
         j = self._index.get(b)
-        if i is None or j is None:
+        if i is not None and j is not None:
+            return self._norm_conf(self._cell_sim(i, j))
+        if not (self._resolves(a) and self._resolves(b)):
             return 0.0
-        return self._norm_conf(self._cell_sim(i, j))
+        return self._norm_conf(1.0 - self._ipa.segment_distance(a, b))
 
     def similarity(self, a: str, b: str) -> float:
         """Alias for :meth:`confusability`."""
@@ -321,10 +330,12 @@ class DistanceModel:
     def nearest(self, phone: str, n: int = 10) -> list[tuple[str, float]]:
         """The ``n`` reference phones closest to ``phone``.
 
-        Returns ``(phone, distance)`` pairs sorted by ascending distance; empty
-        if ``phone`` is outside the model's matrix.
+        Returns ``(phone, distance)`` pairs sorted by ascending distance.
+        A phone outside the model's matrix is scored against the reference
+        inventory via the :meth:`confusability` fallback; empty if its
+        features cannot be derived at all.
         """
-        if phone not in self._index:
+        if phone not in self._index and not self._resolves(phone):
             return []
         ds = [(p, self.distance(phone, p)) for p in self._ref if p != phone]
         ds.sort(key=lambda x: (x[1], x[0]))
