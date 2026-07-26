@@ -182,13 +182,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
     # Place pairs with a dedicated combined value in the "place" feature
     # (used by the atomic symbols "w" and "ɥ"), keyed by unordered place pair.
+    # Only true double articulations belong here: labiodental and
+    # alveolo-palatal are single places of articulation, not overlaps of two,
+    # so e.g. a composed bilabial+dental does not collapse to labiodental.
     # See data/ipa.xml for list of valid place features
     _COARTICULATED_PLACES = {
         frozenset({"bilabial", "velar"}): "labial-velar",
-        frozenset({"bilabial", "dental"}): "labiodental",
         frozenset({"bilabial", "palatal"}): "labial-palatal",
-        frozenset({"alveolar", "palatal"}): "alveolo-palatal",
     }
+
+    def _is_composable(self, phone: str) -> bool:
+        """True if ``phone`` is a tie-barred sequence of known phones.
+
+        Cheap membership predicate: does the splitting and lookups of
+        :meth:`_compose_tie_bar_features` without building a feature dict.
+        """
+        if TIE_BAR not in phone:
+            return False
+        parts = phone.split(TIE_BAR)
+        return len(parts) >= 2 and all(p in self.phones for p in parts)
 
     def _compose_tie_bar_features(self, phone: str) -> dict[str, str] | None:
         """Merge features for an ad hoc tie-barred sequence of known phones.
@@ -204,11 +216,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         dropped since it names a specific Wikipedia article that doesn't
         apply to an ad hoc compound.
         """
-        if TIE_BAR not in phone:
+        if not self._is_composable(phone):
             return None
         parts = phone.split(TIE_BAR)
-        if len(parts) < 2 or any(p not in self.phones for p in parts):
-            return None
         feats: dict[str, str] = {}
         manners = set()
         places = []
@@ -740,7 +750,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         :meth:`__iter__`/:meth:`__len__`, which cover the registered
         inventory only.
         """
-        return phone in self.phones or self._compose_tie_bar_features(phone) is not None
+        return phone in self.phones or self._is_composable(phone)
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.phones.keys())

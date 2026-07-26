@@ -308,6 +308,13 @@
     <phone name="b͡v" manner="affricate" place="labiodental" voiced="+" alias="b͜v" href="Voiced_labiodental_affricate"/>
     <phone name="t͡θ" manner="affricate" place="dental" alias="t͜θ" href="Voiceless_dental_affricate"/>
     <phone name="d͡ð" manner="affricate" place="dental" voiced="+" alias="d͜ð" href="Voiced_dental_affricate"/>
+    <phone name="t͡ɬ" manner="affricate" place="alveolar" lateral="+" alias="t͜ɬ ƛ" href="Voiceless_alveolar_lateral_affricate"/>
+    <phone name="d͡ɮ" manner="affricate" place="alveolar" voiced="+" lateral="+" alias="d͜ɮ" href="Voiced_alveolar_lateral_affricate"/>
+
+    <!-- Doubly articulated stops and nasals (tie bar above canonical; below is alias) -->
+    <phone name="k͡p" manner="plosive" place="labial-velar" alias="k͜p" href="Voiceless_labial%E2%80%93velar_plosive"/>
+    <phone name="ɡ͡b" manner="plosive" place="labial-velar" voiced="+" alias="ɡ͜b" href="Voiced_labial%E2%80%93velar_plosive"/>
+    <phone name="ŋ͡m" manner="nasal" place="labial-velar" voiced="+" alias="ŋ͜m" href="Voiced_labial%E2%80%93velar_nasal"/>
 
     <!-- Diphthongs (tie bar above canonical; below is alias) -->
     <phone name="a͡ɪ" manner="vowel" height="open" backness="front" alias="a͜ɪ" href="Diphthong"/>

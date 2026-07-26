@@ -20,9 +20,9 @@ from ipakit import IPAFeatures
 from ipakit.constants import TIE_BAR
 
 # IPA symbols that cannot round-trip through X-SAMPA: the tie bar maps to `_`,
-# but `b_v`/`t_T` re-parse as the voicing diacritic / extra-high tone. Inherent
-# to X-SAMPA (ICU agrees), not an ipakit bug.
-KNOWN_NON_ROUNDTRIP = {"b͡v", "t͡θ"}
+# but `b_v`/`t_T`/`N_m` re-parse as the voicing diacritic / extra-high tone /
+# laminal diacritic. Inherent to X-SAMPA (ICU agrees), not an ipakit bug.
+KNOWN_NON_ROUNDTRIP = {"b͡v", "t͡θ", "ŋ͡m"}
 
 
 class TestBasicConversion:

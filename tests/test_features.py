@@ -69,16 +69,49 @@ class TestGetFeatures:
         assert feats["height"] == "close"
         assert feats["backness"] == "front"
 
+    def test_get_features_registered_ties(self, ipa: IPAFeatures) -> None:
+        # Formerly compose-only; now registered phones resolved by lookup.
+        for symbol in ("t͡ɬ", "d͡ɮ", "k͡p", "ɡ͡b", "ŋ͡m"):
+            assert symbol in ipa.phones
+        feats_lateral_affricate = ipa.get_features("t͡ɬ")
+        assert feats_lateral_affricate["manner"] == "affricate"
+        assert feats_lateral_affricate["place"] == "alveolar"
+        assert feats_lateral_affricate["lateral"] == "+"
+        feats_labial_velar = ipa.get_features("ɡ͡b")
+        assert feats_labial_velar["manner"] == "plosive"
+        assert feats_labial_velar["place"] == "labial-velar"
+        assert ipa.get_features("ŋ͡m")["manner"] == "nasal"
+
+    def test_registered_tie_aliases_tokenize(self, ipa: IPAFeatures) -> None:
+        assert ipa.tokenize_ipa("ƛ") == ["t͡ɬ"]
+        assert ipa.tokenize_ipa("t͜ɬ") == ["t͡ɬ"]
+        assert ipa.tokenize_ipa("ŋ͜m") == ["ŋ͡m"]
+
     def test_get_features_unknown_ties(self, ipa: IPAFeatures) -> None:
-        assert "t͡ɬ" not in ipa.phones
-        feats_affricate = ipa.get_features("t͡ɬ")
+        # Unregistered tie-barred sequences still compose on the fly.
+        assert "q͡χ" not in ipa.phones
+        feats_affricate = ipa.get_features("q͡χ")
         assert feats_affricate["manner"] == "affricate"
-        assert feats_affricate["place"] == "alveolar"
-        assert feats_affricate["lateral"] == "+"
-        assert "ɡ͡b" not in ipa.phones
-        feats_coarticulated_plosive = ipa.get_features("ɡ͡b")
-        assert feats_coarticulated_plosive["manner"] == "plosive"
-        assert feats_coarticulated_plosive["place"] == "labial-velar"
+        assert feats_affricate["place"] == "uvular"
+        assert "m͡ŋ" not in ipa.phones
+        feats_coarticulated_nasal = ipa.get_features("m͡ŋ")
+        assert feats_coarticulated_nasal["manner"] == "nasal"
+        assert feats_coarticulated_nasal["place"] == "labial-velar"
+
+    def test_composed_place_pairs_without_combined_value(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # bilabial+dental and alveolar+palatal have no combined place value
+        # (labiodental and alveolo-palatal are single articulations), so the
+        # composed place falls back to the last part's place.
+        assert ipa.get_features("ɸ͡θ")["place"] == "dental"
+        assert ipa.get_features("s͡ç")["place"] == "palatal"
+
+    def test_contains_composable(self, ipa: IPAFeatures) -> None:
+        assert "t͡ɬ" in ipa  # registered
+        assert "q͡χ" in ipa  # composable
+        assert "q͡X" not in ipa  # unknown part
+        assert "qχ" not in ipa  # no tie bar
 
     def test_get_features_unknown(self, ipa: IPAFeatures) -> None:
         assert ipa.get_features("X") == {}
