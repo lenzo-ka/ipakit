@@ -148,7 +148,7 @@ def confusability(phone1: str, phone2: str) -> float:
 
     Examples:
         >>> round(ipakit.confusability("p", "b"), 3)
-        0.936
+        0.937
         >>> ipakit.confusability("p", "p")
         1.0
     """
@@ -457,7 +457,7 @@ def minimal_pairs(
 
     Examples:
         >>> ipakit.minimal_pairs("p")
-        [('ɸ', 'manner', 'fricative'), ('f', 'manner', 'fricative'), ...]
+        [('ʘ', 'manner', 'click'), ('ɸ', 'manner', 'fricative'), ...]
     """
     return _get_ipa().minimal_pairs(
         phone, with_defaults=with_defaults, max_distance=max_distance
@@ -475,7 +475,7 @@ def nearest_phones(
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('ɸ', 0.01), ('f', 0.019), ('ʘ', 0.02)]
+        [('ʘ', 0.013), ('ɸ', 0.017), ('t', 0.021)]
     """
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 

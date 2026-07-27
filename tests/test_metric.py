@@ -197,6 +197,79 @@ class TestReferenceFrame:
         )
 
 
+class TestSilence:
+    """Silence is not a speech sound: no articulatory defaults, no bridge
+    features, no tract position. Substituting it for a phone costs what
+    deleting the phone costs."""
+
+    def test_maximally_distant_from_every_speech_sound(self, ipa: IPAFeatures) -> None:
+        for other in ["p", "a", "s", "t͡s", "w", "i", "k͡p", "tʲ"]:
+            assert D(ipa, "␣", other) == 1.0, other
+
+    def test_identical_to_itself(self, ipa: IPAFeatures) -> None:
+        assert D(ipa, "␣", "␣") == 0.0
+
+    def test_carries_no_articulatory_defaults(self, ipa: IPAFeatures) -> None:
+        feats = ipa.get_features("␣", with_defaults=True)
+        assert feats == {"manner": "silence", "class": "phone"}
+        # A speech sound still gets its defaults.
+        assert ipa.get_features("p", with_defaults=True)["rounded"] == "-"
+
+    def test_has_no_tract_position(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        bundle = ipa.segment("␣").constituents[0].bundle(ipa)
+        assert not tract_point(ipa, bundle).placed
+
+
+class TestTractSpace:
+    """Phones sit in a normalized, head-independent tract space; heads
+    project it to 2D for rendering and never affect distance."""
+
+    def test_anchors_follow_anatomy(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        def point(sym: str):
+            return tract_point(ipa, ipa.segment(sym).constituents[0].bundle(ipa))
+
+        # Arc ascends lips -> glottis.
+        arcs = [point(s).arc for s in ["p", "t", "k", "q", "ʔ"]]
+        assert arcs == sorted(arcs)
+        # Offset ascends open -> closed across the classes.
+        assert point("a").offset < point("i").offset < point("j").offset
+        assert point("j").offset < point("s").offset <= point("t").offset
+
+    def test_combining_place_sits_between_its_components(
+        self, ipa: IPAFeatures
+    ) -> None:
+        from ipakit.tract import tract_point
+
+        def arc(sym: str):
+            return tract_point(ipa, ipa.segment(sym).constituents[0].bundle(ipa)).arc
+
+        assert arc("p") < arc("w") < arc("k")
+
+    def test_heads_project_without_touching_distance(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import head, heads, tract_point
+
+        assert set(heads()) >= {"adult-male", "adult-female", "child"}
+        bundle = ipa.segment("t").constituents[0].bundle(ipa)
+        point = tract_point(ipa, bundle)
+        positions = {
+            name: head(name).project(point) for name in ("adult-male", "child")
+        }
+        # Different heads place the same phone differently...
+        assert positions["adult-male"] != positions["child"]
+        # ...but the phone's own coordinates, which distance uses, are one.
+        assert point.arc is not None and point.offset is not None
+
+    def test_child_tract_is_shorter(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import head
+
+        assert head("child").length_cm < head("adult-female").length_cm
+        assert head("adult-female").length_cm < head("adult-male").length_cm
+
+
 class TestSagittalBridges:
     """The frame's axes are stored twice (place/backness on x,
     manner-constriction/height on y) in features that never co-occur;

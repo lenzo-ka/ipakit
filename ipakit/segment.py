@@ -95,6 +95,23 @@ def modifier_mode(features: IPAFeatures, symbol: str) -> str:
     return "additive"
 
 
+def _is_non_speech(features: IPAFeatures, feats: dict[str, str]) -> bool:
+    """True for a bundle whose manner holds no position on the
+    constriction axis (silence): not a speech sound, so the articulatory
+    defaults do not apply to it. Filling them would make silence *match*
+    every phone on every unremarkable binary and dilute the one real
+    difference; leaving them out keeps silence maximally distant, so
+    substituting it for a phone costs what deleting the phone costs.
+    """
+    manner_feature = features.features.get("manner")
+    manner = feats.get("manner")
+    return bool(
+        manner_feature is not None
+        and manner is not None
+        and manner in manner_feature.offscale
+    )
+
+
 @dataclass(frozen=True)
 class Constituent:
     """A base phone plus its ordered modifier stack."""
@@ -140,7 +157,7 @@ class Constituent:
                     feats[k] = v
                 else:
                     feats.setdefault(k, v)
-        if with_defaults:
+        if with_defaults and not _is_non_speech(features, feats):
             for name, feat in features.features.items():
                 if name not in feats and feat.default is not None:
                     feats[name] = feat.default

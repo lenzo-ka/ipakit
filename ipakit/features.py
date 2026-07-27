@@ -120,12 +120,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 else:
                     values = []
                     offscale: set[str] = set()
+                    coordinates: dict[str, dict[str, float]] = {}
                     self._value_aliases[name] = {}
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):
                             values.append(val_name)
                             if v.get("offscale"):
                                 offscale.add(val_name)
+                            coords = {
+                                attr: float(raw)
+                                for attr in ("arc", "offset")
+                                if (raw := v.get(attr)) is not None
+                            }
+                            if coords:
+                                coordinates[val_name] = coords
                             if alias := v.get("alias"):
                                 self._value_aliases[name][alias] = val_name
                             if vshort := v.get("short"):
@@ -143,6 +151,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     value_aliases=dict(self._value_aliases.get(name, {})),
                     axis=feat_elem.get("axis"),
                     offscale=frozenset(offscale),
+                    coordinates=coordinates,
                 )
 
         # Load elements by class (plural section, singular child = section[:-1])
@@ -252,7 +261,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             feats = composed
         else:
             return {}
-        if with_defaults:
+        manner_feature = self.features.get("manner")
+        non_speech = bool(
+            manner_feature is not None
+            and feats.get("manner") in manner_feature.offscale
+        )
+        if with_defaults and not non_speech:
             for name, feat in self.features.items():
                 if name not in feats and feat.default is not None:
                     feats[name] = feat.default

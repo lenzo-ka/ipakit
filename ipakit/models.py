@@ -37,6 +37,9 @@ class Feature:
     # Values that hold no position on the continuum (silence on the
     # constriction axis: absence of signal, equidistant from every value).
     offscale: frozenset[str] = field(default_factory=frozenset)
+    # Tract coordinates per value (arc along the midline, offset from it),
+    # declared in the data; see ipakit.tract.
+    coordinates: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"

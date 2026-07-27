@@ -34,14 +34,14 @@
     <feature name="manner" axis="+constriction" short="mnr" desc="How airflow is constricted" href="Manner_of_articulation">
       <value name="silence" short="sil" offscale="+" href="Pause_(linguistics)"/>  <!-- no position: absence of signal, equidistant from every manner -->
       <value name="vowel" short="vow" href="Vowel"/>
-      <value name="approximant" short="apr" href="Approximant"/>
-      <value name="trill" short="tri" href="Trill_consonant"/>
-      <value name="tap" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
-      <value name="nasal" short="nas" href="Nasal_consonant"/>
-      <value name="fricative" short="fri" href="Fricative"/>
-      <value name="plosive" short="plo" alias="stop" href="Plosive"/>
-      <value name="affricate" short="aff" href="Affricate"/>
-      <value name="click" short="clk" href="Click_consonant"/>  <!-- airstream mechanism leaking into the constriction axis; kept for compat -->
+      <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
+      <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
+      <value name="tap" offset="0.75" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
+      <value name="nasal" offset="1.00" short="nas" href="Nasal_consonant"/>
+      <value name="fricative" offset="0.80" short="fri" href="Fricative"/>
+      <value name="plosive" offset="1.00" short="plo" alias="stop" href="Plosive"/>
+      <value name="affricate" offset="0.95" short="aff" href="Affricate"/>
+      <value name="click" offset="1.00" short="clk" href="Click_consonant"/>  <!-- airstream mechanism leaking into the constriction axis; kept for compat -->
     </feature>
 
     <feature name="airstream" type="categorical" short="air" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
@@ -51,38 +51,38 @@
     </feature>
 
     <feature name="place" axis="+x" short="plc" desc="Where articulation occurs" href="Place_of_articulation">
-      <value name="bilabial" short="bil" href="Bilabial_consonant"/>
-      <value name="labiodental" short="lbd" href="Labiodental_consonant"/>
-      <value name="dental" short="den" href="Dental_consonant"/>
-      <value name="alveolar" short="alv" href="Alveolar_consonant"/>
-      <value name="postalveolar" short="pav" href="Postalveolar_consonant"/>
-      <value name="alveolo-palatal" short="apl" href="Alveolo-palatal_consonant"/>
-      <value name="palatal" short="pal" href="Palatal_consonant"/>
+      <value name="bilabial" arc="0.00" short="bil" href="Bilabial_consonant"/>
+      <value name="labiodental" arc="0.03" short="lbd" href="Labiodental_consonant"/>
+      <value name="dental" arc="0.08" short="den" href="Dental_consonant"/>
+      <value name="alveolar" arc="0.13" short="alv" href="Alveolar_consonant"/>
+      <value name="postalveolar" arc="0.19" short="pav" href="Postalveolar_consonant"/>
+      <value name="alveolo-palatal" arc="0.24" short="apl" href="Alveolo-palatal_consonant"/>
+      <value name="palatal" arc="0.32" short="pal" href="Palatal_consonant"/>
       <value name="bilabial+palatal" short="lpl" alias="labial-palatal" href="Labial%E2%80%93palatal_approximant"/>
-      <value name="velar" short="vel" href="Velar_consonant"/>
+      <value name="velar" arc="0.45" short="vel" href="Velar_consonant"/>
       <value name="bilabial+velar" short="lbv" alias="labial-velar" href="Labial%E2%80%93velar_consonant"/>
-      <value name="uvular" short="uvu" href="Uvular_consonant"/>
-      <value name="pharyngeal" short="pha" href="Pharyngeal_consonant"/>
-      <value name="epiglottal" short="epi" href="Epiglottal_consonant"/>
-      <value name="glottal" short="glo" href="Glottal_consonant"/>
+      <value name="uvular" arc="0.56" short="uvu" href="Uvular_consonant"/>
+      <value name="pharyngeal" arc="0.74" short="pha" href="Pharyngeal_consonant"/>
+      <value name="epiglottal" arc="0.87" short="epi" href="Epiglottal_consonant"/>
+      <value name="glottal" arc="1.00" short="glo" href="Glottal_consonant"/>
     </feature>
 
     <feature name="height" axis="+y" short="hgt" desc="Vertical tongue position for vowels" href="Vowel#Height">
-      <value name="open" short="opn" alias="low" href="Open_vowel"/>
-      <value name="near-open" short="nop" href="Near-open_vowel"/>
-      <value name="open-mid" short="opm" href="Open-mid_vowel"/>
-      <value name="mid" short="mid" href="Mid_vowel"/>
-      <value name="close-mid" short="clm" href="Close-mid_vowel"/>
-      <value name="near-close" short="ncl" href="Near-close_vowel"/>
-      <value name="close" short="clo" alias="high" href="Close_vowel"/>
+      <value name="open" offset="0.05" short="opn" alias="low" href="Open_vowel"/>
+      <value name="near-open" offset="0.10" short="nop" href="Near-open_vowel"/>
+      <value name="open-mid" offset="0.16" short="opm" href="Open-mid_vowel"/>
+      <value name="mid" offset="0.22" short="mid" href="Mid_vowel"/>
+      <value name="close-mid" offset="0.28" short="clm" href="Close-mid_vowel"/>
+      <value name="near-close" offset="0.33" short="ncl" href="Near-close_vowel"/>
+      <value name="close" offset="0.38" short="clo" alias="high" href="Close_vowel"/>
     </feature>
 
     <feature name="backness" axis="+x" short="bck" desc="Horizontal tongue position for vowels" href="Vowel#Backness">
-      <value name="front" short="frt" href="Front_vowel"/>
-      <value name="near-front" short="nfr" href="Near-front_vowel"/>
-      <value name="central" short="cen" href="Central_vowel"/>
-      <value name="near-back" short="nbk" href="Near-back_vowel"/>
-      <value name="back" short="bck" href="Back_vowel"/>
+      <value name="front" arc="0.32" short="frt" href="Front_vowel"/>
+      <value name="near-front" arc="0.37" short="nfr" href="Near-front_vowel"/>
+      <value name="central" arc="0.44" short="cen" href="Central_vowel"/>
+      <value name="near-back" arc="0.50" short="nbk" href="Near-back_vowel"/>
+      <value name="back" arc="0.56" short="bck" href="Back_vowel"/>
     </feature>
 
     <feature name="voiced" short="voi" type="binary" desc="Vocal cord vibration" href="Voice_(phonetics)"/>
