@@ -275,6 +275,17 @@ class Segment:
         """Flat features of the right edge: the rightmost top-level child."""
         return self.right.scalar(with_defaults=with_defaults)
 
+    def disagreements(self) -> dict[str, tuple[str, ...]]:
+        """Features whose values differ across this unit's constituents.
+
+        A diagnostic *read* over the union bag -- composition never
+        referees agreement (a voicing-disagreeing tie like ``t͡ɮ`` is
+        reported, not rejected), and structural multi-valuedness is
+        included (a double articulation naturally "disagrees" in place).
+        Empty for an atomic unit.
+        """
+        return {k: v for k, v in self.bag().items() if len(v) > 1}
+
     def distance(self, other: Segment) -> float:
         """Structural distance to another Segment, in [0, 1] (the metric
         of design spec section 7; see ipakit.metric)."""

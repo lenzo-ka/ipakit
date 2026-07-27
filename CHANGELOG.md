@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `Segment.disagreements()`: the features whose values differ across a unit's constituents — a diagnostic read (composition reports, never referees; `t͡ɮ` stays legal). Structural marks (the linking `‿`, breaks `|`/`‖`) now tokenize as their own boundary tokens instead of gluing onto the preceding segment, and are transparent to word-level distance (`word_distance("lez‿ami", "lezami") = 0`) (#14).
 - Structural distance (`ipakit.metric`): constituent-bundle alignment with kind-driven ordering (double articulation unordered, phased units and sequences ordered), a binding-sense term (`D(u͡i, u͜i) = 1/3`), weighted secondary-articulation place components (`tʲ` strictly between `t` and `c`), nasality/laterality bridge features, and combined-place expansion for atomic `w`/`ɥ`. `distance`/`segment_distance`/`Segment.distance` all route through it; `Feature.value_distance` accepts value tuples. Distances shift: affricates now cluster with affricates rather than with their bare components; `confusion.json` regenerated (#13).
 - `from_wild()`: explicit import of IPA written in other tie conventions — glyph-variant spellings of registered compounds canonicalize (`t͜s` → `t͡s`, `a͡ɪ` → `a͜ɪ`); unregistered uniform-glyph chains get the sense heuristic; mixed-glyph (house-authored) chains pass through (#11).
 - Registered phones: the lateral affricates `t͡ɬ` (aliases `t͜ɬ`, NAPA `ƛ`) and `d͡ɮ`, and the labial-velar plosives/nasal `k͡p`, `ɡ͡b`, `ŋ͡m` (#7).

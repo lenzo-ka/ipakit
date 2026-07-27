@@ -796,6 +796,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     j < len(segment)
                     and segment[j] in self.diacritics
                     and segment[j] not in (TIE_BAR, SEQ_TIE)
+                    and modifier_mode(self, segment[j]) != "structural"
                 ):
                     diacritics.append(segment[j])
                     j += 1
@@ -1000,6 +1001,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         chars[pos] = SEQ_TIE if chars[pos] == TIE_BAR else TIE_BAR
                 variants["".join(chars)] = name
         return dict(sorted(variants.items(), key=lambda kv: -len(kv[0])))
+
+    def is_structural_token(self, token: str) -> bool:
+        """True if ``token`` is entirely structural marks (the linking
+        undertie, breaks): a boundary relation between units, not a
+        segment. Distance and alignment treat such tokens as transparent."""
+        return bool(token) and all(
+            ch in self.diacritics and modifier_mode(self, ch) == "structural"
+            for ch in token
+        )
 
     def _parse_constituent(self, part: str) -> Constituent:
         part = self._resolve_token(part)

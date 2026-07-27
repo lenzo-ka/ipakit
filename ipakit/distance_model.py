@@ -379,8 +379,16 @@ class DistanceModel:
         weighted-Levenshtein alignment. Returns a :class:`WordDistanceResult`;
         pass ``return_alignment=True`` to include the aligned token pairs.
         """
-        t1 = self._ipa.tokenize_ipa(ipa1)
-        t2 = self._ipa.tokenize_ipa(ipa2)
+        t1 = [
+            t
+            for t in self._ipa.tokenize_ipa(ipa1)
+            if not self._ipa.is_structural_token(t)
+        ]
+        t2 = [
+            t
+            for t in self._ipa.tokenize_ipa(ipa2)
+            if not self._ipa.is_structural_token(t)
+        ]
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
             return _empty_pair_result(return_alignment)
