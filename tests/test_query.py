@@ -67,7 +67,7 @@ class TestPhonesMatching:
         # term, and as a short name. The dict form used to pass its value
         # through untouched and silently match nothing, which matters more
         # now that the canonical spelling carries a combiner glyph.
-        canonical = ipa.phones_matching({"place": "bilabial⊕velar"})
+        canonical = ipa.phones_matching({"place": "bilabial^velar"})
         assert "w" in canonical
         for query in ({"place": "labial-velar"}, ["labial-velar"], ["lbv"]):
             assert ipa.phones_matching(query) == canonical, query

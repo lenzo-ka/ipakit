@@ -237,7 +237,7 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
         if place is not None:
             feat = features.features.get("place")
             if feat is not None:
-                # A combining place (bilabial⊕velar) sits at the mean of
+                # A combining place (bilabial^velar) sits at the mean of
                 # its components' positions -- the fusion's centre of
                 # gravity in the tract.
                 arcs = [
