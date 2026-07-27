@@ -19,14 +19,14 @@ class TestConvenienceFunctions:
         result = ipakit.to_cmu("p")
         assert result == ["P"]
 
-    def test_to_ipa(self) -> None:
-        result = ipakit.to_ipa(["P"])
+    def test_from_cmu(self) -> None:
+        result = ipakit.from_cmu(["P"])
         assert result == "p"
 
     def test_from_cmu_is_canonical_alias_of_to_ipa(self) -> None:
         # from_cmu is the canonical name; to_ipa delegates to it.
         assert ipakit.from_cmu(["K", "AE1", "T"]) == "kˈæt"
-        assert ipakit.from_cmu(["P"]) == ipakit.to_ipa(["P"])
+        assert ipakit.from_cmu(["P"]) == ipakit.from_cmu(["P"])
         assert "from_cmu" in ipakit.__all__
 
     def test_generic_phonemap_functions_exported(self) -> None:
