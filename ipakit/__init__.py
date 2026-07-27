@@ -303,6 +303,26 @@ def normalize(segments: str) -> str:
     return _get_ipa().normalize_ipa(segments)
 
 
+def from_wild(text: str) -> str:
+    """Import IPA written in other tie conventions into house style.
+
+    Examples:
+        >>> from_wild("t͜sa͡ɪ")
+        't͡sa͜ɪ'
+    """
+    return _get_ipa().from_wild(text)
+
+
+def import_phoneset(phoneset: Phoneset) -> Phoneset:
+    """Import a phoneset written in other tie conventions into house style.
+
+    Examples:
+        >>> import_phoneset(Phoneset.from_list(["t͜s", "e͡ɪ"], name="x")).phones
+        ['t͡s', 'e͜ɪ']
+    """
+    return _get_ipa().import_phoneset(phoneset)
+
+
 def normalize_lookalikes(text: str) -> str:
     """Replace lookalike characters with proper IPA equivalents.
 
@@ -499,6 +519,8 @@ __all__ = [
     "Kind",
     "parse_segment",
     "parse_segments",
+    "from_wild",
+    "import_phoneset",
     "PhoneMapping",
     "Phoneset",
     "WordDistanceResult",

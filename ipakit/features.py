@@ -1002,6 +1002,24 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 variants["".join(chars)] = name
         return dict(sorted(variants.items(), key=lambda kv: -len(kv[0])))
 
+    def import_phoneset(self, phoneset: Phoneset) -> Phoneset:
+        """Import a phoneset written in other conventions into house style.
+
+        Each member goes through :meth:`from_wild` (tie-convention
+        spellings of registered compounds canonicalize; everything else
+        passes through); duplicates that collapse under canonicalization
+        are dropped, order preserved. Explicit, like all wild imports --
+        phoneset members are never rewritten implicitly.
+        """
+        seen: set[str] = set()
+        phones: list[str] = []
+        for member in phoneset.phones:
+            canonical = self.from_wild(member)
+            if canonical not in seen:
+                seen.add(canonical)
+                phones.append(canonical)
+        return Phoneset(name=phoneset.name, phones=phones)
+
     def is_structural_token(self, token: str) -> bool:
         """True if ``token`` is entirely structural marks (the linking
         undertie, breaks): a boundary relation between units, not a
