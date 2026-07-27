@@ -424,10 +424,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # Try short name first
         if term in self._short_to_feature:
             return self._short_to_feature[term]
-        # Try as a feature value (long name)
+        # Try as a feature value (long name), or a friendly alias of one
+        # (labial-velar -> bilabial⊕velar): aliases resolve everywhere a
+        # value is accepted, including here.
         for feat_name, feat in self.features.items():
             if term in feat.values:
                 return (feat_name, term)
+            if term in feat.value_aliases:
+                return (feat_name, feat.value_aliases[term])
         # Try as a binary feature name (e.g., 'voiced' -> ('voiced', '+' or '-'))
         if term in self.features and self.features[term].type == "binary":
             if prefix == "+":
@@ -474,7 +478,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 else:
                     positive[feat] = val
         else:
-            positive = query
+            # A dict names features directly, but its values still go
+            # through the alias table: labial-velar is the readable
+            # spelling of bilabial⊕velar and must match it.
+            for key, val in query.items():
+                feature = self.features.get(key)
+                positive[key] = feature.value_aliases.get(val, val) if feature else val
 
         if not positive and not negative:
             raise ValueError(

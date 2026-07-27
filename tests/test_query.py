@@ -61,6 +61,21 @@ class TestPhonesMatching:
         # pʰ is aspirated (and composed, not a base phone), so it must not match.
         assert "pʰ" not in result
 
+    def test_value_aliases_resolve_in_every_query_form(self, ipa: IPAFeatures) -> None:
+        # A friendly alias is a spelling of its value, so it must select the
+        # same phones the canonical name does -- as a dict value, as a bare
+        # term, and as a short name. The dict form used to pass its value
+        # through untouched and silently match nothing, which matters more
+        # now that the canonical spelling carries a combiner glyph.
+        canonical = ipa.phones_matching({"place": "bilabial⊕velar"})
+        assert "w" in canonical
+        for query in ({"place": "labial-velar"}, ["labial-velar"], ["lbv"]):
+            assert ipa.phones_matching(query) == canonical, query
+        # Aliases on an ordinary value behave the same way.
+        assert ipa.phones_matching({"manner": "stop"}) == ipa.phones_matching(
+            {"manner": "plosive"}
+        )
+
 
 class TestShortsConversion:
     """Tests for short name conversion."""
