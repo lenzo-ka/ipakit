@@ -29,7 +29,9 @@ MISSING_FEATURE_VALUE = "_none"
 # Longest-match window (in characters) for phone segmentation. Wide enough to
 # span a tie-bar composite like ``t͡ʃ`` (base + tie + base), so it is a deliberate
 # bound, not the longest single key length.
-MAX_MATCH_LEN = 6
+# Wide enough for a five-constituent tie chain (5 bases + 4 ties); a
+# deliberate window for longest_match, not the longest registered key.
+MAX_MATCH_LEN = 11
 
 # Display/formatting constants
 DEFAULT_SHORT_NAME_LEN = 3  # Default length for auto-generated short names

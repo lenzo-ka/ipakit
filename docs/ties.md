@@ -36,7 +36,12 @@ An unregistered tie-joined sequence of known phones still resolves (`registered 
 - **Under-tie (sequential)**: the flat feature projection is the **first element** (`u͜i` → the features of `u`) — the same encoding the registered diphthongs use. The remaining constituents stay recoverable from the token itself.
 - **Mixed chains**: the first top-level part's features (`t͡s͜a` → the affricate's features).
 
-The flat projection is deliberately a summary, not the whole story; richer structured reads (per-constituent access, multi-valued feature bags) are planned on top of the same representation.
+The flat projection is deliberately a summary, not the whole story. The structured reads live on `Segment` (`ipakit.parse_segment` / `parse_segments`, or `IPAFeatures.segment` / `segments`):
+
+- `Segment` stores the flat chain — `constituents` (base + modifier stack) joined by typed `junctures` — plus unit-level `prosody` (stress, length, tone). Everything else is derived: `children` (the grouping: sequential runs, then phase blocks, then constituents), `kind` (affricate, prenasalized, pre-stopped, lateral-release, click-accompaniment, double-articulation, overlay, diphthong, chain, atomic), `sense`, `left`/`right`, `bag()` (per-feature value tuples in constituent order — `u͜i` carries `backness=('back', 'front')`), and `scalar()` (the same flat projection `get_features` gives).
+- Modifiers contribute by mode: overriding marks replace their base's value (the devoicing ring makes `d̥` voiceless, never both-voiced), additive and secondary marks add only what the base doesn't state, release marks stay phase properties, and prosodic marks live on the unit, outside the feature bag.
+- `to_json()`/`from_json()` carry the junctures explicitly and are the round-trip-guaranteed serialization. `to_ipa()` emits sense-correct glyphs and is lossy exactly on the legacy alias collisions: `build_segment(["a", "ɪ"], Sense.FUSE)` emits `a͡ɪ`, which re-ingests as the registered sequential diphthong — intent that must survive a string round trip needs the JSON form.
+- `build_segment` is the intent channel: it constructs any combination directly, bypassing string-alias collisions.
 
 ## Normalizing tieless input
 

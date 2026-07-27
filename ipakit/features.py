@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
@@ -20,6 +21,7 @@ from .constants import (
 from .distance import DistanceMixin
 from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
+from .segment import Constituent, Segment, Sense, modifier_mode
 from .validation import ValidationMixin
 
 
@@ -793,6 +795,146 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             token = unicodedata.normalize("NFC", base + "".join(diacritics))
             result.append((token, feats))
         return result
+
+    # -------------------------------------------------------------------------
+    # Structured segments (docs/ties.md; design spec)
+    # -------------------------------------------------------------------------
+
+    def segments(self, text: str) -> list[Segment]:
+        """Parse IPA text into structured :class:`Segment` units.
+
+        Same segmentation as :meth:`tokenize_ipa`. Stress marks attach to
+        the following unit's prosody; other prosodic marks (length, tone)
+        attach to the unit they follow. Structural marks (ties become
+        junctures; breaks/linking live between units) never appear in a
+        unit's prosody.
+        """
+        result: list[Segment] = []
+        pending_stress: list[str] = []
+        for token in self.tokenize_ipa(text):
+            if token and all(
+                ch in self.diacritics and "stress" in self.diacritics[ch].features
+                for ch in token
+            ):
+                pending_stress.extend(token)
+                continue
+            seg = self._segment_from_token(token, tuple(pending_stress))
+            pending_stress = []
+            if seg is not None:
+                result.append(seg)
+        return result
+
+    def segment(self, text: str) -> Segment:
+        """Parse exactly one unit into a :class:`Segment`.
+
+        Raises ``ValueError`` if the text tokenizes to zero or several
+        units.
+        """
+        segs = self.segments(text)
+        if len(segs) != 1:
+            raise ValueError(
+                f"expected exactly one unit, got {len(segs)} from {text!r}"
+            )
+        return segs[0]
+
+    def build_segment(
+        self,
+        parts: list[str],
+        senses: Sense | list[Sense] | None = None,
+        prosody: tuple[str, ...] = (),
+    ) -> Segment:
+        """Construct a :class:`Segment` from intent, bypassing string-alias
+        collisions: each part is a base phone with optional trailing
+        modifiers, and ``senses`` gives the junctures explicitly (one
+        ``Sense``, repeated, or one per juncture)."""
+        constituents = tuple(self._parse_constituent(p) for p in parts)
+        n = len(constituents)
+        if senses is None:
+            junctures: tuple[Sense, ...] = tuple([Sense.FUSE] * (n - 1))
+        elif isinstance(senses, Sense):
+            junctures = tuple([senses] * (n - 1))
+        else:
+            junctures = tuple(senses)
+        for mark in prosody:
+            if modifier_mode(self, mark) == "structural":
+                raise ValueError(
+                    f"structural mark {mark!r} is not prosody; "
+                    "ties are junctures, breaks live between units"
+                )
+        return Segment(
+            constituents=constituents,
+            junctures=junctures,
+            prosody=prosody,
+            _features=self,
+        )
+
+    def _parse_constituent(self, part: str) -> Constituent:
+        part = self._resolve_token(part)
+        base, best_len = longest_match(part, 0, self.phones, MAX_MATCH_LEN)
+        if not base:
+            raise ValueError(f"no registered base phone in {part!r}")
+        modifiers = []
+        for ch in part[best_len:]:
+            if ch not in self.diacritics:
+                raise ValueError(f"unknown modifier {ch!r} in {part!r}")
+            modifiers.append(ch)
+        return Constituent(base=base, modifiers=tuple(modifiers))
+
+    def _segment_from_token(
+        self, token: str, stress: tuple[str, ...] = ()
+    ) -> Segment | None:
+        parsed = self.parse(token)
+        if not parsed:
+            return None
+        chain, diacritics = parsed[0]
+
+        raw = re.split(f"([{TIE_BAR}{SEQ_TIE}])", chain)
+        part_strs = raw[0::2]
+        glyphs = raw[1::2]
+        try:
+            constituents = tuple(self._parse_constituent(p) for p in part_strs)
+        except ValueError:
+            # Structural-only or malformed token (lone tie, stray mark):
+            # nothing segmental to represent.
+            return None
+
+        if len(constituents) > 1 and chain in self.phones:
+            # Registered entry: its sense wins over the written glyph.
+            # Transitional rule until the data migration makes sense
+            # explicit: all-vocalic entries are sequential, else fused.
+            all_vocalic = all(
+                (p := self.get_phone(c.base)) is not None
+                and p.features.get("manner") == "vowel"
+                for c in constituents
+            )
+            sense = Sense.SEQ if all_vocalic else Sense.FUSE
+            junctures = tuple([sense] * (len(constituents) - 1))
+        else:
+            junctures = tuple(Sense.FUSE if g == TIE_BAR else Sense.SEQ for g in glyphs)
+
+        prosody: list[str] = list(stress)
+        modifiers: list[str] = []
+        for mark in diacritics:
+            mode = modifier_mode(self, mark)
+            if mode == "structural":
+                continue
+            if mode == "prosodic":
+                prosody.append(mark)
+            else:
+                modifiers.append(mark)
+        if modifiers:
+            last = constituents[-1]
+            constituents = constituents[:-1] + (
+                Constituent(
+                    base=last.base, modifiers=last.modifiers + tuple(modifiers)
+                ),
+            )
+        return Segment(
+            constituents=constituents,
+            junctures=junctures,
+            prosody=tuple(prosody),
+            _features=self,
+        )
 
     def compose_single(
         self, segment: str, with_defaults: bool = True

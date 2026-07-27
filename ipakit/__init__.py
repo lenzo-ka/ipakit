@@ -46,6 +46,7 @@ from .phonemaps import (
     to_kirshenbaum,
     to_timit,
 )
+from .segment import Constituent, Kind, Segment, Sense
 
 # X-SAMPA string conversion lives in ipakit.xsampa, the single source of truth
 # for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
@@ -275,6 +276,28 @@ def segment(ipa_string: str) -> str:
     return _get_ipa().segment_ipa(ipa_string)
 
 
+def parse_segments(ipa_string: str) -> list[Segment]:
+    """Parse IPA text into structured Segment units (see docs/ties.md).
+
+    Examples:
+        >>> [s.kind.value for s in parse_segments("t͡ʃa͜ɪ")]
+        ['affricate', 'diphthong']
+    """
+    return _get_ipa().segments(ipa_string)
+
+
+def parse_segment(ipa_string: str) -> Segment:
+    """Parse exactly one unit into a structured Segment.
+
+    Examples:
+        >>> parse_segment("t͡s").kind.value
+        'affricate'
+        >>> parse_segment("u͜i").bag()["backness"]
+        ('back', 'front')
+    """
+    return _get_ipa().segment(ipa_string)
+
+
 def normalize(segments: str) -> str:
     """Normalize whitespace-separated IPA segments into decodable IPA string."""
     return _get_ipa().normalize_ipa(segments)
@@ -470,6 +493,12 @@ __all__ = [
     "Feature",
     "IPAFeatures",
     "Phone",
+    "Segment",
+    "Constituent",
+    "Sense",
+    "Kind",
+    "parse_segment",
+    "parse_segments",
     "PhoneMapping",
     "Phoneset",
     "WordDistanceResult",
