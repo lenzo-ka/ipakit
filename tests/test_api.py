@@ -23,11 +23,13 @@ class TestConvenienceFunctions:
         result = ipakit.from_cmu(["P"])
         assert result == "p"
 
-    def test_from_cmu_is_canonical_alias_of_to_ipa(self) -> None:
-        # from_cmu is the canonical name; to_ipa delegates to it.
+    def test_from_cmu_is_the_cmu_entry_point(self) -> None:
+        # from_cmu names its source format as its siblings do. The former
+        # to_ipa alias is gone, and the name now means segments -> string.
         assert ipakit.from_cmu(["K", "AE1", "T"]) == "kˈæt"
-        assert ipakit.from_cmu(["P"]) == ipakit.from_cmu(["P"])
+        assert ipakit.from_cmu(["P"]) == "p"
         assert "from_cmu" in ipakit.__all__
+        assert ipakit.to_ipa(ipakit.segments("kæt")) == "kæt"
 
     def test_generic_phonemap_functions_exported(self) -> None:
         # ipa_to_phonemap / phonemap_to_ipa are now part of the public surface.
