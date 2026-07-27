@@ -85,11 +85,36 @@ def distance(phone1: str, phone2: str) -> float:
     return _get_ipa().distance(phone1, phone2)
 
 
+def segment_distance(seg1: str, seg2: str) -> float:
+    """Structural distance between two segment strings (0.0-1.0).
+
+    Unlike :func:`distance`, accepts multi-unit strings: units are
+    compared positionally with a length penalty.
+
+    Examples:
+        >>> 0.0 < segment_distance("t͡s", "t͡ʃ") < 1.0
+        True
+    """
+    return _get_ipa().segment_distance(seg1, seg2)
+
+
+def pairwise_distances(phones: list[str]) -> list[list[float]]:
+    """Full distance matrix over a list of phones.
+
+    Examples:
+        >>> m = pairwise_distances(["p", "b", "t"])
+        >>> m[0][0], m[0][1] == m[1][0]
+        (0.0, True)
+    """
+    return _get_ipa().pairwise_distances(phones)
+
+
 def word_distance(
     ipa1: str,
     ipa2: str,
     weighted: bool = True,
     return_alignment: bool = False,
+    strict: bool = True,
 ) -> WordDistanceResult:
     """Compute phonetic edit distance between two IPA words.
 
@@ -111,11 +136,17 @@ def word_distance(
         WordDistanceResult(distance=..., similarity=..., alignment=None)
     """
     return _get_ipa().word_distance(
-        ipa1, ipa2, weighted=weighted, return_alignment=return_alignment
+        ipa1,
+        ipa2,
+        weighted=weighted,
+        return_alignment=return_alignment,
+        strict=strict,
     )
 
 
-def word_similarity(ipa1: str, ipa2: str, weighted: bool = True) -> float:
+def word_similarity(
+    ipa1: str, ipa2: str, weighted: bool = True, strict: bool = True
+) -> float:
     """Compute phonetic similarity between two IPA words.
 
     Returns a value from 0.0 (completely different) to 1.0 (identical).
@@ -132,7 +163,7 @@ def word_similarity(ipa1: str, ipa2: str, weighted: bool = True) -> float:
         >>> ipakit.word_similarity("kæt", "dɒɡ")  # weighted subs are cheap (shared features)
         0.8...
     """
-    return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted)
+    return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted, strict=strict)
 
 
 def normalized_distance(phone1: str, phone2: str) -> float:
@@ -568,6 +599,8 @@ __all__ = [
     "wiki_ref",
     "wiki_refs",
     "word_distance",
+    "segment_distance",
+    "pairwise_distances",
     "word_similarity",
     "xsampa_to_ipa",
 ]

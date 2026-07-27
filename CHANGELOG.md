@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MAX_MATCH_LEN` raised from 6 to 11 so longer tie chains tokenize as one unit (#10).
 
 ### Fixed
+- `distance()` returned the maximal-difference sentinel `1.0` for any multi-unit input, so two identical words reported as maximally different with no error. It now raises and names `word_distance`/`segment_distance`, both of which are exported alongside `pairwise_distances` (#18).
+- A query whose terms all failed to resolve returned the **entire inventory** (a vacuous `all()`), so a typo silently matched everything. It now raises (#18).
+- `word_distance`/`word_similarity` silently dropped symbols the tokenizer could not convert, measuring over the remainder — `"kæt"` against `"k4t"` compared `kæt` to `kt`. Measurement is now strict by default; `strict=False` opts back into lossy behaviour. Conversion keeps its lossy default (#18).
+- Phone feature bundles are read-only: the module API is backed by one cached instance, so a write through `get_phone(...).features` corrupted the inventory every later call read (#18).
+- `nearest_phones` returned `[]` for unregistered composable units while `describe`/`distance` accepted them, and `[]` for unresolvable input, where an empty list reads as "no neighbours" rather than "unsupported". It now accepts any resolvable unit and raises otherwise (#18).
 - Precomposed characters (`ã`) were silently dropped at ingest; decomposed `ç` misparsed as bare `c` (#8).
 - The under-tie was dropped entirely at X-SAMPA conversion, degrading registered units to clusters (#9).
 - `validate_ipa` treats both ties as ties; a lone under-tie is malformed, not standalone (#9).

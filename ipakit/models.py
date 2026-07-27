@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
@@ -190,10 +190,15 @@ class Feature:
 
 @dataclass
 class Phone:
-    """A phone with its features."""
+    """A phone with its features.
+
+    ``features`` is read-only: the module API is backed by one cached
+    IPAFeatures instance, so a write here would corrupt the inventory
+    every later call reads.
+    """
 
     symbol: str
-    features: dict[str, str]
+    features: Mapping[str, str]
 
     def __repr__(self) -> str:
         manner = self.features.get("manner", "?")

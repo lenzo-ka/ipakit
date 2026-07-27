@@ -8,6 +8,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
+from types import MappingProxyType
 
 from ._convert import longest_match, require_convertible
 from .analysis import AnalysisMixin
@@ -202,7 +203,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             merged["class"] = phone.features.get("class", "phone")
             if "href" in phone.features:
                 merged["href"] = phone.features["href"]
-            self.phones[name] = Phone(symbol=name, features=merged)
+            self.phones[name] = Phone(symbol=name, features=MappingProxyType(merged))
             derived.add(name)
         return frozenset(derived)
 
@@ -229,7 +230,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             if k not in ("name", "alias")
         }
         features["class"] = element_type
-        phone = Phone(symbol=symbol, features=features)
+        phone = Phone(symbol=symbol, features=MappingProxyType(features))
 
         # Route to appropriate dict based on element type
         if element_type == "phone":
@@ -454,6 +455,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     positive[feat] = val
         else:
             positive = query
+
+        if not positive and not negative:
+            raise ValueError(
+                f"no feature terms resolved from {query!r}; an unresolved "
+                "query would match the entire inventory"
+            )
 
         results = []
         for symbol in self.phones:
