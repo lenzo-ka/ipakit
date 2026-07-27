@@ -40,9 +40,12 @@ class TestConvenienceFunctions:
         result = ipakit.tokenize("pat")
         assert result == ["p", "a", "t"]
 
-    def test_segment(self) -> None:
-        result = ipakit.segment("pat")
-        assert result == "p a t"
+    def test_segmented(self) -> None:
+        assert ipakit.segmented("pat") == "p a t"
+
+    def test_segment_returns_a_segment(self) -> None:
+        # `segment` names the Segment concept; `segmented` is the string.
+        assert ipakit.segment("t͡s").kind.value == "affricate"
 
     def test_normalize(self) -> None:
         result = ipakit.normalize("tʃ")

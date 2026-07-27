@@ -403,14 +403,10 @@ class DistanceModel:
         pass ``return_alignment=True`` to include the aligned token pairs.
         """
         t1 = [
-            t
-            for t in self._ipa.tokenize_ipa(ipa1)
-            if not self._ipa.is_structural_token(t)
+            t for t in self._ipa.tokenize(ipa1) if not self._ipa.is_structural_token(t)
         ]
         t2 = [
-            t
-            for t in self._ipa.tokenize_ipa(ipa2)
-            if not self._ipa.is_structural_token(t)
+            t for t in self._ipa.tokenize(ipa2) if not self._ipa.is_structural_token(t)
         ]
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
@@ -423,7 +419,7 @@ class DistanceModel:
         denom = n * self._delete + m * self._insert
         similarity = max(0.0, 1.0 - dist / denom) if denom else 1.0
         return WordDistanceResult(
-            distance=dist, similarity=similarity, alignment=alignment
+            edit_cost=dist, similarity=similarity, alignment=alignment
         )
 
     def word_similarity(self, ipa1: str, ipa2: str) -> float:
@@ -461,8 +457,8 @@ class DistanceModel:
         mr = (
             max_length_ratio if max_length_ratio is not None else self._max_length_ratio
         )
-        n = len(self._ipa.tokenize_ipa(ipa1))
-        m = len(self._ipa.tokenize_ipa(ipa2))
+        n = len(self._ipa.tokenize(ipa1))
+        m = len(self._ipa.tokenize(ipa2))
         if n == 0 or m == 0:
             return n == m
         if mr is not None and max(n, m) / min(n, m) > mr:

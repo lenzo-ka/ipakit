@@ -98,7 +98,7 @@ class TestStrictGlyphAuthority:
 
     def test_wild_word(self, ipa: IPAFeatures) -> None:
         assert ipa.from_wild("t͜sa͡ɪ") == "t͡sa͜ɪ"
-        assert ipa.tokenize_ipa(ipa.from_wild("at͜sa")) == ["a", "t͡s", "a"]
+        assert ipa.tokenize(ipa.from_wild("at͜sa")) == ["a", "t͡s", "a"]
 
 
 class TestUnderTieSequences:
@@ -106,8 +106,8 @@ class TestUnderTieSequences:
         self, ipa: IPAFeatures
     ) -> None:
         # No global rewrite: the under-tie survives tokenization.
-        assert ipa.tokenize_ipa("u͜i") == ["u͜i"]
-        assert SEQ_TIE in ipa.tokenize_ipa("u͜i")[0]
+        assert ipa.tokenize("u͜i") == ["u͜i"]
+        assert SEQ_TIE in ipa.tokenize("u͜i")[0]
 
     def test_sequential_scalar_projects_first_element(self, ipa: IPAFeatures) -> None:
         # The flat projection of a sequential chain is its first element,
@@ -117,7 +117,7 @@ class TestUnderTieSequences:
         assert seq == {k: v for k, v in u.items() if k != "href"}
 
     def test_sequential_chain_is_n_ary(self, ipa: IPAFeatures) -> None:
-        assert ipa.tokenize_ipa("a͜ɪ͜ə") == ["a͜ɪ͜ə"]
+        assert ipa.tokenize("a͜ɪ͜ə") == ["a͜ɪ͜ə"]
         a = ipa.get_features("a", with_defaults=False)
         assert ipa.get_features("a͜ɪ͜ə", with_defaults=False) == {
             k: v for k, v in a.items() if k != "href"
@@ -140,7 +140,7 @@ class TestMixedChains:
     def test_fused_onset_in_sequential_chain(self, ipa: IPAFeatures) -> None:
         # t͡s͜a: the over-tie binds tighter; the unit's flat projection is
         # its first top-level part, the registered affricate.
-        assert ipa.tokenize_ipa("t͡s͜a") == ["t͡s͜a"]
+        assert ipa.tokenize("t͡s͜a") == ["t͡s͜a"]
         feats = ipa.get_features("t͡s͜a", with_defaults=False)
         assert feats["manner"] == "affricate"
         assert feats["place"] == "alveolar"
@@ -159,7 +159,7 @@ class TestDoubleTieCollapse:
         for stacked in (TIE_BAR + SEQ_TIE, SEQ_TIE + TIE_BAR):
             text = "t" + stacked + "s"
             assert ipa.canonicalize_unicode(text) == "t" + TIE_BAR + "s"
-            assert ipa.tokenize_ipa(text) == ["t͡s"]
+            assert ipa.tokenize(text) == ["t͡s"]
 
 
 class TestPhonesetBoundary:
@@ -188,16 +188,16 @@ class TestPhonesetBoundary:
 
 class TestTielessNormalizationHeuristic:
     def test_consonants_fuse_vowels_sequence(self, ipa: IPAFeatures) -> None:
-        assert ipa.add_tie_bars("ts") == "t" + TIE_BAR + "s"
-        assert ipa.add_tie_bars("ai") == "a" + SEQ_TIE + "i"
+        assert ipa.add_ties("ts") == "t" + TIE_BAR + "s"
+        assert ipa.add_ties("ai") == "a" + SEQ_TIE + "i"
 
     def test_explicit_tie_wins_over_heuristic(self, ipa: IPAFeatures) -> None:
-        assert ipa.add_tie_bars("a͡i") == "a͡i"
-        assert ipa.add_tie_bars("t͜s") == "t͜s"
+        assert ipa.add_ties("a͡i") == "a͡i"
+        assert ipa.add_ties("t͜s") == "t͜s"
 
     def test_normalized_vowel_pair_is_canonical(self, ipa: IPAFeatures) -> None:
         # normalize emits the canonical sequential spelling directly.
-        out = ipa.normalize_ipa("eɪ")
+        out = ipa.normalize("eɪ")
         assert out == "e" + SEQ_TIE + "ɪ"
-        assert ipa.tokenize_ipa(out) == ["e͜ɪ"]
+        assert ipa.tokenize(out) == ["e͜ɪ"]
         assert ipa.get_phone(out) is not None

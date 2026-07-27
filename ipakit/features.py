@@ -532,7 +532,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             ipa = ipa.replace(lig, expanded)
         return ipa
 
-    def add_tie_bars(self, segment: str) -> str:
+    def add_ties(self, segment: str) -> str:
         """Add tie bars between base phones in a multi-phone segment.
 
         Whitespace grouping asserts unit-hood; the inserted glyph follows a
@@ -560,16 +560,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             prev_phone_char = char if is_phone and char not in self.diacritics else ""
         return "".join(result)
 
-    def normalize_ipa(self, segments: str) -> str:
+    def normalize(self, segments: str) -> str:
         """Normalize whitespace-separated IPA segments into decodable IPA string.
 
         Each whitespace-separated group is treated as one asserted unit;
-        :meth:`add_tie_bars` inserts the tie by sense (adjacent vowels bind
+        :meth:`add_ties` inserts the tie by sense (adjacent vowels bind
         sequentially, anything else fuses).
         """
         segments = self.expand_ligatures(segments)
         return unicodedata.normalize(
-            "NFC", "".join(self.add_tie_bars(seg) for seg in segments.split())
+            "NFC", "".join(self.add_ties(seg) for seg in segments.split())
         )
 
     # -------------------------------------------------------------------------
@@ -764,7 +764,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # Tokenization & parsing
     # -------------------------------------------------------------------------
 
-    def tokenize_ipa(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
+    def tokenize(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
         """Parse IPA string into list of segment tokens.
 
         Tokens are emitted in NFC so both precomposed and decomposed input
@@ -778,9 +778,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             for base, diacs in self.parse(ipa, phoneset=phoneset)
         ]
 
-    def segment_ipa(self, ipa: str, phoneset: Phoneset | None = None) -> str:
+    def segmented(self, ipa: str, phoneset: Phoneset | None = None) -> str:
         """Parse IPA string and return whitespace-separated segments."""
-        return " ".join(self.tokenize_ipa(ipa, phoneset=phoneset))
+        return " ".join(self.tokenize(ipa, phoneset=phoneset))
 
     def parse(
         self,
@@ -856,7 +856,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     ) -> list[tuple[str, dict[str, str]]]:
         """Compose ``segment`` into aligned ``(token, features)`` pairs.
 
-        Same segmentation as :meth:`tokenize_ipa`, but suprasegmentals and
+        Same segmentation as :meth:`tokenize`, but suprasegmentals and
         separators that carry no phonetic features (stress, syllable breaks) are
         dropped, so every token lines up with its composed feature bundle.
         """
@@ -880,7 +880,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def segments(self, text: str) -> list[Segment]:
         """Parse IPA text into structured :class:`Segment` units.
 
-        Same segmentation as :meth:`tokenize_ipa`. Stress marks attach to
+        Same segmentation as :meth:`tokenize`. Stress marks attach to
         the following unit's prosody; other prosodic marks (length, tone)
         attach to the unit they follow. Structural marks (ties become
         junctures; breaks/linking live between units) never appear in a
@@ -888,7 +888,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         result: list[Segment] = []
         pending_stress: list[str] = []
-        for token in self.tokenize_ipa(text):
+        for token in self.tokenize(text):
             if token and all(
                 ch in self.diacritics and "stress" in self.diacritics[ch].features
                 for ch in token
@@ -964,7 +964,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # Remaining ties belong to unregistered chains. Wild text uses one
         # tie glyph as a typographic habit, so only uniform-glyph chains are
         # re-sensed (per juncture, from the neighbouring bases -- the
-        # add_tie_bars heuristic); a chain already mixing both glyphs is
+        # add_ties heuristic); a chain already mixing both glyphs is
         # house-authored and passes through untouched.
         def _vocalic_char(ch: str) -> bool:
             phone = self.phones.get(ch)
