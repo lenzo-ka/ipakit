@@ -79,6 +79,16 @@ class TestGrouping:
         assert seg.left is seg and seg.right is seg
         assert seg[0] is seg
 
+    def test_edge_feature_reads(self, ipa: IPAFeatures) -> None:
+        # The edge reads approach a composed unit from one side.
+        seg = ipa.segment("t͡s͜a")
+        assert seg.left_features(with_defaults=False)["manner"] == "affricate"
+        assert seg.right_features(with_defaults=False)["manner"] == "vowel"
+        tri = ipa.segment("a͜ɪ͜ə")
+        assert tri.features_at(1, with_defaults=False)["height"] == "near-close"
+        atom = ipa.segment("a")
+        assert atom.left_features() == atom.scalar()
+
 
 class TestBagAndBundle:
     def test_per_constituent_defaults_reach_the_bag(self, ipa: IPAFeatures) -> None:

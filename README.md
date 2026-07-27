@@ -42,6 +42,14 @@ ipakit.word_similarity("kæt", "kæd")   # 0.986
 # Tokenize / normalize (tie-bar affricates, diphthongs)
 ipakit.tokenize("t͡ʃe͡ɪnd͡ʒ")   # ['t͡ʃ', 'e͡ɪ', 'n', 'd͡ʒ']
 
+# Structured segments (typed ties; see docs/ties.md)
+seg = ipakit.parse_segment("t͡s͜a")     # one unit: fused onset + vowel, sequentially bound
+seg.kind.value                          # 'chain'
+seg.left.kind.value                     # 'affricate'
+seg.right.to_ipa()                      # 'a'
+seg.left_features()["manner"]           # 'affricate'  (edge feature reads)
+ipakit.parse_segment("u͜i").bag()["backness"]  # ('back', 'front')
+
 # Validate
 ipakit.validate_ipa("kæt")      # []  (valid)
 ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', ...}]
@@ -87,7 +95,7 @@ the bundled IPA inventory's pairwise distribution, spreading values across
 ```python
 ipakit.distance("p", "b")             # 0.043   raw feature distance
 ipakit.normalized_distance("p", "b")  # 0.155   percentile within bundled IPA
-ipakit.normalized_distance("p", "a")  # 0.602
+ipakit.normalized_distance("p", "a")  # 0.609
 ipakit.confusability("p", "b")        # 0.845   complement of normalized_distance
 ```
 
@@ -143,7 +151,7 @@ ipakit query match plosive bilabial  # Find phones by feature
 ipakit analysis natural-class p t k  # Shared features of a set
 ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw feature distance: ~0.04
-ipakit distance confusability p b    # Inventory-relative: 0.8454
+ipakit distance confusability p b    # Inventory-relative: 0.8448
 ipakit distance word kæt kæd         # Word similarity: 0.9742
 ```
 

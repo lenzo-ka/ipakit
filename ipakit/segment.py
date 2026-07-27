@@ -261,6 +261,25 @@ class Segment:
             raise IndexError(index)
         return children[index]
 
+    def left_features(self, with_defaults: bool = True) -> dict[str, str]:
+        """Flat features of the left edge: the leftmost top-level child.
+
+        For ``t͡s͜a`` this is the affricate's feature read; for an atomic
+        unit it is the unit's own features. The edge reads are how
+        computation approaches a composed unit from one side instead of
+        through the whole-unit projection.
+        """
+        return self.left.scalar(with_defaults=with_defaults)
+
+    def right_features(self, with_defaults: bool = True) -> dict[str, str]:
+        """Flat features of the right edge: the rightmost top-level child."""
+        return self.right.scalar(with_defaults=with_defaults)
+
+    def features_at(self, index: int, with_defaults: bool = True) -> dict[str, str]:
+        """Flat features of the index-th top-level child (edge reads
+        generalized to any position in an n-ary unit)."""
+        return self[index].scalar(with_defaults=with_defaults)
+
     @property
     def kind(self) -> Kind:
         """Total classification (design spec section 5)."""
