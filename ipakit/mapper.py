@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ._convert import longest_match, require_convertible
-from .constants import DEFAULT_CMU_MAP, TIE_BAR
+from .constants import DEFAULT_CMU_MAP, SEQ_TIE, TIE_BAR
 from .models import PhoneMapping
 
 # CMU/ARPABET stress: IPA marker -> level digit (0/1/2). ARPABET-specific; the
@@ -58,6 +58,9 @@ class CMUMapper:
                 self._tie_normalizations.append((ipa.replace(TIE_BAR, ""), ipa))
 
     def _normalize_ipa(self, ipa: str) -> str:
+        # One tie notion at this lossy boundary: project the under-tie onto
+        # the over-tie (unit-hood survives, tie sense does not).
+        ipa = ipa.replace(SEQ_TIE, TIE_BAR)
         for old, new in self._tie_normalizations:
             ipa = ipa.replace(old, new)
         return ipa

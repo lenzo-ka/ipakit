@@ -42,6 +42,16 @@ The flat projection is deliberately a summary, not the whole story; richer struc
 
 `normalize_ipa` treats whitespace-separated groups as asserted units and inserts ties by a documented heuristic: adjacent vowels bind sequentially (`"eɪ"` → `e͜ɪ`), anything else fuses (`"ts"` → `t͡s`). An explicitly written tie always wins. The heuristic output round-trips: `e͜ɪ` resolves to the registered `e͡ɪ` through its alias.
 
+## Ties across phoneset conversions
+
+Tie **sense does not survive** conversion to other phonesets, and round trips do not restore it. X-SAMPA has a single tie encoding (`_`), and CMU/TIMIT/Kirshenbaum have none, so at those conversion boundaries the under-tie is **projected onto the over-tie**: unit-hood survives where the encoding can carry it, the sequential/simultaneous distinction does not.
+
+- `t͜s` → `t_s` → `t͡s` and `u͜i` → `u_i` → `u͡i`: the round trip returns canonical **over-tie** spellings, whatever the input glyph.
+- `ipa_to_xsampa("u͜i") == ipa_to_xsampa("u͡i")`: both senses convert identically.
+- The known X-SAMPA collisions (`b͡v`, `t͡θ`, `ŋ͡m`, where `_v`/`_T`/`_m` re-parse as diacritics) apply to tie-adjacent segments generally — e.g. a tie before a segment whose X-SAMPA starts with `a` collides with the apical diacritic `_a`.
+
+This projection is legitimate only at a lossy conversion boundary; parsing never rewrites tie glyphs. If tie sense matters, keep the IPA (or a structured form) as the source of truth and treat phoneset output as a projection.
+
 ## Unicode form
 
 Input is canonicalized before matching: NFC/NFD variants are equivalent (`ã` precomposed or decomposed), registered precomposed symbols (`ä`, `ç`, `ť`) match in either form, and output tokens are emitted in NFC.

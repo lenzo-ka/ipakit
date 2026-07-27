@@ -6,7 +6,7 @@ import functools
 import xml.etree.ElementTree as ET
 
 from ._convert import convert_greedy, require_convertible
-from .constants import PHONEMAPS_DIR, TIE_BAR
+from .constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR
 
 
 @functools.lru_cache(maxsize=8)
@@ -77,6 +77,10 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
         List of target symbols
     """
     ipa_to_target, _ = _load_phonemap(phonemap)
+    # Phoneset encodings have at most one tie notion: project the under-tie
+    # onto the over-tie at this lossy boundary (unit-hood survives, tie
+    # sense does not; see docs/ties.md).
+    ipa = ipa.replace(SEQ_TIE, TIE_BAR)
     ipa = _normalize_for_map(ipa, ipa_to_target)
     return convert_greedy(ipa, ipa_to_target, strict=strict, what=f"IPA -> {phonemap}")
 

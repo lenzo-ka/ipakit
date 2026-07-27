@@ -107,6 +107,34 @@ class TestDoubleTieCollapse:
             assert ipa.tokenize_ipa(text) == ["t͡s"]
 
 
+class TestPhonesetBoundaryProjection:
+    """Tie sense does not survive phoneset conversions: X-SAMPA (and the
+    other phoneset encodings) have at most one tie notion, so the
+    under-tie projects onto the over-tie at those lossy boundaries.
+    Unit-hood survives; the sequential/simultaneous distinction does not,
+    and round trips return canonical over-tie spellings."""
+
+    def test_xsampa_projects_the_under_tie(self) -> None:
+        import ipakit
+
+        assert ipakit.ipa_to_xsampa("t͜s") == "t_s"
+        assert ipakit.ipa_to_xsampa("u͜i") == "u_i"
+
+    def test_xsampa_round_trip_returns_over_tie_canonicals(self) -> None:
+        import ipakit
+
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("t͜s")) == "t͡s"
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("e͜ɪ")) == "e͡ɪ"
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("u͜i")) == "u͡i"
+
+    def test_sense_never_survives_xsampa(self) -> None:
+        import ipakit
+
+        # Both senses collapse to the same X-SAMPA - by design at this
+        # boundary, and only here.
+        assert ipakit.ipa_to_xsampa("u͜i") == ipakit.ipa_to_xsampa("u͡i")
+
+
 class TestTielessNormalizationHeuristic:
     def test_consonants_fuse_vowels_sequence(self, ipa: IPAFeatures) -> None:
         assert ipa.add_tie_bars("ts") == "t" + TIE_BAR + "s"

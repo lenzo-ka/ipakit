@@ -17,7 +17,7 @@ from pathlib import Path
 import ipakit
 import pytest
 from ipakit import IPAFeatures
-from ipakit.constants import TIE_BAR
+from ipakit.constants import SEQ_TIE, TIE_BAR
 
 # IPA symbols that cannot round-trip through X-SAMPA: the tie bar maps to `_`,
 # but `b_v`/`t_T`/`N_m` re-parse as the voicing diacritic / extra-high tone /
@@ -53,10 +53,15 @@ class TestBasicConversion:
 
 class TestRoundTrip:
     def test_atomic_symbols_round_trip(self, ipa: IPAFeatures) -> None:
-        """Every atomic (non-tie-bar) phone/diacritic round-trips."""
+        """Every atomic (non-tie) phone/diacritic round-trips.
+
+        Both tie characters are excluded: X-SAMPA has a single tie
+        encoding, so the under-tie projects onto the over-tie at the
+        conversion boundary and returns as the over-tie by design.
+        """
         failures = []
         for sym in list(ipa.phones) + list(ipa.diacritics):
-            if TIE_BAR in sym:
+            if TIE_BAR in sym or SEQ_TIE in sym:
                 continue
             xs = ipakit.ipa_to_xsampa(sym)
             if xs and ipakit.xsampa_to_ipa(xs) != sym:
