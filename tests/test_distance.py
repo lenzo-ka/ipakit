@@ -60,8 +60,9 @@ class TestPhoneDistance:
         f2, p2 = _metric_bundle(ipa, c2)
         assert "href" not in f1 and "xsampa" not in f1 and "class" not in f1
         # p and b differ in exactly one term (voicing); the denominator is
-        # the comparable feature keys plus the place-components term.
-        n_terms = len(set(f1) | set(f2)) + 1
+        # the comparable feature keys plus the place-components term plus
+        # the two sagittal bridge terms (x, y).
+        n_terms = len(set(f1) | set(f2)) + 3
         d = ipa.distance("p", "b")
         assert d == pytest.approx(1 / n_terms, abs=1e-4)
 

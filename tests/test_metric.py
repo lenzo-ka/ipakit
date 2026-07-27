@@ -117,33 +117,247 @@ class TestOrdinalScales:
     sensible - and only true points on the continuum hold scale positions.
     Combined places (overlaps, not points) compare by expansion."""
 
-    def test_overlap_values_hold_no_scale_position(self, ipa: IPAFeatures) -> None:
-        pl = ipa.features["place"]
-        one_step = pl.value_distance("dental", "alveolar")
-        # labial-palatal / labial-velar no longer pad these intervals:
-        assert pl.value_distance("palatal", "velar") == pytest.approx(one_step)
-        assert pl.value_distance("velar", "uvular") == pytest.approx(one_step)
-
-    def test_real_intermediate_places_keep_their_positions(
+    def test_anchored_distance_follows_anatomy_not_label_count(
         self, ipa: IPAFeatures
     ) -> None:
         pl = ipa.features["place"]
-        one_step = pl.value_distance("dental", "alveolar")
-        # alveolo-palatal is a real single place between postalveolar and
-        # palatal; labiodental between bilabial and dental.
-        assert pl.value_distance("postalveolar", "palatal") == pytest.approx(
-            2 * one_step
+        # Steps are not uniform: the lips-to-teeth move is tiny, the
+        # velum-to-uvula move larger, though both are "one label" apart.
+        assert pl.value_distance("bilabial", "labiodental") < pl.value_distance(
+            "velar", "uvular"
         )
-        assert pl.value_distance("bilabial", "dental") == pytest.approx(2 * one_step)
+        # Overlaps hold no position and never pad an interval.
+        assert pl.value_distance("bilabial", "glottal") == pytest.approx(1.0)
 
-    def test_combined_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
+    def test_places_are_monotone_along_the_tract(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.value_distance("labial-velar", "labial-velar") == 0.0
-        assert pl.expansions["labial-velar"] == ("bilabial", "velar")
+        order = ["bilabial", "dental", "alveolar", "palatal", "velar", "glottal"]
+        for i in range(len(order) - 2):
+            near = pl.value_distance(order[i], order[i + 1])
+            far = pl.value_distance(order[i], order[i + 2])
+            assert near < far, (order[i], order[i + 1], order[i + 2])
+
+    def test_anchored_distances_survive_inventory_growth(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The property an index scale cannot have: adding a value leaves
+        # every existing distance untouched, because anchors are absolute.
+        pl = ipa.features["place"]
+        before = pl.value_distance("bilabial", "velar")
+        grown = type(pl)(
+            name="place",
+            values=[*pl.values, "fictional"],
+            type="ordinal",
+            coordinates={**pl.coordinates, "fictional": {"arc": 0.6}},
+        )
+        assert grown.value_distance("bilabial", "velar") == pytest.approx(before)
+
+    def test_combining_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        assert pl.value_distance("bilabial+velar", "bilabial+velar") == 0.0
+        assert pl.expand("bilabial+velar") == ("bilabial", "velar")
         # Expansion, not a scale step: the same value as comparing the tuple.
-        assert pl.value_distance("labial-velar", "velar") == pl.value_distance(
+        assert pl.value_distance("bilabial+velar", "velar") == pl.value_distance(
             ("bilabial", "velar"), "velar"
         )
+
+    def test_friendly_names_are_value_aliases(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        assert pl.value_distance("labial-velar", "bilabial+velar") == 0.0
+        assert pl.expand("labial-velar") == ("bilabial", "velar")
+
+    def test_combining_order_is_canonical(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        assert pl.combine({"velar", "bilabial"}) == "bilabial+velar"
+        assert pl.combine({"palatal", "alveolar"}) == "alveolar+palatal"
+        # A novel combination is expressible without a granted name.
+        assert ipa.get_features("p͡t", with_defaults=False)["place"] == (
+            "bilabial+alveolar"
+        )
+
+
+class TestReferenceFrame:
+    """The ordinal scales ascend a declared reference frame: a left-facing
+    oral tract (+x lips->glottis, +y jaw->palate)."""
+
+    def test_axes_declared(self, ipa: IPAFeatures) -> None:
+        assert ipa.features["place"].axis == "+x"
+        assert ipa.features["backness"].axis == "+x"
+        assert ipa.features["height"].axis == "+y"
+        assert ipa.features["tone"].axis == "+y"
+        assert ipa.features["manner"].axis == "+constriction"
+
+    def test_height_ascends_y(self, ipa: IPAFeatures) -> None:
+        h = ipa.features["height"]
+        assert h.values[0] == "open" and h.values[-1] == "close"
+        assert h.value_distance("open", "close") == 1.0
+        # Phones are untouched by the declaration flip.
+        assert ipa.get_features("i", with_defaults=False)["height"] == "close"
+
+    def test_silence_holds_no_scale_position(self, ipa: IPAFeatures) -> None:
+        m = ipa.features["manner"]
+        # Absence of signal: equidistant from every real manner, adjacent
+        # to none.
+        assert m.value_distance("silence", "vowel") == 1.0
+        assert m.value_distance("silence", "plosive") == 1.0
+        assert m.value_distance("silence", "silence") == 0.0
+
+    def test_release_and_airstream_are_categorical(self, ipa: IPAFeatures) -> None:
+        r = ipa.features["release"]
+        assert r.value_distance("aspirated", "no-audible") == r.value_distance(
+            "aspirated", "breathy"
+        )
+        a = ipa.features["airstream"]
+        assert a.value_distance("pulmonic", "implosive") == a.value_distance(
+            "pulmonic", "ejective"
+        )
+
+
+class TestSilence:
+    """Silence is not a speech sound: no articulatory defaults, no bridge
+    features, no tract position. Substituting it for a phone costs what
+    deleting the phone costs."""
+
+    def test_maximally_distant_from_every_speech_sound(self, ipa: IPAFeatures) -> None:
+        for other in ["p", "a", "s", "t͡s", "w", "i", "k͡p", "tʲ"]:
+            assert D(ipa, "␣", other) == 1.0, other
+
+    def test_identical_to_itself(self, ipa: IPAFeatures) -> None:
+        assert D(ipa, "␣", "␣") == 0.0
+
+    def test_carries_no_articulatory_defaults(self, ipa: IPAFeatures) -> None:
+        feats = ipa.get_features("␣", with_defaults=True)
+        assert feats == {"manner": "silence", "class": "phone"}
+        # A speech sound still gets its defaults.
+        assert ipa.get_features("p", with_defaults=True)["rounded"] == "-"
+
+    def test_has_no_tract_position_but_draws_at_rest(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import head, tract_point
+
+        bundle = ipa.segment("␣").constituents[0].bundle(ipa)
+        point = tract_point(ipa, bundle)
+        # Featurally null: no articulatory position at all.
+        assert not point.placed
+        assert head().project(point) is None
+        # But a renderer still has somewhere to draw it: the rest posture
+        # (jaw and lips closed, tongue neutral), which is head anatomy,
+        # not phone features - and the home position for animations.
+        assert head().project(point, at_rest=True) is not None
+        assert head().rest is not None and head().rest.lips == "closed"
+
+
+class TestTractSpace:
+    """Phones sit in a normalized, head-independent tract space; heads
+    project it to 2D for rendering and never affect distance."""
+
+    def test_anchors_follow_anatomy(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        def point(sym: str):
+            return tract_point(ipa, ipa.segment(sym).constituents[0].bundle(ipa))
+
+        # Arc ascends lips -> glottis.
+        arcs = [point(s).arc for s in ["p", "t", "k", "q", "ʔ"]]
+        assert arcs == sorted(arcs)
+        # Offset ascends open -> closed across the classes.
+        assert point("a").offset < point("i").offset < point("j").offset
+        assert point("j").offset < point("s").offset <= point("t").offset
+
+    def test_combining_place_sits_between_its_components(
+        self, ipa: IPAFeatures
+    ) -> None:
+        from ipakit.tract import tract_point
+
+        def arc(sym: str):
+            return tract_point(ipa, ipa.segment(sym).constituents[0].bundle(ipa)).arc
+
+        assert arc("p") < arc("w") < arc("k")
+
+    def test_heads_project_without_touching_distance(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import head, heads, tract_point
+
+        assert set(heads()) >= {"adult-male", "adult-female", "child"}
+        bundle = ipa.segment("t").constituents[0].bundle(ipa)
+        point = tract_point(ipa, bundle)
+        positions = {
+            name: head(name).project(point) for name in ("adult-male", "child")
+        }
+        # Different heads place the same phone differently...
+        assert positions["adult-male"] != positions["child"]
+        # ...but the phone's own coordinates, which distance uses, are one.
+        assert point.arc is not None and point.offset is not None
+
+    def test_child_tract_is_shorter(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import head
+
+        assert head("child").length_cm < head("adult-female").length_cm
+        assert head("adult-female").length_cm < head("adult-male").length_cm
+
+
+class TestArticulator:
+    """Place names the constriction target; the articulator names the
+    organ that gets there. The two coincide by convention for most
+    sounds, and where they do not, the metric can now see it."""
+
+    def test_places_declare_their_default_articulator(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        def organ(sym: str) -> str | None:
+            return tract_point(
+                ipa, ipa.segment(sym).constituents[0].bundle(ipa)
+            ).articulator
+
+        assert organ("p") == "lower-lip"
+        assert organ("t") == "tongue-tip"
+        assert organ("ʃ") == "tongue-blade"
+        assert organ("k") == "tongue-dorsum"
+        assert organ("ħ") == "tongue-root"
+        assert organ("ʔ") == "vocal-folds"
+
+    def test_linguolabial_overrides_the_default(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        point = tract_point(ipa, ipa.segment("t̼").constituents[0].bundle(ipa))
+        # Tongue to the upper lip: labial target, lingual articulator.
+        assert point.articulator == "tongue-tip"
+        assert point.arc == pytest.approx(0.0)
+        # And it is no longer indistinguishable from a bilabial stop.
+        assert D(ipa, "p", "t̼") > 0.0
+
+    def test_apical_and_laminal_are_visible(self, ipa: IPAFeatures) -> None:
+        # Same place, different part of the tongue - invisible before.
+        assert D(ipa, "t̺", "t̻") > 0.0
+
+    def test_combining_place_combines_articulators(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        point = tract_point(ipa, ipa.segment("w").constituents[0].bundle(ipa))
+        # A labial-velar moves the lower lip and the dorsum both.
+        assert point.articulator == "lower-lip+tongue-dorsum"
+
+
+class TestSagittalBridges:
+    """The frame's axes are stored twice (place/backness on x,
+    manner-constriction/height on y) in features that never co-occur;
+    the sagittal bridges project both classes onto shared scalars so
+    cross-class spatial proximity is visible."""
+
+    def test_glide_nearer_its_vowel_than_a_stop_is(self, ipa: IPAFeatures) -> None:
+        # j and i are nearly the same articulation; before the bridges a
+        # voiceless alveolar stop scored closer to i than its own glide.
+        assert D(ipa, "j", "i") < D(ipa, "t", "i")
+        assert D(ipa, "w", "u") < D(ipa, "k", "u")
+
+    def test_tongue_body_proximity_is_graded(self, ipa: IPAFeatures) -> None:
+        # velar consonant ~ back vowel closer than alveolar ~ back vowel.
+        assert D(ipa, "k", "u") < D(ipa, "t", "u")
+
+    def test_secondary_articulation_does_not_relocate_the_body(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # ʲ shades the place term; the x-bridge reads primary components
+        # only, so the t < tʲ < c ordering survives the bridges.
+        assert D(ipa, "t", "tʲ") < D(ipa, "tʲ", "c") < D(ipa, "t", "c")
 
 
 class TestProperties:
@@ -182,3 +396,75 @@ class TestProperties:
         # Closer to the labial-velar unit than to a plain velar stop's
         # place-mate with no shared articulation structure.
         assert D(ipa, "w", "ɡ͡b") < D(ipa, "w", "t͡s")
+
+
+class TestChannelAxis:
+    """The +z axis: where the airflow channel sits in cross-section --
+    lateral (out), flat, grooved (in). The mid-sagittal plane projects
+    this away, so it has an ordering but no contour."""
+
+    def test_sibilants_group_together(self, ipa: IPAFeatures) -> None:
+        # Both grooved and one place step apart, against a channel change:
+        # s~ʃ must be nearer than s~θ. Before the axis existed, s and θ
+        # differed only by a tiny place step and scored near-identical.
+        assert D(ipa, "s", "ʃ") < D(ipa, "s", "θ")
+
+    def test_channel_outranks_a_small_place_move(self, ipa: IPAFeatures) -> None:
+        assert D(ipa, "s", "θ") > D(ipa, "t", "d") / 4  # channel is not noise
+        assert D(ipa, "s", "ɬ") > D(ipa, "s", "ʃ")  # lateral is further still
+
+    def test_axis_is_ordered_out_to_in(self, ipa: IPAFeatures) -> None:
+        ch = ipa.features["channel"]
+        assert ch.axis == "+z"
+        assert ch.values == ["lateral", "flat", "grooved"]
+        # Adjacent steps are smaller than the full span.
+        assert ch.value_distance("lateral", "flat") < ch.value_distance(
+            "lateral", "grooved"
+        )
+
+    def test_laterality_bridge_still_works(self, ipa: IPAFeatures) -> None:
+        # tˡ (lateral release) is nearer l than plain t is.
+        assert D(ipa, "tˡ", "l") < D(ipa, "t", "l")
+
+
+class TestDataIntegrity:
+    """Guards for facts that can silently disagree with the model. Each
+    of these caught a real defect when first written."""
+
+    def test_typed_features_carry_no_per_value_tables(self, ipa: IPAFeatures) -> None:
+        # The loader once built these inside the non-typed branch and read
+        # them outside it, so `voiced` inherited backness coordinates and
+        # `syllabic` inherited articulator ones.
+        for name, feat in ipa.features.items():
+            if feat.type in ("binary", "ternary"):
+                assert not feat.coordinates, name
+                assert not feat.articulators, name
+
+    def test_anchored_features_are_fully_anchored(self, ipa: IPAFeatures) -> None:
+        # A partially anchored feature silently mixes two distance regimes:
+        # anchored pairs measure in tract space, the rest fall back to
+        # declaration order.
+        for name, feat in ipa.features.items():
+            if not feat.coordinates:
+                continue
+            for attr in ("arc", "offset"):
+                anchored = {v for v, c in feat.coordinates.items() if attr in c}
+                if not anchored:
+                    continue
+                scale = [
+                    v
+                    for v in feat.values
+                    if feat.COMBINER not in v and v not in feat.offscale
+                ]
+                assert not [v for v in scale if v not in anchored], (name, attr)
+
+    def test_aliases_resolve_to_something(self, ipa: IPAFeatures) -> None:
+        for alias, target in ipa.ligature_map.items():
+            assert target in ipa.phones or target in ipa.diacritics, alias
+
+    def test_phone_features_are_declared(self, ipa: IPAFeatures) -> None:
+        from ipakit.constants import METADATA_ATTRS
+
+        declared = set(ipa.features) | METADATA_ATTRS | {"class"}
+        for sym, phone in ipa.phones.items():
+            assert not set(phone.features) - declared, sym

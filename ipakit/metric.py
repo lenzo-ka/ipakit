@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
 from .segment import Constituent, Kind, Segment, Sense, modifier_mode
+from .tract import tract_point
 
 if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
@@ -44,9 +45,8 @@ SECONDARY_PLACE = {
     "ˤ": "pharyngeal",
 }
 
-# Combined place values (display names over two true articulations)
-# expand to their components. The map is data: the `expands` attribute on
-# the place feature's value declarations in ipa.xml.
+# Combining place values (bilabial+velar) carry their expansion in the
+# name; Feature.expand supplies the components.
 
 # Kinds whose part order is meaning (phased units and sequences); pairs
 # involving any of these align ordered. Single-block fusions and atomic
@@ -78,6 +78,9 @@ _EXCLUDED_KEYS = METADATA_ATTRS | {"class", "place", "nasalized"} | _SECONDARY_K
 
 PlaceComponents = tuple[tuple[str, float], ...]
 
+# Sagittal bridges: shared tract coordinates (see ipakit.tract) make
+# cross-class spatial proximity (j~i, w~u, k~u) visible.
+
 
 def _metric_bundle(
     features: IPAFeatures, constituent: Constituent
@@ -91,16 +94,29 @@ def _metric_bundle(
     place = bundle.get("place")
     if place is not None:
         place_feature = features.features.get("place")
-        expansions = place_feature.expansions if place_feature else {}
-        for comp in expansions.get(place, (place,)):
+        comps = place_feature.expand(place) if place_feature else (place,)
+        for comp in comps:
             components.append((comp, 1.0))
     for mod in constituent.modifiers:
         if modifier_mode(features, mod) == "secondary" and mod in SECONDARY_PLACE:
             components.append((SECONDARY_PLACE[mod], SECONDARY_WEIGHT))
 
-    # Bridge features (metric-only, design spec section 8): the same
-    # phonetic dimension spelled as manner, property, or release compares
-    # as one derived binary.
+    # Bridge features (metric-only): the same phonetic dimension spelled
+    # as manner, property, or release compares as one derived binary. Not
+    # for non-speech (silence has no nasality or laterality either -
+    # granting it the negative would match every phone and dilute the
+    # difference right back).
+    manner_feature = features.features.get("manner")
+    if manner_feature is not None and bundle.get("manner") in manner_feature.offscale:
+        return feats, tuple(components)
+    # The active articulator: place names the constriction target, this
+    # names the organ that gets there. Resolved (a phone's own value, else
+    # its place's default) so that same-place different-organ pairs -- a
+    # linguolabial against a bilabial, apical against laminal -- are
+    # visible to the metric at all.
+    resolved = tract_point(features, bundle).articulator
+    if resolved is not None:
+        feats["articulator"] = resolved
     feats["nasality"] = (
         "+"
         if (
@@ -112,10 +128,27 @@ def _metric_bundle(
     )
     feats["laterality"] = (
         "+"
-        if (bundle.get("lateral") == "+" or bundle.get("release") == "lateral")
+        if (bundle.get("channel") == "lateral" or bundle.get("release") == "lateral")
         else "-"
     )
     return feats, tuple(components)
+
+
+def _sagittal(
+    features: IPAFeatures, bundle: dict[str, str]
+) -> tuple[float | None, float | None]:
+    """A bundle's position in normalized tract space (arc, offset).
+
+    The reference frame's axes are each stored twice, in features that
+    never co-occur -- x as place (consonants) and backness (vowels),
+    y as manner-constriction and height -- so cross-class spatial
+    proximity is invisible to per-feature comparison. The tract
+    coordinates (ipakit.tract) are the shared reading: real anchor
+    positions along the midline, not scale-index proxies, so the arc
+    spacing follows anatomy rather than assuming equal steps.
+    """
+    point = tract_point(features, bundle)
+    return point.arc, point.offset
 
 
 def _weighted_place_distance(
@@ -159,6 +192,15 @@ def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> fl
     if include_place:
         total += _weighted_place_distance(features, p1, p2)
     count = len(keys) + (1 if include_place else 0)
+    # Sagittal bridge terms: shared x (tract position) and y (aperture)
+    # scalars make cross-class spatial proximity visible (j~i, w~u, k~u).
+    b1 = a.bundle(features, with_defaults=True)
+    b2 = b.bundle(features, with_defaults=True)
+    for s1, s2 in zip(_sagittal(features, b1), _sagittal(features, b2), strict=True):
+        if s1 is None and s2 is None:
+            continue
+        total += abs(s1 - s2) if (s1 is not None and s2 is not None) else 1.0
+        count += 1
     return total / count if count else 1.0
 
 

@@ -95,6 +95,23 @@ def modifier_mode(features: IPAFeatures, symbol: str) -> str:
     return "additive"
 
 
+def _is_non_speech(features: IPAFeatures, feats: dict[str, str]) -> bool:
+    """True for a bundle whose manner holds no position on the
+    constriction axis (silence): not a speech sound, so the articulatory
+    defaults do not apply to it. Filling them would make silence *match*
+    every phone on every unremarkable binary and dilute the one real
+    difference; leaving them out keeps silence maximally distant, so
+    substituting it for a phone costs what deleting the phone costs.
+    """
+    manner_feature = features.features.get("manner")
+    manner = feats.get("manner")
+    return bool(
+        manner_feature is not None
+        and manner is not None
+        and manner in manner_feature.offscale
+    )
+
+
 @dataclass(frozen=True)
 class Constituent:
     """A base phone plus its ordered modifier stack."""
@@ -140,7 +157,7 @@ class Constituent:
                     feats[k] = v
                 else:
                     feats.setdefault(k, v)
-        if with_defaults:
+        if with_defaults and not _is_non_speech(features, feats):
             for name, feat in features.features.items():
                 if name not in feats and feat.default is not None:
                     feats[name] = feat.default
@@ -196,6 +213,10 @@ class Segment:
 
     def _vocalic(self, constituent: Constituent) -> bool:
         return self._manner(constituent) == "vowel"
+
+    def _airstream(self, constituent: Constituent) -> str | None:
+        phone = self._require_features().get_phone(constituent.base)
+        return phone.features.get("airstream") if phone else None
 
     def _phase_blocks(self) -> list[tuple[int, int]]:
         """Maximal same-manner runs of constituents, as (start, end) slices."""
@@ -309,7 +330,7 @@ class Segment:
             return Kind.CHAIN
         blocks = self._phase_blocks()
         manners = [self._manner(self.constituents[s]) for s, _ in blocks]
-        if any(self._manner(c) == "click" for c in self.constituents):
+        if any(self._airstream(c) == "velaric" for c in self.constituents):
             return Kind.CLICK_ACCOMPANIMENT
         if len(blocks) == 1:
             return Kind.DOUBLE_ARTICULATION
@@ -324,7 +345,7 @@ class Segment:
             block_start, block_end = blocks[1]
             if any(
                 (p := self._require_features().get_phone(c.base))
-                and p.features.get("lateral") == "+"
+                and p.features.get("channel") == "lateral"
                 for c in self.constituents[block_start:block_end]
             ):
                 return Kind.LATERAL_RELEASE

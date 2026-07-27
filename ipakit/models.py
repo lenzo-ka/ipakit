@@ -24,11 +24,25 @@ class Feature:
     default: str | None = None
     type: str = "ordinal"  # declared value-set type (from XML); see is_ordinal
     desc: str | None = None  # Brief description
-    # Values that are display names over several true values (a combined
-    # place like labial-velar over its two articulations). They are valid
+    # Combining values are spelled as their ordered components joined by
+    # "+" (bilabial+velar): the name IS the expansion. They are valid
     # values but hold NO position on the ordinal scale - an overlap is not
-    # a point on the continuum - and compare by expansion.
-    expansions: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # a point on the continuum - and compare by expansion. Friendly display
+    # names (labial-velar) are value aliases, resolved everywhere.
+    COMBINER = "+"
+    value_aliases: dict[str, str] = field(default_factory=dict)
+    # The reference-frame axis this ordinal ascends (+x lips->glottis,
+    # +y jaw->palate, +constriction, +t, ...), declared in the data.
+    axis: str | None = None
+    # Values that hold no position on the continuum (silence on the
+    # constriction axis: absence of signal, equidistant from every value).
+    offscale: frozenset[str] = field(default_factory=frozenset)
+    # Tract coordinates per value (arc along the midline, offset from it),
+    # declared in the data; see ipakit.tract.
+    coordinates: dict[str, dict[str, float]] = field(default_factory=dict)
+    # Default active articulator per value: place names the constriction
+    # target, this names the organ that gets there.
+    articulators: dict[str, str] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"
@@ -41,12 +55,72 @@ class Feature:
     def _value_index(self) -> dict[str, int]:
         """value -> scale index, for O(1) ordinal distance.
 
-        Expanding values (combined places) are skipped: they are display
-        names over several true values, not points on the continuum, so
-        they must not pad the scale between their neighbours.
+        Combining values (bilabial+velar) are skipped: an overlap is not a
+        point on the continuum, so it must not pad the scale between its
+        neighbours.
         """
-        scale = [v for v in self.values if v not in self.expansions]
+        scale = [
+            v for v in self.values if self.COMBINER not in v and v not in self.offscale
+        ]
         return {v: i for i, v in enumerate(scale)}
+
+    @functools.cached_property
+    def _anchor_axis(self) -> str | None:
+        """The coordinate this feature's values are anchored on, if any."""
+        for attr in ("arc", "offset"):
+            if any(attr in coords for coords in self.coordinates.values()):
+                return attr
+        return None
+
+    @functools.cached_property
+    def _anchor_span(self) -> float:
+        attr = self._anchor_axis
+        if attr is None:
+            return 0.0
+        vals = [c[attr] for c in self.coordinates.values() if attr in c]
+        return (max(vals) - min(vals)) if len(vals) > 1 else 0.0
+
+    def _anchor_distance(self, v1: str, v2: str) -> float | None:
+        """Distance between two values by their physical anchors, scaled to
+        the feature's own span so it stays in [0, 1]. None if either value
+        is unanchored (the feature then falls back to scale index)."""
+        attr = self._anchor_axis
+        if attr is None or not self._anchor_span:
+            return None
+        c1 = self.coordinates.get(self.value_aliases.get(v1, v1), {}).get(attr)
+        c2 = self.coordinates.get(self.value_aliases.get(v2, v2), {}).get(attr)
+        if c1 is None or c2 is None:
+            return None
+        return min(abs(c1 - c2) / self._anchor_span, 1.0)
+
+    def expand(self, value: str) -> tuple[str, ...]:
+        """A value's components: the value itself, or its ordered parts for
+        a combining value (``bilabial+velar`` -> ``(bilabial, velar)``).
+        Generative: any ``+``-joined spelling expands, declared or not."""
+        value = self.value_aliases.get(value, value)
+        if self.COMBINER in value:
+            return tuple(value.split(self.COMBINER))
+        return (value,)
+
+    def combine(self, values: set[str] | tuple[str, ...]) -> str:
+        """The canonical combining spelling for a set of values: components
+        ordered by their scale position (declaration order as fallback),
+        joined by ``+``. One spelling per combination -- palatal+alveolar
+        cannot occur, only alveolar+palatal."""
+
+        def position(v: str) -> tuple[int, str]:
+            idx = self._value_index.get(v)
+            if idx is not None:
+                return (idx, v)
+            try:
+                return (self.values.index(v), v)
+            except ValueError:
+                return (len(self.values), v)
+
+        unique = sorted(set(values), key=position)
+        if len(unique) == 1:
+            return unique[0]
+        return self.COMBINER.join(unique)
 
     @property
     def is_binary(self) -> bool:
@@ -69,10 +143,14 @@ class Feature:
         double articulation's places): the distance is then the directional
         best-match mean, max of the two directions.
         """
-        if isinstance(v1, str) and v1 in self.expansions:
-            v1 = self.expansions[v1]
-        if isinstance(v2, str) and v2 in self.expansions:
-            v2 = self.expansions[v2]
+        if isinstance(v1, str):
+            v1 = self.value_aliases.get(v1, v1)
+            if self.COMBINER in v1:
+                v1 = self.expand(v1)
+        if isinstance(v2, str):
+            v2 = self.value_aliases.get(v2, v2)
+            if self.COMBINER in v2:
+                v2 = self.expand(v2)
         if isinstance(v1, tuple) or isinstance(v2, tuple):
             c1 = v1 if isinstance(v1, tuple) else (v1,)
             c2 = v2 if isinstance(v2, tuple) else (v2,)
@@ -91,6 +169,13 @@ class Feature:
             return 0.0
         if v1 is None or v2 is None:
             return 1.0
+        # Anchored features measure distance in physical tract space
+        # rather than by scale index: the step between two values is what
+        # anatomy says it is, not 1/(n-1). This keeps place and backness
+        # commensurable (both are positions on one arc) and makes existing
+        # distances stable when a value is added to the inventory.
+        if (anchored := self._anchor_distance(v1, v2)) is not None:
+            return anchored
         if self.is_ordinal:
             idx = self._value_index
             if v1 in idx and v2 in idx:

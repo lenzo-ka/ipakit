@@ -13,11 +13,12 @@ _VOWEL_DESC_ORDER = ["height", "backness", "rounded"]
 # Features to skip in descriptions (implied or structural)
 _SKIP_FEATURES = {"class", "href", "xsampa", "airstream"}
 
-# Binary feature labels for descriptions
+# Feature value labels for descriptions (binary flags, plus the ordered
+# channel axis whose values name themselves)
 _BINARY_LABELS: dict[str, dict[str, str | None]] = {
     "voiced": {"+": "voiced", "-": "voiceless"},
     "rounded": {"+": "rounded", "-": "unrounded"},
-    "lateral": {"+": "lateral", "-": None},
+    "channel": {"lateral": "lateral", "grooved": "sibilant", "flat": None},
     "retroflex": {"+": "retroflex", "-": None},
     "nasalized": {"+": "nasalized", "-": None},
     "syllabic": {"+": "syllabic", "-": None},
@@ -36,7 +37,7 @@ class AnalysisMixin(IPAFeaturesBase):
             >>> ipakit.describe("ɛ")
             'open-mid front unrounded vowel'
             >>> ipakit.describe("t͡ʃ")
-            'voiceless postalveolar affricate'
+            'voiceless sibilant postalveolar affricate'
             >>> ipakit.describe("l")
             'voiced lateral alveolar approximant'
         """
@@ -69,11 +70,13 @@ class AnalysisMixin(IPAFeaturesBase):
                 if label := _BINARY_LABELS["voiced"][voiced]:
                     parts.append(label)
 
-            # Modifiers (lateral, retroflex, etc.)
-            for feat in ["retroflex", "lateral", "nasalized"]:
-                if (val := feats.get(feat)) and val == "+":
-                    if label := _BINARY_LABELS.get(feat, {}).get("+"):
-                        parts.append(label)
+            # Modifiers: binary flags, plus the channel axis whose own
+            # values carry the label (lateral, sibilant).
+            for feat in ["retroflex", "channel", "nasalized"]:
+                if (val := feats.get(feat)) is None:
+                    continue
+                if label := _BINARY_LABELS.get(feat, {}).get(val):
+                    parts.append(label)
 
             # Place
             if place := feats.get("place"):
@@ -148,7 +151,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
         Examples:
             >>> ipakit.minimal_pairs("p")
-            [('ɸ', 'manner', 'fricative'), ('f', 'manner', 'fricative'), ...]
+            [('t', 'place', 'alveolar'), ('ɸ', 'manner', 'fricative'), ...]
 
         Args:
             phone: The reference phone

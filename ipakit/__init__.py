@@ -130,7 +130,7 @@ def word_similarity(ipa1: str, ipa2: str, weighted: bool = True) -> float:
         >>> ipakit.word_similarity("kæt", "kæd")
         0.98...
         >>> ipakit.word_similarity("kæt", "dɒɡ")  # weighted subs are cheap (shared features)
-        0.9...
+        0.8...
     """
     return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted)
 
@@ -148,7 +148,7 @@ def confusability(phone1: str, phone2: str) -> float:
 
     Examples:
         >>> round(ipakit.confusability("p", "b"), 3)
-        0.896
+        0.956
         >>> ipakit.confusability("p", "p")
         1.0
     """
@@ -423,7 +423,7 @@ def describe(phone: str, with_defaults: bool = True) -> str:
         >>> ipakit.describe("ɛ")
         'open-mid front unrounded vowel'
         >>> ipakit.describe("t͡ʃ")
-        'voiceless postalveolar affricate'
+        'voiceless sibilant postalveolar affricate'
     """
     return _get_ipa().describe(phone, with_defaults=with_defaults)
 
@@ -457,7 +457,7 @@ def minimal_pairs(
 
     Examples:
         >>> ipakit.minimal_pairs("p")
-        [('ɸ', 'manner', 'fricative'), ('f', 'manner', 'fricative'), ...]
+        [('t', 'place', 'alveolar'), ('ɸ', 'manner', 'fricative'), ...]
     """
     return _get_ipa().minimal_pairs(
         phone, with_defaults=with_defaults, max_distance=max_distance
@@ -475,7 +475,7 @@ def nearest_phones(
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('ɸ', 0.007), ('f', 0.012), ('ʘ', 0.013)]
+        [('t', 0.019), ('ɸ', 0.027), ('f', 0.03)]
     """
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 

@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Head shapes: mid-sagittal vocal-tract geometries.
+
+     A head projects the head-independent tract space (arc, offset) that
+     phones live in onto 2D coordinates for rendering. Heads NEVER affect
+     distance: phone identity does not depend on whose head you imagine,
+     and the shipped confusion matrix must stay reproducible.
+
+     Each head declares its midline as control points (arc, x, y) in a
+     normalized box - lips at the left, glottis at the lower right, the
+     palate above the oral run and the pharyngeal bend behind - plus the
+     tract diameter along the arc, which scales how far an offset carries
+     a point from the midline toward the wall.
+
+     Each head also declares its rest posture: where the articulators sit
+     when not speaking - jaw and lips closed, tongue neutral, velum
+     lowered for nasal breathing. Rest is RENDERING geometry, not
+     features: silence is featurally null (no articulation, distance 1.0
+     from every speech sound), but it still has to be drawn somewhere, and
+     an utterance starts and ends at rest, which gives animations their
+     home position.
+
+     Geometries are schematic, hand-placed from published mid-sagittal
+     anatomy; proportions follow the usual findings (a child's tract is
+     shorter overall and proportionally shorter in the pharynx; an adult
+     female tract is shorter than an adult male's, again more so in the
+     pharynx). They are not measurements. -->
+<heads default="adult-male">
+
+  <head name="adult-male" desc="Adult male mid-sagittal tract" length-cm="17.5">
+    <rest arc="0.38" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
+    <midline>
+      <point arc="0.00" x="0.06" y="0.62" diameter="0.16"/>
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.17"/>
+      <point arc="0.32" x="0.40" y="0.68" diameter="0.18"/>
+      <point arc="0.45" x="0.52" y="0.66" diameter="0.18"/>
+      <point arc="0.56" x="0.61" y="0.61" diameter="0.17"/>
+      <point arc="0.74" x="0.70" y="0.44" diameter="0.15"/>
+      <point arc="0.87" x="0.73" y="0.30" diameter="0.13"/>
+      <point arc="1.00" x="0.75" y="0.16" diameter="0.11"/>
+    </midline>
+  </head>
+
+  <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
+    <rest arc="0.37" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
+    <midline>
+      <point arc="0.00" x="0.07" y="0.62" diameter="0.15"/>
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.16"/>
+      <point arc="0.32" x="0.39" y="0.68" diameter="0.17"/>
+      <point arc="0.45" x="0.50" y="0.66" diameter="0.16"/>
+      <point arc="0.56" x="0.58" y="0.62" diameter="0.16"/>
+      <point arc="0.74" x="0.66" y="0.47" diameter="0.14"/>
+      <point arc="0.87" x="0.69" y="0.35" diameter="0.12"/>
+      <point arc="1.00" x="0.71" y="0.23" diameter="0.10"/>
+    </midline>
+  </head>
+
+  <head name="child" desc="Child (approx. 5 years) mid-sagittal tract" length-cm="10.5">
+    <rest arc="0.35" offset="0.20" lips="closed" jaw="closed" velum="lowered"/>
+    <midline>
+      <point arc="0.00" x="0.09" y="0.60" diameter="0.13"/>
+      <point arc="0.13" x="0.22" y="0.64" diameter="0.14"/>
+      <point arc="0.32" x="0.36" y="0.66" diameter="0.15"/>
+      <point arc="0.45" x="0.45" y="0.64" diameter="0.14"/>
+      <point arc="0.56" x="0.51" y="0.61" diameter="0.14"/>
+      <point arc="0.74" x="0.57" y="0.50" diameter="0.12"/>
+      <point arc="0.87" x="0.59" y="0.42" diameter="0.11"/>
+      <point arc="1.00" x="0.61" y="0.34" diameter="0.09"/>
+    </midline>
+  </head>
+
+</heads>
