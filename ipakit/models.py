@@ -100,20 +100,70 @@ class Feature:
             return None
         return min(abs(c1 - c2) / self._anchor_span, 1.0)
 
+    def _malformed(self, value: str) -> ValueError:
+        return ValueError(
+            f"malformed value {value!r} for feature {self.name!r}: a value is "
+            f"a non-empty name, or non-empty names joined by {self.COMBINER!r}"
+        )
+
+    def _components(self, value: str) -> tuple[str, ...]:
+        """A value's alias resolved and the result split on the combiner,
+        with the spelling checked for structure. Every component must be
+        non-empty: "", "^", "a^" and "a^^b" name nothing under any data,
+        so they are refused rather than answered."""
+        resolved = self.value_aliases.get(value, value)
+        if self.COMBINER not in resolved:
+            if not resolved:
+                raise self._malformed(value)
+            return (resolved,)
+        parts = tuple(resolved.split(self.COMBINER))
+        if not all(parts):
+            raise self._malformed(value)
+        return parts
+
     def expand(self, value: str) -> tuple[str, ...]:
         """A value's components: the value itself, or its ordered parts for
         a combining value (``bilabial^velar`` -> ``(bilabial, velar)``).
-        Generative: any ``^``-joined spelling expands, declared or not."""
-        value = self.value_aliases.get(value, value)
-        if self.COMBINER in value:
-            return tuple(value.split(self.COMBINER))
-        return (value,)
+
+        Aliases resolve per component, not only on the whole spelling, so
+        ``labial-velar`` and ``labial-velar^palatal`` alike expand to
+        declared components. (Resolving only the whole string left an
+        alias standing unresolved inside the combination, and the caller
+        then compared a name the data never declares.)
+
+        Generative: any well-formed ``^``-joined spelling expands,
+        declared or not. Raises :class:`ValueError` on a *structurally*
+        malformed spelling -- one with an empty component. That is the
+        line: an undeclared component is a question about this data, which
+        comparison already answers with maximal distance, but an empty
+        component is not a value under any data.
+        """
+        parts = self._components(value)
+        if len(parts) == 1:
+            return parts
+        # One nesting level: an alias names a declared value, so a
+        # component's alias expands at most once more. The bound also
+        # keeps a cyclic alias in the data from recursing forever.
+        return tuple(sub for part in parts for sub in self._components(part))
 
     def combine(self, values: set[str] | tuple[str, ...]) -> str:
         """The canonical combining spelling for a set of values: components
         ordered by their scale position (declaration order as fallback),
         joined by ``^``. One spelling per combination -- palatal^alveolar
-        cannot occur, only alveolar^palatal."""
+        cannot occur, only alveolar^palatal.
+
+        Members are expanded first, so an alias (``labial-velar``) or an
+        already-combined member contributes its components rather than
+        being spelled into the result verbatim; the answer is therefore
+        always a spelling :meth:`expand` reads back. Raises
+        :class:`ValueError` on a malformed member, and on no values at all
+        -- there is no combination of nothing to name.
+        """
+        components = {c for v in values for c in self.expand(v)}
+        if not components:
+            raise ValueError(
+                f"combine() needs at least one value for feature {self.name!r}"
+            )
 
         def position(v: str) -> tuple[int, str]:
             idx = self._value_index.get(v)
@@ -124,7 +174,7 @@ class Feature:
             except ValueError:
                 return (len(self.values), v)
 
-        unique = sorted(set(values), key=position)
+        unique = sorted(components, key=position)
         if len(unique) == 1:
             return unique[0]
         return self.COMBINER.join(unique)
@@ -150,13 +200,18 @@ class Feature:
         double articulation's places): the distance is then the directional
         best-match mean, max of the two directions.
         """
+        # A combining spelling (and an empty one, which is malformed) goes
+        # through expand, which carries the per-component alias resolution
+        # and the structure check: a malformed value is refused rather
+        # than answered with a number built from a phantom component. A
+        # plain value skips it -- this is the metric's hottest loop.
         if isinstance(v1, str):
             v1 = self.value_aliases.get(v1, v1)
-            if self.COMBINER in v1:
+            if self.COMBINER in v1 or not v1:
                 v1 = self.expand(v1)
         if isinstance(v2, str):
             v2 = self.value_aliases.get(v2, v2)
-            if self.COMBINER in v2:
+            if self.COMBINER in v2 or not v2:
                 v2 = self.expand(v2)
         if isinstance(v1, tuple) or isinstance(v2, tuple):
             c1 = v1 if isinstance(v1, tuple) else (v1,)

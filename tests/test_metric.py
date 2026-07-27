@@ -176,6 +176,98 @@ class TestOrdinalScales:
         )
 
 
+class TestCombiningSpellings:
+    """A combining value is its components joined by the combiner, so the
+    spelling has to hold up as a spelling. Structure is refused; a merely
+    undeclared component is not."""
+
+    MALFORMED = ("", "^", "a^", "^a", "a^^b", "bilabial^", "^bilabial")
+
+    @pytest.mark.parametrize("value", MALFORMED)
+    def test_expand_refuses_malformed_spellings(
+        self, ipa: IPAFeatures, value: str
+    ) -> None:
+        # An empty component names nothing under any data. Answering it
+        # (expand("") was ("",), expand("a^^b") was ("a", "", "b")) fed a
+        # phantom component into the best-match mean, and a typo came back
+        # as a mid-range number that read like a measurement.
+        pl = ipa.features["place"]
+        with pytest.raises(ValueError, match="malformed value"):
+            pl.expand(value)
+
+    @pytest.mark.parametrize("value", MALFORMED)
+    def test_value_distance_refuses_malformed_spellings(
+        self, ipa: IPAFeatures, value: str
+    ) -> None:
+        pl = ipa.features["place"]
+        with pytest.raises(ValueError, match="malformed value"):
+            pl.value_distance(value, "velar")
+        with pytest.raises(ValueError, match="malformed value"):
+            pl.value_distance("velar", value)
+
+    def test_combine_refuses_nothing_and_malformed_members(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # combine(set()) manufactured "", which then expanded to ("",).
+        pl = ipa.features["place"]
+        with pytest.raises(ValueError, match="at least one value"):
+            pl.combine(set())
+        with pytest.raises(ValueError, match="malformed value"):
+            pl.combine({"", "bilabial"})
+
+    def test_expand_resolves_aliases_inside_a_combination(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The alias was applied to the whole spelling before the split, so
+        # a component alias survived unresolved and the caller compared a
+        # name the data never declares.
+        pl = ipa.features["place"]
+        assert pl.expand("labial-velar^palatal") == ("bilabial", "velar", "palatal")
+        assert (
+            pl.value_distance("labial-velar^palatal", "bilabial^velar^palatal") == 0.0
+        )
+
+    def test_combine_emits_a_spelling_expand_reads_back(self, ipa: IPAFeatures) -> None:
+        # combine used to pass an alias member through verbatim
+        # ("alveolar^labial-velar"), which expand could not normalize.
+        pl = ipa.features["place"]
+        combined = pl.combine({"labial-velar", "alveolar"})
+        assert combined == "bilabial^alveolar^velar"
+        assert pl.expand(combined) == ("bilabial", "alveolar", "velar")
+        assert pl.combine(pl.expand(combined)) == combined
+
+    def test_declared_combinations_round_trip(self, ipa: IPAFeatures) -> None:
+        for name, feat in ipa.features.items():
+            for value in feat.values:
+                if feat.COMBINER not in value:
+                    continue
+                assert feat.combine(feat.expand(value)) == value, (name, value)
+            for alias, target in feat.value_aliases.items():
+                assert feat.expand(alias) == feat.expand(target), (name, alias)
+
+    def test_undeclared_components_stay_generative(self, ipa: IPAFeatures) -> None:
+        # Deliberately permissive: expand is generative, and an undeclared
+        # value is a question about this data, which comparison already
+        # answers with maximal distance -- the plain scalar "NOTAPLACE"
+        # gets 1.0 rather than an error, and a combination must not be
+        # stricter than its own components.
+        pl = ipa.features["place"]
+        assert pl.expand("bilabial^NOTAPLACE") == ("bilabial", "NOTAPLACE")
+        assert pl.value_distance("NOTAPLACE", "velar") == 1.0
+        assert pl.value_distance("bilabial^NOTAPLACE", "bilabial") == 0.5
+
+    def test_public_entry_points_are_unregressed(self, ipa: IPAFeatures) -> None:
+        # respell still names the offending value; a query for an unknown
+        # value is still empty rather than an exception.
+        assert ipa.respell("k", place="labial-velar") == "k͡p"
+        with pytest.raises(ValueError, match="is not a value of feature"):
+            ipa.respell("t", place="bilabial^NOTAPLACE")
+        with pytest.raises(ValueError, match="malformed value"):
+            ipa.respell("t", place="bilabial^")
+        assert ipa.phones_matching({"place": "NOTAPLACE"}) == []
+        assert ipa.phones_matching({"place": "bilabial^NOTAPLACE"}) == []
+
+
 class TestReferenceFrame:
     """The ordinal scales ascend a declared reference frame: a left-facing
     oral tract (+x lips->glottis, +y jaw->palate)."""
