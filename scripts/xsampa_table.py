@@ -5,16 +5,23 @@ The table is *derived*, not hand-maintained value-by-value:
 
     xsampa(symbol) = OVERRIDES[symbol]              if curated, else
                      ICU "IPA-XSampa"(symbol)       if ICU maps it, else
-                     <skipped>                       (ICU passthrough of non-ASCII)
+                     <omitted>                      (must be listed in UNMAPPABLE)
 
 over an inventory drawn from ipakit's own phone/diacritic set (plus a few
-structural X-SAMPA symbols, minus a few combining marks X-SAMPA folds elsewhere).
+structural X-SAMPA symbols, minus the redundant spellings X-SAMPA folds).
 
 This keeps the table reproducible and the human judgement calls explicit:
   * OVERRIDES  - symbols ICU can't transliterate (tone bars, suprasegmentals,
                  a few rare phones). Each is a deliberate, documented choice.
   * EXTRAS     - X-SAMPA structural symbols not in the IPA inventory.
-  * EXCLUDE    - inventory symbols intentionally kept out of the table.
+  * EXCLUDE    - redundant IPA spellings kept out, so the one X-SAMPA
+                 encoding stays attached to the canonical spelling.
+  * UNMAPPABLE - inventory symbols X-SAMPA has no encoding for at all.
+
+An inventory symbol that ICU passes through unchanged and that appears in
+neither EXCLUDE nor UNMAPPABLE is an error, not a silent omission: without that
+check, a symbol added to ipa.xml drops out of the table -- and so out of every
+conversion, mid-string and without a trace -- with nothing to notice it.
 
 Usage:
     python scripts/xsampa_table.py validate          # CI guard: shipped == derived
@@ -68,10 +75,34 @@ OVERRIDES: dict[str, str] = {
 # reading of `_` is the over-tie, and callers canonicalize via from_wild.
 EXTRAS: set[str] = {"#", ".", TIE_BAR, SEQ_TIE}
 
-# Inventory symbols deliberately excluded from the table. These combining marks
-# are folded into the tone-bar / rhotic entries above, so listing them too would
-# create redundant (and ambiguous) X-SAMPA encodings.
-EXCLUDE: set[str] = {"˞", "̀", "́", "̄", "̞"}
+# Redundant IPA spellings deliberately kept out of the table. X-SAMPA has one
+# encoding where IPA has two, and this table is bijective, so only the house-
+# canonical spelling can carry the encoding -- listing both would make the
+# reverse reading ambiguous and depend on file order. Each is mapped to the
+# spelling that does carry it.
+EXCLUDE: dict[str, str] = {
+    "˞": "ʴ",  # rhotic hook -> modifier hook (`)
+    "̀": "˨",  # combining grave -> low tone bar (_L)
+    "́": "˦",  # combining acute -> high tone bar (_H)
+    "̄": "˧",  # combining macron -> mid tone bar (_M)
+    "ʻ": "ʰ",  # turned comma -> modifier h (_h); both are `release=aspirated`
+}
+
+# Inventory symbols X-SAMPA has no encoding for. Listing a symbol here is not a
+# mapping and not an excuse: it records that the gap was looked up and is real,
+# so the generator can treat every *other* ICU passthrough as a bug. Conversion
+# drops these (or raises, with `strict=True`); README documents them.
+UNMAPPABLE: dict[str, str] = {
+    # X-SAMPA (1995) predates the IPA's 2005 adoption of the labiodental flap.
+    # Wells' chart marks the cell as having no symbol and none has been agreed
+    # since; `4_d` or `v\_r` would be invention, and would collide with the
+    # dental tap and the raised labiodental approximant respectively.
+    "ⱱ": "labiodental flap: no X-SAMPA symbol exists",
+    # X-SAMPA's secondary-articulation diacritics are a closed list
+    # (_h _w ' _G _?\ ...) with no glottal or schwa member.
+    "ˀ": "glottalization: no X-SAMPA diacritic",
+    "ᵊ": "schwa release: no X-SAMPA diacritic",
+}
 
 
 def _icu_forward():  # type: ignore[no-untyped-def]
@@ -97,16 +128,25 @@ def canonical_pairs() -> dict[str, str]:
             if TIE_BAR not in s and SEQ_TIE not in s
         }
         | EXTRAS
-    ) - EXCLUDE
+    ) - EXCLUDE.keys()
 
     table: dict[str, str] = {}
-    for sym in inventory:
+    for sym in sorted(inventory):
         if sym in OVERRIDES:
             table[sym] = OVERRIDES[sym]
             continue
         x = fwd.transliterate(sym)
         if x == sym and not sym.isascii():
-            continue  # ICU has no X-SAMPA for this symbol; skip
+            if sym not in UNMAPPABLE:
+                raise ValueError(
+                    f"ICU has no X-SAMPA for {sym!r} (U+{ord(sym[0]):04X}) and it "
+                    "is listed in neither EXCLUDE nor UNMAPPABLE. Omitting it "
+                    "would delete it from every conversion silently: add an "
+                    "OVERRIDES entry if X-SAMPA can spell it, an EXCLUDE entry "
+                    "if it is a redundant spelling of one that can, or an "
+                    "UNMAPPABLE entry if X-SAMPA genuinely cannot."
+                )
+            continue
         table[sym] = x
     return table
 
