@@ -65,7 +65,10 @@ Composition is intent-driven: a voicing-disagreeing tie like `t͡ɮ` is a legiti
 - **Ordinal scales carry only true points on their continuum**: combined place values (`labial-velar`, `labial-palatal`) are overlaps, not points — they hold no position on the front–back scale (`palatal→velar` is one step, not two), are declared with `expands` in the data, and compare by expansion; real intermediate places (`labiodental`, `alveolo-palatal`) keep their positions. Atomic `w` thus compares component-wise against composed labial-velars.
 - **Structural consequence to know**: an affricate now sits near other affricates (shared phase structure), not near its bare fricative component — `t͡ʃ` is closer to `t͡s` than to `ʃ`. The old flat merge said the opposite; consumers of absolute distances should recalibrate thresholds (the shipped matrix and CDF are regenerated).
 
-The claim is structural consistency, not phonetic ground truth; parameters (gap cost γ = 1, secondary weight σ = 0.5) are named constants.
+- **The ordinal scales ascend a declared reference frame** — a left-facing oral tract: +x lips→glottis (`place` and `backness` share it), +y jaw→palate (`height` ascends open→close; `tone` bottom→top), `manner` ascends +constriction, `length` +t. Each ordinal feature carries an `axis` attribute in the data. `silence` is off-scale on the constriction axis (absence of signal has no position — it is equidistant from every manner); `release` and `airstream` are categorical (no axis, every mismatch one step).
+- **Sagittal bridges** make cross-class spatial proximity visible: the frame's axes are stored twice (place/backness on x, constriction/height on y) in features that never co-occur, so `j`~`i` and `w`~`u` were invisible to per-feature comparison — a stop scored closer to /i/ than its own glide. Derived x (tract position; vowel backness maps into the palatal–uvular span) and y (aperture; approximants adjacent to close vowels) scalars fix the orderings: `j–i` < `t–i`, `w–u` < `k–u` < `t–u`. Secondary articulations shade the place term but do not relocate the tongue body.
+
+The claim is structural consistency, not phonetic ground truth; parameters (gap cost γ = 1, secondary weight σ = 0.5, vowel aperture ceiling 0.5) are named constants.
 
 ## Ties across phoneset conversions
 
