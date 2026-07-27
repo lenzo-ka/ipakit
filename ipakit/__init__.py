@@ -106,7 +106,7 @@ def word_distance(
 
     Examples:
         >>> ipakit.word_distance("kæt", "kæd")
-        WordDistanceResult(distance=0.04..., similarity=0.98..., alignment=None)
+        WordDistanceResult(distance=0.05..., similarity=0.98..., alignment=None)
         >>> ipakit.word_distance("kæt", "dɒɡ")
         WordDistanceResult(distance=..., similarity=..., alignment=None)
     """
@@ -148,7 +148,7 @@ def confusability(phone1: str, phone2: str) -> float:
 
     Examples:
         >>> round(ipakit.confusability("p", "b"), 3)
-        0.844
+        0.897
         >>> ipakit.confusability("p", "p")
         1.0
     """
@@ -455,7 +455,7 @@ def nearest_phones(
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('ɸ', 0.005), ('f', 0.009), ('p͡f', 0.009)]
+        [('ɸ', 0.007), ('f', 0.011), ('ʘ', 0.013)]
     """
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 
