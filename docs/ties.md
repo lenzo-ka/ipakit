@@ -28,6 +28,10 @@ Lookup order everywhere (tokenizer, `get_features`, `get_phone`, `in`): register
 
 For these specific alias strings the registered sense wins over the glyph's. Everywhere else the glyph is authoritative.
 
+## Registered compounds are derived, not hand-encoded
+
+Tied entries in `ipa.xml` carry only their spelling, aliases, and reference link; their **features are derived at load** by the same composer that serves unregistered chains, under each entry's sense (affricates via the simultaneous merge, diphthongs via the sequential first-element projection). Registration is therefore a cache of composition by construction — registered and computed values cannot drift, and `IPAFeatures.derived_phones` lists the entries this applies to. Every tied entry is derived — composition resolves diacritic-bearing parts (`ʊ̯` = base + non-syllabic modifier) as constituents.
+
 ## Composition of unregistered sequences
 
 An unregistered tie-joined sequence of known phones still resolves (`registered wins, composition is the long-tail fallback`):

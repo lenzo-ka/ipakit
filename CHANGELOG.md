@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DistanceModel.confusability`/`distance`/`nearest` fall back to feature-derived similarity for out-of-matrix phones (#8).
 
 ### Changed
+- Tied inventory entries are constituent-derived: `ipa.xml` keeps only spelling/aliases/href for them, the loader derives their features under each entry's sense, and `IPAFeatures.derived_phones` lists them — registered and computed features cannot drift (#10).
 - Alias spellings resolve token-locally at every entry point; `get_features`/`get_phone`/`in` now resolve aliases (previously returned empty for e.g. `t͜s`) (#9).
 - Unregistered under-tie chains keep their tie through tokenization and project their first element (previously rewritten to the over-tie and merged) (#9).
 - Phoneset conversions (X-SAMPA, CMU, TIMIT, Kirshenbaum) project the under-tie onto the over-tie at the boundary: unit-hood survives, tie sense does not; round trips return canonical over-tie spellings (#9).
