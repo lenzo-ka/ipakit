@@ -58,7 +58,7 @@ class IPAFeaturesBase:
     ) -> list[dict[str, str]]:
         raise NotImplementedError
 
-    def tokenize_ipa(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
+    def tokenize(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
         raise NotImplementedError
 
     def distance(self, phone1: str, phone2: str) -> float:

@@ -24,7 +24,7 @@ class TestTokenizerRobustness:
 
     def test_tokenize_never_raises(self, ipa: IPAFeatures) -> None:
         for s in self._ADVERSARIAL:
-            tokens = ipa.tokenize_ipa(s)
+            tokens = ipa.tokenize(s)
             assert isinstance(tokens, list)
 
     def test_parse_never_raises_nonstrict(self, ipa: IPAFeatures) -> None:
@@ -53,30 +53,30 @@ class TestTokenization:
     """Tests for IPA tokenization."""
 
     def test_tokenize_simple(self, ipa: IPAFeatures) -> None:
-        tokens = ipa.tokenize_ipa("pat")
+        tokens = ipa.tokenize("pat")
         assert tokens == ["p", "a", "t"]
 
     def test_tokenize_with_diacritics(self, ipa: IPAFeatures) -> None:
-        tokens = ipa.tokenize_ipa("pʰat")
+        tokens = ipa.tokenize("pʰat")
         assert tokens == ["pʰ", "a", "t"]
 
     def test_tokenize_affricates(self, ipa: IPAFeatures) -> None:
-        tokens = ipa.tokenize_ipa("t͡ʃ")
+        tokens = ipa.tokenize("t͡ʃ")
         assert tokens == ["t͡ʃ"]
 
     def test_tokenize_legacy_affricate(self, ipa: IPAFeatures) -> None:
         # Legacy ligature should be expanded then tokenized as single unit
-        tokens = ipa.tokenize_ipa("ʧ")
+        tokens = ipa.tokenize("ʧ")
         assert tokens == ["t͡ʃ"]
 
     def test_tokenize_multiple_diacritics(self, ipa: IPAFeatures) -> None:
         # Phone with multiple diacritics
-        tokens = ipa.tokenize_ipa("pʰʲ")
+        tokens = ipa.tokenize("pʰʲ")
         assert len(tokens) == 1
         assert tokens[0] == "pʰʲ"
 
     def test_tokenize_long_vowel(self, ipa: IPAFeatures) -> None:
-        tokens = ipa.tokenize_ipa("iː")
+        tokens = ipa.tokenize("iː")
         assert tokens == ["iː"]
 
     def test_tokenize_nasalized_vowel(self, ipa: IPAFeatures) -> None:
@@ -84,23 +84,23 @@ class TestTokenization:
         # in NFC, so both input forms yield the precomposed token.
         nasalized_a = "a\u0303"  # a + combining tilde
         precomposed_a = "\u00e3"  # \u00e3
-        assert ipa.tokenize_ipa(nasalized_a) == [precomposed_a]
-        assert ipa.tokenize_ipa(precomposed_a) == [precomposed_a]
+        assert ipa.tokenize(nasalized_a) == [precomposed_a]
+        assert ipa.tokenize(precomposed_a) == [precomposed_a]
 
 
 class TestSegmentation:
     """Tests for IPA segmentation (space-separated output)."""
 
     def test_segment_simple(self, ipa: IPAFeatures) -> None:
-        result = ipa.segment_ipa("pat")
+        result = ipa.segmented("pat")
         assert result == "p a t"
 
     def test_segment_with_diacritics(self, ipa: IPAFeatures) -> None:
-        result = ipa.segment_ipa("pʰat")
+        result = ipa.segmented("pʰat")
         assert result == "pʰ a t"
 
     def test_segment_affricates(self, ipa: IPAFeatures) -> None:
-        result = ipa.segment_ipa("t͡ʃat")
+        result = ipa.segmented("t͡ʃat")
         assert "t͡ʃ" in result
 
 
@@ -119,7 +119,7 @@ class TestLigatureExpansion:
         # Strict glyph authority: t͜s is a sequential chain, not a spelling
         # of the affricate. Wild text imports via from_wild.
         assert ipa.expand_ligatures("t͜s") == "t͜s"
-        assert ipa.tokenize_ipa("t͜s") == ["t͜s"]
+        assert ipa.tokenize("t͜s") == ["t͜s"]
         assert ipa.from_wild("t͜s") == "t͡s"
 
 
@@ -129,18 +129,18 @@ class TestNormalization:
     def test_normalize_adds_ties(self, ipa: IPAFeatures) -> None:
         # Consonant pairs fuse (over-tie); adjacent vowels bind sequentially
         # (under-tie) - which is the canonical diphthong spelling directly.
-        result = ipa.normalize_ipa("tʃ eɪ n dʒ")
+        result = ipa.normalize("tʃ eɪ n dʒ")
         assert "t͡ʃ" in result
         assert "e͜ɪ" in result
         assert "d͡ʒ" in result
         assert ipa.get_phone("e͜ɪ") is not None
 
     def test_add_tie_bars(self, ipa: IPAFeatures) -> None:
-        assert ipa.add_tie_bars("ts") == "t͡s"
-        assert ipa.add_tie_bars("dz") == "d͡z"
+        assert ipa.add_ties("ts") == "t͡s"
+        assert ipa.add_ties("dz") == "d͡z"
 
     def test_add_tie_bars_preserves_existing(self, ipa: IPAFeatures) -> None:
-        assert ipa.add_tie_bars("t͡s") == "t͡s"
+        assert ipa.add_ties("t͡s") == "t͡s"
 
 
 class TestLookalikes:

@@ -7,6 +7,7 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 | | |
 |---|---|
 | Range | `[0, 1]`; 0 identical, 1 maximally different |
+| Three scales, three names | `distance` (structural, `[0,1]`), `normalized_distance` (percentile in a reference inventory, `[0,1]`), `WordDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
 | Basis | Articulatory structure — where a constriction is, what makes it, how close it is |
 | Claim | Structural consistency; **not** a model of perceptual confusability |
 | Symmetry | `d(x, y) == d(y, x)` for all pairs (property-tested) |
@@ -129,6 +130,8 @@ If weights are ever wanted, the only defensible source is empirical confusion da
 **Percentiles are inventory-relative.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution. The same pair scores differently under a small English set and the full bundled inventory; this is intended, and it is why `distance_model(phoneset)` exists.
 
 **Silence behaves as a deletion.** `d(␣, X) = 1.0` for every speech sound, so substituting silence costs exactly what deleting the phone costs in an alignment.
+
+**The three scales are named apart.** `distance` is structural and bounded; `normalized_distance` is a percentile within a reference inventory and also bounded, but the two are *not* comparable; `WordDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `word_distance("lez‿ami", "lezami") = 0`.
 

@@ -14,17 +14,30 @@ Alignment = list[tuple[str | None, str | None]]
 
 @dataclass
 class WordDistanceResult:
-    """Result of word distance calculation."""
+    """Result of a word-level comparison.
 
-    distance: float
+    ``edit_cost`` is the summed alignment cost and is **not** bounded to
+    [0, 1] -- it grows with word length. ``similarity`` is the normalized
+    [0, 1] figure and is what compares across word pairs. The unbounded
+    quantity is named distinctly because the [0, 1] ``distance`` of
+    :func:`distance` and the percentile of :func:`normalized_distance`
+    already share that word.
+    """
+
+    edit_cost: float
     similarity: float
     alignment: Alignment | None = None
 
+    @property
+    def distance(self) -> float:
+        """Deprecated alias for :attr:`edit_cost` (an unbounded sum)."""
+        return self.edit_cost
+
 
 def _empty_pair_result(return_alignment: bool) -> WordDistanceResult:
-    """Result for two empty token sequences: identical, zero distance."""
+    """Result for two empty token sequences: identical, zero cost."""
     return WordDistanceResult(
-        distance=0.0,
+        edit_cost=0.0,
         similarity=1.0,
         alignment=[] if return_alignment else None,
     )
@@ -227,10 +240,10 @@ class DistanceMixin(IPAFeaturesBase):
         if strict:
             self._reject_unconvertible(ipa1, ipa2)
         tokens1 = [
-            t for t in self.tokenize_ipa(ipa1) if not self.is_structural_token(t)  # type: ignore[attr-defined]
+            t for t in self.tokenize(ipa1) if not self.is_structural_token(t)  # type: ignore[attr-defined]
         ]
         tokens2 = [
-            t for t in self.tokenize_ipa(ipa2) if not self.is_structural_token(t)  # type: ignore[attr-defined]
+            t for t in self.tokenize(ipa2) if not self.is_structural_token(t)  # type: ignore[attr-defined]
         ]
         n, m = len(tokens1), len(tokens2)
 
@@ -268,7 +281,7 @@ class DistanceMixin(IPAFeaturesBase):
         max_len = max(n, m)
         similarity = max(0.0, 1.0 - (distance / max_len))
         return WordDistanceResult(
-            distance=distance, similarity=similarity, alignment=alignment
+            edit_cost=distance, similarity=similarity, alignment=alignment
         )
 
     def word_similarity(

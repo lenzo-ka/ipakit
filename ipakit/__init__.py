@@ -131,9 +131,9 @@ def word_distance(
 
     Examples:
         >>> ipakit.word_distance("kæt", "kæd")
-        WordDistanceResult(distance=0.05..., similarity=0.98..., alignment=None)
+        WordDistanceResult(edit_cost=0.05..., similarity=0.98..., alignment=None)
         >>> ipakit.word_distance("kæt", "dɒɡ")
-        WordDistanceResult(distance=..., similarity=..., alignment=None)
+        WordDistanceResult(edit_cost=..., similarity=..., alignment=None)
     """
     return _get_ipa().word_distance(
         ipa1,
@@ -299,31 +299,39 @@ def to_ipa(
 
 def tokenize(ipa_string: str) -> list[str]:
     """Parse IPA string into list of segment tokens."""
-    return _get_ipa().tokenize_ipa(ipa_string)
+    return _get_ipa().tokenize(ipa_string)
 
 
-def segment(ipa_string: str) -> str:
-    """Parse IPA string and return whitespace-separated segments."""
-    return _get_ipa().segment_ipa(ipa_string)
+def segmented(ipa_string: str) -> str:
+    """Parse IPA and return its units, whitespace-separated.
+
+    A display convenience; :func:`tokenize` returns the same units as a
+    list and :func:`segments` as Segment objects.
+
+    Examples:
+        >>> segmented("t͡ʃa")
+        't͡ʃ a'
+    """
+    return _get_ipa().segmented(ipa_string)
 
 
-def parse_segments(ipa_string: str) -> list[Segment]:
+def segments(ipa_string: str) -> list[Segment]:
     """Parse IPA text into structured Segment units (see docs/ties.md).
 
     Examples:
-        >>> [s.kind.value for s in parse_segments("t͡ʃa͜ɪ")]
+        >>> [s.kind.value for s in segments("t͡ʃa͜ɪ")]
         ['affricate', 'diphthong']
     """
     return _get_ipa().segments(ipa_string)
 
 
-def parse_segment(ipa_string: str) -> Segment:
+def segment(ipa_string: str) -> Segment:
     """Parse exactly one unit into a structured Segment.
 
     Examples:
-        >>> parse_segment("t͡s").kind.value
+        >>> segment("t͡s").kind.value
         'affricate'
-        >>> parse_segment("u͜i").bag()["backness"]
+        >>> segment("u͜i").bag()["backness"]
         ('back', 'front')
     """
     return _get_ipa().segment(ipa_string)
@@ -331,7 +339,7 @@ def parse_segment(ipa_string: str) -> Segment:
 
 def normalize(segments: str) -> str:
     """Normalize whitespace-separated IPA segments into decodable IPA string."""
-    return _get_ipa().normalize_ipa(segments)
+    return _get_ipa().normalize(segments)
 
 
 def from_wild(text: str) -> str:
@@ -365,7 +373,7 @@ def normalize_lookalikes(text: str) -> str:
 
 def add_ties(segment: str) -> str:
     """Add tie bars between base phones in a multi-phone segment."""
-    return _get_ipa().add_tie_bars(segment)
+    return _get_ipa().add_ties(segment)
 
 
 def feature_bundles(
@@ -548,8 +556,8 @@ __all__ = [
     "Constituent",
     "Sense",
     "Kind",
-    "parse_segment",
-    "parse_segments",
+    "segments",
+    "segmented",
     "from_wild",
     "import_phoneset",
     "PhoneMapping",

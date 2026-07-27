@@ -85,8 +85,8 @@ class TestGetFeatures:
     def test_ligature_aliases_tokenize(self, ipa: IPAFeatures) -> None:
         # Single-character ligature/NAPA aliases resolve; glyph-variant tie
         # spellings do not (they are different objects; use from_wild).
-        assert ipa.tokenize_ipa("ƛ") == ["t͡ɬ"]
-        assert ipa.tokenize_ipa("t͜ɬ") == ["t͜ɬ"]
+        assert ipa.tokenize("ƛ") == ["t͡ɬ"]
+        assert ipa.tokenize("t͜ɬ") == ["t͜ɬ"]
         assert ipa.from_wild("t͜ɬ") == "t͡ɬ"
 
     def test_get_features_unknown_ties(self, ipa: IPAFeatures) -> None:

@@ -38,7 +38,7 @@ class TestCanonicalization:
     def test_precomposed_nasalized_vowel_not_dropped(self, ipa: IPAFeatures) -> None:
         # Regression: precomposed ã parsed to [] and was silently dropped.
         assert ipa.parse("ã") == [("a", ["̃"])]
-        assert ipa.tokenize_ipa("ã") != []
+        assert ipa.tokenize("ã") != []
 
     def test_registered_precomposed_phones_resolve_from_both_forms(
         self, ipa: IPAFeatures
@@ -66,20 +66,20 @@ class TestEmissionForm:
     def test_tokens_are_nfc(self, ipa: IPAFeatures) -> None:
         for pre, dec in NFC_NFD_PAIRS:
             for form in (pre, dec):
-                for token in ipa.tokenize_ipa(form):
+                for token in ipa.tokenize(form):
                     assert token == unicodedata.normalize("NFC", token)
 
     def test_both_forms_tokenize_to_same_output(self, ipa: IPAFeatures) -> None:
         for pre, dec in NFC_NFD_PAIRS:
-            assert ipa.tokenize_ipa(pre) == ipa.tokenize_ipa(dec)
+            assert ipa.tokenize(pre) == ipa.tokenize(dec)
 
     def test_tie_bar_tokens_unaffected(self, ipa: IPAFeatures) -> None:
         # Tie-bar sequences have no precomposed forms; NFC emission must not
         # alter them.
-        assert ipa.tokenize_ipa("t͡sa") == ["t͡s", "a"]
+        assert ipa.tokenize("t͡sa") == ["t͡s", "a"]
 
     def test_normalize_ipa_emits_nfc(self, ipa: IPAFeatures) -> None:
-        out = ipa.normalize_ipa("ä")
+        out = ipa.normalize("ä")
         assert out == unicodedata.normalize("NFC", out)
 
 

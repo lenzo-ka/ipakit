@@ -43,12 +43,13 @@ ipakit.word_similarity("kæt", "kæd")   # near 1.0: a minimal pair
 ipakit.tokenize("t͡ʃe͜ɪnd͡ʒ")   # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
 
 # Structured segments (typed ties; see docs/ties.md)
-seg = ipakit.parse_segment("t͡s͜a")     # one unit: fused onset + vowel, sequentially bound
+# `segment` gives one Segment, `segments` a list, `segmented` a spaced string
+seg = ipakit.segment("t͡s͜a")     # one unit: fused onset + vowel, sequentially bound
 seg.kind.value                          # 'chain'
 seg.left.kind.value                     # 'affricate'
 seg.right.to_ipa()                      # 'a'
 seg.left_features()["manner"]           # 'affricate'  (edge feature reads)
-ipakit.parse_segment("u͜i").bag()["backness"]  # ('back', 'front')
+ipakit.segment("u͜i").bag()["backness"]  # ('back', 'front')
 
 # Validate
 ipakit.validate_ipa("kæt")      # []  (valid)

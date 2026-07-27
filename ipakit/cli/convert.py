@@ -188,7 +188,7 @@ class NormalizeCommand(Command):
         add_format_arg(parser)
 
     def run(self) -> int:
-        result = self.ipa.normalize_ipa(self.args.ipa)
+        result = self.ipa.normalize(self.args.ipa)
         if self.format == "json":
             self.output_json(result)
         else:
@@ -222,7 +222,7 @@ class TokenizeCommand(Command):
         add_format_arg(parser)
 
     def run(self) -> int:
-        tokens = self.ipa.tokenize_ipa(self.args.ipa)
+        tokens = self.ipa.tokenize(self.args.ipa)
         if self.format == "json":
             self.output_json(tokens)
         else:
@@ -257,7 +257,7 @@ class AddTiesCommand(Command):
         add_format_arg(parser)
 
     def run(self) -> int:
-        result = self.ipa.add_tie_bars(self.args.segment)
+        result = self.ipa.add_ties(self.args.segment)
         if self.format == "json":
             self.output_json(result)
         else:

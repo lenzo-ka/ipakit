@@ -18,11 +18,11 @@ def ipa() -> IPAFeatures:
 class TestStructuralMarksStandAlone:
     def test_linking_mark_separates_cleanly(self, ipa: IPAFeatures) -> None:
         # French liaison marking: the units around ‿ stay intact.
-        assert ipa.tokenize_ipa("lez‿ami") == ["l", "e", "z", "‿", "a", "m", "i"]
+        assert ipa.tokenize("lez‿ami") == ["l", "e", "z", "‿", "a", "m", "i"]
 
     def test_breaks_separate_cleanly(self, ipa: IPAFeatures) -> None:
-        assert ipa.tokenize_ipa("a|b") == ["a", "|", "b"]
-        assert ipa.tokenize_ipa("a‖b") == ["a", "‖", "b"]
+        assert ipa.tokenize("a|b") == ["a", "|", "b"]
+        assert ipa.tokenize("a‖b") == ["a", "‖", "b"]
 
     def test_structural_marks_never_enter_segments(self, ipa: IPAFeatures) -> None:
         segs = ipa.segments("lez‿ami")
