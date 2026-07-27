@@ -108,8 +108,13 @@
     <feature name="syllabic" short="syl" type="binary" desc="Functions as syllable nucleus" href="Syllabic_consonant"/>
 
     <!-- Suprasegmental binary features -->
-    <feature name="linking" short="lnk" type="binary" desc="Ties segments within a unit" href="Tie_(typography)"/>
-    <feature name="liaison" short="lia" type="binary" desc="Links words across boundaries" href="Liaison_(French)"/>
+    <feature name="tie" short="tie" desc="Tie bar sense: binds constituents into one unit" href="Tie_(typography)">
+      <value name="simultaneous" short="sim"/>
+      <value name="sequential" short="seq"/>
+    </feature>
+    <feature name="linking" short="lnk" desc="Linking (absence of a break) between words" href="Tie_(typography)">
+      <value name="+"/>
+    </feature>
 
     <!-- Diacritic multi-valued features -->
     <feature name="release" short="rel" desc="How stop closure is released" href="Consonant_release">
@@ -385,11 +390,11 @@
     <suprasegmental name="̄" tone="mid" href="Tone_(linguistics)"/>
     <suprasegmental name="̀" tone="low" href="Tone_(linguistics)"/>
     <suprasegmental name="̂" contour="falling" href="Contour_tone"/>
-    <suprasegmental name="͡" linking="+" href="Tie_(typography)"/>  <!-- over-tie: simultaneous; the under-tie (͜) is the sequential tie, not an alias -->
-    <suprasegmental name="͜" linking="+" href="Tie_(typography)"/>  <!-- under-tie: sequential -->
+    <suprasegmental name="͡" tie="simultaneous" href="Tie_(typography)"/>  <!-- over-tie: fuses constituents into one timing slot -->
+    <suprasegmental name="͜" tie="sequential" href="Tie_(typography)"/>  <!-- under-tie: binds a sequence into one unit -->
     <suprasegmental name="᷄" tone="high" contour="rising" href="Contour_tone"/>
     <suprasegmental name="᷅" tone="low" contour="falling" href="Contour_tone"/>
-    <suprasegmental name="‿" liaison="+" href="Liaison_(French)"/>  <!-- between-word liaison -->
+    <suprasegmental name="‿" linking="+" href="Tie_(typography)"/>  <!-- IPA linking mark: absence of a break; French liaison is one use -->
     <suprasegmental name="↗" global="rise" href="Intonation_(linguistics)"/>
     <suprasegmental name="↘" global="fall" href="Intonation_(linguistics)"/>
     <suprasegmental name="ꜛ" step="up" href="Upstep"/>
