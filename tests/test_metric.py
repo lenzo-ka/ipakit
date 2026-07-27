@@ -117,24 +117,40 @@ class TestOrdinalScales:
     sensible - and only true points on the continuum hold scale positions.
     Combined places (overlaps, not points) compare by expansion."""
 
-    def test_overlap_values_hold_no_scale_position(self, ipa: IPAFeatures) -> None:
-        pl = ipa.features["place"]
-        one_step = pl.value_distance("dental", "alveolar")
-        # labial-palatal / labial-velar no longer pad these intervals:
-        assert pl.value_distance("palatal", "velar") == pytest.approx(one_step)
-        assert pl.value_distance("velar", "uvular") == pytest.approx(one_step)
-
-    def test_real_intermediate_places_keep_their_positions(
+    def test_anchored_distance_follows_anatomy_not_label_count(
         self, ipa: IPAFeatures
     ) -> None:
         pl = ipa.features["place"]
-        one_step = pl.value_distance("dental", "alveolar")
-        # alveolo-palatal is a real single place between postalveolar and
-        # palatal; labiodental between bilabial and dental.
-        assert pl.value_distance("postalveolar", "palatal") == pytest.approx(
-            2 * one_step
+        # Steps are not uniform: the lips-to-teeth move is tiny, the
+        # velum-to-uvula move larger, though both are "one label" apart.
+        assert pl.value_distance("bilabial", "labiodental") < pl.value_distance(
+            "velar", "uvular"
         )
-        assert pl.value_distance("bilabial", "dental") == pytest.approx(2 * one_step)
+        # Overlaps hold no position and never pad an interval.
+        assert pl.value_distance("bilabial", "glottal") == pytest.approx(1.0)
+
+    def test_places_are_monotone_along_the_tract(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        order = ["bilabial", "dental", "alveolar", "palatal", "velar", "glottal"]
+        for i in range(len(order) - 2):
+            near = pl.value_distance(order[i], order[i + 1])
+            far = pl.value_distance(order[i], order[i + 2])
+            assert near < far, (order[i], order[i + 1], order[i + 2])
+
+    def test_anchored_distances_survive_inventory_growth(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The property an index scale cannot have: adding a value leaves
+        # every existing distance untouched, because anchors are absolute.
+        pl = ipa.features["place"]
+        before = pl.value_distance("bilabial", "velar")
+        grown = type(pl)(
+            name="place",
+            values=[*pl.values, "fictional"],
+            type="ordinal",
+            coordinates={**pl.coordinates, "fictional": {"arc": 0.6}},
+        )
+        assert grown.value_distance("bilabial", "velar") == pytest.approx(before)
 
     def test_combining_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]

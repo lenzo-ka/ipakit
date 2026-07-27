@@ -214,6 +214,10 @@ class Segment:
     def _vocalic(self, constituent: Constituent) -> bool:
         return self._manner(constituent) == "vowel"
 
+    def _airstream(self, constituent: Constituent) -> str | None:
+        phone = self._require_features().get_phone(constituent.base)
+        return phone.features.get("airstream") if phone else None
+
     def _phase_blocks(self) -> list[tuple[int, int]]:
         """Maximal same-manner runs of constituents, as (start, end) slices."""
         blocks: list[tuple[int, int]] = []
@@ -326,7 +330,7 @@ class Segment:
             return Kind.CHAIN
         blocks = self._phase_blocks()
         manners = [self._manner(self.constituents[s]) for s, _ in blocks]
-        if any(self._manner(c) == "click" for c in self.constituents):
+        if any(self._airstream(c) == "velaric" for c in self.constituents):
             return Kind.CLICK_ACCOMPANIMENT
         if len(blocks) == 1:
             return Kind.DOUBLE_ARTICULATION

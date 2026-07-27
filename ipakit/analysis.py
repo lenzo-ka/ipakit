@@ -148,7 +148,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
         Examples:
             >>> ipakit.minimal_pairs("p")
-            [('ʘ', 'manner', 'click'), ('ɸ', 'manner', 'fricative'), ...]
+            [('t', 'place', 'alveolar'), ('k͡p', 'place', 'bilabial+velar'), ...]
 
         Args:
             phone: The reference phone

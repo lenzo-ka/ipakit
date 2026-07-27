@@ -41,13 +41,13 @@
       <value name="fricative" offset="0.80" short="fri" href="Fricative"/>
       <value name="plosive" offset="1.00" short="plo" alias="stop" href="Plosive"/>
       <value name="affricate" offset="0.95" short="aff" href="Affricate"/>
-      <value name="click" offset="1.00" short="clk" href="Click_consonant"/>  <!-- airstream mechanism leaking into the constriction axis; kept for compat -->
     </feature>
 
     <feature name="airstream" type="categorical" short="air" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
       <value name="pulmonic" short="pul" href="Pulmonic_consonant"/>
       <value name="ejective" short="eje" href="Ejective_consonant"/>
       <value name="implosive" short="imp" href="Implosive_consonant"/>
+      <value name="velaric" short="vel" href="Click_consonant"/>  <!-- velaric ingressive: the click airstream -->
     </feature>
 
     <feature name="place" axis="+x" short="plc" desc="Where articulation occurs" href="Place_of_articulation">
@@ -224,10 +224,10 @@
     <phone name="ŋ" manner="nasal" place="velar" voiced="+" href="Voiced_velar_nasal"/>
     <phone name="œ" manner="vowel" height="open-mid" backness="front" rounded="+" href="Open-mid_front_rounded_vowel"/>
     <phone name="ť" manner="plosive" place="alveolar" airstream="ejective" href="Alveolar_ejective"/>
-    <phone name="ǀ" manner="click" place="dental" href="Dental_click"/>
-    <phone name="ǁ" manner="click" place="alveolar" lateral="+" href="Lateral_click"/>
-    <phone name="ǂ" manner="click" place="postalveolar" href="Palatal_click"/>
-    <phone name="ǃ" manner="click" place="alveolar" href="Alveolar_click"/>
+    <phone name="ǀ" manner="plosive" airstream="velaric" place="dental" href="Dental_click"/>
+    <phone name="ǁ" manner="plosive" airstream="velaric" place="alveolar" lateral="+" href="Lateral_click"/>
+    <phone name="ǂ" manner="plosive" airstream="velaric" place="postalveolar" href="Palatal_click"/>
+    <phone name="ǃ" manner="plosive" airstream="velaric" place="alveolar" href="Alveolar_click"/>
     <phone name="ȡ" manner="plosive" place="alveolo-palatal" voiced="+" href="Voiced_alveolo-palatal_plosive"/>
     <phone name="ȴ" manner="approximant" place="alveolo-palatal" voiced="+" lateral="+" href="Voiced_alveolo-palatal_lateral_approximant"/>
 
@@ -298,7 +298,7 @@
 
     <phone name="ʔ" manner="plosive" place="glottal" href="Glottal_stop"/>
     <phone name="ʕ" manner="fricative" place="pharyngeal" voiced="+" href="Voiced_pharyngeal_fricative"/>
-    <phone name="ʘ" manner="click" place="bilabial" href="Bilabial_click"/>
+    <phone name="ʘ" manner="plosive" airstream="velaric" place="bilabial" href="Bilabial_click"/>
     <phone name="ʙ" manner="trill" place="bilabial" voiced="+" href="Voiced_bilabial_trill"/>
     <phone name="ʛ" manner="plosive" place="uvular" voiced="+" airstream="implosive" href="Voiced_uvular_implosive"/>
     <phone name="ʜ" manner="fricative" place="epiglottal" href="Voiceless_epiglottal_fricative"/>

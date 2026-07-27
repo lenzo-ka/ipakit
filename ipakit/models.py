@@ -61,6 +61,35 @@ class Feature:
         ]
         return {v: i for i, v in enumerate(scale)}
 
+    @functools.cached_property
+    def _anchor_axis(self) -> str | None:
+        """The coordinate this feature's values are anchored on, if any."""
+        for attr in ("arc", "offset"):
+            if any(attr in coords for coords in self.coordinates.values()):
+                return attr
+        return None
+
+    @functools.cached_property
+    def _anchor_span(self) -> float:
+        attr = self._anchor_axis
+        if attr is None:
+            return 0.0
+        vals = [c[attr] for c in self.coordinates.values() if attr in c]
+        return (max(vals) - min(vals)) if len(vals) > 1 else 0.0
+
+    def _anchor_distance(self, v1: str, v2: str) -> float | None:
+        """Distance between two values by their physical anchors, scaled to
+        the feature's own span so it stays in [0, 1]. None if either value
+        is unanchored (the feature then falls back to scale index)."""
+        attr = self._anchor_axis
+        if attr is None or not self._anchor_span:
+            return None
+        c1 = self.coordinates.get(self.value_aliases.get(v1, v1), {}).get(attr)
+        c2 = self.coordinates.get(self.value_aliases.get(v2, v2), {}).get(attr)
+        if c1 is None or c2 is None:
+            return None
+        return min(abs(c1 - c2) / self._anchor_span, 1.0)
+
     def expand(self, value: str) -> tuple[str, ...]:
         """A value's components: the value itself, or its ordered parts for
         a combining value (``bilabial+velar`` -> ``(bilabial, velar)``).
@@ -137,6 +166,13 @@ class Feature:
             return 0.0
         if v1 is None or v2 is None:
             return 1.0
+        # Anchored features measure distance in physical tract space
+        # rather than by scale index: the step between two values is what
+        # anatomy says it is, not 1/(n-1). This keeps place and backness
+        # commensurable (both are positions on one arc) and makes existing
+        # distances stable when a value is added to the inventory.
+        if (anchored := self._anchor_distance(v1, v2)) is not None:
+            return anchored
         if self.is_ordinal:
             idx = self._value_index
             if v1 in idx and v2 in idx:
