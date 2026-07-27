@@ -432,7 +432,7 @@ def nearest_phones(
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('ɸ', 0.005), ('f', 0.008), ('p͡f', 0.008)]
+        [('ɸ', 0.005), ('f', 0.009), ('p͡f', 0.009)]
     """
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 

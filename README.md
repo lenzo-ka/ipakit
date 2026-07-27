@@ -36,7 +36,7 @@ ipakit.features("p")            # {'manner': 'plosive', 'place': 'bilabial', ...
 
 # Phonetic distance (0.0 identical … 1.0 maximally different)
 ipakit.distance("p", "b")       # 0.043   (differ only in voicing)
-ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.008), ('p͡f', 0.008)]
+ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.009), ('p͡f', 0.009)]
 ipakit.word_similarity("kæt", "kæd")   # 0.986
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
