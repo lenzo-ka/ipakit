@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
 
@@ -24,6 +24,11 @@ class Feature:
     default: str | None = None
     type: str = "ordinal"  # declared value-set type (from XML); see is_ordinal
     desc: str | None = None  # Brief description
+    # Values that are display names over several true values (a combined
+    # place like labial-velar over its two articulations). They are valid
+    # values but hold NO position on the ordinal scale - an overlap is not
+    # a point on the continuum - and compare by expansion.
+    expansions: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"
@@ -34,8 +39,14 @@ class Feature:
 
     @functools.cached_property
     def _value_index(self) -> dict[str, int]:
-        """value -> declaration-order index, for O(1) ordinal distance."""
-        return {v: i for i, v in enumerate(self.values)}
+        """value -> scale index, for O(1) ordinal distance.
+
+        Expanding values (combined places) are skipped: they are display
+        names over several true values, not points on the continuum, so
+        they must not pad the scale between their neighbours.
+        """
+        scale = [v for v in self.values if v not in self.expansions]
+        return {v: i for i, v in enumerate(scale)}
 
     @property
     def is_binary(self) -> bool:
@@ -58,6 +69,10 @@ class Feature:
         double articulation's places): the distance is then the directional
         best-match mean, max of the two directions.
         """
+        if isinstance(v1, str) and v1 in self.expansions:
+            v1 = self.expansions[v1]
+        if isinstance(v2, str) and v2 in self.expansions:
+            v2 = self.expansions[v2]
         if isinstance(v1, tuple) or isinstance(v2, tuple):
             c1 = v1 if isinstance(v1, tuple) else (v1,)
             c2 = v2 if isinstance(v2, tuple) else (v2,)
@@ -80,7 +95,7 @@ class Feature:
             idx = self._value_index
             if v1 in idx and v2 in idx:
                 # Guard against a single-value ordinal feature (span == 0).
-                span = len(self.values) - 1
+                span = len(self._value_index) - 1
                 if span <= 0:
                     return 0.0
                 return abs(idx[v1] - idx[v2]) / span

@@ -49,9 +49,9 @@
       <value name="postalveolar" short="pav" href="Postalveolar_consonant"/>
       <value name="alveolo-palatal" short="apl" href="Alveolo-palatal_consonant"/>
       <value name="palatal" short="pal" href="Palatal_consonant"/>
-      <value name="labial-palatal" short="lpl" href="Labial%E2%80%93palatal_approximant"/>
+      <value name="labial-palatal" short="lpl" expands="bilabial palatal" href="Labial%E2%80%93palatal_approximant"/>
       <value name="velar" short="vel" href="Velar_consonant"/>
-      <value name="labial-velar" short="lbv" href="Labial%E2%80%93velar_consonant"/>
+      <value name="labial-velar" short="lbv" expands="bilabial velar" href="Labial%E2%80%93velar_consonant"/>
       <value name="uvular" short="uvu" href="Uvular_consonant"/>
       <value name="pharyngeal" short="pha" href="Pharyngeal_consonant"/>
       <value name="epiglottal" short="epi" href="Epiglottal_consonant"/>

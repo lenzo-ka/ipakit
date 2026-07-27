@@ -119,10 +119,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         self._feature_to_short[(name, val)] = short
                 else:
                     values = []
+                    expansions: dict[str, tuple[str, ...]] = {}
                     self._value_aliases[name] = {}
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):
                             values.append(val_name)
+                            if expands := v.get("expands"):
+                                expansions[val_name] = tuple(expands.split())
                             if alias := v.get("alias"):
                                 self._value_aliases[name][alias] = val_name
                             if vshort := v.get("short"):
@@ -132,7 +135,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 default = feat_elem.get("default") or self._type_defaults.get(feat_type)
                 desc = feat_elem.get("desc")
                 self.features[name] = Feature(
-                    name=name, values=values, default=default, type=feat_type, desc=desc
+                    name=name,
+                    values=values,
+                    default=default,
+                    type=feat_type,
+                    desc=desc,
+                    expansions=expansions if feat_type not in self.types else {},
                 )
 
         # Load elements by class (plural section, singular child = section[:-1])
