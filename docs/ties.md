@@ -11,7 +11,7 @@ ipakit assigns the two IPA tie glyphs distinct senses. Standard IPA treats them 
 
 A tie's *presence* is contrastive and is never added or removed by normalization: `t͡s` is one segment, `ts` is a two-segment cluster — different objects, and no alias equates them.
 
-The spacing undertie `‿` (U+203F) is a different symbol entirely: the IPA **linking** mark (absence of a break) between words — French liaison is one use. It is a separator-level mark, not a tie.
+The spacing undertie `‿` (U+203F) is a different symbol entirely: the IPA **linking** mark (absence of a break) between words — French liaison is one use. It is a separator-level mark, not a tie: it tokenizes as its own boundary token (`lez‿ami` → `l e z ‿ a m i`) so marked text round-trips faithfully, never glues onto a segment, never enters one, and is **transparent to distance** — `word_distance("lez‿ami", "lezami") = 0`; a boundary relation costs no alignment. (Its eventual structural home is a typed word-tier juncture, when a Word representation exists.)
 
 ## Precedence
 
@@ -47,6 +47,10 @@ The flat projection is deliberately a summary, not the whole story. The structur
 ## Normalizing tieless input
 
 `normalize_ipa` treats whitespace-separated groups as asserted units and inserts ties by a documented heuristic: adjacent vowels bind sequentially (`"eɪ"` → `e͜ɪ`), anything else fuses (`"ts"` → `t͡s`). An explicitly written tie always wins. The heuristic output round-trips: `e͜ɪ` resolves to the registered `e͡ɪ` through its alias.
+
+## Agreement is reported, never refereed
+
+Composition is intent-driven: a voicing-disagreeing tie like `t͡ɮ` is a legitimate object, and the library does not judge well-formedness. The diagnostic read is `Segment.disagreements()` — the features whose values differ across the unit's constituents, straight from the union bag: `t͡ɮ` reports `voiced=('-','+')`; a double articulation naturally "disagrees" in place; an atomic unit reports nothing.
 
 ## Distance is structural
 
