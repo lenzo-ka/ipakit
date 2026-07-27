@@ -76,7 +76,7 @@ class TestGetFeatures:
         feats_lateral_affricate = ipa.get_features("t͡ɬ")
         assert feats_lateral_affricate["manner"] == "affricate"
         assert feats_lateral_affricate["place"] == "alveolar"
-        assert feats_lateral_affricate["lateral"] == "+"
+        assert feats_lateral_affricate["channel"] == "lateral"
         feats_labial_velar = ipa.get_features("ɡ͡b")
         assert feats_labial_velar["manner"] == "plosive"
         assert feats_labial_velar["place"] == "bilabial+velar"

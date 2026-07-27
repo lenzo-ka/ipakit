@@ -128,7 +128,7 @@ def _metric_bundle(
     )
     feats["laterality"] = (
         "+"
-        if (bundle.get("lateral") == "+" or bundle.get("release") == "lateral")
+        if (bundle.get("channel") == "lateral" or bundle.get("release") == "lateral")
         else "-"
     )
     return feats, tuple(components)

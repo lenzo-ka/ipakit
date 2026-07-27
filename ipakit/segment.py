@@ -345,7 +345,7 @@ class Segment:
             block_start, block_end = blocks[1]
             if any(
                 (p := self._require_features().get_phone(c.base))
-                and p.features.get("lateral") == "+"
+                and p.features.get("channel") == "lateral"
                 for c in self.constituents[block_start:block_end]
             ):
                 return Kind.LATERAL_RELEASE

@@ -110,6 +110,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     continue
                 feat_type = feat_elem.get("type", "ordinal")
                 feat_short = feat_elem.get("short", name[:DEFAULT_SHORT_NAME_LEN])
+                offscale: set[str] = set()
+                coordinates: dict[str, dict[str, float]] = {}
+                articulators: dict[str, str] = {}
                 if feat_type in self.types:
                     values = self.types[feat_type]
                     # Auto-generate shorts for typed features: +feat, -feat, 0feat
@@ -119,9 +122,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         self._feature_to_short[(name, val)] = short
                 else:
                     values = []
-                    offscale: set[str] = set()
-                    coordinates: dict[str, dict[str, float]] = {}
-                    articulators: dict[str, str] = {}
                     self._value_aliases[name] = {}
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):

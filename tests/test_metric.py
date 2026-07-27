@@ -396,3 +396,75 @@ class TestProperties:
         # Closer to the labial-velar unit than to a plain velar stop's
         # place-mate with no shared articulation structure.
         assert D(ipa, "w", "ɡ͡b") < D(ipa, "w", "t͡s")
+
+
+class TestChannelAxis:
+    """The +z axis: where the airflow channel sits in cross-section --
+    lateral (out), flat, grooved (in). The mid-sagittal plane projects
+    this away, so it has an ordering but no contour."""
+
+    def test_sibilants_group_together(self, ipa: IPAFeatures) -> None:
+        # Both grooved and one place step apart, against a channel change:
+        # s~ʃ must be nearer than s~θ. Before the axis existed, s and θ
+        # differed only by a tiny place step and scored near-identical.
+        assert D(ipa, "s", "ʃ") < D(ipa, "s", "θ")
+
+    def test_channel_outranks_a_small_place_move(self, ipa: IPAFeatures) -> None:
+        assert D(ipa, "s", "θ") > D(ipa, "t", "d") / 4  # channel is not noise
+        assert D(ipa, "s", "ɬ") > D(ipa, "s", "ʃ")  # lateral is further still
+
+    def test_axis_is_ordered_out_to_in(self, ipa: IPAFeatures) -> None:
+        ch = ipa.features["channel"]
+        assert ch.axis == "+z"
+        assert ch.values == ["lateral", "flat", "grooved"]
+        # Adjacent steps are smaller than the full span.
+        assert ch.value_distance("lateral", "flat") < ch.value_distance(
+            "lateral", "grooved"
+        )
+
+    def test_laterality_bridge_still_works(self, ipa: IPAFeatures) -> None:
+        # tˡ (lateral release) is nearer l than plain t is.
+        assert D(ipa, "tˡ", "l") < D(ipa, "t", "l")
+
+
+class TestDataIntegrity:
+    """Guards for facts that can silently disagree with the model. Each
+    of these caught a real defect when first written."""
+
+    def test_typed_features_carry_no_per_value_tables(self, ipa: IPAFeatures) -> None:
+        # The loader once built these inside the non-typed branch and read
+        # them outside it, so `voiced` inherited backness coordinates and
+        # `syllabic` inherited articulator ones.
+        for name, feat in ipa.features.items():
+            if feat.type in ("binary", "ternary"):
+                assert not feat.coordinates, name
+                assert not feat.articulators, name
+
+    def test_anchored_features_are_fully_anchored(self, ipa: IPAFeatures) -> None:
+        # A partially anchored feature silently mixes two distance regimes:
+        # anchored pairs measure in tract space, the rest fall back to
+        # declaration order.
+        for name, feat in ipa.features.items():
+            if not feat.coordinates:
+                continue
+            for attr in ("arc", "offset"):
+                anchored = {v for v, c in feat.coordinates.items() if attr in c}
+                if not anchored:
+                    continue
+                scale = [
+                    v
+                    for v in feat.values
+                    if feat.COMBINER not in v and v not in feat.offscale
+                ]
+                assert not [v for v in scale if v not in anchored], (name, attr)
+
+    def test_aliases_resolve_to_something(self, ipa: IPAFeatures) -> None:
+        for alias, target in ipa.ligature_map.items():
+            assert target in ipa.phones or target in ipa.diacritics, alias
+
+    def test_phone_features_are_declared(self, ipa: IPAFeatures) -> None:
+        from ipakit.constants import METADATA_ATTRS
+
+        declared = set(ipa.features) | METADATA_ATTRS | {"class"}
+        for sym, phone in ipa.phones.items():
+            assert not set(phone.features) - declared, sym

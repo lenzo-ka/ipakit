@@ -73,7 +73,10 @@ class TestDisagreements:
         assert ipa.segment("a").disagreements() == {}
         assert ipa.segment("tʲ").disagreements() == {}
 
-    def test_agreeing_fusion_has_only_structural_rows(self, ipa: IPAFeatures) -> None:
-        # t͡s agrees on everything except the phase manners.
+    def test_agreeing_fusion_reports_only_its_phase_differences(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # t͡s agrees on everything except what its two phases differ in:
+        # the manner, and the channel (a stop has no groove, /s/ does).
         d = ipa.segment("t͡s").disagreements()
-        assert set(d) == {"manner"}
+        assert set(d) == {"manner", "channel"}

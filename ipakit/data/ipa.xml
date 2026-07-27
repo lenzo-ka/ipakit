@@ -33,7 +33,7 @@
   <features>
     <feature name="manner" axis="+constriction" short="mnr" desc="How airflow is constricted" href="Manner_of_articulation">
       <value name="silence" short="sil" offscale="+" href="Pause_(linguistics)"/>  <!-- no position: absence of signal, equidistant from every manner -->
-      <value name="vowel" short="vow" href="Vowel"/>
+      <value name="vowel" offset="0.40" short="vow" href="Vowel"/>
       <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
       <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
       <value name="tap" offset="0.75" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
@@ -87,7 +87,11 @@
 
     <feature name="voiced" short="voi" type="binary" desc="Vocal cord vibration" href="Voice_(phonetics)"/>
     <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness"/>
-    <feature name="lateral" short="lat" type="binary" desc="Air flows around tongue sides" href="Lateral_consonant"/>
+    <feature name="channel" axis="+z" short="chn" default="flat" desc="Where the airflow channel sits in cross-section: the mid-sagittal plane projects this axis away, so it has no contour, only an ordering" href="Sibilant">
+      <value name="lateral" short="lat" href="Lateral_consonant"/>  <!-- out: airflow at the sides, midline occluded -->
+      <value name="flat" short="flt" href="Fricative"/>  <!-- diffuse central airflow -->
+      <value name="grooved" short="grv" alias="sibilant" href="Sibilant"/>  <!-- in: concentrated central jet -->
+    </feature>
     <feature name="retroflex" short="rtf" type="binary" desc="Tongue tip curled back" href="Retroflex_consonant"/>
     <feature name="velarized" short="vlz" type="binary" desc="Secondary velar constriction" href="Velarization"/>
     <feature name="nasalized" short="nsl" type="binary" desc="Air flows through nose" href="Nasalization"/>
@@ -101,15 +105,15 @@
     <!-- Diacritic features -->
     <feature name="tongue-root" short="trt" type="ternary" desc="Tongue root position (ATR/RTR)" href="Advanced_and_retracted_tongue_root"/>
     <feature name="fronting" short="frn" type="ternary" desc="Forward/backward shift" href="Relative_articulation#Fronting_and_backing"/>
-    <feature name="articulator" type="categorical" short="art" desc="Active articulator: the organ that moves to make the constriction" href="Place_of_articulation#Active_articulator">
-      <value name="lower-lip" short="llp" href="Labial_consonant"/>
-      <value name="tongue-tip" short="ttp" alias="apical" href="Apical_consonant"/>
-      <value name="tongue-blade" short="tbl" alias="laminal" href="Laminal_consonant"/>
-      <value name="tongue-front" short="tfr" href="Palatal_consonant"/>
-      <value name="tongue-dorsum" short="tdo" href="Dorsal_consonant"/>
-      <value name="tongue-root" short="trt" href="Radical_consonant"/>
-      <value name="epiglottis" short="epg" href="Epiglottal_consonant"/>
-      <value name="vocal-folds" short="vfd" href="Glottal_consonant"/>
+    <feature name="articulator" axis="+x" short="art" desc="Active articulator: the organ that moves to make the constriction, ordered by its home position along the tract" href="Place_of_articulation#Active_articulator">
+      <value name="lower-lip" arc="0.00" short="llp" href="Labial_consonant"/>
+      <value name="tongue-tip" arc="0.13" short="ttp" alias="apical" href="Apical_consonant"/>
+      <value name="tongue-blade" arc="0.19" short="tbl" alias="laminal" href="Laminal_consonant"/>
+      <value name="tongue-front" arc="0.32" short="tfr" href="Palatal_consonant"/>
+      <value name="tongue-dorsum" arc="0.45" short="tdo" href="Dorsal_consonant"/>
+      <value name="tongue-root" arc="0.74" short="trt" href="Radical_consonant"/>
+      <value name="epiglottis" arc="0.87" short="epg" href="Epiglottal_consonant"/>
+      <value name="vocal-folds" arc="1.00" short="vfd" href="Glottal_consonant"/>
     </feature>
     <feature name="centralized" short="ctz" type="binary" desc="Moved toward center" href="Relative_articulation#Centralization"/>
     <feature name="labialized" short="lbz" type="binary" desc="Secondary lip rounding" href="Labialization"/>
@@ -205,21 +209,21 @@
     <phone name="i" manner="vowel" height="close" backness="front" href="Close_front_unrounded_vowel"/>
     <phone name="j" manner="approximant" place="palatal" voiced="+" href="Voiced_palatal_approximant"/>
     <phone name="k" manner="plosive" place="velar" href="Voiceless_velar_plosive"/>
-    <phone name="l" manner="approximant" place="alveolar" voiced="+" lateral="+" href="Voiced_alveolar_lateral_approximant"/>
+    <phone name="l" manner="approximant" place="alveolar" voiced="+" channel="lateral" href="Voiced_alveolar_lateral_approximant"/>
     <phone name="m" manner="nasal" place="bilabial" voiced="+" href="Voiced_bilabial_nasal"/>
     <phone name="n" manner="nasal" place="alveolar" voiced="+" href="Voiced_alveolar_nasal"/>
     <phone name="o" manner="vowel" height="close-mid" backness="back" rounded="+" href="Close-mid_back_rounded_vowel"/>
     <phone name="p" manner="plosive" place="bilabial" href="Voiceless_bilabial_plosive"/>
     <phone name="q" manner="plosive" place="uvular" href="Voiceless_uvular_plosive"/>
     <phone name="r" manner="trill" place="alveolar" voiced="+" href="Voiced_alveolar_trill"/>
-    <phone name="s" manner="fricative" place="alveolar" href="Voiceless_alveolar_fricative"/>
+    <phone name="s" channel="grooved" manner="fricative" place="alveolar" href="Voiceless_alveolar_fricative"/>
     <phone name="t" manner="plosive" place="alveolar" href="Voiceless_alveolar_plosive"/>
     <phone name="u" manner="vowel" height="close" backness="back" rounded="+" href="Close_back_rounded_vowel"/>
     <phone name="v" manner="fricative" place="labiodental" voiced="+" href="Voiced_labiodental_fricative"/>
     <phone name="w" manner="approximant" place="bilabial+velar" voiced="+" rounded="+" href="Voiced_labial%E2%80%93velar_approximant"/>
     <phone name="x" manner="fricative" place="velar" href="Voiceless_velar_fricative"/>
     <phone name="y" manner="vowel" height="close" backness="front" rounded="+" href="Close_front_rounded_vowel"/>
-    <phone name="z" manner="fricative" place="alveolar" voiced="+" href="Voiced_alveolar_fricative"/>
+    <phone name="z" channel="grooved" manner="fricative" place="alveolar" voiced="+" href="Voiced_alveolar_fricative"/>
     <phone name="ä" manner="vowel" height="open" backness="central" href="Open_central_unrounded_vowel"/>
     <phone name="æ" manner="vowel" height="near-open" backness="front" href="Near-open_front_unrounded_vowel"/>
     <phone name="ç" manner="fricative" place="palatal" href="Voiceless_palatal_fricative"/>
@@ -230,11 +234,11 @@
     <phone name="œ" manner="vowel" height="open-mid" backness="front" rounded="+" href="Open-mid_front_rounded_vowel"/>
     <phone name="ť" manner="plosive" place="alveolar" airstream="ejective" href="Alveolar_ejective"/>
     <phone name="ǀ" manner="plosive" airstream="velaric" place="dental" href="Dental_click"/>
-    <phone name="ǁ" manner="plosive" airstream="velaric" place="alveolar" lateral="+" href="Lateral_click"/>
+    <phone name="ǁ" manner="plosive" airstream="velaric" place="alveolar" channel="lateral" href="Lateral_click"/>
     <phone name="ǂ" manner="plosive" airstream="velaric" place="postalveolar" href="Palatal_click"/>
     <phone name="ǃ" manner="plosive" airstream="velaric" place="alveolar" href="Alveolar_click"/>
     <phone name="ȡ" manner="plosive" place="alveolo-palatal" voiced="+" href="Voiced_alveolo-palatal_plosive"/>
-    <phone name="ȴ" manner="approximant" place="alveolo-palatal" voiced="+" lateral="+" href="Voiced_alveolo-palatal_lateral_approximant"/>
+    <phone name="ȴ" manner="approximant" place="alveolo-palatal" voiced="+" channel="lateral" href="Voiced_alveolo-palatal_lateral_approximant"/>
 
     <phone name="ȶ" manner="plosive" place="alveolo-palatal" href="Voiceless_alveolo-palatal_plosive"/>
     <phone name="ɐ" manner="vowel" height="near-open" backness="central" href="Near-open_central_vowel"/>
@@ -242,7 +246,7 @@
     <phone name="ɒ" manner="vowel" height="open" backness="back" rounded="+" href="Open_back_rounded_vowel"/>
     <phone name="ɓ" manner="plosive" place="bilabial" voiced="+" airstream="implosive" href="Voiced_bilabial_implosive"/>
     <phone name="ɔ" manner="vowel" height="open-mid" backness="back" rounded="+" href="Open-mid_back_rounded_vowel"/>
-    <phone name="ɕ" manner="fricative" place="alveolo-palatal" href="Voiceless_alveolo-palatal_fricative"/>
+    <phone name="ɕ" channel="grooved" manner="fricative" place="alveolo-palatal" href="Voiceless_alveolo-palatal_fricative"/>
     <phone name="ɖ" manner="plosive" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_plosive"/>
     <phone name="ɗ" manner="plosive" place="alveolar" voiced="+" airstream="implosive" href="Voiced_alveolar_implosive"/>
     <phone name="ɘ" manner="vowel" height="close-mid" backness="central" href="Close-mid_central_unrounded_vowel"/>
@@ -262,10 +266,10 @@
     <phone name="ɨ" manner="vowel" height="close" backness="central" href="Close_central_unrounded_vowel"/>
     <phone name="ɪ" manner="vowel" height="near-close" backness="near-front" href="Near-close_near-front_unrounded_vowel"/>
 
-    <phone name="ɫ" manner="approximant" place="alveolar" voiced="+" lateral="+" velarized="+" href="Voiced_velarized_alveolar_lateral_approximant"/>
-    <phone name="ɬ" manner="fricative" place="alveolar" lateral="+" href="Voiceless_alveolar_lateral_fricative"/>
-    <phone name="ɭ" manner="approximant" place="alveolar" voiced="+" lateral="+" retroflex="+" href="Voiced_retroflex_lateral_approximant"/>
-    <phone name="ɮ" manner="fricative" place="alveolar" voiced="+" lateral="+" href="Voiced_alveolar_lateral_fricative"/>
+    <phone name="ɫ" manner="approximant" place="alveolar" voiced="+" channel="lateral" velarized="+" href="Voiced_velarized_alveolar_lateral_approximant"/>
+    <phone name="ɬ" manner="fricative" place="alveolar" channel="lateral" href="Voiceless_alveolar_lateral_fricative"/>
+    <phone name="ɭ" manner="approximant" place="alveolar" voiced="+" channel="lateral" retroflex="+" href="Voiced_retroflex_lateral_approximant"/>
+    <phone name="ɮ" manner="fricative" place="alveolar" voiced="+" channel="lateral" href="Voiced_alveolar_lateral_fricative"/>
     <phone name="ɯ" manner="vowel" height="close" backness="back" href="Close_back_unrounded_vowel"/>
     <phone name="ɰ" manner="approximant" place="velar" voiced="+" href="Voiced_velar_approximant"/>
     <phone name="ɱ" manner="nasal" place="labiodental" voiced="+" href="Voiced_labiodental_nasal"/>
@@ -276,7 +280,7 @@
     <phone name="ɶ" manner="vowel" height="open" backness="front" rounded="+" href="Open_front_rounded_vowel"/>
     <phone name="ɸ" manner="fricative" place="bilabial" href="Voiceless_bilabial_fricative"/>
     <phone name="ɹ" manner="approximant" place="alveolar" voiced="+" href="Voiced_alveolar_approximant"/>
-    <phone name="ɺ" manner="tap" place="alveolar" voiced="+" lateral="+" href="Voiced_alveolar_lateral_flap"/>
+    <phone name="ɺ" manner="tap" place="alveolar" voiced="+" channel="lateral" href="Voiced_alveolar_lateral_flap"/>
     <phone name="ɻ" manner="approximant" place="postalveolar" voiced="+" retroflex="+" href="Voiced_retroflex_approximant"/>
 
     <phone name="ɽ" manner="tap" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_flap"/>
@@ -284,8 +288,8 @@
     <phone name="ⱱ" manner="tap" place="labiodental" voiced="+" href="Voiced_labiodental_flap"/>
     <phone name="ʀ" manner="trill" place="uvular" voiced="+" href="Voiced_uvular_trill"/>
     <phone name="ʁ" manner="fricative" place="uvular" voiced="+" href="Voiced_uvular_fricative"/>
-    <phone name="ʂ" manner="fricative" place="alveolar" retroflex="+" href="Voiceless_retroflex_fricative"/>
-    <phone name="ʃ" manner="fricative" place="postalveolar" href="Voiceless_postalveolar_fricative"/>
+    <phone name="ʂ" channel="grooved" manner="fricative" place="alveolar" retroflex="+" href="Voiceless_retroflex_fricative"/>
+    <phone name="ʃ" channel="grooved" manner="fricative" place="postalveolar" href="Voiceless_postalveolar_fricative"/>
     <phone name="ʄ" manner="plosive" place="palatal" voiced="+" airstream="implosive" href="Voiced_palatal_implosive"/>
 
     <phone name="ʈ" manner="plosive" place="alveolar" retroflex="+" href="Voiceless_retroflex_plosive"/>
@@ -295,11 +299,11 @@
     <phone name="ʋ" manner="approximant" place="labiodental" voiced="+" href="Voiced_labiodental_approximant"/>
     <phone name="ʌ" manner="vowel" height="open-mid" backness="back" href="Open-mid_back_unrounded_vowel"/>
     <phone name="ʍ" manner="approximant" place="bilabial+velar" rounded="+" href="Voiceless_labial%E2%80%93velar_fricative"/>
-    <phone name="ʎ" manner="approximant" place="palatal" voiced="+" lateral="+" href="Voiced_palatal_lateral_approximant"/>
+    <phone name="ʎ" manner="approximant" place="palatal" voiced="+" channel="lateral" href="Voiced_palatal_lateral_approximant"/>
     <phone name="ʏ" manner="vowel" height="near-close" backness="near-front" rounded="+" href="Near-close_near-front_rounded_vowel"/>
-    <phone name="ʐ" manner="fricative" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_fricative"/>
-    <phone name="ʑ" manner="fricative" place="alveolo-palatal" voiced="+" href="Voiced_alveolo-palatal_fricative"/>
-    <phone name="ʒ" manner="fricative" place="postalveolar" voiced="+" href="Voiced_postalveolar_fricative"/>
+    <phone name="ʐ" channel="grooved" manner="fricative" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_fricative"/>
+    <phone name="ʑ" channel="grooved" manner="fricative" place="alveolo-palatal" voiced="+" href="Voiced_alveolo-palatal_fricative"/>
+    <phone name="ʒ" channel="grooved" manner="fricative" place="postalveolar" voiced="+" href="Voiced_postalveolar_fricative"/>
 
     <phone name="ʔ" manner="plosive" place="glottal" href="Glottal_stop"/>
     <phone name="ʕ" manner="fricative" place="pharyngeal" voiced="+" href="Voiced_pharyngeal_fricative"/>
@@ -308,7 +312,7 @@
     <phone name="ʛ" manner="plosive" place="uvular" voiced="+" airstream="implosive" href="Voiced_uvular_implosive"/>
     <phone name="ʜ" manner="fricative" place="epiglottal" href="Voiceless_epiglottal_fricative"/>
     <phone name="ʝ" manner="fricative" place="palatal" voiced="+" href="Voiced_palatal_fricative"/>
-    <phone name="ʟ" manner="approximant" place="velar" voiced="+" lateral="+" href="Voiced_velar_lateral_approximant"/>
+    <phone name="ʟ" manner="approximant" place="velar" voiced="+" channel="lateral" href="Voiced_velar_lateral_approximant"/>
     <phone name="ʡ" manner="plosive" place="epiglottal" href="Epiglottal_plosive"/>
     <phone name="ʢ" manner="fricative" place="epiglottal" voiced="+" href="Voiced_epiglottal_fricative"/>
     <phone name="ɧ" manner="fricative" place="postalveolar" href="Sj-sound"/>
