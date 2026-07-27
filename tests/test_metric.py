@@ -197,6 +197,30 @@ class TestReferenceFrame:
         )
 
 
+class TestSagittalBridges:
+    """The frame's axes are stored twice (place/backness on x,
+    manner-constriction/height on y) in features that never co-occur;
+    the sagittal bridges project both classes onto shared scalars so
+    cross-class spatial proximity is visible."""
+
+    def test_glide_nearer_its_vowel_than_a_stop_is(self, ipa: IPAFeatures) -> None:
+        # j and i are nearly the same articulation; before the bridges a
+        # voiceless alveolar stop scored closer to i than its own glide.
+        assert D(ipa, "j", "i") < D(ipa, "t", "i")
+        assert D(ipa, "w", "u") < D(ipa, "k", "u")
+
+    def test_tongue_body_proximity_is_graded(self, ipa: IPAFeatures) -> None:
+        # velar consonant ~ back vowel closer than alveolar ~ back vowel.
+        assert D(ipa, "k", "u") < D(ipa, "t", "u")
+
+    def test_secondary_articulation_does_not_relocate_the_body(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # ʲ shades the place term; the x-bridge reads primary components
+        # only, so the t < tʲ < c ordering survives the bridges.
+        assert D(ipa, "t", "tʲ") < D(ipa, "tʲ", "c") < D(ipa, "t", "c")
+
+
 class TestProperties:
     PROBES = [
         "a",

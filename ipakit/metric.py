@@ -77,6 +77,15 @@ _EXCLUDED_KEYS = METADATA_ATTRS | {"class", "place", "nasalized"} | _SECONDARY_K
 
 PlaceComponents = tuple[tuple[str, float], ...]
 
+# Sagittal bridges: the reference frame's axes are each stored twice --
+# x as place (consonants) and backness (vowels), y as manner-constriction
+# and height -- in features that never co-occur, so cross-class spatial
+# proximity (j~i, w~u, k~u) is invisible to per-feature comparison. The
+# bridges project both classes onto shared scalars.
+# Vowel space occupies the open half of the aperture axis; consonantal
+# constriction stacks above it, approximants adjacent to close vowels.
+_VOWEL_APERTURE_TOP = 0.5
+
 
 def _metric_bundle(
     features: IPAFeatures, constituent: Constituent
@@ -115,6 +124,57 @@ def _metric_bundle(
         else "-"
     )
     return feats, tuple(components)
+
+
+def _sagittal(
+    features: IPAFeatures, bundle: dict[str, str], place_components: PlaceComponents
+) -> tuple[float | None, float | None]:
+    """(x, y) tract position in [0, 1]: x lips->glottis, y aperture
+    (0 open .. 1 closed). Consonants take x from their most posterior
+    lingual place component and y from constriction; vowels take x from
+    backness mapped into the palatal..uvular span (the classic
+    correspondence) and y from height within the open half."""
+    place_feature = features.features.get("place")
+    manner = bundle.get("manner")
+    x: float | None = None
+    y: float | None = None
+    if place_feature is not None:
+        idx = place_feature._value_index
+        span = len(idx) - 1
+        if manner == "vowel":
+            backness_feature = features.features.get("backness")
+            backness = bundle.get("backness")
+            if backness_feature is not None and backness is not None:
+                b_idx = backness_feature._value_index.get(backness)
+                b_span = len(backness_feature._value_index) - 1
+                lo, hi = idx.get("palatal"), idx.get("uvular")
+                if b_idx is not None and lo is not None and hi is not None:
+                    x = (lo + (hi - lo) * (b_idx / b_span)) / span
+        elif place_components:
+            # Primary components only: a secondary articulation shades the
+            # place term but does not relocate the tongue body.
+            pos = [idx.get(comp) for comp, w in place_components if w >= 1.0]
+            known = [i for i in pos if i is not None]
+            if known:
+                x = max(known) / span
+    manner_feature = features.features.get("manner")
+    if manner_feature is not None and manner is not None:
+        if manner == "vowel":
+            height_feature = features.features.get("height")
+            height = bundle.get("height")
+            if height_feature is not None and height is not None:
+                h_idx = height_feature._value_index.get(height)
+                h_span = len(height_feature._value_index) - 1
+                if h_idx is not None:
+                    y = _VOWEL_APERTURE_TOP * (h_idx / h_span)
+        else:
+            m_idx = manner_feature._value_index.get(manner)
+            v_idx = manner_feature._value_index.get("vowel")
+            m_span = len(manner_feature._value_index) - 1
+            if m_idx is not None and v_idx is not None and m_idx > v_idx:
+                rel = (m_idx - v_idx) / (m_span - v_idx)
+                y = _VOWEL_APERTURE_TOP + rel * (1.0 - _VOWEL_APERTURE_TOP)
+    return x, y
 
 
 def _weighted_place_distance(
@@ -158,6 +218,17 @@ def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> fl
     if include_place:
         total += _weighted_place_distance(features, p1, p2)
     count = len(keys) + (1 if include_place else 0)
+    # Sagittal bridge terms: shared x (tract position) and y (aperture)
+    # scalars make cross-class spatial proximity visible (j~i, w~u, k~u).
+    b1 = a.bundle(features, with_defaults=True)
+    b2 = b.bundle(features, with_defaults=True)
+    for s1, s2 in zip(
+        _sagittal(features, b1, p1), _sagittal(features, b2, p2), strict=True
+    ):
+        if s1 is None and s2 is None:
+            continue
+        total += abs(s1 - s2) if (s1 is not None and s2 is not None) else 1.0
+        count += 1
     return total / count if count else 1.0
 
 
