@@ -54,10 +54,13 @@ Ordinal scales ascend a declared axis, recorded per feature in the data as `axis
 | `place`, `backness` | `+x` | lips → glottis |
 | `height`, `tone` | `+y` | jaw → palate, low → high |
 | `manner` | `+constriction` | open → closed |
+| `channel` | `+z` | lateral → flat → grooved (out → in) |
 | `length` | `+t` | short → long |
 | `phonation` | `+glottal-aperture` | creaky → devoiced |
 
-The frame is a left-facing mid-sagittal section: +x along the tract, +y from jaw to palate, with the minor z axis (laterality, centrality) binary throughout.
+The frame is a left-facing mid-sagittal section: +x along the tract, +y from jaw to palate, +z from the sides to the midline.
+
+The z axis is the one the sagittal plane projects away, and it carries two facts that would otherwise be invisible or absent: laterality (airflow at the sides, midline occluded) and **sibilance** (a central groove concentrating the jet, versus flat diffuse airflow). Ordered out→in as `lateral → flat → grooved`, it is what separates `s` from `θ` — which differ in tongue cross-section, not in place. It has an ordering but no contour, and is the reason [docs/tract-anatomy.md](tract-anatomy.md) notes that grooving cannot be drawn mid-sagittally.
 
 Two kinds of value hold **no position** on their scale:
 
@@ -99,7 +102,7 @@ A bundle distance is the mean over these terms:
 - **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`.
 - **Two tract terms**, `arc` and `offset`, compared directly.
 
-**Bridge features** are derived for the comparison and never stored. They exist because one phonetic dimension can be spelled several ways: `nasality` unifies `manner=nasal`, `nasalized=+`, and `release=nasal`; `laterality` unifies `lateral=+` and `release=lateral`. Without them, `ã` and `n` share no key expressing nasality at all. With them, `ã` is nearer `n` than plain `a` is.
+**Bridge features** are derived for the comparison and never stored. They exist because one phonetic dimension can be spelled several ways: `nasality` unifies `manner=nasal`, `nasalized=+`, and `release=nasal`; `laterality` unifies `channel=lateral` and `release=lateral`. Without them, `ã` and `n` share no key expressing nasality at all. With them, `ã` is nearer `n` than plain `a` is.
 
 The tract terms exist for the same reason at the level of position. The frame's axes are each stored twice — x as `place` for consonants and `backness` for vowels, y as `manner` and `height` — in features that never co-occur. Without shared coordinates, `j` and `i` have no comparable key despite being nearly the same articulation, and a voiceless alveolar stop scored closer to /i/ than /i/'s own glide. With them the orderings hold: `d(j, i) < d(t, i)`, and `d(w, u) < d(k, u) < d(t, u)`.
 
