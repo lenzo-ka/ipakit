@@ -14,7 +14,7 @@ import functools
 import xml.etree.ElementTree as ET
 
 from ._convert import convert_greedy
-from .constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR
+from .constants import PHONEMAPS_DIR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
 
@@ -35,6 +35,13 @@ def _maps() -> tuple[dict[str, str], dict[str, str]]:
     return xs2ipa, ipa2xs
 
 
+@functools.lru_cache(maxsize=1)
+def _features():  # type: ignore[no-untyped-def]
+    from .features import IPAFeatures
+
+    return IPAFeatures()
+
+
 def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     """Convert an X-SAMPA string to IPA (greedy longest-match).
 
@@ -42,23 +49,25 @@ def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     converted instead of skipping them.
     """
     xs2ipa, _ = _maps()
-    return "".join(convert_greedy(xsampa, xs2ipa, strict=strict, what="X-SAMPA -> IPA"))
+    raw = "".join(convert_greedy(xsampa, xs2ipa, strict=strict, what="X-SAMPA -> IPA"))
+    # `_` reads back as a tie; canonicalize to house style (registered
+    # compounds get their canonical glyph, the rest the sense heuristic).
+    result: str = _features().from_wild(raw)
+    return result
 
 
 def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     """Convert an IPA string to X-SAMPA (greedy longest-match).
 
     X-SAMPA has a single tie encoding (``_``), so tie *sense* cannot
-    survive this boundary: the under-tie is projected onto the over-tie
-    here (unit-hood survives, the sequential/simultaneous distinction does
-    not), and round trips return canonical over-tie spellings
-    (``t͜s -> t_s -> t͡s``, ``u͜i -> u_i -> u͡i``). This projection is
-    legitimate only at a lossy conversion boundary; parsing never does it.
-    See docs/ties.md.
+    survive this boundary: both tie glyphs encode as ``_``. Registered
+    compounds round-trip to their house-canonical spelling (``t͡s`` and
+    ``a͜ɪ`` both survive, whatever glyph the X-SAMPA came from);
+    unregistered chains come back with the sense heuristic applied. See
+    docs/ties.md.
 
     With ``strict=True``, raise ``ValueError`` on symbols that cannot be
     converted instead of skipping them.
     """
-    ipa = ipa.replace(SEQ_TIE, TIE_BAR)
     _, ipa2xs = _maps()
     return "".join(convert_greedy(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA"))

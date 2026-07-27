@@ -50,9 +50,9 @@ class TestTIMIT:
         assert to_timit("ŋ") == ["ng"]
 
     def test_to_timit_diphthongs(self) -> None:
-        assert to_timit("e͡ɪ") == ["ey"]
-        assert to_timit("o͡ʊ") == ["ow"]
-        assert to_timit("a͡ɪ") == ["ay"]
+        assert to_timit("e͜ɪ") == ["ey"]
+        assert to_timit("o͜ʊ") == ["ow"]
+        assert to_timit("a͜ɪ") == ["ay"]
 
     def test_from_timit_basic(self) -> None:
         assert from_timit(["k", "ae", "t"]) == "kæt"
@@ -60,7 +60,7 @@ class TestTIMIT:
         assert from_timit(["sh"]) == "ʃ"
 
     def test_from_timit_word(self) -> None:
-        assert from_timit(["hh", "eh", "l", "ow"]) == "hɛlo͡ʊ"
+        assert from_timit(["hh", "eh", "l", "ow"]) == "hɛlo͜ʊ"
 
     def test_round_trip(self) -> None:
         original = "kæt"

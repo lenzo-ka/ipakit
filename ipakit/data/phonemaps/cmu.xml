@@ -25,11 +25,11 @@
     <map ipa="ɝ" cmu="ER" stress="1 2"/>
 
     <!-- Diphthongs -->
-    <map ipa="e͡ɪ" cmu="EY" stress="0 1 2"/>
-    <map ipa="o͡ʊ" cmu="OW" stress="0 1 2"/>
-    <map ipa="a͡ɪ" cmu="AY" stress="0 1 2"/>
-    <map ipa="a͡ʊ" cmu="AW" stress="0 1 2"/>
-    <map ipa="ɔ͡ɪ" cmu="OY" stress="0 1 2"/>
+    <map ipa="e͜ɪ" cmu="EY" stress="0 1 2"/>
+    <map ipa="o͜ʊ" cmu="OW" stress="0 1 2"/>
+    <map ipa="a͜ɪ" cmu="AY" stress="0 1 2"/>
+    <map ipa="a͜ʊ" cmu="AW" stress="0 1 2"/>
+    <map ipa="ɔ͜ɪ" cmu="OY" stress="0 1 2"/>
 
     <!-- Glides -->
     <map ipa="j" cmu="Y"/>

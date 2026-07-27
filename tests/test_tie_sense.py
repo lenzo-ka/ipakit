@@ -1,10 +1,10 @@
-"""Typed ties at the parse layer: sense-preserving ingest and resolution.
+"""Typed ties: strict house semantics and the wild-import boundary.
 
 The over-tie (U+0361) marks simultaneous fusion; the under-tie (U+035C)
-marks a sequential unit. The old global rewrite of under-tie to over-tie is
-retired: tie-bearing aliases resolve token-locally to their registered
-entries, unregistered under-tie chains keep their sense through the
-tokenizer, and every entry point resolves the same bytes the same way.
+marks a sequential unit. The glyph is authoritative everywhere in default
+parsing -- canonical spellings are sense-correct, no alias rewrites tie
+glyphs -- and text from other conventions (where the glyphs are
+typographic variants) imports explicitly via from_wild().
 """
 
 import pytest
@@ -17,33 +17,53 @@ def ipa() -> IPAFeatures:
     return IPAFeatures()
 
 
-# Registered names and their tie-bearing alias spellings (the legacy
-# collision set: the alias glyph contradicts the registered sense, and the
-# registered sense wins).
-ALIAS_COLLISIONS = [
+# House-canonical spellings and their glyph-variant "wild" spellings.
+WILD_VARIANTS = [
     ("t͡s", "t͜s"),
     ("d͡ʒ", "d͜ʒ"),
     ("k͡p", "k͜p"),
     ("ŋ͡m", "ŋ͜m"),
-    ("a͡ɪ", "a͜ɪ"),
-    ("o͡ʊ", "o͜ʊ"),
-    ("ʊ͡ə", "ʊ͜ə"),
+    ("a͜ɪ", "a͡ɪ"),
+    ("o͜ʊ", "o͡ʊ"),
+    ("ʊ͜ə", "ʊ͡ə"),
 ]
 
 
-class TestAliasResolution:
-    def test_aliases_resolve_at_every_entry_point(self, ipa: IPAFeatures) -> None:
-        for canonical, alias in ALIAS_COLLISIONS:
-            assert ipa.get_features(alias) == ipa.get_features(canonical)
-            assert ipa.get_features(alias), f"{alias!r} should resolve"
-            phone = ipa.get_phone(alias)
-            assert phone is not None and phone.symbol == canonical
-            assert alias in ipa
-            assert ipa.tokenize_ipa(alias) == [canonical]
-            assert ipa.parse(alias) == [(canonical, [])]
+class TestStrictGlyphAuthority:
+    def test_variant_spellings_are_not_the_registered_entry(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The glyph is authoritative: a variant spelling is a different
+        # object, not an alias of the canonical entry.
+        for canonical, variant in WILD_VARIANTS:
+            assert ipa.get_phone(variant) is None
+            assert ipa.get_features(variant) != ipa.get_features(canonical)
 
-    def test_alias_resolves_inside_a_word(self, ipa: IPAFeatures) -> None:
-        assert ipa.tokenize_ipa("at͜sa") == ["a", "t͡s", "a"]
+    def test_under_tie_variant_reads_sequential(self, ipa: IPAFeatures) -> None:
+        # t͜s is a sequential chain: first-element projection.
+        assert ipa.get_features("t͜s", with_defaults=False)["manner"] == "plosive"
+        assert ipa.segment("t͜s").sense.value == "seq"
+
+    def test_over_tie_variant_reads_simultaneous(self, ipa: IPAFeatures) -> None:
+        # a͡ɪ is a fused vowel overlay, not the registered diphthong.
+        seg = ipa.segment("a͡ɪ")
+        assert seg.sense.value == "fuse"
+
+    def test_from_wild_imports_variants(self, ipa: IPAFeatures) -> None:
+        for canonical, variant in WILD_VARIANTS:
+            assert ipa.from_wild(variant) == canonical
+
+    def test_from_wild_heuristic_for_unregistered(self, ipa: IPAFeatures) -> None:
+        assert ipa.from_wild("u͡i") == "u͜i"  # vocalic pair: sequential
+        assert ipa.from_wild("q͜χ") == "q͡χ"  # obstruents: simultaneous
+
+    def test_from_wild_preserves_house_input(self, ipa: IPAFeatures) -> None:
+        for text in ["t͡s͜a", "a͜ɪ͜ə", "n͡d͡ʒ͜a͜ɪ", "t͡ɬ"]:
+            assert ipa.from_wild(text) == text
+
+    def test_wild_word(self, ipa: IPAFeatures) -> None:
+        assert ipa.from_wild("t͜sa͡ɪ") == "t͡sa͜ɪ"
+        assert ipa.tokenize_ipa(ipa.from_wild("at͜sa")) == ["a", "t͡s", "a"]
 
 
 class TestUnderTieSequences:
@@ -107,32 +127,28 @@ class TestDoubleTieCollapse:
             assert ipa.tokenize_ipa(text) == ["t͡s"]
 
 
-class TestPhonesetBoundaryProjection:
-    """Tie sense does not survive phoneset conversions: X-SAMPA (and the
-    other phoneset encodings) have at most one tie notion, so the
-    under-tie projects onto the over-tie at those lossy boundaries.
-    Unit-hood survives; the sequential/simultaneous distinction does not,
-    and round trips return canonical over-tie spellings."""
+class TestPhonesetBoundary:
+    """X-SAMPA has one tie encoding, so both glyphs write as `_` and the
+    sense is carried by nothing at the boundary. Coming back, `_` reads as
+    a tie and the result is canonicalized through from_wild: registered
+    compounds return in house spelling with their correct sense; the rest
+    get the heuristic."""
 
-    def test_xsampa_projects_the_under_tie(self) -> None:
+    def test_both_ties_encode_as_underscore(self) -> None:
         import ipakit
 
-        assert ipakit.ipa_to_xsampa("t͜s") == "t_s"
-        assert ipakit.ipa_to_xsampa("u͜i") == "u_i"
+        assert ipakit.ipa_to_xsampa("t͡s") == "t_s"
+        assert ipakit.ipa_to_xsampa("a͜ɪ") == "a_I"
+        assert ipakit.ipa_to_xsampa("u͜i") == ipakit.ipa_to_xsampa("u͡i") == "u_i"
 
-    def test_xsampa_round_trip_returns_over_tie_canonicals(self) -> None:
+    def test_round_trips_return_house_canonicals(self) -> None:
         import ipakit
 
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("t͜s")) == "t͡s"
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("e͜ɪ")) == "e͡ɪ"
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("u͜i")) == "u͡i"
-
-    def test_sense_never_survives_xsampa(self) -> None:
-        import ipakit
-
-        # Both senses collapse to the same X-SAMPA - by design at this
-        # boundary, and only here.
-        assert ipakit.ipa_to_xsampa("u͜i") == ipakit.ipa_to_xsampa("u͡i")
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("t͡s")) == "t͡s"
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("a͜ɪ")) == "a͜ɪ"
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("u͜i")) == "u͜i"
+        # Wild spellings canonicalize on the way through.
+        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("a͡ɪ")) == "a͜ɪ"
 
 
 class TestTielessNormalizationHeuristic:
@@ -144,8 +160,9 @@ class TestTielessNormalizationHeuristic:
         assert ipa.add_tie_bars("a͡i") == "a͡i"
         assert ipa.add_tie_bars("t͜s") == "t͜s"
 
-    def test_normalized_vowel_pair_resolves_via_alias(self, ipa: IPAFeatures) -> None:
-        # normalize emits e͜ɪ; ingest resolves it to the registered e͡ɪ.
+    def test_normalized_vowel_pair_is_canonical(self, ipa: IPAFeatures) -> None:
+        # normalize emits the canonical sequential spelling directly.
         out = ipa.normalize_ipa("eɪ")
         assert out == "e" + SEQ_TIE + "ɪ"
-        assert ipa.tokenize_ipa(out) == ["e͡ɪ"]
+        assert ipa.tokenize_ipa(out) == ["e͜ɪ"]
+        assert ipa.get_phone(out) is not None

@@ -7,8 +7,8 @@ Simple API:
     ipa.features("p")                   # {'manner': 'plosive', ...}
     ipa.to_cmu("ˈhɛloʊ")                # ['HH', 'EH1', 'L', 'OW0']
     ipa.to_ipa(["HH", "EH1", "L"])      # 'hˈɛl'
-    ipa.tokenize("t͡ʃe͡ɪnd͡ʒ")          # ['t͡ʃ', 'e͡ɪ', 'n', 'd͡ʒ']
-    ipa.normalize("tʃ eɪ n dʒ")         # 't͡ʃe͡ɪnd͡ʒ'
+    ipa.tokenize("t͡ʃe͜ɪnd͡ʒ")          # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
+    ipa.normalize("tʃ eɪ n dʒ")         # 't͡ʃe͜ɪnd͡ʒ'
 
 Class API:
     from ipakit import IPAFeatures, CMUMapper
@@ -148,7 +148,7 @@ def confusability(phone1: str, phone2: str) -> float:
 
     Examples:
         >>> round(ipakit.confusability("p", "b"), 3)
-        0.845
+        0.844
         >>> ipakit.confusability("p", "p")
         1.0
     """

@@ -25,11 +25,11 @@
     <map ipa="ɨ" timit="ix"/>
 
     <!-- Diphthongs -->
-    <map ipa="e͡ɪ" timit="ey"/>
-    <map ipa="o͡ʊ" timit="ow"/>
-    <map ipa="a͡ɪ" timit="ay"/>
-    <map ipa="a͡ʊ" timit="aw"/>
-    <map ipa="ɔ͡ɪ" timit="oy"/>
+    <map ipa="e͜ɪ" timit="ey"/>
+    <map ipa="o͜ʊ" timit="ow"/>
+    <map ipa="a͜ɪ" timit="ay"/>
+    <map ipa="a͜ʊ" timit="aw"/>
+    <map ipa="ɔ͜ɪ" timit="oy"/>
 
     <!-- Semivowels/Glides -->
     <map ipa="j" timit="y"/>
