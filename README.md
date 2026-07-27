@@ -36,7 +36,7 @@ ipakit.features("p")            # {'manner': 'plosive', 'place': 'bilabial', ...
 
 # Phonetic distance (0.0 identical … 1.0 maximally different)
 ipakit.distance("p", "b")       # 0.043   (differ only in voicing)
-ipakit.nearest_phones("p", n=3) # [('ɸ', 0.007), ('f', 0.011), ('ʘ', 0.013)]
+ipakit.nearest_phones("p", n=3) # [('ɸ', 0.007), ('f', 0.012), ('ʘ', 0.013)]
 ipakit.word_similarity("kæt", "kæd")   # 0.986
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
@@ -94,9 +94,9 @@ the bundled IPA inventory's pairwise distribution, spreading values across
 
 ```python
 ipakit.distance("p", "b")             # 0.043   raw feature distance
-ipakit.normalized_distance("p", "b")  # 0.103   percentile within bundled IPA
+ipakit.normalized_distance("p", "b")  # 0.104   percentile within bundled IPA
 ipakit.normalized_distance("p", "a")  # 0.429
-ipakit.confusability("p", "b")        # 0.897   complement of normalized_distance
+ipakit.confusability("p", "b")        # 0.896   complement of normalized_distance
 ```
 
 For a model over a chosen reference inventory — percentiles are **relative** to

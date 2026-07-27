@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DistanceModel.confusability`/`distance`/`nearest` fall back to feature-derived similarity for out-of-matrix phones (#8).
 
 ### Changed
+- Ordinal scales carry only true points on their continuum: combined place values (`labial-velar`, `labial-palatal`) are declared with `expands` in the data, hold no ordinal position (`palatal→velar` is one step, not two), and compare by expansion; the metric's place-expansion table is now data-driven. `confusion.json` regenerated (#16).
 - House style is strict: diphthong canonical spellings flip to the under-tie (`a͜ɪ`, `e͜ɪ`, …), the glyph is authoritative at every entry point (no cross-glyph aliases; `t͜s` is a sequential chain, `a͡ɪ` a fused overlay), emission is faithful (`parse(emit(x)) = x`; the collision list is gone), and reverse phoneset conversions canonicalize through `from_wild` so registered compounds round-trip with correct sense (#11).
 - The redundant `a͡ʊ̯` registration is dropped: composition resolves the narrow-transcription variant identically on the fly (#11).
 - Tied inventory entries are constituent-derived: `ipa.xml` keeps only spelling/aliases/href for them, the loader derives their features under each entry's sense, and `IPAFeatures.derived_phones` lists them — registered and computed features cannot drift (#10).

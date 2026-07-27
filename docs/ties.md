@@ -62,6 +62,7 @@ Composition is intent-driven: a voicing-disagreeing tie like `t͡ɮ` is a legiti
 - **The binding sense is one term**: `D(u͡i, u͜i) = 1/3` — same constituents, different timing claim.
 - **Secondary articulations are weighted place components** (σ = 0.5): `tʲ` sits strictly between `t` and `c`.
 - **Bridge features** unify one dimension spelled different ways: `ã` (nasalized) is nearer `n` (nasal manner) than plain `a` is; `tˡ` (lateral release) nearer `l` than `t` is.
+- **Ordinal scales carry only true points on their continuum**: combined place values (`labial-velar`, `labial-palatal`) are overlaps, not points — they hold no position on the front–back scale (`palatal→velar` is one step, not two), are declared with `expands` in the data, and compare by expansion; real intermediate places (`labiodental`, `alveolo-palatal`) keep their positions. Atomic `w` thus compares component-wise against composed labial-velars.
 - **Structural consequence to know**: an affricate now sits near other affricates (shared phase structure), not near its bare fricative component — `t͡ʃ` is closer to `t͡s` than to `ʃ`. The old flat merge said the opposite; consumers of absolute distances should recalibrate thresholds (the shipped matrix and CDF are regenerated).
 
 The claim is structural consistency, not phonetic ground truth; parameters (gap cost γ = 1, secondary weight σ = 0.5) are named constants.
