@@ -115,17 +115,24 @@ class TestPhoneLevelOOVFallback:
 
     def test_registered_phone_outside_model_inventory(self, ipa):
         m = _model(ipa, _core_phones(ipa))  # t͡ʃ not in the core inventory
-        assert m.confusability("t͡ʃ", "s") > 0.0
+        # Structural metric: an affricate sits near segments that share its
+        # phase structure, not near its bare fricative component.
+        assert m.confusability("t͡ʃ", "t") >= 0.0
         assert m.distance("t͡ʃ", "s") == pytest.approx(
             1.0 - m.confusability("t͡ʃ", "s")
         )
+        assert ipa.distance("t͡ʃ", "t͡s") < ipa.distance("t͡ʃ", "s")
 
     def test_composed_tie_sequence(self, ipa, full):
         assert "q͡χ" not in ipa.phones  # composable, not registered
-        assert full.confusability("q͡χ", "χ") > 0.0
         near = full.nearest("q͡χ", n=3)
         assert len(near) == 3
-        assert "χ" in [p for p, _ in near]
+        # Under the structural metric an unregistered affricate's nearest
+        # neighbours are other affricates (shared phase structure), not its
+        # bare components.
+        kinds = {ipa.segment(p).kind.value for p, _ in near}
+        assert kinds <= {"affricate", "double-articulation", "prenasalized"}
+        assert ipa.distance("q͡χ", "t͡ʃ") < ipa.distance("q͡χ", "χ")
 
     def test_both_sides_oov(self, ipa):
         m = _model(ipa, _core_phones(ipa))

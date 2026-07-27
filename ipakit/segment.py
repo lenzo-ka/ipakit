@@ -275,6 +275,13 @@ class Segment:
         """Flat features of the right edge: the rightmost top-level child."""
         return self.right.scalar(with_defaults=with_defaults)
 
+    def distance(self, other: Segment) -> float:
+        """Structural distance to another Segment, in [0, 1] (the metric
+        of design spec section 7; see ipakit.metric)."""
+        from .metric import segment_metric
+
+        return segment_metric(self._require_features(), self, other)
+
     def features_at(self, index: int, with_defaults: bool = True) -> dict[str, str]:
         """Flat features of the index-th top-level child (edge reads
         generalized to any position in an n-ary unit)."""

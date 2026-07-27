@@ -52,16 +52,18 @@ class TestPhoneDistance:
         # p and b differ in exactly one feature (voicing), so the distance is
         # 1 / (comparable non-metadata features). Derive that denominator from
         # the phones' own feature dicts so the test survives feature changes.
-        from ipakit.constants import METADATA_ATTRS
+        from ipakit.metric import _metric_bundle
 
-        f1 = ipa.get_features("p", with_defaults=True)
-        f2 = ipa.get_features("b", with_defaults=True)
-        n_comparable = len((set(f1) | set(f2)) - METADATA_ATTRS)
-        n_with_metadata = len(set(f1) | set(f2))
+        c1 = ipa.segment("p").constituents[0]
+        c2 = ipa.segment("b").constituents[0]
+        f1, p1 = _metric_bundle(ipa, c1)
+        f2, p2 = _metric_bundle(ipa, c2)
+        assert "href" not in f1 and "xsampa" not in f1 and "class" not in f1
+        # p and b differ in exactly one term (voicing); the denominator is
+        # the comparable feature keys plus the place-components term.
+        n_terms = len(set(f1) | set(f2)) + 1
         d = ipa.distance("p", "b")
-        assert d == pytest.approx(1 / n_comparable, abs=1e-4)
-        # Sanity: metadata really is excluded (would be a larger denominator).
-        assert n_with_metadata > n_comparable
+        assert d == pytest.approx(1 / n_terms, abs=1e-4)
 
 
 class TestSegmentDistance:

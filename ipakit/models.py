@@ -45,12 +45,33 @@ class Feature:
     def is_ordinal(self) -> bool:
         return self.type == "ordinal"
 
-    def value_distance(self, v1: str | None, v2: str | None) -> float:
+    def value_distance(
+        self,
+        v1: str | tuple[str, ...] | None,
+        v2: str | tuple[str, ...] | None,
+    ) -> float:
         """Compute distance between two values of this feature.
 
         For ordinal features, uses scale distance based on declaration order.
         For categorical/binary features, returns 0 if same, 1 if different.
+        Either side may be a tuple of values (a multi-valued feature, e.g. a
+        double articulation's places): the distance is then the directional
+        best-match mean, max of the two directions.
         """
+        if isinstance(v1, tuple) or isinstance(v2, tuple):
+            c1 = v1 if isinstance(v1, tuple) else (v1,)
+            c2 = v2 if isinstance(v2, tuple) else (v2,)
+            if not c1 or not c2:
+                return 1.0
+
+            def direction(
+                src: tuple[str | None, ...], dst: tuple[str | None, ...]
+            ) -> float:
+                return sum(
+                    min(self.value_distance(a, b) for b in dst) for a in src
+                ) / len(src)
+
+            return max(direction(c1, c2), direction(c2, c1))
         if v1 == v2:
             return 0.0
         if v1 is None or v2 is None:

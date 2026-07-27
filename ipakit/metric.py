@@ -1,0 +1,240 @@
+"""Structural distance over Segments (design spec section 7).
+
+Distance is computed over the derived grouping, never the flat feature
+bag: constituents compare as whole bundles, alignment mode follows the
+unit kinds (ordered where order is meaning, unordered where it is
+notation), junctures carry the binding-sense term, and secondary
+articulations enter as weighted place components. All values lie in
+[0, 1].
+
+Key properties, pinned by tests:
+
+- ``D(ɡ, ɡ͡b) = d_b(ɡ, b) / 2`` — sharing one articulation is half the
+  distance of the unshared one (unordered best-match with a lifted
+  singleton).
+- ``D(u͡i, u͜i) = 1/3`` — same constituents, different timing claim: one
+  juncture-sense mismatch over three terms.
+- ``place(t, tʲ) = δ/3 < place(tʲ, c) = 2δ/3 < place(t, c) = δ`` — a
+  secondary articulation moves a segment toward its secondary place,
+  strictly between the plain segments.
+- ``D(u͡i, i͡u) = 0`` but ``D(a͡t, t͡a) > 0`` — double articulation is
+  unordered notation; phased units are ordered.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from .constants import METADATA_ATTRS
+from .segment import Constituent, Kind, Segment, Sense, modifier_mode
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .features import IPAFeatures
+
+# Ordered-alignment gap cost (design spec section 11).
+GAP_COST = 1.0
+# Secondary-articulation place weight.
+SECONDARY_WEIGHT = 0.5
+
+# Secondary-articulation modifiers -> the place component they contribute.
+SECONDARY_PLACE = {
+    "ʲ": "palatal",
+    "ʷ": "bilabial",
+    "ˠ": "velar",
+    "ˤ": "pharyngeal",
+}
+
+# Combined place values are display names over two true articulations;
+# for the metric they expand to their components. (Labiodental and
+# alveolo-palatal are single places, not overlaps — never expanded.)
+COMBINED_PLACES = {
+    "labial-velar": ("bilabial", "velar"),
+    "labial-palatal": ("bilabial", "palatal"),
+}
+
+# Kinds whose part order is meaning (phased units and sequences); pairs
+# involving any of these align ordered. Single-block fusions and atomic
+# units are unordered notation.
+ORDERED_KINDS = frozenset(
+    {
+        Kind.AFFRICATE,
+        Kind.PRENASALIZED,
+        Kind.PRE_STOPPED,
+        Kind.LATERAL_RELEASE,
+        Kind.CLICK_ACCOMPANIMENT,
+        Kind.OVERLAY,
+        Kind.DIPHTHONG,
+        Kind.CHAIN,
+    }
+)
+
+# Secondary-articulation property keys stay in the scalar projection for
+# compatibility, but in the metric their content is carried entirely by
+# the weighted place components -- counting both would double-charge a
+# secondary articulation and push tʲ away from c instead of toward it.
+_SECONDARY_KEYS = frozenset(
+    {"palatalized", "labialized", "velarized", "pharyngealized", "labio-palatized"}
+)
+# nasalized's content is carried by the nasality bridge feature the same
+# way; counting both would cancel the bridge (ã would sit no nearer to a
+# nasal than plain a does).
+_EXCLUDED_KEYS = METADATA_ATTRS | {"class", "place", "nasalized"} | _SECONDARY_KEYS
+
+PlaceComponents = tuple[tuple[str, float], ...]
+
+
+def _metric_bundle(
+    features: IPAFeatures, constituent: Constituent
+) -> tuple[dict[str, str], PlaceComponents]:
+    """A constituent's comparable form: ordinary features (with the derived
+    bridge features), plus place as weighted components."""
+    bundle = constituent.bundle(features, with_defaults=True)
+    feats = {k: v for k, v in bundle.items() if k not in _EXCLUDED_KEYS}
+
+    components: list[tuple[str, float]] = []
+    place = bundle.get("place")
+    if place is not None:
+        for comp in COMBINED_PLACES.get(place, (place,)):
+            components.append((comp, 1.0))
+    for mod in constituent.modifiers:
+        if modifier_mode(features, mod) == "secondary" and mod in SECONDARY_PLACE:
+            components.append((SECONDARY_PLACE[mod], SECONDARY_WEIGHT))
+
+    # Bridge features (metric-only, design spec section 8): the same
+    # phonetic dimension spelled as manner, property, or release compares
+    # as one derived binary.
+    feats["nasality"] = (
+        "+"
+        if (
+            bundle.get("manner") == "nasal"
+            or bundle.get("nasalized") == "+"
+            or bundle.get("release") == "nasal"
+        )
+        else "-"
+    )
+    feats["laterality"] = (
+        "+"
+        if (bundle.get("lateral") == "+" or bundle.get("release") == "lateral")
+        else "-"
+    )
+    return feats, tuple(components)
+
+
+def _weighted_place_distance(
+    features: IPAFeatures, c1: PlaceComponents, c2: PlaceComponents
+) -> float:
+    """Weighted directional best-match over place components, max of the
+    two directions. ``place(t, tʲ) = δσ/(1+σ)``; ``place(tʲ, c) = δ/(1+σ)``."""
+    if not c1 and not c2:
+        return 0.0
+    if not c1 or not c2:
+        return 1.0
+    place_feature = features.features.get("place")
+
+    def component_distance(a: str, b: str) -> float:
+        if place_feature is not None:
+            return place_feature.value_distance(a, b)
+        return 0.0 if a == b else 1.0
+
+    def direction(src: PlaceComponents, dst: PlaceComponents) -> float:
+        total = sum(w * min(component_distance(v, v2) for v2, _ in dst) for v, w in src)
+        weight = sum(w for _, w in src)
+        return total / weight if weight else 0.0
+
+    return max(direction(c1, c2), direction(c2, c1))
+
+
+def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> float:
+    """Distance between two constituents' bundles, in [0, 1]."""
+    f1, p1 = _metric_bundle(features, a)
+    f2, p2 = _metric_bundle(features, b)
+    keys = set(f1) | set(f2)
+    include_place = bool(p1 or p2)
+    total = 0.0
+    for key in keys:
+        feat = features.features.get(key)
+        v1, v2 = f1.get(key), f2.get(key)
+        if feat is not None:
+            total += feat.value_distance(v1, v2)
+        else:
+            total += 0.0 if v1 == v2 else 1.0
+    if include_place:
+        total += _weighted_place_distance(features, p1, p2)
+    count = len(keys) + (1 if include_place else 0)
+    return total / count if count else 1.0
+
+
+def _parts(segment: Segment) -> tuple[Segment, ...]:
+    children = segment.children
+    return children if children else (segment,)
+
+
+def _part_junctures(segment: Segment) -> tuple[Sense, ...]:
+    parts = _parts(segment)
+    if len(parts) == 1:
+        return ()
+    sense = Sense.SEQ if Sense.SEQ in segment.junctures else Sense.FUSE
+    return tuple([sense] * (len(parts) - 1))
+
+
+def _monotone_matchings(n: int, m: int) -> list[tuple[tuple[int, int], ...]]:
+    """All order-preserving matchings between range(n) and range(m), as
+    tuples of (i, j) pairs. Sizes here are tiny (parts of one unit)."""
+    results: list[tuple[tuple[int, int], ...]] = []
+
+    def extend(i: int, j: int, acc: tuple[tuple[int, int], ...]) -> None:
+        if i == n or j == m:
+            results.append(acc)
+            return
+        extend(i + 1, j + 1, acc + ((i, j),))  # match i with j
+        extend(i + 1, j, acc)  # gap on the left side
+        extend(i, j + 1, acc)  # gap on the right side
+
+    extend(0, 0, ())
+    return results
+
+
+def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
+    """The structural distance ``D`` (design spec section 7). Prosody is
+    excluded; the result is in [0, 1] and symmetric."""
+    if len(x.constituents) == 1 and len(y.constituents) == 1:
+        return bundle_distance(features, x.constituents[0], y.constituents[0])
+
+    ordered = x.kind in ORDERED_KINDS or y.kind in ORDERED_KINDS
+    px, py = _parts(x), _parts(y)
+
+    if not ordered:
+
+        def direction(src: tuple[Segment, ...], dst: tuple[Segment, ...]) -> float:
+            return sum(
+                min(segment_metric(features, s, d) for d in dst) for s in src
+            ) / len(src)
+
+        return max(direction(px, py), direction(py, px))
+
+    jx, jy = _part_junctures(x), _part_junctures(y)
+    best = 1.0
+    for matching in _monotone_matchings(len(px), len(py)):
+        matched = dict(matching)
+        pair_cost = sum(segment_metric(features, px[i], py[j]) for i, j in matching)
+        gaps = (len(px) - len(matching)) + (len(py) - len(matching))
+        juncture_terms = 0
+        juncture_cost = 0.0
+        aligned_j = {
+            (i, matched[i])
+            for i in matched
+            if i + 1 in matched and matched[i + 1] == matched[i] + 1
+        }
+        for i, j in aligned_j:
+            juncture_terms += 1
+            if jx[i] is not jy[j]:
+                juncture_cost += 1.0
+        unaligned = (len(jx) - len(aligned_j)) + (len(jy) - len(aligned_j))
+        juncture_terms += unaligned
+        juncture_cost += unaligned
+        denom = len(matching) + gaps + juncture_terms
+        if denom == 0:
+            continue
+        value = (pair_cost + GAP_COST * gaps + juncture_cost) / denom
+        best = min(best, value)
+    return best

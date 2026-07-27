@@ -53,34 +53,45 @@ class DistanceMixin(IPAFeaturesBase):
         return total / len(all_keys)
 
     def distance(self, phone1: str, phone2: str) -> float:
-        """Compute feature distance between two phones (0.0-1.0).
+        """Structural distance between two phones/units (0.0-1.0).
 
-        An unknown phone (no features) yields the sentinel ``1.0`` (maximally
-        different). Note the package uses several "not found" idioms:
-        ``get_features`` returns ``{}``, ``get_phone`` returns ``None``, and
-        ``DistanceModel.confusability`` returns ``0.0`` for out-of-inventory
-        phones.
+        Routed through the Segment metric (design spec section 7):
+        constituents compare as whole bundles, alignment follows the unit
+        kinds, junctures carry the binding-sense term, and secondary
+        articulations contribute weighted place components. An unknown
+        phone yields the sentinel ``1.0`` (maximally different).
         """
-        f1 = self.get_features(phone1, with_defaults=True)
-        f2 = self.get_features(phone2, with_defaults=True)
-        if not f1 or not f2:
+        try:
+            s1 = self.segment(phone1)  # type: ignore[attr-defined]
+            s2 = self.segment(phone2)  # type: ignore[attr-defined]
+        except ValueError:
             return 1.0
-        return self._feature_dict_distance(f1, f2)
+        from .metric import segment_metric
+
+        return segment_metric(self, s1, s2)  # type: ignore[arg-type]
 
     def segment_distance(self, seg1: str, seg2: str) -> float:
-        """Compute distance between two segments (potentially multi-phone)."""
-        f1, f2 = self.compose(seg1), self.compose(seg2)
-        if not f1 or not f2:
-            return 1.0
-        if len(f1) == 1 and len(f2) == 1:
-            return self._feature_dict_distance(f1[0], f2[0])
+        """Distance between two segment strings (potentially multi-unit).
 
-        len_penalty = abs(len(f1) - len(f2)) / max(len(f1), len(f2))
-        max_len = max(len(f1), len(f2))
+        Single units go through the Segment metric; multi-unit strings
+        compare positionally with a length penalty, each aligned pair
+        through the metric.
+        """
+        from .metric import segment_metric
+
+        t1 = self.segments(seg1)  # type: ignore[attr-defined]
+        t2 = self.segments(seg2)  # type: ignore[attr-defined]
+        if not t1 or not t2:
+            return 1.0
+        if len(t1) == 1 and len(t2) == 1:
+            return segment_metric(self, t1[0], t2[0])  # type: ignore[arg-type]
+
+        len_penalty = abs(len(t1) - len(t2)) / max(len(t1), len(t2))
+        max_len = max(len(t1), len(t2))
         total = sum(
             (
-                self._feature_dict_distance(f1[i], f2[i])
-                if i < len(f1) and i < len(f2)
+                segment_metric(self, t1[i], t2[i])  # type: ignore[arg-type,misc]
+                if i < len(t1) and i < len(t2)
                 else 1.0
             )
             for i in range(max_len)
