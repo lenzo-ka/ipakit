@@ -19,6 +19,7 @@ from __future__ import annotations
 import bisect
 import functools
 import json
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
@@ -194,10 +195,32 @@ class DistanceModel:
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
-        """Reuse the shipped global matrix values; re-slice the CDF to `phoneset`."""
+        """Reuse the shipped global matrix values; re-slice the CDF to `phoneset`.
+
+        Members absent from the matrix are dropped from the reference CDF
+        with a warning -- never silently. A member whose house-canonical
+        spelling (via ``from_wild``) IS in the matrix is called out
+        specifically: the phoneset is written in another tie convention
+        and should be imported with :meth:`IPAFeatures.import_phoneset`.
+        """
         phones, m, space = _global_matrix()
         index = {p: i for i, p in enumerate(phones)}
         ref = [p for p in phoneset.phones if p in index]
+        dropped = [p for p in phoneset.phones if p not in index]
+        if dropped:
+            respellable = [p for p in dropped if ipa.from_wild(p) in index]
+            message = (
+                f"phoneset {phoneset.name!r}: {len(dropped)} member(s) not in "
+                f"the distance matrix were dropped from the reference CDF: "
+                f"{' '.join(dropped)}."
+            )
+            if respellable:
+                message += (
+                    f" Of these, {' '.join(respellable)} are tie-convention "
+                    "spellings of known compounds; import the phoneset with "
+                    "IPAFeatures.import_phoneset() to canonicalize them."
+                )
+            warnings.warn(message, stacklevel=3)
         return cls(
             ipa,
             phoneset.name,

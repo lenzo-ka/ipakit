@@ -61,6 +61,41 @@ class TestStrictGlyphAuthority:
         for text in ["t͡s͜a", "a͜ɪ͜ə", "n͡d͡ʒ͜a͜ɪ", "t͡ɬ"]:
             assert ipa.from_wild(text) == text
 
+    def test_import_phoneset(self, ipa: IPAFeatures) -> None:
+        from ipakit import Phoneset
+
+        wild = Phoneset.from_list(["p", "t͜s", "e͡ɪ", "a͡ɪ", "XX"], name="w")
+        imported = ipa.import_phoneset(wild)
+        assert imported.phones == ["p", "t͡s", "e͜ɪ", "a͜ɪ", "XX"]
+        assert imported.name == "w"
+
+    def test_for_phoneset_warns_on_wild_spellings(self, ipa: IPAFeatures) -> None:
+        import warnings
+
+        import ipakit
+        from ipakit import Phoneset
+
+        wild = Phoneset.from_list(["p", "b", "e͡ɪ"], name="w")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            model = ipakit.distance_model(wild)
+        assert any("import_phoneset" in str(w.message) for w in caught)
+        # The wild diphthong was dropped from the reference, not respelled.
+        assert len(model.reference_phones) == 2
+
+    def test_imported_phoneset_keeps_its_compounds(self, ipa: IPAFeatures) -> None:
+        import warnings
+
+        import ipakit
+        from ipakit import Phoneset
+
+        imported = ipa.import_phoneset(Phoneset.from_list(["p", "b", "e͡ɪ"], name="w"))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            model = ipakit.distance_model(imported)
+        assert not caught
+        assert len(model.reference_phones) == 3
+
     def test_wild_word(self, ipa: IPAFeatures) -> None:
         assert ipa.from_wild("t͜sa͡ɪ") == "t͡sa͜ɪ"
         assert ipa.tokenize_ipa(ipa.from_wild("at͜sa")) == ["a", "t͡s", "a"]
