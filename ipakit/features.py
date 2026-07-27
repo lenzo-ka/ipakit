@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
@@ -20,6 +21,7 @@ from .constants import (
 from .distance import DistanceMixin
 from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
+from .segment import Constituent, Segment, Sense, modifier_mode
 from .validation import ValidationMixin
 
 
@@ -70,6 +72,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             )
             if (decomposed := unicodedata.normalize("NFD", sym)) != sym
         }
+        # Tied entries carry only spelling/aliases/href in the data; their
+        # features are derived here from the constituents under the entry's
+        # sense, so registered and composed can never drift (docs/ties.md).
+        self.derived_phones: frozenset[str] = self._derive_compound_features()
 
     def _load(self) -> None:
         """Load features and phones from XML."""
@@ -140,6 +146,43 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             for ref in refs_elem.findall("ref"):
                 if (name := ref.get("name")) and (href := ref.get("href")):
                     self.references[name] = href
+
+    def _derive_compound_features(self) -> frozenset[str]:
+        """Fill features for tied entries that ship without explicit ones.
+
+        The sense-correct spelling is composed exactly as the fallback path
+        would compose it for an unregistered chain: all-vocalic entries
+        sequentially (first-element projection), others simultaneously.
+        Entries that do carry explicit features (currently only ``a͡ʊ̯``,
+        whose diacritic-bearing part the composer cannot resolve yet) are
+        left as-is; the convergence guard pins that list.
+        """
+        derived = set()
+        for name in list(self.phones):
+            if TIE_BAR not in name and SEQ_TIE not in name:
+                continue
+            phone = self.phones[name]
+            explicit = set(phone.features) - {"class", "href"}
+            if explicit:
+                continue
+            parts = name.replace(SEQ_TIE, TIE_BAR).split(TIE_BAR)
+            all_vocalic = all(
+                self._part_features(part).get("manner") == "vowel" for part in parts
+            )
+            spelling = name.replace(TIE_BAR, SEQ_TIE) if all_vocalic else name
+            feats = self._compose_tie_bar_features(spelling)
+            if feats is None:
+                raise ValueError(
+                    f"cannot derive features for registered entry {name!r}; "
+                    "give it explicit features or fix its constituents"
+                )
+            merged = dict(feats)
+            merged["class"] = phone.features.get("class", "phone")
+            if "href" in phone.features:
+                merged["href"] = phone.features["href"]
+            self.phones[name] = Phone(symbol=name, features=merged)
+            derived.add(name)
+        return frozenset(derived)
 
     def _load_lookalikes(self) -> None:
         """Load lookalike character mappings from lookalikes.xml."""
@@ -222,25 +265,48 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         token = self.canonicalize_unicode(token)
         return self.ligature_map.get(token, token)
 
+    def _resolves_part(self, part: str) -> bool:
+        """A tie-chain part resolves if it is a registered phone, a base
+        phone with known modifiers (``ʊ̯``), or itself a composable run."""
+        if not part:
+            return False
+        part = self._resolve_token(part)
+        if part in self.phones:
+            return True
+        try:
+            self._parse_constituent(part)
+            return True
+        except ValueError:
+            return self._is_composable(part)
+
+    def _part_features(self, part: str) -> dict[str, str]:
+        """Explicit features of a resolvable part: registered features, or
+        the constituent bundle (base + modifier contributions, no
+        defaults) for a modifier-bearing part."""
+        part = self._resolve_token(part)
+        if part in self.phones:
+            return dict(self.phones[part].features)
+        return self._parse_constituent(part).bundle(self, with_defaults=False)
+
     def _is_composable(self, phone: str) -> bool:
         """True if ``phone`` is a tie-barred sequence of resolvable parts.
 
         Cheap membership predicate: does the splitting and lookups of
         :meth:`_compose_tie_bar_features` without building a feature dict.
         Sequential (under-tie) chains are composable when every
-        SEQ-separated part is registered or itself a composable over-tie
-        run; pure over-tie runs when every part is a registered phone.
+        SEQ-separated part resolves (registered, base+modifiers, or a
+        composable over-tie run); pure over-tie runs when every part
+        resolves as a phone or base+modifiers.
         """
         if SEQ_TIE in phone:
             parts = phone.split(SEQ_TIE)
             return len(parts) >= 2 and all(
-                p and (self._resolve_token(p) in self.phones or self._is_composable(p))
-                for p in parts
+                p and (self._resolves_part(p) or self._is_composable(p)) for p in parts
             )
         if TIE_BAR not in phone:
             return False
         parts = phone.split(TIE_BAR)
-        return len(parts) >= 2 and all(p in self.phones for p in parts)
+        return len(parts) >= 2 and all(self._resolves_part(p) for p in parts)
 
     def _compose_tie_bar_features(self, phone: str) -> dict[str, str] | None:
         """Features for an ad hoc tie-barred sequence of resolvable parts.
@@ -263,8 +329,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         feats: dict[str, str]
         if SEQ_TIE in phone:
             first = self._resolve_token(phone.split(SEQ_TIE)[0])
-            if first in self.phones:
-                feats = dict(self.phones[first].features)
+            if first in self.phones or TIE_BAR not in first:
+                feats = self._part_features(first)
             else:
                 composed = self._compose_tie_bar_features(first)
                 if composed is None:  # pragma: no cover - guarded by _is_composable
@@ -277,7 +343,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         manners = set()
         places = []
         for part in parts:
-            part_feats = self.phones[part].features
+            part_feats = self._part_features(part)
             manners.add(part_feats.get("manner"))
             if "place" in part_feats:
                 places.append(part_feats["place"])
@@ -793,6 +859,146 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             token = unicodedata.normalize("NFC", base + "".join(diacritics))
             result.append((token, feats))
         return result
+
+    # -------------------------------------------------------------------------
+    # Structured segments (docs/ties.md; design spec)
+    # -------------------------------------------------------------------------
+
+    def segments(self, text: str) -> list[Segment]:
+        """Parse IPA text into structured :class:`Segment` units.
+
+        Same segmentation as :meth:`tokenize_ipa`. Stress marks attach to
+        the following unit's prosody; other prosodic marks (length, tone)
+        attach to the unit they follow. Structural marks (ties become
+        junctures; breaks/linking live between units) never appear in a
+        unit's prosody.
+        """
+        result: list[Segment] = []
+        pending_stress: list[str] = []
+        for token in self.tokenize_ipa(text):
+            if token and all(
+                ch in self.diacritics and "stress" in self.diacritics[ch].features
+                for ch in token
+            ):
+                pending_stress.extend(token)
+                continue
+            seg = self._segment_from_token(token, tuple(pending_stress))
+            pending_stress = []
+            if seg is not None:
+                result.append(seg)
+        return result
+
+    def segment(self, text: str) -> Segment:
+        """Parse exactly one unit into a :class:`Segment`.
+
+        Raises ``ValueError`` if the text tokenizes to zero or several
+        units.
+        """
+        segs = self.segments(text)
+        if len(segs) != 1:
+            raise ValueError(
+                f"expected exactly one unit, got {len(segs)} from {text!r}"
+            )
+        return segs[0]
+
+    def build_segment(
+        self,
+        parts: list[str],
+        senses: Sense | list[Sense] | None = None,
+        prosody: tuple[str, ...] = (),
+    ) -> Segment:
+        """Construct a :class:`Segment` from intent, bypassing string-alias
+        collisions: each part is a base phone with optional trailing
+        modifiers, and ``senses`` gives the junctures explicitly (one
+        ``Sense``, repeated, or one per juncture)."""
+        constituents = tuple(self._parse_constituent(p) for p in parts)
+        n = len(constituents)
+        if senses is None:
+            junctures: tuple[Sense, ...] = tuple([Sense.FUSE] * (n - 1))
+        elif isinstance(senses, Sense):
+            junctures = tuple([senses] * (n - 1))
+        else:
+            junctures = tuple(senses)
+        for mark in prosody:
+            if modifier_mode(self, mark) == "structural":
+                raise ValueError(
+                    f"structural mark {mark!r} is not prosody; "
+                    "ties are junctures, breaks live between units"
+                )
+        return Segment(
+            constituents=constituents,
+            junctures=junctures,
+            prosody=prosody,
+            _features=self,
+        )
+
+    def _parse_constituent(self, part: str) -> Constituent:
+        part = self._resolve_token(part)
+        base, best_len = longest_match(part, 0, self.phones, MAX_MATCH_LEN)
+        if not base:
+            raise ValueError(f"no registered base phone in {part!r}")
+        modifiers = []
+        for ch in part[best_len:]:
+            if ch not in self.diacritics:
+                raise ValueError(f"unknown modifier {ch!r} in {part!r}")
+            modifiers.append(ch)
+        return Constituent(base=base, modifiers=tuple(modifiers))
+
+    def _segment_from_token(
+        self, token: str, stress: tuple[str, ...] = ()
+    ) -> Segment | None:
+        parsed = self.parse(token)
+        if not parsed:
+            return None
+        chain, diacritics = parsed[0]
+
+        raw = re.split(f"([{TIE_BAR}{SEQ_TIE}])", chain)
+        part_strs = raw[0::2]
+        glyphs = raw[1::2]
+        try:
+            constituents = tuple(self._parse_constituent(p) for p in part_strs)
+        except ValueError:
+            # Structural-only or malformed token (lone tie, stray mark):
+            # nothing segmental to represent.
+            return None
+
+        if len(constituents) > 1 and chain in self.phones:
+            # Registered entry: its sense wins over the written glyph.
+            # Transitional rule until the data migration makes sense
+            # explicit: all-vocalic entries are sequential, else fused.
+            all_vocalic = all(
+                (p := self.get_phone(c.base)) is not None
+                and p.features.get("manner") == "vowel"
+                for c in constituents
+            )
+            sense = Sense.SEQ if all_vocalic else Sense.FUSE
+            junctures = tuple([sense] * (len(constituents) - 1))
+        else:
+            junctures = tuple(Sense.FUSE if g == TIE_BAR else Sense.SEQ for g in glyphs)
+
+        prosody: list[str] = list(stress)
+        modifiers: list[str] = []
+        for mark in diacritics:
+            mode = modifier_mode(self, mark)
+            if mode == "structural":
+                continue
+            if mode == "prosodic":
+                prosody.append(mark)
+            else:
+                modifiers.append(mark)
+        if modifiers:
+            last = constituents[-1]
+            constituents = constituents[:-1] + (
+                Constituent(
+                    base=last.base, modifiers=last.modifiers + tuple(modifiers)
+                ),
+            )
+        return Segment(
+            constituents=constituents,
+            junctures=junctures,
+            prosody=tuple(prosody),
+            _features=self,
+        )
 
     def compose_single(
         self, segment: str, with_defaults: bool = True

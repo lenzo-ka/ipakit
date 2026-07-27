@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
-from .constants import METADATA_ATTRS, SEQ_TIE, TIE_BAR
+from .constants import MAX_MATCH_LEN, METADATA_ATTRS, SEQ_TIE, TIE_BAR
 
 # Feature ordering for description generation (most salient first)
 _CONSONANT_DESC_ORDER = ["voiced", "place", "manner"]
@@ -284,7 +284,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Try to match multi-character phones first (affricates, etc.)
             matched_phone, matched_len = longest_match(
-                ipa, i, known_phones, 6, tie_set=known_phones
+                ipa, i, known_phones, MAX_MATCH_LEN, tie_set=known_phones
             )
 
             if matched_phone:

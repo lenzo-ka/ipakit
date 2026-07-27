@@ -302,35 +302,37 @@
     <phone name="θ" manner="fricative" place="dental" href="Voiceless_dental_fricative"/>
     <phone name="χ" manner="fricative" place="uvular" href="Voiceless_uvular_fricative"/>
 
-    <!-- Affricates (tie bar above canonical; below and legacy ligatures are aliases) -->
-    <phone name="t͡s" manner="affricate" place="alveolar" alias="t͜s ʦ" href="Voiceless_alveolar_affricate"/>
-    <phone name="d͡z" manner="affricate" place="alveolar" voiced="+" alias="d͜z ʣ" href="Voiced_alveolar_affricate"/>
-    <phone name="t͡ʃ" manner="affricate" place="postalveolar" alias="t͜ʃ ʧ" href="Voiceless_postalveolar_affricate"/>
-    <phone name="d͡ʒ" manner="affricate" place="postalveolar" voiced="+" alias="d͜ʒ ʤ" href="Voiced_postalveolar_affricate"/>
-    <phone name="t͡ɕ" manner="affricate" place="alveolo-palatal" alias="t͜ɕ ʨ" href="Voiceless_alveolo-palatal_affricate"/>
-    <phone name="d͡ʑ" manner="affricate" place="alveolo-palatal" voiced="+" alias="d͜ʑ ʥ" href="Voiced_alveolo-palatal_affricate"/>
-    <phone name="p͡f" manner="affricate" place="labiodental" alias="p͜f" href="Voiceless_labiodental_affricate"/>
-    <phone name="b͡v" manner="affricate" place="labiodental" voiced="+" alias="b͜v" href="Voiced_labiodental_affricate"/>
-    <phone name="t͡θ" manner="affricate" place="dental" alias="t͜θ" href="Voiceless_dental_affricate"/>
-    <phone name="d͡ð" manner="affricate" place="dental" voiced="+" alias="d͜ð" href="Voiced_dental_affricate"/>
-    <phone name="t͡ɬ" manner="affricate" place="alveolar" lateral="+" alias="t͜ɬ ƛ" href="Voiceless_alveolar_lateral_affricate"/>
-    <phone name="d͡ɮ" manner="affricate" place="alveolar" voiced="+" lateral="+" alias="d͜ɮ" href="Voiced_alveolar_lateral_affricate"/>
+    <!-- Affricates (tie bar above canonical; below and legacy ligatures are aliases).
+         Features are DERIVED at load from the constituents (see docs/ties.md);
+         only spelling, aliases, and href are data. -->
+    <phone name="t͡s" alias="t͜s ʦ" href="Voiceless_alveolar_affricate"/>
+    <phone name="d͡z" alias="d͜z ʣ" href="Voiced_alveolar_affricate"/>
+    <phone name="t͡ʃ" alias="t͜ʃ ʧ" href="Voiceless_postalveolar_affricate"/>
+    <phone name="d͡ʒ" alias="d͜ʒ ʤ" href="Voiced_postalveolar_affricate"/>
+    <phone name="t͡ɕ" alias="t͜ɕ ʨ" href="Voiceless_alveolo-palatal_affricate"/>
+    <phone name="d͡ʑ" alias="d͜ʑ ʥ" href="Voiced_alveolo-palatal_affricate"/>
+    <phone name="p͡f" alias="p͜f" href="Voiceless_labiodental_affricate"/>
+    <phone name="b͡v" alias="b͜v" href="Voiced_labiodental_affricate"/>
+    <phone name="t͡θ" alias="t͜θ" href="Voiceless_dental_affricate"/>
+    <phone name="d͡ð" alias="d͜ð" href="Voiced_dental_affricate"/>
+    <phone name="t͡ɬ" alias="t͜ɬ ƛ" href="Voiceless_alveolar_lateral_affricate"/>
+    <phone name="d͡ɮ" alias="d͜ɮ" href="Voiced_alveolar_lateral_affricate"/>
 
-    <!-- Doubly articulated stops and nasals (tie bar above canonical; below is alias) -->
-    <phone name="k͡p" manner="plosive" place="labial-velar" alias="k͜p" href="Voiceless_labial%E2%80%93velar_plosive"/>
-    <phone name="ɡ͡b" manner="plosive" place="labial-velar" voiced="+" alias="ɡ͜b" href="Voiced_labial%E2%80%93velar_plosive"/>
-    <phone name="ŋ͡m" manner="nasal" place="labial-velar" voiced="+" alias="ŋ͜m" href="Voiced_labial%E2%80%93velar_nasal"/>
+    <!-- Doubly articulated stops and nasals (features derived at load) -->
+    <phone name="k͡p" alias="k͜p" href="Voiceless_labial%E2%80%93velar_plosive"/>
+    <phone name="ɡ͡b" alias="ɡ͜b" href="Voiced_labial%E2%80%93velar_plosive"/>
+    <phone name="ŋ͡m" alias="ŋ͜m" href="Voiced_labial%E2%80%93velar_nasal"/>
 
-    <!-- Diphthongs (tie bar above canonical; below is alias) -->
-    <phone name="a͡ɪ" manner="vowel" height="open" backness="front" alias="a͜ɪ" href="Diphthong"/>
-    <phone name="a͡ʊ" manner="vowel" height="open" backness="front" alias="a͜ʊ" href="Diphthong"/>
-    <phone name="e͡ɪ" manner="vowel" height="close-mid" backness="front" alias="e͜ɪ" href="Diphthong"/>
-    <phone name="o͡ʊ" manner="vowel" height="close-mid" backness="back" rounded="+" alias="o͜ʊ" href="Diphthong"/>
-    <phone name="ɔ͡ɪ" manner="vowel" height="open-mid" backness="back" rounded="+" alias="ɔ͜ɪ" href="Diphthong"/>
-    <phone name="a͡ʊ̯" manner="vowel" height="open" backness="front" alias="a͜ʊ̯" href="Diphthong"/>
-    <phone name="ɪ͡ə" manner="vowel" height="near-close" backness="near-front" alias="ɪ͜ə" href="Diphthong"/>
-    <phone name="e͡ə" manner="vowel" height="close-mid" backness="front" alias="e͜ə" href="Diphthong"/>
-    <phone name="ʊ͡ə" manner="vowel" height="near-close" backness="near-back" rounded="+" alias="ʊ͜ə" href="Diphthong"/>
+    <!-- Diphthongs (features derived at load: sequential first-element projection) -->
+    <phone name="a͡ɪ" alias="a͜ɪ" href="Diphthong"/>
+    <phone name="a͡ʊ" alias="a͜ʊ" href="Diphthong"/>
+    <phone name="e͡ɪ" alias="e͜ɪ" href="Diphthong"/>
+    <phone name="o͡ʊ" alias="o͜ʊ" href="Diphthong"/>
+    <phone name="ɔ͡ɪ" alias="ɔ͜ɪ" href="Diphthong"/>
+    <phone name="a͡ʊ̯" alias="a͜ʊ̯" href="Diphthong"/>
+    <phone name="ɪ͡ə" alias="ɪ͜ə" href="Diphthong"/>
+    <phone name="e͡ə" alias="e͜ə" href="Diphthong"/>
+    <phone name="ʊ͡ə" alias="ʊ͜ə" href="Diphthong"/>
   </phones>
 
   <diacritics>
