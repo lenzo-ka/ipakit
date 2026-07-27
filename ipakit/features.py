@@ -16,6 +16,7 @@ from .constants import (
     DEFAULT_IPA_FEATS,
     DEFAULT_SHORT_NAME_LEN,
     MAX_MATCH_LEN,
+    METADATA_ATTRS,
     SEQ_TIE,
     TIE_BAR,
 )
@@ -470,6 +471,86 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     results.append(symbol)
         return results
 
+    def to_phone(self, bundle: dict[str, str]) -> str | None:
+        """The registered symbol a feature bundle names: the inverse of
+        :meth:`get_features`.
+
+        A candidate matches when it agrees on every key the caller wrote;
+        keys the caller omitted are free. Candidates are read with their
+        defaults filled, so ``{"manner": "plosive", "place": "alveolar"}``
+        realizes as "t" -- the phone that takes the defaults -- not "d".
+        Metadata keys (``class``, ``href``) are ignored, so a bundle
+        straight out of :meth:`get_features` round-trips.
+
+        Several phones can satisfy one bundle; the winner is decided, in
+        order, by:
+
+        1. **fewest extra features** -- the explicit (non-default)
+           features a candidate declares beyond the ones asked for, so
+           the most general phone answering the request wins;
+        2. **fewest constituents** -- a tied compound's flat bundle is
+           only the projection of one constituent (docs/ties.md), so it
+           never outranks an atom matching equally well: "a", not "a͜ɪ";
+        3. **declaration order** in the data.
+
+        Returns ``None`` when nothing registered matches -- an impossible
+        or merely unattested combination.
+        """
+        query = {k: v for k, v in bundle.items() if k not in METADATA_ATTRS}
+        best: tuple[int, int, int] | None = None
+        winner: str | None = None
+        for order, symbol in enumerate(self.phones):
+            feats = self.get_features(symbol)
+            if any(feats.get(k) != v for k, v in query.items()):
+                continue
+            extras = sum(
+                1
+                for k in self.phones[symbol].features
+                if k not in METADATA_ATTRS and k not in query
+            )
+            junctures = symbol.count(TIE_BAR) + symbol.count(SEQ_TIE)
+            rank = (extras, junctures, order)
+            if best is None or rank < best:
+                best, winner = rank, symbol
+        return winner
+
+    def respell(self, phone: str, **changes: str) -> str | None:
+        """Apply a feature change to ``phone`` and realize the result.
+
+        ``respell("t", voiced="+")`` is "d"; ``respell("p",
+        place="velar")`` is "k". The delta lands on the phone's
+        default-filled features and goes through :meth:`to_phone`, whose
+        matching and tie rules therefore govern the answer. This is what
+        makes a feature-changing rule expressible at all.
+
+        A feature whose name carries a hyphen is also reachable with an
+        underscore (``tongue_root``), since a hyphen cannot be a keyword.
+
+        Returns ``None`` when the changed bundle names no registered
+        phone. Raises ``ValueError`` if ``phone`` does not resolve, or if
+        a change names a feature or a value the data does not declare: a
+        misspelled feature has to fail loudly rather than quietly leave
+        the phone as it was.
+        """
+        feats = self.get_features(phone)
+        if not feats:
+            raise ValueError(f"cannot resolve phone {phone!r}")
+        for name, value in changes.items():
+            key = name if name in self.features else name.replace("_", "-")
+            feature = self.features.get(key)
+            if feature is None:
+                raise ValueError(f"unknown feature {name!r}")
+            resolved = feature.value_aliases.get(value, value)
+            # Every component must be declared. A scalar value expands to
+            # itself, so this accepts a plain value and a generative
+            # overlap (bilabial⊕velar) on the same terms.
+            if not all(part in feature.values_set for part in feature.expand(resolved)):
+                raise ValueError(f"{value!r} is not a value of feature {key!r}")
+            feats[key] = resolved
+        for meta in METADATA_ATTRS:
+            feats.pop(meta, None)
+        return self.to_phone(feats)
+
     def features_to_shorts(self, bundle: dict[str, str]) -> list[str]:
         """Convert a feature dict to list of short names."""
         return [
@@ -916,15 +997,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
     def build_segment(
         self,
-        parts: list[str],
+        parts: list[str | dict[str, str]],
         senses: Sense | list[Sense] | None = None,
         prosody: tuple[str, ...] = (),
     ) -> Segment:
         """Construct a :class:`Segment` from intent, bypassing string-alias
         collisions: each part is a base phone with optional trailing
-        modifiers, and ``senses`` gives the junctures explicitly (one
-        ``Sense``, repeated, or one per juncture)."""
-        constituents = tuple(self._parse_constituent(p) for p in parts)
+        modifiers -- or a feature bundle, realized through
+        :meth:`to_phone` -- and ``senses`` gives the junctures explicitly
+        (one ``Sense``, repeated, or one per juncture).
+
+        Taking bundles makes the structured level writable on the same
+        terms as the flat one: a rule that computes features can build a
+        unit without first spelling its parts out as symbols. A bundle
+        naming no registered phone is the caller's error, not a silent
+        omission, so it raises ``ValueError``.
+        """
+        constituents = tuple(self._parse_constituent(self._as_part(p)) for p in parts)
         n = len(constituents)
         if senses is None:
             junctures: tuple[Sense, ...] = tuple([Sense.FUSE] * (n - 1))
@@ -1054,6 +1143,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             ch in self.diacritics and modifier_mode(self, ch) == "structural"
             for ch in token
         )
+
+    def _as_part(self, part: str | dict[str, str]) -> str:
+        """A ``build_segment`` part as a symbol string, realizing a bundle."""
+        if isinstance(part, str):
+            return part
+        symbol = self.to_phone(part)
+        if symbol is None:
+            raise ValueError(f"no registered phone matches {part!r}")
+        return symbol
 
     def _parse_constituent(self, part: str) -> Constituent:
         part = self._resolve_token(part)

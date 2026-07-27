@@ -378,6 +378,42 @@ def phones_matching(
     return _get_ipa().phones_matching(query, with_defaults=with_defaults)
 
 
+def to_phone(bundle: dict[str, str]) -> str | None:
+    """Realize a feature bundle as a registered IPA symbol.
+
+    The inverse of :func:`features`: exact on the keys given, free on the
+    keys omitted, ``None`` when nothing matches. See
+    :meth:`IPAFeatures.to_phone` for the tie rule.
+
+    Examples:
+        >>> ipakit.to_phone({"manner": "plosive", "place": "alveolar"})
+        't'
+        >>> ipakit.to_phone(ipakit.features("ʃ"))
+        'ʃ'
+        >>> ipakit.to_phone({"manner": "vowel", "place": "velar"}) is None
+        True
+    """
+    return _get_ipa().to_phone(bundle)
+
+
+def respell(phone: str, **changes: str) -> str | None:
+    """Apply a feature change to a phone and realize the result.
+
+    ``None`` when the changed bundle names no registered phone; raises
+    ``ValueError`` on an unresolvable phone or an undeclared feature or
+    value.
+
+    Examples:
+        >>> ipakit.respell("t", voiced="+")
+        'd'
+        >>> ipakit.respell("p", place="velar")
+        'k'
+        >>> ipakit.respell("t", manner="nasal") is None  # unattested
+        True
+    """
+    return _get_ipa().respell(phone, **changes)
+
+
 def features_to_shorts(bundle: dict[str, str]) -> list[str]:
     """Convert a feature dict to list of short names."""
     return _get_ipa().features_to_shorts(bundle)
@@ -582,9 +618,11 @@ __all__ = [
     "normalized_distance",
     "phonemap_to_ipa",
     "phones_matching",
+    "respell",
     "segment",
     "to_cmu",
     "to_kirshenbaum",
+    "to_phone",
     "to_timit",
     "tokenize",
     "validate_ipa",
