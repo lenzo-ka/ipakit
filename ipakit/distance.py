@@ -196,8 +196,12 @@ class DistanceMixin(IPAFeaturesBase):
             word_distance("kæt", "kæd")   # Small (minimal pair, ~0.04)
             word_distance("kæt", "dɒɡ")   # Large (different word)
         """
-        tokens1 = self.tokenize_ipa(ipa1)
-        tokens2 = self.tokenize_ipa(ipa2)
+        tokens1 = [
+            t for t in self.tokenize_ipa(ipa1) if not self.is_structural_token(t)  # type: ignore[attr-defined]
+        ]
+        tokens2 = [
+            t for t in self.tokenize_ipa(ipa2) if not self.is_structural_token(t)  # type: ignore[attr-defined]
+        ]
         n, m = len(tokens1), len(tokens2)
 
         if sub_cost is None:
