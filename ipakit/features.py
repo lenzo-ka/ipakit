@@ -425,7 +425,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if term in self._short_to_feature:
             return self._short_to_feature[term]
         # Try as a feature value (long name), or a friendly alias of one
-        # (labial-velar -> bilabial⊕velar): aliases resolve everywhere a
+        # (labial-velar -> bilabial^velar): aliases resolve everywhere a
         # value is accepted, including here.
         for feat_name, feat in self.features.items():
             if term in feat.values:
@@ -480,7 +480,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         else:
             # A dict names features directly, but its values still go
             # through the alias table: labial-velar is the readable
-            # spelling of bilabial⊕velar and must match it.
+            # spelling of bilabial^velar and must match it.
             for key, val in query.items():
                 feature = self.features.get(key)
                 positive[key] = feature.value_aliases.get(val, val) if feature else val
@@ -634,7 +634,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             resolved = feature.value_aliases.get(value, value)
             # Every component must be declared. A scalar value expands to
             # itself, so this accepts a plain value and a generative
-            # overlap (bilabial⊕velar) on the same terms.
+            # overlap (bilabial^velar) on the same terms.
             if not all(part in feature.values_set for part in feature.expand(resolved)):
                 raise ValueError(f"{value!r} is not a value of feature {key!r}")
             feats[key] = resolved

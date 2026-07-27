@@ -154,25 +154,25 @@ class TestOrdinalScales:
 
     def test_combining_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.value_distance("bilabial⊕velar", "bilabial⊕velar") == 0.0
-        assert pl.expand("bilabial⊕velar") == ("bilabial", "velar")
+        assert pl.value_distance("bilabial^velar", "bilabial^velar") == 0.0
+        assert pl.expand("bilabial^velar") == ("bilabial", "velar")
         # Expansion, not a scale step: the same value as comparing the tuple.
-        assert pl.value_distance("bilabial⊕velar", "velar") == pl.value_distance(
+        assert pl.value_distance("bilabial^velar", "velar") == pl.value_distance(
             ("bilabial", "velar"), "velar"
         )
 
     def test_friendly_names_are_value_aliases(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.value_distance("labial-velar", "bilabial⊕velar") == 0.0
+        assert pl.value_distance("labial-velar", "bilabial^velar") == 0.0
         assert pl.expand("labial-velar") == ("bilabial", "velar")
 
     def test_combining_order_is_canonical(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.combine({"velar", "bilabial"}) == "bilabial⊕velar"
-        assert pl.combine({"palatal", "alveolar"}) == "alveolar⊕palatal"
+        assert pl.combine({"velar", "bilabial"}) == "bilabial^velar"
+        assert pl.combine({"palatal", "alveolar"}) == "alveolar^palatal"
         # A novel combination is expressible without a granted name.
         assert ipa.get_features("p͡t", with_defaults=False)["place"] == (
-            "bilabial⊕alveolar"
+            "bilabial^alveolar"
         )
 
 
@@ -333,7 +333,7 @@ class TestArticulator:
 
         point = tract_point(ipa, ipa.segment("w").constituents[0].bundle(ipa))
         # A labial-velar moves the lower lip and the dorsum both.
-        assert point.articulator == "lower-lip⊕tongue-dorsum"
+        assert point.articulator == "lower-lip^tongue-dorsum"
         # Spelled with the combiner, so it reads back as two organs. A
         # literal "+" here was correct only while "+" was the combiner.
         art = ipa.features["articulator"]

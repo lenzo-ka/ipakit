@@ -25,16 +25,18 @@ class Feature:
     type: str = "ordinal"  # declared value-set type (from XML); see is_ordinal
     desc: str | None = None  # Brief description
     # Combining values are spelled as their ordered components joined by
-    # the combiner (bilabial⊕velar): the name IS the expansion. They are
+    # the combiner (bilabial^velar): the name IS the expansion. They are
     # valid values but hold NO position on the ordinal scale - an overlap
     # is not a point on the continuum - and compare by expansion. Friendly
     # display names (labial-velar) are value aliases, resolved everywhere.
     #
-    # The glyph is U+2295, not "+", because "+" is already the positive
+    # The glyph is "^", not "+", because "+" is already the positive
     # value of every binary feature. Sharing one glyph made "+" parse as a
     # combining spelling: expand("+") returned two empty components, and
-    # _value_index dropped "+" from its own scale.
-    COMBINER = "⊕"
+    # _value_index dropped "+" from its own scale. "^" is ASCII, appears
+    # nowhere else in the data, and reads as the conjunction it is: a
+    # double articulation is both places at once.
+    COMBINER = "^"
     value_aliases: dict[str, str] = field(default_factory=dict)
     # The reference-frame axis this ordinal ascends (+x lips->glottis,
     # +y jaw->palate, +constriction, +t, ...), declared in the data.
@@ -60,7 +62,7 @@ class Feature:
     def _value_index(self) -> dict[str, int]:
         """value -> scale index, for O(1) ordinal distance.
 
-        Combining values (bilabial⊕velar) are skipped: an overlap is not a
+        Combining values (bilabial^velar) are skipped: an overlap is not a
         point on the continuum, so it must not pad the scale between its
         neighbours.
         """
@@ -100,8 +102,8 @@ class Feature:
 
     def expand(self, value: str) -> tuple[str, ...]:
         """A value's components: the value itself, or its ordered parts for
-        a combining value (``bilabial⊕velar`` -> ``(bilabial, velar)``).
-        Generative: any ``⊕``-joined spelling expands, declared or not."""
+        a combining value (``bilabial^velar`` -> ``(bilabial, velar)``).
+        Generative: any ``^``-joined spelling expands, declared or not."""
         value = self.value_aliases.get(value, value)
         if self.COMBINER in value:
             return tuple(value.split(self.COMBINER))
@@ -110,8 +112,8 @@ class Feature:
     def combine(self, values: set[str] | tuple[str, ...]) -> str:
         """The canonical combining spelling for a set of values: components
         ordered by their scale position (declaration order as fallback),
-        joined by ``⊕``. One spelling per combination -- palatal⊕alveolar
-        cannot occur, only alveolar⊕palatal."""
+        joined by ``^``. One spelling per combination -- palatal^alveolar
+        cannot occur, only alveolar^palatal."""
 
         def position(v: str) -> tuple[int, str]:
             idx = self._value_index.get(v)

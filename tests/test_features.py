@@ -79,7 +79,7 @@ class TestGetFeatures:
         assert feats_lateral_affricate["channel"] == "lateral"
         feats_labial_velar = ipa.get_features("ɡ͡b")
         assert feats_labial_velar["manner"] == "plosive"
-        assert feats_labial_velar["place"] == "bilabial⊕velar"
+        assert feats_labial_velar["place"] == "bilabial^velar"
         assert ipa.get_features("ŋ͡m")["manner"] == "nasal"
 
     def test_ligature_aliases_tokenize(self, ipa: IPAFeatures) -> None:
@@ -98,15 +98,15 @@ class TestGetFeatures:
         assert "m͡ŋ" not in ipa.phones
         feats_coarticulated_nasal = ipa.get_features("m͡ŋ")
         assert feats_coarticulated_nasal["manner"] == "nasal"
-        assert feats_coarticulated_nasal["place"] == "bilabial⊕velar"
+        assert feats_coarticulated_nasal["place"] == "bilabial^velar"
 
     def test_composed_place_pairs_combine_generatively(self, ipa: IPAFeatures) -> None:
         # Any same-manner multi-place fusion gets its canonical combining
         # value - components ordered by scale position - never a collapse
         # to a single place (labiodental and alveolo-palatal are single
         # articulations, not combinations) and never last-wins erasure.
-        assert ipa.get_features("ɸ͡θ")["place"] == "bilabial⊕dental"
-        assert ipa.get_features("s͡ç")["place"] == "alveolar⊕palatal"
+        assert ipa.get_features("ɸ͡θ")["place"] == "bilabial^dental"
+        assert ipa.get_features("s͡ç")["place"] == "alveolar^palatal"
 
     def test_contains_composable(self, ipa: IPAFeatures) -> None:
         assert "t͡ɬ" in ipa  # registered
