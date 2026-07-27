@@ -1,6 +1,7 @@
 """Tests for validation and statistics."""
 
 from ipakit import IPAFeatures
+from ipakit.models import Phone
 
 
 class TestValidate:
@@ -21,23 +22,39 @@ class TestValidate:
         errors = ipa.validate()
         assert isinstance(errors, list)
 
+    @staticmethod
+    def _corrupt(ipa: IPAFeatures, symbol: str, **changes: str | None) -> None:
+        """Replace one phone with a corrupted copy.
+
+        Phone bundles are read-only (the module API is backed by a cached
+        instance, so a write would corrupt what every later call reads),
+        so a validation test builds a bad Phone rather than mutating one.
+        """
+        feats = dict(ipa.phones[symbol].features)
+        for key, value in changes.items():
+            if value is None:
+                feats.pop(key, None)
+            else:
+                feats[key] = value
+        ipa.phones[symbol] = Phone(symbol=symbol, features=feats)
+
     def test_validate_reports_invalid_feature_value(self) -> None:
         # Fresh (non-shared) instance: corrupt one phone's feature to an
         # undeclared value and confirm validate() flags it.
         bad = IPAFeatures()
-        bad.phones["p"].features["voiced"] = "bogus"
+        self._corrupt(bad, "p", voiced="bogus")
         errors = bad.validate()
         assert any("bogus" in e and "'p'" in e for e in errors)
 
     def test_validate_reports_missing_place_for_consonant(self) -> None:
         bad = IPAFeatures()
-        bad.phones["t"].features.pop("place", None)
+        self._corrupt(bad, "t", place=None)
         errors = bad.validate()
         assert any("Missing 'place'" in e and "'t'" in e for e in errors)
 
     def test_validate_reports_undeclared_feature(self) -> None:
         bad = IPAFeatures()
-        bad.phones["p"].features["madeup"] = "x"
+        self._corrupt(bad, "p", madeup="x")
         errors = bad.validate()
         assert any("Undeclared feature 'madeup'" in e for e in errors)
 

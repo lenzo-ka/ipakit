@@ -207,14 +207,25 @@ class AnalysisMixin(IPAFeaturesBase):
         """Find the n nearest phones by phonetic distance.
 
         Returns list of (phone, distance) tuples sorted by distance.
+        Neighbours are drawn from the registered inventory; the reference
+        may be any resolvable unit, registered or composed, so an
+        unregistered affricate gets neighbours like any other input.
 
         Args:
-            phone: The reference phone
+            phone: The reference phone or composable unit
             n: Maximum number of results
             with_defaults: Include default feature values in comparison
+
+        Raises:
+            ValueError: if ``phone`` cannot be resolved at all -- an empty
+                result would read as "no neighbours" rather than
+                "unsupported input".
         """
-        if phone not in self.phones:
-            return []
+        if phone not in self:  # type: ignore[operator]
+            raise ValueError(
+                f"cannot resolve {phone!r}: not a registered phone and not "
+                "a composable tie-barred sequence of known phones"
+            )
 
         distances = []
         for candidate in self.phones:

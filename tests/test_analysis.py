@@ -1,6 +1,7 @@
 """Tests for analysis functions: describe, natural_class, minimal_pairs, validate_ipa."""
 
 import ipakit
+import pytest
 from ipakit import IPAFeatures
 
 
@@ -155,9 +156,16 @@ class TestNearestPhones:
         # At least check that we get plosives or bilabials
         assert any(p in phones for p in ["t", "k", "b", "ɸ", "f"])
 
-    def test_nearest_unknown_phone(self, ipa: IPAFeatures) -> None:
-        nearest = ipa.nearest_phones("X")
-        assert nearest == []
+    def test_nearest_unresolvable_phone_raises(self, ipa: IPAFeatures) -> None:
+        # An empty list would read as "no neighbours" rather than
+        # "unsupported input".
+        with pytest.raises(ValueError, match="cannot resolve"):
+            ipa.nearest_phones("X")
+
+    def test_nearest_accepts_composed_units(self, ipa: IPAFeatures) -> None:
+        # describe() and distance() accept these; nearest must too.
+        assert "q͡χ" not in ipa.phones
+        assert len(ipa.nearest_phones("q͡χ", n=3)) == 3
 
     def test_module_function(self) -> None:
         nearest = ipakit.nearest_phones("p", n=3)

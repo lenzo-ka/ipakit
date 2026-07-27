@@ -60,7 +60,21 @@ class DistanceMixin(IPAFeaturesBase):
         kinds, junctures carry the binding-sense term, and secondary
         articulations contribute weighted place components. An unknown
         phone yields the sentinel ``1.0`` (maximally different).
+
+        Both arguments must be a single unit. Multi-unit input raises
+        rather than returning the sentinel: reporting two identical words
+        as maximally different is worse than refusing to answer. Use
+        :meth:`word_distance` for words, :meth:`segment_distance` for
+        segment strings.
         """
+        for arg in (phone1, phone2):
+            units = self.segments(arg)  # type: ignore[attr-defined]
+            if len(units) > 1:
+                raise ValueError(
+                    f"distance() compares single units; {arg!r} is "
+                    f"{len(units)} units. Use word_distance() for words, "
+                    "or segment_distance() for segment strings."
+                )
         try:
             s1 = self.segment(phone1)  # type: ignore[attr-defined]
             s2 = self.segment(phone2)  # type: ignore[attr-defined]
@@ -165,6 +179,16 @@ class DistanceMixin(IPAFeaturesBase):
 
         return dp[n][m], alignment
 
+    def _reject_unconvertible(self, *texts: str) -> None:
+        """Raise if any text contains symbols the tokenizer would drop.
+
+        Conversion may reasonably be lossy; measurement may not. Silently
+        dropping a symbol turns "these words differ" into a plausible
+        number computed from truncated input.
+        """
+        for text in texts:
+            self.parse(text, strict=True)  # type: ignore[attr-defined]
+
     def word_distance(
         self,
         ipa1: str,
@@ -172,6 +196,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         return_alignment: bool = False,
         sub_cost: Callable[[str, str], float] | None = None,
+        strict: bool = True,
     ) -> WordDistanceResult:
         """Compute phonetic edit distance between two IPA words.
 
@@ -187,6 +212,9 @@ class DistanceMixin(IPAFeaturesBase):
                       If False, use standard Levenshtein (cost=1 for any sub).
             return_alignment: If True, include the alignment path in result.
             sub_cost: Optional substitution-cost callable overriding ``weighted``.
+            strict: Reject input containing symbols the tokenizer cannot
+                convert (the default). Pass ``False`` to measure over
+                whatever survives tokenization.
 
         Returns:
             WordDistanceResult with distance, similarity (1 - distance/max_len,
@@ -196,6 +224,8 @@ class DistanceMixin(IPAFeaturesBase):
             word_distance("kæt", "kæd")   # Small (minimal pair, ~0.04)
             word_distance("kæt", "dɒɡ")   # Large (different word)
         """
+        if strict:
+            self._reject_unconvertible(ipa1, ipa2)
         tokens1 = [
             t for t in self.tokenize_ipa(ipa1) if not self.is_structural_token(t)  # type: ignore[attr-defined]
         ]
@@ -246,6 +276,7 @@ class DistanceMixin(IPAFeaturesBase):
         ipa1: str,
         ipa2: str,
         weighted: bool = True,
+        strict: bool = True,
     ) -> float:
         """Compute phonetic similarity between two IPA words.
 
@@ -261,4 +292,6 @@ class DistanceMixin(IPAFeaturesBase):
             word_similarity("kæt", "kæd")   # ~0.99 (minimal pair)
             word_similarity("kæt", "dɒɡ")   # Low (different word)
         """
-        return self.word_distance(ipa1, ipa2, weighted=weighted).similarity
+        return self.word_distance(
+            ipa1, ipa2, weighted=weighted, strict=strict
+        ).similarity
