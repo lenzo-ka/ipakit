@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .constants import PHONEMAPS_DIR
+from .models import Feature
 
 if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
@@ -236,7 +237,7 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
         if place is not None:
             feat = features.features.get("place")
             if feat is not None:
-                # A combining place (bilabial+velar) sits at the mean of
+                # A combining place (bilabial⊕velar) sits at the mean of
                 # its components' positions -- the fusion's centre of
                 # gravity in the tract.
                 arcs = [
@@ -261,6 +262,8 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
                     for organ in organs:
                         if organ not in seen:
                             seen.append(organ)
-                    articulator = "+".join(seen)
+                    # The combiner, not a literal "+": this spelling is
+                    # read back through Feature.expand.
+                    articulator = Feature.COMBINER.join(seen)
         offset = value_attr("manner", manner, "offset")
     return TractPoint(arc=arc, offset=offset, articulator=articulator)

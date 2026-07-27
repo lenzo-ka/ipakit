@@ -45,7 +45,7 @@ SECONDARY_PLACE = {
     "ˤ": "pharyngeal",
 }
 
-# Combining place values (bilabial+velar) carry their expansion in the
+# Combining place values (bilabial⊕velar) carry their expansion in the
 # name; Feature.expand supplies the components.
 
 # Kinds whose part order is meaning (phased units and sequences); pairs

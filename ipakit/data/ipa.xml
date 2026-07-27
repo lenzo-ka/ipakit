@@ -28,8 +28,9 @@
        centrality - binary here). Each multi-valued ordinal feature declares
        its axis, and its values ascend along it. Values marked offscale
        hold no position on the continuum (silence is not a degree of
-       constriction); combining values (bilabial+velar) likewise hold no
-       position. -->
+       constriction); combining values (bilabial⊕velar) likewise hold no
+       position. The combiner is U+2295, kept distinct from the "+" that
+       is the positive value of a binary feature. -->
   <features>
     <feature name="manner" axis="+constriction" short="mnr" desc="How airflow is constricted" href="Manner_of_articulation">
       <value name="silence" short="sil" offscale="+" href="Pause_(linguistics)"/>  <!-- no position: absence of signal, equidistant from every manner -->
@@ -58,9 +59,9 @@
       <value name="postalveolar" arc="0.19" articulator="tongue-blade" short="pav" href="Postalveolar_consonant"/>
       <value name="alveolo-palatal" arc="0.24" articulator="tongue-blade" short="apl" href="Alveolo-palatal_consonant"/>
       <value name="palatal" arc="0.32" articulator="tongue-front" short="pal" href="Palatal_consonant"/>
-      <value name="bilabial+palatal" short="lpl" alias="labial-palatal" href="Labial%E2%80%93palatal_approximant"/>
+      <value name="bilabial⊕palatal" short="lpl" alias="labial-palatal" href="Labial%E2%80%93palatal_approximant"/>
       <value name="velar" arc="0.45" articulator="tongue-dorsum" short="vel" href="Velar_consonant"/>
-      <value name="bilabial+velar" short="lbv" alias="labial-velar" href="Labial%E2%80%93velar_consonant"/>
+      <value name="bilabial⊕velar" short="lbv" alias="labial-velar" href="Labial%E2%80%93velar_consonant"/>
       <value name="uvular" arc="0.56" articulator="tongue-dorsum" short="uvu" href="Uvular_consonant"/>
       <value name="pharyngeal" arc="0.74" articulator="tongue-root" short="pha" href="Pharyngeal_consonant"/>
       <value name="epiglottal" arc="0.87" articulator="epiglottis" short="epi" href="Epiglottal_consonant"/>
@@ -220,7 +221,7 @@
     <phone name="t" manner="plosive" place="alveolar" href="Voiceless_alveolar_plosive"/>
     <phone name="u" manner="vowel" height="close" backness="back" rounded="+" href="Close_back_rounded_vowel"/>
     <phone name="v" manner="fricative" place="labiodental" voiced="+" href="Voiced_labiodental_fricative"/>
-    <phone name="w" manner="approximant" place="bilabial+velar" voiced="+" rounded="+" href="Voiced_labial%E2%80%93velar_approximant"/>
+    <phone name="w" manner="approximant" place="bilabial⊕velar" voiced="+" rounded="+" href="Voiced_labial%E2%80%93velar_approximant"/>
     <phone name="x" manner="fricative" place="velar" href="Voiceless_velar_fricative"/>
     <phone name="y" manner="vowel" height="close" backness="front" rounded="+" href="Close_front_rounded_vowel"/>
     <phone name="z" channel="grooved" manner="fricative" place="alveolar" voiced="+" href="Voiced_alveolar_fricative"/>
@@ -261,7 +262,7 @@
     <phone name="ɢ" manner="plosive" place="uvular" voiced="+" href="Voiced_uvular_plosive"/>
     <phone name="ɣ" manner="fricative" place="velar" voiced="+" href="Voiced_velar_fricative"/>
     <phone name="ɤ" manner="vowel" height="close-mid" backness="back" href="Close-mid_back_unrounded_vowel"/>
-    <phone name="ɥ" manner="approximant" place="bilabial+palatal" voiced="+" rounded="+" href="Voiced_labial%E2%80%93palatal_approximant"/>
+    <phone name="ɥ" manner="approximant" place="bilabial⊕palatal" voiced="+" rounded="+" href="Voiced_labial%E2%80%93palatal_approximant"/>
     <phone name="ɦ" manner="fricative" place="glottal" voiced="+" href="Voiced_glottal_fricative"/>
     <phone name="ɨ" manner="vowel" height="close" backness="central" href="Close_central_unrounded_vowel"/>
     <phone name="ɪ" manner="vowel" height="near-close" backness="near-front" href="Near-close_near-front_unrounded_vowel"/>
@@ -298,7 +299,7 @@
 
     <phone name="ʋ" manner="approximant" place="labiodental" voiced="+" href="Voiced_labiodental_approximant"/>
     <phone name="ʌ" manner="vowel" height="open-mid" backness="back" href="Open-mid_back_unrounded_vowel"/>
-    <phone name="ʍ" manner="approximant" place="bilabial+velar" rounded="+" href="Voiceless_labial%E2%80%93velar_fricative"/>
+    <phone name="ʍ" manner="approximant" place="bilabial⊕velar" rounded="+" href="Voiceless_labial%E2%80%93velar_fricative"/>
     <phone name="ʎ" manner="approximant" place="palatal" voiced="+" channel="lateral" href="Voiced_palatal_lateral_approximant"/>
     <phone name="ʏ" manner="vowel" height="near-close" backness="near-front" rounded="+" href="Near-close_near-front_rounded_vowel"/>
     <phone name="ʐ" channel="grooved" manner="fricative" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_fricative"/>
