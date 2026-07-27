@@ -49,6 +49,26 @@ class TractPoint:
 
 
 @dataclass(frozen=True)
+class RestPosture:
+    """Where the articulators sit when not speaking.
+
+    Rendering geometry, not features: silence is featurally null, but it
+    still has to be drawn somewhere, and an utterance starts and ends
+    here -- which is the home position for animated trajectories.
+    """
+
+    arc: float
+    offset: float
+    lips: str = "closed"
+    jaw: str = "closed"
+    velum: str = "lowered"
+
+    @property
+    def point(self) -> TractPoint:
+        return TractPoint(arc=self.arc, offset=self.offset)
+
+
+@dataclass(frozen=True)
 class MidlinePoint:
     arc: float
     x: float
@@ -62,11 +82,19 @@ class Head:
 
     name: str
     midline: tuple[MidlinePoint, ...]
+    rest: RestPosture | None = None
     desc: str | None = None
     length_cm: float | None = None
 
-    def project(self, point: TractPoint) -> tuple[float, float] | None:
-        """(x, y) for a tract point in this head, or None if unplaced.
+    def project(
+        self, point: TractPoint, at_rest: bool = False
+    ) -> tuple[float, float] | None:
+        """(x, y) for a tract point in this head.
+
+        Returns None for an unplaced point (silence has no articulatory
+        position) unless ``at_rest``, which draws it at the head's rest
+        posture -- what a renderer wants for silence and for the start
+        and end of an utterance.
 
         The midline is interpolated at the point's arc; the offset then
         carries the position from the midline toward the wall, scaled by
@@ -75,7 +103,9 @@ class Head:
         midline's own direction.
         """
         if not point.placed:
-            return None
+            if not (at_rest and self.rest is not None):
+                return None
+            point = self.rest.point
         arc = min(max(point.arc or 0.0, 0.0), 1.0)
         before = self.midline[0]
         after = self.midline[-1]
@@ -122,9 +152,20 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                     )
                 )
         length = elem.get("length-cm")
+        rest_elem = elem.find("rest")
+        rest = None
+        if rest_elem is not None:
+            rest = RestPosture(
+                arc=float(rest_elem.get("arc", 0.0)),
+                offset=float(rest_elem.get("offset", 0.0)),
+                lips=rest_elem.get("lips", "closed"),
+                jaw=rest_elem.get("jaw", "closed"),
+                velum=rest_elem.get("velum", "lowered"),
+            )
         heads[name] = Head(
             name=name,
             midline=tuple(sorted(points, key=lambda p: p.arc)),
+            rest=rest,
             desc=elem.get("desc"),
             length_cm=float(length) if length else None,
         )

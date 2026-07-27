@@ -215,11 +215,19 @@ class TestSilence:
         # A speech sound still gets its defaults.
         assert ipa.get_features("p", with_defaults=True)["rounded"] == "-"
 
-    def test_has_no_tract_position(self, ipa: IPAFeatures) -> None:
-        from ipakit.tract import tract_point
+    def test_has_no_tract_position_but_draws_at_rest(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import head, tract_point
 
         bundle = ipa.segment("␣").constituents[0].bundle(ipa)
-        assert not tract_point(ipa, bundle).placed
+        point = tract_point(ipa, bundle)
+        # Featurally null: no articulatory position at all.
+        assert not point.placed
+        assert head().project(point) is None
+        # But a renderer still has somewhere to draw it: the rest posture
+        # (jaw and lips closed, tongue neutral), which is head anatomy,
+        # not phone features - and the home position for animations.
+        assert head().project(point, at_rest=True) is not None
+        assert head().rest is not None and head().rest.lips == "closed"
 
 
 class TestTractSpace:
