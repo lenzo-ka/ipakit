@@ -259,6 +259,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         unregistered over-tie (simultaneous) sequences merge; under-tie
         (sequential) sequences project their first element. Text written
         in other tie conventions imports via :meth:`from_wild`.
+
+        A base carrying diacritics (``tʲ``, ``ã``, ``tʰ``) is neither
+        registered nor a tie chain; it reads through the same parse the
+        structured level uses, so the two levels cannot disagree about
+        one string. Prosodic marks are the documented exception: they
+        belong to the unit, not to its feature bag, so ``eː`` reads the
+        features of ``e`` and carries its length as prosody.
+
+        Returns ``{}`` when nothing resolves.
         """
         phone = self._resolve_token(phone)
         if phone in self.phones:
@@ -266,7 +275,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         elif (composed := self._compose_tie_bar_features(phone)) is not None:
             feats = composed
         else:
-            return {}
+            return self._modified_features(phone, with_defaults=with_defaults)
         manner_feature = self.features.get("manner")
         non_speech = bool(
             manner_feature is not None
@@ -277,6 +286,51 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 if name not in feats and feat.default is not None:
                     feats[name] = feat.default
         return feats
+
+    def _modified_features(
+        self, phone: str, with_defaults: bool = True
+    ) -> dict[str, str]:
+        """Features of a base carrying diacritics, via the structured parse.
+
+        :meth:`Segment.scalar` is the modifier overlay over the unit's
+        bare chain, and it calls back into :meth:`get_features` with that
+        chain. That is the recursion this guards: when the chain is the
+        string itself, nothing was stripped, so the overlay has nothing
+        to add and the chain is the string we already failed to resolve.
+        The answer is then ``{}``.
+
+        The test is the chain rather than the modifier list because a
+        prosodic mark (``eː``) is stripped to the unit's prosody and
+        never becomes a modifier, yet still leaves a chain worth reading.
+        """
+        try:
+            unit = self.segment(phone)
+        except ValueError:
+            return {}
+        chain = "".join(
+            c.base if i == 0 else unit.junctures[i - 1].glyph + c.base
+            for i, c in enumerate(unit.constituents)
+        )
+        if chain == phone:
+            return {}
+
+        # Tokenization currently drops characters it does not know, so a
+        # parse can succeed while silently discarding input: "q͡X" parses
+        # to "q". Re-emitting the unit is the check that the parse
+        # accounts for the whole string.
+        #
+        # The comparison is by character multiset rather than by string,
+        # because a stress mark is re-emitted before its base ("tˈ"
+        # spells back as "ˈt") -- reordered, not lost. Structural marks
+        # are excluded on both sides: the linking undertie is a boundary
+        # relation between units and belongs to no Segment by design, so
+        # its absence from the emission is not a dropped character.
+        def _substantive(text: str) -> list[str]:
+            return sorted(ch for ch in text if not self.is_structural_token(ch))
+
+        if _substantive(unit.to_ipa()) != _substantive(phone):
+            return {}
+        return unit.scalar(with_defaults=with_defaults)
 
     def feature_values(self, unit: str) -> dict[str, tuple[str, ...]]:
         """Every value each feature takes across one unit's constituents.
@@ -1398,14 +1452,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # -------------------------------------------------------------------------
 
     def __contains__(self, phone: str) -> bool:
-        """True if ``phone`` is a registered phone or a composable tie-barred
-        sequence of known phones (e.g. "t͡ɬ"), matching what
-        :meth:`get_features` can resolve. Not the same set as
-        :meth:`__iter__`/:meth:`__len__`, which cover the registered
-        inventory only.
+        """True if ``phone`` is a registered phone, a composable tie-barred
+        sequence of known phones (e.g. "t͡ɬ"), or a base carrying diacritics
+        ("tʲ") -- matching what :meth:`get_features` can resolve. Not the
+        same set as :meth:`__iter__`/:meth:`__len__`, which cover the
+        registered inventory only.
         """
         phone = self._resolve_token(phone)
-        return phone in self.phones or self._is_composable(phone)
+        if phone in self.phones or self._is_composable(phone):
+            return True
+        return bool(self._modified_features(phone, with_defaults=False))
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.phones.keys())
