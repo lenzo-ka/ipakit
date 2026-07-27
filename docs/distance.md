@@ -66,7 +66,7 @@ The z axis is the one the sagittal plane projects away, and it carries two facts
 Two kinds of value hold **no position** on their scale:
 
 - **Off-scale values.** `silence` is not a degree of constriction; it is the absence of signal. It is equidistant from every manner rather than nonsensically adjacent to `vowel`.
-- **Combining values.** `bilabial+velar` is an overlap, not a point on the front–back continuum. It compares by expanding to its components, and never pads the interval between them.
+- **Combining values.** `bilabial⊕velar` is an overlap, not a point on the front–back continuum. It compares by expanding to its components, and never pads the interval between them. The combiner is `⊕` (U+2295) rather than `+`, which is already the positive value of every binary feature.
 
 ## 4. Comparing two segments
 

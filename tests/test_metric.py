@@ -154,25 +154,25 @@ class TestOrdinalScales:
 
     def test_combining_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.value_distance("bilabial+velar", "bilabial+velar") == 0.0
-        assert pl.expand("bilabial+velar") == ("bilabial", "velar")
+        assert pl.value_distance("bilabial⊕velar", "bilabial⊕velar") == 0.0
+        assert pl.expand("bilabial⊕velar") == ("bilabial", "velar")
         # Expansion, not a scale step: the same value as comparing the tuple.
-        assert pl.value_distance("bilabial+velar", "velar") == pl.value_distance(
+        assert pl.value_distance("bilabial⊕velar", "velar") == pl.value_distance(
             ("bilabial", "velar"), "velar"
         )
 
     def test_friendly_names_are_value_aliases(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.value_distance("labial-velar", "bilabial+velar") == 0.0
+        assert pl.value_distance("labial-velar", "bilabial⊕velar") == 0.0
         assert pl.expand("labial-velar") == ("bilabial", "velar")
 
     def test_combining_order_is_canonical(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.combine({"velar", "bilabial"}) == "bilabial+velar"
-        assert pl.combine({"palatal", "alveolar"}) == "alveolar+palatal"
+        assert pl.combine({"velar", "bilabial"}) == "bilabial⊕velar"
+        assert pl.combine({"palatal", "alveolar"}) == "alveolar⊕palatal"
         # A novel combination is expressible without a granted name.
         assert ipa.get_features("p͡t", with_defaults=False)["place"] == (
-            "bilabial+alveolar"
+            "bilabial⊕alveolar"
         )
 
 
@@ -333,7 +333,11 @@ class TestArticulator:
 
         point = tract_point(ipa, ipa.segment("w").constituents[0].bundle(ipa))
         # A labial-velar moves the lower lip and the dorsum both.
-        assert point.articulator == "lower-lip+tongue-dorsum"
+        assert point.articulator == "lower-lip⊕tongue-dorsum"
+        # Spelled with the combiner, so it reads back as two organs. A
+        # literal "+" here was correct only while "+" was the combiner.
+        art = ipa.features["articulator"]
+        assert art.expand(point.articulator) == ("lower-lip", "tongue-dorsum")
 
 
 class TestSagittalBridges:
@@ -430,6 +434,17 @@ class TestChannelAxis:
 class TestDataIntegrity:
     """Guards for facts that can silently disagree with the model. Each
     of these caught a real defect when first written."""
+
+    def test_combiner_is_not_itself_a_declared_value(self, ipa: IPAFeatures) -> None:
+        # The combiner marks a value as a combination, so a value spelled
+        # with it parses as one. When "+" was both, expand("+") returned
+        # two empty components and the binary scale lost its own "+".
+        for name, feature in ipa.features.items():
+            for value in feature.values:
+                assert value != feature.COMBINER, f"{name}: {value!r}"
+            assert feature.expand("+") == ("+",), name
+            if feature.is_binary:
+                assert set(feature._value_index) == {"+", "-"}, name
 
     def test_typed_features_carry_no_per_value_tables(self, ipa: IPAFeatures) -> None:
         # The loader once built these inside the non-typed branch and read
