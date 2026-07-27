@@ -109,6 +109,14 @@ def _metric_bundle(
     manner_feature = features.features.get("manner")
     if manner_feature is not None and bundle.get("manner") in manner_feature.offscale:
         return feats, tuple(components)
+    # The active articulator: place names the constriction target, this
+    # names the organ that gets there. Resolved (a phone's own value, else
+    # its place's default) so that same-place different-organ pairs -- a
+    # linguolabial against a bilabial, apical against laminal -- are
+    # visible to the metric at all.
+    resolved = tract_point(features, bundle).articulator
+    if resolved is not None:
+        feats["articulator"] = resolved
     feats["nasality"] = (
         "+"
         if (

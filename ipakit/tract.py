@@ -38,10 +38,18 @@ HEADS_FILE = PHONEMAPS_DIR.parent / "heads.xml"
 
 @dataclass(frozen=True)
 class TractPoint:
-    """A phone's position in normalized tract space."""
+    """Where a constriction is, and what makes it.
+
+    ``arc`` and ``offset`` locate the constriction; ``articulator`` names
+    the organ that travels there. Place names the target, not the mover:
+    the two coincide by convention for most sounds, but not for
+    linguolabials (tongue to the upper lip) or apical/laminal contrasts.
+    A renderer needs the articulator to animate at all.
+    """
 
     arc: float | None  # 0 lips .. 1 glottis, None if unplaced
     offset: float | None  # 0 open midline .. 1 full closure, None if unplaced
+    articulator: str | None = None  # the organ that moves, None if unknown
 
     @property
     def placed(self) -> bool:
@@ -190,8 +198,11 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
     """Where a feature bundle sits in tract space.
 
     Consonants read arc from place and offset from manner; vowels read
-    arc from backness and offset from height. Unplaceable bundles (no
-    manner, an off-scale manner like silence) yield an unplaced point.
+    arc from backness and offset from height. The articulator comes from
+    the bundle when a phone or diacritic states one (a linguolabial says
+    tongue-tip explicitly), otherwise from the place's declared default.
+    Unplaceable bundles (no manner, an off-scale manner like silence)
+    yield an unplaced point.
     """
     manner = bundle.get("manner")
     arc: float | None = None
@@ -206,9 +217,20 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
         raw = feat.coordinates.get(feat.value_aliases.get(value, value), {}).get(attr)
         return raw
 
+    articulator = bundle.get("articulator")
+
+    def articulator_for(feature: str, value: str | None) -> str | None:
+        if value is None:
+            return None
+        feat = features.features.get(feature)
+        if feat is None:
+            return None
+        return feat.articulators.get(feat.value_aliases.get(value, value))
+
     if manner == "vowel":
         arc = value_attr("backness", bundle.get("backness"), "arc")
         offset = value_attr("height", bundle.get("height"), "offset")
+        articulator = articulator or articulator_for("backness", bundle.get("backness"))
     else:
         place = bundle.get("place")
         if place is not None:
@@ -224,5 +246,21 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
                 ]
                 if arcs:
                     arc = sum(arcs) / len(arcs)
+            if articulator is None and feat is not None:
+                # A combining place combines its articulators: a
+                # labial-velar moves the lower lip AND the dorsum. (The
+                # gestural model makes these two gestures; see
+                # docs/gestural-model.md.)
+                organs = [
+                    organ
+                    for comp in feat.expand(place)
+                    if (organ := feat.articulators.get(comp)) is not None
+                ]
+                if organs:
+                    seen: list[str] = []
+                    for organ in organs:
+                        if organ not in seen:
+                            seen.append(organ)
+                    articulator = "+".join(seen)
         offset = value_attr("manner", manner, "offset")
-    return TractPoint(arc=arc, offset=offset)
+    return TractPoint(arc=arc, offset=offset, articulator=articulator)

@@ -121,6 +121,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     values = []
                     offscale: set[str] = set()
                     coordinates: dict[str, dict[str, float]] = {}
+                    articulators: dict[str, str] = {}
                     self._value_aliases[name] = {}
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):
@@ -134,6 +135,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                             }
                             if coords:
                                 coordinates[val_name] = coords
+                            if (art := v.get("articulator")) is not None:
+                                articulators[val_name] = art
                             if alias := v.get("alias"):
                                 self._value_aliases[name][alias] = val_name
                             if vshort := v.get("short"):
@@ -152,6 +155,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     axis=feat_elem.get("axis"),
                     offscale=frozenset(offscale),
                     coordinates=coordinates,
+                    articulators=articulators,
                 )
 
         # Load elements by class (plural section, singular child = section[:-1])

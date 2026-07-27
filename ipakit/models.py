@@ -40,6 +40,9 @@ class Feature:
     # Tract coordinates per value (arc along the midline, offset from it),
     # declared in the data; see ipakit.tract.
     coordinates: dict[str, dict[str, float]] = field(default_factory=dict)
+    # Default active articulator per value: place names the constriction
+    # target, this names the organ that gets there.
+    articulators: dict[str, str] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"

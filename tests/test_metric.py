@@ -294,6 +294,48 @@ class TestTractSpace:
         assert head("adult-female").length_cm < head("adult-male").length_cm
 
 
+class TestArticulator:
+    """Place names the constriction target; the articulator names the
+    organ that gets there. The two coincide by convention for most
+    sounds, and where they do not, the metric can now see it."""
+
+    def test_places_declare_their_default_articulator(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        def organ(sym: str) -> str | None:
+            return tract_point(
+                ipa, ipa.segment(sym).constituents[0].bundle(ipa)
+            ).articulator
+
+        assert organ("p") == "lower-lip"
+        assert organ("t") == "tongue-tip"
+        assert organ("ʃ") == "tongue-blade"
+        assert organ("k") == "tongue-dorsum"
+        assert organ("ħ") == "tongue-root"
+        assert organ("ʔ") == "vocal-folds"
+
+    def test_linguolabial_overrides_the_default(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        point = tract_point(ipa, ipa.segment("t̼").constituents[0].bundle(ipa))
+        # Tongue to the upper lip: labial target, lingual articulator.
+        assert point.articulator == "tongue-tip"
+        assert point.arc == pytest.approx(0.0)
+        # And it is no longer indistinguishable from a bilabial stop.
+        assert D(ipa, "p", "t̼") > 0.0
+
+    def test_apical_and_laminal_are_visible(self, ipa: IPAFeatures) -> None:
+        # Same place, different part of the tongue - invisible before.
+        assert D(ipa, "t̺", "t̻") > 0.0
+
+    def test_combining_place_combines_articulators(self, ipa: IPAFeatures) -> None:
+        from ipakit.tract import tract_point
+
+        point = tract_point(ipa, ipa.segment("w").constituents[0].bundle(ipa))
+        # A labial-velar moves the lower lip and the dorsum both.
+        assert point.articulator == "lower-lip+tongue-dorsum"
+
+
 class TestSagittalBridges:
     """The frame's axes are stored twice (place/backness on x,
     manner-constriction/height on y) in features that never co-occur;
