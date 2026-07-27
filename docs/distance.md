@@ -37,11 +37,11 @@ Everything above is head-independent. A head shape (`data/heads.xml`) projects t
 
 Ordinal features could compute distance from declaration order — value *i* to value *j* costs `|i−j|/(n−1)`. ipakit does that only for features without anchors. Where anchors exist, they are used instead, for three reasons:
 
-**Steps are not uniform.** `bilabial→labiodental` is 0.03 and `velar→uvular` is 0.11, though both are one label apart. Index distance would price them identically.
+**Steps are not uniform.** The lips-to-teeth move is much smaller than the velum-to-uvula move, though both are one label apart. Index distance prices them identically; anchors do not.
 
-**Dimensions become commensurable.** `place` and `backness` describe the same physical continuum with different label sets — 12 values against 5. Under index distance one backness step cost 2.75× one place step, an artifact of labelling. Under anchors both are positions on one arc.
+**Dimensions become commensurable.** `place` and `backness` describe the same physical continuum with different numbers of labels. Under index distance one backness step cost several times one place step — an artifact of labelling, not of anatomy. Under anchors both are positions on one arc.
 
-**Distances survive inventory growth.** Adding a 13th place value leaves every existing place distance unchanged, because anchors are absolute. Under index distance, adding a value would silently shift every distance in the library, and with it the shipped matrix.
+**Distances survive inventory growth.** Adding a place value leaves every existing place distance unchanged, because anchors are absolute. Under index distance, adding a value would silently shift every distance in the library, and with it the shipped matrix.
 
 Unanchored dimensions — `tone`, `length`, `phonation` — still use declaration order, honestly, because there the label set *is* the model. Categorical dimensions (`airstream`, `release`, `articulator`) score 0 for a match and 1 otherwise; they have no continuum to be positioned on.
 
@@ -82,8 +82,8 @@ with `γ = 1.0`. An atomic segment is lifted to a one-part sequence, which defin
 
 **Alignment mode follows the unit kinds:**
 
-- **Ordered** — sequence alignment with gaps: sequential units, and fused units whose phase order carries meaning (affricate, prenasalized, pre-stopped, lateral release, click accompaniment, overlay). `d(n͡d, d͡n) = 0.033`; `d(a͡t, t͡a) = 0.182`.
-- **Unordered** — the larger of the two directional best-match means: single-block fusions, where order is notation rather than meaning. `d(u͡i, i͡u) = 0`, `d(k͡p, p͡k) = 0`.
+- **Ordered** — sequence alignment with gaps: sequential units, and fused units whose phase order carries meaning (affricate, prenasalized, pre-stopped, lateral release, click accompaniment, overlay). A prenasalized stop and a pre-stopped nasal built from the same constituents are therefore distinct, as are `a͡t` and `t͡a`.
+- **Unordered** — the larger of the two directional best-match means: single-block fusions, where order is notation rather than meaning. `d(u͡i, i͡u)` and `d(k͡p, p͡k)` are exactly 0.
 
 An n-ary fusion aligns its phase blocks in order and matches unordered within them, so `ŋ͡m͡ɡ͡b` equals `m͡ŋ͡b͡ɡ` and differs from `ɡ͡b͡ŋ͡m`.
 
@@ -96,10 +96,10 @@ Prosody — stress, length, tone — is excluded: `d(a, aː) = 0`.
 A bundle distance is the mean over these terms:
 
 - **Each shared or unshared feature key**, scored by that feature's `value_distance` (§2). A key present on one side only scores 1.
-- **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`: 0.003, 0.066, 0.069.
+- **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`.
 - **Two tract terms**, `arc` and `offset`, compared directly.
 
-**Bridge features** are derived for the comparison and never stored. They exist because one phonetic dimension can be spelled several ways: `nasality` unifies `manner=nasal`, `nasalized=+`, and `release=nasal`; `laterality` unifies `lateral=+` and `release=lateral`. Without them, `ã` and `n` share no key expressing nasality at all. With them, `d(ã, n) = 0.305` against `d(a, n) = 0.351`.
+**Bridge features** are derived for the comparison and never stored. They exist because one phonetic dimension can be spelled several ways: `nasality` unifies `manner=nasal`, `nasalized=+`, and `release=nasal`; `laterality` unifies `lateral=+` and `release=lateral`. Without them, `ã` and `n` share no key expressing nasality at all. With them, `ã` is nearer `n` than plain `a` is.
 
 The tract terms exist for the same reason at the level of position. The frame's axes are each stored twice — x as `place` for consonants and `backness` for vowels, y as `manner` and `height` — in features that never co-occur. Without shared coordinates, `j` and `i` have no comparable key despite being nearly the same articulation, and a voiceless alveolar stop scored closer to /i/ than /i/'s own glide. With them the orderings hold: `d(j, i) < d(t, i)`, and `d(w, u) < d(k, u) < d(t, u)`.
 
@@ -119,11 +119,11 @@ If weights are ever wanted, the only defensible source is empirical confusion da
 
 ## 8. Implications for users
 
-**The numbers are structural.** Two segments are close when they are made similarly. That correlates with confusability but does not model it: `t͡ʃ` is closer to `t͡s` (0.019) than to `ʃ` (0.685), because an affricate shares phase structure with another affricate and not with a bare fricative. If your task is perceptual, treat these as a prior and calibrate against your own data.
+**The numbers are structural.** Two segments are close when they are made similarly. That correlates with confusability but does not model it: `t͡ʃ` is much closer to `t͡s` than to `ʃ`, because an affricate shares phase structure with another affricate and not with a bare fricative. If your task is perceptual, treat these as a prior and calibrate against your own data.
 
 **Thresholds are not portable across versions.** The shipped `confusion.json` is a derived artifact; changes to the anchors, the inventory, or the metric regenerate it and shift absolute values. Orderings are far more stable than magnitudes. If you have tuned an `is_similar` threshold, re-tune it after upgrading.
 
-**Percentiles are inventory-relative.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution. The same pair scores differently under a 15-phone English set and the full 139-phone inventory; this is intended, and it is why `distance_model(phoneset)` exists.
+**Percentiles are inventory-relative.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution. The same pair scores differently under a small English set and the full bundled inventory; this is intended, and it is why `distance_model(phoneset)` exists.
 
 **Silence behaves as a deletion.** `d(␣, X) = 1.0` for every speech sound, so substituting silence costs exactly what deleting the phone costs in an alignment.
 
@@ -139,6 +139,8 @@ python scripts/confusion.py validate           # CI guard: shipped == derived
 ```
 
 The test suite pins the metric's exact properties — `d(ɡ, ɡ͡b) = d_b(ɡ,b)/2`, `d(u͡i, u͜i) = 1/3`, the cross-class orderings, symmetry and range over a probe set. A parameter change that breaks one of those is a semantic change, not a tuning change.
+
+This document states relations and invariants rather than measured values, deliberately: exact numbers belong in the test suite, where a change that moves them fails loudly. Prose that quotes them goes stale in silence.
 
 ## Related
 
