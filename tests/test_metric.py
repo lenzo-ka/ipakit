@@ -136,13 +136,27 @@ class TestOrdinalScales:
         )
         assert pl.value_distance("bilabial", "dental") == pytest.approx(2 * one_step)
 
-    def test_combined_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
+    def test_combining_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
         pl = ipa.features["place"]
-        assert pl.value_distance("labial-velar", "labial-velar") == 0.0
-        assert pl.expansions["labial-velar"] == ("bilabial", "velar")
+        assert pl.value_distance("bilabial+velar", "bilabial+velar") == 0.0
+        assert pl.expand("bilabial+velar") == ("bilabial", "velar")
         # Expansion, not a scale step: the same value as comparing the tuple.
-        assert pl.value_distance("labial-velar", "velar") == pl.value_distance(
+        assert pl.value_distance("bilabial+velar", "velar") == pl.value_distance(
             ("bilabial", "velar"), "velar"
+        )
+
+    def test_friendly_names_are_value_aliases(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        assert pl.value_distance("labial-velar", "bilabial+velar") == 0.0
+        assert pl.expand("labial-velar") == ("bilabial", "velar")
+
+    def test_combining_order_is_canonical(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        assert pl.combine({"velar", "bilabial"}) == "bilabial+velar"
+        assert pl.combine({"palatal", "alveolar"}) == "alveolar+palatal"
+        # A novel combination is expressible without a granted name.
+        assert ipa.get_features("p͡t", with_defaults=False)["place"] == (
+            "bilabial+alveolar"
         )
 
 

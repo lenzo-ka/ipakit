@@ -24,11 +24,13 @@ class Feature:
     default: str | None = None
     type: str = "ordinal"  # declared value-set type (from XML); see is_ordinal
     desc: str | None = None  # Brief description
-    # Values that are display names over several true values (a combined
-    # place like labial-velar over its two articulations). They are valid
+    # Combining values are spelled as their ordered components joined by
+    # "+" (bilabial+velar): the name IS the expansion. They are valid
     # values but hold NO position on the ordinal scale - an overlap is not
-    # a point on the continuum - and compare by expansion.
-    expansions: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # a point on the continuum - and compare by expansion. Friendly display
+    # names (labial-velar) are value aliases, resolved everywhere.
+    COMBINER = "+"
+    value_aliases: dict[str, str] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"
@@ -41,12 +43,41 @@ class Feature:
     def _value_index(self) -> dict[str, int]:
         """value -> scale index, for O(1) ordinal distance.
 
-        Expanding values (combined places) are skipped: they are display
-        names over several true values, not points on the continuum, so
-        they must not pad the scale between their neighbours.
+        Combining values (bilabial+velar) are skipped: an overlap is not a
+        point on the continuum, so it must not pad the scale between its
+        neighbours.
         """
-        scale = [v for v in self.values if v not in self.expansions]
+        scale = [v for v in self.values if self.COMBINER not in v]
         return {v: i for i, v in enumerate(scale)}
+
+    def expand(self, value: str) -> tuple[str, ...]:
+        """A value's components: the value itself, or its ordered parts for
+        a combining value (``bilabial+velar`` -> ``(bilabial, velar)``).
+        Generative: any ``+``-joined spelling expands, declared or not."""
+        value = self.value_aliases.get(value, value)
+        if self.COMBINER in value:
+            return tuple(value.split(self.COMBINER))
+        return (value,)
+
+    def combine(self, values: set[str] | tuple[str, ...]) -> str:
+        """The canonical combining spelling for a set of values: components
+        ordered by their scale position (declaration order as fallback),
+        joined by ``+``. One spelling per combination -- palatal+alveolar
+        cannot occur, only alveolar+palatal."""
+
+        def position(v: str) -> tuple[int, str]:
+            idx = self._value_index.get(v)
+            if idx is not None:
+                return (idx, v)
+            try:
+                return (self.values.index(v), v)
+            except ValueError:
+                return (len(self.values), v)
+
+        unique = sorted(set(values), key=position)
+        if len(unique) == 1:
+            return unique[0]
+        return self.COMBINER.join(unique)
 
     @property
     def is_binary(self) -> bool:
@@ -69,10 +100,14 @@ class Feature:
         double articulation's places): the distance is then the directional
         best-match mean, max of the two directions.
         """
-        if isinstance(v1, str) and v1 in self.expansions:
-            v1 = self.expansions[v1]
-        if isinstance(v2, str) and v2 in self.expansions:
-            v2 = self.expansions[v2]
+        if isinstance(v1, str):
+            v1 = self.value_aliases.get(v1, v1)
+            if self.COMBINER in v1:
+                v1 = self.expand(v1)
+        if isinstance(v2, str):
+            v2 = self.value_aliases.get(v2, v2)
+            if self.COMBINER in v2:
+                v2 = self.expand(v2)
         if isinstance(v1, tuple) or isinstance(v2, tuple):
             c1 = v1 if isinstance(v1, tuple) else (v1,)
             c2 = v2 if isinstance(v2, tuple) else (v2,)

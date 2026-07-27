@@ -44,9 +44,8 @@ SECONDARY_PLACE = {
     "ˤ": "pharyngeal",
 }
 
-# Combined place values (display names over two true articulations)
-# expand to their components. The map is data: the `expands` attribute on
-# the place feature's value declarations in ipa.xml.
+# Combining place values (bilabial+velar) carry their expansion in the
+# name; Feature.expand supplies the components.
 
 # Kinds whose part order is meaning (phased units and sequences); pairs
 # involving any of these align ordered. Single-block fusions and atomic
@@ -91,8 +90,8 @@ def _metric_bundle(
     place = bundle.get("place")
     if place is not None:
         place_feature = features.features.get("place")
-        expansions = place_feature.expansions if place_feature else {}
-        for comp in expansions.get(place, (place,)):
+        comps = place_feature.expand(place) if place_feature else (place,)
+        for comp in comps:
             components.append((comp, 1.0))
     for mod in constituent.modifiers:
         if modifier_mode(features, mod) == "secondary" and mod in SECONDARY_PLACE:

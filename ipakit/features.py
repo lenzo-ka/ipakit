@@ -119,13 +119,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         self._feature_to_short[(name, val)] = short
                 else:
                     values = []
-                    expansions: dict[str, tuple[str, ...]] = {}
                     self._value_aliases[name] = {}
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):
                             values.append(val_name)
-                            if expands := v.get("expands"):
-                                expansions[val_name] = tuple(expands.split())
                             if alias := v.get("alias"):
                                 self._value_aliases[name][alias] = val_name
                             if vshort := v.get("short"):
@@ -140,7 +137,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     default=default,
                     type=feat_type,
                     desc=desc,
-                    expansions=expansions if feat_type not in self.types else {},
+                    value_aliases=dict(self._value_aliases.get(name, {})),
                 )
 
         # Load elements by class (plural section, singular child = section[:-1])
@@ -256,17 +253,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     feats[name] = feat.default
         return feats
 
-    # Place pairs with a dedicated combined value in the "place" feature
-    # (used by the atomic symbols "w" and "ɥ"), keyed by unordered place pair.
-    # Only true double articulations belong here: labiodental and
-    # alveolo-palatal are single places of articulation, not overlaps of two,
-    # so e.g. a composed bilabial+dental does not collapse to labiodental.
-    # See data/ipa.xml for list of valid place features
-    _COARTICULATED_PLACES = {
-        frozenset({"bilabial", "velar"}): "labial-velar",
-        frozenset({"bilabial", "palatal"}): "labial-palatal",
-    }
-
     def _resolve_token(self, token: str) -> str:
         """Canonicalize a token: Unicode form, then alias -> registered name."""
         token = self.canonicalize_unicode(token)
@@ -359,10 +345,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if len(manners) > 1:
             feats["manner"] = "affricate"
         elif len(set(places)) > 1:
-            # TODO: this will produce "bilabial" for things like /t̪͡p/
-            #       since bilabial is the place feature for p. I'm not sure this is correct.
-            if combined := self._COARTICULATED_PLACES.get(frozenset(places)):
-                feats["place"] = combined
+            # A same-manner multi-place fusion is a double articulation; its
+            # place is the canonical combining spelling (components ordered
+            # by scale position): any pair, not just the pre-named ones.
+            place_feature = self.features.get("place")
+            if place_feature is not None:
+                feats["place"] = place_feature.combine(tuple(places))
         return feats
 
     def get_phone(self, symbol: str) -> Phone | None:
