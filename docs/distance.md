@@ -146,3 +146,4 @@ This document states relations and invariants rather than measured values, delib
 
 - [docs/ties.md](ties.md) — tie conventions, the representation, and how segments compose
 - [docs/gestural-model.md](gestural-model.md) — the model this representation is converging on, not yet implemented
+- [docs/tract-anatomy.md](tract-anatomy.md) — the vocal-tract geometry that would derive these anchors rather than declare them

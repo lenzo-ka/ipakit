@@ -40,6 +40,10 @@ The visualization engine needs to know which organ moves, from rest, to where. `
 
 This is the microbeam framing: pellets on articulators, tracked relative to place targets.
 
+## The geometry a gesture executes
+
+A gesture says which articulator goes where, to what degree. Executing or drawing one needs the anatomy that constrains it: the fixed contours it moves against, the joints it pivots on, what carries what. [docs/tract-anatomy.md](tract-anatomy.md) specifies that — contours, articulators, degrees of freedom, and the constraint graph relating them — and notes that the current hand-placed anchors are exactly what such a geometry would compute.
+
 ## Staging
 
 1. **Minimal (shipped pre-release)**: articulator declared per place value with phone-level overrides where it differs (linguolabial, retroflex); `articulator` re-typed categorical over the real organ inventory; one articulator term in distance. Closes the visible gap (`t̼`, `t̺`, `t̻` were invisible to the metric) and gives the renderer its organ.
