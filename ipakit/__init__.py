@@ -6,7 +6,7 @@ Simple API:
     ipa.distance("p", "b")              # 0.043
     ipa.features("p")                   # {'manner': 'plosive', ...}
     ipa.to_cmu("ˈhɛloʊ")                # ['HH', 'EH1', 'L', 'OW0']
-    ipa.to_ipa(["HH", "EH1", "L"])      # 'hˈɛl'
+    ipa.to_ipa(ipa.segments("hɛl"))     # 'hɛl'
     ipa.tokenize("t͡ʃe͜ɪnd͡ʒ")          # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
     ipa.normalize("tʃ eɪ n dʒ")         # 't͡ʃe͜ɪnd͡ʒ'
 
@@ -52,9 +52,9 @@ from .segment import Constituent, Kind, Segment, Sense
 # for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
 from .xsampa import ipa_to_xsampa, xsampa_to_ipa
 
-# =============================================================================
+# ======================================================================
 # Module-level API (lazy singletons)
-# =============================================================================
+# ======================================================================
 
 
 @functools.lru_cache(maxsize=1)
@@ -225,8 +225,29 @@ def distance_model(
 
 
 def features(phone: str, with_defaults: bool = True) -> dict[str, str]:
-    """Get phonetic features for an IPA phone."""
+    """Get phonetic features for an IPA phone.
+
+    The scalar read: one value per feature. :func:`feature_values` is the
+    multi-valued companion, for units whose constituents disagree.
+    """
     return _get_ipa().get_features(phone, with_defaults=with_defaults)
+
+
+def feature_values(unit: str) -> dict[str, tuple[str, ...]]:
+    """Every value each feature takes across one unit's constituents.
+
+    The bridge from the flat string API to the structured reads on
+    ``Segment``: ``scalar()`` is what :func:`features` returns, ``bag()`` is
+    this, and ``disagreements()`` is this filtered to the multi-valued
+    features. Raises ``ValueError`` unless the text is exactly one unit.
+
+    Examples:
+        >>> features("u͜i")["backness"]  # scalar: the first element
+        'back'
+        >>> feature_values("u͜i")["backness"]
+        ('back', 'front')
+    """
+    return _get_ipa().feature_values(unit)
 
 
 def features_from_cmu(
@@ -325,6 +346,23 @@ def segment(ipa_string: str) -> Segment:
     return _get_ipa().segment(ipa_string)
 
 
+def to_ipa(segments: list[Segment]) -> str:
+    """Join structured Segment units back into one IPA string.
+
+    The inverse of :func:`segments`, and no stronger than
+    ``Segment.to_ipa``: lossy on the legacy alias spellings, and marks
+    belonging to no unit (breaks, the linking undertie) are not carried by
+    a Segment at all (docs/ties.md).
+
+    Examples:
+        >>> to_ipa(segments("t͡ʃe͜ɪnd͡ʒ"))
+        't͡ʃe͜ɪnd͡ʒ'
+        >>> to_ipa(segments("ʧa"))  # the ligature parsed, its canonical spelling back
+        't͡ʃa'
+    """
+    return _get_ipa().to_ipa(segments)
+
+
 def normalize(segments: str) -> str:
     """Normalize whitespace-separated IPA segments into decodable IPA string."""
     return _get_ipa().normalize(segments)
@@ -412,6 +450,27 @@ def respell(phone: str, **changes: str) -> str | None:
         True
     """
     return _get_ipa().respell(phone, **changes)
+
+
+def find(
+    ipa_string: str,
+    query: dict[str, str] | list[str] | set[str],
+    with_defaults: bool = True,
+) -> list[tuple[int, Segment]]:
+    """Find the units of an IPA string matching a feature query.
+
+    The same query language :func:`phones_matching` takes, run over a
+    transcription instead of the inventory. Positions index :func:`segments`
+    and each match is that Segment, so the unit's structure is in hand and
+    ``to_ipa()`` spells it.
+
+    Examples:
+        >>> [(i, s.to_ipa()) for i, s in find("t͡ʃe͜ɪnd͡ʒ", ["vow"])]
+        [(1, 'e͜ɪ')]
+        >>> [i for i, _ in find("kæt", ["plo"])]
+        [0, 2]
+    """
+    return _get_ipa().find(ipa_string, query, with_defaults=with_defaults)
 
 
 def features_to_shorts(bundle: dict[str, str]) -> list[str]:
@@ -600,9 +659,11 @@ __all__ = [
     "distance",
     "distance_model",
     "feature_bundles",
+    "feature_values",
     "features",
     "features_from_cmu",
     "features_from_xsampa",
+    "find",
     "from_cmu",
     "from_kirshenbaum",
     "from_timit",
@@ -621,6 +682,7 @@ __all__ = [
     "respell",
     "segment",
     "to_cmu",
+    "to_ipa",
     "to_kirshenbaum",
     "to_phone",
     "to_timit",

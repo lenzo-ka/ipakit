@@ -51,6 +51,12 @@ seg.right.to_ipa()                      # 'a'
 seg.left_features()["manner"]           # 'affricate'  (edge feature reads)
 ipakit.segment("u͜i").bag()["backness"]  # ('back', 'front')
 
+# Search a transcription for a feature pattern (same query language as
+# phones_matching, which searches the inventory), then join units back
+ipakit.find("t͡ʃe͜ɪnd͡ʒ", ["vow"])          # [(1, Segment(e͜ɪ))]
+ipakit.to_ipa(ipakit.segments("kæt"))     # 'kæt'
+ipakit.feature_values("u͜i")["backness"]   # ('back', 'front') — features() is the scalar read
+
 # Validate
 ipakit.validate_ipa("kæt")      # []  (valid)
 ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', ...}]
@@ -128,7 +134,7 @@ reuse it and only re-slice the percentile distribution.
 ## Conventions
 
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable
-  onset: `to_ipa(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
+  onset: `from_cmu(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
   across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
 - **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `e͜ɪ`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). The glyph is authoritative everywhere; text written in other conventions (where the glyphs are typographic variants) imports explicitly via `ipakit.from_wild`. Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
 Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. See [docs/distance.md](docs/distance.md) for the model.

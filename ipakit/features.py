@@ -278,6 +278,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     feats[name] = feat.default
         return feats
 
+    def feature_values(self, unit: str) -> dict[str, tuple[str, ...]]:
+        """Every value each feature takes across one unit's constituents.
+
+        The multi-valued companion of :meth:`get_features`, and the named
+        bridge from the flat string API to the structured reads: the flat
+        read is *scalar* (one value per feature) and for a composed unit it
+        is a summary -- ``u͜i`` projects its first element, so its
+        ``backness`` reads ``back`` and the ``front`` is only recoverable
+        from the token. This read keeps both, in constituent order.
+
+        The three shapes on :class:`Segment` are the same three:
+        ``scalar()`` is what :meth:`get_features` returns, ``bag()`` is this,
+        and ``disagreements()`` is this filtered to the features holding
+        more than one value.
+
+        Raises ``ValueError`` if ``unit`` is not exactly one unit.
+        """
+        return self.segment(unit).bag()
+
     def _resolve_token(self, token: str) -> str:
         """Canonicalize a token: Unicode form, then alias -> registered name."""
         token = self.canonicalize_unicode(token)
@@ -417,14 +436,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 return (term, "-")
         return None
 
-    def phones_matching(
-        self, query: dict[str, str] | list[str] | set[str], with_defaults: bool = True
-    ) -> list[str]:
-        """Get all phones matching features.
+    def _resolve_query(
+        self, query: dict[str, str] | list[str] | set[str]
+    ) -> tuple[dict[str, str], dict[str, set[str]]]:
+        """Resolve a feature query into (required, excluded) constraints.
 
-        Accepts dict or list/set of short or long names.
-        Names can be prefixed with + (has value) or - (does not have value).
-        E.g., ['+aspirated', '-voiced'] or ['+asp', '-voi'].
+        The query language is documented on :meth:`phones_matching`;
+        resolution is factored out here so :meth:`find` runs that same
+        language over a transcription instead of growing a second one.
         """
         positive: dict[str, str] = {}
         negative: dict[str, set[str]] = {}  # feature -> values to exclude
@@ -462,14 +481,77 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 f"no feature terms resolved from {query!r}; an unresolved "
                 "query would match the entire inventory"
             )
+        return positive, negative
 
-        results = []
-        for symbol in self.phones:
-            feats = self.get_features(symbol, with_defaults=with_defaults)
-            if all(feats.get(k) == v for k, v in positive.items()):
-                if all(feats.get(k) not in vals for k, vals in negative.items()):
-                    results.append(symbol)
-        return results
+    @staticmethod
+    def _query_matches(
+        feats: dict[str, str],
+        required: dict[str, str],
+        excluded: dict[str, set[str]],
+    ) -> bool:
+        """True if a feature bundle satisfies resolved query constraints."""
+        return all(feats.get(k) == v for k, v in required.items()) and all(
+            feats.get(k) not in vals for k, vals in excluded.items()
+        )
+
+    def phones_matching(
+        self, query: dict[str, str] | list[str] | set[str], with_defaults: bool = True
+    ) -> list[str]:
+        """Get all phones matching features.
+
+        Accepts dict or list/set of short or long names.
+        Names can be prefixed with + (has value) or - (does not have value).
+        E.g., ['+aspirated', '-voiced'] or ['+asp', '-voi'].
+
+        Searches the registered inventory; :meth:`find` runs the same query
+        over the units of a transcription.
+        """
+        required, excluded = self._resolve_query(query)
+        return [
+            symbol
+            for symbol in self.phones
+            if self._query_matches(
+                self.get_features(symbol, with_defaults=with_defaults),
+                required,
+                excluded,
+            )
+        ]
+
+    def find(
+        self,
+        ipa: str,
+        query: dict[str, str] | list[str] | set[str],
+        with_defaults: bool = True,
+    ) -> list[tuple[int, Segment]]:
+        """Locate the units of ``ipa`` whose features match ``query``.
+
+        Natural-class search over a transcription: the same query language
+        :meth:`phones_matching` takes (a feature dict, or short/long names
+        with +/-/0 prefixes), matched against each unit's flat projection --
+        :meth:`Segment.scalar`, which is the read :meth:`get_features` gives
+        for the same string. A registered unit therefore matches here
+        exactly when its spelling matches there, and a composed unit, which
+        :meth:`phones_matching` never sees, matches on the same terms.
+
+        Positions index :meth:`segments`, not characters: stress and
+        structural marks are not units (they ride on the unit they modify,
+        or between units), so ``find(s, q)[k]`` is ``(i, segments(s)[i])``.
+
+        Matches are :class:`Segment` objects rather than token strings
+        because a match is usually the prologue to reading the unit, and the
+        unit is already parsed: it spells itself with ``to_ipa()`` and also
+        carries ``kind``, ``bag()`` and the edge reads, where a token would
+        have to be re-parsed for any of them. The token form costs one
+        comprehension: ``[(i, u.to_ipa()) for i, u in find(...)]``.
+        """
+        required, excluded = self._resolve_query(query)
+        return [
+            (i, unit)
+            for i, unit in enumerate(self.segments(ipa))
+            if self._query_matches(
+                unit.scalar(with_defaults=with_defaults), required, excluded
+            )
+        ]
 
     def to_phone(self, bundle: dict[str, str]) -> str | None:
         """The registered symbol a feature bundle names: the inverse of
@@ -1033,6 +1115,28 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             prosody=prosody,
             _features=self,
         )
+
+    def to_ipa(self, segments: list[Segment]) -> str:
+        """Join structured units back into one IPA string.
+
+        The inverse of :meth:`segments`: ``to_ipa(segments(s)) == s`` for
+        house-canonical, purely segmental input. A join guarantees no more
+        than its parts do, and each unit emits through
+        :meth:`Segment.to_ipa`, which is lossy on the enumerable set of
+        legacy alias spellings (docs/ties.md) -- so the join is too:
+        ``segments("ʧa")`` rejoins as ``"t͡ʃa"``, the canonical spelling of
+        what was parsed rather than the ligature that was written.
+
+        Two further differences are the Segment model showing through, not
+        this method rewriting anything: marks that belong to no unit
+        (syllable breaks, the linking undertie) are not carried by a
+        Segment, so a join cannot restore them; and a stress mark binds to
+        the base it was written on and re-emits before it (``kˈæt`` ->
+        ``ˈkæt`` -- the same claim about the same unit, spelled
+        syllable-initially). Structure that must survive a string round
+        trip travels as ``Segment.to_json``.
+        """
+        return unicodedata.normalize("NFC", "".join(s.to_ipa() for s in segments))
 
     def from_wild(self, text: str) -> str:
         """Import IPA written in other conventions into house style.

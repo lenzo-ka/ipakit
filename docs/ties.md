@@ -43,6 +43,7 @@ The flat projection is deliberately a summary, not the whole story. The structur
 - Modifiers contribute by mode: overriding marks replace their base's value (the devoicing ring makes `d̥` voiceless, never both-voiced), additive and secondary marks add only what the base doesn't state, release marks stay phase properties, and prosodic marks live on the unit, outside the feature bag.
 - `to_json()`/`from_json()` carry the junctures explicitly and are the round-trip-guaranteed serialization. `to_ipa()` emits sense-correct glyphs and is lossy exactly on the legacy alias collisions: `build_segment(["a", "ɪ"], Sense.FUSE)` emits `a͡ɪ`, which re-ingests as the registered sequential diphthong — intent that must survive a string round trip needs the JSON form.
 - `build_segment` is the intent channel: it constructs any combination directly, bypassing string-alias collisions.
+- The way back out is `ipakit.to_ipa(units)`, the inverse of `segments` — a join of parts, and no stronger than the `to_ipa()` above: alias spellings return canonical, and marks that belong to no unit (breaks, the linking `‿`) are carried by no Segment and cannot be restored. `ipakit.find(ipa, query)` searches a transcription for a feature pattern in the same query language `phones_matching` runs over the inventory, returning `(index, Segment)` pairs indexed against `segments`. `ipakit.feature_values(unit)` reaches `bag()` from the flat string API: the multi-valued companion of the scalar `features()`.
 
 ## Normalizing tieless input
 
