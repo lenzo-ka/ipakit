@@ -54,6 +54,8 @@ Composition is intent-driven: a voicing-disagreeing tie like `t͡ɮ` is a legiti
 
 ## Distance is structural
 
+*Summary; [docs/distance.md](distance.md) is the full account.*
+
 `distance` (and everything built on it: `segment_distance`, the confusion matrix, `DistanceModel`) computes over the structure, not a flattened bag (`ipakit/metric.py`):
 
 - **Constituents compare as whole bundles** — `ɡ͡p` and `k͡b` have identical per-feature value sets but stay apart, because which constituent is voiced matters.

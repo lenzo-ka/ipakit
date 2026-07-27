@@ -117,6 +117,8 @@ eng.word_similarity("kæt", "kæd")            # 0.971
 eng.is_similar("kæt", "kæd", threshold=0.8)  # True
 ```
 
+Distances are **structural**: two segments are close when they are made similarly — same articulator, similar position in the vocal tract, similar constriction. That correlates with perceptual confusability but does not model it. [docs/distance.md](docs/distance.md) documents the representation, the comparison, and what the numbers do and do not mean.
+
 `distance_model()` also accepts `gamma` (power transform to push dissimilar
 pairs apart), `sub_mode="di"` (delete+insert substitution cost for word
 alignment), and `threshold` / `max_length_ratio` defaults for `is_similar`. The
