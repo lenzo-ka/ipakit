@@ -112,6 +112,40 @@ class TestModifiers:
         assert D(ipa, "a", "aː") == 0.0
 
 
+class TestOrdinalScales:
+    """Within-dimension ordering drives distance when the ordinal is
+    sensible - and only true points on the continuum hold scale positions.
+    Combined places (overlaps, not points) compare by expansion."""
+
+    def test_overlap_values_hold_no_scale_position(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        one_step = pl.value_distance("dental", "alveolar")
+        # labial-palatal / labial-velar no longer pad these intervals:
+        assert pl.value_distance("palatal", "velar") == pytest.approx(one_step)
+        assert pl.value_distance("velar", "uvular") == pytest.approx(one_step)
+
+    def test_real_intermediate_places_keep_their_positions(
+        self, ipa: IPAFeatures
+    ) -> None:
+        pl = ipa.features["place"]
+        one_step = pl.value_distance("dental", "alveolar")
+        # alveolo-palatal is a real single place between postalveolar and
+        # palatal; labiodental between bilabial and dental.
+        assert pl.value_distance("postalveolar", "palatal") == pytest.approx(
+            2 * one_step
+        )
+        assert pl.value_distance("bilabial", "dental") == pytest.approx(2 * one_step)
+
+    def test_combined_values_compare_by_expansion(self, ipa: IPAFeatures) -> None:
+        pl = ipa.features["place"]
+        assert pl.value_distance("labial-velar", "labial-velar") == 0.0
+        assert pl.expansions["labial-velar"] == ("bilabial", "velar")
+        # Expansion, not a scale step: the same value as comparing the tuple.
+        assert pl.value_distance("labial-velar", "velar") == pl.value_distance(
+            ("bilabial", "velar"), "velar"
+        )
+
+
 class TestProperties:
     PROBES = [
         "a",
