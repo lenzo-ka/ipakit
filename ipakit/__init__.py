@@ -282,18 +282,6 @@ def from_cmu(
     )
 
 
-def to_ipa(
-    cmu_symbols: list[str], include_extras: bool = True, strict: bool = False
-) -> str:
-    """Alias for :func:`from_cmu` (CMU ARPABET -> IPA).
-
-    ``from_cmu`` is the canonical name -- it names the source format, matching
-    ``from_xsampa``/``from_timit``/``from_kirshenbaum``, which also produce IPA.
-    ``to_ipa`` is kept for backward compatibility.
-    """
-    return from_cmu(cmu_symbols, include_extras=include_extras, strict=strict)
-
-
 # --- Tokenization & Normalization ---
 
 
@@ -579,7 +567,6 @@ __all__ = [
     "features",
     "features_from_cmu",
     "features_from_xsampa",
-    "features_to_shorts",
     "from_cmu",
     "from_kirshenbaum",
     "from_timit",
@@ -596,16 +583,11 @@ __all__ = [
     "phonemap_to_ipa",
     "phones_matching",
     "segment",
-    "shorts_to_features",
     "to_cmu",
-    "to_ipa",
     "to_kirshenbaum",
     "to_timit",
     "tokenize",
     "validate_ipa",
-    "wiki",
-    "wiki_ref",
-    "wiki_refs",
     "word_distance",
     "segment_distance",
     "pairwise_distances",

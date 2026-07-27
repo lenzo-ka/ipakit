@@ -1123,17 +1123,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             _features=self,
         )
 
-    def compose_single(
-        self, segment: str, with_defaults: bool = True
-    ) -> dict[str, str]:
-        """Get features for a single-phone segment."""
-        composed = self.compose(segment, with_defaults)
-        return composed[0] if len(composed) == 1 else {}
-
-    # -------------------------------------------------------------------------
-    # X-SAMPA conversion
-    # -------------------------------------------------------------------------
-
     def ipa_to_xsampa(self, ipa: str, strict: bool = False) -> str:
         """Convert an IPA string to X-SAMPA notation.
 

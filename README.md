@@ -61,7 +61,7 @@ ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', .
 ```python
 # CMU ARPABET
 ipakit.to_cmu("ˈkæt")             # ['K', 'AE1', 'T']
-ipakit.to_ipa(["K", "AE1", "T"])  # 'kˈæt'
+ipakit.from_cmu(["K", "AE1", "T"])  # 'kˈæt'
 
 # X-SAMPA (ASCII)
 ipakit.ipa_to_xsampa("t͡ʃ")        # 't_S'

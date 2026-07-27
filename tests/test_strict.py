@@ -16,7 +16,7 @@ class TestDefaultSkips:
 
     def test_converters_skip_by_default(self) -> None:
         assert ipakit.to_cmu("k4t") == ["K", "T"]
-        assert ipakit.to_ipa(["K", "ZZ", "T"]) == "kt"
+        assert ipakit.from_cmu(["K", "ZZ", "T"]) == "kt"
         assert ipakit.to_timit("k4t") == ["k", "t"]
         assert ipakit.from_timit(["k", "zz", "t"]) == "kt"
         assert ipakit.to_kirshenbaum("k4t") == "kt"
@@ -32,7 +32,7 @@ class TestStrictRaises:
         "call",
         [
             lambda: ipakit.to_cmu("k4t", strict=True),
-            lambda: ipakit.to_ipa(["K", "ZZ", "T"], strict=True),
+            lambda: ipakit.from_cmu(["K", "ZZ", "T"], strict=True),
             lambda: ipakit.to_timit("k4t", strict=True),
             lambda: ipakit.from_timit(["k", "zz", "t"], strict=True),
             lambda: ipakit.to_kirshenbaum("k4t", strict=True),
@@ -52,7 +52,7 @@ class TestStrictRaises:
     def test_strict_passes_for_valid_input(self) -> None:
         # No unconvertible symbols -> strict must not raise.
         assert ipakit.to_cmu("ˈkæt", strict=True) == ["K", "AE1", "T"]
-        assert ipakit.to_ipa(["K", "AE1", "T"], strict=True) == "kˈæt"
+        assert ipakit.from_cmu(["K", "AE1", "T"], strict=True) == "kˈæt"
         assert ipakit.ipa_to_xsampa("t͡ʃ", strict=True) == "t_S"
         assert ipakit.xsampa_to_ipa("t_S", strict=True) == "t͡ʃ"
 
