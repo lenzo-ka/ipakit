@@ -13,6 +13,18 @@ _VOWEL_DESC_ORDER = ["height", "backness", "rounded"]
 # Features to skip in descriptions (implied or structural)
 _SKIP_FEATURES = {"class", "href", "xsampa", "airstream"}
 
+# Secondary articulations, rendered ahead of the primary place the way the
+# conventional names do ("voiced velarized alveolar lateral approximant").
+# Each names itself, and each is read from the feature bundle, so a phone
+# carrying one inherently (ɫ) describes like the modifier spelling (lˠ).
+_SECONDARY_DESC_ORDER = [
+    "palatalized",
+    "labialized",
+    "velarized",
+    "pharyngealized",
+    "labio-palatized",
+]
+
 # Feature value labels for descriptions (binary flags, plus the ordered
 # channel axis whose values name themselves)
 _BINARY_LABELS: dict[str, dict[str, str | None]] = {
@@ -22,6 +34,7 @@ _BINARY_LABELS: dict[str, dict[str, str | None]] = {
     "retroflex": {"+": "retroflex", "-": None},
     "nasalized": {"+": "nasalized", "-": None},
     "syllabic": {"+": "syllabic", "-": None},
+    **{name: {"+": name, "-": None} for name in _SECONDARY_DESC_ORDER},
 }
 
 
@@ -40,6 +53,8 @@ class AnalysisMixin(IPAFeaturesBase):
             'voiceless sibilant postalveolar affricate'
             >>> ipakit.describe("l")
             'voiced lateral alveolar approximant'
+            >>> ipakit.describe("ɫ")
+            'voiced velarized lateral alveolar approximant'
         """
         feats = self.get_features(phone, with_defaults=with_defaults)
         if not feats:
@@ -72,7 +87,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Modifiers: binary flags, plus the channel axis whose own
             # values carry the label (lateral, sibilant).
-            for feat in ["retroflex", "channel", "nasalized"]:
+            for feat in [*_SECONDARY_DESC_ORDER, "retroflex", "channel", "nasalized"]:
                 if (val := feats.get(feat)) is None:
                     continue
                 if label := _BINARY_LABELS.get(feat, {}).get(val):

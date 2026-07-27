@@ -574,6 +574,8 @@ def describe(phone: str, with_defaults: bool = True) -> str:
         'open-mid front unrounded vowel'
         >>> ipakit.describe("t͡ʃ")
         'voiceless sibilant postalveolar affricate'
+        >>> ipakit.describe("ɫ")
+        'voiced velarized lateral alveolar approximant'
     """
     return _get_ipa().describe(phone, with_defaults=with_defaults)
 

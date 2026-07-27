@@ -46,6 +46,13 @@ class TestDescribe:
         assert "nasal" in desc
         assert "alveolar" in desc
 
+    def test_describe_secondary_articulation(self, ipa: IPAFeatures) -> None:
+        # ɫ carries velarized as a base feature; the description has to
+        # render it, or dark l and clear l read as the same sound.
+        desc = ipa.describe("ɫ")
+        assert desc == "voiced velarized lateral alveolar approximant"
+        assert desc != ipa.describe("l")
+
     def test_describe_unknown(self, ipa: IPAFeatures) -> None:
         desc = ipa.describe("X")
         assert "unknown" in desc

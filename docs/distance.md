@@ -100,7 +100,7 @@ Prosody — stress, length, tone — is excluded: `d(a, aː) = 0`.
 A bundle distance is the mean over these terms:
 
 - **Each shared or unshared feature key**, scored by that feature's `value_distance` (§2). A key present on one side only scores 1.
-- **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`.
+- **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`. A secondary articulation is read off the assembled bundle, not off the glyph stack, so it counts once and counts the same however it is written — inherent to the base phone (`ɫ`), as a modifier letter (`lˠ`), or as a combining diacritic (`l̴`) — and those three are at distance 0 from each other.
 - **Two tract terms**, `arc` and `offset`, compared directly.
 
 **Bridge features** are derived for the comparison and never stored. They exist because one phonetic dimension can be spelled several ways: `nasality` unifies `manner=nasal`, `nasalized=+`, and `release=nasal`; `laterality` unifies `channel=lateral` and `release=lateral`. Without them, `ã` and `n` share no key expressing nasality at all. With them, `ã` is nearer `n` than plain `a` is.
