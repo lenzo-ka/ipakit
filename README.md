@@ -120,7 +120,7 @@ reuse it and only re-slice the percentile distribution.
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable
   onset: `to_ipa(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
   across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
-- **Affricates and diphthongs use the tie bar** (`t͡ʃ`, `e͡ɪ`).
+- **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `u͜i`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). Registered symbols accept both traditional spellings as aliases (`t͜s` → `t͡s`, `e͜ɪ` → `e͡ɪ`). Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
 - **Round-trip guarantee (X-SAMPA only):** IPA written in these conventions
   round-trips through X-SAMPA (`ipa → xsampa → ipa`). The only exceptions are
   `b͡v`, `t͡θ`, and `ŋ͡m`, where the X-SAMPA tie encoding `_` collides with a

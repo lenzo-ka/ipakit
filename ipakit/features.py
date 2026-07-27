@@ -24,7 +24,15 @@ from .validation import ValidationMixin
 
 
 class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin):
-    """IPA feature database loaded from ipa.xml."""
+    """IPA feature database loaded from ipa.xml.
+
+    Tie conventions (see docs/ties.md): the over-tie (U+0361) fuses
+    constituents into one timing slot (affricates, double articulations);
+    the under-tie (U+035C) binds a sequence into one unit (diphthongs,
+    morae) and the over-tie binds tighter in mixed chains. Registered
+    symbols win everywhere, including through their alias spellings;
+    unregistered tie-joined sequences of known phones compose on the fly.
+    """
 
     def __init__(self, xml_path: Path = DEFAULT_IPA_FEATS):
         self.xml_path = Path(xml_path)
@@ -463,7 +471,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return "".join(result)
 
     def normalize_ipa(self, segments: str) -> str:
-        """Normalize whitespace-separated IPA segments into decodable IPA string."""
+        """Normalize whitespace-separated IPA segments into decodable IPA string.
+
+        Each whitespace-separated group is treated as one asserted unit;
+        :meth:`add_tie_bars` inserts the tie by sense (adjacent vowels bind
+        sequentially, anything else fuses).
+        """
         segments = self.expand_ligatures(segments)
         return unicodedata.normalize(
             "NFC", "".join(self.add_tie_bars(seg) for seg in segments.split())
@@ -665,7 +678,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Parse IPA string into list of segment tokens.
 
         Tokens are emitted in NFC so both precomposed and decomposed input
-        yield identical output.
+        yield identical output. Tie-joined runs of known phones are one
+        token whichever tie binds them; alias spellings are emitted in
+        canonical form (``t͜s`` -> ``t͡s``).
         """
         ipa = self.expand_ligatures(ipa)
         return [
@@ -685,9 +700,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     ) -> list[tuple[str, list[str]]]:
         """Parse an IPA segment string into (base, diacritics) tuples.
 
-        Unmatched characters (neither a phone nor a diacritic) are skipped. With
-        ``strict=True`` they instead raise ``ValueError`` listing the symbols
-        that could not be parsed.
+        Registered symbols match longest-first, including their alias
+        spellings, which resolve token-locally to canonical form (tie
+        glyphs elsewhere in the string are untouched). Unmatched
+        characters (neither a phone nor a diacritic) are skipped. With
+        ``strict=True`` they instead raise ``ValueError`` listing the
+        symbols that could not be parsed.
         """
         if not segment:
             return []
