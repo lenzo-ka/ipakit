@@ -40,7 +40,7 @@ ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.009), ('p͡f', 0.009)]
 ipakit.word_similarity("kæt", "kæd")   # 0.986
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
-ipakit.tokenize("t͡ʃe͡ɪnd͡ʒ")   # ['t͡ʃ', 'e͡ɪ', 'n', 'd͡ʒ']
+ipakit.tokenize("t͡ʃe͜ɪnd͡ʒ")   # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
 
 # Structured segments (typed ties; see docs/ties.md)
 seg = ipakit.parse_segment("t͡s͜a")     # one unit: fused onset + vowel, sequentially bound
@@ -94,9 +94,9 @@ the bundled IPA inventory's pairwise distribution, spreading values across
 
 ```python
 ipakit.distance("p", "b")             # 0.043   raw feature distance
-ipakit.normalized_distance("p", "b")  # 0.155   percentile within bundled IPA
-ipakit.normalized_distance("p", "a")  # 0.609
-ipakit.confusability("p", "b")        # 0.845   complement of normalized_distance
+ipakit.normalized_distance("p", "b")  # 0.156   percentile within bundled IPA
+ipakit.normalized_distance("p", "a")  # 0.612
+ipakit.confusability("p", "b")        # 0.844   complement of normalized_distance
 ```
 
 For a model over a chosen reference inventory — percentiles are **relative** to
@@ -128,7 +128,7 @@ reuse it and only re-slice the percentile distribution.
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable
   onset: `to_ipa(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
   across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
-- **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `u͜i`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). Registered symbols accept both traditional spellings as aliases (`t͜s` → `t͡s`, `e͜ɪ` → `e͡ɪ`). Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
+- **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `e͜ɪ`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). The glyph is authoritative everywhere; text written in other conventions (where the glyphs are typographic variants) imports explicitly via `ipakit.from_wild`. Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
 - **Round-trip guarantee (X-SAMPA only):** IPA written in these conventions
   round-trips through X-SAMPA (`ipa → xsampa → ipa`), **up to tie sense**:
   X-SAMPA has a single tie encoding, so the under-tie projects onto the
@@ -151,7 +151,7 @@ ipakit query match plosive bilabial  # Find phones by feature
 ipakit analysis natural-class p t k  # Shared features of a set
 ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw feature distance: ~0.04
-ipakit distance confusability p b    # Inventory-relative: 0.8448
+ipakit distance confusability p b    # Inventory-relative: 0.8441
 ipakit distance word kæt kæd         # Word similarity: 0.9742
 ```
 

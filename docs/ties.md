@@ -19,14 +19,11 @@ The over-tie binds tighter. A mixed chain decodes without brackets: `t͡s͜a` is
 
 Both ties stacked on one juncture assert contradictory timing; on ingest the pair collapses to the over-tie (simultaneous precedence). It is never emitted.
 
-## Registered symbols win, including through their aliases
+## The glyph is authoritative; wild text imports explicitly
 
-Lookup order everywhere (tokenizer, `get_features`, `get_phone`, `in`): registered symbol first — including its alias spellings, resolved token-locally — then on-the-fly composition. The registered inventory carries traditional spellings as aliases, so both of these resolve to their registered entries regardless of glyph:
+House style is the only default semantics: canonical spellings are sense-correct (affricates and double articulations over-tie — `t͡s`, `k͡p`; diphthongs under-tie — `e͜ɪ`, `a͜ɪ`), and every entry point reads the glyph as the sense. `t͜s` is a sequential chain, not a spelling of the affricate; `a͡ɪ` is a fused vowel overlay, not the diphthong. Only unambiguous single-character ligatures (`ʦ`, `ʧ`, NAPA `ƛ`) are aliases.
 
-- `t͜s` → the registered affricate `t͡s` (the under-tie spelling is a legacy alias);
-- `e͜ɪ` → the registered diphthong `e͡ɪ` (currently registered with the over-tie spelling; the under-tie spelling is its alias).
-
-For these specific alias strings the registered sense wins over the glyph's. Everywhere else the glyph is authoritative.
+Text from the wild — where the two glyphs are typographic free variants carrying no sense — is imported **explicitly** with `ipakit.from_wild(text)` (or `IPAFeatures.from_wild`): each uniform-glyph tied chain is rewritten to house style, preferring the spelling that names a registered compound (`t͜s` → `t͡s`, `a͡ɪ` → `a͜ɪ`) and falling back to the sense heuristic for unregistered chains (all-vocalic → sequential, else simultaneous). Chains already mixing both glyphs are house-authored and pass through untouched. Because import is explicit, default parsing is faithful: `parse(emit(x)) = x` structurally for every expressible unit — there is no collision list and no lossy emission.
 
 ## Registered compounds are derived, not hand-encoded
 
@@ -53,13 +50,7 @@ The flat projection is deliberately a summary, not the whole story. The structur
 
 ## Ties across phoneset conversions
 
-Tie **sense does not survive** conversion to other phonesets, and round trips do not restore it. X-SAMPA has a single tie encoding (`_`), and CMU/TIMIT/Kirshenbaum have none, so at those conversion boundaries the under-tie is **projected onto the over-tie**: unit-hood survives where the encoding can carry it, the sequential/simultaneous distinction does not.
-
-- `t͜s` → `t_s` → `t͡s` and `u͜i` → `u_i` → `u͡i`: the round trip returns canonical **over-tie** spellings, whatever the input glyph.
-- `ipa_to_xsampa("u͜i") == ipa_to_xsampa("u͡i")`: both senses convert identically.
-- The known X-SAMPA collisions (`b͡v`, `t͡θ`, `ŋ͡m`, where `_v`/`_T`/`_m` re-parse as diacritics) apply to tie-adjacent segments generally — e.g. a tie before a segment whose X-SAMPA starts with `a` collides with the apical diacritic `_a`.
-
-This projection is legitimate only at a lossy conversion boundary; parsing never rewrites tie glyphs. If tie sense matters, keep the IPA (or a structured form) as the source of truth and treat phoneset output as a projection.
+Tie **sense is not carried** by the other phoneset encodings: X-SAMPA has a single tie notion (`_`, which both glyphs write to), and CMU/TIMIT/Kirshenbaum have none. Converting out therefore loses the sequential/simultaneous distinction — `ipa_to_xsampa("u͜i") == ipa_to_xsampa("u͡i") == "u_i"`. Coming back, the tie reads generically and the result is canonicalized through `from_wild`, so **registered compounds round-trip to their house spelling with the correct sense** (`t͡s → t_s → t͡s`, `a͜ɪ → a_I → a͜ɪ`, and even a wild `a͡ɪ` comes back as `a͜ɪ`); unregistered chains come back with the sense heuristic. The known X-SAMPA collisions (`b͡v`, `t͡θ`, `ŋ͡m`, where `_v`/`_T`/`_m` re-parse as diacritics) apply to tie-adjacent segments generally. If exact sense on unregistered chains matters, keep the IPA (or the Segment JSON) as the source of truth.
 
 ## Unicode form
 
