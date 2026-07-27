@@ -21,9 +21,18 @@
   </classes>
 
   <!-- Declaration order determines default feature_order -->
+  <!-- Reference frame for ordinal scales: a left-facing oral tract.
+       +x runs along the tract from the lips to the glottis (left to right
+       in the standard sagittal diagram); +y runs jaw to palate (bottom to
+       top); the minor z axis runs outward to the midline (laterality,
+       centrality - binary here). Each multi-valued ordinal feature declares
+       its axis, and its values ascend along it. Values marked offscale
+       hold no position on the continuum (silence is not a degree of
+       constriction); combining values (bilabial+velar) likewise hold no
+       position. -->
   <features>
-    <feature name="manner" short="mnr" desc="How airflow is constricted" href="Manner_of_articulation">
-      <value name="silence" short="sil" href="Pause_(linguistics)"/>
+    <feature name="manner" axis="+constriction" short="mnr" desc="How airflow is constricted" href="Manner_of_articulation">
+      <value name="silence" short="sil" offscale="+" href="Pause_(linguistics)"/>  <!-- no position: absence of signal, equidistant from every manner -->
       <value name="vowel" short="vow" href="Vowel"/>
       <value name="approximant" short="apr" href="Approximant"/>
       <value name="trill" short="tri" href="Trill_consonant"/>
@@ -32,16 +41,16 @@
       <value name="fricative" short="fri" href="Fricative"/>
       <value name="plosive" short="plo" alias="stop" href="Plosive"/>
       <value name="affricate" short="aff" href="Affricate"/>
-      <value name="click" short="clk" href="Click_consonant"/>
+      <value name="click" short="clk" href="Click_consonant"/>  <!-- airstream mechanism leaking into the constriction axis; kept for compat -->
     </feature>
 
-    <feature name="airstream" short="air" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
+    <feature name="airstream" type="categorical" short="air" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
       <value name="pulmonic" short="pul" href="Pulmonic_consonant"/>
       <value name="ejective" short="eje" href="Ejective_consonant"/>
       <value name="implosive" short="imp" href="Implosive_consonant"/>
     </feature>
 
-    <feature name="place" short="plc" desc="Where articulation occurs" href="Place_of_articulation">
+    <feature name="place" axis="+x" short="plc" desc="Where articulation occurs" href="Place_of_articulation">
       <value name="bilabial" short="bil" href="Bilabial_consonant"/>
       <value name="labiodental" short="lbd" href="Labiodental_consonant"/>
       <value name="dental" short="den" href="Dental_consonant"/>
@@ -58,17 +67,17 @@
       <value name="glottal" short="glo" href="Glottal_consonant"/>
     </feature>
 
-    <feature name="height" short="hgt" desc="Vertical tongue position for vowels" href="Vowel#Height">
-      <value name="close" short="clo" alias="high" href="Close_vowel"/>
-      <value name="near-close" short="ncl" href="Near-close_vowel"/>
-      <value name="close-mid" short="clm" href="Close-mid_vowel"/>
-      <value name="mid" short="mid" href="Mid_vowel"/>
-      <value name="open-mid" short="opm" href="Open-mid_vowel"/>
-      <value name="near-open" short="nop" href="Near-open_vowel"/>
+    <feature name="height" axis="+y" short="hgt" desc="Vertical tongue position for vowels" href="Vowel#Height">
       <value name="open" short="opn" alias="low" href="Open_vowel"/>
+      <value name="near-open" short="nop" href="Near-open_vowel"/>
+      <value name="open-mid" short="opm" href="Open-mid_vowel"/>
+      <value name="mid" short="mid" href="Mid_vowel"/>
+      <value name="close-mid" short="clm" href="Close-mid_vowel"/>
+      <value name="near-close" short="ncl" href="Near-close_vowel"/>
+      <value name="close" short="clo" alias="high" href="Close_vowel"/>
     </feature>
 
-    <feature name="backness" short="bck" desc="Horizontal tongue position for vowels" href="Vowel#Backness">
+    <feature name="backness" axis="+x" short="bck" desc="Horizontal tongue position for vowels" href="Vowel#Backness">
       <value name="front" short="frt" href="Front_vowel"/>
       <value name="near-front" short="nfr" href="Near-front_vowel"/>
       <value name="central" short="cen" href="Central_vowel"/>
@@ -82,7 +91,7 @@
     <feature name="retroflex" short="rtf" type="binary" desc="Tongue tip curled back" href="Retroflex_consonant"/>
     <feature name="velarized" short="vlz" type="binary" desc="Secondary velar constriction" href="Velarization"/>
     <feature name="nasalized" short="nsl" type="binary" desc="Air flows through nose" href="Nasalization"/>
-    <feature name="length" short="len" desc="Segment duration" default="normal" href="Length_(phonetics)">
+    <feature name="length" axis="+t" short="len" desc="Segment duration" default="normal" href="Length_(phonetics)">
       <value name="extra-short" short="xsh"/>
       <value name="normal" short="nrm"/>
       <value name="half-long" short="hlg"/>
@@ -117,7 +126,7 @@
     </feature>
 
     <!-- Diacritic multi-valued features -->
-    <feature name="release" short="rel" desc="How stop closure is released" href="Consonant_release">
+    <feature name="release" type="categorical" short="rel" desc="How stop closure is released" href="Consonant_release">
       <value name="aspirated" short="asp" href="Aspirated_consonant"/>
       <value name="breathy" short="brt" href="Breathy_voice"/>
       <value name="lateral" short="lrl" href="Lateral_release_(phonetics)"/>
@@ -130,11 +139,11 @@
       <value name="more" short="mor"/>
     </feature>
 
-    <feature name="phonation" short="phn" desc="Vocal fold vibration mode" href="Phonation">
-      <value name="devoiced" short="dev" href="Voicelessness"/>
-      <value name="breathy" short="brv" href="Breathy_voice"/>
-      <value name="modal" short="mod" href="Modal_voice"/>
+    <feature name="phonation" axis="+glottal-aperture" short="phn" desc="Vocal fold vibration mode" href="Phonation">
       <value name="creaky" short="crk" href="Creaky_voice"/>
+      <value name="modal" short="mod" href="Modal_voice"/>
+      <value name="breathy" short="brv" href="Breathy_voice"/>
+      <value name="devoiced" short="dev" href="Voicelessness"/>
     </feature>
 
     <!-- Suprasegmental multi-valued features -->
@@ -143,7 +152,7 @@
       <value name="secondary" short="2" href="Secondary_stress"/>
     </feature>
 
-    <feature name="tone" short="ton" desc="Pitch level" href="Tone_(linguistics)">
+    <feature name="tone" axis="+y" short="ton" desc="Pitch level" href="Tone_(linguistics)">
       <value name="bottom" short="t1"/>
       <value name="low" short="t2"/>
       <value name="mid" short="t3"/>

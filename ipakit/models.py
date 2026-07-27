@@ -31,6 +31,12 @@ class Feature:
     # names (labial-velar) are value aliases, resolved everywhere.
     COMBINER = "+"
     value_aliases: dict[str, str] = field(default_factory=dict)
+    # The reference-frame axis this ordinal ascends (+x lips->glottis,
+    # +y jaw->palate, +constriction, +t, ...), declared in the data.
+    axis: str | None = None
+    # Values that hold no position on the continuum (silence on the
+    # constriction axis: absence of signal, equidistant from every value).
+    offscale: frozenset[str] = field(default_factory=frozenset)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"
@@ -47,7 +53,9 @@ class Feature:
         point on the continuum, so it must not pad the scale between its
         neighbours.
         """
-        scale = [v for v in self.values if self.COMBINER not in v]
+        scale = [
+            v for v in self.values if self.COMBINER not in v and v not in self.offscale
+        ]
         return {v: i for i, v in enumerate(scale)}
 
     def expand(self, value: str) -> tuple[str, ...]:

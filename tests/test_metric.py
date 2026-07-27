@@ -160,6 +160,43 @@ class TestOrdinalScales:
         )
 
 
+class TestReferenceFrame:
+    """The ordinal scales ascend a declared reference frame: a left-facing
+    oral tract (+x lips->glottis, +y jaw->palate)."""
+
+    def test_axes_declared(self, ipa: IPAFeatures) -> None:
+        assert ipa.features["place"].axis == "+x"
+        assert ipa.features["backness"].axis == "+x"
+        assert ipa.features["height"].axis == "+y"
+        assert ipa.features["tone"].axis == "+y"
+        assert ipa.features["manner"].axis == "+constriction"
+
+    def test_height_ascends_y(self, ipa: IPAFeatures) -> None:
+        h = ipa.features["height"]
+        assert h.values[0] == "open" and h.values[-1] == "close"
+        assert h.value_distance("open", "close") == 1.0
+        # Phones are untouched by the declaration flip.
+        assert ipa.get_features("i", with_defaults=False)["height"] == "close"
+
+    def test_silence_holds_no_scale_position(self, ipa: IPAFeatures) -> None:
+        m = ipa.features["manner"]
+        # Absence of signal: equidistant from every real manner, adjacent
+        # to none.
+        assert m.value_distance("silence", "vowel") == 1.0
+        assert m.value_distance("silence", "plosive") == 1.0
+        assert m.value_distance("silence", "silence") == 0.0
+
+    def test_release_and_airstream_are_categorical(self, ipa: IPAFeatures) -> None:
+        r = ipa.features["release"]
+        assert r.value_distance("aspirated", "no-audible") == r.value_distance(
+            "aspirated", "breathy"
+        )
+        a = ipa.features["airstream"]
+        assert a.value_distance("pulmonic", "implosive") == a.value_distance(
+            "pulmonic", "ejective"
+        )
+
+
 class TestProperties:
     PROBES = [
         "a",
