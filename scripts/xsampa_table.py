@@ -35,7 +35,7 @@ from xml.sax.saxutils import quoteattr
 # Make the package importable when run from a source checkout.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit.constants import PHONEMAPS_DIR, TIE_BAR  # noqa: E402
+from ipakit.constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR  # noqa: E402
 from ipakit.features import IPAFeatures  # noqa: E402
 
 XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -60,10 +60,13 @@ OVERRIDES: dict[str, str] = {
     "ꜛ": "^",  # upstep
     "ꜜ": "!",  # downstep
     "‖": "||",  # major (intonation) group
+    "͜": "_",  # under-tie: X-SAMPA has one tie encoding
 }
 
 # X-SAMPA structural symbols that are not phones/diacritics in the inventory.
-EXTRAS: set[str] = {"#", ".", TIE_BAR}
+# Both tie glyphs encode as `_` (X-SAMPA has one tie notion); the reverse
+# reading of `_` is the over-tie, and callers canonicalize via from_wild.
+EXTRAS: set[str] = {"#", ".", TIE_BAR, SEQ_TIE}
 
 # Inventory symbols deliberately excluded from the table. These combining marks
 # are folded into the tone-bar / rhotic entries above, so listing them too would
@@ -88,7 +91,11 @@ def canonical_pairs() -> dict[str, str]:
     fwd = _icu_forward()
     ipa = IPAFeatures()
     inventory = (
-        {s for s in (set(ipa.phones) | set(ipa.diacritics)) if TIE_BAR not in s}
+        {
+            s
+            for s in (set(ipa.phones) | set(ipa.diacritics))
+            if TIE_BAR not in s and SEQ_TIE not in s
+        }
         | EXTRAS
     ) - EXCLUDE
 

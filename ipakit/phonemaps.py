@@ -56,9 +56,9 @@ def _normalize_for_map(ipa: str, ipa_to_target: dict[str, str]) -> str:
     """Normalize IPA string by adding tie bars where the map expects them."""
     # Check if any keys have tie bars
     for key in ipa_to_target:
-        if TIE_BAR in key:
+        if TIE_BAR in key or SEQ_TIE in key:
             # Try to add tie bar if the untied version is in the string
-            untied = key.replace(TIE_BAR, "")
+            untied = key.replace(TIE_BAR, "").replace(SEQ_TIE, "")
             if untied in ipa and key not in ipa:
                 ipa = ipa.replace(untied, key)
     return ipa
@@ -77,10 +77,6 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
         List of target symbols
     """
     ipa_to_target, _ = _load_phonemap(phonemap)
-    # Phoneset encodings have at most one tie notion: project the under-tie
-    # onto the over-tie at this lossy boundary (unit-hood survives, tie
-    # sense does not; see docs/ties.md).
-    ipa = ipa.replace(SEQ_TIE, TIE_BAR)
     ipa = _normalize_for_map(ipa, ipa_to_target)
     return convert_greedy(ipa, ipa_to_target, strict=strict, what=f"IPA -> {phonemap}")
 

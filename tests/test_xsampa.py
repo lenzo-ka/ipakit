@@ -78,7 +78,7 @@ class TestRoundTrip:
             else:
                 assert back == sym, f"{sym!r} -> {xs!r} -> {back!r}"
 
-    @pytest.mark.parametrize("word", ["kæt", "t͡ʃe͡ɪnd͡ʒ", "θɪŋk", "wˈɔtɚ", "pʃɑ"])
+    @pytest.mark.parametrize("word", ["kæt", "t͡ʃe͜ɪnd͡ʒ", "θɪŋk", "wˈɔtɚ", "pʃɑ"])
     def test_convention_words_round_trip(self, word: str) -> None:
         """IPA written in ipakit conventions round-trips through X-SAMPA."""
         assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa(word)) == word
