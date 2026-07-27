@@ -18,7 +18,9 @@ DEFAULT_CONFUSION = DATA_DIR / "confusion.json"
 #   xsampa - X-SAMPA encoding of the symbol
 METADATA_ATTRS = frozenset({"name", "class", "href", "xsampa"})
 
-TIE_BAR = "\u0361"  # ͡
+TIE_BAR = "\u0361"  # ͡ (over-tie: FUSE, simultaneous)
+SEQ_TIE = "\u035c"  # ͜ (under-tie: SEQ, sequential)
+TIE_BARS = TIE_BAR + SEQ_TIE  # both tie characters, for membership tests
 
 # Sentinel used by hierarchy building for a phone that lacks the splitting
 # feature. Chosen to never collide with a real feature value.

@@ -36,7 +36,7 @@ ipakit.features("p")            # {'manner': 'plosive', 'place': 'bilabial', ...
 
 # Phonetic distance (0.0 identical … 1.0 maximally different)
 ipakit.distance("p", "b")       # 0.043   (differ only in voicing)
-ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.008), ('p͡f', 0.008)]
+ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.009), ('p͡f', 0.009)]
 ipakit.word_similarity("kæt", "kæd")   # 0.986
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
@@ -120,12 +120,15 @@ reuse it and only re-slice the percentile distribution.
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable
   onset: `to_ipa(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
   across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
-- **Affricates and diphthongs use the tie bar** (`t͡ʃ`, `e͡ɪ`).
+- **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `u͜i`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). Registered symbols accept both traditional spellings as aliases (`t͜s` → `t͡s`, `e͜ɪ` → `e͡ɪ`). Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
 - **Round-trip guarantee (X-SAMPA only):** IPA written in these conventions
-  round-trips through X-SAMPA (`ipa → xsampa → ipa`). The only exceptions are
-  `b͡v`, `t͡θ`, and `ŋ͡m`, where the X-SAMPA tie encoding `_` collides with a
-  diacritic/tone encoding (`_v`, `_T`, `_m`) — an inherent X-SAMPA ambiguity
-  that ICU shares. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA
+  round-trips through X-SAMPA (`ipa → xsampa → ipa`), **up to tie sense**:
+  X-SAMPA has a single tie encoding, so the under-tie projects onto the
+  over-tie at the boundary and round trips return canonical over-tie
+  spellings (`t͜s → t_s → t͡s`); the sequential/simultaneous distinction
+  survives only in IPA. The other exceptions are `b͡v`, `t͡θ`, and `ŋ͡m`,
+  where the X-SAMPA tie encoding `_` collides with a diacritic/tone encoding
+  (`_v`, `_T`, `_m`) — an inherent X-SAMPA ambiguity that ICU shares. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA
   distinctions) and carry no round-trip guarantee.
 
 ## CLI

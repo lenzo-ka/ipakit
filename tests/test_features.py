@@ -174,9 +174,11 @@ class TestAliases:
         assert len(ipa.ligature_map) > 0
         assert "ʧ" in ipa.ligature_map  # legacy ligature
 
-    def test_tie_bar_below_alias(self, ipa: IPAFeatures) -> None:
-        assert "͜" in ipa.ligature_map
-        assert ipa.ligature_map["͜"] == "͡"
+    def test_tie_bar_below_not_an_alias(self, ipa: IPAFeatures) -> None:
+        # The under-tie is a tie in its own right (sequential), not a
+        # spelling variant of the over-tie; the old global alias is retired.
+        assert "͜" not in ipa.ligature_map
+        assert "͜" in ipa.diacritics  # registered suprasegmental
 
     def test_affricate_aliases(self, ipa: IPAFeatures) -> None:
         assert "t͜ʃ" in ipa.ligature_map

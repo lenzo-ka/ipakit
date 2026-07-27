@@ -14,7 +14,7 @@ import functools
 import xml.etree.ElementTree as ET
 
 from ._convert import convert_greedy
-from .constants import PHONEMAPS_DIR
+from .constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
 
@@ -48,8 +48,17 @@ def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
 def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     """Convert an IPA string to X-SAMPA (greedy longest-match).
 
+    X-SAMPA has a single tie encoding (``_``), so tie *sense* cannot
+    survive this boundary: the under-tie is projected onto the over-tie
+    here (unit-hood survives, the sequential/simultaneous distinction does
+    not), and round trips return canonical over-tie spellings
+    (``t͜s -> t_s -> t͡s``, ``u͜i -> u_i -> u͡i``). This projection is
+    legitimate only at a lossy conversion boundary; parsing never does it.
+    See docs/ties.md.
+
     With ``strict=True``, raise ``ValueError`` on symbols that cannot be
     converted instead of skipping them.
     """
+    ipa = ipa.replace(SEQ_TIE, TIE_BAR)
     _, ipa2xs = _maps()
     return "".join(convert_greedy(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA"))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
-from .constants import METADATA_ATTRS, TIE_BAR
+from .constants import METADATA_ATTRS, SEQ_TIE, TIE_BAR
 
 # Feature ordering for description generation (most salient first)
 _CONSONANT_DESC_ORDER = ["voiced", "place", "manner"]
@@ -269,8 +269,11 @@ class AnalysisMixin(IPAFeaturesBase):
             if p.features.get("class") == "suprasegmental"
         }
         # Stress, length, tone, breaks, separators, and space stand alone (no
-        # base phone required). The tie bar is a suprasegmental but checked below.
-        standalone = (suprasegmentals | set(self.separators) | {" "}) - {TIE_BAR}
+        # base phone required). The tie bars are suprasegmentals but checked below.
+        standalone = (suprasegmentals | set(self.separators) | {" "}) - {
+            TIE_BAR,
+            SEQ_TIE,
+        }
 
         i = 0
         last_was_phone = False
@@ -326,8 +329,8 @@ class AnalysisMixin(IPAFeaturesBase):
                 i += 1
                 continue
 
-            # Check for tie bar
-            if char == TIE_BAR:
+            # Check for tie bar (either sense)
+            if char in (TIE_BAR, SEQ_TIE):
                 # Tie bar should be between phones - check context
                 if i == 0 or i == len(ipa) - 1:
                     issues.append(
