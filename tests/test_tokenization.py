@@ -116,18 +116,23 @@ class TestLigatureExpansion:
         assert ipa.expand_ligatures("t͡ʃ") == "t͡ʃ"
 
     def test_expand_tie_bar_below(self, ipa: IPAFeatures) -> None:
-        # Tie bar below should become tie bar above
-        assert ipa.expand_ligatures("t͜s") == "t͡s"
+        # Tie-bearing aliases are no longer globally rewritten (that erased
+        # tie sense inside larger chains); they resolve token-locally.
+        assert ipa.expand_ligatures("t͜s") == "t͜s"
+        assert ipa.tokenize_ipa("t͜s") == ["t͡s"]
 
 
 class TestNormalization:
     """Tests for IPA normalization."""
 
     def test_normalize_adds_ties(self, ipa: IPAFeatures) -> None:
+        # Consonant pairs fuse (over-tie); adjacent vowels bind sequentially
+        # (under-tie), which resolves to the registered diphthong via alias.
         result = ipa.normalize_ipa("tʃ eɪ n dʒ")
         assert "t͡ʃ" in result
-        assert "e͡ɪ" in result
+        assert "e͜ɪ" in result
         assert "d͡ʒ" in result
+        assert ipa.get_features("e͜ɪ") == ipa.get_features("e͡ɪ")
 
     def test_add_tie_bars(self, ipa: IPAFeatures) -> None:
         assert ipa.add_tie_bars("ts") == "t͡s"

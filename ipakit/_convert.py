@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 
-from .constants import TIE_BAR
+from .constants import SEQ_TIE, TIE_BAR
 
 
 def require_convertible(skipped: list[str], what: str) -> None:
@@ -52,8 +52,8 @@ def longest_match(
         candidate = text[start : start + length]
         if candidate in lookup:
             return candidate, length
-        if tie_set is not None and TIE_BAR in candidate:
-            parts = candidate.split(TIE_BAR)
+        if tie_set is not None and (TIE_BAR in candidate or SEQ_TIE in candidate):
+            parts = candidate.replace(SEQ_TIE, TIE_BAR).split(TIE_BAR)
             if all(p in tie_set for p in parts):
                 return candidate, length
     return None, 0

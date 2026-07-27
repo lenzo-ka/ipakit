@@ -385,7 +385,8 @@
     <suprasegmental name="̄" tone="mid" href="Tone_(linguistics)"/>
     <suprasegmental name="̀" tone="low" href="Tone_(linguistics)"/>
     <suprasegmental name="̂" contour="falling" href="Contour_tone"/>
-    <suprasegmental name="͡" linking="+" alias="͜" href="Tie_(typography)"/>  <!-- tie bar above; below (͜) is alias -->
+    <suprasegmental name="͡" linking="+" href="Tie_(typography)"/>  <!-- over-tie: simultaneous; the under-tie (͜) is the sequential tie, not an alias -->
+    <suprasegmental name="͜" linking="+" href="Tie_(typography)"/>  <!-- under-tie: sequential -->
     <suprasegmental name="᷄" tone="high" contour="rising" href="Contour_tone"/>
     <suprasegmental name="᷅" tone="low" contour="falling" href="Contour_tone"/>
     <suprasegmental name="‿" liaison="+" href="Liaison_(French)"/>  <!-- between-word liaison -->

@@ -14,6 +14,7 @@ from .constants import (
     DEFAULT_IPA_FEATS,
     DEFAULT_SHORT_NAME_LEN,
     MAX_MATCH_LEN,
+    SEQ_TIE,
     TIE_BAR,
 )
 from .distance import DistanceMixin
@@ -178,12 +179,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
         """Get features for a phone, optionally filling in defaults.
 
-        Tie-barred sequences (e.g. "t͡ɬ") that aren't themselves a
-        registered compound phone are composed on the fly from their parts,
-        mirroring how :func:`ipakit._convert.longest_match` already accepts
-        any tie-bar-joined sequence of known phones during tokenization.
+        Registered phones win, including through their aliases (``t͜s``
+        resolves to ``t͡s``). Unregistered tie-barred sequences of known
+        phones are composed on the fly: over-tie (simultaneous) sequences
+        merge; under-tie (sequential) sequences project their first
+        element, mirroring how the registered diphthongs are encoded.
         """
-        phone = self.canonicalize_unicode(phone)
+        phone = self._resolve_token(phone)
         if phone in self.phones:
             feats = dict(self.phones[phone].features)
         elif (composed := self._compose_tie_bar_features(phone)) is not None:
@@ -207,24 +209,40 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         frozenset({"bilabial", "palatal"}): "labial-palatal",
     }
 
+    def _resolve_token(self, token: str) -> str:
+        """Canonicalize a token: Unicode form, then alias -> registered name."""
+        token = self.canonicalize_unicode(token)
+        return self.ligature_map.get(token, token)
+
     def _is_composable(self, phone: str) -> bool:
-        """True if ``phone`` is a tie-barred sequence of known phones.
+        """True if ``phone`` is a tie-barred sequence of resolvable parts.
 
         Cheap membership predicate: does the splitting and lookups of
         :meth:`_compose_tie_bar_features` without building a feature dict.
+        Sequential (under-tie) chains are composable when every
+        SEQ-separated part is registered or itself a composable over-tie
+        run; pure over-tie runs when every part is a registered phone.
         """
+        if SEQ_TIE in phone:
+            parts = phone.split(SEQ_TIE)
+            return len(parts) >= 2 and all(
+                p and (self._resolve_token(p) in self.phones or self._is_composable(p))
+                for p in parts
+            )
         if TIE_BAR not in phone:
             return False
         parts = phone.split(TIE_BAR)
         return len(parts) >= 2 and all(p in self.phones for p in parts)
 
     def _compose_tie_bar_features(self, phone: str) -> dict[str, str] | None:
-        """Merge features for an ad hoc tie-barred sequence of known phones.
+        """Features for an ad hoc tie-barred sequence of resolvable parts.
 
-        Returns ``None`` if ``phone`` has no tie bar or any part isn't a
-        known phone. Feature dicts are merged left to right; a differing
-        manner across parts collapses to "affricate", since that's what a
-        tie bar between two differently-articulated consonants denotes
+        Returns ``None`` if ``phone`` has no tie bar or any part isn't
+        resolvable. Sequential (under-tie) chains project their **first
+        element** -- the same encoding the registered diphthongs use; the
+        chain's other constituents remain recoverable from the token, not
+        from this flat projection. Simultaneous (over-tie) runs merge left
+        to right; a differing manner across parts collapses to "affricate"
         (e.g. plosive + fricative). Same-manner parts with different places
         are a double articulation (e.g. "ɡ͡b"); when the place pair has a
         dedicated combined value (labial-velar, labial-palatal), that value
@@ -234,8 +252,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         if not self._is_composable(phone):
             return None
+        feats: dict[str, str]
+        if SEQ_TIE in phone:
+            first = self._resolve_token(phone.split(SEQ_TIE)[0])
+            if first in self.phones:
+                feats = dict(self.phones[first].features)
+            else:
+                composed = self._compose_tie_bar_features(first)
+                if composed is None:  # pragma: no cover - guarded by _is_composable
+                    return None
+                feats = composed
+            feats.pop("href", None)
+            return feats
         parts = phone.split(TIE_BAR)
-        feats: dict[str, str] = {}
+        feats = {}
         manners = set()
         places = []
         for part in parts:
@@ -255,7 +285,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return feats
 
     def get_phone(self, symbol: str) -> Phone | None:
-        return self.phones.get(self.canonicalize_unicode(symbol))
+        return self.phones.get(self._resolve_token(symbol))
 
     def get_diacritic(self, symbol: str) -> Phone | None:
         return self.diacritics.get(self.canonicalize_unicode(symbol))
@@ -370,6 +400,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         text = unicodedata.normalize("NFD", text)
         for decomposed, sym in self._nfd_to_registered.items():
             text = text.replace(decomposed, sym)
+        # Both ties stacked on one juncture assert contradictory timing; the
+        # simultaneous reading takes precedence, so the pair collapses to the
+        # over-tie. (NFD orders U+035C before U+0361 - ccc 233 < 234 - so one
+        # replace covers both written orders.)
+        text = text.replace(SEQ_TIE + TIE_BAR, TIE_BAR)
         return text
 
     def normalize_lookalikes(self, text: str) -> str:
@@ -383,26 +418,48 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return text
 
     def expand_ligatures(self, ipa: str) -> str:
-        """Expand deprecated IPA ligatures (ʧ, ʤ) to modern tie-bar form."""
+        """Expand deprecated IPA ligatures (ʧ, ʤ) to modern tie-bar form.
+
+        Tie-bearing multi-character aliases (``t͜s`` etc.) are deliberately
+        NOT replaced here: a global string replace would rewrite tie glyphs
+        inside larger chains and erase their sense. Those aliases resolve
+        token-locally during :meth:`parse`.
+        """
         # Canonicalize Unicode form, then normalize lookalike characters
         ipa = self.canonicalize_unicode(ipa)
         ipa = self.normalize_lookalikes(ipa)
         for lig, expanded in self.ligature_map.items():
+            if len(lig) > 1 and (TIE_BAR in lig or SEQ_TIE in lig):
+                continue
             ipa = ipa.replace(lig, expanded)
         return ipa
 
     def add_tie_bars(self, segment: str) -> str:
-        """Add tie bars between base phones in a multi-phone segment."""
-        if TIE_BAR in segment:
+        """Add tie bars between base phones in a multi-phone segment.
+
+        Whitespace grouping asserts unit-hood; the inserted glyph follows a
+        documented heuristic: two adjacent vocalic bases bind sequentially
+        (under-tie: a trajectory), anything else binds simultaneously
+        (over-tie). Write the tie explicitly to override.
+        """
+        if TIE_BAR in segment or SEQ_TIE in segment:
             return segment
+
+        def _vocalic(ch: str) -> bool:
+            phone = self.phones.get(ch)
+            return phone is not None and phone.features.get("manner") == "vowel"
+
         result = []
-        prev_was_phone = False
+        prev_phone_char = ""
         for char in segment:
             is_phone = char in self.phones
-            if is_phone and prev_was_phone:
-                result.append(TIE_BAR)
+            if is_phone and prev_phone_char:
+                tie = (
+                    SEQ_TIE if _vocalic(prev_phone_char) and _vocalic(char) else TIE_BAR
+                )
+                result.append(tie)
             result.append(char)
-            prev_was_phone = is_phone and char not in self.diacritics
+            prev_phone_char = char if is_phone and char not in self.diacritics else ""
         return "".join(result)
 
     def normalize_ipa(self, segments: str) -> str:
@@ -639,25 +696,36 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         phone_lookup = set(self.phones.keys())
         if phoneset:
             phone_lookup |= set(phoneset.phones)
+        # Tie-bearing aliases resolve token-locally here (never by global
+        # string replace); matched aliases are emitted in canonical form.
+        alias_lookup = {
+            a: c
+            for a, c in self.ligature_map.items()
+            if len(a) > 1 and (TIE_BAR in a or SEQ_TIE in a)
+        }
+        match_lookup = phone_lookup | set(alias_lookup)
 
         if segment in phone_lookup:
             return [(segment, [])]
+        if segment in alias_lookup:
+            return [(alias_lookup[segment], [])]
 
         result = []
         skipped: list[str] = []
         i = 0
         while i < len(segment):
             best_phone, best_len = longest_match(
-                segment, i, phone_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
+                segment, i, match_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
             )
 
             if best_phone:
+                best_phone = alias_lookup.get(best_phone, best_phone)
                 diacritics = []
                 j = i + best_len
                 while (
                     j < len(segment)
                     and segment[j] in self.diacritics
-                    and segment[j] != TIE_BAR
+                    and segment[j] not in (TIE_BAR, SEQ_TIE)
                 ):
                     diacritics.append(segment[j])
                     j += 1
@@ -789,7 +857,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         :meth:`__iter__`/:meth:`__len__`, which cover the registered
         inventory only.
         """
-        phone = self.canonicalize_unicode(phone)
+        phone = self._resolve_token(phone)
         return phone in self.phones or self._is_composable(phone)
 
     def __iter__(self) -> Iterator[str]:
