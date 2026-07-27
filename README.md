@@ -36,7 +36,7 @@ ipakit.features("p")            # {'manner': 'plosive', 'place': 'bilabial', ...
 
 # Phonetic distance (0.0 identical … 1.0 maximally different)
 ipakit.distance("p", "b")       # 0.043   (differ only in voicing)
-ipakit.nearest_phones("p", n=3) # [('ɸ', 0.005), ('f', 0.009), ('p͡f', 0.009)]
+ipakit.nearest_phones("p", n=3) # [('ɸ', 0.007), ('f', 0.011), ('ʘ', 0.013)]
 ipakit.word_similarity("kæt", "kæd")   # 0.986
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
@@ -94,9 +94,9 @@ the bundled IPA inventory's pairwise distribution, spreading values across
 
 ```python
 ipakit.distance("p", "b")             # 0.043   raw feature distance
-ipakit.normalized_distance("p", "b")  # 0.156   percentile within bundled IPA
-ipakit.normalized_distance("p", "a")  # 0.612
-ipakit.confusability("p", "b")        # 0.844   complement of normalized_distance
+ipakit.normalized_distance("p", "b")  # 0.103   percentile within bundled IPA
+ipakit.normalized_distance("p", "a")  # 0.429
+ipakit.confusability("p", "b")        # 0.897   complement of normalized_distance
 ```
 
 For a model over a chosen reference inventory — percentiles are **relative** to
@@ -111,9 +111,9 @@ eng = ipakit.distance_model(
         name="english",
     )
 )
-eng.distance("p", "b")                       # 0.267   percentile within this 15-phone set
-eng.nearest("p", n=3)                        # [('t', 0.048), ('s', 0.086), ('k', 0.21)]
-eng.word_similarity("kæt", "kæd")            # 0.956
+eng.distance("p", "b")                       # 0.171   percentile within this 15-phone set
+eng.nearest("p", n=3)                        # [('t', 0.019), ('s', 0.048), ('k', 0.124)]
+eng.word_similarity("kæt", "kæd")            # 0.971
 eng.is_similar("kæt", "kæd", threshold=0.8)  # True
 ```
 
@@ -151,7 +151,7 @@ ipakit query match plosive bilabial  # Find phones by feature
 ipakit analysis natural-class p t k  # Shared features of a set
 ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw feature distance: ~0.04
-ipakit distance confusability p b    # Inventory-relative: 0.8441
+ipakit distance confusability p b    # Inventory-relative: 0.8971
 ipakit distance word kæt kæd         # Word similarity: 0.9742
 ```
 

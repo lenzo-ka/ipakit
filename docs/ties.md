@@ -48,6 +48,20 @@ The flat projection is deliberately a summary, not the whole story. The structur
 
 `normalize_ipa` treats whitespace-separated groups as asserted units and inserts ties by a documented heuristic: adjacent vowels bind sequentially (`"eɪ"` → `e͜ɪ`), anything else fuses (`"ts"` → `t͡s`). An explicitly written tie always wins. The heuristic output round-trips: `e͜ɪ` resolves to the registered `e͡ɪ` through its alias.
 
+## Distance is structural
+
+`distance` (and everything built on it: `segment_distance`, the confusion matrix, `DistanceModel`) computes over the structure, not a flattened bag (`ipakit/metric.py`):
+
+- **Constituents compare as whole bundles** — `ɡ͡p` and `k͡b` have identical per-feature value sets but stay apart, because which constituent is voiced matters.
+- **Alignment mode follows the kind**: double articulation is unordered notation (`k͡p` ≈ `p͡k`, `u͡i` ≈ `i͡u`); phased units and sequences are ordered (`n͡d` ≠ `d͡n`, trajectories keep direction). N-ary fusions align their phase blocks in order, unordered within (`ŋ͡m͡ɡ͡b` ≈ `m͡ŋ͡b͡ɡ` ≠ `ɡ͡b͡ŋ͡m`).
+- **Sharing an articulation is half the distance of not sharing it**: `D(ɡ, ɡ͡b) = d(ɡ,b)/2`, symmetric between the sharers.
+- **The binding sense is one term**: `D(u͡i, u͜i) = 1/3` — same constituents, different timing claim.
+- **Secondary articulations are weighted place components** (σ = 0.5): `tʲ` sits strictly between `t` and `c`.
+- **Bridge features** unify one dimension spelled different ways: `ã` (nasalized) is nearer `n` (nasal manner) than plain `a` is; `tˡ` (lateral release) nearer `l` than `t` is.
+- **Structural consequence to know**: an affricate now sits near other affricates (shared phase structure), not near its bare fricative component — `t͡ʃ` is closer to `t͡s` than to `ʃ`. The old flat merge said the opposite; consumers of absolute distances should recalibrate thresholds (the shipped matrix and CDF are regenerated).
+
+The claim is structural consistency, not phonetic ground truth; parameters (gap cost γ = 1, secondary weight σ = 0.5) are named constants.
+
 ## Ties across phoneset conversions
 
 Tie **sense is not carried** by the other phoneset encodings: X-SAMPA has a single tie notion (`_`, which both glyphs write to), and CMU/TIMIT/Kirshenbaum have none. Converting out therefore loses the sequential/simultaneous distinction — `ipa_to_xsampa("u͜i") == ipa_to_xsampa("u͡i") == "u_i"`. Coming back, the tie reads generically and the result is canonicalized through `from_wild`, so **registered compounds round-trip to their house spelling with the correct sense** (`t͡s → t_s → t͡s`, `a͜ɪ → a_I → a͜ɪ`, and even a wild `a͡ɪ` comes back as `a͜ɪ`); unregistered chains come back with the sense heuristic. The known X-SAMPA collisions (`b͡v`, `t͡θ`, `ŋ͡m`, where `_v`/`_T`/`_m` re-parse as diacritics) apply to tie-adjacent segments generally. If exact sense on unregistered chains matters, keep the IPA (or the Segment JSON) as the source of truth.

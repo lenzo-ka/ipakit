@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Structural distance (`ipakit.metric`): constituent-bundle alignment with kind-driven ordering (double articulation unordered, phased units and sequences ordered), a binding-sense term (`D(u͡i, u͜i) = 1/3`), weighted secondary-articulation place components (`tʲ` strictly between `t` and `c`), nasality/laterality bridge features, and combined-place expansion for atomic `w`/`ɥ`. `distance`/`segment_distance`/`Segment.distance` all route through it; `Feature.value_distance` accepts value tuples. Distances shift: affricates now cluster with affricates rather than with their bare components; `confusion.json` regenerated (#13).
 - `from_wild()`: explicit import of IPA written in other tie conventions — glyph-variant spellings of registered compounds canonicalize (`t͜s` → `t͡s`, `a͡ɪ` → `a͜ɪ`); unregistered uniform-glyph chains get the sense heuristic; mixed-glyph (house-authored) chains pass through (#11).
 - Registered phones: the lateral affricates `t͡ɬ` (aliases `t͜ɬ`, NAPA `ƛ`) and `d͡ɮ`, and the labial-velar plosives/nasal `k͡p`, `ɡ͡b`, `ŋ͡m` (#7).
 - Typed ties as house convention (see `docs/ties.md`): the over-tie fuses constituents into one timing slot, the under-tie binds a sequence into one unit, and the over-tie binds tighter in mixed chains (#9).
