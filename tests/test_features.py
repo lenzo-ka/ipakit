@@ -82,10 +82,12 @@ class TestGetFeatures:
         assert feats_labial_velar["place"] == "labial-velar"
         assert ipa.get_features("ŋ͡m")["manner"] == "nasal"
 
-    def test_registered_tie_aliases_tokenize(self, ipa: IPAFeatures) -> None:
+    def test_ligature_aliases_tokenize(self, ipa: IPAFeatures) -> None:
+        # Single-character ligature/NAPA aliases resolve; glyph-variant tie
+        # spellings do not (they are different objects; use from_wild).
         assert ipa.tokenize_ipa("ƛ") == ["t͡ɬ"]
-        assert ipa.tokenize_ipa("t͜ɬ") == ["t͡ɬ"]
-        assert ipa.tokenize_ipa("ŋ͜m") == ["ŋ͡m"]
+        assert ipa.tokenize_ipa("t͜ɬ") == ["t͜ɬ"]
+        assert ipa.from_wild("t͜ɬ") == "t͡ɬ"
 
     def test_get_features_unknown_ties(self, ipa: IPAFeatures) -> None:
         # Unregistered tie-barred sequences still compose on the fly.
@@ -181,8 +183,9 @@ class TestAliases:
         assert "͜" in ipa.diacritics  # registered suprasegmental
 
     def test_affricate_aliases(self, ipa: IPAFeatures) -> None:
-        assert "t͜ʃ" in ipa.ligature_map
-        assert ipa.ligature_map["t͜ʃ"] == "t͡ʃ"
+        # Only unambiguous single-character ligatures are aliases; tie
+        # spelling variants are not (strict glyph authority).
+        assert "t͜ʃ" not in ipa.ligature_map
         assert "ʧ" in ipa.ligature_map
         assert ipa.ligature_map["ʧ"] == "t͡ʃ"
 

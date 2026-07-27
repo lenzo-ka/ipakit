@@ -29,6 +29,7 @@ class TestKindTotality:
         ("u͡i", Kind.DOUBLE_ARTICULATION),  # V-V fusion: shape, not consonant-hood
         ("a͡t", Kind.OVERLAY),
         ("a͜ɪ", Kind.DIPHTHONG),
+        ("a͡ɪ", Kind.DOUBLE_ARTICULATION),  # over-tie vowel pair: a fusion claim
         ("u͜i", Kind.DIPHTHONG),
         ("a͜ɪ͜ə", Kind.DIPHTHONG),
         ("t͜a", Kind.CHAIN),
@@ -40,12 +41,14 @@ class TestKindTotality:
     def test_kind(self, ipa: IPAFeatures, text: str, kind: Kind) -> None:
         assert ipa.segment(text).kind is kind
 
-    def test_registered_diphthong_sense_overrides_glyph(self, ipa: IPAFeatures) -> None:
-        # a͡ɪ is registered with the over-tie spelling; the transitional
-        # rule reads all-vocalic registered entries as sequential.
-        seg = ipa.segment("a͡ɪ")
+    def test_glyph_is_authoritative_for_registered_entries(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # Canonical spellings are sense-correct; the glyph is the sense.
+        seg = ipa.segment("a͜ɪ")
         assert seg.sense is Sense.SEQ
         assert seg.kind is Kind.DIPHTHONG
+        assert ipa.get_phone("a͜ɪ") is not None
 
 
 class TestGrouping:
@@ -164,44 +167,38 @@ class TestSerialization:
             Segment.from_json(data, ipa)
 
 
-class TestEmissionAndCollisions:
-    def test_sense_correct_emission(self, ipa: IPAFeatures) -> None:
-        # The registered diphthong reads as sequential, so it emits the
-        # under-tie; ingest resolves that spelling back to the same entry.
-        assert ipa.segment("a͡ɪ").to_ipa() == "a͜ɪ"
-        assert ipa.segment("a͜ɪ") == ipa.segment("a͡ɪ")
+class TestEmissionFaithfulness:
+    """With strict glyph authority there are no collision spellings:
+    to_ipa() is faithful, and parse(emit(x)) == x structurally for every
+    expressible unit."""
 
-    def test_non_collision_round_trip_is_structural(self, ipa: IPAFeatures) -> None:
-        built = ipa.build_segment(["u", "i"], Sense.FUSE)
-        assert built.to_ipa() == "u͡i"
-        assert ipa.segment(built.to_ipa()) == built
+    def test_round_trips_are_structural(self, ipa: IPAFeatures) -> None:
+        for parts, sense in [
+            (["u", "i"], Sense.FUSE),
+            (["a", "ɪ"], Sense.FUSE),
+            (["t", "s"], Sense.SEQ),
+            (["a", "ɪ"], Sense.SEQ),
+        ]:
+            built = ipa.build_segment(parts, sense)
+            assert ipa.segment(built.to_ipa()) == built
 
-    def test_collision_loss_is_the_documented_one(self, ipa: IPAFeatures) -> None:
-        # Intentional simultaneous a+ɪ emits a͡ɪ, which re-ingests as the
-        # registered sequential diphthong: to_ipa is lossy exactly here.
-        built = ipa.build_segment(["a", "ɪ"], Sense.FUSE)
-        reparsed = ipa.segment(built.to_ipa())
-        assert reparsed != built
-        assert reparsed.sense is Sense.SEQ
-        # The durable form preserves the intent.
-        assert Segment.from_json(built.to_json(), ipa) == built
+    def test_canonical_spelling_emits_itself(self, ipa: IPAFeatures) -> None:
+        for text in ["a͜ɪ", "t͡s", "t͡s͜a", "a͜ɪ͜ə"]:
+            assert ipa.segment(text).to_ipa() == text
 
-    def test_build_is_the_intent_channel(self, ipa: IPAFeatures) -> None:
+    def test_built_sequential_ts_is_the_parsed_one(self, ipa: IPAFeatures) -> None:
         seq_ts = ipa.build_segment(["t", "s"], Sense.SEQ)
-        assert seq_ts.sense is Sense.SEQ
         assert seq_ts.to_ipa() == "t͜s"
-        # The string spelling collides with the registered affricate...
-        assert ipa.segment("t͜s").sense is Sense.FUSE
-        # ...but the JSON round trip keeps the sequential intent.
-        assert Segment.from_json(seq_ts.to_json(), ipa).sense is Sense.SEQ
+        assert ipa.segment("t͜s") == seq_ts
+        assert Segment.from_json(seq_ts.to_json(), ipa) == seq_ts
 
 
 class TestConstituentParsing:
-    def test_registered_chain_with_internal_modifier(self, ipa: IPAFeatures) -> None:
-        seg = ipa.segment("a͡ʊ̯")
+    def test_chain_with_internal_modifier(self, ipa: IPAFeatures) -> None:
+        seg = ipa.segment("a͜ʊ̯")
         assert [c.base for c in seg.constituents] == ["a", "ʊ"]
         assert seg.constituents[1].modifiers == ("̯",)
-        assert seg.kind is Kind.DIPHTHONG  # registered, all vocalic
+        assert seg.kind is Kind.DIPHTHONG
 
     def test_trailing_modifiers_attach_to_last_constituent(
         self, ipa: IPAFeatures

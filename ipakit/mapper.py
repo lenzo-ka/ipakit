@@ -54,13 +54,11 @@ class CMUMapper:
 
         # Derive tie normalizations from IPA phones with tie bars
         for ipa in self._ipa_to_cmu:
-            if TIE_BAR in ipa:
-                self._tie_normalizations.append((ipa.replace(TIE_BAR, ""), ipa))
+            if TIE_BAR in ipa or SEQ_TIE in ipa:
+                untied = ipa.replace(TIE_BAR, "").replace(SEQ_TIE, "")
+                self._tie_normalizations.append((untied, ipa))
 
     def _normalize_ipa(self, ipa: str) -> str:
-        # One tie notion at this lossy boundary: project the under-tie onto
-        # the over-tie (unit-hood survives, tie sense does not).
-        ipa = ipa.replace(SEQ_TIE, TIE_BAR)
         for old, new in self._tie_normalizations:
             ipa = ipa.replace(old, new)
         return ipa

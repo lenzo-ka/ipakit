@@ -31,9 +31,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     Tie conventions (see docs/ties.md): the over-tie (U+0361) fuses
     constituents into one timing slot (affricates, double articulations);
     the under-tie (U+035C) binds a sequence into one unit (diphthongs,
-    morae) and the over-tie binds tighter in mixed chains. Registered
-    symbols win everywhere, including through their alias spellings;
-    unregistered tie-joined sequences of known phones compose on the fly.
+    morae) and the over-tie binds tighter in mixed chains. The glyph is
+    authoritative; canonical spellings are sense-correct, unregistered
+    tie-joined sequences of known phones compose on the fly, and text
+    from other conventions imports via :meth:`from_wild`.
     """
 
     def __init__(self, xml_path: Path = DEFAULT_IPA_FEATS):
@@ -150,12 +151,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def _derive_compound_features(self) -> frozenset[str]:
         """Fill features for tied entries that ship without explicit ones.
 
-        The sense-correct spelling is composed exactly as the fallback path
-        would compose it for an unregistered chain: all-vocalic entries
-        sequentially (first-element projection), others simultaneously.
-        Entries that do carry explicit features (currently only ``a͡ʊ̯``,
-        whose diacritic-bearing part the composer cannot resolve yet) are
-        left as-is; the convergence guard pins that list.
+        Canonical names are sense-correct (over-tie simultaneous,
+        under-tie sequential), so each entry is composed exactly as the
+        fallback path would compose the same unregistered chain. The
+        convergence guard asserts every tied entry derives.
         """
         derived = set()
         for name in list(self.phones):
@@ -230,11 +229,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
         """Get features for a phone, optionally filling in defaults.
 
-        Registered phones win, including through their aliases (``t͜s``
-        resolves to ``t͡s``). Unregistered tie-barred sequences of known
-        phones are composed on the fly: over-tie (simultaneous) sequences
-        merge; under-tie (sequential) sequences project their first
-        element, mirroring how the registered diphthongs are encoded.
+        Registered phones win (canonical spellings and single-character
+        ligature aliases like ``ʦ``). The tie glyph is authoritative:
+        unregistered over-tie (simultaneous) sequences merge; under-tie
+        (sequential) sequences project their first element. Text written
+        in other tie conventions imports via :meth:`from_wild`.
         """
         phone = self._resolve_token(phone)
         if phone in self.phones:
@@ -494,10 +493,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def expand_ligatures(self, ipa: str) -> str:
         """Expand deprecated IPA ligatures (ʧ, ʤ) to modern tie-bar form.
 
-        Tie-bearing multi-character aliases (``t͜s`` etc.) are deliberately
-        NOT replaced here: a global string replace would rewrite tie glyphs
-        inside larger chains and erase their sense. Those aliases resolve
-        token-locally during :meth:`parse`.
+        Only single-character ligature aliases are replaced; tie glyphs are
+        never rewritten here (the glyph is the sense; wild-convention text
+        imports via :meth:`from_wild`).
         """
         # Canonicalize Unicode form, then normalize lookalike characters
         ipa = self.canonicalize_unicode(ipa)
@@ -745,8 +743,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         Tokens are emitted in NFC so both precomposed and decomposed input
         yield identical output. Tie-joined runs of known phones are one
-        token whichever tie binds them; alias spellings are emitted in
-        canonical form (``t͜s`` -> ``t͡s``).
+        token whichever tie binds them; the tie glyph is preserved (it is
+        the sense).
         """
         ipa = self.expand_ligatures(ipa)
         return [
@@ -766,12 +764,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     ) -> list[tuple[str, list[str]]]:
         """Parse an IPA segment string into (base, diacritics) tuples.
 
-        Registered symbols match longest-first, including their alias
-        spellings, which resolve token-locally to canonical form (tie
-        glyphs elsewhere in the string are untouched). Unmatched
-        characters (neither a phone nor a diacritic) are skipped. With
-        ``strict=True`` they instead raise ``ValueError`` listing the
-        symbols that could not be parsed.
+        Registered symbols match longest-first; tie glyphs are preserved
+        as written (the glyph is the sense). Unmatched characters (neither
+        a phone nor a diacritic) are skipped. With ``strict=True`` they
+        instead raise ``ValueError`` listing the symbols that could not be
+        parsed.
         """
         if not segment:
             return []
@@ -780,30 +777,19 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         phone_lookup = set(self.phones.keys())
         if phoneset:
             phone_lookup |= set(phoneset.phones)
-        # Tie-bearing aliases resolve token-locally here (never by global
-        # string replace); matched aliases are emitted in canonical form.
-        alias_lookup = {
-            a: c
-            for a, c in self.ligature_map.items()
-            if len(a) > 1 and (TIE_BAR in a or SEQ_TIE in a)
-        }
-        match_lookup = phone_lookup | set(alias_lookup)
 
         if segment in phone_lookup:
             return [(segment, [])]
-        if segment in alias_lookup:
-            return [(alias_lookup[segment], [])]
 
         result = []
         skipped: list[str] = []
         i = 0
         while i < len(segment):
             best_phone, best_len = longest_match(
-                segment, i, match_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
+                segment, i, phone_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
             )
 
             if best_phone:
-                best_phone = alias_lookup.get(best_phone, best_phone)
                 diacritics = []
                 j = i + best_len
                 while (
@@ -931,6 +917,89 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             prosody=prosody,
             _features=self,
         )
+
+    def from_wild(self, text: str) -> str:
+        """Import IPA written in other conventions into house style.
+
+        In the wild the two tie glyphs are typographic free variants, so a
+        spelling carries no reliable sense. This helper — explicitly, never
+        as part of default parsing — rewrites each tied chain to house
+        style: a spelling whose glyph-variant names a registered compound
+        becomes that canonical spelling (``t͜s`` -> ``t͡s``,
+        ``a͡ɪ`` -> ``a͜ɪ``); an unregistered chain gets the sense
+        heuristic (all-vocalic -> sequential, else simultaneous). House
+        input passes through unchanged.
+        """
+        text = self.canonicalize_unicode(text)
+        for variant, canonical in self._wild_variants().items():
+            text = text.replace(variant, canonical)
+
+        # Remaining ties belong to unregistered chains. Wild text uses one
+        # tie glyph as a typographic habit, so only uniform-glyph chains are
+        # re-sensed (per juncture, from the neighbouring bases -- the
+        # add_tie_bars heuristic); a chain already mixing both glyphs is
+        # house-authored and passes through untouched.
+        def _vocalic_char(ch: str) -> bool:
+            phone = self.phones.get(ch)
+            return phone is not None and phone.features.get("manner") == "vowel"
+
+        chars = list(text)
+        runs: list[list[int]] = []
+        current: list[int] = []
+        pending_tie = False
+        for i, ch in enumerate(chars):
+            if ch in (TIE_BAR, SEQ_TIE):
+                current.append(i)
+                pending_tie = True
+            elif ch in self.phones and ch not in self.diacritics:
+                if not pending_tie and current:
+                    runs.append(current)
+                    current = []
+                pending_tie = False
+            elif ch in self.diacritics:
+                continue
+            else:
+                if current:
+                    runs.append(current)
+                    current = []
+                pending_tie = False
+        if current:
+            runs.append(current)
+
+        for run in runs:
+            glyphs = {chars[i] for i in run}
+            if len(glyphs) != 1:
+                continue  # mixed-glyph chain: house-authored
+            for i in run:
+                prev_i = i - 1
+                while prev_i >= 0 and chars[prev_i] in self.diacritics:
+                    prev_i -= 1
+                next_i = i + 1
+                if prev_i >= 0 and next_i < len(chars):
+                    both_vocalic = _vocalic_char(chars[prev_i]) and _vocalic_char(
+                        chars[next_i]
+                    )
+                    chars[i] = SEQ_TIE if both_vocalic else TIE_BAR
+        return "".join(chars)
+
+    def _wild_variants(self) -> dict[str, str]:
+        """Glyph-variant spellings of registered tied names -> canonical,
+        longest first so longer chains win. Cached per instance."""
+        cached: dict[str, str] | None = getattr(self, "_wild_variants_cache", None)
+        if cached is not None:
+            return cached
+        variants: dict[str, str] = {}
+        for name in self.phones:
+            if TIE_BAR not in name and SEQ_TIE not in name:
+                continue
+            positions = [i for i, ch in enumerate(name) if ch in (TIE_BAR, SEQ_TIE)]
+            for mask in range(1, 2 ** len(positions)):
+                chars = list(name)
+                for bit, pos in enumerate(positions):
+                    if mask & (1 << bit):
+                        chars[pos] = SEQ_TIE if chars[pos] == TIE_BAR else TIE_BAR
+                variants["".join(chars)] = name
+        return dict(sorted(variants.items(), key=lambda kv: -len(kv[0])))
 
     def _parse_constituent(self, part: str) -> Constituent:
         part = self._resolve_token(part)

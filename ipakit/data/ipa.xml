@@ -302,37 +302,39 @@
     <phone name="θ" manner="fricative" place="dental" href="Voiceless_dental_fricative"/>
     <phone name="χ" manner="fricative" place="uvular" href="Voiceless_uvular_fricative"/>
 
-    <!-- Affricates (tie bar above canonical; below and legacy ligatures are aliases).
-         Features are DERIVED at load from the constituents (see docs/ties.md);
-         only spelling, aliases, and href are data. -->
-    <phone name="t͡s" alias="t͜s ʦ" href="Voiceless_alveolar_affricate"/>
-    <phone name="d͡z" alias="d͜z ʣ" href="Voiced_alveolar_affricate"/>
-    <phone name="t͡ʃ" alias="t͜ʃ ʧ" href="Voiceless_postalveolar_affricate"/>
-    <phone name="d͡ʒ" alias="d͜ʒ ʤ" href="Voiced_postalveolar_affricate"/>
-    <phone name="t͡ɕ" alias="t͜ɕ ʨ" href="Voiceless_alveolo-palatal_affricate"/>
-    <phone name="d͡ʑ" alias="d͜ʑ ʥ" href="Voiced_alveolo-palatal_affricate"/>
-    <phone name="p͡f" alias="p͜f" href="Voiceless_labiodental_affricate"/>
-    <phone name="b͡v" alias="b͜v" href="Voiced_labiodental_affricate"/>
-    <phone name="t͡θ" alias="t͜θ" href="Voiceless_dental_affricate"/>
-    <phone name="d͡ð" alias="d͜ð" href="Voiced_dental_affricate"/>
-    <phone name="t͡ɬ" alias="t͜ɬ ƛ" href="Voiceless_alveolar_lateral_affricate"/>
-    <phone name="d͡ɮ" alias="d͜ɮ" href="Voiced_alveolar_lateral_affricate"/>
+    <!-- Affricates: over-tie canonical (simultaneous, one timing slot); legacy
+         ligatures are aliases. Features are DERIVED at load from the constituents
+         (see docs/ties.md); variant tie spellings import via from_wild(). -->
+    <phone name="t͡s" alias="ʦ" href="Voiceless_alveolar_affricate"/>
+    <phone name="d͡z" alias="ʣ" href="Voiced_alveolar_affricate"/>
+    <phone name="t͡ʃ" alias="ʧ" href="Voiceless_postalveolar_affricate"/>
+    <phone name="d͡ʒ" alias="ʤ" href="Voiced_postalveolar_affricate"/>
+    <phone name="t͡ɕ" alias="ʨ" href="Voiceless_alveolo-palatal_affricate"/>
+    <phone name="d͡ʑ" alias="ʥ" href="Voiced_alveolo-palatal_affricate"/>
+    <phone name="p͡f" href="Voiceless_labiodental_affricate"/>
+    <phone name="b͡v" href="Voiced_labiodental_affricate"/>
+    <phone name="t͡θ" href="Voiceless_dental_affricate"/>
+    <phone name="d͡ð" href="Voiced_dental_affricate"/>
+    <phone name="t͡ɬ" alias="ƛ" href="Voiceless_alveolar_lateral_affricate"/>
+    <phone name="d͡ɮ" href="Voiced_alveolar_lateral_affricate"/>
 
     <!-- Doubly articulated stops and nasals (features derived at load) -->
-    <phone name="k͡p" alias="k͜p" href="Voiceless_labial%E2%80%93velar_plosive"/>
-    <phone name="ɡ͡b" alias="ɡ͜b" href="Voiced_labial%E2%80%93velar_plosive"/>
-    <phone name="ŋ͡m" alias="ŋ͜m" href="Voiced_labial%E2%80%93velar_nasal"/>
+    <phone name="k͡p" href="Voiceless_labial%E2%80%93velar_plosive"/>
+    <phone name="ɡ͡b" href="Voiced_labial%E2%80%93velar_plosive"/>
+    <phone name="ŋ͡m" href="Voiced_labial%E2%80%93velar_nasal"/>
 
-    <!-- Diphthongs (features derived at load: sequential first-element projection) -->
-    <phone name="a͡ɪ" alias="a͜ɪ" href="Diphthong"/>
-    <phone name="a͡ʊ" alias="a͜ʊ" href="Diphthong"/>
-    <phone name="e͡ɪ" alias="e͜ɪ" href="Diphthong"/>
-    <phone name="o͡ʊ" alias="o͜ʊ" href="Diphthong"/>
-    <phone name="ɔ͡ɪ" alias="ɔ͜ɪ" href="Diphthong"/>
-    <phone name="a͡ʊ̯" alias="a͜ʊ̯" href="Diphthong"/>
-    <phone name="ɪ͡ə" alias="ɪ͜ə" href="Diphthong"/>
-    <phone name="e͡ə" alias="e͜ə" href="Diphthong"/>
-    <phone name="ʊ͡ə" alias="ʊ͜ə" href="Diphthong"/>
+    <!-- Diphthongs: under-tie canonical (sequential); features derived at load
+         (first-element projection). Variant spellings import via from_wild().
+         Narrow-transcription variants (a͜ʊ̯ etc.) are not registered: composition
+         resolves them identically on the fly. -->
+    <phone name="a͜ɪ" href="Diphthong"/>
+    <phone name="a͜ʊ" href="Diphthong"/>
+    <phone name="e͜ɪ" href="Diphthong"/>
+    <phone name="o͜ʊ" href="Diphthong"/>
+    <phone name="ɔ͜ɪ" href="Diphthong"/>
+    <phone name="ɪ͜ə" href="Diphthong"/>
+    <phone name="e͜ə" href="Diphthong"/>
+    <phone name="ʊ͜ə" href="Diphthong"/>
   </phones>
 
   <diacritics>

@@ -115,11 +115,12 @@ class TestLigatureExpansion:
     def test_expand_preserves_modern(self, ipa: IPAFeatures) -> None:
         assert ipa.expand_ligatures("t͡ʃ") == "t͡ʃ"
 
-    def test_expand_tie_bar_below(self, ipa: IPAFeatures) -> None:
-        # Tie-bearing aliases are no longer globally rewritten (that erased
-        # tie sense inside larger chains); they resolve token-locally.
+    def test_under_tie_spelling_is_its_own_object(self, ipa: IPAFeatures) -> None:
+        # Strict glyph authority: t͜s is a sequential chain, not a spelling
+        # of the affricate. Wild text imports via from_wild.
         assert ipa.expand_ligatures("t͜s") == "t͜s"
-        assert ipa.tokenize_ipa("t͜s") == ["t͡s"]
+        assert ipa.tokenize_ipa("t͜s") == ["t͜s"]
+        assert ipa.from_wild("t͜s") == "t͡s"
 
 
 class TestNormalization:
@@ -127,12 +128,12 @@ class TestNormalization:
 
     def test_normalize_adds_ties(self, ipa: IPAFeatures) -> None:
         # Consonant pairs fuse (over-tie); adjacent vowels bind sequentially
-        # (under-tie), which resolves to the registered diphthong via alias.
+        # (under-tie) - which is the canonical diphthong spelling directly.
         result = ipa.normalize_ipa("tʃ eɪ n dʒ")
         assert "t͡ʃ" in result
         assert "e͜ɪ" in result
         assert "d͡ʒ" in result
-        assert ipa.get_features("e͜ɪ") == ipa.get_features("e͡ɪ")
+        assert ipa.get_phone("e͜ɪ") is not None
 
     def test_add_tie_bars(self, ipa: IPAFeatures) -> None:
         assert ipa.add_tie_bars("ts") == "t͡s"

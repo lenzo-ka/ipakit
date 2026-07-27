@@ -33,7 +33,7 @@ class TestIPAtoCMU:
         assert mapper.ipa_to_cmu("d͡ʒ", with_stress=False) == ["JH"]
 
     def test_diphthongs(self, mapper: CMUMapper) -> None:
-        result = mapper.ipa_to_cmu("a͡ɪ", with_stress=True)
+        result = mapper.ipa_to_cmu("a͜ɪ", with_stress=True)
         assert result == ["AY0"]
 
 
