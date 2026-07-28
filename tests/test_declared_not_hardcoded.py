@@ -160,8 +160,11 @@ class TestTheOrderingTupleCanOnlyOrder:
 # The guard
 # ---------------------------------------------------------------------------
 
-_UNORDERED = (ast.Set, ast.Dict)
 _SET_BUILDERS = {"set", "frozenset", "dict"}
+# Calls that consume a string as a *sequence of members* rather than as
+# one value. Only these expand a string to its characters: doing it
+# everywhere would read "stress" as the phones s, t, r, e.
+_ITERATING = _SET_BUILDERS | {"zip", "tuple", "list", "sorted", "enumerate"}
 
 
 def _strings(node: ast.AST) -> list[str]:
@@ -173,37 +176,74 @@ def _strings(node: ast.AST) -> list[str]:
     ]
 
 
-def _membership(node: ast.AST) -> list[str]:
-    """The string literals a node offers as *membership*: set elements,
-    dict keys, and the elements of a set()/frozenset()/dict() call. A
-    sequence (list/tuple) offers none -- it states an order, not a class."""
+def _is_unordered(node: ast.AST) -> bool:
+    """Whether an expression builds an unordered collection.
+
+    Decided from the *outermost* node rather than by hunting for a
+    literal anywhere inside, so `frozenset(x.split())`, `dict(zip(...))`
+    and a set comprehension are all recognised. A list or tuple is
+    ordered: it states a sequence, not a class.
+    """
+    if isinstance(node, ast.Set | ast.Dict | ast.SetComp | ast.DictComp):
+        return True
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in _SET_BUILDERS
+    ):
+        return True
+    if isinstance(node, ast.BinOp):  # set algebra: A | B, A - B
+        return _is_unordered(node.left) or _is_unordered(node.right)
+    if isinstance(node, ast.Subscript):
+        return _is_unordered(node.value)
+    return False
+
+
+def _candidates(node: ast.AST) -> list[str]:
+    """Every string an expression could contribute as a member.
+
+    Deliberately generous about *how* a string is spelled, because the
+    shape of the container is what the classification is, not the syntax
+    that fills it: a symbol reached through `chr()`, a name list written
+    as `"a b c".split()`, and the characters of a string handed to
+    `set()` are all members of the collection they build.
+    """
     out: list[str] = []
     for sub in ast.walk(node):
-        if isinstance(sub, ast.Set):
-            out += [
-                e.value
-                for e in sub.elts
-                if isinstance(e, ast.Constant) and isinstance(e.value, str)
-            ]
-        elif isinstance(sub, ast.Dict):
-            out += [
-                k.value
-                for k in sub.keys
-                if isinstance(k, ast.Constant) and isinstance(k.value, str)
-            ]
+        if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+            out.append(sub.value)
+            out += sub.value.split()  # "a b c".split() spells three names
         elif (
             isinstance(sub, ast.Call)
             and isinstance(sub.func, ast.Name)
-            and sub.func.id in _SET_BUILDERS
+            and sub.func.id == "chr"
+            and len(sub.args) == 1
+            and isinstance(sub.args[0], ast.Constant)
+            and isinstance(sub.args[0].value, int)
+        ):
+            out.append(chr(sub.args[0].value))
+        elif (
+            isinstance(sub, ast.Call)
+            and isinstance(sub.func, ast.Name)
+            and sub.func.id in _ITERATING
         ):
             for arg in sub.args:
-                if isinstance(arg, ast.List | ast.Tuple | ast.Set):
-                    out += [
-                        e.value
-                        for e in arg.elts
-                        if isinstance(e, ast.Constant) and isinstance(e.value, str)
-                    ]
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    out += list(arg.value)  # set("ǀǁǂǃ") is four members
     return out
+
+
+def _membership(node: ast.AST) -> list[str]:
+    """The strings a node offers as *membership*.
+
+    An unordered container classifies whatever it holds -- keys and
+    values alike, since a table mapping a mode to its symbols smuggles
+    exactly as much as one mapping each symbol to its mode. A sequence
+    offers no membership: it states an order.
+    """
+    if not _is_unordered(node):
+        return []
+    return _candidates(node)
 
 
 def _module_constants(source: str) -> list[tuple[str, ast.AST]]:
@@ -281,6 +321,15 @@ _SMUGGLED = [
     '_EXCLUDED_KEYS = METADATA_ATTRS | {"class", "place", "nasalized"}',
     '_BINARY_LABELS = {"channel": {"lateral": "lateral", "grooved": "sibilant"}}',
     # Shapes never shipped, but the same mistake spelled differently.
+    # Each of these slipped past the first version of the guard: the
+    # first is _MODE_EXCEPTIONS with its keys and values swapped.
+    '_MODE_EXCEPTIONS = {"release": ("ˀ", "ᵊ")}',
+    '_CLICK_SYMBOLS = set("ǀǁǂǃ")',
+    '_MODE_BY_SYMBOL = dict(zip("ˀᵊ", ("release", "release")))',
+    "_STRESS_MARKERS = {chr(0x2C8): 1, chr(0x2CC): 2}",
+    '_PROSODIC_KEYS = frozenset("stress length tone contour step global".split())',
+    '_SECONDARY_KEYS = frozenset(k for k in ("palatalized", "labialized"))',
+    '_OVERRIDING_KEYS = frozenset(["voiced", "place", "manner", "syllabic"][:])',
     '_SONORANTS = set(["nasal", "trill", "approximant"])',
     '_TONES = {"low": 1, "mid": 2, "high": 3}',
 ]
@@ -307,6 +356,34 @@ def test_the_guard_spares_what_is_not_a_phonetic_fact(
         "_JSON_VERSION = 1",
     ]:
         assert offenders(source, declared) == [], source
+
+
+def test_the_guard_states_what_it_cannot_see(
+    declared: dict[str, set[str]],
+) -> None:
+    """The escapes, pinned so they stay known rather than assumed shut.
+
+    A guard that quietly stops covering a shape is worse than none,
+    because it reads as protection. These are the shapes that get past
+    it, asserted as getting past it: if one starts being caught, this
+    fails and the docstring above needs updating.
+    """
+    escapes = [
+        # A sequence states an order, and the one ordered list left in
+        # Python is separately pinned to only order what the data admits.
+        '_ORDER = ["palatalized", "labialized", "velarized"]',
+        # Not a module-level assignment at all.
+        "class C:\n    KEYS = {'voiced', 'place', 'manner'}",
+        "def f():\n    KEYS = {'voiced', 'place', 'manner'}",
+        # A fact spelled as control flow rather than as data.
+        "def mode(sym):\n"
+        "    if sym == 'ˀ':\n        return 'release'\n"
+        "    elif sym == 'ᵊ':\n        return 'release'",
+    ]
+    for source in escapes:
+        assert (
+            offenders(source, declared) == []
+        ), f"now caught, so the documented escapes are stale: {source}"
 
 
 @pytest.mark.parametrize("path", _GUARDED, ids=lambda p: p.name)
