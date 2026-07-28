@@ -118,7 +118,8 @@ behind `'` and `!`.
 ### Distribution-aware distance
 
 `distance()` is the **raw feature metric** — an absolute, inventory-independent
-mean over phonetic features (so `distance("p", "b")` is always `0.043`). Raw
+mean over phonetic features, so a given pair scores the same whatever inventory
+you loaded. Raw
 distances bunch up in a narrow band, which makes fixed thresholds hard to pick.
 `normalized_distance()` renormalizes a raw distance to its **percentile** within
 the bundled IPA inventory's pairwise distribution, spreading values across
