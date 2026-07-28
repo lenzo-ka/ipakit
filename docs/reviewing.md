@@ -104,6 +104,12 @@ In each case correcting the data fixed the metric, and a weight or a special cas
 
 The general rule: an invariant worth relying on is worth a test, and one that does not hold is worth saying out loud.
 
+### Measure against something outside the library, where you can
+
+Every check above compares ipakit with itself. Some claims cannot be settled that way at all: whether the declared tract geometry matches a tract. [docs/articulatory-data.md](articulatory-data.md) is that comparison against an external corpus, and `scripts/articulatory.py` is the enumeration written once, in the same shape as `sweep.py` -- one command per measurement, an assertion on the corpus size so a run cannot go quietly vacuous, and a clean exit when the data is not mounted, because it never is in CI.
+
+It is also a worked example of the rule above. Seven findings were briefed to that lane as fact; re-measuring over all 48 speakers confirmed four, refuted the numbers in two, and reversed the sign of one. The reversal was found only because the brief said to verify rather than implement.
+
 ## For an automated reviewer
 
 Much of this review was done by delegated agents. What made that work:
