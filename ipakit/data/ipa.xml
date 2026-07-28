@@ -20,6 +20,21 @@
     <class name="separators"/>
   </classes>
 
+  <!-- A diacritic's contribution mode is read off the features it declares
+       (docs/ties.md): a mark is a release phase because it says release=,
+       a secondary articulation because it says velarized=, and so on. No
+       symbol is classified by its own name. Declaration order is
+       precedence: the first mode any of the mark's keys claims wins. The
+       mode named by `default` is what an undeclared feature contributes. -->
+  <modes default="additive">
+    <mode name="structural" desc="a juncture or boundary; belongs to no segment's feature bag"/>
+    <mode name="prosodic" desc="belongs to the unit, not to its feature bag"/>
+    <mode name="release" desc="names a phase of the segment, never the whole of it"/>
+    <mode name="secondary" desc="a secondary articulation: adds a constriction, keeps the primary"/>
+    <mode name="overriding" desc="replaces the base's value"/>
+    <mode name="additive" desc="adds only what the base leaves unstated"/>
+  </modes>
+
   <!-- Declaration order determines default feature_order -->
   <!-- Reference frame for ordinal scales: a left-facing oral tract.
        +x runs along the tract from the lips to the glottis (left to right
@@ -32,16 +47,16 @@
        position. The combiner is "^", kept distinct from the "+" that is
        the positive value of a binary feature. -->
   <features>
-    <feature name="manner" axis="+constriction" short="mnr" desc="How airflow is constricted" href="Manner_of_articulation">
+    <feature name="manner" axis="+constriction" short="mnr" mode="overriding" desc="How airflow is constricted" href="Manner_of_articulation">
       <value name="silence" short="sil" offscale="+" href="Pause_(linguistics)"/>  <!-- no position: absence of signal, equidistant from every manner -->
       <value name="vowel" offset="0.40" short="vow" href="Vowel"/>
       <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
       <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
       <value name="tap" offset="0.75" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
       <value name="nasal" offset="1.00" short="nas" href="Nasal_consonant"/>
-      <value name="fricative" offset="0.80" short="fri" href="Fricative"/>
-      <value name="plosive" offset="1.00" short="plo" alias="stop" href="Plosive"/>
-      <value name="affricate" offset="0.95" short="aff" href="Affricate"/>
+      <value name="fricative" offset="0.80" short="fri" natural-class="obstruent" href="Fricative"/>
+      <value name="plosive" offset="1.00" short="plo" alias="stop" natural-class="obstruent" href="Plosive"/>
+      <value name="affricate" offset="0.95" short="aff" natural-class="obstruent" href="Affricate"/>
     </feature>
 
     <feature name="airstream" type="categorical" short="air" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
@@ -51,7 +66,7 @@
       <value name="velaric" short="vel" href="Click_consonant"/>  <!-- velaric ingressive: the click airstream -->
     </feature>
 
-    <feature name="place" axis="+x" short="plc" desc="Where articulation occurs" href="Place_of_articulation">
+    <feature name="place" axis="+x" short="plc" mode="overriding" desc="Where articulation occurs" href="Place_of_articulation">
       <value name="bilabial" arc="0.00" articulator="lower-lip" short="bil" href="Bilabial_consonant"/>
       <value name="labiodental" arc="0.03" articulator="lower-lip" short="lbd" href="Labiodental_consonant"/>
       <value name="dental" arc="0.08" articulator="tongue-tip" short="den" href="Dental_consonant"/>
@@ -86,17 +101,29 @@
       <value name="back" arc="0.56" articulator="tongue-dorsum" short="bck" href="Back_vowel"/>
     </feature>
 
-    <feature name="voiced" short="voi" type="binary" desc="Vocal cord vibration" href="Voice_(phonetics)"/>
-    <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness"/>
-    <feature name="channel" axis="+z" short="chn" default="flat" desc="Where the airflow channel sits in cross-section: the mid-sagittal plane projects this axis away, so it has no contour, only an ordering" href="Sibilant">
-      <value name="lateral" short="lat" href="Lateral_consonant"/>  <!-- out: airflow at the sides, midline occluded -->
-      <value name="flat" short="flt" href="Fricative"/>  <!-- diffuse central airflow -->
-      <value name="grooved" short="grv" alias="sibilant" href="Sibilant"/>  <!-- in: concentrated central jet -->
+    <feature name="voiced" short="voi" type="binary" mode="overriding" desc="Vocal cord vibration" href="Voice_(phonetics)">
+      <value name="+" label="voiced"/>
+      <value name="-" label="voiceless"/>
     </feature>
-    <feature name="retroflex" short="rtf" type="binary" desc="Tongue tip curled back" href="Retroflex_consonant"/>
-    <feature name="velarized" short="vlz" type="binary" desc="Secondary velar constriction" href="Velarization"/>
-    <feature name="nasalized" short="nsl" type="binary" desc="Air flows through nose" href="Nasalization"/>
-    <feature name="length" axis="+t" short="len" desc="Segment duration" default="normal" href="Length_(phonetics)">
+    <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness">
+      <value name="+" label="rounded"/>
+      <value name="-" label="unrounded"/>
+    </feature>
+    <feature name="channel" axis="+z" short="chn" default="flat" applies="consonant" desc="Where the airflow channel sits in cross-section: the mid-sagittal plane projects this axis away, so it has no contour, only an ordering" href="Sibilant">
+      <value name="lateral" short="lat" label="lateral" href="Lateral_consonant"/>  <!-- out: airflow at the sides, midline occluded -->
+      <value name="flat" short="flt" href="Fricative"/>  <!-- diffuse central airflow -->
+      <value name="grooved" short="grv" alias="sibilant" label="sibilant" href="Sibilant"/>  <!-- in: concentrated central jet -->
+    </feature>
+    <feature name="retroflex" short="rtf" type="binary" applies="consonant" desc="Tongue tip curled back" href="Retroflex_consonant">
+      <value name="+" label="retroflex"/>
+    </feature>
+    <feature name="velarized" short="vlz" type="binary" mode="secondary" place="velar" desc="Secondary velar constriction" href="Velarization">
+      <value name="+" label="velarized"/>
+    </feature>
+    <feature name="nasalized" short="nsl" type="binary" desc="Air flows through nose" href="Nasalization">
+      <value name="+" label="nasalized"/>
+    </feature>
+    <feature name="length" axis="+t" short="len" mode="prosodic" desc="Segment duration" default="normal" href="Length_(phonetics)">
       <value name="extra-short" short="xsh"/>
       <value name="normal" short="nrm"/>
       <value name="half-long" short="hlg"/>
@@ -117,26 +144,40 @@
       <value name="vocal-folds" arc="1.00" short="vfd" href="Glottal_consonant"/>
     </feature>
     <feature name="centralized" short="ctz" type="binary" desc="Moved toward center" href="Relative_articulation#Centralization"/>
-    <feature name="labialized" short="lbz" type="binary" desc="Secondary lip rounding" href="Labialization"/>
-    <feature name="labio-palatized" short="lpz" type="binary" desc="Simultaneous labialization and palatalization"/>
+    <feature name="labialized" short="lbz" type="binary" mode="secondary" place="bilabial" desc="Secondary lip rounding" href="Labialization">
+      <value name="+" label="labialized"/>
+    </feature>
+    <feature name="labio-palatized" short="lpz" type="binary" mode="secondary" place="bilabial^palatal" desc="Simultaneous labialization and palatalization">
+      <value name="+" label="labio-palatized"/>
+    </feature>
     <feature name="mid-centralized" short="mcz" type="binary" desc="Moved toward schwa" href="Relative_articulation#Centralization"/>
-    <feature name="palatalized" short="plz" type="binary" desc="Secondary palatal articulation" href="Palatalization_(phonetics)"/>
-    <feature name="pharyngealized" short="phz" type="binary" desc="Secondary pharyngeal constriction" href="Pharyngealization"/>
+    <feature name="palatalized" short="plz" type="binary" mode="secondary" place="palatal" desc="Secondary palatal articulation" href="Palatalization_(phonetics)">
+      <value name="+" label="palatalized"/>
+    </feature>
+    <feature name="pharyngealized" short="phz" type="binary" mode="secondary" place="pharyngeal" desc="Secondary pharyngeal constriction" href="Pharyngealization">
+      <value name="+" label="pharyngealized"/>
+    </feature>
     <feature name="height-mod" short="hmd" type="ternary" desc="Raised or lowered" href="Relative_articulation#Raising_and_lowering"/>
-    <feature name="rhotacized" short="rho" type="binary" desc="R-colored" href="R-colored_vowel"/>
-    <feature name="syllabic" short="syl" type="binary" desc="Functions as syllable nucleus" href="Syllabic_consonant"/>
+    <feature name="rhotacized" short="rho" type="binary" applies="vowel" desc="R-colored" href="R-colored_vowel">
+      <!-- Named for the acoustic effect, as the feature's own description
+           and reference do: the term the phones are known by. -->
+      <value name="+" label="r-colored"/>
+    </feature>
+    <feature name="syllabic" short="syl" type="binary" mode="overriding" desc="Functions as syllable nucleus" href="Syllabic_consonant">
+      <value name="+" label="syllabic"/>
+    </feature>
 
     <!-- Suprasegmental binary features -->
-    <feature name="tie" short="tie" desc="Tie bar sense: binds constituents into one unit" href="Tie_(typography)">
+    <feature name="tie" short="tie" mode="structural" desc="Tie bar sense: binds constituents into one unit" href="Tie_(typography)">
       <value name="simultaneous" short="sim"/>
       <value name="sequential" short="seq"/>
     </feature>
-    <feature name="linking" short="lnk" desc="Linking (absence of a break) between words" href="Tie_(typography)">
+    <feature name="linking" short="lnk" mode="structural" desc="Linking (absence of a break) between words" href="Tie_(typography)">
       <value name="+"/>
     </feature>
 
     <!-- Diacritic multi-valued features -->
-    <feature name="release" type="categorical" short="rel" desc="How stop closure is released" href="Consonant_release">
+    <feature name="release" type="categorical" short="rel" mode="release" desc="How stop closure is released" href="Consonant_release">
       <value name="aspirated" short="asp" href="Aspirated_consonant"/>
       <value name="breathy" short="brt" href="Breathy_voice"/>
       <value name="lateral" short="lrl" href="Lateral_release_(phonetics)"/>
@@ -159,12 +200,12 @@
     </feature>
 
     <!-- Suprasegmental multi-valued features -->
-    <feature name="stress" short="str" desc="Prosodic prominence" href="Stress_(linguistics)">
+    <feature name="stress" short="str" mode="prosodic" desc="Prosodic prominence" href="Stress_(linguistics)">
       <value name="primary" short="1" href="Stress_(linguistics)"/>
       <value name="secondary" short="2" href="Secondary_stress"/>
     </feature>
 
-    <feature name="tone" axis="+y" short="ton" desc="Pitch level" href="Tone_(linguistics)">
+    <feature name="tone" axis="+y" short="ton" mode="prosodic" desc="Pitch level" href="Tone_(linguistics)">
       <value name="bottom" short="t1"/>
       <value name="low" short="t2"/>
       <value name="mid" short="t3"/>
@@ -172,22 +213,22 @@
       <value name="top" short="t5"/>
     </feature>
 
-    <feature name="contour" short="ctr" desc="Pitch movement direction" href="Contour_tone">
+    <feature name="contour" short="ctr" mode="prosodic" desc="Pitch movement direction" href="Contour_tone">
       <value name="rising" short="R"/>
       <value name="falling" short="F"/>
     </feature>
 
-    <feature name="break" short="brk" desc="Prosodic boundary strength" href="Prosodic_unit">
+    <feature name="break" short="brk" mode="structural" desc="Prosodic boundary strength" href="Prosodic_unit">
       <value name="minor" short="min"/>
       <value name="major" short="maj"/>
     </feature>
 
-    <feature name="step" short="stp" desc="Register shift" href="Downstep">
+    <feature name="step" short="stp" mode="prosodic" desc="Register shift" href="Downstep">
       <value name="down" short="dn"/>
       <value name="up" short="up"/>
     </feature>
 
-    <feature name="global" short="glb" desc="Utterance-level pitch change" href="Intonation_(linguistics)">
+    <feature name="global" short="glb" mode="prosodic" desc="Utterance-level pitch change" href="Intonation_(linguistics)">
       <value name="rise" short="gR"/>
       <value name="fall" short="gF"/>
     </feature>
@@ -198,6 +239,25 @@
       <value name="word" short="wrd" href="Word"/>
     </feature>
   </features>
+
+  <!-- One phonetic dimension, spelled several ways. Nasality is a manner
+       for one segment, a property of another and a release phase of a
+       third, and per-feature comparison cannot see that those are the same
+       thing: without this, a nasalized vowel and a nasal share no key
+       expressing nasality at all. The metric derives one binary per bridge
+       (docs/distance.md). The equivalence is a fact about the phonetics;
+       what the metric does with it is not. -->
+  <bridges>
+    <bridge name="nasality" desc="Airflow through the nose" href="Nasalization">
+      <spelling feature="manner" value="nasal"/>
+      <spelling feature="nasalized" value="+"/>
+      <spelling feature="release" value="nasal"/>
+    </bridge>
+    <bridge name="laterality" desc="Airflow at the sides of the tongue" href="Lateral_consonant">
+      <spelling feature="channel" value="lateral"/>
+      <spelling feature="release" value="lateral"/>
+    </bridge>
+  </bridges>
 
   <phones>
     <phone name="␣" manner="silence"/>

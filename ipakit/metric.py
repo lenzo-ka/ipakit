@@ -23,6 +23,7 @@ Key properties, pinned by tests:
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
@@ -37,22 +38,12 @@ GAP_COST = 1.0
 # Secondary-articulation place weight.
 SECONDARY_WEIGHT = 0.5
 
-# Secondary-articulation feature -> the place it constricts at. Keyed by
-# feature rather than by diacritic: the same secondary articulation can be
-# written as a modifier (lˠ) or be inherent to the base phone (ɫ), so the
-# metric has to read it off the assembled bundle instead of off the glyph
-# stack. Combining place names expand through Feature.expand, exactly as
-# primary places do.
-SECONDARY_PLACE = {
-    "palatalized": "palatal",
-    "labialized": "bilabial",
-    "velarized": "velar",
-    "pharyngealized": "pharyngeal",
-    "labio-palatized": "bilabial^palatal",
-}
-
-# Combining place values (bilabial^velar) carry their expansion in the
-# name; Feature.expand supplies the components.
+# The secondary articulations, and the place each constricts at, come from
+# the data (IPAFeatures.secondary_places): a feature declares
+# mode="secondary" place="velar" once, and the mode partition and the place
+# table are then the same statement rather than two lists that agree by
+# habit. Combining place values (bilabial^palatal) carry their expansion in
+# the name; Feature.expand supplies the components.
 
 # Kinds whose part order is meaning (phased units and sequences); pairs
 # involving any of these align ordered. Single-block fusions and atomic
@@ -70,22 +61,48 @@ ORDERED_KINDS = frozenset(
     }
 )
 
-# Secondary-articulation property keys stay in the scalar projection for
-# compatibility, but in the metric their content is carried entirely by
-# the weighted place components -- counting both would double-charge a
-# secondary articulation and push tʲ away from c instead of toward it.
-# Dropping the key without adding the component is the other failure, and
-# subtracts the articulation outright (ɫ would read as plain l).
-_SECONDARY_KEYS = frozenset(SECONDARY_PLACE)
-# nasalized's content is carried by the nasality bridge feature the same
-# way; counting both would cancel the bridge (ã would sit no nearer to a
-# nasal than plain a does).
-_EXCLUDED_KEYS = METADATA_ATTRS | {"class", "place", "nasalized"} | _SECONDARY_KEYS
-
 PlaceComponents = tuple[tuple[str, float], ...]
 
 # Sagittal bridges: shared tract coordinates (see ipakit.tract) make
 # cross-class spatial proximity (j~i, w~u, k~u) visible.
+
+
+@functools.cache
+def excluded_keys(features: IPAFeatures) -> frozenset[str]:
+    """Feature keys the ordinary per-key comparison must not count,
+    because something else in the metric already carries their content.
+
+    ``place`` and the secondary articulations are carried by the weighted
+    place components: counting both would double-charge a secondary and
+    push ``tʲ`` away from ``c`` instead of toward it, and dropping the key
+    without adding the component subtracts the articulation outright
+    (``ɫ`` would read as plain ``l``).
+
+    A feature every one of whose informative values is claimed by a bridge
+    is carried by that bridge, and counting it too would cancel the bridge
+    out again (``ã`` would sit no nearer a nasal than plain ``a`` does).
+    ``nasalized`` is such a feature; ``channel`` and ``release`` are not,
+    because each also holds values no bridge claims. Derived rather than
+    listed, so a bridge added to the data cannot leave a stale exclusion
+    behind it. Memoized per inventory: this sits in the innermost loop of
+    every distance, and the answer is a property of the data.
+    """
+    bridged: set[str] = set()
+    for spellings in features.bridges.values():
+        for name, _ in spellings:
+            bridged.add(name)
+    carried = set()
+    for name in bridged:
+        feat = features.features.get(name)
+        if feat is None:
+            continue
+        claimed = {v for s in features.bridges.values() for f, v in s if f == name}
+        informative = set(feat.values) - ({feat.default} if feat.default else set())
+        if informative and informative <= claimed:
+            carried.add(name)
+    return frozenset(
+        set(METADATA_ATTRS) | {"place"} | set(features.secondary_places) | carried
+    )
 
 
 def _metric_bundle(
@@ -94,7 +111,8 @@ def _metric_bundle(
     """A constituent's comparable form: ordinary features (with the derived
     bridge features), plus place as weighted components."""
     bundle = constituent.bundle(features, with_defaults=True)
-    feats = {k: v for k, v in bundle.items() if k not in _EXCLUDED_KEYS}
+    excluded = excluded_keys(features)
+    feats = {k: v for k, v in bundle.items() if k not in excluded}
 
     place_feature = features.features.get("place")
 
@@ -105,15 +123,17 @@ def _metric_bundle(
     place = bundle.get("place")
     if place is not None:
         components.extend((comp, 1.0) for comp in expand(place))
-    for key, secondary in SECONDARY_PLACE.items():
+    for key, secondary in features.secondary_places.items():
         if bundle.get(key) == "+":
             components.extend((comp, SECONDARY_WEIGHT) for comp in expand(secondary))
 
     # Bridge features (metric-only): the same phonetic dimension spelled
-    # as manner, property, or release compares as one derived binary. Not
-    # for non-speech (silence has no nasality or laterality either -
-    # granting it the negative would match every phone and dilute the
-    # difference right back).
+    # as manner, property, or release compares as one derived binary. The
+    # spellings are declared in the data (<bridges>); what is derived here
+    # is the comparison, not the phonetic equivalence. Not for non-speech
+    # (silence has no nasality or laterality either - granting it the
+    # negative would match every phone and dilute the difference right
+    # back).
     manner_feature = features.features.get("manner")
     if manner_feature is not None and bundle.get("manner") in manner_feature.offscale:
         return feats, tuple(components)
@@ -125,20 +145,8 @@ def _metric_bundle(
     resolved = tract_point(features, bundle).articulator
     if resolved is not None:
         feats["articulator"] = resolved
-    feats["nasality"] = (
-        "+"
-        if (
-            bundle.get("manner") == "nasal"
-            or bundle.get("nasalized") == "+"
-            or bundle.get("release") == "nasal"
-        )
-        else "-"
-    )
-    feats["laterality"] = (
-        "+"
-        if (bundle.get("channel") == "lateral" or bundle.get("release") == "lateral")
-        else "-"
-    )
+    for bridge, spellings in features.bridges.items():
+        feats[bridge] = "+" if any(bundle.get(f) == v for f, v in spellings) else "-"
     return feats, tuple(components)
 
 

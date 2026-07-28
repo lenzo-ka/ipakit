@@ -7,61 +7,37 @@ from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS, SEQ_TIE, TIE_BAR
 from .segment import modifier_mode
 
-# Feature ordering for description generation (most salient first)
-_CONSONANT_DESC_ORDER = ["voiced", "place", "manner"]
-_VOWEL_DESC_ORDER = ["height", "backness", "rounded"]
+# The slots a conventional name renders itself, in the order it renders
+# them: "[voice] [place] [manner]", "[height] [backness] [round] vowel".
+# These are the shape of the sentence, not a claim about phonetics; a
+# feature named here is not also read out as a modifier.
+_CONSONANT_SLOTS = ("voiced", "place", "manner")
+_VOWEL_SLOTS = ("height", "backness", "rounded")
+_PRIMARY_SLOTS = frozenset(_CONSONANT_SLOTS) | frozenset(_VOWEL_SLOTS)
 
-# Features to skip in descriptions (implied or structural)
-_SKIP_FEATURES = {"class", "href", "xsampa", "airstream"}
-
-# Secondary articulations. Each names itself, and each is read from the
-# feature bundle, so a phone carrying one inherently (ɫ) describes like
-# the modifier spelling (lˠ).
-_SECONDARY_DESC_ORDER = [
+# Where a modifier falls in the read-out, ahead of the primary
+# articulation the way the conventional names do ("voiced velarized
+# alveolar lateral approximant", "nasalized open front unrounded vowel").
+# This says only *where in the sentence* a modifier goes. Whether it is
+# read out at all is the data's call -- a value is read out because it
+# declares a `label` -- and so is whether it reaches a consonant or a
+# vowel: `channel` declares applies="consonant" because it places the
+# airflow channel within a constriction and a vowel has none,
+# `rhotacized` applies="vowel" because r-colouring is a vowel property,
+# `retroflex` applies="consonant" because it is the consonant tongue
+# shape. A labelled feature not named here still reads out, last.
+_MODIFIER_READ_ORDER = (
     "palatalized",
     "labialized",
     "velarized",
     "pharyngealized",
     "labio-palatized",
-]
-
-# Modifier features, read out ahead of the primary articulation the way
-# the conventional names do ("voiced velarized alveolar lateral
-# approximant", "nasalized open front unrounded vowel"). Both classes
-# share the order and differ only in what applies to them: `channel`
-# names where the airflow channel sits within a constriction, and a vowel
-# has no constriction to place it in; `rhotacized` is r-colouring, a
-# vowel property, while `retroflex` is the consonant tongue shape. A
-# modifier the phone does not carry contributes nothing, so listing one
-# that never fires costs only the lookup.
-_CONSONANT_MODIFIERS = [
-    *_SECONDARY_DESC_ORDER,
     "syllabic",
     "retroflex",
+    "rhotacized",
     "channel",
     "nasalized",
-]
-_VOWEL_MODIFIERS = [
-    *_SECONDARY_DESC_ORDER,
-    "syllabic",
-    "rhotacized",
-    "nasalized",
-]
-
-# Feature value labels for descriptions (binary flags, plus the ordered
-# channel axis whose values name themselves)
-_BINARY_LABELS: dict[str, dict[str, str | None]] = {
-    "voiced": {"+": "voiced", "-": "voiceless"},
-    "rounded": {"+": "rounded", "-": "unrounded"},
-    "channel": {"lateral": "lateral", "grooved": "sibilant", "flat": None},
-    "retroflex": {"+": "retroflex", "-": None},
-    "nasalized": {"+": "nasalized", "-": None},
-    "syllabic": {"+": "syllabic", "-": None},
-    # Named for the acoustic effect, as the feature's own description and
-    # reference do ("R-colored vowel") -- the term the phones are known by.
-    "rhotacized": {"+": "r-colored", "-": None},
-    **{name: {"+": name, "-": None} for name in _SECONDARY_DESC_ORDER},
-}
+)
 
 
 class AnalysisMixin(IPAFeaturesBase):
@@ -95,28 +71,24 @@ class AnalysisMixin(IPAFeaturesBase):
             # Vowel: [modifiers] height backness [rounded] vowel. Voicing
             # is not read out: no vowel letter declares it, so every one
             # of them would report the binary default.
-            parts.extend(self._modifiers(feats, _VOWEL_MODIFIERS))
+            parts.extend(self._modifiers(feats, manner or None))
             if height := feats.get("height"):
                 parts.append(height)
             if backness := feats.get("backness"):
                 parts.append(backness)
             # Rounded/unrounded
-            if (rounded := feats.get("rounded")) and rounded in _BINARY_LABELS[
-                "rounded"
-            ]:
-                if label := _BINARY_LABELS["rounded"][rounded]:
-                    parts.append(label)
+            if label := self._label("rounded", feats.get("rounded")):
+                parts.append(label)
             parts.append("vowel")
         elif manner == "silence":
             return "silence"
         else:
             # Consonant: voiced/voiceless [modifiers] place manner
             # Voicing
-            if (voiced := feats.get("voiced")) and voiced in _BINARY_LABELS["voiced"]:
-                if label := _BINARY_LABELS["voiced"][voiced]:
-                    parts.append(label)
+            if label := self._label("voiced", feats.get("voiced")):
+                parts.append(label)
 
-            parts.extend(self._modifiers(feats, _CONSONANT_MODIFIERS))
+            parts.extend(self._modifiers(feats, manner or None))
 
             # Place
             if place := feats.get("place"):
@@ -151,24 +123,54 @@ class AnalysisMixin(IPAFeaturesBase):
                 return alias
         return value
 
-    @staticmethod
-    def _modifiers(feats: dict[str, str], order: list[str]) -> list[str]:
+    def _label(self, feature: str, value: str | None) -> str | None:
+        """The word a description uses for a feature value, or None when
+        the data declares none -- the unremarkable side of a binary, or an
+        axis position that goes unsaid (``channel=flat``)."""
+        if value is None:
+            return None
+        feat = self.features.get(feature)
+        return feat.labels.get(value) if feat is not None else None
+
+    def _modifier_features(self, manner: str | None) -> list[str]:
+        """The modifier features a segment of this manner reads out.
+
+        Membership is the data's: a feature is read out because it
+        declares a label for some value, and it reaches this manner
+        because of its ``applies``. The consonant and vowel lists are
+        therefore two views of one declaration and cannot drift apart.
+        Everything this module contributes is the position in the
+        sentence.
+        """
+        pool = [
+            name
+            for name, feat in self.features.items()
+            if feat.labels
+            and name not in _PRIMARY_SLOTS
+            and self.feature_applies(name, manner)
+        ]
+        last = len(_MODIFIER_READ_ORDER)
+        return sorted(
+            pool,
+            key=lambda name: (
+                _MODIFIER_READ_ORDER.index(name)
+                if name in _MODIFIER_READ_ORDER
+                else last
+            ),
+        )
+
+    def _modifiers(self, feats: dict[str, str], manner: str | None) -> list[str]:
         """Modifier labels for a bundle, in read-out order.
 
-        Binary flags plus the channel axis, whose own values carry the
-        label (lateral, sibilant). A key the phone does not carry, and the
-        unremarkable value of a binary, contribute nothing -- so a phone
-        that has no modifiers reads exactly as it did before there were
-        any to report.
+        A key the phone does not carry, and a value the data gives no
+        label, contribute nothing -- so a phone that has no modifiers
+        reads exactly as it did before there were any to report.
         """
-        parts = []
-        for feat in order:
-            if (val := feats.get(feat)) is None:
-                continue
-            table = _BINARY_LABELS.get(feat, {})
-            if label := table.get(val):
-                parts.append(label)
-        return parts
+        return [
+            label
+            for feat in self._modifier_features(manner)
+            if (label := self._label(feat, feats.get(feat)))
+        ]
 
     def natural_class(
         self,

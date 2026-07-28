@@ -11,7 +11,6 @@ import itertools
 import pytest
 from ipakit import IPAFeatures
 from ipakit.metric import (
-    SECONDARY_PLACE,
     SECONDARY_WEIGHT,
     _metric_bundle,
     bundle_distance,
@@ -124,7 +123,7 @@ class TestSecondaryArticulation:
         marks = [
             symbol
             for symbol, mark in ipa.diacritics.items()
-            if set(mark.features) & set(SECONDARY_PLACE)
+            if set(mark.features) & set(ipa.secondary_places)
         ]
         assert marks
         for mark in marks:

@@ -50,6 +50,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def __init__(self, xml_path: Path = DEFAULT_IPA_FEATS):
         self.xml_path = Path(xml_path)
         self.classes: list[str] = []
+        self.modes: list[str] = []  # declaration order is mode precedence
+        self.default_mode: str = "additive"
+        # Bridge name -> the (feature, value) spellings of that dimension.
+        self.bridges: dict[str, tuple[tuple[str, str], ...]] = {}
         self.types: dict[str, list[str]] = {}
         self.features: dict[str, Feature] = {}
         self.phones: dict[str, Phone] = {}
@@ -109,6 +113,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     ]
                     self._type_defaults[type_name] = type_elem.get("default")
 
+        # Load the contribution-mode vocabulary. Declaration order is
+        # precedence; `default` is the mode an undeclared feature makes.
+        if (modes_elem := root.find("modes")) is not None:
+            self.modes = [
+                name for m in modes_elem.findall("mode") if (name := m.get("name"))
+            ]
+            self.default_mode = modes_elem.get("default") or self.default_mode
+            if self.default_mode not in self.modes:
+                raise ValueError(
+                    f"default mode {self.default_mode!r} is not declared in <modes>"
+                )
+
         # Load class definitions (structural categories, not phonetic features)
         if (classes_elem := root.find("classes")) is not None:
             self.classes = [
@@ -125,9 +141,28 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 offscale: set[str] = set()
                 coordinates: dict[str, dict[str, float]] = {}
                 articulators: dict[str, str] = {}
+                # Read out of every <value>, typed or not: a typed feature
+                # takes its value *set* from the type, but it may still say
+                # how its values read and what classes they belong to.
+                labels: dict[str, str] = {}
+                classes: dict[str, set[str]] = {}
+                for v in feat_elem.findall("value"):
+                    if not (val_name := v.get("name")):
+                        continue
+                    if (label := v.get("label")) is not None:
+                        labels[val_name] = label
+                    for cls in (v.get("natural-class") or "").split():
+                        classes.setdefault(cls, set()).add(val_name)
                 if feat_type in self.types:
                     values = self.types[feat_type]
                     # Auto-generate shorts for typed features: +feat, -feat, 0feat
+                    declared = set(labels) | {v for m in classes.values() for v in m}
+                    if undeclared := declared - set(values):
+                        raise ValueError(
+                            f"feature {name!r} is typed {feat_type!r} and takes "
+                            f"its values from that type; {sorted(undeclared)} is "
+                            "not among them"
+                        )
                     for val in values:
                         short = f"{val}{feat_short}"
                         self._short_to_feature[short] = (name, val)
@@ -157,6 +192,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # Use feature default, or fall back to type default
                 default = feat_elem.get("default") or self._type_defaults.get(feat_type)
                 desc = feat_elem.get("desc")
+                mode = feat_elem.get("mode")
+                if mode is not None and self.modes and mode not in self.modes:
+                    raise ValueError(
+                        f"feature {name!r} declares mode {mode!r}, which is not "
+                        f"one of the declared modes {self.modes}"
+                    )
                 self.features[name] = Feature(
                     name=name,
                     values=values,
@@ -168,7 +209,29 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     offscale=frozenset(offscale),
                     coordinates=coordinates,
                     articulators=articulators,
+                    mode=mode,
+                    place=feat_elem.get("place"),
+                    applies=frozenset((feat_elem.get("applies") or "").split()),
+                    labels=labels,
+                    value_classes={k: frozenset(v) for k, v in classes.items()},
                 )
+
+        # `applies` names manner classes: a declared manner value, or
+        # "consonant" for the derived complement of vowel and silence.
+        manner_values = (
+            set(self.features["manner"].values) if "manner" in self.features else set()
+        )
+        for name, feat in self.features.items():
+            for token in feat.applies:
+                if (
+                    manner_values
+                    and token != "consonant"
+                    and token not in manner_values
+                ):
+                    raise ValueError(
+                        f"feature {name!r} declares applies={token!r}, which is "
+                        "neither a declared manner value nor 'consonant'"
+                    )
 
         # Load elements by class (plural section, singular child = section[:-1])
         for section_name in self.classes:
@@ -176,6 +239,34 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 child_name = section_name[:-1]  # phones -> phone
                 for child_elem in elem.findall(child_name):
                     self._load_element(child_elem, child_name)
+
+        # Load the bridge declarations (one dimension, several spellings).
+        if (bridges_elem := root.find("bridges")) is not None:
+            for bridge in bridges_elem.findall("bridge"):
+                if not (bname := bridge.get("name")):
+                    continue
+                if bname in self.features:
+                    raise ValueError(
+                        f"bridge {bname!r} collides with a declared feature; a "
+                        "bridge is derived for comparison and must not shadow one"
+                    )
+                spellings: list[tuple[str, str]] = []
+                for spelling in bridge.findall("spelling"):
+                    feat_name, value = spelling.get("feature"), spelling.get("value")
+                    if not feat_name or value is None:
+                        continue
+                    feature = self.features.get(feat_name)
+                    if feature is None:
+                        raise ValueError(
+                            f"bridge {bname!r} names undeclared feature {feat_name!r}"
+                        )
+                    if feature.values and value not in feature.values_set:
+                        raise ValueError(
+                            f"bridge {bname!r} names value {value!r}, which "
+                            f"feature {feat_name!r} does not declare"
+                        )
+                    spellings.append((feat_name, value))
+                self.bridges[bname] = tuple(spellings)
 
         # Load references
         if (refs_elem := root.find("references")) is not None:
@@ -1626,6 +1717,48 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def feature_order(self) -> list[str]:
         """Feature names in XML declaration order."""
         return list(self.features.keys())
+
+    @functools.cached_property
+    def features_by_mode(self) -> dict[str, frozenset[str]]:
+        """Declared feature names grouped by their contribution mode.
+
+        The partition is total and comes from the data: a feature that
+        declares no ``mode`` contributes the vocabulary's default one. The
+        grouping is what makes "a mark stating this key is a secondary
+        articulation" one statement rather than a set in each module that
+        needs it.
+        """
+        grouped: dict[str, set[str]] = {mode: set() for mode in self.modes}
+        for name, feat in self.features.items():
+            grouped.setdefault(feat.mode or self.default_mode, set()).add(name)
+        return {mode: frozenset(names) for mode, names in grouped.items()}
+
+    @functools.cached_property
+    def secondary_places(self) -> dict[str, str]:
+        """Secondary-articulation feature -> the place it constricts at.
+
+        Keyed by feature rather than by diacritic: the same articulation
+        can be written as a modifier (``lˠ``) or be inherent to the base
+        phone (``ɫ``), so a reader has to see it on the assembled bundle
+        rather than on the glyph stack. Its keys are exactly the
+        ``secondary`` bucket of :attr:`features_by_mode`, by construction.
+        """
+        return {
+            name: feat.place
+            for name, feat in self.features.items()
+            if feat.mode == "secondary" and feat.place is not None
+        }
+
+    def feature_applies(self, feature: str, manner: str | None) -> bool:
+        """Whether a description of a segment of this manner reads
+        ``feature`` out. A feature that declares no ``applies`` applies to
+        every manner."""
+        feat = self.features.get(feature)
+        if feat is None or not feat.applies or manner is None:
+            return True
+        if manner in feat.applies:
+            return True
+        return "consonant" in feat.applies and manner in self.consonant_manners
 
     @functools.cached_property
     def consonant_manners(self) -> frozenset[str]:

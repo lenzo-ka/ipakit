@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -9,10 +10,26 @@ from ._convert import longest_match, require_convertible
 from .constants import DEFAULT_CMU_MAP, SEQ_TIE, TIE_BAR
 from .models import PhoneMapping
 
-# CMU/ARPABET stress: IPA marker -> level digit (0/1/2). ARPABET-specific; the
-# canonical stress inventory lives in ipa.xml's `stress` feature.
-_STRESS_MARKERS = {"ˈ": 1, "ˌ": 2}
-_STRESS_TO_MARKER = {level: marker for marker, level in _STRESS_MARKERS.items()}
+
+@functools.lru_cache(maxsize=1)
+def _stress_markers() -> dict[str, int]:
+    """IPA stress marker -> ARPABET level digit, from ipa.xml.
+
+    The stress inventory is declared there and the value shorts *are* the
+    levels (``<value name="primary" short="1"/>``), which is the same 1/2
+    ARPABET uses. This module used to keep its own ``{"ˈ": 1, "ˌ": 2}``
+    beside a comment saying the canonical one lived in the data: two
+    copies of one fact, and the Python one keyed off the glyph.
+    """
+    from .features import IPAFeatures
+
+    return IPAFeatures().stress_markers
+
+
+@functools.lru_cache(maxsize=1)
+def _stress_to_marker() -> dict[int, str]:
+    """ARPABET level digit -> IPA stress marker (the inverse read)."""
+    return {level: sym for sym, level in _stress_markers().items()}
 
 
 class CMUMapper:
@@ -100,8 +117,8 @@ class CMUMapper:
 
         while i < len(ipa_string):
             char = ipa_string[i]
-            if char in _STRESS_MARKERS:
-                pending_stress = _STRESS_MARKERS[char]
+            if char in (markers := _stress_markers()):
+                pending_stress = markers[char]
                 i += 1
                 continue
 
@@ -147,7 +164,7 @@ class CMUMapper:
 
         while i < len(ipa_string):
             char = ipa_string[i]
-            if char in _STRESS_MARKERS:
+            if char in _stress_markers():
                 i += 1
                 continue
 
@@ -191,7 +208,7 @@ class CMUMapper:
                 or stress_map.get(0)
                 or next(iter(stress_map.values()))
             )
-            if marker := _STRESS_TO_MARKER.get(stress):
+            if marker := _stress_to_marker().get(stress):
                 result.append(f"{marker}{ipa}")
             else:
                 result.append(ipa)
