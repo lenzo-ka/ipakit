@@ -24,7 +24,14 @@ from .constants import (
 from .distance import DistanceMixin
 from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
-from .segment import Constituent, Segment, Sense, modifier_mode
+from .segment import (
+    Constituent,
+    Segment,
+    Sense,
+    apply_modifiers,
+    fill_defaults,
+    modifier_mode,
+)
 from .validation import ValidationMixin
 
 
@@ -279,15 +286,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             feats = composed
         else:
             return self._modified_features(phone, with_defaults=with_defaults)
-        manner_feature = self.features.get("manner")
-        non_speech = bool(
-            manner_feature is not None
-            and feats.get("manner") in manner_feature.offscale
-        )
-        if with_defaults and not non_speech:
-            for name, feat in self.features.items():
-                if name not in feats and feat.default is not None:
-                    feats[name] = feat.default
+        if with_defaults:
+            fill_defaults(self, feats)
         return feats
 
     def _modified_features(
@@ -1199,16 +1199,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         Same segmentation as :meth:`tokenize`, but suprasegmentals and
         separators that carry no phonetic features (stress, syllable breaks) are
         dropped, so every token lines up with its composed feature bundle.
+
+        Diacritics contribute through :func:`~ipakit.segment.apply_modifiers`,
+        the same overlay :meth:`Segment.scalar` and
+        :meth:`Constituent.bundle` use, so the three reads of one marked
+        token agree. The base is read undefaulted so that a mark adding
+        what the base leaves unstated lands before the defaults do.
         """
         result: list[tuple[str, dict[str, str]]] = []
         for base, diacritics in self.parse(segment, phoneset=phoneset):
-            if not (feats := self.get_features(base, with_defaults=with_defaults)):
+            if not (feats := self.get_features(base, with_defaults=False)):
                 continue
-            for diac in diacritics:
-                if diac in self.diacritics:
-                    for k, v in self.diacritics[diac].features.items():
-                        if k not in ("class", "manner"):
-                            feats[k] = v
+            apply_modifiers(self, feats, diacritics, prosody=True)
+            if with_defaults:
+                fill_defaults(self, feats)
             token = unicodedata.normalize("NFC", base + "".join(diacritics))
             result.append((token, feats))
         return result
