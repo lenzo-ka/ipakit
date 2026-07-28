@@ -740,16 +740,48 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         their base + combining mark to the parser), then recomposes the few
         registered symbols that are stored precomposed (e.g. "ç", "ä", "ť")
         so they still match their inventory keys. Idempotent.
+
+        The recomposition looks within a base's whole run of combining
+        marks rather than at the two characters that happen to be
+        adjacent, because canonical ordering can separate a symbol from
+        its own mark: "ç" plus the velarization overlay reorders to
+        c, U+0334, U+0327 (ccc 1 sorts before ccc 202), and a substring
+        replace would leave the cedilla stranded -- turning a palatal
+        fricative into a velarized "c".
         """
-        text = unicodedata.normalize("NFD", text)
-        for decomposed, sym in self._nfd_to_registered.items():
-            text = text.replace(decomposed, sym)
+        text = self._recompose_registered(unicodedata.normalize("NFD", text))
         # Both ties stacked on one juncture assert contradictory timing; the
         # simultaneous reading takes precedence, so the pair collapses to the
         # over-tie. (NFD orders U+035C before U+0361 - ccc 233 < 234 - so one
         # replace covers both written orders.)
         text = text.replace(SEQ_TIE + TIE_BAR, TIE_BAR)
         return text
+
+    def _recompose_registered(self, text: str) -> str:
+        """Rebuild registered precomposed symbols from decomposed text.
+
+        Each base plus its following run of combining marks is one
+        cluster; a mark anywhere in that run may be the one belonging to
+        the base, so it is pulled out wherever it sits rather than only
+        when it happens to be adjacent.
+        """
+        out: list[str] = []
+        i = 0
+        while i < len(text):
+            base = text[i]
+            end = i + 1
+            while end < len(text) and unicodedata.combining(text[end]):
+                end += 1
+            marks = list(text[i + 1 : end])
+            for position, mark in enumerate(marks):
+                if (symbol := self._nfd_to_registered.get(base + mark)) is not None:
+                    base = symbol
+                    marks.pop(position)
+                    break
+            out.append(base)
+            out.extend(marks)
+            i = end
+        return "".join(out)
 
     def normalize_lookalikes(self, text: str) -> str:
         """Apply the ASCII soft reads: keyboard stand-ins -> IPA symbols.

@@ -119,7 +119,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Place
             if place := feats.get("place"):
-                parts.append(place)
+                parts.append(self._display_value("place", place))
 
             # Manner
             if manner:
@@ -130,6 +130,25 @@ class AnalysisMixin(IPAFeaturesBase):
                 parts.append(airstream)
 
         return " ".join(parts)
+
+    def _display_value(self, feature: str, value: str) -> str:
+        """A value as a reader expects to see it.
+
+        Only combining values are translated. Their canonical spelling
+        joins components with the combiner (``bilabial^velar``), which is
+        machine notation -- the data declares the conventional name
+        (``labial-velar``) as an alias for exactly this purpose. Ordinary
+        values keep their canonical spelling, since an alias there is a
+        synonym rather than a readable form: `plosive` should not print
+        as `stop`.
+        """
+        feat = self.features.get(feature)
+        if feat is None or feat.COMBINER not in value:
+            return value
+        for alias, canonical in feat.value_aliases.items():
+            if canonical == value:
+                return alias
+        return value
 
     @staticmethod
     def _modifiers(feats: dict[str, str], order: list[str]) -> list[str]:
