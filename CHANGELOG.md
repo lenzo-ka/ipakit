@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Entries that change existing behaviour are marked **Breaking**; those that change the shipped data are marked **Breaking, data**.
+Entries that change existing behaviour are marked **Breaking**; those that change the shipped data are marked **Breaking, data**; those that rename part of the API are marked **Breaking, naming**.
+
+Each entry describes the state immediately before its own fix, which is not always the state at v0.1.0. Several defects below only became reachable once an earlier fix in this same release exposed them — while `features()` returned `{}` for any base carrying a diacritic, the wrong values it later returned for those bases could not be seen at all. A v0.1.0 user will therefore not reproduce every "before" quoted here.
 
 ### Added
 - Structured segment API: `Segment`/`Constituent`/`Sense`/`Kind`, with `segment()`, `segments()` and `build_segment()`. A unit stores its constituent chain and derives kind, `bag()`, `scalar()` and `disagreements()` from it; it round-trips through versioned JSON. Composition reports rather than referees, so `t͡ɮ` stays legal (#10).
@@ -26,6 +28,7 @@ Entries that change existing behaviour are marked **Breaking**; those that chang
 - `docs/distance.md`: the phonetic distance model — what a segment carries, why anchors rather than scale positions, how segments and bundles are compared, and what the numbers mean for calibration (#17).
 - `docs/reviewing.md`: how defects in this library have actually been found. Thirty-three were fixed across six review rounds and **every one was a silent wrong answer under a green suite**.
 - `scripts/invariants.py`: one command for the properties the library is supposed to hold — identity, symmetry, range, no distinct pair at distance 0, both round trips, the three flat reads agreeing, derived artifacts current. It exits non-zero, so it gates a release; `--quick` skips the O(n²) sweeps. Load-time data-integrity guards come with it (#8, #17).
+- `CHANGELOG.md` ships in the sdist, so the release notes travel with the source distribution.
 
 ### Removed
 - **Breaking.** The `to_ipa` alias is gone: it did CMU-only conversion under a name that reads "anything → IPA". Use `from_cmu`. `compose_single` is gone too, since it returned `{}` for anything that was not exactly one segment and `segment(s).scalar()` covers it. `wiki`/`wiki_ref`/`wiki_refs` and `features_to_shorts`/`shorts_to_features` are no longer exported at module level (#20).

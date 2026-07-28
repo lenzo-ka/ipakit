@@ -90,6 +90,9 @@ job references it; the OIDC identity is scoped to it).
 - **Data files**: `to-cmu`/xsampa/phonemap XML and `confusion.json` ship via
   `[tool.setuptools.package-data]`. Confirm they're in the sdist:
   `tar -tzf dist/*.tar.gz | grep -E 'data/'`.
+- **Changelog**: `CHANGELOG.md` ships in the sdist via `MANIFEST.in`. Nothing else at the
+  repo root does — `TODO.md` and the docs stay out. Confirm with
+  `tar -tzf dist/*.tar.gz | grep -E '^[^/]+/[^/]+$'`.
 - **PEP 639 license**: `license = "BSD-2-Clause"` requires `setuptools>=77` (already the
   build-system floor). Don't lower it.
 - **CI must be green first**: `ci.yml` (lint / test 3.11–3.13 / ICU guards) runs
