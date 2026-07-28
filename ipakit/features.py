@@ -31,7 +31,9 @@ from .segment import (
     Sense,
     apply_modifiers,
     fill_defaults,
+    flat_projection,
     modifier_mode,
+    part_bundle,
 )
 from .validation import ValidationMixin
 
@@ -470,11 +472,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def _part_features(self, part: str) -> dict[str, str]:
         """Explicit features of a resolvable part: registered features, or
         the constituent bundle (base + modifier contributions, no
-        defaults) for a modifier-bearing part."""
+        defaults) for a modifier-bearing part.
+
+        The string spelling of :func:`~ipakit.segment.part_bundle`, so a
+        part contributes the same bundle to the merge whether it arrived
+        as text or as a parsed :class:`~ipakit.segment.Constituent`."""
         part = self._resolve_token(part)
         if part in self.phones:
             return dict(self.phones[part].features)
-        return self._parse_constituent(part).bundle(self, with_defaults=False)
+        return part_bundle(self, self._parse_constituent(part))
 
     def _is_composable(self, phone: str) -> bool:
         """True if ``phone`` is a tie-barred sequence of resolvable parts.
@@ -500,53 +506,47 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Features for an ad hoc tie-barred sequence of resolvable parts.
 
         Returns ``None`` if ``phone`` has no tie bar or any part isn't
-        resolvable. Sequential (under-tie) chains project their **first
-        element** -- the same encoding the registered diphthongs use; the
-        chain's other constituents remain recoverable from the token, not
-        from this flat projection. Simultaneous (over-tie) runs merge left
-        to right; a differing manner across parts collapses to "affricate"
-        (e.g. plosive + fricative). Same-manner parts with different places
-        are a double articulation (e.g. "ɡ͡b"); when the place pair has a
-        dedicated combined value (labial-velar, labial-palatal), that value
-        is used instead of just keeping the last part's place. ``href`` is
-        dropped since it names a specific Wikipedia article that doesn't
-        apply to an ad hoc compound.
+        resolvable. Everything else is
+        :func:`~ipakit.segment.flat_projection`, which
+        :meth:`~ipakit.segment.Segment.scalar` also calls: this method
+        only splits the string into blocks and parts and reads each one's
+        bundle, so the flat entry points and the structured ones cannot
+        disagree about one unit.
         """
         if not self._is_composable(phone):
             return None
-        feats: dict[str, str]
         if SEQ_TIE in phone:
-            first = self._resolve_token(phone.split(SEQ_TIE)[0])
-            if first in self.phones or TIE_BAR not in first:
-                feats = self._part_features(first)
-            else:
-                composed = self._compose_tie_bar_features(first)
-                if composed is None:  # pragma: no cover - guarded by _is_composable
-                    return None
-                feats = composed
-            feats.pop("href", None)
-            return feats
-        parts = phone.split(TIE_BAR)
-        feats = {}
-        manners = set()
-        places = []
-        for part in parts:
-            part_feats = self._part_features(part)
-            manners.add(part_feats.get("manner"))
-            if "place" in part_feats:
-                places.append(part_feats["place"])
-            feats.update(part_feats)
-        feats.pop("href", None)
-        if len(manners) > 1:
-            feats["manner"] = "affricate"
-        elif len(set(places)) > 1:
-            # A same-manner multi-place fusion is a double articulation; its
-            # place is the canonical combining spelling (components ordered
-            # by scale position): any pair, not just the pre-named ones.
-            place_feature = self.features.get("place")
-            if place_feature is not None:
-                feats["place"] = place_feature.combine(tuple(places))
-        return feats
+            blocks = phone.split(SEQ_TIE)
+            return flat_projection(
+                self,
+                [self._block_features(b) for b in blocks],
+                [Sense.SEQ] * (len(blocks) - 1),
+            )
+        return self._fuse_run(phone)
+
+    def _fuse_run(self, run: str) -> dict[str, str]:
+        """One over-tie run merged into a single bundle."""
+        parts = run.split(TIE_BAR)
+        return flat_projection(
+            self,
+            [self._part_features(p) for p in parts],
+            [Sense.FUSE] * (len(parts) - 1),
+        )
+
+    def _block_features(self, block: str) -> dict[str, str]:
+        """Explicit features of one top-level block of a chain: a
+        registered entry (or a tie-free base with its marks), else the
+        fused merge of the over-tie run.
+
+        The registry only wins for the block *as written*: ``k͡p̪`` is not
+        a registered entry, so it merges ``k`` with ``p̪`` rather than
+        reading as the registered ``k͡p`` wearing a dental mark. The mark
+        binds the base it sits on, which is what the structured parse
+        already says.
+        """
+        if self._resolve_token(block) in self.phones or TIE_BAR not in block:
+            return self._part_features(block)
+        return self._fuse_run(block)
 
     def get_phone(self, symbol: str) -> Phone | None:
         return self.phones.get(self._resolve_token(symbol))
@@ -1364,17 +1364,26 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         separators that carry no phonetic features (stress, syllable breaks) are
         dropped, so every token lines up with its composed feature bundle.
 
-        Diacritics contribute through :func:`~ipakit.segment.apply_modifiers`,
-        the same overlay :meth:`Segment.scalar` and
-        :meth:`Constituent.bundle` use, so the three reads of one marked
-        token agree. The base is read undefaulted so that a mark adding
-        what the base leaves unstated lands before the defaults do.
+        Each token is read as :meth:`Segment.scalar` reads it -- one
+        :func:`~ipakit.segment.flat_projection` over the unit's
+        constituents -- so the three reads of one token are one
+        computation. The single divergence is prosody: this returns one
+        flat bundle per token and has no unit level to put a prosodic
+        mark on, so ``compose("eː")`` reports ``length=long`` where
+        ``scalar()`` reports the length of ``e`` and carries the mark in
+        :attr:`Segment.prosody`.
         """
         result: list[tuple[str, dict[str, str]]] = []
         for base, diacritics in self.parse(segment, phoneset=phoneset):
-            if not (feats := self.get_features(base, with_defaults=False)):
+            unit = self._segment_from_parsed(base, diacritics)
+            if unit is None:
                 continue
-            apply_modifiers(self, feats, diacritics, prosody=True)
+            # The unit's own flat projection, undefaulted: a mark belongs
+            # to the constituent it is written on, and a mark that adds
+            # what the base leaves unstated has to land before defaults do.
+            if not (feats := unit.scalar(with_defaults=False)):
+                continue
+            apply_modifiers(self, feats, unit.prosody, prosody=True)
             if with_defaults:
                 fill_defaults(self, feats)
             token = unicodedata.normalize("NFC", base + "".join(diacritics))
@@ -1646,7 +1655,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if not parsed:
             return None
         chain, diacritics = parsed[0]
+        return self._segment_from_parsed(chain, diacritics, stress)
 
+    def _segment_from_parsed(
+        self, chain: str, diacritics: list[str], stress: tuple[str, ...] = ()
+    ) -> Segment | None:
+        """Build one unit from an already-parsed ``(chain, diacritics)``
+        pair, so a caller that has run :meth:`parse` does not run it
+        twice."""
         raw = re.split(f"([{TIE_BAR}{SEQ_TIE}])", chain)
         part_strs = raw[0::2]
         glyphs = raw[1::2]

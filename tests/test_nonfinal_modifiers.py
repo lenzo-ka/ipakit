@@ -1,10 +1,19 @@
-"""A mark on any constituent reaches the flat read, not only the last.
+"""Where a mark sits decides what it reaches, and both levels say so.
 
 `Segment.scalar` overlaid `constituents[-1].modifiers` alone, so a
 diacritic written on an earlier part of a composed unit vanished from the
 flat projection while every structured read carried it. Reachable through
 `build_segment` all along, and through ordinary strings once a tie could
 follow a diacritic.
+
+Applying every constituent's marks *after* composing the bare chain then
+overshot in the other direction: the overlay ran after the merge, so an
+earlier constituent's overriding mark beat a later constituent's own
+value and `t̪͡s` came back dental where `get_features` said alveolar. A
+mark belongs to its constituent's bundle and goes into the merge with it,
+which is what `flat_projection` now does for both levels at once. The
+additive cases below are the ones the old parametrization covered; the
+overriding and under-tie ones are the ones it did not.
 """
 
 import pytest
@@ -16,13 +25,45 @@ def ipa() -> IPAFeatures:
     return IPAFeatures()
 
 
-# (string, feature, expected) -- the mark sits on the *first* constituent.
+# (string, feature, expected) -- an *additive* mark on the first
+# constituent, naming a key the trailing constituent does not state, so
+# the merge preserves it. These are the cases PR #34 fixed.
 LEADING_MARK = [
     ("kʷ͡p", "labialized", "+"),
     ("ã͜i", "nasalized", "+"),
     ("tʰ͡s", "release", "aspirated"),
     ("tʲ͡s", "palatalized", "+"),
+    ("d̥͡s", "voiced", "-"),  # overriding, but "s" states no voicing
 ]
+
+# (string, feature, expected) -- an *overriding* mark on the first
+# constituent, naming a key the trailing constituent states itself. The
+# merge is left to right, last constituent wins, so the mark loses: an
+# affricate takes the place of its release, and "t͡ʃ" is postalveolar for
+# exactly the same reason. Every one of these came back with the leading
+# constituent's value before the two levels became one computation.
+OVERRIDING_MARK = [
+    ("t̪͡s", "place", "alveolar"),
+    ("t̪͡ʃ", "place", "postalveolar"),
+    ("n̥͡d", "voiced", "+"),
+    ("d̥͡z", "voiced", "+"),
+    ("t̪͡s͜a", "place", "alveolar"),  # ... and through a mixed chain
+]
+
+# (string, feature, expected) -- a mark on a constituent *past* the first
+# under-tie block. A sequential chain projects its first block, so the
+# mark does not reach the flat read at all; it stays visible in bag().
+# The old sweep only ever wrote marks on the leading constituent, so this
+# whole family went unexercised.
+UNDER_TIE_TRAILING = [
+    ("a͜ɪ̃", "nasalized", "-"),
+    ("a͜ɪʷ", "labialized", "-"),
+    ("a͜ɪ̥", "voiced", "+"),  # the devoicing ring, an overriding mark
+    ("t͡s͜ã", "nasalized", "-"),
+    ("t͡s͜aʷ", "labialized", "-"),
+]
+
+ALL_MARKED = LEADING_MARK + OVERRIDING_MARK + UNDER_TIE_TRAILING
 
 
 class TestLeadingConstituentMarks:
@@ -32,11 +73,67 @@ class TestLeadingConstituentMarks:
     ) -> None:
         assert ipa.segment(unit).scalar()[feature] == expected
 
-    @pytest.mark.parametrize(("unit", "feature", "expected"), LEADING_MARK)
+    @pytest.mark.parametrize(("unit", "feature", "expected"), ALL_MARKED)
     def test_both_levels_agree(
         self, ipa: IPAFeatures, unit: str, feature: str, expected: str
     ) -> None:
         assert ipa.get_features(unit)[feature] == ipa.segment(unit).scalar()[feature]
+
+    @pytest.mark.parametrize(("unit", "feature", "expected"), ALL_MARKED)
+    def test_the_third_read_agrees_too(
+        self, ipa: IPAFeatures, unit: str, feature: str, expected: str
+    ) -> None:
+        assert ipa.compose(unit)[0][feature] == expected
+
+
+class TestAnOverridingMarkDoesNotWinBackwards:
+    """The merge is left to right; a mark cannot reach past its own
+    constituent to overrule a later one's stated value."""
+
+    @pytest.mark.parametrize(("unit", "feature", "expected"), OVERRIDING_MARK)
+    def test_the_release_decides(
+        self, ipa: IPAFeatures, unit: str, feature: str, expected: str
+    ) -> None:
+        assert ipa.segment(unit).scalar()[feature] == expected
+
+    def test_the_leading_value_is_still_recoverable(self, ipa: IPAFeatures) -> None:
+        # Lost from the flat projection is not lost from the unit: the
+        # dental t̪ is right there in the bag, which is the read that
+        # answers "what does this unit hold".
+        assert ipa.segment("t̪͡s").bag()["place"] == ("dental", "alveolar")
+
+    def test_the_convention_this_protects(self, ipa: IPAFeatures) -> None:
+        # An affricate has the place of its release. Letting an earlier
+        # constituent's mark win would break this, which is how the two
+        # levels were told apart in the first place.
+        assert ipa.get_features("t͡ʃ")["place"] == "postalveolar"
+        assert ipa.segment("t͡ʃ").scalar()["place"] == "postalveolar"
+
+
+class TestASequentialChainProjectsItsFirstBlock:
+    """A mark past the first under-tie block is not in the flat read."""
+
+    @pytest.mark.parametrize(("unit", "feature", "expected"), UNDER_TIE_TRAILING)
+    def test_the_trailing_mark_does_not_reach_it(
+        self, ipa: IPAFeatures, unit: str, feature: str, expected: str
+    ) -> None:
+        assert ipa.segment(unit).scalar()[feature] == expected
+
+    @pytest.mark.parametrize(("unit", "feature", "expected"), UNDER_TIE_TRAILING)
+    def test_the_unit_still_holds_it(
+        self, ipa: IPAFeatures, unit: str, feature: str, expected: str
+    ) -> None:
+        assert expected in ipa.segment(unit).bag()[feature]
+        assert len(ipa.segment(unit).bag()[feature]) > 1
+
+    def test_a_mark_inside_the_first_block_does_reach_it(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The rule is the block boundary, not the position in the string:
+        # the affricate's own marks project, "a"'s do not.
+        assert ipa.segment("t͡sʷ͜a").scalar()["labialized"] == "+"
+        assert ipa.segment("tʷ͡s͜a").scalar()["labialized"] == "+"
+        assert ipa.segment("t͡s͜aʷ").scalar()["labialized"] == "-"
 
     def test_a_trailing_mark_still_works(self, ipa: IPAFeatures) -> None:
         # The case that always worked must not regress.

@@ -18,7 +18,7 @@ sequential diphthong).
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -168,6 +168,88 @@ def fill_defaults(features: IPAFeatures, feats: dict[str, str]) -> dict[str, str
     return feats
 
 
+def flat_projection(
+    features: IPAFeatures,
+    bundles: Sequence[dict[str, str]],
+    junctures: Sequence[Sense],
+) -> dict[str, str]:
+    """The flat projection of one unit, from its constituents' bundles.
+
+    The single implementation of what a composed unit looks like when it
+    is read as one bundle: :meth:`Segment.scalar` calls it over parsed
+    constituents and :meth:`IPAFeatures._compose_tie_bar_features` over
+    the parts of a tie-chain string, so the flat entry points and the
+    structured ones cannot answer differently about one unit.
+
+    Each bundle is a constituent's *own* explicit features -- base plus
+    the marks written on that constituent, per :func:`part_bundle` --
+    never defaulted, because a default sitting in a slot would beat a
+    later constituent's silence there.
+
+    Two rules, in this order:
+
+    A sequential (under-tie) chain projects its **first block**: the run
+    up to the first ``SEQ`` juncture. That is the encoding the registered
+    diphthongs use; the chain's other constituents stay recoverable from
+    the token, not from this flat projection. So a mark written on a
+    later block does not reach the projection at all -- ``a͜ɪ̃`` projects
+    ``a``, and ``t͡s͜ã`` projects the affricate.
+
+    The block then merges left to right, last constituent wins. An
+    affricate takes the place of its release (``t͡ʃ`` is postalveolar,
+    from ``ʃ``), and a mark on an earlier constituent survives only where
+    the later ones state nothing -- which is exactly why ``kʷ͡p`` keeps
+    ``labialized='+'`` while ``t̪͡s`` is alveolar, not dental. A differing
+    manner across the block collapses to "affricate"; same-manner parts
+    with different places are a double articulation, spelled with the
+    canonical combining value.
+
+    ``href`` is dropped from any composed unit: it names a specific
+    Wikipedia article for a symbol, and an ad hoc compound has none.
+
+    Returns a fresh dict; the inputs are not mutated.
+    """
+    composed = bool(junctures)
+    if Sense.SEQ in junctures:
+        bundles = list(bundles)[: list(junctures).index(Sense.SEQ) + 1]
+    feats: dict[str, str] = {}
+    manners: set[str | None] = set()
+    places: list[str] = []
+    for bundle in bundles:
+        manners.add(bundle.get("manner"))
+        if "place" in bundle:
+            places.append(bundle["place"])
+        feats.update(bundle)
+    if composed:
+        feats.pop("href", None)
+    if len(manners) > 1:
+        feats["manner"] = "affricate"
+    elif len(set(places)) > 1:
+        # A same-manner multi-place fusion is a double articulation; its
+        # place is the canonical combining spelling (components ordered
+        # by scale position): any pair, not just the pre-named ones.
+        place_feature = features.features.get("place")
+        if place_feature is not None:
+            feats["place"] = place_feature.combine(tuple(places))
+    return feats
+
+
+def part_bundle(features: IPAFeatures, constituent: Constituent) -> dict[str, str]:
+    """One constituent's own explicit bundle, undefaulted, with the base's
+    metadata kept.
+
+    The input to :func:`flat_projection`, and the reason a mark reaches
+    the merge as part of its own constituent rather than as an overlay
+    applied after it.
+
+    Metadata rides along here where :meth:`Constituent.bundle` drops it,
+    because the flat read of a marked unit *is* its base's entry: the
+    article for ``tʰ`` is the one for ``t``. A feature bag has no use for
+    it, so ``bag()`` and the metric keep taking the stripped bundle.
+    """
+    return constituent.bundle(features, with_defaults=False, metadata=True)
+
+
 @dataclass(frozen=True)
 class Constituent:
     """A base phone plus its ordered modifier stack."""
@@ -179,7 +261,10 @@ class Constituent:
         return self.base + "".join(self.modifiers)
 
     def bundle(
-        self, features: IPAFeatures, with_defaults: bool = True
+        self,
+        features: IPAFeatures,
+        with_defaults: bool = True,
+        metadata: bool = False,
     ) -> dict[str, str]:
         """Phonetic feature bundle, assembled in the contracted order.
 
@@ -187,13 +272,17 @@ class Constituent:
         mode — overriding replaces, everything else adds only keys not yet
         present; (3) defaults fill keys still missing. Defaults never apply
         to modifier projections, so a sparse modifier stays sparse.
+
+        ``metadata=True`` keeps the base's ``class``/``href``/``xsampa``
+        instead of dropping them; only the flat projection asks for that
+        (see :func:`part_bundle`). A mark never contributes metadata
+        either way.
         """
         base_phone = features.get_phone(self.base)
         feats: dict[str, str] = {}
         if base_phone is not None:
-            feats = {
-                k: v for k, v in base_phone.features.items() if k not in METADATA_ATTRS
-            }
+            drop = frozenset() if metadata else METADATA_ATTRS
+            feats = {k: v for k, v in base_phone.features.items() if k not in drop}
         apply_modifiers(features, feats, self.modifiers)
         if with_defaults:
             fill_defaults(features, feats)
@@ -411,12 +500,19 @@ class Segment:
     def scalar(self, with_defaults: bool = True) -> dict[str, str]:
         """Flat backward-compatible projection (design spec section 6).
 
-        Delegates to the same rules the string entry points use --
-        registered lookup or tie composition for the chain, then the
-        same mode-governed modifier overlay :meth:`Constituent.bundle`
-        applies -- so this and ``get_features`` are one read, not two,
-        and for an atomic unit this agrees with the bundle on every
-        phonetic key.
+        :func:`flat_projection` over this unit's constituents -- the same
+        function the string entry points compose a tie chain with -- so
+        this and ``get_features`` are one computation, not two that have
+        to be kept in step. A mark reaches the merge as part of its own
+        constituent's bundle, so it wins the keys its constituent states
+        and loses the keys a later constituent states: ``t̪͡s`` is
+        alveolar (the affricate takes the place of its release) and
+        ``kʷ͡p`` keeps ``labialized='+'`` (``p`` states no labialization).
+
+        An unmarked unit is read through :meth:`IPAFeatures.get_features`
+        on its chain, so a registered entry still wins over the merge of
+        its parts -- that is where ``t͡s`` gets its ``href`` and ``ʦ``
+        resolves at all.
 
         ``scalar() == compose(s)[0]`` for string-expressible units with
         one exception: a prosodic mark belongs to the unit rather than to
@@ -425,25 +521,19 @@ class Segment:
         :attr:`prosody`.
         """
         features = self._require_features()
-        chain = "".join(
-            c.base if i == 0 else self.junctures[i - 1].glyph + c.base
-            for i, c in enumerate(self.constituents)
+        if not any(c.modifiers for c in self.constituents):
+            chain = "".join(
+                c.base if i == 0 else self.junctures[i - 1].glyph + c.base
+                for i, c in enumerate(self.constituents)
+            )
+            return features.get_features(chain, with_defaults=with_defaults)
+        feats = flat_projection(
+            features,
+            [part_bundle(features, c) for c in self.constituents],
+            self.junctures,
         )
-        # Read the chain undefaulted: a mark that adds what the base
-        # leaves unstated has to land before the defaults do.
-        feats = features.get_features(chain, with_defaults=False)
         if not feats:
             return {}
-        # Every constituent's marks, in order. Only the last one's were
-        # applied before, so a mark written on any earlier part of a
-        # composed unit vanished from the flat read: the labialization
-        # of "kʷ͡p" and the nasalization of "ã͜i" were simply lost, while
-        # bag() reported them all along. Order is left to right, matching
-        # the merge the chain itself composes under, so an earlier
-        # constituent's mark wins a key an additive mark would otherwise
-        # fill.
-        for constituent in self.constituents:
-            apply_modifiers(features, feats, constituent.modifiers)
         if with_defaults:
             fill_defaults(features, feats)
         return feats
