@@ -119,3 +119,40 @@ class TestTheDocumentedDivergenceSurvives:
         assert ipa.compose("eː")[0]["length"] == "long"
         assert ipa.segment("eː").scalar()["length"] == "normal"
         assert ipa.segment("eː").prosody == ("ː",)
+
+
+class TestAnUnboundTieDoesNotCrashTheFlatRead:
+    """`_resolves_part` tolerates a trailing tie, so the read must too.
+
+    `_is_composable` accepted a SEQ chain whose block ended in an
+    over-tie, because `_parse_constituent` tolerates the dangling glyph.
+    The fused merge then split that block on the tie and raised on the
+    empty part it had manufactured -- the two halves of one path
+    disagreeing about whether the same string resolves.
+    """
+
+    UNBOUND = ["a͜ɪ͡", "s͜p͡", "a͜t͡", "t͡s͜a͡", "ʃ͜k͡", "͡s", "a͡"]
+
+    @pytest.mark.parametrize("unit", UNBOUND)
+    def test_it_reads_rather_than_raising(self, ipa: IPAFeatures, unit: str) -> None:
+        # get_features documents "{} when nothing resolves"; raising is
+        # neither that nor an answer.
+        ipa.get_features(unit)
+
+    @pytest.mark.parametrize("unit", UNBOUND)
+    def test_it_agrees_with_compose(self, ipa: IPAFeatures, unit: str) -> None:
+        # parse treats a tie that binds nothing as no juncture at all, so
+        # the flat read composes it away and lands where compose does.
+        flat = ipa.get_features(unit)
+        composed = ipa.compose(unit)
+        if not composed or not flat:
+            return
+        for key, value in composed[0].items():
+            if key in ("class", "href", "xsampa"):
+                continue
+            assert flat.get(key) == value, (unit, key)
+
+    def test_the_marks_that_do_bind_are_unaffected(self, ipa: IPAFeatures) -> None:
+        assert ipa.get_features("t͡s")["manner"] == "affricate"
+        assert ipa.get_features("a͜ɪ")["manner"] == "vowel"
+        assert ipa.get_features("kʷ͡p")["labialized"] == "+"
