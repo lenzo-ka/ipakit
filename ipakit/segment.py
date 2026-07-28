@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 from .constants import METADATA_ATTRS, SEQ_TIE, TIE_BAR
 
 if TYPE_CHECKING:  # pragma: no cover
+    from ._base import IPAFeaturesBase
     from .features import IPAFeatures
 
 _JSON_VERSION = 1
@@ -72,12 +73,15 @@ class Kind(StrEnum):
     CHAIN = "chain"
 
 
-def modifier_mode(features: IPAFeatures, symbol: str) -> str:
+def modifier_mode(features: IPAFeaturesBase, symbol: str) -> str:
     """Contribution mode of a diacritic/suprasegmental symbol.
 
     One of ``structural``, ``prosodic``, ``release``, ``secondary``,
     ``overriding``, ``additive``. Derived from the mark's feature keys,
     with the documented exceptions.
+
+    Takes the mixin base rather than ``IPAFeatures``: it reads only the
+    diacritic table, so the mixins can call it on ``self``.
     """
     if symbol in _MODE_EXCEPTIONS:
         return _MODE_EXCEPTIONS[symbol]
