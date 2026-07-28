@@ -34,7 +34,17 @@
      The arc 0.24 and arc 0.40 points were inserted to carry the measured
      shape; their x and y are linear interpolations of the midline that was
      already there, so the drawn centreline is exactly what it was and only
-     `diameter` moved. Heads still NEVER affect distance; verified by a
+     `diameter` moved.
+
+     Behind the measured run the diameters keep their original *shape* but are
+     rescaled to join it — each by the ratio the seam moved (0.13/0.18 for the
+     adult male, 0.12/0.16 for the female). Those points were hand-placed to sit
+     under an oral run of 0.18 that measurement has since put at 0.13, and left
+     unscaled they produced the steepest slope in the whole profile, a flare
+     that was an artefact of joining two differently-derived numbers. Rescaling
+     removes it. The cost is that the profile now falls monotonically behind the
+     peak, so it represents no oropharyngeal narrowing; if one is wanted there,
+     it needs a source, because this one has none. Heads still NEVER affect distance; verified by a
      full sweep over all 8060 units and 9591 pairs, which moved nothing. -->
 <heads default="adult-male">
 
@@ -47,10 +57,10 @@
       <point arc="0.32" x="0.40" y="0.68" diameter="0.16"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4738" y="0.6677" diameter="0.13"/>   <!-- measured: 0.73 of the peak -->
       <point arc="0.45" x="0.52" y="0.66" diameter="0.13"/>       <!-- extrapolated: held flat past the palate trace -->
-      <point arc="0.56" x="0.61" y="0.61" diameter="0.17"/>       <!-- extrapolated: nothing behind arc 0.44 is measured -->
-      <point arc="0.74" x="0.70" y="0.44" diameter="0.15"/>
-      <point arc="0.87" x="0.73" y="0.30" diameter="0.13"/>
-      <point arc="1.00" x="0.75" y="0.16" diameter="0.11"/>
+      <point arc="0.56" x="0.61" y="0.61" diameter="0.123"/>      <!-- extrapolated: original shape, rescaled to join the measured run -->
+      <point arc="0.74" x="0.70" y="0.44" diameter="0.108"/>      <!-- extrapolated: same -->
+      <point arc="0.87" x="0.73" y="0.30" diameter="0.094"/>      <!-- extrapolated: same -->
+      <point arc="1.00" x="0.75" y="0.16" diameter="0.079"/>      <!-- extrapolated: same -->
     </midline>
   </head>
 
@@ -63,10 +73,10 @@
       <point arc="0.32" x="0.39" y="0.68" diameter="0.15"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4577" y="0.6677" diameter="0.12"/>   <!-- measured: 0.73 of the peak -->
       <point arc="0.45" x="0.50" y="0.66" diameter="0.12"/>       <!-- extrapolated: held flat -->
-      <point arc="0.56" x="0.58" y="0.62" diameter="0.16"/>       <!-- extrapolated -->
-      <point arc="0.74" x="0.66" y="0.47" diameter="0.14"/>
-      <point arc="0.87" x="0.69" y="0.35" diameter="0.12"/>
-      <point arc="1.00" x="0.71" y="0.23" diameter="0.10"/>
+      <point arc="0.56" x="0.58" y="0.62" diameter="0.120"/>      <!-- extrapolated: original shape, rescaled to join the measured run -->
+      <point arc="0.74" x="0.66" y="0.47" diameter="0.105"/>      <!-- extrapolated: same -->
+      <point arc="0.87" x="0.69" y="0.35" diameter="0.090"/>      <!-- extrapolated: same -->
+      <point arc="1.00" x="0.71" y="0.23" diameter="0.075"/>      <!-- extrapolated: same -->
     </midline>
   </head>
 
