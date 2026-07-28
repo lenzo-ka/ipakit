@@ -76,7 +76,33 @@ class TestReleaseMarksDoNotSpeakForTheSegment:
         assert ipa.describe("tˀ") == "voiceless alveolar plosive"
 
     def test_preglottalized_t_is_not_a_glottal_stop(self, ipa: IPAFeatures) -> None:
-        assert ipa.to_phone(ipa.get_features("tˀ")) == "t"
+        # Nothing registered spells "alveolar plosive with a glottal
+        # release", so the realization is None -- the same answer every
+        # other release mark already gives. It used to come back as the
+        # bare "t" only because the mark contributed nothing at all.
+        assert ipa.to_phone(ipa.get_features("tˀ")) != "ʔ"
+        assert ipa.to_phone(ipa.get_features("tˀ")) is None
+        assert ipa.to_phone(ipa.get_features("tʰ")) is None
+
+    def test_a_release_mark_names_its_phase_and_nothing_else(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The data declares what these marks are; the mode falls out.
+        assert ipa.get_features("tˀ")["release"] == "glottal"
+        assert ipa.get_features("aᵊ")["release"] == "schwa"
+
+    def test_a_phase_mark_does_not_fill_a_slot_its_base_leaves_empty(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The mode rule only stops a mark *overriding* its base. While the
+        # data said pre-glottalization was a glottal plosive, the mark
+        # still filled a slot the base left empty: a vowel has no place,
+        # so "aˀ" came out glottal, and a consonant has no vowel quality,
+        # so "tᵊ" came out mid/central. Declaring both as releases is what
+        # actually stops that.
+        assert "place" not in ipa.get_features("aˀ")
+        assert "height" not in ipa.get_features("tᵊ")
+        assert "backness" not in ipa.get_features("tᵊ")
 
     def test_the_schwa_release_leaves_a_vowel_alone(self, ipa: IPAFeatures) -> None:
         # The mark states mid/central; the vowel already states its own

@@ -50,6 +50,27 @@ class Feature:
     # Default active articulator per value: place names the constriction
     # target, this names the organ that gets there.
     articulators: dict[str, str] = field(default_factory=dict)
+    # Contribution mode a mark stating this feature makes (docs/ties.md),
+    # declared in the data. None means the mode vocabulary's default.
+    mode: str | None = None
+    # For a secondary articulation (``mode="secondary"``): the place its
+    # positive value constricts at, so the metric can carry the
+    # articulation as a weighted place component rather than as a key.
+    place: str | None = None
+    # Manner classes whose descriptions read this feature out; empty means
+    # every class. ``channel`` places the airflow channel within a
+    # constriction and a vowel has none; ``rhotacized`` is a vowel colour
+    # and ``retroflex`` the consonant tongue shape.
+    applies: frozenset[str] = field(default_factory=frozenset)
+    # Value -> the word a description uses for it, declared in the data.
+    # An unlabelled value is not read out at all (the unremarkable side of
+    # a binary, ``channel=flat``). Distinct from an alias, which is a
+    # synonym a reader may write: `plosive` should not print as `stop`.
+    labels: dict[str, str] = field(default_factory=dict)
+    # Natural classes declared over this feature's values (the obstruent
+    # manners), so a class is a property of the values rather than a set
+    # standing in Python.
+    value_classes: dict[str, frozenset[str]] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"Feature({self.name!r}, type={self.type!r}, values={self.values!r})"

@@ -31,20 +31,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 _JSON_VERSION = 1
 
-# Feature keys that assign a diacritic its contribution mode (docs/ties.md,
-# design spec section 8). Order matters: the first matching bucket wins.
-_STRUCTURAL_KEYS = frozenset({"tie", "linking", "break"})
-_PROSODIC_KEYS = frozenset({"stress", "length", "tone", "contour", "global", "step"})
-_SECONDARY_KEYS = frozenset(
-    {"palatalized", "labialized", "velarized", "pharyngealized", "labio-palatized"}
-)
-_OVERRIDING_KEYS = frozenset({"voiced", "place", "manner", "syllabic"})
-# Symbols whose feature keys would misclassify them: pre-glottalization
-# carries a glottal phase (manner/place) and the schwa release carries vowel
-# qualities, but both are release/phase marks, not overrides of their base.
-_MODE_EXCEPTIONS = {"ˀ": "release", "ᵊ": "release"}
-
-_ORAL_OBSTRUENT = frozenset({"plosive", "fricative", "affricate"})
+# The natural class a phased unit's classification asks about, declared over
+# the manner values in the data (nasals are sonorants, so "obstruent" is
+# already the oral one).
+_OBSTRUENT = "obstruent"
 
 
 class Sense(StrEnum):
@@ -76,28 +66,24 @@ class Kind(StrEnum):
 def modifier_mode(features: IPAFeaturesBase, symbol: str) -> str:
     """Contribution mode of a diacritic/suprasegmental symbol.
 
-    One of ``structural``, ``prosodic``, ``release``, ``secondary``,
-    ``overriding``, ``additive``. Derived from the mark's feature keys,
-    with the documented exceptions.
+    One of the modes the data declares (``structural``, ``prosodic``,
+    ``release``, ``secondary``, ``overriding``, ``additive``), read off
+    the mark's own feature keys: a mark is a release phase because it says
+    ``release=...`` and a secondary articulation because it says
+    ``velarized=...``. Declaration order in ``<modes>`` is precedence, so
+    the first mode any of the mark's keys claims wins. No symbol is
+    classified by name, and no table here restates which key means what.
 
     Takes the mixin base rather than ``IPAFeatures``: it reads only the
     diacritic table, so the mixins can call it on ``self``.
     """
-    if symbol in _MODE_EXCEPTIONS:
-        return _MODE_EXCEPTIONS[symbol]
     mark = features.diacritics.get(symbol)
     keys = set(mark.features) - METADATA_ATTRS - {"class"} if mark else set()
-    if keys & _STRUCTURAL_KEYS:
-        return "structural"
-    if keys & _PROSODIC_KEYS:
-        return "prosodic"
-    if "release" in keys:
-        return "release"
-    if keys & _SECONDARY_KEYS:
-        return "secondary"
-    if keys & _OVERRIDING_KEYS:
-        return "overriding"
-    return "additive"
+    by_mode = features.features_by_mode
+    for mode in features.modes:
+        if keys & by_mode.get(mode, frozenset()):
+            return mode
+    return features.default_mode
 
 
 def _is_non_speech(features: IPAFeatures, feats: dict[str, str]) -> bool:
@@ -378,6 +364,13 @@ class Segment:
             if all(self._vocalic(c) for c in self.constituents):
                 return Kind.DIPHTHONG
             return Kind.CHAIN
+        features = self._require_features()
+        manner_feature = features.features.get("manner")
+        obstruent = (
+            manner_feature.value_classes.get(_OBSTRUENT, frozenset())
+            if manner_feature is not None
+            else frozenset()
+        )
         blocks = self._phase_blocks()
         manners = [self._manner(self.constituents[s]) for s, _ in blocks]
         if any(self._airstream(c) == "velaric" for c in self.constituents):
@@ -387,9 +380,9 @@ class Segment:
         first, second = manners[0], manners[1]
         if first == "plosive" and second == "fricative":
             return Kind.AFFRICATE
-        if first == "nasal" and second in _ORAL_OBSTRUENT:
+        if first == "nasal" and second in obstruent:
             return Kind.PRENASALIZED
-        if first in _ORAL_OBSTRUENT and second == "nasal":
+        if first in obstruent and second == "nasal":
             return Kind.PRE_STOPPED
         if first == "plosive" and second == "approximant":
             block_start, block_end = blocks[1]
