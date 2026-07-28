@@ -5,6 +5,7 @@ from __future__ import annotations
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS, SEQ_TIE, TIE_BAR
+from .segment import modifier_mode
 
 # Feature ordering for description generation (most salient first)
 _CONSONANT_DESC_ORDER = ["voiced", "place", "manner"]
@@ -397,9 +398,18 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Standalone symbols (stress, length, tone, breaks, separators)
             if char in standalone:
-                # These are valid on their own or after phones
-                last_was_phone = False
-                current_segment_diacritics = set()
+                # These are valid on their own or after phones. A prosodic
+                # mark rides on the unit it follows and does not end it --
+                # ``parse`` collects it into that unit's modifier run, so
+                # "aː͡s" is one unit there and must not read as a tie with
+                # nothing on its left here. A break or separator does end
+                # the unit.
+                if not (
+                    char in self.diacritics
+                    and modifier_mode(self, char) != "structural"
+                ):
+                    last_was_phone = False
+                    current_segment_diacritics = set()
                 i += 1
                 continue
 
@@ -432,17 +442,28 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Check for tie bar (either sense)
             if char in (TIE_BAR, SEQ_TIE):
-                # Tie bar should be between phones - check context
-                if i == 0 or i == len(ipa) - 1:
+                # A tie joins the unit before it to the unit after it, so
+                # it is malformed unless both sides are there. This is the
+                # same condition the parser drops on (see
+                # ``IPAFeatures.parse``): a tie that binds nothing carries
+                # no juncture and cannot be represented. A well-formed tie
+                # never reaches here between registered bases -- the whole
+                # composite matched above -- but it does after a diacritic
+                # ("t̪͡s"), where the left side is the modified unit.
+                _, ahead = longest_match(
+                    ipa, i + 1, known_phones, MAX_MATCH_LEN, tie_set=known_phones
+                )
+                if not last_was_phone or not ahead:
                     issues.append(
                         {
                             "type": "error",
                             "code": "malformed_tie",
-                            "message": "Tie bar at string boundary",
+                            "message": "Tie bar binds nothing",
                             "position": str(i),
                             "symbol": char,
                         }
                     )
+                last_was_phone = False
                 i += 1
                 continue
 

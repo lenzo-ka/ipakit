@@ -1,10 +1,12 @@
 """Tests for IPA tokenization and normalization."""
 
+import unicodedata
 import warnings
 
 import ipakit
 import pytest
 from ipakit import IPAFeatures
+from ipakit.constants import SEQ_TIE, TIE_BAR
 
 
 class TestTokenizerRobustness:
@@ -311,3 +313,212 @@ class TestCompose:
         assert by_token["æ"]["manner"] == "vowel"
         # Features stay in sync with compose().
         assert [f for _, f in segs] == ipa.compose("ˈkæt.dɒɡ")
+
+
+# A spread of modifier marks across the contribution modes: place shifts,
+# release marks, secondary articulations, overriding marks, additive marks
+# and one prosodic mark. Written after a base, each makes a constituent that
+# is not itself a registered phone -- which is exactly what used to break a
+# following tie.
+MODIFIERS = [
+    "\u032a",  # dental (place override)
+    "\u02b0",  # aspirated (release)
+    "\u02b7",  # labialized (secondary)
+    "\u02b2",  # palatalized (secondary)
+    "\u0303",  # nasalized (additive)
+    "\u0325",  # voiceless ring (overriding)
+    "\u02e0",  # velarized (secondary)
+    "\u032f",  # non-syllabic (overriding)
+    "\u02d0",  # length (prosodic)
+    "\u02bc",  # ejective
+    "\u0320",  # retracted
+    "\u031f",  # advanced
+    "\u02de",  # rhoticity
+    "\u0324",  # breathy voice
+    "\u0330",  # creaky voice
+    "\u033c",  # linguolabial
+    "\u02e4",  # pharyngealized
+]
+
+TIE_CASES = [
+    (mark, tie, pair)
+    for mark in MODIFIERS
+    for tie in (TIE_BAR, SEQ_TIE)
+    for pair in (("t", "s"), ("k", "p"), ("a", "i"))
+]
+
+
+def _nfc(text: str) -> str:
+    return unicodedata.normalize("NFC", text)
+
+
+class TestTieBindsTheWholeUnit:
+    """A tie joins the unit before it to the unit after it.
+
+    A base plus the modifiers written on it is one constituent, so a tie
+    that follows a diacritic binds just as one that follows a bare base
+    does. It used to be dropped instead -- silently, because the tie is a
+    registered diacritic and so never counted as an unknown symbol --
+    turning ``t̪͡s`` into the two-segment cluster ``t̪s``.
+    """
+
+    @pytest.mark.parametrize("mark,tie,pair", TIE_CASES)
+    def test_modifier_then_tie_is_one_unit(
+        self, ipa: IPAFeatures, mark: str, tie: str, pair: tuple[str, str]
+    ) -> None:
+        left, right = pair
+        text = left + mark + tie + right
+        assert ipa.tokenize(text, strict=True) == [_nfc(text)]
+        assert len(ipa.segment(text, strict=True).constituents) == 2
+
+    @pytest.mark.parametrize("mark,tie,pair", TIE_CASES)
+    def test_control_tie_then_modifier_is_one_unit(
+        self, ipa: IPAFeatures, mark: str, tie: str, pair: tuple[str, str]
+    ) -> None:
+        # The shape that always worked: the tie sits between bare bases.
+        left, right = pair
+        text = left + tie + right + mark
+        assert ipa.tokenize(text, strict=True) == [_nfc(text)]
+        assert len(ipa.segment(text, strict=True).constituents) == 2
+
+    @pytest.mark.parametrize("mark,tie,pair", TIE_CASES)
+    def test_round_trip_under_strict(
+        self, ipa: IPAFeatures, mark: str, tie: str, pair: tuple[str, str]
+    ) -> None:
+        # The advertised guarantee: to_ipa(segments(x, strict=True)) == x.
+        text = pair[0] + mark + tie + pair[1]
+        assert _nfc(ipakit.to_ipa(ipa.segments(text, strict=True))) == _nfc(text)
+
+    @pytest.mark.parametrize("text", ["t̪͡s", "kʷ͡p", "ã͜i", "tʰ͡s"])
+    def test_levels_agree_on_one_string(self, ipa: IPAFeatures, text: str) -> None:
+        # The flat and structured reads must describe the same object.
+        assert ipa.tokenize(text, strict=True) == [_nfc(text)]
+        assert len(ipa.segments(text, strict=True)) == 1
+        assert _nfc(ipa.segment(text, strict=True).to_ipa()) == _nfc(text)
+        assert text in ipa
+        assert ipa.get_features(text)
+        assert ipa.compose(text) == [ipa.get_features(text)]
+
+    def test_the_modifier_stays_on_its_own_constituent(self, ipa: IPAFeatures) -> None:
+        unit = ipa.segment("kʷ͡p", strict=True)
+        assert [str(c) for c in unit.constituents] == ["kʷ", "p"]
+        assert unit.bag()["labialized"] == ("+", "-")
+        assert ipa.segment("t̪͡s", strict=True).left_features()["place"] == "dental"
+
+    def test_dental_affricate_is_not_a_cluster(self, ipa: IPAFeatures) -> None:
+        assert ipa.tokenize("t̪͡s", strict=True) != ipa.tokenize("t̪s", strict=True)
+        assert ipa.segment("t̪͡s", strict=True).kind == "affricate"
+
+    def test_modifiers_bind_through_an_n_ary_chain(self, ipa: IPAFeatures) -> None:
+        unit = ipa.segment("t̪͡s̪͜a", strict=True)
+        assert [str(c) for c in unit.constituents] == ["t̪", "s̪", "a"]
+        assert _nfc(unit.to_ipa()) == _nfc("t̪͡s̪͜a")
+
+    def test_double_tie_after_a_modifier_still_collapses(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # Both ties on one juncture assert contradictory timing; the
+        # over-tie wins, whether or not a diacritic precedes the pair.
+        assert ipa.tokenize("t̪͜͡s", strict=True) == ipa.tokenize("t̪͡s", strict=True)
+
+    def test_from_wild_re_senses_across_a_modifier(self, ipa: IPAFeatures) -> None:
+        # The wild re-sensing already looked past diacritics; now the
+        # result it produces is also parseable as one unit.
+        assert _nfc(ipa.from_wild("t̪͜s")) == _nfc("t̪͡s")
+        assert _nfc(ipa.from_wild("ã͡i")) == _nfc("ã͜i")
+        assert ipa.tokenize(ipa.from_wild("t̪͜s"), strict=True) == [_nfc("t̪͡s")]
+
+
+class TestUnboundTieIsNotSilent:
+    """A structural mark that cannot be carried must be audible.
+
+    A tie that binds nothing carries no juncture, so it is dropped -- and
+    dropping it is reported on the same terms as an unregistered
+    character, which is what ``strict=`` is for. It used to be emitted as
+    a token of its own and then discarded by the structured layer, so
+    ``strict=True`` never saw it.
+    """
+
+    UNBOUND = ["t͡", "͡s", "t͡ s", "k͡͡t", "t͡s͜", "ppppp͡"]
+
+    @pytest.mark.parametrize("text", UNBOUND)
+    def test_unbound_tie_raises_under_strict(self, ipa: IPAFeatures, text: str) -> None:
+        with pytest.raises(ValueError, match="malformed tie"):
+            ipa.tokenize(text, strict=True)
+
+    @pytest.mark.parametrize("text", UNBOUND)
+    def test_unbound_tie_warns_by_default(self, ipa: IPAFeatures, text: str) -> None:
+        with pytest.warns(UserWarning, match=r"unbound tie glyph"):
+            ipa.tokenize(text)
+
+    @pytest.mark.parametrize("text", UNBOUND)
+    def test_validation_agrees_with_the_parser(
+        self, ipa: IPAFeatures, text: str
+    ) -> None:
+        codes = [i["code"] for i in ipa.validate_ipa(text)]
+        assert "malformed_tie" in codes
+
+    @pytest.mark.parametrize("text", ["t̪͡s", "t͡s", "a͜ɪ", "t͡s͜a", "kʷ͡p"])
+    def test_bound_ties_stay_clean(self, ipa: IPAFeatures, text: str) -> None:
+        assert ipa.validate_ipa(text) == []
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            ipa.tokenize(text, strict=True)
+
+    def test_strict_segments_refuses_rather_than_dropping(
+        self, ipa: IPAFeatures
+    ) -> None:
+        with pytest.raises(ValueError, match="malformed tie"):
+            ipa.segments("t͡", strict=True)
+
+    @pytest.mark.parametrize("text", ["a|͡s", "a‖͜s", "a‿͡s", "a.͡s", "a͡͡s", "a͜͜s"])
+    def test_a_break_on_the_left_leaves_the_tie_unbound(
+        self, ipa: IPAFeatures, text: str
+    ) -> None:
+        # A break, the linking mark and a second stacked tie all end the
+        # unit, so the tie that follows has nothing on its left.
+        assert "malformed_tie" in [i["code"] for i in ipa.validate_ipa(text)]
+        with pytest.raises(ValueError, match="malformed tie"):
+            ipa.tokenize(text, strict=True)
+
+    @pytest.mark.parametrize("text", ["aː͡s", "aˑ͜s", "a˥͡s"])
+    def test_a_prosodic_mark_does_not_end_the_unit(
+        self, ipa: IPAFeatures, text: str
+    ) -> None:
+        # Length and tone ride on the unit they follow, so the tie after
+        # them still has a left side. The validator and the parser have to
+        # agree about that, or one of them is lying about the same string.
+        assert ipa.validate_ipa(text) == []
+        assert ipa.tokenize(text, strict=True) == [_nfc(text)]
+
+    def test_validator_and_parser_count_the_same_unbound_ties(
+        self, ipa: IPAFeatures
+    ) -> None:
+        corpus = [
+            "t͡s",
+            "t̪͡s",
+            "aː͡s",
+            "a|͡s",
+            "a͡͡s",
+            "t͡",
+            "͡s",
+            "t͡ s",
+            "k͡͡t",
+            "t͡s͜",
+            "lez‿ami",
+            "ˈhɛ.ləʊ",
+            "ŋ͡m͡ɡ͡b",
+        ]
+        for text in corpus:
+            reported = sum(
+                1 for i in ipa.validate_ipa(text) if i["code"] == "malformed_tie"
+            )
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                ipa.parse(text)
+            dropped = sum(
+                int(str(w.message).split()[1])
+                for w in caught
+                if "unbound tie" in str(w.message)
+            )
+            assert reported == dropped, text

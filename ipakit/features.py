@@ -1107,10 +1107,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         phoneset: Phoneset | None = None,
         strict: bool = False,
     ) -> list[tuple[str, list[str]]]:
-        """Parse an IPA segment string into (base, diacritics) tuples.
+        """Parse an IPA segment string into (chain, diacritics) tuples.
 
         Registered symbols match longest-first; tie glyphs are preserved
         as written (the glyph is the sense).
+
+        A tie binds the whole preceding **unit**, not merely a registered
+        base: a base plus the modifiers written on it is one constituent,
+        so ``t̪͡s`` and ``kʷ͡p`` are single tokens exactly as ``t͡s`` and
+        ``k͡p`` are. The returned chain therefore carries the modifiers of
+        every constituent but the last, whose modifiers stay in the second
+        element -- where they have always been for ``t͡sʷ``.
+
+        A tie with nothing to bind on one side carries no juncture, so it
+        cannot be represented either; it is reported exactly like an
+        unregistered character rather than emitted as a token of its own,
+        because a silently dropped tie turns one asserted unit into two.
+        This is the ``malformed_tie`` :meth:`validate_ipa` reports.
 
         A character that is registered nowhere in the inventory cannot be
         represented, so it is dropped -- but never silently: the default
@@ -1137,25 +1150,48 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         result = []
         skipped: list[str] = []
+        unbound_ties: list[str] = []
+        n = len(segment)
         i = 0
-        while i < len(segment):
+        while i < n:
             best_phone, best_len = longest_match(
                 segment, i, phone_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
             )
 
             if best_phone:
-                diacritics = []
+                chain = best_phone
                 j = i + best_len
-                while (
-                    j < len(segment)
-                    and segment[j] in self.diacritics
-                    and segment[j] not in (TIE_BAR, SEQ_TIE)
-                    and modifier_mode(self, segment[j]) != "structural"
-                ):
-                    diacritics.append(segment[j])
-                    j += 1
-                result.append((best_phone, diacritics))
+                diacritics = self._modifier_run(segment, j)
+                j += len(diacritics)
+                # A tie joins the unit just read -- base *and* the
+                # modifiers written on it -- to the one after it.
+                # ``longest_match`` only spans ties between registered
+                # bases, so the rest of the chain is grown here; without
+                # this, a tie written after a diacritic falls through to
+                # the standalone branch and the juncture is lost.
+                while j < n and segment[j] in (TIE_BAR, SEQ_TIE):
+                    next_phone, next_len = longest_match(
+                        segment,
+                        j + 1,
+                        phone_lookup,
+                        MAX_MATCH_LEN,
+                        tie_set=phone_lookup,
+                    )
+                    if not next_phone:
+                        break
+                    chain += "".join(diacritics) + segment[j] + next_phone
+                    j += 1 + next_len
+                    diacritics = self._modifier_run(segment, j)
+                    j += len(diacritics)
+                result.append((chain, diacritics))
                 i = j
+            elif segment[i] in (TIE_BAR, SEQ_TIE):
+                # Only reached when the tie binds nothing on one side: a
+                # tie with units either side is consumed by the loop above
+                # or by ``longest_match``. Losing it would turn one
+                # asserted unit into two, so it is recorded, not emitted.
+                unbound_ties.append(segment[i])
+                i += 1
             elif segment[i] in self.diacritics:
                 result.append((segment[i], []))
                 i += 1
@@ -1169,16 +1205,50 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         if strict:
             require_convertible(skipped, "IPA segment")
-        elif skipped:
-            warnings.warn(
-                f"dropped {len(skipped)} unregistered symbol(s) "
-                f"{sorted(set(skipped))} while parsing IPA: the result is "
-                "shorter than the input. Pass strict=True to raise instead, "
-                "or import wild-convention text with from_wild().",
-                stacklevel=2,
-            )
+            if unbound_ties:
+                raise ValueError(
+                    f"Cannot parse IPA segment: {len(unbound_ties)} tie "
+                    f"glyph(s) {sorted(set(unbound_ties))} bind nothing "
+                    "(malformed tie): a tie joins the unit before it to the "
+                    "unit after it."
+                )
+        else:
+            if skipped:
+                warnings.warn(
+                    f"dropped {len(skipped)} unregistered symbol(s) "
+                    f"{sorted(set(skipped))} while parsing IPA: the result is "
+                    "shorter than the input. Pass strict=True to raise instead, "
+                    "or import wild-convention text with from_wild().",
+                    stacklevel=2,
+                )
+            if unbound_ties:
+                warnings.warn(
+                    f"dropped {len(unbound_ties)} unbound tie glyph(s) "
+                    f"{sorted(set(unbound_ties))} while parsing IPA: a tie "
+                    "joins the unit before it to the unit after it, and these "
+                    "bind nothing. Pass strict=True to raise instead.",
+                    stacklevel=2,
+                )
 
         return result
+
+    def _modifier_run(self, text: str, start: int) -> list[str]:
+        """The run of modifier diacritics starting at ``text[start]``.
+
+        Stops at anything structural -- a tie, a break, the linking mark --
+        because those relate units rather than modify one.
+        """
+        run: list[str] = []
+        j = start
+        while (
+            j < len(text)
+            and text[j] in self.diacritics
+            and text[j] not in (TIE_BAR, SEQ_TIE)
+            and modifier_mode(self, text[j]) != "structural"
+        ):
+            run.append(text[j])
+            j += 1
+        return run
 
     def compose(
         self, segment: str, with_defaults: bool = True, phoneset: Phoneset | None = None
