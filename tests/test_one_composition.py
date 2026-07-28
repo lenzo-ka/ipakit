@@ -1,0 +1,121 @@
+"""The flat projection of a unit is one computation, swept exhaustively.
+
+`features()`/`get_features()`, `compose()` and `Segment.scalar()` are all
+documented as one read of one unit. They were three implementations of
+it, and they diverged wherever a tie chain carried a mark on a
+constituent other than the last: `t̪͡s` was alveolar to the flat side and
+dental to the structured one, `a͜ɪ̃` nasalized to two of them and not to
+the third.
+
+Round after round of targeted tests missed it because every case they
+named put an *additive* mark on the leading constituent -- a key the
+trailing constituent does not state, so the clobbering path was never
+taken. The guard against the next one is not a longer list of cases: it
+is the sweep below, over every well-formed base + mark + tie + base
+string the inventory can spell, in both mark positions, comparing whole
+bundles rather than one named key.
+"""
+
+import warnings
+
+import pytest
+from ipakit import IPAFeatures, Segment
+from ipakit.constants import METADATA_ATTRS, SEQ_TIE, TIE_BAR
+
+TAILS = ("p", "a", "s", "d")
+
+
+@pytest.fixture(scope="module")
+def units(ipa: IPAFeatures) -> list[tuple[str, Segment]]:
+    """Every well-formed tie chain of base + mark + base, both positions.
+
+    Well-formed means the string parses strictly and re-emits itself, so
+    nothing here is a unit the parse quietly shortened.
+    """
+    out: list[tuple[str, Segment]] = []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for base in ipa.phones:
+            for mark in ipa.diacritics:
+                for tie in (TIE_BAR, SEQ_TIE):
+                    for tail in TAILS:
+                        for text in (
+                            base + mark + tie + tail,
+                            base + tie + tail + mark,
+                        ):
+                            try:
+                                unit = ipa.segment(text, strict=True)
+                            except ValueError:
+                                continue
+                            if unit.to_ipa() == text:
+                                out.append((text, unit))
+    return out
+
+
+def _phonetic(feats: dict[str, str]) -> dict[str, str]:
+    return {k: v for k, v in feats.items() if k not in METADATA_ATTRS}
+
+
+class TestTheSweep:
+    def test_the_sweep_is_wide(self, units: list[tuple[str, Segment]]) -> None:
+        # A silent collapse of the corpus would make every assertion below
+        # vacuous, so the size is asserted, not assumed.
+        assert len(units) > 50_000
+
+    def test_the_flat_and_structured_reads_are_one(
+        self, ipa: IPAFeatures, units: list[tuple[str, Segment]]
+    ) -> None:
+        for text, unit in units:
+            flat = ipa.get_features(text)
+            if not flat:
+                continue
+            assert _phonetic(flat) == _phonetic(unit.scalar()), text
+
+    def test_compose_is_the_same_read_off_prosody(
+        self, ipa: IPAFeatures, units: list[tuple[str, Segment]]
+    ) -> None:
+        # compose() returns one flat bundle per token and has nowhere but
+        # that bundle to put a prosodic mark, so it reports length on
+        # "eː" where scalar() carries the mark in prosody. That is the one
+        # documented divergence, and it stays exactly that one thing: any
+        # key it differs on must be a key the unit's own prosody states.
+        for text, unit in units:
+            composed = ipa.compose(text)
+            if not composed:
+                continue
+            scalar = unit.scalar()
+            prosodic_keys = {
+                key
+                for mark in unit.prosody
+                if (entry := ipa.diacritics.get(mark)) is not None
+                for key in entry.features
+            }
+            differing = {
+                k
+                for k in set(composed[0]) | set(scalar)
+                if k not in METADATA_ATTRS and composed[0].get(k) != scalar.get(k)
+            }
+            assert differing <= prosodic_keys, (text, differing)
+
+    def test_no_value_is_invented(
+        self, ipa: IPAFeatures, units: list[tuple[str, Segment]]
+    ) -> None:
+        # A value in the projection is one some constituent holds, except
+        # where fusion derives it (differing manners collapse to affricate
+        # and differing places combine).
+        derived = {"manner", "place"}
+        for text, unit in units:
+            bag = unit.bag()
+            for key, value in unit.scalar().items():
+                if key in derived or key in METADATA_ATTRS or key not in bag:
+                    continue
+                assert value in bag[key], (text, key, value, bag[key])
+
+
+class TestTheDocumentedDivergenceSurvives:
+    def test_compose_carries_length_where_scalar_carries_prosody(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert ipa.compose("eː")[0]["length"] == "long"
+        assert ipa.segment("eː").scalar()["length"] == "normal"
+        assert ipa.segment("eː").prosody == ("ː",)
