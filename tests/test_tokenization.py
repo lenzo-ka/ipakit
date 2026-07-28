@@ -1,5 +1,8 @@
 """Tests for IPA tokenization and normalization."""
 
+import warnings
+
+import ipakit
 import pytest
 from ipakit import IPAFeatures
 
@@ -24,12 +27,16 @@ class TestTokenizerRobustness:
 
     def test_tokenize_never_raises(self, ipa: IPAFeatures) -> None:
         for s in self._ADVERSARIAL:
-            tokens = ipa.tokenize(s)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                tokens = ipa.tokenize(s)
             assert isinstance(tokens, list)
 
     def test_parse_never_raises_nonstrict(self, ipa: IPAFeatures) -> None:
         for s in self._ADVERSARIAL:
-            result = ipa.parse(s)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                result = ipa.parse(s)
             assert isinstance(result, list)
 
 
@@ -37,8 +44,16 @@ class TestParseStrict:
     """Tests for the strict= policy on parse()."""
 
     def test_parse_drops_unknown_by_default(self, ipa: IPAFeatures) -> None:
-        # Non-strict: unmatched '4' is silently dropped.
-        assert ipa.parse("k4t") == [("k", []), ("t", [])]
+        # Non-strict: unmatched '4' is dropped -- but audibly, not silently.
+        with pytest.warns(UserWarning, match=r"unregistered symbol\(s\) \['4'\]"):
+            assert ipa.parse("k4t") == [("k", []), ("t", [])]
+
+    def test_separators_are_known_not_unknown(self, ipa: IPAFeatures) -> None:
+        # The syllable break and whitespace are registered marks that carry
+        # no unit. They are not "unknown symbols" and must not trip strict.
+        assert ipa.parse("kæ.t", strict=True) == ipa.parse("kæt", strict=True)
+        assert ipa.tokenize("kæt dɒɡ", strict=True) == list("kætdɒɡ")
+        assert ipakit.word_distance("kæ.t", "kæt").edit_cost == 0.0
 
     def test_parse_strict_raises_on_unknown(self, ipa: IPAFeatures) -> None:
         with pytest.raises(ValueError, match="4"):
@@ -144,12 +159,10 @@ class TestNormalization:
 
 
 class TestLookalikes:
-    """Tests for lookalike character normalization."""
+    """The ASCII soft reads: explicit tool, never the default path."""
 
     def test_lookalikes_loaded(self, ipa: IPAFeatures) -> None:
-        assert len(ipa.lookalikes) > 0
-        assert "g" in ipa.lookalikes  # keyboard g -> script g
-        assert ":" in ipa.lookalikes  # colon -> triangular colon
+        assert ipa.lookalikes == {"g": "ɡ", ":": "ː", "?": "ʔ", "'": "ˈ"}
 
     def test_normalize_g(self, ipa: IPAFeatures) -> None:
         # Keyboard g (U+0067) should become IPA ɡ (U+0261)
@@ -162,20 +175,99 @@ class TestLookalikes:
         result = ipa.normalize_lookalikes("pa:t")
         assert "ː" in result
 
-    def test_normalize_apostrophe(self, ipa: IPAFeatures) -> None:
-        # Keyboard ' should become IPA ʼ (ejective marker)
-        result = ipa.normalize_lookalikes("p'a")
-        assert "ʼ" in result
+    def test_normalize_apostrophe_is_stress_not_ejective(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # ASCII ' reads as PRIMARY STRESS (U+02C8), the dominant wild
+        # convention (kirshenbaum.xml agrees), not the ejective U+02BC.
+        assert ipa.normalize_lookalikes("p'a") == "pˈa"
+        assert "ʼ" not in ipa.normalize_lookalikes("p'a")
 
     def test_normalize_question_mark(self, ipa: IPAFeatures) -> None:
         # Keyboard ? should become IPA ʔ (glottal stop)
         result = ipa.normalize_lookalikes("a?a")
         assert "ʔ" in result
 
-    def test_expand_ligatures_includes_lookalikes(self, ipa: IPAFeatures) -> None:
-        # expand_ligatures should also normalize lookalikes
-        result = ipa.expand_ligatures("gat")
-        assert result[0] == "\u0261"  # IPA script g
+    def test_exclamation_is_not_soft_read(self, ipa: IPAFeatures) -> None:
+        # Click, downstep and punctuation are all live readings; ipakit
+        # refuses to pick one, so "!" is not in the table at all.
+        assert "!" not in ipa.lookalikes
+        assert ipa.normalize_lookalikes("kæt!") == "kæt!"
+        assert ipa.from_wild("kæt!") == "kæt!"
+        # Both readings stay writable, and are distinct.
+        assert ipa.get_phone("ǃ") is not None
+        assert "ꜜ" in ipa.diacritics
+
+    def test_expand_ligatures_leaves_soft_reads_alone(self, ipa: IPAFeatures) -> None:
+        # Default parsing is strict house style: no soft reads applied.
+        assert ipa.expand_ligatures("gat") == "gat"
+        assert ipa.expand_ligatures("pa:t") == "pa:t"
+
+
+class TestSoftReadsAreExplicit:
+    """Default parsing never rewrites ASCII; from_wild is the door."""
+
+    @pytest.mark.parametrize("char", ["g", "'", ":", "?", "!"])
+    def test_default_parsing_does_not_rewrite(self, char: str) -> None:
+        text = f"kæt{char}"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            tokens = ipakit.tokenize(text)
+        assert char not in "".join(tokens)  # dropped, never substituted
+        for wrong in ("ɡ", "ʼ", "ˈ", "ː", "ʔ", "ǃ"):
+            assert wrong not in "".join(tokens)
+
+    def test_punctuation_is_not_a_consonant(self) -> None:
+        # The defect this fixes: ASCII "!" became U+01C3 RETROFLEX CLICK.
+        with pytest.warns(UserWarning):
+            assert ipakit.tokenize("kæt!") == ["k", "æ", "t"]
+        assert not ipakit.is_valid_ipa("kæt!")
+        with pytest.raises(ValueError, match="!"):
+            ipakit.tokenize("kæt!", strict=True)
+
+    def test_from_wild_applies_the_soft_reads(self) -> None:
+        assert ipakit.from_wild("'gu:d") == "ˈɡuːd"
+        assert ipakit.from_wild("a?a") == "aʔa"
+        assert ipakit.is_valid_ipa(ipakit.from_wild("'gu:d"))
+
+    def test_from_wild_leaves_house_style_alone(self) -> None:
+        for text in ["ˈɡuːd", "t͡ʃa͜ɪ", "kæt"]:
+            assert ipakit.from_wild(text) == text
+
+
+class TestUnknownSymbolsAreNotSilent:
+    """A stray character never vanishes without a word."""
+
+    def test_unknown_warns_by_default(self) -> None:
+        with pytest.warns(UserWarning, match=r"unregistered symbol\(s\) \['Q'\]"):
+            assert ipakit.tokenize("kæQt") == ["k", "æ", "t"]
+
+    def test_unknown_raises_when_strict(self) -> None:
+        for call in (
+            lambda: ipakit.tokenize("kæQt", strict=True),
+            lambda: ipakit.segmented("kæQt", strict=True),
+            lambda: ipakit.segments("kæQt", strict=True),
+            lambda: ipakit.segment("Q", strict=True),
+        ):
+            with pytest.raises(ValueError, match=r"unknown symbols \['Q'\]"):
+                call()
+
+    def test_whole_word_of_non_ipa_does_not_return_empty_quietly(self) -> None:
+        with pytest.warns(UserWarning):
+            assert ipakit.tokenize("NOTAPHONE") == []
+        with pytest.raises(ValueError):
+            ipakit.tokenize("NOTAPHONE", strict=True)
+
+    def test_round_trip_holds_or_fails_loudly(self) -> None:
+        # Holds for house-style input...
+        for text in ["kæt", "t͡ʃe͜ɪnd͡ʒ", "ˈɡuːd"]:
+            assert ipakit.to_ipa(ipakit.segments(text, strict=True)) == text
+        # ...and where it cannot hold, strict says so rather than
+        # returning a shorter, well-formed-looking string.
+        with pytest.raises(ValueError):
+            ipakit.segments("kæQt", strict=True)
+        with pytest.warns(UserWarning):
+            assert ipakit.to_ipa(ipakit.segments("kæQt")) != "kæQt"
 
 
 class TestCompose:

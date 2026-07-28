@@ -1,15 +1,32 @@
 <?xml version='1.0' encoding='utf-8'?>
-<phonemap description="IPA characters with common lookalikes">
+<phonemap description="ASCII soft reads: keyboard characters read as IPA on wild import">
     <!--
-    Maps IPA characters to visually similar characters that have
-    different Unicode codepoints. These lookalikes are commonly
-    typed by mistake when using a standard keyboard.
+    Keyboard characters that stand in for an IPA symbol in text written
+    outside house style. These are "soft reads": they are applied ONLY by
+    the explicit wild-import door (IPAFeatures.from_wild / ipakit.from_wild,
+    and the public ipakit.normalize_lookalikes), never by default parsing.
+    Default parsing is strict house style, so an ASCII character that is not
+    registered IPA stays unknown and is reported as such (docs/ties.md).
+
+    A character earns a row here only if it has one dominant reading in the
+    wild. Ambiguous characters are deliberately absent (see below).
     -->
 
-    <!-- True visual lookalikes only -->
-    <map ipa="ɡ" lookalike="g"/>      <!-- U+0261 LATIN SMALL LETTER SCRIPT G ← U+0067 LATIN SMALL LETTER G -->
-    <map ipa="ʼ" lookalike="'"/>      <!-- U+02BC MODIFIER LETTER APOSTROPHE ← U+0027 APOSTROPHE -->
-    <map ipa="ː" lookalike=":"/>      <!-- U+02D0 MODIFIER LETTER TRIANGULAR COLON ← U+003A COLON -->
-    <map ipa="ʔ" lookalike="?"/>      <!-- U+0294 LATIN LETTER GLOTTAL STOP ← U+003F QUESTION MARK -->
-    <map ipa="ǃ" lookalike="!"/>      <!-- U+01C3 LATIN LETTER RETROFLEX CLICK ← U+0021 EXCLAMATION MARK -->
+    <map ipa="ɡ" lookalike="g"/>      <!-- U+0261 LATIN SMALL LETTER SCRIPT G <- U+0067 LATIN SMALL LETTER G; pure visual lookalike -->
+    <map ipa="ː" lookalike=":"/>      <!-- U+02D0 MODIFIER LETTER TRIANGULAR COLON <- U+003A COLON; length, per Kirshenbaum and X-SAMPA -->
+    <map ipa="ʔ" lookalike="?"/>      <!-- U+0294 LATIN LETTER GLOTTAL STOP <- U+003F QUESTION MARK; glottal stop, per Kirshenbaum and X-SAMPA -->
+    <map ipa="ˈ" lookalike="'"/>      <!-- U+02C8 MODIFIER LETTER VERTICAL LINE <- U+0027 APOSTROPHE; PRIMARY STRESS, not the ejective U+02BC.
+                                           ASCII conventions agree: kirshenbaum.xml already maps ' -> ˈ, and X-SAMPA spells the ejective _> .
+                                           Anyone writing the ejective reaches for ʼ directly, so stress is the dominant wild reading. -->
+
+    <!--
+    Deliberately NOT mapped:
+
+    "!"  three-way ambiguous with no dominant reading - the alveolar click ǃ
+         (U+01C3) in Khoisan/Nguni orthography, DOWNSTEP ꜜ (U+A71C, registered
+         here as a suprasegmental) in Africanist tone notation and in X-SAMPA,
+         and ordinary sentence punctuation everywhere else. Guessing turns a
+         full stop into a consonant, so "!" stays unknown: validate_ipa reports
+         it and strict parsing raises on it. Write ǃ or ꜜ to say which.
+    -->
 </phonemap>

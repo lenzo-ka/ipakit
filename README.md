@@ -90,6 +90,31 @@ ipakit.to_cmu("k4t")                # ['K', 'T']  (the '4' is skipped)
 ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert to CMU ARPABET: ...
 ```
 
+Tokenization follows the same policy, and is never silent about it: a character
+registered nowhere is dropped with a warning, and `strict=True` raises instead —
+which is what makes `to_ipa(segments(x)) == x` a guarantee rather than a hope.
+
+```python
+ipakit.tokenize("kæQt")                # ['k', 'æ', 't'] + UserWarning naming 'Q'
+ipakit.tokenize("kæQt", strict=True)   # ValueError: ... unknown symbols ['Q']
+```
+
+### Wild text comes in through one door
+
+Default parsing is strict house style: ASCII stand-ins for IPA are read
+literally, not silently rewritten, so `!` stays an exclamation mark rather than
+becoming the click `ǃ`. `from_wild` is where wild spellings are read as IPA —
+tie conventions and the keyboard alike:
+
+```python
+ipakit.is_valid_ipa("'gu:d")  # False -- ' g : are not IPA; validate_ipa names each
+ipakit.from_wild("'gu:d")     # 'ˈɡuːd'  -- ' is primary stress, not the ejective ʼ
+ipakit.from_wild("kæt!")      # 'kæt!'   -- ! could be a click or downstep; no guess made
+```
+
+See [docs/ties.md](docs/ties.md) for the full soft-read table and the reasoning
+behind `'` and `!`.
+
 ### Distribution-aware distance
 
 `distance()` is the **raw feature metric** — an absolute, inventory-independent
@@ -136,7 +161,7 @@ reuse it and only re-slice the percentile distribution.
 - **Stress is placed on the vowel** (the syllable nucleus), not the syllable
   onset: `from_cmu(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
   across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
-- **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `e͜ɪ`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). The glyph is authoritative everywhere; text written in other conventions (where the glyphs are typographic variants) imports explicitly via `ipakit.from_wild`. Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
+- **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `e͜ɪ`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). The glyph is authoritative everywhere; text written in other conventions (where the glyphs are typographic variants, and where the keyboard stands in for the phonetic alphabet) imports explicitly via `ipakit.from_wild` — default parsing never rewrites its input. Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
 Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. See [docs/distance.md](docs/distance.md) for the model.
 
 - **Round-trip guarantee (X-SAMPA only):** IPA written in these conventions round-trips through X-SAMPA (`ipa → xsampa → ipa`), **up to tie sense**: X-SAMPA has a single tie encoding, so the under-tie projects onto the over-tie at the boundary and round trips return canonical over-tie spellings (`t͜s → t_s → t͡s`); the sequential/simultaneous distinction survives only in IPA. Every other exception is enumerated here, and the suite asserts the round-trip failure set over the whole inventory is *exactly* this list — nothing can join it in silence.

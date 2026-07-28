@@ -113,7 +113,8 @@ class FeaturesCommand(Command):
         strict = getattr(self.args, "strict", False)
 
         if not strict:
-            # Normalize lookalikes (e.g., keyboard 'g' -> IPA 'ɡ')
+            # Interactive lookup soft-reads ASCII stand-ins ('g' -> 'ɡ',
+            # "'" -> 'ˈ'); --no-lookalikes takes the input literally.
             phone = self.ipa.normalize_lookalikes(phone)
 
         # Default: only show explicitly defined features; --all includes defaults

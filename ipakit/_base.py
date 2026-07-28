@@ -23,6 +23,7 @@ class IPAFeaturesBase:
     diacritics: dict[str, Phone]
     separators: dict[str, Phone]
     features: dict[str, Feature]
+    lookalikes: dict[str, str]
 
     @property
     def feature_order(self) -> list[str]:
@@ -58,7 +59,12 @@ class IPAFeaturesBase:
     ) -> list[dict[str, str]]:
         raise NotImplementedError
 
-    def tokenize(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
+    def tokenize(
+        self,
+        ipa: str,
+        phoneset: Phoneset | None = None,
+        strict: bool = False,
+    ) -> list[str]:
         raise NotImplementedError
 
     def distance(self, phone1: str, phone2: str) -> float:

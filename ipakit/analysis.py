@@ -244,6 +244,11 @@ class AnalysisMixin(IPAFeaturesBase):
     ) -> list[dict[str, str]]:
         """Validate an IPA string for well-formedness.
 
+        Default parsing is strict house style, so ASCII stand-ins for IPA
+        (``g``, ``:``, ``?``, ``'``, ``!``) are reported as unknown
+        symbols, with a note naming the reading ``from_wild`` would give
+        them. Validate wild text after importing it, not before.
+
         Checks for:
         - Unknown symbols (not in phones, diacritics, or suprasegmentals)
         - Orphan diacritics (diacritic without preceding base phone)
@@ -359,12 +364,19 @@ class AnalysisMixin(IPAFeaturesBase):
                 i += 1
                 continue
 
-            # Unknown symbol
+            # Unknown symbol. ASCII stand-ins land here by design -- default
+            # parsing is strict house style -- so point at the import door
+            # rather than leaving the reader to guess what went wrong.
+            message = f"Unknown symbol '{char}' (U+{ord(char):04X})"
+            if (soft := self.lookalikes.get(char)) is not None:
+                message += f"; from_wild() reads it as '{soft}'"
+            elif char == "!":
+                message += "; write 'ǃ' for the click or 'ꜜ' for downstep"
             issues.append(
                 {
                     "type": "error",
                     "code": "unknown_symbol",
-                    "message": f"Unknown symbol '{char}' (U+{ord(char):04X})",
+                    "message": message,
                     "position": str(i),
                     "symbol": char,
                 }
