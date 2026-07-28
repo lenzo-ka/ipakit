@@ -190,10 +190,15 @@ class AnalysisMixin(IPAFeaturesBase):
         # Get features for all phones
         all_feats = [self.get_features(p, with_defaults=with_defaults) for p in phones]
 
-        # Filter out phones not found
-        all_feats = [f for f in all_feats if f]
-        if not all_feats:
-            return {}
+        # A member that does not resolve cannot be dropped: the shared
+        # features of the rest are not the shared features of the set,
+        # and reporting them asserts of the unread member something never
+        # checked. natural_class(["tʲ", "t"]) claimed both were plain.
+        if unresolved := [p for p, f in zip(phones, all_feats, strict=True) if not f]:
+            raise ValueError(
+                f"cannot resolve {unresolved!r}: a natural class over phones "
+                "that could not be read would describe only the rest of them"
+            )
 
         # Find intersection: features present in ALL phones with same value
         shared = {}

@@ -644,7 +644,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         Returns ``None`` when nothing registered matches -- an impossible
         or merely unattested combination.
         """
-        query = {k: v for k, v in bundle.items() if k not in METADATA_ATTRS}
+        # Values go through the alias table, as they do on every read
+        # path: labial-velar is a spelling of bilabial^velar, and the
+        # write side must not be the one place it fails.
+        query: dict[str, str] = {}
+        for key, value in bundle.items():
+            if key in METADATA_ATTRS:
+                continue
+            feature = self.features.get(key)
+            query[key] = feature.value_aliases.get(value, value) if feature else value
+        if not query:
+            # Every phone satisfies a bundle that asks nothing, and the
+            # tie-break then answers with silence -- so an empty read
+            # upstream would come back as a confident phone.
+            raise ValueError(
+                "cannot realize an empty feature bundle: it names every "
+                "phone, not one. Pass at least one feature."
+            )
         best: tuple[int, int, int] | None = None
         winner: str | None = None
         for order, symbol in enumerate(self.phones):
