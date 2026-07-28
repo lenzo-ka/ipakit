@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
-from .segment import Constituent, Kind, Segment, Sense, modifier_mode
+from .segment import Constituent, Kind, Segment, Sense
 from .tract import tract_point
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -37,12 +37,18 @@ GAP_COST = 1.0
 # Secondary-articulation place weight.
 SECONDARY_WEIGHT = 0.5
 
-# Secondary-articulation modifiers -> the place component they contribute.
+# Secondary-articulation feature -> the place it constricts at. Keyed by
+# feature rather than by diacritic: the same secondary articulation can be
+# written as a modifier (lˠ) or be inherent to the base phone (ɫ), so the
+# metric has to read it off the assembled bundle instead of off the glyph
+# stack. Combining place names expand through Feature.expand, exactly as
+# primary places do.
 SECONDARY_PLACE = {
-    "ʲ": "palatal",
-    "ʷ": "bilabial",
-    "ˠ": "velar",
-    "ˤ": "pharyngeal",
+    "palatalized": "palatal",
+    "labialized": "bilabial",
+    "velarized": "velar",
+    "pharyngealized": "pharyngeal",
+    "labio-palatized": "bilabial^palatal",
 }
 
 # Combining place values (bilabial^velar) carry their expansion in the
@@ -68,9 +74,9 @@ ORDERED_KINDS = frozenset(
 # compatibility, but in the metric their content is carried entirely by
 # the weighted place components -- counting both would double-charge a
 # secondary articulation and push tʲ away from c instead of toward it.
-_SECONDARY_KEYS = frozenset(
-    {"palatalized", "labialized", "velarized", "pharyngealized", "labio-palatized"}
-)
+# Dropping the key without adding the component is the other failure, and
+# subtracts the articulation outright (ɫ would read as plain l).
+_SECONDARY_KEYS = frozenset(SECONDARY_PLACE)
 # nasalized's content is carried by the nasality bridge feature the same
 # way; counting both would cancel the bridge (ã would sit no nearer to a
 # nasal than plain a does).
@@ -90,16 +96,18 @@ def _metric_bundle(
     bundle = constituent.bundle(features, with_defaults=True)
     feats = {k: v for k, v in bundle.items() if k not in _EXCLUDED_KEYS}
 
+    place_feature = features.features.get("place")
+
+    def expand(value: str) -> tuple[str, ...]:
+        return place_feature.expand(value) if place_feature is not None else (value,)
+
     components: list[tuple[str, float]] = []
     place = bundle.get("place")
     if place is not None:
-        place_feature = features.features.get("place")
-        comps = place_feature.expand(place) if place_feature else (place,)
-        for comp in comps:
-            components.append((comp, 1.0))
-    for mod in constituent.modifiers:
-        if modifier_mode(features, mod) == "secondary" and mod in SECONDARY_PLACE:
-            components.append((SECONDARY_PLACE[mod], SECONDARY_WEIGHT))
+        components.extend((comp, 1.0) for comp in expand(place))
+    for key, secondary in SECONDARY_PLACE.items():
+        if bundle.get(key) == "+":
+            components.extend((comp, SECONDARY_WEIGHT) for comp in expand(secondary))
 
     # Bridge features (metric-only): the same phonetic dimension spelled
     # as manner, property, or release compares as one derived binary. Not

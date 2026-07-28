@@ -10,7 +10,13 @@ import itertools
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit.metric import bundle_distance, segment_metric
+from ipakit.metric import (
+    SECONDARY_PLACE,
+    SECONDARY_WEIGHT,
+    _metric_bundle,
+    bundle_distance,
+    segment_metric,
+)
 
 
 @pytest.fixture(scope="module")
@@ -89,6 +95,40 @@ class TestSecondaryArticulation:
 
     def test_secondary_never_outweighs_primary(self, ipa: IPAFeatures) -> None:
         assert D(ipa, "t", "tʲ") < D(ipa, "t", "c")
+
+    def test_secondary_counted_once(self, ipa: IPAFeatures) -> None:
+        # The articulation enters as exactly one weighted component. Twice
+        # would push tʲ away from c; not at all would erase it.
+        for unit, expected in [
+            ("tʲ", (("alveolar", 1.0), ("palatal", SECONDARY_WEIGHT))),
+            ("ɫ", (("alveolar", 1.0), ("velar", SECONDARY_WEIGHT))),
+        ]:
+            _, components = _metric_bundle(ipa, ipa.segment(unit).constituents[0])
+            assert components == expected
+
+    def test_inherent_secondary_registers(self, ipa: IPAFeatures) -> None:
+        # ɫ spells velarization into the base phone rather than as a
+        # modifier; the metric has to see it either way.
+        assert D(ipa, "l", "ɫ") > 0.0
+        assert D(ipa, "l", "ɫ") == D(ipa, "l", "lˠ")
+
+    def test_spellings_of_one_sound_coincide(self, ipa: IPAFeatures) -> None:
+        # Inherent, modifier-letter, and combining-diacritic velarization
+        # are three spellings of the same sound.
+        for spelling in ["lˠ", "l̴"]:
+            assert D(ipa, "ɫ", spelling) == 0.0
+
+    def test_every_secondary_diacritic_registers(self, ipa: IPAFeatures) -> None:
+        # No secondary articulation is silently dropped: whatever key a
+        # diacritic contributes, applying it has to move the segment.
+        marks = [
+            symbol
+            for symbol, mark in ipa.diacritics.items()
+            if set(mark.features) & set(SECONDARY_PLACE)
+        ]
+        assert marks
+        for mark in marks:
+            assert D(ipa, "t", "t" + mark) > 0.0
 
 
 class TestBridges:
