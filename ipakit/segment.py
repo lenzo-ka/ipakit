@@ -18,6 +18,7 @@ sequential diphthong).
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -112,6 +113,71 @@ def _is_non_speech(features: IPAFeatures, feats: dict[str, str]) -> bool:
     )
 
 
+def apply_modifiers(
+    features: IPAFeatures,
+    feats: dict[str, str],
+    modifiers: Iterable[str],
+    prosody: bool = False,
+) -> dict[str, str]:
+    """Overlay a modifier stack onto a base bundle, per mark, by mode.
+
+    The single implementation of what a diacritic contributes, so the
+    flat projection and the structured bundle cannot disagree about one
+    mark. Overriding marks replace their base's value (the devoicing
+    ring makes ``d̥`` voiceless, never both-voiced); additive, secondary
+    and release marks add only keys the base leaves unstated -- a
+    release-phase mark describes a phase, not the whole segment, so the
+    glottal phase of ``tˀ`` never makes the ``t`` glottal. Structural
+    and prosodic marks contribute nothing to a feature bag: ties are
+    junctures and prosody lives on the unit.
+
+    ``prosody=True`` is for the one read that has no unit level to put a
+    prosodic mark on -- :meth:`IPAFeatures.compose_segments` returns one
+    flat bundle per token, so ``eː`` has nowhere but the bundle to carry
+    its length. That is the documented divergence between ``compose()``
+    and ``scalar()``, and it stays exactly that one thing.
+
+    Metadata (``name``/``class``/``href``/``xsampa``) never crosses.
+    Those attributes name a *symbol*, and the symbol a unit's metadata
+    describes is its base, not the mark riding on it -- the article for
+    ``tʰ`` is the one for ``t``, not the one for aspiration.
+
+    Mutates and returns ``feats``. Defaults must not be filled before
+    this runs: a mark adding a feature the base leaves unstated
+    (nasalization on a vowel) would otherwise find the default already
+    sitting in the slot.
+    """
+    for mod in modifiers:
+        mark = features.diacritics.get(mod)
+        if mark is None:
+            continue
+        mode = modifier_mode(features, mod)
+        if mode == "structural" or (mode == "prosodic" and not prosody):
+            continue
+        for key, value in mark.features.items():
+            if key in METADATA_ATTRS:
+                continue
+            if mode == "overriding":
+                feats[key] = value
+            else:
+                feats.setdefault(key, value)
+    return feats
+
+
+def fill_defaults(features: IPAFeatures, feats: dict[str, str]) -> dict[str, str]:
+    """Fill each still-unset feature with its declared default.
+
+    Skipped entirely for a non-speech bundle (see :func:`_is_non_speech`).
+    Mutates and returns ``feats``.
+    """
+    if _is_non_speech(features, feats):
+        return feats
+    for name, feat in features.features.items():
+        if name not in feats and feat.default is not None:
+            feats[name] = feat.default
+    return feats
+
+
 @dataclass(frozen=True)
 class Constituent:
     """A base phone plus its ordered modifier stack."""
@@ -136,31 +202,11 @@ class Constituent:
         feats: dict[str, str] = {}
         if base_phone is not None:
             feats = {
-                k: v
-                for k, v in base_phone.features.items()
-                if k not in METADATA_ATTRS and k != "class"
+                k: v for k, v in base_phone.features.items() if k not in METADATA_ATTRS
             }
-        for mod in self.modifiers:
-            mark = features.diacritics.get(mod)
-            if mark is None:
-                continue
-            mode = modifier_mode(features, mod)
-            if mode in ("structural", "prosodic"):
-                continue
-            contributions = {
-                k: v
-                for k, v in mark.features.items()
-                if k not in METADATA_ATTRS and k != "class"
-            }
-            for k, v in contributions.items():
-                if mode == "overriding":
-                    feats[k] = v
-                else:
-                    feats.setdefault(k, v)
-        if with_defaults and not _is_non_speech(features, feats):
-            for name, feat in features.features.items():
-                if name not in feats and feat.default is not None:
-                    feats[name] = feat.default
+        apply_modifiers(features, feats, self.modifiers)
+        if with_defaults:
+            fill_defaults(features, feats)
         return feats
 
 
@@ -370,8 +416,10 @@ class Segment:
 
         Delegates to the same rules the string entry points use --
         registered lookup or tie composition for the chain, then the
-        modifier overlay with the class/manner skip -- so this and
-        ``get_features`` are one read, not two.
+        same mode-governed modifier overlay :meth:`Constituent.bundle`
+        applies -- so this and ``get_features`` are one read, not two,
+        and for an atomic unit this agrees with the bundle on every
+        phonetic key.
 
         ``scalar() == compose(s)[0]`` for string-expressible units with
         one exception: a prosodic mark belongs to the unit rather than to
@@ -384,18 +432,15 @@ class Segment:
             c.base if i == 0 else self.junctures[i - 1].glyph + c.base
             for i, c in enumerate(self.constituents)
         )
-        feats = features.get_features(chain, with_defaults=with_defaults)
+        # Read the chain undefaulted: a mark that adds what the base
+        # leaves unstated has to land before the defaults do.
+        feats = features.get_features(chain, with_defaults=False)
         if not feats:
             return {}
-        # Trailing modifiers overlay exactly as compose_segments does; the
-        # last constituent carries the written trailing marks.
-        for mod in self.constituents[-1].modifiers:
-            mark = features.diacritics.get(mod)
-            if mark is None:
-                continue
-            for k, v in mark.features.items():
-                if k not in ("class", "manner"):
-                    feats[k] = v
+        # The last constituent carries the written trailing marks.
+        apply_modifiers(features, feats, self.constituents[-1].modifiers)
+        if with_defaults:
+            fill_defaults(features, feats)
         return feats
 
     # -- construction and serialization ---------------------------------------
