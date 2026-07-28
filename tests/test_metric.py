@@ -566,6 +566,26 @@ class TestDataIntegrity:
     """Guards for facts that can silently disagree with the model. Each
     of these caught a real defect when first written."""
 
+    def test_the_voicing_default_only_applies_where_it_is_right(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # `voiced` defaults to "-", the unmarked value for an obstruent
+        # and the wrong one for everything else. No vowel declared it, so
+        # the data said every vowel was voiceless and /i/ scored nearer a
+        # voiceless nasal than a voiced one. Every non-obstruent speech
+        # phone must say what it is, so the default is only ever reached
+        # where it is right.
+        manner = ipa.features["manner"]
+        obstruent = manner.value_classes.get("obstruent", frozenset())
+        assert obstruent, "the obstruent natural class must be declared"
+        for symbol, phone in ipa.phones.items():
+            if symbol in ipa.derived_phones:
+                continue  # composed from constituents that declare it
+            value = ipa.get_features(symbol).get("manner")
+            if value is None or value in obstruent or value in manner.offscale:
+                continue
+            assert "voiced" in phone.features, symbol
+
     def test_one_property_is_spelled_with_one_feature(self, ipa: IPAFeatures) -> None:
         # r-colouring reached the data twice: ɚ/ɝ carried retroflex (the
         # consonant tongue shape, "Tongue tip curled back") while the ˞
