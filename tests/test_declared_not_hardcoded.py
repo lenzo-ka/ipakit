@@ -7,10 +7,13 @@ it -- ``_MODE_EXCEPTIONS`` classified two diacritics *by symbol*,
 three independent copies of one five-member set in three modules, and
 ``_BINARY_LABELS`` decided that ``channel=grooved`` reads "sibilant".
 
-Two kinds of test here. The pins assert the derived reads still say what
-the hardcoded tables said. The guard is a predicate over the source: it
-looks for the *shape* of a smuggled constant rather than for today's
-names, so a new one fails too.
+Three kinds of test here. The pins assert the derived reads still say
+what the hardcoded tables said. The guard is a predicate over the source:
+it looks for the *shape* of a smuggled constant rather than for today's
+names, so a new one fails too, and it is fed synthetic sources as well as
+the real package so its own coverage is measured rather than assumed.
+The third kind pins what the guard *cannot* see, so its limits stay known
+rather than assumed shut.
 """
 
 from __future__ import annotations
@@ -161,19 +164,79 @@ class TestTheOrderingTupleCanOnlyOrder:
 # ---------------------------------------------------------------------------
 
 _SET_BUILDERS = {"set", "frozenset", "dict"}
+_SEQ_BUILDERS = {"tuple", "list", "sorted"}
 # Calls that consume a string as a *sequence of members* rather than as
 # one value. Only these expand a string to its characters: doing it
 # everywhere would read "stress" as the phones s, t, r, e.
-_ITERATING = _SET_BUILDERS | {"zip", "tuple", "list", "sorted", "enumerate"}
+_ITERATING = _SET_BUILDERS | _SEQ_BUILDERS | {"zip", "enumerate"}
+
+# Delimiters a member list may be written with. Trying them costs
+# nothing on prose, because a string is only read as a list when *every*
+# piece of it is a declared term -- see ``_pieces``.
+_DELIMITERS: tuple[str | None, ...] = (None, ",", ";", "|", "/")
 
 
-def _strings(node: ast.AST) -> list[str]:
-    """Every string literal anywhere in an expression."""
-    return [
-        n.value
-        for n in ast.walk(node)
-        if isinstance(n, ast.Constant) and isinstance(n.value, str)
+def _folded(node: ast.AST) -> str | None:
+    """The string an expression spells, if it spells one outright.
+
+    Constant addition is folded: splitting a literal across a ``+`` does
+    not make it less of a literal, so ``"plo" + "sive"`` states
+    ``plosive``.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _folded(node.left), _folded(node.right)
+        if left is not None and right is not None:
+            return left + right
+    return None
+
+
+def _delimiters(node: ast.AST) -> tuple[str | None, ...]:
+    """The delimiters to try: the usual ones, plus any the source names."""
+    named = [
+        arg.value
+        for sub in ast.walk(node)
+        if isinstance(sub, ast.Call)
+        and isinstance(sub.func, ast.Attribute)
+        and sub.func.attr in {"split", "rsplit"}
+        for arg in sub.args
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
     ]
+    return (*_DELIMITERS, *named)
+
+
+def _pieces(text: str, vocabulary: set[str], seps: tuple[str | None, ...]) -> list[str]:
+    """``text`` read as a delimited member list, or ``[]`` if it is not one.
+
+    A member list is *nothing but* declared terms joined by a delimiter.
+    Requiring every piece to be declared is what separates
+    ``"stress length tone"`` from a sentence that happens to mention two
+    declared words, and it is what makes the choice of delimiter free:
+    ``,`` and ``|`` can be tried without reading prose as members.
+    """
+    for sep in seps:
+        parts = [p for p in (text.split() if sep is None else text.split(sep)) if p]
+        if len(parts) >= 2 and all(p in vocabulary for p in parts):
+            return parts
+    return []
+
+
+def _terms(node: ast.AST, vocabulary: set[str]) -> list[str]:
+    """Every string an expression states, plus the pieces of a delimited one.
+
+    Container-agnostic, because a value enumeration restates the same
+    fact whether it is spelled as a set, as a sequence, or as one
+    delimited string a caller will ``.split()`` at the use site.
+    """
+    seps = _delimiters(node)
+    out: list[str] = []
+    for sub in ast.walk(node):
+        text = _folded(sub)
+        if text is not None:
+            out.append(text)
+            out += _pieces(text, vocabulary, seps)
+    return out
 
 
 def _is_unordered(node: ast.AST) -> bool:
@@ -181,8 +244,7 @@ def _is_unordered(node: ast.AST) -> bool:
 
     Decided from the *outermost* node rather than by hunting for a
     literal anywhere inside, so `frozenset(x.split())`, `dict(zip(...))`
-    and a set comprehension are all recognised. A list or tuple is
-    ordered: it states a sequence, not a class.
+    and a set comprehension are all recognised.
     """
     if isinstance(node, ast.Set | ast.Dict | ast.SetComp | ast.DictComp):
         return True
@@ -199,7 +261,33 @@ def _is_unordered(node: ast.AST) -> bool:
     return False
 
 
-def _candidates(node: ast.AST) -> list[str]:
+def _is_ordered(node: ast.AST) -> bool:
+    """Whether an expression builds a sequence.
+
+    The mirror of ``_is_unordered``, read from the outermost node for
+    the same reason. A sequence is still a container: ``["ˈ", "ˌ"]`` is
+    every bit the per-symbol table that ``{"ˈ", "ˌ"}`` is. What an order
+    buys is the *classification* exemption below, not exemption from the
+    guard.
+    """
+    if isinstance(node, ast.List | ast.Tuple | ast.ListComp | ast.GeneratorExp):
+        return True
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in _SEQ_BUILDERS
+    ):
+        return True
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+        return node.func.attr in {"split", "rsplit", "splitlines"}
+    if isinstance(node, ast.BinOp):  # sequence concatenation: A + B
+        return _is_ordered(node.left) or _is_ordered(node.right)
+    if isinstance(node, ast.Subscript):
+        return _is_ordered(node.value)
+    return False
+
+
+def _candidates(node: ast.AST, vocabulary: set[str]) -> list[str]:
     """Every string an expression could contribute as a member.
 
     Deliberately generous about *how* a string is spelled, because the
@@ -208,12 +296,9 @@ def _candidates(node: ast.AST) -> list[str]:
     as `"a b c".split()`, and the characters of a string handed to
     `set()` are all members of the collection they build.
     """
-    out: list[str] = []
+    out = _terms(node, vocabulary)
     for sub in ast.walk(node):
-        if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-            out.append(sub.value)
-            out += sub.value.split()  # "a b c".split() spells three names
-        elif (
+        if (
             isinstance(sub, ast.Call)
             and isinstance(sub.func, ast.Name)
             and sub.func.id == "chr"
@@ -233,32 +318,104 @@ def _candidates(node: ast.AST) -> list[str]:
     return out
 
 
-def _membership(node: ast.AST) -> list[str]:
-    """The strings a node offers as *membership*.
+def _members(node: ast.AST, vocabulary: set[str]) -> list[str]:
+    """The strings a node collects, in a container of any kind.
+
+    A container is a claim about what belongs together, and a table of
+    registered symbols makes that claim whether it is written as a set,
+    as a sequence, or as one delimited string.
+    """
+    if _is_unordered(node) or _is_ordered(node):
+        return _candidates(node, vocabulary)
+    text = _folded(node)
+    if text is not None:  # a delimited string is a sequence written out
+        return _pieces(text, vocabulary, _delimiters(node))
+    return []
+
+
+def _classified(node: ast.AST, vocabulary: set[str]) -> list[str]:
+    """The strings a node puts into one *class*.
 
     An unordered container classifies whatever it holds -- keys and
     values alike, since a table mapping a mode to its symbols smuggles
     exactly as much as one mapping each symbol to its mode. A sequence
-    offers no membership: it states an order.
+    classifies nothing: it states an order, and where feature names go
+    in a sentence is a rendering decision the code is allowed to make.
     """
     if not _is_unordered(node):
         return []
-    return _candidates(node)
+    return _candidates(node, vocabulary)
 
 
-def _module_constants(source: str) -> list[tuple[str, ast.AST]]:
-    tree = ast.parse(source)
-    out: list[tuple[str, ast.AST]] = []
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and node.value is not None:
-            names = [t.id for t in node.targets if isinstance(t, ast.Name)]
-            out += [(n, node.value) for n in names]
-        elif (
-            isinstance(node, ast.AnnAssign)
-            and node.value is not None
-            and isinstance(node.target, ast.Name)
+def _bindings(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
+    """The names an assignment target binds, with what each is bound to.
+
+    Unpacking pairs elementwise when both sides are written out, and
+    otherwise attributes the whole right-hand side to every name. A
+    subscript assignment binds no new name but adds an entry to the
+    table it names, so ``_TABLE["ˀ"] = "release"`` is read as the
+    one-entry mapping it is: a table filled a statement at a time is
+    still the table.
+    """
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if isinstance(target, ast.Starred):
+        return _bindings(target.value, value)
+    if isinstance(target, ast.Tuple | ast.List):
+        parts: list[ast.expr] | None = None
+        if isinstance(value, ast.Tuple | ast.List) and len(value.elts) == len(
+            target.elts
         ):
-            out.append((node.target.id, node.value))
+            parts = value.elts
+        out: list[tuple[str, ast.expr]] = []
+        for i, elt in enumerate(target.elts):
+            out += _bindings(elt, value if parts is None else parts[i])
+        return out
+    if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name):
+        return [(target.value.id, ast.Dict(keys=[target.slice], values=[value]))]
+    return []
+
+
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+
+
+def _module_constants(source: str) -> list[tuple[str, ast.expr]]:
+    """Every name bound at module level, with the expression bound to it.
+
+    Descends into module-level ``if``/``try``/``with``/``for`` bodies --
+    a constant behind a version check or an ``except`` fallback is still
+    a module constant -- but not into class or function bodies, which
+    are a documented escape. Augmented assignment and a module-level
+    walrus bind a name too, and are collected for the same reason.
+    """
+    out: list[tuple[str, ast.expr]] = []
+
+    def visit(body: list[ast.stmt]) -> None:
+        for stmt in body:
+            if isinstance(stmt, _SCOPES):
+                continue
+            if isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    out.extend(_bindings(target, stmt.value))
+            elif isinstance(stmt, ast.AnnAssign | ast.AugAssign):
+                if stmt.value is not None:
+                    out.extend(_bindings(stmt.target, stmt.value))
+            for child in ast.iter_child_nodes(stmt):
+                if not isinstance(child, ast.expr):
+                    continue
+                for sub in ast.walk(child):
+                    if isinstance(sub, ast.NamedExpr) and isinstance(
+                        sub.target, ast.Name
+                    ):
+                        out.append((sub.target.id, sub.value))
+            for field in ("body", "orelse", "finalbody"):
+                nested = getattr(stmt, field, None)
+                if isinstance(nested, list):
+                    visit([s for s in nested if isinstance(s, ast.stmt)])
+            for handler in getattr(stmt, "handlers", []):
+                visit(handler.body)
+
+    visit(ast.parse(source).body)
     return out
 
 
@@ -283,19 +440,21 @@ def declared(ipa: IPAFeatures) -> dict[str, set[str]]:
 
 def offenders(source: str, declared: dict[str, set[str]]) -> list[str]:
     """Module-level constants in ``source`` that restate the data."""
+    vocabulary = declared["values"] | declared["names"] | declared["symbols"]
     found = []
     for name, value in _module_constants(source):
-        literals = set(_strings(value))
-        members = set(_membership(value))
+        literals = set(_terms(value, vocabulary))
+        classified = set(_classified(value, vocabulary))
+        members = set(_members(value, vocabulary))
         if len(literals & declared["values"]) >= 2:
             found.append(
                 f"{name}: enumerates declared feature values "
                 f"{sorted(literals & declared['values'])}"
             )
-        elif len(members & declared["names"]) >= 2:
+        elif len(classified & declared["names"]) >= 2:
             found.append(
                 f"{name}: classifies declared features "
-                f"{sorted(members & declared['names'])}"
+                f"{sorted(classified & declared['names'])}"
             )
         elif members & declared["symbols"]:
             found.append(
@@ -332,10 +491,35 @@ _SMUGGLED = [
     '_OVERRIDING_KEYS = frozenset(["voiced", "place", "manner", "syllabic"][:])',
     '_SONORANTS = set(["nasal", "trill", "approximant"])',
     '_TONES = {"low": 1, "mid": 2, "high": 3}',
+    # Spelling is not a defence. Each of these is one of the tables
+    # above wearing different syntax, and each slipped past the second
+    # version of the guard -- including the stress table this file
+    # names as its own worked example.
+    '_STRESS_MARKERS = ["ˈ", "ˌ"]',
+    '_STRESS_MARKERS = ("ˈ", "ˌ")',
+    '_STRESS_MARKERS = "ˈ ˌ"',
+    '_STRESS_MARKERS = "ˈ,ˌ"',
+    '_STRESS_MARKERS, _TONE_MARKS = {"ˈ", "ˌ"}, {"˥", "˩"}',
+    '_ORAL_OBSTRUENT = frozenset("plosive fricative affricate".split())',
+    '_ORAL_OBSTRUENT = frozenset({"plo" + "sive", "frica" + "tive"})',
+    '_PROSODIC_KEYS = frozenset("stress,length,tone".split(","))',
+    "if sys.version_info >= (3, 12):\n" '    _MODE_EXCEPTIONS = {"ˀ": "release"}',
+    "try:\n"
+    '    _PROSODIC_KEYS = frozenset({"stress", "length", "tone"})\n'
+    "except NameError:\n"
+    "    _PROSODIC_KEYS = frozenset()",
+    '_MODE_EXCEPTIONS = {}\n_MODE_EXCEPTIONS["ˀ"] = "release"',
+    "_PROSODIC_KEYS = frozenset()\n" '_PROSODIC_KEYS |= {"stress", "length", "tone"}',
+    '(_PROSODIC_KEYS := frozenset({"stress", "length", "tone"}))',
 ]
 
 
-@pytest.mark.parametrize("source", _SMUGGLED, ids=lambda s: s.split(" =")[0])
+def _label(source: str) -> str:
+    """A one-line id for a case that may be several statements long."""
+    return " ".join(source.split(" =")[0].split())
+
+
+@pytest.mark.parametrize("source", _SMUGGLED, ids=_label)
 def test_the_guard_rejects_the_tables_that_were_removed(
     source: str, declared: dict[str, set[str]]
 ) -> None:
@@ -369,9 +553,12 @@ def test_the_guard_states_what_it_cannot_see(
     fails and the docstring above needs updating.
     """
     escapes = [
-        # A sequence states an order, and the one ordered list left in
-        # Python is separately pinned to only order what the data admits.
+        # A sequence of feature *names* states an order rather than a
+        # class, and three legitimate ones exist. The delimited-string
+        # spelling of one is a sequence too, and spared for the same
+        # reason. Ordered *symbols* are caught -- see `_SMUGGLED`.
         '_ORDER = ["palatalized", "labialized", "velarized"]',
+        '_ORDER = "palatalized labialized velarized"',
         # Not a module-level assignment at all.
         "class C:\n    KEYS = {'voiced', 'place', 'manner'}",
         "def f():\n    KEYS = {'voiced', 'place', 'manner'}",
@@ -379,6 +566,17 @@ def test_the_guard_states_what_it_cannot_see(
         "def mode(sym):\n"
         "    if sym == 'ˀ':\n        return 'release'\n"
         "    elif sym == 'ᵊ':\n        return 'release'",
+        # A run of glyphs with nothing to split on. Expanding every
+        # string to its characters would read "stress" as s, t, r, e.
+        '_STRESS_MARKERS = "ˈˌ"',
+        # Indirection: no one statement here states a table, and the
+        # guard resolves nothing across statements.
+        '_PRIMARY = "ˈ"\n'
+        '_SECONDARY = "ˌ"\n'
+        "_STRESS_MARKERS = {_PRIMARY: 1, _SECONDARY: 2}",
+        # A delimiter the source never names and the guard does not
+        # guess, with the split deferred to the use site.
+        '_PROSODIC_KEYS = "stress~length~tone"',
     ]
     for source in escapes:
         assert (
@@ -398,27 +596,54 @@ def test_no_module_level_constant_restates_the_data(
       one constant (``_ORAL_OBSTRUENT``, ``SECONDARY_PLACE``'s places,
       ``_BINARY_LABELS``' channel values). The data declares what the
       values are and what they mean; a second copy in Python is a fact
-      that can go stale.
-    * a **feature classification** -- an unordered container (set,
+      that can go stale. The container does not matter here: a list
+      restates as much as a set.
+    * a **feature classification** -- an *unordered* container (set,
       frozenset, dict keys) holding two or more declared feature names
       (``_PROSODIC_KEYS``, ``_SECONDARY_KEYS``, ``_OVERRIDING_KEYS``).
       Which features are prosodic is a property of the features, so it
       belongs on them, as ``mode=``.
-    * a **per-symbol table** -- a registered symbol used as a container
-      member or dict key (``_MODE_EXCEPTIONS``, ``mapper._STRESS_MARKERS``).
-      Classifying ``ˀ`` by its glyph is the purest form of the mistake:
-      the symbol is in the data already, and so is everything true of it.
-      Naming a single glyph is not a table and is spared -- the tokenizer
-      has to know the tie characters (``constants.TIE_BAR``) before it can
-      read anything that would tell it.
+    * a **per-symbol table** -- a registered symbol used as a member of
+      a container of *any* kind, or as a dict key (``_MODE_EXCEPTIONS``,
+      ``mapper._STRESS_MARKERS``). Classifying ``ˀ`` by its glyph is the
+      purest form of the mistake: the symbol is in the data already, and
+      so is everything true of it. Naming a single glyph is not a table
+      and is spared -- the tokenizer has to know the tie characters
+      (``constants.TIE_BAR``) before it can read anything that would
+      tell it.
 
-    Deliberately *not* caught, so read this before trusting it: an
-    ordered list or tuple of feature names states an order rather than a
-    class, and is spared -- ``_MODIFIER_READ_ORDER`` is one, and
-    ``TestTheOrderingTupleCanOnlyOrder`` above pins it so it can only
-    order what the data already admits. Also uncaught: constants inside a
-    class or function body, a fact spelled as an ``if``/``elif`` chain
-    rather than a container, and anything read from a file at import.
+    Spelling is not a defence. A constant counts however it is written:
+    as a set or as a sequence, unpacked from a tuple, bound behind a
+    module-level ``if`` or ``try``, filled one subscript at a time,
+    extended with ``|=``, bound by a walrus, concatenated out of
+    fragments, or joined into a single delimited string for the use site
+    to ``.split()``. A string is read as a member list only when *every*
+    piece of it is a declared term, so prose that happens to mention two
+    of them stays prose.
+
+    Deliberately *not* caught, so read this before trusting it:
+
+    * an **ordered** list, tuple or delimited string of feature *names*.
+      It states where names go in a sentence, not what class they are,
+      and three legitimate ones exist: ``_MODIFIER_READ_ORDER``,
+      ``_CONSONANT_SLOTS``, ``_VOWEL_SLOTS``.
+      ``TestTheOrderingTupleCanOnlyOrder`` above pins the first so it
+      can only order what the data already admits. Ordered *symbols*
+      are caught: which glyphs belong together is not a rendering
+      decision.
+    * constants inside a class or function body.
+    * a fact spelled as an ``if``/``elif`` chain rather than as data.
+    * a run of glyphs with nothing to split on (``"ˈˌ"``). Expanding
+      every string to its characters would read ``"stress"`` as the
+      phones s, t, r, e.
+    * a delimiter neither in ``_DELIMITERS`` nor named at a ``.split()``
+      in the same expression.
+    * indirection: ``{_PRIMARY: 1}`` where ``_PRIMARY = "ˈ"``. Nothing is
+      resolved across statements, and a name is not a literal.
+    * anything read from a file at import.
+
+    ``test_the_guard_states_what_it_cannot_see`` asserts each of those
+    still escapes, so this list cannot go stale in either direction.
     """
     found = offenders(path.read_text(encoding="utf-8"), declared)
     assert found == [], f"{path.name}: " + "; ".join(found)
