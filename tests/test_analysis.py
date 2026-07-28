@@ -1,8 +1,11 @@
 """Tests for analysis functions: describe, natural_class, minimal_pairs, validate_ipa."""
 
+from collections import defaultdict
+
 import ipakit
 import pytest
 from ipakit import IPAFeatures
+from ipakit.segment import Kind
 
 
 class TestDescribe:
@@ -52,6 +55,57 @@ class TestDescribe:
         desc = ipa.describe("ɫ")
         assert desc == "voiced velarized lateral alveolar approximant"
         assert desc != ipa.describe("l")
+
+    def test_describe_modifiers_reach_vowels(self, ipa: IPAFeatures) -> None:
+        # The vowel branch used to return before reading any modifier out,
+        # so a nasalized vowel -- ordinary transcription -- was named as
+        # its oral counterpart.
+        assert ipa.describe("ã") == "nasalized open front unrounded vowel"
+        assert ipa.describe("ã") != ipa.describe("a")
+        assert ipa.describe("aˤ") == "pharyngealized open front unrounded vowel"
+
+    def test_describe_r_colored_vowel(self, ipa: IPAFeatures) -> None:
+        # ɚ/ɝ carry retroflex as a base feature; on a vowel that is named
+        # for its acoustic effect, as the phones' own reference is.
+        assert ipa.describe("ɚ") == "r-colored mid central unrounded vowel"
+        assert ipa.describe("ɚ") != ipa.describe("ə")
+        assert ipa.describe("ɝ") != ipa.describe("ɜ")
+
+    def test_describe_syllabic_consonant(self, ipa: IPAFeatures) -> None:
+        assert ipa.describe("l̩") == "voiced syllabic lateral alveolar approximant"
+        assert ipa.describe("l̩") != ipa.describe("l")
+
+    def test_describe_omits_what_a_phone_does_not_carry(self, ipa: IPAFeatures) -> None:
+        # Reading modifiers out must stay silent on the phones that have
+        # none, and voicing stays off vowels: no vowel letter declares it,
+        # so reading it out would call every vowel voiceless.
+        assert ipa.describe("a") == "open front unrounded vowel"
+        assert ipa.describe("p") == "voiceless bilabial plosive"
+        assert ipa.describe("l") == "voiced lateral alveolar approximant"
+
+    def test_no_two_phones_share_a_description(self, ipa: IPAFeatures) -> None:
+        """Distinct registered phones get distinct names.
+
+        The guard for the whole class of bug that l/ɫ and a/ã were in: a
+        feature the metric can see but the description drops leaves two
+        sounds sharing one name. The one standing exception is structural
+        and separately tracked -- describe reads the flat projection,
+        which collapses a diphthong onto its first element, so each
+        registered diphthong still shares its nucleus's description. That
+        is a lost constituent, not a lost feature, so a collision group is
+        allowed only when it is exactly one nucleus and its diphthongs.
+        """
+        groups: dict[str, list[str]] = defaultdict(list)
+        for phone in ipa.phones:
+            groups[ipa.describe(phone)].append(phone)
+        for desc, group in groups.items():
+            if len(group) == 1:
+                continue
+            kinds = [ipa.segment(phone).kind for phone in group]
+            assert kinds.count(Kind.ATOMIC) == 1 and set(kinds) == {
+                Kind.ATOMIC,
+                Kind.DIPHTHONG,
+            }, f"{desc!r} names more than one distinct phone: {group}"
 
     def test_describe_unknown(self, ipa: IPAFeatures) -> None:
         desc = ipa.describe("X")
