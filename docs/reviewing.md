@@ -45,6 +45,24 @@ The strongest test in the suite builds every well-formed `base + mark + tie + ba
 
 Where a sweep is too slow for the default run, sample deliberately and say so in the test.
 
+### Use the one corpus, not your own
+
+Six rounds rebuilt this sweep by hand, and the corpus drifted: two lanes a day apart reported 7921 and 8338 units, and neither could tell whether the other had a different inventory or a different definition. `scripts/sweep.py` is that enumeration written once, so counts from different lanes are comparable.
+
+The canonical corpus is **every phone, and every phone + one diacritic, that spells itself back** — `segment(unit).to_ipa() == unit`. Today that is 139 bare + 7921 marked = 8060 units. It is defined that way rather than by strict parsing because strict parsing measures the parser's error policy as much as the inventory: that count moved 8618 -> 8340 when stress-mark binding changed, with no phone or diacritic touched, while re-emission held at 7921 across the same commits.
+
+The workflow is three commands:
+
+```
+git switch main    && python scripts/sweep.py capture -o /tmp/before.json
+git switch my-lane && python scripts/sweep.py capture -o /tmp/after.json
+python scripts/sweep.py diff /tmp/before.json /tmp/after.json
+```
+
+`diff` accounts for every mover — appeared, disappeared, gained a word, lost a word, altered a word, features moved, distance-from-base moved — and checks the predicate two lanes wanted independently: no pre-existing word is lost or altered, only added. `--require-monotone` makes that gate the exit status. `sweep.py corpus` prints the definition, the counts, and the seven prosodic marks that compose with nothing, so that blind spot stays known rather than assumed shut.
+
+The corpus total is deliberately not hardcoded: it has legitimately moved three times in this repo's history as the inventory changed. What the script asserts is shape — a floor, every phone contributing its bare unit, every phone contributing at least one marked unit, most marks contributing something — so a sweep cannot go quietly vacuous. The exact totals live in the capture, and a change in them is the first line `diff` prints.
+
 ### Write the guard as a predicate
 
 A guard that lists today's offenders documents the present. A guard that describes the *shape* of the mistake catches the next one. Compare:
@@ -99,6 +117,7 @@ Much of this review was done by delegated agents. What made that work:
 
 - `python -m pytest -q`
 - `PYTHONHASHSEED=0 python scripts/confusion.py validate`
+- `python scripts/sweep.py corpus` (the canonical corpus is intact)
 - `python scripts/xsampa_table.py validate`
 - `ruff check`, `black --check`, `mypy ipakit`
 - The `CHANGELOG.md` **Unreleased** section names every breaking change, and every entry is one unwrapped line.
