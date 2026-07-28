@@ -525,8 +525,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return self._fuse_run(phone)
 
     def _fuse_run(self, run: str) -> dict[str, str]:
-        """One over-tie run merged into a single bundle."""
-        parts = run.split(TIE_BAR)
+        """One over-tie run merged into a single bundle.
+
+        An unbound tie contributes an empty part, and it is dropped
+        rather than resolved: ``parse`` already treats a tie that binds
+        nothing as no juncture at all, so composing it away here is what
+        keeps this read agreeing with ``compose`` and ``scalar`` about
+        the same string. ``_resolves_part`` tolerates such a tie, so
+        raising on the empty part it produces would make the two halves
+        of this path disagree -- "it resolves" against "it cannot be
+        read".
+        """
+        parts = [p for p in run.split(TIE_BAR) if p]
+        if not parts:
+            return {}
         return flat_projection(
             self,
             [self._part_features(p) for p in parts],
