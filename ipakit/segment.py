@@ -86,6 +86,32 @@ def modifier_mode(features: IPAFeaturesBase, symbol: str) -> str:
     return features.default_mode
 
 
+def check_prosody(features: IPAFeaturesBase, prosody: Iterable[str]) -> None:
+    """Validate a unit's prosody: what may stand in it, and how much.
+
+    Two rules, one place, so every construction path states them the
+    same way. Structural marks are not prosody -- a tie is a juncture
+    and a break lives between units, neither of them a property of one.
+    And stress is one feature of one syllable: a unit states at most one
+    level of it, because two marks on one unit is a contradiction rather
+    than a stack.
+    """
+    seen_stress: list[str] = []
+    for mark in prosody:
+        if modifier_mode(features, mark) == "structural":
+            raise ValueError(
+                f"structural mark {mark!r} is not prosody; "
+                "ties are junctures, breaks live between units"
+            )
+        if mark in features.stress_markers:
+            seen_stress.append(mark)
+    if len(seen_stress) > 1:
+        raise ValueError(
+            f"a unit bears one stress level, got {seen_stress!r}: "
+            "stress is single-valued, so these contradict rather than stack"
+        )
+
+
 def _is_non_speech(features: IPAFeatures, feats: dict[str, str]) -> bool:
     """True for a bundle whose manner holds no position on the
     constriction axis (silence): not a speech sound, so the articulatory
@@ -549,15 +575,12 @@ class Segment:
         glyph, so ``parse(to_ipa(x))`` may differ structurally from ``x``.
         """
         features = self._features
-        stress: list[str] = []
-        trailing: list[str] = []
-        for mark in self.prosody:
-            bucket = None
-            if features is not None:
-                entry = features.diacritics.get(mark)
-                if entry is not None and "stress" in entry.features:
-                    bucket = stress
-            (bucket if bucket is not None else trailing).append(mark)
+        # Stress is written before its domain, every other prosodic mark
+        # after its own; `stress_markers` is the one derived read of
+        # which marks those are, shared with the parse side.
+        markers = features.stress_markers if features is not None else {}
+        stress = [m for m in self.prosody if m in markers]
+        trailing = [m for m in self.prosody if m not in markers]
         body = "".join(
             str(c) if i == 0 else self.junctures[i - 1].glyph + str(c)
             for i, c in enumerate(self.constituents)
@@ -586,12 +609,7 @@ class Segment:
             raise ValueError(f"unsupported Segment JSON version: {version!r}")
         prosody = tuple(obj.get("prosody", ()))
         if features is not None:
-            for mark in prosody:
-                if modifier_mode(features, mark) == "structural":
-                    raise ValueError(
-                        f"structural mark {mark!r} is not prosody; "
-                        "ties are junctures, breaks live between units"
-                    )
+            check_prosody(features, prosody)
         return cls(
             constituents=tuple(
                 Constituent(base=c["base"], modifiers=tuple(c.get("modifiers", ())))
