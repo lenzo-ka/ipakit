@@ -62,6 +62,30 @@
       <point arc="0.87" x="0.73" y="0.30" diameter="0.094" provenance="extrapolated"/>      <!-- extrapolated: same -->
       <point arc="1.00" x="0.75" y="0.16" diameter="0.079" provenance="extrapolated"/>      <!-- extrapolated: same -->
     </midline>
+    <!-- The nasal branch, hand-placed: no instrument in
+         docs/articulatory-data.md can see it. Its own arc runs 0 at the
+         nostrils to 1 at the velopharyngeal port, where it couples to the
+         oral tract at oral arc 0.50. A raised velum seals the port and
+         decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
+    <nasal port="0.50">
+      <point arc="0.00" x="0.0006" y="0.8577" diameter="0.035" provenance="hand-placed"/>
+      <point arc="0.18" x="0.1355" y="0.8938" diameter="0.042" provenance="hand-placed"/>
+      <point arc="0.36" x="0.2529" y="0.9135" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.52" x="0.3794" y="0.9089" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.66" x="0.5054" y="0.8571" diameter="0.045" provenance="hand-placed"/>
+      <point arc="0.78" x="0.6114" y="0.8197" diameter="0.043" provenance="hand-placed"/>
+      <point arc="0.88" x="0.6777" y="0.766" diameter="0.04" provenance="hand-placed"/>
+      <point arc="0.95" x="0.7057" y="0.725" diameter="0.038" provenance="hand-placed"/>
+      <point arc="1.00" x="0.7147" y="0.6847" diameter="0.036" provenance="hand-placed"/>
+    </nasal>
+    <!-- Maxillary teeth. The incisal edge is the labiodental target
+         (docs/tract-anatomy.md 3); the arch line runs back from it to
+         the alveolar ridge. Hand-placed on the upper boundary: no
+         instrument in docs/articulatory-data.md images the dentition. -->
+    <teeth provenance="hand-placed">
+      <point name="incisal-edge" x="0.0600" y="0.7873"/>
+      <point name="arch" x="0.0989" y="0.7993"/>
+    </teeth>
   </head>
 
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
@@ -78,6 +102,30 @@
       <point arc="0.87" x="0.69" y="0.35" diameter="0.090" provenance="extrapolated"/>      <!-- extrapolated: same -->
       <point arc="1.00" x="0.71" y="0.23" diameter="0.075" provenance="extrapolated"/>      <!-- extrapolated: same -->
     </midline>
+    <!-- The nasal branch, hand-placed: no instrument in
+         docs/articulatory-data.md can see it. Its own arc runs 0 at the
+         nostrils to 1 at the velopharyngeal port, where it couples to the
+         oral tract at oral arc 0.50. A raised velum seals the port and
+         decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
+    <nasal port="0.50">
+      <point arc="0.00" x="0.0094" y="0.8471" diameter="0.035" provenance="hand-placed"/>
+      <point arc="0.18" x="0.1369" y="0.8835" diameter="0.042" provenance="hand-placed"/>
+      <point arc="0.36" x="0.2486" y="0.9033" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.52" x="0.3709" y="0.8989" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.66" x="0.4903" y="0.8468" diameter="0.045" provenance="hand-placed"/>
+      <point arc="0.78" x="0.5835" y="0.8147" diameter="0.043" provenance="hand-placed"/>
+      <point arc="0.88" x="0.6454" y="0.7698" diameter="0.04" provenance="hand-placed"/>
+      <point arc="0.95" x="0.6717" y="0.7337" diameter="0.038" provenance="hand-placed"/>
+      <point arc="1.00" x="0.6797" y="0.6965" diameter="0.036" provenance="hand-placed"/>
+    </nasal>
+    <!-- Maxillary teeth. The incisal edge is the labiodental target
+         (docs/tract-anatomy.md 3); the arch line runs back from it to
+         the alveolar ridge. Hand-placed on the upper boundary: no
+         instrument in docs/articulatory-data.md images the dentition. -->
+    <teeth provenance="hand-placed">
+      <point name="incisal-edge" x="0.0678" y="0.7770"/>
+      <point name="arch" x="0.1044" y="0.7891"/>
+    </teeth>
   </head>
 
   <!-- The child head is untouched: XRMB's speakers are young adults (median
@@ -95,6 +143,30 @@
       <point arc="0.87" x="0.59" y="0.42" diameter="0.11" provenance="hand-placed"/>
       <point arc="1.00" x="0.61" y="0.34" diameter="0.09" provenance="hand-placed"/>
     </midline>
+    <!-- The nasal branch, hand-placed: no instrument in
+         docs/articulatory-data.md can see it. Its own arc runs 0 at the
+         nostrils to 1 at the velopharyngeal port, where it couples to the
+         oral tract at oral arc 0.48. A raised velum seals the port and
+         decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
+    <nasal port="0.48">
+      <point arc="0.00" x="0.0303" y="0.7941" diameter="0.0301" provenance="hand-placed"/>
+      <point arc="0.18" x="0.1413" y="0.8314" diameter="0.0361" provenance="hand-placed"/>
+      <point arc="0.36" x="0.2459" y="0.8514" diameter="0.0413" provenance="hand-placed"/>
+      <point arc="0.52" x="0.3476" y="0.8636" diameter="0.0413" provenance="hand-placed"/>
+      <point arc="0.66" x="0.4594" y="0.8399" diameter="0.0387" provenance="hand-placed"/>
+      <point arc="0.78" x="0.5372" y="0.8065" diameter="0.037" provenance="hand-placed"/>
+      <point arc="0.88" x="0.591" y="0.767" diameter="0.0344" provenance="hand-placed"/>
+      <point arc="0.95" x="0.6139" y="0.735" diameter="0.0327" provenance="hand-placed"/>
+      <point arc="1.00" x="0.6207" y="0.7029" diameter="0.031" provenance="hand-placed"/>
+    </nasal>
+    <!-- Maxillary teeth. The incisal edge is the labiodental target
+         (docs/tract-anatomy.md 3); the arch line runs back from it to
+         the alveolar ridge. Hand-placed on the upper boundary: no
+         instrument in docs/articulatory-data.md images the dentition. -->
+    <teeth provenance="hand-placed">
+      <point name="incisal-edge" x="0.0834" y="0.7364"/>
+      <point name="arch" x="0.1151" y="0.7485"/>
+    </teeth>
   </head>
 
 </heads>
