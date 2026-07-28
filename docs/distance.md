@@ -133,6 +133,20 @@ d(b͡v, ɡ͡b) + d(ɡ͡b, ɡ)  an order of magnitude closer
 
 This is structural rather than accidental. `ɡ͡b` is a double articulation that shares one constituent with `b͡v` and a *different* one with `ɡ`, so it sits near both, while `b͡v` and `ɡ` are compared as a phased unit against an atom and pay the gap cost. A composite can be close to two things that are far from each other, because closeness is being measured against different parts of it.
 
+### If you need a metric
+
+`ipakit.closure.MetricClosure` is the shortest-path closure over an inventory — the largest metric that is nowhere greater than the distance it is built from. It satisfies the inequality by construction:
+
+```python
+from ipakit.closure import metric_closure
+closure = metric_closure(ipa)
+closure.distance("p", "b")
+```
+
+It is deliberately **not** exported at module level and **not** the default, because closure is not free. A pair shortens whenever some third phone offers a cheaper path, and over the shipped inventory those paths are mostly artifacts: a double articulation shares one constituent with each endpoint, so `ɡ → ɡ͡b → b͡v` is cheap even though a voiced velar plosive and a voiced labiodental affricate are not alike. About a fifth of pairs shorten, and the largest shortcuts land on some of the least similar pairs — so a closure trades a true inequality for occasional badly wrong similarities.
+
+It is also **inventory-relative**, unlike `distance`: a pair's value depends on which other phones are present, since they are the possible intermediate steps. Pairs outside the inventory raise rather than falling back, because a silent fallback would break the one property the closure exists to supply. `MetricClosure.shortened()` reports every pair the closure moved, so the cost is inspectable rather than assumed.
+
 The claim the metric makes is structural consistency, and the operations it is built for — ranking neighbours, thresholding similarity, scoring an alignment — need ordering and boundedness, not metricity. Nothing in the library assumes the triangle inequality holds.
 
 **What this means for you.** Anything that requires a true metric will be wrong here: metric trees and ball trees for nearest-neighbour search, algorithms whose correctness proof rests on the triangle inequality, and embedding the distances into a Euclidean space without checking the residuals. Brute-force nearest-neighbour, ranking, and clustering methods that only need a dissimilarity are all fine. If you need a metric, enforce it explicitly — for instance by taking the shortest-path (metric closure) over the distance graph — rather than assuming it.
