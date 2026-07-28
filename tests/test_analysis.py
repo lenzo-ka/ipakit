@@ -1,11 +1,21 @@
 """Tests for analysis functions: describe, natural_class, minimal_pairs, validate_ipa."""
 
+import warnings
 from collections import defaultdict
 
 import ipakit
 import pytest
 from ipakit import IPAFeatures
+from ipakit.analysis import _PRIMARY_SLOTS
 from ipakit.segment import Kind
+
+
+def _reads_back(ipa: IPAFeatures, text: str) -> bool:
+    """Whether the inventory can spell this, strictly and unchanged."""
+    try:
+        return ipa.segment(text, strict=True).to_ipa() == text
+    except ValueError:
+        return False
 
 
 class TestDescribe:
@@ -77,11 +87,52 @@ class TestDescribe:
 
     def test_describe_omits_what_a_phone_does_not_carry(self, ipa: IPAFeatures) -> None:
         # Reading modifiers out must stay silent on the phones that have
-        # none, and voicing stays off vowels: no vowel letter declares it,
-        # so reading it out would call every vowel voiceless.
+        # none. A plain vowel says nothing about its voicing either: every
+        # vowel letter declares voiced="+", so reading the slot out
+        # unconditionally would put "voiced" in front of all of them, and
+        # no conventional name does that.
         assert ipa.describe("a") == "open front unrounded vowel"
         assert ipa.describe("p") == "voiceless bilabial plosive"
         assert ipa.describe("l") == "voiced lateral alveolar approximant"
+
+    def test_describe_reads_a_slot_a_mark_states_on_a_vowel(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # Voicing, place and airstream are slots the vowel sentence never
+        # looked at, so a mark that stated one moved the feature bag and
+        # the metric while leaving the name word for word the bare
+        # letter's. All three of these read "open front unrounded vowel".
+        assert ipa.describe("ḁ") == "voiceless open front unrounded vowel"
+        assert ipa.describe("a̪") == "dental open front unrounded vowel"
+        assert ipa.describe("aʼ") == "open front unrounded vowel ejective"
+        for unit in ("ḁ", "a̪", "aʼ"):
+            assert ipa.describe(unit) != ipa.describe("a")
+
+    def test_the_two_sentences_are_one_sentence(self, ipa: IPAFeatures) -> None:
+        # A vowel's name is the consonant's with its own three slots
+        # standing where the manner's modifiers would: "[voice]
+        # [modifiers] [place] [height backness round] [manner]
+        # [airstream]" reads both, because a vowel's manner is the word
+        # "vowel" and a consonant states no height or backness.
+        assert ipa.describe("t̪ʼ") == "voiceless dental plosive ejective"
+        assert ipa.describe("a̪ʼ") == "dental open front unrounded vowel ejective"
+        assert ipa.describe("ã̪") == "nasalized dental open front unrounded vowel"
+
+    def test_every_vowel_letter_declares_its_own_voicing(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The premise the conditional voicing read stands on.
+
+        ``describe`` says "voiceless" of a vowel that has arrived at the
+        *declared* default, on the grounds that no vowel letter can put it
+        there -- only a mark can. That is a property of the inventory, so
+        it is asserted rather than assumed: a vowel added without its
+        voicing would silently turn the read-out on for its whole column.
+        """
+        default = ipa.features["voiced"].default
+        vowels = [s for s in ipa.phones if ipa.get_features(s).get("manner") == "vowel"]
+        assert len(vowels) > 30, "sweep did not run"
+        assert [s for s in vowels if ipa.get_features(s).get("voiced") == default] == []
 
     def test_no_two_phones_share_a_description(self, ipa: IPAFeatures) -> None:
         """Distinct registered phones get distinct names.
@@ -106,6 +157,50 @@ class TestDescribe:
                 Kind.ATOMIC,
                 Kind.DIPHTHONG,
             }, f"{desc!r} names more than one distinct phone: {group}"
+
+    def test_no_slot_goes_unread_because_of_the_segment_class(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """A slot a mark moves has to move the name.
+
+        The predicate, not the four marks that exposed it. The vowel
+        sentence rendered three slots and the consonant sentence four,
+        and the four were simply not looked at on a vowel -- so "a̪",
+        "aʼ" and "ḁ" each carried a slot the bare letter does not and
+        each was named "open front unrounded vowel" all the same. Any
+        future sentence that skips a slot on account of the segment's
+        class fails here, whichever slot and whichever class.
+
+        A manner the data marks ``offscale`` is out of scope, and only
+        silence is: it holds no position on the constriction continuum,
+        so it fills no slot and renders none. A marked pause is still a
+        pause, and "␣ʼ" is correctly named "silence".
+        """
+        offscale = ipa.features["manner"].offscale
+        silent: list[tuple[str, str]] = []
+        checked = 0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for base in ipa.phones:
+                bare = ipa.get_features(base)
+                if bare.get("manner") in offscale:
+                    continue
+                name = ipa.describe(base)
+                for mark in ipa.diacritics:
+                    unit = base + mark
+                    if not _reads_back(ipa, unit):
+                        continue
+                    checked += 1
+                    marked = ipa.get_features(unit)
+                    moved = sorted(
+                        slot
+                        for slot in _PRIMARY_SLOTS
+                        if marked.get(slot) != bare.get(slot)
+                    )
+                    if moved and ipa.describe(unit) == name:
+                        silent.append((unit, ", ".join(moved)))
+        assert checked > 3000, "sweep did not run"
+        assert silent == []
 
     def test_describe_unknown(self, ipa: IPAFeatures) -> None:
         desc = ipa.describe("X")

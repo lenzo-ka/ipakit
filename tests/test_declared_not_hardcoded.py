@@ -282,7 +282,10 @@ class TestNothingAMarkStatesGoesUnsaid:
         Both escapes are one fact: the mark stating them also states the
         voicing, which is read out, so naming the phonation would only
         repeat it -- ``d̥`` reads "voiceless", not "voiceless devoiced" --
-        and ``modal`` is the unremarkable value besides.
+        and ``modal`` is the unremarkable value besides. That held on a
+        consonant only until ``describe`` read the voicing slot on a
+        vowel too: ``ḁ`` used to read exactly as ``a``, so the escape was
+        letting a real omission through on half the inventory.
         """
         assert self._escapes(ipa, segmental_marks) == {
             ("phonation", "modal"),
@@ -715,6 +718,17 @@ def test_the_guard_states_what_it_cannot_see(
         "def mode(sym):\n"
         "    if sym == 'ˀ':\n        return 'release'\n"
         "    elif sym == 'ᵊ':\n        return 'release'",
+        # The same shape with a declared *value* in place of a symbol.
+        # `describe` shipped one of these: `if airstream != "pulmonic"`
+        # named the default instead of reading it, and would have gone
+        # quiet the moment the data moved it. It now reads
+        # `features["airstream"].default`, but the shape stays invisible
+        # here, and deliberately: the guard looks at module-level
+        # constants, so a comparison escapes wherever it sits, and
+        # widening it to comparisons would reject the eleven
+        # `manner == "vowel"` tests the library is built on along with
+        # it.
+        'def f(feats):\n    return feats["airstream"] != "pulmonic"',
         # A run of glyphs with nothing to split on. Expanding every
         # string to its characters would read "stress" as s, t, r, e.
         '_STRESS_MARKERS = "ˈˌ"',
@@ -781,7 +795,11 @@ def test_no_module_level_constant_restates_the_data(
       are caught: which glyphs belong together is not a rendering
       decision.
     * constants inside a class or function body.
-    * a fact spelled as an ``if``/``elif`` chain rather than as data.
+    * a fact spelled as a comparison -- an ``if``/``elif`` chain, or a
+      single ``==`` against a declared symbol or value name. Twenty-one
+      such comparisons are load-bearing in the package, most of them
+      the vowel/consonant test a description's own sentence turns on,
+      so this cannot be closed without rejecting them too.
     * a run of glyphs with nothing to split on (``"ˈˌ"``). Expanding
       every string to its characters would read ``"stress"`` as the
       phones s, t, r, e.

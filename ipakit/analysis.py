@@ -8,12 +8,19 @@ from .constants import MAX_MATCH_LEN, METADATA_ATTRS, SEQ_TIE, TIE_BAR
 from .segment import modifier_mode
 
 # The slots a conventional name renders itself, in the order it renders
-# them: "[voice] [place] [manner] [airstream]", "[height] [backness]
-# [round] vowel". These are the shape of the sentence, not a claim about
+# them. There is one sentence, not two: "[voice] [modifiers] [place]
+# [height backness round] [manner] [airstream]". A consonant states no
+# height and no backness, so those slots fall out of its name and it
+# reads "[voice] [place] [manner] [airstream]"; a vowel's manner *is*
+# the word "vowel", so its name reads "[height] [backness] [round]
+# vowel". These are the shape of the sentence, not a claim about
 # phonetics; a feature named here is not also read out as a modifier.
-# `airstream` is a slot like the rest -- describe() renders it below,
-# after the manner -- and it is the one slot only the consonant sentence
-# has.
+#
+# No slot goes unread because of the segment's class. A vowel letter
+# states no place and no airstream, but a mark can put one on it
+# ("a̪", "aʼ"), and a name that dropped it would give two distinct
+# units one name -- the failure this whole path exists to avoid. The one
+# slot read conditionally is `voiced`, for the reason describe() gives.
 _CONSONANT_SLOTS = ("voiced", "place", "manner", "airstream")
 _VOWEL_SLOTS = ("height", "backness", "rounded")
 _PRIMARY_SLOTS = frozenset(_CONSONANT_SLOTS) | frozenset(_VOWEL_SLOTS)
@@ -62,50 +69,89 @@ class AnalysisMixin(IPAFeaturesBase):
             'voiced velarized lateral alveolar approximant'
             >>> ipakit.describe("ã")
             'nasalized open front unrounded vowel'
+            >>> ipakit.describe("ḁ")
+            'voiceless open front unrounded vowel'
+            >>> ipakit.describe("a̪")
+            'dental open front unrounded vowel'
         """
         feats = self.get_features(phone, with_defaults=with_defaults)
         if not feats:
             return f"unknown phone: {phone}"
 
         manner = feats.get("manner", "")
+        if manner == "silence":
+            return "silence"
+        vowel = manner == "vowel"
         parts = []
 
-        if manner == "vowel":
-            # Vowel: [modifiers] height backness [rounded] vowel. Voicing
-            # is not read out: no vowel letter declares it, so every one
-            # of them would report the binary default.
-            parts.extend(self._modifiers(feats))
-            if height := feats.get("height"):
-                parts.append(height)
-            if backness := feats.get("backness"):
-                parts.append(backness)
-            # Rounded/unrounded
-            if label := self._label("rounded", feats.get("rounded")):
-                parts.append(label)
-            parts.append("vowel")
-        elif manner == "silence":
-            return "silence"
-        else:
-            # Consonant: voiced/voiceless [modifiers] place manner
-            # Voicing
-            if label := self._label("voiced", feats.get("voiced")):
-                parts.append(label)
+        # Voicing. The consonant sentence always says it. The vowel
+        # sentence says it only when the segment has arrived at the
+        # feature's *declared* default, because that default is the
+        # unmarked value of the class that contrasts in voicing -- the
+        # obstruents -- and every vowel letter in the inventory declares
+        # its own voicing explicitly, which a data guard keeps true. So a
+        # vowel that reaches the default was put there by a mark, and
+        # that mark is exactly what has to be said: "ḁ" is a voiceless
+        # vowel, and read this way it stops sharing a name with "a".
+        # Saying it unconditionally would instead put "voiced" in front
+        # of every vowel, which no conventional name does.
+        voiced = feats.get("voiced")
+        if (not vowel or voiced == self._declared_default("voiced")) and (
+            label := self._label("voiced", voiced)
+        ):
+            parts.append(label)
 
-            parts.extend(self._modifiers(feats))
+        parts.extend(self._modifiers(feats))
 
-            # Place
-            if place := feats.get("place"):
-                parts.append(self._display_value("place", place))
+        # Place. A vowel letter states none, but a mark can ("a̪").
+        if place := feats.get("place"):
+            parts.append(self._display_value("place", place))
 
-            # Manner
-            if manner:
-                parts.append(manner)
+        # The slots only a vowel fills.
+        if vowel:
+            parts.extend(
+                word
+                for slot in _VOWEL_SLOTS
+                if (word := self._slot_word(slot, feats.get(slot))) is not None
+            )
 
-            # Airstream (if not pulmonic)
-            if (airstream := feats.get("airstream")) and airstream != "pulmonic":
-                parts.append(airstream)
+        # Manner -- for a vowel, the word is "vowel".
+        if manner:
+            parts.append(manner)
+
+        # Airstream, when it is not the declared default. A vowel letter
+        # states none either, but "aʼ" does.
+        if (
+            airstream := feats.get("airstream")
+        ) and airstream != self._declared_default("airstream"):
+            parts.append(airstream)
 
         return " ".join(parts)
+
+    def _declared_default(self, feature: str) -> str | None:
+        """The default the data declares for a feature.
+
+        Read, never repeated. A description that compares against a value
+        name it spells out itself -- ``airstream != "pulmonic"`` -- states
+        a phonetic fact in Python and goes stale the moment the data
+        moves the default, silently and in the direction of saying less.
+        """
+        feat = self.features.get(feature)
+        return feat.default if feat is not None else None
+
+    def _slot_word(self, feature: str, value: str | None) -> str | None:
+        """The word a slot contributes to the sentence.
+
+        A feature whose values declare labels reads by label -- `rounded`
+        gives "unrounded", not "-". Everything else reads by value,
+        through the same display rule the place slot uses.
+        """
+        if value is None:
+            return None
+        feat = self.features.get(feature)
+        if feat is not None and feat.labels:
+            return feat.labels.get(value)
+        return self._display_value(feature, value)
 
     def _display_value(self, feature: str, value: str) -> str:
         """A value as a reader expects to see it.
