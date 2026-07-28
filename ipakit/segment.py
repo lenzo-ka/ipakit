@@ -368,10 +368,16 @@ class Segment:
     def scalar(self, with_defaults: bool = True) -> dict[str, str]:
         """Flat backward-compatible projection (design spec section 6).
 
-        Delegates to the same rules the string entry points use, so
-        ``segment(s).scalar() == compose(s)[0]`` for string-expressible
-        units: registered lookup or tie composition for the chain, then the
-        modifier overlay with the class/manner skip.
+        Delegates to the same rules the string entry points use --
+        registered lookup or tie composition for the chain, then the
+        modifier overlay with the class/manner skip -- so this and
+        ``get_features`` are one read, not two.
+
+        ``scalar() == compose(s)[0]`` for string-expressible units with
+        one exception: a prosodic mark belongs to the unit rather than to
+        its feature bag, so ``compose("eː")`` reports ``length=long``
+        where this reports the ``length`` of ``e`` and carries the mark in
+        :attr:`prosody`.
         """
         features = self._require_features()
         chain = "".join(
