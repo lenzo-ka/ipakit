@@ -441,8 +441,16 @@ class Segment:
         feats = features.get_features(chain, with_defaults=False)
         if not feats:
             return {}
-        # The last constituent carries the written trailing marks.
-        apply_modifiers(features, feats, self.constituents[-1].modifiers)
+        # Every constituent's marks, in order. Only the last one's were
+        # applied before, so a mark written on any earlier part of a
+        # composed unit vanished from the flat read: the labialization
+        # of "kʷ͡p" and the nasalization of "ã͜i" were simply lost, while
+        # bag() reported them all along. Order is left to right, matching
+        # the merge the chain itself composes under, so an earlier
+        # constituent's mark wins a key an additive mark would otherwise
+        # fill.
+        for constituent in self.constituents:
+            apply_modifiers(features, feats, constituent.modifiers)
         if with_defaults:
             fill_defaults(features, feats)
         return feats
