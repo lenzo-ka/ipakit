@@ -24,17 +24,30 @@
      anatomy; proportions follow the usual findings (a child's tract is
      shorter overall and proportionally shorter in the pharynx; an adult
      female tract is shorter than an adult male's, again more so in the
-     pharynx). They are not measurements. -->
+     pharynx). They are not measurements, with one exception: the adult
+     midline `diameter` over arc 0.20-0.40 is now the shape measured from
+     the X-Ray Microbeam database (Westbury 1994) over all 48 speakers.
+     Each adult point below says whether it is measured or extrapolated.
+     Diameters elsewhere, all x/y coordinates, and the whole child head are
+     unchanged and remain hand-placed. See docs/articulatory-data.md.
+
+     The arc 0.24 and arc 0.40 points were inserted to carry the measured
+     shape; their x and y are linear interpolations of the midline that was
+     already there, so the drawn centreline is exactly what it was and only
+     `diameter` moved. Heads still NEVER affect distance; verified by a
+     full sweep over all 8060 units and 9591 pairs, which moved nothing. -->
 <heads default="adult-male">
 
   <head name="adult-male" desc="Adult male mid-sagittal tract" length-cm="17.5">
     <rest arc="0.38" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
-      <point arc="0.00" x="0.06" y="0.62" diameter="0.16"/>
-      <point arc="0.13" x="0.22" y="0.66" diameter="0.17"/>
-      <point arc="0.32" x="0.40" y="0.68" diameter="0.18"/>
-      <point arc="0.45" x="0.52" y="0.66" diameter="0.18"/>
-      <point arc="0.56" x="0.61" y="0.61" diameter="0.17"/>
+      <point arc="0.00" x="0.06" y="0.62" diameter="0.16"/>       <!-- extrapolated: no palate outline forward of arc 0.11 -->
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.17"/>       <!-- extrapolated: same -->
+      <point arc="0.24" x="0.3242" y="0.6716" diameter="0.18"/>   <!-- measured: the peak, over arc 0.22 to 0.28 -->
+      <point arc="0.32" x="0.40" y="0.68" diameter="0.16"/>       <!-- measured: 0.90 of the peak -->
+      <point arc="0.40" x="0.4738" y="0.6677" diameter="0.13"/>   <!-- measured: 0.73 of the peak -->
+      <point arc="0.45" x="0.52" y="0.66" diameter="0.13"/>       <!-- extrapolated: held flat past the palate trace -->
+      <point arc="0.56" x="0.61" y="0.61" diameter="0.17"/>       <!-- extrapolated: nothing behind arc 0.44 is measured -->
       <point arc="0.74" x="0.70" y="0.44" diameter="0.15"/>
       <point arc="0.87" x="0.73" y="0.30" diameter="0.13"/>
       <point arc="1.00" x="0.75" y="0.16" diameter="0.11"/>
@@ -44,17 +57,22 @@
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
     <rest arc="0.37" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
-      <point arc="0.00" x="0.07" y="0.62" diameter="0.15"/>
-      <point arc="0.13" x="0.22" y="0.66" diameter="0.16"/>
-      <point arc="0.32" x="0.39" y="0.68" diameter="0.17"/>
-      <point arc="0.45" x="0.50" y="0.66" diameter="0.16"/>
-      <point arc="0.56" x="0.58" y="0.62" diameter="0.16"/>
+      <point arc="0.00" x="0.07" y="0.62" diameter="0.15"/>       <!-- extrapolated -->
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.16"/>       <!-- extrapolated -->
+      <point arc="0.24" x="0.3184" y="0.6716" diameter="0.17"/>   <!-- measured: the peak -->
+      <point arc="0.32" x="0.39" y="0.68" diameter="0.15"/>       <!-- measured: 0.90 of the peak -->
+      <point arc="0.40" x="0.4577" y="0.6677" diameter="0.12"/>   <!-- measured: 0.73 of the peak -->
+      <point arc="0.45" x="0.50" y="0.66" diameter="0.12"/>       <!-- extrapolated: held flat -->
+      <point arc="0.56" x="0.58" y="0.62" diameter="0.16"/>       <!-- extrapolated -->
       <point arc="0.74" x="0.66" y="0.47" diameter="0.14"/>
       <point arc="0.87" x="0.69" y="0.35" diameter="0.12"/>
       <point arc="1.00" x="0.71" y="0.23" diameter="0.10"/>
     </midline>
   </head>
 
+  <!-- The child head is untouched: XRMB's speakers are young adults (median
+       age 21, range 18-37), so the measured shape says nothing about a
+       child's tract, which is not a scaling of an adult's. -->
   <head name="child" desc="Child (approx. 5 years) mid-sagittal tract" length-cm="10.5">
     <rest arc="0.35" offset="0.20" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
