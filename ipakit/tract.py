@@ -83,6 +83,7 @@ class MidlinePoint:
     x: float
     y: float
     diameter: float
+    provenance: str = "hand-placed"
 
 
 @dataclass(frozen=True)
@@ -94,6 +95,43 @@ class Head:
     rest: RestPosture | None = None
     desc: str | None = None
     length_cm: float | None = None
+
+    def _tangents(self) -> list[tuple[float, float]]:
+        """Unit tangent at each midline vertex, averaged across the joint.
+
+        Taking the normal from the containing segment makes it jump at every
+        joint -- by 33 degrees at the oropharyngeal bend in the adult male
+        head -- which draws as a corner on both walls and, on the inside of
+        the bend, as a wall that crosses itself: three self-intersections
+        before this averaged the joints. A vertex tangent is the mean of the
+        directions either side of it, and ``project`` interpolates between
+        two vertex tangents rather than reusing one segment's, so the normal
+        turns continuously along the whole midline.
+
+        This is rendering geometry. ``ipakit.metric`` reads ``tract_point``,
+        never ``project``, so nothing here can reach a distance.
+        """
+        pts = self.midline
+        segments: list[tuple[float, float]] = []
+        for i in range(len(pts) - 1):
+            dx, dy = pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y
+            norm = (dx * dx + dy * dy) ** 0.5 or 1.0
+            segments.append((dx / norm, dy / norm))
+        if not segments:
+            return [(1.0, 0.0)]
+        out: list[tuple[float, float]] = []
+        for i in range(len(pts)):
+            if i == 0:
+                tx, ty = segments[0]
+            elif i == len(pts) - 1:
+                tx, ty = segments[-1]
+            else:
+                ax, ay = segments[i - 1]
+                bx, by = segments[i]
+                tx, ty = ax + bx, ay + by
+            norm = (tx * tx + ty * ty) ** 0.5 or 1.0
+            out.append((tx / norm, ty / norm))
+        return out
 
     def project(
         self, point: TractPoint, at_rest: bool = False
@@ -118,19 +156,27 @@ class Head:
         arc = min(max(point.arc or 0.0, 0.0), 1.0)
         before = self.midline[0]
         after = self.midline[-1]
+        index = 0
         for i in range(len(self.midline) - 1):
             if self.midline[i].arc <= arc <= self.midline[i + 1].arc:
-                before, after = self.midline[i], self.midline[i + 1]
+                before, after, index = self.midline[i], self.midline[i + 1], i
                 break
+        else:
+            index = len(self.midline) - 2
         span = after.arc - before.arc
         t = (arc - before.arc) / span if span else 0.0
         x = before.x + (after.x - before.x) * t
         y = before.y + (after.y - before.y) * t
         diameter = before.diameter + (after.diameter - before.diameter) * t
-        # Normal to the midline, pointing toward the constricting wall.
-        dx, dy = after.x - before.x, after.y - before.y
-        norm = (dx * dx + dy * dy) ** 0.5 or 1.0
-        nx, ny = -dy / norm, dx / norm
+        # Normal to the midline, pointing toward the constricting wall. The
+        # tangent is interpolated between the two vertices rather than taken
+        # from the segment, so it turns continuously -- see _tangents.
+        tangents = self._tangents()
+        tx0, ty0 = tangents[index]
+        tx1, ty1 = tangents[index + 1]
+        tx, ty = tx0 + (tx1 - tx0) * t, ty0 + (ty1 - ty0) * t
+        norm = (tx * tx + ty * ty) ** 0.5 or 1.0
+        nx, ny = -ty / norm, tx / norm
         travel = (point.offset or 0.0) * diameter
         return (x + nx * travel, y + ny * travel)
 
@@ -158,6 +204,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                         x=float(pt.get("x", 0.0)),
                         y=float(pt.get("y", 0.0)),
                         diameter=float(pt.get("diameter", 0.0)),
+                        provenance=pt.get("provenance", "hand-placed"),
                     )
                 )
         length = elem.get("length-cm")
