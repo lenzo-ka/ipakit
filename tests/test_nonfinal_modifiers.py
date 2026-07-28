@@ -86,3 +86,40 @@ class TestScalarNeverInventsAValue:
                                     bag[key],
                                 )
         assert checked > 500, "sweep did not run"
+
+
+class TestNucleusFeatures:
+    """`rhotacized` is a nucleus feature, not a vowel feature.
+
+    A syllabic liquid is a nucleus with consonantal manner, so keying
+    r-colouring to manner lost it on exactly the segment American English
+    uses most: the second syllable of "butter".
+    """
+
+    def test_a_syllabic_consonant_reads_its_r_colouring(self, ipa: IPAFeatures) -> None:
+        assert "r-colored" in ipa.describe("ɹ̩˞")
+        assert "r-colored" in ipa.describe("l̩˞")
+
+    def test_a_vowel_nucleus_is_unchanged(self, ipa: IPAFeatures) -> None:
+        assert ipa.describe("ɚ") == "r-colored mid central unrounded vowel"
+
+    def test_a_non_nucleus_does_not_read_it(self, ipa: IPAFeatures) -> None:
+        # A rhotic mark on a non-syllabic consonant is redundant notation,
+        # and naming it would describe a segment that has no nucleus.
+        assert "r-colored" not in ipa.describe("ɹ˞")
+
+    def test_nucleus_is_not_a_manner_class(self, ipa: IPAFeatures) -> None:
+        # Fricative and stop nuclei are attested (Tashlhiyt Berber,
+        # Miyako, Nuosu Yi), so nucleus-hood cannot be read off manner.
+        assert ipa.feature_applies("rhotacized", {"manner": "vowel"})
+        assert ipa.feature_applies(
+            "rhotacized", {"manner": "fricative", "syllabic": "+"}
+        )
+        assert not ipa.feature_applies("rhotacized", {"manner": "fricative"})
+
+    def test_articulation_features_stay_manner_based(self, ipa: IPAFeatures) -> None:
+        # channel names where a channel sits within a constriction, so a
+        # syllabic lateral keeps its "lateral" and a vowel never gets one.
+        assert "lateral" in ipa.describe("l̩")
+        assert ipa.feature_applies("channel", {"manner": "approximant"})
+        assert not ipa.feature_applies("channel", {"manner": "vowel", "syllabic": "+"})

@@ -158,7 +158,7 @@
       <value name="+" label="pharyngealized"/>
     </feature>
     <feature name="height-mod" short="hmd" type="ternary" desc="Raised or lowered" href="Relative_articulation#Raising_and_lowering"/>
-    <feature name="rhotacized" short="rho" type="binary" applies="vowel" desc="R-colored" href="R-colored_vowel">
+    <feature name="rhotacized" short="rho" type="binary" applies="nucleus" desc="R-colored" href="R-colored_vowel">
       <!-- Named for the acoustic effect, as the feature's own description
            and reference do: the term the phones are known by. -->
       <value name="+" label="r-colored"/>

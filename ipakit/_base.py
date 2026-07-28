@@ -55,7 +55,7 @@ class IPAFeaturesBase:
     def syllable_break(self) -> str:
         raise NotImplementedError
 
-    def feature_applies(self, feature: str, manner: str | None) -> bool:
+    def feature_applies(self, feature: str, bundle: dict[str, str]) -> bool:
         raise NotImplementedError
 
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
