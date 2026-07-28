@@ -8,10 +8,13 @@ from .constants import MAX_MATCH_LEN, METADATA_ATTRS, SEQ_TIE, TIE_BAR
 from .segment import modifier_mode
 
 # The slots a conventional name renders itself, in the order it renders
-# them: "[voice] [place] [manner]", "[height] [backness] [round] vowel".
-# These are the shape of the sentence, not a claim about phonetics; a
-# feature named here is not also read out as a modifier.
-_CONSONANT_SLOTS = ("voiced", "place", "manner")
+# them: "[voice] [place] [manner] [airstream]", "[height] [backness]
+# [round] vowel". These are the shape of the sentence, not a claim about
+# phonetics; a feature named here is not also read out as a modifier.
+# `airstream` is a slot like the rest -- describe() renders it below,
+# after the manner -- and it is the one slot only the consonant sentence
+# has.
+_CONSONANT_SLOTS = ("voiced", "place", "manner", "airstream")
 _VOWEL_SLOTS = ("height", "backness", "rounded")
 _PRIMARY_SLOTS = frozenset(_CONSONANT_SLOTS) | frozenset(_VOWEL_SLOTS)
 
