@@ -187,7 +187,12 @@ def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> fl
     """Distance between two constituents' bundles, in [0, 1]."""
     f1, p1 = _metric_bundle(features, a)
     f2, p2 = _metric_bundle(features, b)
-    keys = set(f1) | set(f2)
+    # Sorted, not set order: the loop below sums floats, and addition is
+    # not associative, so iterating a set of strings makes the result
+    # depend on Python's per-process hash randomization. The shipped
+    # confusion matrix is a derived artifact checked in CI, so it has to
+    # be reproducible bit for bit rather than only within a tolerance.
+    keys = sorted(set(f1) | set(f2))
     include_place = bool(p1 or p2)
     total = 0.0
     for key in keys:
