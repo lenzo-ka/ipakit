@@ -451,9 +451,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return self.segment(unit).bag()
 
     def _resolve_token(self, token: str) -> str:
-        """Canonicalize a token: Unicode form, then alias -> registered name."""
-        token = self.canonicalize_unicode(token)
-        return self.ligature_map.get(token, token)
+        """Canonicalize a token: Unicode form, then alias -> registered name.
+
+        Delegates to :meth:`expand_ligatures`, which is also what
+        :meth:`parse` runs, so a symbol lookup and a segmentation resolve
+        aliases by one piece of code. This used to map a token that was an
+        alias *entire* and nothing else, so ``ʦ`` resolved but ``ʦʰ`` did
+        not -- the flat reads then disagreed with the structured one about
+        the same string.
+        """
+        return self.expand_ligatures(token)
 
     def _resolves_part(self, part: str) -> bool:
         """A tie-chain part resolves if it is a registered phone, a base
@@ -564,7 +571,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return self.phones.get(self._resolve_token(symbol))
 
     def get_diacritic(self, symbol: str) -> Phone | None:
-        return self.diacritics.get(self.canonicalize_unicode(symbol))
+        return self.diacritics.get(self._resolve_token(symbol))
 
     def phones_by_feature(self, feature: str, value: str) -> list[str]:
         """Get all phones with a given feature value."""
@@ -925,16 +932,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ASCII soft reads (``g``, ``:``, ``?``, ``'``) -- wild-convention
         text imports via :meth:`from_wild`.
 
+        This is the package's one alias resolution: :meth:`parse` runs it,
+        :meth:`_resolve_token` is it, and the string converters reach it
+        through :func:`ipakit._convert.resolve_aliases`. Output is in the
+        canonical Unicode form, so it is idempotent.
+
         Examples:
             >>> IPAFeatures().expand_ligatures("g:")  # default parsing is literal
             'g:'
         """
         ipa = self.canonicalize_unicode(ipa)
+        replaced = False
         for lig, expanded in self.ligature_map.items():
             if len(lig) > 1 and (TIE_BAR in lig or SEQ_TIE in lig):
                 continue
-            ipa = ipa.replace(lig, expanded)
-        return ipa
+            if lig in ipa:
+                ipa = ipa.replace(lig, expanded)
+                replaced = True
+        # An alias may expand to a combining mark ("˖" -> U+031F), which
+        # canonical ordering can then move; canonicalizing again is what
+        # makes "k͡˖" and "k̟͡" the same string rather than two readings.
+        return self.canonicalize_unicode(ipa) if replaced else ipa
 
     def add_ties(self, segment: str) -> str:
         """Add tie bars between base phones in a multi-phone segment.
@@ -1179,7 +1197,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         Tokens are emitted in NFC so both precomposed and decomposed input
         yield identical output. Tie-joined runs of known phones are one
         token whichever tie binds them; the tie glyph is preserved (it is
-        the sense).
+        the sense). Ligature aliases resolve in :meth:`parse`, so every
+        caller of it -- not only this one -- reads ``ʧ`` as ``t͡ʃ``.
 
         The tokenizer is total by default -- it never raises, whatever it
         is handed -- but it is not silent: an unregistered character is
@@ -1192,7 +1211,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             >>> IPAFeatures().tokenize("t͡ʃa")
             ['t͡ʃ', 'a']
         """
-        ipa = self.expand_ligatures(ipa)
         return [
             unicodedata.normalize("NFC", base + "".join(diacs))
             for base, diacs in self.parse(ipa, phoneset=phoneset, strict=strict)
@@ -1231,6 +1249,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         because a silently dropped tie turns one asserted unit into two.
         This is the ``malformed_tie`` :meth:`validate_ipa` reports.
 
+        Registered ligature aliases (``ʧ``, ``ʦ``, ``ƛ``, the spacing
+        ``˖``/``˗``) are expanded here, before matching, because this is
+        the gate every read of an IPA string passes -- flat, structured
+        and converter alike. Doing it in the callers instead left the ones
+        that call ``parse`` directly reading an alias as a character
+        registered nowhere and *dropping* it, so a converter answered a
+        word short of a phoneme while the tokenizer read all of it.
+
         A character that is registered nowhere in the inventory cannot be
         represented, so it is dropped -- but never silently: the default
         path warns, naming what it lost, because a shorter result that
@@ -1246,7 +1272,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if not segment:
             return []
 
-        segment = self.canonicalize_unicode(segment)
+        # Alias resolution happens here rather than in each caller: this is
+        # the one gate every read of an IPA string passes through, and a
+        # caller that reached ``parse`` without expanding first used to lose
+        # the alias entirely (see the note in the docstring).
+        segment = self.expand_ligatures(segment)
         phone_lookup = set(self.phones.keys())
         if phoneset:
             phone_lookup |= set(phoneset.phones)

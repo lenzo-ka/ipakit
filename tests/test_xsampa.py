@@ -120,6 +120,21 @@ class TestRoundTrip:
         assert dropped == DROPPED
         assert collided == KNOWN_NON_ROUNDTRIP | TIE_SENSE
 
+    def test_an_alias_spelling_cannot_join_the_dropped_set(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The sweep above walks the registered inventory, and the accepted
+        alias spellings are not in it -- so they could join the dropped set
+        without the equality noticing, and had: `ipa_to_xsampa("ʧ")` was
+        `""`, deleting the affricate mid-word. An alias converts as the
+        thing it spells; coming back it yields the canonical spelling,
+        which is the documented alias loss (docs/ties.md), not a drop.
+        """
+        for alias, canonical in ipa.ligature_map.items():
+            xs = ipakit.ipa_to_xsampa(alias)
+            assert xs == ipakit.ipa_to_xsampa(canonical) != ""
+            assert ipakit.xsampa_to_ipa(xs) == canonical
+
     @pytest.mark.parametrize("sym,canonical", sorted(FOLDED_SPELLINGS.items()))
     def test_canonical_spelling_of_a_folded_symbol_round_trips(
         self, sym: str, canonical: str

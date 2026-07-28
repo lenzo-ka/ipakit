@@ -6,7 +6,7 @@ import functools
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ._convert import longest_match, require_convertible
+from ._convert import longest_match, require_convertible, resolve_aliases
 from .constants import DEFAULT_CMU_MAP, SEQ_TIE, TIE_BAR
 from .models import PhoneMapping
 
@@ -76,6 +76,13 @@ class CMUMapper:
                 self._tie_normalizations.append((untied, ipa))
 
     def _normalize_ipa(self, ipa: str) -> str:
+        """Bring input to the spelling the CMU table is keyed on.
+
+        Alias resolution first, by the parser's own code: the table holds
+        ``t͡ʃ``, and an accepted alias spelling of it would otherwise match
+        nothing and be dropped.
+        """
+        ipa = resolve_aliases(ipa)
         for old, new in self._tie_normalizations:
             ipa = ipa.replace(old, new)
         return ipa
