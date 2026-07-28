@@ -58,6 +58,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.default_mode: str = "additive"
         # Bridge name -> the (feature, value) spellings of that dimension.
         self.bridges: dict[str, tuple[tuple[str, str], ...]] = {}
+        # Bridge name -> spelling -> how far that spelling opens the velic
+        # port, when the bridge declares one. Rendering geometry: read by
+        # ipakit.tract, never by the metric, which uses only the pairs above.
+        self.bridge_apertures: dict[str, dict[tuple[str, str], float]] = {}
         self.types: dict[str, list[str]] = {}
         self.features: dict[str, Feature] = {}
         self.phones: dict[str, Phone] = {}
@@ -145,6 +149,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 offscale: set[str] = set()
                 coordinates: dict[str, dict[str, float]] = {}
                 articulators: dict[str, str] = {}
+                value_apertures: dict[str, str] = {}
                 # Read out of every <value>, typed or not: a typed feature
                 # takes its value *set* from the type, but it may still say
                 # how its values read and what classes they belong to.
@@ -188,6 +193,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                                 coordinates[val_name] = coords
                             if (art := v.get("articulator")) is not None:
                                 articulators[val_name] = art
+                            if aperture := v.get("aperture"):
+                                value_apertures[val_name] = aperture
                             if alias := v.get("alias"):
                                 self._value_aliases[name][alias] = val_name
                             if vshort := v.get("short"):
@@ -213,6 +220,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     offscale=frozenset(offscale),
                     coordinates=coordinates,
                     articulators=articulators,
+                    apertures=value_apertures,
                     mode=mode,
                     place=feat_elem.get("place"),
                     applies=frozenset((feat_elem.get("applies") or "").split()),
@@ -257,6 +265,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         "bridge is derived for comparison and must not shadow one"
                     )
                 spellings: list[tuple[str, str]] = []
+                apertures: dict[tuple[str, str], float] = {}
                 for spelling in bridge.findall("spelling"):
                     feat_name, value = spelling.get("feature"), spelling.get("value")
                     if not feat_name or value is None:
@@ -272,7 +281,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                             f"feature {feat_name!r} does not declare"
                         )
                     spellings.append((feat_name, value))
+                    raw_port = spelling.get("port")
+                    if raw_port is not None:
+                        apertures[(feat_name, value)] = float(raw_port)
                 self.bridges[bname] = tuple(spellings)
+                if apertures:
+                    self.bridge_apertures[bname] = apertures
 
         # Load references
         if (refs_elem := root.find("references")) is not None:

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import functools
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -95,8 +96,12 @@ class Head:
     rest: RestPosture | None = None
     desc: str | None = None
     length_cm: float | None = None
+    nasal: tuple[MidlinePoint, ...] = ()
+    port_arc: float | None = None
+    teeth: tuple[tuple[str, float, float], ...] = ()
 
-    def _tangents(self) -> list[tuple[float, float]]:
+    @staticmethod
+    def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
         """Unit tangent at each midline vertex, averaged across the joint.
 
         Taking the normal from the containing segment makes it jump at every
@@ -111,7 +116,6 @@ class Head:
         This is rendering geometry. ``ipakit.metric`` reads ``tract_point``,
         never ``project``, so nothing here can reach a distance.
         """
-        pts = self.midline
         segments: list[tuple[float, float]] = []
         for i in range(len(pts) - 1):
             dx, dy = pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y
@@ -132,6 +136,47 @@ class Head:
             norm = (tx * tx + ty * ty) ** 0.5 or 1.0
             out.append((tx / norm, ty / norm))
         return out
+
+    def _project_along(
+        self, pts: Sequence[MidlinePoint], arc: float, offset: float
+    ) -> tuple[float, float] | None:
+        """Project onto any declared polyline -- the midline or a branch."""
+        if len(pts) < 2:
+            return None
+        arc = min(max(arc, pts[0].arc), pts[-1].arc)
+        index = len(pts) - 2
+        for i in range(len(pts) - 1):
+            if pts[i].arc <= arc <= pts[i + 1].arc:
+                index = i
+                break
+        before, after = pts[index], pts[index + 1]
+        span = after.arc - before.arc
+        t = (arc - before.arc) / span if span else 0.0
+        x = before.x + (after.x - before.x) * t
+        y = before.y + (after.y - before.y) * t
+        diameter = before.diameter + (after.diameter - before.diameter) * t
+        tangents = self._tangents_of(pts)
+        tx0, ty0 = tangents[index]
+        tx1, ty1 = tangents[index + 1]
+        tx, ty = tx0 + (tx1 - tx0) * t, ty0 + (ty1 - ty0) * t
+        norm = (tx * tx + ty * ty) ** 0.5 or 1.0
+        nx, ny = -ty / norm, tx / norm
+        travel = offset * diameter
+        return (x + nx * travel, y + ny * travel)
+
+    def project_nasal(
+        self, arc: float, offset: float = 0.0
+    ) -> tuple[float, float] | None:
+        """A point on the nasal branch, or None if the head declares none.
+
+        The branch has its own arc: 0 at the nostrils, 1 at the velopharyngeal
+        port. It couples to the oral tract only through that port, which the
+        velum seals when raised (docs/tract-anatomy.md 4.3), so nothing here
+        depends on the oral arc.
+        """
+        if not self.nasal:
+            return None
+        return self._project_along(self.nasal, arc, offset)
 
     def project(
         self, point: TractPoint, at_rest: bool = False
@@ -171,7 +216,7 @@ class Head:
         # Normal to the midline, pointing toward the constricting wall. The
         # tangent is interpolated between the two vertices rather than taken
         # from the segment, so it turns continuously -- see _tangents.
-        tangents = self._tangents()
+        tangents = self._tangents_of(self.midline)
         tx0, ty0 = tangents[index]
         tx1, ty1 = tangents[index + 1]
         tx, ty = tx0 + (tx1 - tx0) * t, ty0 + (ty1 - ty0) * t
@@ -207,6 +252,33 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                         provenance=pt.get("provenance", "hand-placed"),
                     )
                 )
+        nasal_elem = elem.find("nasal")
+        nasal_points: tuple[MidlinePoint, ...] = ()
+        port_arc: float | None = None
+        if nasal_elem is not None:
+            raw_port = nasal_elem.get("port")
+            port_arc = float(raw_port) if raw_port else None
+            nasal_points = tuple(
+                MidlinePoint(
+                    arc=float(pt.get("arc", 0.0)),
+                    x=float(pt.get("x", 0.0)),
+                    y=float(pt.get("y", 0.0)),
+                    diameter=float(pt.get("diameter", 0.0)),
+                    provenance=pt.get("provenance", "hand-placed"),
+                )
+                for pt in nasal_elem.findall("point")
+            )
+        teeth_elem = elem.find("teeth")
+        teeth: tuple[tuple[str, float, float], ...] = ()
+        if teeth_elem is not None:
+            teeth = tuple(
+                (
+                    pt.get("name", ""),
+                    float(pt.get("x", 0.0)),
+                    float(pt.get("y", 0.0)),
+                )
+                for pt in teeth_elem.findall("point")
+            )
         length = elem.get("length-cm")
         rest_elem = elem.find("rest")
         rest = None
@@ -224,6 +296,9 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             rest=rest,
             desc=elem.get("desc"),
             length_cm=float(length) if length else None,
+            nasal=nasal_points,
+            port_arc=port_arc,
+            teeth=teeth,
         )
     return heads, default
 
@@ -240,6 +315,78 @@ def head(name: str | None = None) -> Head:
     if key not in loaded:
         raise KeyError(f"unknown head shape: {key!r}")
     return loaded[key]
+
+
+@dataclass(frozen=True)
+class Landmarks:
+    """Where the named parts of the tract sit, derived from the data.
+
+    A renderer needs the drawable places, the articulators that reach them,
+    and which of those close about the tract axis rather than toward a wall.
+    All of it is declared in ``ipa.xml``; none of it should be restated by a
+    caller. ``scripts/tract_svg.py`` did restate it and drifted -- it marked
+    eleven frication sites where the inventory has twelve, because
+    ``bilabial`` hosts two fricatives and had been forgotten.
+
+    A value is drawable when it declares an ``arc``. The combining places
+    (``bilabial^velar``, ``bilabial^palatal``) declare none: their position
+    is their components' and not a point of their own.
+    """
+
+    places: dict[str, float]
+    articulators: dict[str, float]
+    median: dict[str, float]
+    frication: frozenset[str]
+
+
+def landmarks(features: IPAFeatures) -> Landmarks:
+    """Read the drawable landmarks out of the declared data."""
+
+    def arcs(name: str) -> dict[str, float]:
+        feature = features.features.get(name)
+        if feature is None:
+            return {}
+        return {
+            value: coords["arc"]
+            for value, coords in feature.coordinates.items()
+            if coords.get("arc") is not None
+        }
+
+    articulator = features.features.get("articulator")
+    apertures = articulator.apertures if articulator is not None else {}
+    every = arcs("articulator")
+    median = {v: a for v, a in every.items() if apertures.get(v) == "median"}
+    frication = {
+        features.get_features(phone).get("place")
+        for phone in features.phones
+        if features.get_features(phone).get("manner") in ("fricative", "affricate")
+    }
+    return Landmarks(
+        places=arcs("place"),
+        articulators={v: a for v, a in every.items() if v not in median},
+        median=median,
+        frication=frozenset(p for p in frication if p),
+    )
+
+
+def velic_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float:
+    """How far the velum lowers for this bundle -- 0 sealed, 1 fully open.
+
+    Read from the ``nasality`` bridge, which already declares that a nasal
+    manner, a nasalized segment and a nasal release are one dimension spelled
+    three ways. The bridge exists so per-feature comparison can see that; the
+    same declaration says how far each spelling opens the port, so the
+    geometry and the metric cannot disagree about what counts as nasal.
+
+    A bundle spelling nasality more than one way takes the widest.
+    """
+    apertures = features.bridge_apertures.get("nasality", {})
+    open_to = [
+        aperture
+        for (feature, value), aperture in apertures.items()
+        if bundle.get(feature) == value
+    ]
+    return max(open_to) if open_to else 0.0
 
 
 def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:

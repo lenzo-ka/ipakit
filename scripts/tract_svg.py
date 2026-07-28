@@ -40,13 +40,21 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit.tract import Head, TractPoint, head, heads  # noqa: E402
+from ipakit.features import IPAFeatures  # noqa: E402
+from ipakit.tract import (  # noqa: E402
+    Head,
+    TractPoint,
+    head,
+    heads,
+    landmarks,
+    velic_aperture,
+)
 
 SAMPLES = 240
 WIDTH = 760
 SECTION_HEIGHT = 560
 CHART_HEIGHT = 300
-PAD = 44
+PAD = 54
 CEILING = 0.20
 
 Point = tuple[float, float]
@@ -78,8 +86,20 @@ def sample(h: Head, samples: int = SAMPLES) -> list[dict[str, Any]]:
 def geometry(name: str) -> dict[str, Any]:
     h = head(name)
     rest = h.rest
+    nasal = [
+        {
+            "arc": i / 60,
+            "mid": h.project_nasal(i / 60, 0.0),
+            "wall": h.project_nasal(i / 60, 1.0),
+            "low": h.project_nasal(i / 60, -1.0),
+        }
+        for i in range(61)
+    ]
     return {
         "rows": sample(h),
+        "nasal": [n for n in nasal if None not in n.values()],
+        "port_arc": h.port_arc,
+        "teeth": [{"name": n, "x": x, "y": y} for n, x, y in h.teeth],
         "rest_arc": None if rest is None else rest.arc,
         "rest_offset": None if rest is None else rest.offset,
         "midline": [
@@ -103,6 +123,12 @@ def _extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
             for key in ("open", "rest", "wall"):
                 xs.append(row[key][0])
                 ys.append(row[key][1])
+        for row in src.get("nasal") or []:
+            for key in ("mid", "wall", "low"):
+                point = row.get(key)
+                if point is not None:
+                    xs.append(point[0])
+                    ys.append(point[1])
     return min(xs), max(xs), min(ys), max(ys)
 
 
@@ -135,44 +161,43 @@ def _trace(src: dict[str, Any], to: Scaler, key: str) -> str:
     return _path([to(*row[key]) for row in src["rows"]])
 
 
-PLACES = {
-    "bilabial": 0.00,
-    "labiodental": 0.03,
-    "dental": 0.08,
-    "alveolar": 0.13,
-    "postalveolar": 0.19,
-    "alveolo-palatal": 0.24,
-    "palatal": 0.32,
-    "velar": 0.45,
-    "uvular": 0.56,
-    "pharyngeal": 0.74,
-    "epiglottal": 0.87,
-    "glottal": 1.00,
-}
-ARTICULATORS = {
-    "lower lip": 0.00,
-    "tongue tip": 0.13,
-    "tongue blade": 0.19,
-    "tongue front": 0.32,
-    "tongue dorsum": 0.45,
-    "tongue root": 0.74,
-    "epiglottis": 0.87,
-    "vocal folds": 1.00,
-}
-FRICATIVE_PLACES = {
-    "labiodental",
-    "dental",
-    "alveolar",
-    "postalveolar",
-    "alveolo-palatal",
-    "palatal",
-    "velar",
-    "uvular",
-    "pharyngeal",
-    "epiglottal",
-    "glottal",
-}
-VELUM_ARC = 0.50
+CHAR_W = 6.0  # advance of the 10.5px monospace label face
+LINE_H = 12.0
+PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
+
+
+def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
+    """The oral roof, broken where a lowered velum has left it open.
+
+    The velum *is* part of the boundary. Raised, it seals the port and the
+    roof is continuous; lowered, the roof is open to the nasopharynx and the
+    nasal branch's floor is no longer an obstruction. Drawing an unbroken
+    wall with a flap on top says the port is never open, whatever the flap
+    is doing.
+    """
+    rows = src["rows"]
+    if aperture <= 0.01:
+        return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
+    declared = src.get("port_arc")
+    if declared is None:
+        return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
+    port = float(declared)
+    half = PORT_SPAN * aperture
+    before = [to(*r["wall"]) for r in rows if r["arc"] <= port - half]
+    after = [to(*r["wall"]) for r in rows if r["arc"] >= port + half]
+    out = []
+    if len(before) > 1:
+        out.append(f'<path d="{_path(before)}" class="wall"/>')
+    if len(after) > 1:
+        out.append(f'<path d="{_path(after)}" class="wall"/>')
+    return "".join(out)
+
+
+_MARKS = landmarks(IPAFeatures())
+PLACES = _MARKS.places
+ARTICULATORS = _MARKS.articulators
+MEDIAN = _MARKS.median
+FRICATIVE_PLACES = _MARKS.frication
 
 
 def _at(src: dict[str, Any], arc: float, key: str) -> Point | None:
@@ -180,36 +205,107 @@ def _at(src: dict[str, Any], arc: float, key: str) -> Point | None:
     return None if best is None else best[key]
 
 
-def _annotate(src: dict[str, Any], to: Scaler) -> str:
-    """Places on the wall, articulators on the open trace."""
+def _place_labels(
+    items: list[tuple[str, Point]], base: int, step: int, taken: list[tuple[float, ...]]
+) -> list[tuple[str, float, float, float]]:
+    """Drop each label to the shallowest depth where it does not collide.
+
+    A fixed stagger cannot work here: the front of the mouth packs six places
+    into 0.24 of arc, so any fixed number of rows eventually overlaps. This
+    walks the labels in order and pushes each one down until its box is
+    clear of every box already placed, which terminates and leaves the
+    drawing readable whatever the head's proportions are.
+    """
+    out: list[tuple[str, float, float, float]] = []
+    for name, (x, y) in items:
+        half = len(name) * CHAR_W / 2
+        depth = base
+        for _ in range(12):
+            top = y + depth
+            box = (x - half, top, x + half, top + LINE_H)
+            if not any(
+                box[0] < t[2] and t[0] < box[2] and box[1] < t[3] and t[1] < box[3]
+                for t in taken
+            ):
+                break
+            depth += step
+        top = y + depth
+        taken.append((x - half, top, x + half, top + LINE_H))
+        out.append((name, x, y, depth))
+    return out
+
+
+def _annotate(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -> str:
+    """Places under the roof, articulators under the floor.
+
+    Labels used to sit above the wall, which is where the nasal branch now
+    runs, so they collided with it and with each other. Places are read off
+    the roof and hang inside the oral cavity; articulators hang below the
+    open trace. Both stagger over three depths, because the front of the
+    mouth packs six places into 0.24 of arc and two depths is not enough.
+    """
     parts: list[str] = []
-    for i, (name, arc) in enumerate(sorted(PLACES.items(), key=lambda kv: kv[1])):
+
+    anchors: list[tuple[str, Point]] = []
+    for name, arc in sorted(PLACES.items(), key=lambda kv: kv[1]):
         anchor = _at(src, arc, "wall")
-        if anchor is None:
-            continue
-        x, y = to(*anchor)
-        fric = name in FRICATIVE_PLACES
-        cls = "place fric" if fric else "place"
-        lift = 15 + (i % 2) * 15
+        if anchor is not None:
+            anchors.append((name, to(*anchor)))
+    for name, x, y, depth in _place_labels(anchors, 14, 13, taken):
+        cls = "place fric" if name in FRICATIVE_PLACES else "place"
         parts.append(
-            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y - lift:.1f}" '
+            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
             f'class="lead {cls}"/>'
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4" class="mark {cls}"/>'
-            f'<text x="{x:.1f}" y="{y - lift - 4:.1f}" class="lbl {cls}" '
-            f'text-anchor="middle">{name}</text>'
+            f'<text x="{x:.1f}" y="{y + depth + 10:.1f}" class="lbl {cls}" '
+            f'text-anchor="middle">{name.replace("-", " ")}</text>'
         )
-    for i, (name, arc) in enumerate(sorted(ARTICULATORS.items(), key=lambda kv: kv[1])):
+
+    anchors = []
+    for name, arc in sorted(ARTICULATORS.items(), key=lambda kv: kv[1]):
         anchor = _at(src, arc, "open")
-        if anchor is None:
-            continue
-        x, y = to(*anchor)
-        drop = 14 + (i % 2) * 14
+        if anchor is not None:
+            anchors.append((name, to(*anchor)))
+    for name, x, y, depth in _place_labels(anchors, 18, 13, taken):
         parts.append(
-            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + drop:.1f}" '
+            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
             f'class="lead art"/>'
-            f'<text x="{x:.1f}" y="{y + drop + 11:.1f}" class="lbl art" '
-            f'text-anchor="middle">{name}</text>'
+            f'<text x="{x:.1f}" y="{y + depth + 10:.1f}" class="lbl art" '
+            f'text-anchor="middle">{name.replace("-", " ")}</text>'
         )
+    for name, arc in MEDIAN.items():
+        wall = _at(src, arc, "wall")
+        openp = _at(src, arc, "open")
+        if wall is None or openp is None:
+            continue
+        wx, wy = to(*wall)
+        ox, oy = to(*openp)
+        cx, cy = (wx + ox) / 2, (wy + oy) / 2
+        parts.append(
+            f'<line x1="{ox:.1f}" y1="{oy:.1f}" x2="{wx:.1f}" y2="{wy:.1f}" '
+            f'class="median"/>'
+            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.2" class="medianmark"/>'
+        )
+        for label, lx, ly, depth in _place_labels([(name, (cx, cy))], 14, 13, taken):
+            parts.append(
+                f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{lx:.1f}" '
+                f'y2="{ly + depth:.1f}" class="lead art"/>'
+                f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl art" '
+                f'text-anchor="middle">{label.replace("-", " ")}</text>'
+            )
+    teeth = src.get("teeth") or []
+    if len(teeth) >= 2:
+        ex, ey = to(teeth[0]["x"], teeth[0]["y"])
+        ax, ay = to(teeth[1]["x"], teeth[1]["y"])
+        parts.append(
+            f'<path d="M{ex:.1f},{ey:.1f} L{ax:.1f},{ay:.1f}" class="teeth"/>'
+            f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="2.6" class="teethmark"/>'
+        )
+        for label, lx, ly, depth in _place_labels([("teeth", (ex, ey))], 12, 13, taken):
+            parts.append(
+                f'<text x="{lx:.1f}" y="{ly - depth:.1f}" class="lbl teeth" '
+                f'text-anchor="middle">{label.replace("-", " ")}</text>'
+            )
     rest_arc = src.get("rest_arc")
     if rest_arc is not None:
         anchor = _at(src, float(rest_arc), "rest")
@@ -217,21 +313,84 @@ def _annotate(src: dict[str, Any], to: Scaler) -> str:
             x, y = to(*anchor)
             parts.append(
                 f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" class="restmark"/>'
-                f'<text x="{x + 9:.1f}" y="{y + 4:.1f}" class="lbl rest">rest</text>'
+                f'<text x="{x + 9:.1f}" y="{y - 6:.1f}" class="lbl rest">rest</text>'
             )
-    nasal = _at(src, VELUM_ARC, "wall")
-    if nasal is not None:
-        x, y = to(*nasal)
+    return "".join(parts)
+
+
+def _nasal(
+    src: dict[str, Any],
+    to: Scaler,
+    aperture: float,
+    taken: list[tuple[float, ...]],
+) -> str:
+    """The nasal branch, and the velum at the aperture this bundle asks for."""
+    rows = src.get("nasal") or []
+    if not rows:
+        return ""
+    upper = [to(*r["wall"]) for r in rows]
+    lower = [to(*r["low"]) for r in rows]
+    tube = _path(upper + list(reversed(lower)), close=True)
+    mid = _path([to(*r["mid"]) for r in rows])
+    # The floor near the port stops being a boundary once the port is open.
+    keep = (
+        len(lower)
+        if aperture <= 0.01
+        else max(2, int(len(lower) * (1 - 0.18 * aperture)))
+    )
+    parts = [
+        f'<path d="{tube}" class="nasalfill"/>',
+        f'<path d="{_path(upper)}" class="nasalside"/>',
+        f'<path d="{_path(lower[:keep])}" class="nasalside"/>',
+        f'<path d="{mid}" class="nasalmid"/>',
+    ]
+    lx, ly = to(*rows[len(rows) // 3]["wall"])
+    for label, nx, ny, depth in _place_labels(
+        [("nasal cavity", (lx, ly))], -20, -13, taken
+    ):
         parts.append(
-            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x + 26:.1f}" y2="{y - 54:.1f}" '
-            f'class="nasal"/>'
-            f'<text x="{x + 30:.1f}" y="{y - 58:.1f}" class="lbl nasal">'
-            f"nasal cavity — not modelled</text>"
+            f'<text x="{nx:.1f}" y="{ny + depth:.1f}" class="lbl nasal" '
+            f'text-anchor="middle">{label.replace("-", " ")}</text>'
+        )
+    declared_port = src.get("port_arc")
+    if declared_port is None:
+        return "".join(parts)
+    port_arc = float(declared_port)
+    hinge = _at(src, max(port_arc - 0.08, 0.0), "wall")
+    lowered_to = _at(src, port_arc, "open")
+    if hinge is None or lowered_to is None:
+        return "".join(parts)
+    hx, hy = to(*hinge)
+    sealed = to(*rows[-1]["mid"])
+    lowered = to(*lowered_to)
+    tx = sealed[0] + (lowered[0] - sealed[0]) * aperture
+    ty = sealed[1] + (lowered[1] - sealed[1]) * aperture
+    if aperture <= 0.01:
+        state = "sealed"
+    elif aperture >= 0.99:
+        state = "open"
+    else:
+        state = "part-open"
+    parts.append(
+        f'<path d="M{hx:.1f},{hy:.1f} Q{hx:.1f},{ty:.1f} {tx:.1f},{ty:.1f}" '
+        f'class="velum"/>'
+        f'<circle cx="{tx:.1f}" cy="{ty:.1f}" r="3" class="velumtip"/>'
+    )
+    for text, vx, vy, depth in _place_labels(
+        [(f"velum · port {state}", (tx, ty))], 14, 13, taken
+    ):
+        parts.append(
+            f'<line x1="{vx:.1f}" y1="{vy:.1f}" x2="{vx:.1f}" '
+            f'y2="{vy + depth:.1f}" class="lead art"/>'
+            f'<text x="{vx:.1f}" y="{vy + depth + 10:.1f}" class="lbl velum" '
+            f'text-anchor="middle">{text}</text>'
         )
     return "".join(parts)
 
 
-def section_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
+def section_svg(
+    current: dict[str, Any], prior: dict[str, Any] | None, aperture: float = 0.0
+) -> str:
     sets = [current] if prior is None else [current, prior]
     to = _scaler(*_extent(*sets))
     parts = []
@@ -242,10 +401,12 @@ def section_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
     parts.append(
         '<path d="' + _band(current, to, "wall", "open") + '" class="sweep trace"/>'
     )
-    parts.append('<path d="' + _trace(current, to, "wall") + '" class="wall"/>')
+    parts.append(_wall_with_port(current, to, aperture))
     parts.append('<path d="' + _trace(current, to, "rest") + '" class="restline"/>')
     parts.append('<path d="' + _trace(current, to, "open") + '" class="openline"/>')
-    parts.append(_annotate(current, to))
+    taken: list[tuple[float, ...]] = []
+    parts.append(_annotate(current, to, taken))
+    parts.append(_nasal(current, to, aperture, taken))
     return (
         f'<svg viewBox="0 0 {WIDTH} {SECTION_HEIGHT}" role="img" '
         f'aria-label="Mid-sagittal tract section">{"".join(parts)}</svg>'
@@ -302,17 +463,17 @@ def profile_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
 
 STYLE = """
 :root{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;--text:#CFDAE2;
---dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;
+--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 @media (prefers-color-scheme:light){:root{--ground:#DFE4E8;--panel:#F1F4F6;
 --edge:#C9D2D9;--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;
---signal:#A96F0E;--tubeTrace:rgba(34,67,92,.10);
+--signal:#A96F0E;--velum:#1F7A63;--tubeTrace:rgba(34,67,92,.10);
 --tubePrior:rgba(154,169,180,.22)}}
 :root[data-theme=dark]{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;
---text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;
+--text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 :root[data-theme=light]{--ground:#DFE4E8;--panel:#F1F4F6;--edge:#C9D2D9;
---text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;
+--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;
 --tubeTrace:rgba(34,67,92,.10);--tubePrior:rgba(154,169,180,.22)}
 body{background:var(--ground);color:var(--text);margin:0;
 font:400 16px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -350,7 +511,18 @@ stroke-dasharray:3 4;opacity:.75}
 .lbl.rest{fill:var(--text)}
 .lbl.nasal{fill:var(--dim);font-style:italic}
 .restmark{fill:none;stroke:var(--text);stroke-width:1.4}
-.nasal{stroke:var(--dim);stroke-width:1;stroke-dasharray:2 4;opacity:.7}
+.nasalfill{fill:var(--tubeTrace);stroke:none}
+.nasalside{fill:none;stroke:var(--trace);stroke-width:1;opacity:.8}
+.nasalmid{fill:none;stroke:var(--trace);stroke-width:.8;
+stroke-dasharray:2 4;opacity:.5}
+.velum{stroke:var(--velum);stroke-width:2;stroke-linecap:round;fill:none}
+.velumtip{fill:var(--velum)}
+.lbl.velum{fill:var(--velum)}
+.median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
+.teeth{stroke:var(--text);stroke-width:2.2;stroke-linecap:round;fill:none}
+.teethmark{fill:var(--text)}
+.lbl.teeth{fill:var(--text)}
+.medianmark{fill:none;stroke:var(--dim);stroke-width:1.6}
 .dot.measured{fill:var(--signal)}
 td.measured{color:var(--signal)}
 .line{fill:none;stroke-width:2;stroke-linejoin:round}
@@ -399,7 +571,13 @@ def _table(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
     return "".join(out)
 
 
-def page(name: str, current: dict[str, Any], prior: dict[str, Any] | None) -> str:
+def page(
+    name: str,
+    current: dict[str, Any],
+    prior: dict[str, Any] | None,
+    aperture: float = 0.0,
+    phone: str | None = None,
+) -> str:
     key = (
         ""
         if prior is None
@@ -415,6 +593,7 @@ def page(name: str, current: dict[str, Any], prior: dict[str, Any] | None) -> st
 <div class="wrap">
 <header><p class="eyebrow">ipakit · heads.xml · {name}</p>
 <h1>Mid-sagittal tract</h1>
+{f'<p class="eyebrow" style="color:var(--dim);margin-top:8px">posture: {phone} · velic port {aperture:.2f}</p>' if phone else ''}
 <p style="margin-top:12px;color:var(--dim)">Drawn through
 <code>Head.project</code>, the same call a renderer makes, so this cannot
 drift from the model. Heads are read only for rendering and never by
@@ -424,7 +603,7 @@ drift from the model. Heads are read only for rendering and never by
 against it. Shaded is that sweep, with the open and rest positions drawn
 inside it. Places are labelled on the wall, articulators on the open trace;
 those in amber host a fricative or affricate somewhere in the inventory.</p>
-<figure>{section_svg(current, prior)}</figure>{key}</section>
+<figure>{section_svg(current, prior, aperture)}</figure>{key}</section>
 <section><h2>Declared diameter</h2>
 <p>Where a change to the profile is legible.</p>
 <figure>{profile_svg(current, prior)}</figure>
@@ -454,8 +633,14 @@ def cmd_draw(args: argparse.Namespace) -> int:
             f"no head {args.head!r}; have {', '.join(sorted(heads()))}", file=sys.stderr
         )
         return 1
+    aperture = 0.0
+    if args.phone:
+        ipa = IPAFeatures()
+        aperture = velic_aperture(ipa, ipa.get_features(args.phone))
     current = geometry(args.head)
-    Path(args.output).write_text(page(args.head, current, prior), encoding="utf-8")
+    Path(args.output).write_text(
+        page(args.head, current, prior, aperture, args.phone), encoding="utf-8"
+    )
     moved = 0
     if prior is not None:
         before = {p["arc"]: p["diameter"] for p in prior["midline"]}
@@ -488,6 +673,7 @@ def main(argv: list[str] | None = None) -> int:
     p_draw.add_argument("--head", default="adult-male")
     p_draw.add_argument("-o", "--output", default="tract.html")
     p_draw.add_argument("--compare", help="a dump from another revision, overlaid")
+    p_draw.add_argument("--phone", help="open the velic port as this phone asks")
     p_draw.set_defaults(func=cmd_draw)
 
     p_dump = sub.add_parser("dump", help="project every head to JSON, for --compare")

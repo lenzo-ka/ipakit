@@ -50,6 +50,10 @@ class Feature:
     # Default active articulator per value: place names the constriction
     # target, this names the organ that gets there.
     articulators: dict[str, str] = field(default_factory=dict)
+    # Value -> how that value's constriction is shaped, when the data says.
+    # "median" means the articulator closes toward the tract axis rather than
+    # toward a wall; `offset` models the one-sided case. Rendering geometry.
+    apertures: dict[str, str] = field(default_factory=dict)
     # Contribution mode a mark stating this feature makes (docs/ties.md),
     # declared in the data. None means the mode vocabulary's default.
     mode: str | None = None

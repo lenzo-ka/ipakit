@@ -142,7 +142,12 @@
       <value name="-" label="retracted"/>
     </feature>
     <feature name="articulator" axis="+x" short="art" desc="Active articulator: the organ that moves to make the constriction, ordered by its home position along the tract" href="Place_of_articulation#Active_articulator">
-      <!-- Only the two an IPA diacritic states carry a label. The others are
+      <!-- `aperture="median"` says the folds close toward each other about the
+           tract axis rather than toward a wall, the way a tongue closes toward a
+           palate. Rendering geometry: `offset` models the one-sided case, so a
+           median articulator is drawn centred and its closure is not an offset.
+
+           Only the two an IPA diacritic states carry a label. The others are
            the default organ for a place (read by ipakit.tract), never stated on
            a segment, so there is no conventional word a description would use
            for them. A mark that ever states one must be labelled here. -->
@@ -153,7 +158,7 @@
       <value name="tongue-dorsum" arc="0.45" short="tdo" href="Dorsal_consonant"/>
       <value name="tongue-root" arc="0.74" short="trt" href="Radical_consonant"/>
       <value name="epiglottis" arc="0.87" short="epg" href="Epiglottal_consonant"/>
-      <value name="vocal-folds" arc="1.00" short="vfd" href="Glottal_consonant"/>
+      <value name="vocal-folds" arc="1.00" short="vfd" aperture="median" href="Glottal_consonant"/>
     </feature>
     <feature name="centralized" short="ctz" type="binary" desc="Moved toward center" href="Relative_articulation#Centralization">
       <value name="+" label="centralized"/>
@@ -268,9 +273,16 @@
        what the metric does with it is not. -->
   <bridges>
     <bridge name="nasality" desc="Airflow through the nose" href="Nasalization">
-      <spelling feature="manner" value="nasal"/>
-      <spelling feature="nasalized" value="+"/>
-      <spelling feature="release" value="nasal"/>
+      <!-- `port` is how far the velum lowers for a segment spelling nasality
+           this way, 0 sealed and 1 fully open. It is rendering geometry, read
+           by ipakit.tract and never by the metric, which uses only the
+           (feature, value) pairs. A nasal has the nose as its outlet, so the
+           port is fully open; a nasalized segment keeps an oral outlet and
+           sits between the velum's two set points (docs/tract-anatomy.md
+           4.3); a nasally released stop opens the port for the release. -->
+      <spelling feature="manner" value="nasal" port="1.0"/>
+      <spelling feature="nasalized" value="+" port="0.5"/>
+      <spelling feature="release" value="nasal" port="1.0"/>
     </bridge>
     <bridge name="laterality" desc="Airflow at the sides of the tongue" href="Lateral_consonant">
       <spelling feature="channel" value="lateral"/>
