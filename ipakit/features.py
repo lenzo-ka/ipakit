@@ -374,6 +374,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         belong to the unit, not to its feature bag, so ``eː`` reads the
         features of ``e`` and carries its length as prosody.
 
+        What holds for one shape of base holds for the other. A mark the
+        parse cannot place is refused whether the base is atomic or a tie
+        composition: ``tˈ``, ``t͡sˈ`` and ``a͜sˈ`` all read ``{}`` and
+        warn, because a stress mark scopes the unit that follows it and
+        none of these gives it one. ``t͡sˈ`` used to answer with ``t͡s``'s
+        bundle and say nothing.
+
         Returns ``{}`` when nothing resolves.
         """
         phone = self._resolve_token(phone)
@@ -540,12 +547,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         An unbound tie contributes an empty part, and it is dropped
         rather than resolved: ``parse`` already treats a tie that binds
-        nothing as no juncture at all, so composing it away here is what
-        keeps this read agreeing with ``compose`` and ``scalar`` about
-        the same string. ``_resolves_part`` tolerates such a tie, so
-        raising on the empty part it produces would make the two halves
-        of this path disagree -- "it resolves" against "it cannot be
-        read".
+        nothing as no juncture at all, so composing it away here keeps
+        this read from raising where ``compose`` and ``scalar`` answer.
+
+        No caller reaches this with an empty part today --
+        ``_is_composable`` refuses a part whose tie binds nothing, so
+        ``a͜ɪ͡`` now takes the structured route through
+        ``_modified_features`` instead. The drop stays because the
+        alternative is ``_parse_constituent`` raising out of a read
+        documented to return ``{}``, which is a worse answer than an
+        ignored glyph whichever route arrives here.
         """
         parts = [p for p in run.split(TIE_BAR) if p]
         if not parts:
@@ -1740,15 +1751,30 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return symbol
 
     def _parse_constituent(self, part: str) -> Constituent:
+        """One base phone with the marks written on it, or ``ValueError``.
+
+        The modifiers are taken by :meth:`_modifier_run`, which is also
+        what :meth:`parse` uses to decide how far a unit extends, so the
+        two cannot disagree about which marks a base absorbs. That run
+        stops at a mark that binds something other than the base it
+        follows -- a tie, a break, and above all a stress mark, which
+        scopes the unit *after* it. Such a mark is left for the caller
+        rather than swallowed: a constituent has no place to put it, and
+        a bundle that quietly ignores part of its own spelling is the
+        silent wrong answer this refusal exists to prevent.
+
+        Anything left over is therefore an error, whether it is an
+        unregistered character or a registered mark this constituent
+        cannot carry.
+        """
         part = self._resolve_token(part)
         base, best_len = longest_match(part, 0, self.phones, MAX_MATCH_LEN)
         if not base:
             raise ValueError(f"no registered base phone in {part!r}")
-        modifiers = []
-        for ch in part[best_len:]:
-            if ch not in self.diacritics:
-                raise ValueError(f"unknown modifier {ch!r} in {part!r}")
-            modifiers.append(ch)
+        modifiers = self._modifier_run(part, best_len)
+        if best_len + len(modifiers) != len(part):
+            stray = part[best_len + len(modifiers)]
+            raise ValueError(f"unknown modifier {stray!r} in {part!r}")
         return Constituent(base=base, modifiers=tuple(modifiers))
 
     def _segment_from_token(

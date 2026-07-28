@@ -122,13 +122,18 @@ class TestTheDocumentedDivergenceSurvives:
 
 
 class TestAnUnboundTieDoesNotCrashTheFlatRead:
-    """`_resolves_part` tolerates a trailing tie, so the read must too.
+    """A tie that binds nothing is read, not raised on.
 
-    `_is_composable` accepted a SEQ chain whose block ended in an
-    over-tie, because `_parse_constituent` tolerates the dangling glyph.
-    The fused merge then split that block on the tie and raised on the
-    empty part it had manufactured -- the two halves of one path
+    `_is_composable` once accepted a SEQ chain whose block ended in an
+    over-tie, because `_parse_constituent` took the dangling glyph as a
+    modifier. The fused merge then split that block on the tie and raised
+    on the empty part it had manufactured -- the two halves of one path
     disagreeing about whether the same string resolves.
+
+    `_parse_constituent` no longer takes a tie as a modifier, so these now
+    resolve the other way: the composed path declines them and the
+    structured one reads them, dropping the unbound glyph as parse does.
+    What is asserted here is the answer, not the route to it.
     """
 
     UNBOUND = ["a͜ɪ͡", "s͜p͡", "a͜t͡", "t͡s͜a͡", "ʃ͜k͡", "͡s", "a͡"]
@@ -156,3 +161,134 @@ class TestAnUnboundTieDoesNotCrashTheFlatRead:
         assert ipa.get_features("t͡s")["manner"] == "affricate"
         assert ipa.get_features("a͜ɪ")["manner"] == "vowel"
         assert ipa.get_features("kʷ͡p")["labialized"] == "+"
+
+
+@pytest.fixture(scope="module")
+def marked(ipa: IPAFeatures) -> list[tuple[str, str, str]]:
+    """``(unit, base, mark)`` for every phone carrying every diacritic.
+
+    Deliberately *not* filtered to what parses or re-emits: the question
+    here is what the flat read does with a string it cannot fully place,
+    and filtering those out would remove the whole subject.
+    """
+    return [(base + mark, base, mark) for base in ipa.phones for mark in ipa.diacritics]
+
+
+def _is_tied(base: str) -> bool:
+    """True if ``base`` is a tie composition rather than an atomic phone."""
+    return TIE_BAR in base or SEQ_TIE in base
+
+
+class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
+    """A trailing stress mark was refused on an atomic base and taken on
+    a tied one.
+
+    ``get_features("tˈ")`` was ``{}`` and warned that the mark binds the
+    unit *after* it; ``get_features("t͡sˈ")`` and ``get_features("a͜sˈ")``
+    returned full bundles and said nothing, and ``describe("a͜sˈ")`` read
+    the string as if the mark were not written. The two answers came from
+    two pieces of code: the atomic base went through the structured parse,
+    while a tie composition went through ``_parse_constituent``, which took
+    any registered diacritic as a modifier of its base -- including the
+    stress marks that ``_modifier_run``, the parse's own rule for how far a
+    unit extends, exists to stop at.
+
+    The guard is not the 46 registered strings that showed it. It is the
+    two predicates they broke, swept over bases of both shapes.
+    """
+
+    def test_the_sweep_is_wide(self, marked: list[tuple[str, str, str]]) -> None:
+        # Vacuous-sweep guard, and both shapes have to be in it: an
+        # inventory that lost its tie compositions would make the
+        # comparison below true by having nothing to compare.
+        assert len(marked) > 5_000
+        shapes = {_is_tied(base) for _, base, _ in marked}
+        assert shapes == {True, False}
+
+    def test_a_mark_is_taken_or_refused_by_shape_alone(
+        self, ipa: IPAFeatures, marked: list[tuple[str, str, str]]
+    ) -> None:
+        """Whether ``base + mark`` reads is a property of the mark, not of
+        whether ``base`` happens to be a tie composition."""
+        taken: dict[tuple[str, bool], set[bool]] = {}
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for unit, base, mark in marked:
+                key = (mark, _is_tied(base))
+                taken.setdefault(key, set()).add(bool(ipa.get_features(unit)))
+        for mark in ipa.diacritics:
+            atomic, tied = taken[(mark, False)], taken[(mark, True)]
+            assert atomic == tied, (mark, atomic, tied)
+
+    def test_a_bundle_accounts_for_the_whole_string(
+        self, ipa: IPAFeatures, marked: list[tuple[str, str, str]]
+    ) -> None:
+        """The flat read answers with a bundle exactly when the unit's
+        parse can place every substantive character it was given.
+
+        The converse matters as much as the direction: a mark the parse
+        drops must not come back as an answer, and a mark it does place
+        must not be turned away.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for unit, _, _ in marked:
+                assert bool(ipa.get_features(unit)) == _accounted(ipa, unit), unit
+
+    def test_it_holds_for_chains_the_inventory_does_not_register(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """``a͜sˈ`` is not a registered phone, and the defect reached every
+        chain like it -- a far wider surface than the 46 registered
+        strings. Sampled rather than exhaustive, for run time."""
+        atomic = [p for p in ipa.phones if not _is_tied(p)]
+        sample = atomic[::4]
+        checked = 0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for head in sample:
+                for tail in sample:
+                    for tie in (TIE_BAR, SEQ_TIE):
+                        for mark in ("", *ipa.stress_markers, "ː", "̃", "ʰ", "|"):
+                            unit = head + tie + tail + mark
+                            assert bool(ipa.get_features(unit)) == _accounted(
+                                ipa, unit
+                            ), unit
+                            checked += 1
+        assert checked > 5_000, "sweep did not run"
+
+    def test_the_refusal_is_reported_whatever_the_base(self, ipa: IPAFeatures) -> None:
+        """Silence was half the defect: the tied read dropped the mark
+        without the warning the atomic read gives."""
+        for unit in ("tˈ", "t͡sˈ", "a͜sˈ", "aˌ", "a͜ɪˌ"):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                assert ipa.get_features(unit) == {}, unit
+            assert caught, unit
+            assert "stress mark" in str(caught[0].message), unit
+            assert ipa.describe(unit) == f"unknown phone: {unit}"
+
+
+def _accounted(ipa: IPAFeatures, text: str) -> bool:
+    """True if the unit ``text`` parses to one that re-emits every
+    substantive character of it.
+
+    The same comparison ``_modified_features`` makes, by character
+    multiset and with structural marks excluded on both sides: a unit
+    emits its marks in its own order, and the linking undertie belongs to
+    no unit at all, so what is asked is that nothing was lost, not that
+    nothing moved. Unicode is canonicalized first because ``to_ipa``
+    emits composed forms and the caller may have written decomposed ones.
+    """
+    text = ipa.canonicalize_unicode(text)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            emitted = ipa.segment(text).to_ipa()
+        except ValueError:
+            return False
+
+    def substantive(s: str) -> list[str]:
+        return sorted(ch for ch in s if not ipa.is_structural_token(ch))
+
+    return substantive(emitted) == substantive(text)
