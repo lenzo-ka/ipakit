@@ -39,10 +39,6 @@ _SECONDARY_KEYS = frozenset(
     {"palatalized", "labialized", "velarized", "pharyngealized", "labio-palatized"}
 )
 _OVERRIDING_KEYS = frozenset({"voiced", "place", "manner", "syllabic"})
-# Symbols whose feature keys would misclassify them: pre-glottalization
-# carries a glottal phase (manner/place) and the schwa release carries vowel
-# qualities, but both are release/phase marks, not overrides of their base.
-_MODE_EXCEPTIONS = {"ˀ": "release", "ᵊ": "release"}
 
 _ORAL_OBSTRUENT = frozenset({"plosive", "fricative", "affricate"})
 
@@ -77,14 +73,13 @@ def modifier_mode(features: IPAFeaturesBase, symbol: str) -> str:
     """Contribution mode of a diacritic/suprasegmental symbol.
 
     One of ``structural``, ``prosodic``, ``release``, ``secondary``,
-    ``overriding``, ``additive``. Derived from the mark's feature keys,
-    with the documented exceptions.
+    ``overriding``, ``additive``. Derived entirely from the mark's
+    declared feature keys: a mark is a release phase because it says
+    ``release=...``, not because a table in this module says so.
 
     Takes the mixin base rather than ``IPAFeatures``: it reads only the
     diacritic table, so the mixins can call it on ``self``.
     """
-    if symbol in _MODE_EXCEPTIONS:
-        return _MODE_EXCEPTIONS[symbol]
     mark = features.diacritics.get(symbol)
     keys = set(mark.features) - METADATA_ATTRS - {"class"} if mark else set()
     if keys & _STRUCTURAL_KEYS:

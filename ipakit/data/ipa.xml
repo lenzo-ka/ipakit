@@ -142,6 +142,8 @@
       <value name="lateral" short="lrl" href="Lateral_release_(phonetics)"/>
       <value name="nasal" short="nrl" href="Nasal_release"/>
       <value name="no-audible" short="nau" href="No_audible_release"/>
+      <value name="glottal" short="grl" href="Glottalization"/>  <!-- the glottal phase of a pre-glottalized stop: a phase, not the segment's own place -->
+      <value name="schwa" short="srl" href="Schwa"/>  <!-- the schwa-coloured release of a stop: a phase, not the segment's own vowel quality -->
     </feature>
 
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
@@ -393,8 +395,8 @@
     <diacritic name="ᶣ" labio-palatized="+"/>
     <diacritic name="ⁿ" release="nasal" href="Nasal_release"/>
     <diacritic name="ʻ" release="aspirated" href="Aspirated_consonant"/>
-    <diacritic name="ˀ" manner="plosive" place="glottal" href="Glottal_stop"/>
-    <diacritic name="ᵊ" height="mid" backness="central" href="Schwa"/>
+    <diacritic name="ˀ" release="glottal" href="Glottal_stop"/>
+    <diacritic name="ᵊ" release="schwa" href="Schwa"/>
   </diacritics>
 
   <suprasegmentals>
