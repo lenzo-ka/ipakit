@@ -193,9 +193,10 @@ Phones stay head-independent: they declare constriction targets, never postures.
 - **Tongue parameterization.** A body arc plus a tip offset (three to four parameters) covers the attested inventory and keeps inverse kinematics tractable; a free spline is more faithful and much harder to constrain. The arc is probably right, but the choice should be tested against the awkward cases — retroflexes, and the tongue-root distinction in ATR systems.
 - **Where lateral information lives.** Mid-sagittal geometry cannot represent grooving. An annotation on the segment is the pragmatic answer; a second (coronal) plane is the faithful one.
 - **Whether anchors become derived.** Deriving `arc` and `offset` from geometry would remove hand-placed numbers, but makes every distance depend on the anatomy model being right. Deriving them and *checking* them against the current hand-placed values is the safer sequence.
-- **Sources.** The contours here are described qualitatively. Turning them into numbers wants a specific published mid-sagittal reference, cited in the data, rather than composite recollection.
+- **Sources.** The contours here are described qualitatively. Turning them into numbers wants a specific published mid-sagittal reference, cited in the data, rather than composite recollection. One is now in hand for part of the geometry: [docs/articulatory-data.md](articulatory-data.md) measures the palate, the tongue-to-palate aperture, the mandibular hinge and the jaw-to-tongue carrier relation against the X-Ray Microbeam database, and `heads.xml` now carries the measured aperture over arc 0.20-0.40. It also says plainly what that instrument cannot see: no velum, no larynx, nothing behind arc 0.44, and nothing off the mid-sagittal plane.
 
 ## Related
 
 - [docs/gestural-model.md](gestural-model.md) — segments as gesture sets; a gesture is what this geometry executes
 - [docs/distance.md](distance.md) — the current model, whose anchors this specification would derive
+- [docs/articulatory-data.md](articulatory-data.md) — measured articulatory data for the part of this geometry an instrument can see, and what it grounds
