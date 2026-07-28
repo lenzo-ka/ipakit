@@ -36,3 +36,9 @@ MAX_MATCH_LEN = 11
 # Display/formatting constants
 DEFAULT_SHORT_NAME_LEN = 3  # Default length for auto-generated short names
 MAX_EXAMPLE_PHONES = 5  # Max example phones to show in listings
+
+# Classes an `applies` declaration may name besides a declared manner
+# value. Each is a predicate over data already in the file, not a list of
+# values restated here: `consonant` is the complement of vowel and
+# silence, `nucleus` is vowel-or-syllabic.
+DERIVED_CLASSES = frozenset({"consonant", "nucleus"})

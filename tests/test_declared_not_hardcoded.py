@@ -96,12 +96,12 @@ class TestTheDataSaysWhatThePythonUsedTo:
         assert labels["rhotacized"] == {"+": "r-colored"}
 
     def test_class_applicability(self, ipa: IPAFeatures) -> None:
-        assert not ipa.feature_applies("channel", "vowel")
-        assert ipa.feature_applies("channel", "plosive")
-        assert not ipa.feature_applies("retroflex", "vowel")
-        assert not ipa.feature_applies("rhotacized", "plosive")
-        assert ipa.feature_applies("nasalized", "vowel")
-        assert ipa.feature_applies("nasalized", "plosive")
+        assert not ipa.feature_applies("channel", {"manner": "vowel"})
+        assert ipa.feature_applies("channel", {"manner": "plosive"})
+        assert not ipa.feature_applies("retroflex", {"manner": "vowel"})
+        assert not ipa.feature_applies("rhotacized", {"manner": "plosive"})
+        assert ipa.feature_applies("nasalized", {"manner": "vowel"})
+        assert ipa.feature_applies("nasalized", {"manner": "plosive"})
 
     def test_the_excluded_keys(self, ipa: IPAFeatures) -> None:
         from ipakit.constants import METADATA_ATTRS
@@ -148,7 +148,11 @@ class TestTheOrderingTupleCanOnlyOrder:
         }
         reachable = set()
         for manner in [*ipa.features["manner"].values, None]:
-            reachable |= set(ipa._modifier_features(manner))
+            bundle = {"manner": manner} if manner else {}
+            reachable |= set(ipa._modifier_features(bundle))
+            # A nucleus is vowel-or-syllabic, so a nucleus-only feature is
+            # reachable on a consonantal manner that is marked syllabic.
+            reachable |= set(ipa._modifier_features({**bundle, "syllabic": "+"}))
         assert admitted == reachable
 
 

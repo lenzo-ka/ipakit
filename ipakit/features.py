@@ -16,6 +16,7 @@ from .analysis import AnalysisMixin
 from .constants import (
     DEFAULT_IPA_FEATS,
     DEFAULT_SHORT_NAME_LEN,
+    DERIVED_CLASSES,
     MAX_MATCH_LEN,
     METADATA_ATTRS,
     SEQ_TIE,
@@ -216,8 +217,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     value_classes={k: frozenset(v) for k, v in classes.items()},
                 )
 
-        # `applies` names manner classes: a declared manner value, or
-        # "consonant" for the derived complement of vowel and silence.
+        # `applies` names a declared manner value, or one of the derived
+        # classes below -- each a predicate over declared data, not a list
+        # of values restated in Python.
         manner_values = (
             set(self.features["manner"].values) if "manner" in self.features else set()
         )
@@ -225,12 +227,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             for token in feat.applies:
                 if (
                     manner_values
-                    and token != "consonant"
+                    and token not in DERIVED_CLASSES
                     and token not in manner_values
                 ):
                     raise ValueError(
                         f"feature {name!r} declares applies={token!r}, which is "
-                        "neither a declared manner value nor 'consonant'"
+                        f"neither a declared manner value nor one of "
+                        f"{sorted(DERIVED_CLASSES)}"
                     )
 
         # Load elements by class (plural section, singular child = section[:-1])
@@ -1749,16 +1752,31 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             if feat.mode == "secondary" and feat.place is not None
         }
 
-    def feature_applies(self, feature: str, manner: str | None) -> bool:
-        """Whether a description of a segment of this manner reads
-        ``feature`` out. A feature that declares no ``applies`` applies to
-        every manner."""
+    def feature_applies(self, feature: str, bundle: dict[str, str]) -> bool:
+        """Whether a description of this segment reads ``feature`` out.
+
+        A feature that declares no ``applies`` applies to everything.
+        Otherwise it applies when the segment's manner is named, or when
+        one of the derived classes claims it: ``consonant`` is the
+        complement of vowel and silence, and ``nucleus`` is anything that
+        can be a syllable peak -- a vowel, or any segment marked
+        syllabic. Nucleus-hood is not a manner class: a syllabic liquid
+        is a nucleus with consonantal manner, and Tashlhiyt Berber and
+        Miyako put stops and fricatives in the same position.
+        """
         feat = self.features.get(feature)
-        if feat is None or not feat.applies or manner is None:
+        if feat is None or not feat.applies:
+            return True
+        manner = bundle.get("manner")
+        if manner is None:
             return True
         if manner in feat.applies:
             return True
-        return "consonant" in feat.applies and manner in self.consonant_manners
+        if "consonant" in feat.applies and manner in self.consonant_manners:
+            return True
+        return "nucleus" in feat.applies and (
+            manner == "vowel" or bundle.get("syllabic") == "+"
+        )
 
     @functools.cached_property
     def consonant_manners(self) -> frozenset[str]:

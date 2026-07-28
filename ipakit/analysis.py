@@ -71,7 +71,7 @@ class AnalysisMixin(IPAFeaturesBase):
             # Vowel: [modifiers] height backness [rounded] vowel. Voicing
             # is not read out: no vowel letter declares it, so every one
             # of them would report the binary default.
-            parts.extend(self._modifiers(feats, manner or None))
+            parts.extend(self._modifiers(feats))
             if height := feats.get("height"):
                 parts.append(height)
             if backness := feats.get("backness"):
@@ -88,7 +88,7 @@ class AnalysisMixin(IPAFeaturesBase):
             if label := self._label("voiced", feats.get("voiced")):
                 parts.append(label)
 
-            parts.extend(self._modifiers(feats, manner or None))
+            parts.extend(self._modifiers(feats))
 
             # Place
             if place := feats.get("place"):
@@ -132,11 +132,11 @@ class AnalysisMixin(IPAFeaturesBase):
         feat = self.features.get(feature)
         return feat.labels.get(value) if feat is not None else None
 
-    def _modifier_features(self, manner: str | None) -> list[str]:
-        """The modifier features a segment of this manner reads out.
+    def _modifier_features(self, feats: dict[str, str]) -> list[str]:
+        """The modifier features this segment reads out.
 
         Membership is the data's: a feature is read out because it
-        declares a label for some value, and it reaches this manner
+        declares a label for some value, and it reaches this segment
         because of its ``applies``. The consonant and vowel lists are
         therefore two views of one declaration and cannot drift apart.
         Everything this module contributes is the position in the
@@ -147,7 +147,7 @@ class AnalysisMixin(IPAFeaturesBase):
             for name, feat in self.features.items()
             if feat.labels
             and name not in _PRIMARY_SLOTS
-            and self.feature_applies(name, manner)
+            and self.feature_applies(name, feats)
         ]
         last = len(_MODIFIER_READ_ORDER)
         return sorted(
@@ -159,7 +159,7 @@ class AnalysisMixin(IPAFeaturesBase):
             ),
         )
 
-    def _modifiers(self, feats: dict[str, str], manner: str | None) -> list[str]:
+    def _modifiers(self, feats: dict[str, str]) -> list[str]:
         """Modifier labels for a bundle, in read-out order.
 
         A key the phone does not carry, and a value the data gives no
@@ -168,7 +168,7 @@ class AnalysisMixin(IPAFeaturesBase):
         """
         return [
             label
-            for feat in self._modifier_features(manner)
+            for feat in self._modifier_features(feats)
             if (label := self._label(feat, feats.get(feat)))
         ]
 
