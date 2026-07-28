@@ -306,12 +306,23 @@ def from_cmu(
 # --- Tokenization & Normalization ---
 
 
-def tokenize(ipa_string: str) -> list[str]:
-    """Parse IPA string into list of segment tokens."""
-    return _get_ipa().tokenize(ipa_string)
+def tokenize(ipa_string: str, strict: bool = False) -> list[str]:
+    """Parse IPA string into list of segment tokens.
+
+    Parsing is strict house style: ASCII stand-ins (``g``, ``:``, ``?``,
+    ``'``) are not IPA and are never read as IPA here -- import such text
+    with :func:`from_wild` first. A character registered nowhere cannot be
+    represented, so it is dropped with a warning; ``strict=True`` raises
+    ``ValueError`` naming it instead.
+
+    Examples:
+        >>> tokenize("t͡ʃa")
+        ['t͡ʃ', 'a']
+    """
+    return _get_ipa().tokenize(ipa_string, strict=strict)
 
 
-def segmented(ipa_string: str) -> str:
+def segmented(ipa_string: str, strict: bool = False) -> str:
     """Parse IPA and return its units, whitespace-separated.
 
     A display convenience; :func:`tokenize` returns the same units as a
@@ -321,20 +332,24 @@ def segmented(ipa_string: str) -> str:
         >>> segmented("t͡ʃa")
         't͡ʃ a'
     """
-    return _get_ipa().segmented(ipa_string)
+    return _get_ipa().segmented(ipa_string, strict=strict)
 
 
-def segments(ipa_string: str) -> list[Segment]:
+def segments(ipa_string: str, strict: bool = False) -> list[Segment]:
     """Parse IPA text into structured Segment units (see docs/ties.md).
+
+    ``strict=True`` raises on any character the inventory does not
+    register, which is what guarantees ``to_ipa(segments(x)) == x``
+    rather than a quietly shortened result.
 
     Examples:
         >>> [s.kind.value for s in segments("t͡ʃa͜ɪ")]
         ['affricate', 'diphthong']
     """
-    return _get_ipa().segments(ipa_string)
+    return _get_ipa().segments(ipa_string, strict=strict)
 
 
-def segment(ipa_string: str) -> Segment:
+def segment(ipa_string: str, strict: bool = False) -> Segment:
     """Parse exactly one unit into a structured Segment.
 
     Examples:
@@ -343,7 +358,7 @@ def segment(ipa_string: str) -> Segment:
         >>> segment("u͜i").bag()["backness"]
         ('back', 'front')
     """
-    return _get_ipa().segment(ipa_string)
+    return _get_ipa().segment(ipa_string, strict=strict)
 
 
 def to_ipa(segments: list[Segment]) -> str:
@@ -369,11 +384,19 @@ def normalize(segments: str) -> str:
 
 
 def from_wild(text: str) -> str:
-    """Import IPA written in other tie conventions into house style.
+    """Import IPA written in other conventions into house style.
+
+    The explicit door for wild text, and the only place soft reads apply:
+    tie-glyph conventions canonicalize, and the ASCII stand-ins ``g``,
+    ``:``, ``?`` and ``'`` become ``ɡ``, ``ː``, ``ʔ`` and ``ˈ`` (primary
+    stress). ``!`` is left alone -- click, downstep and punctuation are
+    all live readings of it (docs/ties.md).
 
     Examples:
         >>> from_wild("t͜sa͡ɪ")
         't͡sa͜ɪ'
+        >>> from_wild("'gu:d")
+        'ˈɡuːd'
     """
     return _get_ipa().from_wild(text)
 
@@ -389,10 +412,15 @@ def import_phoneset(phoneset: Phoneset) -> Phoneset:
 
 
 def normalize_lookalikes(text: str) -> str:
-    """Replace lookalike characters with proper IPA equivalents.
+    """Apply the ASCII soft reads: keyboard stand-ins -> IPA symbols.
 
-    Converts visually similar keyboard characters to their
-    correct IPA Unicode codepoints (e.g., 'g' → 'ɡ', ':' → 'ː').
+    ``g`` -> ``ɡ``, ``:`` -> ``ː``, ``?`` -> ``ʔ``, ``'`` -> ``ˈ``. A
+    wild-import step, not a parsing step -- default parsing never calls
+    it. :func:`from_wild` does.
+
+    Examples:
+        >>> normalize_lookalikes("gɑ:t")
+        'ɡɑːt'
     """
     return _get_ipa().normalize_lookalikes(text)
 

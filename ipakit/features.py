@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import re
 import unicodedata
+import warnings
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from pathlib import Path
@@ -48,7 +49,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.diacritics: dict[str, Phone] = {}
         self.separators: dict[str, Phone] = {}
         self.ligature_map: dict[str, str] = {}
-        self.lookalikes: dict[str, str] = {}  # lookalike char -> IPA char
+        # Soft reads: ASCII stand-in -> IPA symbol. Applied only on explicit
+        # wild import (:meth:`from_wild`), never by default parsing.
+        self.lookalikes: dict[str, str] = {}
         self.wiki_base: str = ""  # Base URL for Wikipedia links
         self.references: dict[str, str] = {}  # name -> href (article name)
         self._value_aliases: dict[str, dict[str, str]] = {}
@@ -209,7 +212,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return frozenset(derived)
 
     def _load_lookalikes(self) -> None:
-        """Load lookalike character mappings from lookalikes.xml."""
+        """Load the ASCII soft-read table from lookalikes.xml."""
         from .constants import DEFAULT_LOOKALIKES
 
         if not DEFAULT_LOOKALIKES.exists():
@@ -733,10 +736,28 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return text
 
     def normalize_lookalikes(self, text: str) -> str:
-        """Replace lookalike characters with proper IPA equivalents.
+        """Apply the ASCII soft reads: keyboard stand-ins -> IPA symbols.
 
-        Converts visually similar keyboard characters to their
-        correct IPA Unicode codepoints (e.g., 'g' → 'ɡ', ':' → 'ː').
+        This is a **wild-import** step, not a parsing step: default
+        parsing is strict house style and never rewrites input, so this
+        runs only where import is explicit (:meth:`from_wild`, the
+        ``features`` CLI) or where a caller asks for it by name.
+
+        The table (``data/phonemaps/lookalikes.xml``) holds only
+        characters with one dominant wild reading::
+
+            g -> ɡ    :  -> ː    ?  -> ʔ    '  -> ˈ (PRIMARY STRESS)
+
+        ``'`` reads as primary stress U+02C8, not the ejective U+02BC:
+        that is what ``kirshenbaum.xml`` in this package already says, and
+        X-SAMPA spells the ejective ``_>``. ``!`` is **not** in the table
+        at all -- click, downstep and punctuation are all live readings of
+        it, so it stays unknown rather than being guessed at (see
+        docs/ties.md).
+
+        Examples:
+            >>> IPAFeatures().normalize_lookalikes("gɑ:t")
+            'ɡɑːt'
         """
         for lookalike, ipa in self.lookalikes.items():
             text = text.replace(lookalike, ipa)
@@ -746,12 +767,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Expand deprecated IPA ligatures (ʧ, ʤ) to modern tie-bar form.
 
         Only single-character ligature aliases are replaced; tie glyphs are
-        never rewritten here (the glyph is the sense; wild-convention text
-        imports via :meth:`from_wild`).
+        never rewritten here (the glyph is the sense), and neither are the
+        ASCII soft reads (``g``, ``:``, ``?``, ``'``) -- wild-convention
+        text imports via :meth:`from_wild`.
+
+        Examples:
+            >>> IPAFeatures().expand_ligatures("g:")  # default parsing is literal
+            'g:'
         """
-        # Canonicalize Unicode form, then normalize lookalike characters
         ipa = self.canonicalize_unicode(ipa)
-        ipa = self.normalize_lookalikes(ipa)
         for lig, expanded in self.ligature_map.items():
             if len(lig) > 1 and (TIE_BAR in lig or SEQ_TIE in lig):
                 continue
@@ -990,23 +1014,44 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # Tokenization & parsing
     # -------------------------------------------------------------------------
 
-    def tokenize(self, ipa: str, phoneset: Phoneset | None = None) -> list[str]:
+    def tokenize(
+        self,
+        ipa: str,
+        phoneset: Phoneset | None = None,
+        strict: bool = False,
+    ) -> list[str]:
         """Parse IPA string into list of segment tokens.
 
         Tokens are emitted in NFC so both precomposed and decomposed input
         yield identical output. Tie-joined runs of known phones are one
         token whichever tie binds them; the tie glyph is preserved (it is
         the sense).
+
+        The tokenizer is total by default -- it never raises, whatever it
+        is handed -- but it is not silent: an unregistered character is
+        dropped with a warning (see :meth:`parse`). ``strict=True`` raises
+        ``ValueError`` instead, which is what to use when
+        ``to_ipa(segments(x)) == x`` has to be guaranteed rather than
+        hoped for.
+
+        Examples:
+            >>> IPAFeatures().tokenize("t͡ʃa")
+            ['t͡ʃ', 'a']
         """
         ipa = self.expand_ligatures(ipa)
         return [
             unicodedata.normalize("NFC", base + "".join(diacs))
-            for base, diacs in self.parse(ipa, phoneset=phoneset)
+            for base, diacs in self.parse(ipa, phoneset=phoneset, strict=strict)
         ]
 
-    def segmented(self, ipa: str, phoneset: Phoneset | None = None) -> str:
+    def segmented(
+        self,
+        ipa: str,
+        phoneset: Phoneset | None = None,
+        strict: bool = False,
+    ) -> str:
         """Parse IPA string and return whitespace-separated segments."""
-        return " ".join(self.tokenize(ipa, phoneset=phoneset))
+        return " ".join(self.tokenize(ipa, phoneset=phoneset, strict=strict))
 
     def parse(
         self,
@@ -1017,10 +1062,19 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Parse an IPA segment string into (base, diacritics) tuples.
 
         Registered symbols match longest-first; tie glyphs are preserved
-        as written (the glyph is the sense). Unmatched characters (neither
-        a phone nor a diacritic) are skipped. With ``strict=True`` they
-        instead raise ``ValueError`` listing the symbols that could not be
-        parsed.
+        as written (the glyph is the sense).
+
+        A character that is registered nowhere in the inventory cannot be
+        represented, so it is dropped -- but never silently: the default
+        path warns, naming what it lost, because a shorter result that
+        still *looks* well formed is the failure mode worth hearing about.
+        ``strict=True`` raises ``ValueError`` instead. (Registered
+        separators and whitespace are not "unknown": they are known marks
+        that carry no unit, and they neither warn nor raise.)
+
+        ASCII stand-ins are not soft-read here -- ``g``, ``:``, ``?`` and
+        ``'`` are unregistered characters like any other. Import such text
+        with :meth:`from_wild` first.
         """
         if not segment:
             return []
@@ -1058,11 +1112,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 result.append((segment[i], []))
                 i += 1
             else:
-                skipped.append(segment[i])
+                # Registered separators (syllable break, word mark) and
+                # whitespace are known symbols that simply carry no unit;
+                # only unregistered characters count as lost.
+                if not (segment[i].isspace() or segment[i] in self.separators):
+                    skipped.append(segment[i])
                 i += 1
 
         if strict:
             require_convertible(skipped, "IPA segment")
+        elif skipped:
+            warnings.warn(
+                f"dropped {len(skipped)} unregistered symbol(s) "
+                f"{sorted(set(skipped))} while parsing IPA: the result is "
+                "shorter than the input. Pass strict=True to raise instead, "
+                "or import wild-convention text with from_wild().",
+                stacklevel=2,
+            )
 
         return result
 
@@ -1103,7 +1169,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # Structured segments (docs/ties.md; design spec)
     # -------------------------------------------------------------------------
 
-    def segments(self, text: str) -> list[Segment]:
+    def segments(self, text: str, strict: bool = False) -> list[Segment]:
         """Parse IPA text into structured :class:`Segment` units.
 
         Same segmentation as :meth:`tokenize`. Stress marks attach to
@@ -1111,10 +1177,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         attach to the unit they follow. Structural marks (ties become
         junctures; breaks/linking live between units) never appear in a
         unit's prosody.
+
+        Unregistered characters are dropped with a warning, as in
+        :meth:`tokenize`; ``strict=True`` raises instead, which is what
+        guarantees ``to_ipa(segments(text)) == text``.
         """
         result: list[Segment] = []
         pending_stress: list[str] = []
-        for token in self.tokenize(text):
+        for token in self.tokenize(text, strict=strict):
             if token and all(
                 ch in self.diacritics and "stress" in self.diacritics[ch].features
                 for ch in token
@@ -1127,13 +1197,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 result.append(seg)
         return result
 
-    def segment(self, text: str) -> Segment:
+    def segment(self, text: str, strict: bool = False) -> Segment:
         """Parse exactly one unit into a :class:`Segment`.
 
         Raises ``ValueError`` if the text tokenizes to zero or several
-        units.
+        units -- or, with ``strict=True``, if it holds an unregistered
+        character (which by default is dropped with a warning).
         """
-        segs = self.segments(text)
+        segs = self.segments(text, strict=strict)
         if len(segs) != 1:
             raise ValueError(
                 f"expected exactly one unit, got {len(segs)} from {text!r}"
@@ -1204,16 +1275,36 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def from_wild(self, text: str) -> str:
         """Import IPA written in other conventions into house style.
 
-        In the wild the two tie glyphs are typographic free variants, so a
-        spelling carries no reliable sense. This helper — explicitly, never
-        as part of default parsing — rewrites each tied chain to house
-        style: a spelling whose glyph-variant names a registered compound
-        becomes that canonical spelling (``t͜s`` -> ``t͡s``,
-        ``a͡ɪ`` -> ``a͜ɪ``); an unregistered chain gets the sense
-        heuristic (all-vocalic -> sequential, else simultaneous). House
-        input passes through unchanged.
+        This is the one door soft reads come through. Two kinds of wild
+        spelling are canonicalized here — explicitly, never as part of
+        default parsing:
+
+        **Tie conventions.** In the wild the two tie glyphs are
+        typographic free variants, so a spelling carries no reliable
+        sense. Each tied chain is rewritten to house style: a spelling
+        whose glyph-variant names a registered compound becomes that
+        canonical spelling (``t͜s`` -> ``t͡s``, ``a͡ɪ`` -> ``a͜ɪ``); an
+        unregistered chain gets the sense heuristic (all-vocalic ->
+        sequential, else simultaneous).
+
+        **ASCII soft reads.** Keyboard stand-ins become the IPA symbol
+        they stand in for: ``g`` -> ``ɡ``, ``:`` -> ``ː``, ``?`` -> ``ʔ``,
+        and ``'`` -> ``ˈ`` (primary stress, *not* the ejective ``ʼ``; see
+        :meth:`normalize_lookalikes`). ``!`` is left alone — click,
+        downstep and punctuation are all live readings of it, and none
+        dominates, so it stays an unknown symbol for validation to report
+        rather than a guess.
+
+        House input passes through unchanged.
+
+        Examples:
+            >>> IPAFeatures().from_wild("'gu:d")
+            'ˈɡuːd'
+            >>> IPAFeatures().from_wild("kæt!")  # ambiguous, left alone
+            'kæt!'
         """
         text = self.canonicalize_unicode(text)
+        text = self.normalize_lookalikes(text)
         for variant, canonical in self._wild_variants().items():
             text = text.replace(variant, canonical)
 

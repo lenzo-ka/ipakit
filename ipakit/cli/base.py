@@ -245,10 +245,13 @@ def add_output_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def add_strict_arg(parser: argparse.ArgumentParser) -> None:
-    """Add the lookalike-rejection flag (``features`` command).
+    """Add the soft-read opt-out flag (``features`` command).
 
-    Primary name is ``--no-lookalikes``; ``--strict`` is kept as a backward-
-    compatible alias. Distinct from the converter ``--strict`` (see
+    ``features`` is an interactive lookup, so it soft-reads ASCII
+    stand-ins (``g``, ``:``, ``?``, ``'``) by default -- the one surface
+    that does; the library parse path never does. ``--no-lookalikes``
+    turns that off. ``--strict`` is kept as a backward-compatible alias.
+    Distinct from the converter ``--strict`` (see
     ``add_convert_strict_arg``), which is about unconvertible symbols.
     """
     parser.add_argument(
@@ -256,7 +259,7 @@ def add_strict_arg(parser: argparse.ArgumentParser) -> None:
         "--strict",
         dest="strict",
         action="store_true",
-        help="Reject lookalike characters instead of normalizing them",
+        help="Read ASCII stand-ins literally instead of as IPA (g : ? ')",
     )
 
 

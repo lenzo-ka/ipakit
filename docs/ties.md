@@ -23,7 +23,35 @@ Both ties stacked on one juncture assert contradictory timing; on ingest the pai
 
 House style is the only default semantics: canonical spellings are sense-correct (affricates and double articulations over-tie — `t͡s`, `k͡p`; diphthongs under-tie — `e͜ɪ`, `a͜ɪ`), and every entry point reads the glyph as the sense. `t͜s` is a sequential chain, not a spelling of the affricate; `a͡ɪ` is a fused vowel overlay, not the diphthong. Only unambiguous single-character ligatures (`ʦ`, `ʧ`, NAPA `ƛ`) are aliases.
 
-Text from the wild — where the two glyphs are typographic free variants carrying no sense — is imported **explicitly** with `ipakit.from_wild(text)` (or `IPAFeatures.from_wild`); phonesets likewise with `ipakit.import_phoneset(phoneset)`, and `distance_model(phoneset)` warns — never silently drops — when members are spelled in another tie convention: each uniform-glyph tied chain is rewritten to house style, preferring the spelling that names a registered compound (`t͜s` → `t͡s`, `a͡ɪ` → `a͜ɪ`) and falling back to the sense heuristic for unregistered chains (all-vocalic → sequential, else simultaneous). Chains already mixing both glyphs are house-authored and pass through untouched. Because import is explicit, default parsing is faithful: `parse(emit(x)) = x` structurally for every expressible unit — there is no collision list and no lossy emission.
+Text from the wild — where the two glyphs are typographic free variants carrying no sense, and where the keyboard stands in for the phonetic alphabet — is imported **explicitly** with `ipakit.from_wild(text)` (or `IPAFeatures.from_wild`); phonesets likewise with `ipakit.import_phoneset(phoneset)`, and `distance_model(phoneset)` warns — never silently drops — when members are spelled in another tie convention: each uniform-glyph tied chain is rewritten to house style, preferring the spelling that names a registered compound (`t͜s` → `t͡s`, `a͡ɪ` → `a͜ɪ`) and falling back to the sense heuristic for unregistered chains (all-vocalic → sequential, else simultaneous). Chains already mixing both glyphs are house-authored and pass through untouched. Because import is explicit, default parsing is faithful: `parse(emit(x)) = x` structurally for every expressible unit — there is no collision list and no lossy emission.
+
+## ASCII soft reads
+
+The same rule that governs the ties governs the keyboard: **default parsing is strict house style, and soft reads live behind `from_wild`.** A "soft read" is an ASCII character standing in for an IPA symbol — the keyboard `g` for `ɡ`, `:` for `ː`, `?` for `ʔ`, `'` for `ˈ`. Those characters are not IPA, so `tokenize`, `segments`, `validate_ipa` and everything built on them read them literally: unregistered, reported, never quietly substituted. `ipakit.from_wild(text)` (and `ipakit.normalize_lookalikes(text)`, which is the substitution on its own) is where they are read as IPA.
+
+This is not pedantry. Substituting in the default path turned ordinary punctuation into phonetics with no diagnostic: `tokenize("kæt!")` used to yield `['k', 'æ', 't', 'ǃ']` — a sentence-final exclamation mark reborn as a voiceless alveolar click — and `is_valid_ipa("kæt!")` said yes. A round trip that changes the string is worse than one that refuses.
+
+| ASCII | reads as | why that one |
+|---|---|---|
+| `g` | `ɡ` U+0261 | a pure visual lookalike; there is no other reading |
+| `:` | `ː` U+02D0 | length, in Kirshenbaum and X-SAMPA alike |
+| `?` | `ʔ` U+0294 | glottal stop, in Kirshenbaum and X-SAMPA alike |
+| `'` | `ˈ` U+02C8 | **primary stress**, not the ejective `ʼ` U+02BC |
+| `!` | *nothing* | three live readings and no dominant one |
+
+Two of these needed a judgement call, and both are documented rather than guessed.
+
+**`'` is primary stress.** The obvious visual match is the ejective modifier `ʼ` (U+02BC), and that is what ipakit used to substitute. It is the less likely reading. ASCII transcription conventions agree that a bare apostrophe marks stress: this package's own `kirshenbaum.xml` maps `'` → `ˈ`, and X-SAMPA spells the ejective `_>` and leaves the apostrophe alone. Someone writing an ejective in text has already reached for a modifier letter; someone typing `'` in front of a syllable means stress. The ejective still has an unambiguous spelling — `ʼ` — and nothing reads it away.
+
+**`!` is not read at all.** It has three live senses: the alveolar click `ǃ` (U+01C3) in Khoisan and Nguni orthography, **downstep** `ꜜ` (U+A71C, registered here as a suprasegmental) in Africanist tone notation and in X-SAMPA, and ordinary sentence punctuation everywhere else. No reading dominates, and the cost of guessing wrong is exactly the defect above. So `!` stays unknown even inside `from_wild`: `validate_ipa` reports it (naming both candidates), and strict parsing raises on it. Write `ǃ` or `ꜜ` to say which you mean.
+
+## Unknown characters are dropped audibly, never silently
+
+A character registered nowhere in the inventory cannot be represented as a segment, so tokenization drops it — but it says so. The default path warns, naming what it lost; `tokenize(text, strict=True)`, `segments(text, strict=True)` and `parse(text, strict=True)` raise `ValueError` instead, the same `strict=` policy the converters use. The tokenizer stays total by default, because callers like `distance` legitimately want a number for out-of-vocabulary input, and `word_distance`/`word_similarity` already reject lossy input at the measurement layer with `strict=True` as *their* default.
+
+So the advertised round trip is either true or loud: `to_ipa(segments(x, strict=True)) == x` holds for house-style input and raises otherwise; without `strict` a stray character still produces a warning rather than a shorter, well-formed-looking string.
+
+Registered separators (the syllable break `.`, the word mark `#`) and whitespace are not "unknown". They are known marks that carry no unit, so they neither warn nor raise — they are simply not carried by a `Segment`, as documented above.
 
 ## Registered compounds are derived, not hand-encoded
 
