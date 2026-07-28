@@ -29,10 +29,10 @@ _SECONDARY_DESC_ORDER = [
 # approximant", "nasalized open front unrounded vowel"). Both classes
 # share the order and differ only in what applies to them: `channel`
 # names where the airflow channel sits within a constriction, and a vowel
-# has no constriction to place it in; `rhotacized` is the diacritic
-# spelling of r-colouring, which is a vowel property (the consonants have
-# no such mark). A modifier the phone does not carry contributes nothing,
-# so listing one that never fires costs only the lookup.
+# has no constriction to place it in; `rhotacized` is r-colouring, a
+# vowel property, while `retroflex` is the consonant tongue shape. A
+# modifier the phone does not carry contributes nothing, so listing one
+# that never fires costs only the lookup.
 _CONSONANT_MODIFIERS = [
     *_SECONDARY_DESC_ORDER,
     "syllabic",
@@ -43,7 +43,6 @@ _CONSONANT_MODIFIERS = [
 _VOWEL_MODIFIERS = [
     *_SECONDARY_DESC_ORDER,
     "syllabic",
-    "retroflex",
     "rhotacized",
     "nasalized",
 ]
@@ -57,16 +56,10 @@ _BINARY_LABELS: dict[str, dict[str, str | None]] = {
     "retroflex": {"+": "retroflex", "-": None},
     "nasalized": {"+": "nasalized", "-": None},
     "syllabic": {"+": "syllabic", "-": None},
-    "rhotacized": {"+": "rhotacized", "-": None},
+    # Named for the acoustic effect, as the feature's own description and
+    # reference do ("R-colored vowel") -- the term the phones are known by.
+    "rhotacized": {"+": "r-colored", "-": None},
     **{name: {"+": name, "-": None} for name in _SECONDARY_DESC_ORDER},
-}
-
-# Labels a vowel spells differently. The tongue shape ɚ/ɝ carry as
-# `retroflex` is the one the consonant letters call retroflex, but on a
-# vowel it is named for its acoustic effect -- as those phones' own
-# reference does ("R-colored vowel").
-_VOWEL_LABELS: dict[str, dict[str, str | None]] = {
-    "retroflex": {"+": "r-colored", "-": None},
 }
 
 
@@ -101,7 +94,7 @@ class AnalysisMixin(IPAFeaturesBase):
             # Vowel: [modifiers] height backness [rounded] vowel. Voicing
             # is not read out: no vowel letter declares it, so every one
             # of them would report the binary default.
-            parts.extend(self._modifiers(feats, _VOWEL_MODIFIERS, _VOWEL_LABELS))
+            parts.extend(self._modifiers(feats, _VOWEL_MODIFIERS))
             if height := feats.get("height"):
                 parts.append(height)
             if backness := feats.get("backness"):
@@ -122,7 +115,7 @@ class AnalysisMixin(IPAFeaturesBase):
                 if label := _BINARY_LABELS["voiced"][voiced]:
                     parts.append(label)
 
-            parts.extend(self._modifiers(feats, _CONSONANT_MODIFIERS, {}))
+            parts.extend(self._modifiers(feats, _CONSONANT_MODIFIERS))
 
             # Place
             if place := feats.get("place"):
@@ -139,11 +132,7 @@ class AnalysisMixin(IPAFeaturesBase):
         return " ".join(parts)
 
     @staticmethod
-    def _modifiers(
-        feats: dict[str, str],
-        order: list[str],
-        overrides: dict[str, dict[str, str | None]],
-    ) -> list[str]:
+    def _modifiers(feats: dict[str, str], order: list[str]) -> list[str]:
         """Modifier labels for a bundle, in read-out order.
 
         Binary flags plus the channel axis, whose own values carry the
@@ -156,7 +145,7 @@ class AnalysisMixin(IPAFeaturesBase):
         for feat in order:
             if (val := feats.get(feat)) is None:
                 continue
-            table = overrides.get(feat) or _BINARY_LABELS.get(feat, {})
+            table = _BINARY_LABELS.get(feat, {})
             if label := table.get(val):
                 parts.append(label)
         return parts

@@ -567,6 +567,25 @@ class TestDataIntegrity:
     """Guards for facts that can silently disagree with the model. Each
     of these caught a real defect when first written."""
 
+    def test_one_property_is_spelled_with_one_feature(self, ipa: IPAFeatures) -> None:
+        # r-colouring reached the data twice: ɚ/ɝ carried retroflex (the
+        # consonant tongue shape, "Tongue tip curled back") while the ˞
+        # and ʴ diacritics carried rhotacized. Same sound, two features,
+        # so d(ɚ, ə˞) was 0.095 -- larger than d(ə, ə˞).
+        assert D(ipa, "ɚ", "ə˞") == 0.0
+        assert D(ipa, "ɝ", "ɜ˞") == 0.0
+        assert D(ipa, "ə", "ɚ") == D(ipa, "ə", "ə˞")
+
+    def test_retroflex_is_a_consonant_feature_only(self, ipa: IPAFeatures) -> None:
+        # The two features mean different things and must not be carried
+        # by the same class of phone: retroflex is a tongue shape a
+        # consonant makes, rhotacized is a vowel colour.
+        for symbol, phone in ipa.phones.items():
+            if phone.features.get("retroflex") == "+":
+                assert phone.features.get("manner") != "vowel", symbol
+            if phone.features.get("rhotacized") == "+":
+                assert phone.features.get("manner") == "vowel", symbol
+
     def test_combiner_is_not_itself_a_declared_value(self, ipa: IPAFeatures) -> None:
         # The combiner marks a value as a combination, so a value spelled
         # with it parses as one. When "+" was both, expand("+") returned

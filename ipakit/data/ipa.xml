@@ -252,10 +252,10 @@
     <phone name="ɗ" manner="plosive" place="alveolar" voiced="+" airstream="implosive" href="Voiced_alveolar_implosive"/>
     <phone name="ɘ" manner="vowel" height="close-mid" backness="central" href="Close-mid_central_unrounded_vowel"/>
     <phone name="ə" manner="vowel" height="mid" backness="central" href="Schwa"/>
-    <phone name="ɚ" manner="vowel" height="mid" backness="central" retroflex="+" href="R-colored_vowel"/>
+    <phone name="ɚ" manner="vowel" height="mid" backness="central" rhotacized="+" href="R-colored_vowel"/>
     <phone name="ɛ" manner="vowel" height="open-mid" backness="front" href="Open-mid_front_unrounded_vowel"/>
     <phone name="ɜ" manner="vowel" height="open-mid" backness="central" href="Open-mid_central_unrounded_vowel"/>
-    <phone name="ɝ" manner="vowel" height="open-mid" backness="central" retroflex="+" href="R-colored_vowel"/>
+    <phone name="ɝ" manner="vowel" height="open-mid" backness="central" rhotacized="+" href="R-colored_vowel"/>
     <phone name="ɞ" manner="vowel" height="open-mid" backness="central" rounded="+" href="Open-mid_central_rounded_vowel"/>
     <phone name="ɟ" manner="plosive" place="palatal" voiced="+" href="Voiced_palatal_plosive"/>
     <phone name="ɠ" manner="plosive" place="velar" voiced="+" airstream="implosive" href="Voiced_velar_implosive"/>
