@@ -141,13 +141,27 @@ class AnalysisMixin(IPAFeaturesBase):
         therefore two views of one declaration and cannot drift apart.
         Everything this module contributes is the position in the
         sentence.
+
+        ``applies`` says where a feature is *expected*, not where it may
+        be reported. A segment that states one outside its class -- a
+        rhotic mark written on a plosive -- is unusual notation, and
+        describing it as though the mark were absent would give two
+        distinct units one name, which is the failure this whole
+        description path exists to avoid. So an explicitly stated,
+        non-default value is always read out.
         """
+
+        def stated(name: str) -> bool:
+            feat = self.features.get(name)
+            value = feats.get(name)
+            return value is not None and feat is not None and value != feat.default
+
         pool = [
             name
             for name, feat in self.features.items()
             if feat.labels
             and name not in _PRIMARY_SLOTS
-            and self.feature_applies(name, feats)
+            and (self.feature_applies(name, feats) or stated(name))
         ]
         last = len(_MODIFIER_READ_ORDER)
         return sorted(

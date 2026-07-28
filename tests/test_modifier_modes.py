@@ -73,7 +73,10 @@ class TestReleaseMarksDoNotSpeakForTheSegment:
 
     def test_preglottalized_stops_describe_distinctly(self, ipa: IPAFeatures) -> None:
         assert ipa.describe("tˀ") != ipa.describe("kˀ")
-        assert ipa.describe("tˀ") == "voiceless alveolar plosive"
+        # The release is named as a phase and the base keeps its own
+        # place: "glottalized alveolar", never "glottal".
+        assert ipa.describe("tˀ") == "voiceless glottalized alveolar plosive"
+        assert "glottal plosive" not in ipa.describe("tˀ")
 
     def test_preglottalized_t_is_not_a_glottal_stop(self, ipa: IPAFeatures) -> None:
         # Nothing registered spells "alveolar plosive with a glottal
@@ -109,7 +112,10 @@ class TestReleaseMarksDoNotSpeakForTheSegment:
         # height and backness, and an added phase never overrules them.
         assert ipa.get_features("aᵊ")["height"] == "open"
         assert ipa.get_features("aᵊ")["backness"] == "front"
-        assert ipa.describe("aᵊ") == ipa.describe("a")
+        # Named as a release, but the vowel's own qualities are its own:
+        # naming a phase is not overruling the segment.
+        assert ipa.describe("aᵊ") == "schwa-released open front unrounded vowel"
+        assert ipa.describe("aᵊ") != ipa.describe("a")
 
     def test_the_schwa_release_does_not_make_a_stop_a_vowel(
         self, ipa: IPAFeatures

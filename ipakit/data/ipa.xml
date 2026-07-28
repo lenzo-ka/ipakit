@@ -178,13 +178,13 @@
 
     <!-- Diacritic multi-valued features -->
     <feature name="release" type="categorical" short="rel" mode="release" desc="How stop closure is released" href="Consonant_release">
-      <value name="aspirated" short="asp" href="Aspirated_consonant"/>
-      <value name="breathy" short="brt" href="Breathy_voice"/>
-      <value name="lateral" short="lrl" href="Lateral_release_(phonetics)"/>
-      <value name="nasal" short="nrl" href="Nasal_release"/>
-      <value name="no-audible" short="nau" href="No_audible_release"/>
-      <value name="glottal" short="grl" href="Glottalization"/>  <!-- the glottal phase of a pre-glottalized stop: a phase, not the segment's own place -->
-      <value name="schwa" short="srl" href="Schwa"/>  <!-- the schwa-coloured release of a stop: a phase, not the segment's own vowel quality -->
+      <value name="aspirated" label="aspirated" short="asp" href="Aspirated_consonant"/>
+      <value name="breathy" label="breathy-released" short="brt" href="Breathy_voice"/>
+      <value name="lateral" label="lateral-released" short="lrl" href="Lateral_release_(phonetics)"/>
+      <value name="nasal" label="nasally-released" short="nrl" href="Nasal_release"/>
+      <value name="no-audible" label="unreleased" short="nau" href="No_audible_release"/>
+      <value name="glottal" label="glottalized" short="grl" href="Glottalization"/>  <!-- the glottal phase of a pre-glottalized stop: a phase, not the segment's own place -->
+      <value name="schwa" label="schwa-released" short="srl" href="Schwa"/>  <!-- the schwa-coloured release of a stop: a phase, not the segment's own vowel quality -->
     </feature>
 
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
@@ -193,9 +193,9 @@
     </feature>
 
     <feature name="phonation" axis="+glottal-aperture" short="phn" desc="Vocal fold vibration mode" href="Phonation">
-      <value name="creaky" short="crk" href="Creaky_voice"/>
+      <value name="creaky" label="creaky-voiced" short="crk" href="Creaky_voice"/>
       <value name="modal" short="mod" href="Modal_voice"/>
-      <value name="breathy" short="brv" href="Breathy_voice"/>
+      <value name="breathy" label="breathy-voiced" short="brv" href="Breathy_voice"/>
       <value name="devoiced" short="dev" href="Voicelessness"/>
     </feature>
 
