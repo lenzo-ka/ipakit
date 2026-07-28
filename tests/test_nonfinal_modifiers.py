@@ -200,10 +200,19 @@ class TestNucleusFeatures:
     def test_a_vowel_nucleus_is_unchanged(self, ipa: IPAFeatures) -> None:
         assert ipa.describe("ɚ") == "r-colored mid central unrounded vowel"
 
-    def test_a_non_nucleus_does_not_read_it(self, ipa: IPAFeatures) -> None:
-        # A rhotic mark on a non-syllabic consonant is redundant notation,
-        # and naming it would describe a segment that has no nucleus.
-        assert "r-colored" not in ipa.describe("ɹ˞")
+    def test_a_stated_feature_is_read_out_even_off_its_class(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # This asserted the opposite when `applies` first landed, on the
+        # view that a rhotic mark on a non-nucleus is redundant notation
+        # not worth naming. That view made `describe` and the metric
+        # disagree: the metric charges the feature (d(ɹ, ɹ˞) > 0) while
+        # the description hid it, giving two distinct units one name --
+        # the failure this path exists to avoid. `applies` says where a
+        # feature is expected, not where it may be reported.
+        assert "r-colored" in ipa.describe("ɹ˞")
+        assert ipa.describe("ɹ˞") != ipa.describe("ɹ")
+        assert ipa.distance("ɹ", "ɹ˞") > 0.0
 
     def test_nucleus_is_not_a_manner_class(self, ipa: IPAFeatures) -> None:
         # Fricative and stop nuclei are attested (Tashlhiyt Berber,
