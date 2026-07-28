@@ -131,33 +131,52 @@
     </feature>
 
     <!-- Diacritic features -->
-    <feature name="tongue-root" short="trt" type="ternary" desc="Tongue root position (ATR/RTR)" href="Advanced_and_retracted_tongue_root"/>
-    <feature name="fronting" short="frn" type="ternary" desc="Forward/backward shift" href="Relative_articulation#Fronting_and_backing"/>
+    <feature name="tongue-root" short="trt" type="ternary" desc="Tongue root position (ATR/RTR)" href="Advanced_and_retracted_tongue_root">
+      <!-- Spelled out in full: `advanced` and `retracted` alone are the
+           fronting axis, and a̘ and a̟ must not read alike. -->
+      <value name="+" label="advanced-tongue-root"/>
+      <value name="-" label="retracted-tongue-root"/>
+    </feature>
+    <feature name="fronting" short="frn" type="ternary" desc="Forward/backward shift" href="Relative_articulation#Fronting_and_backing">
+      <value name="+" label="advanced"/>
+      <value name="-" label="retracted"/>
+    </feature>
     <feature name="articulator" axis="+x" short="art" desc="Active articulator: the organ that moves to make the constriction, ordered by its home position along the tract" href="Place_of_articulation#Active_articulator">
+      <!-- Only the two an IPA diacritic states carry a label. The others are
+           the default organ for a place (read by ipakit.tract), never stated on
+           a segment, so there is no conventional word a description would use
+           for them. A mark that ever states one must be labelled here. -->
       <value name="lower-lip" arc="0.00" short="llp" href="Labial_consonant"/>
-      <value name="tongue-tip" arc="0.13" short="ttp" alias="apical" href="Apical_consonant"/>
-      <value name="tongue-blade" arc="0.19" short="tbl" alias="laminal" href="Laminal_consonant"/>
+      <value name="tongue-tip" arc="0.13" short="ttp" alias="apical" label="apical" href="Apical_consonant"/>
+      <value name="tongue-blade" arc="0.19" short="tbl" alias="laminal" label="laminal" href="Laminal_consonant"/>
       <value name="tongue-front" arc="0.32" short="tfr" href="Palatal_consonant"/>
       <value name="tongue-dorsum" arc="0.45" short="tdo" href="Dorsal_consonant"/>
       <value name="tongue-root" arc="0.74" short="trt" href="Radical_consonant"/>
       <value name="epiglottis" arc="0.87" short="epg" href="Epiglottal_consonant"/>
       <value name="vocal-folds" arc="1.00" short="vfd" href="Glottal_consonant"/>
     </feature>
-    <feature name="centralized" short="ctz" type="binary" desc="Moved toward center" href="Relative_articulation#Centralization"/>
+    <feature name="centralized" short="ctz" type="binary" desc="Moved toward center" href="Relative_articulation#Centralization">
+      <value name="+" label="centralized"/>
+    </feature>
     <feature name="labialized" short="lbz" type="binary" mode="secondary" place="bilabial" desc="Secondary lip rounding" href="Labialization">
       <value name="+" label="labialized"/>
     </feature>
     <feature name="labio-palatized" short="lpz" type="binary" mode="secondary" place="bilabial^palatal" desc="Simultaneous labialization and palatalization">
       <value name="+" label="labio-palatized"/>
     </feature>
-    <feature name="mid-centralized" short="mcz" type="binary" desc="Moved toward schwa" href="Relative_articulation#Centralization"/>
+    <feature name="mid-centralized" short="mcz" type="binary" desc="Moved toward schwa" href="Relative_articulation#Centralization">
+      <value name="+" label="mid-centralized"/>
+    </feature>
     <feature name="palatalized" short="plz" type="binary" mode="secondary" place="palatal" desc="Secondary palatal articulation" href="Palatalization_(phonetics)">
       <value name="+" label="palatalized"/>
     </feature>
     <feature name="pharyngealized" short="phz" type="binary" mode="secondary" place="pharyngeal" desc="Secondary pharyngeal constriction" href="Pharyngealization">
       <value name="+" label="pharyngealized"/>
     </feature>
-    <feature name="height-mod" short="hmd" type="ternary" desc="Raised or lowered" href="Relative_articulation#Raising_and_lowering"/>
+    <feature name="height-mod" short="hmd" type="ternary" desc="Raised or lowered" href="Relative_articulation#Raising_and_lowering">
+      <value name="+" label="raised"/>
+      <value name="-" label="lowered"/>
+    </feature>
     <feature name="rhotacized" short="rho" type="binary" applies="nucleus" desc="R-colored" href="R-colored_vowel">
       <!-- Named for the acoustic effect, as the feature's own description
            and reference do: the term the phones are known by. -->
@@ -188,8 +207,8 @@
     </feature>
 
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
-      <value name="less" short="les"/>
-      <value name="more" short="mor"/>
+      <value name="less" label="less-rounded" short="les"/>
+      <value name="more" label="more-rounded" short="mor"/>
     </feature>
 
     <feature name="phonation" axis="+glottal-aperture" short="phn" desc="Vocal fold vibration mode" href="Phonation">

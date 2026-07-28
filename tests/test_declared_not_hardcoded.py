@@ -19,11 +19,13 @@ rather than assumed shut.
 from __future__ import annotations
 
 import ast
+import warnings
 from pathlib import Path
 
 import pytest
 from ipakit import IPAFeatures
 from ipakit.analysis import _MODIFIER_READ_ORDER, _PRIMARY_SLOTS
+from ipakit.constants import METADATA_ATTRS
 from ipakit.metric import excluded_keys
 from ipakit.segment import _OBSTRUENT, modifier_mode
 
@@ -157,6 +159,153 @@ class TestTheOrderingTupleCanOnlyOrder:
             # reachable on a consonantal manner that is marked syllabic.
             reachable |= set(ipa._modifier_features({**bundle, "syllabic": "+"}))
         assert admitted == reachable
+
+
+def _stated(ipa: IPAFeatures, sym: str) -> dict[str, str]:
+    """What a mark says, less the metadata every entry carries."""
+    return {
+        f: v for f, v in ipa.diacritics[sym].features.items() if f not in METADATA_ATTRS
+    }
+
+
+def _reads_back(ipa: IPAFeatures, text: str) -> bool:
+    """Whether the inventory can spell this, strictly and unchanged."""
+    try:
+        return ipa.segment(text, strict=True).to_ipa() == text
+    except ValueError:
+        return False
+
+
+def _bag(ipa: IPAFeatures, text: str) -> dict[str, str]:
+    return {k: v for k, v in ipa.get_features(text).items() if k not in METADATA_ATTRS}
+
+
+@pytest.fixture(scope="module")
+def segmental_marks(ipa: IPAFeatures) -> list[str]:
+    """The marks whose contribution a segment's feature bag carries.
+
+    Derived, not listed. A prosodic or structural mark belongs to the
+    unit rather than to its bag (docs/ties.md), so it reaches no bundle
+    here and is correctly silent in a description -- a tone letter has
+    nothing to contribute to the name of a sound. A mark that states only
+    its features' defaults -- ``̯`` says ``syllabic="-"`` -- reports what
+    an unmarked segment already reports. What is left is every mark that
+    makes a difference to a bundle, which is exactly what a description
+    is answerable for.
+    """
+    out = []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for sym in ipa.diacritics:
+            stated = _stated(ipa, sym)
+            if all(v == ipa.features[f].default for f, v in stated.items()):
+                continue
+            if any(
+                _bag(ipa, base + sym) != _bag(ipa, base)
+                for base in ipa.phones
+                if _reads_back(ipa, base + sym)
+            ):
+                out.append(sym)
+    return out
+
+
+class TestNothingAMarkStatesGoesUnsaid:
+    """The converse of the reachability guard above.
+
+    ``test_every_admitted_feature_is_reachable`` runs from the label to
+    the description, so it can only see a feature that already declares
+    one: a feature that declares *no* label is invisible to the very test
+    meant to catch a description that cannot see it. Twelve marks sat in
+    that blind spot -- ``describe("a̘")`` was word for word
+    ``describe("a")`` while the feature bag and the metric both charged
+    the difference.
+
+    These run the other way, over every value the data lets a mark state.
+    """
+
+    @staticmethod
+    def _requirements(
+        ipa: IPAFeatures, marks: list[str]
+    ) -> tuple[dict[tuple[str, str], set[str]], dict[tuple[str, str], set[str]]]:
+        """What a segmental mark states, and which of those a slot covers.
+
+        A value is left out when its feature is one of the slots the
+        sentence renders itself (``describe`` reads those by name, not by
+        label), and when it equals its feature's default. Everything else
+        is a difference the mark makes, and the data has to say how it
+        reads.
+        """
+        need: dict[tuple[str, str], set[str]] = {}
+        covered: dict[tuple[str, str], set[str]] = {}
+        for sym in marks:
+            stated = _stated(ipa, sym)
+            # A mark that also fills a slot has already changed the
+            # sentence through it, so its other keys may go unlabelled
+            # without the mark itself going unsaid.
+            fills_a_slot = any(f in _PRIMARY_SLOTS for f in stated)
+            for feature, value in stated.items():
+                if feature in _PRIMARY_SLOTS or value == ipa.features[feature].default:
+                    continue
+                need.setdefault((feature, value), set()).add(sym)
+                if fills_a_slot:
+                    covered.setdefault((feature, value), set()).add(sym)
+        return need, covered
+
+    def _escapes(self, ipa: IPAFeatures, marks: list[str]) -> set[tuple[str, str]]:
+        need, covered = self._requirements(ipa, marks)
+        return {
+            fv
+            for fv, stating in need.items()
+            if ipa.features[fv[0]].labels.get(fv[1]) is None
+            and stating == covered.get(fv, set())
+        }
+
+    def test_every_value_a_mark_states_declares_how_it_reads(
+        self, ipa: IPAFeatures, segmental_marks: list[str]
+    ) -> None:
+        need, _ = self._requirements(ipa, segmental_marks)
+        # A silent collapse of the corpus would make the assertion below
+        # vacuous, so the size is asserted, not assumed.
+        assert len(segmental_marks) > 30, "sweep did not run"
+        assert len(need) > 25, "sweep did not run"
+        unlabelled = {
+            fv for fv in need if ipa.features[fv[0]].labels.get(fv[1]) is None
+        }
+        assert not unlabelled - self._escapes(ipa, segmental_marks)
+
+    def test_the_guard_states_what_it_lets_through(
+        self, ipa: IPAFeatures, segmental_marks: list[str]
+    ) -> None:
+        """If a value starts or stops escaping, this fails and the
+        documented limits need updating.
+
+        Both escapes are one fact: the mark stating them also states the
+        voicing, which is read out, so naming the phonation would only
+        repeat it -- ``d̥`` reads "voiceless", not "voiceless devoiced" --
+        and ``modal`` is the unremarkable value besides.
+        """
+        assert self._escapes(ipa, segmental_marks) == {
+            ("phonation", "modal"),
+            ("phonation", "devoiced"),
+        }
+
+    def test_no_segmental_mark_describes_as_its_bare_base(
+        self, ipa: IPAFeatures, segmental_marks: list[str]
+    ) -> None:
+        """The symptom, swept: a mark that makes a difference to a
+        feature bag makes one to some segment's name."""
+        invisible = []
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for sym in segmental_marks:
+                if not any(
+                    ipa.describe(base + sym) != ipa.describe(base)
+                    for base in ipa.phones
+                    if _reads_back(ipa, base + sym)
+                ):
+                    invisible.append(sym)
+        assert len(segmental_marks) > 30, "sweep did not run"
+        assert invisible == []
 
 
 # ---------------------------------------------------------------------------
