@@ -263,7 +263,14 @@ What the file now declares for `adult-male`, with each point marked in the XML:
 | 0.32 | 0.16 | **measured** — 0.90 of the peak |
 | 0.40 | 0.13 | **measured** — 0.73 of the peak |
 | 0.45 | 0.13 | extrapolated — held flat past the palate trace |
-| 0.56 and behind | unchanged | nothing behind arc 0.45 is measured |
+| 0.56 | 0.123 | extrapolated — original shape, rescaled to join the measured run |
+| 0.74 | 0.108 | extrapolated — same |
+| 0.87 | 0.094 | extrapolated — same |
+| 1.00 | 0.079 | extrapolated — same |
+
+The points behind the measured run keep their original *shape* and are rescaled by the ratio the seam moved — 0.13/0.18 for the adult male, 0.12/0.16 for the female. They had been hand-placed to sit under an oral run of 0.18 that measurement has since put at 0.13, so leaving them unscaled produced a slope of +0.364 between arc 0.45 and 0.56, the steepest in the entire profile and a pure artefact of joining two differently-derived numbers. After rescaling the profile rises to the measured peak and falls monotonically, and its steepest slope is the measured one.
+
+That has a cost worth stating: the profile now represents **no oropharyngeal narrowing at all**. A real one may well exist — the tongue dorsum approaching the soft palate is a genuine constriction — but this corpus cannot see behind arc 0.44, so putting one back needs a source this measurement does not provide. The choice was between a flare with no evidence and a monotone fall with no evidence; the monotone fall at least does not invent a feature at the exact point where the data stops.
 
 `adult-female` takes the same normalized shape scaled to its own declared peak of 0.17 (0.17 / 0.15 / 0.12 / 0.12), on the evidence in finding 6. The **child head is untouched**: XRMB's speakers are young adults, median age 21, and a child's tract is not a scaling of an adult's — `docs/tract-anatomy.md` §8 says so, and this corpus offers nothing to replace the hand placement with.
 
