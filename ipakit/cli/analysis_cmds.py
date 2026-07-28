@@ -16,7 +16,7 @@ class DescribeCommand(Command):
     Examples:
         ipakit describe p              # voiceless bilabial plosive
         ipakit describe ɛ              # open-mid front unrounded vowel
-        ipakit describe t͡ʃ             # voiceless postalveolar affricate
+        ipakit describe t͡ʃ             # voiceless sibilant postalveolar affricate
         ipakit describe l              # voiced lateral alveolar approximant
         ipakit desc ŋ                  # voiced velar nasal
     """
@@ -104,9 +104,9 @@ class MinimalPairsCommand(Command):
     language teaching (learners confuse similar sounds).
 
     Examples:
-        ipakit analysis minimal-pairs p    # ɸ, f, p͡f (manner)...
-        ipakit an minimal-pairs i          # e, e͡ə (height)...
-        ipakit an mp s                     # ɧ, ʃ, θ (place)...
+        ipakit analysis minimal-pairs p    # t, ɸ, f ...
+        ipakit an minimal-pairs i          # e, ɪ, ɨ ...
+        ipakit an mp s                     # ʃ, ɕ, θ ...
         ipakit an mp p -f json             # JSON output
         ipakit an mp p --max-distance 0.5  # Include more distant phones
     """
