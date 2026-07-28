@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._convert import convert_greedy, require_convertible
+from ._convert import convert_greedy, require_convertible, resolve_aliases
 from .constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR
 
 
@@ -77,7 +77,7 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
         List of target symbols
     """
     ipa_to_target, _ = _load_phonemap(phonemap)
-    ipa = _normalize_for_map(ipa, ipa_to_target)
+    ipa = _normalize_for_map(resolve_aliases(ipa), ipa_to_target)
     return convert_greedy(ipa, ipa_to_target, strict=strict, what=f"IPA -> {phonemap}")
 
 

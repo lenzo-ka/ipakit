@@ -7,15 +7,50 @@ longest substring that is a key in some lookup. That one loop is ``longest_match
 They also share an opt-in ``strict`` error policy: collect the symbols that could
 not be converted and, when strict, raise via ``require_convertible``.
 
+The ones whose input is an IPA string share one more step: ``resolve_aliases``,
+the same alias resolution ``IPAFeatures.parse`` runs. Their tables are keyed on
+house-canonical spellings, so without it an accepted alias spelling matches
+nothing and is dropped.
+
 Per-site state (diacritic collection, stress handling, validation tracking)
 stays in the caller; only these shared steps live here.
 """
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Collection, Mapping
+from typing import TYPE_CHECKING
 
 from .constants import SEQ_TIE, TIE_BAR
+
+if TYPE_CHECKING:
+    from .features import IPAFeatures
+
+
+@functools.lru_cache(maxsize=1)
+def ipa_features() -> IPAFeatures:
+    """The inventory these helpers read, built on first use.
+
+    Imported lazily because ``features`` imports this module.
+    """
+    from .features import IPAFeatures
+
+    return IPAFeatures()
+
+
+def resolve_aliases(ipa: str) -> str:
+    """Resolve registered ligature aliases in an IPA string.
+
+    The string converters match raw IPA against their own tables rather
+    than through :meth:`IPAFeatures.parse`, so they have to run the parser's
+    alias resolution themselves -- through this one call, not a private copy,
+    or the two spellings of one word drift apart. ``ʧ`` is an input spelling
+    this package documents as accepted; a converter matching it against a
+    table keyed on ``t͡ʃ`` found nothing, dropped it, and returned a word one
+    phoneme short and well formed enough to pass for an answer.
+    """
+    return ipa_features().expand_ligatures(ipa)
 
 
 def require_convertible(skipped: list[str], what: str) -> None:

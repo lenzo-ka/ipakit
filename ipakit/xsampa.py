@@ -13,7 +13,7 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._convert import convert_greedy
+from ._convert import convert_greedy, ipa_features, resolve_aliases
 from .constants import PHONEMAPS_DIR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -35,13 +35,6 @@ def _maps() -> tuple[dict[str, str], dict[str, str]]:
     return xs2ipa, ipa2xs
 
 
-@functools.lru_cache(maxsize=1)
-def _features():  # type: ignore[no-untyped-def]
-    from .features import IPAFeatures
-
-    return IPAFeatures()
-
-
 def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     """Convert an X-SAMPA string to IPA (greedy longest-match).
 
@@ -52,7 +45,7 @@ def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     raw = "".join(convert_greedy(xsampa, xs2ipa, strict=strict, what="X-SAMPA -> IPA"))
     # `_` reads back as a tie; canonicalize to house style (registered
     # compounds get their canonical glyph, the rest the sense heuristic).
-    result: str = _features().from_wild(raw)
+    result: str = ipa_features().from_wild(raw)
     return result
 
 
@@ -70,4 +63,5 @@ def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     converted instead of skipping them.
     """
     _, ipa2xs = _maps()
+    ipa = resolve_aliases(ipa)
     return "".join(convert_greedy(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA"))

@@ -18,7 +18,9 @@ from __future__ import annotations
 import argparse
 import itertools
 import sys
+import warnings
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -119,6 +121,63 @@ def check_one_flat_read(ipa: IPAFeatures, quick: bool) -> bool:
     return _report("features == scalar", disagreements, checked)
 
 
+def check_alias_equivalence(ipa: IPAFeatures, quick: bool) -> bool:
+    """An alias spelling and its canonical are one string, every route in.
+
+    Alias resolution used to sit in `tokenize`, so the routes that reach
+    the inventory another way -- `parse` directly, or a converter table
+    that never touches `parse` -- read `ʧ` as a character registered
+    nowhere and dropped it: `to_cmu` answered a word one phoneme short.
+    The check is every entry point rather than the converters that broke,
+    because the next route in will not be one of those.
+    """
+    import ipakit
+
+    entries: dict[str, Callable[[str], object]] = {
+        "features": ipakit.features,
+        "compose": ipa.compose,
+        "scalar": lambda s: ipa.segment(s).scalar(),
+        "tokenize": ipa.tokenize,
+        "segments": lambda s: [u.to_ipa() for u in ipa.segments(s)],
+        "parse": ipa.parse,
+        "parse(strict)": lambda s: ipa.parse(s, strict=True),
+        "normalize": ipa.normalize,
+        "to_cmu": ipakit.to_cmu,
+        "to_timit": ipakit.to_timit,
+        "to_kirshenbaum": ipakit.to_kirshenbaum,
+        "ipa_to_xsampa": ipakit.ipa_to_xsampa,
+        "word_distance": lambda s: ipakit.word_distance(s, "ta").distance,
+    }
+    marks = list(ipa.diacritics)[: 12 if quick else None]
+    disagreements, checked = [], 0
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for alias in ipa.ligature_map:
+            texts = [alias, "k͡" + alias, alias + "a", "a" + alias]
+            texts += [alias + mark for mark in marks]
+            for text in texts:
+                canonical = ipa.expand_ligatures(text)
+                for name, fn in entries.items():
+                    checked += 1
+                    if _same(fn, text) != _same(fn, canonical):
+                        disagreements.append(
+                            f"{name}({text!r}) != {name}({canonical!r})"
+                        )
+    return _report("alias reads as its canonical", disagreements, checked)
+
+
+def _same(fn: Callable[[str], object], text: str) -> object:
+    """What an entry point says; raising counts as an answer, by type.
+
+    The message is excluded because it may name the caller's own input,
+    which the two spellings differ in by construction.
+    """
+    try:
+        return fn(text)
+    except Exception as exc:  # noqa: BLE001 - the type is the answer
+        return type(exc).__name__
+
+
 def check_descriptions(ipa: IPAFeatures) -> bool:
     """No two distinct phones may share a description.
 
@@ -174,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         check_metric(ipa),
         check_round_trips(ipa),
         check_one_flat_read(ipa, args.quick),
+        check_alias_equivalence(ipa, args.quick),
         check_descriptions(ipa),
         check_derived_artifacts(),
     ]
