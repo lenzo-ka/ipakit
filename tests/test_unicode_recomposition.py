@@ -47,14 +47,25 @@ class TestRecomposition:
 
     def test_the_levels_agree_on_precomposed_bases(self, ipa: IPAFeatures) -> None:
         # The invariant the stranding broke: one string, one answer.
+        checked = 0
         for symbol in ("ç", "ä", "ť"):
             for mark in ipa.diacritics:
                 unit = symbol + mark
+                # Well-formed IPA only, as the sibling sweep in
+                # test_feature_reads.py does. On a malformed unit -- a
+                # dangling tie, a trailing stress mark that binds nothing
+                # -- the structured side is deliberately lenient (it
+                # drops the mark and warns) and the flat side
+                # deliberately refuses, so the two are allowed to differ.
+                if any(i["type"] == "error" for i in ipa.validate_ipa(unit)):
+                    continue
                 try:
                     structured = ipa.segment(unit).scalar()
                 except ValueError:
                     continue
+                checked += 1
                 assert bool(ipa.get_features(unit)) == bool(structured), unit
+        assert checked > 100, "sweep did not run"
 
 
 class TestCombinedPlaceReadsAsItsName:

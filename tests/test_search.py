@@ -128,10 +128,17 @@ class TestToIpaIsNoStrongerThanItsParts:
         # carries it and no join can put it back.
         assert ipa.to_ipa(ipa.segments("lez‿ami")) == "lezami"
 
-    def test_stress_re_emits_before_the_base_it_bound_to(
+    def test_stress_survives_the_join_wherever_it_stands(
         self, ipa: IPAFeatures
     ) -> None:
-        assert ipa.to_ipa(ipa.segments("kˈæt")) == "ˈkæt"
+        # This used to assert kˈæt -> ˈkæt, which reads as a harmless
+        # respelling only because a monosyllable's onset is in the
+        # stressed syllable. The mark was binding leftward, so in a
+        # longer word it changed syllable. It binds the unit that
+        # follows it and re-emits in front of that unit, so both
+        # spellings come back as written.
+        assert ipa.to_ipa(ipa.segments("kˈæt")) == "kˈæt"
+        assert ipa.to_ipa(ipa.segments("ˈkæt")) == "ˈkæt"
 
 
 class TestFeatureValuesBridgesTheLevels:

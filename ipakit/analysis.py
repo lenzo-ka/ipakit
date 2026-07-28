@@ -352,6 +352,9 @@ class AnalysisMixin(IPAFeaturesBase):
         - Unknown symbols (not in phones, diacritics, or suprasegmentals)
         - Orphan diacritics (diacritic without preceding base phone)
         - Malformed tie bars (tie bar without phones on both sides)
+        - Stress marks that reach no unit: nothing after them to bind
+          (``unbound_stress``), or another stress mark between them and
+          the unit that takes the binding (``superseded_stress``)
         - Duplicate diacritics on the same segment
 
         Returns a list of issue dicts with keys:
@@ -414,14 +417,31 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Standalone symbols (stress, length, tone, breaks, separators)
             if char in standalone:
+                if (why := self._stress_reaches_no_unit(ipa, i)) is not None:
+                    issues.append(
+                        {
+                            "type": "error",
+                            "code": f"{why}_stress",
+                            "message": (
+                                "Stress mark binds nothing"
+                                if why == "unbound"
+                                else "Stress mark superseded by a nearer one"
+                            ),
+                            "position": str(i),
+                            "symbol": char,
+                        }
+                    )
                 # These are valid on their own or after phones. A prosodic
                 # mark rides on the unit it follows and does not end it --
                 # ``parse`` collects it into that unit's modifier run, so
                 # "aː͡s" is one unit there and must not read as a tie with
                 # nothing on its left here. A break or separator does end
-                # the unit.
+                # the unit, and so does a stress mark: it is written
+                # before what it scopes, so ``parse`` stops the modifier
+                # run at it and the unit before it is closed.
                 if not (
                     char in self.diacritics
+                    and char not in self.stress_markers
                     and modifier_mode(self, char) != "structural"
                 ):
                     last_was_phone = False
@@ -510,6 +530,26 @@ class AnalysisMixin(IPAFeaturesBase):
                     issue["type"] = "error"
 
         return issues
+
+    def _stress_reaches_no_unit(self, ipa: str, i: int) -> str | None:
+        """Why the mark at ``ipa[i]`` reaches no unit's prosody, or None.
+
+        Only stress is asked about: it is the one mark written before
+        what it scopes, so it is the one that can be left holding
+        nothing. The two answers are the two :meth:`IPAFeatures.segments`
+        reports -- nothing follows it, or a nearer mark takes the
+        binding -- so the validator and the parser name the same two
+        mistakes. Separators and whitespace are transparent: they carry
+        no unit, so a stress mark still binds across them.
+        """
+        if ipa[i] not in self.stress_markers:
+            return None
+        j = i + 1
+        while j < len(ipa) and (ipa[j].isspace() or ipa[j] in self.separators):
+            j += 1
+        if j >= len(ipa):
+            return "unbound"
+        return "superseded" if ipa[j] in self.stress_markers else None
 
     def is_valid_ipa(self, ipa: str) -> bool:
         """Check if an IPA string is valid (no errors).

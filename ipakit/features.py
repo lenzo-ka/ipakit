@@ -30,6 +30,7 @@ from .segment import (
     Segment,
     Sense,
     apply_modifiers,
+    check_prosody,
     fill_defaults,
     flat_projection,
     modifier_mode,
@@ -419,11 +420,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # accounts for the whole string.
         #
         # The comparison is by character multiset rather than by string,
-        # because a stress mark is re-emitted before its base ("tˈ"
-        # spells back as "ˈt") -- reordered, not lost. Structural marks
-        # are excluded on both sides: the linking undertie is a boundary
-        # relation between units and belongs to no Segment by design, so
-        # its absence from the emission is not a dropped character.
+        # because a unit emits its marks in its own order (prosody on the
+        # side it binds from, combining marks in canonical order), which
+        # need not be the order they were written in: what is checked
+        # here is that nothing was lost, not that nothing moved.
+        # Structural marks are excluded on both sides: the linking
+        # undertie is a boundary relation between units and belongs to no
+        # Segment by design, so its absence from the emission is not a
+        # dropped character.
         def _substantive(text: str) -> list[str]:
             return sorted(ch for ch in text if not self.is_structural_token(ch))
 
@@ -1372,7 +1376,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """The run of modifier diacritics starting at ``text[start]``.
 
         Stops at anything structural -- a tie, a break, the linking mark --
-        because those relate units rather than modify one.
+        because those relate units rather than modify one, and at a stress
+        mark, because a stress mark is written *before* what it scopes.
+
+        That last stop is about direction, not about mode. Prosody does
+        not all bind one way: length (``eː``), tone (``a˥``) and the
+        contour marks are written after the segment they lengthen or
+        pitch, so they are trailing modifiers of the unit just read and
+        belong in this run. Stress is the one prosodic mark whose domain
+        follows it -- ``ˈ`` announces the syllable to come -- so
+        sweeping it up here binds it to the unit *before* it, and since
+        :meth:`Segment.to_ipa` re-emits stress ahead of its unit that
+        walks the mark left across a segment boundary. Stopping at every
+        prosodic mark would cure that and lose the length of ``eː``
+        with it.
         """
         run: list[str] = []
         j = start
@@ -1380,6 +1397,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             j < len(text)
             and text[j] in self.diacritics
             and text[j] not in (TIE_BAR, SEQ_TIE)
+            and text[j] not in self.stress_markers
             and modifier_mode(self, text[j]) != "structural"
         ):
             run.append(text[j])
@@ -1440,10 +1458,19 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Parse IPA text into structured :class:`Segment` units.
 
         Same segmentation as :meth:`tokenize`. Stress marks attach to
-        the following unit's prosody; other prosodic marks (length, tone)
-        attach to the unit they follow. Structural marks (ties become
+        the following unit's prosody -- wherever they stand, not only at
+        the start of the string -- while the other prosodic marks
+        (length, tone, contour) attach to the unit they follow, which is
+        the side each is written on. Structural marks (ties become
         junctures; breaks/linking live between units) never appear in a
         unit's prosody.
+
+        A unit bears one stress level, so of several marks standing
+        before one unit only the nearest binds: the others are superseded
+        and reported. A stress mark with no unit after it binds nothing
+        and is reported the same way -- like an unbound tie, and for the
+        same reason: dropping it silently would make the result shorter
+        than the input while still looking well formed.
 
         Unregistered characters are dropped with a warning, as in
         :meth:`tokenize`; ``strict=True`` raises instead, which is what
@@ -1451,18 +1478,57 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         result: list[Segment] = []
         pending_stress: list[str] = []
+        superseded: list[str] = []
         for token in self.tokenize(text, strict=strict):
-            if token and all(
-                ch in self.diacritics and "stress" in self.diacritics[ch].features
-                for ch in token
-            ):
+            if token and all(ch in self.stress_markers for ch in token):
                 pending_stress.extend(token)
+                # Stress is a single-valued feature of a syllable, so a
+                # unit cannot carry two of these. The nearest mark binds:
+                # a mark written closer to its domain outranks one
+                # written further from it, whichever side it binds from.
+                if len(pending_stress) > 1:
+                    superseded.extend(pending_stress[:-1])
+                    pending_stress = pending_stress[-1:]
                 continue
             seg = self._segment_from_token(token, tuple(pending_stress))
-            pending_stress = []
+            # A token that carries no unit (a lone linking mark, a stray
+            # combining glyph) has nothing to take the stress, so the
+            # mark stays pending for the unit that does.
             if seg is not None:
+                pending_stress = []
                 result.append(seg)
+        self._report_stray_stress(superseded, pending_stress, strict)
         return result
+
+    def _report_stray_stress(
+        self, superseded: list[str], unbound: list[str], strict: bool
+    ) -> None:
+        """Report stress marks that reached no unit's prosody.
+
+        The same contract :meth:`parse` gives an unbound tie: the mark is
+        a registered symbol, so ``strict=`` would never have seen it as
+        "unknown", and dropping it quietly leaves a shorter result that
+        still reads as well formed.
+        """
+        for marks, why in ((superseded, "superseded"), (unbound, "unbound")):
+            if not marks:
+                continue
+            detail = (
+                "a unit bears one stress level, and the mark nearest it binds"
+                if why == "superseded"
+                else "a stress mark binds the unit that follows it"
+            )
+            if strict:
+                raise ValueError(
+                    f"Cannot parse IPA segment: {len(marks)} {why} stress "
+                    f"mark(s) {sorted(set(marks))} reach no unit: {detail}."
+                )
+            warnings.warn(
+                f"dropped {len(marks)} {why} stress mark(s) "
+                f"{sorted(set(marks))} while parsing IPA: {detail}. "
+                "Pass strict=True to raise instead.",
+                stacklevel=3,
+            )
 
     def segment(self, text: str, strict: bool = False) -> Segment:
         """Parse exactly one unit into a :class:`Segment`.
@@ -1504,12 +1570,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             junctures = tuple([senses] * (n - 1))
         else:
             junctures = tuple(senses)
-        for mark in prosody:
-            if modifier_mode(self, mark) == "structural":
-                raise ValueError(
-                    f"structural mark {mark!r} is not prosody; "
-                    "ties are junctures, breaks live between units"
-                )
+        check_prosody(self, prosody)
         return Segment(
             constituents=constituents,
             junctures=junctures,
@@ -1521,21 +1582,21 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Join structured units back into one IPA string.
 
         The inverse of :meth:`segments`: ``to_ipa(segments(s)) == s`` for
-        house-canonical, purely segmental input. A join guarantees no more
-        than its parts do, and each unit emits through
-        :meth:`Segment.to_ipa`, which is lossy on the enumerable set of
-        legacy alias spellings (docs/ties.md) -- so the join is too:
-        ``segments("ʧa")`` rejoins as ``"t͡ʃa"``, the canonical spelling of
-        what was parsed rather than the ligature that was written.
+        house-canonical input, stress marks included -- a mark binds the
+        unit that follows it and re-emits in front of that same unit, so
+        both ``ˈkæt`` and the nucleus-stressed ``kˈæt`` come back as
+        written. A join guarantees no more than its parts do, and each
+        unit emits through :meth:`Segment.to_ipa`, which is lossy on the
+        enumerable set of legacy alias spellings (docs/ties.md) -- so the
+        join is too: ``segments("ʧa")`` rejoins as ``"t͡ʃa"``, the
+        canonical spelling of what was parsed rather than the ligature
+        that was written.
 
-        Two further differences are the Segment model showing through, not
+        One further difference is the Segment model showing through, not
         this method rewriting anything: marks that belong to no unit
         (syllable breaks, the linking undertie) are not carried by a
-        Segment, so a join cannot restore them; and a stress mark binds to
-        the base it was written on and re-emits before it (``kˈæt`` ->
-        ``ˈkæt`` -- the same claim about the same unit, spelled
-        syllable-initially). Structure that must survive a string round
-        trip travels as ``Segment.to_json``.
+        Segment, so a join cannot restore them. Structure that must
+        survive a string round trip travels as ``Segment.to_json``.
         """
         return unicodedata.normalize("NFC", "".join(s.to_ipa() for s in segments))
 
