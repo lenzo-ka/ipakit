@@ -49,11 +49,11 @@ class PairCommand(Command):
     features (like height, backness) using scaled distances.
 
     Examples:
-        ipakit distance pair p b           # 0.0435 (voicing difference)
-        ipakit distance pair p t           # 0.0100 (place difference)
-        ipakit d pair a i                  # 0.0417 (vowel height/backness)
-        ipakit d pair p ɑ                  # 0.1467 (consonant vs vowel)
-        ipakit d pair p b -f json          # {"phone1": "p", "phone2": "b", "distance": 0.0435}
+        ipakit distance pair p b           # a voicing difference
+        ipakit distance pair p t           # a place difference
+        ipakit d pair a i                  # vowel height and backness
+        ipakit d pair p ɑ                  # across the consonant/vowel divide
+        ipakit d pair p b -f json          # {"phone1": "p", "phone2": "b", "distance": ...}
     """
 
     name = "pair"
@@ -198,8 +198,8 @@ class ConfusabilityCommand(Command):
     complement. Scope the inventory with --phoneset (default: full bundled IPA).
 
     Examples:
-        ipakit distance confusability p b      # confusability=0.8454 distance=0.1546
-        ipakit distance conf p t               # confusability=0.9762 distance=0.0238
+        ipakit distance confusability p b      # confusability and its complement
+        ipakit distance conf p t               # a nearer pair scores higher
         ipakit d conf p b --phoneset eng.txt   # percentile within eng.txt's phones
         ipakit d conf p b --gamma 2            # sharpen: push dissimilar pairs apart
         ipakit d conf p b -j                   # JSON with reference info
@@ -261,8 +261,8 @@ class WordCommand(Command):
     decision (with the model's length-ratio short-circuits applied).
 
     Examples:
-        ipakit distance word kæt kæd           # similarity=0.9742
-        ipakit distance word kæt dɒɡ           # similarity=0.8440
+        ipakit distance word kæt kæd           # one segment differs
+        ipakit distance word kæt dɒɡ           # unrelated words
         ipakit d word kæt kæd --threshold 0.9  # also prints: similar=True
         ipakit d word kæt kæd --phoneset eng.txt  # similarity within eng.txt
         ipakit d word kæt kæd -j               # JSON (similarity + raw edit cost)
@@ -351,8 +351,8 @@ class DistanceGroup(CommandGroup):
 
     Examples:
         ipakit distance pair p b               # Raw feature distance: ~0.04
-        ipakit distance confusability p b      # Inventory-relative: 0.8454
-        ipakit distance word kæt kæd           # Word similarity: 0.9742
+        ipakit distance confusability p b      # inventory-relative
+        ipakit distance word kæt kæd           # word similarity
         ipakit distance matrix p t k           # 3x3 comparison matrix
     """
 

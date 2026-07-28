@@ -3,7 +3,7 @@
 Simple API:
     import ipakit as ipa
 
-    ipa.distance("p", "b")              # 0.043
+    ipa.distance("p", "b")              # a voicing difference
     ipa.features("p")                   # {'manner': 'plosive', ...}
     ipa.to_cmu("ˈhɛloʊ")                # ['HH', 'EH1', 'L', 'OW0']
     ipa.to_ipa(ipa.segments("hɛl"))     # 'hɛl'

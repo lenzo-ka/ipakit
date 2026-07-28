@@ -562,6 +562,28 @@ class TestChannelAxis:
         assert D(ipa, "tˡ", "l") < D(ipa, "t", "l")
 
 
+class TestDocumentedNonMetricity:
+    """The triangle inequality does not hold, and docs/distance.md says so.
+
+    This test exists to keep the documentation honest rather than to pin a
+    number: if the metric ever became a true metric the doc would be wrong
+    in the other direction, and that should be noticed.
+    """
+
+    def test_the_triangle_inequality_is_violated(self, ipa: IPAFeatures) -> None:
+        # A composite sits near two things that are far from each other,
+        # because it shares a different constituent with each.
+        far = ipa.distance("b͡v", "ɡ")
+        via = ipa.distance("b͡v", "ɡ͡b") + ipa.distance("ɡ͡b", "ɡ")
+        assert via < far, (via, far)
+
+    def test_the_properties_that_do_hold(self, ipa: IPAFeatures) -> None:
+        for a, b in [("p", "b"), ("s", "z"), ("a", "i"), ("t͡ʃ", "ʃ")]:
+            assert ipa.distance(a, b) == ipa.distance(b, a)
+            assert 0.0 <= ipa.distance(a, b) <= 1.0
+        assert ipa.distance("p", "p") == 0.0
+
+
 class TestDataIntegrity:
     """Guards for facts that can silently disagree with the model. Each
     of these caught a real defect when first written."""

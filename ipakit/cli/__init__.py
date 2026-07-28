@@ -62,13 +62,13 @@ Examples:
   ipakit describe p                    # "voiceless bilabial plosive"
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
-  ipakit query match plosive bilabial  # Find: b p ɓ
+  ipakit query match plosive bilabial  # Find: b p ɓ ʘ
   ipakit query match +voi plo bil      # Voiced bilabial plosives: b ɓ
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Raw feature distance: ~0.04
-  ipakit distance confusability p b    # Inventory-relative: 0.8454
-  ipakit distance word kæt kæd         # Word similarity: 0.9742
+  ipakit distance confusability p b    # inventory-relative
+  ipakit distance word kæt kæd         # word similarity
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
 """,

@@ -11,6 +11,7 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 | Basis | Articulatory structure — where a constriction is, what makes it, how close it is |
 | Claim | Structural consistency; **not** a model of perceptual confusability |
 | Symmetry | `d(x, y) == d(y, x)` for all pairs (property-tested) |
+| Triangle inequality | **Not guaranteed** — see [Not a metric](#not-a-metric-in-the-mathematical-sense) |
 | Silence | `d(␣, X) == 1.0` for every speech sound `X` |
 | Weighting | None; every dimension contributes equally at maximal difference |
 | Parameters | `GAP_COST = 1.0`, `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` |
@@ -120,6 +121,21 @@ If weights are ever wanted, the only defensible source is empirical confusion da
 `get_features` resolves registered phones first, then composes tie-barred sequences of known phones. Distance follows: any composable segment has a distance, whether or not it is in the inventory.
 
 `DistanceModel` adds a percentile transform over a reference inventory. Phones absent from its matrix fall back to feature-derived similarity routed through the same CDF; phones whose features cannot be derived at all keep the explicit sentinels (`confusability` 0.0, `distance` 1.0, `nearest` empty). A phoneset whose members are absent from the matrix is reported, not silently dropped — see `import_phoneset` if the members are spelled in another tie convention.
+
+## Not a metric in the mathematical sense
+
+`distance` is symmetric, is zero exactly on identity, and lies in `[0, 1]`. It does **not** satisfy the triangle inequality, and is therefore a *dissimilarity*, not a metric. Measured over the shipped inventory, about 0.5% of triples violate it, and the worst cases are not marginal:
+
+```
+d(b͡v, ɡ)              far apart
+d(b͡v, ɡ͡b) + d(ɡ͡b, ɡ)  an order of magnitude closer
+```
+
+This is structural rather than accidental. `ɡ͡b` is a double articulation that shares one constituent with `b͡v` and a *different* one with `ɡ`, so it sits near both, while `b͡v` and `ɡ` are compared as a phased unit against an atom and pay the gap cost. A composite can be close to two things that are far from each other, because closeness is being measured against different parts of it.
+
+The claim the metric makes is structural consistency, and the operations it is built for — ranking neighbours, thresholding similarity, scoring an alignment — need ordering and boundedness, not metricity. Nothing in the library assumes the triangle inequality holds.
+
+**What this means for you.** Anything that requires a true metric will be wrong here: metric trees and ball trees for nearest-neighbour search, algorithms whose correctness proof rests on the triangle inequality, and embedding the distances into a Euclidean space without checking the residuals. Brute-force nearest-neighbour, ranking, and clustering methods that only need a dissimilarity are all fine. If you need a metric, enforce it explicitly — for instance by taking the shortest-path (metric closure) over the distance graph — rather than assuming it.
 
 ## 8. Implications for users
 
