@@ -78,13 +78,18 @@
       <point arc="0.93" x="0.6198" y="0.7804" diameter="0.038" provenance="hand-placed"/>
       <point arc="1.00" x="0.6266" y="0.7457" diameter="0.034" provenance="hand-placed"/>
     </nasal>
-    <!-- Maxillary teeth. The incisal edge is the labiodental target
-         (docs/tract-anatomy.md 3); the arch line runs back from it to
-         the alveolar ridge. Hand-placed on the upper boundary: no
-         instrument in docs/articulatory-data.md images the dentition. -->
+    <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
+         carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
+         carries the lower teeth, the lower lip and the tongue's
+         anterior attachment), so their position is posture-dependent
+         and these coordinates are the rest posture. Hand-placed. -->
     <teeth provenance="hand-placed">
-      <point name="incisal-edge" x="0.0600" y="0.7873"/>
-      <point name="arch" x="0.0989" y="0.7993"/>
+      <point name="upper-crown" x="0.0668" y="0.7581" carrier="skull"/>
+      <point name="upper-incisal-edge" x="0.0600" y="0.7873" carrier="skull"/>
+      <point name="upper-arch" x="0.0989" y="0.7993" carrier="skull"/>
+      <point name="lower-crown" x="0.0901" y="0.6584" carrier="mandible"/>
+      <point name="lower-incisal-edge" x="0.0969" y="0.6292" carrier="mandible"/>
+      <point name="lower-arch" x="0.1338" y="0.6385" carrier="mandible"/>
     </teeth>
   </head>
 
@@ -118,13 +123,18 @@
       <point arc="0.93" x="0.5908" y="0.7778" diameter="0.038" provenance="hand-placed"/>
       <point arc="1.00" x="0.5966" y="0.7456" diameter="0.034" provenance="hand-placed"/>
     </nasal>
-    <!-- Maxillary teeth. The incisal edge is the labiodental target
-         (docs/tract-anatomy.md 3); the arch line runs back from it to
-         the alveolar ridge. Hand-placed on the upper boundary: no
-         instrument in docs/articulatory-data.md images the dentition. -->
+    <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
+         carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
+         carries the lower teeth, the lower lip and the tongue's
+         anterior attachment), so their position is posture-dependent
+         and these coordinates are the rest posture. Hand-placed. -->
     <teeth provenance="hand-placed">
-      <point name="incisal-edge" x="0.0678" y="0.7770"/>
-      <point name="arch" x="0.1044" y="0.7891"/>
+      <point name="upper-crown" x="0.0751" y="0.7479" carrier="skull"/>
+      <point name="upper-incisal-edge" x="0.0678" y="0.7770" carrier="skull"/>
+      <point name="upper-arch" x="0.1044" y="0.7891" carrier="skull"/>
+      <point name="lower-crown" x="0.0974" y="0.6583" carrier="mandible"/>
+      <point name="lower-incisal-edge" x="0.1046" y="0.6292" carrier="mandible"/>
+      <point name="lower-arch" x="0.1392" y="0.6385" carrier="mandible"/>
     </teeth>
   </head>
 
@@ -159,13 +169,18 @@
       <point arc="0.93" x="0.5435" y="0.7748" diameter="0.0327" provenance="hand-placed"/>
       <point arc="1.00" x="0.528" y="0.7575" diameter="0.0292" provenance="hand-placed"/>
     </nasal>
-    <!-- Maxillary teeth. The incisal edge is the labiodental target
-         (docs/tract-anatomy.md 3); the arch line runs back from it to
-         the alveolar ridge. Hand-placed on the upper boundary: no
-         instrument in docs/articulatory-data.md images the dentition. -->
+    <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
+         carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
+         carries the lower teeth, the lower lip and the tongue's
+         anterior attachment), so their position is posture-dependent
+         and these coordinates are the rest posture. Hand-placed. -->
     <teeth provenance="hand-placed">
-      <point name="incisal-edge" x="0.0834" y="0.7364"/>
-      <point name="arch" x="0.1151" y="0.7485"/>
+      <point name="upper-crown" x="0.0906" y="0.7114" carrier="skull"/>
+      <point name="upper-incisal-edge" x="0.0834" y="0.7364" carrier="skull"/>
+      <point name="upper-arch" x="0.1151" y="0.7485" carrier="skull"/>
+      <point name="lower-crown" x="0.1128" y="0.6342" carrier="mandible"/>
+      <point name="lower-incisal-edge" x="0.1200" y="0.6092" carrier="mandible"/>
+      <point name="lower-arch" x="0.1500" y="0.6185" carrier="mandible"/>
     </teeth>
   </head>
 

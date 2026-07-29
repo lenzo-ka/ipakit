@@ -98,7 +98,7 @@ class Head:
     length_cm: float | None = None
     nasal: tuple[MidlinePoint, ...] = ()
     port_arc: float | None = None
-    teeth: tuple[tuple[str, float, float], ...] = ()
+    teeth: tuple[tuple[str, float, float, str], ...] = ()
 
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
@@ -163,6 +163,21 @@ class Head:
         nx, ny = -ty / norm, tx / norm
         travel = offset * diameter
         return (x + nx * travel, y + ny * travel)
+
+    def lips(
+        self, closed: bool = False
+    ) -> tuple[tuple[float, float], tuple[float, float]] | None:
+        """Upper and lower lip, as the tract's two boundaries at arc 0.
+
+        A bilabial closure is these two meeting, which is why it is the model
+        that has to say where they are: a renderer deriving them from the
+        tube ends is re-deriving geometry the head already fixes.
+        """
+        upper = self.project(TractPoint(arc=0.0, offset=1.0))
+        lower = self.project(TractPoint(arc=0.0, offset=0.0))
+        if upper is None or lower is None:
+            return None
+        return (upper, upper if closed else lower)
 
     def project_nasal(
         self, arc: float, offset: float = 0.0
@@ -269,13 +284,14 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 for pt in nasal_elem.findall("point")
             )
         teeth_elem = elem.find("teeth")
-        teeth: tuple[tuple[str, float, float], ...] = ()
+        teeth: tuple[tuple[str, float, float, str], ...] = ()
         if teeth_elem is not None:
             teeth = tuple(
                 (
                     pt.get("name", ""),
                     float(pt.get("x", 0.0)),
                     float(pt.get("y", 0.0)),
+                    pt.get("carrier", "skull"),
                 )
                 for pt in teeth_elem.findall("point")
             )
