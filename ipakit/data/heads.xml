@@ -91,6 +91,29 @@
       <point name="lower-incisal-edge" x="0.0969" y="0.6292" carrier="mandible"/>
       <point name="lower-arch" x="0.1338" y="0.6385" carrier="mandible"/>
     </teeth>
+    <!-- How much of what sits at each arc is carried by the jaw rather than
+         moved on its own. The mandible makes no constriction, but the lower
+         lip, the lower teeth and the tongue's anterior attachment ride on it,
+         so its position sets how open things at that arc can be — the
+         envelope, not the constriction. Contrastive emphasis is the clear
+         case: the jaw opens further and the whole anterior aperture goes with
+         it (Erickson, Fujimura & Lenzo, on mandibular motion in contrastive
+         emphasis).
+
+         Measured, unlike the rest of this file: the fraction of positional
+         variance that a mandible-local frame removes, median over the 34
+         rigid-body-clean X-Ray Microbeam speakers. See
+         docs/articulatory-data.md. The gradient is the anatomy — the tongue
+         is anchored anteriorly, so carrying decays from the lips backward. -->
+    <carriage provenance="measured">
+      <point arc="0.00" jaw="0.660"/>
+      <point arc="0.13" jaw="0.280"/>
+      <point arc="0.19" jaw="0.212"/>
+      <point arc="0.32" jaw="0.122"/>
+      <point arc="0.45" jaw="0.065"/>
+      <point arc="0.60" jaw="0.013"/>
+      <point arc="1.00" jaw="0.000"/>
+    </carriage>
   </head>
 
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
@@ -136,6 +159,29 @@
       <point name="lower-incisal-edge" x="0.1046" y="0.6292" carrier="mandible"/>
       <point name="lower-arch" x="0.1392" y="0.6385" carrier="mandible"/>
     </teeth>
+    <!-- How much of what sits at each arc is carried by the jaw rather than
+         moved on its own. The mandible makes no constriction, but the lower
+         lip, the lower teeth and the tongue's anterior attachment ride on it,
+         so its position sets how open things at that arc can be — the
+         envelope, not the constriction. Contrastive emphasis is the clear
+         case: the jaw opens further and the whole anterior aperture goes with
+         it (Erickson, Fujimura & Lenzo, on mandibular motion in contrastive
+         emphasis).
+
+         Measured, unlike the rest of this file: the fraction of positional
+         variance that a mandible-local frame removes, median over the 34
+         rigid-body-clean X-Ray Microbeam speakers. See
+         docs/articulatory-data.md. The gradient is the anatomy — the tongue
+         is anchored anteriorly, so carrying decays from the lips backward. -->
+    <carriage provenance="measured">
+      <point arc="0.00" jaw="0.660"/>
+      <point arc="0.13" jaw="0.280"/>
+      <point arc="0.19" jaw="0.212"/>
+      <point arc="0.32" jaw="0.122"/>
+      <point arc="0.45" jaw="0.065"/>
+      <point arc="0.60" jaw="0.013"/>
+      <point arc="1.00" jaw="0.000"/>
+    </carriage>
   </head>
 
   <!-- The child head is untouched: XRMB's speakers are young adults (median
@@ -182,6 +228,29 @@
       <point name="lower-incisal-edge" x="0.1200" y="0.6092" carrier="mandible"/>
       <point name="lower-arch" x="0.1500" y="0.6185" carrier="mandible"/>
     </teeth>
+    <!-- How much of what sits at each arc is carried by the jaw rather than
+         moved on its own. The mandible makes no constriction, but the lower
+         lip, the lower teeth and the tongue's anterior attachment ride on it,
+         so its position sets how open things at that arc can be — the
+         envelope, not the constriction. Contrastive emphasis is the clear
+         case: the jaw opens further and the whole anterior aperture goes with
+         it (Erickson, Fujimura & Lenzo, on mandibular motion in contrastive
+         emphasis).
+
+         Measured, unlike the rest of this file: the fraction of positional
+         variance that a mandible-local frame removes, median over the 34
+         rigid-body-clean X-Ray Microbeam speakers. See
+         docs/articulatory-data.md. The gradient is the anatomy — the tongue
+         is anchored anteriorly, so carrying decays from the lips backward. -->
+    <carriage provenance="measured">
+      <point arc="0.00" jaw="0.660"/>
+      <point arc="0.13" jaw="0.280"/>
+      <point arc="0.19" jaw="0.212"/>
+      <point arc="0.32" jaw="0.122"/>
+      <point arc="0.45" jaw="0.065"/>
+      <point arc="0.60" jaw="0.013"/>
+      <point arc="1.00" jaw="0.000"/>
+    </carriage>
   </head>
 
 </heads>
