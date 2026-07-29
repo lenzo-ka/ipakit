@@ -848,6 +848,28 @@ def page(
         '<span><i style="background:var(--trace)"></i>current</span></div>'
     )
     subject = f"{phone} — " if phone else ""
+    compared = "<th>compared</th>" if prior else ""
+    aperture_section = (
+        ""
+        if caption is not None
+        else f"""<section><h2>Declared aperture</h2>
+<p>The tract's cross dimension along its length, from the lips at 0 to the
+glottis at 1. Amber points are measured; the rest are extrapolated or
+hand-placed, which the table below states for each.</p>
+<figure>{profile_svg(current, prior)}</figure></section>"""
+    )
+    provenance = (
+        ""
+        if caption is not None
+        else f"""<section><h2>Where the numbers come from</h2>
+<p><em>Measured</em> is the aperture taken from the X-Ray Microbeam database
+over 48 speakers. That corpus has no upper wall forward of arc 0.11 and none
+behind arc 0.44, so everything outside that span is extrapolated, and the nasal
+branch, the teeth and the child head are hand-placed throughout. See
+<code>docs/articulatory-data.md</code>.</p>
+<table><thead><tr><th>arc</th>{compared}<th>aperture</th><th>provenance</th></tr>
+</thead><tbody>{_table(current, prior)}</tbody></table></section>"""
+    )
     lede = (
         "Every landmark the head declares, drawn at the rest posture. A "
         "drawing for a single phone names only the landmarks that phone "
@@ -880,21 +902,9 @@ leaves a gap in the oral roof, because the velum is part of that boundary.
 Places in amber host a fricative or affricate somewhere in the inventory.</p>
 <figure>{section_svg(current, prior, aperture, posture, caption, active)}</figure>{key}</section>
 
-<section><h2>Declared aperture</h2>
-<p>The tract's cross dimension along its length, from the lips at 0 to the
-glottis at 1. Amber points are measured; the rest are extrapolated or
-hand-placed, which the table below states for each.</p>
-<figure>{profile_svg(current, prior)}</figure></section>
+{aperture_section}
 
-<section><h2>Where the numbers come from</h2>
-<p><em>Measured</em> is the aperture taken from the X-Ray Microbeam database
-over 48 speakers. That corpus has no upper wall forward of arc 0.11 and none
-behind arc 0.44, so everything outside that span is extrapolated, and the
-nasal branch, the teeth and the child head are hand-placed throughout. See
-<code>docs/articulatory-data.md</code>.</p>
-<table><thead><tr><th>arc</th>{"<th>compared</th>" if prior else ""}
-<th>aperture</th><th>provenance</th></tr></thead>
-<tbody>{_table(current, prior)}</tbody></table></section>
+{provenance}
 </div></body></html>"""
 
 
