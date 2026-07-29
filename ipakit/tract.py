@@ -23,6 +23,7 @@ you imagine, and the shipped matrix must stay reproducible.
 from __future__ import annotations
 
 import functools
+import math
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -100,6 +101,7 @@ class Head:
     port_arc: float | None = None
     teeth: tuple[tuple[str, float, float, str], ...] = ()
     carriage: tuple[tuple[float, float], ...] = ()
+    tongue_span: tuple[float, float, float, float] | None = None
 
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
@@ -164,6 +166,40 @@ class Head:
         nx, ny = -ty / norm, tx / norm
         travel = offset * diameter
         return (x + nx * travel, y + ny * travel)
+
+    def tongue_offset(self, arc: float, control: TractPoint) -> float | None:
+        """The offset the tongue surface takes at ``arc`` for one control.
+
+        The tongue is a single body: a constriction somewhere carries the
+        tip, blade and dorsum with it, so one control deforms a span rather
+        than marking a point. The deformation is a raised cosine centred on
+        the control and falling to the resting offset at ``falloff`` away,
+        which is the shape Pink Trombone uses for the same reason.
+
+        Returns None outside the span the tongue bounds -- in front of it the
+        boundary is the teeth and lips, behind it the pharyngeal wall.
+        """
+        if self.tongue_span is None or control.arc is None or control.offset is None:
+            return None
+        low, high, falloff, taper = self.tongue_span
+        if not low <= arc <= high:
+            return None
+        rest = self.rest.offset if self.rest is not None else 0.0
+        distance = abs(arc - control.arc)
+        if distance >= falloff:
+            offset = rest
+        else:
+            weight = 0.5 * (1.0 + math.cos(math.pi * distance / falloff))
+            offset = rest + (control.offset - rest) * weight
+        # Descend to the floor near each end, so the body comes to a tip in
+        # front and an anchor behind rather than stopping flat at the resting
+        # offset. This applies whatever the control is doing, including where
+        # the control is too far away to raise the surface at all.
+        if taper > 0.0:
+            edge = min(arc - low, high - arc)
+            if edge < taper:
+                offset *= max(edge, 0.0) / taper
+        return offset
 
     def jaw_carriage(self, arc: float) -> float:
         """How much of what sits at ``arc`` the jaw carries, 0 to 1.
@@ -327,6 +363,15 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 (float(pt.get("arc", 0.0)), float(pt.get("jaw", 0.0)))
                 for pt in carriage_elem.findall("point")
             )
+        tongue_elem = elem.find("tongue")
+        tongue_span: tuple[float, float, float, float] | None = None
+        if tongue_elem is not None:
+            tongue_span = (
+                float(tongue_elem.get("from", 0.0)),
+                float(tongue_elem.get("to", 1.0)),
+                float(tongue_elem.get("falloff", 0.3)),
+                float(tongue_elem.get("taper", 0.0)),
+            )
         length = elem.get("length-cm")
         rest_elem = elem.find("rest")
         rest = None
@@ -348,6 +393,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             port_arc=port_arc,
             teeth=teeth,
             carriage=carriage,
+            tongue_span=tongue_span,
         )
     return heads, default
 

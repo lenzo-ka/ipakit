@@ -59,9 +59,9 @@ That divisor is the whole of the mapping's arbitrariness, and it is worth statin
 
 ## What the measurements say
 
-Each of the following was briefed to this lane as a finding from an exploratory pass and re-measured from scratch. Where the re-measurement disagrees, the disagreement is stated first, because it is the more useful half.
+Where the re-measurement disagrees, the disagreement is stated first, because it is the more useful half.
 
-### 1. The palate is recoverable from motion — for most speakers
+### 1. The palate is recoverable from motion
 
 Bin every tongue-pellet sample by x, take the upper envelope of each bin, and compare it with `PAL.DAT`.
 
@@ -74,7 +74,7 @@ Bin every tongue-pellet sample by x, take the upper envelope of each bin, and co
 | worst speaker | 5.43 mm (JW63) |
 | signed bias, median | -0.27 mm (the envelope sits just under the outline) |
 
-Confirmed, with a caveat the brief did not carry: the claimed 0.4-1.4 mm band holds for 40 of 48 speakers, not all of them. Eight sit outside it.
+The envelope agrees with `PAL.DAT` to within 0.4-1.4 mm for 40 of 48 speakers. Eight sit outside that band.
 
 The estimator matters more than it looks. Taking the literal maximum per bin gives a median rms of 0.78 mm — indistinguishable — but a worst case of 30.7 mm, because a handful of mistracked frames own the maximum outright. The script reports the 0.999 quantile and the raw maximum side by side; the gap between the columns is exactly what those frames are worth.
 
@@ -100,15 +100,15 @@ Signed clearance, tongue y minus palate y, pooled over every tongue sample that 
 
 Of **27,854,608** tongue samples that fall under the outline, 54,449 sit above it (0.195%) and 732 by more than 1 mm (0.0026%).
 
-Confirmed, and by a much larger margin than the brief's "~12 against ~12,000". The distribution stops at the wall. Since the wall was measured from a dental cast and the pellets from speech, this is also a check on the whole coordinate alignment between the two records, not just on the outline.
+The distribution stops at the wall. Since the wall was measured from a dental cast and the pellets from speech, this is also a check on the whole coordinate alignment between the two records, not just on the outline.
 
-### 3. The rigid-body screen — 14 speakers, not 7
+### 3. The rigid-body screen
 
 The distance between MNI and MNM is a distance between two points on one bone. Any variation in it is measurement error.
 
 `python scripts/articulatory.py rigid`
 
-**14 of 48 speakers exceed 3% sd/mean**, not 7: JW57, JW32, JW53, JW19, JW49, JW34, JW24, JW25, JW54, JW42, JW51, JW62, JW18, JW39. The brief's list omitted the two worst — JW57 at 31.0% and JW53 at 8.7% — and included JW15, which measures 2.79% over the whole corpus and passes. The likely cause of the difference is that the exploratory pass read only the first 60 track files per speaker.
+**14 of 48 speakers exceed 3% sd/mean**: JW57, JW32, JW53, JW19, JW49, JW34, JW24, JW25, JW54, JW42, JW51, JW62, JW18, JW39. The worst are JW57 at 31.0% and JW53 at 8.7%. The screen needs the whole track set per speaker; reading only the first 60 files misses the worst offenders and flags speakers that pass over the full corpus.
 
 The coefficient of variation is not the whole story, and the script prints a robust version (IQR/1.349 over the median) beside it:
 
@@ -118,11 +118,9 @@ The coefficient of variation is not the whole story, and the script prints a rob
 | JW53 | 8.70 | 2.11 | 208.3 mm |
 | JW32 | 13.22 | 25.88 | 44.3 mm |
 
-JW57 and JW53 are clean tracks with a few catastrophic frames. **JW32 is the only speaker whose mandible track is loose throughout** — 25.9% robust variation, and both mandible pellets present in only 25.2% of frames. Its motion statistics are unusable, as briefed; the other thirteen are a threshold effect and would be recoverable with per-frame outlier rejection.
+JW57 and JW53 are clean tracks with a few catastrophic frames. **JW32 is the only speaker whose mandible track is loose throughout** — 25.9% robust variation, and both mandible pellets present in only 25.2% of frames.Worth recording separately: mandible pellet loss is severe for several speakers regardless of cv. JW29 tracks both pellets in 4.9% of frames, JW44 in 5.3%, JW33 in 21.0%, JW32 in 25.2%, JW60 in 25.4%, JW14 in 43.5%.
 
-Worth recording separately: mandible pellet loss is severe for several speakers regardless of cv. JW29 tracks both pellets in 4.9% of frames, JW44 in 5.3%, JW33 in 21.0%, JW32 in 25.2%, JW60 in 25.4%, JW14 in 43.5%.
-
-### 4. The mandibular hinge is not fixed
+### 4. The mandibular hinge migrates
 
 For a rigid body in the plane, every point turns about one centre, which lies on the perpendicular bisector of each point's displacement chord. Two mandible pellets give two bisectors and one intersection.
 
@@ -146,7 +144,7 @@ Split by jaw opening (upper and lower quartiles of MNI height), the centre migra
 | open minus closed, **y** | **-28.8 mm** | falls in **34 of 34** speakers |
 | open minus closed, x | +5.6 mm | moves back in 13 of 34 — not a direction |
 
-Confirmed for the vertical migration, and much more strongly than briefed: unanimous across every speaker measured. **Refuted for the horizontal**, where the brief's per-speaker examples do not generalise — the sign is close to a coin flip. The brief's range for the centre, "x -67 to -95 mm", is also not reproduced; the measured range is -84 to -47 with a median of -64.
+**The horizontal component does not generalise** — its sign is close to a coin flip across speakers. The centre's measured range is x -84 to -47 mm, median -64.
 
 The reading stands regardless: a jaw that turned about a fixed hinge would give one centre, and this gives a centre that drops by nearly 3 cm between closed and open. That is rotation plus condylar glide, and an articulatory renderer would need two degrees of freedom for it — which is what `docs/tract-anatomy.md` §4.1 already specifies.
 
@@ -165,13 +163,13 @@ Re-express every pellet in a frame fixed to the mandible — origin at MNI, x-ax
 | **T3** | **7.6%** | -65.0% to 29.2% |
 | **T4** (tongue back) | **1.3%** | -81.9% to 25.5% |
 
-Confirmed in shape, close in magnitude for the lower lip and tongue tip (briefed: LL 66.0%, T1 28.0%, T2 21.2%), and further from the brief at the back of the tongue (briefed: T3 12.2%, T4 6.5%; measured 7.6% and 1.3%). The speaker set differs too — 34 pass the rigid-body screen over the whole corpus, not 40.
+0%, T1 28.0%, T2 21.2%, T4 6.5%; measured 7.6% and 1.3%). The speaker set differs too — 34 pass the rigid-body screen over the whole corpus, not 40.
 
 The upper lip is the control, and it behaves as it must: it is on the maxilla, rides on nothing, and subtracting mandible motion can only *add* to its variance. If that number came out positive the frame would be wrong.
 
 What the ordering says is worth more than any single figure. The mandible carries two thirds of the lower lip's motion, about a quarter of the tongue tip's, and — with the median at 1.3% and the range straddling zero — **none of the tongue back's**. So a renderer that hangs the whole tongue off the jaw is wrong at the back, and one that moves the tongue independently of the jaw is wrong at the front. `ipakit/tract.py` has no jaw at all, so it is neither; what this measures is the chain such a renderer would have to build.
 
-### 6. The diameter profile — the shape is real, the briefed numbers are not
+### 6. The diameter profile
 
 The measurable analogue of `heads.xml`'s `diameter` is the largest sagittal clearance the tract takes at each position: the maximum of `palate_y(x) - tongue_y(x)` per arc bin.
 
@@ -198,11 +196,10 @@ Each speaker is normalized to their own peak; the median peak clearance is 33.1 
 
 Against what `heads.xml` declared, normalized the same way — 0.13 → 0.94, 0.32 → 1.00, 0.45 → 1.00:
 
-- **Confirmed: the declared profile was far too flat.** It varies by 6% across the whole oral run; the measurement falls by 27% (spanning frames) to 30% (every frame) between arc 0.225 and arc 0.40 — two estimators built on different frame sets, agreeing to within 0.08 at every arc.
-- **Confirmed: the declared peak sat too far back.** Measured peak arc 0.225-0.275, declared peak arc 0.32-0.45.
-- **Refuted: the specific numbers.** The briefed profile (0.1 → 0.34, 0.2 → 0.79, 0.3 → 0.82, 0.4 → 0.65, 0.5 → 0.62, over 7 speakers) is not what 48 speakers give, and its shape is different: it puts the peak at arc 0.3, where the measurement is already 5% (spanning) to 12% (every frame) down from its own peak.
-- **Refuted: the arc 0.1 value in particular.** It is the least trustworthy point in the briefed table. `PAL.DAT` begins at a median arc of 0.11, so arc 0.1 is at or forward of the outline's own front edge, and only a quarter of frames reach even arc 0.15. Nothing forward of arc 0.20 should be quoted from this corpus.
-- **Refuted: the coverage claim.** "Arc 0.0 to 0.45-0.50" conflates two reaches. Tongue *position* reaches a median arc 0.51; tract *dimension* needs an upper wall and so is bounded by `PAL.DAT`, whose median reach is arc 0.44 and whose front edge is arc 0.11.
+- **The declared profile was far too flat.** It varied by 6% across the whole oral run; the measurement falls by 27% (spanning frames) to 30% (every frame) between arc 0.225 and arc 0.40 — two estimators built on different frame sets, agreeing to within 0.08 at every arc.
+- **The declared peak sat too far back.** Measured peak arc 0.225-0.275, against a declared peak at arc 0.32-0.45.
+- **Nothing forward of arc 0.20 should be quoted from this corpus.** `PAL.DAT` begins at a median arc of 0.11, so a value at arc 0.1 is at or forward of the outline's own front edge, and only a quarter of frames reach even arc 0.15.
+- **Two reaches, not one.** Tongue *position* reaches a median arc 0.51; tract *dimension* needs an upper wall and so is bounded by `PAL.DAT`, whose median reach is arc 0.44 and whose front edge is arc 0.11. A single coverage figure conflates them.
 
 #### The same shape holds for both sexes
 
@@ -231,48 +228,38 @@ Where the near-contact frames pile up, for the two pellets that reach the corona
 | posterior mode | **arc 0.253** | 0.174 to 0.314 |
 | separation | **0.103** | 0.050 to 0.163 |
 
-**44 of 48 speakers show two modes**; the four that do not (JW24, JW27, JW54, JW56) show one, at arc 0.12-0.15. Confirmed, and on far more speakers than the brief's single example — but the separation is 0.103, not the briefed 0.14, which is near the top of the observed range rather than the middle.
+**44 of 48 speakers show two modes**; the four that do not (JW24, JW27, JW54, JW56) show one, at arc 0.12-0.15. The modes sit at arc 0.145 and 0.253, a separation of 0.103; 0.14 is near the top of the observed range rather than typical.
 
 The anterior mode lands almost exactly on ipakit's declared alveolar (0.13). The posterior mode at 0.253 sits past postalveolar (0.19) and just past alveolo-palatal (0.24). ipakit declares an alveolar-to-postalveolar separation of 0.06; the data says 0.10.
 
 Nothing in `ipa.xml` was changed for this. See "The deferred respacing" below.
 
-## What changed in the library
+## What the geometry declares
 
-One data file: `ipakit/data/heads.xml`, the adult midline `diameter` values.
+`heads.xml` is read only by `Head.project`, which places a tract point in 2D. `arc` and `offset` come from per-value coordinates in `ipa.xml` and are what `ipakit.metric` reads, so nothing in `heads.xml` can reach a distance. That separation is checked rather than assumed: over all 8060 units and 9591 pairs, no distance moves and `confusion.json` regenerates byte-identical.
 
-`heads.xml` is consumed only by `Head.project()`, which draws a tract point in 2D. `arc` and `offset` come from per-value coordinates in `ipa.xml` and are what `ipakit.metric` reads. That separation was not taken on trust; it was measured.
+The adult midline, each point marked in the file with where its number came from:
 
-| check | result |
-|---|---|
-| `scripts/sweep.py diff` over 8060 units | 0 appeared, 0 disappeared, 0 descriptions moved, 0 features moved, **0 distances from base moved** |
-| `confusion.json` regenerated | byte-identical to the shipped file and to a pre-change copy |
-| pairwise triangle, all 9591 pairs | **0 movers at any magnitude**, not merely within tolerance |
-| `python -m pytest -q` | 1458 passed, unchanged |
-| `scripts/invariants.py` | all invariants hold |
-
-The drawn midline is unchanged too. The measured shape needed control points at arc 0.24 and arc 0.40, where the file had none, so those were inserted with x and y set to linear interpolations of the segment that was already there — over 3 heads at 1001 arcs, the largest shift in the projected midline is 4.6e-05 in normalized box units, which is the rounding of the inserted coordinates and nothing else. The wall position (offset 1.0) moves by up to 0.049, which is the whole point of the change.
-
-What the file now declares for `adult-male`, with each point marked in the XML:
-
-| arc | diameter | |
+| arc | aperture | |
 |---|---|---|
-| 0.00 | 0.16 | extrapolated — no palate outline forward of arc 0.10 |
+| 0.00 | 0.16 | extrapolated — no palate outline forward of arc 0.11 |
 | 0.13 | 0.17 | extrapolated |
 | 0.24 | 0.18 | **measured** — the peak |
 | 0.32 | 0.16 | **measured** — 0.90 of the peak |
 | 0.40 | 0.13 | **measured** — 0.73 of the peak |
 | 0.45 | 0.13 | extrapolated — held flat past the palate trace |
-| 0.56 | 0.123 | extrapolated — original shape, rescaled to join the measured run |
-| 0.74 | 0.108 | extrapolated — same |
-| 0.87 | 0.094 | extrapolated — same |
-| 1.00 | 0.079 | extrapolated — same |
+| 0.56 | 0.123 | extrapolated — the original shape, rescaled to join the measured run |
+| 0.74 | 0.108 | extrapolated |
+| 0.87 | 0.094 | extrapolated |
+| 1.00 | 0.079 | extrapolated |
 
-The points behind the measured run keep their original *shape* and are rescaled by the ratio the seam moved — 0.13/0.18 for the adult male, 0.12/0.16 for the female. They had been hand-placed to sit under an oral run of 0.18 that measurement has since put at 0.13, so leaving them unscaled produced a slope of +0.364 between arc 0.45 and 0.56, the steepest in the entire profile and a pure artefact of joining two differently-derived numbers. After rescaling the profile rises to the measured peak and falls monotonically, and its steepest slope is the measured one.
+Behind the measured run the points keep their original shape, rescaled by the ratio at the seam — 0.13/0.18 for the adult male, 0.12/0.16 for the female — because they had been placed under an oral run that measurement has since put lower. The profile therefore rises to the measured peak and falls monotonically, and **represents no oropharyngeal narrowing**. A real one may exist; this corpus cannot see behind arc 0.44, so putting one in would be inventing a feature at the point the data stops.
 
-That has a cost worth stating: the profile now represents **no oropharyngeal narrowing at all**. A real one may well exist — the tongue dorsum approaching the soft palate is a genuine constriction — but this corpus cannot see behind arc 0.44, so putting one back needs a source this measurement does not provide. The choice was between a flare with no evidence and a monotone fall with no evidence; the monotone fall at least does not invent a feature at the exact point where the data stops.
+`adult-female` takes the same normalized shape against its own peak of 0.17. The **child head is hand-placed throughout**: XRMB's speakers are young adults, median age 21, and a child's tract is not a scaling of an adult's.
 
-`adult-female` takes the same normalized shape scaled to its own declared peak of 0.17 (0.17 / 0.15 / 0.12 / 0.12), on the evidence in finding 6. The **child head is untouched**: XRMB's speakers are young adults, median age 21, and a child's tract is not a scaling of an adult's — `docs/tract-anatomy.md` §8 says so, and this corpus offers nothing to replace the hand placement with.
+The one measured relation beyond the aperture is the jaw's. `heads.xml` declares a carriage profile — the fraction of what sits at each arc that the mandible carries, 0.66 at the lips falling to 0.013 by arc 0.60 — read by `Head.jaw_carriage`. The mandible constricts nothing, so it is not an articulator; it is what the lower lip, the lower teeth and the tongue's anterior attachment ride on, and its position therefore sets how open that part of the tract can be.
+
+Everything else in the file — the nasal branch, both dentitions, the tongue's falloff — is hand-placed and says so.
 
 ## What this corpus cannot fix in the representation
 
