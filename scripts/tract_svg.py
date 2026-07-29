@@ -137,6 +137,9 @@ def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
         "port_arc": h.port_arc,
         "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
         "lips_open": h.lips(close=close),
+        "lips_body": h.lip_body(close=close),
+        "lips_shut": h.lip_body(closed=True, close=close),
+        "lips_closed_now": False,
         "lips_closed": h.lips(closed=True, close=close),
         "rest_arc": None if rest is None else rest.arc,
         "rest_offset": None if rest is None else rest.offset,
@@ -208,11 +211,34 @@ def _inside(src: dict[str, Any]) -> list[dict[str, Any]]:
     return [row for row in src["rows"] if row["arc"] >= LIP_INSET]
 
 
+def _lip_seam(src: dict[str, Any], to: Scaler, which: int) -> Point | None:
+    """The inner shoulder of a lip, where the tract boundary joins it.
+
+    Trimming the boundary by a fixed arc leaves it short of the lip or
+    through it, depending on the head. Starting it on the lip's own shoulder
+    makes them meet by construction.
+    """
+    closed = bool(src.get("lips_closed_now"))
+    bodies = src.get("lips_shut" if closed else "lips_body")
+    if not bodies or which >= len(bodies):
+        return None
+    pts = [to(*q) for q in bodies[which]]
+    # Roots are index 0 and 4 and stay in the bone; shoulders travel with the
+    # free edge. The boundary meets the lip where it is attached, so a closing
+    # lip does not drag the palate down with it.
+    return max((pts[0], pts[4]), key=lambda q: q[0])
+
+
 def _trace(src: dict[str, Any], to: Scaler, key: str) -> str:
-    return _path([to(*row[key]) for row in _inside(src)])
+    pts = [to(*row[key]) for row in _inside(src)]
+    seam = _lip_seam(src, to, 0 if key == "wall" else 1)
+    if seam is not None and key in ("wall", "open"):
+        pts.insert(0, seam)
+    return _path(pts)
 
 
-CHAR_W = 6.0  # advance of the 10.5px monospace label face
+CHAR_W = 6.6  # advance of the 10.5px monospace label face, rounded up:
+# reserving less than the text occupies lets labels collide
 LINE_H = 12.0
 LIP_INSET = 0.014  # arc taken off the front, so the boundary meets the lips
 PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
@@ -223,6 +249,7 @@ def _lips(
     to: Scaler,
     posture: tuple[float, float, str] | None,
     taken: list[tuple[float, ...]],
+    named_lip: bool = False,
 ) -> str:
     """The lips, as the model places them.
 
@@ -236,40 +263,24 @@ def _lips(
     pair = src.get("lips_closed" if closed else "lips_open")
     if not pair:
         return ""
-    upper, lower = to(*pair[0]), to(*pair[1])
-    ref = src.get("lips_open") or pair
-    ru, rl = to(*ref[0]), to(*ref[1])
-    dx, dy = rl[0] - ru[0], rl[1] - ru[1]
-    span = (dx * dx + dy * dy) ** 0.5 or 1.0
-    # Down the aperture, upper toward lower; and along the tract.
-    ax, ay = dx / span, dy / span
-    lx, ly = -ay, ax
-
-    def body(seat: Point, tip: Point, outward: float, cls: str) -> str:
-        """A lip: rooted in its own bone, free edge at the aperture.
-
-        The root belongs to the maxilla or the mandible and stays there; only
-        the free edge travels, so a closing lip stretches from a fixed base
-        rather than sliding bodily upward. The cap peaks *at* the tip and
-        does not curve past it -- overshoot is what made two closed lips
-        interpenetrate instead of meeting.
-        """
-        ox, oy = ax * outward, ay * outward
-        root = (seat[0] + ox * 15, seat[1] + oy * 15)
-        half = 8.5
-        shoulder = (tip[0] + ox * half * 0.75, tip[1] + oy * half * 0.75)
-        return (
-            f'<path d="M{root[0] - lx * half:.1f},{root[1] - ly * half:.1f} '
-            f"L{shoulder[0] - lx * half:.1f},{shoulder[1] - ly * half:.1f} "
-            f"Q{tip[0]:.1f},{tip[1]:.1f} "
-            f"{shoulder[0] + lx * half:.1f},{shoulder[1] + ly * half:.1f} "
-            f'L{root[0] + lx * half:.1f},{root[1] + ly * half:.1f}" class="{cls}"/>'
+    bodies = src.get("lips_shut" if closed else "lips_body")
+    if not bodies:
+        return ""
+    parts = []
+    for i, body in enumerate(bodies):
+        pts = [to(*q) for q in body]
+        shut = closed and i == 1
+        parts.append(
+            f'<path d="M{pts[0][0]:.1f},{pts[0][1]:.1f} '
+            f"L{pts[1][0]:.1f},{pts[1][1]:.1f} "
+            f"Q{pts[2][0]:.1f},{pts[2][1]:.1f} {pts[3][0]:.1f},{pts[3][1]:.1f} "
+            f'L{pts[4][0]:.1f},{pts[4][1]:.1f}" '
+            f'class="lip{" shut" if shut else ""}"/>'
         )
-
-    parts = [
-        body(ru, upper, -1.0, "lip"),
-        body(rl, lower, 1.0, "lip shut" if closed else "lip"),
-    ]
+    # When a lip is the articulator the label above already names it, with its
+    # state; a generic "lips" beside it says the same thing twice.
+    if named_lip:
+        return "".join(parts)
     anchor = to(*pair[1])
     for text, lx, ly, depth in _place_labels([("lips", anchor)], 16, 13, taken):
         parts.append(
@@ -394,8 +405,7 @@ def _constriction(
         f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="5" '
         f'class="constriction{" shut" if shut else ""}"/>',
     ]
-    if articulator in MEDIAN:
-        return "".join(parts)  # said once, on the articulator itself
+    return "".join(parts)  # named once, on the articulator itself
     name = articulator.replace("-", " ")
     label = f"{name}\n{'closed' if shut else f'{1 - offset:.2f} open'}"
     for text, lx, ly, depth in _place_labels([(label, (ax, ay))], -18, -13, taken):
@@ -413,8 +423,12 @@ def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
     is doing.
     """
     rows = _inside(src)
+    seam = _lip_seam(src, to, 0)
     if aperture <= 0.01:
-        return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
+        pts = [to(*r["wall"]) for r in rows]
+        if seam is not None:
+            pts.insert(0, seam)
+        return f'<path d="{_path(pts)}" class="wall"/>'
     declared = src.get("port_arc")
     if declared is None:
         return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
@@ -422,6 +436,10 @@ def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
     half = PORT_SPAN * aperture
     before = [to(*r["wall"]) for r in rows if r["arc"] <= port - half]
     after = [to(*r["wall"]) for r in rows if r["arc"] >= port + half]
+    # The roof meets the lip whether or not the velum has broken it further
+    # back; this branch used to skip the seam and leave the front adrift.
+    if seam is not None and before:
+        before.insert(0, seam)
     out = []
     if len(before) > 1:
         out.append(f'<path d="{_path(before)}" class="wall"/>')
@@ -533,13 +551,12 @@ def _annotate(
         anchor = posed if posed is not None else _at(src, arc, "open")
         if anchor is not None:
             anchors.append((name, to(*anchor) if posed is None else posed))
-    for name, x, y, depth in _place_labels(anchors, 18, 13, taken):
+    for shown, x, y, depth in _place_labels(anchors, 18, 13, taken):
         parts.append(
             f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
             f'class="lead art"/>'
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4" class="mark art"/>'
-            f'<text x="{x:.1f}" y="{y + depth + 10:.1f}" class="lbl art" '
-            f'text-anchor="middle">{name.replace("-", " ")}</text>'
+            + _text(x, y + depth + 10, "lbl art", shown)
         )
     voicing = None if active is None else active.get("voiced")
     constricts = None if active is None else active.get("articulator")
@@ -711,6 +728,12 @@ def section_svg(
         tongue_at = {round(a, 6): (x, y) for a, x, y in surface}
         roof: list[Point] = []
         floor: list[Point] = []
+        upper_seam = _lip_seam(current, to, 0)
+        lower_seam = _lip_seam(current, to, 1)
+        if upper_seam is not None:
+            roof.append(upper_seam)
+        if lower_seam is not None:
+            floor.append(lower_seam)
         for row in _inside(current):
             roof.append(to(*row["wall"]))
             here = tongue_at.get(round(row["arc"], 6))
@@ -722,8 +745,10 @@ def section_svg(
         parts.append(
             '<path d="'
             + _path(
-                [to(*r["wall"]) for r in _inside(current)]
-                + [to(*r["open"]) for r in reversed(_inside(current))],
+                [q for q in (_lip_seam(current, to, 0),) if q]
+                + [to(*r["wall"]) for r in _inside(current)]
+                + [to(*r["open"]) for r in reversed(_inside(current))]
+                + [q for q in (_lip_seam(current, to, 1),) if q],
                 close=True,
             )
             + '" class="sweep trace"/>'
@@ -744,7 +769,15 @@ def section_svg(
     parts.append(_nasal(current, to, aperture, taken))
     parts.append(_tongue(current, to))
     parts.append(_constriction(current, to, posture, taken))
-    parts.append(_lips(current, to, posture, taken))
+    parts.append(
+        _lips(
+            current,
+            to,
+            posture,
+            taken,
+            named_lip=bool(active and "lip" in (active.get("articulator") or "")),
+        )
+    )
     parts.append(_caption(caption))
     return (
         f'<svg viewBox="0 0 {WIDTH} {SECTION_HEIGHT}" role="img" '
@@ -1058,6 +1091,9 @@ def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
     if posture is not None:
         close = head(args.head).jaw_close(TractPoint(arc=posture[0], offset=posture[1]))
     current = geometry(args.head, close)
+    current["lips_closed_now"] = bool(
+        posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    )
     if posture is not None:
         h = head(args.head)
         current["teeth"] = [

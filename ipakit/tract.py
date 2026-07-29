@@ -201,6 +201,49 @@ class Head:
                 offset *= max(edge, 0.0) / taper
         return offset
 
+    def lip_body(
+        self, closed: bool = False, close: float = 0.0
+    ) -> tuple[tuple[tuple[float, float], ...], ...] | None:
+        """Each lip as a body: root, shoulders and free edge.
+
+        A lip is articulatory shape, not drawing style, so its form belongs
+        here rather than in whatever draws it. Each is rooted in the bone
+        that carries it -- maxilla above, mandible below -- and only the free
+        edge travels, so a closing lip stretches from a fixed base. The two
+        free edges meet at a point and do not pass it.
+
+        Returns one tuple per lip, upper first, each ``(root_a, shoulder_a,
+        tip, shoulder_b, root_b)`` in tract coordinates.
+        """
+        pair = self.lips(closed=closed, close=close)
+        seats = self.lips(close=close)
+        if pair is None or seats is None:
+            return None
+        (ux, uy), (lx, ly) = seats
+        dx, dy = lx - ux, ly - uy
+        span = math.hypot(dx, dy) or 1.0
+        ax, ay = dx / span, dy / span  # down the aperture
+        wx, wy = -ay, ax  # along the tract
+
+        # Proportions of the aperture, so a head of any size keeps them.
+        reach, half, shoulder = span * 0.18, span * 0.10, span * 0.09
+
+        def one(
+            seat: tuple[float, float], tip: tuple[float, float], out: float
+        ) -> tuple[tuple[float, float], ...]:
+            ox, oy = ax * out, ay * out
+            root = (seat[0] + ox * reach, seat[1] + oy * reach)
+            sh = (tip[0] + ox * shoulder, tip[1] + oy * shoulder)
+            return (
+                (root[0] - wx * half, root[1] - wy * half),
+                (sh[0] - wx * half, sh[1] - wy * half),
+                tip,
+                (sh[0] + wx * half, sh[1] + wy * half),
+                (root[0] + wx * half, root[1] + wy * half),
+            )
+
+        return (one(seats[0], pair[0], -1.0), one(seats[1], pair[1], 1.0))
+
     def jaw_carriage(self, arc: float) -> float:
         """How much of what sits at ``arc`` the jaw carries, 0 to 1.
 
@@ -287,11 +330,26 @@ class Head:
         lower = self.carried(lower, 0.0, close)
         if not closed:
             return (upper, lower)
-        # They meet between: the upper lip comes down about a quarter of what
-        # is left, the lower lip rises the rest.
+        # They meet at the occlusal line rather than at a fraction someone
+        # chose: with the jaw shut the incisal edges are close to meeting, and
+        # the lips close across that level. Taking the teeth as the anchor
+        # keeps the closure where the anatomy puts it for any head.
+        edges = [
+            self.carried((x, y), 0.03, close if carrier == "mandible" else 0.0)
+            for name, x, y, carrier in self.teeth
+            if name.endswith("incisal-edge")
+        ]
+        along = 0.72
+        if len(edges) == 2:
+            mid = ((edges[0][0] + edges[1][0]) / 2, (edges[0][1] + edges[1][1]) / 2)
+            ax, ay = upper[0] - lower[0], upper[1] - lower[1]
+            length = ax * ax + ay * ay
+            if length:
+                along = ((mid[0] - lower[0]) * ax + (mid[1] - lower[1]) * ay) / length
+                along = max(0.0, min(1.0, along))
         meet = (
-            lower[0] + (upper[0] - lower[0]) * 0.72,
-            lower[1] + (upper[1] - lower[1]) * 0.72,
+            lower[0] + (upper[0] - lower[0]) * along,
+            lower[1] + (upper[1] - lower[1]) * along,
         )
         return (meet, meet)
 
