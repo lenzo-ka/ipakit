@@ -46,6 +46,11 @@
      peak, so it represents no oropharyngeal narrowing; if one is wanted there,
      it needs a source, because this one has none. Heads still NEVER affect distance; verified by a
      full sweep over all 8060 units and 9591 pairs, which moved nothing. -->
+<!-- Orientation: the head faces left. x runs from the lips at 0 to the
+     glottis at 1, so front articulations sit on the left and back ones on the
+     right. That matches how the IPA vowel chart is drawn — front vowels left,
+     back vowels right — so a tract figure and a vowel chart can be read side
+     by side without one of them being mirrored. -->
 <heads default="adult-male">
 
   <head name="adult-male" desc="Adult male mid-sagittal tract" length-cm="17.5">
@@ -114,6 +119,17 @@
       <point arc="0.60" jaw="0.013"/>
       <point arc="1.00" jaw="0.000"/>
     </carriage>
+    <!-- The tongue is one body: moving it toward a place carries the tip,
+         blade and dorsum with it, so a constriction is a deformation of the
+         whole surface and not a point. `from` and `to` bound the arc range the body spans, from its anterior
+         attachment on the mandible back to the root above the epiglottis, and `falloff` is the half-width of the raised cosine
+         centred on the control, in arc. `taper` is how far from each end the
+         surface descends to the floor, so the body comes to a tip in front
+         and an anchor behind rather than stopping flat at the rest line. Beyond that range the tongue is not
+         the boundary: in front are the teeth and lips, behind is the
+         pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
+         (Neil Thapen, 2017, MIT) rather than any measurement here. -->
+    <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
   </head>
 
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
@@ -182,6 +198,17 @@
       <point arc="0.60" jaw="0.013"/>
       <point arc="1.00" jaw="0.000"/>
     </carriage>
+    <!-- The tongue is one body: moving it toward a place carries the tip,
+         blade and dorsum with it, so a constriction is a deformation of the
+         whole surface and not a point. `from` and `to` bound the arc range the body spans, from its anterior
+         attachment on the mandible back to the root above the epiglottis, and `falloff` is the half-width of the raised cosine
+         centred on the control, in arc. `taper` is how far from each end the
+         surface descends to the floor, so the body comes to a tip in front
+         and an anchor behind rather than stopping flat at the rest line. Beyond that range the tongue is not
+         the boundary: in front are the teeth and lips, behind is the
+         pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
+         (Neil Thapen, 2017, MIT) rather than any measurement here. -->
+    <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
   </head>
 
   <!-- The child head is untouched: XRMB's speakers are young adults (median
@@ -251,6 +278,17 @@
       <point arc="0.60" jaw="0.013"/>
       <point arc="1.00" jaw="0.000"/>
     </carriage>
+    <!-- The tongue is one body: moving it toward a place carries the tip,
+         blade and dorsum with it, so a constriction is a deformation of the
+         whole surface and not a point. `from` and `to` bound the arc range the body spans, from its anterior
+         attachment on the mandible back to the root above the epiglottis, and `falloff` is the half-width of the raised cosine
+         centred on the control, in arc. `taper` is how far from each end the
+         surface descends to the floor, so the body comes to a tip in front
+         and an anchor behind rather than stopping flat at the rest line. Beyond that range the tongue is not
+         the boundary: in front are the teeth and lips, behind is the
+         pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
+         (Neil Thapen, 2017, MIT) rather than any measurement here. -->
+    <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
   </head>
 
 </heads>
