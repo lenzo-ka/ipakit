@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean check
+.PHONY: figures figures-clean lint check
 
 ## figures: redraw the mid-sagittal tract figures in docs/
 figures:
@@ -30,8 +30,16 @@ figures:
 figures-clean:
 	@rm -f $(FIGDIR)/tract-*.svg
 
+## lint: the style gates; needs the `lint` extra (ruff / black / mypy)
+lint:
+	@$(PYTHON) -m ruff check .
+	@$(PYTHON) -m black --check .
+	@$(PYTHON) -m mypy
+
 ## check: the gates a release runs
-check:
+# lint is a prerequisite rather than a recipe line so it fails in seconds,
+# before the suite spends a minute earning the same verdict.
+check: lint
 	@$(PYTHON) -m pytest -q
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
