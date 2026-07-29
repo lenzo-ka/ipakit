@@ -185,9 +185,11 @@ def _lips(
     if not pair:
         return ""
     upper, lower = to(*pair[0]), to(*pair[1])
-    dx, dy = upper[0] - lower[0], upper[1] - lower[1]
+    ref = src.get("lips_open") or pair
+    ru, rl = to(*ref[0]), to(*ref[1])
+    dx, dy = ru[0] - rl[0], ru[1] - rl[1]
     span = (dx * dx + dy * dy) ** 0.5 or 1.0
-    ox, oy = -dy / span * 9, dx / span * 9
+    ox, oy = -dy / span * 10, dx / span * 10
     parts = []
     for point, extra in ((upper, ""), (lower, " shut" if closed else "")):
         parts.append(
@@ -375,7 +377,10 @@ def _annotate(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -
                 f'text-anchor="middle">{label.replace("-", " ")}</text>'
             )
     teeth = src.get("teeth") or []
-    for prefix, tag in (("upper-", "upper teeth"), ("lower-", "lower teeth")):
+    for prefix, tag, base in (
+        ("upper-", "upper teeth", -22),
+        ("lower-", "lower teeth", 14),
+    ):
         row = [t for t in teeth if str(t["name"]).startswith(prefix)]
         if len(row) < 2:
             continue
@@ -385,7 +390,8 @@ def _annotate(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -
             f'<circle cx="{pts[0][0]:.1f}" cy="{pts[0][1]:.1f}" r="2.2" '
             f'class="teethmark"/>'
         )
-        for label, lx, ly, depth in _place_labels([(tag, pts[0])], 13, 13, taken):
+        step = 13 if base > 0 else -13
+        for label, lx, ly, depth in _place_labels([(tag, pts[0])], base, step, taken):
             parts.append(
                 f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl teeth" '
                 f'text-anchor="middle">{label}</text>'
@@ -558,17 +564,17 @@ def profile_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
 
 STYLE = """
 :root{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;--text:#CFDAE2;
---dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;
+--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 @media (prefers-color-scheme:light){:root{--ground:#DFE4E8;--panel:#F1F4F6;
 --edge:#C9D2D9;--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;
---signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--tubeTrace:rgba(34,67,92,.10);
+--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tubeTrace:rgba(34,67,92,.10);
 --tubePrior:rgba(154,169,180,.22)}}
 :root[data-theme=dark]{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;
---text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;
+--text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 :root[data-theme=light]{--ground:#DFE4E8;--panel:#F1F4F6;--edge:#C9D2D9;
---text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;
+--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;
 --tubeTrace:rgba(34,67,92,.10);--tubePrior:rgba(154,169,180,.22)}
 body{background:var(--ground);color:var(--text);margin:0;
 font:400 16px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -610,20 +616,20 @@ stroke-dasharray:3 4;opacity:.75}
 .nasalside{fill:none;stroke:var(--trace);stroke-width:1;opacity:.8}
 .nasalmid{fill:none;stroke:var(--trace);stroke-width:.8;
 stroke-dasharray:2 4;opacity:.5}
-.velum{stroke:var(--velum);stroke-width:2;stroke-linecap:round;fill:none}
+.velum{stroke:var(--velum);stroke-width:1.8;stroke-linecap:round;fill:none}
 .velumtip{fill:var(--velum)}
 .lbl.velum{fill:var(--velumText);font-weight:400}
 .median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
-.lip{stroke:var(--text);stroke-width:3;stroke-linecap:round;fill:none}
+.lip{stroke:var(--text);stroke-width:2.4;stroke-linecap:round;fill:none}
 .lip.shut{stroke:var(--signal)}
-.lbl.lip{fill:var(--text)}
+.lbl.lip{fill:var(--inkQuiet);font-weight:400}
 .reach{stroke:var(--signal);stroke-width:1.4;stroke-dasharray:2 3;opacity:.8}
 .constriction{fill:none;stroke:var(--signal);stroke-width:2}
 .constriction.shut{fill:var(--signal)}
-.lbl.constriction{fill:var(--signal)}
-.teeth{stroke:var(--text);stroke-width:2.2;stroke-linecap:round;fill:none}
-.teethmark{fill:var(--text)}
-.lbl.teeth{fill:var(--text)}
+.lbl.constriction{fill:var(--signal);font-weight:400;opacity:.85}
+.teeth{stroke:var(--inkQuiet);stroke-width:1.6;stroke-linecap:round;fill:none}
+.teethmark{fill:var(--inkQuiet)}
+.lbl.teeth{fill:var(--inkQuiet);font-weight:400}
 .medianmark{fill:none;stroke:var(--dim);stroke-width:1.6}
 .dot.measured{fill:var(--signal)}
 td.measured{color:var(--signal)}
