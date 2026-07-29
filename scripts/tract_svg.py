@@ -100,7 +100,9 @@ def geometry(name: str) -> dict[str, Any]:
         "rows": sample(h),
         "nasal": [n for n in nasal if None not in n.values()],
         "port_arc": h.port_arc,
-        "teeth": [{"name": n, "x": x, "y": y} for n, x, y in h.teeth],
+        "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
+        "lips_open": h.lips(),
+        "lips_closed": h.lips(closed=True),
         "rest_arc": None if rest is None else rest.arc,
         "rest_offset": None if rest is None else rest.offset,
         "midline": [
@@ -173,37 +175,29 @@ def _lips(
     posture: tuple[float, float, str] | None,
     taken: list[tuple[float, ...]],
 ) -> str:
-    """The lips: the tube's two boundaries where the tract opens, at arc 0.
+    """The lips, as the model places them.
 
-    They were never drawn, so a bilabial closure -- the articulator carried
-    to offset 1 -- landed on the wall trace, which reads as the roof rather
-    than as the two lips meeting. The upper lip is the wall end, the lower
-    lip the open end, and a closure brings the lower to the upper.
+    A bilabial closure is the lower lip meeting the upper; ``Head.lips``
+    says where both are, open or closed, so nothing is derived here.
     """
-    rows = src["rows"]
-    if not rows:
+    closed = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    pair = src.get("lips_closed" if closed else "lips_open")
+    if not pair:
         return ""
-    first = rows[0]
-    upper = to(*first["wall"])
-    lower = to(*first["open"])
+    upper, lower = to(*pair[0]), to(*pair[1])
     dx, dy = upper[0] - lower[0], upper[1] - lower[1]
     span = (dx * dx + dy * dy) ** 0.5 or 1.0
-    # outward, away from the tract, so the lips read as lips and not as caps
     ox, oy = -dy / span * 9, dx / span * 9
-    closed = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
-    lower_at = upper if closed else lower
-    parts = [
-        f'<path d="M{upper[0] - ox:.1f},{upper[1] - oy:.1f} '
-        f'L{upper[0] + ox:.1f},{upper[1] + oy:.1f}" class="lip"/>',
-        f'<path d="M{lower_at[0] - ox:.1f},{lower_at[1] - oy:.1f} '
-        f'L{lower_at[0] + ox:.1f},{lower_at[1] + oy:.1f}" '
-        f'class="lip{" shut" if closed else ""}"/>',
-    ]
-    for text, lx, ly, depth in _place_labels(
-        [("lips", (lower[0], lower[1]))], 16, 13, taken
-    ):
+    parts = []
+    for point, extra in ((upper, ""), (lower, " shut" if closed else "")):
         parts.append(
-            f'<text x="{lx:.1f}" y="{ly + depth:.1f}" class="lbl lip" '
+            f'<path d="M{point[0] - ox:.1f},{point[1] - oy:.1f} '
+            f'L{point[0] + ox:.1f},{point[1] + oy:.1f}" class="lip{extra}"/>'
+        )
+    anchor = to(*(src.get("lips_open") or pair)[1])
+    for text, lx, ly, depth in _place_labels([("lips", anchor)], 16, 13, taken):
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl lip" '
             f'text-anchor="middle">{text}</text>'
         )
     return "".join(parts)
@@ -247,7 +241,7 @@ def _constriction(
     label = f"{name} · {'closed' if shut else f'{1 - offset:.2f} open'}"
     for text, lx, ly, depth in _place_labels([(label, (ax, ay))], -18, -13, taken):
         parts.append(
-            f'<text x="{lx:.1f}" y="{ly + depth:.1f}" class="lbl constriction" '
+            f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl constriction" '
             f'text-anchor="middle">{text}</text>'
         )
     return "".join(parts)
@@ -381,17 +375,20 @@ def _annotate(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -
                 f'text-anchor="middle">{label.replace("-", " ")}</text>'
             )
     teeth = src.get("teeth") or []
-    if len(teeth) >= 2:
-        ex, ey = to(teeth[0]["x"], teeth[0]["y"])
-        ax, ay = to(teeth[1]["x"], teeth[1]["y"])
+    for prefix, tag in (("upper-", "upper teeth"), ("lower-", "lower teeth")):
+        row = [t for t in teeth if str(t["name"]).startswith(prefix)]
+        if len(row) < 2:
+            continue
+        pts = [to(t["x"], t["y"]) for t in row]
         parts.append(
-            f'<path d="M{ex:.1f},{ey:.1f} L{ax:.1f},{ay:.1f}" class="teeth"/>'
-            f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="2.6" class="teethmark"/>'
+            f'<path d="{_path(pts)}" class="teeth"/>'
+            f'<circle cx="{pts[0][0]:.1f}" cy="{pts[0][1]:.1f}" r="2.2" '
+            f'class="teethmark"/>'
         )
-        for label, lx, ly, depth in _place_labels([("teeth", (ex, ey))], 12, 13, taken):
+        for label, lx, ly, depth in _place_labels([(tag, pts[0])], 13, 13, taken):
             parts.append(
-                f'<text x="{lx:.1f}" y="{ly - depth:.1f}" class="lbl teeth" '
-                f'text-anchor="middle">{label.replace("-", " ")}</text>'
+                f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl teeth" '
+                f'text-anchor="middle">{label}</text>'
             )
     rest_arc = src.get("rest_arc")
     if rest_arc is not None:
@@ -405,7 +402,7 @@ def _annotate(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -
                 [("rest", (x, y))], -16, -13, taken
             ):
                 parts.append(
-                    f'<text x="{rx:.1f}" y="{ry + depth:.1f}" class="lbl rest" '
+                    f'<text x="{rx:.1f}" y="{ry + depth + 10:.1f}" class="lbl rest" '
                     f'text-anchor="middle">{text}</text>'
                 )
     return "".join(parts)
@@ -442,7 +439,7 @@ def _nasal(
         [("nasal cavity", (lx, ly))], -20, -13, taken
     ):
         parts.append(
-            f'<text x="{nx:.1f}" y="{ny + depth:.1f}" class="lbl nasal" '
+            f'<text x="{nx:.1f}" y="{ny + depth + 10:.1f}" class="lbl nasal" '
             f'text-anchor="middle">{label.replace("-", " ")}</text>'
         )
     declared_port = src.get("port_arc")
