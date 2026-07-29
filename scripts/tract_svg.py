@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -216,28 +217,69 @@ def _lips(
     ru, rl = to(*ref[0]), to(*ref[1])
     dx, dy = ru[0] - rl[0], ru[1] - rl[1]
     span = (dx * dx + dy * dy) ** 0.5 or 1.0
-    # along the lip, and outward away from the tract
-    ax, ay = -dy / span * 10, dx / span * 10
-    bx, by = -dx / span * 2, -dy / span * 2
+    # Along the aperture, from one lip toward the other.
+    ax, ay = dx / span, dy / span
+    rows = src["rows"]
+    ahead = to(*rows[0]["wall"])
+    behind = to(*rows[min(8, len(rows) - 1)]["wall"])
+    bx, by = ahead[0] - behind[0], ahead[1] - behind[1]
+    blen = (bx * bx + by * by) ** 0.5 or 1.0
+    ox, oy = bx / blen, by / blen
+    # A lip is a body at the edge of the aperture, not a stroke beside it: it
+    # sits on the opening, reaches a little forward, and curls in toward the
+    # other lip. Offset away from the opening and it reads as a stray mark.
     parts = []
-    for point, shut in ((upper, False), (lower, closed)):
-        sx, sy = point[0] - ax, point[1] - ay
-        ex, ey = point[0] + ax, point[1] + ay
-        # barely curved: enough to read as a lip, not as a beak
-        cx, cy = point[0] + bx * (-1 if point is upper else 1), point[1] + by * (
-            -1 if point is upper else 1
-        )
+    for point, inward, shut in ((upper, -1.0, False), (lower, 1.0, closed)):
+        bx0, by0 = point[0], point[1]
+        fx, fy = bx0 + ox * 17, by0 + oy * 17
+        cx, cy = bx0 + ox * 12 + ax * inward * 10, by0 + oy * 12 + ay * inward * 10
+        tx, ty = bx0 + ax * inward * 7, by0 + ay * inward * 7
         parts.append(
-            f'<path d="M{sx:.1f},{sy:.1f} Q{cx:.1f},{cy:.1f} {ex:.1f},{ey:.1f}" '
+            f'<path d="M{bx0:.1f},{by0:.1f} L{fx:.1f},{fy:.1f} '
+            f'Q{cx:.1f},{cy:.1f} {tx:.1f},{ty:.1f} Z" '
             f'class="lip{" shut" if shut else ""}"/>'
         )
-    anchor = to(*(src.get("lips_open") or pair)[1])
+    anchor = to(*pair[1])
     for text, lx, ly, depth in _place_labels([("lips", anchor)], 16, 13, taken):
         parts.append(
             f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl lip" '
             f'text-anchor="middle">{text}</text>'
         )
     return "".join(parts)
+
+
+def _literal_style() -> str:
+    """STYLE with every custom property resolved, plus a light-theme block.
+
+    A standalone SVG has to render outside a browser -- a repo view, a
+    rasteriser, a slide -- and custom properties are widely unsupported
+    there. ``rsvg-convert`` drops ``stroke:var(--x)`` entirely, so a figure
+    written that way comes out blank while looking correct in a browser.
+    Emitting literals keeps both themes without depending on ``var()``.
+    """
+
+    def tokens(block: str) -> dict[str, str]:
+        return dict(re.findall(r"--([\w-]+):\s*([^;}]+)", block))
+
+    dark = re.search(r":root\{([^}]*)\}", STYLE)
+    light = re.search(r"prefers-color-scheme:light\)\{:root\{([^}]*)\}", STYLE)
+    dark_map = tokens(dark.group(1)) if dark else {}
+    light_map = tokens(light.group(1)) if light else {}
+
+    body = re.sub(r"@media[^{]*\{.*?\}\s*\}", "", STYLE, flags=re.S)
+    body = re.sub(r":root(\[[^\]]*\])?\{[^}]*\}", "", body)
+
+    def resolve(text: str, table: dict[str, str]) -> str:
+        return re.sub(
+            r"var\(--([\w-]+)\)",
+            lambda m: table.get(m.group(1), "currentColor"),
+            text,
+        )
+
+    out = resolve(body, dark_map)
+    if light_map:
+        out += "@media (prefers-color-scheme:light){" + resolve(body, light_map) + "}"
+    return out
 
 
 def _caption(caption: dict[str, Any] | None) -> str:
@@ -414,6 +456,7 @@ def _annotate(
     to: Scaler,
     taken: list[tuple[float, ...]],
     active: dict[str, str] | None = None,
+    posed: Point | None = None,
 ) -> str:
     """Places under the roof, articulators under the floor.
 
@@ -447,13 +490,16 @@ def _annotate(
             f'text-anchor="middle">{name.replace("-", " ")}</text>'
         )
 
+    # An articulator is labelled where the posture puts it. Anchoring to the
+    # fully-open trace points at the floor, which is not where a tongue tip
+    # making an alveolar closure is, nor where a lower lip making /m/ is.
     anchors = []
     for name, arc in sorted(ARTICULATORS.items(), key=lambda kv: kv[1]):
         if want_art is not None and name != want_art:
             continue
-        anchor = _at(src, arc, "open")
+        anchor = posed if posed is not None else _at(src, arc, "open")
         if anchor is not None:
-            anchors.append((name, to(*anchor)))
+            anchors.append((name, to(*anchor) if posed is None else posed))
     for name, x, y, depth in _place_labels(anchors, 18, 13, taken):
         parts.append(
             f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
@@ -494,12 +540,11 @@ def _annotate(
         row = [t for t in teeth if str(t["name"]).startswith(prefix)]
         if len(row) < 2:
             continue
+        # A tooth has extent: crown, incisal edge and arch close into a
+        # wedge rather than a bare polyline, so it reads as a body sitting
+        # on the jaw it belongs to.
         pts = [to(t["x"], t["y"]) for t in row]
-        parts.append(
-            f'<path d="{_path(pts)}" class="teeth"/>'
-            f'<circle cx="{pts[0][0]:.1f}" cy="{pts[0][1]:.1f}" r="2.2" '
-            f'class="teethmark"/>'
-        )
+        parts.append(f'<path d="{_path(pts, close=True)}" class="teeth"/>')
         step = 13 if base > 0 else -13
         if active is not None:
             continue
@@ -645,7 +690,15 @@ def section_svg(
     parts.append('<path d="' + _trace(current, to, "rest") + '" class="restline"/>')
     parts.append('<path d="' + _trace(current, to, "open") + '" class="openline"/>')
     taken: list[tuple[float, ...]] = []
-    parts.append(_annotate(current, to, taken, active))
+    posed: Point | None = None
+    if active is not None and posture is not None:
+        row = min(current["rows"], key=lambda r: abs(r["arc"] - posture[0]))
+        wall_pt, open_pt = to(*row["wall"]), to(*row["open"])
+        posed = (
+            open_pt[0] + (wall_pt[0] - open_pt[0]) * posture[1],
+            open_pt[1] + (wall_pt[1] - open_pt[1]) * posture[1],
+        )
+    parts.append(_annotate(current, to, taken, active, posed))
     parts.append(_nasal(current, to, aperture, taken))
     parts.append(_tongue(current, to))
     parts.append(_constriction(current, to, posture, taken))
@@ -707,17 +760,17 @@ def profile_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
 
 STYLE = """
 :root{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;--text:#CFDAE2;
---dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;--tongueFill:rgba(223,163,58,.16);
+--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;--tongueFill:rgba(223,163,58,.16);--lipFill:rgba(159,198,220,.30);--lipShut:rgba(223,163,58,.45);--toothFill:rgba(207,218,226,.55);
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 @media (prefers-color-scheme:light){:root{--ground:#DFE4E8;--panel:#F1F4F6;
 --edge:#C9D2D9;--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;
---signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tongueFill:rgba(169,111,14,.15);--tubeTrace:rgba(34,67,92,.10);
+--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tongueFill:rgba(169,111,14,.15);--lipFill:rgba(34,67,92,.22);--lipShut:rgba(169,111,14,.38);--toothFill:rgba(22,32,42,.30);--tubeTrace:rgba(34,67,92,.10);
 --tubePrior:rgba(154,169,180,.22)}}
 :root[data-theme=dark]{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;
---text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;--tongueFill:rgba(223,163,58,.16);
+--text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;--tongueFill:rgba(223,163,58,.16);--lipFill:rgba(159,198,220,.30);--lipShut:rgba(223,163,58,.45);--toothFill:rgba(207,218,226,.55);
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 :root[data-theme=light]{--ground:#DFE4E8;--panel:#F1F4F6;--edge:#C9D2D9;
---text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tongueFill:rgba(169,111,14,.15);
+--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tongueFill:rgba(169,111,14,.15);--lipFill:rgba(34,67,92,.22);--lipShut:rgba(169,111,14,.38);--toothFill:rgba(22,32,42,.30);
 --tubeTrace:rgba(34,67,92,.10);--tubePrior:rgba(154,169,180,.22)}
 body{background:var(--ground);color:var(--text);margin:0;
 font:400 16px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -768,9 +821,9 @@ stroke-dasharray:2 4;opacity:.5}
 .velumtip{fill:var(--velum)}
 .lbl.velum{fill:var(--velumText);font-weight:400}
 .median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
-.lip{stroke:var(--inkQuiet);stroke-width:1.5;stroke-linecap:round;fill:none}
-.lip.shut{stroke:var(--signal);stroke-width:2}
-.lbl.lip{fill:var(--inkQuiet);font-weight:400}
+.lip{fill:var(--lipFill);stroke:var(--trace);stroke-width:1.4;stroke-linejoin:round}
+.lip.shut{fill:var(--lipShut);stroke:var(--signal);stroke-width:1.6}
+.lbl.lip{fill:var(--dim);font-weight:400}
 .tonguebody{fill:var(--tongueFill);stroke:none}
 .tongue{fill:none;stroke:var(--signal);stroke-width:2;stroke-linejoin:round;
 stroke-linecap:round;opacity:.9}
@@ -778,7 +831,7 @@ stroke-linecap:round;opacity:.9}
 .constriction{fill:none;stroke:var(--signal);stroke-width:1.5}
 .constriction.shut{fill:var(--signal)}
 .lbl.constriction{fill:var(--signal);font-weight:400;opacity:.85}
-.teeth{stroke:var(--inkQuiet);stroke-width:1.5;stroke-linecap:round;fill:none}
+.teeth{fill:var(--toothFill);stroke:var(--inkQuiet);stroke-width:1.2;stroke-linejoin:round}
 .teethmark{fill:var(--inkQuiet)}
 .lbl.teeth{fill:var(--inkQuiet);font-weight:400}
 .medianmark{fill:none;stroke:var(--dim);stroke-width:1.5}
@@ -962,7 +1015,7 @@ def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
         svg = section_svg(current, prior, aperture, posture, caption, active)
         svg = svg.replace(
             "<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1
-        ).replace(">", f"><style>{STYLE}</style>", 1)
+        ).replace(">", f"><style>{_literal_style()}</style>", 1)
         Path(args.output).write_text(svg, encoding="utf-8")
     else:
         Path(args.output).write_text(
