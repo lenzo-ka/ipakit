@@ -1,8 +1,18 @@
 # The tract, drawn
 
-Thirteen figures, redrawn from the declared geometry by `make figures`. They are checked in so a reader gets them without running anything, and so a change to the geometry shows up in a diff as a changed picture rather than as four characters in an XML attribute.
+Sixteen figures, redrawn from the declared geometry by `make figures`. They are checked in so a reader gets them without running anything, and so a change to the geometry shows up in a diff as a changed picture rather than as four characters in an XML attribute.
 
 Everything below comes from `ipakit.tract.Head.project` — the same call any renderer would make. The drawing computes no geometry of its own, which is why it is useful as a check: when the projection was wrong, the picture was wrong in a way the numbers were not.
+
+## Three heads
+
+![adult male](figures/tract-adult-male.svg)
+![adult female](figures/tract-adult-female.svg)
+![child](figures/tract-child.svg)
+
+Every declared head, at rest. The phone figures below use the adult male one to keep the set readable, which is a presentation choice and not a claim: the properties a drawing has to satisfy are checked on **all three**, and the geometry is not written around one of them.
+
+What *is* adult-only is the measurement. The X-Ray Microbeam corpus is 48 American English adults, median age 21, so the aperture over arc 0.20-0.40 and the jaw carriage are theirs. The female head takes the same normalized shape against its own tract length, on the evidence in [articulatory-data.md](articulatory-data.md); the child head is hand-placed throughout, because a child's tract is not a scaled adult's and this corpus has nothing to say about one.
 
 ## The reference
 

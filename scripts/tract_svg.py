@@ -46,6 +46,7 @@ from ipakit.features import IPAFeatures  # noqa: E402
 from ipakit.tract import (  # noqa: E402
     Head,
     TractPoint,
+    constrictions,
     head,
     heads,
     landmarks,
@@ -93,7 +94,9 @@ def sample(h: Head, samples: int = SAMPLES, close: float = 0.0) -> list[dict[str
 
 
 def tongue_surface(
-    name: str, control: TractPoint, close: float = 0.0
+    name: str,
+    control: TractPoint | list[TractPoint],
+    close: float = 0.0,
 ) -> list[tuple[float, float, float]]:
     """The tongue surface for one control, asked of the model at each arc.
 
@@ -104,17 +107,9 @@ def tongue_surface(
     out: list[tuple[float, float, float]] = []
     for i in range(SAMPLES + 1):
         arc = i / SAMPLES
-        offset = h.tongue_offset(arc, control)
-        if offset is None:
-            continue
-        point = h.project(TractPoint(arc=arc, offset=offset))
+        point = h.tongue_point(arc, control, close)
         if point is None:
             continue
-        # The tongue's anterior attachment is on the mandible, so it rides the
-        # jaw exactly as the floor it sits on does. Left uncarried it hangs
-        # below a raised floor.
-        if close:
-            point = h.carried(point, arc, close)
         out.append((arc, point[0], point[1]))
     return out
 
@@ -1113,9 +1108,13 @@ def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
             }
             for t in current["teeth"]
         ]
-        current["tongue"] = tongue_surface(
-            args.head, TractPoint(arc=posture[0], offset=posture[1]), close
-        )
+        points = list(constrictions(ipa, bundle))
+        current["tongue"] = tongue_surface(args.head, points, close)
+        current["extra"] = [
+            (q.arc, q.offset, q.articulator or "")
+            for q in points[1:]
+            if q.arc is not None and q.offset is not None
+        ]
     if str(args.output).endswith(".svg"):
         svg = section_svg(current, prior, aperture, posture, caption, active)
         svg = svg.replace(
