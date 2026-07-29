@@ -75,8 +75,8 @@
       <point arc="0.61" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
       <point arc="0.73" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
       <point arc="0.84" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.93" x="0.6198" y="0.7804" diameter="0.038" provenance="hand-placed"/>
-      <point arc="1.00" x="0.6266" y="0.7457" diameter="0.034" provenance="hand-placed"/>
+      <point arc="0.93" x="0.6198" y="0.7804" diameter="0.020" provenance="hand-placed"/>
+      <point arc="1.00" x="0.6266" y="0.7457" diameter="0.006" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
@@ -143,8 +143,8 @@
       <point arc="0.61" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
       <point arc="0.73" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
       <point arc="0.84" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.93" x="0.5908" y="0.7778" diameter="0.038" provenance="hand-placed"/>
-      <point arc="1.00" x="0.5966" y="0.7456" diameter="0.034" provenance="hand-placed"/>
+      <point arc="0.93" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
+      <point arc="1.00" x="0.5966" y="0.7456" diameter="0.006" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
@@ -212,8 +212,8 @@
       <point arc="0.61" x="0.4024" y="0.8552" diameter="0.0396" provenance="hand-placed"/>
       <point arc="0.73" x="0.4691" y="0.8307" diameter="0.0378" provenance="hand-placed"/>
       <point arc="0.84" x="0.5154" y="0.8051" diameter="0.0353" provenance="hand-placed"/>
-      <point arc="0.93" x="0.5435" y="0.7748" diameter="0.0327" provenance="hand-placed"/>
-      <point arc="1.00" x="0.528" y="0.7575" diameter="0.0292" provenance="hand-placed"/>
+      <point arc="0.93" x="0.5435" y="0.7748" diameter="0.016" provenance="hand-placed"/>
+      <point arc="1.00" x="0.528" y="0.7575" diameter="0.005" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
