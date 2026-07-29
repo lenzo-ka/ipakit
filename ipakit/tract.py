@@ -185,21 +185,19 @@ class Head:
         if not low <= arc <= high:
             return None
         rest = self.rest.offset if self.rest is not None else 0.0
-        distance = abs(arc - control.arc)
-        if distance >= falloff:
-            offset = rest
-        else:
-            weight = 0.5 * (1.0 + math.cos(math.pi * distance / falloff))
-            offset = rest + (control.offset - rest) * weight
-        # Descend to the floor near each end, so the body comes to a tip in
-        # front and an anchor behind rather than stopping flat at the resting
-        # offset. This applies whatever the control is doing, including where
-        # the control is too far away to raise the surface at all.
+        # The taper brings the *resting* tongue to a point at each end, so the
+        # body has a tip in front and an anchor behind. It must not pull down a
+        # constriction: a tongue tip closing near the front of its span is
+        # inside the taper, and scaling it there stops the articulator short of
+        # the target it is supposed to be touching.
         if taper > 0.0:
             edge = min(arc - low, high - arc)
-            if edge < taper:
-                offset *= max(edge, 0.0) / taper
-        return offset
+            rest *= min(1.0, max(edge, 0.0) / taper)
+        distance = abs(arc - control.arc)
+        if distance >= falloff:
+            return rest
+        weight = 0.5 * (1.0 + math.cos(math.pi * distance / falloff))
+        return rest + (control.offset - rest) * weight
 
     def lip_body(
         self, closed: bool = False, close: float = 0.0
@@ -243,6 +241,42 @@ class Head:
             )
 
         return (one(seats[0], pair[0], -1.0), one(seats[1], pair[1], 1.0))
+
+    def tongue_point(
+        self,
+        arc: float,
+        control: TractPoint | Sequence[TractPoint],
+        close: float = 0.0,
+    ) -> tuple[float, float] | None:
+        """Where the tongue surface sits at ``arc``, jaw included.
+
+        ``offset`` is a fraction from the floor to the wall, so the jaw moves
+        the floor it is measured from rather than displacing the result. Added
+        to an absolute position instead, a closure already touching the wall
+        is pushed through it -- which is how the tongue escaped the roof on a
+        click, where a front closure comes with a half-closed jaw.
+        """
+        controls = [control] if isinstance(control, TractPoint) else list(control)
+        # A segment may hold more than one constriction -- a click closes at
+        # the front and at the velum -- so the surface takes whichever reaches
+        # highest at this arc, giving it a hump per closure.
+        offsets = [
+            value
+            for value in (self.tongue_offset(arc, one) for one in controls)
+            if value is not None
+        ]
+        if not offsets:
+            return None
+        offset = max(offsets)
+        floor = self.project(TractPoint(arc=arc, offset=0.0))
+        wall = self.project(TractPoint(arc=arc, offset=1.0))
+        if floor is None or wall is None:
+            return None
+        floor = self.carried(floor, arc, close)
+        return (
+            floor[0] + (wall[0] - floor[0]) * offset,
+            floor[1] + (wall[1] - floor[1]) * offset,
+        )
 
     def jaw_carriage(self, arc: float) -> float:
         """How much of what sits at ``arc`` the jaw carries, 0 to 1.
@@ -575,6 +609,59 @@ def landmarks(features: IPAFeatures) -> Landmarks:
         median=median,
         frication=frozenset(p for p in frication if p),
     )
+
+
+def constrictions(
+    features: IPAFeatures, bundle: dict[str, str]
+) -> tuple[TractPoint, ...]:
+    """Every constriction the segment makes, not only its named one.
+
+    ``tract_point`` answers with one place because that is what a per-feature
+    comparison needs, and the metric reads it. Some segments make two at
+    once, and a drawing that shows one of them shows the wrong sound:
+
+    * a **click** closes at its named place *and* at the velum, and rarefies
+      the pocket between. Drawn with the front closure alone it is an
+      ordinary stop wearing a velaric label.
+    * a **combining place** is two places by definition. ``bilabial^velar``
+      declares no arc of its own precisely because its position is its
+      components', so ``w`` had nowhere to be drawn at all.
+
+    Returned front to back. The first is always ``tract_point``'s, so anything
+    reading only the primary sees no change.
+    """
+    primary = tract_point(features, bundle)
+    place = features.features.get("place")
+    if place is None or primary.arc is None:
+        return (primary,)
+
+    def at(value: str, offset: float) -> TractPoint | None:
+        arc = place.coordinates.get(value, {}).get("arc")
+        if arc is None:
+            return None
+        return TractPoint(
+            arc=arc,
+            offset=offset,
+            articulator=place.articulators.get(value),
+        )
+
+    named = bundle.get("place") or ""
+    extra: list[TractPoint] = []
+
+    # A combining place is its components, each making the constriction.
+    if Feature.COMBINER in named:
+        parts = [at(v, primary.offset or 1.0) for v in named.split(Feature.COMBINER)]
+        found = [q for q in parts if q is not None]
+        if found:
+            return tuple(sorted(found, key=lambda q: q.arc or 0.0))
+
+    # A click holds a velar closure behind whatever it names.
+    if bundle.get("airstream") == "velaric":
+        back = at("velar", 1.0)
+        if back is not None and abs((back.arc or 0.0) - primary.arc) > 1e-9:
+            extra.append(back)
+
+    return tuple(sorted((primary, *extra), key=lambda q: q.arc or 0.0))
 
 
 def velic_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float:
