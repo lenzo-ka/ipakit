@@ -64,7 +64,7 @@ Point = tuple[float, float]
 Scaler = Callable[[float, float], Point]
 
 
-def sample(h: Head, samples: int = SAMPLES) -> list[dict[str, Any]]:
+def sample(h: Head, samples: int = SAMPLES, close: float = 0.0) -> list[dict[str, Any]]:
     """The three positions the geometry actually declares, at each arc.
 
     ``offset`` is constriction degree: 0 leaves the articulator at the
@@ -82,11 +82,19 @@ def sample(h: Head, samples: int = SAMPLES) -> list[dict[str, Any]]:
         wall = h.project(TractPoint(arc=arc, offset=1.0))
         if openp is None or restp is None or wall is None:
             continue
+        # The mandible carries the whole lower boundary, not just the teeth.
+        # Closing the jaw lifts the floor, and with it the tongue's underside
+        # and the lower lip, by the measured fraction at that arc.
+        if close:
+            openp = h.carried(openp, arc, close)
+            restp = h.carried(restp, arc, close)
         rows.append({"arc": arc, "open": openp, "rest": restp, "wall": wall})
     return rows
 
 
-def tongue_surface(name: str, control: TractPoint) -> list[tuple[float, float, float]]:
+def tongue_surface(
+    name: str, control: TractPoint, close: float = 0.0
+) -> list[tuple[float, float, float]]:
     """The tongue surface for one control, asked of the model at each arc.
 
     ``Head.tongue_offset`` is where the deformation lives; this only samples
@@ -100,12 +108,18 @@ def tongue_surface(name: str, control: TractPoint) -> list[tuple[float, float, f
         if offset is None:
             continue
         point = h.project(TractPoint(arc=arc, offset=offset))
-        if point is not None:
-            out.append((arc, point[0], point[1]))
+        if point is None:
+            continue
+        # The tongue's anterior attachment is on the mandible, so it rides the
+        # jaw exactly as the floor it sits on does. Left uncarried it hangs
+        # below a raised floor.
+        if close:
+            point = h.carried(point, arc, close)
+        out.append((arc, point[0], point[1]))
     return out
 
 
-def geometry(name: str) -> dict[str, Any]:
+def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
     h = head(name)
     rest = h.rest
     nasal = [
@@ -118,12 +132,12 @@ def geometry(name: str) -> dict[str, Any]:
         for i in range(61)
     ]
     return {
-        "rows": sample(h),
+        "rows": sample(h, close=close),
         "nasal": [n for n in nasal if None not in n.values()],
         "port_arc": h.port_arc,
         "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
-        "lips_open": h.lips(),
-        "lips_closed": h.lips(closed=True),
+        "lips_open": h.lips(close=close),
+        "lips_closed": h.lips(closed=True, close=close),
         "rest_arc": None if rest is None else rest.arc,
         "rest_offset": None if rest is None else rest.offset,
         "rest_lips": None if rest is None else rest.lips,
@@ -185,12 +199,22 @@ def _band(src: dict[str, Any], to: Scaler, a: str, b: str) -> str:
     return _path(top + list(reversed(bottom)), close=True)
 
 
+def _inside(src: dict[str, Any]) -> list[dict[str, Any]]:
+    """Rows from the lips inward.
+
+    The lips are bodies occupying the tract's open end, so a boundary drawn
+    all the way to arc 0 runs through them. It should meet them instead.
+    """
+    return [row for row in src["rows"] if row["arc"] >= LIP_INSET]
+
+
 def _trace(src: dict[str, Any], to: Scaler, key: str) -> str:
-    return _path([to(*row[key]) for row in src["rows"]])
+    return _path([to(*row[key]) for row in _inside(src)])
 
 
 CHAR_W = 6.0  # advance of the 10.5px monospace label face
 LINE_H = 12.0
+LIP_INSET = 0.014  # arc taken off the front, so the boundary meets the lips
 PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
 
 
@@ -215,30 +239,37 @@ def _lips(
     upper, lower = to(*pair[0]), to(*pair[1])
     ref = src.get("lips_open") or pair
     ru, rl = to(*ref[0]), to(*ref[1])
-    dx, dy = ru[0] - rl[0], ru[1] - rl[1]
+    dx, dy = rl[0] - ru[0], rl[1] - ru[1]
     span = (dx * dx + dy * dy) ** 0.5 or 1.0
-    # Along the aperture, from one lip toward the other.
+    # Down the aperture, upper toward lower; and along the tract.
     ax, ay = dx / span, dy / span
-    rows = src["rows"]
-    ahead = to(*rows[0]["wall"])
-    behind = to(*rows[min(8, len(rows) - 1)]["wall"])
-    bx, by = ahead[0] - behind[0], ahead[1] - behind[1]
-    blen = (bx * bx + by * by) ** 0.5 or 1.0
-    ox, oy = bx / blen, by / blen
-    # A lip is a body at the edge of the aperture, not a stroke beside it: it
-    # sits on the opening, reaches a little forward, and curls in toward the
-    # other lip. Offset away from the opening and it reads as a stray mark.
-    parts = []
-    for point, inward, shut in ((upper, -1.0, False), (lower, 1.0, closed)):
-        bx0, by0 = point[0], point[1]
-        fx, fy = bx0 + ox * 17, by0 + oy * 17
-        cx, cy = bx0 + ox * 12 + ax * inward * 10, by0 + oy * 12 + ay * inward * 10
-        tx, ty = bx0 + ax * inward * 7, by0 + ay * inward * 7
-        parts.append(
-            f'<path d="M{bx0:.1f},{by0:.1f} L{fx:.1f},{fy:.1f} '
-            f'Q{cx:.1f},{cy:.1f} {tx:.1f},{ty:.1f} Z" '
-            f'class="lip{" shut" if shut else ""}"/>'
+    lx, ly = -ay, ax
+
+    def body(seat: Point, tip: Point, outward: float, cls: str) -> str:
+        """A lip: rooted in its own bone, free edge at the aperture.
+
+        The root belongs to the maxilla or the mandible and stays there; only
+        the free edge travels, so a closing lip stretches from a fixed base
+        rather than sliding bodily upward. The cap peaks *at* the tip and
+        does not curve past it -- overshoot is what made two closed lips
+        interpenetrate instead of meeting.
+        """
+        ox, oy = ax * outward, ay * outward
+        root = (seat[0] + ox * 15, seat[1] + oy * 15)
+        half = 8.5
+        shoulder = (tip[0] + ox * half * 0.75, tip[1] + oy * half * 0.75)
+        return (
+            f'<path d="M{root[0] - lx * half:.1f},{root[1] - ly * half:.1f} '
+            f"L{shoulder[0] - lx * half:.1f},{shoulder[1] - ly * half:.1f} "
+            f"Q{tip[0]:.1f},{tip[1]:.1f} "
+            f"{shoulder[0] + lx * half:.1f},{shoulder[1] + ly * half:.1f} "
+            f'L{root[0] + lx * half:.1f},{root[1] + ly * half:.1f}" class="{cls}"/>'
         )
+
+    parts = [
+        body(ru, upper, -1.0, "lip"),
+        body(rl, lower, 1.0, "lip shut" if closed else "lip"),
+    ]
     anchor = to(*pair[1])
     for text, lx, ly, depth in _place_labels([("lips", anchor)], 16, 13, taken):
         parts.append(
@@ -363,6 +394,8 @@ def _constriction(
         f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="5" '
         f'class="constriction{" shut" if shut else ""}"/>',
     ]
+    if articulator in MEDIAN:
+        return "".join(parts)  # said once, on the articulator itself
     name = articulator.replace("-", " ")
     label = f"{name}\n{'closed' if shut else f'{1 - offset:.2f} open'}"
     for text, lx, ly, depth in _place_labels([(label, (ax, ay))], -18, -13, taken):
@@ -379,7 +412,7 @@ def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
     wall with a flap on top says the port is never open, whatever the flap
     is doing.
     """
-    rows = src["rows"]
+    rows = _inside(src)
     if aperture <= 0.01:
         return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
     declared = src.get("port_arc")
@@ -504,10 +537,12 @@ def _annotate(
         parts.append(
             f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
             f'class="lead art"/>'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4" class="mark art"/>'
             f'<text x="{x:.1f}" y="{y + depth + 10:.1f}" class="lbl art" '
             f'text-anchor="middle">{name.replace("-", " ")}</text>'
         )
     voicing = None if active is None else active.get("voiced")
+    constricts = None if active is None else active.get("articulator")
     for name, arc in MEDIAN.items():
         wall = _at(src, arc, "wall")
         openp = _at(src, arc, "open")
@@ -521,11 +556,12 @@ def _annotate(
             f'class="median"/>'
             f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.2" class="medianmark"/>'
         )
+        states = []
         if voicing is not None:
-            state = {"+": "voiced", "-": "voiceless"}.get(voicing, voicing)
-            shown = f"{name.replace('-', ' ')}\n{state}"
-        else:
-            shown = name
+            states.append({"+": "voiced", "-": "voiceless"}.get(voicing, voicing))
+        if name == constricts and active is not None and active.get("degree"):
+            states.append(str(active["degree"]))
+        shown = "\n".join([name.replace("-", " "), *states]) if states else name
         for label, lx, ly, depth in _place_labels([(shown, (cx, cy))], 14, 13, taken):
             parts.append(
                 f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{lx:.1f}" '
@@ -675,7 +711,7 @@ def section_svg(
         tongue_at = {round(a, 6): (x, y) for a, x, y in surface}
         roof: list[Point] = []
         floor: list[Point] = []
-        for row in current["rows"]:
+        for row in _inside(current):
             roof.append(to(*row["wall"]))
             here = tongue_at.get(round(row["arc"], 6))
             floor.append(to(*here) if here else to(*row["open"]))
@@ -684,7 +720,13 @@ def section_svg(
         )
     else:
         parts.append(
-            '<path d="' + _band(current, to, "wall", "open") + '" class="sweep trace"/>'
+            '<path d="'
+            + _path(
+                [to(*r["wall"]) for r in _inside(current)]
+                + [to(*r["open"]) for r in reversed(_inside(current))],
+                close=True,
+            )
+            + '" class="sweep trace"/>'
         )
     parts.append(_wall_with_port(current, to, aperture))
     parts.append('<path d="' + _trace(current, to, "rest") + '" class="restline"/>')
@@ -800,6 +842,7 @@ stroke-dasharray:3 4;opacity:.75}
 .lead.place.fric{stroke:var(--signal)}
 .lead.art{stroke:var(--dim)}
 .mark.place{fill:var(--trace)}
+.mark.art{fill:var(--dim)}
 .mark.place.fric{fill:var(--signal)}
 .lbl{font:400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace}
 .glyph{font:500 24px ui-sans-serif,system-ui,-apple-system,sans-serif;
@@ -822,6 +865,7 @@ stroke-dasharray:2 4;opacity:.5}
 .lbl.velum{fill:var(--velumText);font-weight:400}
 .median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
 .lip{fill:var(--lipFill);stroke:var(--trace);stroke-width:1.4;stroke-linejoin:round}
+.lipstem{stroke:var(--signal);stroke-width:2;stroke-linecap:round;fill:none;opacity:.55}
 .lip.shut{fill:var(--lipShut);stroke:var(--signal);stroke-width:1.6}
 .lbl.lip{fill:var(--dim);font-weight:400}
 .tonguebody{fill:var(--tongueFill);stroke:none}
@@ -994,6 +1038,10 @@ def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
         # A vowel states backness and height, not place, so its place set is
         # empty rather than absent -- absent would mean "label them all".
         active = {"place": str(bundle.get("place") or "")}
+        if point.offset is not None:
+            active["degree"] = (
+                "closed" if point.offset >= 0.995 else f"{1 - point.offset:.2f} open"
+            )
         if bundle.get("voiced"):
             active["voiced"] = str(bundle["voiced"])
         if point.articulator:
@@ -1006,10 +1054,31 @@ def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
             resting = head(args.head).rest
             if resting is not None:
                 posture = (resting.arc, resting.offset, "at rest")
-    current = geometry(args.head)
+    close = 0.0
     if posture is not None:
+        close = head(args.head).jaw_close(TractPoint(arc=posture[0], offset=posture[1]))
+    current = geometry(args.head, close)
+    if posture is not None:
+        h = head(args.head)
+        current["teeth"] = [
+            {
+                **t,
+                **(
+                    dict(
+                        zip(
+                            ("x", "y"),
+                            h.carried((t["x"], t["y"]), 0.045, close),
+                            strict=True,
+                        )
+                    )
+                    if t["carrier"] == "mandible"
+                    else {}
+                ),
+            }
+            for t in current["teeth"]
+        ]
         current["tongue"] = tongue_surface(
-            args.head, TractPoint(arc=posture[0], offset=posture[1])
+            args.head, TractPoint(arc=posture[0], offset=posture[1]), close
         )
     if str(args.output).endswith(".svg"):
         svg = section_svg(current, prior, aperture, posture, caption, active)
