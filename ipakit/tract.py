@@ -99,6 +99,7 @@ class Head:
     nasal: tuple[MidlinePoint, ...] = ()
     port_arc: float | None = None
     teeth: tuple[tuple[str, float, float, str], ...] = ()
+    carriage: tuple[tuple[float, float], ...] = ()
 
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
@@ -163,6 +164,30 @@ class Head:
         nx, ny = -ty / norm, tx / norm
         travel = offset * diameter
         return (x + nx * travel, y + ny * travel)
+
+    def jaw_carriage(self, arc: float) -> float:
+        """How much of what sits at ``arc`` the jaw carries, 0 to 1.
+
+        The mandible constricts nothing, so it is not an articulator. It is a
+        carrier: the lower lip, the lower teeth and the tongue's anterior
+        attachment ride on it, and its position therefore sets how open that
+        part of the tract can be. A posture that opens the jaw widens the
+        anterior aperture in proportion to this, which is what contrastive
+        emphasis does.
+        """
+        if not self.carriage:
+            return 0.0
+        pts = self.carriage
+        if arc <= pts[0][0]:
+            return pts[0][1]
+        for i in range(len(pts) - 1):
+            a0, v0 = pts[i]
+            a1, v1 = pts[i + 1]
+            if a0 <= arc <= a1:
+                span = a1 - a0
+                t = (arc - a0) / span if span else 0.0
+                return v0 + (v1 - v0) * t
+        return pts[-1][1]
 
     def lips(
         self, closed: bool = False
@@ -295,6 +320,13 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 )
                 for pt in teeth_elem.findall("point")
             )
+        carriage_elem = elem.find("carriage")
+        carriage: tuple[tuple[float, float], ...] = ()
+        if carriage_elem is not None:
+            carriage = tuple(
+                (float(pt.get("arc", 0.0)), float(pt.get("jaw", 0.0)))
+                for pt in carriage_elem.findall("point")
+            )
         length = elem.get("length-cm")
         rest_elem = elem.find("rest")
         rest = None
@@ -315,6 +347,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             nasal=nasal_points,
             port_arc=port_arc,
             teeth=teeth,
+            carriage=carriage,
         )
     return heads, default
 
