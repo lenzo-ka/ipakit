@@ -47,6 +47,7 @@ from ipakit.tract import (  # noqa: E402
     head,
     heads,
     landmarks,
+    tract_point,
     velic_aperture,
 )
 
@@ -164,6 +165,48 @@ def _trace(src: dict[str, Any], to: Scaler, key: str) -> str:
 CHAR_W = 6.0  # advance of the 10.5px monospace label face
 LINE_H = 12.0
 PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
+
+
+def _constriction(
+    src: dict[str, Any],
+    to: Scaler,
+    posture: tuple[float, float, str] | None,
+    taken: list[tuple[float, ...]],
+) -> str:
+    """The oral constriction this phone makes, at its own arc and offset.
+
+    A lowered velum opens the nose; it does not close the mouth. The oral
+    closure is the lips for ``m``, the tongue tip for ``n``, the dorsum for
+    ``ng`` -- which is why ``b`` and ``m`` differ here only in the velic
+    aperture, and why the drawing has to show both to say which is which.
+    """
+    if posture is None:
+        return ""
+    arc, offset, articulator = posture
+    rows = src["rows"]
+    row = min(rows, key=lambda r: abs(r["arc"] - arc), default=None)
+    if row is None:
+        return ""
+    wall = to(*row["wall"])
+    openp = to(*row["open"])
+    # offset carries the articulator from the midline to the wall
+    ax = openp[0] + (wall[0] - openp[0]) * offset
+    ay = openp[1] + (wall[1] - openp[1]) * offset
+    shut = offset >= 0.995
+    parts = [
+        f'<line x1="{openp[0]:.1f}" y1="{openp[1]:.1f}" x2="{ax:.1f}" '
+        f'y2="{ay:.1f}" class="reach"/>',
+        f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="5" '
+        f'class="constriction{" shut" if shut else ""}"/>',
+    ]
+    name = articulator.replace("-", " ")
+    label = f"{name} · {'closed' if shut else f'{1 - offset:.2f} open'}"
+    for text, lx, ly, depth in _place_labels([(label, (ax, ay))], -18, -13, taken):
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly + depth:.1f}" class="lbl constriction" '
+            f'text-anchor="middle">{text}</text>'
+        )
+    return "".join(parts)
 
 
 def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
@@ -313,8 +356,14 @@ def _annotate(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -
             x, y = to(*anchor)
             parts.append(
                 f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" class="restmark"/>'
-                f'<text x="{x + 9:.1f}" y="{y - 6:.1f}" class="lbl rest">rest</text>'
             )
+            for text, rx, ry, depth in _place_labels(
+                [("rest", (x, y))], -16, -13, taken
+            ):
+                parts.append(
+                    f'<text x="{rx:.1f}" y="{ry + depth:.1f}" class="lbl rest" '
+                    f'text-anchor="middle">{text}</text>'
+                )
     return "".join(parts)
 
 
@@ -389,7 +438,10 @@ def _nasal(
 
 
 def section_svg(
-    current: dict[str, Any], prior: dict[str, Any] | None, aperture: float = 0.0
+    current: dict[str, Any],
+    prior: dict[str, Any] | None,
+    aperture: float = 0.0,
+    posture: tuple[float, float, str] | None = None,
 ) -> str:
     sets = [current] if prior is None else [current, prior]
     to = _scaler(*_extent(*sets))
@@ -407,6 +459,7 @@ def section_svg(
     taken: list[tuple[float, ...]] = []
     parts.append(_annotate(current, to, taken))
     parts.append(_nasal(current, to, aperture, taken))
+    parts.append(_constriction(current, to, posture, taken))
     return (
         f'<svg viewBox="0 0 {WIDTH} {SECTION_HEIGHT}" role="img" '
         f'aria-label="Mid-sagittal tract section">{"".join(parts)}</svg>'
@@ -463,17 +516,17 @@ def profile_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
 
 STYLE = """
 :root{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;--text:#CFDAE2;
---dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;
+--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 @media (prefers-color-scheme:light){:root{--ground:#DFE4E8;--panel:#F1F4F6;
 --edge:#C9D2D9;--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;
---signal:#A96F0E;--velum:#1F7A63;--tubeTrace:rgba(34,67,92,.10);
+--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--tubeTrace:rgba(34,67,92,.10);
 --tubePrior:rgba(154,169,180,.22)}}
 :root[data-theme=dark]{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;
---text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;
+--text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;
 --tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
 :root[data-theme=light]{--ground:#DFE4E8;--panel:#F1F4F6;--edge:#C9D2D9;
---text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;
+--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;
 --tubeTrace:rgba(34,67,92,.10);--tubePrior:rgba(154,169,180,.22)}
 body{background:var(--ground);color:var(--text);margin:0;
 font:400 16px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -517,8 +570,12 @@ stroke-dasharray:3 4;opacity:.75}
 stroke-dasharray:2 4;opacity:.5}
 .velum{stroke:var(--velum);stroke-width:2;stroke-linecap:round;fill:none}
 .velumtip{fill:var(--velum)}
-.lbl.velum{fill:var(--velum)}
+.lbl.velum{fill:var(--velumText);font-weight:400}
 .median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
+.reach{stroke:var(--signal);stroke-width:1.4;stroke-dasharray:2 3;opacity:.8}
+.constriction{fill:none;stroke:var(--signal);stroke-width:2}
+.constriction.shut{fill:var(--signal)}
+.lbl.constriction{fill:var(--signal)}
 .teeth{stroke:var(--text);stroke-width:2.2;stroke-linecap:round;fill:none}
 .teethmark{fill:var(--text)}
 .lbl.teeth{fill:var(--text)}
@@ -577,6 +634,7 @@ def page(
     prior: dict[str, Any] | None,
     aperture: float = 0.0,
     phone: str | None = None,
+    posture: tuple[float, float, str] | None = None,
 ) -> str:
     key = (
         ""
@@ -603,7 +661,7 @@ drift from the model. Heads are read only for rendering and never by
 against it. Shaded is that sweep, with the open and rest positions drawn
 inside it. Places are labelled on the wall, articulators on the open trace;
 those in amber host a fricative or affricate somewhere in the inventory.</p>
-<figure>{section_svg(current, prior, aperture)}</figure>{key}</section>
+<figure>{section_svg(current, prior, aperture, posture)}</figure>{key}</section>
 <section><h2>Declared diameter</h2>
 <p>Where a change to the profile is legible.</p>
 <figure>{profile_svg(current, prior)}</figure>
@@ -634,12 +692,18 @@ def cmd_draw(args: argparse.Namespace) -> int:
         )
         return 1
     aperture = 0.0
+    posture: tuple[float, float, str] | None = None
     if args.phone:
         ipa = IPAFeatures()
-        aperture = velic_aperture(ipa, ipa.get_features(args.phone))
+        bundle = ipa.get_features(args.phone)
+        aperture = velic_aperture(ipa, bundle)
+        point = tract_point(ipa, bundle)
+        if point.arc is not None and point.offset is not None:
+            posture = (point.arc, point.offset, point.articulator or "articulator")
     current = geometry(args.head)
     Path(args.output).write_text(
-        page(args.head, current, prior, aperture, args.phone), encoding="utf-8"
+        page(args.head, current, prior, aperture, args.phone, posture),
+        encoding="utf-8",
     )
     moved = 0
     if prior is not None:

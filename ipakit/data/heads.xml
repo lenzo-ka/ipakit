@@ -69,14 +69,14 @@
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
       <point arc="0.00" x="0.0006" y="0.8577" diameter="0.035" provenance="hand-placed"/>
-      <point arc="0.18" x="0.1355" y="0.8938" diameter="0.042" provenance="hand-placed"/>
-      <point arc="0.36" x="0.2529" y="0.9135" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.52" x="0.3794" y="0.9089" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.66" x="0.5054" y="0.8571" diameter="0.045" provenance="hand-placed"/>
-      <point arc="0.78" x="0.6114" y="0.8197" diameter="0.043" provenance="hand-placed"/>
-      <point arc="0.88" x="0.6777" y="0.766" diameter="0.04" provenance="hand-placed"/>
-      <point arc="0.95" x="0.7057" y="0.725" diameter="0.038" provenance="hand-placed"/>
-      <point arc="1.00" x="0.7147" y="0.6847" diameter="0.036" provenance="hand-placed"/>
+      <point arc="0.16" x="0.1221" y="0.8898" diameter="0.042" provenance="hand-placed"/>
+      <point arc="0.32" x="0.231" y="0.9101" diameter="0.047" provenance="hand-placed"/>
+      <point arc="0.47" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.61" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.73" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.84" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.93" x="0.6198" y="0.7804" diameter="0.038" provenance="hand-placed"/>
+      <point arc="1.00" x="0.6266" y="0.7457" diameter="0.034" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth. The incisal edge is the labiodental target
          (docs/tract-anatomy.md 3); the arch line runs back from it to
@@ -109,14 +109,14 @@
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
       <point arc="0.00" x="0.0094" y="0.8471" diameter="0.035" provenance="hand-placed"/>
-      <point arc="0.18" x="0.1369" y="0.8835" diameter="0.042" provenance="hand-placed"/>
-      <point arc="0.36" x="0.2486" y="0.9033" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.52" x="0.3709" y="0.8989" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.66" x="0.4903" y="0.8468" diameter="0.045" provenance="hand-placed"/>
-      <point arc="0.78" x="0.5835" y="0.8147" diameter="0.043" provenance="hand-placed"/>
-      <point arc="0.88" x="0.6454" y="0.7698" diameter="0.04" provenance="hand-placed"/>
-      <point arc="0.95" x="0.6717" y="0.7337" diameter="0.038" provenance="hand-placed"/>
-      <point arc="1.00" x="0.6797" y="0.6965" diameter="0.036" provenance="hand-placed"/>
+      <point arc="0.16" x="0.1242" y="0.8794" diameter="0.042" provenance="hand-placed"/>
+      <point arc="0.32" x="0.2278" y="0.8999" diameter="0.047" provenance="hand-placed"/>
+      <point arc="0.47" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.61" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.73" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.84" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.93" x="0.5908" y="0.7778" diameter="0.038" provenance="hand-placed"/>
+      <point arc="1.00" x="0.5966" y="0.7456" diameter="0.034" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth. The incisal edge is the labiodental target
          (docs/tract-anatomy.md 3); the arch line runs back from it to
@@ -150,14 +150,14 @@
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.48">
       <point arc="0.00" x="0.0303" y="0.7941" diameter="0.0301" provenance="hand-placed"/>
-      <point arc="0.18" x="0.1413" y="0.8314" diameter="0.0361" provenance="hand-placed"/>
-      <point arc="0.36" x="0.2459" y="0.8514" diameter="0.0413" provenance="hand-placed"/>
-      <point arc="0.52" x="0.3476" y="0.8636" diameter="0.0413" provenance="hand-placed"/>
-      <point arc="0.66" x="0.4594" y="0.8399" diameter="0.0387" provenance="hand-placed"/>
-      <point arc="0.78" x="0.5372" y="0.8065" diameter="0.037" provenance="hand-placed"/>
-      <point arc="0.88" x="0.591" y="0.767" diameter="0.0344" provenance="hand-placed"/>
-      <point arc="0.95" x="0.6139" y="0.735" diameter="0.0327" provenance="hand-placed"/>
-      <point arc="1.00" x="0.6207" y="0.7029" diameter="0.031" provenance="hand-placed"/>
+      <point arc="0.16" x="0.1302" y="0.8273" diameter="0.0361" provenance="hand-placed"/>
+      <point arc="0.32" x="0.2257" y="0.8483" diameter="0.0404" provenance="hand-placed"/>
+      <point arc="0.47" x="0.3171" y="0.8596" diameter="0.0413" provenance="hand-placed"/>
+      <point arc="0.61" x="0.4024" y="0.8552" diameter="0.0396" provenance="hand-placed"/>
+      <point arc="0.73" x="0.4691" y="0.8307" diameter="0.0378" provenance="hand-placed"/>
+      <point arc="0.84" x="0.5154" y="0.8051" diameter="0.0353" provenance="hand-placed"/>
+      <point arc="0.93" x="0.5435" y="0.7748" diameter="0.0327" provenance="hand-placed"/>
+      <point arc="1.00" x="0.528" y="0.7575" diameter="0.0292" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth. The incisal edge is the labiodental target
          (docs/tract-anatomy.md 3); the arch line runs back from it to
