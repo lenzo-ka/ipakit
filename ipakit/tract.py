@@ -225,8 +225,51 @@ class Head:
                 return v0 + (v1 - v0) * t
         return pts[-1][1]
 
+    def jaw_close(self, control: TractPoint) -> float:
+        """How far the jaw is closed for this posture, 0 open to 1 shut.
+
+        The jaw is not stated by any feature -- it makes no constriction, so
+        it is not an articulator -- but it is not free either: a segment that
+        closes at the lips closes the jaw with it, and an open vowel opens
+        it. Taking the constriction's own degree is the honest approximation
+        available from what a phone declares.
+        """
+        if control.offset is None or control.arc is None:
+            return 0.0
+        # Only a constriction the jaw carries closes the jaw. A glottal or
+        # pharyngeal one does not: `jaw_carriage` is ~0 back there, and
+        # deriving a closed jaw from /h/ would be reading the mandible off a
+        # constriction it takes no part in.
+        front = self.jaw_carriage(0.0)
+        share = (self.jaw_carriage(control.arc) / front) if front else 0.0
+        return max(0.0, min(1.0, control.offset * share))
+
+    def carried(
+        self, point: tuple[float, float], arc: float, close: float
+    ) -> tuple[float, float]:
+        """Move a point the way the jaw carries it, for a given closure.
+
+        The mandible constricts nothing but carries the lower lip, the lower
+        teeth and the tongue's anterior attachment, by the measured fraction
+        in `jaw_carriage`. Closing the jaw lifts them toward the palate in
+        that proportion, which is why a bilabial closure is the lips meeting
+        somewhere between their open positions rather than the lower one
+        travelling the whole way alone.
+        """
+        share = self.jaw_carriage(arc) * close
+        if share <= 0.0:
+            return point
+        roof = self.project(TractPoint(arc=arc, offset=1.0))
+        floor = self.project(TractPoint(arc=arc, offset=0.0))
+        if roof is None or floor is None:
+            return point
+        return (
+            point[0] + (roof[0] - floor[0]) * share,
+            point[1] + (roof[1] - floor[1]) * share,
+        )
+
     def lips(
-        self, closed: bool = False
+        self, closed: bool = False, close: float = 0.0
     ) -> tuple[tuple[float, float], tuple[float, float]] | None:
         """Upper and lower lip, as the tract's two boundaries at arc 0.
 
@@ -238,7 +281,19 @@ class Head:
         lower = self.project(TractPoint(arc=0.0, offset=0.0))
         if upper is None or lower is None:
             return None
-        return (upper, upper if closed else lower)
+        # The jaw carries the lower lip most of the way; the rest is the lip's
+        # own. Closing the jaw therefore moves the lower lip even for a phone
+        # that is not a closure.
+        lower = self.carried(lower, 0.0, close)
+        if not closed:
+            return (upper, lower)
+        # They meet between: the upper lip comes down about a quarter of what
+        # is left, the lower lip rises the rest.
+        meet = (
+            lower[0] + (upper[0] - lower[0]) * 0.72,
+            lower[1] + (upper[1] - lower[1]) * 0.72,
+        )
+        return (meet, meet)
 
     def project_nasal(
         self, arc: float, offset: float = 0.0
