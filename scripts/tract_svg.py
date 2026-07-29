@@ -167,6 +167,48 @@ LINE_H = 12.0
 PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
 
 
+def _lips(
+    src: dict[str, Any],
+    to: Scaler,
+    posture: tuple[float, float, str] | None,
+    taken: list[tuple[float, ...]],
+) -> str:
+    """The lips: the tube's two boundaries where the tract opens, at arc 0.
+
+    They were never drawn, so a bilabial closure -- the articulator carried
+    to offset 1 -- landed on the wall trace, which reads as the roof rather
+    than as the two lips meeting. The upper lip is the wall end, the lower
+    lip the open end, and a closure brings the lower to the upper.
+    """
+    rows = src["rows"]
+    if not rows:
+        return ""
+    first = rows[0]
+    upper = to(*first["wall"])
+    lower = to(*first["open"])
+    dx, dy = upper[0] - lower[0], upper[1] - lower[1]
+    span = (dx * dx + dy * dy) ** 0.5 or 1.0
+    # outward, away from the tract, so the lips read as lips and not as caps
+    ox, oy = -dy / span * 9, dx / span * 9
+    closed = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    lower_at = upper if closed else lower
+    parts = [
+        f'<path d="M{upper[0] - ox:.1f},{upper[1] - oy:.1f} '
+        f'L{upper[0] + ox:.1f},{upper[1] + oy:.1f}" class="lip"/>',
+        f'<path d="M{lower_at[0] - ox:.1f},{lower_at[1] - oy:.1f} '
+        f'L{lower_at[0] + ox:.1f},{lower_at[1] + oy:.1f}" '
+        f'class="lip{" shut" if closed else ""}"/>',
+    ]
+    for text, lx, ly, depth in _place_labels(
+        [("lips", (lower[0], lower[1]))], 16, 13, taken
+    ):
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly + depth:.1f}" class="lbl lip" '
+            f'text-anchor="middle">{text}</text>'
+        )
+    return "".join(parts)
+
+
 def _constriction(
     src: dict[str, Any],
     to: Scaler,
@@ -193,6 +235,8 @@ def _constriction(
     ax = openp[0] + (wall[0] - openp[0]) * offset
     ay = openp[1] + (wall[1] - openp[1]) * offset
     shut = offset >= 0.995
+    if arc <= 0.02 and shut:
+        return ""  # drawn as the lips meeting, see _lips
     parts = [
         f'<line x1="{openp[0]:.1f}" y1="{openp[1]:.1f}" x2="{ax:.1f}" '
         f'y2="{ay:.1f}" class="reach"/>',
@@ -460,6 +504,7 @@ def section_svg(
     parts.append(_annotate(current, to, taken))
     parts.append(_nasal(current, to, aperture, taken))
     parts.append(_constriction(current, to, posture, taken))
+    parts.append(_lips(current, to, posture, taken))
     return (
         f'<svg viewBox="0 0 {WIDTH} {SECTION_HEIGHT}" role="img" '
         f'aria-label="Mid-sagittal tract section">{"".join(parts)}</svg>'
@@ -572,6 +617,9 @@ stroke-dasharray:2 4;opacity:.5}
 .velumtip{fill:var(--velum)}
 .lbl.velum{fill:var(--velumText);font-weight:400}
 .median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
+.lip{stroke:var(--text);stroke-width:3;stroke-linecap:round;fill:none}
+.lip.shut{stroke:var(--signal)}
+.lbl.lip{fill:var(--text)}
 .reach{stroke:var(--signal);stroke-width:1.4;stroke-dasharray:2 3;opacity:.8}
 .constriction{fill:none;stroke:var(--signal);stroke-width:2}
 .constriction.shut{fill:var(--signal)}
