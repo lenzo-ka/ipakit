@@ -105,6 +105,7 @@ def geometry(name: str) -> dict[str, Any]:
         "lips_closed": h.lips(closed=True),
         "rest_arc": None if rest is None else rest.arc,
         "rest_offset": None if rest is None else rest.offset,
+        "rest_lips": None if rest is None else rest.lips,
         "midline": [
             {
                 "arc": p.arc,
@@ -180,7 +181,10 @@ def _lips(
     A bilabial closure is the lower lip meeting the upper; ``Head.lips``
     says where both are, open or closed, so nothing is derived here.
     """
-    closed = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    # A bilabial closes the lips; so does rest, which the head declares.
+    bilabial = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    at_rest = posture is not None and posture[2] == "at rest"
+    closed = bilabial or (at_rest and src.get("rest_lips") == "closed")
     pair = src.get("lips_closed" if closed else "lips_open")
     if not pair:
         return ""
@@ -426,7 +430,19 @@ def _nasal(
         return ""
     upper = [to(*r["wall"]) for r in rows]
     lower = [to(*r["low"]) for r in rows]
-    tube = _path(upper + list(reversed(lower)), close=True)
+    # The nasopharynx and the oropharynx are continuous; the port is only
+    # where the velum can close between them. So the branch's posterior edge
+    # joins the oral wall behind the port instead of stopping in mid-air.
+    port = src.get("port_arc")
+    join: list[Point] = []
+    if port is not None:
+        behind = [
+            to(*r["wall"])
+            for r in src["rows"]
+            if float(port) <= r["arc"] <= float(port) + 0.10
+        ]
+        join = behind
+    tube = _path(upper + join[::-1] + list(reversed(lower)), close=True)
     mid = _path([to(*r["mid"]) for r in rows])
     # The floor near the port stops being a boundary once the port is open.
     keep = (
@@ -436,7 +452,7 @@ def _nasal(
     )
     parts = [
         f'<path d="{tube}" class="nasalfill"/>',
-        f'<path d="{_path(upper)}" class="nasalside"/>',
+        f'<path d="{_path(upper + join[::-1])}" class="nasalside"/>',
         f'<path d="{_path(lower[:keep])}" class="nasalside"/>',
         f'<path d="{mid}" class="nasalmid"/>',
     ]
@@ -751,6 +767,12 @@ def cmd_draw(args: argparse.Namespace) -> int:
         point = tract_point(ipa, bundle)
         if point.arc is not None and point.offset is not None:
             posture = (point.arc, point.offset, point.articulator or "articulator")
+        else:
+            # Silence is featurally null but still has to be drawn somewhere.
+            # The head declares where everything sits when not speaking.
+            resting = head(args.head).rest
+            if resting is not None:
+                posture = (resting.arc, resting.offset, "at rest")
     current = geometry(args.head)
     Path(args.output).write_text(
         page(args.head, current, prior, aperture, args.phone, posture),
