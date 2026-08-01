@@ -74,6 +74,8 @@ Inside it, a supplement may declare entries in **the element sections `<classes>
 
 That line is the whole safety property. Every attribute on a declaring element lands in that symbol's feature bundle, and a bundle key is a term in the metric: a file that could declare a new feature would silently reshape every distance in the inventory it was merely meant to extend. A supplement adds symbols to a space; it does not redefine the space.
 
+Both halves of that — the sections a supplement may hold and the declarations it may not — are stated as a RELAX NG grammar, `supplement.rng`, which ships in the package beside `ipa.xml`; `python -c 'from ipakit.constants import DATA_DIR; print(DATA_DIR / "supplement.rng")'` says where your copy of it is. Validating against it (`xmllint --noout --relaxng`, or `lxml.etree.RelaxNG`) answers the structural half of the question before the loader is ever called.
+
 ### An entry that declares nothing derives from its spelling
 
 `<phone name="tʰ"/>` states no features, so it is registered with the bundle `tʰ` already composes to:
