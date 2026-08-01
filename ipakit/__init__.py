@@ -21,6 +21,7 @@ transcription string (``ipa_to_xsampa``, ``to_kirshenbaum``) return ``str``.
 from __future__ import annotations
 
 import functools
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -96,9 +97,19 @@ def _get_default_model() -> DistanceModel:
     return DistanceModel.global_(_get_ipa())
 
 
-def load_ipa_features(xml_path: Path = DEFAULT_IPA_FEATS) -> IPAFeatures:
-    """Convenience function to load IPA features."""
-    return IPAFeatures(xml_path)
+def load_ipa_features(
+    xml_path: Path = DEFAULT_IPA_FEATS,
+    supplements: Sequence[Path | str] = (),
+) -> IPAFeatures:
+    """Convenience function to load IPA features.
+
+    ``supplements`` are extra inventory files merged over ``xml_path``,
+    each adding symbols and declaring nothing else (docs/supplements.md).
+    The instance they build is the caller's own: the module-level
+    functions, the shipped distance matrix and every derived artifact in
+    this package are built from the bare inventory and do not see it.
+    """
+    return IPAFeatures(xml_path, supplements=supplements)
 
 
 # --- Distance & Features ---

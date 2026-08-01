@@ -32,6 +32,11 @@ if TYPE_CHECKING:
 
 Matrix = list[list[float]]
 
+#: Format version written into a saved matrix. One spelling, read by
+#: :meth:`DistanceModel.save` and by ``scripts/confusion.py``, which writes
+#: the same object for the shipped inventory.
+MATRIX_VERSION = "1.0"
+
 
 def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str]:
     """Shipped/derived model: phones + upper triangle -> full symmetric matrix."""
@@ -181,6 +186,87 @@ class DistanceModel:
             threshold=threshold,
             max_length_ratio=max_length_ratio,
         )
+
+    @classmethod
+    def derive(
+        cls,
+        ipa: IPAFeatures,
+        *,
+        phones: list[str] | None = None,
+        gamma: float = 1.0,
+        insert_cost: float = 1.0,
+        delete_cost: float = 1.0,
+        sub_mode: str = "simple",
+        threshold: float | None = None,
+        max_length_ratio: float | None = None,
+    ) -> Self:
+        """Build the matrix from the inventory in hand, not from the shipped file.
+
+        :meth:`global_` reads ``data/confusion.json``, which is derived from
+        the bare shipped inventory and is a fixed object of exactly its
+        phones. An inventory built with supplements has phones that file has
+        no row for, and :meth:`for_phoneset` cannot help: it re-slices the
+        shipped matrix, so a member outside it is dropped from the reference
+        CDF with a warning. This is the constructor that gives a
+        supplemented inventory its **own** derived data -- every pair
+        recomputed through :meth:`IPAFeatures.pairwise_distances`, so the
+        reference distribution is the one the caller actually declared.
+
+        It costs a full pairwise pass, about a second at inventory scale.
+        :meth:`save` writes the result in the format
+        :meth:`from_matrix_file` reads, so a caller pays it once.
+
+        The reference name is the files the inventory was built from, so a
+        model's ``repr`` says which distribution its percentiles are
+        relative to. They are not comparable across inventories.
+        """
+        ph = list(phones) if phones is not None else list(ipa.phones)
+        matrix = ipa.pairwise_distances(ph)
+        name = "+".join([ipa.xml_path.stem, *ipa.supplements])
+        return cls(
+            ipa,
+            name,
+            ph,
+            matrix,
+            "distance",
+            gamma=gamma,
+            insert_cost=insert_cost,
+            delete_cost=delete_cost,
+            sub_mode=sub_mode,
+            threshold=threshold,
+            max_length_ratio=max_length_ratio,
+        )
+
+    def save(self, path: str | Path) -> Path:
+        """Write this model's matrix where :meth:`from_matrix_file` can read it.
+
+        The upper triangle only, which is the shape ``data/confusion.json``
+        ships in and :func:`_load_matrix_json` reads. What is written is the
+        matrix, not the model: ``gamma`` and the alignment costs are
+        arguments to a constructor, and baking them into the file would put
+        one number in two places.
+
+        Only the reference sub-inventory is written, so a model already
+        sliced to a phoneset saves that slice.
+        """
+        ref = [p for p in self._ref if p in self._index]
+        idxs = [self._index[p] for p in ref]
+        n = len(idxs)
+        model = {
+            "version": MATRIX_VERSION,
+            "reference": self._name,
+            "space": self._space,
+            "phones": ref,
+            "triangle": [
+                self._m[idxs[i]][idxs[j]] for i in range(n) for j in range(i + 1, n)
+            ],
+        }
+        out = Path(path)
+        out.write_text(
+            json.dumps(model, ensure_ascii=False, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        return out
 
     @classmethod
     def for_phoneset(
