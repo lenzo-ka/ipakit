@@ -1143,8 +1143,9 @@ def _library_only_functions():
         obj = getattr(ipakit, name)
         if not inspect.isfunction(obj):
             continue
-        # The public name, the object's own name (they differ for an
-        # alias such as rule_units = units), and whatever it delegates to.
+        # The public name, the object's own name (they differ whenever a
+        # public name is bound to a function defined under another), and
+        # whatever it delegates to.
         spellings = {name, obj.__name__}
         if name in defined:
             spellings |= _delegates(defined[name])
@@ -1251,12 +1252,10 @@ class TestEveryPublicReadIsEitherOnTheCommandLineOrDeclaredLibraryOnly:
         as reachable and does not force a decision. That is the intended
         reading -- the read is on both surfaces, only the spelling is new
         -- but it means this guard does not catch a divergence in
-        *naming*, only one in coverage. The alias below demonstrates it:
-        ``rule_units`` and ``units`` are one object, and a second name for
-        an already-spelled read passes without comment.
+        *naming*, only one in coverage: a second public name for a read
+        the CLI already spells would pass without comment.
         """
-        assert ipakit.rule_units is ipakit.units
-        assert "units" not in LIBRARY_ONLY and "rule_units" not in LIBRARY_ONLY
+        assert "units" not in LIBRARY_ONLY
         # A wrapper around an already-spelled delegate is reachable.
         wrapper = ast.parse("def w(x):\n    return _get_ipa().normalize(x)\n").body[0]
         assert _delegates(wrapper) & _cli_vocabulary()

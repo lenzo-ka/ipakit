@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Segment` and `Head` render as tract figures in a notebook, through `_repr_svg_`.
 - `python -m ipakit`.
 - `hierarchy()`, `hierarchy_text()`, `hierarchy_dot()` and `stress_markers()` at module level.
-- `ipakit.units`, which is `ipakit.form.units`; `rule_units` is the same object under its older name.
+- `ipakit.units`, which is `ipakit.form.units`.
 - `Node.opened_by`/`closed_by`/`asserted` on `Form.tree()`, and `ipakit.form.edge_tier()`.
 - `validate_ipa` gains `empty_constituent` and `no_segments`.
 - A declared `natural-class` resolves as a query term: `[obstruent]`.

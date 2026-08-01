@@ -946,12 +946,9 @@ def variants(
 
 # ``units`` is :func:`ipakit.form.units`, re-exported above rather than
 # wrapped: the read is one function, so the two spellings cannot come to
-# mean different things. ``rule_units`` was a second callable computing the
-# same answer a second way (``Form.parse(...).units``) -- it is kept as the
-# older name for it, bound to the same object, so ``rule_units is units``.
-# Prefer :func:`units`: the read is the Form layer's, not the rules layer's,
-# and nothing about it is specific to rewriting.
-rule_units = units
+# mean different things. It belongs to the Form layer rather than the rules
+# layer -- nothing about splitting a transcription into units is specific
+# to rewriting -- which is why there is no second spelling of it here.
 
 
 __all__ = [
@@ -1048,7 +1045,6 @@ __all__ = [
     "derive",
     "shipped",
     "units",
-    "rule_units",
     # The tract, drawn
     "tract_svg",
     # The calculus over the string set (docs/calculus.md)
