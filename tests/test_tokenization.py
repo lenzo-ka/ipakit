@@ -6,7 +6,9 @@ import warnings
 import ipakit
 import pytest
 from ipakit import IPAFeatures
-from ipakit.constants import SEQ_TIE, TIE_BAR
+from ipakit.constants import MAX_MATCH_LEN
+
+from tests.corpus import TIES
 
 
 class TestTokenizerRobustness:
@@ -343,7 +345,7 @@ MODIFIERS = [
 TIE_CASES = [
     (mark, tie, pair)
     for mark in MODIFIERS
-    for tie in (TIE_BAR, SEQ_TIE)
+    for tie in sorted(TIES)
     for pair in (("t", "s"), ("k", "p"), ("a", "i"))
 ]
 
@@ -522,3 +524,40 @@ class TestUnboundTieIsNotSilent:
                 if "unbound tie" in str(w.message)
             )
             assert reported == dropped, text
+
+
+class TestTheMatchWindow:
+    """What ``MAX_MATCH_LEN`` is for, and what it is not for.
+
+    Two justifications used to sit stacked on the constant, disagreeing
+    with each other: that it spans a tie-bar composite, and that it is
+    wide enough for a five-constituent chain -- which is nine characters,
+    not eleven. Nothing read the value, so neither could be checked.
+    """
+
+    def test_the_window_reaches_the_longest_registered_spelling(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The floor, derived from the inventory rather than asserted.
+
+        ``longest_match`` scans prefixes down from the window, so a key
+        longer than it can never be matched whole -- and the longest
+        registered spelling is a tie composite, not a single letter.
+        """
+        assert ipa.phones, "no phone registered: the bound would be vacuous"
+        assert MAX_MATCH_LEN >= max(len(key) for key in ipa.phones)
+
+    def test_the_window_does_not_bound_a_tie_chain(self, ipa: IPAFeatures) -> None:
+        """The claim the stale comment made, measured.
+
+        ``parse`` grows a chain a juncture at a time after the window has
+        done its work, so a chain longer than the window is still one
+        unit. If that stops being true, the constant becomes a limit on
+        how long a tied unit may be, which is a policy nobody chose.
+        """
+        longest = "͡".join(["t"] * (MAX_MATCH_LEN + 2))
+        assert len(longest) > MAX_MATCH_LEN
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            assert ipa.tokenize(longest) == [longest]
+            assert [u.to_ipa() for u in ipa.segments(longest)] == [longest]

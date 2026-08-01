@@ -256,11 +256,52 @@ class TestTheNormalizersAndTheBindingAgree:
         for seg in ipa.segments(moved, strict=True):
             if not any(m in ipa.stress_markers for m in seg.prosody):
                 continue
+            # Spelled out rather than asking IPAFeatures.is_nucleus,
+            # deliberately: this is the independent statement the
+            # normalizer is checked against, and reading it back out of
+            # the code under test would make the check agree with itself.
             feats = seg.scalar()
             assert feats.get("manner") == "vowel" or feats.get("syllabic") == "+", (
                 src,
                 seg.to_ipa(),
             )
+
+    def test_the_normalizer_and_the_derived_class_are_one_read(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """What a nucleus is decides two different things -- where a
+        stress mark lands, and which features a description reads out --
+        and until now each decided it from its own copy of the predicate.
+        Nothing pinned the equality, so a correction to either (a
+        syllabic consonant reached, a manner added) would have moved one
+        answer and left the other.
+
+        Swept over the inventory, through the two public answers rather
+        than through the shared call, so this still measures something if
+        one of them grows a special case.
+        """
+        nucleus_only = [
+            name
+            for name, feature in ipa.features.items()
+            if feature.applies == frozenset({"nucleus"})
+        ]
+        assert nucleus_only, "no feature declares applies='nucleus'; sweep is vacuous"
+        verdicts, disagreed = [], []
+        for symbol, phone in ipa.phones.items():
+            if len(symbol) != 1 or symbol in ipa.diacritics:
+                continue
+            # The normalizer's answer: a syllable-initial mark walks
+            # across the onset and stops on the nucleus.
+            moved = ipa.normalize_stress_to_nucleus("ˈb" + symbol)
+            by_normalizer = moved == "bˈ" + symbol
+            verdicts.append(by_normalizer)
+            for feature in nucleus_only:
+                if ipa.feature_applies(feature, phone.features) != by_normalizer:
+                    disagreed.append((symbol, feature, moved))
+        assert len(verdicts) > 50, "sweep did not run"
+        # Both answers occur, so agreement is not two constants agreeing.
+        assert any(verdicts) and not all(verdicts)
+        assert not disagreed, disagreed[:5]
 
     @pytest.mark.parametrize("src", ["ˈhɛloʊ", "ˈkæt", "ˌɪntəˈneɪʃənəl"])
     def test_the_normalizers_still_round_trip(self, ipa: IPAFeatures, src: str) -> None:

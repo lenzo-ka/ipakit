@@ -21,7 +21,28 @@ from pathlib import Path
 import ipakit
 import pytest
 from ipakit import IPAFeatures
-from ipakit.constants import SEQ_TIE, TIE_BAR
+
+from tests.corpus import FEATURES, TIES
+
+_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "xsampa_table.py"
+
+
+def _load_script():  # type: ignore[no-untyped-def]
+    """A fresh instance of the generator, which is not an importable module.
+
+    Fresh each call on purpose: one test below mutates ``UNMAPPABLE`` to
+    check that an undeclared passthrough is an error, and must not leave
+    that behind for anything else. ICU is imported lazily inside the
+    script, so loading it needs no dev dependency.
+    """
+    spec = importlib.util.spec_from_file_location("xsampa_table", _SCRIPT)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_TABLE = _load_script()
 
 # IPA symbols that convert but do not come back: the tie bar maps to `_`, and
 # `b_v`/`t_T`/`N_m` re-parse as the voicing diacritic / extra-high tone /
@@ -30,17 +51,23 @@ KNOWN_NON_ROUNDTRIP = {"b͡v", "t͡θ", "ŋ͡m"}
 
 # The under-tie converts to `_` and reads back as the over-tie: X-SAMPA has a
 # single tie encoding, so tie sense does not survive the boundary by design.
-TIE_SENSE = {SEQ_TIE}
+TIE_SENSE = {FEATURES.seq_tie}
 
 # Redundant IPA spellings kept out of the (bijective) table: X-SAMPA has one
 # encoding where IPA has two, and it belongs to the canonical spelling given
-# here, which does round-trip. See EXCLUDE in scripts/xsampa_table.py.
-FOLDED_SPELLINGS = {"˞": "ʴ", "̀": "˨", "́": "˦", "̄": "˧", "ʻ": "ʰ"}
+# here, which does round-trip.
+#
+# Read from the generator rather than restated. These two used to be a
+# hand copy with a comment naming what they were a copy of, in a file
+# that already loads the script for the tests below -- and the ICU
+# cross-check that would have caught the drift is skipped wherever the
+# dev dependency is absent, which is everywhere it usually matters.
+FOLDED_SPELLINGS = _TABLE.EXCLUDE
 
 # Symbols X-SAMPA cannot spell at all -- no notation exists for the labiodental
 # flap, glottalization or schwa release, and inventing one would collide with
-# notation already in use. See UNMAPPABLE in scripts/xsampa_table.py.
-UNENCODABLE = {"ⱱ", "ˀ", "ᵊ"}
+# notation already in use. The script keeps the reason beside each.
+UNENCODABLE = set(_TABLE.UNMAPPABLE)
 
 # Conversion drops both groups (or raises, under `strict=True`).
 DROPPED = set(FOLDED_SPELLINGS) | UNENCODABLE
@@ -82,7 +109,7 @@ class TestRoundTrip:
         """
         failures = []
         for sym in list(ipa.phones) + list(ipa.diacritics):
-            if TIE_BAR in sym or SEQ_TIE in sym or sym in DROPPED:
+            if TIES & set(sym) or sym in DROPPED:
                 continue
             xs = ipakit.ipa_to_xsampa(sym)
             if ipakit.xsampa_to_ipa(xs) != sym:
@@ -91,7 +118,7 @@ class TestRoundTrip:
 
     def test_tie_bar_affricates_round_trip(self, ipa: IPAFeatures) -> None:
         """Tie-bar affricates round-trip, except the known X-SAMPA collisions."""
-        for sym in [p for p in ipa.phones if TIE_BAR in p]:
+        for sym in [p for p in ipa.phones if ipa.tie_bar in p]:
             xs = ipakit.ipa_to_xsampa(sym)
             back = ipakit.xsampa_to_ipa(xs)
             if sym in KNOWN_NON_ROUNDTRIP:
@@ -148,7 +175,7 @@ class TestRoundTrip:
 class TestUnconvertible:
     """A symbol X-SAMPA cannot spell is dropped leniently, or raises strictly."""
 
-    def test_dropped_symbol_takes_its_neighbours_adjacency(self) -> None:
+    def test_dropped_symbol_takes_its_neighbors_adjacency(self) -> None:
         # Lenient conversion deletes `ⱱ` and closes the gap, so `k` and `t`
         # come out adjacent. Documented, and the reason `strict` exists.
         assert ipakit.ipa_to_xsampa("kⱱt") == "kt"
@@ -165,16 +192,6 @@ class TestUnconvertible:
 
 
 # --- ICU cross-check (dev dependency) ----------------------------------------
-
-_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "xsampa_table.py"
-
-
-def _load_script():  # type: ignore[no-untyped-def]
-    spec = importlib.util.spec_from_file_location("xsampa_table", _SCRIPT)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 class TestICUCrossCheck:

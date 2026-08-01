@@ -4,7 +4,7 @@
 zero exactly on identity, and bounded, but it does not satisfy the
 triangle inequality (see docs/distance.md). Algorithms whose correctness
 rests on the inequality -- metric trees and ball trees for
-nearest-neighbour search, some clustering and embedding methods -- are
+nearest-neighbor search, some clustering and embedding methods -- are
 wrong on it.
 
 :class:`MetricClosure` is the shortest-path closure over an inventory:

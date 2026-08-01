@@ -5,8 +5,13 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._convert import convert_greedy, require_convertible, resolve_aliases
-from .constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR
+from ._convert import (
+    convert_greedy,
+    ipa_features,
+    report_unconvertible,
+    resolve_aliases,
+)
+from .constants import PHONEMAPS_DIR
 
 
 @functools.lru_cache(maxsize=8)
@@ -54,11 +59,15 @@ def _load_phonemap(name: str) -> tuple[dict[str, str], dict[str, str]]:
 
 def _normalize_for_map(ipa: str, ipa_to_target: dict[str, str]) -> str:
     """Normalize IPA string by adding tie bars where the map expects them."""
-    # Check if any keys have tie bars
+    # Which characters tie is declared in ipa.xml, so it is read from
+    # there (`IPAFeatures.tie_bars`) rather than restated here.
+    ties = ipa_features().tie_bars
     for key in ipa_to_target:
-        if TIE_BAR in key or SEQ_TIE in key:
+        if ties & set(key):
             # Try to add tie bar if the untied version is in the string
-            untied = key.replace(TIE_BAR, "").replace(SEQ_TIE, "")
+            untied = key
+            for glyph in ties:
+                untied = untied.replace(glyph, "")
             if untied in ipa and key not in ipa:
                 ipa = ipa.replace(untied, key)
     return ipa
@@ -87,8 +96,8 @@ def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> 
     Args:
         symbols: List of phonemap symbols
         phonemap: Name of phonemap ("timit", "kirshenbaum")
-        strict: If True, raise ValueError for unknown symbols instead of
-            skipping them.
+        strict: If True, raise ValueError for unknown symbols; otherwise
+            they are dropped with a warning naming them.
 
     Returns:
         IPA string
@@ -103,8 +112,7 @@ def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> 
         else:
             skipped.append(symbol)
 
-    if strict:
-        require_convertible(skipped, f"{phonemap} -> IPA")
+    report_unconvertible(skipped, f"{phonemap} -> IPA", strict=strict)
     return "".join(result)
 
 

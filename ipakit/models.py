@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
@@ -37,6 +37,22 @@ class Feature:
     # nowhere else in the data, and reads as the conjunction it is: a
     # double articulation is both places at once.
     COMBINER = "^"
+    # A sequence-valued feature states a *trajectory*: its values are its
+    # declared values joined by the sequencer, read left to right as time
+    # order. `tone="low>high"` is one unit's pitch moving from low to
+    # high, which is what a contour is. The glyph is ">" because it reads
+    # as "then", it appears nowhere else in the data, and it is neither
+    # "^" (simultaneity, the opposite claim) nor a space (a value inside
+    # a bracketed query is one token).
+    SEQUENCER = ">"
+    # Whether this feature's values may be sequences, declared in the data.
+    sequence: bool = False
+    # For a feature whose values name a *move* along another feature's
+    # scale (`contour` over `tone`): the scale moved along, and the value
+    # naming each sign of the move. Declared, so no direction table stands
+    # in Python.
+    over: str | None = None
+    moves: dict[str, str] = field(default_factory=dict)
     value_aliases: dict[str, str] = field(default_factory=dict)
     # The reference-frame axis this ordinal ascends (+x lips->glottis,
     # +y jaw->palate, +constriction, +t, ...), declared in the data.
@@ -63,11 +79,11 @@ class Feature:
     place: str | None = None
     # Manner classes whose descriptions read this feature out; empty means
     # every class. ``channel`` places the airflow channel within a
-    # constriction and a vowel has none; ``rhotacized`` is a vowel colour
+    # constriction and a vowel has none; ``rhotacized`` is a vowel color
     # and ``retroflex`` the consonant tongue shape.
     applies: frozenset[str] = field(default_factory=frozenset)
     # Value -> the word a description uses for it, declared in the data.
-    # An unlabelled value is not read out at all (the unremarkable side of
+    # An unlabeled value is not read out at all (the unremarkable side of
     # a binary, ``channel=flat``). Distinct from an alias, which is a
     # synonym a reader may write: `plosive` should not print as `stop`.
     labels: dict[str, str] = field(default_factory=dict)
@@ -89,7 +105,7 @@ class Feature:
 
         Combining values (bilabial^velar) are skipped: an overlap is not a
         point on the continuum, so it must not pad the scale between its
-        neighbours.
+        neighbors.
         """
         scale = [
             v for v in self.values if self.COMBINER not in v and v not in self.offscale
@@ -170,6 +186,47 @@ class Feature:
         # component's alias expands at most once more. The bound also
         # keeps a cyclic alias in the data from recursing forever.
         return tuple(sub for part in parts for sub in self._components(part))
+
+    def steps(self, value: str) -> tuple[str, ...]:
+        """A sequence value's elements, in time order.
+
+        ``steps("low>high")`` is ``("low", "high")`` and ``steps("high")``
+        is ``("high",)``, so a caller need not ask first whether it holds
+        one element or several. A feature the data does not declare
+        ``sequence`` never holds a sequence, and its values come back
+        whole -- a ``>`` in such a value is part of the name.
+        """
+        if not self.sequence or self.SEQUENCER not in value:
+            return (value,)
+        parts = tuple(self.value_aliases.get(p, p) for p in value.split(self.SEQUENCER))
+        if not all(parts):
+            raise ValueError(
+                f"malformed sequence {value!r} for feature {self.name!r}: a "
+                f"sequence is non-empty names joined by {self.SEQUENCER!r}"
+            )
+        return parts
+
+    def sequenced(self, values: Sequence[str]) -> str:
+        """The sequence spelling of an ordered run of values."""
+        return self.SEQUENCER.join(values)
+
+    def move(self, scale: Feature, start: str, end: str) -> str | None:
+        """The value naming the move from ``start`` to ``end`` on ``scale``.
+
+        ``contour`` declares ``over="tone"`` and gives each of its values
+        the sign of the move it names, so the direction between two tone
+        levels is read off the declaration rather than off a table of
+        directions kept here. Returns ``None`` where either level holds no
+        position on the scale, or where nothing names that sign.
+        """
+        first, second = scale._value_index.get(start), scale._value_index.get(end)
+        if first is None or second is None:
+            return None
+        sign = "+" if second > first else "-" if second < first else "0"
+        for name, declared in self.moves.items():
+            if declared == sign:
+                return name
+        return None
 
     def combine(self, values: set[str] | tuple[str, ...]) -> str:
         """The canonical combining spelling for a set of values: components
@@ -311,6 +368,35 @@ class PhoneMapping:
     stress: set[int]  # Valid stress levels: {0, 1, 2} or subset
 
 
+@functools.lru_cache(maxsize=1)
+def _silence_spellings() -> frozenset[str]:
+    """The strings a phoneset file may write silence with.
+
+    ``␣`` is not spelled here. It is a registered phone and what makes it
+    silence is declared -- ``manner="silence"`` -- so the set is read off
+    that, and a second silence phone would be dropped by the same rule
+    rather than slipping in as a sound. ``SIL`` is written out because it
+    is the aligner-file label for the same thing (HTK, Kaldi) and is
+    declared by nothing.
+
+    The import is deferred rather than made a field on :class:`Phoneset`,
+    and that is the shape of the class, not an oversight: ``features``
+    imports this module, so an inventory held here would invert the
+    dependency, and a ``Phoneset`` is a name and a list of strings that
+    accepts arbitrary, possibly non-IPA phone labels -- it has no
+    inventory to check them against and is not supposed to. Same pattern
+    and same reason as ``mapper._stress_markers``.
+    """
+    from .features import IPAFeatures
+
+    ipa = IPAFeatures()
+    return frozenset({"SIL"}) | {
+        symbol
+        for symbol, phone in ipa.phones.items()
+        if (phone.features or {}).get("manner") == "silence"
+    }
+
+
 @dataclass
 class Phoneset:
     """A custom phoneset (list of phones)."""
@@ -324,12 +410,17 @@ class Phoneset:
 
     @classmethod
     def from_file(cls, path: Path) -> Self:
-        """Load phoneset from text file (one phone per line)."""
+        """Load phoneset from text file (one phone per line).
+
+        Silence is dropped: a phoneset is an inventory of sounds and the
+        silence label an aligner writes is not one of them. Which strings
+        spell it is :func:`_silence_spellings`.
+        """
         path = Path(path)
         phones = [
-            line.strip()
+            stripped
             for line in path.read_text().splitlines()
-            if line.strip() and line.strip() not in ("SIL", "␣")
+            if (stripped := line.strip()) and stripped not in _silence_spellings()
         ]
         return cls(name=path.stem, phones=phones)
 

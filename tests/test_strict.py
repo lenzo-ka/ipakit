@@ -1,7 +1,7 @@
 """Tests for the consistent ``strict`` error policy across converters (I12).
 
-Every converter skips unconvertible input by default (backward compatible) and
-raises ``ValueError`` when called with ``strict=True``.
+Every converter skips unconvertible input by default and raises
+``ValueError`` when called with ``strict=True``.
 """
 
 from __future__ import annotations

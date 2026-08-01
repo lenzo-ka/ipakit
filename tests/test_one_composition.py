@@ -20,7 +20,9 @@ import warnings
 
 import pytest
 from ipakit import IPAFeatures, Segment
-from ipakit.constants import METADATA_ATTRS, SEQ_TIE, TIE_BAR
+from ipakit.constants import METADATA_ATTRS
+
+from tests.corpus import TIES
 
 TAILS = ("p", "a", "s", "d")
 
@@ -37,7 +39,7 @@ def units(ipa: IPAFeatures) -> list[tuple[str, Segment]]:
         warnings.simplefilter("ignore")
         for base in ipa.phones:
             for mark in ipa.diacritics:
-                for tie in (TIE_BAR, SEQ_TIE):
+                for tie in sorted(TIES):
                     for tail in TAILS:
                         for text in (
                             base + mark + tie + tail,
@@ -176,7 +178,7 @@ def marked(ipa: IPAFeatures) -> list[tuple[str, str, str]]:
 
 def _is_tied(base: str) -> bool:
     """True if ``base`` is a tie composition rather than an atomic phone."""
-    return TIE_BAR in base or SEQ_TIE in base
+    return bool(TIES & set(base))
 
 
 class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
@@ -248,7 +250,7 @@ class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
             warnings.simplefilter("ignore")
             for head in sample:
                 for tail in sample:
-                    for tie in (TIE_BAR, SEQ_TIE):
+                    for tie in sorted(TIES):
                         for mark in ("", *ipa.stress_markers, "ː", "̃", "ʰ", "|"):
                             unit = head + tie + tail + mark
                             assert bool(ipa.get_features(unit)) == _accounted(

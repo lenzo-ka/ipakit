@@ -11,7 +11,6 @@ how they are stored. The exception list must shrink, never grow.
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit.constants import SEQ_TIE, TIE_BAR
 
 # Entries whose sense-correct spelling the composer cannot resolve, with
 # the reason. Empty since composition learned to resolve diacritic-bearing
@@ -50,7 +49,7 @@ def test_derivable_entries_ship_without_explicit_features(
     so there is nothing to drift. Only the pinned exceptions may carry
     explicit features."""
     for sym in ipa.phones:
-        if TIE_BAR not in sym and SEQ_TIE not in sym:
+        if not ipa.tie_bars & set(sym):
             continue
         if sym in KNOWN_UNCOMPOSABLE:
             assert sym not in ipa.derived_phones
@@ -64,7 +63,7 @@ def test_derivable_entries_ship_without_explicit_features(
 def test_registered_ties_match_sense_aware_composition(ipa: IPAFeatures) -> None:
     mismatches = {}
     for sym in ipa.phones:
-        if (TIE_BAR not in sym and SEQ_TIE not in sym) or sym in KNOWN_UNCOMPOSABLE:
+        if not ipa.tie_bars & set(sym) or sym in KNOWN_UNCOMPOSABLE:
             continue
         if (composed := _composed(ipa, sym)) != _stored(ipa, sym):
             mismatches[sym] = (_stored(ipa, sym), composed)

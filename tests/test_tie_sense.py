@@ -9,7 +9,6 @@ typographic variants) imports explicitly via from_wild().
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit.constants import SEQ_TIE, TIE_BAR
 
 
 @pytest.fixture(scope="module")
@@ -107,7 +106,7 @@ class TestUnderTieSequences:
     ) -> None:
         # No global rewrite: the under-tie survives tokenization.
         assert ipa.tokenize("u͜i") == ["u͜i"]
-        assert SEQ_TIE in ipa.tokenize("u͜i")[0]
+        assert ipa.seq_tie in ipa.tokenize("u͜i")[0]
 
     def test_sequential_scalar_projects_first_element(self, ipa: IPAFeatures) -> None:
         # The flat projection of a sequential chain is its first element,
@@ -156,9 +155,9 @@ class TestDoubleTieCollapse:
     def test_double_tie_collapses_to_fuse(self, ipa: IPAFeatures) -> None:
         # Both ties on one juncture assert contradictory timing; the
         # simultaneous reading wins on ingest (either written order).
-        for stacked in (TIE_BAR + SEQ_TIE, SEQ_TIE + TIE_BAR):
+        for stacked in (ipa.tie_bar + ipa.seq_tie, ipa.seq_tie + ipa.tie_bar):
             text = "t" + stacked + "s"
-            assert ipa.canonicalize_unicode(text) == "t" + TIE_BAR + "s"
+            assert ipa.canonicalize_unicode(text) == "t" + ipa.tie_bar + "s"
             assert ipa.tokenize(text) == ["t͡s"]
 
 
@@ -188,8 +187,8 @@ class TestPhonesetBoundary:
 
 class TestTielessNormalizationHeuristic:
     def test_consonants_fuse_vowels_sequence(self, ipa: IPAFeatures) -> None:
-        assert ipa.add_ties("ts") == "t" + TIE_BAR + "s"
-        assert ipa.add_ties("ai") == "a" + SEQ_TIE + "i"
+        assert ipa.add_ties("ts") == "t" + ipa.tie_bar + "s"
+        assert ipa.add_ties("ai") == "a" + ipa.seq_tie + "i"
 
     def test_explicit_tie_wins_over_heuristic(self, ipa: IPAFeatures) -> None:
         assert ipa.add_ties("a͡i") == "a͡i"
@@ -198,6 +197,44 @@ class TestTielessNormalizationHeuristic:
     def test_normalized_vowel_pair_is_canonical(self, ipa: IPAFeatures) -> None:
         # normalize emits the canonical sequential spelling directly.
         out = ipa.normalize("eɪ")
-        assert out == "e" + SEQ_TIE + "ɪ"
+        assert out == "e" + ipa.seq_tie + "ɪ"
         assert ipa.tokenize(out) == ["e͜ɪ"]
         assert ipa.get_phone(out) is not None
+
+
+class TestTheTwoEntryPointsSenseATieTheSameWay:
+    """``add_ties`` and ``from_wild`` are one vowel test, not two.
+
+    They held byte-identical private copies of it, with nothing pinning
+    the equality: correcting the vowel test in either -- to reach a
+    syllabic consonant, say, or to resolve an alias -- would have made an
+    under-tie mean one thing when ipakit writes it and another when it
+    reads imported text back. They call one read now, and this is the
+    consequence swept rather than the call asserted.
+    """
+
+    def test_every_base_pair_agrees_across_the_two(self, ipa: IPAFeatures) -> None:
+        """Over every ordered pair of single-glyph bases the inventory
+        spells: what add_ties writes between them is what from_wild
+        re-senses the other glyph into."""
+        bases = sorted(
+            symbol
+            for symbol in ipa.phones
+            if len(symbol) == 1 and symbol not in ipa.diacritics
+        )
+        assert len(bases) > 50, "sweep did not run"
+        checked, disagreed = 0, []
+        for first in bases:
+            for second in bases:
+                written = ipa.add_ties(first + second)
+                if len(written) != 3:
+                    continue  # not a two-base group; nothing was inserted
+                checked += 1
+                # The wild spelling is the same chain under the other
+                # glyph, which from_wild must re-sense to the same thing.
+                other = ipa.seq_tie if written[1] == ipa.tie_bar else ipa.tie_bar
+                resensed = ipa.from_wild(first + other + second)
+                if resensed != written:
+                    disagreed.append((first, second, written, resensed))
+        assert checked > 1000, "sweep did not run"
+        assert not disagreed, disagreed[:5]

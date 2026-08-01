@@ -46,17 +46,27 @@ class TestRecomposition:
             assert ipa.canonicalize_unicode(once) == once, text
 
     def test_the_levels_agree_on_precomposed_bases(self, ipa: IPAFeatures) -> None:
-        # The invariant the stranding broke: one string, one answer.
+        """The invariant the stranding broke: one string, one answer.
+
+        The comparison is the sibling sweep's in ``test_feature_reads.py``,
+        which this says it runs as -- it asserted only that the two reads
+        were both empty or both not, which a bundle carrying the wrong
+        values passes. Every unit here already satisfied the stronger
+        form, so the weakening bought nothing. The bases are derived
+        too: every phone that ships precomposed, not three of them.
+        """
+        precomposed = [s for s in ipa.phones if unicodedata.normalize("NFD", s) != s]
+        assert precomposed, "no precomposed phone: the sweep would be vacuous"
         checked = 0
-        for symbol in ("ç", "ä", "ť"):
+        for symbol in precomposed:
             for mark in ipa.diacritics:
                 unit = symbol + mark
-                # Well-formed IPA only, as the sibling sweep in
-                # test_feature_reads.py does. On a malformed unit -- a
-                # dangling tie, a trailing stress mark that binds nothing
-                # -- the structured side is deliberately lenient (it
-                # drops the mark and warns) and the flat side
-                # deliberately refuses, so the two are allowed to differ.
+                # Well-formed IPA only, as the sibling sweep does. On a
+                # malformed unit -- a dangling tie, a trailing stress
+                # mark that binds nothing -- the structured side is
+                # deliberately lenient (it drops the mark and warns) and
+                # the flat side deliberately refuses, so the two are
+                # allowed to differ.
                 if any(i["type"] == "error" for i in ipa.validate_ipa(unit)):
                     continue
                 try:
@@ -64,7 +74,7 @@ class TestRecomposition:
                 except ValueError:
                     continue
                 checked += 1
-                assert bool(ipa.get_features(unit)) == bool(structured), unit
+                assert ipa.get_features(unit) == structured, unit
         assert checked > 100, "sweep did not run"
 
 

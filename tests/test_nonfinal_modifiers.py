@@ -16,8 +16,11 @@ additive cases below are the ones the old parametrization covered; the
 overriding and under-tie ones are the ones it did not.
 """
 
+import warnings
+
 import pytest
 from ipakit import IPAFeatures, Sense
+from ipakit.constants import METADATA_ATTRS
 
 
 @pytest.fixture(scope="module")
@@ -156,44 +159,61 @@ class TestScalarNeverInventsAValue:
     unit's own constituents hold, except where composition derives it."""
 
     def test_scalar_values_come_from_the_bag(self, ipa: IPAFeatures) -> None:
+        """Over the whole inventory, and over the ties the data declares.
+
+        It used to run ``phones[:40]`` by ``diacritics[:15]``: a
+        positional slice of declaration order, chosen by nothing,
+        reshuffled by any reordering of ipa.xml, and holding not one
+        tie-bar base in a test about tied units. The metadata keys were
+        a third inline copy of ``METADATA_ATTRS``, written from it and
+        already missing ``name``; the tie glyphs were pasted rather than
+        read off ``tie_bars``.
+
+        This is not the sweep in ``test_one_composition.py``, which
+        compares the flat read against the structured one over the same
+        strings. Here the claim is about one read on its own: a value
+        the flat projection reports is a value some constituent holds,
+        so the two would agree on an invented value and this would not.
+        """
         # manner and place are excluded because fusion derives them --
         # differing manners collapse to affricate and places combine, so
         # neither is a constituent value by design (docs/ties.md).
         derived = {"manner", "place"}
-        metadata = {"class", "href", "xsampa"}
         checked = 0
-        for base in list(ipa.phones)[:40]:
-            for mark in list(ipa.diacritics)[:15]:
-                for tail in ("p", "a"):
-                    for tie in ("͡", "͜"):
-                        try:
-                            unit = ipa.segment(base + mark + tie + tail)
-                        except ValueError:
-                            continue
-                        checked += 1
-                        bag = unit.bag()
-                        for key, value in unit.scalar().items():
-                            if key in derived or key in metadata:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for base in ipa.phones:
+                for mark in ipa.diacritics:
+                    for tail in ("p", "a"):
+                        for tie in sorted(ipa.tie_bars):
+                            try:
+                                unit = ipa.segment(base + mark + tie + tail)
+                            except ValueError:
                                 continue
-                            if key in bag:
-                                assert value in bag[key], (
-                                    base + mark + tie + tail,
-                                    key,
-                                    value,
-                                    bag[key],
-                                )
-        assert checked > 500, "sweep did not run"
+                            checked += 1
+                            bag = unit.bag()
+                            for key, value in unit.scalar().items():
+                                if key in derived or key in METADATA_ATTRS:
+                                    continue
+                                if key in bag:
+                                    assert value in bag[key], (
+                                        base + mark + tie + tail,
+                                        key,
+                                        value,
+                                        bag[key],
+                                    )
+        assert checked > 30_000, "sweep did not run"
 
 
 class TestNucleusFeatures:
     """`rhotacized` is a nucleus feature, not a vowel feature.
 
     A syllabic liquid is a nucleus with consonantal manner, so keying
-    r-colouring to manner lost it on exactly the segment American English
+    r-coloring to manner lost it on exactly the segment American English
     uses most: the second syllable of "butter".
     """
 
-    def test_a_syllabic_consonant_reads_its_r_colouring(self, ipa: IPAFeatures) -> None:
+    def test_a_syllabic_consonant_reads_its_r_coloring(self, ipa: IPAFeatures) -> None:
         assert "r-colored" in ipa.describe("ɹ̩˞")
         assert "r-colored" in ipa.describe("l̩˞")
 

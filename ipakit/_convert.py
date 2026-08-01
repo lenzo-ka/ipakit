@@ -19,10 +19,9 @@ stays in the caller; only these shared steps live here.
 from __future__ import annotations
 
 import functools
+import warnings
 from collections.abc import Collection, Mapping
 from typing import TYPE_CHECKING
-
-from .constants import SEQ_TIE, TIE_BAR
 
 if TYPE_CHECKING:
     from .features import IPAFeatures
@@ -64,31 +63,80 @@ def require_convertible(skipped: list[str], what: str) -> None:
         raise ValueError(f"Cannot convert {what}: unknown symbols {unknown}")
 
 
+def report_unconvertible(
+    skipped: list[str], what: str, *, strict: bool, stacklevel: int = 3
+) -> None:
+    """Say what the conversion could not carry: raise, or warn.
+
+    The converters' half of the policy ``docs/ties.md`` states for the
+    parser -- **dropped audibly, never silently**. They had only the
+    first half: they collected what they skipped and spoke about it
+    solely under their own ``strict=``, so every default-path
+    conversion returned a well-formed answer one or more symbols short
+    and said nothing. ``ipakit convert to-cmu k@t`` printed ``K T`` and
+    exited 0, which is the same defect the parser's warning exists to
+    prevent, on the same input, one module over.
+
+    A warning rather than a return value because that is what the
+    parser already does, and because the report then reaches the exit
+    status for free: ``ipakit.cli.policy`` promotes any ``UserWarning``
+    raised from inside this package to status 3, by asking what a
+    warning *is* rather than listing today's sites. So the six
+    ``convert`` subcommands join the existing policy with no change to
+    the command line at all.
+
+    Raising and warning live in one function so the two branches cannot
+    drift into disagreeing about what counts as a loss -- the recurring
+    failure this repo has fixed twice (``docs/reviewing.md``).
+    """
+    if not skipped:
+        return
+    if strict:
+        require_convertible(skipped, what)
+        return
+    warnings.warn(
+        f"dropped {len(skipped)} unconvertible symbol(s) "
+        f"{sorted(set(skipped))} converting {what}: the result is shorter "
+        "than the input. Pass strict=True to raise instead.",
+        stacklevel=stacklevel,
+    )
+
+
 def longest_match(
     text: str,
     start: int,
     lookup: Collection[str],
     max_len: int,
     tie_set: Collection[str] | None = None,
+    ties: Collection[str] = (),
 ) -> tuple[str | None, int]:
     """Find the longest ``text[start:]`` prefix (up to ``max_len``) in ``lookup``.
 
     Returns ``(matched_substring, length)``, or ``(None, 0)`` if nothing matches.
     The caller maps the substring to a value (``lookup[match]``) when needed.
 
-    If ``tie_set`` is given, a candidate containing the tie bar also matches when
-    every tie-bar-separated part is a non-empty member of ``tie_set`` (handles
+    If ``tie_set`` is given, a candidate containing a tie bar also matches when
+    every tie-separated part is a non-empty member of ``tie_set`` (handles
     composed phones like ``t͡ʃ`` that are not themselves keys). A lone or dangling
     tie bar -- which produces an empty part -- is therefore not a match, so the
     caller can flag it. ``max_len`` must be wide enough to span such composites,
     so it is a deliberate bound, not the longest key length.
+
+    ``ties`` names the characters that bind, and comes from the caller
+    rather than from a constant here: which glyphs are ties is declared
+    in ipa.xml (``IPAFeatures.tie_bars``), and every caller passing a
+    ``tie_set`` is reading its own inventory anyway. Without it nothing
+    spans a juncture, which is what a caller matching a table that has no
+    tied keys wants.
     """
     for length in range(min(max_len, len(text) - start), 0, -1):
         candidate = text[start : start + length]
         if candidate in lookup:
             return candidate, length
-        if tie_set is not None and (TIE_BAR in candidate or SEQ_TIE in candidate):
-            parts = candidate.replace(SEQ_TIE, TIE_BAR).split(TIE_BAR)
+        if tie_set is not None and any(t in candidate for t in ties):
+            parts = [candidate]
+            for glyph in ties:
+                parts = [piece for part in parts for piece in part.split(glyph)]
             if all(p in tie_set for p in parts):
                 return candidate, length
     return None, 0
@@ -105,9 +153,10 @@ def convert_greedy(
     """Greedy longest-match conversion of ``text`` through a string->string map.
 
     Walks left to right, replacing the longest matching key with its value;
-    unmatched characters are skipped. With ``strict=True`` the skipped symbols
-    raise ``ValueError`` via ``require_convertible`` (``what`` names the
-    direction). ``max_len`` defaults to the longest key length.
+    unmatched characters are reported through ``report_unconvertible`` --
+    ``strict=True`` raises, and the default path warns rather than dropping
+    them in silence (``what`` names the direction). ``max_len`` defaults to
+    the longest key length.
     """
     if not lookup:
         return []
@@ -125,6 +174,8 @@ def convert_greedy(
         else:
             skipped.append(text[i])
             i += 1
-    if strict:
-        require_convertible(skipped, what)
+    # stacklevel 4: report_unconvertible -> here -> the converter that
+    # called it (to_kirshenbaum, ipa_to_xsampa, ...) -> that converter's
+    # caller, which is the frame worth naming.
+    report_unconvertible(skipped, what, strict=strict, stacklevel=4)
     return out

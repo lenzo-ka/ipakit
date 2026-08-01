@@ -28,11 +28,6 @@ class WordDistanceResult:
     similarity: float
     alignment: Alignment | None = None
 
-    @property
-    def distance(self) -> float:
-        """Deprecated alias for :attr:`edit_cost` (an unbounded sum)."""
-        return self.edit_cost
-
 
 def _empty_pair_result(return_alignment: bool) -> WordDistanceResult:
     """Result for two empty token sequences: identical, zero cost."""
@@ -208,15 +203,18 @@ class DistanceMixin(IPAFeaturesBase):
         ipa2: str,
         weighted: bool = True,
         return_alignment: bool = False,
-        sub_cost: Callable[[str, str], float] | None = None,
         strict: bool = True,
     ) -> WordDistanceResult:
         """Compute phonetic edit distance between two IPA words.
 
         Uses Levenshtein-style dynamic programming with phonetic feature costs
-        for substitutions when weighted=True. Pass ``sub_cost`` to inject a
-        custom substitution policy (used by DistanceModel); otherwise the
-        default feature-distance policy applies.
+        for substitutions when weighted=True.
+
+        A caller wanting its own substitution policy passes it to
+        :meth:`_align`, which is the parameterized one and is what
+        :class:`~ipakit.distance_model.DistanceModel` calls. This method
+        used to take a ``sub_cost`` of its own documented as the route
+        ``DistanceModel`` took, and no caller ever passed it.
 
         Args:
             ipa1: First IPA string
@@ -224,7 +222,6 @@ class DistanceMixin(IPAFeaturesBase):
             weighted: If True, use feature distance for substitution costs (0-1).
                       If False, use standard Levenshtein (cost=1 for any sub).
             return_alignment: If True, include the alignment path in result.
-            sub_cost: Optional substitution-cost callable overriding ``weighted``.
             strict: Reject input containing symbols the tokenizer cannot
                 convert (the default). Pass ``False`` to measure over
                 whatever survives tokenization.
@@ -247,16 +244,10 @@ class DistanceMixin(IPAFeaturesBase):
         ]
         n, m = len(tokens1), len(tokens2)
 
-        if sub_cost is None:
-
-            def _default_sub(t1: str, t2: str) -> float:
-                if t1 == t2:
-                    return 0.0
-                return self.segment_distance(t1, t2) if weighted else 1.0
-
-            raw_cost: Callable[[str, str], float] = _default_sub
-        else:
-            raw_cost = sub_cost
+        def raw_cost(t1: str, t2: str) -> float:
+            if t1 == t2:
+                return 0.0
+            return self.segment_distance(t1, t2) if weighted else 1.0
 
         # Memoize per call: _align evaluates the cost for every DP cell (and
         # again during backtrace), so without a cache each identical token pair
