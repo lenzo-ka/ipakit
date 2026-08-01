@@ -159,13 +159,15 @@ The traditional series is `α β γ`, and **the second member is a registered ph
 
 ```python
 from ipakit import rules
-"".join(rules.SERIES)                                        # 'αβγδεζηθικλμνξοπρςστυφχψω'
-"".join(rules._free_variables(ipa.load_ipa_features()))      # 'αγδεζηικλμνξοπρςστυφψω'
+"".join(rules.SERIES)                                        # 'αβγδεζηθικλμνξοπρστυφχψω'
+"".join(rules._free_variables(ipa.load_ipa_features()))      # 'αγδεζηικλμνξοπρστυφψω'
 ipa.rule("n -> [place=β] / _ [place=β]")
 # RuleError: 'β' spells something this inventory registers (β), so it cannot also be an agreement variable...
 ```
 
 Refused **by name and with the reason**, which is the half that matters. Skipping `β` in silence would surprise exactly the reader who knows the series best. The property being protected is the other direction: a variable must never be able to reach a form, because a leak would then spell a phone rather than fail — `units("aαb")` drops the `α` and `units("aβb")` does not.
+
+The series is the alphabet's small letters and only those. `ά` is alpha with a tonos and falls outside the endpoints; `ς` is sigma at the end of a word and falls between `ρ` and `σ`, inside them — so a letter must also be the one its own capital lowercases back to. Two members that differ only in how they are drawn would be a notation whose typos are invisible.
 
 The rule holds in both directions and the declaration always wins: declare `α` as a phone tomorrow and it stops being notation, loudly, exactly as `~` would.
 

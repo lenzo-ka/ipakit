@@ -55,13 +55,42 @@ class TestTheSeriesIsAskedOfTheDeclaration:
     """
 
     def test_the_series_is_the_alphabet_and_nothing_else(self) -> None:
-        # Enumerated from Unicode between the alphabet's own endpoints, so
-        # a stray accented form ('ά' is alpha with a tonos) cannot be a
-        # second variable that looks like the first.
+        """Membership, not size.
+
+        A floor on the length passed while the series held a member
+        nobody had looked at, because no rule string anywhere in this
+        suite spells one. The alphabet is written out so that a filter
+        which swaps one letter for another fails here rather than in a
+        rule somebody writes.
+        """
+        assert "".join(R.SERIES) == "αβγδεζηθικλμνξοπρστυφχψω"
         assert R.SERIES[0] == "α" and R.SERIES[-1] == "ω"
-        assert len(R.SERIES) == len(set(R.SERIES)) >= 24
+        assert len(R.SERIES) == len(set(R.SERIES))
         assert all(len(letter) == 1 for letter in R.SERIES)
+
+    def test_no_two_members_are_one_letter_drawn_two_ways(self) -> None:
+        """The safety property the bound exists for, as a predicate.
+
+        'ά' is alpha with a tonos and sits outside the endpoints; 'ς' is
+        sigma in final position and sits inside them. Both are a member
+        that differs from another only in how it is drawn, which is the
+        typo the endpoints were chosen to keep out -- so the endpoints
+        cannot be the whole of the answer, and this is the part that
+        does not depend on where the range happens to stop.
+        """
+        assert len(R.SERIES) == len({letter.upper() for letter in R.SERIES})
         assert "ά" not in R.SERIES
+        assert "σ" in R.SERIES and "ς" not in R.SERIES
+
+    def test_final_sigma_is_not_a_second_sigma(self) -> None:
+        """What the letter not being in the series means for a rule.
+
+        A variable spelled with it is a value the feature does not
+        declare, refused where every other misspelled value is.
+        """
+        assert _apply("n -> [place=σ] / _ [place=σ]", "anpa") == "ampa"
+        with pytest.raises(R.RuleError, match="is not a value of feature"):
+            R.parse("n -> [place=ς] / _ [place=ς]", FEATURES)
 
     def test_a_free_letter_spells_nothing_and_reaches_no_form(self) -> None:
         """The property that makes a variable safe, over every free letter.

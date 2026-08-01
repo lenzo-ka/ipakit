@@ -638,15 +638,23 @@ def _zero_named(terms: Sequence[str], features: IPAFeatures) -> str | None:
 
 
 #: The series itself, in alphabetical order: ``α`` to ``ω``. Enumerated
-#: from Unicode rather than pasted, and bounded by the alphabet's own
-#: endpoints, so it is 24 letters and not the accented and archaic forms
-#: the block also holds -- ``ά`` is a letter with a tonos on it, and a
-#: notation whose members differ by a diacritic is one whose typos are
-#: invisible.
+#: from Unicode rather than pasted, and asked two questions rather than
+#: one, because a notation whose members differ only in how they are
+#: drawn is one whose typos are invisible.
+#:
+#: The alphabet's own endpoints keep out the accented and archaic forms
+#: the block also holds -- ``ά`` is a letter with a tonos on it -- and
+#: they cannot be the whole of the answer, because ``ς`` is sigma at the
+#: end of a word: it sits between ``ρ`` and ``σ``, and its name carries
+#: the prefix. So a member must also be the letter its own capital
+#: lowercases back to, which is exactly what a positional form is not.
+#: Which letters those are is written out and checked in
+#: tests/test_agreement.py, since a count is satisfied by the wrong ones.
 SERIES = tuple(
     chr(code)
     for code in range(ord("α"), ord("ω") + 1)
     if unicodedata.name(chr(code), "").startswith(VARIABLE_SERIES)
+    and chr(code) == chr(code).upper().lower()
 )
 
 
