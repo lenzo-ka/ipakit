@@ -15,7 +15,19 @@ FINGERPRINT_PROBE = """
 from ipakit import IPAFeatures
 from ipakit.metric import metric_fingerprint
 ipa = IPAFeatures()
-print(metric_fingerprint(ipa, list(ipa.phones)))
+phones = list(ipa.phones)
+supplemented = IPAFeatures(supplements=["aspirated-stops"])
+# Two inventories over one phone list, one inventory over two phone
+# lists, and one call repeated: the fingerprint is memoized per
+# (inventory, list), so a memo that dropped either half of its key
+# collapses a pair here, in whatever order the seed hashes them.
+print(" ".join([
+    metric_fingerprint(ipa, phones),
+    metric_fingerprint(supplemented, phones),
+    metric_fingerprint(ipa, phones[:-1]),
+    metric_fingerprint(supplemented, list(supplemented.phones)),
+    metric_fingerprint(ipa, phones),
+]))
 """
 
 PROBE = """
@@ -66,6 +78,19 @@ class TestFingerprintSeedIndependence:
 
     def test_the_fingerprint_is_identical_across_hash_seeds(self) -> None:
         baseline = _under(FINGERPRINT_PROBE, "0")
-        assert len(baseline) == 16, f"probe produced {baseline!r}"
+        digests = baseline.split()
+        assert len(digests) == 5 and {len(d) for d in digests} == {16}, baseline
         for seed in ("1", "2", "12345"):
             assert _under(FINGERPRINT_PROBE, seed) == baseline, f"seed {seed} diverged"
+
+    def test_the_memo_answers_per_inventory_and_per_phone_list(self) -> None:
+        # Guard the guard. The probe above compares strings, so it would
+        # be satisfied by a memo that returned one answer for everything
+        # as long as it did so consistently. These are the pairs that
+        # must not collapse -- and the one that must.
+        first, supplemented, shorter, wider, again = _under(
+            FINGERPRINT_PROBE, "0"
+        ).split()
+        assert first == again, "one call, two answers"
+        assert first == supplemented, "a supplement declares no feature space"
+        assert len({first, shorter, wider}) == 3, "the memo dropped part of its key"

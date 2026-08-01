@@ -312,7 +312,7 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
 FINGERPRINT_BYTES = 8
 
 
-def _fingerprint_lines(features: IPAFeatures, phones: Iterable[str]) -> Iterator[str]:
+def _fingerprint_lines(features: IPAFeatures, phones: tuple[str, ...]) -> Iterator[str]:
     """Everything a distance between two of ``phones`` can depend on, as text."""
     for phone in phones:
         with warnings.catch_warnings():
@@ -378,7 +378,21 @@ def metric_fingerprint(features: IPAFeatures, phones: Iterable[str]) -> str:
     are sorted, bundle keys are sorted, and floats are written as
     ``repr``. Nothing iterates a set, so the digest does not move with
     ``PYTHONHASHSEED``.
+
+    Memoized per (inventory, phone list), the way :func:`excluded_keys` is
+    memoized per inventory: it is read on the path every default model is
+    built on, and the answer is a property of the data. The phone list is
+    part of the key because it is part of the question -- the same
+    inventory over a wider list is a different fingerprint, and a cache
+    that answered one for the other would be worse than no check at all.
+    Keys compare by value, so hash randomization moves where an entry
+    sits and never what it says.
     """
+    return _fingerprint(features, tuple(phones))
+
+
+@functools.cache
+def _fingerprint(features: IPAFeatures, phones: tuple[str, ...]) -> str:
     digest = hashlib.blake2b(digest_size=FINGERPRINT_BYTES)
     for line in _fingerprint_lines(features, phones):
         digest.update(line.encode("utf-8"))

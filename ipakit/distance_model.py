@@ -107,6 +107,21 @@ def _global_matrix() -> tuple[list[str], Matrix, str, str | None]:
     return _load_matrix_json(DEFAULT_CONFUSION)
 
 
+def _checked_global(ipa: IPAFeatures) -> tuple[list[str], Matrix, str]:
+    """The shipped matrix, refused unless ``ipa`` is the space it came from.
+
+    Every reader of ``data/confusion.json`` comes through here --
+    :meth:`DistanceModel.global_`, which ``ipakit.distance_model()``
+    builds on, and :meth:`DistanceModel.for_phoneset`, which re-slices the
+    same values and does not go through ``global_``. Editing the shipped
+    inventory and not regenerating is the case the fingerprint exists for,
+    and this is the path that edit is actually read on.
+    """
+    phones, m, space, fingerprint = _global_matrix()
+    _check_fingerprint(ipa, phones, fingerprint, DEFAULT_CONFUSION)
+    return phones, m, space
+
+
 def _check_fingerprint(
     ipa: IPAFeatures, phones: list[str], recorded: str | None, path: Path
 ) -> None:
@@ -210,8 +225,12 @@ class DistanceModel:
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
-        """Default model: shipped global IPA matrix, CDF over all its pairs."""
-        phones, m, space, _ = _global_matrix()
+        """Default model: shipped global IPA matrix, CDF over all its pairs.
+
+        Refuses if the shipped matrix was derived in a feature space
+        ``ipa`` is not; see :func:`_checked_global`.
+        """
+        phones, m, space = _checked_global(ipa)
         return cls(
             ipa,
             "ipa",
@@ -334,7 +353,7 @@ class DistanceModel:
         specifically: the phoneset is written in another tie convention
         and should be imported with :meth:`IPAFeatures.import_phoneset`.
         """
-        phones, m, space, _ = _global_matrix()
+        phones, m, space = _checked_global(ipa)
         index = {p: i for i, p in enumerate(phones)}
         ref = [p for p in phoneset.phones if p in index]
         dropped = [p for p in phoneset.phones if p not in index]
