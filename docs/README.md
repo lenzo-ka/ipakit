@@ -13,6 +13,12 @@ The tutorial is a **derived artifact**: the prose lives in `tutorial.src.md`, an
 `make tutorial` regenerates the page by executing every example. `make check` fails if a
 single byte differs, so the page cannot drift away from what the library does.
 
+`ipakit notebook` writes the same material out as a Jupyter notebook, with the answers
+left out for you to produce. `make notebook` renders it from `tutorial.src.md` into
+`ipakit/notebooks/`, so it ships in the package and reaches a reader who has no
+checkout; its cells are the blocks the page executes, which is what keeps the two
+renderings from disagreeing.
+
 ## Reference — how the representation works
 
 Read in this order if you are working on the library itself; dip in by name if you are
@@ -54,6 +60,7 @@ using it.
 - `tests/` — the suite. `tests/corpus.py` is the one enumeration the sweeps share.
 
 Derived artifacts are **regenerated, never hand-edited**: `docs/figures/*.svg`
-(`make figures`), `docs/tutorial.md` (`make tutorial`), `ipakit/data/confusion.json` and
-the X-SAMPA table. `make check` runs every gate a release runs, and validates each of
+(`make figures`), `docs/tutorial.md` (`make tutorial`),
+`ipakit/notebooks/ipakit-tutorial.ipynb` (`make notebook`), `ipakit/data/confusion.json`
+and the X-SAMPA table. `make check` runs every gate a release runs, and validates each of
 those derivations still produces what is checked in.

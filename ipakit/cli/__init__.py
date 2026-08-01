@@ -3,6 +3,7 @@
 Organized into subcommands:
     ipakit features <phone>     Get features for an IPA phone
     ipakit describe <phone>     Human-readable phone description
+    ipakit notebook             Write the tutorial notebook here, to run
     ipakit convert ...          Convert IPA/CMU/X-SAMPA/TIMIT/Kirshenbaum
     ipakit query ...            Query phones by features
     ipakit rules ...            Apply/trace context-sensitive rewrite rules
@@ -47,6 +48,7 @@ from .distance import DistanceGroup
 from .features import FeaturesCommand
 from .hierarchy import HierarchyGroup
 from .info import InfoGroup
+from .notebook import NotebookCommand
 from .policy import report
 from .query import QueryGroup
 from .rules import RulesGroup
@@ -92,6 +94,7 @@ Examples:
   ipakit analyze validate              # Validate XML
   ipakit tract draw t -o t.svg         # Mid-sagittal figure for 't'
   ipakit tract heads                   # Head shapes a figure can be drawn on
+  ipakit notebook                      # The tutorial, as cells you run
 
 Exit status (uniform across every subcommand):
   0  succeeded, and the input was read in full
@@ -110,7 +113,7 @@ Exit status (uniform across every subcommand):
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Register standalone commands (not in groups)
-    for cmd_cls in [FeaturesCommand, DescribeCommand]:
+    for cmd_cls in [FeaturesCommand, DescribeCommand, NotebookCommand]:
         cmd_parser = subparsers.add_parser(
             cmd_cls.name,
             aliases=cmd_cls.aliases,

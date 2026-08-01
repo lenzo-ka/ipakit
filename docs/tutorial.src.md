@@ -35,6 +35,11 @@ pip install ipakit
 
 That puts an `ipakit` command on your path and makes `import ipakit` work.
 
+To run this page rather than read it, `ipakit notebook` writes a Jupyter notebook of the
+same material into the current directory: the same examples as cells, with the answers
+left out for you to produce. It is rendered from the source this page is rendered from,
+so the two cannot come to disagree.
+
 Throughout, the Python examples assume:
 
 ```python-run
