@@ -34,7 +34,7 @@ using it.
 | --- | --- |
 | [tract-anatomy.md](tract-anatomy.md) | The declared vocal-tract geometry: articulators, constrictions, the nasal branch, the jaw, and what the posture does and does not carry. |
 | [tract-reference.md](tract-reference.md) | The labeled key to the mid-sagittal figures. |
-| [tract-figures.md](tract-figures.md) | The thirteen figures in [figures/](figures/), what each shows, how `make figures` draws them, and how to draw your own — from Python, from a notebook, or from the command line. |
+| [tract-figures.md](tract-figures.md) | The figures in [figures/](figures/), what each shows, how `make figures` draws them, and how to draw your own — from Python, from a notebook, or from the command line. |
 | [articulatory-data.md](articulatory-data.md) | The model measured against an external corpus (X-Ray Microbeam). What that corpus can ground, what it cannot see, and why its blind spots are facts about the instrument rather than about phonetics. |
 | [gestural-model.md](gestural-model.md) | Design notes on the gestural reading, and the candidate improvements the metric would need external confusion data to fit. |
 
@@ -50,7 +50,7 @@ using it.
 - `ipakit/` — the library. `ipakit/data/ipa.xml` is the feature declaration everything reads; `ipakit/data/rules/*.rules` are the shipped rule sets. Each XML document has a RELAX NG grammar beside it stating its shape — see [reviewing.md](reviewing.md).
 - `ipakit/cli/` — the `ipakit` command. One subcommand group per task area.
 - `ipakit/tract.py` — the tract model, read by the metric. `ipakit/tract_svg.py` draws it; they are separate so nothing that computes a distance can reach a stylesheet.
-- `scripts/` — the measurements, the generators, and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the data guards, `tutorial.py` the artifact generator, and `docexamples.py` checks every value quoted in the hand-written documents against what the library actually returns. `tract_svg.py` here is a shim over the package module, kept so `make figures` and the old invocation still work.
+- `scripts/` — the measurements, the generators, and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the data guards, `tutorial.py` the artifact generator, and `docexamples.py` checks every value quoted in the hand-written documents against what the library actually returns. `tract_svg.py` here is a command line over the package module, which is where the drawing itself lives, because `scripts/` reaches nobody who installed ipakit.
 - `tests/` — the suite. `tests/corpus.py` is the one enumeration the sweeps share.
 
 Derived artifacts are **regenerated, never hand-edited**: `docs/figures/*.svg`
