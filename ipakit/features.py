@@ -20,6 +20,7 @@ from .constants import (
     MAX_MATCH_LEN,
     METADATA_ATTRS,
     SUPPLEMENT_ROOT,
+    SUPPLEMENTS_DIR,
     ZERO_CLASS,
 )
 from .distance import DistanceMixin
@@ -37,6 +38,48 @@ from .segment import (
     part_bundle,
 )
 from .validation import ValidationMixin
+
+
+def available_supplements() -> list[str]:
+    """The shipped supplements, by the name ``supplements=`` accepts."""
+    return sorted(p.stem for p in SUPPLEMENTS_DIR.glob("*.xml"))
+
+
+def supplement_path(name: str) -> Path:
+    """Where a shipped supplement is, in this copy of the package.
+
+    ``supplements=["aspirated-stops"]`` is the reason this exists: a
+    student in a notebook should not have to spell a path into
+    ``site-packages`` to reach a file the install already carries, the way
+    :func:`ipakit.shipped` already spares them for a rule set.
+    """
+    path = SUPPLEMENTS_DIR / f"{name}.xml"
+    if not path.exists():
+        raise ValueError(
+            f"no shipped supplement {name!r}; have {available_supplements()}. "
+            "A supplement of your own is passed as a path."
+        )
+    return path
+
+
+def _resolve_supplement(spec: Path | str) -> Path:
+    """A shipped supplement's name, or a path to one of the caller's.
+
+    A shipped name is read first, and it is a bare stem; a path to a
+    supplement of the caller's carries its ``.xml``, so the two spellings
+    do not overlap. A string that is neither is refused here rather than
+    at ``ET.parse``, where a mistyped name reads as a missing file and
+    says nothing about the names that would have worked.
+    """
+    if isinstance(spec, str) and spec in available_supplements():
+        return SUPPLEMENTS_DIR / f"{spec}.xml"
+    path = Path(spec)
+    if not path.exists():
+        raise ValueError(
+            f"no supplement at {path}, and no shipped supplement of that "
+            f"name; have {available_supplements()}"
+        )
+    return path
 
 
 class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin):
@@ -132,8 +175,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # declares no features takes them from what its spelling already
         # composes to, and a tied entry only composes once the block above
         # has filled the tied phones it is built from.
-        for path in supplements:
-            self._load_supplement(Path(path))
+        for spec in supplements:
+            self._load_supplement(_resolve_supplement(spec))
         if self.supplements:
             self._index_nfd()
             self._invalidate_derived_reads()
