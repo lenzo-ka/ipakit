@@ -146,6 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Unit.features` and `Unit.prosody` disagreed about the same unit; prosody has one home.
 - `with_prosody` dropped a written contour because the levels derive one, so a no-change write turned `ǎ˥˩` into a fall.
 - `with_prosody` reported a cleared tier it had not cleared; a clear the remaining tiers entail is impossible and answers `None`.
+- The cap kept a branch-major prefix, so a member taking two optional edits survived where one taking one was dropped.
+- A convergent member reported the first derivation to reach it rather than the cheapest, so `choices` answered for rule order.
 - `Boundary.at` counted a structural zero as a segment, so `rebuild` spelled a later mark past the end of the form.
 - `Unit.features`, `Unit.prosody` and `Boundary.features` are read-only; a frozen `Form` could be written through.
 - `Form.rebuild` puts a boundary back as the unit it was, from `Boundary.features`.

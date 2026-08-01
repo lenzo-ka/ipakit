@@ -143,7 +143,19 @@ found[0].choices     # 0
 found[1].choices     # 1
 ```
 
-`VariantSet.complete` is the one to ask. `Variant` carries `form`, `choices` — how many optional edits that member takes — and a full `derivation`, so every member can account for itself:
+`VariantSet.complete` is the one to ask. `Variant` carries `form`, `choices` — how many optional edits that member takes — and a full `derivation`, so every member can account for itself.
+
+`choices` is the **fewest** optional edits any derivation of that member takes, and the `derivation` is that one. The distinction is not idle: a cascade can reach one form by two routes, and the route it happens to reach first is not the cheapest one. Here `c` is one optional edit away by the first rule and two by the other two, and the member says one:
+
+```python
+detour = "a ~> c\na ~> b\nb ~> c"
+ipa.variants("a", detour).forms          # ('a', 'b', 'c')
+ipa.variants("a", detour)[2].choices     # 1
+[s.rule for s in ipa.variants("a", detour)[2].derivation.fired]
+# ['a ~> c']
+```
+
+Reporting the first route instead would make `choices` a fact about the order the rules are written in rather than about the form, and there is nothing else on a member for a caller to read cost from:
 
 ```python
 found[1].derivation.result                        # 'ptit'
@@ -163,7 +175,16 @@ french.variants("pətitə")[0].form == french.apply("pətitə")   # True
 
 An optional rule does not fire under `rewrite`, `derive` or `ipakit rules apply`. One form has to come out of those, so one choice has to be taken, and the null choice is the only defensible one. A trace marks the step *not taken* rather than *no change*, because a declined choice and a failed environment are different things.
 
-**A truncated set keeps the members that depart least.** Grading by size rather than counting in binary is what makes that true. Counting in binary would enumerate every subset of a *prefix* of the sites and none of the rest, so a cut set would show the leftmost schwa varying and the rightmost never varying at all — a biased sample dressed as a set.
+**A truncated set keeps the members that depart least.** Two things make that true and the first of them is not enough on its own. Within one branch the subsets are graded by size rather than counted in binary, because counting in binary enumerates every subset of a *prefix* of the sites and none of the rest, so a cut set would show the leftmost schwa varying and the rightmost never varying at all — a biased sample dressed as a set. But a rule is handed a whole *set* of branches, and grading them one branch at a time spends the budget on the first branch's dearest children before the second branch's free child has been offered. So the graded streams are merged and the step keeps the cheapest children across every branch it was given:
+
+```python
+ipa.variants("abbb", "a ~> x\nb ~> y", limit=5).forms
+# ('abbb', 'aybb', 'abyb', 'abby', 'xbbb')
+```
+
+Five members, none of them taking more than one optional edit, where a branch-at-a-time cut would have kept `ayyb` at two and dropped `xbbb` at one.
+
+The cut is by cost and the presentation is derivational, and those are two different orders. Members come back in the order the cascade produced them either way, so a truncated answer is a *subsequence* of the complete one — the same members in the same sequence, with the dear ones missing. A cost-ordered presentation would reshuffle the answer as well as shorten it, and then a caller comparing a capped answer with a complete one would have to sort before diffing.
 
 Nothing in the enumeration iterates a Python set or a hash, so the order does not depend on `PYTHONHASHSEED`.
 
