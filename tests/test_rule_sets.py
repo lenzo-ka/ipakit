@@ -12,11 +12,16 @@ Three properties get more than a named case each, because each is a shape
 of mistake rather than a single value:
 
 * **Ordering.** Every file claims some orderings are load-bearing and the
-  rest are not. Both halves are measured: the named dependencies are
-  permuted and shown to change specific words, and a sweep over every
-  pairwise transposition counts how many orderings matter at all. A file
-  that says "ordered before X, or else Y" and is wrong about it fails
-  here.
+  rest are not. Both halves are measured, and against each other: the
+  named dependencies are permuted and shown to change specific words, and
+  then a sweep over every pairwise transposition asserts that the
+  permutations which move an answer are *exactly* the ones putting a
+  named dependency the wrong way round. So a file that says "ordered
+  before X, or else Y" and is wrong about it fails here, and so does one
+  that leaves a dependency out. This sweep earned its keep twice over:
+  the Spanish set turns /z/ to /s/ and the /s/ it makes is what licenses
+  a trill in 'Israel', and the Japanese set's affricate rules make the
+  segment its /i/ epenthesis asks for. Neither file said so.
 * **Optional notation.** A syllable dot must not change what a rule set
   does, or the same word gets two answers depending on who typed the
   dots. Swept over every dot position in every corpus word. This sweep
@@ -1631,6 +1636,152 @@ class TestOrderingMattersWhereTheFileSaysItDoes:
         assert permuted.apply("bɔnə") == "bɔ", "'bonne' loses its /n/ too"
 
 
+#: Every ordering the shipped files argue, written as blocks because that
+#: is how the files argue them -- see ``_reordered`` on why a dependency
+#: between two blocks many lines apart is invisible to a neighbor sweep.
+#: Each entry is (earlier, later): every rule named on the left runs
+#: before every rule named on the right, and the class below asserts these
+#: are the WHOLE of it. A transposition moves an answer exactly when it
+#: puts one of these pairs the wrong way round, so a set that acquires a
+#: dependency its file does not argue fails with the pair named, and an
+#: ordering the corpus can no longer see fails with the block named.
+_LENGTH = (
+    "tense i lengthens",
+    "tense u lengthens",
+    "ɔ is long o",
+    "eɪ is long e",
+    "oʊ is long o",
+    "unstressed r-colored vowel is long a",
+    "stressed r-colored vowel is long a",
+)
+_DIPHTHONGS = ("aɪ is a + i", "aʊ is a + u", "ɔɪ is o + i")
+_SHORT = (
+    "ɪ is short i",
+    "ɛ is short e",
+    "æ is short a",
+    "ʌ is short a",
+    "ə is short a",
+    "ʊ is short u",
+    "ɑ is short o",
+)
+_GEMINATION = ("gemination (after a consonant)", "gemination (word-initial vowel)")
+_SPECIFIC_EPENTHESIS = (
+    "o after a coronal stop (cluster)",
+    "o after a coronal stop (final)",
+    "i after an alveolo-palatal affricate (cluster)",
+    "i after an alveolo-palatal affricate (final)",
+)
+_GENERAL_EPENTHESIS = (
+    "u elsewhere (cluster)",
+    "u elsewhere (final)",
+    "u after a final labial nasal",
+)
+_EPENTHESIS = _SPECIFIC_EPENTHESIS + _GENERAL_EPENTHESIS
+_LIAISON = ("liaison (z)", "liaison (t)", "liaison (n)", "liaison (p)")
+_LATENT_DELETION = (
+    "final z deletion",
+    "final t deletion",
+    "final n deletion",
+    "final p deletion",
+)
+_SCHWA_DELETION = (
+    "final schwa deletion",
+    "final schwa deletion (after a cluster)",
+    "e caduc (first syllable)",
+    "e caduc (interior)",
+)
+
+LOAD_BEARING: dict[str, tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]] = {
+    ENGLISH: (
+        # The syllabic block before the two rules that read what it
+        # decides. Only the LATERAL half is here: nothing in this set
+        # asks whether a nasal is syllabic -- nasal release is stated
+        # over the manner -- so the syllabic nasal rule may stand
+        # anywhere, and saying otherwise would be a claim the corpus
+        # cannot see.
+        (
+            ("syllabic lateral",),
+            ("tapping (before a syllabic lateral)", "lateral release"),
+        ),
+        # 'bˈɑtl' is [bˈɑɾl̩]: the tap takes the /t/ before the release
+        # rule reaches it.
+        (("tapping (before a syllabic lateral)",), ("lateral release",)),
+    ),
+    SPANISH: (
+        # Feeding, and the file does not argue this one -- it is the
+        # third ordering in a file whose head says there are two. /z/
+        # becomes /s/, and that /s/ is what licenses the trill in
+        # 'Israel', which the rhotic block quotes as its own example.
+        (("z is s",), ("ɹ is the trill after s",)),
+        # ORDERING (1 of 2) in the file: decompose the r-colored vowels,
+        # then the one tap rule reaches the rhotic that produced.
+        (
+            (
+                "unstressed r-colored vowel decomposes",
+                "stressed r-colored vowel decomposes",
+            ),
+            ("ɹ is the tap elsewhere",),
+        ),
+        # ORDERING (2 of 2): specific before general.
+        (tuple(sorted(_TRILLS)), ("ɹ is the tap elsewhere",)),
+    ),
+    JAPANESE: (
+        # ORDERING (1 of 6): an English liquid is not a site for
+        # epenthesis until it is the tap, because the epenthesis contexts
+        # exclude an approximant.
+        (("liquids are the tap",), _EPENTHESIS),
+        # ORDERING (2 of 6): the alveolo-palatal affricate the /i/
+        # epenthesis rules ask for is one these two lines create. The
+        # fricative has no reader and is not here.
+        (
+            (
+                "t͡ʃ is the alveolo-palatal affricate",
+                "d͡ʒ is the voiced alveolo-palatal affricate",
+            ),
+            _EPENTHESIS,
+        ),
+        # ORDERING (3 of 6): the velar stop this puts at the end of the
+        # word is what the epenthesis rules then find.
+        (("final ŋ takes a velar stop",), _EPENTHESIS),
+        # ORDERING (4 of 6): lengthen the tense vowels before anything
+        # else spells a short one with the same letter.
+        (_LENGTH, _DIPHTHONGS + _SHORT),
+        # ORDERING (5 of 6), twice over: gemination tests a length the
+        # vowel rules have just created, and it has to take its sites
+        # before epenthesis fills them.
+        (_LENGTH + _DIPHTHONGS + _SHORT, _GEMINATION),
+        (_GEMINATION, _EPENTHESIS),
+        # ORDERING (6 of 6), the point of the file: specific before
+        # general.
+        (_SPECIFIC_EPENTHESIS, _GENERAL_EPENTHESIS),
+    ),
+    FRENCH: (
+        # ORDERING (1 of 2) in the file: license the liaison before the
+        # deletion rules take the latent consonant away.
+        (_LIAISON, _LATENT_DELETION),
+        # ORDERING (2 of 2): the schwa goes last, or 'petit' and
+        # 'petite' collapse.
+        (_LATENT_DELETION, _SCHWA_DELETION),
+    ),
+}
+
+#: The sets with more than one rule, so a transposition exists to sweep.
+#: The German set is one rule; see the escape pinned in the class below.
+ORDERED_SETS = (ENGLISH, SPANISH, JAPANESE, FRENCH)
+
+
+def _inverts(i: int, j: int, earlier: int, later: int) -> bool:
+    """Does transposing the rules at positions ``i < j`` put ``earlier``
+    after ``later``?
+
+    Only the two swapped positions move, so the pair inverts when one of
+    them is an end of it and the other end lies inside the span.
+    """
+    return (i == earlier and earlier < later <= j) or (
+        j == later and i <= earlier < later
+    )
+
+
 class TestHowMuchOrderingMattersAtAll:
     """The other half of the ordering claim: what is *not* load-bearing.
 
@@ -1638,6 +1789,13 @@ class TestHowMuchOrderingMattersAtAll:
     have measured it. Adjacent transpositions are the cheap sweep and they
     are also the misleading one -- reported here with the number, because
     the temptation is to conclude from it that order does not matter.
+
+    The two sweeps below are the honest measurement, and they are stated
+    against LOAD_BEARING rather than against a count on its own, so a
+    failure names rules. Neither carries the ``slow`` marker: what a
+    deselected test costs is on the record here, since the English number
+    was wrong from the commit that collapsed the nasal assimilation rules
+    and nothing ran it to say so.
     """
 
     @pytest.mark.parametrize(
@@ -1681,42 +1839,140 @@ class TestHowMuchOrderingMattersAtAll:
             len(moved) == words_that_move
         ), f"{name}: reversal moves {len(moved)} of {len(words)}: {moved[:5]}"
 
-    @pytest.mark.slow
     @pytest.mark.parametrize(
-        "name,expected",
-        [(ENGLISH, 25), (SPANISH, 75), (JAPANESE, 251), (FRENCH, 35), (GERMAN, 0)],
+        "name,expected", [(ENGLISH, 23), (SPANISH, 75), (JAPANESE, 251), (FRENCH, 35)]
     )
-    def test_every_pairwise_transposition_counted(self, name, expected):
-        """The full sweep, deselected by default because the Japanese set is
-        741 permutations over 29 words and takes about thirteen seconds.
+    def test_every_pairwise_transposition_inverts_an_ordering_the_file_argues(
+        self, name, expected
+    ):
+        """The full sweep, and the count is evidence for the claim rather
+        than the claim itself.
 
-        Run with: pytest -m slow tests/test_rule_sets.py
+        What the count on its own says when it moves is that it moved.
+        MEASURED, and this is what the shape of the assertion is for: the
+        English number was pinned against a set that stated nasal place
+        assimilation once per place. Collapsing those two lines into one
+        agreement-variable rule (docs/rules.md) took the set from fifteen
+        rules to fourteen, and with them the four transpositions that
+        crossed either enumerated line with a rule the syllabic block
+        feeds -- replaced by two, over the one rule that stands where the
+        two stood. Nothing else moved. A bare integer records that as a
+        difference of two and names none of it.
 
-        The French number was 23 of 45 and is 35 of 66, and the movement
-        is accounted for rather than absorbed. MEASURED on the four
-        combinations: the four e caduc words added to the corpus move it
-        by **nothing** (23 of 45 with the old rules, either corpus), and
-        the whole of the change is the two optional rules (35 of 66 with
-        the new rules, either corpus). That is the expected shape and not
-        a coincidence: an optional rule does not fire under ``apply``, so
-        swapping one with an obligatory rule relocates the *obligatory*
-        one to the end of the cascade, past the deletions it feeds --
-        which is the same ordering fact the file already argues, reached
-        by a new route.
+        So the claim asserted here is the ordering fact: a transposition
+        moves an answer **exactly when** it inverts one of the orderings
+        the file argues. Both directions are checked and both name rules
+        rather than a number -- a dependency the file does not argue, and
+        an ordering the file argues that no permutation can reach.
         """
         rules = _set(name).rules
         words = CORPUS[name]
+        assert len(words) >= 15, f"corpus for {name} is only {len(words)} words"
+        at = {r.name: i for i, r in enumerate(rules)}
+        blocks = LOAD_BEARING[name]
+        assert blocks, f"no ordering declared for {name}"
+
+        pairs = list(itertools.combinations(range(len(rules)), 2))
+        declared: set[tuple[int, int]] = set()
+        for earlier, later in blocks:
+            for before in earlier:
+                for after in later:
+                    assert before in at, f"no rule {before!r} in {name}"
+                    assert after in at, f"no rule {after!r} in {name}"
+                    assert at[before] < at[after], (
+                        f"{name}: {before!r} is declared before {after!r} "
+                        "and the file does not run it there"
+                    )
+                    declared |= {
+                        (i, j)
+                        for i, j in pairs
+                        if _inverts(i, j, at[before], at[after])
+                    }
+
         base = {w: _set(name).apply(w) for w in words}
-        checked = mattered = 0
-        for i, j in itertools.combinations(range(len(rules)), 2):
+        checked = 0
+        mattered: set[tuple[int, int]] = set()
+        for i, j in pairs:
             swapped = list(rules)
             swapped[i], swapped[j] = swapped[j], swapped[i]
             permuted = R.RuleSet(rules=tuple(swapped))
             checked += 1
             if any(permuted.apply(w) != base[w] for w in words):
-                mattered += 1
-        assert checked == len(rules) * (len(rules) - 1) // 2, "sweep did not run"
-        assert mattered == expected, f"{name}: {mattered} of {checked}"
+                mattered.add((i, j))
+        assert checked == len(pairs), "sweep did not run"
+
+        def named(swaps):
+            return sorted(f"{rules[i].name!r} <-> {rules[j].name!r}" for i, j in swaps)
+
+        assert not mattered - declared, (
+            f"{name}: these transpositions move an answer and invert no "
+            f"ordering the file argues: {named(mattered - declared)}"
+        )
+        for earlier, later in blocks:
+            lifted = _reordered(
+                name,
+                set(later),
+                [r.name for r in rules if r.name not in later].index(
+                    min(earlier, key=lambda n: at[n])
+                ),
+            )
+            assert any(lifted.apply(w) != base[w] for w in words), (
+                f"{name}: {earlier[0]!r} before {later[0]!r} is declared "
+                "load-bearing and running it the other way moves nothing"
+            )
+        assert len(mattered) == expected, (
+            f"{name}: {len(mattered)} of {checked} transpositions move an "
+            f"answer, expected {expected}: {named(mattered)}"
+        )
+
+    @pytest.mark.parametrize("name", ORDERED_SETS)
+    def test_a_rule_in_no_declared_ordering_may_stand_anywhere(self, name):
+        """The other side of the same claim, and the stronger half.
+
+        A transposition moves two rules at once, so it can be accounted
+        for by the wrong one of them: swap a rule with a load-bearing
+        rule far away and the answer moves either way, whichever of the
+        two the dependency belongs to. This lifts ONE rule to every
+        position with the rest left alone, which is the move ``_reordered``
+        exists for, and a rule the declaration does not name has to
+        survive all of them.
+
+        MEASURED, and this is what it caught: the Japanese set's two
+        alveolo-palatal AFFRICATE rules make the segment its /i/
+        epenthesis asks for, so they feed a block twenty-odd lines below
+        and the file did not say so. The sweep above called those
+        transpositions explained, because each of them also moves a rule
+        that is load-bearing for another reason.
+
+        A set may name every rule it has, and then there is nothing here
+        to check for it -- which is a claim about that set, not a gap.
+        """
+        rules = _set(name).rules
+        words = CORPUS[name]
+        base = {w: _set(name).apply(w) for w in words}
+        named: set[str] = set()
+        for earlier, later in LOAD_BEARING[name]:
+            named |= {*earlier, *later}
+        for rule in (r.name for r in rules if r.name not in named):
+            for where in range(len(rules)):
+                lifted = _reordered(name, {rule}, where)
+                moved = [w for w in words if lifted.apply(w) != base[w]]
+                assert not moved, (
+                    f"{name}: {rule!r} is in no declared ordering and moving "
+                    f"it to position {where} moves {moved[:3]}"
+                )
+
+    def test_the_german_set_has_no_ordering_to_have(self):
+        """The escape the sweep above cannot cover, pinned so it stays
+        known rather than assumed shut.
+
+        One rule is no pairs, and ``0 of 0`` is not a measurement. If this
+        set ever gains a second rule it belongs in ORDERED_SETS with the
+        orderings it then has, and this fails to say so.
+        """
+        assert len(_set(GERMAN).rules) == 1
+        assert GERMAN not in ORDERED_SETS
+        assert set(LOAD_BEARING) == set(ORDERED_SETS)
 
 
 # --------------------------------------------------------------------------

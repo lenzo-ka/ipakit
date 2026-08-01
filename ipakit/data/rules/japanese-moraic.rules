@@ -43,6 +43,13 @@
 # what keeps /j/ (palatal) and /w/ (labial-velar) out, and it is the
 # honest statement of the generalization -- Japanese has one liquid, and
 # every English liquid maps to it.
+#
+# ORDERING (1 of 6). The epenthesis block below asks for a consonant that
+# is not an approximant, so an English liquid is not a site for it until
+# this line has made one a tap. Run it after epenthesis and 'stɹa͜ɪk'
+# comes out [sutɾaiku], one mora short: the /ɹ/ was still an approximant
+# when the rule that fills a cluster went looking, so nothing was put in
+# front of it.
 [manner=approximant place=alveolar] -> ɾ ; liquids are the tap
 θ -> s ; θ is s
 ð -> z ; ð is z
@@ -56,20 +63,30 @@ f -> ɸ ; f is ɸ
 # alveolo-palatal that 'dish' had just been given -- one inventory claim
 # made twice with two different answers. It was invisible because the two
 # words are never in the same derivation.
+#
+# ORDERING (2 of 6), and it is the affricates' alone. The epenthesis
+# block picks its /i/ by asking for an alveolo-palatal AFFRICATE, and
+# that affricate is one these two lines create -- so run them after it
+# and 'match' comes out [mat͡ɕːu] and 'badge' [bad͡ʑːu], with the general
+# rule's /u/ where the specific rule's /i/ belongs. The fricative has no
+# such reader and may stand anywhere.
 ʃ -> ɕ ; ʃ is the alveolo-palatal
 t͡ʃ -> t͡ɕ ; t͡ʃ is the alveolo-palatal affricate
 d͡ʒ -> d͡ʑ ; d͡ʒ is the voiced alveolo-palatal affricate
 
-# Word-final /ŋ/ is not a mora on its own the way /n/ is: it needs a
-# velar stop behind it, and the stop then takes the epenthetic vowel.
-# 'king' is [kiŋɡu]. Written as a rule whose output contains its own
+# ORDERING (3 of 6). Word-final /ŋ/ is not a mora on its own the way /n/
+# is: it needs a velar stop behind it, and the stop then takes the
+# epenthetic vowel -- which is a dependency, not just a description.
+# 'king' is [kiŋɡu], and [kiŋɡ] with this line run after epenthesis,
+# because the stop it puts there arrives when the vowel is already
+# placed. Written as a rule whose output contains its own
 # target, which is safe because a rule matches a SNAPSHOT of its input
 # and so cannot feed itself (docs/rules.md); read live this would not
 # terminate.
 ŋ -> ŋɡ / _ # ; final ŋ takes a velar stop
 
 # --- vowels: five qualities, and length ---------------------------------
-# ORDERING (1 of 3), and the reason this block is split in two.
+# ORDERING (4 of 6), and the reason this block is split in two.
 #
 # The English tense/lax contrast is not a quality contrast in Japanese,
 # it is a LENGTH contrast: 'beat' is [biːto] and 'bit' is [bitːo]. So the
@@ -108,7 +125,7 @@ a͜ʊ -> au ; aʊ is a + u
 ɑ -> o ; ɑ is short o
 
 # --- gemination ---------------------------------------------------------
-# ORDERING (2 of 3), twice over.
+# ORDERING (5 of 6), twice over.
 #
 # A word-final obstruent after a SHORT vowel geminates: 'hot' [hotːo],
 # 'bed' [bedːo], 'match' [mat͡ɕːi], 'book' [bukːu], 'cup' [kapːu]. After a
@@ -200,7 +217,7 @@ a͜ʊ -> au ; aʊ is a + u
 [obstruent -fricative] -> [length=long] / # [vowel -long] _ # ; gemination (word-initial vowel)
 
 # --- epenthesis ---------------------------------------------------------
-# ORDERING (3 of 3), and the point of the whole file.
+# ORDERING (6 of 6), and the point of the whole file.
 #
 # The epenthetic vowel's QUALITY depends on what precedes it, so this is
 # not one rule with one vowel in it. It is a cascade running from the
