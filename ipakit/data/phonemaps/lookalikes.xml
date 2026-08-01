@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<phonemap description="ASCII soft reads: keyboard characters read as IPA on wild import">
+<phonemap description="ASCII soft reads: keyboard characters read as IPA on wild import" from="ipa" to="lookalike">
     <!--
     Keyboard characters that stand in for an IPA symbol in text written
     outside house style. These are "soft reads": they are applied ONLY by

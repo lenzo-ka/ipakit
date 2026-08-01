@@ -595,6 +595,15 @@ def _mutations(
             lambda r: r.attrib.pop("description"),
             "RELAXNG_ERR_ATTRVALID",
         ),
+        (
+            # The column its rows carry the target spelling in is the one
+            # thing a reader cannot work out from the document, so a table
+            # that leaves it unsaid is refused here rather than loading as
+            # a table of nothing.
+            "a root that does not say what it maps to",
+            lambda r: r.attrib.pop("to"),
+            "RELAXNG_ERR_ATTRVALID",
+        ),
     ]
 
 

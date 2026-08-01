@@ -26,6 +26,7 @@ from .constants import (
 from .distance import DistanceMixin
 from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
+from .phonemaps import _load_phonemap
 from .segment import (
     Constituent,
     Segment,
@@ -562,17 +563,21 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return frozenset(derived)
 
     def _load_lookalikes(self) -> None:
-        """Load the ASCII soft-read table from lookalikes.xml."""
-        from .constants import DEFAULT_LOOKALIKES
+        """The ASCII soft-read table, read through the phonemap loader.
 
-        if not DEFAULT_LOOKALIKES.exists():
-            return
-        root = ET.parse(DEFAULT_LOOKALIKES).getroot()
-        for elem in root.findall("map"):
-            ipa = elem.get("ipa")
-            lookalike = elem.get("lookalike")
-            if ipa and lookalike:
-                self.lookalikes[lookalike] = ipa
+        ``lookalikes.xml`` is a phonemap like the four notation tables
+        beside it, so the one loader reads it. A second reader of one
+        file is a second answer waiting to be given, and here it would
+        be given quietly: no caller consults both, so the two can hold
+        different ideas of what the file says with nothing to fail.
+
+        The reverse direction is the one a soft read wants -- from the
+        keyboard character to the IPA symbol it stands in for. Copied
+        rather than aliased, because the loader's tables are cached and
+        shared and this one is an attribute callers can reach.
+        """
+        _, lookalike_to_ipa = _load_phonemap("lookalikes")
+        self.lookalikes = dict(lookalike_to_ipa)
 
     def _load_element(self, elem: ET.Element, element_type: str) -> None:
         """Load a single element into the dict its class routes to.

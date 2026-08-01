@@ -6,7 +6,6 @@ DATA_DIR = Path(__file__).parent / "data"
 DEFAULT_IPA_FEATS = DATA_DIR / "ipa.xml"
 PHONEMAPS_DIR = DATA_DIR / "phonemaps"
 DEFAULT_CMU_MAP = PHONEMAPS_DIR / "cmu.xml"
-DEFAULT_LOOKALIKES = PHONEMAPS_DIR / "lookalikes.xml"
 DEFAULT_CONFUSION = DATA_DIR / "confusion.json"
 #: Supplemental inventories shipped with the package, beside the grammar
 #: that states their shape. It holds supplements and nothing else, which is

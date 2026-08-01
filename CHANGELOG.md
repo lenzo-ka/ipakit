@@ -125,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lookalikes.xml` loaded as an empty phonemap; a phonemap must declare the column it maps to, and one that maps nothing is refused at load.
 - A voiced phonation was read on a voiceless segment, and read out loud in `describe`.
 - `compose_unit("s", voiced="+")` would have spelled a breathy-voiced segment.
 - `᷅` U+1DC5 declared `contour="falling"` and rises; it is `tone="low>mid"`.
