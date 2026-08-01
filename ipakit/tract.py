@@ -27,8 +27,9 @@ in ``ipa.xml`` rather than from a list here:
 
 :func:`glottal_aperture`
     Voicing is glottal state, and the folds are declared to close about
-    the tract axis, so ``offset`` cannot reach them. Read off the
-    ``phonation`` axis and the ``voiced`` projection.
+    the tract axis, so ``offset`` cannot reach them. Read off the feature
+    declared on the glottal-aperture axis, and off the projections onto
+    it, which is how a coarser spelling still gets a position.
 :func:`secondary_marks`
     A secondary articulation declares its own place, so it is a second
     constriction and genuinely drawable.
@@ -56,6 +57,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
 
 HEADS_FILE = PHONEMAPS_DIR.parent / "heads.xml"
+
+#: The axis the vocal folds open along, and the one declaration
+#: :func:`glottal_scale` reads. A quantity this module draws, named the
+#: way ``+z`` is in :func:`unmodelled`; which feature measures it stays
+#: the data's call.
+GLOTTAL_AXIS = "+glottal-aperture"
 
 
 @dataclass(frozen=True)
@@ -781,6 +788,40 @@ def constrictions(
     return tuple(sorted((primary, *extra), key=lambda q: q.arc or 0.0))
 
 
+def glottal_scale(features: IPAFeatures) -> Feature | None:
+    """The feature that measures how far the folds stand apart.
+
+    Asked of the axis, because that is where the answer is written:
+    ``phonation`` declares ``axis="+glottal-aperture"`` in ``ipa.xml``,
+    and an inventory that measures the folds with some other feature says
+    so the same way. The axis is spelled here for the reason
+    :func:`unmodelled` spells ``+z``: it names the quantity this module
+    computes, not a phonetic fact the data owns.
+
+    One feature declares it, or none. Two would leave the choice between
+    them to this function, which is the whole defect an axis avoids, so
+    two is refused rather than resolved. An axis nothing declares, or one
+    declared by a feature whose values are not an ordinal scale, leaves
+    nothing to read a position off: the folds are then drawn with no
+    state, the same way an inventory declaring no median aperture draws
+    no folds at all.
+    """
+    on_axis = sorted(
+        (f for f in features.features.values() if f.axis == GLOTTAL_AXIS),
+        key=lambda f: f.name,
+    )
+    if len(on_axis) > 1:
+        raise ValueError(
+            f"features {[f.name for f in on_axis]} all declare "
+            f"axis={GLOTTAL_AXIS!r}; the folds stand at one aperture, so one "
+            "feature measures it and a second makes the choice arbitrary"
+        )
+    scale = on_axis[0] if on_axis else None
+    if scale is None or not scale.is_ordinal or len(scale.values) < 2:
+        return None
+    return scale
+
+
 def glottal_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float | None:
     """How far the vocal folds stand apart -- 0 shut, 1 as wide as the tract.
 
@@ -790,31 +831,22 @@ def glottal_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float | N
     to say about them. Voicing was therefore a word in the margin and not
     a difference in the picture.
 
-    What can say it is already declared. ``phonation`` is ordinal on its
-    own axis, ``+glottal-aperture``, and its values ascend along it from
-    creaky to devoiced; ``voiced`` is that same axis read two ways instead
-    of four, which is what the ``<projection>`` in ``ipa.xml`` says. So the
-    scale is found as *the ordinal feature a projection refines* rather
-    than named here, a bundle stating a phonation sits where that value
-    sits, and a bundle stating only ``voiced`` sits at the center of the
-    phonations that read that way -- which is as far as the coarse
-    spelling commits.
+    What can say it is already declared. The scale is
+    :func:`glottal_scale`, the feature on the glottal-aperture axis, and
+    its values ascend along that axis from creaky to devoiced, so a bundle
+    stating one sits where that value sits. ``voiced`` is the same axis
+    read two ways instead of four, which is what the ``<projection>`` in
+    ``ipa.xml`` says, so a bundle stating only ``voiced`` sits at the
+    center of the values that read that way -- as far as the coarse
+    spelling commits. Only projections onto the scale are read: a
+    projection between two other features says nothing about the folds.
 
     A complete closure at the folds overrides both: a glottal stop shuts
     them whatever the phonation says, and it is the one segment whose own
     constriction is theirs. Returns None when the bundle fixes no glottal
     state at all.
     """
-    scale = next(
-        (
-            feat
-            for name in sorted({fine for fine, _ in features.projections})
-            if (feat := features.features.get(name)) is not None
-            and feat.is_ordinal
-            and len(feat.values) > 1
-        ),
-        None,
-    )
+    scale = glottal_scale(features)
     if scale is None:
         return None
     order = list(scale.values)
@@ -926,8 +958,14 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
     geometry does not implement. None of them gets a contour invented for
     it.
     """
-    glottal = {fine for fine, _ in features.projections}
-    glottal |= {coarse for coarse, _ in features.projections.values()}
+    scale = glottal_scale(features)
+    glottal: set[str] = set()
+    if scale is not None:
+        glottal = {scale.name} | {
+            coarse
+            for (fine, _), (coarse, _) in features.projections.items()
+            if fine == scale.name
+        }
     ported = {pair for ports in features.bridge_apertures.values() for pair in ports}
     out: list[Mark] = []
     for name, feat in features.features.items():

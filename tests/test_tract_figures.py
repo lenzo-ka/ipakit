@@ -40,9 +40,11 @@ from ipakit import tract_svg
 from ipakit.constants import METADATA_ATTRS
 from ipakit.features import IPAFeatures
 from ipakit.tract import (
+    GLOTTAL_AXIS,
     Head,
     constrictions,
     glottal_aperture,
+    glottal_scale,
     head,
     heads,
     landmarks,
@@ -577,6 +579,175 @@ class TestADrawingFollowsTheInventoryItIsMadeAgainst:
         )
         assert "fric" in was, f"{place} hosts a fricative and is not marked as one"
         assert "fric" not in now, f"{place} still reads as fricative with none left"
+
+
+class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
+    """Which feature measures the folds is read off ``axis``, once.
+
+    It used to be inferred: the first ordinal feature a ``<projection>``
+    refined, in alphabetical order. That is right while one projection is
+    declared and a coin toss at two, and the second projection would have
+    won silently -- no exception, no warning, and every figure redrawn.
+
+    So the tests here are perturbations of the declaration rather than
+    assertions about ``phonation``, which would pass equally against the
+    hardcoding they exist to rule out.
+    """
+
+    def _feature_element(self, root: Any, name: str) -> Any:
+        return next(f for f in root.iter("feature") if f.get("name") == name)
+
+    def test_a_second_projection_does_not_move_the_folds(self, tmp_path: Path) -> None:
+        """Declare another projection and the glottal state stays put.
+
+        Swept over every ordinal feature that sorts before the declared
+        scale, because alphabetical order is what the discovery turned on
+        and a single named feature would test one draw of the coin. The
+        projections are about the mechanism, not phonetic claims: each
+        maps every value of its feature onto one coarse value, which is
+        all the loader's totality rule asks for.
+        """
+        ipa = IPAFeatures()
+        scale = glottal_scale(ipa)
+        assert scale is not None, "no glottal scale declared: the sweep is vacuous"
+        sources = {fine for fine, _ in ipa.projections}
+        assert sources, "no projection declared: the sweep is vacuous"
+        candidates = sorted(
+            name
+            for name, feat in ipa.features.items()
+            if feat.is_ordinal
+            and len(feat.values) > 1
+            and name not in sources
+            and name < min(sources)
+        )
+        assert candidates, "nothing sorts before a source: the sweep is vacuous"
+        annotated = {
+            mark.feature
+            for phone in ipa.phones
+            for mark in unmodelled(ipa, ipa.get_features(phone, with_defaults=False))
+        }
+        assert set(candidates) & annotated, "no candidate reaches the annotations"
+
+        was = {
+            p: glottal_aperture(ipa, ipa.get_features(p)) for p in sorted(ipa.phones)
+        }
+        assert len({v for v in was.values() if v is not None}) > 1, "one aperture only"
+
+        for fine in candidates:
+
+            def project(root: Any, fine: str = fine) -> None:
+                block = root.find("projections")
+                added = ET.SubElement(
+                    block, "projection", {"from": fine, "to": "voiced"}
+                )
+                for value in ipa.features[fine].values:
+                    ET.SubElement(added, "value", {"name": value, "reads": "+"})
+
+            room = tmp_path / fine
+            room.mkdir()
+            custom = _inventory(room, project)
+            assert fine in {f for f, _ in custom.projections}, "it did not land"
+            assert glottal_scale(custom) is not None
+            now = {
+                p: glottal_aperture(custom, custom.get_features(p))
+                for p in sorted(custom.phones)
+            }
+            moved = [p for p in was if was[p] != now[p]]
+            assert not moved, f"{fine} took the glottal scale over: {moved[:5]}"
+            # The same declaration decides what the annotation layer treats
+            # as already drawn, so a projection must not silence a mark.
+            for phone in sorted(ipa.phones):
+                stated = ipa.get_features(phone, with_defaults=False)
+                assert [m.feature for m in unmodelled(ipa, stated)] == [
+                    m.feature for m in unmodelled(custom, stated)
+                ], f"{fine} silenced a mark on {phone}"
+
+    def test_the_scale_is_whichever_feature_declares_the_axis(
+        self, tmp_path: Path
+    ) -> None:
+        """Move the axis to another feature and the folds move with it.
+
+        The name ``phonation`` is nowhere in the read, so an inventory
+        that measures glottal state with some other feature is drawn from
+        that one -- and the feature that used to carry the axis stops
+        placing the folds, because it no longer says it measures them.
+        """
+        ipa = IPAFeatures()
+        scale = glottal_scale(ipa)
+        assert scale is not None
+        target = next(
+            name
+            for name, feat in sorted(ipa.features.items())
+            if feat.is_ordinal and len(feat.values) > 2 and name != scale.name
+        )
+
+        def move(root: Any) -> None:
+            self._feature_element(root, scale.name).attrib.pop("axis")
+            self._feature_element(root, target).set("axis", GLOTTAL_AXIS)
+
+        custom = _inventory(tmp_path, move)
+        moved = glottal_scale(custom)
+        assert moved is not None and moved.name == target
+        order = list(ipa.features[target].values)
+        assert [glottal_aperture(custom, {target: value}) for value in order] == [
+            i / (len(order) - 1) for i in range(len(order))
+        ]
+        # The old scale is now a feature like any other: it says nothing
+        # about the folds, and nothing about it is remembered here.
+        assert glottal_aperture(custom, {scale.name: scale.values[0]}) is None
+
+    def test_two_features_on_the_axis_are_refused(self, tmp_path: Path) -> None:
+        """The folds have one aperture, so one feature may measure it.
+
+        Two is the case the discovery answered by sorting names. There is
+        no right answer to pick, so the read says which two features are
+        in dispute and stops.
+        """
+        ipa = IPAFeatures()
+        scale = glottal_scale(ipa)
+        assert scale is not None
+        other = next(
+            name
+            for name, feat in sorted(ipa.features.items())
+            if feat.is_ordinal and len(feat.values) > 1 and name != scale.name
+        )
+
+        def duplicate(root: Any) -> None:
+            self._feature_element(root, other).set("axis", GLOTTAL_AXIS)
+
+        custom = _inventory(tmp_path, duplicate)
+        with pytest.raises(ValueError, match=re.escape(GLOTTAL_AXIS)) as raised:
+            glottal_aperture(custom, custom.get_features("a"))
+        assert scale.name in str(raised.value) and other in str(raised.value)
+
+    def test_an_inventory_declaring_no_axis_draws_no_glottal_state(
+        self, tmp_path: Path
+    ) -> None:
+        """Nothing declares it, so there is nothing to read and none is invented.
+
+        The folds keep their place -- ``aperture="median"`` is what puts
+        them in the drawing -- and lose their state. If an inventory
+        without the axis starts drawing folds again this fails, and what
+        the absence means needs writing down afresh.
+        """
+        ipa = IPAFeatures()
+        scale = glottal_scale(ipa)
+        assert scale is not None
+
+        def drop(root: Any) -> None:
+            self._feature_element(root, scale.name).attrib.pop("axis")
+
+        custom = _inventory(tmp_path, drop)
+        assert glottal_scale(custom) is None
+        assert all(
+            glottal_aperture(custom, custom.get_features(p)) is None
+            for p in custom.phones
+        )
+        stated = tract_svg.figure("h", "adult-male")
+        perturbed = tract_svg.figure("h", "adult-male", features=custom)
+        assert 'class="fold' in stated, "no folds to lose"
+        assert 'class="fold' not in perturbed, "folds drawn off an undeclared scale"
+        assert "medianmark" in perturbed, "the folds lost their place, not their state"
 
 
 class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
