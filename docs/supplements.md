@@ -168,6 +168,8 @@ DistanceModel.from_matrix_file(inventory, saved).reference_phones == model.refer
 
 Regenerate it whenever the supplement or the metric changes. Percentiles are not comparable across inventories, which is why the model's `reference_name` says which files it was built from.
 
+A saved matrix also records the feature space it was derived in, and `from_matrix_file` refuses one derived in another — see [distance.md](distance.md) §9. That check is deliberately blind to supplements. It digests what the metric reads off the phones *the file itself lists*, and a supplement declares no feature, type or bridge, so a supplemented inventory agrees with the shipped matrix and with any matrix derived before the supplement was written. It should: the space did not move, only the membership, and membership is what `phones` records. The case the refusal is for is the other one this page names — editing a copy of `ipa.xml`, and not regenerating what was derived from the original.
+
 ## Limits
 
 - **The command line reads the shipped inventory only.** Supplements are a Python-level facility.
