@@ -107,6 +107,19 @@ about which one. And edge redundancy is untouched: the virtual edge past
 the end of a form is not a unit, so there is nothing there to delete, and
 ``strip(r("#" + f)) == r(f)`` holds for a deleting rule as for any other.
 
+**A derivation carries a zero; a surface form does not, and what
+removes it is a rule.** A zero holds a position (``z -> [zero]``), which
+is what makes a deletion site visible in a trace, and a pronunciation
+has no room for a position with nothing in it. So :func:`surface` --
+``[zero] -> ∅``, in this notation -- runs after every rule of the
+cascade and after every step is recorded, and ``keep_zeros=True``
+declines it. Writing it as a rule rather than as an engine step or a
+fourth ``Form`` projection is the decision: docs/calculus.md claims the
+operations are closed over the carrier, and a surface projection beside
+the notation would be an escape hatch from that claim, where a rule is
+another element of the same algebra. It is also what makes it
+composable, declinable and readable off the declaration.
+
 **A rule matches against a snapshot of its input.** Every site is found
 before any is rewritten, so a rule cannot read its own output and cannot
 feed itself; the pass terminates by construction. Rules are then
@@ -2078,6 +2091,12 @@ class Derivation:
     ``(no rule fired)``, and yet :attr:`result` was not the input. A trace
     whose first line is not what the first rule saw accounts for a
     derivation that did not happen.
+
+    The same holds of its last line. Where a rule wrote a zero, the final
+    step is :func:`surface` taking it back out, so :attr:`result` is the
+    pronunciation and the step above it is where the deletion site is
+    visible. That step is recorded only where it fires, since it is not
+    one of the rules this cascade declares.
     """
 
     start: str
@@ -2319,7 +2338,12 @@ class RuleSet:
         """Whether any rule here is optional, so the answer is a set."""
         return any(rule.optional for rule in self.rules)
 
-    def derive(self, form: str, features: IPAFeatures | None = None) -> Derivation:
+    def derive(
+        self,
+        form: str,
+        features: IPAFeatures | None = None,
+        keep_zeros: bool = False,
+    ) -> Derivation:
         """Apply every obligatory rule in order, keeping the trace.
 
         An **optional** rule does not fire here. One form comes out, so
@@ -2329,6 +2353,11 @@ class RuleSet:
         still recorded, marked :attr:`Step.optional`, so a trace says
         *not taken* rather than passing a choice off as a failed
         environment.
+
+        :func:`surface` runs last, after every rule and after every step
+        is recorded, so a zero is in the trace where it was written and
+        out of the answer. ``keep_zeros`` declines it and hands back the
+        derivation's own last form.
         """
         features = _default(features)
         items = units(form, features)
@@ -2356,17 +2385,41 @@ class RuleSet:
             steps.append(
                 Step(rule=rule.name, before=before, after=current, edits=tuple(edits))
             )
+        if not keep_zeros:
+            for rule in surface(features):
+                items, edits = rule.apply(items, features)
+                # Recorded only where it fires. It is not a rule of this
+                # set -- ``len(RuleSet)`` and ``all_steps`` answer for what
+                # the cascade declares -- so a derivation with no zero in
+                # it is the same derivation it was, line for line.
+                if not edits:
+                    continue
+                before, current = current, spell(items)
+                steps.append(
+                    Step(
+                        rule=rule.name,
+                        before=before,
+                        after=current,
+                        edits=tuple(edits),
+                    )
+                )
         return Derivation(start=start, result=current, steps=tuple(steps))
 
-    def apply(self, form: str, features: IPAFeatures | None = None) -> str:
+    def apply(
+        self,
+        form: str,
+        features: IPAFeatures | None = None,
+        keep_zeros: bool = False,
+    ) -> str:
         """The derived form, discarding the trace."""
-        return self.derive(form, features).result
+        return self.derive(form, features, keep_zeros=keep_zeros).result
 
     def variants(
         self,
         form: str,
         features: IPAFeatures | None = None,
         limit: int = DEFAULT_LIMIT,
+        keep_zeros: bool = False,
     ) -> VariantSet:
         """Every form this cascade derives, with a derivation for each.
 
@@ -2382,6 +2435,15 @@ class RuleSet:
         a finite fold of them. It can nonetheless be enormous, so
         ``limit`` bounds what is carried between rules and any cut is
         reported in :attr:`VariantSet.truncations`.
+
+        :func:`surface` runs last, over every member, and the members are
+        deduplicated **after** it: two branches that differed only in
+        where a zero stood spell one pronunciation, and a set of
+        pronunciations that lists the same string twice is not a set. The
+        cap and :attr:`VariantSet.complete` are untouched by it -- the
+        surface rewrite is obligatory, so it offers one child per branch
+        and can only merge, never truncate. ``keep_zeros`` declines it,
+        and then the members are what the cascade itself derived.
         """
         features = _default(features)
         if limit < 1:
@@ -2461,6 +2523,31 @@ class RuleSet:
                 )
             branches = list(carried.values())
 
+        if not keep_zeros:
+            for rule in surface(features):
+                # Obligatory, so one child per branch: this cannot exceed
+                # a limit that already held, and the ``setdefault`` is
+                # where two zero placements become one pronunciation. The
+                # member kept is the first in the order, which is the one
+                # taking fewest optional choices.
+                merged: dict[str, tuple[list[Unit], tuple[Step, ...], int]] = {}
+                for current, steps, choices in branches:
+                    before = spell(current)
+                    found = rule.edits(current, features)
+                    after_items = _apply_edits(list(current), found)
+                    after = spell(after_items)
+                    if found:
+                        steps = steps + (
+                            Step(
+                                rule=rule.name,
+                                before=before,
+                                after=after,
+                                edits=tuple(found),
+                            ),
+                        )
+                    merged.setdefault(after, (after_items, steps, choices))
+                branches = list(merged.values())
+
         out = []
         for final, steps, choices in branches:
             spelled = spell(final)
@@ -2485,6 +2572,53 @@ class RuleSet:
 
     def __len__(self) -> int:
         return len(self.rules)
+
+
+#: The name the final rewrite carries in a trace, and the name of the
+#: rule set :func:`surface` answers with.
+SURFACE = "surface"
+
+
+def surface(features: IPAFeatures | None = None) -> RuleSet:
+    """The rewrite that takes a derivation to a pronunciation.
+
+    A zero holds a position, which is what makes a deletion site visible
+    in a trace, and a pronunciation has no room for a position with
+    nothing in it. So a derivation carries the zero and the surface form
+    does not, and what removes it is **a rewrite** -- one rule,
+    ``[zero] -> ∅``, in the notation this module already reads, applied
+    after every rule of the cascade and after every step is recorded.
+
+    Writing it as a rule rather than as an engine step or a projection is
+    the point rather than the implementation. The claim docs/calculus.md
+    makes is that the operations are closed over the carrier, and a
+    surface projection that lived beside the notation would be an escape
+    hatch from exactly that: here the map from a derivation to a
+    pronunciation is another element of the same algebra, and a caller
+    can write it out, compose it, or decline it. ``ipa.ruleset("[zero]
+    -> ∅")`` is this rule set, and the two are asserted equal.
+
+    It is applied by default and declined by ``keep_zeros=True`` on
+    :meth:`RuleSet.derive`, :meth:`RuleSet.apply`, :meth:`RuleSet.variants`
+    and the three string entry points -- a caller reading a derivation
+    wants the zero, a caller asking for a pronunciation does not, and
+    neither may be out of reach. It removes zeros and nothing else: a
+    constituent left holding no segment stays written, and
+    ``validate_ipa`` reports it as the empty constituent it now is.
+
+    An inventory that declares no zero gets the empty rule set, which is
+    the identity, so the whole mechanism costs nothing where there is
+    nothing to remove.
+
+    Its edit prints ``∅ -> ∅``, because the glyph the notation uses for
+    the empty string is the glyph ``<zeros>`` declares -- the spelling
+    accident docs/rules.md records, read here from both sides at once.
+    The step is named, and the line under it says what came out.
+    """
+    features = _default(features)
+    if not features.zeros:
+        return RuleSet(rules=(), name=SURFACE)
+    return RuleSet.parse(f"[{ZERO_CLASS}] -> ∅ ; {SURFACE}", features, name=SURFACE)
 
 
 #: Directory holding the shipped rule sets.

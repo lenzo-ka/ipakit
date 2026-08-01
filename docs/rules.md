@@ -368,9 +368,11 @@ These are two different things, not two spellings of one. `∅` in a rule is **t
 The glyph is the same character, and that is a spelling accident rather than an identity. `∅` on the left of an arrow stays the empty string — freeing it would silently change every shipped insertion rule, and `∅ -> ə` is epenthesis in two of them. A rule that wants to *emit* a zero says so in brackets, where brackets already mean *described, not spelled*:
 
 ```python
-ipa.rewrite("lez", "z -> ∅ / _ #")      # 'le'    -- the /z/ is gone
-ipa.rewrite("lez", "z -> [zero] / _ #") # 'le∅'   -- a /z/ was here and could surface
+ipa.rewrite("lez", "z -> ∅ / _ #", keep_zeros=True)       # 'le'    -- the /z/ is gone
+ipa.rewrite("lez", "z -> [zero] / _ #", keep_zeros=True)  # 'le∅'   -- a /z/ was here and could surface
 ```
+
+`keep_zeros=True` runs through this section and the next, because what they ask about is the form a rule *wrote*. A pronunciation carries no zero, and the rewrite that takes it back out is [below](#the-surface-carries-no-zero).
 
 The second is what a latent consonant needs. French liaison's /z/ is not absent from the word, it is unpronounced in this environment, and a derivation that records where it was can put it back. `[zero]` is read off the data — `zero` is the element class those symbols carry, and the symbol written is the one `<zeros>` declares — so neither the word nor the glyph is spelled in the engine.
 
@@ -390,27 +392,62 @@ Whether a zero blocks a context depends on what the zero is being **used for**. 
 A zero is opaque by default: it is a position, and positions block.
 
 ```python
-ipa.rewrite("leʃ",  "e -> a / _ ʃ")      # 'laʃ'
-ipa.rewrite("le∅ʃ", "e -> a / _ ʃ")      # 'le∅ʃ'  -- the zero is in the way
+ipa.rewrite("leʃ",  "e -> a / _ ʃ", keep_zeros=True)      # 'laʃ'
+ipa.rewrite("le∅ʃ", "e -> a / _ ʃ", keep_zeros=True)      # 'le∅ʃ'  -- the zero is in the way
 ```
 
 Naming it requires it, which is the ordinary reading of any context item:
 
 ```python
-ipa.rewrite("le∅ʃ", "e -> a / _ [zero] ʃ")  # 'la∅ʃ'
-ipa.rewrite("leʃ",  "e -> a / _ [zero] ʃ")  # 'leʃ'   -- no zero, no match
+ipa.rewrite("le∅ʃ", "e -> a / _ [zero] ʃ", keep_zeros=True)  # 'la∅ʃ'
+ipa.rewrite("leʃ",  "e -> a / _ [zero] ʃ", keep_zeros=True)  # 'leʃ'   -- no zero, no match
 ```
 
 Parenthesising it makes it **optional** — matched if it is there, stepped over if it is not — which is transparency written where it applies:
 
 ```python
-ipa.rewrite("le∅ʃ", "e -> a / _ (∅) ʃ")  # 'la∅ʃ'
-ipa.rewrite("leʃ",  "e -> a / _ (∅) ʃ")  # 'laʃ'   -- one rule, one answer
+ipa.rewrite("le∅ʃ", "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'la∅ʃ'
+ipa.rewrite("leʃ",  "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'laʃ'   -- one rule, one answer
 ```
 
 The syllable dot is the precedent for "the rule decides", and its shape does not fit here. The dot is *optional notation*, so transparent-by-default is the only safe reading of it, and naming it is the only override it needs. A zero is a claim the transcription makes, so its default is the opposite, and "step over unless named" offers no way to say so. The parenthesis is generative phonology's own mark for an optional element, and it says the thing directly.
 
 **Only a zero may be optional today.** `(t)`, `([vowel])` and `(#)` are refused rather than quietly meaning something: an optional *boundary* would have to answer to the boundary-run rule and the virtual edge, which is a separate question. A `Site` records `None` for an optional item nothing matched, the same as for the virtual edge past the end of a form — one entry per context item either way.
+
+### The surface carries no zero
+
+A zero holds a position, and holding the position is what makes a deletion site visible in a trace. A *pronunciation* has no room for a position with nothing in it. So a derivation carries the zero and the surface form does not, and what takes it out is **a rewrite**, applied after every rule of the cascade and after every step is recorded:
+
+```python
+ipa.rules.surface().rules[0].source            # '[zero] -> ∅ ; surface'
+ipa.rewrite("lezami", "z -> [zero] / [vowel] _ [vowel]")  # 'leami'
+```
+
+That it is a rewrite is the design and not the implementation. It is one rule, in this notation, run through this parser, and a caller can write it out for themselves:
+
+```python
+ipa.rewrite("le∅ami", "[zero] -> ∅")   # 'leami'
+```
+
+Three things follow from that. The projection composes, because a rule set composes. It is expressible, so [calculus.md](calculus.md)'s claim that the operations are closed over the carrier stays true of the map from a derivation to a pronunciation — a surface projection living *beside* the notation would have been an escape hatch from exactly that claim. And it reads off the declaration: `[zero]` is the element class `<zeros>` gives its members, so an inventory that declares no zero gets the empty rule set, which is the identity.
+
+It removes zeros and **nothing else**. A constituent left holding no segment stays written, and `validate_ipa` reports it as the empty constituent it now is:
+
+```python
+ipa.rewrite("a.∅.b", "[zero] -> ∅")                       # 'a..b'
+[d["code"] for d in ipa.validate_ipa("a..b")]             # ['empty_constituent']
+```
+
+Collapsing the boundary run as well would be a second statement, and this is one rule.
+
+**`keep_zeros=True` declines it**, on `rewrite`, `derive`, `variants`, the three `RuleSet` methods and `--keep-zeros` on the command line. A caller reading a derivation wants the zero and a caller asking for a pronunciation does not, so neither may be out of reach:
+
+```python
+ipa.rewrite("lezami", "z -> [zero] / [vowel] _ [vowel]", keep_zeros=True)  # 'le∅ami'
+ipa.derive("lezami", "z -> [zero] / [vowel] _ [vowel]").steps[-1].rule     # 'surface'
+```
+
+The zero is in the trace where the rule wrote it either way — the step above it is the one that put it there, and the `surface` step is what the answer is. Where a derivation writes no zero the step is not recorded at all, so a trace of a rule set that has nothing to do with zeros is the trace it has always been, `--all` included.
 
 ## What a rule can do
 
@@ -608,6 +645,15 @@ dəvəniʁ: 3 variants
   dvəniʁ
 ```
 
+`--keep-zeros` is the surface rewrite declined, on the three commands that print a derived form. What it prints is the derivation's own answer, zero and all:
+
+```console
+$ ipakit rules apply -r 'z -> [zero] / [vowel] _ [vowel]' lezami
+leami
+$ ipakit rules apply --keep-zeros -r 'z -> [zero] / [vowel] _ [vowel]' lezami
+le∅ami
+```
+
 `recognize` is the left of the arrow alone — where the environment holds, with nothing rewritten. Each line is the rule, the index of the target, the target, and the neighbors that licensed it; `#` there is the form's own edge, matched without one having been typed.
 
 ```console
@@ -647,6 +693,7 @@ Recorded so they are not discovered the hard way:
 - **There is no notation for a phrase boundary by level.** `#` and `.` name a level; `|` and `‖` are matched as the literal marks they are. A bracketed `[level=phrase]` never matches, because a query is compared against a segment's feature bundle and a boundary has none.
 - **Optionality is not general.** `(∅)` marks a zero optional in a context; `(t)`, `([vowel])` and `(#)` are refused. An optional boundary item would have to answer to the boundary-run rule and the virtual edge past the end of a form, and that is a separate question from the one a zero raises. Parentheses in a rule's *name* are untouched, since the name is past the `;` and never reaches the context splitter.
 - **An agreement variable stands for a feature value, not for a segment.** `[place=α]` is expressible; "a copy of whatever consonant stood there" is not, so the shipped French set still writes one liaison rule per latent consonant. A variable also ranges over one feature, is refused where nothing binds it or where it occurs once, and `-α` is legal only for a binary feature (above). Every one of those is a parse-time refusal rather than a rule that fires at some sites and not others.
+- **The surface rewrite is applied per call**, like the cap, so splitting one cascade into two calls applies it twice and a zero written by the first half is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and naming the intermediate as a derivation rather than a pronunciation is what it says.
 - **A zero cannot be inserted, and it has no bundle.** `∅ -> [zero]` is refused — a zero records that a position had content and now has none, and an insertion had none to lose — and so is `[zero] -> [voiced=+]`, for the reason a feature change on a boundary is refused. Filling one (`[zero] -> z`) and unwriting one (`[zero] -> ∅`) are the two things that work.
 - A `Derivation`'s `start` is the form **as the engine read it**, not the string handed in. Reading drops what the inventory does not register, with a warning, and a trace whose first line is not what the first rule saw would account for a derivation that did not happen.
 - `Form.rebuild` is an inverse up to spelling; `Boundary` equality is not object equality with the original. It does reproduce each boundary *unit* — text and declared features — from `Boundary.features`; rebuilding from `Boundary.level` alone put `‿` back as a plain word boundary with its `linking=+` gone, the same spelling describing a different unit.

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prosodic tiers: `level` gains `phrase` and `utterance`, and `|`/`‖` declare which one they terminate.
 - `<zeros>`: `∅` is a declared element class, outside the feature bag and outside the metric.
 - A rule may write a zero (`z -> [zero]`) and may mark a context item optional (`(∅)`).
+- `rules.surface()`, the final rewrite `[zero] -> ∅` that takes a derivation to a pronunciation; `keep_zeros` declines it.
 - A rule may target a boundary: `∅ -> .` writes one, `. -> ∅` unwrites one, `. -> #` restates one.
 - Prosody is writable from a rule: `[length=long]`, `[stress=primary]`, `[stress=∅]`, and literals naming prosody.
 - `<notations>`, with `IPAFeatures.notations`/`notation_of` and `ipakit.extensions_in`/`is_pure_ipa` over it.
