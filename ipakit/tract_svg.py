@@ -1,0 +1,1505 @@
+"""Draw a declared head, so a change to the geometry can be looked at.
+
+``heads.xml`` is the only part of this library whose output is a picture, and
+it was the only part with no way to see one. A diameter is four characters in
+a diff; it is a visible pinch in a drawn tract. The change that prompted this
+module left a slope of +0.364 between two midline points, which read as an
+ordinary number and drew as a flare that belonged to nothing, and a normal
+taken per segment drew a wall that crossed itself three times.
+
+This is the *rendering* layer; :mod:`ipakit.tract` is the model. They are two
+modules rather than one because ``ipakit.metric`` reads the model, and
+nothing that computes a distance should be able to reach a stylesheet.
+Nothing here computes geometry: every coordinate comes from ``Head.project``.
+
+What is drawn
+-------------
+
+    section   the tract wall at full offset either side of the centerline,
+              through ipakit.tract.Head.project -- the same call a renderer
+              makes, so the drawing cannot drift from the model
+    profile   the declared diameter against arc, where a change to the
+              profile is legible rather than merely present
+
+One entry
+---------
+
+:func:`drawing` derives everything a figure needs, once, and every caller
+reaches a picture through it -- :func:`figure`, ``ipakit tract draw``,
+``make figures`` and the property tests. It is written that way because the
+command and the tests once derived the posture separately, which is two
+chances to disagree about what the picture is.
+
+    >>> figure("t").startswith("<svg ")
+    True
+
+Comparing two revisions
+-----------------------
+
+    python -m ipakit.tract_svg dump -o /tmp/before.json    # on one revision
+    python -m ipakit.tract_svg draw --compare /tmp/before.json -o tract.html
+
+Heads are read only by ``Head.project`` and never by ``ipakit.metric``, so a
+change here cannot move a distance. ``scripts/sweep.py diff`` is the check.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from .features import IPAFeatures
+from .tract import (
+    Head,
+    TractPoint,
+    constrictions,
+    glottal_aperture,
+    head,
+    heads,
+    landmarks,
+    secondary_marks,
+    tract_point,
+    unmodelled,
+    velic_aperture,
+)
+
+SAMPLES = 240
+WIDTH = 760
+SECTION_HEIGHT = 560
+CHART_HEIGHT = 300
+PAD = 54
+CEILING = 0.20
+
+Point = tuple[float, float]
+Scaler = Callable[[float, float], Point]
+
+
+def sample(h: Head, samples: int = SAMPLES, close: float = 0.0) -> list[dict[str, Any]]:
+    """The three positions the geometry actually declares, at each arc.
+
+    ``offset`` is constriction degree: 0 leaves the articulator at the
+    midline and 1 carries it to the wall, so the wall is fixed and the
+    articulator sweeps between. Drawing the wall mirrored below the midline
+    -- offset -1 -- draws a second tract that does not exist and makes the
+    section twice as wide as the aperture it is meant to show.
+    """
+    rest = h.rest.offset if h.rest is not None else 0.0
+    rows: list[dict[str, Any]] = []
+    for i in range(samples + 1):
+        arc = i / samples
+        openp = h.project(TractPoint(arc=arc, offset=0.0))
+        restp = h.project(TractPoint(arc=arc, offset=rest))
+        wall = h.project(TractPoint(arc=arc, offset=1.0))
+        if openp is None or restp is None or wall is None:
+            continue
+        # The mandible carries the whole lower boundary, not just the teeth.
+        # Closing the jaw lifts the floor, and with it the tongue's underside
+        # and the lower lip, by the measured fraction at that arc.
+        if close:
+            openp = h.carried(openp, arc, close)
+            restp = h.carried(restp, arc, close)
+        rows.append({"arc": arc, "open": openp, "rest": restp, "wall": wall})
+    return rows
+
+
+def tongue_surface(
+    name: str,
+    control: TractPoint | list[TractPoint],
+    close: float = 0.0,
+) -> list[tuple[float, float, float]]:
+    """The tongue surface for one control, asked of the model at each arc.
+
+    ``Head.tongue_offset`` is where the deformation lives; this only samples
+    it and projects. Outside the span the tongue is not the boundary.
+    """
+    h = head(name)
+    out: list[tuple[float, float, float]] = []
+    for i in range(SAMPLES + 1):
+        arc = i / SAMPLES
+        point = h.tongue_point(arc, control, close)
+        if point is None:
+            continue
+        out.append((arc, point[0], point[1]))
+    return out
+
+
+def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
+    h = head(name)
+    rest = h.rest
+    nasal = [
+        {
+            "arc": i / 60,
+            "mid": h.project_nasal(i / 60, 0.0),
+            "wall": h.project_nasal(i / 60, 1.0),
+            "low": h.project_nasal(i / 60, -1.0),
+        }
+        for i in range(61)
+    ]
+    return {
+        "rows": sample(h, close=close),
+        "nasal": [n for n in nasal if None not in n.values()],
+        "port_arc": h.port_arc,
+        "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
+        "lips_open": h.lips(close=close),
+        "lips_body": h.lip_body(close=close),
+        "lips_shut": h.lip_body(closed=True, close=close),
+        "lips_closed_now": False,
+        "lips_closed": h.lips(closed=True, close=close),
+        "rest_arc": None if rest is None else rest.arc,
+        "rest_offset": None if rest is None else rest.offset,
+        "rest_lips": None if rest is None else rest.lips,
+        "midline": [
+            {
+                "arc": p.arc,
+                "x": p.x,
+                "y": p.y,
+                "diameter": p.diameter,
+                "provenance": p.provenance,
+            }
+            for p in h.midline
+        ],
+    }
+
+
+def drawing(
+    name: str, phone: str | None, features: IPAFeatures | None = None
+) -> dict[str, Any]:
+    """Everything a figure needs, derived once.
+
+    ``cmd_draw`` and the property tests both draw the same phone and used
+    to derive the posture separately, which is two chances to disagree
+    about what the picture is. This is that derivation, written once, so a
+    test cannot pass against a drawing the command would not produce.
+    """
+    ipa = features or IPAFeatures()
+    # Read off the same inventory as the geometry and the caption. These were
+    # once module-level, resolved against the package data at import, so a
+    # caller's own ``features`` moved the posture and left the folds, the
+    # places and the articulators speaking for a different inventory.
+    marks = landmarks(ipa)
+    h = head(name)
+    aperture = 0.0
+    posture: tuple[float, float, str] | None = None
+    caption: dict[str, Any] | None = None
+    active: dict[str, str] | None = None
+    bundle: dict[str, str] = {}
+    stated: dict[str, str] = {}
+    if phone is not None:
+        bundle = ipa.get_features(phone)
+        stated = ipa.get_features(phone, with_defaults=False)
+        aperture = velic_aperture(ipa, bundle)
+        caption = {
+            "phone": phone,
+            # Asked of the inventory this drawing is being made against,
+            # not of the package-level default: a caller passing its own
+            # ``features`` must get a caption from the same data as the
+            # geometry, and the two would otherwise disagree silently.
+            "describe": ipa.describe(phone),
+            "features": [
+                (k, v) for k, v in sorted(stated.items()) if k not in ("href", "class")
+            ],
+        }
+        point = tract_point(ipa, bundle)
+        # A vowel states backness and height, not place, so its place set is
+        # empty rather than absent -- absent would mean "label them all".
+        active = {"place": str(bundle.get("place") or "")}
+        if point.offset is not None:
+            active["degree"] = (
+                "closed" if point.offset >= 0.995 else f"{1 - point.offset:.2f} open"
+            )
+        # The glottal state at the finest granularity the segment spells it,
+        # named by the data's own label rather than by a table here.
+        for key in ("phonation", "voiced"):
+            feature = ipa.features.get(key)
+            value = bundle.get(key)
+            if feature is not None and value is not None:
+                active["glottal"] = feature.labels.get(value) or f"{key} {value}"
+                break
+        if point.articulator:
+            active["articulator"] = str(point.articulator)
+        if point.arc is not None and point.offset is not None:
+            posture = (point.arc, point.offset, point.articulator or "articulator")
+        elif h.rest is not None:
+            # Silence is featurally null but still has to be drawn somewhere.
+            # The head declares where everything sits when not speaking.
+            posture = (h.rest.arc, h.rest.offset, "at rest")
+    close = 0.0
+    if posture is not None:
+        close = h.jaw_close(TractPoint(arc=posture[0], offset=posture[1]))
+    current = geometry(name, close)
+    current["landmarks"] = marks
+    current["lips_closed_now"] = bool(
+        posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    )
+    if phone is not None and posture is not None:
+        current["teeth"] = [
+            {
+                **t,
+                **(
+                    dict(
+                        zip(
+                            ("x", "y"),
+                            h.carried((t["x"], t["y"]), 0.045, close),
+                            strict=True,
+                        )
+                    )
+                    if t["carrier"] == "mandible"
+                    else {}
+                ),
+            }
+            for t in current["teeth"]
+        ]
+        points = list(constrictions(ipa, bundle))
+        current["tongue"] = tongue_surface(name, points, close)
+        current["extra"] = [
+            (q.arc, q.offset, q.articulator or "")
+            for q in points[1:]
+            if q.arc is not None and q.offset is not None
+        ]
+    if phone is not None:
+        current["marks"] = [
+            {"label": m.label, "kind": m.kind} for m in unmodelled(ipa, stated)
+        ]
+        current["secondary"] = [
+            {"arc": m.arc, "offset": m.offset, "label": m.label}
+            for m in secondary_marks(ipa, bundle)
+            if m.placed
+        ]
+        glottal = glottal_aperture(ipa, bundle)
+        if glottal is not None:
+            current["folds"] = [
+                {"edges": edges, "shut": glottal <= 0.01}
+                for arc in sorted(marks.median.values())
+                if (edges := h.median_body(arc, glottal)) is not None
+            ]
+    return {
+        "head": name,
+        "phone": phone,
+        "geometry": current,
+        "aperture": aperture,
+        "posture": posture,
+        "caption": caption,
+        "active": active,
+    }
+
+
+def render(
+    drawn: dict[str, Any],
+    prior: dict[str, Any] | None = None,
+    caption: bool = True,
+) -> str:
+    """A :func:`drawing` as a standalone SVG document.
+
+    The one place a ``drawn`` mapping is unpacked into
+    :func:`standalone_svg`. Every caller that writes a figure -- ``make
+    figures``, ``ipakit tract draw``, :func:`figure`, the tests -- goes
+    through here, so a figure cannot be assembled two ways.
+    """
+    return standalone_svg(
+        drawn["geometry"],
+        prior,
+        drawn["aperture"],
+        drawn["posture"],
+        drawn["caption"] if caption else None,
+        drawn["active"],
+    )
+
+
+def render_page(
+    drawn: dict[str, Any],
+    prior: dict[str, Any] | None = None,
+    caption: bool = True,
+) -> str:
+    """A :func:`drawing` as a standalone HTML page.
+
+    :func:`render` for the page route. The mapping was unpacked into
+    :func:`page` by hand at two call sites, which is where ``--no-caption``
+    was honored at one of them and not at the other.
+    """
+    return page(
+        drawn["head"],
+        drawn["geometry"],
+        prior,
+        drawn["aperture"],
+        drawn["phone"],
+        drawn["posture"],
+        drawn["caption"] if caption else None,
+        drawn["active"],
+    )
+
+
+def figure(
+    phone: str | None = None,
+    head_name: str | None = None,
+    features: IPAFeatures | None = None,
+    caption: bool = True,
+) -> str:
+    """One posture, as a standalone SVG document.
+
+    The public way to draw. ``phone`` is a unit -- a phone, or a phone
+    with diacritics -- and ``None`` asks for the reference drawing, every
+    landmark named at the head's rest posture. ``head_name`` defaults to
+    the head ``heads.xml`` declares as default.
+
+    These are the bytes ``make figures`` writes, so a figure obtained here
+    and a figure checked into ``docs/figures`` are the same object.
+
+    One posture is the whole contract. A form is a sequence of postures
+    and a derivation is a sequence of forms, so neither has a figure --
+    see ``docs/tract-figures.md``.
+    """
+    name = head_name if head_name is not None else head().name
+    return render(drawing(name, phone, features), caption=caption)
+
+
+def _extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
+    xs: list[float] = []
+    ys: list[float] = []
+    for src in sets:
+        for _, tx, ty in src.get("tongue") or []:
+            xs.append(tx)
+            ys.append(ty)
+        for row in src["rows"]:
+            for key in ("open", "rest", "wall"):
+                xs.append(row[key][0])
+                ys.append(row[key][1])
+        for row in src.get("nasal") or []:
+            for key in ("mid", "wall", "low"):
+                point = row.get(key)
+                if point is not None:
+                    xs.append(point[0])
+                    ys.append(point[1])
+    return min(xs), max(xs), min(ys), max(ys)
+
+
+def _scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
+    sx = (WIDTH - 2 * PAD) / (x1 - x0) if x1 > x0 else 1.0
+    sy = (SECTION_HEIGHT - 2 * PAD) / (y1 - y0) if y1 > y0 else 1.0
+    scale = min(sx, sy)
+    ox = PAD + ((WIDTH - 2 * PAD) - (x1 - x0) * scale) / 2
+    oy = PAD + ((SECTION_HEIGHT - 2 * PAD) - (y1 - y0) * scale) / 2
+
+    def to(px: float, py: float) -> Point:
+        return (ox + (px - x0) * scale, oy + (y1 - py) * scale)
+
+    return to
+
+
+def _path(points: list[Point], close: bool = False) -> str:
+    body = "M" + " L".join(f"{x:.2f},{y:.2f}" for x, y in points)
+    return body + (" Z" if close else "")
+
+
+def _band(src: dict[str, Any], to: Scaler, a: str, b: str) -> str:
+    """Closed region between two offset traces -- the articulator's sweep."""
+    top = [to(*row[a]) for row in src["rows"]]
+    bottom = [to(*row[b]) for row in src["rows"]]
+    return _path(top + list(reversed(bottom)), close=True)
+
+
+def _inside(src: dict[str, Any]) -> list[dict[str, Any]]:
+    """Rows from the lips inward.
+
+    The lips are bodies occupying the tract's open end, so a boundary drawn
+    all the way to arc 0 runs through them. It should meet them instead.
+    """
+    return [row for row in src["rows"] if row["arc"] >= LIP_INSET]
+
+
+def _lip_seam(src: dict[str, Any], to: Scaler, which: int) -> Point | None:
+    """The inner shoulder of a lip, where the tract boundary joins it.
+
+    Trimming the boundary by a fixed arc leaves it short of the lip or
+    through it, depending on the head. Starting it on the lip's own shoulder
+    makes them meet by construction.
+    """
+    closed = bool(src.get("lips_closed_now"))
+    bodies = src.get("lips_shut" if closed else "lips_body")
+    if not bodies or which >= len(bodies):
+        return None
+    pts = [to(*q) for q in bodies[which]]
+    # Roots are index 0 and 4 and stay in the bone; shoulders travel with the
+    # free edge. The boundary meets the lip where it is attached, so a closing
+    # lip does not drag the palate down with it.
+    return max((pts[0], pts[4]), key=lambda q: q[0])
+
+
+def _trace(src: dict[str, Any], to: Scaler, key: str) -> str:
+    pts = [to(*row[key]) for row in _inside(src)]
+    seam = _lip_seam(src, to, 0 if key == "wall" else 1)
+    if seam is not None and key in ("wall", "open"):
+        pts.insert(0, seam)
+    return _path(pts)
+
+
+CHAR_W = 6.6  # advance of the 10.5px monospace label face, rounded up:
+# reserving less than the text occupies lets labels collide
+LINE_H = 12.0
+LIP_INSET = 0.014  # arc taken off the front, so the boundary meets the lips
+PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
+
+
+def _lips(
+    src: dict[str, Any],
+    to: Scaler,
+    posture: tuple[float, float, str] | None,
+    taken: list[tuple[float, ...]],
+    named_lip: bool = False,
+) -> str:
+    """The lips, as the model places them.
+
+    A bilabial closure is the lower lip meeting the upper; ``Head.lips``
+    says where both are, open or closed, so nothing is derived here.
+    """
+    # A bilabial closes the lips; so does rest, which the head declares.
+    bilabial = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
+    at_rest = posture is not None and posture[2] == "at rest"
+    closed = bilabial or (at_rest and src.get("rest_lips") == "closed")
+    pair = src.get("lips_closed" if closed else "lips_open")
+    if not pair:
+        return ""
+    bodies = src.get("lips_shut" if closed else "lips_body")
+    if not bodies:
+        return ""
+    parts = []
+    for i, body in enumerate(bodies):
+        pts = [to(*q) for q in body]
+        shut = closed and i == 1
+        parts.append(
+            f'<path d="M{pts[0][0]:.1f},{pts[0][1]:.1f} '
+            f"L{pts[1][0]:.1f},{pts[1][1]:.1f} "
+            f"Q{pts[2][0]:.1f},{pts[2][1]:.1f} {pts[3][0]:.1f},{pts[3][1]:.1f} "
+            f'L{pts[4][0]:.1f},{pts[4][1]:.1f}" '
+            f'class="lip{" shut" if shut else ""}"/>'
+        )
+    # When a lip is the articulator the label above already names it, with its
+    # state; a generic "lips" beside it says the same thing twice.
+    if named_lip:
+        return "".join(parts)
+    anchor = to(*pair[1])
+    for text, lx, ly, depth in _place_labels([("lips", anchor)], 16, 13, taken):
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl lip" '
+            f'text-anchor="middle">{text}</text>'
+        )
+    return "".join(parts)
+
+
+CHIP = 9.0  # side of an annotation chip
+CHIP_GAP = 5.0  # between a chip and its word
+ITEM_GAP = 20.0  # between one annotation and the next
+STRIP_FOOT = 12.0  # baseline of the lowest annotation row, off the bottom edge
+
+
+def _folds(src: dict[str, Any], to: Scaler) -> str:
+    """The vocal folds, at the aperture the segment's glottal state asks for.
+
+    ``Head.median_body`` is where the shape lives; this only projects it.
+    Two bodies, meeting at the tract axis when the folds are shut, so a
+    glottal stop closes here rather than against a wall and /t/ and /d/
+    stop being the same picture.
+    """
+    bodies = src.get("folds") or []
+    if not bodies:
+        return ""
+    parts = []
+    for pair in bodies:
+        shut = bool(pair["shut"])
+        for body in pair["edges"]:
+            pts = [to(*q) for q in body]
+            parts.append(
+                f'<path d="{_path(pts, close=True)}" '
+                f'class="fold{" shut" if shut else ""}"/>'
+            )
+    return "".join(parts)
+
+
+def _secondary(src: dict[str, Any], to: Scaler, taken: list[tuple[float, ...]]) -> str:
+    """The lesser constrictions a secondary articulation states.
+
+    Drawn like the primary and lighter: a ring at the place the feature
+    declares, and a lead from the open trace to it. ``l`` and ``ɫ`` differ
+    here, at the velum, which is exactly where the difference is.
+    """
+    parts = []
+    for item in src.get("secondary") or []:
+        row = min(src["rows"], key=lambda r: abs(r["arc"] - item["arc"]), default=None)
+        if row is None:
+            continue
+        openp, wall = to(*row["open"]), to(*row["wall"])
+        cx = openp[0] + (wall[0] - openp[0]) * item["offset"]
+        cy = openp[1] + (wall[1] - openp[1]) * item["offset"]
+        parts.append(
+            f'<line x1="{openp[0]:.1f}" y1="{openp[1]:.1f}" x2="{cx:.1f}" '
+            f'y2="{cy:.1f}" class="secondreach"/>'
+            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" class="second"/>'
+        )
+        for text, lx, ly, depth in _place_labels(
+            [(str(item["label"]), (cx, cy))], -20, -13, taken
+        ):
+            parts.append(
+                f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{lx:.1f}" '
+                f'y2="{ly + depth:.1f}" class="lead second"/>'
+                + _text(lx, ly + depth + 10, "lbl second", text)
+            )
+    return "".join(parts)
+
+
+def _chip(x: float, y: float, kind: str) -> str:
+    """One annotation's token: a shape per reason the plane cannot hold it.
+
+    Shape rather than color alone, because these have to survive a
+    rasterizer and a monochrome print. ``kind`` is derived in
+    ``ipakit.tract.unmodelled`` from the feature's own declaration.
+    """
+    cls = kind.replace(" ", "-")
+    half = CHIP / 2
+    if kind == "out of plane":
+        # A circle seen edge-on: the axis this section projects away.
+        return f'<circle cx="{x + half:.1f}" cy="{y:.1f}" r="{half:.1f}" class="chip {cls}"/>'
+    if kind == "phase":
+        # An arrow out of the mouth: the segment's release, which is later.
+        return (
+            f'<path d="M{x + CHIP:.1f},{y - half:.1f} L{x:.1f},{y:.1f} '
+            f'L{x + CHIP:.1f},{y + half:.1f}" class="chip {cls}"/>'
+        )
+    if kind == "prosodic":
+        # A bar along time: it belongs to the unit, not to the posture.
+        return (
+            f'<path d="M{x:.1f},{y:.1f} L{x + CHIP:.1f},{y:.1f}" class="chip {cls}"/>'
+        )
+    return (
+        f'<rect x="{x:.1f}" y="{y - half:.1f}" width="{CHIP:.1f}" '
+        f'height="{CHIP:.1f}" class="chip {cls}"/>'
+    )
+
+
+def _strip(marks: list[dict[str, str]], taken: list[tuple[float, ...]]) -> str:
+    """The annotation layer, along the foot of the drawing.
+
+    Everything here is stated by the segment and absent from the geometry,
+    so it is set apart from it rather than dressed up as a contour. Rows
+    fill left to right and stack upward, and their boxes are reserved
+    *before* any tract label is placed, so the two layers cannot collide.
+    """
+    if not marks:
+        return ""
+    widths = [CHIP + CHIP_GAP + len(m["label"]) * CHAR_W for m in marks]
+    rows: list[list[int]] = [[]]
+    used = 0.0
+    limit = WIDTH - 2 * PAD
+    for i, width in enumerate(widths):
+        extra = width + (ITEM_GAP if rows[-1] else 0.0)
+        if rows[-1] and used + extra > limit:
+            rows.append([])
+            used = width
+        else:
+            used += extra
+        rows[-1].append(i)
+    parts = []
+    for depth, row in enumerate(reversed(rows)):
+        y = SECTION_HEIGHT - STRIP_FOOT - depth * (LINE_H + 4)
+        total = sum(widths[i] for i in row) + ITEM_GAP * (len(row) - 1)
+        x = (WIDTH - total) / 2
+        for i in row:
+            label = marks[i]["label"]
+            text_w = len(label) * CHAR_W
+            center = x + CHIP + CHIP_GAP + text_w / 2
+            parts.append(_chip(x, y - LINE_H / 3, marks[i]["kind"]))
+            parts.append(
+                f'<text x="{center:.1f}" y="{y:.1f}" class="lbl chiplbl" '
+                f'text-anchor="middle">{label}</text>'
+            )
+            # Reserved a little wide: a box narrower than the text it holds
+            # is the mistake this whole layout exists to avoid.
+            taken.append((x - 2, y - LINE_H - 2, x + widths[i] + 2, y + 2))
+            x += widths[i] + ITEM_GAP
+    return "".join(parts)
+
+
+def _literal_style() -> str:
+    """STYLE with every custom property resolved, plus a light-theme block.
+
+    A standalone SVG has to render outside a browser -- a repo view, a
+    rasterizer, a slide -- and custom properties are widely unsupported
+    there. ``rsvg-convert`` drops ``stroke:var(--x)`` entirely, so a figure
+    written that way comes out blank while looking correct in a browser.
+    Emitting literals keeps both themes without depending on ``var()``.
+    """
+
+    def tokens(block: str) -> dict[str, str]:
+        return dict(re.findall(r"--([\w-]+):\s*([^;}]+)", block))
+
+    dark = re.search(r":root\{([^}]*)\}", STYLE)
+    light = re.search(r"prefers-color-scheme:light\)\{:root\{([^}]*)\}", STYLE)
+    dark_map = tokens(dark.group(1)) if dark else {}
+    light_map = tokens(light.group(1)) if light else {}
+
+    body = re.sub(r"@media[^{]*\{.*?\}\s*\}", "", STYLE, flags=re.S)
+    body = re.sub(r":root(\[[^\]]*\])?\{[^}]*\}", "", body)
+
+    def resolve(text: str, table: dict[str, str]) -> str:
+        return re.sub(
+            r"var\(--([\w-]+)\)",
+            lambda m: table.get(m.group(1), "currentColor"),
+            text,
+        )
+
+    out = resolve(body, dark_map)
+    if light_map:
+        out += "@media (prefers-color-scheme:light){" + resolve(body, light_map) + "}"
+    return out
+
+
+def _caption(caption: dict[str, Any] | None) -> str:
+    """The phone, its description and its stated features, inside the SVG.
+
+    The drawing travels on its own -- into a doc, a slide, a bug report --
+    and a page heading does not travel with it. ``href`` and ``class`` are
+    metadata rather than articulation and are left out.
+    """
+    if not caption:
+        return ""
+    right = WIDTH - 26
+    parts = [
+        f'<text x="{right}" y="44" class="glyph" text-anchor="end">'
+        f'{caption["phone"]}</text>',
+        f'<text x="{right}" y="64" class="lbl caption" text-anchor="end">'
+        f'{caption["describe"]}</text>',
+    ]
+    y = 84
+    for key, value in caption["features"]:
+        parts.append(
+            f'<text x="{right}" y="{y}" class="lbl feat" text-anchor="end">'
+            f'<tspan class="featkey">{key}</tspan> {value}</text>'
+        )
+        y += 15
+    return "".join(parts)
+
+
+def _tongue(src: dict[str, Any], to: Scaler) -> str:
+    """The tongue as a body, not a line.
+
+    Its upper surface is what constricts, but drawn alone it reads as an arc
+    from base to tip. The underside runs along the floor of the mouth, which
+    is where a fully open articulator sits -- the offset-0 trace -- so
+    closing the surface back along that over the same span gives the body.
+    """
+    surface = src.get("tongue") or []
+    if len(surface) < 2:
+        return ""
+    top = [to(x, y) for _, x, y in surface]
+    lo, hi = surface[0][0], surface[-1][0]
+    floor = [to(*row["open"]) for row in src["rows"] if lo <= row["arc"] <= hi]
+    body = _path(top + list(reversed(floor)), close=True) if floor else _path(top)
+    return (
+        f'<path d="{body}" class="tonguebody"/>'
+        f'<path d="{_path(top)}" class="tongue"/>'
+    )
+
+
+def _constriction(
+    src: dict[str, Any],
+    to: Scaler,
+    posture: tuple[float, float, str] | None,
+    taken: list[tuple[float, ...]],
+) -> str:
+    """The oral constriction this phone makes, at its own arc and offset.
+
+    A lowered velum opens the nose; it does not close the mouth. The oral
+    closure is the lips for ``m``, the tongue tip for ``n``, the dorsum for
+    ``ng`` -- which is why ``b`` and ``m`` differ here only in the velic
+    aperture, and why the drawing has to show both to say which is which.
+    """
+    if posture is None:
+        return ""
+    arc, offset, articulator = posture
+    if articulator in src["landmarks"].median:
+        # A median articulator closes about the tract axis, not toward a
+        # wall, so `offset` is not its degree: drawing this mark for a
+        # glottal stop puts the closure against the pharyngeal wall. The
+        # folds carry it instead -- see _folds.
+        return ""
+    rows = src["rows"]
+    row = min(rows, key=lambda r: abs(r["arc"] - arc), default=None)
+    if row is None:
+        return ""
+    wall = to(*row["wall"])
+    openp = to(*row["open"])
+    # offset carries the articulator from the midline to the wall
+    ax = openp[0] + (wall[0] - openp[0]) * offset
+    ay = openp[1] + (wall[1] - openp[1]) * offset
+    shut = offset >= 0.995
+    if arc <= 0.02 and shut:
+        return ""  # drawn as the lips meeting, see _lips
+    parts = [
+        f'<line x1="{openp[0]:.1f}" y1="{openp[1]:.1f}" x2="{ax:.1f}" '
+        f'y2="{ay:.1f}" class="reach"/>',
+        f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="5" '
+        f'class="constriction{" shut" if shut else ""}"/>',
+    ]
+    return "".join(parts)  # named once, on the articulator itself
+    name = articulator.replace("-", " ")
+    label = f"{name}\n{'closed' if shut else f'{1 - offset:.2f} open'}"
+    for text, lx, ly, depth in _place_labels([(label, (ax, ay))], -18, -13, taken):
+        parts.append(_text(lx, ly + depth + 10, "lbl constriction", text))
+    return "".join(parts)
+
+
+def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
+    """The oral roof, broken where a lowered velum has left it open.
+
+    The velum *is* part of the boundary. Raised, it seals the port and the
+    roof is continuous; lowered, the roof is open to the nasopharynx and the
+    nasal branch's floor is no longer an obstruction. Drawing an unbroken
+    wall with a flap on top says the port is never open, whatever the flap
+    is doing.
+    """
+    rows = _inside(src)
+    seam = _lip_seam(src, to, 0)
+    if aperture <= 0.01:
+        pts = [to(*r["wall"]) for r in rows]
+        if seam is not None:
+            pts.insert(0, seam)
+        return f'<path d="{_path(pts)}" class="wall"/>'
+    declared = src.get("port_arc")
+    if declared is None:
+        return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
+    port = float(declared)
+    half = PORT_SPAN * aperture
+    before = [to(*r["wall"]) for r in rows if r["arc"] <= port - half]
+    after = [to(*r["wall"]) for r in rows if r["arc"] >= port + half]
+    # The roof meets the lip whether or not the velum has broken it further
+    # back; this branch used to skip the seam and leave the front adrift.
+    if seam is not None and before:
+        before.insert(0, seam)
+    out = []
+    if len(before) > 1:
+        out.append(f'<path d="{_path(before)}" class="wall"/>')
+    if len(after) > 1:
+        out.append(f'<path d="{_path(after)}" class="wall"/>')
+    return "".join(out)
+
+
+def _at(src: dict[str, Any], arc: float, key: str) -> Point | None:
+    best = min(src["rows"], key=lambda r: abs(r["arc"] - arc), default=None)
+    return None if best is None else best[key]
+
+
+def _text(x: float, y: float, cls: str, label: str) -> str:
+    """A label, one tspan per line, so a state can sit under its name."""
+    lines = label.split("\n")
+    spans = "".join(
+        f'<tspan x="{x:.1f}" dy="{0 if i == 0 else LINE_H:.0f}">{line}</tspan>'
+        for i, line in enumerate(lines)
+    )
+    return f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}" text-anchor="middle">{spans}</text>'
+
+
+def _place_labels(
+    items: list[tuple[str, Point]], base: int, step: int, taken: list[tuple[float, ...]]
+) -> list[tuple[str, float, float, float]]:
+    """Drop each label to the shallowest depth where it does not collide.
+
+    A fixed stagger cannot work here: the front of the mouth packs six places
+    into 0.24 of arc, so any fixed number of rows eventually overlaps. This
+    walks the labels in order and pushes each one along until its box is
+    clear of every box already placed, which terminates and leaves the
+    drawing readable whatever the head's proportions are.
+
+    The stated direction is tried first and then the other one, because a
+    label pushed off the bottom of the frame is exactly as unreadable as one
+    sitting under another: the three-line glottal label ran past the canvas
+    on every head. Clear beats inside only when nothing satisfies both.
+    """
+
+    def clear(at: tuple[float, ...]) -> bool:
+        return not any(
+            at[0] < t[2] and t[0] < at[2] and at[1] < t[3] and t[1] < at[3]
+            for t in taken
+        )
+
+    out: list[tuple[str, float, float, float]] = []
+    depths = [base + step * i for i in range(12)]
+    depths += [base - step * i for i in range(1, 12)]
+    for name, (x, y) in items:
+        lines = name.split("\n")
+        half = max(len(line) for line in lines) * CHAR_W / 2
+        height = LINE_H * len(lines)
+        boxes = [(x - half, y + d, x + half, y + d + height) for d in depths]
+        chosen = next(
+            (
+                i
+                for i, at in enumerate(boxes)
+                if clear(at) and at[1] >= 0.0 and at[3] <= SECTION_HEIGHT
+            ),
+            next((i for i, at in enumerate(boxes) if clear(at)), 0),
+        )
+        taken.append(boxes[chosen])
+        out.append((name, x, y, depths[chosen]))
+    return out
+
+
+def _annotate(
+    src: dict[str, Any],
+    to: Scaler,
+    taken: list[tuple[float, ...]],
+    active: dict[str, str] | None = None,
+    posed: Point | None = None,
+) -> str:
+    """Places under the roof, articulators under the floor.
+
+    Labels used to sit above the wall, which is where the nasal branch now
+    runs, so they collided with it and with each other. Places are read off
+    the roof and hang inside the oral cavity; articulators hang below the
+    open trace. Both stagger over three depths, because the front of the
+    mouth packs six places into 0.24 of arc and two depths is not enough.
+    """
+    parts: list[str] = []
+    # The landmarks the inventory this drawing was made against declares --
+    # carried on the geometry by ``drawing`` rather than resolved here, so a
+    # caller's own data names its own places.
+    marks = src["landmarks"]
+
+    # A reference drawing names every landmark; a phone names only the ones it
+    # uses, or the labels crowd out the thing they are labeling.
+    want_place = None if active is None else active.get("place")
+    want_art = None if active is None else active.get("articulator")
+
+    anchors: list[tuple[str, Point]] = []
+    for name, arc in sorted(marks.places.items(), key=lambda kv: kv[1]):
+        if want_place is not None and name != want_place:
+            continue
+        anchor = _at(src, arc, "wall")
+        if anchor is not None:
+            anchors.append((name, to(*anchor)))
+    for name, x, y, depth in _place_labels(anchors, 14, 13, taken):
+        cls = "place fric" if name in marks.frication else "place"
+        parts.append(
+            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
+            f'class="lead {cls}"/>'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4" class="mark {cls}"/>'
+            f'<text x="{x:.1f}" y="{y + depth + 10:.1f}" class="lbl {cls}" '
+            f'text-anchor="middle">{name.replace("-", " ")}</text>'
+        )
+
+    # An articulator is labeled where the posture puts it. Anchoring to the
+    # fully-open trace points at the floor, which is not where a tongue tip
+    # making an alveolar closure is, nor where a lower lip making /m/ is.
+    anchors = []
+    for name, arc in sorted(marks.articulators.items(), key=lambda kv: kv[1]):
+        if want_art is not None and name != want_art:
+            continue
+        anchor = posed if posed is not None else _at(src, arc, "open")
+        if anchor is not None:
+            anchors.append((name, to(*anchor) if posed is None else posed))
+    for shown, x, y, depth in _place_labels(anchors, 18, 13, taken):
+        parts.append(
+            f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y + depth:.1f}" '
+            f'class="lead art"/>'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4" class="mark art"/>'
+            + _text(x, y + depth + 10, "lbl art", shown)
+        )
+    voicing = None if active is None else active.get("glottal")
+    constricts = None if active is None else active.get("articulator")
+    for name, arc in marks.median.items():
+        wall = _at(src, arc, "wall")
+        openp = _at(src, arc, "open")
+        if wall is None or openp is None:
+            continue
+        wx, wy = to(*wall)
+        ox, oy = to(*openp)
+        cx, cy = (wx + ox) / 2, (wy + oy) / 2
+        parts.append(
+            f'<line x1="{ox:.1f}" y1="{oy:.1f}" x2="{wx:.1f}" y2="{wy:.1f}" '
+            f'class="median"/>'
+        )
+        # The ring stands for the axis these folds close about. Where the
+        # folds themselves are drawn it sits in the gap between them and
+        # reads as something in the airway, so the bodies replace it.
+        if not src.get("folds"):
+            parts.append(
+                f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.2" class="medianmark"/>'
+            )
+        states = []
+        if voicing is not None:
+            # The word comes from the data's own `label`, at whatever
+            # granularity the segment states: "breathy-voiced" when it
+            # spells a phonation, "voiceless" when it spells only `voiced`.
+            states.append(voicing)
+        if name == constricts and active is not None and active.get("degree"):
+            states.append(str(active["degree"]))
+        shown = "\n".join([name.replace("-", " "), *states]) if states else name
+        for label, lx, ly, depth in _place_labels([(shown, (cx, cy))], 14, 13, taken):
+            parts.append(
+                f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{lx:.1f}" '
+                f'y2="{ly + depth:.1f}" class="lead art"/>'
+                + _text(lx, ly + depth + 10, "lbl art", label.replace("-", " "))
+            )
+    teeth = src.get("teeth") or []
+    for prefix, tag, base in (
+        ("upper-", "upper teeth", -22),
+        ("lower-", "lower teeth", 14),
+    ):
+        row = [t for t in teeth if str(t["name"]).startswith(prefix)]
+        if len(row) < 2:
+            continue
+        # A tooth has extent: crown, incisal edge and arch close into a
+        # wedge rather than a bare polyline, so it reads as a body sitting
+        # on the jaw it belongs to.
+        pts = [to(t["x"], t["y"]) for t in row]
+        parts.append(f'<path d="{_path(pts, close=True)}" class="teeth"/>')
+        step = 13 if base > 0 else -13
+        if active is not None:
+            continue
+        for label, lx, ly, depth in _place_labels([(tag, pts[0])], base, step, taken):
+            parts.append(
+                f'<text x="{lx:.1f}" y="{ly + depth + 10:.1f}" class="lbl teeth" '
+                f'text-anchor="middle">{label}</text>'
+            )
+    rest_arc = src.get("rest_arc") if active is None else None
+    if rest_arc is not None:
+        anchor = _at(src, float(rest_arc), "rest")
+        if anchor is not None:
+            x, y = to(*anchor)
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" class="restmark"/>'
+            )
+            for text, rx, ry, depth in _place_labels(
+                [("rest", (x, y))], -16, -13, taken
+            ):
+                parts.append(
+                    f'<text x="{rx:.1f}" y="{ry + depth + 10:.1f}" class="lbl rest" '
+                    f'text-anchor="middle">{text}</text>'
+                )
+    return "".join(parts)
+
+
+def _nasal(
+    src: dict[str, Any],
+    to: Scaler,
+    aperture: float,
+    taken: list[tuple[float, ...]],
+) -> str:
+    """The nasal branch, and the velum at the aperture this bundle asks for."""
+    rows = src.get("nasal") or []
+    if not rows:
+        return ""
+    upper = [to(*r["wall"]) for r in rows]
+    lower = [to(*r["low"]) for r in rows]
+    # The nasopharynx and the oropharynx are continuous; the port is only
+    # where the velum can close between them. So the branch's posterior edge
+    # joins the oral wall behind the port instead of stopping in mid-air.
+    port = src.get("port_arc")
+    join: list[Point] = []
+    if port is not None:
+        behind = [
+            to(*r["wall"])
+            for r in src["rows"]
+            if float(port) <= r["arc"] <= float(port) + 0.10
+        ]
+        join = behind
+    tube = _path(upper + join[::-1] + list(reversed(lower)), close=True)
+    mid = _path([to(*r["mid"]) for r in rows])
+    # The floor near the port stops being a boundary once the port is open.
+    keep = (
+        len(lower)
+        if aperture <= 0.01
+        else max(2, int(len(lower) * (1 - 0.18 * aperture)))
+    )
+    parts = [
+        f'<path d="{tube}" class="nasalfill"/>',
+        f'<path d="{_path(upper + join[::-1])}" class="nasalside"/>',
+        f'<path d="{_path(lower[:keep])}" class="nasalside"/>',
+        f'<path d="{mid}" class="nasalmid"/>',
+    ]
+    lx, ly = to(*rows[len(rows) // 3]["wall"])
+    for label, nx, ny, depth in _place_labels(
+        [("nasal cavity", (lx, ly))], -20, -13, taken
+    ):
+        parts.append(
+            f'<text x="{nx:.1f}" y="{ny + depth + 10:.1f}" class="lbl nasal" '
+            f'text-anchor="middle">{label.replace("-", " ")}</text>'
+        )
+    declared_port = src.get("port_arc")
+    if declared_port is None:
+        return "".join(parts)
+    port_arc = float(declared_port)
+    hinge = _at(src, max(port_arc - 0.08, 0.0), "wall")
+    lowered_to = _at(src, port_arc, "open")
+    if hinge is None or lowered_to is None:
+        return "".join(parts)
+    hx, hy = to(*hinge)
+    sealed = to(*rows[-1]["mid"])
+    lowered = to(*lowered_to)
+    tx = sealed[0] + (lowered[0] - sealed[0]) * aperture
+    ty = sealed[1] + (lowered[1] - sealed[1]) * aperture
+    if aperture <= 0.01:
+        state = "sealed"
+    elif aperture >= 0.99:
+        state = "open"
+    else:
+        state = "part-open"
+    parts.append(
+        f'<path d="M{hx:.1f},{hy:.1f} Q{hx:.1f},{ty:.1f} {tx:.1f},{ty:.1f}" '
+        f'class="velum"/>'
+        f'<circle cx="{tx:.1f}" cy="{ty:.1f}" r="3" class="velumtip"/>'
+    )
+    for text, vx, vy, depth in _place_labels(
+        [(f"velum\nport {state}", (tx, ty))], 14, 13, taken
+    ):
+        parts.append(
+            f'<line x1="{vx:.1f}" y1="{vy:.1f}" x2="{vx:.1f}" '
+            f'y2="{vy + depth:.1f}" class="lead art"/>'
+            + _text(vx, vy + depth + 10, "lbl velum", text)
+        )
+    return "".join(parts)
+
+
+def section_svg(
+    current: dict[str, Any],
+    prior: dict[str, Any] | None,
+    aperture: float = 0.0,
+    posture: tuple[float, float, str] | None = None,
+    caption: dict[str, Any] | None = None,
+    active: dict[str, str] | None = None,
+) -> str:
+    sets = [current] if prior is None else [current, prior]
+    to = _scaler(*_extent(*sets))
+    parts = []
+    if prior is not None:
+        parts.append(
+            '<path d="' + _band(prior, to, "wall", "open") + '" class="sweep prior"/>'
+        )
+    # With a posture the shaded region is the airway, so it stops at the
+    # articulator. Without one it is the articulator's whole sweep, which is
+    # what the reference drawing is for.
+    surface = current.get("tongue") or []
+    if surface:
+        tongue_at = {round(a, 6): (x, y) for a, x, y in surface}
+        roof: list[Point] = []
+        floor: list[Point] = []
+        upper_seam = _lip_seam(current, to, 0)
+        lower_seam = _lip_seam(current, to, 1)
+        if upper_seam is not None:
+            roof.append(upper_seam)
+        if lower_seam is not None:
+            floor.append(lower_seam)
+        for row in _inside(current):
+            roof.append(to(*row["wall"]))
+            here = tongue_at.get(round(row["arc"], 6))
+            floor.append(to(*here) if here else to(*row["open"]))
+        parts.append(
+            f'<path d="{_path(roof + floor[::-1], close=True)}" class="sweep trace"/>'
+        )
+    else:
+        parts.append(
+            '<path d="'
+            + _path(
+                [q for q in (_lip_seam(current, to, 0),) if q]
+                + [to(*r["wall"]) for r in _inside(current)]
+                + [to(*r["open"]) for r in reversed(_inside(current))]
+                + [q for q in (_lip_seam(current, to, 1),) if q],
+                close=True,
+            )
+            + '" class="sweep trace"/>'
+        )
+    parts.append(_wall_with_port(current, to, aperture))
+    parts.append('<path d="' + _trace(current, to, "rest") + '" class="restline"/>')
+    parts.append('<path d="' + _trace(current, to, "open") + '" class="openline"/>')
+    taken: list[tuple[float, ...]] = []
+    posed: Point | None = None
+    if active is not None and posture is not None:
+        row = min(current["rows"], key=lambda r: abs(r["arc"] - posture[0]))
+        wall_pt, open_pt = to(*row["wall"]), to(*row["open"])
+        posed = (
+            open_pt[0] + (wall_pt[0] - open_pt[0]) * posture[1],
+            open_pt[1] + (wall_pt[1] - open_pt[1]) * posture[1],
+        )
+    # The annotation layer reserves its boxes before any tract label is
+    # placed, so the two cannot collide however the head is proportioned.
+    strip = _strip([dict(m) for m in current.get("marks") or []], taken)
+    parts.append(_annotate(current, to, taken, active, posed))
+    parts.append(_nasal(current, to, aperture, taken))
+    parts.append(_tongue(current, to))
+    parts.append(_constriction(current, to, posture, taken))
+    parts.append(_secondary(current, to, taken))
+    parts.append(_folds(current, to))
+    parts.append(strip)
+    parts.append(
+        _lips(
+            current,
+            to,
+            posture,
+            taken,
+            named_lip=bool(active and "lip" in (active.get("articulator") or "")),
+        )
+    )
+    parts.append(_caption(caption))
+    return (
+        f'<svg viewBox="0 0 {WIDTH} {SECTION_HEIGHT}" role="img" '
+        f'aria-label="Mid-sagittal tract section">{"".join(parts)}</svg>'
+    )
+
+
+def standalone_svg(
+    current: dict[str, Any],
+    prior: dict[str, Any] | None = None,
+    aperture: float = 0.0,
+    posture: tuple[float, float, str] | None = None,
+    caption: dict[str, Any] | None = None,
+    active: dict[str, str] | None = None,
+) -> str:
+    """A section that travels on its own: namespaced, with literal styles.
+
+    The checked-in figures go through here, so a test can redraw one and
+    compare bytes without restating what ``make figures`` does to it.
+    """
+    svg = section_svg(current, prior, aperture, posture, caption, active)
+    return svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1).replace(
+        ">", f"><style>{_literal_style()}</style>", 1
+    )
+
+
+def profile_svg(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
+    left, top = 60, 30
+    width, height = WIDTH - 110, CHART_HEIGHT - 90
+    parts = []
+    for arc in (0.0, 0.25, 0.5, 0.75, 1.0):
+        gx = left + arc * width
+        parts.append(
+            f'<line x1="{gx:.1f}" y1="{top}" x2="{gx:.1f}" '
+            f'y2="{top + height}" class="grid"/>'
+            f'<text x="{gx:.1f}" y="{top + height + 17}" class="tick" '
+            f'text-anchor="middle">{arc:.2f}</text>'
+        )
+    for value in (0.05, 0.10, 0.15, 0.20):
+        gy = top + height - (value / CEILING) * height
+        parts.append(
+            f'<line x1="{left}" y1="{gy:.1f}" x2="{left + width}" '
+            f'y2="{gy:.1f}" class="grid"/>'
+            f'<text x="{left - 8}" y="{gy + 4:.1f}" class="tick" '
+            f'text-anchor="end">{value:.2f}</text>'
+        )
+    series: list[tuple[dict[str, Any], str]] = []
+    if prior is not None:
+        series.append((prior, "prior"))
+    series.append((current, "trace"))
+    for src, cls in series:
+        pts = [
+            (
+                left + p["arc"] * width,
+                top + height - (p["diameter"] / CEILING) * height,
+            )
+            for p in src["midline"]
+        ]
+        parts.append(f'<path d="{_path(pts)}" class="line {cls}"/>')
+        for (x, y), point in zip(pts, src["midline"], strict=True):
+            kind = "measured" if point.get("provenance") == "measured" else cls
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.9" class="dot {kind}"/>'
+            )
+    parts.append(
+        f'<text x="{WIDTH // 2}" y="{CHART_HEIGHT - 8}" class="axis" '
+        f'text-anchor="middle">arc — lips 0.00 to glottis 1.00</text>'
+    )
+    return (
+        f'<svg viewBox="0 0 {WIDTH} {CHART_HEIGHT}" role="img" '
+        f'aria-label="Declared diameter against arc">{"".join(parts)}</svg>'
+    )
+
+
+STYLE = """
+:root{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;--text:#CFDAE2;
+--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;--tongueFill:rgba(223,163,58,.16);--lipFill:rgba(159,198,220,.30);--lipShut:rgba(223,163,58,.45);--toothFill:rgba(207,218,226,.55);
+--tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
+@media (prefers-color-scheme:light){:root{--ground:#DFE4E8;--panel:#F1F4F6;
+--edge:#C9D2D9;--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;
+--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tongueFill:rgba(169,111,14,.15);--lipFill:rgba(34,67,92,.22);--lipShut:rgba(169,111,14,.38);--toothFill:rgba(22,32,42,.30);--tubeTrace:rgba(34,67,92,.10);
+--tubePrior:rgba(154,169,180,.22)}}
+:root[data-theme=dark]{--ground:#0A0E13;--panel:#111922;--edge:#1E2B36;
+--text:#CFDAE2;--dim:#7A8B98;--trace:#9FC6DC;--prior:#46596A;--signal:#DFA33A;--velum:#7FD1B9;--velumText:#5E9384;--inkQuiet:#93A3AF;--tongueFill:rgba(223,163,58,.16);--lipFill:rgba(159,198,220,.30);--lipShut:rgba(223,163,58,.45);--toothFill:rgba(207,218,226,.55);
+--tubeTrace:rgba(159,198,220,.13);--tubePrior:rgba(70,89,106,.20)}
+:root[data-theme=light]{--ground:#DFE4E8;--panel:#F1F4F6;--edge:#C9D2D9;
+--text:#16202A;--dim:#5C6E7C;--trace:#22435C;--prior:#9AA9B4;--signal:#A96F0E;--velum:#1F7A63;--velumText:#4C8375;--inkQuiet:#6B7C88;--tongueFill:rgba(169,111,14,.15);--lipFill:rgba(34,67,92,.22);--lipShut:rgba(169,111,14,.38);--toothFill:rgba(22,32,42,.30);
+--tubeTrace:rgba(34,67,92,.10);--tubePrior:rgba(154,169,180,.22)}
+body{background:var(--ground);color:var(--text);margin:0;
+font:400 16px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:52px 24px 88px;
+display:flex;flex-direction:column;gap:34px}
+.eyebrow{font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+letter-spacing:.18em;text-transform:uppercase;color:var(--signal);margin:0}
+h1{font-size:30px;line-height:1.2;font-weight:600;margin:10px 0 0;
+text-wrap:balance;letter-spacing:-.012em}
+h2{font-size:18px;font-weight:600;margin:0 0 4px}
+p{margin:0;max-width:66ch}
+section{display:flex;flex-direction:column;gap:12px}
+figure{margin:0;background:var(--panel);border:1px solid var(--edge);
+border-radius:3px;padding:10px;overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:520px}
+figcaption{font:400 13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+color:var(--dim);padding:10px 4px 2px}
+.sweep{stroke:none}
+.sweep.trace{fill:var(--tubeTrace)}
+.sweep.prior{fill:var(--tubePrior)}
+.wall{fill:none;stroke:var(--trace);stroke-width:2}
+.openline{fill:none;stroke:var(--trace);stroke-width:1;opacity:.55}
+.restline{fill:none;stroke:var(--trace);stroke-width:1;
+stroke-dasharray:3 4;opacity:.75}
+.lead{stroke-width:1;opacity:.5}
+.lead.place{stroke:var(--trace)}
+.lead.place.fric{stroke:var(--signal)}
+.lead.art{stroke:var(--dim)}
+.mark.place{fill:var(--trace)}
+.mark.art{fill:var(--dim)}
+.mark.place.fric{fill:var(--signal)}
+.lbl{font:400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.glyph{font:500 24px ui-sans-serif,system-ui,-apple-system,sans-serif;
+fill:var(--text)}
+.lbl.caption{fill:var(--dim);font-size:12px}
+.lbl.feat{fill:var(--dim)}
+.featkey{fill:var(--inkQuiet);opacity:.75}
+.lbl.place{fill:var(--trace)}
+.lbl.place.fric{fill:var(--signal)}
+.lbl.art{fill:var(--dim)}
+.lbl.rest{fill:var(--text)}
+.lbl.nasal{fill:var(--dim);font-style:italic}
+.restmark{fill:none;stroke:var(--dim);stroke-width:1}
+.nasalfill{fill:var(--tubeTrace);stroke:none}
+.nasalside{fill:none;stroke:var(--trace);stroke-width:1.5;opacity:.75}
+.nasalmid{fill:none;stroke:var(--trace);stroke-width:.8;
+stroke-dasharray:2 4;opacity:.5}
+.velum{stroke:var(--velum);stroke-width:1.5;stroke-linecap:round;fill:none}
+.velumtip{fill:var(--velum)}
+.lbl.velum{fill:var(--velumText);font-weight:400}
+.median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}
+.fold{fill:var(--lipFill);stroke:var(--trace);stroke-width:1.3;stroke-linejoin:round}
+.fold.shut{fill:var(--lipShut);stroke:var(--signal);stroke-width:1.5}
+.secondreach{stroke:var(--signal);stroke-width:1;stroke-dasharray:1 3;opacity:.6}
+.second{fill:none;stroke:var(--signal);stroke-width:1.5;stroke-dasharray:3 2.5}
+.lead.second{stroke:var(--signal);opacity:.4}
+.lbl.second{fill:var(--signal);opacity:.85}
+.chip{fill:none;stroke:var(--inkQuiet);stroke-width:1.4;stroke-linejoin:round;
+stroke-linecap:round}
+.chip.out-of-plane{stroke-dasharray:2 2}
+.chip.phase{stroke:var(--signal)}
+.chip.prosodic{stroke:var(--velum);stroke-width:2.4}
+.lbl.chiplbl{fill:var(--inkQuiet)}
+.lip{fill:var(--lipFill);stroke:var(--trace);stroke-width:1.4;stroke-linejoin:round}
+.lipstem{stroke:var(--signal);stroke-width:2;stroke-linecap:round;fill:none;opacity:.55}
+.lip.shut{fill:var(--lipShut);stroke:var(--signal);stroke-width:1.6}
+.lbl.lip{fill:var(--dim);font-weight:400}
+.tonguebody{fill:var(--tongueFill);stroke:none}
+.tongue{fill:none;stroke:var(--signal);stroke-width:2;stroke-linejoin:round;
+stroke-linecap:round;opacity:.9}
+.reach{stroke:var(--signal);stroke-width:1;stroke-dasharray:2 3;opacity:.8}
+.constriction{fill:none;stroke:var(--signal);stroke-width:1.5}
+.constriction.shut{fill:var(--signal)}
+.lbl.constriction{fill:var(--signal);font-weight:400;opacity:.85}
+.teeth{fill:var(--toothFill);stroke:var(--inkQuiet);stroke-width:1.2;stroke-linejoin:round}
+.teethmark{fill:var(--inkQuiet)}
+.lbl.teeth{fill:var(--inkQuiet);font-weight:400}
+.medianmark{fill:none;stroke:var(--dim);stroke-width:1.5}
+.dot.measured{fill:var(--signal)}
+td.measured{color:var(--signal)}
+.line{fill:none;stroke-width:2;stroke-linejoin:round}
+.line.prior{stroke:var(--prior)}
+.line.trace{stroke:var(--trace)}
+.dot.prior{fill:var(--prior)}
+.dot.trace{fill:var(--trace)}
+.grid{stroke:var(--edge);stroke-width:1}
+.tick,.axis{font:400 11px ui-monospace,SFMono-Regular,Menlo,monospace;
+fill:var(--dim)}
+.key{display:flex;flex-wrap:wrap;gap:18px;color:var(--dim);
+font:400 13px ui-monospace,SFMono-Regular,Menlo,monospace}
+.key span{display:inline-flex;align-items:center;gap:7px}
+.key i{width:15px;height:2px;display:inline-block}
+table{border-collapse:collapse;width:100%;
+font:400 13.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+th,td{text-align:left;padding:7px 12px 7px 0;
+border-bottom:1px solid var(--edge)}
+th{color:var(--dim);font-weight:500;font-size:11px;letter-spacing:.1em;
+text-transform:uppercase}
+td.num{font-variant-numeric:tabular-nums}
+td.moved{color:var(--signal)}
+@media (max-width:560px){h1{font-size:24px}.wrap{padding:34px 16px 60px}}
+"""
+
+
+def _table(current: dict[str, Any], prior: dict[str, Any] | None) -> str:
+    """Provenance for a release page; the comparison only when one is asked for."""
+    before = {p["arc"]: p["diameter"] for p in prior["midline"]} if prior else {}
+    out = []
+    for point in current["midline"]:
+        prov = str(point.get("provenance", "hand-placed"))
+        cls = " measured" if prov == "measured" else ""
+        prov_attr = ' class="measured"' if cls else ""
+        cells = [
+            f'<td class="num">{point["arc"]:.2f}</td>',
+            f'<td class="num{cls}">{point["diameter"]:.3f}</td>',
+            f"<td{prov_attr}>{prov}</td>",
+        ]
+        if prior is not None:
+            was = before.get(point["arc"])
+            cells.insert(
+                1, f'<td class="num">{"—" if was is None else f"{was:.3f}"}</td>'
+            )
+        out.append("<tr>" + "".join(cells) + "</tr>")
+    return "".join(out)
+
+
+def page(
+    name: str,
+    current: dict[str, Any],
+    prior: dict[str, Any] | None,
+    aperture: float = 0.0,
+    phone: str | None = None,
+    posture: tuple[float, float, str] | None = None,
+    caption: dict[str, Any] | None = None,
+    active: dict[str, str] | None = None,
+) -> str:
+    """The figure in a page that reads along with it.
+
+    What the page carries beyond the figure is decided by ``phone`` and not
+    by ``caption``: the reference drawing gets the aperture profile and its
+    provenance because it is the reference, and a phone asked for without a
+    caption is still a phone.
+    """
+    key = (
+        ""
+        if prior is None
+        else '<div class="key">'
+        '<span><i style="background:var(--prior)"></i>compared</span>'
+        '<span><i style="background:var(--trace)"></i>current</span></div>'
+    )
+    subject = f"{phone} — " if phone else ""
+    compared = "<th>compared</th>" if prior else ""
+    aperture_section = (
+        ""
+        if phone is not None
+        else f"""<section><h2>Declared aperture</h2>
+<p>The tract's cross dimension along its length, from the lips at 0 to the
+glottis at 1. Amber points are measured; the rest are extrapolated or
+hand-placed, which the table below states for each.</p>
+<figure>{profile_svg(current, prior)}</figure></section>"""
+    )
+    provenance = (
+        ""
+        if phone is not None
+        else f"""<section><h2>Where the numbers come from</h2>
+<p><em>Measured</em> is the aperture taken from the X-Ray Microbeam database
+over 48 speakers. That corpus has no upper wall forward of arc 0.11 and none
+behind arc 0.44, so everything outside that span is extrapolated, and the nasal
+branch, the teeth and the child head are hand-placed throughout. See
+<code>docs/articulatory-data.md</code>.</p>
+<table><thead><tr><th>arc</th>{compared}<th>aperture</th><th>provenance</th></tr>
+</thead><tbody>{_table(current, prior)}</tbody></table></section>"""
+    )
+    lede = (
+        "Every landmark the head declares, drawn at the rest posture. A "
+        "drawing for a single phone names only the landmarks that phone "
+        "uses; this one names them all, so it is the key to those."
+        if phone is None
+        else "The tract shaped for one phone. Only the landmarks this phone "
+        "uses are named — see the reference drawing for the rest."
+    )
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{subject}mid-sagittal tract</title>
+<style>{STYLE}</style></head><body>
+<div class="wrap">
+<header><p class="eyebrow">ipakit · {name}</p>
+<h1>Mid-sagittal tract</h1>
+<p style="margin-top:12px;color:var(--dim)">{lede}</p></header>
+
+<section><h2>How to read it</h2>
+<p>The <b>wall</b> is fixed — palate, teeth, pharyngeal wall. The
+<b>articulator</b> sweeps between fully open, at the midline, and closed
+against that wall; the shaded band is that sweep and the dashed line inside
+it is the rest position. A constriction is therefore a place along the tract
+and a degree of closure, which is exactly what <code>arc</code> and
+<code>offset</code> hold.</p>
+<p>The tongue is one body, so a constriction deforms its whole surface rather
+than marking a point: moving it carries the tip, blade and dorsum along. The
+<b>velic port</b> opens when a segment states nasality, and a lowered velum
+leaves a gap in the oral roof, because the velum is part of that boundary.
+Places in amber host a fricative or affricate somewhere in the inventory.</p>
+<figure>{section_svg(current, prior, aperture, posture, caption, active)}</figure>{key}</section>
+
+{aperture_section}
+
+{provenance}
+</div></body></html>"""
+
+
+def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
+    prior: dict[str, Any] | None = None
+    if args.compare:
+        loaded = json.loads(Path(args.compare).read_text(encoding="utf-8"))
+        if args.head not in loaded:
+            print(f"{args.compare} has no head {args.head!r}", file=sys.stderr)
+            return 1
+        prior = loaded[args.head]
+    if args.head not in heads():
+        print(
+            f"no head {args.head!r}; have {', '.join(sorted(heads()))}", file=sys.stderr
+        )
+        return 1
+    drawn = drawing(args.head, args.phone)
+    current = drawn["geometry"]
+    if str(args.output).endswith(".svg"):
+        Path(args.output).write_text(render(drawn, prior), encoding="utf-8")
+    else:
+        Path(args.output).write_text(render_page(drawn, prior), encoding="utf-8")
+    moved = 0
+    if prior is not None:
+        before = {p["arc"]: p["diameter"] for p in prior["midline"]}
+        moved = sum(
+            1
+            for p in current["midline"]
+            if p["arc"] not in before or abs(before[p["arc"]] - p["diameter"]) > 1e-9
+        )
+        note = f", {moved} midline point(s) differ"
+    else:
+        note = ""
+    print(f"wrote {args.output}: {args.head}, {len(current['rows'])} samples{note}")
+    return 0
+
+
+def cmd_dump(args: argparse.Namespace) -> int:
+    out = {name: geometry(name) for name in sorted(heads())}
+    Path(args.output).write_text(json.dumps(out), encoding="utf-8")
+    print(f"wrote {args.output}: {', '.join(sorted(heads()))}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_draw = sub.add_parser("draw", help="render a head to a standalone page")
+    p_draw.add_argument("--head", default="adult-male")
+    p_draw.add_argument("-o", "--output", default="tract.html")
+    p_draw.add_argument("--compare", help="a dump from another revision, overlaid")
+    p_draw.add_argument("--phone", help="open the velic port as this phone asks")
+    p_draw.set_defaults(func=cmd_draw)
+
+    p_dump = sub.add_parser("dump", help="project every head to JSON, for --compare")
+    p_dump.add_argument("-o", "--output", default="heads.json")
+    p_dump.set_defaults(func=cmd_dump)
+
+    args = parser.parse_args(argv)
+    result: int = args.func(args)
+    return result
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

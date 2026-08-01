@@ -7,7 +7,7 @@ import re
 import unicodedata
 import warnings
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from types import MappingProxyType
 
@@ -19,8 +19,7 @@ from .constants import (
     DERIVED_CLASSES,
     MAX_MATCH_LEN,
     METADATA_ATTRS,
-    SEQ_TIE,
-    TIE_BAR,
+    ZERO_CLASS,
 )
 from .distance import DistanceMixin
 from .hierarchy import HierarchyMixin
@@ -62,11 +61,32 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # port, when the bridge declares one. Rendering geometry: read by
         # ipakit.tract, never by the metric, which uses only the pairs above.
         self.bridge_apertures: dict[str, dict[tuple[str, str], float]] = {}
+        # A fine (feature, value) -> the coarse (feature, value) it reads as:
+        # phonation="devoiced" is voiced="-" read two ways instead of four.
+        # Declared in <projections>; read by the write side only, never
+        # resolved onto a segment's features (see the block's comment).
+        self.projections: dict[tuple[str, str], tuple[str, str]] = {}
         self.types: dict[str, list[str]] = {}
         self.features: dict[str, Feature] = {}
         self.phones: dict[str, Phone] = {}
         self.diacritics: dict[str, Phone] = {}
         self.separators: dict[str, Phone] = {}
+        #: Declared positions that hold a slot open without filling one --
+        #: today ``∅``. Its own element class because it is neither a sound
+        #: nor a relation between sounds; see :func:`ipakit.form.zeros`.
+        self.zeros: dict[str, Phone] = {}
+        #: Symbol -> the notation it belongs to, from ``<notations>``. Only
+        #: the *listed* symbols: everything else is :attr:`default_notation`,
+        #: which is what :meth:`notation_of` reads. Provenance is held here
+        #: rather than on each symbol's own element because an attribute
+        #: there lands in that symbol's feature bundle, and a key in a
+        #: bundle is a term in the metric (the block's comment in ipa.xml
+        #: carries the measurement).
+        self.notations: dict[str, str] = {}
+        #: The notation an unlisted symbol belongs to -- ``chart`` in the
+        #: shipped file. Empty where no ``<notations>`` block is declared,
+        #: rather than a name invented here.
+        self.default_notation: str = ""
         self.ligature_map: dict[str, str] = {}
         # Soft reads: ASCII stand-in -> IPA symbol. Applied only on explicit
         # wild import (:meth:`from_wild`), never by default parsing.
@@ -92,6 +112,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 list(self.phones)
                 + list(self.diacritics)
                 + list(self.separators)
+                + list(self.zeros)
                 + list(self.ligature_map)
                 + list(self.lookalikes)
             )
@@ -155,11 +176,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # how its values read and what classes they belong to.
                 labels: dict[str, str] = {}
                 classes: dict[str, set[str]] = {}
+                moves: dict[str, str] = {}
                 for v in feat_elem.findall("value"):
                     if not (val_name := v.get("name")):
                         continue
                     if (label := v.get("label")) is not None:
                         labels[val_name] = label
+                    if (sign := v.get("move")) is not None:
+                        moves[val_name] = sign
                     for cls in (v.get("natural-class") or "").split():
                         classes.setdefault(cls, set()).add(val_name)
                 if feat_type in self.types:
@@ -226,6 +250,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     applies=frozenset((feat_elem.get("applies") or "").split()),
                     labels=labels,
                     value_classes={k: frozenset(v) for k, v in classes.items()},
+                    sequence=feat_elem.get("sequence") == "+",
+                    over=feat_elem.get("over"),
+                    moves=moves,
                 )
 
         # `applies` names a declared manner value, or one of the derived
@@ -246,6 +273,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         f"neither a declared manner value nor one of "
                         f"{sorted(DERIVED_CLASSES)}"
                     )
+            # `over` names the scale this feature's values move along, and
+            # a move is only readable if the scale is ordered. Checked at
+            # load, because a dangling name would show up as a contour
+            # that quietly never derives.
+            if feat.over is not None:
+                scale = self.features.get(feat.over)
+                if scale is None or not scale.is_ordinal:
+                    raise ValueError(
+                        f"feature {name!r} declares over={feat.over!r}, which is "
+                        "not a declared ordinal feature"
+                    )
+                if undeclared := set(feat.moves) - feat.values_set:
+                    raise ValueError(
+                        f"feature {name!r} gives a move to {sorted(undeclared)}, "
+                        "which it does not declare as values"
+                    )
 
         # Load elements by class (plural section, singular child = section[:-1])
         for section_name in self.classes:
@@ -253,6 +296,45 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 child_name = section_name[:-1]  # phones -> phone
                 for child_elem in elem.findall(child_name):
                     self._load_element(child_elem, child_name)
+
+        # Load the provenance block: which symbols are NOT on the IPA chart.
+        # A block, and not an attribute on each symbol's own element, for
+        # the reason ipa.xml records beside it: an attribute there lands in
+        # that symbol's feature bundle, and a key in a bundle is a term in
+        # the metric.
+        if (notations_elem := root.find("notations")) is not None:
+            declared_notations = [
+                name
+                for n in notations_elem.findall("notation")
+                if (name := n.get("name"))
+            ]
+            self.default_notation = notations_elem.get("default") or ""
+            if (
+                self.default_notation
+                and self.default_notation not in declared_notations
+            ):
+                raise ValueError(
+                    f"default notation {self.default_notation!r} is not "
+                    f"declared in <notations>; declared are "
+                    f"{declared_notations}"
+                )
+            for notation in notations_elem.findall("notation"):
+                if not (name := notation.get("name")):
+                    continue
+                for symbol_elem in notation.findall("symbol"):
+                    if not (symbol := symbol_elem.get("name")):
+                        continue
+                    # One symbol comes from one convention. Without this the
+                    # last block listing it would win, so the answer would
+                    # depend on declaration order and say so nowhere.
+                    if (prior := self.notations.get(symbol)) is not None:
+                        raise ValueError(
+                            f"symbol {symbol!r} is listed under two "
+                            f"notations, {prior!r} and {name!r}; a symbol "
+                            "belongs to one, or which one is read depends "
+                            "on the order the blocks happen to be in"
+                        )
+                    self.notations[symbol] = name
 
         # Load the bridge declarations (one dimension, several spellings).
         if (bridges_elem := root.find("bridges")) is not None:
@@ -288,6 +370,59 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 if apertures:
                     self.bridge_apertures[bname] = apertures
 
+        # Load the projections (one fact, a fine feature and a coarse one).
+        if (projections_elem := root.find("projections")) is not None:
+            for projection in projections_elem.findall("projection"):
+                fine_name, coarse_name = projection.get("from"), projection.get("to")
+                if not fine_name or not coarse_name:
+                    continue
+                fine = self.features.get(fine_name)
+                coarse = self.features.get(coarse_name)
+                if fine is None or coarse is None:
+                    missing = fine_name if fine is None else coarse_name
+                    raise ValueError(
+                        f"projection {fine_name!r}->{coarse_name!r} names "
+                        f"undeclared feature {missing!r}"
+                    )
+                if fine_name == coarse_name:
+                    raise ValueError(
+                        f"projection {fine_name!r}->{coarse_name!r} projects a "
+                        "feature onto itself, which says nothing"
+                    )
+                mapped: set[str] = set()
+                for value_elem in projection.findall("value"):
+                    fine_value = value_elem.get("name")
+                    coarse_value = value_elem.get("reads")
+                    if not fine_value or coarse_value is None:
+                        continue
+                    if fine_value not in fine.values_set:
+                        raise ValueError(
+                            f"projection {fine_name!r}->{coarse_name!r} names "
+                            f"value {fine_value!r}, which feature "
+                            f"{fine_name!r} does not declare"
+                        )
+                    if coarse_value not in coarse.values_set:
+                        raise ValueError(
+                            f"projection {fine_name!r}->{coarse_name!r} reads "
+                            f"{fine_value!r} as {coarse_value!r}, which feature "
+                            f"{coarse_name!r} does not declare"
+                        )
+                    self.projections[(fine_name, fine_value)] = (
+                        coarse_name,
+                        coarse_value,
+                    )
+                    mapped.add(fine_value)
+                # Total by construction: a projection that covered only some
+                # values would leave the rest looking like an independent
+                # dimension, so adding a phonation cannot quietly opt out of
+                # saying whether it is voiced.
+                if unmapped := set(fine.values) - mapped:
+                    raise ValueError(
+                        f"projection {fine_name!r}->{coarse_name!r} leaves "
+                        f"{sorted(unmapped)} unmapped; every value of "
+                        f"{fine_name!r} must say how it reads as {coarse_name!r}"
+                    )
+
         # Load references
         if (refs_elem := root.find("references")) is not None:
             for ref in refs_elem.findall("ref"):
@@ -304,17 +439,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         derived = set()
         for name in list(self.phones):
-            if TIE_BAR not in name and SEQ_TIE not in name:
+            if not self.tie_bars & set(name):
                 continue
             phone = self.phones[name]
             explicit = set(phone.features) - {"class", "href"}
             if explicit:
                 continue
-            parts = name.replace(SEQ_TIE, TIE_BAR).split(TIE_BAR)
+            parts = name.replace(self.seq_tie, self.tie_bar).split(self.tie_bar)
             all_vocalic = all(
                 self._part_features(part).get("manner") == "vowel" for part in parts
             )
-            spelling = name.replace(TIE_BAR, SEQ_TIE) if all_vocalic else name
+            spelling = name.replace(self.tie_bar, self.seq_tie) if all_vocalic else name
             feats = self._compose_tie_bar_features(spelling)
             if feats is None:
                 raise ValueError(
@@ -343,7 +478,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 self.lookalikes[lookalike] = ipa
 
     def _load_element(self, elem: ET.Element, element_type: str) -> None:
-        """Load a single element into the appropriate dict."""
+        """Load a single element into the dict its class routes to.
+
+        Every class ``<classes>`` declares must be routed here. An
+        unrouted one used to load into nowhere, silently: ``<zeros>`` was
+        declared, parsed by nothing, and read by a second opener of
+        ``ipa.xml`` in ``ipakit.form`` -- so the next block added would
+        have vanished the same way, with a green suite and no diagnostic.
+        A class with no home is now a load-time refusal, because the data
+        and the reader disagreeing about what the file contains is not a
+        thing to discover from a wrong answer later.
+        """
         if not (symbol := elem.get("name")):
             return
         features = {
@@ -361,6 +506,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             self.diacritics[symbol] = phone
         elif element_type == "separator":
             self.separators[symbol] = phone
+        elif element_type == ZERO_CLASS:
+            self.zeros[symbol] = phone
+        else:
+            raise ValueError(
+                f"element class {element_type!r} (section "
+                f"{element_type + 's'!r}, declaring {symbol!r}) is declared "
+                "in <classes> but routed into no table, so everything in it "
+                "would load into nowhere. Give it a home in "
+                "IPAFeatures._load_element."
+            )
 
         # Aliases become normalization entries (alias → canonical)
         # Supports multiple space-separated aliases
@@ -429,7 +584,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         except ValueError:
             return {}
         chain = "".join(
-            c.base if i == 0 else unit.junctures[i - 1].glyph + c.base
+            c.base if i == 0 else unit.junctures[i - 1].glyph(self) + c.base
             for i, c in enumerate(unit.constituents)
         )
         if chain == phone:
@@ -524,14 +679,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         composable over-tie run); pure over-tie runs when every part
         resolves as a phone or base+modifiers.
         """
-        if SEQ_TIE in phone:
-            parts = phone.split(SEQ_TIE)
+        if self.seq_tie in phone:
+            parts = phone.split(self.seq_tie)
             return len(parts) >= 2 and all(
                 p and (self._resolves_part(p) or self._is_composable(p)) for p in parts
             )
-        if TIE_BAR not in phone:
+        if self.tie_bar not in phone:
             return False
-        parts = phone.split(TIE_BAR)
+        parts = phone.split(self.tie_bar)
         return len(parts) >= 2 and all(self._resolves_part(p) for p in parts)
 
     def _compose_tie_bar_features(self, phone: str) -> dict[str, str] | None:
@@ -547,8 +702,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         if not self._is_composable(phone):
             return None
-        if SEQ_TIE in phone:
-            blocks = phone.split(SEQ_TIE)
+        if self.seq_tie in phone:
+            blocks = phone.split(self.seq_tie)
             return flat_projection(
                 self,
                 [self._block_features(b) for b in blocks],
@@ -572,7 +727,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         documented to return ``{}``, which is a worse answer than an
         ignored glyph whichever route arrives here.
         """
-        parts = [p for p in run.split(TIE_BAR) if p]
+        parts = [p for p in run.split(self.tie_bar) if p]
         if not parts:
             return {}
         return flat_projection(
@@ -592,7 +747,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         binds the base it sits on, which is what the structured parse
         already says.
         """
-        if self._resolve_token(block) in self.phones or TIE_BAR not in block:
+        if self._resolve_token(block) in self.phones or self.tie_bar not in block:
             return self._part_features(block)
         return self._fuse_run(block)
 
@@ -639,6 +794,67 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 return (term, "-")
         return None
 
+    def _resolve_class_term(self, term: str) -> tuple[str, frozenset[str]] | None:
+        """Resolve a declared natural-class name to (feature, its values).
+
+        A ``natural-class`` on a ``<value>`` groups values of one feature
+        under a name a phonologist already has -- ``obstruent`` for the
+        plosives, fricatives and affricates. The name is not itself a
+        value, so it resolves here rather than through
+        :meth:`_resolve_query_term`, which answers with a single value.
+        """
+        for feat_name, feat in self.features.items():
+            members = feat.value_classes.get(term)
+            if members:
+                return (feat_name, members)
+        return None
+
+    def _unresolved_term(self, spelled: str, term: str, prefix: str) -> str:
+        """Why one query term named nothing, and what would have worked.
+
+        The value arm of the ``key=value`` guard in :mod:`ipakit.rules`
+        names the legal alternatives when a value is misspelled, and a
+        bare term gets the same treatment here, because a term that
+        resolves to nothing is usually not a misspelling: it is a feature
+        name asked for as if it were binary. ``-stress`` is the case in
+        point -- ``stress`` declares ``primary`` and ``secondary``, so
+        there is no ``-`` to take and the spelling that means what it
+        looks like is per-value negation.
+        """
+        klass = self._resolve_class_term(term)
+        if klass is not None:
+            return (
+                f"{spelled!r} resolves to no feature term; {term!r} is a "
+                f"declared natural class of feature {klass[0]!r}, which is "
+                f"selected or excluded whole: write {term!r} or '-{term}'"
+            )
+        feature = self.features.get(term)
+        if feature is None:
+            return (
+                f"{spelled!r} resolves to no feature term; {term!r} is not a "
+                "declared feature, a declared value, a declared natural "
+                "class, or a short name"
+            )
+        values = sorted(feature.values_set)
+        if feature.type == "binary":
+            return (
+                f"{spelled!r} resolves to no feature term; feature {term!r} "
+                f"is binary, so name a side of it: '+{term}' or '-{term}'"
+            )
+        if prefix == "-":
+            negated = " ".join(f"-{value}" for value in values)
+            return (
+                f"{spelled!r} resolves to no feature term; feature {term!r} "
+                f"is not binary, so there is no '-' value to take. Its "
+                f"declared values are {values}; negate them individually "
+                f"instead, as {negated!r}"
+            )
+        return (
+            f"{spelled!r} resolves to no feature term; feature {term!r} takes "
+            f"a value, so ask for one: {term}=<value>, with declared values "
+            f"{values}"
+        )
+
     def _resolve_query(
         self, query: dict[str, str] | list[str] | set[str]
     ) -> tuple[dict[str, str], dict[str, set[str]]]:
@@ -647,9 +863,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         The query language is documented on :meth:`phones_matching`;
         resolution is factored out here so :meth:`find` runs that same
         language over a transcription instead of growing a second one.
+
+        **Every** term must resolve, whatever else is in the query.
+        Dropping a term that names nothing while keeping the ones that do
+        is a narrower query silently widened -- ``['vowel', '-stress']``
+        meaning ``['vowel']``, matching the stressed vowels the term was
+        written to exclude -- which is a wrong answer rather than a
+        vacuous one, so it raises at every arity rather than only when
+        nothing at all resolves.
         """
         positive: dict[str, str] = {}
         negative: dict[str, set[str]] = {}  # feature -> values to exclude
+        unresolved: list[str] = []
 
         if isinstance(query, (list, set)):
             for s in query:
@@ -668,8 +893,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 ):
                     positive[term] = prefix
                     continue
+                # A declared natural class names several values of one
+                # feature. A bracket is a conjunction, so the class is
+                # carried as the exclusion of every value of that feature
+                # OUTSIDE it -- which is what the rule sets wrote out by
+                # hand, and is now derived from the declaration, so a
+                # manner added to the data joins the exclusion instead of
+                # widening the class. The negative arm is the class's own
+                # members, and the two compose: '[obstruent -fricative]'
+                # excludes the six sonorant manners and the fricatives.
+                klass = self._resolve_class_term(term)
+                if klass is not None and prefix in ("", "+", "-"):
+                    feat, members = klass
+                    negative.setdefault(feat, set()).update(
+                        members
+                        if prefix == "-"
+                        else self.features[feat].values_set - members
+                    )
+                    continue
                 resolved = self._resolve_query_term(term, prefix=prefix)
                 if not resolved:
+                    unresolved.append(self._unresolved_term(s, term, prefix))
                     continue
                 feat, val = resolved
                 if prefix == "-":
@@ -684,6 +928,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 feature = self.features.get(key)
                 positive[key] = feature.value_aliases.get(val, val) if feature else val
 
+        if unresolved:
+            raise ValueError("; ".join(unresolved))
         if not positive and not negative:
             raise ValueError(
                 f"no feature terms resolved from {query!r}; an unresolved "
@@ -814,7 +1060,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 for k in self.phones[symbol].features
                 if k not in METADATA_ATTRS and k not in query
             )
-            junctures = symbol.count(TIE_BAR) + symbol.count(SEQ_TIE)
+            junctures = symbol.count(self.tie_bar) + symbol.count(self.seq_tie)
             rank = (extras, junctures, order)
             if best is None or rank < best:
                 best, winner = rank, symbol
@@ -857,6 +1103,293 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             feats.pop(meta, None)
         return self.to_phone(feats)
 
+    def notation_of(self, symbol: str) -> str:
+        """Which notation ``symbol`` belongs to; unlisted is the default.
+
+        The declared read over :attr:`notations`, in the shape of
+        :meth:`declaring_mark`: the block says which symbols are *not* on
+        the IPA chart, and everything else -- including a character this
+        inventory registers nowhere -- answers :attr:`default_notation`.
+
+        Unknown is deliberately not a third answer. "Not on the chart" and
+        "not in this inventory" are different questions and
+        :meth:`validate_ipa` is what answers the second; a symbol that is
+        registered nowhere is not an *extension*, it is a typo.
+        """
+        return self.notations.get(symbol, self.default_notation)
+
+    def declaring_mark(
+        self, key: str, value: str, wanted: dict[str, str] | None = None
+    ) -> tuple[int, str] | None:
+        """The mark that declares ``key=value``, with its declaration rank.
+
+        The one read of "which glyph says this", so the segmental composer
+        and the prosody writer cannot disagree about it.
+        :meth:`compose_unit` writes marks into a phone's spelling and
+        :func:`ipakit.form.with_prosody` writes them into a unit's
+        prosody; both need the same answer, and a second copy of this
+        loop is exactly the kind of duplication that drifted three times
+        already in this repo.
+
+        Which mark carries a value is *asked of the declaration* -- no
+        feature-to-glyph table appears anywhere. Where several declare the
+        same value the most specific wins: fewest declared features, so
+        the mark that says only what was asked beats one that drags a
+        second dimension along; then fewest surplus values the data gives
+        a **label**; then declaration order to break the remaining tie.
+
+        That middle key exists because a projection is many to one. Three
+        marks declare ``voiced="+"`` -- the modal, breathy and creaky
+        rings -- and all three survive the screen below, since the
+        projection says each of those phonations reads ``voiced="+"``.
+        They are not interchangeable, which ``ipa.xml`` says where it
+        declares the projection, so answering "voice this segment" with
+        the breathy ring is a wrong answer wearing a coherent one's
+        clothes: ``compose_unit("s", voiced="+")`` would be ``s̤``. A
+        ``label`` is the data's own statement that a value is worth
+        saying out loud -- ``breathy`` and ``creaky`` declare one,
+        ``modal`` and ``devoiced`` do not, exactly as ``channel=flat``
+        does not -- so a surplus that carries one is a fact the caller
+        did not ask for, and a surplus without one adds nothing sayable.
+        Measured over every declared ``(feature, value)``: seven have
+        several equally specific marks, and this key changes the answer
+        for exactly one of them, ``voiced="+"``. The other six are pairs
+        of marks with identical declarations, where declaration order was
+        already the whole of the choice.
+
+        A mark declaring MORE than was asked is not rejected outright:
+        refusing every surplus was tried and is wrong, because the
+        devoicing ring declares both ``phonation`` and ``voiced``, so it
+        would also refuse ``ɹ̥`` -- exactly the composition an allophonic
+        rule wants. Pass ``wanted``, the whole request, to screen the
+        surplus instead: a mark survives where its extras are the same
+        fact restated per the declared ``<projections>``, and is refused
+        where a genuine second dimension moves. The linguolabial mark is
+        that counterexample -- it declares the requested
+        ``place="bilabial"`` and, independently,
+        ``articulator="tongue-tip"``.
+
+        Without ``wanted`` nothing is screened, which is what the prosody
+        writer needs: it writes marks into a unit's prosody rather than
+        into a phone's spelling, so a segmental surplus cannot arise.
+
+        The rank comes back with the symbol because a caller emitting
+        several marks orders them by mode and then by declaration, and
+        recovering the rank from the symbol would be a second read of the
+        same list.
+
+        Returns ``None`` when nothing declares the value -- which is not
+        always a failure. Nothing declares ``length=normal``, because a
+        bare vowel already says it; a writer reads that as "spell it with
+        no mark at all".
+        """
+        asked = set(wanted) if wanted is not None else {key}
+        candidates: list[tuple[int, int, int, str]] = []
+        for order, (symbol, declared) in enumerate(self.diacritics.items()):
+            bundle = getattr(declared, "features", None) or {}
+            if bundle.get(key) != value:
+                continue
+            if wanted is not None and not self._coheres(bundle, wanted):
+                continue
+            extras = sum(1 for k in bundle if k not in METADATA_ATTRS)
+            # Of the surplus, how much the data says out loud. See the
+            # docstring: a labeled surplus is a second fact, not a
+            # restatement of the one requested.
+            sayable = sum(
+                1
+                for k, v in bundle.items()
+                if k not in METADATA_ATTRS
+                and k not in asked
+                and (feature := self.features.get(k)) is not None
+                and feature.labels.get(v) is not None
+            )
+            candidates.append((extras, sayable, order, symbol))
+        if not candidates:
+            return None
+        _, _, order, symbol = min(candidates)
+        return order, symbol
+
+    def compose_unit(self, base: str, **changes: str) -> str | None:
+        """Spell ``base`` wearing the declared marks that supply ``changes``.
+
+        The composed counterpart of :meth:`respell`. ``respell`` answers
+        only with a *registered* phone, and the fine-grained phones an
+        allophonic rule produces are composed rather than registered:
+        the inventory has no entry for ``tʰ``, ``ɪ̃`` or ``t̚``. So
+        ``respell("t", release="aspirated")`` is ``None`` while
+        ``compose_unit("t", release="aspirated")`` is ``"tʰ"``.
+
+        Registered still wins where one exists, which is this repo's
+        standing rule -- ``l`` velarized is the registered ``ɫ``, not
+        ``lˠ`` -- so a caller wanting the best answer tries
+        :meth:`respell` first and falls back to this.
+
+        **Asking for a value the base already carries is a no-op**, and
+        the base comes back unchanged, which is what :meth:`respell` has
+        always answered. Writing the mark anyway is not a second
+        statement of the same fact, it is a misspelling: ``ɪ̃`` asked to
+        be nasalized came back ``ɪ̃̃``, ``n̩`` asked to be syllabic came
+        back ``n̩̩``, and the shipped American English set spelled
+        *hidden* ``ˈhɪdⁿn̩̩`` because its nasal-release rule and its
+        syllabic-nasal rule both fired on the same nasal. ``validate_ipa``
+        called those ``duplicate_diacritic`` while the read-back below
+        passed them, because a doubled mark reads back carrying the
+        requested value and moving nothing -- the guard measured the
+        bundle, and the defect was in the spelling.
+
+        Which mark carries a value is :meth:`declaring_mark`'s answer, so
+        no feature-to-mark table appears here and the prosody writer reads
+        the same declaration. The marks are emitted in the order the
+        ``<modes>`` block declares, so a release phase and a secondary
+        articulation cannot land in an arbitrary order.
+
+        Returns ``None`` unless the result re-emits itself, reads back
+        carrying every requested value, **and moved nothing else**: the
+        composition is measured on the composed unit rather than assumed
+        from the marks picked. That last clause is the whole difference
+        between a composition and a different phone wearing the right
+        answer's clothes. ``place="bilabial"`` is spelled by no mark but
+        the linguolabial one, which is also ``articulator="tongue-tip"``,
+        so ``compose_unit("s", place="bilabial")`` used to answer ``"s̼"``
+        -- a true bilabial declaration on a segment whose articulation is
+        not the one asked for. It is now ``None``, because the inventory
+        cannot spell that change and inventing a symbol is worse than
+        declining.
+
+        "Moved nothing else" cannot mean "moved only the requested keys",
+        which was tried and is wrong: the devoicing ring declares
+        ``phonation="devoiced"`` *and* ``voiced="-"``, so refusing every
+        extra refuses ``ɹ̥`` and ``l̥`` and stops approximant devoicing
+        firing at all. Those two keys are not two facts -- ``voiced`` is
+        the glottal state read two ways where ``phonation`` reads it four,
+        which the data says in ``<projections>`` and this method reads
+        rather than restates. So an unrequested move is tolerated exactly
+        when it is a projection of a requested one, or a requested one is
+        a projection of it; a move on a dimension that varies
+        independently of everything asked for is a wrong answer.
+
+        The same test screens the *candidate marks* before one is picked,
+        which is a choice rather than a second guard. Five declared values
+        are spelled by both a coherent mark and an incoherent one --
+        ``articulator="tongue-tip"`` by the apical mark and by the
+        linguolabial -- and screening is what makes the coherent one win by
+        construction. Today the "fewest declared features" ordering happens
+        to pick the same mark, so either check alone refuses the same 128
+        of 8062 compositions; two orderings agreeing by habit is how this
+        repo has been bitten before, so that agreement is measured in the
+        tests rather than relied on. The read-back is what makes the
+        guarantee, since a mark's declared bundle is not the whole of what
+        wearing it does to a segment.
+
+        Examples:
+            >>> ipa = IPAFeatures()
+            >>> ipa.compose_unit("t", release="aspirated")
+            'tʰ'
+            >>> ipa.compose_unit("ɹ", phonation="devoiced")
+            'ɹ̥'
+            >>> ipa.compose_unit("s", place="bilabial") is None
+            True
+            >>> ipa.compose_unit("t", place="nonsense")
+            Traceback (most recent call last):
+            ValueError: 'nonsense' is not a value of feature 'place'
+        """
+        wanted: dict[str, str] = {}
+        for name, value in changes.items():
+            key = name if name in self.features else name.replace("_", "-")
+            feature = self.features.get(key)
+            if feature is None:
+                raise ValueError(f"unknown feature {name!r}")
+            resolved = feature.value_aliases.get(value, value)
+            if not all(
+                part in feature.values_set
+                for step in feature.steps(resolved)
+                for part in feature.expand(step)
+            ):
+                raise ValueError(f"{value!r} is not a value of feature {key!r}")
+            wanted[key] = resolved
+        if not wanted:
+            raise ValueError(
+                "cannot compose without a change: pass at least one feature"
+            )
+
+        try:
+            was = self.get_features(base)
+        except (ValueError, KeyError):
+            return None
+
+        precedence = {mode: rank for rank, mode in enumerate(self.modes)}
+        picked: list[tuple[int, int, str]] = []
+        for key, value in wanted.items():
+            # Already true is a no-op, not a second mark. This is what
+            # `respell` does -- `respell('ɫ', velarized='+')` is `'ɫ'` --
+            # and the composed path did not: it picked a mark for every
+            # requested key and appended it, so `ɪ̃` asked to be nasal came
+            # back `ɪ̃̃`, and the shipped American set spelled `hidden`
+            # `ˈhɪdⁿn̩̩` because the syllabic rule fired on a unit that was
+            # already syllabic. The read-back below could not see it: a
+            # doubled mark reads back with the requested value intact and
+            # moves nothing, so the composition was measured as correct
+            # and was misspelled. Skipping the key rather than returning
+            # early is what keeps a mixed request working -- one value
+            # already held and one to write composes the one to write.
+            if was.get(key) == value:
+                continue
+            found = self.declaring_mark(key, value, wanted=wanted)
+            if found is None:
+                return None
+            order, symbol = found
+            mode = getattr(self.features[key], "mode", self.default_mode)
+            entry = (precedence.get(mode, len(precedence)), order, symbol)
+            if entry not in picked:
+                picked.append(entry)
+
+        picked.sort()
+        candidate = base + "".join(symbol for _, _, symbol in picked)
+        try:
+            if self.segment(candidate).to_ipa() != candidate:
+                return None
+            got = self.get_features(candidate)
+        except (ValueError, KeyError):
+            return None
+        if any(got.get(key) != value for key, value in wanted.items()):
+            return None
+        # Every difference between base and composed, read off both rather
+        # than predicted from the marks: a key the composition dropped shows
+        # up here as a move to no value, which no request and no projection
+        # can excuse.
+        moved = {
+            key: got.get(key, "")
+            for key in set(was) | set(got)
+            if key not in METADATA_ATTRS and was.get(key) != got.get(key)
+        }
+        if not self._coheres(moved, wanted):
+            return None
+        return candidate
+
+    def _coheres(self, bundle: dict[str, str], wanted: dict[str, str]) -> bool:
+        """Does ``bundle`` state only what ``wanted`` asked for?
+
+        True when every ``(feature, value)`` in ``bundle`` is either
+        requested outright, or one side of a declared projection whose
+        other side is requested -- the glottal state written as
+        ``phonation`` and as ``voiced`` is one fact, so either spelling
+        excuses the other. Anything else is a second, independent claim,
+        and a composition that makes one is answering a question nobody
+        asked. Metadata is not a phonetic claim and is skipped.
+        """
+        for key, value in bundle.items():
+            if key in METADATA_ATTRS or wanted.get(key) == value:
+                continue
+            coarse = self.projections.get((key, value))
+            if coarse is not None and wanted.get(coarse[0]) == coarse[1]:
+                continue
+            if any(
+                self.projections.get(pair) == (key, value) for pair in wanted.items()
+            ):
+                continue
+            return False
+        return True
+
     def features_to_shorts(self, bundle: dict[str, str]) -> list[str]:
         """Convert a feature dict to list of short names."""
         return [
@@ -896,7 +1429,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # simultaneous reading takes precedence, so the pair collapses to the
         # over-tie. (NFD orders U+035C before U+0361 - ccc 233 < 234 - so one
         # replace covers both written orders.)
-        text = text.replace(SEQ_TIE + TIE_BAR, TIE_BAR)
+        text = text.replace(self.seq_tie + self.tie_bar, self.tie_bar)
         return text
 
     def _recompose_registered(self, text: str) -> str:
@@ -973,7 +1506,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ipa = self.canonicalize_unicode(ipa)
         replaced = False
         for lig, expanded in self.ligature_map.items():
-            if len(lig) > 1 and (TIE_BAR in lig or SEQ_TIE in lig):
+            if len(lig) > 1 and self.tie_bars & set(lig):
                 continue
             if lig in ipa:
                 ipa = ipa.replace(lig, expanded)
@@ -983,6 +1516,19 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # makes "k͡˖" and "k̟͡" the same string rather than two readings.
         return self.canonicalize_unicode(ipa) if replaced else ipa
 
+    def _vocalic(self, ch: str) -> bool:
+        """Whether a base glyph is a vowel, for tie sense.
+
+        The one read behind both places that sense a tie:
+        :meth:`add_ties`, which writes one into a whitespace-grouped
+        segment, and :meth:`from_wild`, which re-senses the ties already
+        in imported text. They held byte-identical copies of this, so a
+        correction to either would have made the two entry points
+        disagree about what an under-tie means.
+        """
+        phone = self.phones.get(ch)
+        return phone is not None and phone.features.get("manner") == "vowel"
+
     def add_ties(self, segment: str) -> str:
         """Add tie bars between base phones in a multi-phone segment.
 
@@ -991,12 +1537,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         (under-tie: a trajectory), anything else binds simultaneously
         (over-tie). Write the tie explicitly to override.
         """
-        if TIE_BAR in segment or SEQ_TIE in segment:
+        if self.tie_bars & set(segment):
             return segment
-
-        def _vocalic(ch: str) -> bool:
-            phone = self.phones.get(ch)
-            return phone is not None and phone.features.get("manner") == "vowel"
 
         result = []
         prev_phone_char = ""
@@ -1004,7 +1546,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             is_phone = char in self.phones
             if is_phone and prev_phone_char:
                 tie = (
-                    SEQ_TIE if _vocalic(prev_phone_char) and _vocalic(char) else TIE_BAR
+                    self.seq_tie
+                    if self._vocalic(prev_phone_char) and self._vocalic(char)
+                    else self.tie_bar
                 )
                 result.append(tie)
             result.append(char)
@@ -1071,7 +1615,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
             # Try to match a phone
             best_phone, best_len = longest_match(
-                expanded, i, self.phones, MAX_MATCH_LEN, tie_set=self.phones
+                expanded, i, self.phones, MAX_MATCH_LEN, self.phones, self.tie_bars
             )
 
             if best_phone:
@@ -1084,13 +1628,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     diacritics.append(expanded[j])
                     j += 1
 
-                # Check if this segment is syllabic (a nucleus)
-                is_syllabic = False
-                if best_phone in self.phones:
-                    feats = self.phones[best_phone].features
-                    is_syllabic = (
-                        feats.get("manner") == "vowel" or feats.get("syllabic") == "+"
-                    )
+                # Check if this segment is syllabic (a nucleus), through
+                # the same read the `nucleus` derived class resolves.
+                is_syllabic = best_phone in self.phones and self.is_nucleus(
+                    self.phones[best_phone].features
+                )
 
                 if pending_stress and is_syllabic:
                     # Vowel with pending stress
@@ -1291,8 +1833,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         path warns, naming what it lost, because a shorter result that
         still *looks* well formed is the failure mode worth hearing about.
         ``strict=True`` raises ``ValueError`` instead. (Registered
-        separators and whitespace are not "unknown": they are known marks
-        that carry no unit, and they neither warn nor raise.)
+        separators, declared zeros and whitespace are not "unknown": they
+        are known marks that carry no unit, and they neither warn nor
+        raise. :attr:`carries_no_segment` is the declared half of that
+        set, asked here and by :meth:`validate_ipa` so the two cannot
+        come to disagree about what is registered.)
 
         ASCII stand-ins are not soft-read here -- ``g``, ``:``, ``?`` and
         ``'`` are unregistered characters like any other. Import such text
@@ -1316,11 +1861,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         result = []
         skipped: list[str] = []
         unbound_ties: list[str] = []
+        unitless = self.carries_no_segment
         n = len(segment)
         i = 0
         while i < n:
             best_phone, best_len = longest_match(
-                segment, i, phone_lookup, MAX_MATCH_LEN, tie_set=phone_lookup
+                segment, i, phone_lookup, MAX_MATCH_LEN, phone_lookup, self.tie_bars
             )
 
             if best_phone:
@@ -1334,13 +1880,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # bases, so the rest of the chain is grown here; without
                 # this, a tie written after a diacritic falls through to
                 # the standalone branch and the juncture is lost.
-                while j < n and segment[j] in (TIE_BAR, SEQ_TIE):
+                while j < n and segment[j] in self.tie_bars:
                     next_phone, next_len = longest_match(
                         segment,
                         j + 1,
                         phone_lookup,
                         MAX_MATCH_LEN,
-                        tie_set=phone_lookup,
+                        phone_lookup,
+                        self.tie_bars,
                     )
                     if not next_phone:
                         break
@@ -1350,7 +1897,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     j += len(diacritics)
                 result.append((chain, diacritics))
                 i = j
-            elif segment[i] in (TIE_BAR, SEQ_TIE):
+            elif segment[i] in self.tie_bars:
                 # Only reached when the tie binds nothing on one side: a
                 # tie with units either side is consumed by the loop above
                 # or by ``longest_match``. Losing it would turn one
@@ -1361,10 +1908,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 result.append((segment[i], []))
                 i += 1
             else:
-                # Registered separators (syllable break, word mark) and
-                # whitespace are known symbols that simply carry no unit;
-                # only unregistered characters count as lost.
-                if not (segment[i].isspace() or segment[i] in self.separators):
+                # Registered separators (syllable break, word mark), a
+                # declared zero and whitespace are known symbols that
+                # simply carry no unit; only unregistered characters
+                # count as lost. A zero used to fall through here and be
+                # reported as an unregistered symbol -- the parser
+                # calling unknown what ``<zeros>`` declares, and
+                # shortening the string to say so.
+                if not (segment[i].isspace() or segment[i] in unitless):
                     skipped.append(segment[i])
                 i += 1
 
@@ -1421,7 +1972,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         while (
             j < len(text)
             and text[j] in self.diacritics
-            and text[j] not in (TIE_BAR, SEQ_TIE)
+            and text[j] not in self.tie_bars
             and text[j] not in self.stress_markers
             and modifier_mode(self, text[j]) != "structural"
         ):
@@ -1663,19 +2214,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         # Remaining ties belong to unregistered chains. Wild text uses one
         # tie glyph as a typographic habit, so only uniform-glyph chains are
-        # re-sensed (per juncture, from the neighbouring bases -- the
-        # add_ties heuristic); a chain already mixing both glyphs is
-        # house-authored and passes through untouched.
-        def _vocalic_char(ch: str) -> bool:
-            phone = self.phones.get(ch)
-            return phone is not None and phone.features.get("manner") == "vowel"
-
+        # re-sensed (per juncture, from the neighboring bases -- the
+        # add_ties heuristic, through the same read); a chain already
+        # mixing both glyphs is house-authored and passes through
+        # untouched.
         chars = list(text)
         runs: list[list[int]] = []
         current: list[int] = []
         pending_tie = False
         for i, ch in enumerate(chars):
-            if ch in (TIE_BAR, SEQ_TIE):
+            if ch in self.tie_bars:
                 current.append(i)
                 pending_tie = True
             elif ch in self.phones and ch not in self.diacritics:
@@ -1703,10 +2251,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     prev_i -= 1
                 next_i = i + 1
                 if prev_i >= 0 and next_i < len(chars):
-                    both_vocalic = _vocalic_char(chars[prev_i]) and _vocalic_char(
+                    both_vocalic = self._vocalic(chars[prev_i]) and self._vocalic(
                         chars[next_i]
                     )
-                    chars[i] = SEQ_TIE if both_vocalic else TIE_BAR
+                    chars[i] = self.seq_tie if both_vocalic else self.tie_bar
         return "".join(chars)
 
     def _wild_variants(self) -> dict[str, str]:
@@ -1717,14 +2265,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             return cached
         variants: dict[str, str] = {}
         for name in self.phones:
-            if TIE_BAR not in name and SEQ_TIE not in name:
+            if not self.tie_bars & set(name):
                 continue
-            positions = [i for i, ch in enumerate(name) if ch in (TIE_BAR, SEQ_TIE)]
+            positions = [i for i, ch in enumerate(name) if ch in self.tie_bars]
             for mask in range(1, 2 ** len(positions)):
                 chars = list(name)
                 for bit, pos in enumerate(positions):
                     if mask & (1 << bit):
-                        chars[pos] = SEQ_TIE if chars[pos] == TIE_BAR else TIE_BAR
+                        chars[pos] = (
+                            self.seq_tie if chars[pos] == self.tie_bar else self.tie_bar
+                        )
                 variants["".join(chars)] = name
         return dict(sorted(variants.items(), key=lambda kv: -len(kv[0])))
 
@@ -1806,7 +2356,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Build one unit from an already-parsed ``(chain, diacritics)``
         pair, so a caller that has run :meth:`parse` does not run it
         twice."""
-        raw = re.split(f"([{TIE_BAR}{SEQ_TIE}])", chain)
+        raw = re.split(f"([{self.tie_bar}{self.seq_tie}])", chain)
         part_strs = raw[0::2]
         glyphs = raw[1::2]
         try:
@@ -1828,7 +2378,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             sense = Sense.SEQ if all_vocalic else Sense.FUSE
             junctures = tuple([sense] * (len(constituents) - 1))
         else:
-            junctures = tuple(Sense.FUSE if g == TIE_BAR else Sense.SEQ for g in glyphs)
+            junctures = tuple(
+                Sense.FUSE if g == self.tie_bar else Sense.SEQ for g in glyphs
+            )
 
         prosody: list[str] = list(stress)
         modifiers: list[str] = []
@@ -1917,11 +2469,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         A feature that declares no ``applies`` applies to everything.
         Otherwise it applies when the segment's manner is named, or when
         one of the derived classes claims it: ``consonant`` is the
-        complement of vowel and silence, and ``nucleus`` is anything that
-        can be a syllable peak -- a vowel, or any segment marked
-        syllabic. Nucleus-hood is not a manner class: a syllabic liquid
-        is a nucleus with consonantal manner, and Tashlhiyt Berber and
-        Miyako put stops and fricatives in the same position.
+        complement of vowel and silence (:attr:`consonant_manners`), and
+        ``nucleus`` is anything that can be a syllable peak
+        (:meth:`is_nucleus`).
         """
         feat = self.features.get(feature)
         if feat is None or not feat.applies:
@@ -1933,9 +2483,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             return True
         if "consonant" in feat.applies and manner in self.consonant_manners:
             return True
-        return "nucleus" in feat.applies and (
-            manner == "vowel" or bundle.get("syllabic") == "+"
-        )
+        return "nucleus" in feat.applies and self.is_nucleus(bundle)
+
+    def is_nucleus(self, bundle: Mapping[str, str]) -> bool:
+        """Whether a feature bundle can be a syllable peak.
+
+        A vowel, or any segment marked syllabic. Nucleus-hood is not a
+        manner class: a syllabic liquid is a nucleus with consonantal
+        manner, and Tashlhiyt Berber and Miyako put stops and fricatives
+        in the same position.
+
+        One read, because it had been two: the ``nucleus`` derived class
+        that :meth:`feature_applies` routes and the private test
+        :meth:`normalize_stress_to_nucleus` used to walk a transcription
+        with were the same predicate written twice, with nothing making
+        them agree. What a nucleus is decides where a stress mark lands
+        and which features a description reads out, and those two
+        answers have to come from one place.
+        """
+        return bundle.get("manner") == "vowel" or bundle.get("syllabic") == "+"
 
     @functools.cached_property
     def consonant_manners(self) -> frozenset[str]:
@@ -1969,6 +2535,77 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             if sep.features.get("level") == "syllable":
                 return sym
         return "."
+
+    @property
+    def carries_no_segment(self) -> frozenset[str]:
+        """Declared symbols a flat read produces no token for.
+
+        Two element classes, one property, because the flat reads have
+        exactly one question to ask of both: is this character *known*
+        and simply not a segment, or is it unregistered and therefore
+        lost? ``<separators>`` are relations between segments (the
+        syllable break, the word mark, the linking tie); ``<zeros>`` are
+        positions with no segment in them. Neither is "unknown", so
+        neither warns and neither raises under ``strict``, exactly as
+        docs/ties.md says of a declared mark that carries no unit -- and
+        neither survives :meth:`to_ipa`, which joins segments. ``Form``
+        is the layer that keeps them, and it reads the two tables
+        directly.
+
+        Read rather than listed so a class added to ``ipa.xml`` cannot
+        be known to the tokenizer and unknown to the validator: they ask
+        this, and the zero spent a release being dropped by one and
+        reported by the other because each named ``separators`` on its
+        own.
+
+        Whitespace is deliberately absent: ``ipa.xml`` declares no space,
+        so its callers add ``str.isspace`` themselves rather than have
+        this property state an undeclared fact.
+        """
+        return frozenset(self.separators) | frozenset(self.zeros)
+
+    @functools.cached_property
+    def tie_marks(self) -> dict[str, str]:
+        """Tie sense -> the mark that spells it, from the `tie` feature.
+
+        The one derived read of "which characters are ties", in the shape
+        of :attr:`stress_markers`. The package used to keep the two
+        glyphs in ``constants.py`` as bare strings, which is the same
+        mistake the stress table made: ``ipa.xml`` declares a ``tie``
+        feature whose values are ``simultaneous`` and ``sequential``, and
+        declares the suprasegmental that carries each, so the question
+        has an answer in the data and a second copy in Python can only go
+        stale. :meth:`declaring_mark` is that answer, asked once here.
+
+        Empty if the loaded data declares no ``tie`` feature at all -- an
+        inventory with no ties has no tie glyphs, and the membership
+        reads below then correctly find none.
+        """
+        feature = self.features.get("tie")
+        if feature is None:
+            return {}
+        found = ((v, self.declaring_mark("tie", v)) for v in feature.values)
+        return {value: mark[1] for value, mark in found if mark is not None}
+
+    @property
+    def tie_bar(self) -> str:
+        """The over-tie: the mark declaring a simultaneous juncture."""
+        return self.tie_marks.get("simultaneous", "")
+
+    @property
+    def seq_tie(self) -> str:
+        """The under-tie: the mark declaring a sequential juncture."""
+        return self.tie_marks.get("sequential", "")
+
+    @functools.cached_property
+    def tie_bars(self) -> frozenset[str]:
+        """Every tie mark, for membership tests.
+
+        A set rather than a string so that data declaring no tie asks a
+        question with the answer "no" rather than one with the answer
+        ``"" in text``, which is always yes.
+        """
+        return frozenset(self.tie_marks.values())
 
     # -------------------------------------------------------------------------
     # Dunder methods

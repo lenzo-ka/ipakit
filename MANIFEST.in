@@ -1,1 +1,37 @@
+# What travels in the sdist beyond the package itself.
+#
+# The wheel is settled by `tool.setuptools.package-data` in pyproject.toml,
+# and tests/test_packaging.py guards it. This file governs the sdist, where
+# the bar is different: an sdist should be able to build and verify itself.
+# Until this was measured it could do neither. setuptools swept tests/*.py
+# in on its own but left behind conftest.py, tests/__init__.py and
+# tests/corpus.py, so `pytest` in an unpacked sdist stopped on 20 collection
+# errors -- no ipa fixture, no tests.corpus, no scripts/ to import from --
+# without running one test. None of that is visible from a checkout, where
+# the files are on disk whether they ship or not.
+#
+# Each line below is here because something breaks without it.
+
 include CHANGELOG.md
+include Makefile
+
+# conftest.py holds the session-scoped ipa and mapper fixtures nearly every
+# test takes, and tests/__init__.py is what makes `tests.corpus` -- the one
+# canonical corpus enumeration -- importable as a module.
+include conftest.py
+recursive-include tests *.py
+
+# Not dev-only clutter. test_notation.py and test_zero.py put scripts/ on
+# sys.path and import from it; `make check` runs invariants.py, confusion.py,
+# xsampa_table.py, tutorial.py and docexamples.py as release gates; and
+# `make figures` runs tract_svg.py, which is a shim over ipakit.tract_svg --
+# the renderer itself ships in the package, because it has to reach an
+# installed user and nothing under scripts/ does.
+recursive-include scripts *.py
+
+# docs/tutorial.md is where a newcomer is sent, and `make check` regenerates
+# it from tutorial.src.md and compares -- which needs both files present.
+# The figures are checked in so a reader gets them without running anything;
+# that should hold for a reader who unpacked the sdist too.
+recursive-include docs *.md
+recursive-include docs *.svg

@@ -1,0 +1,88 @@
+# German final devoicing -- Auslautverhärtung. ONE rule, and the point of
+# shipping it is the shape of that rule rather than its length.
+#
+#     ʁaːd     Rad      -> [ʁaːt]        beside  ʁaː.dəs  Rades   [ʁaːdəs]
+#     taːɡ     Tag      -> [taːk]        beside  taː.ɡəs  Tages   [taːɡəs]
+#     liːb     lieb     -> [liːp]        beside  liː.bə   liebe   [liːbə]
+#     bʁaːv    brav     -> [bʁaːf]       beside  bʁaː.və  brave   [bʁaːvə]
+#     liːb.lɪç lieblich -> [liːplɪç]     word-internally too
+#
+# This is the textbook single-rule grammar: a natural class, a positional
+# condition, one feature changed. Every other shipped set is a cascade,
+# and it is worth having one that is not, because a reader learning the
+# notation should be able to see a whole grammar at once.
+#
+# THE CONDITION IS A CODA, NOT A WORD EDGE, and that is why this file is
+# here. The shipped american-english set conditions aspiration on an ONSET
+# margin -- '. _' -- and the notation's tier rule says a boundary pattern
+# matches its declared level OR STRONGER, so '.' is also satisfied by a
+# word edge and by the edge of the form. Nothing shipped read that ladder
+# from the other side. '_ .' does: it is the coda condition, "at the right
+# margin of a syllable or of anything larger".
+#
+# MEASURED, and the two formulations are NOT the same rule:
+#
+#     form          '_ .'          '_ #'
+#     ʁaːd          ʁaːt           ʁaːt        agree at the form edge
+#     ʁaː.dəs       ʁaː.dəs        ʁaː.dəs     agree: onset, not coda
+#     liːb.lɪç      liːp.lɪç       liːb.lɪç    DIVERGE
+#     zaːɡ.baːɐ̯     zaːk.baːɐ̯      zaːɡ.baːɐ̯   DIVERGE
+#
+# 'lieblich' and 'sagbar' devoice on a syllable coda inside the word, and
+# '_ #' cannot reach them because a syllable break is not a word edge --
+# the nesting is one-directional, which is exactly what makes '_ .' the
+# right statement and '_ #' a narrower rule wearing the same name. German
+# grammars state the process at the end of a Silbe for this reason.
+#
+# The mirror of that is underspecification, which behaves here just as it
+# does for aspiration: 'liːblɪç' written with no interior dot leaves its
+# interior margins unstated, and this rule does not fire there rather than
+# guessing where the syllable ends. So the input must mark interior
+# syllable boundaries wherever a word-internal coda is meant. That is not
+# a shortcoming; a transcription that never said where the syllable broke
+# has not asserted the structure the rule needs.
+
+# --- the class ----------------------------------------------------------
+# OBSTRUENTS, not stops. Fricatives devoice too -- 'brav' [bʁaːf], 'Haus'
+# beside 'Häuser' -- and sonorants do not: 'lang' stays [laŋ], 'viel'
+# stays [viːl]. Listing 'b d ɡ v z' as literals would give the same answer
+# on these words and would be a list, not the generalization; it would
+# also quietly omit the affricates.
+#
+# 'obstruent' is a declared natural class: ipa.xml puts it on the
+# fricative, plosive and affricate values of 'manner', so the class is a
+# property of the data and the query language asks for it by name.
+#
+# It used to be written here as its definition instead --
+# '[-vowel -approximant -nasal -trill -tap -silence]', not a vowel and not
+# one of the sonorant manners -- because the resolver did not route class
+# names, only values. Both spellings select the same phones today. They
+# would not stay that way: a manner added to ipa.xml joins the class only
+# if the data says so, while every hand-written exclusion list silently
+# takes it in.
+#
+# '[manner=obstruent]' is still the wrong thing to write, because a class
+# is not a value of the feature it groups. It no longer fails quietly: it
+# used to parse, because the notation checked only the KEY, and then match
+# nothing at all, so the rule was a silent no-op. rules.py guards the
+# VALUE arm too, and the message now names the bare-term spelling.
+[obstruent] -> [voiced=-] / _ . ; final devoicing
+
+# --- deliberately not modeled ------------------------------------------
+# * The vocalized coda /r/. German /r/ in a coda is [ɐ̯], not a consonant:
+#   'Tor' is [toːɐ̯]. Written 'toːʁ' this rule devoices it to [toːχ],
+#   because /ʁ/ is a voiced uvular FRICATIVE by its declared features and
+#   so an obstruent by the class above. That is over-application, and the
+#   fix is in the transcription rather than in the rule -- write the
+#   vocalized allophone, as German transcriptions conventionally do. A
+#   rule cannot repair it: excluding /ʁ/ from the class would also exempt
+#   it in the onset of 'brav', where the class must reach nothing but
+#   already does not.
+# * Loanword exceptions and morphological restructuring: 'Job' varies,
+#   and speakers reanalyze a stem whose devoiced form is the one they hear
+#   most.
+# * Devoicing before a voiceless obstruent inside a syllable, which is
+#   regressive assimilation and a different rule.
+# * Aspiration of the resulting voiceless stops, which is real -- [tʰ] in
+#   'Rad' for many speakers -- and is what the american-english set's
+#   aspiration rule does, from the other margin.

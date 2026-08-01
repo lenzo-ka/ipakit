@@ -6,6 +6,10 @@ it -- ``_MODE_EXCEPTIONS`` classified two diacritics *by symbol*,
 ``SECONDARY_PLACE``/``_SECONDARY_KEYS``/``_SECONDARY_DESC_ORDER`` were
 three independent copies of one five-member set in three modules, and
 ``_BINARY_LABELS`` decided that ``channel=grooved`` reads "sibilant".
+A fourth broke it without being a table at all: ``constants.TIE_BAR``
+and ``SEQ_TIE`` pasted the two glyphs that spell the declared ``tie``
+feature's values, one symbol per name, and so met none of the "two or
+more" tests below. They are ``IPAFeatures.tie_bars`` now.
 
 Three kinds of test here. The pins assert the derived reads still say
 what the hardcoded tables said. The guard is a predicate over the source:
@@ -14,11 +18,24 @@ names, so a new one fails too, and it is fed synthetic sources as well as
 the real package so its own coverage is measured rather than assumed.
 The third kind pins what the guard *cannot* see, so its limits stay known
 rather than assumed shut.
+
+A predicate is only as wide as the vocabulary it is asked about, and
+that is where this one had a hole: the symbols it knew were four tables
+written out by hand, and ``<zeros>`` was not among them, so ``∅`` --
+declared, and the same lone-glyph shape as the tie bars above -- was
+invisible to the very test that narrates catching it. The vocabulary is
+the loader's own enumeration of the element classes now, so the next
+class added to the data cannot reopen it.
+
+Where a constant restates the data on purpose, ``_JUSTIFIED`` says which
+one and why, and is pinned in both directions: the house rule is that a
+smuggle must be justified and declared, not that none may exist.
 """
 
 from __future__ import annotations
 
 import ast
+import sys
 import warnings
 from pathlib import Path
 
@@ -31,6 +48,10 @@ from ipakit.segment import _OBSTRUENT, modifier_mode
 
 _PACKAGE = Path(__file__).resolve().parent.parent / "ipakit"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+from invariants import declared_symbols  # noqa: E402
+
 
 @pytest.fixture(scope="module")
 def ipa() -> IPAFeatures:
@@ -42,7 +63,11 @@ class TestTheDataSaysWhatThePythonUsedTo:
 
     def test_the_mode_partition(self, ipa: IPAFeatures) -> None:
         by_mode = {m: set(v) for m, v in ipa.features_by_mode.items()}
-        assert by_mode["structural"] == {"tie", "linking", "break"}
+        # 'level' is here because a boundary level belongs to no segment's
+        # feature bag, which is what that mode says. It sat in the additive
+        # default while only separators declared a level and no diacritic
+        # did, so nothing showed it was misfiled.
+        assert by_mode["structural"] == {"tie", "linking", "break", "level"}
         assert by_mode["prosodic"] == {
             "stress",
             "length",
@@ -120,6 +145,96 @@ class TestTheDataSaysWhatThePythonUsedTo:
             "nasality": (("manner", "nasal"), ("nasalized", "+"), ("release", "nasal")),
             "laterality": (("channel", "lateral"), ("release", "lateral")),
         }
+
+    def test_the_projections(self, ipa: IPAFeatures) -> None:
+        """Which dimensions are one fact at two granularities.
+
+        ``compose_unit`` needs this to tell a mark that says its one fact
+        twice (the devoicing ring: phonation and voiced) from one that
+        drags an independent dimension along (the linguolabial mark: place
+        and articulator). It reads the declaration rather than carrying a
+        pair table of its own.
+        """
+        assert ipa.projections == {
+            ("phonation", "creaky"): ("voiced", "+"),
+            ("phonation", "modal"): ("voiced", "+"),
+            ("phonation", "breathy"): ("voiced", "+"),
+            ("phonation", "devoiced"): ("voiced", "-"),
+        }
+
+    def test_a_projection_is_total_over_the_finer_features_values(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """A partial projection would leave the rest of the values looking
+        like an independent dimension, so the loader refuses one."""
+        fine_names = {f for f, _ in ipa.projections}
+        assert fine_names, "no projection declared: the sweep would be vacuous"
+        for name in fine_names:
+            covered = {v for f, v in ipa.projections if f == name}
+            assert covered == set(ipa.features[name].values), name
+
+    def test_a_projection_is_not_resolved_onto_a_segments_features(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """What the declaration deliberately does *not* do, and what
+        closed the gap it used to leave open.
+
+        A read path that resolved the projection would give every segment
+        carrying a voiced phonation ``voiced="+"`` *whether or not any
+        mark said so*, which is a change to what every read returns. It
+        still does not, and the assertions below are that limit.
+
+        The limit used to have a visible cost: 76 units read a voiced
+        phonation on a voiceless segment, and ``describe("c̤")`` was
+        "voiceless breathy-voiced palatal plosive" -- a sentence that
+        contradicts itself. That was never the read path's fault. The
+        devoicing and voicing rings declared the voicing their phonation
+        fixes and the breathy and creaky marks did not, so on a voiceless
+        base the base's voicing stood: an asymmetry in the data, fixed in
+        the data. All four marks state it now, and there is nothing left
+        for a read path to resolve.
+
+        ``scripts/invariants.py:check_projection_coherence`` is the guard,
+        written as a predicate over whatever ``<projections>`` declares
+        rather than over these two marks.
+        """
+        assert ipa.projections[("phonation", "breathy")] == ("voiced", "+")
+        # Resolution is still not a read path: every segment that reads
+        # voiced does so because some declaration said so.
+        assert ipa.get_features("a̤").get("voiced") == "+"  # base and mark agree
+        assert (
+            ipa.get_features("s̤").get("voiced") == "+"
+        )  # from the mark, not the base
+        assert ipa.diacritics["̤"].features["voiced"] == "+"
+        assert "voiced" not in ipa.get_features("␣")  # silence takes no default
+        contradicting = [
+            unit
+            for phone in ipa.phones
+            for mark in ("̤", "̰")
+            if (unit := phone + mark)
+            and ipa.segment(unit).to_ipa() == unit
+            and (bundle := ipa.get_features(unit))
+            and (
+                target := ipa.projections.get(
+                    ("phonation", bundle.get("phonation", ""))
+                )
+            )
+            and bundle.get(target[0], target[1]) != target[1]
+        ]
+        assert contradicting == [], f"{len(contradicting)}, was 76"
+
+    def test_the_projection_is_not_a_bridge(self, ipa: IPAFeatures) -> None:
+        """Why it is a separate declaration, pinned as consequences.
+
+        A bridge is a *presence*, derived as one binary for the metric.
+        Declaring the glottal state as one would make devoiced and modal
+        read alike and, every informative value of ``voiced`` then being
+        claimed, drop ``voiced`` from the comparison outright: measured at
+        3800 of 9591 pairs moved and d(t, d) = 0.
+        """
+        assert set(ipa.bridges) & {f for f, _ in ipa.projections} == set()
+        assert "voiced" not in excluded_keys(ipa)
+        assert ipa.distance("t", "d") > 0
 
     def test_modes_come_from_the_marks_own_features(self, ipa: IPAFeatures) -> None:
         assert modifier_mode(ipa, "ˀ") == "release"
@@ -240,7 +355,7 @@ class TestNothingAMarkStatesGoesUnsaid:
         for sym in marks:
             stated = _stated(ipa, sym)
             # A mark that also fills a slot has already changed the
-            # sentence through it, so its other keys may go unlabelled
+            # sentence through it, so its other keys may go unlabeled
             # without the mark itself going unsaid.
             fills_a_slot = any(f in _PRIMARY_SLOTS for f in stated)
             for feature, value in stated.items():
@@ -268,10 +383,8 @@ class TestNothingAMarkStatesGoesUnsaid:
         # vacuous, so the size is asserted, not assumed.
         assert len(segmental_marks) > 30, "sweep did not run"
         assert len(need) > 25, "sweep did not run"
-        unlabelled = {
-            fv for fv in need if ipa.features[fv[0]].labels.get(fv[1]) is None
-        }
-        assert not unlabelled - self._escapes(ipa, segmental_marks)
+        unlabeled = {fv for fv in need if ipa.features[fv[0]].labels.get(fv[1]) is None}
+        assert not unlabeled - self._escapes(ipa, segmental_marks)
 
     def test_the_guard_states_what_it_lets_through(
         self, ipa: IPAFeatures, segmental_marks: list[str]
@@ -317,10 +430,22 @@ class TestNothingAMarkStatesGoesUnsaid:
 
 _SET_BUILDERS = {"set", "frozenset", "dict"}
 _SEQ_BUILDERS = {"tuple", "list", "sorted"}
+# Methods that build a collection out of what they are handed, named
+# rather than the object they hang off so a rebound `re` or a subclassed
+# `dict` is read the same way. `fromkeys` builds a mapping and a regex
+# alternation or character class puts its members in one pattern, so both
+# *classify*; `join` consumes a sequence and states an order.
+_UNORDERED_METHODS = {"fromkeys", "compile"}
+_SEQ_METHODS = {"split", "rsplit", "splitlines", "join"}
 # Calls that consume a string as a *sequence of members* rather than as
 # one value. Only these expand a string to its characters: doing it
 # everywhere would read "stress" as the phones s, t, r, e.
 _ITERATING = _SET_BUILDERS | _SEQ_BUILDERS | {"zip", "enumerate"}
+# The same, written as a method. `dict.fromkeys("ˈˌ")` and `"".join("ˈˌ")`
+# ask for the characters as plainly as `set("ˈˌ")` does. A regex is not
+# here on purpose: expanding a pattern to its characters would read
+# `re.compile("stress")` as the phones s, t, r, e.
+_ITERATING_METHODS = {"fromkeys", "join"}
 
 # Delimiters a member list may be written with. Trying them costs
 # nothing on prose, because a string is only read as a list when *every*
@@ -333,10 +458,31 @@ def _folded(node: ast.AST) -> str | None:
 
     Constant addition is folded: splitting a literal across a ``+`` does
     not make it less of a literal, so ``"plo" + "sive"`` states
-    ``plosive``.
+    ``plosive``. So is ``chr()`` of a literal code point, for the same
+    reason: ``chr(0x361)`` states the over-tie as plainly as pasting the
+    combining character does, and a guard that read only one of the two
+    spellings would be a guard against typing style. So is an f-string
+    whose every piece folds: ``f"{chr(0x361)}"`` interpolates nothing a
+    reader could not have typed.
     """
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
+    if isinstance(node, ast.JoinedStr):
+        pieces = [
+            _folded(part.value if isinstance(part, ast.FormattedValue) else part)
+            for part in node.values
+        ]
+        if pieces and all(piece is not None for piece in pieces):
+            return "".join(piece for piece in pieces if piece is not None)
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "chr"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, int)
+    ):
+        return chr(node.args[0].value)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         left, right = _folded(node.left), _folded(node.right)
         if left is not None and right is not None:
@@ -396,7 +542,10 @@ def _is_unordered(node: ast.AST) -> bool:
 
     Decided from the *outermost* node rather than by hunting for a
     literal anywhere inside, so `frozenset(x.split())`, `dict(zip(...))`
-    and a set comprehension are all recognised.
+    and a set comprehension are all recognized. A method spelling counts
+    the same way: `dict.fromkeys` builds a mapping, and a compiled
+    alternation or character class puts everything it matches in one
+    class, which is the classification itself.
     """
     if isinstance(node, ast.Set | ast.Dict | ast.SetComp | ast.DictComp):
         return True
@@ -404,6 +553,12 @@ def _is_unordered(node: ast.AST) -> bool:
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
         and node.func.id in _SET_BUILDERS
+    ):
+        return True
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in _UNORDERED_METHODS
     ):
         return True
     if isinstance(node, ast.BinOp):  # set algebra: A | B, A - B
@@ -431,7 +586,7 @@ def _is_ordered(node: ast.AST) -> bool:
     ):
         return True
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-        return node.func.attr in {"split", "rsplit", "splitlines"}
+        return node.func.attr in _SEQ_METHODS
     if isinstance(node, ast.BinOp):  # sequence concatenation: A + B
         return _is_ordered(node.left) or _is_ordered(node.right)
     if isinstance(node, ast.Subscript):
@@ -459,14 +614,24 @@ def _candidates(node: ast.AST, vocabulary: set[str]) -> list[str]:
             and isinstance(sub.args[0].value, int)
         ):
             out.append(chr(sub.args[0].value))
-        elif (
-            isinstance(sub, ast.Call)
-            and isinstance(sub.func, ast.Name)
-            and sub.func.id in _ITERATING
+        elif isinstance(sub, ast.Call) and (
+            (isinstance(sub.func, ast.Name) and sub.func.id in _ITERATING)
+            or (
+                isinstance(sub.func, ast.Attribute)
+                and sub.func.attr in _ITERATING_METHODS
+            )
         ):
             for arg in sub.args:
                 if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                     out += list(arg.value)  # set("ǀǁǂǃ") is four members
+        elif isinstance(sub, ast.Starred):
+            # `{*"ˈˌ"}` asks for the characters in the syntax itself, so
+            # expanding them here reads nothing into the source that the
+            # source did not write. A bare `"ˈˌ"` still escapes: nothing
+            # there says to split it.
+            text = _folded(sub.value)
+            if text is not None:
+                out += list(text)
     return out
 
 
@@ -573,7 +738,19 @@ def _module_constants(source: str) -> list[tuple[str, ast.expr]]:
 
 @pytest.fixture(scope="module")
 def declared(ipa: IPAFeatures) -> dict[str, set[str]]:
-    """What ipa.xml declares, as three vocabularies the guard tests against."""
+    """What ipa.xml declares, as three vocabularies the guard tests against.
+
+    The symbols come from ``invariants.declared_symbols`` rather than
+    from a list of tables written out here. That is not tidiness: this
+    fixture named four tables by hand and ``<zeros>`` was not one of
+    them, so ``ZERO = "∅"`` -- the lone-declared-glyph shape the guard
+    was extended to catch for the tie bars -- walked straight through
+    the guard that names it. One enumeration of the element classes
+    means the next class added to ``<classes>`` cannot open the hole
+    again. The alias spellings are added on top because they are not an
+    element class: they are input the package documents as accepted, and
+    a table keyed off one restates the inventory just as plainly.
+    """
     type_values = {v for vals in ipa.types.values() for v in vals}
     values = {
         v
@@ -583,11 +760,21 @@ def declared(ipa: IPAFeatures) -> dict[str, set[str]]:
     return {
         "values": values,
         "names": set(ipa.features),
-        "symbols": set(ipa.phones)
-        | set(ipa.diacritics)
-        | set(ipa.separators)
-        | set(ipa.ligature_map),
+        "symbols": set(declared_symbols(ipa)) | set(ipa.ligature_map),
     }
+
+
+def test_the_symbol_vocabulary_covers_every_element_class(
+    ipa: IPAFeatures, declared: dict[str, set[str]]
+) -> None:
+    """Nothing the loader routes is outside what the guard can see.
+
+    The converse of the fixture's derivation, asserted so a table the
+    guard reads and an element class the loader fills cannot come apart.
+    """
+    for table in (ipa.phones, ipa.diacritics, ipa.separators, ipa.zeros):
+        assert table, "an element class loaded empty: the sweep would be vacuous"
+        assert set(table) <= declared["symbols"]
 
 
 def offenders(source: str, declared: dict[str, set[str]]) -> list[str]:
@@ -613,10 +800,72 @@ def offenders(source: str, declared: dict[str, set[str]]) -> list[str]:
                 f"{name}: keys off registered symbols "
                 f"{sorted(members & declared['symbols'])}"
             )
+        elif _folded(value) in declared["symbols"]:
+            found.append(f"{name}: spells the registered symbol {_folded(value)!r}")
     return found
 
 
 _GUARDED = sorted(p for p in _PACKAGE.rglob("*.py"))
+
+#: Constants that restate the data on purpose, each with the reason. The
+#: house rule is that a smuggle has to be justified and declared, not
+#: that none may exist, and this is where the declaration lives -- next
+#: to the predicate, where a reader checks whether something got past it.
+#: Pinned in both directions by the two tests below, so a justification
+#: cannot outlive the thing it justifies.
+_JUSTIFIED = {
+    ("rules.py", "NULL"): (
+        "The rule notation for the empty string, and the declaration runs "
+        "the other way round: '∅' was the notation first and <zeros> "
+        "registered the same glyph afterwards, knowing it -- ipa.xml says "
+        "so where it declares the zero. Reading NULL off "
+        "IPAFeatures.zeros would make a second declared zero an accepted "
+        "empty-string spelling on both sides of every arrow, silently "
+        "changing what four shipped rule sets mean; _zero_named refuses a "
+        "second zero rather than guess for the same reason. The coupling "
+        "that matters is pinned instead, one test below: the declared "
+        "zero and the notation agree today, and a change to either fails "
+        "rather than drifts."
+    ),
+}
+
+
+def _offender_name(finding: str) -> str:
+    return finding.split(":", 1)[0]
+
+
+def test_each_justified_smuggle_is_still_a_smuggle(
+    declared: dict[str, set[str]],
+) -> None:
+    """A justification with nothing left to justify is stale prose.
+
+    If one of these stops being an offender -- derived at last, or
+    deleted -- this fails and the entry comes out, so the exemption list
+    can only shrink deliberately.
+    """
+    assert _JUSTIFIED, "the exemption list is empty: this test is vacuous"
+    for (relative, name), reason in _JUSTIFIED.items():
+        path = _PACKAGE / relative
+        assert path in _GUARDED, relative
+        found = offenders(path.read_text(encoding="utf-8"), declared)
+        assert name in {_offender_name(f) for f in found}, f"{relative}: {name}"
+        assert reason.strip(), f"{relative}: {name} is exempted without a reason"
+
+
+def test_the_rule_notation_and_the_declared_zero_agree(ipa: IPAFeatures) -> None:
+    """The coupling ``rules.NULL`` is exempted from deriving.
+
+    Two independent statements about one glyph: ``<zeros>`` declares it a
+    symbol, and ``rules.py`` accepts it as the empty string. Neither is
+    derived from the other, on the reason recorded in ``_JUSTIFIED``, so
+    the agreement is asserted here -- a change to the declared zero, or a
+    second one, fails loudly instead of leaving the notation behind.
+    """
+    from ipakit.rules import NULL
+
+    assert set(ipa.zeros) == set(ipa.zeros) & NULL
+    assert len(ipa.zeros) == 1, "a second zero: rules.NULL has to say which it means"
+
 
 # The tables this package actually shipped, each removed by the commits
 # these tests accompany. The guard has to reject every one of them, or it
@@ -643,7 +892,7 @@ _SMUGGLED = [
     '_OVERRIDING_KEYS = frozenset(["voiced", "place", "manner", "syllabic"][:])',
     '_SONORANTS = set(["nasal", "trill", "approximant"])',
     '_TONES = {"low": 1, "mid": 2, "high": 3}',
-    # Spelling is not a defence. Each of these is one of the tables
+    # Spelling is not a defense. Each of these is one of the tables
     # above wearing different syntax, and each slipped past the second
     # version of the guard -- including the stress table this file
     # names as its own worked example.
@@ -663,6 +912,36 @@ _SMUGGLED = [
     '_MODE_EXCEPTIONS = {}\n_MODE_EXCEPTIONS["ˀ"] = "release"',
     "_PROSODIC_KEYS = frozenset()\n" '_PROSODIC_KEYS |= {"stress", "length", "tone"}',
     '(_PROSODIC_KEYS := frozenset({"stress", "length", "tone"}))',
+    # Not a table, and shipped for as long as any of them: one declared
+    # glyph, alone, in a bare string. `ipa.xml` declares a `tie` feature
+    # spelled by these two marks, so naming either in Python is the same
+    # claim `_MODE_EXCEPTIONS` made about `\u02c0`, minus the container
+    # that used to be what gave it away. The `chr` spelling is the same
+    # constant with the combining character typed out of harm's way.
+    'TIE_BAR = "\u0361"',
+    'SEQ_TIE = "\u035c"',
+    "TIE_BAR = chr(0x361)",
+    # The same lone-glyph shape for the zero, and the tables around it.
+    # `<zeros>` is an element class like any other and was missing from
+    # the vocabulary the guard tests against, so the shape this file
+    # narrates closing for the tie bars was still open for `\u2205` -- caught
+    # now because the vocabulary is the loader's own enumeration rather
+    # than a list of tables typed out here.
+    'ZERO = "\u2205"',
+    '_ZEROS = {"\u2205": "deletion", "0": "deletion"}',
+    '_NULL = frozenset({"\u2205", "0", "\u00d8"})',
+    # A literal wrapped in a call the member analysis did not recognize
+    # walked through it whole, whatever was inside. These are the
+    # realistic wrappers: a compiled alternation or character class puts
+    # its members in one class exactly as a set does, `join` and
+    # `fromkeys` consume a sequence, and an f-string of constants
+    # interpolates nothing.
+    '_STRESS_MARKERS = re.compile("\u02c8|\u02cc")',
+    '_STRESS_MARKERS = "".join(["\u02c8", "\u02cc"])',
+    '_STRESS_MARKERS = dict.fromkeys("\u02c8\u02cc")',
+    '_STRESS_MARKERS = {*"\u02c8\u02cc"}',
+    '_PROSODIC_KEYS = re.compile("stress|length|tone")',
+    'TIE_BAR = f"{chr(0x361)}"',
 ]
 
 
@@ -681,12 +960,16 @@ def test_the_guard_rejects_the_tables_that_were_removed(
 def test_the_guard_spares_what_is_not_a_phonetic_fact(
     declared: dict[str, set[str]],
 ) -> None:
-    # A bare glyph constant (the tokenizer's bootstrap), a rendering
-    # order, algorithm parameters, and a set of this library's own
-    # classifications are not claims about phonetics.
+    # A rendering order, algorithm parameters, and a set of this
+    # library's own classifications are not claims about phonetics. A
+    # string that is *not* a registered symbol is not one either, however
+    # glyph-like it looks -- `\u00d8` is one of the spellings `rules.NULL`
+    # accepts for the empty string and is declared by nothing. The empty
+    # set `\u2205` used to stand here making that point and no longer can:
+    # `<zeros>` declares it, and the guard reads `<zeros>` now.
     for source in [
-        'TIE_BAR = "\u0361"',
         '_MODIFIER_READ_ORDER = ("palatalized", "syllabic", "channel")',
+        '_NOT_A_SYMBOL = "\u00d8"',
         "GAP_COST = 1.0",
         "ORDERED_KINDS = frozenset({Kind.AFFRICATE, Kind.DIPHTHONG})",
         "_JSON_VERSION = 1",
@@ -694,9 +977,35 @@ def test_the_guard_spares_what_is_not_a_phonetic_fact(
         assert offenders(source, declared) == [], source
 
 
-def test_the_guard_states_what_it_cannot_see(
+def test_the_comparison_escape_is_load_bearing(
     declared: dict[str, set[str]],
 ) -> None:
+    """Why the comparison shape is not closed, measured rather than said.
+
+    The counting rule, stated because a count is only as good as it:
+    every ``ast.Compare`` in the package with a string literal on either
+    side that is a declared symbol or a declared feature *value*. Feature
+    *names* are excluded -- a bundle is keyed by name, so ``key ==
+    "place"`` is a lookup rather than a claim about phonetics.
+
+    A floor rather than an equality: the reason to keep the escape open
+    is that the shape is common and mostly the vowel test, and that
+    stops being true only if the number collapses. If it does, this
+    fails and the escape is worth closing.
+    """
+    vocabulary = declared["values"] | declared["symbols"]
+    comparisons = []
+    for path in _GUARDED:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare):
+                continue
+            operands = [node.left, *node.comparators]
+            if any((_folded(o) or "") in vocabulary for o in operands):
+                comparisons.append((path.name, ast.unparse(node)))
+    assert len(comparisons) > 15, "the comparison shape is no longer common"
+    vowel = [c for _, c in comparisons if '"vowel"' in c or "'vowel'" in c]
+    assert vowel, "the vowel test is the escape's stated reason and is not there"
     """The escapes, pinned so they stay known rather than assumed shut.
 
     A guard that quietly stops covering a shape is worse than none,
@@ -714,10 +1023,18 @@ def test_the_guard_states_what_it_cannot_see(
         # Not a module-level assignment at all.
         "class C:\n    KEYS = {'voiced', 'place', 'manner'}",
         "def f():\n    KEYS = {'voiced', 'place', 'manner'}",
-        # A fact spelled as control flow rather than as data.
+        # A fact spelled as control flow rather than as data, in either
+        # of the two spellings Python offers for it. `match`/`case` is
+        # here for the same reason `if`/`elif` is: the guard reads
+        # module-level constants, and a fact written as a branch is not
+        # one wherever it sits.
         "def mode(sym):\n"
         "    if sym == 'ˀ':\n        return 'release'\n"
         "    elif sym == 'ᵊ':\n        return 'release'",
+        "def mode(sym):\n"
+        "    match sym:\n"
+        "        case 'ˀ':\n            return 'release'\n"
+        "        case 'ᵊ':\n            return 'release'",
         # The same shape with a declared *value* in place of a symbol.
         # `describe` shipped one of these: `if airstream != "pulmonic"`
         # named the default instead of reading it, and would have gone
@@ -731,11 +1048,18 @@ def test_the_guard_states_what_it_cannot_see(
         'def f(feats):\n    return feats["airstream"] != "pulmonic"',
         # A run of glyphs with nothing to split on. Expanding every
         # string to its characters would read "stress" as s, t, r, e.
+        # A regex character class is the same run wearing brackets: the
+        # alternation spelling of it *is* caught, because `|` is a
+        # delimiter the guard tries.
         '_STRESS_MARKERS = "ˈˌ"',
-        # Indirection: no one statement here states a table, and the
-        # guard resolves nothing across statements.
-        '_PRIMARY = "ˈ"\n'
-        '_SECONDARY = "ˌ"\n'
+        '_STRESS_MARKERS = re.compile("[ˈˌ]")',
+        # Indirection: nothing is resolved across statements, so a table
+        # whose keys are names states nothing this can read. Narrower
+        # than it was: the two assignments that used to stand above it,
+        # binding these names to ˈ and ˌ, are each caught on their own
+        # now (a lone declared glyph is an offender -- see `_SMUGGLED`),
+        # so the escape needs the glyph bound where the guard does not
+        # look.
         "_STRESS_MARKERS = {_PRIMARY: 1, _SECONDARY: 2}",
         # A delimiter the source never names and the guard does not
         # guess, with the split deferred to the use site.
@@ -770,12 +1094,18 @@ def test_no_module_level_constant_restates_the_data(
       a container of *any* kind, or as a dict key (``_MODE_EXCEPTIONS``,
       ``mapper._STRESS_MARKERS``). Classifying ``ˀ`` by its glyph is the
       purest form of the mistake: the symbol is in the data already, and
-      so is everything true of it. Naming a single glyph is not a table
-      and is spared -- the tokenizer has to know the tie characters
-      (``constants.TIE_BAR``) before it can read anything that would
-      tell it.
+      so is everything true of it.
+    * a **lone declared glyph** -- one registered symbol, alone, in a
+      bare string (``constants.TIE_BAR``, ``SEQ_TIE``). No container and
+      nothing to count, so all three shapes above missed it, and it was
+      spared here on the argument that the tokenizer has to know the tie
+      characters before it can read anything that would tell it. The
+      argument is false: what the data declares is readable as soon as
+      the data is loaded, which is before anything is tokenized -- the
+      glyphs are ``IPAFeatures.tie_bars`` now. ``chr()`` of a code point
+      is the same constant and is folded to it.
 
-    Spelling is not a defence. A constant counts however it is written:
+    Spelling is not a defense. A constant counts however it is written:
     as a set or as a sequence, unpacked from a tuple, bound behind a
     module-level ``if`` or ``try``, filled one subscript at a time,
     extended with ``|=``, bound by a walrus, concatenated out of
@@ -795,11 +1125,26 @@ def test_no_module_level_constant_restates_the_data(
       are caught: which glyphs belong together is not a rendering
       decision.
     * constants inside a class or function body.
-    * a fact spelled as a comparison -- an ``if``/``elif`` chain, or a
-      single ``==`` against a declared symbol or value name. Twenty-one
-      such comparisons are load-bearing in the package, most of them
-      the vowel/consonant test a description's own sentence turns on,
-      so this cannot be closed without rejecting them too.
+    * anything outside ``ipakit/``. The walk is the package on purpose,
+      not for want of trying the rest: a fixture that pins how ``ʰ``
+      tokenizes has to write ``ʰ``, and a generator's curated override
+      table exists to make the human judgement explicit. Both *fail*
+      when the data moves under them, which is the opposite of the
+      quiet staleness this guard is for. Run over ``scripts/`` and
+      ``tests/`` today it reports four constants in two scripts and
+      twenty-two in fourteen test modules, and every one of them is a
+      corpus. What those two directories genuinely owed the data --
+      three inline copies that had already drifted from a constant they
+      were written from -- is fixed by importing the declaration
+      instead, which is a stronger guarantee than a walk.
+    * a fact spelled as a comparison -- an ``if``/``elif`` chain, a
+      ``match``/``case``, or a single ``==`` against a declared symbol or
+      value name. Comparisons of that shape are load-bearing throughout
+      the package, most of them the vowel/consonant test a description's
+      own sentence turns on, so this cannot be closed without rejecting
+      them too. ``test_the_comparison_escape_is_load_bearing`` counts
+      them against the source rather than quoting a number here, which
+      is a figure nothing regenerates.
     * a run of glyphs with nothing to split on (``"ˈˌ"``). Expanding
       every string to its characters would read ``"stress"`` as the
       phones s, t, r, e.
@@ -812,5 +1157,10 @@ def test_no_module_level_constant_restates_the_data(
     ``test_the_guard_states_what_it_cannot_see`` asserts each of those
     still escapes, so this list cannot go stale in either direction.
     """
-    found = offenders(path.read_text(encoding="utf-8"), declared)
-    assert found == [], f"{path.name}: " + "; ".join(found)
+    relative = str(path.relative_to(_PACKAGE))
+    found = [
+        f
+        for f in offenders(path.read_text(encoding="utf-8"), declared)
+        if (relative, _offender_name(f)) not in _JUSTIFIED
+    ]
+    assert found == [], f"{relative}: " + "; ".join(found)

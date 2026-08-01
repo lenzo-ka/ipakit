@@ -8,7 +8,6 @@ inverse deterministic, and the errors that must not pass silently.
 
 import pytest
 from ipakit import IPAFeatures, Kind
-from ipakit.constants import SEQ_TIE
 
 
 class TestInverse:
@@ -19,7 +18,7 @@ class TestInverse:
         # the honest answer -- and the one the tie rule must pick.
         for symbol in ipa.phones:
             realized = ipa.to_phone(ipa.get_features(symbol))
-            expected = symbol.split(SEQ_TIE)[0] if SEQ_TIE in symbol else symbol
+            expected = symbol.split(ipa.seq_tie)[0]
             assert realized == expected, symbol
 
     def test_round_trip_without_defaults(self, ipa: IPAFeatures) -> None:

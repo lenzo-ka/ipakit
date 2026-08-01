@@ -1,32 +1,58 @@
 """What a drawn tract has to satisfy, whatever the head or the phone.
 
-Both properties here were found by looking at a picture and then chased by
-hand for a while. A label that overlaps another, or a cavity that leaks where
-it should be sealed, is not something the rest of the suite can see: the
-geometry is well-formed, the numbers are fine, and the drawing is wrong.
+The first properties here were found by looking at a picture and then chased
+by hand for a while. A label that overlaps another, or a cavity that leaks
+where it should be sealed, is not something the rest of the suite can see:
+the geometry is well-formed, the numbers are fine, and the drawing is wrong.
+
+Two later ones answer a different question -- not whether the drawing is
+well-formed but whether it *says* anything. A figure that gives two phones
+the same picture is well-formed and useless, so the collapse is measured
+here and the remainder is named rather than left as a round number.
+
+And one is not about the SVG at all. A mark can be present, styled, inside
+the frame and last in document order and still be invisible, because a fill
+above it is opaque or a renderer outside a browser dropped its custom
+property. So it gets rasterized, removed, rasterized again and the changed
+pixels counted, which is the only claim about a mark worth making.
 """
 
 from __future__ import annotations
 
+import ast
+import json
 import math
+import os
 import re
+import shutil
+import struct
+import subprocess
 import sys
+import warnings
+import xml.etree.ElementTree as ET
+import zlib
 from pathlib import Path
+from typing import Any
 
+import ipakit
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-
-import tract_svg  # noqa: E402
-from ipakit.features import IPAFeatures  # noqa: E402
+from ipakit import tract_svg
+from ipakit.constants import METADATA_ATTRS
+from ipakit.features import IPAFeatures
 from ipakit.tract import (
-    TractPoint,
+    Head,
     constrictions,
+    glottal_aperture,
     head,
     heads,
+    landmarks,
+    secondary_marks,
     tract_point,
+    unmodelled,
     velic_aperture,
-)  # noqa: E402
+)
+
+from tests import corpus
 
 # Advances rounded up: a box narrower than the text it holds is the bug this
 # guards against, so erring wide is the safe direction.
@@ -58,39 +84,52 @@ def _boxes(svg: str) -> list[tuple[float, float, float, float, str]]:
 
 
 def _section(name: str, phone: str | None) -> str:
-    ipa = IPAFeatures()
-    aperture, posture, active = 0.0, None, None
-    close = 0.0
-    if phone is not None:
-        bundle = ipa.get_features(phone)
-        aperture = velic_aperture(ipa, bundle)
-        point = tract_point(ipa, bundle)
-        if point.arc is not None and point.offset is not None:
-            posture = (point.arc, point.offset, point.articulator or "articulator")
-            close = head(name).jaw_close(point)
-        active = {"place": str(bundle.get("place") or "")}
-        if point.offset is not None:
-            active["degree"] = (
-                "closed" if point.offset >= 0.995 else f"{1 - point.offset:.2f} open"
-            )
-        if point.articulator:
-            active["articulator"] = str(point.articulator)
-        if bundle.get("voiced"):
-            active["voiced"] = str(bundle["voiced"])
-    geometry = tract_svg.geometry(name, close)
-    if posture is not None:
-        geometry["tongue"] = tract_svg.tongue_surface(
-            name, TractPoint(arc=posture[0], offset=posture[1]), close
-        )
-        geometry["lips_closed_now"] = posture[0] <= 0.02 and posture[1] >= 0.995
-    return tract_svg.section_svg(geometry, None, aperture, posture, None, active)
+    """The section a figure would carry, less the caption.
+
+    Derived by ``tract_svg.drawing``, which is what ``make figures`` calls:
+    these properties used to re-derive the posture themselves, which is two
+    chances to disagree about what the picture is, and a test that passes
+    against a drawing the command would not produce checks nothing.
+    """
+    drawn = tract_svg.drawing(name, phone)
+    return tract_svg.section_svg(
+        drawn["geometry"],
+        None,
+        drawn["aperture"],
+        drawn["posture"],
+        None,
+        drawn["active"],
+    )
 
 
 PHONES = [None, "m", "b", "n", "t", "k", "ɡ", "s", "ʃ", "a", "i", "u", "h", "␣"]
 
+#: Phones and marked units whose contrast the posture alone cannot carry:
+#: glottal state, laterality, a secondary articulation, a release phase, an
+#: airstream. Every one of them is what a shipped rule set emits or what the
+#: chart spells with a diacritic, so none is a hypothetical.
+ANNOTATED = [
+    "ʔ",
+    "ɦ",
+    "a̤",
+    "a̰",
+    "ɬ",
+    "ɫ",
+    "l̥",
+    "n̩",
+    "tʰ",
+    "t̚",
+    "tˡ",
+    "tˤ",
+    "tʲ",
+    "ɓ",
+    "ʘ",
+    "pʼ",
+]
+
 
 @pytest.mark.parametrize("head_name", sorted(heads()))
-@pytest.mark.parametrize("phone", PHONES, ids=lambda p: p or "reference")
+@pytest.mark.parametrize("phone", PHONES + ANNOTATED, ids=lambda p: p or "reference")
 def test_no_label_overlaps_another(head_name: str, phone: str | None) -> None:
     """Two labels may not occupy the same space.
 
@@ -121,7 +160,7 @@ def test_a_shut_mouth_leaks_only_at_the_glottis(phone: str, head_name: str) -> N
 
     The tract is drawn from several declarations -- wall, floor, two lip
     bodies -- that have to meet. They met by luck before they met by
-    construction, and the seams were invisible until something was rasterised.
+    construction, and the seams were invisible until something was rasterized.
     """
     svg = _section(head_name, phone)
     walls = [_pts(d) for d in re.findall(r'<path d="([^"]*)" class="wall"/>', svg)]
@@ -153,54 +192,632 @@ def test_the_tongue_stays_inside_the_tract(head_name: str) -> None:
     pushes a closure that already touches the wall straight through it, which
     needs a front closure and a half-closed jaw together to show up -- a
     click. A closed jaw or an open one both hide it.
+
+    Asked of ``drawing`` rather than re-derived here. Re-deriving it took the
+    surface from the *first* constriction where the drawing takes it from all
+    of them, so the clicks this was written for -- and every other segment
+    that closes twice -- were checked on a surface no figure carries.
     """
     ipa = IPAFeatures()
-    h = head(head_name)
-    escapes = []
+    checked, escapes = 0, []
     for phone in sorted(ipa.phones):
-        point = tract_point(ipa, ipa.get_features(phone))
-        if point.arc is None or point.offset is None:
+        current = tract_svg.drawing(head_name, phone)["geometry"]
+        surface = current.get("tongue") or []
+        if not surface:  # a posture the tongue is not the boundary of
             continue
-        close = h.jaw_close(point)
-        geometry = tract_svg.geometry(head_name, close)
-        surface = tract_svg.tongue_surface(
-            head_name, TractPoint(arc=point.arc, offset=point.offset), close
-        )
+        checked += 1
         at = {round(a, 4): (x, y) for a, x, y in surface}
-        for row in geometry["rows"]:
+        for row in current["rows"]:
             here = at.get(round(row["arc"], 4))
             if here is None:
                 continue
             if here[1] > row["wall"][1] + 1e-9 or here[1] < row["open"][1] - 1e-9:
                 escapes.append((phone, round(row["arc"], 3)))
                 break
+    assert checked > 100, f"only {checked} phones drew a tongue: the sweep is vacuous"
     assert not escapes, f"{head_name}: tongue outside the tract for {escapes[:6]}"
+
+
+#: How far short of a stated constriction a *sampled* surface may sit. The
+#: nearest sample to a constriction is up to one step of arc off its peak,
+#: where the raised cosine has come down by well under this. What the check
+#: has to separate is a constriction the figure does not carry at all, which
+#: leaves the surface at rest -- two orders further down.
+SAMPLING_SLACK = 1e-3
+
+
+def _along(
+    floor: tuple[float, float], wall: tuple[float, float], at: tuple[float, float]
+) -> float:
+    """How far from the floor to the wall a drawn point sits: its offset."""
+    dx, dy = wall[0] - floor[0], wall[1] - floor[1]
+    return ((at[0] - floor[0]) * dx + (at[1] - floor[1]) * dy) / (dx * dx + dy * dy)
 
 
 @pytest.mark.parametrize("head_name", sorted(heads()))
 def test_an_articulator_reaches_its_target(head_name: str) -> None:
-    """Where a segment states a constriction, the tongue gets there.
+    """Where a segment states a constriction, the drawn tongue gets there.
 
     The taper that brings the tongue to a point at each end of its span was
     scaling constrictions inside that band, so a tip closing near the front
     stopped short of the ridge it was supposed to touch -- visible on a click,
     whose front closure sits well inside the taper.
+
+    Read off the surface ``drawing`` puts in the figure rather than off the
+    model beside it. Asked of the model, this holds while the figure carries
+    only the first of a segment's constrictions: a click's velar closure is
+    then absent from every picture and present in every check.
     """
     ipa = IPAFeatures()
-    h = head(head_name)
+    counts: dict[str, int] = {}
     short = []
     for phone in sorted(ipa.phones):
+        current = tract_svg.drawing(head_name, phone)["geometry"]
+        surface = current.get("tongue") or []
+        if not surface:
+            continue
+        rows = {round(row["arc"], 6): row for row in current["rows"]}
         for point in constrictions(ipa, ipa.get_features(phone)):
             if point.arc is None or point.offset is None:
                 continue
-            reached = h.tongue_offset(point.arc, point)
-            if reached is None:  # outside the tongue's span, e.g. the lips
-                continue
-            if abs(reached - point.offset) > 1e-9:
+            if not surface[0][0] <= point.arc <= surface[-1][0]:
+                continue  # outside the span the tongue bounds, e.g. the lips
+            counts[phone] = counts.get(phone, 0) + 1
+            near = min(surface, key=lambda s: abs(s[0] - point.arc))
+            row = rows[round(near[0], 6)]
+            reached = _along(row["open"], row["wall"], (near[1], near[2]))
+            if reached < point.offset - SAMPLING_SLACK:
                 short.append(
                     (phone, round(point.arc, 3), round(point.offset - reached, 4))
                 )
+    checked = sum(counts.values())
+    assert checked > 100, f"only {checked} constrictions drawn: the sweep is vacuous"
+    # The mistake this is here for only shows on a segment whose second
+    # closure the tongue makes, so the sweep has to reach one. Pinned rather
+    # than assumed: a change that puts every such segment outside the span
+    # would leave this passing on the easy half.
+    assert [
+        p for p, n in counts.items() if n > 1
+    ], "no segment closing twice inside the tongue's span is checked"
     assert not short, f"{head_name}: articulator short of target for {short[:6]}"
+
+
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_no_label_leaves_the_frame(head_name: str) -> None:
+    """A label pushed off the canvas is as unreadable as one under another.
+
+    The layout only knew about collisions, so the three-line glottal label
+    ran past the bottom edge on every head -- invisible to the overlap
+    property, which does not care where the boxes are.
+    """
+    checked = 0
+    escapes = []
+    for phone in [None, *PHONES[1:], *ANNOTATED]:
+        for box in _boxes(_section(head_name, phone)):
+            checked += 1
+            if not (0 <= box[1] and box[3] <= tract_svg.SECTION_HEIGHT):
+                escapes.append((phone, box[4], round(box[1], 1), round(box[3], 1)))
+            if not (0 <= box[0] and box[2] <= tract_svg.WIDTH):
+                escapes.append((phone, box[4], round(box[0], 1), round(box[2], 1)))
+    assert checked > 200, "sweep did not run"
+    assert not escapes, f"{head_name}: {len(escapes)} outside the frame, {escapes[:4]}"
+
+
+class TestTheAnnotationLayerIsReadOffTheDeclarations:
+    """Marks are asked of the data, never listed here.
+
+    The drawing carries two parameters against the specification's nine, so
+    most of what a segment states has no contour. The rule is that what is
+    annotated, and *why*, both come from ``ipa.xml``: a table of phones or
+    of features here would drift from it the way three copies of the
+    secondary set once did.
+    """
+
+    def test_nothing_the_posture_already_draws_is_annotated(self) -> None:
+        """A feature the constriction expresses must not be repeated.
+
+        Postural is derived -- a feature whose values declare ``arc`` or
+        ``offset`` coordinates is exactly what ``tract_point`` reads -- so
+        this holds for a feature added to the data tomorrow.
+        """
+        ipa = IPAFeatures()
+        postural = {n for n, f in ipa.features.items() if f.coordinates}
+        assert len(postural) >= 5, "no postural features found: the sweep is vacuous"
+        ported = {p for ports in ipa.bridge_apertures.values() for p in ports}
+        checked, wrong = 0, []
+        for phone in sorted(ipa.phones):
+            stated = ipa.get_features(phone, with_defaults=False)
+            for mark in unmodelled(ipa, stated):
+                checked += 1
+                if mark.feature in postural or (mark.feature, mark.value) in ported:
+                    wrong.append((phone, mark.feature))
+                if mark.feature in ipa.secondary_places:
+                    wrong.append((phone, mark.feature))
+        assert checked > 60, f"only {checked} marks over the inventory"
+        assert not wrong, f"annotated what the drawing already shows: {wrong[:5]}"
+
+    def test_every_mark_says_what_the_data_says(self) -> None:
+        """The word on a mark is the feature's declared ``label``.
+
+        ``_BINARY_LABELS`` once decided in Python that ``channel=grooved``
+        reads "sibilant". It reads that because the data says so, and a
+        mark shows the same word a description does.
+        """
+        ipa = IPAFeatures()
+        checked = 0
+        for phone in sorted(ipa.phones):
+            stated = ipa.get_features(phone, with_defaults=False)
+            for mark in unmodelled(ipa, stated):
+                checked += 1
+                declared = ipa.features[mark.feature].labels.get(mark.value)
+                assert mark.label == (declared or f"{mark.feature} {mark.value}")
+                assert stated[mark.feature] == mark.value
+        assert checked > 60, f"only {checked} marks over the inventory"
+
+    def test_the_reason_is_the_declaration(self) -> None:
+        """``kind`` is why the plane cannot hold it, and it is not chosen here.
+
+        ``channel`` declares ``axis="+z"`` and says in its own ``desc`` that
+        a mid-sagittal section projects that axis away; ``release`` declares
+        ``mode="release"``, a phase and not a posture.
+        """
+        ipa = IPAFeatures()
+        kinds: dict[str, set[str]] = {}
+        for phone in sorted(ipa.phones):
+            for mark in unmodelled(ipa, ipa.get_features(phone, with_defaults=False)):
+                kinds.setdefault(mark.kind, set()).add(mark.feature)
+        assert kinds["out of plane"] == {
+            n for n, f in ipa.features.items() if f.axis == "+z"
+        }
+        assert {"airstream", "retroflex"} <= kinds["unmodelled"]
+        for kind, names in kinds.items():
+            for name in names:
+                feat = ipa.features[name]
+                if kind == "out of plane":
+                    assert feat.axis == "+z", name
+                elif kind == "phase":
+                    assert feat.mode == "release", name
+                elif kind == "prosodic":
+                    assert feat.mode == "prosodic", name
+
+    def test_a_secondary_articulation_is_drawn_where_it_is_declared(self) -> None:
+        """It has a place, so it is geometry and not an annotation.
+
+        ``velarized`` carries ``place="velar"``; the mark lands at that
+        place's own arc, at approximant degree, because a secondary
+        constriction that reached the primary's degree would be one.
+        """
+        ipa = IPAFeatures()
+        place = ipa.features["place"]
+        approximant = ipa.features["manner"].coordinates["approximant"]["offset"]
+        seen = set()
+        for phone in sorted(ipa.phones):
+            bundle = ipa.get_features(phone)
+            for mark in secondary_marks(ipa, bundle):
+                seen.add(mark.feature)
+                target = ipa.secondary_places[mark.feature]
+                assert mark.arc in [
+                    place.coordinates[c]["arc"] for c in place.expand(target)
+                ]
+                assert mark.offset == approximant
+                primary = tract_point(ipa, bundle)
+                assert primary.offset is None or mark.offset <= primary.offset
+        assert seen, "no phone in the inventory carries a secondary articulation"
+
+    def test_the_glottal_scale_is_found_not_named(self) -> None:
+        """Fold aperture rides the axis ``phonation`` declares.
+
+        ``+glottal-aperture`` ascends creaky to devoiced, and ``voiced`` is
+        that same axis read two ways instead of four -- which is what the
+        ``<projection>`` says, and is how a bundle spelling only ``voiced``
+        gets a position at all.
+        """
+        ipa = IPAFeatures()
+        order = ipa.features["phonation"].values
+        apertures = [
+            glottal_aperture(ipa, {"phonation": value, "manner": "vowel"})
+            for value in order
+        ]
+        assert apertures == sorted(apertures) and apertures == [0.0, 1 / 3, 2 / 3, 1.0]
+        # The coarse spelling commits only to the center of what it covers.
+        voiced = glottal_aperture(ipa, {"voiced": "+", "manner": "vowel"})
+        assert voiced == glottal_aperture(ipa, {"phonation": "modal"})
+        assert glottal_aperture(ipa, ipa.get_features("t")) > voiced
+        # A complete closure at the folds is theirs, whatever else is said.
+        assert glottal_aperture(ipa, ipa.get_features("ʔ")) == 0.0
+        assert glottal_aperture(ipa, ipa.get_features("h")) == 1.0
+        assert glottal_aperture(ipa, {}) is None
+
+    def test_the_layer_states_what_it_cannot_see(self) -> None:
+        """Prosody never reaches a feature bundle, so it cannot be annotated.
+
+        ``length`` and ``stress`` belong to the unit rather than to the bag
+        (docs/ties.md), so ``aː`` and ``a`` state the same features and draw
+        the same picture. That is why the shipped rule sets' emitted units
+        still collapse in pairs. If one of these starts arriving in a
+        bundle this fails, and the documented limits need updating.
+        """
+        ipa = IPAFeatures()
+        prosodic = {n for n, f in ipa.features.items() if f.mode == "prosodic"}
+        assert prosodic, "no prosodic features declared"
+        for unit in ("aː", "ˈa", "aˑ"):
+            stated = ipa.get_features(unit, with_defaults=False)
+            assert not (set(stated) & prosodic), unit
+            assert not unmodelled(ipa, stated), unit
+
+
+DATA = Path(ipakit.__file__).resolve().parent / "data" / "ipa.xml"
+
+
+def _inventory(tmp_path: Path, edit: Any) -> IPAFeatures:
+    """The declared inventory with one declaration changed, as a caller's own.
+
+    Perturbed rather than written from scratch: what is being asked is
+    whether a drawing follows the data it was made against, and a
+    hand-built inventory would answer a different question -- whether the
+    renderer copes with a small one.
+    """
+    tree = ET.parse(DATA)
+    edit(tree.getroot())
+    path = tmp_path / "ipa.xml"
+    tree.write(path, encoding="utf-8")
+    return IPAFeatures(path)
+
+
+def _place_label(svg: str, name: str) -> tuple[float, str]:
+    """Where a place is labeled, and the class it carries there."""
+    found = re.search(
+        r'<text x="([-\d.]+)"[^>]*class="lbl (place[^"]*)"[^>]*>'
+        + re.escape(name.replace("-", " "))
+        + "</text>",
+        svg,
+    )
+    assert found is not None, f"{name} is not labeled at all"
+    return float(found.group(1)), found.group(2)
+
+
+class TestADrawingFollowsTheInventoryItIsMadeAgainst:
+    """A caller's own ``features`` reaches the geometry, and everything on it.
+
+    ``drawing`` takes an inventory, and the caption was already asked of
+    that one rather than of the package default, so the two could not
+    disagree. The landmarks were not: they were resolved once at import,
+    from the package data, and a caller passing their own inventory got a
+    posture from theirs and folds, places and articulators from ours --
+    silently, since the two agree byte for byte until the data differs.
+
+    Each of these perturbs one declaration and asserts the drawing follows
+    it. A fix without them is unguarded, because nothing else in the suite
+    and no command line passes ``features`` to ``drawing`` at all.
+    """
+
+    def test_the_folds_are_drawn_only_where_a_median_aperture_is_declared(
+        self, tmp_path: Path
+    ) -> None:
+        """Take the median aperture away and the folds go with it.
+
+        ``aperture="median"`` is what says an articulator closes about the
+        tract axis rather than toward a wall. An inventory that does not
+        say it has no folds to draw, and drew them anyway.
+        """
+        declared = landmarks(IPAFeatures()).median
+        assert declared, "no median articulator declared: the perturbation is vacuous"
+
+        def drop(root: Any) -> None:
+            for value in root.iter("value"):
+                if value.get("name") in declared:
+                    value.attrib.pop("aperture", None)
+
+        custom = _inventory(tmp_path, drop)
+        assert not landmarks(custom).median, "the perturbation did not land"
+        stated = tract_svg.figure("h", "adult-male")
+        perturbed = tract_svg.figure("h", "adult-male", features=custom)
+        assert 'class="fold' in stated, "no folds to lose"
+        assert 'class="fold' not in perturbed, "the folds ignore the inventory"
+
+    def test_a_place_is_labeled_where_the_inventory_puts_it(
+        self, tmp_path: Path
+    ) -> None:
+        """Move a place along the tract and its label moves with it.
+
+        The arc moved to is halfway across the widest gap the data leaves
+        between two places, so the perturbation cannot land on another
+        place whatever the inventory declares.
+        """
+        places = landmarks(IPAFeatures()).places
+        assert len(places) > 4, "too few places to move one: the sweep is vacuous"
+        ordered = sorted(places.values())
+        lo, hi = max(zip(ordered, ordered[1:], strict=False), key=lambda p: p[1] - p[0])
+        name = next(n for n, arc in places.items() if arc == lo)
+        moved = (lo + hi) / 2
+
+        def shift(root: Any) -> None:
+            for value in root.iter("value"):
+                if value.get("name") == name and value.get("arc") is not None:
+                    value.set("arc", f"{moved:.4f}")
+
+        custom = _inventory(tmp_path, shift)
+        assert landmarks(custom).places[name] == pytest.approx(moved)
+        was, _ = _place_label(tract_svg.figure(None, "adult-male"), name)
+        now, _ = _place_label(
+            tract_svg.figure(None, "adult-male", features=custom), name
+        )
+        assert now != pytest.approx(was), f"{name} is labeled where it no longer is"
+
+    def test_a_place_reads_as_fricative_only_while_one_lives_there(
+        self, tmp_path: Path
+    ) -> None:
+        """The amber places are the ones hosting a fricative in *this* data.
+
+        Restate the manner of every fricative and affricate at one place
+        and that place is no longer one of them. The place chosen is the
+        one the fewest phones would have to move.
+        """
+        ipa = IPAFeatures()
+        frication = ("fricative", "affricate")
+        hosts: dict[str, list[str]] = {}
+        for phone in sorted(ipa.phones):
+            bundle = ipa.get_features(phone)
+            if bundle.get("manner") in frication and bundle.get("place"):
+                hosts.setdefault(bundle["place"], []).append(phone)
+        assert hosts, "no place hosts a fricative: the perturbation is vacuous"
+        place = sorted(hosts, key=lambda p: (len(hosts[p]), p))[0]
+        other = next(v for v in ipa.features["manner"].values if v not in frication)
+
+        def restate(root: Any) -> None:
+            for phone in root.iter("phone"):
+                if phone.get("place") == place and phone.get("manner") in frication:
+                    phone.set("manner", other)
+
+        custom = _inventory(tmp_path, restate)
+        assert place not in landmarks(custom).frication, "the perturbation did not land"
+        _, was = _place_label(tract_svg.figure(None, "adult-male"), place)
+        _, now = _place_label(
+            tract_svg.figure(None, "adult-male", features=custom), place
+        )
+        assert "fric" in was, f"{place} hosts a fricative and is not marked as one"
+        assert "fric" not in now, f"{place} still reads as fricative with none left"
+
+
+class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
+    """What the annotation layer buys, measured rather than asserted.
+
+    Voicing, laterality, secondary articulation, release and airstream are
+    each a contrast a bare posture cannot carry, so each is a pair of
+    phones the figure would otherwise draw the same way.
+
+    The claim is one predicate, over the inventory and over the units the
+    shipped rule sets emit: **the drawing separates exactly what the
+    feature bundle separates**. A count of emitted units is a function of
+    how many words the rule-set corpora hold, so it belongs in an
+    assertion that derives it, not in a number anybody has to maintain.
+    """
+
+    def test_a_stated_contrast_the_layer_covers_reaches_the_drawing(self) -> None:
+        """Two phones differing only in an annotated feature draw differently.
+
+        Swept over the whole inventory rather than over named pairs: the
+        pairs anyone thinks of are the ones already fixed.
+        """
+        ipa = IPAFeatures()
+        by_posture: dict[tuple[Any, ...], list[str]] = {}
+        for phone in sorted(ipa.phones):
+            bundle = ipa.get_features(phone)
+            point = tract_point(ipa, bundle)
+            key = (point.arc, point.offset, velic_aperture(ipa, bundle))
+            by_posture.setdefault(key, []).append(phone)
+        covered = {"voiced", "phonation", "channel", "release", "airstream"}
+        covered |= set(ipa.secondary_places)
+        checked, same = 0, []
+        for group in by_posture.values():
+            for i, one in enumerate(group):
+                for other in group[i + 1 :]:
+                    a, b = ipa.get_features(one), ipa.get_features(other)
+                    differ = {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
+                    differ -= set(METADATA_ATTRS)
+                    # Two units may share a bundle outright -- a diphthong
+                    # reads its first element's features -- and then there
+                    # is no featural contrast for a drawing to carry.
+                    if not differ or not differ <= covered:
+                        continue
+                    checked += 1
+                    if _section("adult-male", one) == _section("adult-male", other):
+                        same.append((one, other))
+        assert checked > 40, f"only {checked} pairs contrast on an annotated feature"
+        assert not same, f"{len(same)} pairs still share a drawing: {same[:6]}"
+
+    def test_what_still_collapses_is_a_trajectory_or_a_prosody(self) -> None:
+        """The remainder, named rather than left as a round number.
+
+        A diphthong is a movement between two postures and the figure draws
+        one; length and stress are not in a bundle at all. Both are limits
+        of what a single sagittal section can be, not of this layer.
+        """
+        ipa = IPAFeatures()
+        groups: dict[str, list[str]] = {}
+        for phone in sorted(ipa.phones):
+            groups.setdefault(_section("adult-male", phone), []).append(phone)
+        collapsed = [g for g in groups.values() if len(g) > 1]
+        assert len(groups) == 131, (
+            f"{len(groups)} distinct figures for {len(ipa.phones)} phones; "
+            f"{len(collapsed)} groups share one"
+        )
+        ties = ipa.tie_bars
+        for group in collapsed:
+            assert any(
+                any(tie in unit for tie in ties) for unit in group
+            ), f"{group} share a drawing and none of them is a diphthong"
+
+    def test_what_the_rule_sets_emit_draws_one_picture_per_bundle(self) -> None:
+        """The emitted-units claim ``docs/tract-figures.md`` makes.
+
+        An integer here is a snapshot of corpus size, so what is asserted
+        is the identity an integer would only sample --
+
+            distinct pictures == distinct feature bundles
+
+        -- which holds at any corpus size. Every collapse is then a
+        contrast the bundle does not state (a length or stress mark, or a
+        diphthong reading its first element), and every contrast the
+        bundle *does* state reaches the drawing. Adding a corpus word
+        moves both counts together or fails here.
+
+        The corpus is imported from ``tests/test_rule_sets.py`` rather than
+        restated, for the reason ``tests/corpus.py`` gives: a second copy
+        of an enumeration is a second definition waiting to drift.
+        """
+        from tests.test_rule_sets import ALL_SETS, CORPUS
+
+        ipa = IPAFeatures()
+        units: set[str] = set()
+        for name in ALL_SETS:
+            ruleset = ipakit.ruleset(name)
+            for word in CORPUS[name]:
+                units |= {u.to_ipa() for u in ipa.segments(ruleset.apply(word))}
+
+        def bundle(unit: str) -> tuple[tuple[str, str], ...]:
+            stated = ipa.get_features(unit)
+            return tuple(
+                sorted((k, v) for k, v in stated.items() if k not in METADATA_ATTRS)
+            )
+
+        pictures: dict[str, list[str]] = {}
+        for unit in sorted(units):
+            pictures.setdefault(_section("adult-male", unit), []).append(unit)
+        bundles = {bundle(unit) for unit in units}
+        # A floor, not a total: it fails when the sweep collapses, not when
+        # a corpus word is added. Both sets get one, since a run that drew
+        # one picture for everything would still clear a floor on units.
+        assert len(units) > 60, f"only {len(units)} emitted units swept"
+        assert len(pictures) > 40, f"only {len(pictures)} pictures drawn"
+        assert len(pictures) == len(bundles), (
+            f"{len(units)} emitted units state {len(bundles)} bundles but draw "
+            f"{len(pictures)} pictures"
+        )
+        # The same identity said the other way round, which is what makes
+        # the counts meaningful: a collapse is units that state the same
+        # features, never two different bundles sharing one picture.
+        for group in pictures.values():
+            stated = {bundle(unit) for unit in group}
+            assert len(stated) == 1, f"{group} share a drawing, stating {stated}"
+
+
+ROOT = Path(__file__).resolve().parent.parent
+FIGURES = ROOT / "docs" / "figures"
+
+#: Each new layer, with a unit that carries it. A mark that does not paint,
+#: or that something later paints over, is the failure mode these exist for:
+#: reading the DOM said "present, styled, in frame, painted late" four times
+#: while the thing was invisible.
+LAYERS = {"fold": "ʔ", "second": "ɫ", "chip": "s"}
+
+
+def _pixels(svg: str, path: Path, width: int = 1520) -> tuple[int, list[bytes]]:
+    """Rasterize and decode, so a claim about a mark is about pixels.
+
+    A minimal PNG read -- 8-bit RGBA, the five filters -- because the point
+    is to look at what a renderer outside a browser actually produced.
+    """
+    path.write_text(svg, encoding="utf-8")
+    png = subprocess.run(
+        ["rsvg-convert", "-w", str(width), str(path)],
+        check=True,
+        capture_output=True,
+    ).stdout
+    at, w, h, depth, color, idat = 8, 0, 0, 0, 0, b""
+    while at < len(png):
+        (length,) = struct.unpack(">I", png[at : at + 4])
+        kind, data = png[at + 4 : at + 8], png[at + 8 : at + 8 + length]
+        if kind == b"IHDR":
+            w, h, depth, color = struct.unpack(">IIBB", data[:10])
+        elif kind == b"IDAT":
+            idat += data
+        at += 12 + length
+    assert depth == 8 and color == 6, f"unexpected PNG: {depth}-bit type {color}"
+    raw, stride, rows, prior = zlib.decompress(idat), w * 4, [], bytearray(w * 4)
+    at = 0
+    for _ in range(h):
+        filt, line = raw[at], bytearray(raw[at + 1 : at + 1 + stride])
+        at += 1 + stride
+        for x in range(stride):
+            a = line[x - 4] if x >= 4 else 0
+            b = prior[x]
+            c = prior[x - 4] if x >= 4 else 0
+            if filt == 1:
+                line[x] = (line[x] + a) & 255
+            elif filt == 2:
+                line[x] = (line[x] + b) & 255
+            elif filt == 3:
+                line[x] = (line[x] + (a + b) // 2) & 255
+            elif filt == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                near = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                line[x] = (line[x] + near) & 255
+        rows.append(bytes(line))
+        prior = line
+    return w, rows
+
+
+def _differing(
+    width: int, one: list[bytes], other: list[bytes]
+) -> list[tuple[int, int]]:
+    return [
+        (x, y)
+        for y, (a, b) in enumerate(zip(one, other, strict=True))
+        if a != b
+        for x in range(width)
+        if a[x * 4 : x * 4 + 4] != b[x * 4 : x * 4 + 4]
+    ]
+
+
+@pytest.mark.parametrize("layer", sorted(LAYERS), ids=sorted(LAYERS))
+def test_a_mark_is_painted_and_nothing_paints_over_it(
+    layer: str, tmp_path: Path
+) -> None:
+    """Rasterize, take the layer out, rasterize again, count the difference.
+
+    Inspecting the SVG cannot settle this. An element can be present,
+    styled, inside the frame and last in document order and still show
+    nothing, because a fill above it is opaque or a custom property was
+    dropped by the renderer. Removing it and finding the picture unchanged
+    is the only statement about the mark that a reader can rely on, and it
+    is how nine defects in this drawing were found.
+    """
+    if shutil.which("rsvg-convert") is None:  # pragma: no cover - CI has no rsvg
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    svg = tract_svg.figure(LAYERS[layer], "adult-male")
+    without = re.sub(
+        r'<(path|circle|rect|line)\b[^>]*class="[^"]*(?<![a-z-])'
+        + layer
+        + r'(?![a-z-])[^"]*"[^>]*/>',
+        "",
+        svg,
+    )
+    assert without != svg, f"no .{layer} element is emitted at all"
+    width, before = _pixels(svg, tmp_path / "with.svg")
+    _, after = _pixels(without, tmp_path / "without.svg")
+    moved = _differing(width, before, after)
+    assert len(moved) > 50, f".{layer} changes only {len(moved)} px: it is not visible"
+
+
+@pytest.mark.parametrize(
+    "figure", sorted(FIGURES.glob("tract-*.svg")), ids=lambda p: p.stem
+)
+def test_the_checked_in_figure_is_what_the_code_draws(figure: Path) -> None:
+    """``make figures`` must be a no-op on a clean tree.
+
+    The figures are checked in so a reader gets them without running
+    anything, which only works while they are current: a stale one is a
+    picture of geometry the library no longer has. The phone comes from the
+    figure's own caption rather than from a list here, so a figure added to
+    the Makefile is checked without this test being told about it.
+    """
+    text = figure.read_text(encoding="utf-8")
+    glyph = re.search(r'<text[^>]*class="glyph"[^>]*>([^<]*)</text>', text)
+    phone = glyph.group(1) if glyph else None
+    fresh = tract_svg.figure(phone, "adult-male")
+    assert fresh == text, f"{figure.name} is stale: run `make figures`"
 
 
 def test_a_click_closes_twice() -> None:
@@ -223,3 +840,276 @@ def test_a_click_closes_twice() -> None:
         assert all(
             q.offset is not None and q.offset >= 0.995 for q in points
         ), f"{phone}: a click's closures must be complete"
+
+
+def _draw(*argv: str, out: Path) -> str:
+    """Run one of the command lines that draw, and read back what it wrote."""
+    proc = subprocess.run(
+        [sys.executable, *argv, "-o", str(out)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env={**os.environ, "PYTHONHASHSEED": "0"},
+    )
+    assert proc.returncode == 0, f"{argv} failed:\n{proc.stderr}"
+    return out.read_text(encoding="utf-8")
+
+
+class TestThereIsOneWayToDraw:
+    """Three command lines, a call and a display hook; one drawing behind them.
+
+    The renderer used to live in ``scripts/``, which ships in neither the
+    wheel nor the importable half of the sdist, so an installed ipakit had
+    the tract model and no way to draw it. Moving it into the package
+    creates the risk this class exists to close: several entries into the
+    same picture, free to drift. ``drawing()`` is the single derivation and
+    ``render()`` the single assembly, and these assert that every entry
+    lands on the same bytes as the figure checked into ``docs/``.
+    """
+
+    def test_every_entry_writes_the_same_bytes(self, tmp_path: Path) -> None:
+        """The library call, the module, the script and the CLI agree.
+
+        And they agree with ``docs/figures/tract-t.svg``, which is what
+        ``make figures`` wrote -- so a change that quietly reroutes any one
+        of them fails here rather than in a diff nobody reads.
+        """
+        checked_in = (FIGURES / "tract-t.svg").read_text(encoding="utf-8")
+        entries = {
+            "figure()": tract_svg.figure("t", "adult-male"),
+            "python -m ipakit.tract_svg": _draw(
+                "-m",
+                "ipakit.tract_svg",
+                "draw",
+                "--head",
+                "adult-male",
+                "--phone",
+                "t",
+                out=tmp_path / "module.svg",
+            ),
+            "scripts/tract_svg.py": _draw(
+                "scripts/tract_svg.py",
+                "draw",
+                "--head",
+                "adult-male",
+                "--phone",
+                "t",
+                out=tmp_path / "script.svg",
+            ),
+            "ipakit tract draw": _draw(
+                "-m",
+                "ipakit.cli",
+                "tract",
+                "draw",
+                "t",
+                "--head",
+                "adult-male",
+                out=tmp_path / "cli.svg",
+            ),
+            "Segment._repr_svg_": ipakit.segment("t")._repr_svg_(),
+        }
+        differ = [name for name, svg in entries.items() if svg != checked_in]
+        assert not differ, f"these do not draw docs/figures/tract-t.svg: {differ}"
+
+    def test_every_entry_writes_the_same_page(self, tmp_path: Path) -> None:
+        """And the page route has one assembly, for the same reason.
+
+        ``render_page`` is to :func:`tract_svg.page` what ``render`` is to
+        ``standalone_svg``. There was none, and the two call sites unpacked
+        the same mapping into eight positional arguments by hand.
+        """
+        entries = {
+            "render_page()": tract_svg.render_page(
+                tract_svg.drawing("adult-male", "t")
+            ),
+            "python -m ipakit.tract_svg": _draw(
+                "-m",
+                "ipakit.tract_svg",
+                "draw",
+                "--head",
+                "adult-male",
+                "--phone",
+                "t",
+                out=tmp_path / "module.html",
+            ),
+            "scripts/tract_svg.py": _draw(
+                "scripts/tract_svg.py",
+                "draw",
+                "--head",
+                "adult-male",
+                "--phone",
+                "t",
+                out=tmp_path / "script.html",
+            ),
+            "ipakit tract draw --page": _draw(
+                "-m",
+                "ipakit.cli",
+                "tract",
+                "draw",
+                "t",
+                "--head",
+                "adult-male",
+                "--page",
+                out=tmp_path / "cli.html",
+            ),
+        }
+        one = entries["render_page()"]
+        differ = [name for name, text in entries.items() if text != one]
+        assert not differ, f"these do not write the same page: {differ}"
+
+    def test_the_page_leaves_the_caption_off_when_it_is_asked_to(
+        self, tmp_path: Path
+    ) -> None:
+        """``--no-caption`` reaches the page, and moves nothing else.
+
+        It reached the SVG route and not the page one, which passed the
+        caption whatever the flag said. The other half of the claim is that
+        a phone asked for without a caption is still a phone: the aperture
+        profile and the provenance table belong to the reference drawing.
+        """
+        cli = ["-m", "ipakit.cli", "tract", "draw", "--head", "adult-male", "--page"]
+        with_caption = _draw(*cli, "t", out=tmp_path / "with.html")
+        without = _draw(*cli, "t", "--no-caption", out=tmp_path / "without.html")
+        reference = _draw(*cli, out=tmp_path / "reference.html")
+
+        assert 'class="glyph"' in with_caption, "no caption to leave off"
+        assert 'class="glyph"' not in without, "--page ignores --no-caption"
+        # The caption is the only thing that goes: the three classes
+        # ``_caption`` emits, and nothing beyond them.
+        stripped = re.sub(
+            r'<text[^>]*class="(?:glyph|lbl caption|lbl feat)"[^>]*>.*?</text>',
+            "",
+            with_caption,
+        )
+        assert without == stripped, "--no-caption moved more than the caption"
+        assert "Declared aperture" in reference, "the reference lost its profile"
+        assert (
+            "Declared aperture" not in without
+        ), "a phone drawn without a caption became the reference page"
+
+    def test_the_script_is_a_way_in_and_not_a_second_renderer(self) -> None:
+        """``scripts/tract_svg.py`` may delegate; it may not draw.
+
+        Written as a predicate rather than a diff against today's file: the
+        mistake to catch is a copy of the drawing logic left behind, and a
+        copy declares functions and emits markup whatever it is called.
+        """
+        source = (ROOT / "scripts" / "tract_svg.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        declared = [
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+        ]
+        assert not declared, f"the shim declares its own {declared}"
+        markup = [
+            token for token in ("<svg", "<path", "<circle", "@media") if token in source
+        ]
+        assert not markup, f"the shim carries drawing markup: {markup}"
+
+    def test_the_cli_reaches_every_declared_head(self) -> None:
+        """``tract heads`` lists what ``heads()`` declares, and no less.
+
+        A drawing command that can only reach the head someone remembered
+        to name is the shape of divergence this repo has fixed once per
+        surface; the list is read off the model.
+        """
+        proc = subprocess.run(
+            [sys.executable, "-m", "ipakit.cli", "tract", "heads", "-f", "json"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        assert proc.returncode == 0, proc.stderr
+        listed = {row["name"] for row in json.loads(proc.stdout)}
+        assert listed == set(
+            heads()
+        ), f"CLI lists {listed}, model declares {set(heads())}"
+
+
+class TestWhatDrawsItselfInANotebook:
+    """One posture, one figure -- and the hook is only where that holds.
+
+    A ``_repr_svg_`` is not a convenience, it is a claim: *this object is
+    what the picture shows*. A ``Segment`` is one unit and therefore one
+    posture, and a ``Head`` is one geometry at one rest posture, so both
+    can make it. A ``Form`` is a sequence of postures and a ``Derivation``
+    a sequence of forms; either would have to pick one posture, which is a
+    silent wrong answer, or lay out a strip, which is a feature of its own
+    and belongs with the document that explains it.
+    """
+
+    def test_a_segment_draws_itself_over_the_inventory(self) -> None:
+        """Sampled deliberately, and the sample says what it covers.
+
+        Every registered phone, plus one marked unit per diacritic so no
+        diacritic goes unexercised. The full 8060-unit corpus is ~90s of
+        drawing, which is too slow for the default run; what a marked unit
+        can do that a bare one cannot is reach ``unmodelled``, and one unit
+        per diacritic reaches all of it.
+        """
+        ipa = IPAFeatures()
+        phones = corpus.self_spelling_phones()
+        units = list(phones)
+        barren = []
+        with warnings.catch_warnings():
+            # Probing a mark against a base is *expected* to fail for the
+            # marks that bind nothing, and their warnings would be noise in
+            # every run. How many there are is asserted instead, so the
+            # blind spot stays known rather than assumed shut.
+            warnings.simplefilter("ignore")
+            for mark in sorted(ipa.diacritics):
+                for phone in phones:
+                    candidate = phone + mark
+                    if ipa.segment(candidate).to_ipa() == candidate:
+                        units.append(candidate)
+                        break
+                else:
+                    barren.append(mark)
+        assert len(barren) <= 7, f"{len(barren)} marks compose with nothing: {barren}"
+        corpus.assert_swept(len(units), phones)
+        assert len(units) > 190, f"only {len(units)} units: the sample lost the marks"
+        for unit in units:
+            svg = ipakit.segment(unit)._repr_svg_()
+            assert svg.startswith("<svg "), unit
+            assert (
+                "<style>" in svg
+            ), f"{unit}: no resolved styles, it would rasterize blank"
+            assert svg.endswith("</svg>"), unit
+
+    def test_a_segment_carrying_its_own_inventory_draws_against_it(self) -> None:
+        """The figure follows the data the segment was built from.
+
+        A caller with their own ``ipa.xml`` gets a picture of their data:
+        the caption is asked of the segment's own inventory rather than of
+        the package-level default, which is where the two could disagree
+        silently.
+        """
+        ipa = IPAFeatures()
+        seg = ipa.segment("t")
+        assert seg._repr_svg_() == tract_svg.figure("t", features=ipa)
+
+    @pytest.mark.parametrize("head_name", sorted(heads()))
+    def test_a_head_draws_its_own_reference(self, head_name: str) -> None:
+        """Each head shows itself, at the posture it declares for rest."""
+        svg = head(head_name)._repr_svg_()
+        assert svg == tract_svg.figure(None, head_name)
+        assert svg.startswith("<svg ") and "<style>" in svg
+
+    def test_a_sequence_of_postures_has_no_figure(self) -> None:
+        """Pinned, so the limit stays known rather than assumed shut.
+
+        If ``Form`` or ``Derivation`` grows a display hook this fails, and
+        ``docs/tract-figures.md`` -- which says why they have none -- needs
+        updating in the same commit. A filmstrip is the obvious next thing
+        to build, and it should arrive with the paragraph explaining it.
+        """
+        hooks = ("_repr_svg_", "_repr_html_", "_repr_markdown_", "_repr_png_")
+        for kind in (ipakit.Form, ipakit.Derivation):
+            grown = [hook for hook in hooks if hasattr(kind, hook)]
+            assert not grown, f"{kind.__name__} grew {grown}: see docs/tract-figures.md"
+        # The other half of the claim: what does have one, still has one.
+        for kind in (ipakit.Segment, Head):
+            assert hasattr(kind, "_repr_svg_"), kind.__name__

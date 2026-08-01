@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from .constants import METADATA_ATTRS, SEQ_TIE, TIE_BAR
+from .constants import METADATA_ATTRS
 
 if TYPE_CHECKING:  # pragma: no cover
     from ._base import IPAFeaturesBase
@@ -40,12 +40,23 @@ _OBSTRUENT = "obstruent"
 class Sense(StrEnum):
     """Juncture sense: what a tie asserts about timing."""
 
-    FUSE = "fuse"  # over-tie U+0361: one timing slot
-    SEQ = "seq"  # under-tie U+035C: several slots bound into one unit
+    FUSE = "fuse"  # one timing slot
+    SEQ = "seq"  # several slots bound into one unit
 
-    @property
-    def glyph(self) -> str:
-        return TIE_BAR if self is Sense.FUSE else SEQ_TIE
+    def glyph(self, features: IPAFeaturesBase | None = None) -> str:
+        """The character spelling this sense, asked of the declaration.
+
+        A sense is this library's own classification; which glyph writes
+        it is ipa.xml's, so the pairing is read from the inventory rather
+        than pasted here. ``features`` is optional because a ``Segment``
+        may be rebuilt from JSON without one, and a unit with no
+        inventory has only the bundled one to be spelled in.
+        """
+        if features is None:
+            from ._convert import ipa_features
+
+            features = ipa_features()
+        return features.tie_bar if self is Sense.FUSE else features.seq_tie
 
 
 class Kind(StrEnum):
@@ -524,7 +535,7 @@ class Segment:
         return {k: tuple(v) for k, v in out.items()}
 
     def scalar(self, with_defaults: bool = True) -> dict[str, str]:
-        """Flat backward-compatible projection (design spec section 6).
+        """Flat projection: one value per key (design spec section 6).
 
         :func:`flat_projection` over this unit's constituents -- the same
         function the string entry points compose a tie chain with -- so
@@ -549,7 +560,7 @@ class Segment:
         features = self._require_features()
         if not any(c.modifiers for c in self.constituents):
             chain = "".join(
-                c.base if i == 0 else self.junctures[i - 1].glyph + c.base
+                c.base if i == 0 else self.junctures[i - 1].glyph(features) + c.base
                 for i, c in enumerate(self.constituents)
             )
             return features.get_features(chain, with_defaults=with_defaults)
@@ -582,7 +593,7 @@ class Segment:
         stress = [m for m in self.prosody if m in markers]
         trailing = [m for m in self.prosody if m not in markers]
         body = "".join(
-            str(c) if i == 0 else self.junctures[i - 1].glyph + str(c)
+            str(c) if i == 0 else self.junctures[i - 1].glyph(features) + str(c)
             for i, c in enumerate(self.constituents)
         )
         return "".join(stress) + body + "".join(trailing)
@@ -619,3 +630,25 @@ class Segment:
             prosody=prosody,
             _features=features,
         )
+
+    # -- notebook display -----------------------------------------------------
+
+    def _repr_svg_(self) -> str:
+        """The mid-sagittal tract figure, drawn when a notebook shows this.
+
+        A segment is one unit, so it is one posture, so it has one figure:
+        that is the whole reason this hook is here and not on ``Form`` or
+        ``Derivation``, each of which is a sequence of postures and would
+        have to choose one or invent a strip. See docs/tract-figures.md.
+
+        Drawn against this segment's own inventory when it has one, so a
+        caller using their own ``ipa.xml`` gets a picture of their data
+        rather than of the shipped default.
+
+        The import is deferred: the renderer reads the model, ``ipakit
+        .metric`` reads the model, and nothing that computes a distance
+        should be able to reach a stylesheet.
+        """
+        from .tract_svg import figure
+
+        return figure(self.to_ipa(), features=self._features)

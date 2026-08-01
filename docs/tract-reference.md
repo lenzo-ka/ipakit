@@ -40,7 +40,7 @@ The two combining places, `bilabial^velar` and `bilabial^palatal`, declare no ar
 | `epiglottis` | 0.87 | toward the wall |
 | `vocal-folds` | 1.00 | toward the tract axis |
 
-The glottis closes toward the tract axis rather than toward a wall — the folds meet each other — which `offset` does not model, so it is drawn centred and its degree of closure is not shown.
+The glottis closes toward the tract axis rather than toward a wall — the folds meet each other — which `offset` does not model, so it is drawn centered and its degree of closure is not shown.
 
 ### The adult midline
 

@@ -1,4 +1,4 @@
-# Regeneratable artefacts. Everything here is derived from the data and
+# Regeneratable artifacts. Everything here is derived from the data and
 # checked in, so a reader gets the figures without running anything and a
 # reviewer sees a change to them in the diff.
 
@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean lint check
+.PHONY: figures figures-clean tutorial lint check
 
 ## figures: redraw the mid-sagittal tract figures in docs/
 figures:
@@ -30,6 +30,13 @@ figures:
 figures-clean:
 	@rm -f $(FIGDIR)/tract-*.svg
 
+## tutorial: regenerate docs/tutorial.md by running every example in it
+# The prose is written in docs/tutorial.src.md; every value in the page is
+# produced by executing the call beside it. PYTHONHASHSEED is pinned for the
+# same reason it is pinned for invariants.py -- `check` compares bytes.
+tutorial:
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py build
+
 ## lint: the style gates; needs the `lint` extra (ruff / black / mypy)
 lint:
 	@$(PYTHON) -m ruff check .
@@ -44,3 +51,5 @@ check: lint
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py

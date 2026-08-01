@@ -65,12 +65,19 @@ class TestFindSharesTheQueryLanguage:
     def test_a_query_that_resolves_to_nothing_raises(self, ipa: IPAFeatures) -> None:
         # The same refusal phones_matching makes: an unresolved query would
         # otherwise report every unit as a match.
-        with pytest.raises(ValueError, match="entire inventory"):
+        with pytest.raises(ValueError, match="resolves to no feature term"):
             ipa.find("kæt", ["zzz", "qqq"])
+
+    def test_one_bad_term_beside_a_good_one_raises(self, ipa: IPAFeatures) -> None:
+        # And the mixed query: dropping the bad term and searching on what
+        # is left is a NARROWER query silently widened, which is worse
+        # than a vacuous one because the answer still looks right.
+        with pytest.raises(ValueError, match="'zzz' resolves to no feature term"):
+            ipa.find("kæt", ["plosive", "zzz"])
 
     def test_the_query_is_resolved_before_the_search(self, ipa: IPAFeatures) -> None:
         # Nothing to search is not an excuse to accept a bad query.
-        with pytest.raises(ValueError, match="entire inventory"):
+        with pytest.raises(ValueError, match="resolves to no feature term"):
             ipa.find("", ["zzz"])
 
     def test_module_and_method_agree(self) -> None:

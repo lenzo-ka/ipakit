@@ -1,0 +1,410 @@
+# French liaison and final consonant deletion: the worked example of
+# DELETION, and of a rule conditioned across a word boundary.
+#
+# With this file each of the four things the notation can do has a shipped
+# example: american-english.rules is all substitution and feature change,
+# the two loanword sets are insertion, and this one is deletion.
+#
+# The phenomenon. A French word-final consonant is LATENT: silent before
+# a consonant or a pause, pronounced before a vowel, where it attaches to
+# the following word as an onset.
+#
+#     lez‿ami     les amis      -> [le‿zami]     the /z/ surfaces
+#     pətit‿ami   petit ami     -> [pəti‿tami]   the /t/ surfaces
+#     lez‿ʃjɛ̃     les chiens    -> [le‿ʃjɛ̃]      the /z/ stays silent
+#     pətit‿ʃjɛ̃   petit chien   -> [pəti‿ʃjɛ̃]    the /t/ stays silent
+#     lez         les (alone)   -> [le]          nothing follows
+#
+# DELETING, NOT INSERTING, and the direction is a choice worth arguing.
+# The other direction -- lexical /le/, with the /z/ inserted before a
+# vowel -- would produce the same four forms above and is wrong for two
+# reasons that show up as soon as the corpus grows past four phrases.
+# First, WHICH consonant appears is unpredictable from the phonology:
+# 'les' links with /z/, 'petit' with /t/, 'mon' with /n/, 'trop' with /p/.
+# An inserting account has to look the consonant up per word, which is a
+# lexicon, not a rule; a deleting account reads
+# it off the lexical form, which is where it already is. Second, the
+# consonant is audible in the word's other shapes -- 'petit'/'petite',
+# 'bon'/'bonne' -- so it is in the lexical entry whether liaison likes it
+# or not. Deletion is the classical treatment (Schane, Dell, Tranel) for
+# exactly these reasons.
+#
+# THE INPUT. A phonological phrase, with:
+#   * latent consonants PRESENT -- 'lez', 'pətit', 'mɔ̃n';
+#   * word division written with '‿', the declared IPA linking mark, where
+#     the words are in one phonological phrase, and with a space or '#'
+#     where there is a break;
+#   * a final schwa written where the language has one -- 'pətitə' for
+#     'petite', 'bɔnə' for 'bonne'. That schwa is what protects the
+#     consonant in front of it, and the ordering below is what makes it
+#     protect it.
+#
+# '‿' is the right mark and not a convenience: docs/ties.md defines it as
+# absence of a break between words, and names French liaison as its use.
+# Using it rather than a space is also a substantive claim -- liaison
+# happens inside a phonological phrase and not across a pause -- so
+# 'lez ami' with a space correctly gives [le ami], with the /z/ lost.
+#
+# '‿' declares level="word" and linking="+": it DIVIDES two words while
+# saying they are run together, so it sits on the word tier and '#'
+# reaches it. That is what makes the two halves of this set ask their
+# questions differently, and the difference is the analysis:
+#
+#   * DELETION asks "is this the end of a word", so it is written '_ #',
+#     which reaches the linking mark, a space, and the form's own edge
+#     alike -- the three ways this set's input spells a word end.
+#   * LIAISON asks the narrower question "is this the end of a word inside
+#     one phonological phrase", so it NAMES '‿'. MEASURED, written with
+#     '#' the copy rule fires across a space too: '∅ -> z / z # _ [vowel]'
+#     takes 'lez ami' to 'lez zami', licensing liaison over the pause the
+#     space asserts. Naming the mark is how the rule states its domain.
+
+# --- liaison ------------------------------------------------------------
+# The latent consonant surfaces as the ONSET of the following word, not as
+# the coda of its own: 'les amis' is [le.za.mi], syllabified across the
+# join. That is resyllabification, which is movement, and movement --
+# metathesis -- is deliberately not expressible here (docs/rules.md). It
+# is expressible as a copy followed by a deletion, and since the deletion
+# is a rule this set needs anyway, the copy is the only rule the analysis
+# adds. Ordering does the rest.
+#
+# One line per latent consonant, and the reason is a variable over a
+# SEGMENT, which is a different thing from the agreement variable the
+# notation now has. What the rule wants to say is "insert a copy of the
+# consonant to the left of the boundary": not "the same value of one
+# feature here and there", which is what 'α' says, but the whole segment.
+# So the segment has to be NAMED, and it appears on both sides of the
+# same line, four times over.
+#
+# THIS NOTE USED TO SAY american-english.rules HIT THE SAME WALL, and it
+# no longer does: nasal place assimilation there is now one rule with
+# 'α' in it. The wall these four lines are against is the one docs/
+# calculus.md still lists -- a variable over a segment, not over a value.
+#
+# The context names '‿' for the domain reason above, and it would have to
+# name some boundary in any case: MEASURED, the linking mark is OPAQUE to
+# context scanning -- 'word' is opaque, and opacity is read off the level
+# -- so a rule that does not name it cannot see past it.
+# 't -> ɾ / [vowel] _ [vowel]' fires on 'ata' and not on 'a‿ta'. Here that
+# opacity is useful. Elsewhere it is a trap, and the note at the end of
+# this file says why.
+∅ -> z / z ‿ _ [vowel] ; liaison (z)
+∅ -> t / t ‿ _ [vowel] ; liaison (t)
+∅ -> n / n ‿ _ [vowel] ; liaison (n)
+∅ -> p / p ‿ _ [vowel] ; liaison (p)
+
+# --- /ʁ/ IS NOT ON THAT LIST, and it used to be --------------------------
+# This is the one place where the set's central simplification -- that a
+# final /z t n p/ is treated as latent because nothing in the segment says
+# whether it is -- was applied to a segment where it is false far more
+# often than it is true, and the file's own reasoning for including it is
+# what was wrong.
+#
+# The reasoning was 'premier étage' [pʁəmje‿ʁetaʒ]: latent /ʁ/ is real, so
+# the segment joined the list. But latent /ʁ/ is a closed and largely
+# obsolete class -- the -er infinitives and 'premier'/'dernier', where the
+# liaison is bookish and most speakers do not make it -- while STABLE
+# final /ʁ/ is the majority case of the language: every -eur, -oir and -ir
+# noun, every -ir infinitive, and the commonest words in it. MEASURED,
+# with the two /ʁ/ rules in place: 'bɔ̃ʒuʁ' -> [bɔ̃ʒu], 'mɛʁ' -> [mɛ],
+# 'puʁ' -> [pu], 'syʁ' -> [sy], 'kaʁ' -> [ka]. Five words, five wrong
+# answers, against one archaic phrase repaired.
+#
+# For /z t n p/ the same simplification is benign, and the file already
+# says why a page up: the stable-final exceptions there are a short list
+# ('sept', 'net', 'avec'-like), and the protecting schwa handles the
+# regular alternations. The arithmetic is what differs, not the analysis.
+# So the rule is not repaired, it is REMOVED: a latent /ʁ/ needs the
+# lexical mark that this set does not have, and until it does, deleting
+# nothing is much closer to French than deleting every final /ʁ/.
+#
+# 'pʁəmjeʁ‿etaʒ' therefore comes out unchanged, and that is the residue
+# being paid for. It is in the corpus as a pin, so the cost stays visible.
+
+# --- final consonant deletion -------------------------------------------
+# ORDERING (1 of 2). These rules ask nothing about what follows the
+# boundary, and they can afford not to BECAUSE the liaison rules have
+# already run: where liaison applied there is now a second copy of the
+# consonant safely inside the next word, so deleting the original is
+# exactly resyllabification. Run the
+# other way round, 'lez‿ami' comes out [le‿ami] -- the /z/ deleted before
+# the rule that would have saved it ever looked. That is bleeding, and it
+# is measured rather than asserted.
+#
+# ONE CONTEXT PER CONSONANT, and it was two until the linking mark
+# declared a level. What the rule needs is "at the end of a word": before
+# a linked word ('lez‿ʃjɛ̃'), before a break ('lez ʃjɛ̃'), or at the end of
+# the form with nothing typed ('lez'), which is the pause case. '_ #' is
+# that set, because the tiers nest and all three are word-level.
+#
+# It was not always '#', and the history is worth keeping because the
+# wrong spelling is still available. While '‿' declared no level it sat on
+# no tier, so '#' did not reach it and the only pattern that did was '%'.
+# '%' is "any boundary", so it also reaches the syllable dot, and a dot is
+# word-INTERNAL. Do NOT "simplify" '_ #' to '_ %'. RE-MEASURED, on this
+# set as it stands: with '_ %' throughout, 28 of the 143 dotted spellings
+# of this set's own corpus come out differently from their undotted twins,
+# against 0 with '_ #'. (It was 30 of 106 before this file lost its two
+# /ʁ/ rules and gained the clitics, and 24 of 122 before the corpus gained
+# the four e caduc words; the corpus moves, so the count moves, and the
+# ratio is the claim rather than the integer.) Any dot after a
+# deletable consonant is enough --
+# 'z -> ∅ / _ %' takes 'lez‿z.ami' to [le‿.ami], deleting the liaison
+# consonant this set had just placed, where '_ #' gives [le‿z.ami] and
+# leaves it alone. That is the exact failure the transparency rule exists
+# to prevent -- one word, two answers, decided by who typed the dots.
+#
+# Naming the two boundaries separately -- '_ #' and '_ ‿' on consecutive
+# lines -- was the workaround while the level was missing, and it is worth
+# saying what removing it changed, because "shadowed" is the wrong
+# diagnosis.
+#
+# THE SWEEP BEHIND THE NEXT TWO CLAIMS IS DEFINED HERE, because the
+# numbers that stood in this paragraph were measured over "30927
+# re-spelling forms" and nothing recorded how those forms were built, so
+# nobody could re-measure them -- which is how a MEASURED claim rots. The
+# sweep is now: every form of one to three segments drawn from
+# {z t n p ə a}, each segment optionally followed by one of {. ‿ # space},
+# keeping the forms that spell themselves back. That is 27930 forms, and
+# it is written down so the next reader can run it.
+#
+# Over it, the positions '_ ‿' holds at are a strict SUBSET of the
+# positions '_ #' holds at, for every one of these five segments. So the
+# pair states what '_ #' states alone: it is REDUNDANT, and the second
+# line of each pair never firing is a consequence of the wider rule
+# standing first, not an ordering to repair. Putting the narrow line first
+# does make both fire -- and says the same thing in twice the lines.
+#
+# It was not inert in general, though: running the same deletion twice let
+# it ITERATE, so a final geminate lost both members. Over that sweep the
+# one-line and two-line spellings differ exactly where a form ends in two
+# identical deletable segments -- adjacent or separated only by a dot --
+# at the point the rule looks, and every difference is one or two extra
+# segments deleted. Most such forms carry the doubled pair in the input;
+# the rest acquire it when an earlier deletion takes away what stood
+# between the pair and the boundary. 'zz‿' and 'z.z‿' came out [‿]
+# and [.‿] where one rule per consonant gives [z‿] and [z.‿]. One deletion
+# per word end is what the analysis says, so the collapse fixed that too.
+z -> ∅ / _ # ; final z deletion
+t -> ∅ / _ # ; final t deletion
+n -> ∅ / _ # ; final n deletion
+p -> ∅ / _ # ; final p deletion
+
+# Latency is LEXICAL, and this is where that bites. These rules delete a
+# final /z t n p/ from any word that has one, so 'sept' [sɛt] and 'net'
+# [nɛt] and 'avec'-like exceptions come out wrong; the rules cannot tell a
+# latent consonant from a stable one, because nothing in the segment says
+# which it is. What does the work for the regular cases is the protecting
+# schwa and the ordering below -- 'petite' /pətitə/ keeps its /t/ -- and
+# the residue is a list of exceptions, which is a lexicon and not
+# something a rule set should pretend to derive.
+
+# --- final schwa deletion -----------------------------------------------
+# ORDERING (2 of 2), and the classical demonstration that rule order is
+# part of the grammar. 'petite' is lexically /pətitə/ and 'petit'
+# /pətit/; both surface with the schwa gone, but only one loses its /t/.
+# Ordered LAST, the schwa is still in place when final consonant deletion
+# looks, so it shelters the /t/, and the two words come out [pətit] and
+# [pəti]. Ordered FIRST, /pətitə/ becomes /pətit/ before deletion runs
+# and both come out [pəti] -- the contrast is destroyed. Measured.
+#
+# This is the same relation as the liaison rules above, seen from the
+# other side: there ordering SAVES a consonant by putting a copy out of
+# reach, here it saves one by leaving a shield in place.
+#
+# '#' reaches the linking mark, so 'pətitə‿ami' loses its schwa without a
+# second rule naming '‿'.
+#
+# TWO LINES, because a word may not be left without a vowel. Written as
+# the bare 'ə -> ∅ / _ #' this rule stripped the clitics to a consonant:
+# MEASURED, 'lə' -> [l], 'ʒə' -> [ʒ], 'sə' -> [s], which are not French
+# words but French CONSONANTS. The schwa of 'le', 'je', 'ce', 'de', 'ne',
+# 'que' is the only vowel those words have, and it is retained for exactly
+# that reason -- 'le chien' is [lə ʃjɛ̃] -- while 'une' [yn] and 'bonne'
+# [bɔn] drop theirs and keep a vowel each.
+#
+# The condition wanted is "the word has another vowel", which is a claim
+# about a CONSTITUENT and not about the neighbors -- the same divergence
+# american-english.rules keeps running into. What is available is the
+# neighbors, and here they are enough, because the failing case is
+# exactly one shape: a schwa behind a single word-initial consonant. So
+# the rule asks for one more unit to the left of that consonant, whatever
+# it is, and since a bracketed query is a conjunction there is no way to
+# say "anything" once -- it is a vowel, or it is not. Two lines, and the
+# pair is the union that 'not # C _ #' would have been.
+#
+# 'katʁə' -> [katʁ] falls out of the second line, which is right, and
+# leaves this set standing where the note at the foot of the file already
+# puts it: whether that /ʁ/ then drops is the three-consonant constraint,
+# which is not modeled here.
+ə -> ∅ / [vowel] [-vowel] _ # ; final schwa deletion
+ə -> ∅ / [-vowel] [-vowel] _ # ; final schwa deletion (after a cluster)
+
+# --- e caduc: the OPTIONAL half, and why it needs a different arrow ------
+# Everything above is obligatory: one form in, one form out. Word-internal
+# schwa is not like that. 'petit' is [pəti] AND [pti], from the same
+# speaker in the same conversation, and neither is the derived form of the
+# other -- they are two pronunciations of one word. A grammar that has to
+# pick one is not describing French; it is picking one.
+#
+# '~>' is that arrow (docs/calculus.md). The rule MAY fire, so a cascade
+# carrying one derives a SET:
+#
+#     ipakit rules variants -s french-liaison pətit    -> pətit, ptit
+#
+# 'rules apply' still answers with one form and takes no optional choice,
+# so everything above this line derives exactly as it did before.
+#
+# THE CONDITION IS THE LOI DES TROIS CONSONNES, and stating it is the
+# whole difficulty. A schwa may drop where dropping it does not leave
+# three consonants in a row: 'samedi' [samdi] but 'vendredi' *[vɑ̃dʁdi].
+# What the notation offers is neighbors, and here they are enough said
+# in the negative: at most ONE consonant on the left of the schwa, and
+# that consonant preceded by a vowel or by a word edge; at most one on
+# the right, and that one followed by a vowel. So 'vɑ̃dʁədi' matches
+# neither line -- the /ʁ/ before the schwa is itself behind a /d/ -- and
+# comes out with its schwa, which is right.
+#
+# TWO LINES, and the split is NOT cosmetic. It is the one place where the
+# engine's own model shows through, so it is worth spelling out.
+#
+# Within a single rule every site is found against a SNAPSHOT, and under
+# '~>' each site then branches INDEPENDENTLY. That is what the phenomenon
+# wants -- a word with two schwas has each independently droppable -- and
+# it is also how a constraint on the RESULT gets lost, because no site can
+# see what another site chose. 'devenir' /dəvəniʁ/ is the classical
+# demonstration: [dəvəniʁ], [dvəniʁ] and [dəvniʁ] are all French and
+# *[dvniʁ] is not, and one rule matching both schwas at once derives all
+# four. MEASURED: written as the single line
+# 'ə ~> ∅ / [-vowel] _ [-vowel] [vowel]' the set is
+# {dəvəniʁ, dvəniʁ, dəvniʁ, dvniʁ}.
+#
+# Ordered rules are where the missing information is. Each rule sees the
+# previous rule's OUTPUT, branch by branch, so the second line asks its
+# question of a form in which the first line's choice has already been
+# made: in the branch where the first schwa went, /v/ now stands behind
+# /d/ and the interior line does not match. MEASURED, as the two lines
+# below: {dəvəniʁ, dəvniʁ, dvəniʁ} -- the three attested, and the fourth
+# excluded by the grammar rather than by a filter afterwards.
+#
+# So: a constraint over the result of several optional choices is stated
+# by SPLITTING the choices over ordered rules. That is the same tool
+# ordering has always been in this file, applied to a new question, and
+# it is written up as a technique a grammar-writer can reach for in
+# docs/calculus.md, under "Splitting the choices over ordered rules" --
+# what the pattern is, the three conditions it needs, and the word it
+# gets wrong. It is recorded there as a property of the calculus, not of
+# French.
+#
+# AND IT IS NARROWER THAN THE CONSTRAINT IT STANDS IN FOR. Read that
+# section before relying on these two lines. The technique separates
+# choices it can put in DIFFERENT rules; two sites that fall to the SAME
+# rule still branch independently against the snapshot, because that is
+# what the limit says and no ordering reaches inside one rule.
+#
+# MEASURED, on a real word one derivation longer than 'devenir':
+# 'redevenir' /ʁədəvəniʁ/ has three droppable schwas, and the second and
+# third are BOTH interior -- one rule's two sites. The set is
+# {ʁədəvəniʁ, ʁədvəniʁ, ʁədəvniʁ, ʁədvniʁ, ʁdəvəniʁ, ʁdəvniʁ}, and the
+# fourth is *[ʁədvniʁ]: /d v n/, which the loi des trois consonnes
+# forbids exactly as it forbids *[dvniʁ]. One of six here where one rule
+# gave one of four there. The split improved the ratio and did not change
+# the kind, and this file over-generates on 'redevenir' today.
+#
+# THE SPLIT IS NOT A PREFERENCE for the first schwa over the second, and
+# that was measured rather than assumed: reversing the two lines gives
+# the same three forms for 'devenir' in a different derivational order,
+# because the bleeding runs both ways -- after the interior schwa drops,
+# 'dəvniʁ' no longer offers the first line its '_ [-vowel] [vowel]'.
+ə ~> ∅ / # [-vowel] _ [-vowel] [vowel] ; e caduc (first syllable)
+ə ~> ∅ / [vowel] [-vowel] _ [-vowel] [vowel] ; e caduc (interior)
+
+# --- what this file found out about '‿', recorded rather than fixed -----
+# Three behaviors of the linking mark are load-bearing here and none is
+# obvious. All were measured; none is changed by this file, since '‿' is
+# declared in ipakit/data/ipa.xml and read by ipakit/form.py, which this
+# set does not own.
+#
+# 1. '‿' IS OPAQUE to context scanning, and that now follows from the
+#    declaration rather than from the absence of one: opacity is read off
+#    the level, and 'word' is opaque. A syllable dot is transparent
+#    precisely so that optional notation cannot change which rules fire;
+#    the linking mark, whose declared meaning is *absence* of a break, is
+#    not. So marking a phrase's liaison changes what every other rule can
+#    see: 't -> ɾ / [vowel] _ [vowel]' fires on 'ata' and not on 'a‿ta'.
+#    This set benefits, because naming the mark is how liaison states its
+#    domain -- but a French set that also wanted, say, intervocalic
+#    voicing would find it silently blocked at exactly the join liaison
+#    just created. In 'le‿zami' the /z/ cannot see the /e/ that licensed
+#    it. Whether a mark meaning "no pause" ought to be transparent is a
+#    question about the declaration, not about this file.
+#
+# 2. '#' NOW REACHES '‿', which is why every deletion above is one line.
+#    It did not while the mark declared no 'level': nothing in the level
+#    ladder reached a division between words that claimed no tier, '%' was
+#    the only pattern that did, and '%' also reaches the syllable dot. The
+#    two were on opposite sides of what a word-final rule wants with
+#    nothing between them. Declaring level="word" put the mark on the
+#    ladder and closed the gap; '%' is still too wide and still wrong here.
+#
+# 3. A DOT IMMEDIATELY AFTER THE MARK used to cost this set its liaison.
+#    FIXED, and this note is kept because the failure shape is subtle.
+#    'lez‿.ami' now gives [le‿.zami] -- the copy lands -- and 0 of the 143
+#    dotted spellings of this set's corpus differ from their undotted
+#    twins. It was never about these lines: '‿.' is a boundary RUN, a run
+#    offers one gap, and the gap after the run counted as an anchor only
+#    when the left context matched the run's LAST mark -- here it matched
+#    '‿', which the dot had displaced from last position, so the copy had
+#    nowhere to land. _anchors now licenses the trailing gap on ANY mark
+#    the context matched. Closed by rules.py at 2e81eec and pinned by
+#    test_a_dot_after_the_linking_mark_keeps_the_liaison_it_licensed.
+#    DO NOT "repair" _anchors to match an older reading of this note: that
+#    function has been fixed twice and reintroducing the last-mark test is
+#    exactly the regression the pin exists to catch.
+#
+# A rule CAN insert '‿' -- '∅ -> ‿ / [vowel] _ z [vowel]' turns 'lezami'
+# into 'le‿zami' -- so a set that took unmarked input could mark the
+# liaison it licenses. This set does not, and the reason has changed
+# since it was written. Inserting the mark beside a space would ADD it
+# rather than replace it ('lez ‿ami', two boundary units); what was then
+# refused, rewriting one boundary as another, is now expressible --
+# '# -> ‿' puts the mark in the space's place, since a boundary may be
+# written, unwritten or restated at another level (ipakit/rules.py).
+# What a .rules FILE still cannot do is target '#', because a line
+# beginning with '#' is a comment -- as every line of this one is. So
+# taking '‿' in the input remains the honest way round it here.
+
+# --- deliberately not modeled ------------------------------------------
+# * Optional and forbidden liaison. French liaison is obligatory in some
+#   contexts ('les amis'), optional in others ('c'est étrange'), and
+#   forbidden in a third set ('et', 'h aspiré', after a singular noun).
+#   The distinction is syntactic and lexical, and the input's use of '‿'
+#   is where a caller states it: mark the join and liaison applies, write
+#   a space and it does not. That is a way of ASKING the question, not an
+#   answer to it.
+#
+#   '~>' does not change that, and it is worth saying why, because it
+#   looks as though it should. Marking the four liaison rules optional
+#   would derive [le‿ami] beside [le‿zami] -- and [le‿ami] is not French,
+#   it is a speech error. The arrow says "this may or may not happen",
+#   which is true of e caduc and false of liaison in 'les amis'; WHICH
+#   liaisons are the optional ones is the syntactic fact the set does not
+#   have. An optional arrow on a rule whose optionality is conditioned by
+#   something the rule cannot see is over-generation with a new spelling.
+# * A weighting over the variants. The set 'variants' returns is UNRANKED:
+#   [pti] is commoner than [pəti] in most registers and the calculus has
+#   no way to say so. Frequency is a fact about speakers, not about the
+#   grammar, and a rule set is not where it would go.
+# * Liaison consonants that differ from the lexical one: 'grand' links
+#   with [t] though the word ends in /d/, 'neuf ans' with [v]. A rule per
+#   pair could state these; they are left out because each is a lexical
+#   fact rather than a generalization.
+# * Enchaînement, which resyllabifies a STABLE final consonant across a
+#   join ('avec elle' [a.vɛ.kɛl]) with no deletion anywhere. It is the
+#   same resyllabification without the latency, so the copy rules here
+#   would state it and the deletion rules must not reach it -- which
+#   needs the lexical distinction this set does not have.
+# * Nasal vowel denasalization before a liaison /n/ ('bon ami' is
+#   [bɔ.na.mi] for many speakers, [bɔ̃.na.mi] for others).
+# * The schwa's other lives: 'e caduc' inside a word, and the three-
+#   consonant constraint that decides whether it drops.

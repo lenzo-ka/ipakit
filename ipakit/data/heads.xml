@@ -33,7 +33,7 @@
 
      The arc 0.24 and arc 0.40 points were inserted to carry the measured
      shape; their x and y are linear interpolations of the midline that was
-     already there, so the drawn centreline is exactly what it was and only
+     already there, so the drawn centerline is exactly what it was and only
      `diameter` moved.
 
      Behind the measured run the diameters keep their original *shape* but are
@@ -41,7 +41,7 @@
      adult male, 0.12/0.16 for the female). Those points were hand-placed to sit
      under an oral run of 0.18 that measurement has since put at 0.13, and left
      unscaled they produced the steepest slope in the whole profile, a flare
-     that was an artefact of joining two differently-derived numbers. Rescaling
+     that was an artifact of joining two differently-derived numbers. Rescaling
      removes it. The cost is that the profile now falls monotonically behind the
      peak, so it represents no oropharyngeal narrowing; if one is wanted there,
      it needs a source, because this one has none. Heads still NEVER affect distance; verified by a
@@ -123,7 +123,7 @@
          blade and dorsum with it, so a constriction is a deformation of the
          whole surface and not a point. `from` and `to` bound the arc range the body spans, from its anterior
          attachment on the mandible back to the root above the epiglottis, and `falloff` is the half-width of the raised cosine
-         centred on the control, in arc. `taper` is how far from each end the
+         centered on the control, in arc. `taper` is how far from each end the
          surface descends to the floor, so the body comes to a tip in front
          and an anchor behind rather than stopping flat at the rest line. Beyond that range the tongue is not
          the boundary: in front are the teeth and lips, behind is the
@@ -202,7 +202,7 @@
          blade and dorsum with it, so a constriction is a deformation of the
          whole surface and not a point. `from` and `to` bound the arc range the body spans, from its anterior
          attachment on the mandible back to the root above the epiglottis, and `falloff` is the half-width of the raised cosine
-         centred on the control, in arc. `taper` is how far from each end the
+         centered on the control, in arc. `taper` is how far from each end the
          surface descends to the floor, so the body comes to a tip in front
          and an anchor behind rather than stopping flat at the rest line. Beyond that range the tongue is not
          the boundary: in front are the teeth and lips, behind is the
@@ -282,7 +282,7 @@
          blade and dorsum with it, so a constriction is a deformation of the
          whole surface and not a point. `from` and `to` bound the arc range the body spans, from its anterior
          attachment on the mandible back to the root above the epiglottis, and `falloff` is the half-width of the raised cosine
-         centred on the control, in arc. `taper` is how far from each end the
+         centered on the control, in arc. `taper` is how far from each end the
          surface descends to the floor, so the body comes to a tip in front
          and an anchor behind rather than stopping flat at the rest line. Beyond that range the tongue is not
          the boundary: in front are the teeth and lips, behind is the

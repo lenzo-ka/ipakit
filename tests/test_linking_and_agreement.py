@@ -36,10 +36,10 @@ class TestStructuralMarksStandAlone:
         # and unmarked spellings are the same word, at both distance layers.
         import ipakit
 
-        assert ipa.word_distance("lez‿ami", "lezami").distance == 0.0
-        assert ipa.word_distance("a|b", "ab").distance == 0.0
+        assert ipa.word_distance("lez‿ami", "lezami").edit_cost == 0.0
+        assert ipa.word_distance("a|b", "ab").edit_cost == 0.0
         model = ipakit.distance_model()
-        assert model.word_distance("lez‿ami", "lezami").distance == 0.0
+        assert model.word_distance("lez‿ami", "lezami").edit_cost == 0.0
 
     def test_prosodic_marks_still_attach(self, ipa: IPAFeatures) -> None:
         # The fix is scoped to structural marks; stress/length keep their

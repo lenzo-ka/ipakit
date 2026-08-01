@@ -6,8 +6,13 @@ import functools
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ._convert import longest_match, require_convertible, resolve_aliases
-from .constants import DEFAULT_CMU_MAP, SEQ_TIE, TIE_BAR
+from ._convert import (
+    ipa_features,
+    longest_match,
+    report_unconvertible,
+    resolve_aliases,
+)
+from .constants import DEFAULT_CMU_MAP
 from .models import PhoneMapping
 
 
@@ -69,10 +74,16 @@ class CMUMapper:
         if (extras := root.find("extras")) is not None:
             load_section(extras, self._extras_ipa_to_cmu, self._extras_cmu_to_ipa)
 
-        # Derive tie normalizations from IPA phones with tie bars
+        # Derive tie normalizations from IPA phones with tie bars. Which
+        # characters those are is ipa.xml's answer, read through
+        # `IPAFeatures.tie_bars` rather than named here -- the same move
+        # `_stress_markers` above makes for the stress glyphs.
+        ties = ipa_features().tie_bars
         for ipa in self._ipa_to_cmu:
-            if TIE_BAR in ipa or SEQ_TIE in ipa:
-                untied = ipa.replace(TIE_BAR, "").replace(SEQ_TIE, "")
+            if ties & set(ipa):
+                untied = ipa
+                for glyph in ties:
+                    untied = untied.replace(glyph, "")
                 self._tie_normalizations.append((untied, ipa))
 
     def _normalize_ipa(self, ipa: str) -> str:
@@ -106,7 +117,8 @@ class CMUMapper:
             ipa_string: IPA string to convert
             with_stress: Include stress numbers on vowels
             include_extras: Include extra/non-standard mappings
-            strict: If True, raise ValueError for unconvertible phones
+            strict: If True, raise ValueError for unconvertible phones;
+                otherwise they are dropped with a warning naming them.
 
         Returns:
             List of CMU phone symbols
@@ -151,8 +163,7 @@ class CMUMapper:
                 skipped.append(ipa_string[i])
                 i += 1
 
-        if strict:
-            require_convertible(skipped, "to CMU ARPABET")
+        report_unconvertible(skipped, "to CMU ARPABET", strict=strict)
 
         return result
 
@@ -220,8 +231,7 @@ class CMUMapper:
             else:
                 result.append(ipa)
 
-        if strict:
-            require_convertible(skipped, "CMU ARPABET -> IPA")
+        report_unconvertible(skipped, "CMU ARPABET -> IPA", strict=strict)
         return "".join(result)
 
     def get_cmu_symbols(self, include_extras: bool = False) -> set[str]:

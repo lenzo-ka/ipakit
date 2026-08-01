@@ -57,15 +57,33 @@ class FeaturesCommand(Command):
     def _build_entry(
         self, segment: str, feats: dict[str, str], is_composed: bool
     ) -> dict[str, Any]:
-        """Build a feature entry dict with name, aliases, class, and features."""
+        """Build a feature entry dict with name, aliases, class, and features.
+
+        ``class`` is reported as the data declares it and is never
+        synthesized. Its value is the name of the element that declared
+        the symbol -- ``phone``, ``diacritic``, ``suprasegmental``,
+        ``separator`` (``IPAFeatures._load_element``) -- so it says which
+        table the entry came from. This command used to overwrite it with
+        ``composed`` for any token that was not itself a registry key,
+        which put a value in a declared slot that no phone, no diacritic
+        and no reader of the data can produce: ``ipakit features pʰ``
+        answered ``class: composed`` where ``ipakit.features("pʰ")``
+        answered ``class: phone``, and only one of those was the data.
+
+        The observation the old value was reaching for is real and is
+        kept, under a key of its own: ``composed`` is a property of *this
+        spelling* (a base plus marks, resolved rather than registered),
+        not of the entry ``class`` names. It is emitted only when true,
+        so a registered symbol's output is unchanged.
+        """
         result: dict[str, Any] = {"name": segment}
         # Add aliases if any
         if aliases := self.get_aliases(segment):
             result["aliases"] = aliases
-        if is_composed:
-            result["class"] = "composed"
-        elif "class" in feats:
+        if "class" in feats:
             result["class"] = feats["class"]
+        if is_composed:
+            result["composed"] = True
         # Add remaining features
         for k, v in feats.items():
             if k not in ("name", "class"):

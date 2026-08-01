@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the tutorial first
+    url: https://github.com/lenzo-ka/ipakit/blob/main/docs/tutorial.md
+    about: Organized by task, CLI and Python side by side. Every value on the page is produced by running the call beside it, so it is never out of date.
+  - name: All the documentation, and the order to read it in
+    url: https://github.com/lenzo-ka/ipakit/blob/main/docs/README.md
+    about: The unit model, the whole transcription, the rewrite notation, the metric and its limits, and the articulatory model.
+  - name: How changes to ipakit are reviewed
+    url: https://github.com/lenzo-ka/ipakit/blob/main/docs/reviewing.md
+    about: Why this project asks for a measurement rather than an argument. Worth reading before proposing a change to behavior.
+  - name: Reporting a security vulnerability
+    url: https://github.com/lenzo-ka/ipakit/blob/main/SECURITY.md
+    about: Report privately, not as a public issue. A wrong phonetic answer is not a vulnerability — file that as a defect.

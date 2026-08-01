@@ -5,11 +5,13 @@ Organized into subcommands:
     ipakit describe <phone>     Human-readable phone description
     ipakit convert ...          Convert IPA/CMU/X-SAMPA/TIMIT/Kirshenbaum
     ipakit query ...            Query phones by features
+    ipakit rules ...            Apply/trace context-sensitive rewrite rules
     ipakit distance ...         Calculate phonetic distances
     ipakit hierarchy ...        Generate phone hierarchies
     ipakit analysis ...         Analyze phones (describe, natural-class, minimal-pairs)
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
+    ipakit tract ...            Draw the mid-sagittal tract figure
 
 Note the two similarly-named groups: `analysis` analyzes phones, while
 `analyze` (alias `data`) inspects and validates the underlying data files.
@@ -19,33 +21,48 @@ Use 'help' anywhere to get help on the next command:
     ipakit help convert         Help on convert group
     ipakit convert help         Same as above
     ipakit convert to-cmu --help  Help on to-cmu
+
+Exit status is uniform across every subcommand:
+    0  the command succeeded and its input was read in full
+    1  the command failed ('Error: ...' on stderr)
+    2  the command line was not understood (argparse)
+    3  the command ran, but part of the input could not be read
+
+See :mod:`ipakit.cli.policy` for why the third case is a status of its
+own rather than a warning alone, and for what ``--lax`` turns off.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+import warnings
 from pathlib import Path
 
 from .analysis_cmds import AnalysisGroup, DescribeCommand
 from .analyze import AnalyzeGroup
-from .base import Command
+from .base import Command, add_lax_arg
 from .convert import ConvertGroup
 from .distance import DistanceGroup
 from .features import FeaturesCommand
 from .hierarchy import HierarchyGroup
 from .info import InfoGroup
+from .policy import report
 from .query import QueryGroup
+from .rules import RulesGroup
+from .tract import TractGroup
 
 # All command groups for help lookup
 GROUPS = [
     ConvertGroup,
     QueryGroup,
+    RulesGroup,
     DistanceGroup,
     HierarchyGroup,
     AnalysisGroup,
     AnalyzeGroup,
     InfoGroup,
+    TractGroup,
 ]
 
 
@@ -64,6 +81,8 @@ Examples:
   ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
   ipakit query match plosive bilabial  # Find: b p ɓ ʘ
   ipakit query match +voi plo bil      # Voiced bilabial plosives: b ɓ
+  ipakit rules apply -s american-english pˈɪn   # broad to narrow: pʰˈɪ̃n
+  ipakit rules trace -s american-english bˈʌtɚ  # which rule fired, and where
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Raw feature distance: ~0.04
@@ -71,12 +90,22 @@ Examples:
   ipakit distance word kæt kæd         # word similarity
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
+  ipakit tract draw t -o t.svg         # Mid-sagittal figure for 't'
+  ipakit tract heads                   # Head shapes a figure can be drawn on
+
+Exit status (uniform across every subcommand):
+  0  succeeded, and the input was read in full
+  1  the command failed ('Error: ...' on stderr)
+  2  the command line was not understood
+  3  ran, but part of the input could not be read and was dropped;
+     what was dropped is named on stderr. --lax reports 0 instead.
 """,
     )
 
     # Global options
     parser.add_argument("--ipa-xml", type=Path, help="Path to ipa.xml")
     parser.add_argument("--cmu-xml", type=Path, help="Path to cmu.xml")
+    add_lax_arg(parser, top_level=True)
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -88,6 +117,7 @@ Examples:
             help=cmd_cls.help,
         )
         cmd_cls.add_arguments(cmd_parser)
+        add_lax_arg(cmd_parser)
         cmd_parser.set_defaults(cmd_cls=cmd_cls)
 
     # Register command groups
@@ -133,14 +163,20 @@ def main() -> int:
     # Every leaf command (standalone or group subcommand) is dispatched here.
     if hasattr(args, "cmd_cls") and args.cmd_cls is not None:
         cmd: Command = args.cmd_cls(args)
-        try:
-            return cmd.run()
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            return 1
-        finally:
-            # Flush/close the output file if the command opened one (-o).
-            cmd._close_output()
+        # Warnings are caught rather than left to the interpreter so the
+        # loss they report can reach the exit status, and so the message
+        # is not deduplicated by source line -- see ipakit.cli.policy.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
+                status = cmd.run()
+            except Exception as e:
+                print(f"Error: {e}", file=sys.stderr)
+                status = 1
+            finally:
+                # Flush/close the output file if the command opened one (-o).
+                cmd._close_output()
+        return report(caught, status, lax=getattr(args, "lax", False))
 
     # Every real command and subcommand sets `cmd_cls` (see create_parser and
     # CommandGroup.register), and an empty command line is handled above. So if

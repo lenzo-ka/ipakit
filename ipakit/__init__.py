@@ -22,20 +22,27 @@ from __future__ import annotations
 
 import functools
 from pathlib import Path
+from typing import Any
 
 __version__ = "0.1.0"
 
 # Re-export classes
+# ``tract_svg`` is imported here so ``import ipakit`` is enough to draw: the
+# tract figure is the classroom's headline output and a student should not
+# have to learn a second module name to get one. It reads ``ipakit.tract``
+# and ``ipakit.features`` and nothing else in the package, so the dependency
+# runs one way and the model stays free of the renderer.
+from . import rules, tract_svg
 from .constants import (
     DATA_DIR,
     DEFAULT_CMU_MAP,
     DEFAULT_IPA_FEATS,
     PHONEMAPS_DIR,
-    TIE_BAR,
 )
 from .distance import WordDistanceResult
 from .distance_model import DistanceModel
 from .features import IPAFeatures
+from .form import Attribute, Boundary, Form, Node, Unit, tiers, units
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
 from .phonemaps import (
@@ -45,6 +52,23 @@ from .phonemaps import (
     phonemap_to_ipa,
     to_kirshenbaum,
     to_timit,
+)
+from .rules import (
+    DEFAULT_LIMIT,
+    Action,
+    Derivation,
+    Edit,
+    Query,
+    Rule,
+    RuleError,
+    RuleSet,
+    Site,
+    Step,
+    Truncation,
+    Variant,
+    VariantSet,
+    available,
+    shipped,
 )
 from .segment import Constituent, Kind, Segment, Sense
 
@@ -634,6 +658,71 @@ def nearest_phones(
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 
 
+def hierarchy(
+    phones: list[str] | None = None,
+    feature_order: list[str] | None = None,
+) -> dict[str, Any]:
+    """Group the inventory into a tree, splitting on one feature per level.
+
+    The read behind ``ipakit hierarchy json``. Interior nodes are
+    ``{"feature": name, "children": {value: node}}`` and leaves are
+    ``{"phones": [...]}``. :func:`hierarchy_text` and :func:`hierarchy_dot`
+    render the same tree.
+
+    Examples:
+        >>> hierarchy(["p", "b", "t"])["feature"]  # all three are plosives
+        'place'
+        >>> hierarchy(["p", "s"])["feature"]
+        'manner'
+        >>> hierarchy(["p", "b"], ["voiced"])
+        {'children': {'+': {'phones': ['b']}, '-': {'phones': ['p']}}, 'feature': 'voiced'}
+    """
+    return _get_ipa().build_hierarchy(phones, feature_order)
+
+
+def hierarchy_text(
+    phones: list[str] | None = None,
+    feature_order: list[str] | None = None,
+    indent: str = "  ",
+) -> str:
+    """Render :func:`hierarchy` as an indented tree (``ipakit hierarchy text``).
+
+    Examples:
+        >>> print(hierarchy_text(["p", "b"], ["voiced"]))
+          voiced=+: [b]
+          voiced=-: [p]
+    """
+    return _get_ipa().hierarchy_to_text(phones, feature_order, indent=indent)
+
+
+def hierarchy_dot(
+    phones: list[str] | None = None,
+    feature_order: list[str] | None = None,
+    title: str = "Phone Hierarchy",
+) -> str:
+    """Render :func:`hierarchy` as Graphviz DOT (``ipakit hierarchy dot``).
+
+    Examples:
+        >>> hierarchy_dot(["p", "b"], ["voiced"]).splitlines()[0]
+        'digraph PhoneHierarchy {'
+    """
+    return _get_ipa().hierarchy_to_dot(phones, feature_order, title=title)
+
+
+def stress_markers() -> dict[str, int]:
+    """The declared stress marks, each mapped to its level.
+
+    The read behind ``ipakit info stress``. Declared in ``ipa.xml``, not
+    listed here, so the command line and the library cannot disagree
+    about which marks exist.
+
+    Examples:
+        >>> stress_markers()
+        {'ˈ': 1, 'ˌ': 2}
+    """
+    return dict(_get_ipa().stress_markers)
+
+
 def validate_ipa(ipa: str, strict: bool = False) -> list[dict[str, str]]:
     """Validate an IPA string for well-formedness.
 
@@ -660,6 +749,175 @@ def is_valid_ipa(ipa: str) -> bool:
     return _get_ipa().is_valid_ipa(ipa)
 
 
+def extensions_in(text: str) -> list[str]:
+    """The symbols in ``text`` that are not on the IPA chart, in order.
+
+    The informative half of a pair, in the shape of
+    :func:`validate_ipa` / :func:`is_valid_ipa`: this one names what it
+    found, and :func:`is_pure_ipa` is the yes-or-no over it. Which
+    symbols are extensions is declared in ``ipa.xml``'s ``<notations>``
+    block, so a further convention answers the same question with
+    nothing new invented for it.
+
+    An unregistered character is not an extension -- it is unknown, and
+    :func:`validate_ipa` is what reports it.
+
+    Examples:
+        >>> ipakit.extensions_in("lez‿ami")
+        []
+        >>> ipakit.extensions_in("#a∅b␣")
+        ['#', '∅', '␣']
+    """
+    return _get_ipa().extensions_in(text)
+
+
+def is_pure_ipa(text: str) -> bool:
+    """Whether ``text`` uses no symbol declared as a NON-chart notation.
+
+    **Not a validity check, and it does not imply one.** This is the
+    boolean over :func:`extensions_in`, so it sees only symbols this
+    inventory declares and puts outside ``chart``. A character registered
+    nowhere resolves to the default notation and is invisible to it, so
+    ``is_pure_ipa("xyz$")`` is True. :func:`validate_ipa`, or
+    :func:`is_valid_ipa` for the boolean, is what reports unknown
+    characters -- and is almost certainly the question a caller reaching
+    for this one means. Do not use it as a pre-render gate: green here is
+    not "well-formed".
+
+    The two questions are independent in both directions, which is why
+    neither stands in for the other.
+
+    Examples:
+        >>> ipakit.is_pure_ipa("ˈkæt.dɒɡ")
+        True
+        >>> ipakit.is_pure_ipa("#kæt#")  # '#' is generative notation, not IPA
+        False
+        >>> ipakit.is_valid_ipa("#kæt#")  # ... and valid all the same
+        True
+        >>> ipakit.is_pure_ipa("xyz$")    # '$' is UNKNOWN, not an extension
+        True
+        >>> ipakit.is_valid_ipa("xyz$")   # ... which is what reports it
+        False
+    """
+    return _get_ipa().is_pure_ipa(text)
+
+
+# --- Rewrite rules ---
+
+
+def rule(text: str) -> Rule:
+    """Build one rewrite rule from the notation (see :mod:`ipakit.rules`).
+
+    The name separator is ``;``, not ``|``: ``|`` is a declared prosodic
+    break and therefore a legal context item.
+
+    ``ipa.rule("t -> ʔ / _ # ; glottalling")``
+    """
+    return rules.parse(text, _get_ipa())
+
+
+def ruleset(text: str, name: str = "") -> RuleSet:
+    """Build an ordered rule set, from rule text or from a shipped name.
+
+    ``ruleset("american-english")`` loads the shipped set of that name;
+    anything else is read as notation, one rule per line. The test is
+    membership in :func:`available`, not a guess at the shape of the
+    string: a name is a name exactly when the library ships one, so no
+    rule text can be mistaken for a name and no name can be mistaken for
+    rule text. (Rule notation needs a rewrite arrow, and a shipped name
+    has none, which is why the wrong branch used to raise "has no
+    rewrite arrow" at the documented entry point to the feature.)
+
+    :func:`shipped` is the unambiguous spelling when the argument comes
+    from elsewhere and must not be read as notation.
+
+    Examples:
+        >>> len(ruleset("american-english")) > 0
+        True
+        >>> ruleset("american-english").name
+        'american-english'
+        >>> len(ruleset("t -> ʔ / _ #"))
+        1
+    """
+    if text in rules.available():
+        return rules.shipped(text, _get_ipa())
+    return RuleSet.parse(text, _get_ipa(), name=name)
+
+
+def rewrite(form: str, spec: str | Rule | RuleSet) -> str:
+    """Apply rules to an IPA form and return the derived form.
+
+    ``spec`` may be a shipped set's name, rule notation, a single
+    :class:`Rule`, or a :class:`RuleSet`. Use :func:`derive` when the
+    trace is wanted.
+
+    Examples:
+        >>> rewrite("pˈɪn", "american-english")
+        'pʰˈɪ̃n'
+        >>> rewrite("kæt", "t -> ʔ / _ #")
+        'kæʔ'
+    """
+    return derive(form, spec).result
+
+
+def derive(form: str, spec: str | Rule | RuleSet) -> Derivation:
+    """Apply rules to an IPA form, keeping the rule-by-rule trace.
+
+    ``spec`` is read exactly as :func:`ruleset` reads it -- through that
+    function, not beside it, so a shipped name works in all three string
+    entry points or in none of them.
+    """
+    features = _get_ipa()
+    if isinstance(spec, str):
+        spec = ruleset(spec)
+    elif isinstance(spec, Rule):
+        spec = RuleSet(rules=(spec,))
+    return spec.derive(form, features)
+
+
+def variants(
+    form: str, spec: str | Rule | RuleSet, limit: int = DEFAULT_LIMIT
+) -> VariantSet:
+    """Every form the rules derive, not only the one they settle on.
+
+    The set-valued entry point, and the reason the notation has a second
+    arrow. ``spec`` is read exactly as :func:`rewrite` and :func:`derive`
+    read it. A rule written ``A ~> B`` may fire at a site or not, and each
+    site branches independently, so a word with two optional sites has up
+    to four pronunciations rather than two.
+
+    ``variants(...)[0]`` is always :func:`rewrite`'s answer -- the member
+    that takes no optional choice -- so the two entry points cannot come
+    to disagree. ``limit`` bounds what the cascade carries between rules;
+    ask :attr:`VariantSet.complete` whether it was reached, because a
+    truncated set of pronunciations reads exactly like a whole one.
+
+    Examples:
+        >>> variants("kæt", "t -> ʔ / _ #").forms
+        ('kæʔ',)
+        >>> variants("kæt", "t ~> ʔ / _ #").forms
+        ('kæt', 'kæʔ')
+        >>> variants("kæt", "t ~> ʔ / _ #").complete
+        True
+    """
+    features = _get_ipa()
+    if isinstance(spec, str):
+        spec = ruleset(spec)
+    elif isinstance(spec, Rule):
+        spec = RuleSet(rules=(spec,))
+    return spec.variants(form, features, limit=limit)
+
+
+# ``units`` is :func:`ipakit.form.units`, re-exported above rather than
+# wrapped: the read is one function, so the two spellings cannot come to
+# mean different things. ``rule_units`` was a second callable computing the
+# same answer a second way (``Form.parse(...).units``) -- it is kept as the
+# older name for it, bound to the same object, so ``rule_units is units``.
+# Prefer :func:`units`: the read is the Form layer's, not the rules layer's,
+# and nothing about it is specific to rewriting.
+rule_units = units
+
+
 __all__ = [
     # Classes
     "CMUMapper",
@@ -683,13 +941,13 @@ __all__ = [
     "DEFAULT_CMU_MAP",
     "DEFAULT_IPA_FEATS",
     "PHONEMAPS_DIR",
-    "TIE_BAR",
     # Functions
     "add_ties",
     "confusability",
     "describe",
     "distance",
     "distance_model",
+    "extensions_in",
     "feature_bundles",
     "feature_values",
     "features",
@@ -699,8 +957,12 @@ __all__ = [
     "from_cmu",
     "from_kirshenbaum",
     "from_timit",
+    "hierarchy",
+    "hierarchy_dot",
+    "hierarchy_text",
     "ipa_to_phonemap",
     "ipa_to_xsampa",
+    "is_pure_ipa",
     "is_valid_ipa",
     "load_ipa_features",
     "minimal_pairs",
@@ -713,6 +975,7 @@ __all__ = [
     "phones_matching",
     "respell",
     "segment",
+    "stress_markers",
     "to_cmu",
     "to_ipa",
     "to_kirshenbaum",
@@ -725,4 +988,37 @@ __all__ = [
     "pairwise_distances",
     "word_similarity",
     "xsampa_to_ipa",
+    # Form representation
+    "Attribute",
+    "Boundary",
+    "Form",
+    "Node",
+    "tiers",
+    # Rewrite rules
+    "Action",
+    "Derivation",
+    "Edit",
+    "Query",
+    "Rule",
+    "RuleError",
+    "RuleSet",
+    "Site",
+    "Step",
+    "Unit",
+    "available",
+    "rule",
+    "ruleset",
+    "rewrite",
+    "derive",
+    "shipped",
+    "units",
+    "rule_units",
+    # The tract, drawn
+    "tract_svg",
+    # The calculus over the string set (docs/calculus.md)
+    "DEFAULT_LIMIT",
+    "Truncation",
+    "Variant",
+    "VariantSet",
+    "variants",
 ]

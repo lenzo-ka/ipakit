@@ -1,0 +1,69 @@
+name: Data proposal — a phone, a diacritic, or a rule set
+description: Add or correct something in the declared data.
+labels: ["data"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Phonetic facts in ipakit live in `ipakit/data/ipa.xml` and `ipakit/data/rules/*.rules`, not in Python. Adding one is a data change, which means a linguist can propose it in full without writing any code.
+
+        Two things worth knowing before you fill this in, both explained in [CONTRIBUTING.md](https://github.com/lenzo-ka/ipakit/blob/main/CONTRIBUTING.md):
+
+        - **Registered wins, composition is the fallback.** A tie-joined sequence of known phones already resolves without being registered — `q͡χ` is not in `ipa.xml` and still describes as a voiceless uvular affricate. Registering a compound is not how you make it *work*; it is how you make it **findable** by inventory search, `nearest_phones`, and the distance matrix.
+        - **Registering changes the inventory, so it is a measured change.** Raw `distance()` will not move, but every percentile-based read (`normalized_distance`, `confusability`) moves for every pair, and `confusion.json` regenerates.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What are you proposing
+      options:
+        - A phone (a new entry in the inventory)
+        - A diacritic or suprasegmental mark
+        - A correction to an existing entry's features
+        - A rule set for a language or variety
+        - A feature, a feature value, or a scale
+        - Something else in the data
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: The symbol and what it declares
+      description: |
+        The symbol, and the features it should carry. For a phone: manner, place or height/backness, voicing, and anything else that distinguishes it. For a diacritic: the feature(s) it contributes — its *mode* is read off those features, so a mark is a release phase because it declares `release=…` and a secondary articulation because it declares a feature whose mode is `secondary`. There is no per-symbol exception table.
+
+        For a rule set, name the language or variety and sketch the cascade; the file will need to argue its choices in prose, as the shipped ones do.
+      placeholder: |
+        ʡ̮  — epiglottal tap: manner=tap, place=epiglottal, voiced=+
+    validations:
+      required: true
+
+  - type: textarea
+    id: why_registered
+    attributes:
+      label: Why this needs to be in the data
+      description: |
+        For a new phone or compound: what breaks or is missing without it? Is it on the IPA chart, in a standard inventory, or a unit that a common transcription convention treats as one? Would someone look for it by feature search?
+
+        For a correction: what is wrong today, and what is the consequence — which distance, description or derivation comes out wrong because of it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Where this comes from
+      description: A chart, a reference grammar, a handbook, the IPA's own documentation, a corpus. Several defects in this library were data errors that looked like code bugs, so the provenance matters more than the diff does.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: offering
+    attributes:
+      label: Are you offering the change as well as the proposal?
+      description: Both answers are fine. A proposal with a good source is a complete contribution.
+      options:
+        - label: I can open a pull request for this
+        - label: I have run a sweep before and after (`python scripts/sweep.py capture` / `diff`)
+        - label: I would rather someone else make the change

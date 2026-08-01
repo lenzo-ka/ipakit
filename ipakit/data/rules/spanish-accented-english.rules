@@ -1,0 +1,170 @@
+# Spanish-accented English: loanword adaptation, and the first worked
+# example of EPENTHESIS in this notation.
+#
+# The shipped american-english set takes one language's broad reading to
+# its own narrow reading, and every rule in it is a substitution. This
+# set does something else: it is a SOURCE language's phonology reshaping
+# a form borrowed from another. That is where insertion earns its keep --
+# a borrowed shape that the borrowing language cannot syllabify is
+# repaired by putting a segment in, not by changing one.
+#
+# The input is a broad American English transcription. The output is what
+# a Spanish phonology does with it. Nothing here is a claim about any
+# individual speaker: this is the systematic part, the part that follows
+# from Spanish having five vowels, no /v z ʃ θ ð h/, TWO rhotics, and no
+# s+consonant onset.
+#
+# This file used to say "one rhotic tap", and that is simply false about
+# Spanish: the tap and the trill are separate phonemes and the minimal
+# pair is the one every grammar opens with, 'pero' [ˈpeɾo] beside 'perro'
+# [ˈpero]. The single English /ɹ/ therefore does not have a single Spanish
+# answer, and the rhotic block below is five rules because of it.
+#
+# Ordered, like every set here. Each rule sees the previous rule's
+# output. Two orderings below are load-bearing and are marked; the rest
+# are independent, which was measured rather than assumed -- see
+# tests/test_rule_sets.py::TestOrderingMattersWhereTheFileSaysItDoes.
+# (The count used to be two with only one marked. Both are marked now,
+# and the second is the trill's, which did not exist when it was written.)
+
+# --- prothesis ----------------------------------------------------------
+# Spanish permits no word-initial s+consonant onset, so a borrowed one
+# gets a vowel in front of it: escuela, español, estrés, esnob, eslogan.
+# English 'school' comes out [eskul], 'stop' [estap], 'snow' [esnoʊ].
+#
+# The context pins two REAL segments to the right of the gap -- the
+# literal /s/ and then a consonant. That matters for more than accuracy.
+# An insertion anchored only on '#' used to fire outside explicit word
+# marks, because the scan found the gap on the far side of the mark too.
+# Here the far-side gap has to match a literal /s/ next, and outside the
+# word there is nothing to match, so the spurious site failed on its own
+# terms. '#eskul#' is what this set gives for '#skul#', with one 'e' and
+# in the right place. That is luck turned into a property, and it is swept
+# in the tests.
+#
+# THAT DEFECT HAS SINCE BEEN CLOSED and the note is kept for the property,
+# not the bug. This file said "'∅ -> ə / # _' on '#kæt#' gives
+# 'ə#əkæt#ə'"; MEASURED, it now gives '#əkæt#'. A boundary run is one
+# boundary and an insertion takes its INNER gap, since there is nothing
+# outside the form to insert into (docs/rules.md, "A boundary run is one
+# boundary"). So the context here is no longer load-bearing for that
+# reason -- it is still load-bearing for the two below.
+#
+# Written as TWO rules, which needs saying. The class wanted is "/s/ plus
+# a consonant that is not a glide": Spanish repairs /sp st sk sm sn sf sl/
+# but not /sw sj/, where the glide is syllabified as the vowel /u i/ and
+# no illegal cluster ever arises -- 'suéter', 'suiche', not *'esuéter'.
+# '[-vowel -approximant]' excludes the glides, but it excludes /l/ with
+# them, since /l/ is a lateral approximant. The class is a DISJUNCTION of
+# two feature bundles, and a bracketed query is a conjunction, so it
+# cannot be said once. This is the same limit that makes the shipped
+# set's nasal place assimilation two rules instead of one: a limit of the
+# formalism here, not of the phonology. Do not "simplify" these to
+# '[-vowel]' -- that spelling also fires on 'sweet' and 'suit'.
+∅ -> e / # _ s [-vowel -approximant] ; prothesis (s + obstruent or nasal)
+∅ -> e / # _ s [channel=lateral] ; prothesis (s + l)
+
+# --- the segments Spanish does not have ---------------------------------
+# Literals, deliberately. Each line is one phoneme's fate and there is no
+# natural class that groups them -- what they share is absence from an
+# inventory, which is not a feature. Writing '[manner=fricative
+# voiced=+] -> [voiced=-]' would fold /v z/ together and then also catch
+# /ʒ/ and /ð/ and send them somewhere wrong, so the class would be doing
+# less work than it looks like it is doing, not more.
+v -> b ; v is b
+z -> s ; z is s
+ʃ -> t͡ʃ ; ʃ is t͡ʃ
+θ -> t ; θ is t
+ð -> d ; ð is d
+h -> x ; h is x
+
+# Word-final /ŋ/ only. Spanish has [ŋ] as an allophone of /n/ before a
+# velar, so 'sink' keeps its velar nasal by assimilation and needs no
+# rule; what it has no room for is a velar nasal in the coda with nothing
+# behind it, and 'sing' comes out [sin].
+ŋ -> n / _ # ; final ŋ is n
+
+# --- the rhotic ---------------------------------------------------------
+# ORDERING (1 of 2). The r-colored vowels are decomposed into a plain
+# vowel plus a real rhotic FIRST, so that the single statement below --
+# English /ɹ/ is the Spanish tap -- reaches the rhotic that decomposition
+# produced. Run the other way round, 'butter' comes out [bateɹ] with an
+# English approximant still in it, because the tapping rule has already
+# looked and the /ɹ/ arrives after it. This is the feeding relation the
+# ordered cascade exists for, and it is the reason the tap is stated once
+# instead of twice.
+ɚ -> eɹ ; unstressed r-colored vowel decomposes
+ɝ -> eɹ ; stressed r-colored vowel decomposes
+
+# ORDERING (2 of 2), and it is the specific-before-general shape the
+# shipped japanese-moraic set uses for its epenthetic vowels: the trill
+# rules take their sites first, and the tap rule below is then correct
+# with no exceptions written into it. Run the other way round there is no
+# /ɹ/ left for them to see and every rhotic is a tap.
+#
+# WHERE THE TRILL GOES is not free variation and not emphasis: the two
+# rhotics contrast only between vowels, and everywhere else the choice is
+# positional. Word-initially it is the trill -- 'rata', 'rojo', 'Roma' --
+# and so is a rhotic after a heterosyllabic /n l s/: 'honra', 'alrededor',
+# 'Israel'. MEASURED, with only the tap rule: 'ɹˈæt' -> [ɾˈat], which is
+# 'rata' pronounced as if it were spelled with a single r, and no Spanish
+# speaker produces it.
+#
+# The three left contexts are LITERALS and cannot be a class: /n l s/ are
+# a nasal, a lateral approximant and a fricative, sharing only a place
+# that /t d/ share too -- and 'tres' is [tɾes], a tap. '[place=alveolar]'
+# would take the cluster onsets with it. This is the same situation as
+# 'the segments Spanish does not have' above: what the three have in
+# common is a position in the syllable, which is not a feature.
+ɹ -> r / # _ ; ɹ is the trill word-initially
+ɹ -> r / n _ ; ɹ is the trill after n
+ɹ -> r / l _ ; ɹ is the trill after l
+ɹ -> r / s _ ; ɹ is the trill after s
+ɹ -> ɾ ; ɹ is the tap elsewhere
+
+# --- five vowels --------------------------------------------------------
+# Spanish has /i e a o u/ and no length or tenseness distinction, so the
+# English system collapses onto it. Literals again, and for a stronger
+# reason than above: this is a MAPPING, one source vowel at a time, and
+# the target of each line is not predictable from the source's features
+# by any single feature change. A feature-change rule over '[vowel]'
+# would also be free to reach the epenthetic /e/ that prothesis just
+# inserted; a literal cannot, because /e/ is not on the left of any line
+# here. Prothesis is ordered first partly to make that visible: if a
+# later rule ever does rewrite /e/, the tests will show 'eskul' moving.
+ɪ -> i ; ɪ is i
+ɛ -> e ; ɛ is e
+æ -> a ; æ is a
+ʌ -> a ; ʌ is a
+ə -> a ; ə is a
+ɑ -> a ; ɑ is a
+ɔ -> o ; ɔ is o
+ʊ -> u ; ʊ is u
+
+# Diphthongs are left alone. Spanish has /ei ai oi au/ as vowel
+# sequences, so the English diphthongs need no repair -- and if they are
+# written TIED they are single units and none of the lines above reaches
+# them, while written untied their second elements are /ɪ ʊ/ and reduce
+# to /i u/, which is the same answer. That the two spellings agree here
+# is a fact about this set, not a general one: see the note at the end of
+# american-english.rules for a case where they do not.
+
+# --- deliberately not modeled ------------------------------------------
+# Named so the gaps are known rather than discovered.
+#
+# * Spirantisation. Spanish /b d ɡ/ are [β ð ɣ] except after a pause or a
+#   nasal, so 'bebé' is [beˈβe]. That is an allophonic rule of Spanish
+#   proper, the same kind of thing american-english.rules does, and it
+#   belongs to a Spanish narrow-transcription set rather than to an
+#   adaptation set. Adding it here would also undo 'ð -> d' above on
+#   exactly the segments that rule just produced, which would be a real
+#   ordering trap rather than an interesting one.
+# * Final-obstruent devoicing and cluster reduction in codas: Spanish
+#   permits very little in a coda, so 'texts' is repaired far more
+#   heavily than anything here does.
+# * Stress. Spanish stress rules would move the accent in many of these
+#   words, and stress is not writable in this notation at all
+#   (docs/rules.md, "Known limits"), so no rule here could try.
+# * /ʒ/ and /d͡ʒ/. Both are handled by Spanish speakers in ways that vary
+#   by dialect -- [j] [ʝ] [d͡ʒ] [ʃ] are all attested -- so there is no
+#   single systematic answer to state.

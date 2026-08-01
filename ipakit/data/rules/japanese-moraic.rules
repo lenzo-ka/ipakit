@@ -1,0 +1,322 @@
+# Japanese loanword adaptation: fitting a borrowed form to MORA
+# structure. The richer epenthesis example, and the one where the ordered
+# cascade does real work rather than being merely tidy.
+#
+# GET THE FRAMING RIGHT OR THE RULES COME OUT WRONG. The naive statement
+# of this is "Japanese has (C)V syllables, so break up every cluster and
+# add a vowel to every coda". That statement is false in three places,
+# and each one is a rule this file does NOT write:
+#
+#   * The unit is the MORA, not the syllable. What has to be licit is a
+#     mora, and a mora is not the same shape as a syllable.
+#   * Coda /n/ IS licit. It is its own mora -- ン -- so it takes no
+#     epenthetic vowel. 'pen' is [pen], two morae, not *[penu]. A rule
+#     set built on a (C)V template gets this wrong every time.
+#   * A geminate's first half is its own mora. 'hot' is [hotːo],
+#     ho-t-to, THREE morae. So a geminate needs no vowel inside it
+#     either, and this file spells the geminate as a long consonant for
+#     exactly that reason -- see the gemination section.
+#
+#   (A long vowel is likewise two morae, which is why the vowel rules
+#   below produce length rather than dropping it.)
+#
+# The input is a broad American English transcription with DIPHTHONGS
+# TIED ('ke͜ɪk' not 'keɪk'); the tied spelling is what this library treats
+# as one vocalic unit, and here that is not a nicety -- an untied
+# diphthong is two units, so 'voice' written 'vɔɪs' has its /ɔ/ lengthened
+# by the tense-vowel rule and comes out [boːisu] instead of [boisu], and
+# the gemination rule counts the wrong unit.
+#
+# TIE THEM BY HAND. Do NOT reach for ipakit.add_ties on a whole word:
+# MEASURED, it ties every adjacent pair of base phones, not the registered
+# diphthongs only -- add_ties('kæt') is 'k͡æ͡t' and add_ties('stɹaɪk') is
+# 's͡t͡ɹ͡a͜ɪ͡k', one tied chain. Its own docstring says "between base phones
+# in a multi-phone SEGMENT", which is right; it is the advice to apply it
+# to a word that is wrong.
+#
+# The output is written in IPA, not in kana or romaji, so the moraic
+# nasal is [n]/[ŋ] rather than ン and a geminate is [tː] rather than っt.
+
+# --- consonants Japanese does not have ----------------------------------
+# A class, not two literals: /l/ and /ɹ/ are both alveolar approximants
+# and both surface as the tap, so one line says it. The place term is
+# what keeps /j/ (palatal) and /w/ (labial-velar) out, and it is the
+# honest statement of the generalization -- Japanese has one liquid, and
+# every English liquid maps to it.
+[manner=approximant place=alveolar] -> ɾ ; liquids are the tap
+θ -> s ; θ is s
+ð -> z ; ð is z
+v -> b ; v is b
+f -> ɸ ; f is ɸ
+# THE THREE POSTALVEOLARS GO TOGETHER, and for two rounds only one of them
+# did. Japanese has no postalveolar series: /ʃ/ is [ɕ], and the affricates
+# are [t͡ɕ] and [d͡ʑ] in exactly the same way and for exactly the same
+# reason. The file mapped the fricative and left the affricates alone, so
+# 'match' came out [mat͡ʃːi] with a postalveolar sitting beside the
+# alveolo-palatal that 'dish' had just been given -- one inventory claim
+# made twice with two different answers. It was invisible because the two
+# words are never in the same derivation.
+ʃ -> ɕ ; ʃ is the alveolo-palatal
+t͡ʃ -> t͡ɕ ; t͡ʃ is the alveolo-palatal affricate
+d͡ʒ -> d͡ʑ ; d͡ʒ is the voiced alveolo-palatal affricate
+
+# Word-final /ŋ/ is not a mora on its own the way /n/ is: it needs a
+# velar stop behind it, and the stop then takes the epenthetic vowel.
+# 'king' is [kiŋɡu]. Written as a rule whose output contains its own
+# target, which is safe because a rule matches a SNAPSHOT of its input
+# and so cannot feed itself (docs/rules.md); read live this would not
+# terminate.
+ŋ -> ŋɡ / _ # ; final ŋ takes a velar stop
+
+# --- vowels: five qualities, and length ---------------------------------
+# ORDERING (1 of 3), and the reason this block is split in two.
+#
+# The English tense/lax contrast is not a quality contrast in Japanese,
+# it is a LENGTH contrast: 'beat' is [biːto] and 'bit' is [bitːo]. So the
+# tense vowels lengthen and the lax ones stay short. Both end up spelled
+# with the same five letters, which is precisely the trap: once /ɪ/ has
+# become /i/, a lengthening rule written over /i/ can no longer tell the
+# two apart and lengthens both. The tense set therefore goes FIRST and
+# the lax set second. Run the other way, 'milk' comes out [miːɾuku].
+# That is bleeding, and it is measured in the tests rather than asserted.
+i -> iː ; tense i lengthens
+u -> uː ; tense u lengthens
+ɔ -> oː ; ɔ is long o
+e͜ɪ -> eː ; eɪ is long e
+o͜ʊ -> oː ; oʊ is long o
+ɚ -> aː ; unstressed r-colored vowel is long a
+ɝ -> aː ; stressed r-colored vowel is long a
+
+# The genuinely diphthongal ones stay two vowels, which is two morae:
+# 'strike' is [sɯ.to.ɾa.i.kɯ] in five. Multi-segment on the right of the
+# arrow, which the notation allows.
+a͜ɪ -> ai ; aɪ is a + i
+a͜ʊ -> au ; aʊ is a + u
+ɔ͜ɪ -> oi ; ɔɪ is o + i
+
+# The lax vowels, short. /ɑ/ goes to /o/, not /a/ -- 'hot' is [hotːo],
+# 'stop' [sutopːu], 'box' [bokusu]. That is the standard mapping and it
+# differs from the Spanish set's, which sends /ɑ/ to /a/; the two are
+# different languages' answers to the same question and neither is a
+# typo for the other.
+ɪ -> i ; ɪ is short i
+ɛ -> e ; ɛ is short e
+æ -> a ; æ is short a
+ʌ -> a ; ʌ is short a
+ə -> a ; ə is short a
+ʊ -> u ; ʊ is short u
+ɑ -> o ; ɑ is short o
+
+# --- gemination ---------------------------------------------------------
+# ORDERING (2 of 3), twice over.
+#
+# A word-final obstruent after a SHORT vowel geminates: 'hot' [hotːo],
+# 'bed' [bedːo], 'match' [mat͡ɕːi], 'book' [bukːu], 'cup' [kapːu]. After a
+# long vowel or a diphthong it does not: 'beat' [biːto], 'coat' [koːto],
+# 'strike' [sutoɾaiku]. So this block must run AFTER the vowel block --
+# the length it tests for is length the vowel rules have just created --
+# and BEFORE the epenthesis block, because once a vowel has been
+# inserted the consonant is no longer word-final and the site is gone.
+# Both orderings are measured.
+#
+# THE CONDITION IS "AFTER A SHORT VOWEL THAT IS NOT ITSELF AFTER A
+# VOWEL", and how to write that is the most interesting thing in this
+# file. Read the old context outward -- '[-vowel] [vowel -long] _ #' -- and
+# it says: a short vowel, and a real consonant before that. The consonant
+# is doing the work of the exclusion: it is what distinguishes 'hot'
+# (h-o-t, geminates) from 'strike' (...-a-i-k, does not), where the unit
+# left of the final consonant is also a short vowel but the unit before
+# THAT is another vowel. Stating it as "a short MONOPHTHONG" is what is
+# wanted and is not available, because a tied diphthong is one unit whose
+# flat reading is a plain vowel.
+#
+# But demanding a consonant is not the same exclusion, and the difference
+# is a whole word class. MEASURED, with '[-vowel]' alone: 'ʌp' -> [apu],
+# 'ɛɡ' -> [eɡu], 'æd' -> [ado], 'ɪt' -> [ito] -- every vowel-initial short
+# monosyllable, where Japanese has アップ [apːu], エッグ [eɡːu], アッド
+# [adːo], イット [itːo]. There is no consonant in front of the vowel to
+# match, so the rule declines. Drop the '[-vowel]' term to let them in and
+# the diphthongs come flooding back: 'stɹa͜ɪk' -> *[sutoɾaikːu], 'dɹa͜ɪv' ->
+# *[doɾaibːu], 'a͜ʊt' -> *[autːo]. (Not 'house' or 'voice': the class below
+# is the stops and affricates, so a final fricative is out of reach of
+# either spelling and the diphthong words that show the error are the ones
+# ending in a stop.)
+#
+# NEITHER SIDE OF THAT IS THE RULE, and the file used to pick one silently.
+# What it wants is position negation -- "not after a vowel" -- which this
+# notation does not have and says so (docs/rules.md: feature-value
+# negation is available, position negation is not). The way out is the one
+# the epenthesis block below already uses for "not before a vowel": a
+# negated POSITION is a union of positive ones, so state the union. A short
+# vowel that is not preceded by a vowel is a short vowel preceded by a
+# consonant, or a short vowel with nothing before it at all -- and '#'
+# names that second position exactly, firing at the start of a form with
+# no mark typed. Two contexts, one rule each, and the exclusion is exact
+# rather than approximated.
+#
+# That is worth stating as a general fact about the calculus, because it
+# is not only about Japanese: position negation is expressible whenever
+# the complement of the excluded position is a FINITE UNION of positions
+# that can be named, and the cost is one rule per member. It is only
+# genuinely inexpressible where that union is open-ended.
+#
+# '[vowel -long]' and not '[vowel length=normal]'. MEASURED: a plain 'a'
+# carries no length in its prosody at all, so 'length=normal' matches
+# NOTHING even though 'normal' is the declared default for the feature.
+# The exclusion form is the one that works. This is recorded here because
+# the positive spelling looks obviously right and fails silently.
+#
+# ONE RULE PER CONTEXT, over a class -- and it was eight literal lines per
+# context until a sibling lane made prosody writable. The note that stood
+# here said that '[length=long]' on the right of the arrow was a silent
+# no-op, so gemination -- a purely prosodic change -- could not be stated
+# as a feature change at all, and one line per obstruent was the
+# workaround. MEASURED, that is no longer true: 'respell' and
+# 'compose_unit' still both answer None for a length request, but a change
+# naming a prosodic feature now takes a third route and rewrites the
+# unit's prosody directly, so '[...] -> [length=long]' fires. The class is
+# the stops and the affricates.
+#
+# Spelled as a LONG consonant rather than a doubled one, and this is the
+# load-bearing choice in the file. Written 'hott', the two /t/s make a
+# consonant cluster, and the epenthesis rules below find the gap between
+# them: MEASURED, spelling this rule 't -> tt' gives *[hototo] for 'hot'
+# and *[bitoto] for 'bit'. Written 'hotː' there is no gap,
+# because a geminate's first half is a mora and not a syllable wanting a
+# nucleus. The representation is the statement of the phonology.
+#
+# Stops and affricates only, which is NOT the obstruent class the German
+# set devoices. A final fricative is inconsistent in the source language
+# -- 'dish' is [diɕːu] but 'bus' is [basu] and 'gas' [ɡasu] -- so there is
+# no rule to state, and this set gives [diɕu].
+#
+# '[obstruent -fricative]' says exactly that, and it is the declared class
+# narrowed rather than a second enumeration standing beside it: a bracket
+# is a conjunction, so naming the class and subtracting one of its manners
+# is the difference of two declared things. Not given a class name of its
+# own, because obstruent-minus-fricative is this language's rule about
+# where a mora may close and not a class the inventory groups.
+[obstruent -fricative] -> [length=long] / [-vowel] [vowel -long] _ # ; gemination (after a consonant)
+[obstruent -fricative] -> [length=long] / # [vowel -long] _ # ; gemination (word-initial vowel)
+
+# --- epenthesis ---------------------------------------------------------
+# ORDERING (3 of 3), and the point of the whole file.
+#
+# The epenthetic vowel's QUALITY depends on what precedes it, so this is
+# not one rule with one vowel in it. It is a cascade running from the
+# most specific context to the least, and each rule REMOVES the site the
+# next one would otherwise have taken -- once /o/ sits after the /t/,
+# there is no longer a gap there for the general rule to fill. That is
+# the ordered cascade doing the work an unordered set of rules could not:
+# the general rule is written generally, with no exceptions listed in it,
+# and it is correct only because the specific rules have already run.
+# Permuted, 'hot' comes out [hotːu] and 'match' [mat͡ɕːu]. Measured.
+#
+#   /o/ after /t d/      -- Japanese /tu du/ are [tsɯ dzɯ], so /u/ is a
+#                           bad match for a coronal stop and /o/ is
+#                           chosen: 'hot' [hotːo], 'bed' [bedːo].
+#   /i/ after t͡ɕ d͡ʑ      -- [t͡ɕi d͡ʑi] are the natural Japanese morae:
+#                           'match' [mat͡ɕːi]. Not "after an alveolo-
+#                           palatal" in general, which is why the rule
+#                           names the MANNER as well as the place: /ɕ/ is
+#                           an alveolo-palatal too and takes /u/, 'dish'
+#                           [diɕu], 'push' [puɕu].
+#   /u/ elsewhere        -- the default epenthetic vowel: 'milk'
+#                           [miɾuku], 'strike' [sutoɾaiku], 'Christmas'
+#                           [kuɾisumasu].
+#
+# TWO rules per quality, because the condition wanted is "not before a
+# vowel", which covers both a following consonant and the end of the
+# word, and position negation is not expressible (docs/rules.md says so
+# in as many words: feature-value negation is available, position
+# negation is not). '_ [-vowel]' is the cluster case and '_ #' the final
+# case. Note '_ #' also fires at the end of a form with no '#' typed,
+# which is what makes the final case work on bare input.
+#
+# The cluster case is '[-vowel -approximant]', not '[-vowel]', and the
+# extra term is a mora claim, not tidiness. A consonant plus /j/ is ONE
+# licit mora in Japanese -- the 拗音 series, [kʲa] [pʲu] [bʲu] -- so
+# 'cute' is [kjuːto] and 'beauty' [bjuːtiː] with nothing inserted before
+# the glide. Written '[-vowel]' this gave *[kujuːto]. The English liquids
+# are already the TAP by the time these rules run, so excluding the
+# approximants excludes exactly /j w/ and nothing that needed to stay:
+# 'milk' [miɾuku] and 'Christmas' [kuɾisumasu] both insert next to a tap.
+#
+# The left contexts are CLASSES, not the literals /t/, /d/, /t͡ɕ/, /d͡ʑ/,
+# because a class is what is meant: the two coronal stops take /o/ as one
+# fact and the two alveolo-palatal affricates take /i/ as one fact, and each
+# would otherwise be two lines saying the same thing.
+#
+# What it is NOT is protection from bleeding, and that is worth writing
+# down because it looks like it should be. The gemination rules above have
+# just rewritten 't' as 'tː' -- so the obvious worry is the defect that
+# was found in american-english.rules, where 'l -> [syllabic=+]' was bled
+# by the devoicing rule that had already made the /l/ an 'l̥' a literal no
+# longer matched, and 'bottle' came out non-syllabic while its nasal twin,
+# written as a class, was right. MEASURED, that worry does not apply here:
+# a literal is bled by a SEGMENTAL change and not by a PROSODIC one.
+# 'l̥', 'tʰ' and 't̚' each have the mark in their core, so the literal
+# fails; 'tː' has its length in the unit's prosody, outside the core and
+# outside the feature bundle, so the literal 't' still matches it and
+# '∅ -> o / t _ #' would give [hotːo] as well. The general lesson is the
+# useful one: writing a class is what you want anyway, and if you are
+# relying on it to survive an earlier rule, check which kind of change
+# that rule made.
+∅ -> o / [manner=plosive place=alveolar] _ [-vowel -approximant] ; o after a coronal stop (cluster)
+∅ -> o / [manner=plosive place=alveolar] _ # ; o after a coronal stop (final)
+∅ -> i / [manner=affricate place=alveolo-palatal] _ [-vowel -approximant] ; i after an alveolo-palatal affricate (cluster)
+∅ -> i / [manner=affricate place=alveolo-palatal] _ # ; i after an alveolo-palatal affricate (final)
+
+# The general rule. '[-vowel -nasal]' excludes the nasals, and that
+# exclusion is the moraic-nasal claim from the header written down: a
+# nasal in a coda IS a mora, so it takes no vowel. 'pen' [pen], 'camp'
+# [kampu] -- the /m/ keeps no vowel, the /p/ takes one -- and 'film'
+# [ɸiɾumu]. It is stated as an exclusion rather
+# than by enumerating the manners that DO take a vowel because the
+# exclusion is the generalization; the enumeration would be a list that
+# happens to have the same members today.
+∅ -> u / [-vowel -nasal] _ [-vowel -approximant] ; u elsewhere (cluster)
+∅ -> u / [-vowel -nasal] _ # ; u elsewhere (final)
+
+# The one place a nasal does take a vowel: word-final /m/. The moraic
+# nasal word-final is [ɴ], which is a poor match for a labial, so 'ham'
+# is [hamu] and 'gum' [ɡamu] while 'pen' stays [pen]. This is an
+# observation about the mapping, not something derived from anything
+# above, and it is a single rule with no cluster twin on purpose --
+# /m/ BEFORE a consonant is the moraic nasal and takes nothing, which is
+# what makes 'camp' [kampu] rather than *[kamupu].
+∅ -> u / [manner=nasal place=bilabial] _ # ; u after a final labial nasal
+
+# --- deliberately not modeled ------------------------------------------
+# * The moraic nasal's place assimilation. Japanese ン is [m] before a
+#   labial, [n] before a coronal, [ŋ] before a velar, [ɴ] finally. The
+#   shipped american-english set shows how that would be written, and it
+#   is now ONE line -- 'n -> [place=α] / _ [place=α]', an agreement
+#   variable (docs/rules.md) -- where this note used to say it had to be
+#   one rule per place. It is left out here because this set is about the
+#   mora, and ン is one mora however it is pronounced. The word-final [ɴ]
+#   would still be a second line: nothing follows it to agree with.
+# * Palatalisation before /æ/: 'cat' is [kʲatːo] and 'camp' [kʲampu]. A
+#   secondary articulation is expressible ('k -> [palatalized=+]'), but
+#   the conditioning is on the English source vowel, which the vowel
+#   rules above have already turned into /a/ by the time any consonant
+#   rule could see it -- and reordering to catch it would put a consonant
+#   rule in the middle of the vowel block for one word class.
+# * /h/ before /u/ and /i/: Japanese /h/ is [ɸ] and [ç] there. That is an
+#   allophonic rule of Japanese proper, like spirantization in the
+#   Spanish set, and belongs to a narrow-transcription set for Japanese.
+# * Gemination before a cluster: 'box' is [bokːusu] with a geminate this
+#   set does not produce, because the /k/ is not word-final when
+#   gemination runs. [bokusu] is what comes out.
+# * Vowel devoicing between voiceless consonants, which is what makes the
+#   epenthetic vowels in [sɯ̥ toɾaikɯ̥] so hard to hear, and is a large
+#   part of why the epenthesis is not obvious to a listener.
+# * The high back vowel's real quality. Japanese /u/ is compressed [ɯ̜],
+#   not [u]; /u/ is written here because the mapping is what this set is
+#   about and [ɯ] would put a second claim in every derivation.
+# * Lexical irregularity, which is not a rule and cannot be one. Loans
+#   fossilise: 'cake' is ケーキ [keːki] where these rules give [keːku],
+#   and 'computer' is コンピューター [kompjuːtaː] where they give
+#   [kampjuːtaː] because English /ə/ maps to /a/ and the /o/ in the real
+#   form comes from the spelling. A rule set states the systematic part;
+#   the residue is a lexicon.

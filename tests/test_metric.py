@@ -609,7 +609,7 @@ class TestDataIntegrity:
             assert "voiced" in phone.features, symbol
 
     def test_one_property_is_spelled_with_one_feature(self, ipa: IPAFeatures) -> None:
-        # r-colouring reached the data twice: ɚ/ɝ carried retroflex (the
+        # r-coloring reached the data twice: ɚ/ɝ carried retroflex (the
         # consonant tongue shape, "Tongue tip curled back") while the ˞
         # and ʴ diacritics carried rhotacized. Same sound, two features,
         # so d(ɚ, ə˞) was 0.095 -- larger than d(ə, ə˞).
@@ -620,7 +620,7 @@ class TestDataIntegrity:
     def test_retroflex_is_a_consonant_feature_only(self, ipa: IPAFeatures) -> None:
         # The two features mean different things and must not be carried
         # by the same class of phone: retroflex is a tongue shape a
-        # consonant makes, rhotacized is a vowel colour.
+        # consonant makes, rhotacized is a vowel color.
         for symbol, phone in ipa.phones.items():
             if phone.features.get("retroflex") == "+":
                 assert phone.features.get("manner") != "vowel", symbol

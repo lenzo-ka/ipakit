@@ -1,7 +1,7 @@
 """Tests for data models."""
 
 from ipakit import Feature, IPAFeatures, Phone, Phoneset
-from ipakit.constants import TIE_BAR
+from ipakit.models import _silence_spellings
 
 
 class TestFeatureModel:
@@ -85,12 +85,42 @@ class TestPhonesetModel:
         ps = Phoneset.from_list(["p", "t", "k"])
         assert len(ps) == 3
 
+    def test_from_file_drops_every_declared_silence(self, tmp_path) -> None:
+        """Silence is dropped by what the data says it is, not by glyph.
+
+        The filter was ``not in ("SIL", "␣")``: a registered phone named
+        in a comparison inside a classmethod, where the guard over
+        module-level constants could not see it. ``␣`` is declared
+        ``manner="silence"``, so the set is read off that and a second
+        silence phone would be dropped by the same rule.
+        """
+        ipa = IPAFeatures()
+        silences = [
+            symbol
+            for symbol, phone in ipa.phones.items()
+            if (phone.features or {}).get("manner") == "silence"
+        ]
+        assert silences, "no silence phone is declared: the check would be vacuous"
+        assert set(silences) <= _silence_spellings()
+        path = tmp_path / "phones.txt"
+        path.write_text("p\n\n" + "\n".join(["SIL", *silences]) + "\nt\n")
+        assert Phoneset.from_file(path).phones == ["p", "t"]
+
 
 class TestConstants:
     """Tests for constants."""
 
-    def test_tie_bar_value(self) -> None:
-        assert TIE_BAR == "\u0361"
+    def test_tie_marks_derived(self) -> None:
+        # Derived from ipa.xml's `tie` feature and the marks declaring its
+        # values, the way `stress_markers` reads the stress glyphs. These
+        # two characters used to be spelled out in `constants.py`.
+        ipa = IPAFeatures()
+        assert ipa.tie_marks == {
+            "simultaneous": "\u0361",
+            "sequential": "\u035c",
+        }
+        assert (ipa.tie_bar, ipa.seq_tie) == ("\u0361", "\u035c")
+        assert ipa.tie_bars == frozenset({"\u0361", "\u035c"})
 
     def test_stress_markers_derived(self) -> None:
         # Derived from ipa.xml's `stress` feature (value shorts are the levels).

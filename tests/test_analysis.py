@@ -313,7 +313,7 @@ class TestNearestPhones:
         assert any(p in phones for p in ["t", "k", "b", "ɸ", "f"])
 
     def test_nearest_unresolvable_phone_raises(self, ipa: IPAFeatures) -> None:
-        # An empty list would read as "no neighbours" rather than
+        # An empty list would read as "no neighbors" rather than
         # "unsupported input".
         with pytest.raises(ValueError, match="cannot resolve"):
             ipa.nearest_phones("X")

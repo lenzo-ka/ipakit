@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
-from .constants import MAX_MATCH_LEN, METADATA_ATTRS, SEQ_TIE, TIE_BAR
+from .constants import MAX_MATCH_LEN, METADATA_ATTRS
+from .form import units
 from .segment import modifier_mode
 
 # The slots a conventional name renders itself, in the order it renders
@@ -33,9 +34,9 @@ _PRIMARY_SLOTS = frozenset(_CONSONANT_SLOTS) | frozenset(_VOWEL_SLOTS)
 # declares a `label` -- and so is whether it reaches a consonant or a
 # vowel: `channel` declares applies="consonant" because it places the
 # airflow channel within a constriction and a vowel has none,
-# `rhotacized` applies="vowel" because r-colouring is a vowel property,
+# `rhotacized` applies="vowel" because r-coloring is a vowel property,
 # `retroflex` applies="consonant" because it is the consonant tongue
-# shape. A labelled feature not named here still reads out, last.
+# shape. A labeled feature not named here still reads out, last.
 _MODIFIER_READ_ORDER = (
     "palatalized",
     "labialized",
@@ -73,7 +74,21 @@ class AnalysisMixin(IPAFeaturesBase):
             'voiceless open front unrounded vowel'
             >>> ipakit.describe("a̪")
             'dental open front unrounded vowel'
+            >>> ipakit.describe("∅")
+            'zero: a position with no segment'
         """
+        # A declared zero, before the feature bag is asked. It carries no
+        # phonetic features at all -- that is what keeps it out of the
+        # metric by construction -- so the empty bundle below would call
+        # it an unknown phone, which contradicts the declaration that put
+        # it in the inventory file. The word is the element class the
+        # data gives it, not one spelled here, so renaming the class
+        # renames the description; the clause after it says what a zero
+        # is (a position held open with no segment in it) and invents no
+        # phonetics, because there are none to invent.
+        if (declared := self.zeros.get(phone)) is not None:
+            return f"{declared.features['class']}: a position with no segment"
+
         feats = self.get_features(phone, with_defaults=with_defaults)
         if not feats:
             return f"unknown phone: {phone}"
@@ -355,9 +370,9 @@ class AnalysisMixin(IPAFeaturesBase):
         """Find the n nearest phones by phonetic distance.
 
         Returns list of (phone, distance) tuples sorted by distance.
-        Neighbours are drawn from the registered inventory; the reference
+        Neighbors are drawn from the registered inventory; the reference
         may be any resolvable unit, registered or composed, so an
-        unregistered affricate gets neighbours like any other input.
+        unregistered affricate gets neighbors like any other input.
 
         Args:
             phone: The reference phone or composable unit
@@ -366,7 +381,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
         Raises:
             ValueError: if ``phone`` cannot be resolved at all -- an empty
-                result would read as "no neighbours" rather than
+                result would read as "no neighbors" rather than
                 "unsupported input".
         """
         if phone not in self:  # type: ignore[operator]
@@ -405,6 +420,72 @@ class AnalysisMixin(IPAFeaturesBase):
           (``unbound_stress``), or another stress mark between them and
           the unit that takes the binding (``superseded_stress``)
         - Duplicate diacritics on the same segment
+        - Degenerate boundary runs: two same-level boundaries delimiting
+          no segment (``empty_constituent``), and a form that names no
+          sound at all (``no_segments``). Both are warnings; the reason
+          they warn rather than passing in silence is argued below.
+
+        A **declared zero** (``<zeros>``, today ``∅``) is a known symbol
+        here, not an unknown one: it is a position a transcription keeps
+        open with no segment in it, and this library's own rule engine
+        writes it (``z -> [zero]``). Reporting it as ``unknown_symbol``
+        made ``is_valid_ipa`` reject our own output. It carries no unit,
+        so it ends the segment the way a separator does -- a mark written
+        after it is an ``orphan_diacritic`` and a tie beside it is a
+        ``malformed_tie``, because there is no segment to modify and no
+        unit to bind. It is *content* for the boundary-run check, so
+        ``a.∅.b`` is not an empty syllable: ``Form.tree`` keeps that
+        node, and ``empty_constituent`` reports a constituent that was
+        asserted and then discarded. It names no sound, so a form of
+        nothing but zeros still reports ``no_segments``.
+
+        Why a boundary run warns
+        ------------------------
+        docs/ties.md says a *declared* mark carrying no unit "neither
+        warns nor raises", and the syllable break and the word mark are
+        exactly that. The existing exception -- ``unbound_stress``,
+        ``superseded_stress`` -- is licensed by **uninterpretability**:
+        there is nothing for the mark to bind, so it has no reading at
+        all. That license does not extend to a doubled dot, which is
+        perfectly interpretable: it delimits an *empty syllable*, and
+        the rule engine's insertion scan treats that syllable as a real
+        constituent -- ``rewrite("kæt..dɒɡ", "∅ -> ə / . _")`` is
+        ``"əkæt.ə.ədɒɡ"``, three epenthetic vowels, one of them the
+        empty syllable's own.
+
+        The license is the *other* convention in that document:
+        **unknown characters are dropped audibly, never silently.**
+        ``Form.tree()`` discards the empty group and says nothing --
+        ``Form.parse("kæt..dɒɡ")`` has the same tree as ``"kæt.dɒɡ"``,
+        two syllables, with no mention of the third the string
+        asserted. So the two layers disagree about what the input means
+        and neither of them says so. The claim here is therefore not
+        "your input is malformed" but "you asserted a constituent and it
+        was discarded".
+
+        Hence ``warning``, never ``error``, and no repair. An error
+        would reject input the rule engine rewrites correctly today, and
+        a repair would put a normalization on the ingest path and break
+        the byte-faithful round trip ``Form`` exists for
+        (``Form.parse("kæt..").to_ipa() == "kæt.."``).
+
+        Which marks delimit a constituent, and at which tier, is read off
+        each separator's declared ``level`` in ``ipa.xml``; two boundaries
+        are "same-level" when those declared values are equal, so a
+        further declared tier needs no change here. Whitespace is the one
+        exception, and it is a **code-side convention rather than a
+        declaration**: ``ipa.xml`` does not declare the space, and that it
+        closes a word is stated in ``form.units``, which this check asks
+        rather than restates.
+
+        What is *not* degenerate, and so is not flagged: a weaker mark
+        beside a stronger one (``kæt.#`` -- a syllable break subsumed by
+        a word edge), and a single mark against a form edge (``kæt.``,
+        ``#kæt#``), because the end of the form already closes every
+        constituent open at it and the mark asserts nothing further. Only a
+        *same-level* pair with no segment between them is flagged, so
+        the check is blind to a stronger-then-weaker run (``#.kæt``) by
+        the same rule that spares ``kæt.#``.
 
         Returns a list of issue dicts with keys:
         - type: "error" or "warning"
@@ -418,6 +499,9 @@ class AnalysisMixin(IPAFeaturesBase):
             validate_ipa("kæt̪")     # [] (valid - dental diacritic on t)
             validate_ipa("k4t")     # [{"type": "error", "code": "unknown_symbol", ...}]  ('x','y','z' are valid IPA)
             validate_ipa("̃a")       # [{"type": "error", "code": "orphan_diacritic", ...}]
+            validate_ipa("kæt.")    # [] (a mark against the form edge)
+            validate_ipa("kæt..")   # [{"type": "warning", "code": "empty_constituent", ...}]
+            validate_ipa(".")       # [{"type": "warning", "code": "no_segments", ...}]
 
         Args:
             ipa: The IPA string to validate
@@ -438,34 +522,106 @@ class AnalysisMixin(IPAFeaturesBase):
             for s, p in self.diacritics.items()
             if p.features.get("class") == "suprasegmental"
         }
-        # Stress, length, tone, breaks, separators, and space stand alone (no
-        # base phone required). The tie bars are suprasegmentals but checked below.
-        standalone = (suprasegmentals | set(self.separators) | {" "}) - {
-            TIE_BAR,
-            SEQ_TIE,
+        # Stress, length, tone, breaks, separators, a declared zero, and
+        # space stand alone (no base phone required). The tie bars are
+        # suprasegmentals but checked below.
+        #
+        # The declared half of that set is ``carries_no_segment``, the
+        # same read ``IPAFeatures.parse`` makes. Naming ``separators``
+        # here and there independently is how the two came to disagree
+        # about ``∅``: the tokenizer dropped it as unregistered and this
+        # reported it as an unknown symbol, while ``<zeros>`` declared
+        # it and ``Form`` read it as a position.
+        standalone = (
+            suprasegmentals | set(self.carries_no_segment) | {" "}
+        ) - self.tie_bars
+        # Which standalone marks delimit a constituent, and at which tier.
+        # Both come from the separator's own declaration, so declaring a
+        # further tier in ipa.xml (a phrase, an utterance) extends this
+        # check without a change here -- and the comparison below is
+        # *equality* of the declared level, never a ranking, so nothing
+        # here counts the tiers or assumes how many there are.
+        levels = {
+            symbol: declared.features["level"]
+            for symbol, declared in self.separators.items()
+            if "level" in (declared.features or {})
         }
+        # Whitespace is the one boundary ipa.xml does not declare: that it
+        # closes a word is a code-side convention, and its home is
+        # ``form.units``. So ask that, rather than restating it, and the
+        # validator cannot come to disagree with the tree about which tier
+        # a space ends. A mark carrying no declared level -- a stress
+        # mark, a length mark, the prosodic break -- is absent from this
+        # map and so transparent here, which is the same reading
+        # ``form.units`` gives it ("it belongs to no tier and splits no
+        # node").
+        for unit in units(" ", self):  # type: ignore[arg-type]
+            if unit.is_boundary and unit.level is not None:
+                levels[unit.text] = unit.level
 
         i = 0
         last_was_phone = False
         current_segment_diacritics: set[str] = set()
+        # The last boundary with no segment seen since: (symbol, level,
+        # position). Marks that carry no unit and delimit nothing -- a
+        # stress mark, a length mark, the prosodic break -- are
+        # transparent to this, exactly as they are to the tree, so
+        # "kæt.ˈ.dɒɡ" still asserts the empty syllable that "kæt..dɒɡ"
+        # does. Only a matched phone clears it.
+        pending: tuple[str, str, int] | None = None
+        saw_phone = False
+        saw_standalone = False
 
         while i < len(ipa):
             char = ipa[i]
 
             # Try to match multi-character phones first (affricates, etc.)
             matched_phone, matched_len = longest_match(
-                ipa, i, known_phones, MAX_MATCH_LEN, tie_set=known_phones
+                ipa, i, known_phones, MAX_MATCH_LEN, known_phones, self.tie_bars
             )
 
             if matched_phone:
                 # Valid phone found
                 last_was_phone = True
                 current_segment_diacritics = set()
+                saw_phone = True
+                pending = None
                 i += matched_len
                 continue
 
-            # Standalone symbols (stress, length, tone, breaks, separators)
+            # Standalone symbols (stress, length, tone, breaks, separators,
+            # a declared zero)
             if char in standalone:
+                saw_standalone = True
+                # A zero is the constituent's content, so it closes an
+                # open boundary run the way a phone does. It names no
+                # sound, so it does not set ``saw_phone`` -- ``∅`` alone
+                # still reports ``no_segments`` -- but the run it stands
+                # in is not degenerate: measured, ``Form.tree`` *keeps*
+                # the syllable in ".∅." and the word in "#∅#" where it
+                # discards both in ".." and "##". The license for
+                # ``empty_constituent`` is that a constituent was
+                # asserted and then discarded, and here it is asserted
+                # and kept, so warning would be a false positive against
+                # the check's own reason for existing.
+                if char in self.zeros:
+                    pending = None
+                if (level := levels.get(char)) is not None:
+                    if pending is not None and pending[1] == level:
+                        issues.append(
+                            {
+                                "type": "warning",
+                                "code": "empty_constituent",
+                                "message": (
+                                    f"Empty {level}: '{pending[0]}' at "
+                                    f"{pending[2]} and '{char}' delimit no "
+                                    "segment"
+                                ),
+                                "position": str(i),
+                                "symbol": char,
+                            }
+                        )
+                    pending = (char, level, i)
                 if (why := self._stress_reaches_no_unit(ipa, i)) is not None:
                     issues.append(
                         {
@@ -526,7 +682,7 @@ class AnalysisMixin(IPAFeaturesBase):
                 continue
 
             # Check for tie bar (either sense)
-            if char in (TIE_BAR, SEQ_TIE):
+            if char in self.tie_bars:
                 # A tie joins the unit before it to the unit after it, so
                 # it is malformed unless both sides are there. This is the
                 # same condition the parser drops on (see
@@ -536,7 +692,7 @@ class AnalysisMixin(IPAFeaturesBase):
                 # composite matched above -- but it does after a diacritic
                 # ("t̪͡s"), where the left side is the modified unit.
                 _, ahead = longest_match(
-                    ipa, i + 1, known_phones, MAX_MATCH_LEN, tie_set=known_phones
+                    ipa, i + 1, known_phones, MAX_MATCH_LEN, known_phones, self.tie_bars
                 )
                 if not last_was_phone or not ahead:
                     issues.append(
@@ -571,6 +727,22 @@ class AnalysisMixin(IPAFeaturesBase):
             )
             last_was_phone = False
             i += 1
+
+        # A form built only out of marks names no sound: every constituent
+        # it asserted was discarded, and the empty string is the one input
+        # that asserted nothing and so has nothing to report. Junk alone
+        # ("@") is not reported here either -- ``unknown_symbol`` has
+        # already said what was lost, and an unknown character is not an
+        # asserted constituent.
+        if saw_standalone and not saw_phone:
+            issues.append(
+                {
+                    "type": "warning",
+                    "code": "no_segments",
+                    "message": "No segments: nothing here names a sound",
+                    "position": "0",
+                }
+            )
 
         # If strict mode, upgrade warnings to errors
         if strict:
@@ -608,3 +780,52 @@ class AnalysisMixin(IPAFeaturesBase):
         """
         issues = self.validate_ipa(ipa)
         return not any(issue["type"] == "error" for issue in issues)
+
+    def extensions_in(self, text: str) -> list[str]:
+        """The non-chart symbols ``text`` uses, in order, with repeats.
+
+        The informative half of this pair, and the useful one: "which
+        conventions off the IPA chart does this transcription use" is a
+        question with an answer to act on, where "is it pure?" is a yes
+        or a no. :meth:`is_pure_ipa` is the convenience over it, exactly
+        as :meth:`is_valid_ipa` is the convenience over
+        :meth:`validate_ipa`.
+
+        It is not "is this valid IPA". A character registered nowhere is
+        not an *extension*, it is unknown, and :meth:`validate_ipa`
+        reports those. ``␣``, ``#`` and ``∅`` are declared symbols this
+        inventory means something by; what they are not is on the chart.
+
+        The text is canonicalized first, so a precomposed spelling and
+        its decomposition give the same answer.
+        """
+        return [
+            char
+            for char in self.canonicalize_unicode(text)
+            if self.notation_of(char) != self.default_notation
+        ]
+
+    def is_pure_ipa(self, text: str) -> bool:
+        """Whether ``text`` uses no symbol declared as a NON-chart notation.
+
+        **This is not a validity check, and does not imply one.** It is
+        the boolean over :meth:`extensions_in`, so it asks only about
+        symbols this inventory *declares* and puts outside ``chart``. A
+        character registered nowhere resolves to the default notation and
+        is therefore invisible to it: ``is_pure_ipa("xyz$")`` is True,
+        because ``$`` is unknown rather than an extension.
+        :meth:`validate_ipa` -- or :meth:`is_valid_ipa` for the boolean --
+        is what reports unknown characters, and is almost certainly the
+        question a caller reaching for this one means. In particular this
+        is **not** a pre-render or pre-store gate: green here is not
+        "well-formed".
+
+        The two questions are independent in both directions, which is
+        why neither substitutes for the other. ``"#kæt#"`` is valid and
+        not pure -- ``#`` is a declared boundary mark, off the chart --
+        while ``"xyz$"`` is pure and not valid.
+
+        Ask :meth:`extensions_in` where the answer is going to be acted
+        on: it names what it found.
+        """
+        return not self.extensions_in(text)

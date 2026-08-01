@@ -128,7 +128,7 @@ class TestPhoneLevelOOVFallback:
         near = full.nearest("q͡χ", n=3)
         assert len(near) == 3
         # Under the structural metric an unregistered affricate's nearest
-        # neighbours are other affricates (shared phase structure), not its
+        # neighbors are other affricates (shared phase structure), not its
         # bare components.
         kinds = {ipa.segment(p).kind.value for p, _ in near}
         assert kinds <= {"affricate", "double-articulation", "prenasalized"}

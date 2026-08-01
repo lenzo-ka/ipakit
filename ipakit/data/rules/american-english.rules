@@ -1,0 +1,418 @@
+# American English: broad transcription to narrow transcription.
+#
+# The classical statement of what this does. A broad (phonemic) reading
+# writes one symbol per phoneme; a narrow (phonetic) reading writes the
+# allophonic detail that is predictable from context. These rules are that
+# prediction, so they take /pˈɪn/ to [pʰˈɪ̃n] and /bˈʌtɚ/ to [bˈʌɾɚ].
+#
+# Ordered. Each rule sees the previous rule's output, which is where
+# feeding and bleeding live; within a rule every site is found against a
+# snapshot, so no rule feeds itself.
+#
+# Stress is marked on the NUCLEUS, not at the syllable boundary, so a
+# stressed vowel is a single unit and no syllabification is required. Use
+# IPAFeatures.normalize_stress_to_nucleus if the input marks stress at the
+# boundary; normalize_stress_to_syllable puts it back.
+#
+# A rule needing a syllable margin writes '.', which means "a syllable
+# margin or stronger" -- the tiers nest, so a word edge is also a syllable
+# margin, and the edge of the form counts without one being typed. A word
+# written without interior dots leaves its interior margins UNSPECIFIED,
+# and a margin-conditioned rule does not fire there rather than guessing.
+# That is why aspiration reaches 'pˈɪn' and 'ə.tˈæk' but not 'ətˈæk'.
+#
+# THE STRESS MARK IN THAT SENTENCE IS LOAD-BEARING and was missing until
+# a reader tried it. MEASURED: 'pɪn' -> [pɪ̃n], unaspirated, because the
+# rule asks for '[vowel stress=primary]' and an unstressed transcription
+# does not carry one; 'pˈɪn' -> [pʰˈɪ̃n]. The point the sentence makes is
+# about the MARGIN and is right; the illustration had simply dropped the
+# other condition the rule depends on.
+#
+# Aspiration is stated positively, as a margin condition, not as "not
+# after /s/": in 'spin' the margin is occupied by /s/, so /p/ is not at
+# one. That is both the standard generalization and the reason no negative
+# context is needed. Classical SPE negates feature values, not context
+# positions, and feature-value negation is available -- '[-voiced]'.
+#
+# CONSTITUENCY IS ASSIGNED BEFORE ANYTHING READS IT, which is why the
+# syllabic-consonant block has moved UP the file, above the two rules that
+# want to know what it decides. Neither can work it out from adjacency:
+# what English flaps a /t/ before, and what a stop takes a lateral release
+# into, is a NUCLEUS, not "an /l/". Run the block before them and
+# '[syllabic=+]' is a question they can ask; run it after -- as this file
+# did -- and each has to guess from the segments beside it, and guesses
+# wrong wherever the segmental string and the syllable structure disagree.
+# That divergence is the one shape of mistake this file has repeatedly
+# made; the notes below mark each place it did.
+
+# --- tapping ------------------------------------------------------------
+# Both alveolar stops tap, not just /t/. Written as a class so /d/ is not
+# a second rule saying the same thing.
+#
+# THE CONDITION IS ON THE FOLLOWING NUCLEUS, NOT THE PRECEDING ONE.
+# Flapping is FOOT-MEDIAL; what closes a foot is the next stress, so the
+# segmental shadow of "inside a foot" is the following vowel's lack of
+# one. 'editor' is the argument in one word: /d/ and /t/ sit in the same
+# word, only the /d/ follows the stress, and GA flaps both -- what the two
+# share is what stands in FRONT of them.
+#
+# WHY THE PRECEDING-STRESS ANALYSIS IS ABANDONED rather than dismissed. It
+# is a real if minority textbook position and it is right about a lot:
+# every word a textbook cites first is a trochee, where the two statements
+# pick out the same /t/, and it gets 'ə.tˈæk' right for free. What it
+# cannot do is reach a flap in any foot after the first, and it has to add
+# as a separate stipulation that /t/ before a stressed vowel never flaps.
+# MEASURED on '[vowel stress=primary] _ [vowel]', which is what this file
+# asked for until a review took it past a trochee:
+#
+#   butter    /bˈʌtɚ/     -> bˈʌɾɚ      right, and right by coincidence
+#   editor    /ˈɛdɪtɚ/    -> ˈɛɾɪtɚ     GA has ˈɛɾɪɾɚ: the second /t/ too
+#   capital   /kˈæpɪtəl/  -> kʰˈæpɪtəɫ  GA has kʰˈæpɪɾəɫ
+#   positive  /pˈɑzɪtɪv/  -> pʰˈɑzɪtɪv  GA has pʰˈɑzɪɾɪv
+#
+# The following-vowel statement gets the second fact from the same
+# condition as the first, and it is what the standard generalization says.
+#
+# 'UNSTRESSED' IS THE ABSENCE OF THE FEATURE, NOT A VALUE OF IT. 'stress'
+# declares 'primary' and 'secondary' and NO DEFAULT -- MEASURED,
+# f.features['stress'].default is None -- so there is no unmarked value to
+# name. '∅' is how the absence is WRITTEN on the right of an arrow, and it
+# is not a declared VALUE, so a CONTEXT cannot ask for it: '[vowel
+# stress=∅]' beside the '_' is refused, while '[vowel] -> [stress=∅]' is
+# the documented way to clear one. The negation has to be per value, and
+# negating both values is exactly "carries no stress".
+#
+# AND NOT '[vowel -stress]', WHICH LOOKS LIKE IT SAYS THAT AND IS REFUSED.
+# A '-' term resolves as a feature VALUE first and as a BINARY feature
+# name second; 'stress' is neither, so the term names nothing and the
+# query raises. MEASURED, '[vowel] _ [vowel -stress]' gives: "feature
+# 'stress' is not binary, so there is no '-' value to take. Its declared
+# values are ['primary', 'secondary']; negate them individually instead,
+# as '-primary -secondary'". Which is what this file writes.
+#
+# SECONDARY STRESS BLOCKS IT TOO, which is what '-secondary' buys: a
+# secondary-stressed syllable heads its own foot, so a flap before it
+# would not be foot-medial. MEASURED, 'mˈɪlɪtˌɛɹi' keeps its /t/ and
+# 'ˈæ.lə.ɡˌe͜ɪ.tɚ' flaps the one that has no stress in front of it. Some
+# descriptions flap before a secondary too; this file takes the
+# conservative reading and says so rather than leaving it to the default.
+# Both spellings mark stress on the NUCLEUS, and that matters here more
+# than anywhere else in the file: written at the boundary, 'ˈmɪlɪˌtɛɹi'
+# hangs the secondary mark on the /t/ and leaves the 'ɛ' unstressed, so
+# the rule flaps it. Run IPAFeatures.normalize_stress_to_nucleus first,
+# as the head of this file says.
+#
+# NOT ORDERED BEFORE ASPIRATION, and the argument that it must be -- a
+# stop which has become a tap must not then be read as a voiceless plosive
+# and aspirated -- does not hold under this statement. The two rules
+# CANNOT compete: tapping wants an unstressed nucleus to the right and
+# aspiration a primary-stressed one, so no segment satisfies both.
+# MEASURED, swapping them changes no derivation in the corpus, and so does
+# lifting all three tapping rules into one block below the syllabic block.
+# The split is presentation -- these two open the file because they are
+# the two rules a reader learns the notation from -- and the one real
+# ordering constraint is the syllabic block's, stated below.
+[manner=plosive place=alveolar] -> [manner=tap voiced=+] / [vowel] _ [vowel -primary -secondary] ; tapping
+
+# --- aspiration ---------------------------------------------------------
+[manner=plosive voiced=-] -> [release=aspirated] / . _ [vowel stress=primary] ; aspiration
+
+# --- devoicing of an approximant after a voiceless stop -----------------
+# 'pray' [pɹ̥eɪ], 'clean' [kl̥in], 'twin' [tw̥ɪn], 'cute' [kj̥ut].
+# The following vowel matters: this is an ONSET CLUSTER process. Without
+# it the rule also devoices a word-final syllabic lateral -- MEASURED,
+# drop the '[vowel]' and 'bˈɑtl' comes out [bˈɑɾl̥̩], 'ˈæpl' [ˈæpˡl̥̩] --
+# and the /l/ there is the nucleus, not the second half of a cluster with
+# the stop.
+[manner=approximant voiced=+] -> [phonation=devoiced] / [manner=plosive voiced=-] _ [vowel] ; approximant devoicing
+
+# --- nasal place assimilation -------------------------------------------
+# ONE RULE, and it used to be two. This is SPE's agreement variable
+# (docs/rules.md): 'α' binds to whatever place the following consonant
+# carries, and the change writes that same place onto the /n/. The
+# enumeration it replaces was
+#
+#     n -> [place=bilabial] / _ [place=bilabial] ; nasal assimilation (labial)
+#     n -> [place=velar]    / _ [place=velar]    ; nasal assimilation (velar)
+#
+# and the note that stood here said the general statement was not
+# expressible. It is now, and the two lines were never the phonology:
+# English assimilates to every place a following consonant offers, and the
+# enumeration reached the two that a corpus of 'input' and 'income'
+# happens to need.
+#
+# THE COLLAPSE IS NOT BEHAVIOR-PRESERVING, and that is the point rather
+# than a cost. MEASURED, over 'n' before each of the 139 phones that spell
+# themselves back, in three frames -- 417 forms, 96 differ, and every one
+# of them is at a place the two rules never named: labiodental, dental,
+# palatal, uvular, bilabial^velar. At bilabial and velar the two spellings
+# agree exactly; at alveolar the change is a no-op, because /n/ is already
+# there and a rule that changes nothing does not fire. Over this set's own
+# corpus, before the two words below were added to it, every derivation
+# was byte-identical.
+#
+# The places it now reaches are the ones a description of English lists:
+# 'infant' [ˈɪ̃ɱfə̃nt] before /f/, 'tenth' [tʰˈɛ̃n̪θ] before /θ/. Both are in
+# the corpus as pins, so the widening stays visible rather than waiting to
+# be discovered.
+#
+# THE VARIABLE BINDS ON THE LEFT OF THE ARROW AND IS WRITTEN ON THE RIGHT.
+# A place has to be somewhere for '[place=α]' to bind to, so /n/ before a
+# VOWEL does not assimilate: no vowel declares a place, so the context
+# does not hold. That is the same reading under which '[place=alveolar]'
+# does not match a vowel, and not a special case for variables.
+n -> [place=α] / _ [place=α] ; nasal assimilation
+
+# --- syllabic consonants ------------------------------------------------
+# 'button' [bʌtn̩], 'bottle' [bɑtl̩]: a nasal or lateral carries the
+# syllable when it follows a consonant at the end of a word.
+#
+# MOVED UP, and that is the ordering change this file's fixes rest on. It
+# used to sit below the release rules, which want to know what it decides;
+# see the release block for what that cost. Nothing here reads anything
+# the rules above produced -- the context is an obstruent and a word end,
+# and no rule in this set creates or destroys either -- so the block could
+# stand anywhere before its readers, and MEASURED, lifting it and the two
+# rules that read it to the top of the file, together, changes no
+# derivation in the corpus. It sits here, after aspiration, so that the
+# two rules a reader learns the notation from still open the file.
+#
+# What IS load-bearing is the block standing before its readers, and both
+# halves are measured rather than argued: put 'tapping (before a syllabic
+# lateral)' above it and 'bˈɑtl' comes out [bˈɑtˡl̩] with no flap, put
+# 'lateral release' above it and 'ˈæpl' comes out [ˈæpl̩] with no release.
+#
+# AFTER AN OBSTRUENT, not after any consonant. '[-vowel] _ #' was too wide
+# by exactly the sonorants, and the over-application is audible: MEASURED,
+# it made 'ˈɑɹm' [ˈɑɹm̩], 'fˈɪlm' [fˈɪɫm̩] and 'kˈɪln' [kʰˈɪɫn̩], all of
+# which are ONE syllable in English, while getting 'pɹˈɪzm' [pɹ̥ˈɪzm̩] right
+# for the reason it gets 'button' right -- the nasal is behind an
+# obstruent. A sonorant and the sonorant behind it share a rhyme; a
+# sonorant behind an obstruent has to be a nucleus, because English has no
+# obstruent+sonorant coda.
+#
+# 'obstruent' is a declared natural class -- ipa.xml puts it on three
+# values of 'manner' -- so the rule names it, and this file and the
+# shipped german-final-devoicing set read the same declaration rather than
+# each spelling the class out. Both used to write it as its definition,
+# '[-vowel -approximant -nasal -trill -tap -silence]', because the
+# resolver routed values and not class names.
+[manner=nasal] -> [syllabic=+] / [obstruent] _ # ; syllabic nasal
+# The lateral's class is the obstruents PLUS THE NASALS, and the extra
+# manner is not a slip. It stays spelled by exclusion because a bracket is
+# a conjunction: '[obstruent]' already excludes the nasals and no term can
+# put them back, so this union has no name in the declaration and is
+# written as its definition instead.
+# 'ˈfa͜ɪnl' is [ˈfa͜ɪnl̩] and 'ˈt͡ʃænl' [ˈt͡ʃæ̃nl̩] --
+# final, channel, tunnel, colonel: an /l/ behind a nasal is a nucleus,
+# where an /l/ behind a rhotic is not ('snˈɑɹl' is one syllable). So the
+# two rules do not share a class, and writing them with one would be
+# tidier than the language is.
+#
+# A class, not the literal 'l'. Written as a literal it was bled by the
+# devoicing rule above: while that rule had no '[vowel]' in its context,
+# 'ˈbɑtl' had already become 'ˈbɑtl̥', which a literal no longer matches, so
+# 'bottle' came out non-syllabic while its nasal twin -- written as a class
+# -- fired correctly. The asymmetry hid the defect. Both halves are fixed
+# now and the class stays, because it is what the rule means.
+[channel=lateral manner=approximant] -> [syllabic=+] / [-vowel -approximant -trill -tap -silence] _ # ; syllabic lateral
+
+# --- tapping, continued -------------------------------------------------
+# THREE RULES IN ALL, because "between a nucleus and a following
+# UNSTRESSED one" is not a statement about adjacent VOWELS, and every
+# place it is written as one it is wrong at a different edge. The three
+# share a right-hand condition -- the next nucleus carries no stress --
+# and differ only in what the notation has to write to reach a nucleus
+# that is not spelled as a vowel, or a rhyme that does not end in one. A
+# feature query is a conjunction, so "a vowel OR a syllabic lateral"
+# cannot be said once and the cases are spelled out.
+#
+# That USED to be "the same limit the nasal-assimilation block records",
+# and it is not: the nasal block states its generalization in one line
+# now, with an agreement variable. This one still cannot, and the reason
+# is a different one worth being exact about -- a variable says "the same
+# value here and there", which is agreement, and what these three rules
+# want is a DISJUNCTION over two ways of being a nucleus. Nothing about
+# the value is shared between them.
+#
+# These two stand here, below aspiration, rather than beside the rule they
+# extend, because the first of them has to see the syllabic block's work.
+# That dependency is the only reason left: as the tapping block above now
+# records, no tapping rule can compete with aspiration for a segment, and
+# MEASURED, lifting all three into one block here changes no derivation in
+# the corpus. The two rules that open the file open it for a reader, not
+# for the cascade.
+#
+# On the RIGHT the following nucleus may be a syllabic consonant: 'bottle'
+# is [ˈbɑɾl̩], flapped, and MEASURED this file gave [bˈɑtl̩] with a plain
+# /t/ for as long as tapping asked for '[vowel]' there. The repair is not
+# a wider vowel class -- a syllabic /l/ is not a vowel by any feature it
+# carries -- it is to run the syllabic block first and then ASK, which is
+# what '[syllabic=+ channel=lateral]' does, and why the block above moved.
+# It carries the same '-primary -secondary' as the other two, because a
+# nucleus is a nucleus: nothing in this file's corpus stresses a syllabic
+# lateral, but the rule states the generalization rather than relying on
+# nobody typing one.
+#
+# ONLY THE LATERAL. A syllabic NASAL takes a glottal stop in GA ('button'
+# [ˈbʌʔn̩]), which is a rule this set does not write, and flapping into it
+# would be a second wrong answer rather than a repair.
+[manner=plosive place=alveolar] -> [manner=tap voiced=+] / [vowel] _ [syllabic=+ channel=lateral -primary -secondary] ; tapping (before a syllabic lateral)
+# On the LEFT the nucleus may be followed by a coda /ɹ/ that is part of
+# the same rhyme: 'party' is [pʰˈɑɹɾi]. Whether tapping fires used to
+# depend on how the rhotic was TRANSCRIBED, which is a property of the
+# typist and not of the language -- 'bˈʌtɚ' flaps because 'ɚ' is a vowel,
+# 'pˈɑɹti' did not because 'ɹ' is an approximant, and the two spell the
+# same rhyme. Naming '/ɹ/' and not '[-vowel]' is deliberate: 'salty' and
+# 'shelter' do not flap after /l/, so this is the rhotic's fact and not a
+# coda's. The left context is a vowel and no longer a STRESSED vowel, for
+# the reason the block above gives; what the '[vowel]' is still doing here
+# is requiring the /t/ to be inside a rhyme at all, which is what keeps
+# word-initial /t/ out -- 'təmˈe͜ɪto͜ʊ' has an unstressed vowel to the
+# right of its first /t/ and must not flap it.
+[manner=plosive place=alveolar] -> [manner=tap voiced=+] / [vowel] ɹ _ [vowel -primary -secondary] ; tapping (after a coda rhotic)
+
+# --- release phases -----------------------------------------------------
+# A stop released into a homorganic nasal or a lateral releases that way
+# rather than orally.
+[manner=plosive] -> [release=nasal] / _ [manner=nasal] ; nasal release
+# THE TWO ARE NOT SYMMETRICAL, and the asymmetry is English phonotactics
+# rather than an oversight. A nasal after a stop can only be a nucleus or
+# a following syllable's onset -- there is no /pn kn tm/ ONSET to protect
+# -- so the nasal rule can be stated over the manner and left alone. An
+# /l/ after a stop very often is an onset: 'plʌs' and 'klˈin' are /pl/ and
+# /kl/ clusters, and a lateral release there is not what the rule means.
+#
+# So the lateral rule asks for a NUCLEUS. Written with the literal 'l' it
+# was bled the way this file's own note above describes -- MEASURED, the
+# syllabic rule had already made it 'l̩', which the literal no longer
+# matched, so 'bˈɑtl' came out [bˈɑtl̩] with no lateral release at all
+# while 'bˈʌtn', whose rule is a class, got [bˈʌtⁿn̩]. That is the SAME
+# literal-versus-class defect the syllabic block records, surviving one
+# block further down in the file that warns about it. Widening it to the
+# lateral class alone would then have caught the onsets and given
+# [pˡl̥ʌs]; '[syllabic=+ channel=lateral]' is the condition that means what
+# the sentence at the top of this block says. 'ˈæpl' -> [ˈæpˡl̩], and
+# 'bˈɑtl' -> [bˈɑɾl̩] because tapping has already taken the /t/, which is
+# what GA does with it.
+[manner=plosive] -> [release=lateral] / _ [syllabic=+ channel=lateral] ; lateral release
+
+# --- unreleased coda ----------------------------------------------------
+# Word-final voiceless stops are typically unreleased.
+[manner=plosive voiced=-] -> [release=no-audible] / _ # ; unreleased coda
+
+# --- dark l -------------------------------------------------------------
+# Registered as ɫ, so respell answers before composition is reached.
+l -> [velarized=+] / [vowel] _ ; dark l
+
+# --- vowel nasalization -------------------------------------------------
+# A CODA nasal, not any nasal to the right. English nasalizes a vowel
+# before a nasal IN ITS OWN SYLLABLE; a nasal that is the next syllable's
+# onset leaves it alone. MEASURED, the one-rule spelling '_ [manner=nasal]'
+# nasalized 'ˈmʌni' to [ˈmʌ̃ni], 'ˈsʌmɚ' to [ˈsʌ̃mɚ] and 'təmˈe͜ɪto͜ʊ' to
+# [tə̃mˈe͜ɪɾo͜ʊ] -- three words where the nasal is an onset and the vowel is
+# oral. This is the same divergence as tapping's, from the other side:
+# adjacency says yes and constituency says no.
+#
+# TWO RULES, because what is wanted is "a nasal that is not followed by a
+# vowel" -- it has a consonant after it, or the word ends -- and position
+# negation is not expressible (docs/rules.md says so in as many words).
+# '_ [manner=nasal] [-vowel]' is the closed-syllable case and
+# '_ [manner=nasal] #' the word-final one, and '#' fires at the end of a
+# form with nothing typed, which is what makes 'pˈɪn' work.
+#
+# It is an APPROXIMATION and worth knowing as one: "not before a vowel" is
+# where the syllable breaks in every English word in this file's corpus,
+# but it is a segmental test standing in for a structural one, and a
+# transcription that marks its syllables is not consulted. Naming '.'
+# instead -- '_ [manner=nasal] .' -- would consult it, and would then give
+# one answer for 'hˈæn.dbˌæɡ' and another for 'hˈændbˌæɡ', which is the
+# optional-notation failure this repo has fixed twice. The segmental test
+# is the one that treats the two spellings alike.
+#
+# The word-final rule keeps the unqualified name because it is the one
+# every worked example in this repo shows -- 'pˈɪn' [pʰˈɪ̃n] -- and a trace
+# that renamed it would leave those accounts naming a rule that no longer
+# exists.
+[vowel] -> [nasalized=+] / _ [manner=nasal] # ; nasalization
+[vowel] -> [nasalized=+] / _ [manner=nasal] [-vowel] ; nasalization (closed syllable)
+
+# --- a note on diphthongs, worth knowing before debugging a rule --------
+# Whether a diphthong is TIED changes what a rule sees, because untied
+# 'eɪ' is two units and a stress mark lands on the first of them. The
+# tied spelling is the one this library treats as a single vocalic unit
+# (docs/ties.md), so tie diphthongs in the input if allophony should see
+# them whole.
+#
+# TAPPING IS NOT AN EXAMPLE OF THIS, because it asks nothing about stress
+# on its left. MEASURED over 119700 tied/untied pairs of the shape
+# C?VCVC?, built from five diphthongs and every stress placement: 18900
+# derive differently, and NOT ONE of them differs in the number of taps.
+# 'pə.tˈeɪ.toʊ' and 'pə.tˈe͜ɪ.to͜ʊ' both flap. That is one fewer place where
+# a transcriber's spelling decides a phonological question, which is the
+# complaint the coda-rhotic rule above was written to fix.
+#
+# WHERE THE TIE IS STILL LOAD-BEARING: nasalization, and in that same
+# sweep it is the ONLY place -- all 18900 differences are the nasal mark
+# and nothing else. MEASURED, 'ˈkaɪn' nasalizes its second element to
+# [ˈkaɪ̃n] where 'ˈka͜ɪn' is left alone, because the rule reaches one unit
+# and the composed mark on a tied pair does not read back. So do not
+# conclude from the paragraph above that ties may be dropped.
+#
+# TIE THEM BY HAND. This file used to say "ipakit.add_ties() does it for
+# registered pairs", and that is false: MEASURED, add_ties ties EVERY
+# adjacent pair of base phones -- add_ties('kæt') is 'k͡æ͡t' -- so applied
+# to the word above it gives 'p͡ə.tʰˈe͜ɪ.t͡o͜ʊ', where tapping does not fire
+# at all. Its own docstring is accurate and says "within a multi-phone
+# SEGMENT"; it is a segment tool, and it was this file that mis-sold it as
+# a word tool. docs/rules.md and japanese-moraic.rules both warn about it,
+# which is how the claim survived here for as long as it did: the warning
+# was somewhere else.
+
+# --- recorded rather than fixed, and deliberately not modeled ----------
+# Named so the gaps are known rather than discovered. This set shipped
+# without such a section, which is part of how it came to have four
+# over-applications in it: nothing in the file distinguished "this is
+# right" from "nobody has looked".
+#
+# * ASPIRATION UNDER-APPLIES WORD-INITIALLY BEFORE AN UNSTRESSED VOWEL.
+#   GA aspirates a voiceless stop at the start of a word whether or not
+#   the syllable is stressed -- 'tomato' is [tʰəˈme͜ɪɾo͜ʊ], 'potato'
+#   [pʰəˈte͜ɪɾo͜ʊ] -- and the rule above asks for a following
+#   '[vowel stress=primary]', so it declines. MEASURED: 'təmˈe͜ɪto͜ʊ' comes
+#   out with a plain /t/. Nothing about the notation is in the way. The
+#   rule is one line,
+#
+#       [manner=plosive voiced=-] -> [release=aspirated] / # _ [vowel]
+#
+#   and it is correct: '#' does not reach the /p/ of 'spin', which is
+#   behind an /s/, so the positive margin statement above is untouched.
+#   It is left out here for a reason that is not phonological and is worth
+#   stating plainly rather than leaving as a silent gap: it aspirates the
+#   first /p/ of 'pə.tˈe͜ɪ.to͜ʊ', and that derivation is quoted as worked
+#   output in docs/rules.md and replayed line for line by
+#   tests/test_cli.py. The rule and that document have to move in one
+#   commit, so it is left for the commit that can move both.
+# * GLOTTALISATION. GA has [ˈbʌʔn̩] for 'button', not the [ˈbʌtⁿn̩] this
+#   set derives, and /t/ is glottalized before a syllabic nasal and often
+#   word-finally. The nasal-release answer is a defensible narrow reading
+#   of a more conservative register; a set that wrote the glottal rule
+#   would have to order it before tapping and before nasal release, and
+#   would then owe an account of which of the two this file's 'bˈʌtn'
+#   examples mean.
+# * The rhotic's other spellings. Tapping now reaches a coda '/ɹ/' and the
+#   r-colored vowels, which is every way this set's corpus writes the
+#   rhyme of 'party'. What cannot be said once is the generalization
+#   underneath -- "after a rhyme" -- because a rhyme is a constituent and a
+#   context is a sequence of units; each of its endings is a separate line,
+#   and a spelling nobody enumerated is a spelling that does not flap.
+# * THE FOOT IS NOT MODELLED, only its segmental shadow. "Foot-medial" is
+#   what tapping means and "the next nucleus carries no stress" is what it
+#   asks, and the two come apart wherever a foot boundary is not marked by
+#   a stress: across a word boundary inside a phrase ('hit it' flaps, 'hit
+#   Tim' does not, and this set sees no phrase), and in any transcription
+#   that leaves an unstressed monosyllable unmarked. That is the same
+#   shape of approximation the nasalization block records from the other
+#   side -- a segmental test standing in for a structural one -- and it is
+#   recorded here for the same reason: so it is known rather than
+#   discovered.

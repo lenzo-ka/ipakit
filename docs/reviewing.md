@@ -16,7 +16,7 @@ Each of these happened, more than once.
 
 **A guard that no longer guards.** The AST check for hardcoded phonetic constants missed seven shapes, including the key/value inversion of the very table it was written to reject. A guard that has quietly stopped covering a shape is worse than none, because it reads as protection.
 
-**Documentation drifting away from behaviour.** Values quoted in prose went stale silently. Docstrings asserted invariants — *"these two are one read, not two"* — that had not been true for some time.
+**Documentation drifting away from behavior.** Values quoted in prose went stale silently. Docstrings asserted invariants — *"these two are one read, not two"* — that had not been true for some time.
 
 ## What to do
 
@@ -49,7 +49,7 @@ Where a sweep is too slow for the default run, sample deliberately and say so in
 
 Six rounds rebuilt this sweep by hand, and the corpus drifted: two lanes a day apart reported 7921 and 8338 units, and neither could tell whether the other had a different inventory or a different definition. `scripts/sweep.py` is that enumeration written once, so counts from different lanes are comparable.
 
-The canonical corpus is **every phone, and every phone + one diacritic, that spells itself back** — `segment(unit).to_ipa() == unit`. Today that is 139 bare + 7921 marked = 8060 units. It is defined that way rather than by strict parsing because strict parsing measures the parser's error policy as much as the inventory: that count moved 8618 -> 8340 when stress-mark binding changed, with no phone or diacritic touched, while re-emission held at 7921 across the same commits.
+The canonical corpus is **every phone, and every phone + one diacritic, that spells itself back** — `segment(unit).to_ipa() == unit` — bare phones plus marked ones, with `sweep.py corpus` printing the totals. It is defined that way rather than by strict parsing because strict parsing measures the parser's error policy as much as the inventory: that count moved 8618 -> 8340 when stress-mark binding changed, with no phone or diacritic touched, while re-emission held at 7921 across the same commits.
 
 The workflow is three commands:
 
@@ -94,7 +94,7 @@ Coverage can then only change deliberately, in either direction.
 
 ### Let the data be wrong before the code is clever
 
-Several defects were data errors wearing a code disguise. Clicks scored `d(p, ʘ) = 0` because they silently defaulted to a pulmonic airstream. Every vowel resolved `voiced="-"` because no vowel declared voicing and the binary default is `-`. R-colouring was spelled with two different features.
+Several defects were data errors wearing a code disguise. Clicks scored `d(p, ʘ) = 0` because they silently defaulted to a pulmonic airstream. Every vowel resolved `voiced="-"` because no vowel declared voicing and the binary default is `-`. R-coloring was spelled with two different features.
 
 In each case correcting the data fixed the metric, and a weight or a special case would have hidden it. When a distance looks wrong, check what the data says before adjusting how it is compared.
 

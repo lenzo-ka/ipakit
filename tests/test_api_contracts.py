@@ -43,12 +43,19 @@ class TestDistanceRefusesWords:
 
 
 class TestQueriesRefuseToMatchEverything:
-    """An unresolved query used to drop every term, leaving a vacuous
-    all() that matched the entire inventory."""
+    """A query term that names nothing must be an error, alone or beside
+    a term that resolves: dropped, it leaves either a vacuous all() over
+    the entire inventory or a query answering for a wider class than the
+    caller asked for."""
 
     def test_all_invalid_query_raises(self, ipa: IPAFeatures) -> None:
-        with pytest.raises(ValueError, match="entire inventory"):
+        with pytest.raises(ValueError, match="resolves to no feature term"):
             ipa.phones_matching(["zzz", "qqq"])
+
+    def test_one_invalid_term_beside_a_valid_one_raises(self, ipa: IPAFeatures) -> None:
+        # ['plosive', 'zzz'] must not answer as ['plosive'].
+        with pytest.raises(ValueError, match="'zzz' resolves to no feature term"):
+            ipa.phones_matching(["plosive", "zzz"])
 
     def test_valid_query_still_filters(self, ipa: IPAFeatures) -> None:
         bilabials = ipa.phones_matching({"place": "bilabial"})
@@ -68,7 +75,7 @@ class TestMeasurementRejectsUnconvertibleInput:
             ipakit.word_similarity("kæt", "k4t")
 
     def test_lossy_measurement_is_opt_in(self) -> None:
-        assert ipakit.word_distance("kæt", "k4t", strict=False).distance >= 0.0
+        assert ipakit.word_distance("kæt", "k4t", strict=False).edit_cost >= 0.0
 
     def test_clean_input_unaffected(self) -> None:
         assert ipakit.word_similarity("kæt", "kæd") > 0.9

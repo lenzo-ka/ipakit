@@ -23,12 +23,18 @@ returning a plausible short answer.
 from __future__ import annotations
 
 import functools
+import sys
 import warnings
 from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import ipakit
 import pytest
 from ipakit import IPAFeatures
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+from invariants import entry_points  # noqa: E402
 
 # The seven that stand for a phone; ˖/˗ are spacing aliases of combining
 # marks and are covered by the sweep and by TestTheSpacingAliases.
@@ -75,33 +81,18 @@ def _answer(fn: Callable[[str], object], text: str) -> object:
             return type(exc).__name__
 
 
-ENTRY_POINTS: dict[str, Callable[[str], object]] = {
-    "features": ipakit.features,
-    "compose": lambda s: IPAFeatures().compose(s),
-    "scalar": lambda s: ipakit.segment(s).scalar(),
-    "feature_values": ipakit.feature_values,
-    "feature_bundles": ipakit.feature_bundles,
-    "describe": lambda s: ipakit.describe(s) if s in IPAFeatures() else None,
-    "tokenize": ipakit.tokenize,
-    "segmented": ipakit.segmented,
-    "segments": lambda s: [u.to_ipa() for u in ipakit.segments(s)],
-    "segments_strict": lambda s: [u.to_ipa() for u in ipakit.segments(s, strict=True)],
-    "parse": lambda s: IPAFeatures().parse(s),
-    "parse_strict": lambda s: IPAFeatures().parse(s, strict=True),
-    "normalize": ipakit.normalize,
-    "respell": ipakit.respell,
-    "is_valid_ipa": ipakit.is_valid_ipa,
-    "validate_ipa": ipakit.validate_ipa,
-    "to_cmu": ipakit.to_cmu,
-    "to_timit": ipakit.to_timit,
-    "to_kirshenbaum": ipakit.to_kirshenbaum,
-    "ipa_to_xsampa": ipakit.ipa_to_xsampa,
-    "word_distance": lambda s: ipakit.word_distance(s, "ta").distance,
-    "distance": lambda s: ipakit.distance(s, "t"),
-    "contains": lambda s: s in IPAFeatures(),
-    "get_phone": lambda s: IPAFeatures().get_phone(s),
-    "get_diacritic": lambda s: IPAFeatures().get_diacritic(s),
-}
+#: The routes into the inventory, defined in ``scripts/invariants.py``
+#: and imported rather than restated. They were two tables and the two
+#: had drifted: this one held twenty-five entries and the script's held
+#: thirteen, so the run whose docstring calls itself the exhaustive one
+#: was missing twelve of them -- ``contains``, ``describe``,
+#: ``distance``, ``feature_bundles``, ``feature_values``,
+#: ``get_diacritic``, ``get_phone``, ``is_valid_ipa``, ``respell``,
+#: ``segmented``, ``segments_strict`` and ``validate_ipa``. Neither copy
+#: was wrong about an answer; the wider one was simply invisible to the
+#: script. Same precedent as ``tests/test_notation.py``, which imports
+#: ``CHART`` and ``check_notation`` rather than writing them out again.
+ENTRY_POINTS: dict[str, Callable[[str], object]] = entry_points(IPAFeatures())
 
 
 class TestEveryEntryPointReadsAnAliasAsItsCanonical:
@@ -179,13 +170,13 @@ class TestTheConverterLanes:
         self, ipa: IPAFeatures, alias: str
     ) -> None:
         canonical = ipa.ligature_map[alias]
-        assert ipakit.word_distance(f"a{alias}a", f"a{canonical}a").distance == 0.0
+        assert ipakit.word_distance(f"a{alias}a", f"a{canonical}a").edit_cost == 0.0
 
     def test_the_word_that_lost_its_affricate(self) -> None:
         # to_cmu("ʧe͜ɪnd͡ʒ") returned ['EY0', 'N', 'JH']: no error, no CH.
         assert ipakit.to_cmu("ʧe͜ɪnd͡ʒ") == ipakit.to_cmu("t͡ʃe͜ɪnd͡ʒ")
         assert ipakit.to_cmu("ʧe͜ɪnd͡ʒ") == ["CH", "EY0", "N", "JH"]
-        assert ipakit.word_distance("ʧe͜ɪnd͡ʒ", "t͡ʃe͜ɪnd͡ʒ").distance == 0.0
+        assert ipakit.word_distance("ʧe͜ɪnd͡ʒ", "t͡ʃe͜ɪnd͡ʒ").edit_cost == 0.0
 
 
 class TestAnAliasCarryingDiacritics:
@@ -266,7 +257,7 @@ class TestStrictAgreesWithItself:
         assert [u.to_ipa() for u in ipa.segments(text, strict=True)] == [
             u.to_ipa() for u in ipa.segments(ipa.expand_ligatures(text), strict=True)
         ]
-        assert ipakit.word_distance(text, text, strict=True).distance == 0.0
+        assert ipakit.word_distance(text, text, strict=True).edit_cost == 0.0
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
     def test_the_converters_reject_neither_more_nor_less(
@@ -338,3 +329,133 @@ class TestResolutionHappensInOnePlace:
         for text, _ in _corpus(ipa):
             once = ipa.expand_ligatures(text)
             assert ipa.expand_ligatures(once) == once
+
+
+class TestARuleReadsAnAliasAsItsCanonical:
+    """The rewrite engine was the entry point this sweep did not reach.
+
+    ``ipakit.rewrite("aʦa", "ʦ -> t")`` raised ``RuleError`` -- "'ʦ' spells
+    nothing this inventory registers" -- of a spelling ``features("ʦ")``,
+    ``expand_ligatures`` and ``units`` all handle. The *form* half read the
+    alias and the *pattern* half refused it, which is the breach this
+    module's docstring describes, one route later. Before the
+    unregistered-literal guard existed the same rule parsed and silently
+    matched nothing; the refusal was an improvement and still a wrong
+    answer.
+
+    The half-fix is the interesting case, and it is what
+    :meth:`test_the_literal_is_the_unit_it_reads_as` exists to catch:
+    accepting the alias at the parser and leaving the literal as the
+    characters typed puts the silent no-op back, because a pattern's
+    literal is compared against ``Unit.core`` and the alias never spells
+    one.
+    """
+
+    @staticmethod
+    def _literals(ipa: IPAFeatures) -> list[tuple[str, str]]:
+        """(alias spelling, canonical spelling) for each alias, as a literal.
+
+        A rule literal names a unit, and an alias of a *combining* mark
+        does not spell one on its own -- so it is put on a base, and which
+        aliases need that is asked of the read rather than listed here.
+        """
+        from ipakit.form import units
+
+        out = []
+        for alias in ipa.ligature_map:
+            text = alias if units(alias, ipa) else "e" + alias
+            out.append((text, ipa.expand_ligatures(text)))
+        return out
+
+    def test_the_sweep_covers_every_alias(self, ipa: IPAFeatures) -> None:
+        pairs = self._literals(ipa)
+        assert len(pairs) == len(ipa.ligature_map) >= 9
+        assert all(text != canonical for text, canonical in pairs)
+
+    def test_it_is_a_literal_on_the_left(self, ipa: IPAFeatures) -> None:
+        for text, canonical in self._literals(ipa):
+            form = "a" + canonical + "a"
+            assert ipakit.rewrite(form, f"{text} -> k") == ipakit.rewrite(
+                form, f"{canonical} -> k"
+            )
+            assert ipakit.rewrite(form, f"{text} -> k") == "aka"
+
+    def test_it_is_a_literal_on_the_right(self, ipa: IPAFeatures) -> None:
+        for text, canonical in self._literals(ipa):
+            assert ipakit.rewrite("aka", f"k -> {text}") == ipakit.rewrite(
+                "aka", f"k -> {canonical}"
+            )
+            assert ipakit.rewrite("aka", f"k -> {text}") == "a" + canonical + "a"
+
+    def test_it_is_a_literal_in_a_context(self, ipa: IPAFeatures) -> None:
+        for text, canonical in self._literals(ipa):
+            form = "a" + canonical + "a"
+            assert ipakit.rewrite(form, f"a -> k / {text} _") == ipakit.rewrite(
+                form, f"a -> k / {canonical} _"
+            )
+
+    def test_a_form_written_with_the_alias_derives_alike(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The two halves have to agree, which is the whole complaint."""
+        for text, canonical in self._literals(ipa):
+            assert ipakit.rewrite("a" + text + "a", f"{text} -> k") == ipakit.rewrite(
+                "a" + canonical + "a", f"{canonical} -> k"
+            )
+
+    def test_prosody_written_on_an_alias_is_still_a_constraint(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """``ˈʦ`` is "that phone, stressed" -- and only the stressed one."""
+        for text, canonical in self._literals(ipa):
+            form = "aˈ" + canonical + "a"
+            assert ipakit.rewrite(form, f"ˈ{text} -> k") == ipakit.rewrite(
+                form, f"ˈ{canonical} -> k"
+            )
+            unstressed = "a" + canonical + "a"
+            assert ipakit.rewrite(unstressed, f"ˈ{text} -> k") == unstressed
+
+    def test_the_literal_is_the_unit_it_reads_as(self, ipa: IPAFeatures) -> None:
+        """The predicate, over the canonical corpus and every alias.
+
+        A pattern's literal is compared against ``Unit.core``, so the two
+        are the same read or the pattern is a constraint on a spelling
+        nothing produces. Stated over every literal the parser accepts
+        rather than over the ones that were wrong, so the next spelling
+        that reads as something other than itself cannot slip through.
+        """
+        from ipakit.form import units
+        from ipakit.rules import _pattern
+
+        checked = 0
+        for phone in ipa.phones:
+            texts = [phone] + [
+                phone + mark
+                for mark in ipa.diacritics
+                if ipa.segment(phone + mark).to_ipa() == phone + mark
+            ]
+            for text in texts[:4]:
+                assert _pattern(text, ipa).literal == units(text, ipa)[0].core
+                checked += 1
+        for text, _ in self._literals(ipa):
+            assert _pattern(text, ipa).literal == units(text, ipa)[0].core
+            checked += 1
+        assert checked > 400, "sweep did not run"
+
+    def test_a_bare_combining_mark_is_still_refused(self, ipa: IPAFeatures) -> None:
+        """The limit, pinned so it changes deliberately.
+
+        ``˖`` aliases a combining mark, and a combining mark spells no
+        unit of its own -- so it is a literal nowhere, exactly as the
+        canonical ``̟`` is not. If one of these starts being accepted,
+        this fails and the sweep above needs its ``_literals`` widened.
+        """
+        from ipakit.form import units
+        from ipakit.rules import RuleError, _pattern
+
+        bare = [a for a in ipa.ligature_map if not units(a, ipa)]
+        assert bare, "no alias spells a mark; the pinned limit is gone"
+        for alias in bare:
+            for spelling in (alias, ipa.ligature_map[alias]):
+                with pytest.raises(RuleError, match="spells nothing"):
+                    _pattern(spelling, ipa)

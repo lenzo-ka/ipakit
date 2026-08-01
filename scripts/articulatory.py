@@ -22,7 +22,7 @@ cast, and two points of posterior pharyngeal wall (``PHA.DAT``).
     python scripts/articulatory.py chain       # what the mandible carries
     python scripts/articulatory.py all
 
-The corpus is external data under a separate licence and is NOT bundled: CI
+The corpus is external data under a separate license and is NOT bundled: CI
 will not have it, so every subcommand exits 0 with a message when it is
 absent. Point ``--corpus`` at your own copy. ``--files N`` reads only the
 first N track files per speaker, which is much faster and much less accurate;
@@ -39,12 +39,17 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import statistics
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_CORPUS = Path("/Volumes/GT3/ubeam/xray_microbeam_database")
+#: Environment variable naming the mounted X-Ray Microbeam database.
+#: No default path is baked in: the corpus is licensed, not redistributable,
+#: and the mount point belongs to whoever has a copy -- a path from one
+#: machine is noise in the repository and a broken default everywhere else.
+CORPUS_ENV = "IPAKIT_XRMB_DIR"
 
 # The .txy column order, from the corpus's own notes.txt: a microsecond
 # timestamp then x,y for each pellet. MNI/MNM are the mandibular incisor and
@@ -107,7 +112,7 @@ def read_frames(path: Path) -> Iterator[Frame]:
     Rows that are short or unparseable are skipped rather than raising: two
     files are missing from the distribution outright (JW34/tp023, JW43/tp118)
     and the format is a plain text dump, so tolerating a bad row is the
-    behaviour that lets a whole-corpus pass finish.
+    behavior that lets a whole-corpus pass finish.
     """
     with path.open(encoding="latin-1") as handle:
         for line in handle:
@@ -189,9 +194,19 @@ class Corpus:
 def open_corpus(args: argparse.Namespace) -> Corpus | None:
     """The corpus, or None with a message when it is not mounted.
 
-    Absence is not an error: this is external data under a separate licence,
+    Absence is not an error: this is external data under a separate license,
     it is not bundled, and CI runs without it.
     """
+    if not args.corpus:
+        print(f"no corpus given: set ${CORPUS_ENV} or pass --corpus")
+        print(
+            "  This is the X-Ray Microbeam database (Westbury 1994), external "
+            "data that\n  ipakit does not bundle and cannot redistribute, so "
+            "no default path is\n  carried here -- a mount point from one "
+            "machine would be wrong everywhere\n  else. Nothing else in the "
+            "repo depends on it; see docs/articulatory-data.md."
+        )
+        return None
     root = Path(args.corpus)
     if not root.is_dir():
         print(f"corpus not found at {root}")
@@ -954,7 +969,7 @@ def _modes(wall: UpperWall, near: dict[int, int]) -> list[float]:
 # --------------------------------------------------------------------------
 # hinge: where the mandible turns
 
-# Frames apart, for the displacement chords the centre is solved from. At the
+# Frames apart, for the displacement chords the center is solved from. At the
 # corpus's sampling rates this is a few tens of milliseconds -- long enough
 # for a real gesture to move the pellets well past tracking noise.
 HINGE_LAG = 10
@@ -963,14 +978,14 @@ MIN_CHORD_MM = 1.0
 # they define is numerically worthless. This is the sine of the angle between
 # them, below which the frame pair is discarded.
 MIN_ROTATION = 0.10
-# A centre further away than this is a solver artifact, not an anatomy.
-MAX_CENTRE_MM = 300.0
+# A center further away than this is a solver artifact, not an anatomy.
+MAX_CENTER_MM = 300.0
 
 
-def solve_centre(near: tuple[Point, Point], far: tuple[Point, Point]) -> Point | None:
-    """The instantaneous centre two point displacements imply, if any.
+def solve_center(near: tuple[Point, Point], far: tuple[Point, Point]) -> Point | None:
+    """The instantaneous center two point displacements imply, if any.
 
-    For a rigid body in the plane, every point turns about one centre, which
+    For a rigid body in the plane, every point turns about one center, which
     lies on the perpendicular bisector of each point's displacement chord.
     Two points give two bisectors and one intersection.
     """
@@ -988,24 +1003,24 @@ def solve_centre(near: tuple[Point, Point], far: tuple[Point, Point]) -> Point |
     c_far = dx_far[0] * mid_far[0] + dx_far[1] * mid_far[1]
     x = (c_near * dx_far[1] - dx_near[1] * c_far) / determinant
     y = (dx_near[0] * c_far - c_near * dx_far[0]) / determinant
-    if abs(x) > MAX_CENTRE_MM or abs(y) > MAX_CENTRE_MM:
+    if abs(x) > MAX_CENTER_MM or abs(y) > MAX_CENTER_MM:
         return None
     return (x, y)
 
 
 def cmd_hinge(corpus: Corpus, args: argparse.Namespace) -> int:
-    """Where the jaw's instantaneous centre of rotation sits, open and closed.
+    """Where the jaw's instantaneous center of rotation sits, open and closed.
 
     ipakit has no jaw articulator at all, so nothing here contradicts the
     library; it says what an articulatory renderer would have to model. If
-    the centre were fixed the jaw would be one hinge and one degree of
+    the center were fixed the jaw would be one hinge and one degree of
     freedom. If it migrates with opening, it is rotation plus condylar glide
     and needs two.
     """
     tally = Tally()
     rows = []
     for speaker in corpus.speakers():
-        centres: list[Point] = []
+        centers: list[Point] = []
         opening: list[float] = []
         lengths = Moments()
         frames = 0
@@ -1022,30 +1037,30 @@ def cmd_hinge(corpus: Corpus, args: argparse.Namespace) -> int:
                 c, d = first[MNM], second[MNM]
                 if a is None or b is None or c is None or d is None:
                     continue
-                centre = solve_centre((a, b), (c, d))
-                if centre is None:
+                center = solve_center((a, b), (c, d))
+                if center is None:
                     continue
-                centres.append(centre)
+                centers.append(center)
                 opening.append((a[1] + b[1]) / 2)
         tally.note(speaker, len(corpus.track_files(speaker)), frames)
         loose = lengths.n < 100 or math.sqrt(lengths.variance) / lengths.mean > RIGID_CV
-        if len(centres) < args.min_centres or loose:
+        if len(centers) < args.min_centers or loose:
             print(
                 f"  {speaker}: skipped "
-                f"({'mandible track is loose' if loose else str(len(centres)) + ' centres'})"
+                f"({'mandible track is loose' if loose else str(len(centers)) + ' centers'})"
             )
             continue
-        xs = sorted(c[0] for c in centres)
-        ys = sorted(c[1] for c in centres)
+        xs = sorted(c[0] for c in centers)
+        ys = sorted(c[1] for c in centers)
         heights = sorted(opening)
         shut = quantile(heights, 0.75)
         agape = quantile(heights, 0.25)
-        closed = [c for c, h in zip(centres, opening, strict=True) if h >= shut]
-        opened = [c for c, h in zip(centres, opening, strict=True) if h <= agape]
+        closed = [c for c, h in zip(centers, opening, strict=True) if h >= shut]
+        opened = [c for c, h in zip(centers, opening, strict=True) if h <= agape]
         rows.append(
             (
                 speaker,
-                len(centres),
+                len(centers),
                 statistics.median(xs),
                 quantile(xs, 0.75) - quantile(xs, 0.25),
                 statistics.median(ys),
@@ -1069,8 +1084,8 @@ def cmd_hinge(corpus: Corpus, args: argparse.Namespace) -> int:
             f"({row[8]:6.1f},{row[9]:6.1f}) {row[9] - row[7]:6.1f}"
         )
     print()
-    summarize("centre x", [row[2] for row in rows], " mm")
-    summarize("centre y", [row[4] for row in rows], " mm")
+    summarize("center x", [row[2] for row in rows], " mm")
+    summarize("center y", [row[4] for row in rows], " mm")
     summarize("IQR of x", [row[3] for row in rows], " mm")
     summarize("IQR of y", [row[5] for row in rows], " mm")
     drop = [row[9] - row[7] for row in rows]
@@ -1078,7 +1093,7 @@ def cmd_hinge(corpus: Corpus, args: argparse.Namespace) -> int:
     summarize("open minus closed, y", drop, " mm")
     summarize("open minus closed, x", slide, " mm")
     print(
-        f"\n  the centre falls as the jaw opens in {sum(1 for d in drop if d < 0)} "
+        f"\n  the center falls as the jaw opens in {sum(1 for d in drop if d < 0)} "
         f"of {len(rows)} speakers;\n  it moves back in "
         f"{sum(1 for s in slide if s < 0)} of {len(rows)}, which is not a "
         "direction at all.\n  A single fixed hinge is not what the data shows; "
@@ -1187,7 +1202,9 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "--corpus", default=str(DEFAULT_CORPUS), help="the mounted database"
+        "--corpus",
+        default=os.environ.get(CORPUS_ENV),
+        help=f"the mounted database (default: ${CORPUS_ENV})",
     )
     parser.add_argument(
         "--speakers", metavar="JW11,JW13", help="measure only these, comma separated"
@@ -1205,7 +1222,7 @@ def main(argv: list[str] | None = None) -> int:
         help="samples a bin needs before it is reported",
     )
     parser.add_argument(
-        "--min-centres",
+        "--min-centers",
         type=int,
         default=500,
         help="hinge: frame pairs a speaker needs before it is reported",

@@ -40,10 +40,23 @@ class TestLevelsAgree:
     """The property the fix buys: one string, one answer."""
 
     def test_agreement_over_base_by_diacritic(self, ipa: IPAFeatures) -> None:
-        # The sweep that exposed the defect: nearly every combination
-        # disagreed, because the flat side returned {}.
+        """The sweep that exposed the defect: nearly every combination
+        disagreed, because the flat side returned ``{}``.
+
+        Over every atomic phone rather than the eight hand-picked bases
+        it used to name -- 6960 well-formed units instead of 480, and the
+        whole inventory was free. A tie-bar base is excluded because the
+        two reads genuinely differ there and only in metadata: 437 of the
+        8340 units a full sweep reaches disagree, every one of them on
+        ``href`` alone, since a composed unit has no single article to
+        link to. ``test_one_composition.py`` compares bundles with the
+        metadata stripped for that reason; this one compares them whole,
+        so it stays on the bases where whole is the right comparison.
+        """
+        atomic = [p for p in ipa.phones if not (ipa.tie_bars & set(p))]
+        assert atomic, "no atomic phone: the sweep would be vacuous"
         checked = 0
-        for base in "t a k s n l i u".split():
+        for base in atomic:
             for mark in ipa.diacritics:
                 unit = base + mark
                 # Well-formed IPA only. A dangling tie ("t͡") is malformed
@@ -57,7 +70,7 @@ class TestLevelsAgree:
                     continue
                 checked += 1
                 assert ipa.get_features(unit) == structured, unit
-        assert checked > 100, "sweep did not run"
+        assert checked > 5_000, "sweep did not run"
 
     def test_agreement_over_the_registered_inventory(self, ipa: IPAFeatures) -> None:
         for symbol in ipa.phones:
@@ -102,7 +115,7 @@ class TestDownstreamNoLongerLies:
         assert shared.get("nasalized") == "+"
         assert shared.get("manner") == "vowel"
 
-    def test_minimal_pairs_and_neighbours_resolve(self) -> None:
+    def test_minimal_pairs_and_neighbors_resolve(self) -> None:
         assert ipakit.minimal_pairs("tʲ")
         assert ipakit.nearest_phones("tʲ", n=3)
 

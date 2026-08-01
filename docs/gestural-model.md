@@ -32,7 +32,7 @@ Clicks likewise stop being a special case: a click *is* two closure gestures wit
 
 ## What it fixes in distance
 
-Today the metric best-matches place components by nearest neighbour, which is a heuristic. With articulators, gestures **match by articulator** — tongue tip against tongue tip, lips against lips — which is the natural key and needs no heuristic at all. Unmatched gestures (one segment has a lip gesture the other lacks) become gaps, exactly as constituents do now in the ordered alignment.
+Today the metric best-matches place components by nearest neighbor, which is a heuristic. With articulators, gestures **match by articulator** — tongue tip against tongue tip, lips against lips — which is the natural key and needs no heuristic at all. Unmatched gestures (one segment has a lip gesture the other lacks) become gaps, exactly as constituents do now in the ordered alignment.
 
 ## What it gives the renderer
 

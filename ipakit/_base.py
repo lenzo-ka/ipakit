@@ -22,8 +22,13 @@ class IPAFeaturesBase:
     phones: dict[str, Phone]
     diacritics: dict[str, Phone]
     separators: dict[str, Phone]
+    zeros: dict[str, Phone]
     features: dict[str, Feature]
     lookalikes: dict[str, str]
+    # <notations>: symbol -> the convention it comes from, and the one an
+    # unlisted symbol belongs to. Read through `notation_of`.
+    notations: dict[str, str]
+    default_notation: str
     # The declared mode vocabulary: declaration order is precedence, and
     # `default_mode` is the mode a mark falls to when none of its keys is
     # claimed. `modifier_mode` reads these, and it takes this base so the
@@ -55,6 +60,26 @@ class IPAFeaturesBase:
     def syllable_break(self) -> str:
         raise NotImplementedError
 
+    @property
+    def carries_no_segment(self) -> frozenset[str]:
+        raise NotImplementedError
+
+    @property
+    def tie_marks(self) -> dict[str, str]:
+        raise NotImplementedError
+
+    @property
+    def tie_bar(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def seq_tie(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def tie_bars(self) -> frozenset[str]:
+        raise NotImplementedError
+
     def feature_applies(self, feature: str, bundle: dict[str, str]) -> bool:
         raise NotImplementedError
 
@@ -62,6 +87,12 @@ class IPAFeaturesBase:
         raise NotImplementedError
 
     def expand_ligatures(self, ipa: str) -> str:
+        raise NotImplementedError
+
+    def canonicalize_unicode(self, text: str) -> str:
+        raise NotImplementedError
+
+    def notation_of(self, symbol: str) -> str:
         raise NotImplementedError
 
     def compose(
