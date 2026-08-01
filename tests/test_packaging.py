@@ -270,6 +270,80 @@ print(json.dumps(out))
     assert got["confusable"], got
 
 
+def test_the_installed_package_carries_the_tutorial_notebook(built_wheel, tmp_path):
+    """The teaching material has to travel too, not only the library.
+
+    Everything built to *learn* ipakit lived in the checkout: no tutorial,
+    no examples, no figures reached an install. The notebook is the answer
+    to that, and it is worth nothing unless it is in the wheel and
+    reachable from an empty directory -- the case a student is in.
+
+    Both surfaces are asked, from that empty directory, and the bytes are
+    compared against the checked-in notebook, so "some JSON landed" cannot
+    pass for "the tutorial landed".
+    """
+    site = tmp_path / "site"
+    with zipfile.ZipFile(built_wheel) as zf:
+        names = set(zf.namelist())
+        zf.extractall(site)
+
+    shipped = sorted(n for n in names if n.endswith(".ipynb"))
+    assert shipped == ["ipakit/notebooks/ipakit-tutorial.ipynb"], shipped
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+
+    program = """
+import json, subprocess, sys
+from pathlib import Path
+import ipakit
+
+api = ipakit.notebook(".")
+proc = subprocess.run(
+    [sys.executable, "-m", "ipakit.cli", "notebook", "-o", "cli"],
+    capture_output=True, text=True, encoding="utf-8",
+)
+cli = Path("cli") / api.name
+print(json.dumps({
+    "where": ipakit.__file__,
+    "api": api.read_text(encoding="utf-8"),
+    "cli_status": proc.returncode,
+    "cli_stdout": proc.stdout,
+    "cli_stderr": proc.stderr,
+    "cli": cli.read_text(encoding="utf-8") if cli.exists() else "",
+}))
+"""
+    env = {**os.environ, "PYTHONPATH": str(site)}
+    env.pop("PYTHONHOME", None)
+    proc = subprocess.run(
+        [sys.executable, "-c", program],
+        cwd=elsewhere,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert (
+        proc.returncode == 0
+    ), f"an installed ipakit could not write its notebook:\n{proc.stderr}"
+
+    got = json.loads(proc.stdout)
+    assert str(site) in got["where"], f"imported the wrong ipakit: {got['where']}"
+    expected = (ROOT / "ipakit" / "notebooks" / "ipakit-tutorial.ipynb").read_text(
+        encoding="utf-8"
+    )
+    assert got["cli_status"] == 0, got["cli_stderr"]
+    assert got["api"] == expected, "the API wrote a different notebook"
+    assert got["cli"] == expected, "the CLI wrote a different notebook"
+    # It has to say where the file went and how to open it; a path printed
+    # into the void leaves the student exactly where they started.
+    assert "ipakit-tutorial.ipynb" in got["cli_stdout"], got["cli_stdout"]
+    assert "jupyter" in got["cli_stdout"], got["cli_stdout"]
+    document = json.loads(got["api"])
+    assert document["nbformat"] == 4, document["nbformat"]
+    assert document["cells"], "the notebook that landed has no cells"
+
+
 def test_the_installed_package_can_draw_a_tract_figure(built_wheel, tmp_path):
     """The tract figure, from an install rather than from the checkout.
 
