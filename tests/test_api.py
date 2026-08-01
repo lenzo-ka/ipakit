@@ -132,7 +132,7 @@ class TestEmptyInputs:
 
     def test_word_distance_both_empty_identical(self) -> None:
         r = ipakit.word_distance("", "")
-        assert r.distance == 0.0
+        assert r.edit_cost == 0.0
         assert r.similarity == 1.0
 
     def test_feature_bundles_empty(self) -> None:
