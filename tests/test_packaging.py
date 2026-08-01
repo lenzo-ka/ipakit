@@ -220,6 +220,12 @@ out = {
     # data/rules/*.rules
     "rulesets": sorted(p.stem for p in rules.RULES_DIR.glob("*.rules")),
     "derived": rules.shipped("german-final-devoicing").apply("ta\\u02d0\\u0261"),
+    # data/supplements/*.xml, asked for as the documents ask for it
+    "supplements": ipakit.available_supplements(),
+    "registered": sorted(
+        set(ipakit.load_ipa_features(supplements=["aspirated-stops"]).phones)
+        - set(ipakit.load_ipa_features().phones)
+    ),
     # heads.xml
     "head": head("adult-male").name,
     # confusion.json
@@ -255,6 +261,11 @@ print(json.dumps(out))
     assert len(got["rulesets"]) == 5, got
     assert "american-english" in got["rulesets"], got
     assert got["derived"] == "taːk", got
+    # The worked supplement, loaded by name from the install rather than
+    # from a path into the checkout -- which is the whole point of shipping
+    # it: an installed reader had the grammar and no instance of the format.
+    assert "aspirated-stops" in got["supplements"], got
+    assert got["registered"] == ["kʰ", "pʰ", "tʰ"], got
     assert got["head"] == "adult-male", got
     assert got["confusable"], got
 

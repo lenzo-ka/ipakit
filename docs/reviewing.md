@@ -100,7 +100,7 @@ In each case correcting the data fixed the metric, and a weight or a special cas
 
 ### Say what shape the data is in
 
-Every XML document under `ipakit/data` has a RELAX NG grammar beside it — `ipa.rng`, `heads.rng`, `phonemaps/phonemap.rng` — and `tests/test_schema.py` validates each document against its own. The grammars are co-located rather than gathered into a schemas directory because `ipa.xml` travels on its own, and a copy of it should carry what states its shape.
+Every XML document under `ipakit/data` has a RELAX NG grammar beside it — `ipa.rng`, `heads.rng`, `phonemaps/phonemap.rng`, `supplements/supplement.rng` — and `tests/test_schema.py` validates each document against its own. The grammars are co-located rather than gathered into a schemas directory because `ipa.xml` travels on its own, and a copy of it should carry what states its shape.
 
 They describe **structure, never vocabulary**. Adding a phone, a diacritic, a feature or a feature value must not require touching a `.rng` file; only a new *kind* of declaration should. So a symbol element requires `name` and then admits any other attribute by shape, because those attribute names are the feature names declared elsewhere in the same document, and a schema listing them would be the second copy of the inventory that `test_declared_not_hardcoded.py` exists to prevent. Two tests hold that line: one asserts no grammar names a declared feature on a symbol element, the other that no grammar enumerates a declared name anywhere.
 

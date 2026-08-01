@@ -2,15 +2,15 @@
 <!-- The shape of a supplemental inventory: symbols merged over ipa.xml at
      load time, and nothing else.
 
-     A supplement is written by a user rather than shipped by the package —
-     the only one in this repository is docs/examples/aspirated-stops.xml,
-     the worked example docs/supplements.md loads by path. The grammar sits
-     here anyway, beside the inventory it extends, because what a supplement
-     may look like is part of what ipakit tells its users: someone writing
-     one should be able to validate it against a grammar the copy they
-     installed already carries.
+     Most supplements are written by a user rather than shipped by the
+     package. The grammar travels anyway, in the directory the shipped
+     example sits in, because what a supplement may look like is part of
+     what ipakit tells its users: someone writing one should be able to
+     validate it against a grammar and read an instance of the format, both
+     out of the copy they installed. aspirated-stops.xml beside this file is
+     that instance, and docs/supplements.md is the prose.
 
-     As beside ipa.xml, this grammar names no feature, no feature value and
+     As in ipa.rng, this grammar names no feature, no feature value and
      no symbol. An entry's attributes ARE its feature bundle — the names
      come from <features> in the file being extended — so they are admitted
      by shape, anything other than `name`, `alias` and `href`. Adding a

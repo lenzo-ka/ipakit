@@ -794,6 +794,11 @@ and declares nothing else:
 
 ```xml
 <?xml version='1.0' encoding='utf-8'?>
+<!-- Aspirated stops, registered as phones of their own: the worked
+     supplement, shipped beside supplement.rng so an install carries an
+     instance of the format and not only the grammar for it. Nothing loads
+     it. A supplement is opt-in, per instance, and asked for by name:
+     load_ipa_features(supplements=["aspirated-stops"]). -->
 <supplement name="aspirated-stops">
   <phones>
     <phone name="pʰ"/>
@@ -803,11 +808,11 @@ and declares nothing else:
 </supplement>
 ```
 
-That file is checked in at [examples/aspirated-stops.xml](examples/aspirated-stops.xml),
-which is what the paths below load:
+That file ships in the package, which is why the line below names it instead of
+spelling a path:
 
 ```python
-inventory = ipa.load_ipa_features(supplements=["docs/examples/aspirated-stops.xml"])
+inventory = ipa.load_ipa_features(supplements=["aspirated-stops"])
 len(inventory.phones)  # 142
 inventory.respell("t", release="aspirated")  # 'tʰ'
 ```

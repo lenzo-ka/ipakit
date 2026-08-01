@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - RELAX NG grammars for every XML document the repository ships, and `tests/test_schema.py` validating each against its own.
-- `ipakit/data/supplement.rng`: the supplemental-inventory format as a grammar, so a supplement can be checked before it is loaded.
+- `ipakit/data/supplements/supplement.rng`: the supplemental-inventory format as a grammar, so a supplement can be checked before it is loaded.
+- The worked supplement ships beside that grammar and is loaded by name: `supplements=["aspirated-stops"]`, `available_supplements()`, `supplement_path()`.
 - Context-sensitive rewrite rules over forms, `A -> B / C _ D`, with `Query` and `Action` as separable halves — `docs/rules.md`.
 - `ipakit.form`: `Form`, the unprojected read of a transcription; each narrower read is named and says what it drops — `docs/form.md`.
 - Agreement variables, SPE's `α`: `n -> [place=α] / _ [place=α]` — `docs/rules.md`.

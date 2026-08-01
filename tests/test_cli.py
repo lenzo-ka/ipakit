@@ -1176,6 +1176,11 @@ LIBRARY_ONLY = {
     "is_pure_ipa": "the yes/no over extensions_in; neither is on the CLI",
     "extensions_in": "no CLI surface for the IPA-chart/extension split",
     "segmented": "'convert tokenize' prints the same units",
+    # Supplements are a Python-level facility by design: the command line
+    # reads the shipped inventory only, so neither the names nor the paths
+    # of the shipped supplements have anything to say there.
+    "available_supplements": "the CLI reads the shipped inventory only",
+    "supplement_path": "the CLI reads the shipped inventory only",
     # Reads with no command yet. Not defended -- recorded, so the absence
     # is a known gap rather than an unnoticed one.
     "find": "no command runs a feature query over a transcription",

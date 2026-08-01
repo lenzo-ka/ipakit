@@ -1,8 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<supplement name="aspirated-stops">
-  <phones>
-    <phone name="pʰ"/>
-    <phone name="tʰ"/>
-    <phone name="kʰ"/>
-  </phones>
-</supplement>

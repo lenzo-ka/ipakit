@@ -8,6 +8,11 @@ PHONEMAPS_DIR = DATA_DIR / "phonemaps"
 DEFAULT_CMU_MAP = PHONEMAPS_DIR / "cmu.xml"
 DEFAULT_LOOKALIKES = PHONEMAPS_DIR / "lookalikes.xml"
 DEFAULT_CONFUSION = DATA_DIR / "confusion.json"
+#: Supplemental inventories shipped with the package, beside the grammar
+#: that states their shape. It holds supplements and nothing else, which is
+#: what lets its members be asked for by name rather than spelled as a path
+#: into an install (see :func:`ipakit.features.available_supplements`).
+SUPPLEMENTS_DIR = DATA_DIR / "supplements"
 
 # Attributes stored on phones/diacritics that are structural metadata, NOT
 # phonetic features. These are excluded from natural-class intersection and
