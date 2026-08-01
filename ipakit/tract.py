@@ -13,11 +13,30 @@ declared in ``data/ipa.xml``:
     against the wall. Consonants take it from their manner, vowels from
     their height -- one continuum, so an open vowel, a close vowel, an
     approximant and a stop are ordered by how far the articulator has
-    travelled.
+    traveled.
 
 Distance uses these coordinates directly. A :class:`Head` projects them
 to 2D for rendering only: phone identity does not depend on whose head
 you imagine, and the shipped matrix must stay reproducible.
+
+Two coordinates against the nine a posture takes (``docs/tract-anatomy.md``
+7), so most of what a segment states is not in them. Rather than bend
+``arc`` and ``offset`` to carry things they do not mean, three readers say
+what *else* a drawing has to show, and each decides from the declarations
+in ``ipa.xml`` rather than from a list here:
+
+:func:`glottal_aperture`
+    Voicing is glottal state, and the folds are declared to close about
+    the tract axis, so ``offset`` cannot reach them. Read off the
+    ``phonation`` axis and the ``voiced`` projection.
+:func:`secondary_marks`
+    A secondary articulation declares its own place, so it is a second
+    constriction and genuinely drawable.
+:func:`unmodelled`
+    Everything else a segment states that this plane does not carry, with
+    the reason it does not, so a renderer annotates instead of inventing.
+
+None of them is read by ``ipakit.metric``, and none moves a distance.
 """
 
 from __future__ import annotations
@@ -53,6 +72,33 @@ class TractPoint:
     arc: float | None  # 0 lips .. 1 glottis, None if unplaced
     offset: float | None  # 0 open midline .. 1 full closure, None if unplaced
     articulator: str | None = None  # the organ that moves, None if unknown
+
+    @property
+    def placed(self) -> bool:
+        return self.arc is not None and self.offset is not None
+
+
+@dataclass(frozen=True)
+class Mark:
+    """One thing a segment states that a sagittal posture cannot express.
+
+    Voicing is glottal state, not posture; a release is a phase of the
+    segment rather than a shape of it; laterality is the axis this plane
+    projects away. Forcing any of them into ``arc`` and ``offset`` would
+    misreport what the geometry means, so they are annotated instead --
+    and ``kind`` records *why* the posture cannot carry it, read from the
+    feature's own declaration rather than decided here.
+
+    ``arc`` and ``offset`` are set only where the declaration puts the
+    mark somewhere: a secondary articulation names its own place.
+    """
+
+    feature: str
+    value: str
+    label: str
+    kind: str
+    arc: float | None = None
+    offset: float | None = None
 
     @property
     def placed(self) -> bool:
@@ -172,7 +218,7 @@ class Head:
 
         The tongue is a single body: a constriction somewhere carries the
         tip, blade and dorsum with it, so one control deforms a span rather
-        than marking a point. The deformation is a raised cosine centred on
+        than marking a point. The deformation is a raised cosine centered on
         the control and falling to the resting offset at ``falloff`` away,
         which is the shape Pink Trombone uses for the same reason.
 
@@ -241,6 +287,56 @@ class Head:
             )
 
         return (one(seats[0], pair[0], -1.0), one(seats[1], pair[1], 1.0))
+
+    def median_body(
+        self, arc: float, aperture: float
+    ) -> tuple[tuple[tuple[float, float], ...], ...] | None:
+        """The two edges of a median articulator, as bodies.
+
+        ``ipa.xml`` declares the vocal folds ``aperture="median"``: they
+        close toward each other about the tract axis rather than toward a
+        wall the way a tongue closes toward a palate. ``offset`` measures
+        travel from the midline to the wall and so cannot say where they
+        are -- which is why the drawing had nothing to show for voicing.
+
+        Both edges travel, symmetrically, and meet at the axis when the
+        aperture is 0. They keep a body of their own at every aperture,
+        because they are tissue and not a gap: an edge drawn flush with its
+        wall at full abduction reads as a thicker wall and says nothing.
+        What the aperture scales is the space *between* them. Like the
+        lips, this is shape rather than style, so the form belongs here.
+
+        Returns one tuple per edge, each ``(root_a, tip, root_b)`` in tract
+        coordinates.
+        """
+        near = self.project(TractPoint(arc=arc, offset=0.0))
+        far = self.project(TractPoint(arc=arc, offset=1.0))
+        if near is None or far is None:
+            return None
+        dx, dy = far[0] - near[0], far[1] - near[1]
+        span = math.hypot(dx, dy)
+        if not span:
+            return None
+        ax, ay = dx / span, dy / span  # across the tract, near wall to far
+        wx, wy = -ay, ax  # along the tract
+        # Proportions of the tract's own span, so a head of any size keeps
+        # them: each fold seats a fixed depth, and the aperture opens the
+        # gap that is left between the two.
+        seat, half = 0.16, span * 0.28
+        gap = (1.0 - 2 * seat) * max(0.0, min(1.0, aperture))
+        travel = span * (1.0 - gap) / 2
+
+        def one(
+            root: tuple[float, float], sign: float
+        ) -> tuple[tuple[float, float], ...]:
+            tip = (root[0] + ax * travel * sign, root[1] + ay * travel * sign)
+            return (
+                (root[0] - wx * half, root[1] - wy * half),
+                tip,
+                (root[0] + wx * half, root[1] + wy * half),
+            )
+
+        return (one(near, 1.0), one(far, -1.0))
 
     def tongue_point(
         self,
@@ -331,7 +427,7 @@ class Head:
         in `jaw_carriage`. Closing the jaw lifts them toward the palate in
         that proportion, which is why a bilabial closure is the lips meeting
         somewhere between their open positions rather than the lower one
-        travelling the whole way alone.
+        traveling the whole way alone.
         """
         share = self.jaw_carriage(arc) * close
         if share <= 0.0:
@@ -447,6 +543,26 @@ class Head:
         nx, ny = -ty / norm, tx / norm
         travel = (point.offset or 0.0) * diameter
         return (x + nx * travel, y + ny * travel)
+
+    # -- notebook display -----------------------------------------------------
+
+    def _repr_svg_(self) -> str:
+        """The reference drawing, when a notebook shows this head.
+
+        Every landmark this head declares, at its rest posture -- one
+        posture, so one figure, which is the rule the display hooks in
+        this library follow. ``heads.xml`` was the only part of the
+        library whose output is a picture and the only part with no way
+        to see one; this is the shortest way to see one.
+
+        The import is deferred so that the dependency runs one way only:
+        the renderer reads this module, this module never reads the
+        renderer, and ``ipakit.metric`` -- which reads this module --
+        cannot reach a stylesheet through it.
+        """
+        from .tract_svg import figure
+
+        return figure(None, self.name)
 
 
 @functools.lru_cache(maxsize=1)
@@ -566,7 +682,8 @@ class Landmarks:
     A renderer needs the drawable places, the articulators that reach them,
     and which of those close about the tract axis rather than toward a wall.
     All of it is declared in ``ipa.xml``; none of it should be restated by a
-    caller. ``scripts/tract_svg.py`` did restate it and drifted -- it marked
+    caller. The renderer (now ``ipakit.tract_svg``) did restate it and
+    drifted while it lived under ``scripts/`` -- it marked
     eleven frication sites where the inventory has twelve, because
     ``bilabial`` hosts two fricatives and had been forgotten.
 
@@ -664,6 +781,182 @@ def constrictions(
     return tuple(sorted((primary, *extra), key=lambda q: q.arc or 0.0))
 
 
+def glottal_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float | None:
+    """How far the vocal folds stand apart -- 0 shut, 1 as wide as the tract.
+
+    The one candidate the posture cannot reach even in principle. The folds
+    are declared ``aperture="median"``, so they close about the tract axis
+    and ``offset`` -- travel from the midline toward a wall -- has nothing
+    to say about them. Voicing was therefore a word in the margin and not
+    a difference in the picture.
+
+    What can say it is already declared. ``phonation`` is ordinal on its
+    own axis, ``+glottal-aperture``, and its values ascend along it from
+    creaky to devoiced; ``voiced`` is that same axis read two ways instead
+    of four, which is what the ``<projection>`` in ``ipa.xml`` says. So the
+    scale is found as *the ordinal feature a projection refines* rather
+    than named here, a bundle stating a phonation sits where that value
+    sits, and a bundle stating only ``voiced`` sits at the center of the
+    phonations that read that way -- which is as far as the coarse
+    spelling commits.
+
+    A complete closure at the folds overrides both: a glottal stop shuts
+    them whatever the phonation says, and it is the one segment whose own
+    constriction is theirs. Returns None when the bundle fixes no glottal
+    state at all.
+    """
+    scale = next(
+        (
+            feat
+            for name in sorted({fine for fine, _ in features.projections})
+            if (feat := features.features.get(name)) is not None
+            and feat.is_ordinal
+            and len(feat.values) > 1
+        ),
+        None,
+    )
+    if scale is None:
+        return None
+    order = list(scale.values)
+
+    def position(value: str) -> float:
+        return order.index(value) / (len(order) - 1)
+
+    point = tract_point(features, bundle)
+    organ = features.features.get("articulator")
+    apertures = organ.apertures if organ is not None else {}
+    if (
+        point.offset is not None
+        and point.offset >= 0.995
+        and apertures.get(point.articulator or "") == "median"
+    ):
+        return 0.0
+    stated = bundle.get(scale.name)
+    if stated in order:
+        return position(str(stated))
+    narrows = [
+        position(value)
+        for (fine, value), (coarse, reads) in features.projections.items()
+        if fine == scale.name and bundle.get(coarse) == reads
+    ]
+    return sum(narrows) / len(narrows) if narrows else None
+
+
+def secondary_marks(features: IPAFeatures, bundle: dict[str, str]) -> tuple[Mark, ...]:
+    """The lesser constrictions a segment states, front to back.
+
+    A secondary articulation adds a constriction and keeps the primary, and
+    it declares where: ``velarized`` carries ``place="velar"``, and
+    ``IPAFeatures.secondary_places`` is that declaration read back -- the
+    same one the mode partition and the metric's place table read, so none
+    of them can disagree about what a secondary is or where it sits.
+
+    Its degree is not declared, because it is not free: a secondary
+    articulation is of approximant degree, or it would be the primary. That
+    number is read off the manner scale rather than chosen here.
+
+    This is the one candidate on the annotation list that is genuinely
+    drawable in this plane -- it has a place and a degree like any other
+    constriction -- so it is drawn rather than annotated. It is drawn
+    lighter than the primary because it is lesser, not because it is less
+    certain. It stays out of :func:`constrictions`, whose members are the
+    closures the segment is *made of*: putting it there would deform the
+    tongue body identically to a primary constriction of the same degree,
+    which claims more than the phone declares.
+    """
+    place = features.features.get("place")
+    manner = features.features.get("manner")
+    if place is None or manner is None:
+        return ()
+    degree = manner.coordinates.get("approximant", {}).get("offset")
+    if degree is None:
+        return ()
+    out: list[Mark] = []
+    for name, target in features.secondary_places.items():
+        if bundle.get(name) != "+":
+            continue
+        feat = features.features.get(name)
+        label = (feat.labels.get("+") if feat is not None else None) or name
+        # A combining place is two places by definition, so a labial-palatal
+        # states one feature and makes two constrictions.
+        for component in place.expand(target):
+            arc = place.coordinates.get(component, {}).get("arc")
+            if arc is not None:
+                out.append(
+                    Mark(
+                        feature=name,
+                        value="+",
+                        label=label,
+                        kind="secondary",
+                        arc=arc,
+                        offset=degree,
+                    )
+                )
+    return tuple(sorted(out, key=lambda m: m.arc or 0.0))
+
+
+def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...]:
+    """What a segment states that this plane's posture does not carry.
+
+    ``stated`` is what the segment itself says -- ``get_features`` with
+    ``with_defaults=False`` -- because a default is what an unmarked
+    segment already reports and annotating it would say nothing.
+
+    Which features are already drawn is derived, not listed, so a feature
+    added to ``ipa.xml`` is annotated without a code change here:
+
+    * a feature whose values declare tract coordinates is **postural** --
+      that is exactly what :func:`tract_point` reads -- so it is the
+      drawing already;
+    * a ``(feature, value)`` a bridge gives a ``port`` to is drawn as the
+      velum, by :func:`velic_aperture`;
+    * glottal state is drawn as the folds, by :func:`glottal_aperture`;
+    * a ``mode="secondary"`` feature is drawn as a lesser constriction, by
+      :func:`secondary_points`;
+    * a ``mode="structural"`` feature is not a property of a sound at all
+      -- a tie joins two units, it does not shape one.
+
+    What is left is stated and invisible, and the same declarations say
+    *why*, which is what ``Mark.kind`` carries: ``axis="+z"`` is the axis a
+    mid-sagittal section projects away (the feature's own ``desc`` says
+    so), ``mode="release"`` is a phase of the segment rather than a posture
+    of it, ``mode="prosodic"`` belongs to the unit rather than to the
+    articulation. Anything else is simply not in the model -- rounding is
+    lip protrusion, which ``docs/tract-anatomy.md`` 4.4 specifies and this
+    geometry does not implement. None of them gets a contour invented for
+    it.
+    """
+    glottal = {fine for fine, _ in features.projections}
+    glottal |= {coarse for coarse, _ in features.projections.values()}
+    ported = {pair for ports in features.bridge_apertures.values() for pair in ports}
+    out: list[Mark] = []
+    for name, feat in features.features.items():
+        value = stated.get(name)
+        if value is None or value == feat.default:
+            continue
+        if feat.coordinates or name in glottal or name in features.secondary_places:
+            continue
+        if (name, value) in ported or feat.mode == "structural":
+            continue
+        if feat.axis == "+z":
+            kind = "out of plane"
+        elif feat.mode == "release":
+            kind = "phase"
+        elif feat.mode == "prosodic":
+            kind = "prosodic"
+        else:
+            kind = "unmodelled"
+        out.append(
+            Mark(
+                feature=name,
+                value=value,
+                label=feat.labels.get(value) or f"{name} {value}",
+                kind=kind,
+            )
+        )
+    return tuple(out)
+
+
 def velic_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float:
     """How far the velum lowers for this bundle -- 0 sealed, 1 fully open.
 
@@ -727,7 +1020,7 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
             feat = features.features.get("place")
             if feat is not None:
                 # A combining place (bilabial^velar) sits at the mean of
-                # its components' positions -- the fusion's centre of
+                # its components' positions -- the fusion's center of
                 # gravity in the tract.
                 arcs = [
                     a

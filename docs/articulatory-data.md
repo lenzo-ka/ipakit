@@ -118,11 +118,13 @@ The coefficient of variation is not the whole story, and the script prints a rob
 | JW53 | 8.70 | 2.11 | 208.3 mm |
 | JW32 | 13.22 | 25.88 | 44.3 mm |
 
-JW57 and JW53 are clean tracks with a few catastrophic frames. **JW32 is the only speaker whose mandible track is loose throughout** — 25.9% robust variation, and both mandible pellets present in only 25.2% of frames.Worth recording separately: mandible pellet loss is severe for several speakers regardless of cv. JW29 tracks both pellets in 4.9% of frames, JW44 in 5.3%, JW33 in 21.0%, JW32 in 25.2%, JW60 in 25.4%, JW14 in 43.5%.
+JW57 and JW53 are clean tracks with a few catastrophic frames. **JW32 is the only speaker whose mandible track is loose throughout** — 25.9% robust variation, and both mandible pellets present in only 25.2% of frames.
+
+Worth recording separately: mandible pellet loss is severe for several speakers regardless of cv. JW29 tracks both pellets in 4.9% of frames, JW44 in 5.3%, JW33 in 21.0%, JW32 in 25.2%, JW60 in 25.4%, JW14 in 43.5%.
 
 ### 4. The mandibular hinge migrates
 
-For a rigid body in the plane, every point turns about one centre, which lies on the perpendicular bisector of each point's displacement chord. Two mandible pellets give two bisectors and one intersection.
+For a rigid body in the plane, every point turns about one center, which lies on the perpendicular bisector of each point's displacement chord. Two mandible pellets give two bisectors and one intersection.
 
 `python scripts/articulatory.py hinge`
 
@@ -130,23 +132,23 @@ Over the 34 speakers that pass the rigid-body screen, with a minimum chord of 1 
 
 | | median | range |
 |---|---|---|
-| centre x | **-64.3 mm** | -84.1 to -46.8 |
-| centre y | **+14.4 mm** | -10.0 to +39.8 |
+| center x | **-64.3 mm** | -84.1 to -46.8 |
+| center y | **+14.4 mm** | -10.0 to +39.8 |
 | IQR of x within a speaker | 44.0 mm | 28.7 to 67.4 |
 | IQR of y within a speaker | 39.9 mm | 19.7 to 64.2 |
 
 Anatomically plausible — posterior and superior to the tooth row — with an enormous per-frame-pair spread, which is what a two-point rigid body with sub-millimetre noise gives you. Only the aggregate is worth anything.
 
-Split by jaw opening (upper and lower quartiles of MNI height), the centre migrates:
+Split by jaw opening (upper and lower quartiles of MNI height), the center migrates:
 
 | | median | direction |
 |---|---|---|
 | open minus closed, **y** | **-28.8 mm** | falls in **34 of 34** speakers |
 | open minus closed, x | +5.6 mm | moves back in 13 of 34 — not a direction |
 
-**The horizontal component does not generalise** — its sign is close to a coin flip across speakers. The centre's measured range is x -84 to -47 mm, median -64.
+**The horizontal component does not generalize** — its sign is close to a coin flip across speakers. The center's measured range is x -84 to -47 mm, median -64.
 
-The reading stands regardless: a jaw that turned about a fixed hinge would give one centre, and this gives a centre that drops by nearly 3 cm between closed and open. That is rotation plus condylar glide, and an articulatory renderer would need two degrees of freedom for it — which is what `docs/tract-anatomy.md` §4.1 already specifies.
+The reading stands regardless: a jaw that turned about a fixed hinge would give one center, and this gives a center that drops by nearly 3 cm between closed and open. That is rotation plus condylar glide, and an articulatory renderer would need two degrees of freedom for it — which is what `docs/tract-anatomy.md` §4.1 already specifies.
 
 ### 5. The kinematic chain
 
@@ -292,7 +294,7 @@ Finding 7 says the two coronal targets sit 0.10 apart and ipakit declares 0.06. 
 | modest: postalveolar .19 → .22, alveolo-palatal .24 → .27 | 1516 (15.8%) | 0.0030 | 0.0014 | — |
 | measured-scale: postalveolar .19 → .25, alveolo-palatal .24 → .30, palatal .32 → .36 | 2550 (26.6%) | 0.0060 | 0.0027 | 38 of 139 (27%) |
 
-The magnitudes are tiny — a max delta of 0.006 against a median pairwise distance of 0.19 — but nearest-neighbour lists reorder for over a quarter of the inventory, and `nearest_phones` is user-facing: `c` goes from ȶ,k,ç to ȶ,k,q, and `d` from ȡ,b,ɟ to b,ȡ,ð. This needs its own lane with its own before/after, not a ride on a rendering change.
+The magnitudes are tiny — a max delta of 0.006 against a median pairwise distance of 0.19 — but nearest-neighbor lists reorder for over a quarter of the inventory, and `nearest_phones` is user-facing: `c` goes from ȶ,k,ç to ȶ,k,q, and `d` from ȡ,b,ɟ to b,ȡ,ð. This needs its own lane with its own before/after, not a ride on a rendering change.
 
 Three reasons it is not ready even then:
 
