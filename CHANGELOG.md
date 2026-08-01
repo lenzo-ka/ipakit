@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IPAFeatures.compose_unit`: a feature bundle to a composed spelling, for phones no inventory registers (`tʰ`, `ɪ̃`, `t̚`).
 - Supplemental inventories: `load_ipa_features(supplements=[...])` merges extra symbols over `ipa.xml` — `docs/supplements.md`.
 - `DistanceModel.derive` and `.save`: a supplemented inventory's own reference matrix, in the format `from_matrix_file` reads.
-- `metric` in the saved matrix format, a digest of the feature space the values were derived in; `from_matrix_file` refuses a matrix from another one.
+- `metric` in the saved matrix format, a digest of the feature space the values were derived in; a matrix from another one is refused where it is read.
 - `IPAFeatures.zeros`, `carries_no_segment`, `tie_bar`/`seq_tie`/`tie_bars`, `is_nucleus`, `declaring_mark`, `declared_symbols`.
 - `Feature.sequence`, `steps()`, `sequenced()`, `over` and `move`.
 - Five shipped rule sets: `american-english`, `french-liaison`, `german-final-devoicing`, `japanese-moraic`, `spanish-accented-english`.
