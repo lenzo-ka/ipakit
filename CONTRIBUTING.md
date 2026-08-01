@@ -2,7 +2,7 @@
 
 Issues, challenges and pull requests are all welcome, and so is the kind of contribution that contains no code at all.
 
-Two sorts of people work on this library. One knows Python and wants the tests to pass. The other knows phonetics and can tell that `[pʰˈɪ̃n]` is right and that some other derivation is wrong. **Both are contributing, and the second is harder to replace.** This document tries to be readable to both: where something needs a command, the command is written out; where something needs a phonological judgement, no Python is required to offer it.
+Two sorts of people work on this library. One knows Python and wants the tests to pass. The other knows phonetics and can tell that `[pʰˈɪ̃n]` is right and that some other derivation is wrong. **Both are contributing, and the second is harder to replace.** This document tries to be readable to both: where something needs a command, the command is written out; where something needs a phonological judgment, no Python is required to offer it.
 
 ## Challenges are welcome — bring a measurement
 

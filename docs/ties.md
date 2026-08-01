@@ -41,7 +41,7 @@ This is not pedantry. Substituting in the default path turned ordinary punctuati
 | `'` | `ˈ` U+02C8 | **primary stress**, not the ejective `ʼ` U+02BC |
 | `!` | *nothing* | three live readings and no dominant one |
 
-Two of these needed a judgement call, and both are documented rather than guessed.
+Two of these needed a judgment call, and both are documented rather than guessed.
 
 **`'` is primary stress.** The obvious visual match is the ejective modifier `ʼ` (U+02BC), and that is what ipakit used to substitute. It is the less likely reading. ASCII transcription conventions agree that a bare apostrophe marks stress: this package's own `kirshenbaum.xml` maps `'` → `ˈ`, and X-SAMPA spells the ejective `_>` and leaves the apostrophe alone. Someone writing an ejective in text has already reached for a modifier letter; someone typing `'` in front of a syllable means stress. The ejective still has an unambiguous spelling — `ʼ` — and nothing reads it away.
 

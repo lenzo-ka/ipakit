@@ -310,7 +310,7 @@ Three reasons it is not ready even then:
 
 ## Related
 
-- [docs/tract-anatomy.md](tract-anatomy.md) — the geometry this measures against; §6 names `diameter` as the aperture function and §10 asks for exactly this kind of cited source
+- [docs/tract-anatomy.md](tract-anatomy.md) — the geometry this measures against; §6 names `diameter` as the aperture function and §11 asks for exactly this kind of cited source
 - [docs/distance.md](distance.md) — `arc` and `offset` as the metric reads them, and why heads never touch them
 - [docs/reviewing.md](reviewing.md) — why the before/after above is the shape the check takes
 - `scripts/articulatory.py` — the measurement, runnable against any mounted copy of the corpus
