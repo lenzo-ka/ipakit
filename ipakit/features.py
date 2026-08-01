@@ -123,8 +123,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.bridge_apertures: dict[str, dict[tuple[str, str], float]] = {}
         # A fine (feature, value) -> the coarse (feature, value) it reads as:
         # phonation="devoiced" is voiced="-" read two ways instead of four.
-        # Declared in <projections>; read by the write side only, never
-        # resolved onto a segment's features (see the block's comment).
+        # Declared in <projections>; read by compose_unit and by
+        # ipakit.tract, never resolved onto a segment's features (see the
+        # block's comment).
         self.projections: dict[tuple[str, str], tuple[str, str]] = {}
         self.types: dict[str, list[str]] = {}
         self.features: dict[str, Feature] = {}
