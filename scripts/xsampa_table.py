@@ -10,7 +10,7 @@ The table is *derived*, not hand-maintained value-by-value:
 over an inventory drawn from ipakit's own phone/diacritic set (plus a few
 structural X-SAMPA symbols, minus the redundant spellings X-SAMPA folds).
 
-This keeps the table reproducible and the human judgement calls explicit:
+This keeps the table reproducible and the human judgment calls explicit:
   * OVERRIDES  - symbols ICU can't transliterate (tone bars, suprasegmentals,
                  a few rare phones). Each is a deliberate, documented choice.
   * _extras()  - X-SAMPA structural symbols not in the IPA inventory.

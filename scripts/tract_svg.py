@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""The tract renderer moved into the package; this is the old way in.
+"""A command line over ``ipakit.tract_svg``, which is where the drawing lives.
 
-``ipakit.tract_svg`` is the drawing code. It lives in the package because
-``scripts/`` ships in neither the wheel nor the sdist's importable half, so
-while it lived here ``pip install ipakit`` got the tract model with no way
-to draw it -- the classroom's headline figure, unreachable from an install.
+The drawing lives in the package because ``scripts/`` ships in neither the
+wheel nor the sdist's importable half, and ``pip install ipakit`` has to be
+enough to draw -- the classroom's headline figure must not be reachable
+only from a source tree.
 
-Nothing is reimplemented here. This file is the command line kept working
-for ``make figures`` and for anyone with the old invocation in their
-fingers; a second copy of the drawing logic is exactly what one place
-exists to prevent, and ``tests/test_tract_figures.py`` asserts that this
-module defines no drawing of its own.
+So nothing is reimplemented here: this file resolves no posture and
+computes no geometry, and ``tests/test_tract_figures.py`` asserts that it
+defines no drawing of its own. A second copy of the drawing logic is
+exactly what one place exists to prevent.
 
 Equivalent, and preferred:
 

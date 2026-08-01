@@ -61,7 +61,7 @@ MISSING_FEATURE_VALUE = "_none"
 # them arithmetic that does not come to 11.
 #
 # Wider than the floor so a longer registered spelling does not need an
-# edit here. Measured over the 8060-unit corpus and over tie chains up to
+# edit here. Measured over the whole unit corpus and over tie chains up to
 # seven constituents, every window from the floor upward tokenizes and
 # segments identically, so the slack costs a few scan steps and changes
 # no answer. `tests/test_tokenization.py` derives the floor and pins the

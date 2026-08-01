@@ -451,8 +451,8 @@ class TestTheFlatAPI:
         assert ipakit.rule(GLOTTALLING).recognize("kæt")
         assert R.units("kæt")
 
-    def test_rule_units_is_the_boundary_keeping_split(self):
-        assert [u.text for u in ipakit.rule_units("#kæt#")] == list("#kæt#")
+    def test_units_is_the_boundary_keeping_split(self):
+        assert [u.text for u in ipakit.units("#kæt#")] == list("#kæt#")
 
 
 class TestWhatMutationTestingFoundUnguarded:

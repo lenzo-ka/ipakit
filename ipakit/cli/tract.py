@@ -1,7 +1,7 @@
 """Tract commands - draw the mid-sagittal figure, and list the heads.
 
-The library gained a way to draw when the renderer moved into the package
-(``ipakit.tract_svg``); this is the same call from a shell. Both go through
+The renderer is ``ipakit.tract_svg``, and this is the same call from a
+shell rather than a second way to draw. Both go through
 :func:`ipakit.tract_svg.drawing`, so the picture a student gets from
 ``ipakit tract draw t`` and the picture ``make figures`` checks in are the
 same bytes -- ``tests/test_tract_figures.py`` asserts exactly that.

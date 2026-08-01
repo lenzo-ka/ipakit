@@ -146,7 +146,7 @@ ipa.rewrite("asta", "[manner=plosive] -> [voiced=-α] / [voiced=α] _")   # 'asd
 ipa.rewrite("azta", "[manner=plosive] -> [voiced=-α] / [voiced=α] _")   # 'azta'
 ```
 
-For an n-ary feature there is no opposite to mean — the opposite of `velar` is thirteen things — so it is refused rather than guessed at. That is a real limit, statable, and not a fudge:
+For an n-ary feature there is no opposite to mean — the opposite of `velar` is every other place the feature declares — so it is refused rather than guessed at. That is a real limit, statable, and not a fudge:
 
 ```python
 ipa.rule("n -> [place=-α] / _ [place=α]")
@@ -171,7 +171,7 @@ The rule holds in both directions and the declaration always wins: declare `α` 
 
 ## Stress is not part of a phone's identity
 
-`features("a")`, `features("ˈa")` and `features("aː")` are one bundle: the six `mode="prosodic"` features live on the unit, outside the feature bag (see [ties.md](ties.md)). So:
+`features("a")`, `features("ˈa")` and `features("aː")` are one bundle: the `mode="prosodic"` features live on the unit, outside the feature bag (see [ties.md](ties.md)). So:
 
 ```python
 ipa.rewrite("kˈat", "a -> ɑ")      # 'kˈɑt'  -- 'a' matches the stressed 'ˈa'
@@ -262,7 +262,7 @@ ipa.rewrite("katː", "t -> ts")   # 'katsː'  -- written after, so it lands last
 ipa.rewrite("kˈai", "a -> ai")   # 'kˈaii'  -- written before, so it lands first
 ```
 
-That is one rule rather than one per feature, and it lands where each feature wants to be without either position being chosen: length at the end of a coda, stress on the nucleus. It rules out putting the mark on *all* of the new units by the same reading — that would state the length twice (`tːsː`) and put two stresses inside one syllable, and a mark is a property of the position, not of whatever fills it. Which side a mark is written on is `IPAFeatures.stress_markers`, the same read `Segment.to_ipa` uses to place the glyph, so where a mark lands and where it is spelled cannot come apart. Today that is two leading marks and nineteen trailing.
+That is one rule rather than one per feature, and it lands where each feature wants to be without either position being chosen: length at the end of a coda, stress on the nucleus. It rules out putting the mark on *all* of the new units by the same reading — that would state the length twice (`tːsː`) and put two stresses inside one syllable, and a mark is a property of the position, not of whatever fills it. Which side a mark is written on is `IPAFeatures.stress_markers`, the same read `Segment.to_ipa` uses to place the glyph, so where a mark lands and where it is spelled cannot come apart.
 
 `[vowel length=long]` says what `aː` says, so it names length the same way: `ipa.rewrite("kaː", "[vowel length=long] -> a")` is `'ka'`.
 
@@ -689,7 +689,7 @@ Recorded so they are not discovered the hard way:
 
 - **Boundaries are atomic separators, not a balanced bracketing.** An edge and a separator are one character doing two jobs, so nothing can be unbalanced and a balance check would have nothing to reject: `##kæt` and `kæt..dɒɡ` parse without complaint (`validate_ipa` warns `empty_constituent` on both; neither layer rejects them). They are also not *counted* — a run is one boundary (above) — so they derive as `#kæt` and `kæt.dɒɡ` do. `Form.tree()` records which delimiter supplied each end of a node's span (`Node.opened_by` / `closed_by`, `None` for the form edge, `Node.asserted` for "both were written"), but that is provenance on an already-atomic reading, not a bracketing the parser enforces. The reasoning, and what a bracketing would and would not buy, is in [form.md](form.md).
 - **A prosodic mark is not a position**, so `∅ -> ˈ`, `ˈ -> ∅` and a bare `ˈ` in a context are refused rather than expressible. Prosody rides on a unit, and `[stress=primary]` / `[stress=∅]` on the unit is how it is written (above).
-- **A prosodic composition that collides with a registered symbol declines.** `t` plus the rising-contour caron recomposes to `ť`, which is a different phone, so `t -> [contour=rising]` does not fire. The set is whatever the inventory makes it, because the check is a read-back rather than a list: one phone-and-value pair of 2224 today.
+- **A prosodic composition that collides with a registered symbol declines.** `t` plus the rising-contour caron recomposes to `ť`, which is a different phone, so `t -> [contour=rising]` does not fire. The set is whatever the inventory makes it, because the check is a read-back rather than a list, and `tests/test_rules.py` sweeps every phone against every prosodic value and names each pair that declines.
 - **There is no notation for a phrase boundary by level.** `#` and `.` name a level; `|` and `‖` are matched as the literal marks they are. A bracketed `[level=phrase]` never matches, because a query is compared against a segment's feature bundle and a boundary has none.
 - **Optionality is not general.** `(∅)` marks a zero optional in a context; `(t)`, `([vowel])` and `(#)` are refused. An optional boundary item would have to answer to the boundary-run rule and the virtual edge past the end of a form, and that is a separate question from the one a zero raises. Parentheses in a rule's *name* are untouched, since the name is past the `;` and never reaches the context splitter.
 - **An agreement variable stands for a feature value, not for a segment.** `[place=α]` is expressible; "a copy of whatever consonant stood there" is not, so the shipped French set still writes one liaison rule per latent consonant. A variable also ranges over one feature, is refused where nothing binds it or where it occurs once, and `-α` is legal only for a binary feature (above). Every one of those is a parse-time refusal rather than a rule that fires at some sites and not others.

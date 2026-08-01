@@ -30,7 +30,7 @@ form.phones                            # ('k', 'æ', 't', 'd', 'ɒ', 'ɡ')
 | `segments` | boundaries | prosody, which rides on each `Segment` |
 | `phones` | boundaries **and** attributes | the phone's identity name |
 
-`phones` is identity, and prosody is not part of an identity. `a`, `ˈa` and `aː` are one phone, for the reason [ties.md](ties.md) gives: the six `mode="prosodic"` features live on the unit, outside the feature bag.
+`phones` is identity, and prosody is not part of an identity. `a`, `ˈa` and `aː` are one phone, for the reason [ties.md](ties.md) gives: the `mode="prosodic"` features live on the unit, outside the feature bag.
 
 ```python
 [Form.parse(x).phones for x in ("a", "ˈa", "aː")]   # [('a',), ('a',), ('a',)]
@@ -130,7 +130,7 @@ Every boundary glyph declares which tier it terminates:
 | `\|` | `phrase` | `break=minor` |
 | `‖` | `utterance` | `break=major` |
 
-Because the ladder is ordinal, a boundary pattern matches its level **or stronger**: a phrase boundary *is* a word boundary, and a word boundary *is* a syllable boundary. The reverse does not hold. All four of the shipped separating marks are preserved by `units()` and spell back out:
+Because the ladder is ordinal, a boundary pattern matches its level **or stronger**: a phrase boundary *is* a word boundary, and a word boundary *is* a syllable boundary. The reverse does not hold. Every mark in the table is preserved by `units()` and spells back out:
 
 ```python
 from ipakit.form import units

@@ -1,6 +1,6 @@
 # The tract, drawn
 
-Thirteen figures, redrawn from the declared geometry by `make figures`. They are checked in so a reader gets them without running anything, and so a change to the geometry shows up in a diff as a changed picture rather than as four characters in an XML attribute.
+The figures below are redrawn from the declared geometry by `make figures`. They are checked in so a reader gets them without running anything, and so a change to the geometry shows up in a diff as a changed picture rather than as four characters in an XML attribute.
 
 Everything below comes from `ipakit.tract.Head.project` — the same call any renderer would make. The drawing computes no geometry of its own, which is why it is useful as a check: when the projection was wrong, the picture was wrong in a way the numbers were not.
 
@@ -144,4 +144,4 @@ Vowels state backness and height rather than place, so no place is named. The to
 
 They are a projection of a model, not a measurement. Only the aperture over arc 0.20–0.40 is measured, from the X-Ray Microbeam database; the nasal branch, the teeth, the tongue's falloff and the whole child head are hand-placed, and each point in `heads.xml` says which it is. See [articulatory-data.md](articulatory-data.md) for what that corpus can and cannot ground, and [tract-anatomy.md](tract-anatomy.md) for the specification these figures are an incomplete implementation of.
 
-Two limits worth knowing before reading anything into them. The posture still carries only place and degree, so the registered inventory collapses onto a small fraction of that many postures, and everything above that is either the glottis, a secondary constriction, or an annotation that is deliberately not drawn as anatomy. And the geometry is not simulable as it stands — see §10 of the anatomy document.
+Two limits worth knowing before reading anything into them. The posture still carries only place and degree, so any two phones agreeing on those two resolve to one posture, and everything that separates them in the figure is either the glottis, a secondary constriction, or an annotation that is deliberately not drawn as anatomy. And the geometry is not simulable as it stands — see §11 of the anatomy document.

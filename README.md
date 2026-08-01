@@ -230,7 +230,7 @@ and `3` it ran but part of the input could not be read and was dropped — with
 what was dropped named on stderr. `--lax` reports `0` for that last case.
 
 [docs/tutorial.md](docs/tutorial.md) walks the CLI and the API through the same
-dozen tasks, so a command here can be traced to the call behind it.
+tasks, so a command here can be traced to the call behind it.
 
 ## Development
 

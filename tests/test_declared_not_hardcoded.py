@@ -1128,7 +1128,7 @@ def test_no_module_level_constant_restates_the_data(
     * anything outside ``ipakit/``. The walk is the package on purpose,
       not for want of trying the rest: a fixture that pins how ``ʰ``
       tokenizes has to write ``ʰ``, and a generator's curated override
-      table exists to make the human judgement explicit. Both *fail*
+      table exists to make the human judgment explicit. Both *fail*
       when the data moves under them, which is the opposite of the
       quiet staleness this guard is for. Run over ``scripts/`` and
       ``tests/`` today it reports four constants in two scripts and

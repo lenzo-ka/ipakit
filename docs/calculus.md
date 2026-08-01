@@ -192,7 +192,7 @@ ipa.ruleset("").variants("le∅ʃ").forms    # ('leʃ',)
 ipa.ruleset("").variants("leʃ").forms     # ('leʃ',)
 ```
 
-**Composition is concatenation of rule sets**, and it is associative — because concatenation of lists is, and because the lifted map of a concatenation is the composition of the lifted maps. Measured rather than asserted: over 7 rules taken three at a time (343 triples) against 40 forms, 13720 of 13720 agree, comparing `(A ++ B) ++ C`, `A ++ (B ++ C)` and a single fold of all three.
+**Composition is concatenation of rule sets**, and it is associative — because concatenation of lists is, and because the lifted map of a concatenation is the composition of the lifted maps. Measured rather than asserted: every triple drawn from a pool of rules, against every form in a generated corpus, agrees on `(A ++ B) ++ C`, `A ++ (B ++ C)` and a single fold of all three. The sizes live in `tests/test_calculus.py`, which asserts a floor under them so the sweep cannot go quietly vacuous.
 
 **Applying a rule set to the output set of another is the same as applying the concatenation.** This is the claim a user actually leans on, and it is stronger than it needs to be — the two agree *in order*, not merely as sets:
 
@@ -206,7 +206,7 @@ tuple(dict.fromkeys(w.form for v in a.variants("at")
                             for w in b.variants(v.form)))    # ('at', 'aʔ', 'et', 'eʔ')
 ```
 
-Swept: 55 pairs of rule sets against 340 generated forms, 18700 comparisons, 18700 agreeing on the set **and on the order**. The order agreeing too is not required by the algebra and is worth having: it means a caller who splits a cascade for any reason gets back the same answer in the same sequence, so a diff between the two ways of writing it is empty rather than merely equivalent.
+Swept: every pair of rule sets against every generated form, all of them agreeing on the set **and on the order**. The order agreeing too is not required by the algebra and is worth having: it means a caller who splits a cascade for any reason gets back the same answer in the same sequence, so a diff between the two ways of writing it is empty rather than merely equivalent.
 
 There is one gap in that proof worth naming, because it is the kind that hides. The internal fold carries `Unit` sequences between rules while the external composition carries *strings*, which are read back. The two agree only if spelling is faithful over the forms these rules produce. That is what the sweep measures; it is not something the argument can establish on its own.
 

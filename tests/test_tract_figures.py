@@ -859,13 +859,15 @@ def _draw(*argv: str, out: Path) -> str:
 class TestThereIsOneWayToDraw:
     """Three command lines, a call and a display hook; one drawing behind them.
 
-    The renderer used to live in ``scripts/``, which ships in neither the
-    wheel nor the importable half of the sdist, so an installed ipakit had
-    the tract model and no way to draw it. Moving it into the package
-    creates the risk this class exists to close: several entries into the
-    same picture, free to drift. ``drawing()`` is the single derivation and
-    ``render()`` the single assembly, and these assert that every entry
-    lands on the same bytes as the figure checked into ``docs/``.
+    The renderer is in the package because ``scripts/`` ships in neither
+    the wheel nor the importable half of the sdist, and an installed
+    ipakit holding the tract model with no way to draw it is no use to
+    anyone. That is what leaves the risk this class exists to close:
+    several entries into the same picture, free to drift, one of them a
+    script and one of them a subcommand. ``drawing()`` is the single
+    derivation and ``render()`` the single assembly, and these assert that
+    every entry lands on the same bytes as the figure checked into
+    ``docs/``.
     """
 
     def test_every_entry_writes_the_same_bytes(self, tmp_path: Path) -> None:
