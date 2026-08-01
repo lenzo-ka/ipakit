@@ -40,6 +40,8 @@ That is the same fact the rule engine relies on when the pattern `a` matches a s
 
 Carry the widest projection you can and collapse at the point of use.
 
+A `Form` is immutable, and so is everything it hands out. `Unit.features`, `Unit.prosody` and `Boundary.features` are read-only views. A frozen dataclass stops a *field* being rebound and says nothing about the mapping the field points at, so a write to `form.units[0].prosody` was accepted and left a form spelling one thing and reading another. Build a variant with `dataclasses.replace`, or take `dict(...)` for a copy of your own.
+
 There is a fourth reading that is deliberately **not** here. A rule may write a zero — `∅`, a position kept open with nothing in it — and a pronunciation carries none, so something has to remove it; that something is a rewrite, `[zero] -> ∅`, and not a projection ([rules.md](rules.md#the-surface-carries-no-zero)). The difference is not stylistic. Each of the three above is a reading of a form that holds at any moment, where removing a zero holds *at the end of a derivation* — a claim about where in a fold it stands, which only a rule can make in a language whose sequencing is rule order. So `Form` reads the zero and keeps it, the way it keeps the boundary `segments` drops, and the rule engine is where it goes away.
 
 ## `Boundary` and `Attribute` are the two non-sounds, and they attach differently

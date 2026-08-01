@@ -57,6 +57,7 @@ import dataclasses
 import warnings
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from .constants import ZERO_CLASS
@@ -90,15 +91,28 @@ class Unit:
     string as a character. It carries no phonetic features, only the
     declared separator attributes (``level=word``, ``level=syllable``),
     and it is never the target of a feature change.
+
+    :attr:`features` and :attr:`prosody` are read-only. ``frozen`` stops a
+    *field* being rebound and says nothing about the mapping a field points
+    at, so a unit whose prosody could be written in place had a spelling
+    and a prosody that could come to disagree about the same sound. Build
+    a variant with :func:`dataclasses.replace`, or take ``dict(...)`` for
+    a copy of your own.
     """
 
     text: str
     segment: Segment | None = None
-    features: dict[str, str] = field(default_factory=dict)
-    prosody: dict[str, str] = field(default_factory=dict)
+    features: Mapping[str, str] = field(default_factory=dict)
+    prosody: Mapping[str, str] = field(default_factory=dict)
     #: ``(glyph, feature, value)`` per prosodic mark, resolved when the
     #: unit was built so each attribute can name the mark that declared it.
     provenance: tuple[tuple[str, str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        # Wrapped here rather than at each construction site, so a site
+        # added later cannot forget and hand back a writable one.
+        object.__setattr__(self, "features", MappingProxyType(dict(self.features)))
+        object.__setattr__(self, "prosody", MappingProxyType(dict(self.prosody)))
 
     @property
     def is_zero(self) -> bool:
@@ -158,6 +172,15 @@ class Unit:
     def __str__(self) -> str:
         return self.text
 
+    def __repr__(self) -> str:
+        # As :class:`Boundary`: the bundles are shown, not the wrapper
+        # that makes them read-only.
+        return (
+            f"Unit(text={self.text!r}, segment={self.segment!r}, "
+            f"features={dict(self.features)!r}, prosody={dict(self.prosody)!r}, "
+            f"provenance={self.provenance!r})"
+        )
+
 
 @dataclass(frozen=True)
 class Boundary:
@@ -172,6 +195,8 @@ class Boundary:
     is a minor break. :attr:`level` falls back to ``word`` where a mark
     declares none; every shipped glyph declares one, so the fallback is
     reached only by a hand-made boundary or a mark added without a level.
+
+    :attr:`features` is read-only, for the reason :class:`Unit` gives.
     """
 
     text: str
@@ -179,7 +204,18 @@ class Boundary:
     at: int
     #: Everything the mark declared, so putting a form back together
     #: reproduces the unit rather than an impoverished copy of it.
-    features: dict[str, str] = field(default_factory=dict)
+    features: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "features", MappingProxyType(dict(self.features)))
+
+    def __repr__(self) -> str:
+        # Spelled out rather than generated, so what a reader sees is the
+        # bundle and not the wrapper that makes it read-only.
+        return (
+            f"Boundary(text={self.text!r}, level={self.level!r}, "
+            f"at={self.at}, features={dict(self.features)!r})"
+        )
 
 
 @dataclass(frozen=True)
