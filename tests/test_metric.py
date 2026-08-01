@@ -10,10 +10,12 @@ import itertools
 
 import pytest
 from ipakit import IPAFeatures
+from ipakit.constants import DATA_DIR
 from ipakit.metric import (
     SECONDARY_WEIGHT,
     _metric_bundle,
     bundle_distance,
+    metric_fingerprint,
     segment_metric,
 )
 
@@ -675,3 +677,122 @@ class TestDataIntegrity:
         declared = set(ipa.features) | METADATA_ATTRS | {"class"}
         for sym, phone in ipa.phones.items():
             assert not set(phone.features) - declared, sym
+
+
+class TestMetricFingerprint:
+    """The digest of the feature space a matrix was derived in.
+
+    A derived matrix is only readable against the space it came from, and
+    nothing in a saved matrix said which space that was: ``phones``
+    detects membership drift, and a bridge changes no membership. The
+    fingerprint is what a reader compares against the inventory in hand,
+    so the two keys answer two questions and do not overlap.
+    """
+
+    BRIDGE = """
+    <bridge name="posteriority">
+      <spelling feature="retroflex" value="+"/>
+      <spelling feature="place" value="postalveolar"/>
+    </bridge>
+  </bridges>"""
+    #: ``phonation`` reaches the metric only through marks, so the two
+    #: edits below move real distances while every registered phone's
+    #: bundle stays byte-identical -- which is what makes them the honest
+    #: test of a digest keyed to the registered phones.
+    VALUE = '<value name="devoiced" short="dev" href="Voicelessness"/>'
+    READS = '<value name="devoiced" reads="-"/>'
+    DECLARED = '<feature name="phonation" axis="+glottal-aperture"'
+
+    def _variant(self, tmp_path, *pairs: tuple[str, str]) -> IPAFeatures:
+        text = (DATA_DIR / "ipa.xml").read_text(encoding="utf-8")
+        for original, replacement in pairs:
+            assert text.count(original) == 1, f"the data moved: {original!r}"
+            text = text.replace(original, replacement)
+        tmp_path.mkdir(parents=True, exist_ok=True)
+        path = tmp_path / "ipa.xml"
+        path.write_text(text, encoding="utf-8")
+        return IPAFeatures(xml_path=path)
+
+    def _grown(self, tmp_path) -> IPAFeatures:
+        """A fifth phonation value, and the projection that must map it."""
+        return self._variant(
+            tmp_path,
+            (self.VALUE, self.VALUE + '<value name="whispered" short="whs"/>'),
+            (self.READS, self.READS + '<value name="whispered" reads="-"/>'),
+        )
+
+    def test_stable_within_a_run(self, ipa: IPAFeatures) -> None:
+        phones = list(ipa.phones)
+        assert metric_fingerprint(ipa, phones) == metric_fingerprint(ipa, phones)
+
+    def test_it_is_not_a_constant(self, ipa: IPAFeatures) -> None:
+        # The shape to avoid: a digest test that would pass against a
+        # function returning the same string for everything.
+        phones = list(ipa.phones)
+        assert metric_fingerprint(ipa, phones) != metric_fingerprint(ipa, phones[:-1])
+        assert metric_fingerprint(ipa, phones) != metric_fingerprint(ipa, [])
+
+    def test_a_supplement_leaves_it_alone(self, ipa: IPAFeatures) -> None:
+        # The direction that makes supplements usable at all: a supplement
+        # adds phones and declares nothing, so the space is still the one
+        # the shipped matrix was derived in and that matrix stays readable.
+        phones = list(ipa.phones)
+        supplemented = IPAFeatures(supplements=["aspirated-stops"])
+        assert set(supplemented.phones) > set(phones)
+        assert metric_fingerprint(supplemented, phones) == metric_fingerprint(
+            ipa, phones
+        )
+
+    def test_a_wider_phone_list_reads_differently(self, ipa: IPAFeatures) -> None:
+        # Keyed to the phone list the file itself carries: a matrix derived
+        # over the supplemented inventory is a different object, and the
+        # rows a fingerprint covers are part of what it says.
+        supplemented = IPAFeatures(supplements=["aspirated-stops"])
+        assert metric_fingerprint(
+            supplemented, list(supplemented.phones)
+        ) != metric_fingerprint(ipa, list(ipa.phones))
+
+    def test_a_bridge_moves_it(self, tmp_path, ipa: IPAFeatures) -> None:
+        phones = list(ipa.phones)
+        bridged = self._variant(tmp_path, ("\n  </bridges>", self.BRIDGE))
+        assert "posteriority" in bridged.bridges
+        # The case `phones` is blind to: the same entries in the same order.
+        assert list(bridged.phones) == phones
+        assert metric_fingerprint(bridged, phones) != metric_fingerprint(ipa, phones)
+
+    def test_a_value_added_to_a_scale_moves_it(
+        self, tmp_path, ipa: IPAFeatures
+    ) -> None:
+        phones = list(ipa.phones)
+        grown = self._grown(tmp_path)
+        # A longer ordinal prices its own steps lower, so this is a real
+        # change to the metric and not only to the declaration.
+        assert grown.distance("d̤", "d̥") != ipa.distance("d̤", "d̥")
+        assert metric_fingerprint(grown, phones) != metric_fingerprint(ipa, phones)
+
+    def test_a_changed_type_moves_it(self, tmp_path, ipa: IPAFeatures) -> None:
+        phones = list(ipa.phones)
+        recast = self._variant(
+            tmp_path, (self.DECLARED, self.DECLARED + ' type="categorical"')
+        )
+        assert recast.features["phonation"].type == "categorical"
+        assert recast.distance("d̤", "d̥") != ipa.distance("d̤", "d̥")
+        assert metric_fingerprint(recast, phones) != metric_fingerprint(ipa, phones)
+
+    def test_those_edits_move_no_registered_bundle(
+        self, tmp_path, ipa: IPAFeatures
+    ) -> None:
+        # Guard the guard. If either edit moved a phone's bundle, the two
+        # tests above would be detecting membership again and the claim
+        # they make about the feature space would be vacuous.
+        for variant in (
+            self._grown(tmp_path / "grown"),
+            self._variant(
+                tmp_path / "recast",
+                (self.DECLARED, self.DECLARED + ' type="categorical"'),
+            ),
+        ):
+            assert [variant.get_features(p) for p in ipa.phones] == [
+                ipa.get_features(p) for p in ipa.phones
+            ]
+            assert list(variant.phones) == list(ipa.phones)

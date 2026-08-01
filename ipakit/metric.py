@@ -24,6 +24,8 @@ Key properties, pinned by tests:
 from __future__ import annotations
 
 import functools
+import hashlib
+import warnings
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
@@ -31,6 +33,8 @@ from .segment import Constituent, Kind, Segment, Sense
 from .tract import tract_point
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Iterable, Iterator
+
     from .features import IPAFeatures
 
 # Ordered-alignment gap cost (design spec section 11).
@@ -299,3 +303,84 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
         value = (pair_cost + GAP_COST * gaps + juncture_cost) / denom
         best = min(best, value)
     return best
+
+
+#: Bytes of digest a fingerprint carries. Sixty-four bits, because the
+#: question it answers is "is this the same space", not "who wrote this":
+#: two feature spaces colliding by accident is not a failure mode, and a
+#: short digest stays readable in a diff of a derived file.
+FINGERPRINT_BYTES = 8
+
+
+def _fingerprint_lines(features: IPAFeatures, phones: Iterable[str]) -> Iterator[str]:
+    """Everything a distance between two of ``phones`` can depend on, as text."""
+    for phone in phones:
+        with warnings.catch_warnings():
+            # A phone this inventory cannot read is a difference, not an
+            # incident: it lands in the digest as one and the caller hears
+            # about it as a refusal, not as a warning about a phone list.
+            warnings.simplefilter("ignore")
+            try:
+                constituents = features.segment(phone).constituents
+            except ValueError:
+                yield "unreadable"
+                continue
+        for constituent in constituents:
+            feats, components = _metric_bundle(features, constituent)
+            bundle = constituent.bundle(features, with_defaults=True)
+            yield "\t".join(
+                [f"{key}={value}" for key, value in sorted(feats.items())]
+                + [f"{place}*{weight!r}" for place, weight in components]
+                + [repr(coordinate) for coordinate in _sagittal(features, bundle)]
+            )
+    for name in sorted(features.features):
+        feature = features.features[name]
+        values = list(feature.values)
+        yield "\t".join(
+            [name, feature.type, str(feature.default), *values]
+            + [repr(feature.value_distance(a, b)) for a in values for b in values]
+        )
+
+
+def metric_fingerprint(features: IPAFeatures, phones: Iterable[str]) -> str:
+    """Digest of the feature space distances over ``phones`` are computed in.
+
+    A saved matrix is a set of numbers whose meaning is the space they
+    were derived in, and a reader had no way to ask which space that was.
+    ``phones`` does not answer it: it detects membership drift, and a
+    bridge -- a whole extra term in the denominator of every distance --
+    changes no membership at all. This is what the reader compares.
+
+    Two halves, both asked of the metric rather than listed here, so
+    neither can go stale against a change to what the metric reads:
+
+    - **What the metric reads off each phone**: the comparison bundle and
+      the weighted place components :func:`_metric_bundle` derives, and
+      the two tract coordinates :func:`bundle_distance` sums beside them.
+    - **How any two values of a declared feature compare**: the ordered
+      value list, the declared type and default, and the full
+      ``value_distance`` table. Every declared feature, not only the ones
+      the listed phones happen to spell -- ``phonation`` reaches the
+      metric through marks and through nothing in the phone table, so a
+      digest of the bundles alone is still for a change that reprices
+      every devoiced segment in the inventory.
+
+    Taking the first half over a **caller-supplied** phone list is what
+    makes it membership-independent, and membership-independence is what
+    makes it usable: a supplement adds phones and declares nothing, so an
+    inventory built with one must agree with a matrix derived before it.
+    Reading the list the matrix file itself carries gives exactly that,
+    and leaves membership to ``phones``, which is already the check for
+    it. The second half needs no such care -- a supplement may not
+    declare a feature, a type or a bridge.
+
+    Order-fixed throughout: the phone list is read in order, feature names
+    are sorted, bundle keys are sorted, and floats are written as
+    ``repr``. Nothing iterates a set, so the digest does not move with
+    ``PYTHONHASHSEED``.
+    """
+    digest = hashlib.blake2b(digest_size=FINGERPRINT_BYTES)
+    for line in _fingerprint_lines(features, phones):
+        digest.update(line.encode("utf-8"))
+        digest.update(b"\n")
+    return digest.hexdigest()

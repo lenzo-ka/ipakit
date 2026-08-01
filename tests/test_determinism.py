@@ -11,6 +11,13 @@ bit, not merely within a tolerance.
 import subprocess
 import sys
 
+FINGERPRINT_PROBE = """
+from ipakit import IPAFeatures
+from ipakit.metric import metric_fingerprint
+ipa = IPAFeatures()
+print(metric_fingerprint(ipa, list(ipa.phones)))
+"""
+
 PROBE = """
 import ipakit
 from ipakit import IPAFeatures
@@ -21,15 +28,19 @@ print(";".join(f"{a}~{b}={ipakit.distance(a,b)!r}" for a, b in pairs))
 """
 
 
-def _distances_under(seed: str) -> str:
+def _under(probe: str, seed: str) -> str:
     result = subprocess.run(
-        [sys.executable, "-c", PROBE],
+        [sys.executable, "-c", probe],
         capture_output=True,
         text=True,
         env={"PYTHONHASHSEED": seed, "PATH": "/usr/bin:/bin"},
         check=True,
     )
     return result.stdout.strip()
+
+
+def _distances_under(seed: str) -> str:
+    return _under(PROBE, seed)
 
 
 class TestHashSeedIndependence:
@@ -45,3 +56,16 @@ class TestHashSeedIndependence:
         # Guard the guard: the comparison is exact repr, so it cannot
         # silently pass on values that merely round to the same display.
         assert repr(0.1 + 0.2) != repr(0.3)
+
+
+class TestFingerprintSeedIndependence:
+    """The feature-space fingerprint is derived data in a repository that
+    pins the seed so derived data regenerates byte-identically. An
+    order-dependent digest would sit quiet until CI shuffled, and then
+    refuse every matrix ipakit ships."""
+
+    def test_the_fingerprint_is_identical_across_hash_seeds(self) -> None:
+        baseline = _under(FINGERPRINT_PROBE, "0")
+        assert len(baseline) == 16, f"probe produced {baseline!r}"
+        for seed in ("1", "2", "12345"):
+            assert _under(FINGERPRINT_PROBE, seed) == baseline, f"seed {seed} diverged"
