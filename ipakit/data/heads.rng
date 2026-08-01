@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The shape of heads.xml: mid-sagittal vocal-tract geometries, one per
+     head, read by ipakit.tract and drawn by ipakit.tract_svg.
+
+     This file describes geometry rather than inventory, so unlike the
+     grammar beside ipa.xml it can afford to name every attribute it admits:
+     a head has a midline, a nasal branch, teeth, a carriage profile, a
+     tongue body and a rest posture, and that list is the anatomy the model
+     knows. A seventh part would be a new kind of declaration and belongs
+     here. What it still does not name is vocabulary — `provenance`,
+     `carrier`, `lips`, `velum` are left as text, because how a coordinate
+     was arrived at and which rigid body carries it are facts the model
+     states, not shapes this grammar should be able to veto.
+
+     Every coordinate is normalized: x and y are fractions of the drawing
+     box, arc runs 0 at the lips to 1 at the glottis, diameter is a fraction
+     of the same box, and the jaw carriage is a fraction of variance. All of
+     them are pinned to [0,1], which is the whole content of "normalized" —
+     a coordinate outside it is not a head shape drawn oddly, it is a
+     coordinate that was never in the space the renderer projects from.
+     `length-cm` is the one dimensioned number here and is only required to
+     be positive.
+
+     Order among the parts is not significant: the reader finds each by
+     name. Order WITHIN midline, nasal, carriage and teeth is significant —
+     the points are a polyline and interpolation walks them in file order —
+     and that is content order, which RELAX NG preserves without being
+     asked. -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <element name="heads">
+      <!-- Which head answers `head()` with no argument. Required: a heads
+           file that names no default cannot answer the question every
+           caller who does not care about anatomy is asking. -->
+      <attribute name="default"><text/></attribute>
+      <oneOrMore>
+        <element name="head">
+          <attribute name="name"><text/></attribute>
+          <optional><attribute name="desc"><text/></attribute></optional>
+          <!-- Tract length from glottis to lips. Optional because the model
+               carries it as absent rather than as a stand-in value: a head
+               that has not been sized is a different thing from one sized
+               at zero. -->
+          <optional>
+            <attribute name="length-cm">
+              <data type="decimal">
+                <param name="minExclusive">0</param>
+              </data>
+            </attribute>
+          </optional>
+          <interleave>
+            <ref name="rest"/>
+            <ref name="midline"/>
+            <ref name="nasal"/>
+            <ref name="teeth"/>
+            <ref name="carriage"/>
+            <ref name="tongue"/>
+          </interleave>
+        </element>
+      </oneOrMore>
+    </element>
+  </start>
+
+  <!-- All six parts are required. `ipakit/tract.py` defaults each of them,
+       which is what makes an incomplete head draw rather than raise, and
+       that is exactly why the grammar insists: a head silently missing its
+       carriage profile draws with no jaw carrying anything, which is a
+       figure that is wrong rather than a figure that is absent. -->
+
+  <define name="rest">
+    <!-- Where the articulators sit when not speaking. Rendering geometry:
+         an utterance starts and ends here, and silence has to be drawn
+         somewhere even though it is featurally null. -->
+    <element name="rest">
+      <attribute name="arc"><ref name="normalized"/></attribute>
+      <attribute name="offset"><ref name="normalized"/></attribute>
+      <attribute name="lips"><text/></attribute>
+      <attribute name="jaw"><text/></attribute>
+      <attribute name="velum"><text/></attribute>
+    </element>
+  </define>
+
+  <define name="midline">
+    <element name="midline">
+      <oneOrMore><ref name="tract-point"/></oneOrMore>
+    </element>
+  </define>
+
+  <define name="nasal">
+    <element name="nasal">
+      <!-- Where on the oral arc the nasal branch couples. The branch has
+           its own arc, 0 at the nostrils to 1 at the port. -->
+      <attribute name="port"><ref name="normalized"/></attribute>
+      <oneOrMore><ref name="tract-point"/></oneOrMore>
+    </element>
+  </define>
+
+  <define name="tract-point">
+    <element name="point">
+      <attribute name="arc"><ref name="normalized"/></attribute>
+      <attribute name="x"><ref name="normalized"/></attribute>
+      <attribute name="y"><ref name="normalized"/></attribute>
+      <attribute name="diameter"><ref name="normalized"/></attribute>
+      <!-- Per point rather than per section, because the midline mixes
+           measured and extrapolated diameters and the distinction is the
+           point of docs/articulatory-data.md. Where a whole part has one
+           provenance it is stated once, on the part. -->
+      <attribute name="provenance"><text/></attribute>
+    </element>
+  </define>
+
+  <define name="teeth">
+    <element name="teeth">
+      <attribute name="provenance"><text/></attribute>
+      <oneOrMore>
+        <element name="point">
+          <attribute name="name"><text/></attribute>
+          <attribute name="x"><ref name="normalized"/></attribute>
+          <attribute name="y"><ref name="normalized"/></attribute>
+          <!-- Which rigid body the tooth rides on. Mandibular coordinates
+               are the rest posture and move with the jaw; skull ones do
+               not. -->
+          <attribute name="carrier"><text/></attribute>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="carriage">
+    <element name="carriage">
+      <attribute name="provenance"><text/></attribute>
+      <oneOrMore>
+        <element name="point">
+          <attribute name="arc"><ref name="normalized"/></attribute>
+          <!-- The fraction of positional variance at this arc that the jaw
+               accounts for, so a fraction and not a position. -->
+          <attribute name="jaw"><ref name="normalized"/></attribute>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="tongue">
+    <!-- One body: `from` and `to` bound the arc range its surface spans,
+         `falloff` is the half-width of the raised cosine in arc, and
+         `taper` is how far from each end the surface descends to the
+         floor. All four are arc distances, so all four are normalized. -->
+    <element name="tongue">
+      <attribute name="from"><ref name="normalized"/></attribute>
+      <attribute name="to"><ref name="normalized"/></attribute>
+      <attribute name="falloff"><ref name="normalized"/></attribute>
+      <attribute name="taper"><ref name="normalized"/></attribute>
+      <attribute name="provenance"><text/></attribute>
+    </element>
+  </define>
+
+  <define name="normalized">
+    <data type="decimal">
+      <param name="minInclusive">0</param>
+      <param name="maxInclusive">1</param>
+    </data>
+  </define>
+
+</grammar>
