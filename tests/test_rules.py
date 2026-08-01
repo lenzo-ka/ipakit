@@ -643,6 +643,197 @@ class TestARuleThatCannotWorkIsRefused:
         assert bad == [], f"{len(bad)} of {checked} refused, first: {bad[:3]}"
 
 
+#: Every shape a bracketed right-hand side takes, one line each: a
+#: segmental bundle, both spellings of the empty left-hand side, an
+#: assigned prosody, a cleared one, a second prosodic feature, and a
+#: change naming an agreement variable the context really does bind.
+INSERTED_CHANGES = [
+    ("∅ -> [manner=plosive] / a _ t", "a segmental bundle"),
+    ("∅ -> [voiced=+]", "one with no context to hide behind"),
+    ("0 -> [manner=plosive] / a _ t", "the ASCII spelling of the same rule"),
+    ("∅ -> [stress=primary] / # _", "assigning prosody"),
+    ("∅ -> [stress=∅] / # _", "clearing it"),
+    ("∅ -> [length=long] / a _ t", "and the other prosodic feature"),
+    ("∅ -> [place=α] / [place=α] _ a", "an agreement the context does bind"),
+]
+
+
+class TestAnInsertionHasNoUnitToModify:
+    """``∅ -> [...]``, pinned as the answer it used to give.
+
+    ``rewrite("ata", "∅ -> [manner=plosive] / a _ t")`` answered
+    ``'ata'``: the rule parsed, recognized its site, declined to build an
+    edit, and reported nothing. A bracketed right-hand side *modifies*
+    the unit the rule matched, and an insertion matches none -- so the
+    modification had no referent, and a rule that could never fire said
+    so at no point.
+    """
+
+    @pytest.mark.parametrize("bad,shape", INSERTED_CHANGES)
+    def test_an_inserted_feature_change_was_a_rule_that_fired_and_did_nothing(
+        self, bad, shape
+    ):
+        with pytest.raises(R.RuleError) as caught:
+            R.parse(bad, FEATURES)
+        message = str(caught.value)
+        assert "insert" in message, shape
+        assert "∅ -> t" in message, "the message has to name a spelling that works"
+
+    def test_the_spelling_the_message_recommends_actually_inserts(self):
+        """Otherwise the refusal sends its reader to a second dead end.
+
+        The two the message offers: a bare literal, and a literal naming
+        prosody -- which is what someone reaching for ``[stress=primary]``
+        on an insertion wanted.
+        """
+        assert ipakit.rewrite("ata", "∅ -> t / a _ t") == "atta"
+        assert ipakit.rewrite("at", "∅ -> ˈa / # _") == "ˈaat"
+
+    @pytest.mark.parametrize(
+        "form,spec,want",
+        [
+            ("aʃa", "ʃ -> [voiced=+]", "aʒa"),
+            ("aʈa", "ʈ -> [voiced=+]", "aɖa"),
+            ("kˈat", "[vowel] -> [stress=∅]", "kat"),
+        ],
+    )
+    def test_a_substitution_still_modifies_the_unit_it_matched(self, form, spec, want):
+        """The half that works, and why the refusal has to be narrow.
+
+        A refusal satisfied by refusing everything would pass the tests
+        above and take the notation's one capture with it: ``ʒ`` keeps
+        grooved, postalveolar and fricative from the ``ʃ`` that stood
+        there, and ``ɖ`` keeps retroflex.
+        """
+        assert ipakit.rewrite(form, spec) == want
+
+    def test_the_refusal_reaches_no_substitution_the_engine_can_spell(self):
+        """Swept over the inventory: a guard too wide is the same defect."""
+        checked = 0
+        bad: list[str] = []
+        for phone in _phones():
+            for spec in (
+                f"{phone} -> [voiced=+]",
+                f"[vowel] -> [voiced=+] / {phone} _",
+            ):
+                try:
+                    R.parse(spec, FEATURES)
+                except R.RuleError as refused:
+                    bad.append(f"{spec}: {refused}")
+                checked += 1
+        assert_swept(checked, _phones())
+        assert bad == [], f"{len(bad)} of {checked} refused, first: {bad[:3]}"
+
+    def test_a_bundle_describes_a_class_and_so_cannot_name_what_to_insert(self):
+        """Why refuse, rather than resolve the bundle to a segment.
+
+        The reading that would make ``∅ -> [manner=plosive]`` work is
+        "insert the segment this bundle names", and a bundle does not name
+        one at any degree of specification. Narrowed to a manner, a place
+        and a voicing it still holds several phones; and a phone's own
+        complete declared bundle need not pick that phone out again, since
+        a tied diphthong states its first element's features. An engine
+        resolving a bundle to a segment would be choosing, not reading.
+        """
+        narrow = FEATURES.phones_matching(
+            {"manner": "plosive", "place": "alveolar", "voiced": "-"}
+        )
+        assert len(narrow) > 1, f"a narrowed query picked out {narrow}"
+        shared = []
+        for phone in _phones():
+            bundle = {
+                key: value
+                for key, value in FEATURES.get_features(phone).items()
+                if key in FEATURES.features
+                and FEATURES.features[key].mode != "prosodic"
+            }
+            if len(FEATURES.phones_matching(bundle)) > 1:
+                shared.append(phone)
+        assert shared, "no complete bundle is shared; the docstring needs re-reading"
+
+    def test_no_insertion_parses_into_a_rule_that_recognizes_and_never_edits(self):
+        """The sweep, rather than the one input the defect was found on.
+
+        Every left-hand side the notation distinguishes against every
+        right-hand side, over forms carrying prosody, a zero, a dot and a
+        break mark. What is asserted is the shape: no *insertion* survives
+        parsing as a rule that finds sites and produces no edit.
+
+        The family that does survive is named rather than left implied,
+        because it is a different one -- a substitution whose change is
+        already true (``t -> t``), or whose result the inventory cannot
+        spell (``[vowel] -> [manner=plosive]``). Both are per-site and
+        per-result decisions docs/rules.md documents, and such a rule goes
+        on firing wherever its change does land, which is why they cannot
+        be refused at parse the way this one can.
+        """
+        lhs = (
+            "∅",
+            "0",
+            "t",
+            "a",
+            "aː",
+            "ˈa",
+            "[vowel]",
+            "[manner=plosive]",
+            "[-vowel]",
+            "[zero]",
+            ".",
+            "#",
+            "%",
+            "|",
+        )
+        rhs = (
+            "t",
+            "ə",
+            "ˈa",
+            "aː",
+            "ts",
+            "∅",
+            "[zero]",
+            "[voiced=+]",
+            "[manner=plosive]",
+            "[stress=primary]",
+            "[stress=∅]",
+            "[length=long]",
+            ".",
+            "#",
+        )
+        contexts = ("", " / a _ t", " / _ #", " / # _", " / [vowel] _ [vowel]")
+        probes = ("ata", "aːtːa", "le∅ʃ", "a.ta", "a|ta", "kˈat", "at")
+        checked = 0
+        silent: list[str] = []
+        for left in lhs:
+            for right in rhs:
+                for context in contexts:
+                    spec = f"{left} -> {right}{context}"
+                    checked += 1
+                    try:
+                        rule = R.parse(spec, FEATURES)
+                    except R.RuleError:
+                        continue
+                    with _quiet():
+                        sites = sum(len(rule.recognize(p)) for p in probes)
+                        edits = sum(len(rule.edits(p)) for p in probes)
+                    if sites and not edits:
+                        silent.append(spec)
+        assert checked == len(lhs) * len(rhs) * len(contexts) > 500, "sweep did not run"
+        inserting = [s for s in silent if s.split(" ->")[0] in ("∅", "0")]
+        assert inserting == [], f"{len(inserting)} silent insertions: {inserting[:3]}"
+        assert (
+            silent
+        ), "the surviving family is stated as present; if it is gone, say so"
+
+    def test_every_shipped_rule_still_parses(self):
+        """A refusal that unloads a shipped set is a finding about the set."""
+        checked = 0
+        for name in R.available():
+            rules = R.shipped(name, FEATURES).rules
+            assert rules, f"{name} loaded no rules"
+            checked += len(rules)
+        assert checked >= 80, f"only {checked} shipped rules parsed"
+
+
 class TestWhatTheReviewFound:
     """Regressions for defects found by review, each swept where it can be.
 

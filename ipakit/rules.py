@@ -1754,6 +1754,8 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     if target is not None:
         _check_no_exchange(source, target, becomes, features)
         _check_zero_target(source, target, becomes, features)
+    else:
+        _check_inserted_change(source, becomes)
     if target is not None and target.optional:
         raise RuleError(
             f"{source!r} marks its target optional, and a target is what the "
@@ -1955,6 +1957,51 @@ def _check_zero_target(
             f"('{target.source} -> z'), or unwrite it "
             f"('{target.source} -> ∅')."
         )
+
+
+def _check_inserted_change(source: str, becomes: Becomes) -> None:
+    """Refuse a feature change on the right of an insertion.
+
+    The third member of the family above, and the one that was open. A
+    bracketed right-hand side does not build a segment; it **modifies**
+    the one the rule matched. ``ʃ -> [voiced=+]`` answers ``ʒ`` rather
+    than some default voiced thing because grooved, postalveolar and
+    fricative are read off the ``ʃ`` that was standing there, so the
+    right of the arrow is already a capture with exactly one implicit
+    term (docs/design/captures.md). An insertion matches nothing, that
+    term does not exist, and :meth:`Action.edit` therefore finds every
+    site and declines every one of them: the rule parses, recognizes,
+    and spells nothing at all.
+
+    The other reading -- *insert the segment this bundle names* -- is not
+    available, and not because resolving it would be hard. A query
+    describes a class: every plosive the inventory registers satisfies
+    ``[manner=plosive]``, and narrowing it to a place and a voicing still
+    leaves several. Written out in full it is no better, because a
+    phone's own complete bundle need not pick that phone out again --
+    a tied diphthong states its first element's features and nothing
+    separates the two. So a bundle does not determine a segment at any
+    degree of specification, and an engine that picked one would be
+    choosing rather than reading. The unit to insert is spelled, prosody
+    and all: ``∅ -> t``, ``∅ -> ˈa``.
+
+    Refused here rather than at a site for :func:`_check_variables`'s
+    reason. Nothing about this depends on the form, so a rule set holding
+    one fails to load, instead of loading and deriving a quietly
+    unchanged answer one word at a time.
+    """
+    if not isinstance(becomes, dict):
+        return
+    raise RuleError(
+        f"{source!r} inserts a unit and then describes it with a feature "
+        "change. A bracketed right-hand side MODIFIES the unit the rule "
+        "matched -- 'ʃ -> [voiced=+]' gives 'ʒ' because grooved, postalveolar "
+        "and fricative are read off the 'ʃ' that was there -- and an insertion "
+        "matches nothing, so there is no unit here for it to change. A query "
+        "describes a class rather than a segment, so it cannot name what to "
+        "insert either. Spell the unit on the right ('∅ -> t'), prosody "
+        "included ('∅ -> ˈa')."
+    )
 
 
 def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
