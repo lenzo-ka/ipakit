@@ -902,7 +902,12 @@ class Form:
                         features=dict(unit.features),
                     )
                 )
-            else:
+            elif unit.segment is not None:
+                # ``at`` indexes :attr:`segments`, the same rule
+                # :attr:`attributes` counts by: a structural zero is a
+                # position in the form and none in the projection, so
+                # letting it advance the count put every later boundary
+                # one place right and ``rebuild`` spelled it there.
                 seen += 1
         return tuple(out)
 
@@ -919,6 +924,14 @@ class Form:
 
         The inverse of taking :attr:`segments` and :attr:`boundaries`
         apart, so collapsing a form is recoverable rather than final.
+
+        The inverse of *those two projections*, which is not the inverse
+        of the form. A structural zero is neither a sound nor a relation,
+        so neither projection carries it and a form holding one comes back
+        without it. What does survive is where everything sat:
+        :attr:`Boundary.at` counts the segments before the mark, the same
+        sequence it is used to index, so a zero does not walk a later
+        boundary along it.
 
         The boundary unit is put back from everything the boundary
         carries, which is why :attr:`Boundary.features` exists. Rebuilding

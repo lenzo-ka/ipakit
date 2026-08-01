@@ -155,6 +155,21 @@ class TestAnUnroutedClassIsRefused:
         assert attribute.at == 3
         assert form.phones[attribute.at] == "a"
 
+    def test_it_does_not_push_a_later_boundary_to_the_end(self) -> None:
+        # `Boundary.at` counts the segments before the mark -- the same
+        # projection `Attribute.at` indexes, and by the same rule. Counting
+        # the zero as one of them put the dot one place right, and since
+        # nothing indexes past the end, `rebuild` spelled `a∅.b` as `ab.`.
+        form = Form.parse("a∅.b", FEATURES)
+        (boundary,) = form.boundaries
+        assert (boundary.text, boundary.level) == (".", "syllable")
+        assert [s.to_ipa() for s in form.segments] == ["a", "b"]
+        assert boundary.at == 1
+        # The control: the same transcription with the zero taken out.
+        (plain,) = Form.parse("a.b", FEATURES).boundaries
+        assert boundary.at == plain.at
+        assert Form.rebuild(form.segments, form.boundaries, FEATURES).to_ipa() == "a.b"
+
     def test_it_carries_no_phonetic_features(self) -> None:
         bundle = zeros(FEATURES)["∅"]
         structural = set(FEATURES.features_by_mode.get("structural", ()))
@@ -817,9 +832,13 @@ class TestWhatTheZeroDoesNotDoYet:
 
     def test_rebuild_does_not_carry_it(self) -> None:
         # `Form.rebuild` reassembles from segments and boundaries, and a
-        # zero is neither, so a form taken apart that way loses it.
-        form = Form.parse("le∅ʃ", FEATURES)
-        assert Form.rebuild(form.segments, form.boundaries, FEATURES).to_ipa() == "leʃ"
+        # zero is neither, so a form taken apart that way loses it. What it
+        # must not do is lose anything else on the way: the boundaries come
+        # back where they were written, and only the zero position is gone.
+        form = Form.parse("le∅ʃ.a", FEATURES)
+        back = Form.rebuild(form.segments, form.boundaries, FEATURES)
+        assert back.to_ipa() == "leʃ.a"
+        assert back.boundaries == form.boundaries
 
     def test_it_offers_no_insertion_gap(self) -> None:
         assert ipakit.rewrite("le∅ʃ", "∅ -> t / e _ ʃ", keep_zeros=True) == "le∅ʃ"
