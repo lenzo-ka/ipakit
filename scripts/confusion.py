@@ -21,9 +21,8 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ipakit.constants import DEFAULT_CONFUSION  # noqa: E402
+from ipakit.distance_model import MATRIX_VERSION  # noqa: E402
 from ipakit.features import IPAFeatures  # noqa: E402
-
-VERSION = "1.0"
 
 # The matrix holds feature distances in [0, 1]. Cross-CPython-version float
 # rounding can differ in the last bit (~1e-16), so the derived cache is validated
@@ -42,6 +41,9 @@ def triangles_match(a: list[float], b: list[float], tol: float = TOLERANCE) -> b
 
 def derive(space: str = "distance") -> dict[str, Any]:
     """Canonical model from ipa.xml + the metric. Deterministic and reproducible."""
+    # No supplements, deliberately: the shipped matrix is the bare
+    # inventory's, and a supplemented instance carries its own derived data
+    # through DistanceModel.derive (docs/supplements.md).
     ipa = IPAFeatures()
     phones = list(ipa.phones)
     m = ipa.pairwise_distances(phones)  # symmetric, diagonal 0.0
@@ -52,7 +54,7 @@ def derive(space: str = "distance") -> dict[str, Any]:
         for j in range(i + 1, n)
     ]
     return {
-        "version": VERSION,
+        "version": MATRIX_VERSION,
         "reference": "ipa",
         "space": space,
         "phones": phones,
