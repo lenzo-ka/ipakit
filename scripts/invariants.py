@@ -61,13 +61,12 @@ def declared_symbols(ipa: IPAFeatures) -> dict[str, dict[str, str]]:
     """Every symbol the inventory declares, with what it declared.
 
     Every element class ``<classes>`` names, each read off the table the
-    loader routes it into.
+    loader routes it into. The enumeration lives on the inventory, because
+    the supplement loader has to ask the same question -- is this symbol
+    already taken -- and two hand-written tuples of the same four tables is
+    the shape this repository drifts on.
     """
-    out: dict[str, dict[str, str]] = {}
-    for table in (ipa.phones, ipa.diacritics, ipa.separators, ipa.zeros):
-        for symbol, declared in table.items():
-            out[symbol] = dict(declared.features or {})
-    return out
+    return ipa.declared_symbols
 
 
 def _report(name: str, failures: list[str], checked: int) -> bool:

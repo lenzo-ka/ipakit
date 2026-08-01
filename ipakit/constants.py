@@ -34,6 +34,14 @@ METADATA_ATTRS = frozenset({"name", "class", "href", "xsampa"})
 # second spelling of the word in one of them is how those two would drift.
 ZERO_CLASS = "zero"
 
+# Root element of a supplemental inventory file. Its own tag rather than
+# `<ipa>` so that handing a whole inventory where a supplement is wanted --
+# or the reverse -- is refused at load rather than half-merged. What a
+# supplement may declare is not listed here: it is the element sections
+# `<classes>` already names, read off the loaded inventory. See
+# docs/supplements.md.
+SUPPLEMENT_ROOT = "supplement"
+
 # Sentinel used by hierarchy building for a phone that lacks the splitting
 # feature. Chosen to never collide with a real feature value.
 MISSING_FEATURE_VALUE = "_none"
