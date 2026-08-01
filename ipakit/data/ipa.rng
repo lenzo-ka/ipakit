@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The shape of ipa.xml, and only the shape.
+
+     ipa.xml is where the inventory is declared: the features, their values,
+     and every symbol that carries them. Nothing in the library is allowed
+     to restate any of that (tests/test_declared_not_hardcoded.py holds the
+     line), and a schema is code like any other. So this grammar names no
+     feature, no feature value and no symbol. Adding a phone, a diacritic, a
+     suprasegmental, a feature or a feature value must never require an edit
+     here. Introducing a new KIND of declaration is the one thing that
+     should.
+
+     That is why the symbol elements — phone, diacritic, suprasegmental,
+     separator, zero — require `name` and then admit any other attribute
+     whatsoever. Those attribute names are not free-form: they ARE the
+     feature names declared in <features> above them, and a symbol's
+     attributes are its feature bundle. Listing them here would be a second
+     copy of the feature inventory, kept in agreement with the first by
+     nobody. The declaration elements are the opposite case and do name
+     their attributes, because "a feature may state an axis, a mode and a
+     default" is a fact about what a declaration is, not about what has been
+     declared.
+
+     Watch the difference on `place`, `level` and `articulator`, which are
+     each both a declared feature and a legitimate attribute of a
+     declaration. `<feature name="velarized" place="velar">` says where the
+     secondary constriction that feature names is made — metadata about the
+     declaration. `<phone place="velar">` says this sound is velar — a
+     feature of the symbol. The first is named below; the second is left to
+     the open pattern and is never named.
+
+     Cross-references are not checked and cannot be. <spelling feature= /
+     value=>, <projection from= / to=>, <feature over= / place=>, <value
+     natural-class= / articulator=> and every `default` all point at names
+     declared elsewhere in this document. RELAX NG has no key/keyref, and
+     the fix that looks available — enumerating the legal targets — is the
+     drift this grammar exists to avoid. They are text here.
+     `scripts/invariants.py` is what checks that they resolve.
+
+     The sections themselves are unordered: the reader finds each by name,
+     so nothing depends on <features> preceding <phones>. Order WITHIN a
+     section does carry meaning — declaration order in <features> is the
+     default feature order, and in <modes> it is precedence — and that is
+     content order, which RELAX NG preserves without being told. -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <element name="ipa">
+      <attribute name="version"><text/></attribute>
+      <!-- The base URL every `href` below is relative to. -->
+      <optional><attribute name="wiki"><text/></attribute></optional>
+      <interleave>
+        <ref name="license"/>
+        <ref name="types"/>
+        <ref name="classes"/>
+        <ref name="modes"/>
+        <ref name="features"/>
+        <optional><ref name="bridges"/></optional>
+        <optional><ref name="projections"/></optional>
+        <optional><ref name="notations"/></optional>
+        <!-- <classes> is what declares which symbol sections a document
+             has, one section per class, singular child name. So the symbol
+             sections below are the one place this grammar and the document
+             overlap: a further char class would mean a further section
+             element, and an element name is something a grammar has to
+             know. Holding the class list and the sections present in
+             agreement is beyond RELAX NG; invariants.py does it. <phones>
+             is required because a document with no phones is not an
+             inventory. -->
+        <ref name="phones"/>
+        <optional><ref name="diacritics"/></optional>
+        <optional><ref name="suprasegmentals"/></optional>
+        <optional><ref name="separators"/></optional>
+        <optional><ref name="zeros"/></optional>
+        <optional><ref name="references"/></optional>
+      </interleave>
+    </element>
+  </start>
+
+  <define name="license">
+    <!-- The terms this file is offered under, carried in the file rather
+         than only in a sibling, because it travels on its own. The text is
+         the repository LICENSE and a test asserts the two agree. -->
+    <element name="license">
+      <attribute name="spdx"><text/></attribute>
+      <text/>
+    </element>
+  </define>
+
+  <define name="types">
+    <!-- Named value sets a feature can take its values from, instead of
+         spelling them out. A feature's `type` may also name a comparison
+         discipline that declares no value set at all, so `type` is not
+         constrained to the names declared here; see <features>. -->
+    <element name="types">
+      <oneOrMore>
+        <element name="type">
+          <attribute name="name"><text/></attribute>
+          <optional><attribute name="default"><text/></attribute></optional>
+          <oneOrMore>
+            <element name="value">
+              <attribute name="name"><text/></attribute>
+            </element>
+          </oneOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="classes">
+    <element name="classes">
+      <oneOrMore>
+        <element name="class">
+          <attribute name="name"><text/></attribute>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="modes">
+    <!-- How a mark's features combine with its base. Declaration order is
+         precedence; `default` is the mode an undeclared feature makes. -->
+    <element name="modes">
+      <attribute name="default"><text/></attribute>
+      <oneOrMore>
+        <element name="mode">
+          <attribute name="name"><text/></attribute>
+          <optional><attribute name="desc"><text/></attribute></optional>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="features">
+    <element name="features">
+      <oneOrMore>
+        <element name="feature">
+          <attribute name="name"><text/></attribute>
+          <optional><attribute name="short"><text/></attribute></optional>
+          <optional><attribute name="desc"><text/></attribute></optional>
+          <optional><attribute name="href"><text/></attribute></optional>
+          <!-- The ordinal axis this feature's values ascend along, in the
+               reference frame <features> describes. -->
+          <optional><attribute name="axis"><text/></attribute></optional>
+          <optional><attribute name="mode"><text/></attribute></optional>
+          <!-- Either a value set declared in <types>, or a comparison
+               discipline that declares none — a feature reading
+               `categorical` takes its values from its own <value> children
+               and compares them as unordered. Left open for that reason:
+               constraining it to the <types> names would say the two
+               vocabularies are one, and they are not. -->
+          <optional><attribute name="type"><text/></attribute></optional>
+          <optional><attribute name="default"><text/></attribute></optional>
+          <!-- `over` names the feature this one is derived from; `place`
+               gives the constriction a secondary-articulation feature adds;
+               `applies` restricts the feature to a class of hosts. All
+               three point at names declared elsewhere. -->
+          <optional><attribute name="over"><text/></attribute></optional>
+          <optional><attribute name="place"><text/></attribute></optional>
+          <optional><attribute name="applies"><text/></attribute></optional>
+          <!-- A sequence-valued feature states a trajectory: its value is
+               an ordered run of its declared values, not one of them. -->
+          <optional><attribute name="sequence"><ref name="flag"/></attribute></optional>
+          <zeroOrMore>
+            <element name="value">
+              <attribute name="name"><text/></attribute>
+              <optional><attribute name="short"><text/></attribute></optional>
+              <optional><attribute name="alias"><text/></attribute></optional>
+              <optional><attribute name="href"><text/></attribute></optional>
+              <optional><attribute name="label"><text/></attribute></optional>
+              <!-- Where the value sits on its feature's ordinal scale, and
+                   where the constriction it names sits in the tract. Both
+                   are normalized: arc runs 0 at the lips to 1 at the
+                   glottis, offset 0 at the midline to 1 at the wall. -->
+              <optional><attribute name="arc"><ref name="normalized"/></attribute></optional>
+              <optional><attribute name="offset"><ref name="normalized"/></attribute></optional>
+              <!-- A value that holds no position on the continuum at all:
+                   silence is not a degree of constriction. -->
+              <optional><attribute name="offscale"><ref name="flag"/></attribute></optional>
+              <optional><attribute name="articulator"><text/></attribute></optional>
+              <optional><attribute name="natural-class"><text/></attribute></optional>
+              <optional><attribute name="aperture"><text/></attribute></optional>
+              <optional><attribute name="move"><text/></attribute></optional>
+            </element>
+          </zeroOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="bridges">
+    <!-- A presence several features can spell, derived as one binary for
+         the metric. Each <spelling> is one way of saying it. -->
+    <element name="bridges">
+      <oneOrMore>
+        <element name="bridge">
+          <attribute name="name"><text/></attribute>
+          <optional><attribute name="desc"><text/></attribute></optional>
+          <optional><attribute name="href"><text/></attribute></optional>
+          <oneOrMore>
+            <element name="spelling">
+              <attribute name="feature"><text/></attribute>
+              <attribute name="value"><text/></attribute>
+              <!-- How far the velum lowers for a segment spelling it this
+                   way, 0 sealed and 1 fully open. Rendering geometry, read
+                   by ipakit.tract and never by the metric. -->
+              <optional><attribute name="port"><ref name="normalized"/></attribute></optional>
+            </element>
+          </oneOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="projections">
+    <!-- One fact at two granularities: a many-to-one reading of a fine
+         feature as a coarse one. Read by the write side only. -->
+    <element name="projections">
+      <oneOrMore>
+        <element name="projection">
+          <attribute name="from"><text/></attribute>
+          <attribute name="to"><text/></attribute>
+          <optional><attribute name="desc"><text/></attribute></optional>
+          <optional><attribute name="href"><text/></attribute></optional>
+          <oneOrMore>
+            <element name="value">
+              <attribute name="name"><text/></attribute>
+              <attribute name="reads"><text/></attribute>
+            </element>
+          </oneOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="notations">
+    <!-- Provenance, as data rather than lore: which symbols are on the IPA
+         chart and which are conventions from elsewhere. Deliberately not an
+         attribute on each symbol's own element, where it would land in that
+         symbol's feature bundle and become a term in the metric. -->
+    <element name="notations">
+      <attribute name="default"><text/></attribute>
+      <oneOrMore>
+        <element name="notation">
+          <attribute name="name"><text/></attribute>
+          <optional><attribute name="desc"><text/></attribute></optional>
+          <optional><attribute name="href"><text/></attribute></optional>
+          <zeroOrMore>
+            <element name="symbol">
+              <attribute name="name"><text/></attribute>
+              <optional><attribute name="desc"><text/></attribute></optional>
+            </element>
+          </zeroOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="phones">
+    <element name="phones">
+      <oneOrMore><element name="phone"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="diacritics">
+    <element name="diacritics">
+      <oneOrMore><element name="diacritic"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="suprasegmentals">
+    <element name="suprasegmentals">
+      <oneOrMore>
+        <element name="suprasegmental"><ref name="symbol"/></element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="separators">
+    <element name="separators">
+      <oneOrMore><element name="separator"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="zeros">
+    <element name="zeros">
+      <oneOrMore><element name="zero"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="references">
+    <element name="references">
+      <oneOrMore>
+        <element name="ref">
+          <attribute name="name"><text/></attribute>
+          <attribute name="href"><text/></attribute>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="symbol">
+    <!-- Every symbol element in the document, whatever its char class. The
+         name is what it is written as; `alias` gives a second spelling and
+         `href` the reference. Everything else it says is a feature, and the
+         feature names live in <features>, so they are admitted by shape
+         rather than by name. This is the whole reason the grammar can be
+         silent about the inventory. -->
+    <attribute name="name"><text/></attribute>
+    <optional><attribute name="alias"><text/></attribute></optional>
+    <optional><attribute name="href"><text/></attribute></optional>
+    <zeroOrMore>
+      <attribute>
+        <anyName>
+          <except>
+            <name>name</name>
+            <name>alias</name>
+            <name>href</name>
+          </except>
+        </anyName>
+        <text/>
+      </attribute>
+    </zeroOrMore>
+  </define>
+
+  <define name="flag">
+    <!-- The attribute's presence is the fact; "+" is how this document
+         spells present. -->
+    <value>+</value>
+  </define>
+
+  <define name="normalized">
+    <data type="decimal">
+      <param name="minInclusive">0</param>
+      <param name="maxInclusive">1</param>
+    </data>
+  </define>
+
+</grammar>

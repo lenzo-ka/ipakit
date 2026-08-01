@@ -30,14 +30,16 @@ dependencies = []
 
 [project.optional-dependencies]
 # Split so each CI job installs only what it needs:
-#   test - run the suite (pure stdlib; the ICU cross-check self-skips).
-#          xdist runs it across cores; PYTEST_WORKERS=0 makes it serial.
+#   test - run the suite. lxml is the RELAX NG validator tests/test_schema.py
+#          checks the shipped XML with, and xdist runs the suite across cores
+#          (PYTEST_WORKERS=0 makes it serial). Nothing else in the suite needs
+#          a third-party package, and the ICU cross-check self-skips.
 #   lint - ruff / black / mypy (pinned to the pre-commit style year)
 #   icu  - icukit-pyicu (bundled ICU + PyICU wheel, `import icu`); powers
 #          scripts/xsampa_table.py and the X-SAMPA cross-check. Dev-only, NEVER
 #          imported at runtime (ipakit ships the generated table in data/).
 #   dev  - everything, for local development.
-test = ["pytest>=7.0", "pytest-xdist>=3.0"]
+test = ["pytest>=7.0", "pytest-xdist>=3.0", "lxml>=5.0"]
 lint = ["ruff>=0.15", "mypy>=2.1", "black>=26.5,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
 dev = ["ipakit[test,lint,icu]"]
@@ -61,7 +63,9 @@ include = ["ipakit*"]
 [tool.setuptools.package-data]
 ipakit = [
     "data/*.xml",
+    "data/*.rng",
     "data/phonemaps/*.xml",
+    "data/phonemaps/*.rng",
     "data/rules/*.rules",
     "data/*.json",
     "py.typed",

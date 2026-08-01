@@ -156,6 +156,32 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
+def test_the_wheel_carries_each_grammar_beside_its_data(built_wheel):
+    """A grammar travels with the data it describes, into the wheel too.
+
+    ``ipa.xml`` says of itself that it travels on its own, which is why the
+    RELAX NG grammars sit in ``ipakit/data`` rather than in a schemas
+    directory: a copied file should carry what states its shape. That claim
+    is about co-location, and co-location is the one thing a per-directory
+    ``package-data`` glob can quietly break -- ``data/*.rng`` and
+    ``data/phonemaps/*.rng`` are two globs, and shipping one without the
+    other leaves half the data unstated with nothing else noticing.
+    """
+    with zipfile.ZipFile(built_wheel) as zf:
+        names = [n for n in zf.namelist() if n.startswith("ipakit/data/")]
+
+    documents = [n for n in names if n.endswith(".xml")]
+    grammars = {n.rsplit("/", 1)[0] for n in names if n.endswith(".rng")}
+    assert documents, "no XML data in the wheel to check"
+    assert grammars, "no grammars in the wheel; `data/*.rng` is not shipping"
+
+    orphaned = sorted(d for d in documents if d.rsplit("/", 1)[0] not in grammars)
+    assert not orphaned, (
+        f"these documents shipped without a grammar beside them, so an "
+        f"installed copy cannot say what shape it is in: {orphaned}"
+    )
+
+
 def test_the_installed_package_reads_its_data_without_the_checkout(
     built_wheel, tmp_path
 ):
