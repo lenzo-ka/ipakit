@@ -501,6 +501,31 @@ Writing prosody means changing `Segment.prosody`, which is what `ipakit.form.wit
 
 That read-back checks that nothing *else* moved, not only that the request landed. Some marks legitimately say more than one thing: the devoicing ring declares `phonation="devoiced"` and `voiced="-"`, which is one glottal fact written at two granularities, and refusing every surplus would refuse `ɹ̥` and stop approximant devoicing firing. Which dimensions stand in that relation is declared in `ipa.xml`'s `<projections>` block, so a mark whose surplus is a genuine second dimension is refused instead: the linguolabial mark is `place="bilabial"` *and*, independently, `articulator="tongue-tip"`, so `compose_unit("s", place="bilabial")` is `None` rather than `s̼`.
 
+### A change modifies what the rule matched
+
+A bracketed right-hand side does not build a segment. It takes the unit the rule matched and changes what the rule named, so everything the rule said nothing about survives:
+
+```python
+ipa.rewrite("aʃa", "ʃ -> [voiced=+]")   # 'aʒa'  -- grooved, postalveolar, fricative kept
+ipa.rewrite("aʈa", "ʈ -> [voiced=+]")   # 'aɖa'  -- and retroflex
+```
+
+That reading wants a unit to modify, and an **insertion** matches none. `∅ -> [manner=plosive]` parsed, found its sites and produced no edit — a rule its author believed was firing, doing nothing and saying nothing:
+
+```python
+ipa.rule("∅ -> [manner=plosive] / a _ t")
+# RuleError: inserts a unit and then describes it with a feature change...
+```
+
+The other reading — *insert the segment this bundle names* — is not available, and not because resolving it would be awkward. A query describes a class: `[manner=plosive]` holds every plosive the inventory registers, and narrowing it to a place and a voicing still holds several. Written out in full it is no better, because a tied diphthong states its first element's features and nothing separates the two, so a phone's own complete bundle need not pick that phone out again. A bundle does not determine a segment at any degree of specification, and an engine that picked one would be choosing rather than reading. The unit to insert is spelled, prosody and all:
+
+```python
+ipa.rewrite("ata", "∅ -> t / a _ t")   # 'atta'
+ipa.rewrite("at",  "∅ -> ˈa / # _")    # 'ˈaat'
+```
+
+Three refusals say the one thing between them, and it is worth reading as one: a modification needs a term to modify. A boundary has no bundle, a zero has no content, and an insertion has no matched unit at all.
+
 Not expressible, deliberately: **metathesis** (reordering) and **iterative within-rule spreading** (harmony as a single rule — an ordered cascade says the same thing). SPE's **agreement variables** used to stand third on that list, and [now they are notation](#a-rule-may-bind-a-value-and-re-use-it); the shipped English set states nasal place assimilation once as a result. Metathesis did **not** come with them, and the two are worth keeping apart because they rhyme: a variable copies a feature *value* between positions the rule matched one at a time, where metathesis reorders the positions themselves, which needs a target spanning more than one unit. A pattern constrains one unit, so `ab -> ba` is refused exactly as it was before. [calculus.md](calculus.md) states those as claims about the algebra's reach, and adds the two that optionality brings: no constraint on the *result* of several optional choices, and no ranking over the set.
 
 ## Rules are ordered
@@ -703,6 +728,7 @@ Recorded so they are not discovered the hard way:
 - **Optionality is not general.** `(∅)` marks a zero optional in a context; `(t)`, `([vowel])` and `(#)` are refused. An optional boundary item would have to answer to the boundary-run rule and the virtual edge past the end of a form, and that is a separate question from the one a zero raises. Parentheses in a rule's *name* are untouched, since the name is past the `;` and never reaches the context splitter.
 - **An agreement variable stands for a feature value, not for a segment.** `[place=α]` is expressible; "a copy of whatever consonant stood there" is not, so the shipped French set still writes one liaison rule per latent consonant. A variable also ranges over one feature, is refused where nothing binds it or where it occurs once, and `-α` is legal only for a binary feature (above). Every one of those is a parse-time refusal rather than a rule that fires at some sites and not others.
 - **The surface rewrite is applied per call**, like the cap, so splitting one cascade into two calls applies it twice and a zero written by the first half is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and naming the intermediate as a derivation rather than a pronunciation is what it says.
+- **An insertion has no unit to modify.** A bracketed right-hand side changes the unit the rule matched, so `∅ -> [manner=plosive]` is refused: there is no match to change, and a query describes a class rather than naming a segment to place. Spell the unit — `∅ -> t`, or `∅ -> ˈa` where the prosody matters. This is the parse-time member of a family whose other two are just below; what a rule *cannot* be told at parse is whether a change it can express will be spellable at a given site, and that one declines per site.
 - **A zero cannot be inserted, and it has no bundle.** `∅ -> [zero]` is refused — a zero records that a position had content and now has none, and an insertion had none to lose — and so is `[zero] -> [voiced=+]`, for the reason a feature change on a boundary is refused. Filling one (`[zero] -> z`) and unwriting one (`[zero] -> ∅`) are the two things that work.
 - A `Derivation`'s `start` is the form **as the engine read it**, not the string handed in. Reading drops what the inventory does not register, with a warning, and a trace whose first line is not what the first rule saw would account for a derivation that did not happen.
 - `Form.rebuild` is an inverse up to spelling; `Boundary` equality is not object equality with the original. It does reproduce each boundary *unit* — text and declared features — from `Boundary.features`; rebuilding from `Boundary.level` alone put `‿` back as a plain word boundary with its `linking=+` gone, the same spelling describing a different unit.
