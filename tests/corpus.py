@@ -10,7 +10,7 @@ once.
 The predicate is ``scripts/sweep.py``'s: a unit belongs if it spells
 itself back. What differs is the *extent* -- this module offers the bare
 phones, which is what these tests sweep, and says so rather than
-implying parity with the 8060-unit canonical corpus.
+implying parity with the whole canonical corpus.
 
 Sweeps also assert **shape**, not only a floor. A count above a
 threshold cannot tell that a whole class has gone missing, and one class
@@ -44,9 +44,9 @@ TIED = tuple(p for p in FEATURES.phones if TIES & set(p))
 def self_spelling_phones() -> list[str]:
     """Every registered phone that spells itself back.
 
-    139 of them today: the *bare* half of the canonical corpus, not the
-    8060-unit whole. ``scripts/sweep.py corpus`` prints the full
-    definition and counts.
+    The *bare* half of the canonical corpus, not the whole of it.
+    ``scripts/sweep.py corpus`` prints the full definition and the
+    counts, which move when the inventory does.
     """
     return [p for p in FEATURES.phones if FEATURES.segment(p).to_ipa() == p]
 
