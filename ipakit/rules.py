@@ -668,6 +668,19 @@ def _in_the_series(text: str) -> bool:
     return text in SERIES
 
 
+def _is_free_variable(text: str, features: IPAFeatures) -> bool:
+    """Whether ``text`` is a letter this inventory leaves free to be one.
+
+    The single answer to "is this a variable?", so that every path
+    needing it asks the same question. Asked in two places it was
+    answered two ways: the bare-term gate in :func:`_pattern` tested
+    series membership alone, so ``β`` was a variable in ``[β]`` and a
+    phone in ``[place=β]``, and each refusal named the spelling the
+    other one rejects.
+    """
+    return _in_the_series(text) and not _reads_as(text, features)
+
+
 def _free_variables(features: IPAFeatures) -> list[str]:
     """The letters of the series this inventory leaves free, in order.
 
@@ -676,7 +689,7 @@ def _free_variables(features: IPAFeatures) -> list[str]:
     than restating ``#``: a rule's notation follows the data it is
     written against, and a second inventory is a second answer.
     """
-    return [letter for letter in SERIES if not _reads_as(letter, features)]
+    return [letter for letter in SERIES if _is_free_variable(letter, features)]
 
 
 def _agreement(value: str, features: IPAFeatures) -> Agreement | None:
@@ -709,7 +722,7 @@ def _agreement(value: str, features: IPAFeatures) -> Agreement | None:
     name = value if same else value[len(OPPOSITE_MARK) :]
     if not _in_the_series(name):
         return None
-    if _reads_as(name, features):
+    if not _is_free_variable(name, features):
         raise RuleError(
             f"{name!r} spells something this inventory registers "
             f"({' '.join(u.text for u in _reads_as(name, features))}), so it "
@@ -843,12 +856,29 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
         # this query language must never accept quietly.
         for term in bare:
             stripped = term[1:] if term[:1] in "+-0" else term
-            if _in_the_series(stripped):
+            if not _in_the_series(stripped):
+                continue
+            if not _is_free_variable(stripped, features):
+                # A letter the inventory reads is a phone here as it is
+                # everywhere, which is the answer :func:`_agreement`
+                # already gives on the value arm. Sending the author to
+                # '[place=β]' -- the spelling that arm refuses, and for
+                # the opposite reason -- is worse than a bare refusal,
+                # so the two ask one predicate and say one thing.
                 raise RuleError(
-                    f"{text!r} names the agreement variable {stripped!r} on its "
-                    "own. A variable stands for a value of one feature, so it "
-                    f"has to say which: write '[place={stripped}]'."
+                    f"{text!r} asks for a class named {stripped!r}, and "
+                    f"{stripped!r} spells a registered phone "
+                    f"({' '.join(u.text for u in _reads_as(stripped, features))}) "
+                    "rather than a class -- write it without the brackets to "
+                    "match the phone. It is not an agreement variable either: a "
+                    "letter this inventory registers is a phone wherever it "
+                    "appears."
                 )
+            raise RuleError(
+                f"{text!r} names the agreement variable {stripped!r} on its "
+                "own. A variable stands for a value of one feature, so it "
+                f"has to say which: write '[place={stripped}]'."
+            )
         # Variables are taken out of the query HERE, before the value arm
         # below and before the resolver, and they never go back in. That
         # is the whole of the interaction with the resolver's own policy

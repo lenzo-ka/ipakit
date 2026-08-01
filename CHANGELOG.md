@@ -126,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `ς` stood in the agreement series as a second sigma; a variable letter is the one its own capital lowercases back to.
+- `[β]` was refused as a bare agreement variable and sent the author to `[place=β]`, which is refused because `β` is a phone.
 - `lookalikes.xml` loaded as an empty phonemap; a phonemap must declare the column it maps to, and one that maps nothing is refused at load.
 - A voiced phonation was read on a voiceless segment, and read out loud in `describe`.
 - `compose_unit("s", voiced="+")` would have spelled a breathy-voiced segment.

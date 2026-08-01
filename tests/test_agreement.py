@@ -22,6 +22,7 @@ place where a looser reading would be a well-formed wrong answer:
 
 from __future__ import annotations
 
+import re
 import warnings
 
 import pytest
@@ -298,6 +299,79 @@ class TestAVariableThatCannotMeanAnythingIsRefused:
         items = list(units("nk", FEATURES))
         with pytest.raises(R.RuleError, match="never bound"):
             action.edit(R.Site(0, 1), items, FEATURES, rule="probe")
+
+
+class TestBothPathsClassifyOneLetterTheSameWay:
+    """``[β]`` and ``[place=β]`` ask one question in two places.
+
+    Is this letter a variable? The bare-term gate answered it by asking
+    whether the letter is in the series, and the value path by asking
+    whether the inventory reads it, so they disagreed about the three
+    letters that are registered phones: ``[β]`` was refused *as a
+    variable*, with instructions to write ``[place=β]``, which is
+    refused *because β is a phone*. A refusal that names the spelling
+    the next refusal rejects sends the author round a circle, so the two
+    are held to one answer here, over the whole series and both
+    spellings.
+    """
+
+    @staticmethod
+    def _refusal(spec: str) -> str | None:
+        try:
+            R.parse(spec, FEATURES)
+        except R.RuleError as exc:
+            return str(exc)
+        return None
+
+    def test_a_letter_is_a_variable_in_both_spellings_or_in_neither(self) -> None:
+        free = set(R._free_variables(FEATURES))
+        taken = [letter for letter in R.SERIES if letter not in free]
+        assert taken, "no letter of the series collides with this inventory"
+        for letter in R.SERIES:
+            bare = self._refusal(f"n -> t / _ [{letter}]")
+            value = self._refusal(f"n -> [place={letter}] / _ [place={letter}]")
+            assert bare, letter
+            if letter in free:
+                # A variable, both ways: the bare term is missing its
+                # feature, and the value term is a working rule.
+                assert "names the agreement variable" in bare, letter
+                assert value is None, (letter, value)
+            else:
+                # A phone, both ways -- the bare refusal may not call it
+                # a variable, because the value path will not.
+                assert "names the agreement variable" not in bare, (letter, bare)
+                assert "registered phone" in bare, (letter, bare)
+                assert value and "this inventory registers" in value, letter
+
+    def test_no_refusal_names_a_spelling_the_other_path_rejects(self) -> None:
+        """The circle itself, as a predicate over what the messages say.
+
+        Every bracketed spelling a refusal offers is written out and
+        parsed. One that does not parse is the defect this class exists
+        for, whichever message grows it.
+        """
+        offered = 0
+        for letter in R.SERIES:
+            for spec in (f"n -> t / _ [{letter}]", f"n -> t / _ [place={letter}]"):
+                message = self._refusal(spec)
+                assert message, (letter, spec)
+                subject = spec.split("_ ", 1)[1]
+                for suggestion in re.findall(r"'(\[[^']*\])'", message):
+                    if suggestion == subject:
+                        continue
+                    R._pattern(suggestion, FEATURES)
+                    offered += 1
+        assert offered, "no refusal offered a spelling, so nothing was checked"
+
+    def test_a_registered_letter_is_a_phone_wherever_it_appears(self) -> None:
+        """The reading that settles the disagreement, stated on β.
+
+        Brackets ask for a class and β names none; without them it is
+        the phone it spells, and that is what the refusal says to write.
+        """
+        with pytest.raises(R.RuleError, match="registered phone"):
+            R.parse("t -> d / _ [β]", FEATURES)
+        assert _apply("t -> d / _ β", "atβa") == "adβa"
 
 
 class TestTheVariableNeverReachesTheQueryResolver:
