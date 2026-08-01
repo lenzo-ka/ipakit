@@ -144,6 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_anchors` licensed the trailing gap of a boundary run only on the run's last mark.
 - A form has one edge, not a run of them: `t -> ʔ / _ # # #` fired.
 - `Unit.features` and `Unit.prosody` disagreed about the same unit; prosody has one home.
+- `with_prosody` dropped a written contour because the levels derive one, so a no-change write turned `ǎ˥˩` into a fall.
+- `with_prosody` reported a cleared tier it had not cleared; a clear the remaining tiers entail is impossible and answers `None`.
 - `Form.rebuild` puts a boundary back as the unit it was, from `Boundary.features`.
 - Vacuous tests in the rules suite are repaired rather than removed.
 - `docs/rules.md` recommended `ipakit.add_ties()`, which ties every adjacent pair.

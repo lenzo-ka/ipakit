@@ -550,20 +550,33 @@ def with_prosody(
     glyphs are downstream of them.
 
     The write is stated in what the marks **assert**, never in what the
-    marks entail: a level sequence has a contour, so writing the sequence
-    writes the contour and a mark for it would be a second, contradicting
-    claim. A run stating a sequence is kept by walking it -- ``a˩˥``
-    keeps both letters against ``tone="bottom>top"``, and a sequence no
-    single mark spells is spelled one level at a time.
+    marks entail: a level sequence has a contour, and no mark for it is
+    added, because that would be a second claim about a shape the levels
+    already fix. A mark that was *written* for it stays written, agreeing
+    or not -- dropping an assertion because a derivation would reach the
+    same tier is how a caron over a falling sequence came back as a fall.
+    A run stating a sequence is kept by walking it -- ``a˩˥`` keeps both
+    letters against ``tone="bottom>top"``, and a sequence no single mark
+    spells is spelled one level at a time.
 
-    Returns ``None`` where the inventory cannot spell the result, or where
-    the result does not read back as what was asked. That check is a
-    measurement rather than a formality: the marks were picked from the
-    declaration, but whether they re-emit themselves and still say the
-    requested values is exactly the kind of thing this repo has been
-    wrong about while looking right.
+    Returns ``None`` where the inventory cannot spell the result, where
+    the result does not read back as what was asked, or where what was
+    asked cannot be spelled at all: clearing a tier that the retained
+    tiers *entail* is impossible, since a tone reading ``bottom>top``
+    rises whether or not a mark says so, and clearing the tone as well
+    would answer a different request from the one made.
+
+    That check is a measurement rather than a formality: the marks were
+    picked from the declaration, but whether they re-emit themselves and
+    still say the requested values is exactly the kind of thing this repo
+    has been wrong about while looking right.
     """
     wanted = _asserted_prosody(seg, features)
+    #: Tiers the caller asked to be **absent**. Held separately because a
+    #: hole in ``wanted`` is not a negative constraint: a derivable tier
+    #: fills its own hole back in on the read, and only a request that
+    #: says "gone" can tell that apart from one that was never made.
+    cleared: set[str] = set()
     for key, value in changes.items():
         feature = features.features.get(key)
         if feature is None:
@@ -572,13 +585,21 @@ def with_prosody(
             value == feature.default and features.declaring_mark(key, value) is None
         ):
             wanted.pop(key, None)
+            cleared.add(key)
         else:
             wanted[key] = value
-    # An entailed value is not written: it follows from what is.
-    entailed = _derived_contour(wanted, features) or {}
-    for key in entailed:
-        if key in wanted and key not in changes:
-            wanted.pop(key)
+
+    # The read the result must produce, fixed here -- before one glyph is
+    # chosen -- so the check at the bottom is a measurement and not a
+    # restatement of whatever the speller decided. Computing it from the
+    # marks that got picked is what let an asserted contour be dropped and
+    # its opposite derived back, with the check agreeing by construction.
+    target: dict[str, str | None] = {
+        **(_derived_contour(wanted, features) or {}),
+        **wanted,
+    }
+    for key in cleared:
+        target[key] = None
 
     # How far through each wanted sequence the kept marks have got, so a
     # run of level marks is matched as the run it is rather than each
@@ -624,8 +645,20 @@ def with_prosody(
     out = dataclasses.replace(seg, prosody=tuple(kept))
     spelled = out.to_ipa()
     items = units(spelled, features)
-    expected = {**(_derived_contour(wanted, features) or {}), **wanted}
-    if len(items) != 1 or items[0].text != spelled or items[0].prosody != expected:
+    if len(items) != 1 or items[0].text != spelled:
+        return None
+    got = items[0].prosody
+    # Three claims, because one dict comparison cannot make them all. The
+    # marks say what was wanted and no more, so nothing entailed got
+    # written as a second claim; every tier asked to be gone is gone; and
+    # what remains reads as the target -- which includes the tiers the
+    # levels entail, so a request to drop one fails here rather than being
+    # reported as done.
+    if _asserted_prosody(out, features) != wanted:
+        return None
+    if any(key in got for key, value in target.items() if value is None):
+        return None
+    if got != {key: value for key, value in target.items() if value is not None}:
         return None
     return out
 

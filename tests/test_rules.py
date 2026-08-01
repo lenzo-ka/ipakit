@@ -21,7 +21,7 @@ import pytest
 from ipakit import rules as R
 from ipakit.form import declared_prosody, split_prosody, with_prosody
 
-from tests.corpus import assert_swept, self_spelling_phones
+from tests.corpus import assert_swept, prosody_bearing_units, self_spelling_phones
 
 FEATURES = ipakit.load_ipa_features()
 
@@ -1489,6 +1489,157 @@ class TestAssigningThenClearingProsodyReturnsTheSpelling:
         assert bad == [], f"{len(bad)} of {checked} did not round trip: {bad[:3]}"
         # Pinned, so the escape stays known in either direction.
         assert declined == ["t contour=rising"], f"declined set moved: {declined}"
+
+
+def _prosody_of(form: str) -> dict[str, str]:
+    """What one written unit's prosody reads as."""
+    with _quiet():
+        return dict(R.units(form, FEATURES)[0].prosody)
+
+
+def _states(seg, key: str) -> bool:  # type: ignore[no-untyped-def]
+    """Whether a mark on ``seg`` *asserts* ``key``, rather than the read
+    deriving it from the levels beside it."""
+    return any(key in declared_prosody(glyph, FEATURES) for glyph in seg.prosody)
+
+
+#: A rise asserted by a caron over a run of levels that falls. Escaped, so
+#: the literal is the run of marks it names -- ``a``, U+030C COMBINING
+#: CARON, then the two tone letters -- and not the single codepoint an
+#: editor may normalize the first two into.
+CARON_OVER_A_FALL = "a\u030c\u02e5\u02e9"
+
+#: The same assertion with no levels under it to agree or disagree with.
+BARE_CARON = "a\u030c"
+
+
+class TestWritingProsodyDoesNotRewriteWhatItWasNotAsked:
+    """A no-change write handed back a different transcription.
+
+    ``ǎ˥˩`` states a rise with its caron and a fall with its levels. The
+    read reports the contradiction and lets the assertion stand, because
+    only the writer knows which of the two they meant. The write dropped
+    the caron on the way past -- for no reason but that ``contour`` is a
+    tier something else could derive -- and the result read as a *fall*,
+    the opposite of what was asserted, out of a call that changed nothing.
+    The read-back check agreed with it, because it recomputed what to
+    expect from the same shortened target it had just written from.
+    """
+
+    def test_a_no_change_write_keeps_a_contour_its_levels_contradict(self):
+        written = with_prosody(FEATURES.segment(CARON_OVER_A_FALL), {}, FEATURES)
+        assert written is not None
+        assert written.to_ipa() == CARON_OVER_A_FALL
+        assert _prosody_of(written.to_ipa())["contour"] == "rising"
+
+    def test_an_unrelated_change_leaves_that_contour_alone(self):
+        written = with_prosody(
+            FEATURES.segment(CARON_OVER_A_FALL), {"length": "long"}, FEATURES
+        )
+        assert written is not None
+        assert _prosody_of(written.to_ipa()) == {
+            "contour": "rising",
+            "tone": "top>bottom",
+            "length": "long",
+        }
+
+    def test_every_prosody_bearing_unit_rereads_as_itself(self):
+        """The sweep. One mark cannot contradict itself, so this is the
+        property a corpus of *single*-marked units cannot state -- and the
+        reason a named case for the caron would not have been enough."""
+        corpus = prosody_bearing_units()
+        checked = 0
+        bad: list[str] = []
+        for unit in corpus:
+            checked += 1
+            written = with_prosody(FEATURES.segment(unit), {}, FEATURES)
+            if written is None:
+                bad.append(f"{unit!r}: declined")
+                continue
+            if _prosody_of(written.to_ipa()) != _prosody_of(unit):
+                bad.append(f"{unit!r} -> {written.to_ipa()!r}")
+        assert checked > 5000, f"sweep covered only {checked} units"
+        assert bad == [], f"{len(bad)} of {checked} were rewritten: {bad[:3]}"
+
+    def test_the_sweep_reaches_a_contour_asserted_over_its_own_levels(self):
+        """Shape, not size. A corpus of singly marked units would clear any
+        floor above and still be unable to fail the property, because one
+        mark has nothing to contradict. What makes it able to fail is a unit
+        that *asserts* a contour and states levels too, so this asserts that
+        class is in the sweep rather than trusting the count."""
+        corpus = prosody_bearing_units()
+        contradictable = [
+            unit
+            for unit in corpus
+            if {"contour", "tone"} <= set(_prosody_of(unit))
+            and any("contour" in declared_prosody(c, FEATURES) for c in unit)
+        ]
+        assert (
+            len(contradictable) > 500
+        ), f"only {len(contradictable)} units assert a contour over their levels"
+
+
+class TestClearingProsodyReportsWhatItActuallyDid:
+    """A non-``None`` answer said the request was honored when it was not.
+
+    ``with_prosody(seg("a˩˥"), {"contour": None})`` returned ``a˩˥``, whose
+    contour is still ``rising``. Nothing recorded that the caller had asked
+    for a tier to be *gone*, so the read-back check re-derived the very
+    value it was asked to remove and then accepted it.
+
+    A tone that reads ``bottom>top`` rises whether or not a mark says so,
+    so a form with those levels and no contour does not exist. That request
+    is impossible, and ``None`` is how this function says so. Clearing the
+    tone as well would answer a different question from the one asked.
+    """
+
+    def test_clearing_a_contour_the_levels_entail_is_refused(self):
+        assert (
+            with_prosody(FEATURES.segment("a˩˥"), {"contour": None}, FEATURES) is None
+        )
+
+    def test_clearing_a_contour_only_a_mark_states_still_works(self):
+        written = with_prosody(
+            FEATURES.segment(BARE_CARON), {"contour": None}, FEATURES
+        )
+        assert written is not None
+        assert written.to_ipa() == "a"
+        assert _prosody_of(written.to_ipa()) == {}
+
+    def test_clearing_the_levels_takes_the_contour_they_entailed(self):
+        written = with_prosody(FEATURES.segment("a˩˥"), {"tone": None}, FEATURES)
+        assert written is not None
+        assert _prosody_of(written.to_ipa()) == {}
+
+    def test_every_answered_clear_actually_cleared(self):
+        """The sweep, over every tier every unit in the corpus reads.
+
+        The property is not "clearing works" -- some clears are impossible
+        and must be refused. It is that an answer other than ``None`` means
+        the tier is gone, which is what the caller is entitled to conclude.
+        """
+        corpus = prosody_bearing_units()
+        refused = honored = 0
+        refused_derived = 0
+        bad: list[str] = []
+        for unit in corpus:
+            seg = FEATURES.segment(unit)
+            for key in _prosody_of(unit):
+                written = with_prosody(seg, {key: None}, FEATURES)
+                if written is None:
+                    refused += 1
+                    refused_derived += not _states(seg, key)
+                    continue
+                honored += 1
+                if key in _prosody_of(written.to_ipa()):
+                    bad.append(f"{unit!r} {key}=None -> {written.to_ipa()!r}")
+        assert honored > 5000, f"sweep honored only {honored} clears"
+        assert bad == [], f"{len(bad)} of {honored} were not cleared: {bad[:3]}"
+        # Both branches must occur, or the property is satisfiable by a
+        # writer that refuses everything -- and the derived branch is the
+        # one the defect lived in, so a sweep that never reaches it says
+        # nothing about the case it was written for.
+        assert refused_derived > 0, f"{refused} refusals, none of a derived tier"
 
 
 def _segmental(form: str) -> tuple[str, ...]:
