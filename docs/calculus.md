@@ -143,7 +143,7 @@ found[0].choices     # 0
 found[1].choices     # 1
 ```
 
-`VariantSet.complete` is the one to ask. `Variant` carries `form`, `choices` — how many optional edits that member takes — and a full `derivation`, so every member can account for itself.
+`VariantSet.complete` is the one to ask, and what it answers is whether the enumeration was cut — [the cap](#what-a-complete-answer-promises) is where that reading is spelled out. `Variant` carries `form`, `choices` — how many optional edits that member takes — and a full `derivation`, so every member can account for itself.
 
 `choices` is the **fewest** optional edits any derivation of that member takes, and the `derivation` is that one. The distinction is not idle: a cascade can reach one form by two routes, and the route it happens to reach first is not the cheapest one. Here `c` is one optional edit away by the first rule and two by the other two, and the member says one:
 
@@ -265,6 +265,8 @@ Like the cap, it is applied **per call**, and for the same reason: splitting a c
 
 Measured on `[vowel] ~> [length=long]` then `t ~> ʔ` over `atatata`. This is not a defect to be repaired; a bounded enumeration cannot be a homomorphism. It is the reason `complete` exists and the reason to ask it: **every algebraic claim on this page holds of a complete answer and none of them holds of a truncated one.**
 
+That sentence stands on the flag's error running one way. A complete answer is the whole answer, so a claim checked against one is checked against every form the rules derive; a `False` is the weaker word and can be conservative, which [the cap](#what-a-complete-answer-promises) says exactly.
+
 ## Finiteness
 
 The set is **always finite**, for every rule set and every form, insertion included. The argument is short and rests on a property the engine already had:
@@ -297,6 +299,27 @@ long_word.unexplored    # 12
 long_word.truncations[0].rule
 # '[vowel] ~> [length=long]'
 ```
+
+### What a complete answer promises
+
+`complete` reports that **nothing was declined** — every child every rule offered was built. That is a fact about the enumeration rather than about the forms, and the error in it runs one way only.
+
+The direction that holds is the one the rest of this page leans on. A `True` is reached by never cutting, so the answer is every form the same call answers with the cap raised, and an algebraic claim checked against it is checked against the whole set. Nothing has to be taken on trust for that; it is what "nothing was declined" means.
+
+A `False` is weaker than "a form is missing". The step that declines a subset has no idea what the subset would have spelled, and the answer may hold it already — two rules can reach one form, so a cut over convergent choices costs a derivation and no pronunciation:
+
+```python
+converge = "a ~> b ; one\na ~> b / _ b ; two"
+cut = ipa.variants("ab", converge, limit=2)
+cut.complete                                       # False
+cut.forms == ipa.variants("ab", converge).forms    # True
+```
+
+The first rule spells `bb` from `ab`, and the second spells it again from the branch that declined the first. At a limit of two the budget is spent before the second rule's child is built — and `bb` is a member already, so the answer says it was cut and is missing nothing. Telling that apart from a cut that does lose a form means building the declined children, which is the enumeration the cap exists to decline; that cost is what the next section measures on the neighboring question.
+
+So the flag answers the question it can answer for free, in the safe direction: **nothing was cut**, rather than **nothing is missing**. A caller who needs the stronger reading raises the limit until it comes back `True`.
+
+### What unexplored counts
 
 `unexplored` counts **combinations of optional choices the cut step declined to build**. That is exact for the step and cheap, because the arithmetic is known in advance — a branch with n edits offers 2^n — which is what lets the number be reported without doing the work the cap exists to avoid.
 

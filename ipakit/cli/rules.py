@@ -26,7 +26,10 @@ no optional choice at all; ``variants`` is where the set is, and its
 first member is exactly what ``apply`` printed. Whether the answer is
 complete is printed with it -- the count line says so, and ``-j`` carries
 ``complete`` and ``truncations`` -- because a capped set of
-pronunciations reads exactly like an exhaustive one.
+pronunciations reads exactly like an exhaustive one. What that reports is
+that the enumeration was cut, and it is one-sided: a complete answer is
+the whole set, and a cut one may still hold every form the uncapped call
+holds.
 
 **A derived form is a surface form.** A rule may write a zero -- a
 position kept open with nothing in it -- and a derivation carries it
@@ -249,6 +252,14 @@ def truncation_note(found: VariantSet) -> str:
     branches that step dropped. A bare number here would read as the
     size of what is missing, which is the one thing it is not; see
     :class:`~ipakit.rules.Truncation`.
+
+    "INCOMPLETE" names the cut and not a loss, and the rest of the line
+    is what keeps it from being read as one: the rule the cap fired at,
+    and the choices that rule declined. The answer may hold every form
+    the uncapped call holds -- the declining step cannot know what it
+    declined would have spelled -- so a line saying how many forms are
+    missing would be a number nobody has. See
+    :attr:`~ipakit.rules.VariantSet.complete`.
     """
     if found.complete:
         return ""
