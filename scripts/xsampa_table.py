@@ -13,7 +13,7 @@ structural X-SAMPA symbols, minus the redundant spellings X-SAMPA folds).
 This keeps the table reproducible and the human judgement calls explicit:
   * OVERRIDES  - symbols ICU can't transliterate (tone bars, suprasegmentals,
                  a few rare phones). Each is a deliberate, documented choice.
-  * EXTRAS     - X-SAMPA structural symbols not in the IPA inventory.
+  * _extras()  - X-SAMPA structural symbols not in the IPA inventory.
   * EXCLUDE    - redundant IPA spellings kept out, so the one X-SAMPA
                  encoding stays attached to the canonical spelling.
   * UNMAPPABLE - inventory symbols X-SAMPA has no encoding for at all.
@@ -42,7 +42,7 @@ from xml.sax.saxutils import quoteattr
 # Make the package importable when run from a source checkout.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit.constants import PHONEMAPS_DIR, SEQ_TIE, TIE_BAR  # noqa: E402
+from ipakit.constants import PHONEMAPS_DIR  # noqa: E402
 from ipakit.features import IPAFeatures  # noqa: E402
 
 XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -64,16 +64,33 @@ OVERRIDES: dict[str, str] = {
     "˧": "_M",  # mid tone bar
     "˨": "_L",  # low tone bar
     "˩": "_B",  # extra-low tone bar
+    # The contour diacritics, spelled as the run of level bars they name.
+    # X-SAMPA has `_R` and `_F` for a rise and a fall with no levels, which
+    # is what the caron and the circumflex say; these six say their levels,
+    # so they encode as those levels in order. Composed here rather than
+    # taken from ICU, whose `_H_T` for `᷄` and `_B_L` for `᷅` sit a step
+    # away from the levels the characters' own names give -- a different
+    # contour under the model, so a silent wrong answer in conversion.
+    "᷄": "_M_H",  # macron-acute: mid then high
+    "᷅": "_L_M",  # grave-macron: low then mid
+    "᷆": "_M_L",  # macron-grave: mid then low
+    "᷇": "_H_M",  # acute-macron: high then mid
+    "᷈": "_L_H_L",  # grave-acute-grave: low, high, low
+    "᷉": "_H_L_H",  # acute-grave-acute: high, low, high
     "ꜛ": "^",  # upstep
     "ꜜ": "!",  # downstep
     "‖": "||",  # major (intonation) group
     "͜": "_",  # under-tie: X-SAMPA has one tie encoding
 }
 
+
 # X-SAMPA structural symbols that are not phones/diacritics in the inventory.
 # Both tie glyphs encode as `_` (X-SAMPA has one tie notion); the reverse
 # reading of `_` is the over-tie, and callers canonicalize via from_wild.
-EXTRAS: set[str] = {"#", ".", TIE_BAR, SEQ_TIE}
+# The ties are asked of the inventory, which declares them.
+def _extras(ipa: IPAFeatures) -> set[str]:
+    return {"#", ".", *ipa.tie_bars}
+
 
 # Redundant IPA spellings deliberately kept out of the table. X-SAMPA has one
 # encoding where IPA has two, and this table is bijective, so only the house-
@@ -125,9 +142,9 @@ def canonical_pairs() -> dict[str, str]:
         {
             s
             for s in (set(ipa.phones) | set(ipa.diacritics))
-            if TIE_BAR not in s and SEQ_TIE not in s
+            if not ipa.tie_bars & set(s)
         }
-        | EXTRAS
+        | _extras(ipa)
     ) - EXCLUDE.keys()
 
     table: dict[str, str] = {}
