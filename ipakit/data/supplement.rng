@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The shape of a supplemental inventory: symbols merged over ipa.xml at
+     load time, and nothing else.
+
+     A supplement is written by a user rather than shipped by the package —
+     the only one in this repository is docs/examples/aspirated-stops.xml,
+     the worked example docs/supplements.md loads by path. The grammar sits
+     here anyway, beside the inventory it extends, because what a supplement
+     may look like is part of what ipakit tells its users: someone writing
+     one should be able to validate it against a grammar the copy they
+     installed already carries.
+
+     As beside ipa.xml, this grammar names no feature, no feature value and
+     no symbol. An entry's attributes ARE its feature bundle — the names
+     come from <features> in the file being extended — so they are admitted
+     by shape, anything other than `name`, `alias` and `href`. Adding a
+     phone, a diacritic, a feature or a feature value must never require an
+     edit here.
+
+     What it does refuse is a supplement carrying declarations: features,
+     types, classes, modes, bridges, projections. That is the line
+     ipakit.features holds at load, and the reason is the metric — a bundle
+     key is a term in it, so a file able to add one could reshape every
+     distance in the inventory it was only meant to extend. The refusal is
+     written as a closed list of what a supplement MAY hold, not as a list
+     of the blocks it may not. A blocklist would be a copy of the
+     inventory's own shape, kept in agreement with ipa.xml by nobody, and
+     it would go wrong in the direction that matters: a further kind of
+     declaration arriving in ipa.xml would sail straight through it. The
+     loader says the same thing the same way, refusing any section that
+     <classes> does not name rather than consulting a list of the forbidden.
+
+     Those symbol sections are therefore the one place this grammar and the
+     document overlap, as in ipa.rng: a further char class in <classes>
+     would mean a further section element here, and an element name is
+     something a grammar has to know. Holding the class list and the
+     sections in agreement is beyond RELAX NG; scripts/invariants.py does it.
+
+     Whether an entry means anything is not checkable here and is not tried.
+     <phone name="tʰ"/> states no features and takes them from its own
+     spelling, so whether it composes to something is a question about the
+     inventory being extended, not about this file. The loader answers it,
+     and refuses a spelling that composes to nothing. So is the collision
+     rule: that a symbol is not already declared is a fact about two files
+     at once. -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+
+  <start>
+    <element name="supplement">
+      <!-- The name the entries' provenance is recorded under, held beside
+           them in supplement_of and never on them, where it would land in
+           a feature bundle. Required: a name that falls back to the file's
+           own stem changes when the file is moved. -->
+      <attribute name="name"><text/></attribute>
+      <!-- One or more symbol sections, in any order. A supplement holding
+           none of them registers nothing at all. -->
+      <oneOrMore>
+        <choice>
+          <ref name="phones"/>
+          <ref name="diacritics"/>
+          <ref name="suprasegmentals"/>
+          <ref name="separators"/>
+          <ref name="zeros"/>
+        </choice>
+      </oneOrMore>
+    </element>
+  </start>
+
+  <!-- A section holds entries of its own char class and no other: a
+       <diacritic> under <phones> is read by nothing and registers nothing.
+       Empty sections are refused for the same reason a nameless entry is —
+       they are a file that meant to say something and did not. -->
+
+  <define name="phones">
+    <element name="phones">
+      <oneOrMore><element name="phone"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="diacritics">
+    <element name="diacritics">
+      <oneOrMore><element name="diacritic"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="suprasegmentals">
+    <element name="suprasegmentals">
+      <oneOrMore>
+        <element name="suprasegmental"><ref name="symbol"/></element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="separators">
+    <element name="separators">
+      <oneOrMore><element name="separator"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="zeros">
+    <element name="zeros">
+      <oneOrMore><element name="zero"><ref name="symbol"/></element></oneOrMore>
+    </element>
+  </define>
+
+  <define name="symbol">
+    <!-- The same open pattern the shipped inventory's entries take, because
+         a supplement entry is one of those entries: `name` is what the
+         symbol is written as, `alias` gives a second spelling, `href` the
+         reference, and everything else it says is a feature. An entry that
+         says nothing else is not empty — it derives its bundle from its own
+         spelling, which is the case this format exists for. -->
+    <attribute name="name"><text/></attribute>
+    <optional><attribute name="alias"><text/></attribute></optional>
+    <optional><attribute name="href"><text/></attribute></optional>
+    <zeroOrMore>
+      <attribute>
+        <anyName>
+          <except>
+            <name>name</name>
+            <name>alias</name>
+            <name>href</name>
+          </except>
+        </anyName>
+        <text/>
+      </attribute>
+    </zeroOrMore>
+  </define>
+
+</grammar>
