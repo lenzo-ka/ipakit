@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any
 
 from ..constants import DEFAULT_CMU_MAP, DEFAULT_IPA_FEATS
+from .policy import LOSSY
 
 if TYPE_CHECKING:
     from ..features import IPAFeatures
@@ -109,22 +110,20 @@ class Command(ABC):
             if canon == canonical
         ]
 
-    def order_features(self, features: dict[str, Any]) -> dict[str, Any]:
-        """Order a feature dict according to feature_order.
+    #: Keys that precede the phonetic features, in the order they print.
+    #: They are display metadata about the entry, not values of declared
+    #: features -- ``feature_order`` holds none of them, so a key not
+    #: listed here is dropped by :meth:`order_features` rather than
+    #: printed at the end. Named once, so adding one is a single edit.
+    METADATA_KEYS = ("name", "aliases", "class", "composed")
 
-        Puts 'name' first, then 'aliases', then 'class' (structural metadata),
-        then features in declaration order.
+    def order_features(self, features: dict[str, Any]) -> dict[str, Any]:
+        """Order a feature dict for display.
+
+        :data:`METADATA_KEYS` first, in that order, then the phonetic
+        features in the order the data declares them.
         """
-        ordered = {}
-        # Put 'name' first if present
-        if "name" in features:
-            ordered["name"] = features["name"]
-        # Put 'aliases' second if present
-        if "aliases" in features:
-            ordered["aliases"] = features["aliases"]
-        # Put 'class' third if present (structural metadata, not a phonetic feature)
-        if "class" in features:
-            ordered["class"] = features["class"]
+        ordered = {k: features[k] for k in self.METADATA_KEYS if k in features}
         # Then add phonetic features in declaration order
         for key in self.ipa.feature_order:
             if key in features:
@@ -214,6 +213,7 @@ class CommandGroup(ABC):
                 help=cmd_cls.help,
             )
             cmd_cls.add_arguments(cmd_parser)
+            add_lax_arg(cmd_parser)
             cmd_parser.set_defaults(cmd_cls=cmd_cls)
 
 
@@ -250,13 +250,11 @@ def add_strict_arg(parser: argparse.ArgumentParser) -> None:
     ``features`` is an interactive lookup, so it soft-reads ASCII
     stand-ins (``g``, ``:``, ``?``, ``'``) by default -- the one surface
     that does; the library parse path never does. ``--no-lookalikes``
-    turns that off. ``--strict`` is kept as a backward-compatible alias.
-    Distinct from the converter ``--strict`` (see
+    turns that off. Distinct from the converter ``--strict`` (see
     ``add_convert_strict_arg``), which is about unconvertible symbols.
     """
     parser.add_argument(
         "--no-lookalikes",
-        "--strict",
         dest="strict",
         action="store_true",
         help="Read ASCII stand-ins literally instead of as IPA (g : ? ')",
@@ -276,4 +274,29 @@ def add_no_defaults_arg(parser: argparse.ArgumentParser) -> None:
     """Add --no-defaults argument to parser."""
     parser.add_argument(
         "--no-defaults", action="store_true", help="Don't include default values"
+    )
+
+
+def add_lax_arg(parser: argparse.ArgumentParser, *, top_level: bool = False) -> None:
+    """Add the opt-out from the lossy-input exit status (see :mod:`.policy`).
+
+    Deliberately **not** spelled ``--strict``. Two subcommands already
+    write that word with two different meanings -- the converters (fail
+    on symbols they cannot convert) and ``analysis validate`` (warnings
+    are errors) -- and a third sense at the top level is the failure this
+    repo has fixed twice already: one name, several declarations,
+    agreeing only by habit. ``--lax`` names the one policy it turns off.
+
+    Accepted both before the subcommand and on the subcommand itself,
+    because a reader of the hint on stderr will type it wherever it
+    falls naturally. The leaf copy defaults to ``SUPPRESS`` so it only
+    *adds* to the namespace when written: an ordinary ``store_true``
+    default on a subparser overwrites whatever the top-level parser put
+    there, which would make ``ipakit --lax rules apply`` quietly inert.
+    """
+    parser.add_argument(
+        "--lax",
+        action="store_true",
+        default=False if top_level else argparse.SUPPRESS,
+        help=(f"Exit 0 instead of {LOSSY} when part of the input could not be read"),
     )

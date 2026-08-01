@@ -253,16 +253,29 @@ class ConfusabilityCommand(Command):
 
 
 class WordCommand(Command):
-    """Inventory-relative distance and similarity between two IPA words.
+    """Distance and similarity between two IPA words.
 
-    Aligns the words with the DistanceModel's inventory-relative substitution
-    costs (weighted Levenshtein). Similarity runs 0.0 to 1.0. Scope the
-    inventory with --phoneset; pass --threshold to also report a similar
-    decision (with the model's length-ratio short-circuits applied).
+    Two measures, matching the two this group already offers for phones.
+    By default this is the inventory-relative one -- the counterpart of
+    'confusability' -- aligning the words with the DistanceModel's
+    percentile substitution costs (weighted Levenshtein). --raw is the
+    counterpart of 'pair': the plain feature-distance alignment, which is
+    what ipakit.word_distance() and ipakit.word_similarity() return.
+
+    The two disagree, and are meant to: for kæt ~ kæd the model says
+    0.9927 and the raw measure says 0.9833. Without --raw there was no
+    command line spelling of the second number at all, so a reader
+    comparing the API against the CLI saw a discrepancy where there was
+    a choice of measure.
+
+    Similarity runs 0.0 to 1.0. Scope the inventory with --phoneset; pass
+    --threshold to also report a similar decision (with the model's
+    length-ratio short-circuits applied).
 
     Examples:
         ipakit distance word kæt kæd           # one segment differs
         ipakit distance word kæt dɒɡ           # unrelated words
+        ipakit distance word kæt kæd --raw     # the raw feature-cost measure
         ipakit d word kæt kæd --threshold 0.9  # also prints: similar=True
         ipakit d word kæt kæd --phoneset eng.txt  # similarity within eng.txt
         ipakit d word kæt kæd -j               # JSON (similarity + raw edit cost)
@@ -292,10 +305,52 @@ class WordCommand(Command):
             default="simple",
             help="Substitution-cost mode (default: simple)",
         )
+        parser.add_argument(
+            "--raw",
+            action="store_true",
+            help="Use the raw feature distance (ipakit.word_distance) instead "
+            "of the inventory-relative model",
+        )
         add_model_args(parser)
         add_format_arg(parser)
 
+    def _run_raw(self) -> int:
+        """The raw feature-cost measure -- ipakit.word_distance's answer.
+
+        ``strict=False`` because the CLI reports a lossy read through the
+        exit status rather than by failing (:mod:`ipakit.cli.policy`):
+        the warning the read raises becomes status 3, which is how every
+        other soft-reading subcommand answers. Passing ``strict=True``
+        here would make this one command exit 1 on input that the rest
+        of the command line exits 3 on.
+        """
+        w1, w2 = self.args.word1, self.args.word2
+        result = self.ipa.word_distance(w1, w2, strict=False)
+        data: dict[str, object] = {
+            "word1": w1,
+            "word2": w2,
+            "edit_cost": round(result.edit_cost, 4),
+            "similarity": round(result.similarity, 4),
+            "reference": "raw",
+        }
+        threshold = self.args.threshold
+        if threshold is not None:
+            data["threshold"] = threshold
+            data["similar"] = result.similarity >= threshold
+
+        if self.format == "json":
+            self.output_json(data)
+        else:
+            print(
+                f"{w1} ~ {w2}: similarity={result.similarity:.4f}  [raw feature distance]"
+            )
+            if threshold is not None:
+                print(f"similar={data['similar']} (threshold={threshold})")
+        return 0
+
     def run(self) -> int:
+        if self.args.raw:
+            return self._run_raw()
         threshold = self.args.threshold
         model = build_model(
             self.ipa,
@@ -311,7 +366,7 @@ class WordCommand(Command):
         data: dict[str, object] = {
             "word1": w1,
             "word2": w2,
-            "distance": round(result.distance, 4),
+            "edit_cost": round(result.edit_cost, 4),
             "similarity": round(result.similarity, 4),
             "reference": name,
             "reference_size": size,

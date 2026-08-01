@@ -273,7 +273,7 @@ class DiacriticsCommand(Command):
 class ReportCommand(Command):
     """Generate a full analysis report.
 
-    Combines multiple analyses into a single report:
+    Combines multiple analyzes into a single report:
     - Summary statistics
     - Feature definitions
     - Manner distribution

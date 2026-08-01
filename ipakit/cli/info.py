@@ -47,7 +47,12 @@ class StressCommand(Command):
             print("IPA STRESS MARKERS")
             print("-" * 40)
             for marker, level in self.ipa.stress_markers.items():
-                name = "primary" if level == 1 else "secondary"
+                # The name is the declared value the marker states, not a
+                # test against the level. `{"ˈ": 1, "ˌ": 2}` was a table
+                # this package shipped and removed; deciding the name from
+                # the level is that table again, written as a comparison,
+                # and a third declared level would print "secondary".
+                name = self.ipa.diacritics[marker].features["stress"]
                 codepoint = f"U+{ord(marker):04X}"
                 print(f"  {marker}  {name:12}  level {level}  ({codepoint})")
             print()
