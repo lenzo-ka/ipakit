@@ -242,13 +242,21 @@ def variant_data(found: VariantSet) -> dict[str, Any]:
 
 
 def truncation_note(found: VariantSet) -> str:
-    """How a count line says the cap was reached, or says nothing."""
+    """How a count line says the cap was reached, or says nothing.
+
+    "At least", because the count is exact for the step it names and
+    says nothing about what the rules after it would have made of the
+    branches that step dropped. A bare number here would read as the
+    size of what is missing, which is the one thing it is not; see
+    :class:`~ipakit.rules.Truncation`.
+    """
     if found.complete:
         return ""
     first = found.truncations[0]
     return (
         f" -- INCOMPLETE: cut at rule {first.step + 1} ({first.rule}), "
-        f"{found.unexplored} choice combination(s) unexplored; raise --limit"
+        f"at least {found.unexplored} choice combination(s) unexplored; "
+        f"raise --limit"
     )
 
 

@@ -250,7 +250,7 @@ ipa.variants("kaa", "a ~> [zero]", keep_zeros=True).forms   # ('kaa', 'k∅a', '
 ipa.variants("kaa", "a ~> [zero]").forms                    # ('kaa', 'ka', 'k')
 ```
 
-Four derivations, three pronunciations. `complete` and the cap keep their meanings exactly: the surface rewrite is obligatory, so it offers one child per branch and can merge but never truncate, and `unexplored` goes on counting the choice combinations the *cascade* did not enumerate. What changes is that `len(variants)` counts pronunciations where it counted derivations, and for a rule set that writes no zero those are the same number.
+Four derivations, three pronunciations. `complete` and the cap keep their meanings exactly: the surface rewrite is obligatory, so it offers one child per branch and can merge but never truncate, and `unexplored` goes on counting the choices the *cascade* declined. What changes is that `len(variants)` counts pronunciations where it counted derivations, and for a rule set that writes no zero those are the same number.
 
 Like the cap, it is applied **per call**, and for the same reason: splitting a cascade into two calls applies it twice, so a zero the first half writes is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and what it says is that the intermediate was a derivation rather than a pronunciation.
 
@@ -298,13 +298,37 @@ long_word.truncations[0].rule
 # '[vowel] ~> [length=long]'
 ```
 
-`unexplored` counts **combinations of optional choices** the step did not enumerate — an exact count of what was not looked at, and an upper bound on the distinct forms missing, since distinct choices can spell the same form. It is exact without doing the work the cap exists to avoid, because the arithmetic is known in advance: a branch with n edits offers 2^n.
+`unexplored` counts **combinations of optional choices the cut step declined to build**. That is exact for the step and cheap, because the arithmetic is known in advance — a branch with n edits offers 2^n — which is what lets the number be reported without doing the work the cap exists to avoid.
+
+It is a floor and not a ceiling, and it says nothing about how many *forms* are missing. Both directions fail, and one cascade shows both. Two rules that each insert a consonant after every consonant decline thirty combinations at a cut of four, where the complete answer holds only twelve forms the cut one does not:
+
+```python
+insert = "∅ ~> t / [-vowel] _ ; one\n∅ ~> t / [-vowel] _ ; two"
+cut = ipa.variants("pk", insert, limit=4)
+cut.unexplored                                      # 30
+len(set(ipa.variants("pk", insert).forms) - set(cut.forms))
+# 12
+```
+
+Distinct choices spell the same form, so a step can decline more combinations than there are forms to lose. Now cut the same shape earlier in a longer cascade and it runs the other way:
+
+```python
+pair = "a ~> b\nc ~> d"
+early = ipa.variants("aac", pair, limit=1)
+early.unexplored                                    # 4
+len(set(ipa.variants("aac", pair).forms) - set(early.forms))
+# 7
+```
+
+Every branch the first rule declined would have offered children of its own to every later rule, and none of those are counted. Counting them is not an arithmetic that can be done in advance: it needs the forms those branches would have taken, which is the enumeration the cap declined. On the four-rule version of the insertion cascade above, computing the exact number of forms missing costs some four hundred times the capped call it would be annotating, and one rule further the exact answer is out of reach altogether — the set is [doubly exponential in the number of rules](#finiteness), which is the whole reason there is a cap.
+
+So the number to report is the one that is true: **at least this many choices went unexplored**. It is the number a caller acts on — the limit is too low, raise it — and `complete` is what answers whether anything is missing at all.
 
 On the command line the count line carries it, so it cannot be missed by someone who did not know to look:
 
 ```console
 $ ipakit rules variants -r '[vowel] ~> [length=long]' aaaa --limit 4
-aaaa: 4 variants -- INCOMPLETE: cut at rule 1 ([vowel] ~> [length=long]), 12 choice combination(s) unexplored; raise --limit
+aaaa: 4 variants -- INCOMPLETE: cut at rule 1 ([vowel] ~> [length=long]), at least 12 choice combination(s) unexplored; raise --limit
   aaaa
   aːaaa
   aaːaa

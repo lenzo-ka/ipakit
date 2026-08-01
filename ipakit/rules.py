@@ -2175,13 +2175,23 @@ DEFAULT_LIMIT = 256
 class Truncation:
     """One rule's expansion, cut because the limit was reached.
 
-    ``unexplored`` counts **combinations of optional choices** the step
-    did not enumerate, not distinct forms: distinct choices can spell the
-    same form, so it is an upper bound on what is missing and an exact
-    count of what was not looked at. It is exact rather than estimated
-    because the arithmetic is known before the enumeration -- a branch
-    with *n* edits offers ``2 ** n`` -- which is what makes it reportable
-    without doing the work the limit exists to avoid.
+    ``unexplored`` counts **combinations of optional choices this step
+    declined to build**, and that is the whole of the claim. It is exact
+    for the step, and known before the enumeration rather than estimated
+    -- a branch with *n* edits offers ``2 ** n`` -- which is what makes
+    it reportable without doing the work the limit exists to avoid.
+
+    It is a **floor** under what the whole cascade did not look at, not a
+    ceiling, and it bounds nothing about the number of forms missing from
+    the answer. Every child declined here would have offered children of
+    its own to every later rule, and none of those are counted; so a cut
+    early in a cascade under-reports the forms lost by as much as the
+    remaining rules multiply. In the other direction distinct choices can
+    spell one form, so a step can decline more combinations than there
+    are forms to miss. Read it as "at least this many choices went
+    unexplored" -- which is what a caller needs to know to raise the
+    limit -- and read :attr:`VariantSet.complete` for whether anything is
+    missing at all.
     """
 
     #: Index of the rule in the cascade.
@@ -2261,7 +2271,12 @@ class VariantSet:
 
     @property
     def unexplored(self) -> int:
-        """Choice combinations the limit kept this answer from reaching."""
+        """Choice combinations the cuts declined -- at least this many.
+
+        The sum over :attr:`truncations`, each of which is exact for its
+        own step and silent about what the steps after it would have made
+        of the branches it dropped. See :class:`Truncation`.
+        """
         return sum(cut.unexplored for cut in self.truncations)
 
     def __len__(self) -> int:

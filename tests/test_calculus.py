@@ -581,6 +581,102 @@ class TestTheCapIsReportedAndNotLogged:
         assert got.complete is False
 
 
+class TestUnexploredCountsChoicesAndNotForms:
+    """What the number is, pinned in both directions it is not.
+
+    ``unexplored`` is the children the cut step declined to build. It is
+    exact for that step and it is a floor under the cascade, and the
+    reading it invites -- "this many forms are missing" -- is wrong
+    either way round. A single-rule cascade cannot show that, because
+    with one rule the step IS the cascade and the two numbers agree;
+    that agreement is what let the upper-bound claim stand.
+    """
+
+    #: Two rules that each insert a consonant after every consonant, so
+    #: the second finds twice the sites of the first. The same shape as
+    #: the finiteness sweep, which is where the growth is measured.
+    INSERT = "∅ ~> t / [-vowel] _ ; one\n∅ ~> t / [-vowel] _ ; two"
+
+    def _missing(self, cascade: R.RuleSet, form: str, limit: int) -> int:
+        cut = cascade.variants(form, FEATURES, limit=limit)
+        whole = cascade.variants(form, FEATURES, limit=UNBOUNDED)
+        assert whole.complete, "the oracle has to be the complete answer"
+        return len(set(whole.forms) - set(cut.forms))
+
+    def test_one_rule_is_the_case_where_the_two_numbers_agree(self) -> None:
+        cascade = _set("[vowel] ~> [length=long]")
+        got = cascade.variants("aaaa", FEATURES, limit=4)
+        assert got.unexplored == 12
+        assert self._missing(cascade, "aaaa", 4) == 12
+
+    @pytest.mark.parametrize(
+        "rules,form,limit,unexplored,missing",
+        [
+            ("a ~> b\nc ~> d", "aac", 1, 4, 7),
+            ("a ~> b\nc ~> d", "aac", 2, 4, 6),
+            ("a ~> b\nb ~> c\nc ~> d", "abc", 2, 8, 22),
+            ("[vowel] ~> [length=long]\nt ~> ʔ", "atat", 3, 10, 13),
+        ],
+    )
+    def test_a_cut_early_in_a_cascade_under_reports(
+        self, rules: str, form: str, limit: int, unexplored: int, missing: int
+    ) -> None:
+        """Every branch the cut declined would have had children under
+        every later rule, and none of those are counted. So the number
+        is not an upper bound on the forms missing, and each of these
+        cases is one where reading it as one would mislead by name."""
+        cascade = _set(rules)
+        got = cascade.variants(form, FEATURES, limit=limit)
+        assert got.unexplored == unexplored
+        assert self._missing(cascade, form, limit) == missing
+        assert got.unexplored < missing
+
+    def test_a_cut_over_convergent_choices_over_reports(self) -> None:
+        """And it is not a lower bound on the forms missing either.
+        Distinct choices spell one form, so a step can decline more
+        combinations than there are forms left to lose."""
+        cascade = _set(self.INSERT)
+        got = cascade.variants("pk", FEATURES, limit=4)
+        assert got.unexplored == 30
+        assert self._missing(cascade, "pk", 4) == 12
+        assert got.unexplored > 12
+
+    def test_the_two_directions_are_the_same_cascade_at_two_depths(self) -> None:
+        """Not two contrived rule sets: one cascade, cut at four, over
+        and under reporting as it grows a rule."""
+        rule = "∅ ~> t / [-vowel] _ ; epenthesis {}"
+        seen = []
+        for length in (2, 3, 4):
+            cascade = _set("\n".join(rule.format(i) for i in range(1, length + 1)))
+            got = cascade.variants("pk", FEATURES, limit=4)
+            seen.append((got.unexplored, self._missing(cascade, "pk", 4)))
+        assert seen == [(30, 12), (60, 60), (90, 252)]
+
+    def test_swept_it_fails_in_both_directions(self) -> None:
+        """A predicate over the pool rather than four chosen cases: for
+        a truncated answer the count is positive, and it is sometimes
+        above and sometimes below the number of forms lost. If either
+        tally ever comes back zero this file is asserting a bound the
+        library does not have."""
+        corpus = _forms("ate", (2, 3))
+        assert len(corpus) > 20, "sweep did not run"
+        checked = over = under = 0
+        for pair in itertools.combinations(range(len(POOL)), 2):
+            cascade = _cat(*(_set(POOL[i]) for i in pair))
+            for form in corpus:
+                for limit in (1, 2, 3, 4):
+                    got = cascade.variants(form, FEATURES, limit=limit)
+                    if got.complete:
+                        continue
+                    checked += 1
+                    assert got.unexplored > 0, "a cut that counts nothing"
+                    missing = self._missing(cascade, form, limit)
+                    over += got.unexplored > missing
+                    under += got.unexplored < missing
+        assert checked > 500, f"sweep did not run: {checked}"
+        assert over > 0 and under > 0, (over, under)
+
+
 class TestTheCheapestDerivationIsTheOneReported:
     """``choices`` is a fact about the form, not about rule order.
 
@@ -1069,7 +1165,10 @@ class TestTheCommandLineIsInSyncWithTheLibrary:
         assert rc == 0
         assert "INCOMPLETE" in out.split("\n")[0]
         assert "lengthening" in out.split("\n")[0]
-        assert "12 choice combination(s) unexplored" in out
+        # "at least", because the count is exact for the step it names
+        # and silent about the rules after it. A bare number here reads
+        # as the size of what is missing, which it is not.
+        assert "at least 12 choice combination(s) unexplored" in out
 
     def test_apply_prints_the_first_variant(self, monkeypatch, capsys) -> None:
         rc, out, _ = _cli(
