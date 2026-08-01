@@ -51,7 +51,9 @@ jobs:
       # to run. The ICU-backed X-SAMPA cross-check self-skips (importorskip);
       # the confusion-matrix guard is stdlib and runs.
       - run: pip install -e ".[test]"
-      - run: pytest
+      # Across the runner's cores, as the Makefile does. A matrix job is three
+      # runs of the same suite, so the saving is paid three times per push.
+      - run: pytest -n auto
 
   guards:
     name: derived-artifact guards (ICU)
