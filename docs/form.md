@@ -40,6 +40,8 @@ That is the same fact the rule engine relies on when the pattern `a` matches a s
 
 Carry the widest projection you can and collapse at the point of use.
 
+There is a fourth reading that is deliberately **not** here. A rule may write a zero — `∅`, a position kept open with nothing in it — and a pronunciation carries none, so something has to remove it; that something is a rewrite, `[zero] -> ∅`, and not a projection ([rules.md](rules.md#the-surface-carries-no-zero)). The difference is not stylistic. Each of the three above is a reading of a form that holds at any moment, where removing a zero holds *at the end of a derivation* — a claim about where in a fold it stands, which only a rule can make in a language whose sequencing is rule order. So `Form` reads the zero and keeps it, the way it keeps the boundary `segments` drops, and the rule engine is where it goes away.
+
 ## `Boundary` and `Attribute` are the two non-sounds, and they attach differently
 
 A **`Boundary`** is a relation *between* segments, linearized into the string as a character. An **`Attribute`** is a value riding *on* one segment. That is the whole difference, and it is why there are two classes rather than one bag of leftovers.

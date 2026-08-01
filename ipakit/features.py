@@ -7,7 +7,7 @@ import re
 import unicodedata
 import warnings
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
 
@@ -19,6 +19,7 @@ from .constants import (
     DERIVED_CLASSES,
     MAX_MATCH_LEN,
     METADATA_ATTRS,
+    SUPPLEMENT_ROOT,
     ZERO_CLASS,
 )
 from .distance import DistanceMixin
@@ -50,8 +51,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     from other conventions imports via :meth:`from_wild`.
     """
 
-    def __init__(self, xml_path: Path = DEFAULT_IPA_FEATS):
+    def __init__(
+        self,
+        xml_path: Path = DEFAULT_IPA_FEATS,
+        supplements: Sequence[Path | str] = (),
+    ):
         self.xml_path = Path(xml_path)
+        #: Supplement name -> the file it was read from, in load order.
+        #: Empty for the shipped inventory, which is what every module-level
+        #: call and every derived artifact in this repository is built on.
+        self.supplements: dict[str, Path] = {}
+        #: Symbol -> the supplement that declared it. Provenance is held
+        #: here rather than as an attribute on the declaring element, for
+        #: the reason ``<notations>`` records beside itself: every
+        #: attribute on a declaring element lands in that symbol's feature
+        #: bundle, and a key in a bundle is a term in the metric. Putting
+        #: it there was measured, once, at 37 moved distances.
+        self.supplement_of: dict[str, str] = {}
         self.classes: list[str] = []
         self.modes: list[str] = []  # declaration order is mode precedence
         self.default_mode: str = "additive"
@@ -106,7 +122,30 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # Registered symbols whose NFC form differs from NFD (e.g. ä, ç, ť),
         # mapped from their NFD decomposition back to the registered form.
         # Built after loading so canonicalize_unicode can recompose them.
-        self._nfd_to_registered: dict[str, str] = {
+        self._nfd_to_registered: dict[str, str] = {}
+        self._index_nfd()
+        # Tied entries carry only spelling/aliases/href in the data; their
+        # features are derived here from the constituents under the entry's
+        # sense, so registered and composed can never drift (docs/ties.md).
+        self.derived_phones: frozenset[str] = self._derive_compound_features()
+        # Supplements load last, over a complete inventory: an entry that
+        # declares no features takes them from what its spelling already
+        # composes to, and a tied entry only composes once the block above
+        # has filled the tied phones it is built from.
+        for path in supplements:
+            self._load_supplement(Path(path))
+        if self.supplements:
+            self._index_nfd()
+            self._invalidate_derived_reads()
+
+    def _index_nfd(self) -> None:
+        """Map each registered symbol's NFD form back to the registered one.
+
+        Rebuilt after supplements rather than computed once, because a
+        supplement may register a symbol that decomposes (``ǯ``, ``ṭ``)
+        and :meth:`canonicalize_unicode` recomposes from this table.
+        """
+        self._nfd_to_registered = {
             decomposed: sym
             for sym in (
                 list(self.phones)
@@ -118,10 +157,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             )
             if (decomposed := unicodedata.normalize("NFD", sym)) != sym
         }
-        # Tied entries carry only spelling/aliases/href in the data; their
-        # features are derived here from the constituents under the entry's
-        # sense, so registered and composed can never drift (docs/ties.md).
-        self.derived_phones: frozenset[str] = self._derive_compound_features()
+
+    def _invalidate_derived_reads(self) -> None:
+        """Drop every cached read of the tables a supplement can extend.
+
+        The derived reads on this class (:attr:`tie_marks`,
+        :attr:`stress_markers`, :attr:`features_by_mode` and the rest) are
+        ``cached_property``, and loading the base inventory populates
+        several of them on the way through. A supplement that registers a
+        diacritic would otherwise be invisible to whichever ones had
+        already been asked -- one table extended, another answering from
+        before it was.
+
+        The set of them is asked of the class rather than listed here, so
+        a cached read added later cannot quietly stay stale.
+        """
+        for klass in type(self).__mro__:
+            for name, attr in vars(klass).items():
+                if isinstance(attr, functools.cached_property):
+                    self.__dict__.pop(name, None)
 
     def _load(self) -> None:
         """Load features and phones from XML."""
@@ -522,6 +576,139 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if aliases := elem.get("alias"):
             for alias in aliases.split():
                 self.ligature_map[alias] = symbol
+
+    @property
+    def declared_symbols(self) -> dict[str, dict[str, str]]:
+        """Every symbol this inventory declares, with what it declared.
+
+        One read over the tables :meth:`_load_element` routes into, so
+        "is this symbol taken" has a single answer. The supplement loader
+        asks it to refuse a collision and ``scripts/invariants.py`` asks
+        it to sweep the inventory; those two used to be one hand-written
+        tuple of tables each, which is the shape that drifts.
+        """
+        return {
+            symbol: dict(declared.features or {})
+            for table in (self.phones, self.diacritics, self.separators, self.zeros)
+            for symbol, declared in table.items()
+        }
+
+    def _load_supplement(self, path: Path) -> None:
+        """Merge one supplemental inventory file into this instance.
+
+        A supplement **extends the inventory and nothing else**. It may
+        declare entries in the element sections ``<classes>`` already
+        names -- phones, diacritics, suprasegmentals, separators, zeros --
+        and may declare no features, types, classes, modes, bridges or
+        projections. That is the line that keeps the feature space fixed:
+        a bundle key is a term in the metric, so a file that could add a
+        dimension could silently reshape every distance in the inventory
+        it was merely meant to extend. Anything else in the file is a
+        load-time refusal rather than a block that quietly loads into
+        nowhere, which is what ``<zeros>`` did for a release.
+
+        Merge is **additive and order-independent**. A symbol the base
+        file, or an earlier supplement, already declares is refused: a
+        supplement that could redefine ``t`` would move the shipped
+        metric out from under every caller sharing the process, and
+        "which file wins" is exactly the question this repository has
+        answered wrong before by declaration order.
+
+        A ``<phone>`` that declares **no features takes them from its own
+        spelling** -- ``<phone name="t͡ʃʰ"/>`` is registered with the
+        bundle ``t͡ʃʰ`` already composes to -- so a registered composed
+        segment and the same string read as a composition cannot give two
+        answers. It is the rule tied entries already load under, applied
+        to the general case. A phone that *does* declare features is a
+        sound the base inventory cannot spell, and is taken as written.
+
+        The supplement's own name is recorded in :attr:`supplement_of`,
+        never on the entries, because an attribute on a declaring element
+        lands in that symbol's feature bundle.
+        """
+        root = ET.parse(path).getroot()
+        if root.tag != SUPPLEMENT_ROOT:
+            raise ValueError(
+                f"{path} has root <{root.tag}>, not <{SUPPLEMENT_ROOT}>; a "
+                "supplement extends an inventory and is not one itself. Pass "
+                "a whole inventory as xml_path instead."
+            )
+        name = root.get("name") or path.stem
+        if name in self.supplements:
+            raise ValueError(
+                f"supplement {name!r} is already loaded from "
+                f"{self.supplements[name]}; two supplements under one name "
+                "make their entries' provenance depend on load order"
+            )
+        for section in root:
+            if not isinstance(section.tag, str):  # an XML comment
+                continue
+            if section.tag not in self.classes:
+                raise ValueError(
+                    f"supplement {name!r} declares a <{section.tag}> block. A "
+                    "supplement may declare entries in the element sections "
+                    f"{self.xml_path.name} declares -- {', '.join(self.classes)} "
+                    "-- and nothing else: a feature, type or bridge declared "
+                    "here would add a term to the metric of an inventory it is "
+                    "only extending."
+                )
+            child_name = section.tag[:-1]
+            for elem in section:
+                if not isinstance(elem.tag, str):  # an XML comment
+                    continue
+                if elem.tag != child_name:
+                    raise ValueError(
+                        f"supplement {name!r} puts a <{elem.tag}> inside "
+                        f"<{section.tag}>, which holds <{child_name}> "
+                        "elements. It would be read by nothing and register "
+                        "nothing, in silence."
+                    )
+                self._load_supplement_element(elem, child_name, name)
+        self.supplements[name] = Path(path)
+
+    def _load_supplement_element(
+        self, elem: ET.Element, element_type: str, supplement: str
+    ) -> None:
+        """Register one supplement entry, deriving its bundle if it declares none."""
+        if not (symbol := elem.get("name")):
+            raise ValueError(
+                f"supplement {supplement!r} declares a <{element_type}> with "
+                "no name attribute, so it registers nothing"
+            )
+        if (taken := self.declared_symbols.get(symbol)) is not None:
+            where = self.supplement_of.get(symbol, self.xml_path.name)
+            raise ValueError(
+                f"supplement {supplement!r} redeclares {symbol!r}, which "
+                f"{where} already declares as {taken.get('class', '?')!r}. A "
+                "supplement adds to an inventory; it does not redefine it."
+            )
+        # Read the composed bundle *before* registering: once the symbol is
+        # in the table, get_features answers from the table and the
+        # composition it is meant to agree with is unreachable.
+        derived: dict[str, str] | None = None
+        if element_type == "phone" and not (
+            set(elem.attrib) - {"name", "alias"} - METADATA_ATTRS
+        ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                composed = self.get_features(symbol, with_defaults=False)
+            if not composed or not set(composed) - METADATA_ATTRS:
+                raise ValueError(
+                    f"supplement {supplement!r} declares {symbol!r} with no "
+                    "features, and its spelling composes to nothing this "
+                    "inventory can read. Give it features, or spell it out of "
+                    "symbols the inventory declares."
+                )
+            derived = composed
+        self._load_element(elem, element_type)
+        if derived is not None:
+            stated = dict(self.phones[symbol].features)
+            self.phones[symbol] = Phone(
+                symbol=symbol, features=MappingProxyType({**derived, **stated})
+            )
+        self.supplement_of[symbol] = supplement
+        for alias in (elem.get("alias") or "").split():
+            self.supplement_of.setdefault(alias, supplement)
 
     # -------------------------------------------------------------------------
     # Feature access
@@ -1021,13 +1208,21 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         Several phones can satisfy one bundle; the winner is decided, in
         order, by:
 
-        1. **fewest extra features** -- the explicit (non-default)
+        1. **the base inventory before a supplement** -- an entry from a
+           supplemental file answers only where the file this instance
+           was built on could not. Without that key a supplement could
+           outrank an existing winner, which is measurable and silent:
+           registering an atomic ``č`` for ``t͡ʃ`` beats it on constituent
+           count, so 25 bundles that answered ``t͡ʃ`` would answer ``č``
+           merely because a second file was loaded. With it, adding a
+           supplement can only turn a ``None`` into an answer;
+        2. **fewest extra features** -- the explicit (non-default)
            features a candidate declares beyond the ones asked for, so
            the most general phone answering the request wins;
-        2. **fewest constituents** -- a tied compound's flat bundle is
+        3. **fewest constituents** -- a tied compound's flat bundle is
            only the projection of one constituent (docs/ties.md), so it
            never outranks an atom matching equally well: "a", not "a͜ɪ";
-        3. **declaration order** in the data.
+        4. **declaration order** in the data.
 
         Returns ``None`` when nothing registered matches -- an impossible
         or merely unattested combination.
@@ -1049,19 +1244,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 "cannot realize an empty feature bundle: it names every "
                 "phone, not one. Pass at least one feature."
             )
-        best: tuple[int, int, int] | None = None
+        best: tuple[int, int, int, int] | None = None
         winner: str | None = None
         for order, symbol in enumerate(self.phones):
             feats = self.get_features(symbol)
             if any(feats.get(k) != v for k, v in query.items()):
                 continue
+            supplemented = 1 if symbol in self.supplement_of else 0
             extras = sum(
                 1
                 for k in self.phones[symbol].features
                 if k not in METADATA_ATTRS and k not in query
             )
             junctures = symbol.count(self.tie_bar) + symbol.count(self.seq_tie)
-            rank = (extras, junctures, order)
+            rank = (supplemented, extras, junctures, order)
             if best is None or rank < best:
                 best, winner = rank, symbol
         return winner

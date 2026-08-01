@@ -35,3 +35,8 @@ recursive-include scripts *.py
 # that should hold for a reader who unpacked the sdist too.
 recursive-include docs *.md
 recursive-include docs *.svg
+
+# docs/examples/ holds the worked supplement docs/supplements.md and the
+# tutorial both load by path. `make check` runs those examples, so a sdist
+# without it has two documents referring to a file that is not there.
+recursive-include docs/examples *.xml

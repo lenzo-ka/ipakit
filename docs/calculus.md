@@ -185,6 +185,13 @@ empty.variants("pətitə").forms    # ('pətitə',)
 
 Identity *up to the read*: the answer is the form as the inventory read it, which is `Derivation.start`'s existing caveat and not a new one.
 
+And up to the surface, which is the same shape of caveat. A form handed in may carry a zero; an answer never does ([below](#the-surface-projection-is-an-element-not-an-escape-hatch)), so the carrier above is sets of *surface* forms, and on that carrier the empty rule set is the identity exactly.
+
+```python
+ipa.ruleset("").variants("le∅ʃ").forms    # ('leʃ',)
+ipa.ruleset("").variants("leʃ").forms     # ('leʃ',)
+```
+
 **Composition is concatenation of rule sets**, and it is associative — because concatenation of lists is, and because the lifted map of a concatenation is the composition of the lifted maps. Measured rather than asserted: over 7 rules taken three at a time (343 triples) against 40 forms, 13720 of 13720 agree, comparing `(A ++ B) ++ C`, `A ++ (B ++ C)` and a single fold of all three.
 
 **Applying a rule set to the output set of another is the same as applying the concatenation.** This is the claim a user actually leans on, and it is stronger than it needs to be — the two agree *in order*, not merely as sets:
@@ -202,6 +209,29 @@ tuple(dict.fromkeys(w.form for v in a.variants("at")
 Swept: 55 pairs of rule sets against 340 generated forms, 18700 comparisons, 18700 agreeing on the set **and on the order**. The order agreeing too is not required by the algebra and is worth having: it means a caller who splits a cascade for any reason gets back the same answer in the same sequence, so a diff between the two ways of writing it is empty rather than merely equivalent.
 
 There is one gap in that proof worth naming, because it is the kind that hides. The internal fold carries `Unit` sequences between rules while the external composition carries *strings*, which are read back. The two agree only if spelling is faithful over the forms these rules produce. That is what the sweep measures; it is not something the argument can establish on its own.
+
+### The surface projection is an element, not an escape hatch
+
+A rule may write a **zero** — `z -> [zero]`, a position the transcription keeps open with nothing in it ([rules.md](rules.md#the-surface-carries-no-zero)) — and a derivation carries it, because holding the position is what makes the deletion site visible in the trace. A pronunciation does not. So the last thing that happens is the rewrite that removes them, and *that it is a rewrite* is what this page is about:
+
+```python
+ipa.rules.surface().rules[0].source     # '[zero] -> ∅ ; surface'
+ipa.variants("dəvəniʁ", "ə ~> [zero] / [-vowel] _ [-vowel]").forms
+# ('dəvəniʁ', 'dvəniʁ', 'dəvniʁ', 'dvniʁ')
+```
+
+A projection standing *beside* the notation would have left the closure claims above true of the algebra and not of the thing a caller reads. Written as a rule it is another element of the same algebra: it composes, it can be declined, and `ipa.ruleset("[zero] -> ∅")` is it.
+
+**The set is deduplicated after the projection.** Members are keyed on their spelling and the surface rewrite is the last thing to change one, so two branches that differed only in where a zero stood come back as one pronunciation. Dedup first and project afterwards would let `forms` list the same string twice, and a set of pronunciations that repeats itself is not a set. Measured on the French schwa set, the choice is not observable — the two schwas of *devenir* stand in different company, so all four surfaces differ and either reading gives four. It parts on a word whose sites are interchangeable:
+
+```python
+ipa.variants("kaa", "a ~> [zero]", keep_zeros=True).forms   # ('kaa', 'k∅a', 'ka∅', 'k∅∅')
+ipa.variants("kaa", "a ~> [zero]").forms                    # ('kaa', 'ka', 'k')
+```
+
+Four derivations, three pronunciations. `complete` and the cap keep their meanings exactly: the surface rewrite is obligatory, so it offers one child per branch and can merge but never truncate, and `unexplored` goes on counting the choice combinations the *cascade* did not enumerate. What changes is that `len(variants)` counts pronunciations where it counted derivations, and for a rule set that writes no zero those are the same number.
+
+Like the cap, it is applied **per call**, and for the same reason: splitting a cascade into two calls applies it twice, so a zero the first half writes is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and what it says is that the intermediate was a derivation rather than a pronunciation.
 
 ### The cap is where associativity stops
 

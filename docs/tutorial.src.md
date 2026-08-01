@@ -621,12 +621,89 @@ let each segment draw.
 cannot be checked against externally is in
 [articulatory-data.md](articulatory-data.md).
 
+## 11. Extending the inventory
+
+The shipped inventory registers the phones on the IPA chart, and reads everything else by
+composing it. A composed unit works as **input** everywhere a registered one does, with no
+setup at all:
+
+```python-run
+ipa.describe("tʰ")
+round(ipa.distance("tʰ", "t"), 4)
+[p for p, _ in ipa.nearest_phones("tʰ", n=3)]
+```
+
+So most of what "register this sound" sounds like it buys, you already have. What it buys
+is **membership**: a seat in the pools the library draws *answers* from, and a place in the
+distribution it normalizes against. Today `tʰ` is in neither, which is why the write side
+has nothing to say about it:
+
+```python-run
+ipa.respell("t", release="aspirated")   # no registered phone spells this
+```
+
+A **supplement** is a second XML file merged over `ipa.xml` at load time. It adds symbols
+and declares nothing else:
+
+```xml
+<?xml version='1.0' encoding='utf-8'?>
+<supplement name="aspirated-stops">
+  <phones>
+    <phone name="pʰ"/>
+    <phone name="tʰ"/>
+    <phone name="kʰ"/>
+  </phones>
+</supplement>
+```
+
+That file is checked in at [examples/aspirated-stops.xml](examples/aspirated-stops.xml),
+which is what the paths below load:
+
+```python-run
+inventory = ipa.load_ipa_features(supplements=["docs/examples/aspirated-stops.xml"])
+len(inventory.phones)
+inventory.respell("t", release="aspirated")
+```
+
+An entry that states no features takes them from its own spelling, so the registered
+reading and the composed reading are one fact rather than two copies of it:
+
+```python-run
+ipa.features("tʰ") == inventory.get_features("tʰ")
+```
+
+The raw distance is inventory-independent and does not move. The *normalized* reads do,
+because they are percentiles within a reference inventory and the reference just gained
+three phones — so a supplemented inventory needs its own derived matrix, which
+`DistanceModel.derive` builds and `save` keeps:
+
+```python-run
+model = ipa.DistanceModel.derive(inventory)
+model.reference_name
+inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")
+round(model.confusability("tʰ", "t"), 4)
+round(ipa.confusability("tʰ", "t"), 4)
+```
+
+The instance is yours alone. Nothing loads a supplement unless you ask it to, so the
+shipped matrix and every module-level call still answer for the bare inventory:
+
+```python-run
+"tʰ" in ipa.load_ipa_features().phones
+"tʰ" in ipa.distance_model().reference_phones
+```
+
+[supplements.md](supplements.md) is the reference: what a supplement may declare, how it
+merges, what it does to `to_phone`'s choice of winner, and how to carry your own derived
+data.
+
 ## Where to go next
 
 - [docs/README.md](README.md) — what every document is for, and the order to read them.
 - [rules.md](rules.md) — the rule notation in full.
 - [calculus.md](calculus.md) — the algebra over the set of forms that `~>` opens.
 - [form.md](form.md) — the representation under the rule engine.
+- [supplements.md](supplements.md) — registering sounds the shipped inventory does not have.
 - [distance.md](distance.md) — what the metric claims, and what it does not.
 - [ties.md](ties.md) — tie bars, diacritics, and how a unit is put together.
 - [reviewing.md](reviewing.md) — how defects in this library have actually been found.

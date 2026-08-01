@@ -28,6 +28,12 @@ complete is printed with it -- the count line says so, and ``-j`` carries
 ``complete`` and ``truncations`` -- because a capped set of
 pronunciations reads exactly like an exhaustive one.
 
+**A derived form is a surface form.** A rule may write a zero -- a
+position kept open with nothing in it -- and a derivation carries it
+where a pronunciation does not, so the last thing ``apply``, ``trace``
+and ``variants`` do is the rewrite that removes them. ``--keep-zeros``
+declines it and prints the derivation's own answer instead.
+
 **An agreement variable is reported where it bound.** A rule may write
 ``n -> [place=α] / _ [place=α]``, and then what it did at a site depends
 on what ``α`` took there. ``recognize`` prints that after the
@@ -105,6 +111,22 @@ def add_forms_arg(parser: argparse.ArgumentParser) -> None:
         nargs="*",
         metavar="FORM",
         help="IPA forms; with none given, read one per line from stdin",
+    )
+
+
+def add_zeros_arg(parser: argparse.ArgumentParser) -> None:
+    """Add the switch that declines the final surface rewrite.
+
+    A derivation carries a zero and a pronunciation does not, so the
+    rewrite that removes one runs last by default. This is how to ask for
+    the derivation's own last form instead. It is on the three commands
+    that print a derived form and nowhere else: 'recognize' and 'units'
+    rewrite nothing.
+    """
+    parser.add_argument(
+        "--keep-zeros",
+        action="store_true",
+        help="Skip the final surface rewrite, keeping any zero a rule wrote",
     )
 
 
@@ -319,6 +341,7 @@ class ApplyCommand(RuleCommand):
 
         add_forms_arg(parser)
         add_rules_args(parser)
+        add_zeros_arg(parser)
         add_format_arg(parser)
         add_output_arg(parser)
 
@@ -329,8 +352,10 @@ class ApplyCommand(RuleCommand):
         except RuleError as exc:
             return self.error(str(exc))
 
+        keep = self.args.keep_zeros
         results = [
-            {"form": form, "derived": ruleset.apply(form, self.ipa)} for form in forms
+            {"form": form, "derived": ruleset.apply(form, self.ipa, keep_zeros=keep)}
+            for form in forms
         ]
         if self.format == "json":
             self.output_json(results)
@@ -378,6 +403,7 @@ class TraceCommand(RuleCommand):
             action="store_true",
             help="Include the rules that did not fire",
         )
+        add_zeros_arg(parser)
         add_format_arg(parser)
         add_output_arg(parser)
 
@@ -389,7 +415,10 @@ class TraceCommand(RuleCommand):
             return self.error(str(exc))
 
         all_steps: bool = self.args.all_steps
-        derivations = [(form, ruleset.derive(form, self.ipa)) for form in forms]
+        keep = self.args.keep_zeros
+        derivations = [
+            (form, ruleset.derive(form, self.ipa, keep_zeros=keep)) for form in forms
+        ]
 
         if self.format == "json":
             self.output_json(
@@ -470,6 +499,7 @@ class VariantsCommand(RuleCommand):
                 f"(default {DEFAULT_LIMIT}); reaching it is reported"
             ),
         )
+        add_zeros_arg(parser)
         add_format_arg(parser)
         add_output_arg(parser)
 
@@ -483,7 +513,15 @@ class VariantsCommand(RuleCommand):
             return self.error(str(exc))
 
         found = [
-            (form, ruleset.variants(form, self.ipa, limit=self.args.limit))
+            (
+                form,
+                ruleset.variants(
+                    form,
+                    self.ipa,
+                    limit=self.args.limit,
+                    keep_zeros=self.args.keep_zeros,
+                ),
+            )
             for form in forms
         ]
 

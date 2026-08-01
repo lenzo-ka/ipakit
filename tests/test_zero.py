@@ -35,7 +35,7 @@ import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DEFAULT_IPA_FEATS
 from ipakit.form import Form, zeros
-from ipakit.rules import RuleError
+from ipakit.rules import DEFAULT_LIMIT, RuleError, RuleSet, surface
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -220,8 +220,13 @@ class TestTheFlatApiReadsTheDeclaration:
 
     def test_our_own_output_validates(self) -> None:
         # The case that reported the defect: a rule wrote a zero and the
-        # validator rejected the result.
-        produced = ipakit.rewrite("lezami", "z -> [zero] / [vowel] _ [vowel]")
+        # validator rejected the result. The derivation is where that
+        # output lives now, and it still has to validate -- a form the
+        # library carries between rules and cannot read back is the same
+        # defect wherever it is handed to a caller.
+        produced = ipakit.rewrite(
+            "lezami", "z -> [zero] / [vowel] _ [vowel]", keep_zeros=True
+        )
         assert produced == "le∅ami"
         assert ipakit.is_valid_ipa(produced)
 
@@ -427,14 +432,20 @@ class TestEmittingAZero:
                 ipakit.rules.parse(spec, base)
 
     def test_a_zero_is_written_where_the_segment_was(self) -> None:
-        assert ipakit.rewrite("lez", "z -> [zero] / _ #") == "le∅"
-        assert ipakit.rewrite("lez‿ami", "z -> [zero] / _ #") == "le∅‿ami"
+        # `keep_zeros` through this class and the next: the question here
+        # is what the *rule* wrote, and the final surface rewrite takes it
+        # out again -- see TestTheSurfaceCarriesNoZero.
+        assert ipakit.rewrite("lez", "z -> [zero] / _ #", keep_zeros=True) == "le∅"
+        assert (
+            ipakit.rewrite("lez‿ami", "z -> [zero] / _ #", keep_zeros=True) == "le∅‿ami"
+        )
 
     def test_deletion_and_a_zero_are_different_statements(self) -> None:
-        assert ipakit.rewrite("lez", "z -> ∅ / _ #") == "le"
-        assert ipakit.rewrite("lez", "z -> [zero] / _ #") == "le∅"
+        written = ipakit.rewrite("lez", "z -> [zero] / _ #", keep_zeros=True)
+        assert ipakit.rewrite("lez", "z -> ∅ / _ #", keep_zeros=True) == "le"
+        assert written == "le∅"
         # And what is left behind is a position, not a sound.
-        form = Form.parse(ipakit.rewrite("lez", "z -> [zero] / _ #"), FEATURES)
+        form = Form.parse(written, FEATURES)
         assert form.phones == ("l", "e")
         assert [u.is_zero for u in form.units] == [False, False, True]
 
@@ -448,7 +459,10 @@ class TestEmittingAZero:
         # rules.py, so renaming the class moves the notation with it.
         (symbol,) = FEATURES.zeros
         (declared_class,) = {p.features["class"] for p in FEATURES.zeros.values()}
-        assert ipakit.rewrite("lez", f"z -> [{declared_class}] / _ #") == "le" + symbol
+        assert (
+            ipakit.rewrite("lez", f"z -> [{declared_class}] / _ #", keep_zeros=True)
+            == "le" + symbol
+        )
 
     @pytest.mark.parametrize(
         "spec",
@@ -490,24 +504,27 @@ class TestTransparencyIsSelectable:
     """
 
     def test_a_zero_blocks_by_default(self) -> None:
-        assert ipakit.rewrite("leʃ", "e -> a / _ ʃ") == "laʃ"
-        assert ipakit.rewrite("le∅ʃ", "e -> a / _ ʃ") == "le∅ʃ"
+        # Asked with `keep_zeros`, because the answer is about what the
+        # rule saw: without it both spellings come back stripped and the
+        # two readings would be indistinguishable here.
+        assert ipakit.rewrite("leʃ", "e -> a / _ ʃ", keep_zeros=True) == "laʃ"
+        assert ipakit.rewrite("le∅ʃ", "e -> a / _ ʃ", keep_zeros=True) == "le∅ʃ"
 
     def test_an_optional_zero_is_stepped_over(self) -> None:
         spec = "e -> a / _ (∅) ʃ"
-        assert ipakit.rewrite("le∅ʃ", spec) == "la∅ʃ"
-        assert ipakit.rewrite("leʃ", spec) == "laʃ"
+        assert ipakit.rewrite("le∅ʃ", spec, keep_zeros=True) == "la∅ʃ"
+        assert ipakit.rewrite("leʃ", spec, keep_zeros=True) == "laʃ"
 
     def test_naming_it_without_the_parentheses_requires_it(self) -> None:
         # The third reading, and the one that was already available: the
         # rule that wants the zero to be there names it.
         spec = "e -> a / _ [zero] ʃ"
-        assert ipakit.rewrite("le∅ʃ", spec) == "la∅ʃ"
-        assert ipakit.rewrite("leʃ", spec) == "leʃ"
+        assert ipakit.rewrite("le∅ʃ", spec, keep_zeros=True) == "la∅ʃ"
+        assert ipakit.rewrite("leʃ", spec, keep_zeros=True) == "leʃ"
 
     def test_it_holds_on_either_side_of_the_target(self) -> None:
-        assert ipakit.rewrite("ʃ∅e", "e -> a / ʃ (∅) _") == "ʃ∅a"
-        assert ipakit.rewrite("ʃe", "e -> a / ʃ (∅) _") == "ʃa"
+        assert ipakit.rewrite("ʃ∅e", "e -> a / ʃ (∅) _", keep_zeros=True) == "ʃ∅a"
+        assert ipakit.rewrite("ʃe", "e -> a / ʃ (∅) _", keep_zeros=True) == "ʃa"
 
     def test_an_absent_optional_item_licenses_no_unit(self) -> None:
         rule = ipakit.rule("e -> a / _ (∅) ʃ")
@@ -551,6 +568,246 @@ class TestTransparencyIsSelectable:
         assert rule.name == "assimilation (labial)"
 
 
+class TestTheSurfaceCarriesNoZero:
+    """A derivation holds the zero; a pronunciation does not.
+
+    A zero holds a position, and that is what makes a deletion site
+    visible in a trace. A surface form has no room for a position with
+    nothing in it, so the last thing that happens in a derivation is a
+    rewrite that removes them -- `[zero] -> ∅`, in the notation, applied
+    generally rather than restated by each rule set and rather than
+    bolted on beside the notation as an engine step. That is what keeps
+    docs/calculus.md's closure claim true of the surface projection too:
+    the map from a derivation to a pronunciation is another element of
+    the same algebra.
+
+    It is not a fourth `Form` projection, and the difference is not
+    stylistic. `to_ipa`, `segments` and `phones` are readings of a form
+    that hold at any moment; this one holds at the *end of a derivation*,
+    which is a claim about where in the fold it stands, and only a rule
+    can say that in a language whose only sequencing is rule order.
+    """
+
+    def test_it_is_the_rule_a_caller_could_have_written(self) -> None:
+        # The closure claim, asserted rather than described: what runs is
+        # what `ruleset` builds from the same notation.
+        (mine,) = ipakit.ruleset("[zero] -> ∅").rules
+        (theirs,) = surface(FEATURES).rules
+        assert (theirs.query, theirs.action) == (mine.query, mine.action)
+        assert theirs.source.startswith(mine.source)
+        assert not theirs.optional
+
+    def test_it_reads_the_declaration_rather_than_a_glyph(self) -> None:
+        # The class the rule names is the one `<zeros>` gives its members,
+        # so renaming it in ipa.xml moves this with it.
+        (declared,) = {p.features["class"] for p in FEATURES.zeros.values()}
+        (rule,) = surface(FEATURES).rules
+        assert f"[{declared}]" in rule.source
+        assert ipakit.rewrite("le∅ʃ", f"[{declared}] -> ∅") == "leʃ"
+
+    def test_an_inventory_with_no_zero_gets_the_identity(self) -> None:
+        # Nothing to remove, nothing appended: the empty rule set is the
+        # identity of the algebra, which is the right cost for a feature
+        # an inventory does not use.
+        bare = IPAFeatures()
+        bare.zeros.clear()
+        assert len(surface(bare)) == 0
+        assert surface(bare).apply("leʃ", bare) == "leʃ"
+
+    def test_it_is_not_a_rule_of_the_set_it_runs_after(self) -> None:
+        # `len` answers for what the cascade declares. If the surface
+        # rewrite joined `rules`, the empty rule set would stop being
+        # empty and docs/calculus.md's identity would be false.
+        empty = ipakit.ruleset("")
+        assert len(empty) == 0
+        assert empty.variants("pətitə").forms == ("pətitə",)
+        assert len(ipakit.ruleset("z -> [zero] / _ #")) == 1
+
+    def test_the_identity_holds_on_the_carrier_it_is_over(self) -> None:
+        # The caveat the identity claim gains, stated rather than left to
+        # be found: an input may carry a zero and an answer never does, so
+        # the carrier is sets of surface forms and the empty rule set is
+        # the identity on it. Same shape as `Derivation.start`'s "up to
+        # the read", which is why it is a caveat and not a defect.
+        empty = ipakit.ruleset("")
+        assert empty.variants("le∅ʃ").forms == ("leʃ",)
+        assert empty.variants("leʃ").forms == ("leʃ",)
+        assert empty.variants("le∅ʃ", keep_zeros=True).forms == ("le∅ʃ",)
+
+    def test_it_runs_after_the_trace_is_recorded(self) -> None:
+        # The zero is what makes the deletion site visible, so it has to
+        # be in the trace where the rule wrote it and out of the answer.
+        derivation = ipakit.derive("lezami", "z -> [zero] / [vowel] _ [vowel]")
+        assert [step.after for step in derivation.fired] == ["le∅ami", "leami"]
+        assert derivation.steps[-1].rule == "surface"
+        assert derivation.result == "leami"
+        # And the last line of a trace is the answer, as the first line
+        # is what the first rule saw.
+        assert derivation.trace().splitlines()[-1] == "  = leami"
+
+    def test_a_derivation_with_no_zero_is_unchanged_line_for_line(self) -> None:
+        # Recorded only where it fires: a step that says "no change" on
+        # every derivation of every shipped set is noise, and `--all` is
+        # for the rules the cascade declares.
+        kept = ipakit.derive("kæt", "t -> ʔ / _ #", keep_zeros=True)
+        plain = ipakit.derive("kæt", "t -> ʔ / _ #")
+        assert plain == kept
+        assert plain.trace(all_steps=True) == kept.trace(all_steps=True)
+        assert len(plain.steps) == 1
+
+    def test_the_opt_out_answers_with_the_derivations_own_form(self) -> None:
+        spec = "z -> [zero] / [vowel] _ [vowel]"
+        assert ipakit.rewrite("lezami", spec) == "leami"
+        assert ipakit.rewrite("lezami", spec, keep_zeros=True) == "le∅ami"
+        assert ipakit.derive("lezami", spec, keep_zeros=True).result == "le∅ami"
+        assert ipakit.variants("lezami", spec, keep_zeros=True).forms == ("le∅ami",)
+
+    def test_applying_it_twice_is_applying_it_once(self) -> None:
+        # Idempotent, which is what lets it be applied per call without a
+        # caller having to know whether it already ran.
+        once = surface(FEATURES).apply("a∅b∅c", FEATURES)
+        assert once == "abc"
+        assert surface(FEATURES).apply(once, FEATURES) == once
+
+    @pytest.mark.parametrize(
+        ("text", "want", "codes"),
+        [
+            ("a∅b", "ab", []),
+            ("∅ab", "ab", []),
+            ("ab∅", "ab", []),
+            ("a∅∅b", "ab", []),
+            ("a∅.b", "a.b", []),
+            ("a.∅b", "a.b", []),
+            ("a‿∅‿b", "a‿‿b", []),
+            # A form of nothing but positions names no sound, and its
+            # pronunciation is no sound: `validate_ipa` warns `no_segments`
+            # on the input for that reason and says nothing about the empty
+            # answer, which asserts nothing at all.
+            ("∅", "", []),
+            ("∅∅", "", []),
+            # The one consequence worth stating: the rewrite removes zeros
+            # and nothing else, so a constituent left holding no segment
+            # stays written and is reported as the empty constituent it now
+            # is. Collapsing the boundary run as well would be a second
+            # statement, and it is not the one the owner asked for.
+            (".∅.", "..", ["empty_constituent", "no_segments"]),
+            ("#∅#", "##", ["empty_constituent", "no_segments"]),
+            ("a.∅.b", "a..b", ["empty_constituent"]),
+        ],
+    )
+    def test_the_degenerate_cases(self, text: str, want: str, codes: list[str]) -> None:
+        assert surface(FEATURES).apply(text, FEATURES) == want
+        assert [i["code"] for i in FEATURES.validate_ipa(want)] == codes
+
+    def test_the_set_is_deduplicated_after_the_projection(self) -> None:
+        # Two placements of a zero can spell one pronunciation, and a set
+        # of pronunciations that lists the same string twice is not a set.
+        spec = "a ~> [zero]"
+        assert ipakit.variants("kaa", spec, keep_zeros=True).forms == (
+            "kaa",
+            "k∅a",
+            "ka∅",
+            "k∅∅",
+        )
+        assert ipakit.variants("kaa", spec).forms == ("kaa", "ka", "k")
+        # The member kept is the first in the order, so it is the one
+        # taking fewest optional choices.
+        assert [v.choices for v in ipakit.variants("kaa", spec)] == [0, 1, 2]
+
+    def test_the_french_schwa_set_collapses_nothing(self) -> None:
+        # MEASURED, and the answer is that the choice is not observable
+        # here: the two schwas of 'devenir' stand in different company, so
+        # all four surfaces differ and dedup-before would give the same
+        # four. The case above is where the two answers part.
+        spec = "ə ~> [zero] / [-vowel] _ [-vowel]"
+        derived = ipakit.variants("dəvəniʁ", spec, keep_zeros=True)
+        assert derived.forms == ("dəvəniʁ", "d∅vəniʁ", "dəv∅niʁ", "d∅v∅niʁ")
+        surfaced = ipakit.variants("dəvəniʁ", spec)
+        assert surfaced.forms == ("dəvəniʁ", "dvəniʁ", "dəvniʁ", "dvniʁ")
+        assert len(surfaced) == len(derived) == 4
+        # Nor over the shipped set's own corpus, which writes its schwa
+        # deletion as a deletion and offers this nothing to merge.
+        from ipakit.rules import shipped
+
+        from tests.test_rule_sets import CORPUS
+
+        french = shipped("french-liaison", FEATURES)
+        checked = 0
+        for word in CORPUS["french-liaison"]:
+            checked += 1
+            assert (
+                french.variants(word, FEATURES).forms
+                == french.variants(word, FEATURES, keep_zeros=True).forms
+            )
+        assert checked > 15, "sweep did not run"
+
+    def test_the_cap_and_completeness_do_not_move(self) -> None:
+        # The surface rewrite is obligatory, so it offers one child per
+        # branch: it can merge and it cannot truncate. `complete` and
+        # `unexplored` therefore answer for the cascade, before it.
+        spec = "a ~> [zero]"
+        cut = ipakit.variants("aaaa", spec, limit=4)
+        kept = ipakit.variants("aaaa", spec, limit=4, keep_zeros=True)
+        assert (cut.complete, kept.complete) == (False, False)
+        assert cut.unexplored == kept.unexplored == 12
+        assert [t.rule for t in cut.truncations] == [t.rule for t in kept.truncations]
+        # And the members it merged are gone from the count, not the cap.
+        assert len(kept) == 4
+        assert len(cut) == 2
+
+    def test_the_first_member_is_still_what_apply_answers(self) -> None:
+        # The identity that keeps the form-to-form and set-valued entry
+        # points from drifting apart, asked on both sides of the switch.
+        spec = "ə ~> [zero] / [-vowel] _ [-vowel]"
+        for keep in (False, True):
+            found = ipakit.variants("dəvəniʁ", spec, keep_zeros=keep)
+            assert found[0].form == ipakit.rewrite("dəvəniʁ", spec, keep_zeros=keep)
+            for member in found:
+                assert member.derivation.result == member.form
+
+    def test_it_is_applied_per_call_like_the_cap(self) -> None:
+        # A limit worth stating rather than discovering. Splitting one
+        # cascade into two calls applies the surface rewrite twice, so a
+        # zero written by the first half is gone before the second half
+        # can read it -- the same shape as docs/calculus.md's note that a
+        # bounded enumeration cannot be a homomorphism, and repaired the
+        # same way, by naming the intermediate for what it is.
+        write = ipakit.ruleset("z -> [zero] / _ #")
+        fill = ipakit.ruleset("[zero] -> s")
+        together = ipakit.ruleset("z -> [zero] / _ #\n[zero] -> s")
+        assert together.apply("lez") == "les"
+        assert fill.apply(write.apply("lez")) == "le"
+        assert fill.apply(write.apply("lez", keep_zeros=True)) == "les"
+
+    def test_no_shipped_derivation_moves(self) -> None:
+        # None of the five writes a zero, so the projection is the
+        # identity on every one of them -- asked of whole derived forms
+        # and whole variant sets rather than of the rule sources.
+        from ipakit.rules import available, shipped
+
+        from tests.test_rule_sets import CORPUS
+
+        checked = 0
+        names = available()
+        assert len(names) >= 5, "no shipped rule sets found"
+        for name in names:
+            rules = shipped(name, FEATURES)
+            for word in CORPUS[name]:
+                checked += 1
+                plain = rules.derive(word, FEATURES)
+                kept = rules.derive(word, FEATURES, keep_zeros=True)
+                assert plain == kept
+                assert (
+                    rules.variants(word, FEATURES).forms
+                    == rules.variants(word, FEATURES, keep_zeros=True).forms
+                )
+        assert checked > 150, "sweep did not run"
+
+    def test_the_limit_argument_is_untouched_by_the_switch(self) -> None:
+        assert ipakit.variants("kæt", "t ~> ʔ / _ #").limit == DEFAULT_LIMIT
+        assert RuleSet(rules=()).variants("kæt", FEATURES, limit=2).limit == 2
+
+
 class TestWhatTheZeroDoesNotDoYet:
     """Pinned limits, so they change deliberately rather than by drift.
 
@@ -565,8 +822,8 @@ class TestWhatTheZeroDoesNotDoYet:
         assert Form.rebuild(form.segments, form.boundaries, FEATURES).to_ipa() == "leʃ"
 
     def test_it_offers_no_insertion_gap(self) -> None:
-        assert ipakit.rewrite("le∅ʃ", "∅ -> t / e _ ʃ") == "le∅ʃ"
-        assert ipakit.rewrite("leʃ", "∅ -> t / e _ ʃ") == "letʃ"
+        assert ipakit.rewrite("le∅ʃ", "∅ -> t / e _ ʃ", keep_zeros=True) == "le∅ʃ"
+        assert ipakit.rewrite("leʃ", "∅ -> t / e _ ʃ", keep_zeros=True) == "letʃ"
 
     def test_a_rule_still_reaches_segments_around_it(self) -> None:
-        assert ipakit.rewrite("le∅ʃ", "ʃ -> s") == "le∅s"
+        assert ipakit.rewrite("le∅ʃ", "ʃ -> s", keep_zeros=True) == "le∅s"
