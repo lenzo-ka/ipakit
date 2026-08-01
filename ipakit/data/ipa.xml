@@ -1,5 +1,38 @@
 <?xml version='1.0' encoding='utf-8'?>
 <ipa version="1.1" wiki="https://en.wikipedia.org/wiki/">
+  <!-- This file travels on its own. It is the inventory, the feature
+       declarations and the reasoning behind them, in one document that reads
+       and copies without the package around it, so the terms it is offered
+       under belong in it rather than only in a sibling file. The text is the
+       repository LICENSE, and a test asserts the two agree: one license in two
+       places is a thing that drifts, and the test is what stops it. -->
+  <license spdx="BSD-2-Clause">
+    BSD 2-Clause License
+
+    Copyright (c) 2026 Kevin Lenzo
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+    CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+    OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  </license>
+
   <types>
     <type name="binary" default="-">
       <value name="-"/>
@@ -18,6 +51,7 @@
     <class name="diacritics"/>
     <class name="suprasegmentals"/>
     <class name="separators"/>
+    <class name="zeros"/>
   </classes>
 
   <!-- A diacritic's contribution mode is read off the features it declares
@@ -145,12 +179,12 @@
       <!-- `aperture="median"` says the folds close toward each other about the
            tract axis rather than toward a wall, the way a tongue closes toward a
            palate. Rendering geometry: `offset` models the one-sided case, so a
-           median articulator is drawn centred and its closure is not an offset.
+           median articulator is drawn centerd and its closure is not an offset.
 
            Only the two an IPA diacritic states carry a label. The others are
            the default organ for a place (read by ipakit.tract), never stated on
            a segment, so there is no conventional word a description would use
-           for them. A mark that ever states one must be labelled here. -->
+           for them. A mark that ever states one must be labeled here. -->
       <value name="lower-lip" arc="0.00" short="llp" href="Labial_consonant"/>
       <value name="tongue-tip" arc="0.13" short="ttp" alias="apical" label="apical" href="Apical_consonant"/>
       <value name="tongue-blade" arc="0.19" short="tbl" alias="laminal" label="laminal" href="Laminal_consonant"/>
@@ -208,7 +242,7 @@
       <value name="nasal" label="nasally-released" short="nrl" href="Nasal_release"/>
       <value name="no-audible" label="unreleased" short="nau" href="No_audible_release"/>
       <value name="glottal" label="glottalized" short="grl" href="Glottalization"/>  <!-- the glottal phase of a pre-glottalized stop: a phase, not the segment's own place -->
-      <value name="schwa" label="schwa-released" short="srl" href="Schwa"/>  <!-- the schwa-coloured release of a stop: a phase, not the segment's own vowel quality -->
+      <value name="schwa" label="schwa-released" short="srl" href="Schwa"/>  <!-- the schwa-colored release of a stop: a phase, not the segment's own vowel quality -->
     </feature>
 
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
@@ -229,7 +263,14 @@
       <value name="secondary" short="2" href="Secondary_stress"/>
     </feature>
 
-    <feature name="tone" axis="+y" short="ton" mode="prosodic" desc="Pitch level" href="Tone_(linguistics)">
+    <!-- A unit's pitch is a SEQUENCE of levels, read left to right as time
+         order: 'low>high' is a rise, 'low>high>low' a peak. That is what a
+         Chao tone-letter run spells ('a˨˦' is tone="low>high"), and the
+         contour diacritics abbreviate the same thing, so the two spellings
+         the chart calls equivalent resolve to one value. A sequence rather
+         than an enumeration of named shapes because Chao's system admits
+         any run of levels: no list of shape names closes it. -->
+    <feature name="tone" axis="+y" short="ton" mode="prosodic" sequence="+" desc="Pitch, as a sequence of levels in time order" href="Tone_(linguistics)">
       <value name="bottom" short="t1"/>
       <value name="low" short="t2"/>
       <value name="mid" short="t3"/>
@@ -237,9 +278,19 @@
       <value name="top" short="t5"/>
     </feature>
 
-    <feature name="contour" short="ctr" mode="prosodic" desc="Pitch movement direction" href="Contour_tone">
-      <value name="rising" short="R"/>
-      <value name="falling" short="F"/>
+    <!-- The shape of that sequence: one step per adjacent pair, so a
+         two-level tone has one step and a three-level tone has two
+         ('rising>falling' is the chart's rising-falling). DERIVED wherever
+         a level sequence is stated, and ASSERTED by the caron and the
+         circumflex, which say a direction without saying between which
+         levels: an underspecified sequence, per the tier policy in
+         docs/form.md. `over` names the scale a step moves along and `move`
+         the sign each value names, so a direction is read off this
+         declaration and no table of directions stands in Python. -->
+    <feature name="contour" short="ctr" mode="prosodic" sequence="+" over="tone" desc="Pitch shape: the move between each adjacent pair of levels" href="Contour_tone">
+      <value name="falling" short="F" move="-"/>
+      <value name="steady" short="S" move="0"/>
+      <value name="rising" short="R" move="+"/>
     </feature>
 
     <feature name="break" short="brk" mode="structural" desc="Prosodic boundary strength" href="Prosodic_unit">
@@ -257,10 +308,23 @@
       <value name="fall" short="gF"/>
     </feature>
 
-    <!-- Separator features -->
-    <feature name="level" short="lvl" desc="Boundary level" href="Syllable">
+    <!-- Separator features. Ordinal, weakest first: the order is what says
+         a word boundary is also a syllable boundary, and it is read rather
+         than restated (form.tiers, rules._reaches). The prosodic tiers are
+         here because '|' and '‖' are boundaries at a level, not merely
+         marks of a strength: without a level they split no node, and
+         'a|b' was one word 'ab'.
+
+         mode="structural" because a level belongs to no segment's feature
+         bag, which is what that mode says. It fell to the additive default
+         while no diacritic declared a level, so nothing showed; once '|'
+         does, additive would offer a mark that adds an ordinal 'level' to a
+         base, and an ordinal in a phone's bundle is a term in the metric. -->
+    <feature name="level" short="lvl" mode="structural" desc="Boundary level" href="Syllable">
       <value name="syllable" short="slb" href="Syllable"/>
       <value name="word" short="wrd" href="Word"/>
+      <value name="phrase" short="phr" href="Prosodic_unit"/>
+      <value name="utterance" short="utt" href="Utterance_(linguistics)"/>
     </feature>
   </features>
 
@@ -290,7 +354,89 @@
     </bridge>
   </bridges>
 
+  <!-- One fact at two granularities. Every phonation already fixes a
+       voicing, so `voiced` is what `phonation` looks like read two ways
+       instead of four, not a second dimension that happens to agree. A
+       mark saying phonation="devoiced" voiced="-" therefore states one
+       glottal fact twice, and compose_unit has to tell that apart from a
+       mark that drags an *independent* dimension along: the devoicing
+       ring is how "ɹ̥" gets spelled and must compose, while the
+       linguolabial mark moves place and articulator, which move
+       separately, and must not answer a request for place alone
+       (ipakit/features.py, IPAFeatures.compose_unit).
+
+       Deliberately not a <bridge>, on two counts. A bridge is a
+       *presence*, derived as one binary for the metric; folding these
+       pairs into one bridge makes devoiced and modal read alike, and
+       because every informative value of `voiced` would then be claimed
+       it drops `voiced` from the comparison outright. Measured: 3800 of
+       9591 pairs moved, and d(t, d) = 0. Nor is this relation an
+       equivalence. It is many to one: creaky, modal and breathy all read
+       voiced="+" without being interchangeable with each other, which a
+       flat set of spellings cannot say.
+
+       The projection is a fact about the phonetics, and it is read by the
+       write side only. Nothing resolves it onto a segment's features, so
+       "a̤" does not silently acquire voiced="+"; that would change what
+       every read returns, and the metric with it. -->
+  <projections>
+    <projection from="phonation" to="voiced" desc="Glottal state, read two ways instead of four" href="Voice_(phonetics)">
+      <value name="creaky" reads="+"/>
+      <value name="modal" reads="+"/>
+      <value name="breathy" reads="+"/>
+      <value name="devoiced" reads="-"/>
+    </projection>
+  </projections>
+
+  <!-- Provenance. This file is otherwise a faithful record of the IPA
+       chart, and three of the symbols in it are not on the chart at all.
+       Unmarked, the file misrepresents what it is and no caller can ask
+       which is which, so the exception is written down as data and "is
+       this transcription pure IPA?" becomes a query rather than lore.
+
+       Unstated is `chart`. That is why the 139 phones and every
+       chart-proper mark need no edit and a symbol is listed here only
+       when it is true. The likely mistake is over-marking: the syllable
+       dot '.', the group marks '|' and '‖', the linking mark '‿', the
+       tone letters and diacritic tones, '↗ ↘', 'ꜛ ꜜ', 'ˈ ˌ', 'ː ˑ ̆' and
+       the two ties are chart-proper, and their absence here is a
+       statement, not an omission.
+
+       One block, not one flag per system: a further convention is
+       another <notation> with its own symbols, and
+       `notation != "chart"` goes on answering the same question. No
+       second notation is planned: SAMPROSA was assessed for this slot
+       and declined; see docs/design/samprosa.md. The block earns its
+       keep on the three symbols it lists.
+
+       Deliberately NOT an attribute on each symbol's own element, which
+       is the obvious shape and the one this started as. MEASURED: with
+       `<phone name="␣" manner="silence" notation="extension"/>` the key
+       lands in that phone's feature bundle, and a key in a bundle is a
+       term in the metric. 58 of the 8060 sweep units changed features
+       and 37 changed their distance from their base, d(␣ʰ, ␣) going
+       0.5 to 0.333; confusion.json stayed byte-identical only because it
+       covers registered phones and '␣' is already 1.0 from every one of
+       them. The next symbol marked would not be so lucky, and a batch
+       marking real phones would move the matrix outright.
+       Provenance is a fact about the notation and not about the
+       articulation; holding it off the symbol's element is what makes
+       that true by construction, rather than by an exclusion in
+       metric.py that someone has to remember to maintain. -->
+  <notations default="chart">
+    <notation name="chart" desc="On the IPA chart" href="IPA_chart"/>
+    <notation name="extension" desc="A convention outside the IPA chart" href="Phonetic_transcription">
+      <symbol name="␣" desc="the chart has no symbol for silence"/>
+      <symbol name="#" desc="generative phonology; the IPA marks groups with '|' and '‖'"/>
+      <symbol name="∅" desc="set theory; the structural zero declared below"/>
+    </notation>
+  </notations>
+
   <phones>
+    <!-- Not on the chart (see <notations>): the IPA has no silence
+         symbol, and this one is borrowed from the visible-space
+         convention. It is a phone all the same, a segment with duration,
+         which is the whole difference between it and the zero below. -->
     <phone name="␣" manner="silence"/>
     <phone name="a" manner="vowel" height="open" backness="front" voiced="+" href="Open_front_unrounded_vowel"/>
     <phone name="b" manner="plosive" place="bilabial" voiced="+" href="Voiced_bilabial_plosive"/>
@@ -470,13 +616,26 @@
     <diacritic name="̞" height-mod="-" href="Relative_articulation#Raising_and_lowering"/>
     <diacritic name="̟" fronting="+" alias="˖" href="Relative_articulation#Fronting_and_backing"/>
     <diacritic name="̠" fronting="-" alias="˗" href="Relative_articulation#Fronting_and_backing"/>
-    <diacritic name="̤" phonation="breathy" href="Breathy_voice"/>
+    <!-- All four phonation marks state the voicing their phonation fixes.
+         <projections> says every phonation fixes one, so a mark that
+         states its phonation and stays silent about `voiced` leaves the
+         base's voicing standing and the two reads of one glottal fact
+         disagree: `c̤` used to describe as a "voiceless breathy-voiced
+         palatal plosive", a sentence that contradicts itself. The
+         devoicing and voicing rings said their voicing from the start
+         and breathy and creaky did not, which was an asymmetry in this
+         file rather than anything the code did. Stating it here rather
+         than resolving the projection at read time is deliberate: the
+         projection is still read by the write side only (see the note
+         above <projections>), and a mark that says one fact twice is
+         exactly what that block exists to license. -->
+    <diacritic name="̤" phonation="breathy" voiced="+" href="Breathy_voice"/>
     <diacritic name="̥" phonation="devoiced" voiced="-" href="Voicelessness"/>
     <diacritic name="̩" syllabic="+" href="Syllabic_consonant"/>
     <diacritic name="̪" place="dental" href="Dental_consonant"/>
     <diacritic name="̬" phonation="modal" voiced="+" href="Voice_(phonetics)"/>
     <diacritic name="̯" syllabic="-" href="Semivowel"/>
-    <diacritic name="̰" phonation="creaky" href="Creaky_voice"/>
+    <diacritic name="̰" phonation="creaky" voiced="+" href="Creaky_voice"/>
     <diacritic name="̴" velarized="+" href="Velarization"/>
     <diacritic name="̹" rounding="more" href="Roundedness"/>
     <diacritic name="̺" articulator="tongue-tip" href="Apical_consonant"/>
@@ -508,21 +667,111 @@
     <suprasegmental name="̂" contour="falling" href="Contour_tone"/>
     <suprasegmental name="͡" tie="simultaneous" href="Tie_(typography)"/>  <!-- over-tie: fuses constituents into one timing slot -->
     <suprasegmental name="͜" tie="sequential" href="Tie_(typography)"/>  <!-- under-tie: binds a sequence into one unit -->
-    <suprasegmental name="᷄" tone="high" contour="rising" href="Contour_tone"/>
-    <suprasegmental name="᷅" tone="low" contour="falling" href="Contour_tone"/>
-    <suprasegmental name="‿" linking="+" href="Tie_(typography)"/>  <!-- IPA linking mark: absence of a break; French liaison is one use -->
+    <!-- The eight IPA tone diacritics. The caron and the circumflex state a
+         DIRECTION and no levels: 'ǎ' is a rise, but nothing says between
+         which levels, so nothing here invents a sequence for it and its
+         level tier stays unstated.
+
+         The other six are ligatures of the simplex pitch marks above, and
+         Unicode's names spell their components in TIME ORDER: grave is
+         low, macron is mid, acute is high, which is exactly what the three
+         level diacritics already declare. So MACRON-ACUTE is mid then high
+         and GRAVE-ACUTE-GRAVE is low, high, low, and each reads identically
+         to the tone-letter run spelling the same levels ('a᷄' == 'a˧˦').
+         U+1DC5 was declared a fall until it was measured against its own
+         parts; grave then macron rises. Unicode L2/25-250 reads the first
+         four as higher rising, lower rising, lower falling, higher falling.
+         scripts/invariants.py derives each compound's levels from its
+         component names and the `tone` each simplex mark declares, so a
+         compound that disagrees with its parts cannot be declared here.
+         Where the chart's own tone-letter equivalents disagree with that
+         composition, the discrepancy is recorded in docs/tone.md rather
+         than silently resolved. -->
+    <suprasegmental name="᷄" tone="mid>high" href="Contour_tone"/>  <!-- U+1DC4 MACRON-ACUTE -->
+    <suprasegmental name="᷅" tone="low>mid" href="Contour_tone"/>  <!-- U+1DC5 GRAVE-MACRON -->
+    <suprasegmental name="᷆" tone="mid>low" href="Contour_tone"/>  <!-- U+1DC6 MACRON-GRAVE -->
+    <suprasegmental name="᷇" tone="high>mid" href="Contour_tone"/>  <!-- U+1DC7 ACUTE-MACRON -->
+    <suprasegmental name="᷈" tone="low>high>low" href="Contour_tone"/>  <!-- U+1DC8 GRAVE-ACUTE-GRAVE -->
+    <suprasegmental name="᷉" tone="high>low>high" href="Contour_tone"/>  <!-- U+1DC9 ACUTE-GRAVE-ACUTE -->
+    <!-- IPA linking mark: absence of a *pause*, not absence of a boundary.
+         It stands between two words and says they are run together, so it
+         declares level="word" as '#' does: 'lez‿ami' is two words, and a
+         rule written for a word edge must reach it. linking="+" is what
+         says no pause, and it is the whole difference from '#'. With no
+         level it sat on no tier, '#' did not reach it, and only '%' caught
+         it, together with the syllable dot, so a word-final rule written
+         with '%' also fired at an interior dot and the optional dot changed
+         which rules fired. -->
+    <suprasegmental name="‿" linking="+" level="word" href="Tie_(typography)"/>
     <suprasegmental name="↗" global="rise" href="Intonation_(linguistics)"/>
     <suprasegmental name="↘" global="fall" href="Intonation_(linguistics)"/>
     <suprasegmental name="ꜛ" step="up" href="Upstep"/>
     <suprasegmental name="ꜜ" step="down" href="Downstep"/>
-    <suprasegmental name="|" break="minor" href="Prosodic_unit"/>
-    <suprasegmental name="‖" break="major" href="Prosodic_unit"/>
+    <!-- The two break marks are boundaries at a level, not merely marks of
+         a strength, so each declares the tier it terminates. break= is the
+         strength; level= is what splits a node and what '#' reaches.
+
+         Deliberately above "word", which follows the marks' USE and not
+         the chart's label. The IPA chart calls '|' the "minor (foot)
+         group", and in the standard prosodic hierarchy (mora < syllable
+         < foot < word < phrase < intonational phrase < utterance) foot
+         sits BELOW word. But '|' is used in transcription as a comma-like
+         break between phrases, never to divide the feet inside a word, and
+         a level is only worth declaring for the boundaries people write.
+         Reading the label instead would put '|' under 'word' and make a
+         phrase break weaker than a space, which is the opposite of how it
+         is read. If foot structure is ever wanted it is a separate value
+         below 'syllable', not a re-reading of these two. -->
+    <suprasegmental name="|" break="minor" level="phrase" href="Prosodic_unit"/>
+    <suprasegmental name="‖" break="major" level="utterance" href="Prosodic_unit"/>
   </suprasegmentals>
 
   <separators>
     <separator name="." level="syllable" href="Syllable"/>
+    <!-- Not on the chart (see <notations>): the IPA marks groups with '|'
+         and '‖' and has no word mark. '#' is the generative-phonology
+         boundary, kept because a rule has to name a word edge. -->
     <separator name="#" level="word" href="Word"/>
   </separators>
+
+  <!-- A structural zero: a position a transcription keeps open with no
+       segment in it. Its own class, deliberately, because neither of the
+       two obvious homes says what it is.
+
+       Not a phone. It is not a sound, and registering it as one would
+       take the inventory from 139 to 140 and move confusion.json, which
+       is the wrong reason to touch the metric. Carrying no features at
+       all, it is out of the metric by construction rather than by an
+       exclusion someone has to remember.
+
+       Not a diacritic on a host either. A diacritic modifies the segment
+       it is written on, and a zero is exactly the case where there is no
+       segment to write on: an empty timing slot is a position, not a
+       property of a neighbor.
+
+       Distinct from '␣', which is a registered phone with
+       manner="silence". Silence is a segment with duration; a zero is
+       the absence of one. Both are conventions off the chart, and they
+       are not the same thing.
+
+       What it buys: French liaison's latent consonant, which modeled as
+       deletion loses the fact that a /z/ *could* surface ('les chiens'
+       goes to 'le ʃjɛ̃' and the position goes with it); an empty mora
+       slot; and a derivation recoverable from its output rather than only
+       from a Derivation, since deletion is a collapse that otherwise
+       leaves no record on the form.
+
+       Emitting one is opt-in. Every 'x -> ∅' rule keeps writing nothing,
+       because the shipped rule sets read it that way and '∅' is already
+       the rule notation for the empty string (rules.NULL, beside '0' and
+       'Ø'). A rule that wants a zero has to ask for one, and how it asks
+       is a rules.py question, not settled here.
+
+       Borrowed from set theory, and so listed in <notations> as an
+       extension along with '␣' and '#'. -->
+  <zeros>
+    <zero name="∅" href="Zero_(linguistics)"/>
+  </zeros>
 
   <!-- General references for the IPA system -->
   <references>

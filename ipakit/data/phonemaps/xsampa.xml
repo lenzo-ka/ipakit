@@ -165,8 +165,12 @@
     <map ipa="θ" xsampa="T"/>
     <map ipa="χ" xsampa="X"/>
     <map ipa="ᶣ" xsampa="_H_w"/>
-    <map ipa="᷄" xsampa="_H_T"/>
-    <map ipa="᷅" xsampa="_B_L"/>
+    <map ipa="᷄" xsampa="_M_H"/>
+    <map ipa="᷅" xsampa="_L_M"/>
+    <map ipa="᷆" xsampa="_M_L"/>
+    <map ipa="᷇" xsampa="_H_M"/>
+    <map ipa="᷈" xsampa="_L_H_L"/>
+    <map ipa="᷉" xsampa="_H_L_H"/>
     <map ipa="‖" xsampa="||"/>
     <map ipa="‿" xsampa="-\"/>
     <map ipa="ⁿ" xsampa="_n"/>
