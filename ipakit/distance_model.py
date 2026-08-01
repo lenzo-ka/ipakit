@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Self
 
 from .constants import DEFAULT_CONFUSION
 from .distance import WordDistanceResult, _empty_pair_result
+from .metric import metric_fingerprint
 from .models import Phoneset
 
 if TYPE_CHECKING:
@@ -38,12 +39,17 @@ Matrix = list[list[float]]
 MATRIX_VERSION = "1.0"
 
 
-def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str]:
-    """Shipped/derived model: phones + upper triangle -> full symmetric matrix."""
+def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str, str | None]:
+    """Shipped/derived model: phones + upper triangle -> full symmetric matrix.
+
+    The fourth element is the ``metric`` fingerprint the file records, or
+    ``None`` where it records none.
+    """
     d = json.loads(Path(path).read_text(encoding="utf-8"))
     phones: list[str] = d["phones"]
     tri: list[float] = d["triangle"]
     space: str = d["space"]
+    fingerprint: str | None = d.get("metric")
     n = len(phones)
     diag = 0.0 if space == "distance" else 1.0
     m: Matrix = [[diag] * n for _ in range(n)]
@@ -52,7 +58,7 @@ def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str]:
         for j in range(i + 1, n):
             m[i][j] = m[j][i] = tri[k]
             k += 1
-    return phones, m, space
+    return phones, m, space, fingerprint
 
 
 def _load_matrix_tsv(
@@ -96,9 +102,57 @@ def _load_matrix_tsv(
 
 
 @functools.lru_cache(maxsize=1)
-def _global_matrix() -> tuple[list[str], Matrix, str]:
+def _global_matrix() -> tuple[list[str], Matrix, str, str | None]:
     """Shipped global IPA matrix, loaded once."""
     return _load_matrix_json(DEFAULT_CONFUSION)
+
+
+def _checked_global(ipa: IPAFeatures) -> tuple[list[str], Matrix, str]:
+    """The shipped matrix, refused unless ``ipa`` is the space it came from.
+
+    Every reader of ``data/confusion.json`` comes through here --
+    :meth:`DistanceModel.global_`, which ``ipakit.distance_model()``
+    builds on, and :meth:`DistanceModel.for_phoneset`, which re-slices the
+    same values and does not go through ``global_``. Editing the shipped
+    inventory and not regenerating is the case the fingerprint exists for,
+    and this is the path that edit is actually read on.
+    """
+    phones, m, space, fingerprint = _global_matrix()
+    _check_fingerprint(ipa, phones, fingerprint, DEFAULT_CONFUSION)
+    return phones, m, space
+
+
+def _check_fingerprint(
+    ipa: IPAFeatures, phones: list[str], recorded: str | None, path: Path
+) -> None:
+    """Refuse a matrix derived in a feature space this inventory is not.
+
+    Silent where ``recorded`` is ``None``. A TSV grid of empirical
+    confusion data is not derived from the metric at all and has nothing
+    to agree with, and refusing those would refuse the mechanism's main
+    external use. Every matrix ipakit writes carries the key, so the
+    silent case is exactly the case that should be silent.
+
+    A disagreement is a refusal rather than a warning because the wrong
+    answer is well formed and the caller has nothing to notice it by: a
+    percentile from another inventory's reference distribution is a
+    perfectly reasonable-looking number, and both readings of ``s``/``ʃ``
+    look like a confusability.
+    """
+    if recorded is None:
+        return
+    derived = metric_fingerprint(ipa, phones)
+    if derived == recorded:
+        return
+    raise ValueError(
+        f"{path.name} was derived in a different feature space than "
+        f"{ipa.xml_path.name} declares: the file records metric {recorded}, "
+        f"this inventory gives {derived}. Percentiles read from it would be "
+        "relative to a distribution this inventory did not produce. If you "
+        "edited the inventory, regenerate the matrix: "
+        "'python scripts/confusion.py generate --write' for the shipped one, "
+        "or DistanceModel.derive(ipa).save(path) for your own."
+    )
 
 
 class DistanceModel:
@@ -171,8 +225,12 @@ class DistanceModel:
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
-        """Default model: shipped global IPA matrix, CDF over all its pairs."""
-        phones, m, space = _global_matrix()
+        """Default model: shipped global IPA matrix, CDF over all its pairs.
+
+        Refuses if the shipped matrix was derived in a feature space
+        ``ipa`` is not; see :func:`_checked_global`.
+        """
+        phones, m, space = _checked_global(ipa)
         return cls(
             ipa,
             "ipa",
@@ -248,6 +306,11 @@ class DistanceModel:
 
         Only the reference sub-inventory is written, so a model already
         sliced to a phoneset saves that slice.
+
+        ``metric`` is :func:`~ipakit.metric.metric_fingerprint` over the
+        phones written, so the file says which feature space its numbers
+        mean something in and :meth:`from_matrix_file` can refuse a
+        reader that is not in it.
         """
         ref = [p for p in self._ref if p in self._index]
         idxs = [self._index[p] for p in ref]
@@ -256,6 +319,7 @@ class DistanceModel:
             "version": MATRIX_VERSION,
             "reference": self._name,
             "space": self._space,
+            "metric": metric_fingerprint(self._ipa, ref),
             "phones": ref,
             "triangle": [
                 self._m[idxs[i]][idxs[j]] for i in range(n) for j in range(i + 1, n)
@@ -289,7 +353,7 @@ class DistanceModel:
         specifically: the phoneset is written in another tie convention
         and should be imported with :meth:`IPAFeatures.import_phoneset`.
         """
-        phones, m, space = _global_matrix()
+        phones, m, space = _checked_global(ipa)
         index = {p: i for i, p in enumerate(phones)}
         ref = [p for p in phoneset.phones if p in index]
         dropped = [p for p in phoneset.phones if p not in index]
@@ -341,7 +405,8 @@ class DistanceModel:
         if p.suffix == ".tsv":
             phones, m, sp = _load_matrix_tsv(p, space=space or "similarity")
         else:
-            phones, m, sp = _load_matrix_json(p)
+            phones, m, sp, fingerprint = _load_matrix_json(p)
+            _check_fingerprint(ipa, phones, fingerprint, p)
         return cls(
             ipa,
             p.stem,
