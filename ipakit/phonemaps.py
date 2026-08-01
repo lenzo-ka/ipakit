@@ -18,11 +18,32 @@ from .constants import PHONEMAPS_DIR
 def _load_phonemap(name: str) -> tuple[dict[str, str], dict[str, str]]:
     """Load a phonemap XML file and return (ipa_to_target, target_to_ipa) dicts.
 
+    The document's ``to`` attribute names the column its rows write the
+    target spelling in, and that is the only place it is said. There is no
+    fallback to the file's stem: a stem agrees with the column in some
+    tables and not others, so a reader holding two sources for one fact
+    takes the wrong one wherever they part company and hands back a table
+    of nothing.
+
+    A phonemap that maps nothing is not a phonemap, so this raises rather
+    than warning. Two empty dicts are a well-formed answer that every
+    caller downstream reads as "no mapping exists for anything" instead of
+    "this file did not load", which is the silent wrong answer
+    ``docs/reviewing.md`` is about. These files ship with the package, so a
+    column no row spells is a packaging or declaration error rather than
+    anything a caller did or can respond to, and the place to say so is
+    the load, where the document can still be named.
+
     Args:
         name: Name of the phonemap (e.g., "timit", "kirshenbaum")
 
     Returns:
         Tuple of (ipa_to_target, target_to_ipa) mapping dicts
+
+    Raises:
+        FileNotFoundError: if there is no such phonemap.
+        ValueError: if the document names no target column, if a row fails
+            to spell the column the document names, or if it has no rows.
     """
     xml_path = PHONEMAPS_DIR / f"{name}.xml"
     if not xml_path.exists():
@@ -30,17 +51,28 @@ def _load_phonemap(name: str) -> tuple[dict[str, str], dict[str, str]]:
 
     root = ET.parse(xml_path).getroot()
 
-    # Determine the target attribute name from the 'to' attribute
-    target_name = root.get("to", name)
+    target_name = root.get("to")
+    if not target_name:
+        raise ValueError(
+            f"{xml_path.name} declares no `to`, so which of its attributes "
+            f"carries the target spelling is unstated and nothing can be read "
+            f"out of it"
+        )
 
     ipa_to_target: dict[str, str] = {}
     target_to_ipa: dict[str, str] = {}
+    unread: list[dict[str, str]] = []
 
     def load_section(section: ET.Element) -> None:
         for elem in section.findall("map"):
             ipa = elem.get("ipa", "")
             target = elem.get(target_name, "")
-            if ipa and target:
+            if not target:
+                # Per row rather than only over the whole table, so one row
+                # spelling the column differently from its neighbours is as
+                # loud as a whole document doing it.
+                unread.append(dict(elem.attrib))
+            elif ipa:
                 # First mapping wins (don't overwrite)
                 if ipa not in ipa_to_target:
                     ipa_to_target[ipa] = target
@@ -53,6 +85,14 @@ def _load_phonemap(name: str) -> tuple[dict[str, str], dict[str, str]]:
     # Load extras section if present
     if (extras := root.find("extras")) is not None:
         load_section(extras)
+
+    if unread:
+        raise ValueError(
+            f"{xml_path.name} maps to `{target_name}`, but these rows spell no "
+            f"such attribute, so they map nothing: {unread}"
+        )
+    if not ipa_to_target:
+        raise ValueError(f"{xml_path.name} has no rows, so it maps nothing")
 
     return ipa_to_target, target_to_ipa
 
