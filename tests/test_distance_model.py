@@ -1,7 +1,14 @@
 """Tests for the distribution-aware DistanceModel (CDF renormalization)."""
 
+import itertools
+import json
+import warnings
+
 import pytest
+from ipakit import IPAFeatures
+from ipakit.constants import DATA_DIR, DEFAULT_CONFUSION
 from ipakit.distance_model import DistanceModel, _load_matrix_json, _load_matrix_tsv
+from ipakit.metric import metric_fingerprint
 
 CORE = [
     "p",
@@ -198,8 +205,9 @@ class TestLoaders:
                 }
             )
         )
-        ph, m, sp = _load_matrix_json(p)
+        ph, m, sp, fingerprint = _load_matrix_json(p)
         assert ph == phones and sp == "distance"
+        assert fingerprint is None, "a file recording no metric records None"
         assert m[0][1] == m[1][0] == tri[0] and m[0][0] == 0.0
 
     def test_tsv_symmetrizes_averages_genuine_zero(self, tmp_path):
@@ -275,3 +283,106 @@ class TestDistanceCli:
         )
         assert rc == 0
         assert "reference: tiny" in out
+
+
+class TestFeatureSpaceFingerprint:
+    """A saved matrix says which feature space its numbers mean something in.
+
+    ``phones`` says which inventory the rows are, and a bridge or a
+    changed feature declaration leaves it byte-identical while moving up
+    to 98% of the distances underneath it. So a perturbed inventory could
+    read the shipped matrix and answer -- 0.9982 where its own derived
+    matrix says 0.9447, with nothing to tell the two apart.
+    """
+
+    BRIDGE = """
+    <bridge name="posteriority">
+      <spelling feature="retroflex" value="+"/>
+      <spelling feature="place" value="postalveolar"/>
+    </bridge>
+  </bridges>"""
+
+    @pytest.fixture
+    def bridged(self, tmp_path):
+        """The shipped inventory plus one bridge: same phones, other space."""
+        text = (DATA_DIR / "ipa.xml").read_text(encoding="utf-8")
+        assert text.count("\n  </bridges>") == 1, "the data moved; fix this test"
+        path = tmp_path / "ipa.xml"
+        path.write_text(text.replace("\n  </bridges>", self.BRIDGE), encoding="utf-8")
+        return IPAFeatures(xml_path=path)
+
+    def test_save_records_it(self, tmp_path, ipa):
+        model = DistanceModel.derive(ipa, phones=["p", "b", "t"])
+        saved = json.loads(model.save(tmp_path / "c.json").read_text(encoding="utf-8"))
+        assert saved["metric"] == metric_fingerprint(ipa, saved["phones"])
+
+    def test_round_trip(self, tmp_path, ipa):
+        model = DistanceModel.derive(ipa, phones=_core_phones(ipa))
+        reloaded = DistanceModel.from_matrix_file(ipa, model.save(tmp_path / "c.json"))
+        assert reloaded.reference_phones == model.reference_phones
+        for a, b in itertools.combinations(model.reference_phones, 2):
+            assert reloaded.confusability(a, b) == model.confusability(a, b)
+
+    def test_a_supplemented_inventory_round_trips(self, tmp_path):
+        # The direction the fingerprint must not break: a supplement adds
+        # phones and declares nothing, so its own derived matrix reads back
+        # and the shipped one stays readable too.
+        inventory = IPAFeatures(supplements=["aspirated-stops"])
+        model = DistanceModel.derive(inventory, phones=["p", "t", "tʰ", "s"])
+        saved = model.save(tmp_path / "c.json")
+        assert DistanceModel.from_matrix_file(inventory, saved).reference_phones == [
+            "p",
+            "t",
+            "tʰ",
+            "s",
+        ]
+        DistanceModel.from_matrix_file(inventory, DEFAULT_CONFUSION)
+
+    def test_a_disagreeing_fingerprint_is_refused(self, tmp_path, ipa, bridged):
+        # The hole itself: same phones in the same order, different space.
+        saved = DistanceModel.derive(ipa, phones=_core_phones(ipa)).save(
+            tmp_path / "c.json"
+        )
+        with pytest.raises(ValueError, match="different feature space"):
+            DistanceModel.from_matrix_file(bridged, saved)
+
+    def test_the_shipped_matrix_is_refused_a_perturbed_inventory(self, bridged):
+        with pytest.raises(ValueError, match="different feature space"):
+            DistanceModel.from_matrix_file(bridged, DEFAULT_CONFUSION)
+
+    def test_the_refusal_names_the_fix(self, bridged):
+        with pytest.raises(ValueError) as caught:
+            DistanceModel.from_matrix_file(bridged, DEFAULT_CONFUSION)
+        message = str(caught.value)
+        # Whoever hits this has usually edited the inventory and not
+        # regenerated, so the message has to carry the command.
+        assert "confusion.py generate --write" in message
+        assert "DistanceModel.derive(ipa).save(path)" in message
+        assert DEFAULT_CONFUSION.name in message and "ipa.xml" in message
+
+    def test_a_matrix_with_no_fingerprint_loads_silently(self, tmp_path, ipa, bridged):
+        # A hand-written or externally derived matrix records no metric and
+        # has nothing to agree with. Refusing it would refuse the
+        # mechanism's main external use.
+        model = DistanceModel.derive(ipa, phones=["p", "b", "t"])
+        path = model.save(tmp_path / "c.json")
+        stripped = json.loads(path.read_text(encoding="utf-8"))
+        del stripped["metric"]
+        path.write_text(json.dumps(stripped), encoding="utf-8")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert DistanceModel.from_matrix_file(bridged, path).reference_phones == [
+                "p",
+                "b",
+                "t",
+            ]
+
+    def test_a_tsv_grid_is_never_checked(self, tmp_path, bridged):
+        path = tmp_path / "c.tsv"
+        path.write_text("\tp\tb\np\t1.0\t0.9\nb\t0.9\t1.0\n", encoding="utf-8")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert DistanceModel.from_matrix_file(bridged, path).reference_phones == [
+                "p",
+                "b",
+            ]

@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ipakit.constants import DEFAULT_CONFUSION  # noqa: E402
 from ipakit.distance_model import MATRIX_VERSION  # noqa: E402
 from ipakit.features import IPAFeatures  # noqa: E402
+from ipakit.metric import metric_fingerprint  # noqa: E402
 
 # The matrix holds feature distances in [0, 1]. Cross-CPython-version float
 # rounding can differ in the last bit (~1e-16), so the derived cache is validated
@@ -57,6 +58,7 @@ def derive(space: str = "distance") -> dict[str, Any]:
         "version": MATRIX_VERSION,
         "reference": "ipa",
         "space": space,
+        "metric": metric_fingerprint(ipa, phones),
         "phones": phones,
         "triangle": triangle,
     }
@@ -84,6 +86,16 @@ def cmd_validate(_: argparse.Namespace) -> int:
         return 1
     if d["space"] != s.get("space"):
         print(f"DRIFT: space shipped={s.get('space')!r} derived={d['space']!r}.")
+        return 1
+    if d["metric"] != s.get("metric"):
+        # The feature space the triangle means something in. It moves for a
+        # bridge, a feature, a value or a declared type -- none of which the
+        # phone list can see -- and a matrix read against the wrong one gives
+        # well-formed wrong percentiles.
+        print(
+            f"DRIFT: feature-space fingerprint shipped={s.get('metric')} "
+            f"derived={d['metric']}; regenerate confusion.json."
+        )
         return 1
     s_tri = s.get("triangle", [])
     if not triangles_match(d["triangle"], s_tri):

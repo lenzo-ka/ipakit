@@ -35,3 +35,25 @@ def test_shipped_confusion_matches_derived() -> None:
 def test_validate_subcommand_exit_zero() -> None:
     c = _load_script()
     assert c.main(["validate"]) == 0
+
+
+def test_shipped_confusion_records_its_feature_space() -> None:
+    """The key `phones` cannot stand in for: a bridge or a changed feature
+    declaration leaves the phone list byte-identical and moves the values."""
+    from ipakit import IPAFeatures
+    from ipakit.metric import metric_fingerprint
+
+    c = _load_script()
+    s = c.shipped()
+    assert s["metric"] == metric_fingerprint(IPAFeatures(), s["phones"])
+
+
+def test_validate_reports_a_moved_fingerprint(monkeypatch, capsys) -> None:
+    """A metric change that happened to leave every cell inside the
+    tolerance would pass every other check this script makes."""
+    c = _load_script()
+    moved = {**c.shipped(), "metric": "0" * 16}
+    monkeypatch.setattr(c, "shipped", lambda: moved)
+    assert c.main(["validate"]) == 1
+    out = capsys.readouterr().out
+    assert "fingerprint" in out and "regenerate confusion.json" in out
