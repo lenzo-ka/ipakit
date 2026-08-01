@@ -34,6 +34,7 @@ import functools
 import json
 import sys
 import warnings
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import ipakit
@@ -45,8 +46,22 @@ from ipakit.distance_model import DistanceModel
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 ROOT = Path(__file__).resolve().parent.parent
-EXAMPLE = ROOT / "docs" / "examples" / "aspirated-stops.xml"
+#: Reached the way the documents tell a reader to reach it, so a move that
+#: leaves the name unresolvable fails here rather than in a classroom.
+EXAMPLE = ipakit.supplement_path("aspirated-stops")
 ASPIRATED = EXAMPLE.read_text(encoding="utf-8")
+
+
+def declared(path: Path) -> frozenset[str]:
+    """The symbols a supplement registers, read off the file itself."""
+    root = ET.parse(path).getroot()
+    return frozenset(
+        name for section in root for elem in section if (name := elem.get("name"))
+    )
+
+
+#: What the shipped example adds, from the example rather than retyped.
+EXAMPLE_SYMBOLS = declared(EXAMPLE)
 
 #: A supplement whose entry matches a bundle the base already answers.
 #: ``č`` is the Americanist spelling of ``t͡ʃ`` and carries the same
@@ -104,6 +119,57 @@ class TestTheDocumentedExampleIsTheOneThatRuns:
             assert (
                 block == ASPIRATED
             ), f"{name} shows a supplement that is not {EXAMPLE}"
+
+
+class TestTheExampleIsReachableByName:
+    """A student reaches the shipped example without spelling a path.
+
+    The audience is a phonetics class, and ``site-packages/ipakit/data/...``
+    is not a thing anybody types into a notebook correctly. Rule sets
+    solved this already -- ``ruleset("american-english")`` -- so a
+    supplement is asked for the same way, and the name is what the
+    documents show.
+    """
+
+    def test_every_shipped_supplement_loads_under_its_own_name(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """A predicate over the directory, not a list of what is in it today.
+
+        The declared ``name`` and the file's stem have to agree, or the
+        name a caller passes and the name provenance is recorded under are
+        two different strings for one file.
+        """
+        names = ipakit.available_supplements()
+        assert "aspirated-stops" in names, names
+        for name in names:
+            loaded = IPAFeatures(supplements=[name])
+            assert set(loaded.supplements) == {name}
+            assert set(loaded.phones) - set(ipa.phones)
+
+    def test_the_name_and_the_path_are_the_same_file(self) -> None:
+        by_name = IPAFeatures(supplements=["aspirated-stops"])
+        by_path = IPAFeatures(supplements=[EXAMPLE])
+        assert by_name.supplements == by_path.supplements
+        assert list(by_name.phones) == list(by_path.phones)
+
+    def test_a_name_nothing_answers_to_says_what_would_have(self) -> None:
+        """A typo reads as a missing file otherwise, and names no way out."""
+        with pytest.raises(ValueError, match="aspirated-stops"):
+            IPAFeatures(supplements=["aspirated-stop"])
+        with pytest.raises(ValueError, match="no shipped supplement"):
+            ipakit.supplement_path("aspirated-stop")
+
+    def test_a_path_to_nothing_is_refused_at_the_call(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="no supplement at"):
+            IPAFeatures(supplements=[tmp_path / "absent.xml"])
+
+    def test_the_directory_holds_supplements_and_nothing_else(self) -> None:
+        """What lets a bare name mean a file: the directory has one kind in it."""
+        for name in ipakit.available_supplements():
+            path = ipakit.supplement_path(name)
+            assert path.parent == ipakit.SUPPLEMENTS_DIR
+            assert ET.parse(path).getroot().tag == "supplement"
 
 
 @pytest.fixture(scope="module")
@@ -483,6 +549,30 @@ class TestTheShippedMetricDoesNotMove:
     def test_the_default_inventory_takes_no_supplement(self) -> None:
         assert IPAFeatures().supplements == {}
         assert ipakit.load_ipa_features().supplements == {}
+
+    def test_shipping_the_example_does_not_load_it(self) -> None:
+        """The half that shipping the file puts at risk.
+
+        The worked example lives in the package, in a directory the loader
+        finds by name. A default inventory is still the bare one: not its
+        symbols, not its count, no supplement recorded anywhere. Read off
+        the example rather than retyped, so editing what it declares
+        cannot leave this asserting the old contents.
+        """
+        assert EXAMPLE_SYMBOLS, "the example declares nothing to look for"
+        for f in (IPAFeatures(), ipakit.load_ipa_features()):
+            assert f.supplement_of == {}
+            assert EXAMPLE_SYMBOLS.isdisjoint(f.phones)
+            assert EXAMPLE_SYMBOLS.isdisjoint(f.declared_symbols)
+
+    def test_the_shipped_matrix_never_saw_the_example(self) -> None:
+        """``confusion.json`` is a checked-in derived artifact, and
+        shipping the example beside it must not move a byte of it."""
+        shipped = json.loads(
+            (ipakit.DATA_DIR / "confusion.json").read_text(encoding="utf-8")
+        )
+        assert EXAMPLE_SYMBOLS.isdisjoint(shipped["phones"])
+        assert len(shipped["phones"]) == len(IPAFeatures().phones)
 
     def test_the_shipped_matrix_is_the_bare_inventory(self) -> None:
         shipped = json.loads(

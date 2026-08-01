@@ -39,10 +39,11 @@ from .constants import (
     DEFAULT_CMU_MAP,
     DEFAULT_IPA_FEATS,
     PHONEMAPS_DIR,
+    SUPPLEMENTS_DIR,
 )
 from .distance import WordDistanceResult
 from .distance_model import DistanceModel
-from .features import IPAFeatures
+from .features import IPAFeatures, available_supplements, supplement_path
 from .form import Attribute, Boundary, Form, Node, Unit, tiers, units
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
@@ -105,6 +106,10 @@ def load_ipa_features(
 
     ``supplements`` are extra inventory files merged over ``xml_path``,
     each adding symbols and declaring nothing else (docs/supplements.md).
+    A member is a path to a file of yours, or the bare name of one the
+    package ships -- ``supplements=["aspirated-stops"]`` loads the worked
+    example, and :func:`available_supplements` says what else answers.
+
     The instance they build is the caller's own: the module-level
     functions, the shipped distance matrix and every derived artifact in
     this package are built from the bare inventory and do not see it.
@@ -977,8 +982,10 @@ __all__ = [
     "DEFAULT_CMU_MAP",
     "DEFAULT_IPA_FEATS",
     "PHONEMAPS_DIR",
+    "SUPPLEMENTS_DIR",
     # Functions
     "add_ties",
+    "available_supplements",
     "confusability",
     "describe",
     "distance",
@@ -1012,6 +1019,7 @@ __all__ = [
     "respell",
     "segment",
     "stress_markers",
+    "supplement_path",
     "to_cmu",
     "to_ipa",
     "to_kirshenbaum",

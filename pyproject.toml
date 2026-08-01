@@ -66,6 +66,8 @@ ipakit = [
     "data/*.rng",
     "data/phonemaps/*.xml",
     "data/phonemaps/*.rng",
+    "data/supplements/*.xml",
+    "data/supplements/*.rng",
     "data/rules/*.rules",
     "data/*.json",
     "py.typed",

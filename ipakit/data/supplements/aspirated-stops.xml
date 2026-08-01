@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Aspirated stops, registered as phones of their own: the worked
+     supplement, shipped beside supplement.rng so an install carries an
+     instance of the format and not only the grammar for it. Nothing loads
+     it. A supplement is opt-in, per instance, and asked for by name:
+     load_ipa_features(supplements=["aspirated-stops"]). -->
+<supplement name="aspirated-stops">
+  <phones>
+    <phone name="pʰ"/>
+    <phone name="tʰ"/>
+    <phone name="kʰ"/>
+  </phones>
+</supplement>

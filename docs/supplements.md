@@ -2,14 +2,18 @@
 
 `ipa.xml` is the inventory ipakit ships. A **supplement** is a second XML file merged over it at load time, adding symbols the shipped file does not register. The motivating case is registering a composed segment — `tʰ`, `ɪ̃`, `t̚` — as a first-class phone.
 
-The worked example on this page is checked in at [examples/aspirated-stops.xml](examples/aspirated-stops.xml), and the paths below are written relative to the repository root so that every value on the page is checked against the library:
+The worked example on this page ships inside the package, at [aspirated-stops.xml](../ipakit/data/supplements/aspirated-stops.xml), so an installed ipakit carries an instance of the format and not only the grammar for it. It is asked for by name, the way a shipped rule set is, rather than by a path into `site-packages`:
 
 ```python
 import ipakit
-inventory = ipakit.load_ipa_features(supplements=["docs/examples/aspirated-stops.xml"])
+inventory = ipakit.load_ipa_features(supplements=["aspirated-stops"])
 len(inventory.phones) - len(ipakit.load_ipa_features().phones)
 # 3
+ipakit.available_supplements()
+# ['aspirated-stops']
 ```
+
+A supplement of your own is passed as a path. `ipakit.supplement_path("aspirated-stops")` is where the shipped one landed in your copy — to read, or to copy as a starting point.
 
 The instance that comes back is the caller's own. The module-level functions (`ipakit.distance`, `ipakit.confusability`, `ipakit.describe`), the shipped distance matrix, and every derived artifact in the package are built from the bare inventory and never see a supplement.
 
@@ -59,6 +63,11 @@ If none of those is what you want, compose the unit and skip this document.
 
 ```xml
 <?xml version='1.0' encoding='utf-8'?>
+<!-- Aspirated stops, registered as phones of their own: the worked
+     supplement, shipped beside supplement.rng so an install carries an
+     instance of the format and not only the grammar for it. Nothing loads
+     it. A supplement is opt-in, per instance, and asked for by name:
+     load_ipa_features(supplements=["aspirated-stops"]). -->
 <supplement name="aspirated-stops">
   <phones>
     <phone name="pʰ"/>
@@ -74,7 +83,7 @@ Inside it, a supplement may declare entries in **the element sections `<classes>
 
 That line is the whole safety property. Every attribute on a declaring element lands in that symbol's feature bundle, and a bundle key is a term in the metric: a file that could declare a new feature would silently reshape every distance in the inventory it was merely meant to extend. A supplement adds symbols to a space; it does not redefine the space.
 
-Both halves of that — the sections a supplement may hold and the declarations it may not — are stated as a RELAX NG grammar, `supplement.rng`, which ships in the package beside `ipa.xml`; `python -c 'from ipakit.constants import DATA_DIR; print(DATA_DIR / "supplement.rng")'` says where your copy of it is. Validating against it (`xmllint --noout --relaxng`, or `lxml.etree.RelaxNG`) answers the structural half of the question before the loader is ever called.
+Both halves of that — the sections a supplement may hold and the declarations it may not — are stated as a RELAX NG grammar, `supplement.rng`, which ships in the package beside the worked example; `python -c 'from ipakit import SUPPLEMENTS_DIR; print(SUPPLEMENTS_DIR / "supplement.rng")'` says where your copy of it is. Validating against it (`xmllint --noout --relaxng`, or `lxml.etree.RelaxNG`) answers the structural half of the question before the loader is ever called.
 
 ### An entry that declares nothing derives from its spelling
 

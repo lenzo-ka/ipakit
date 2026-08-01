@@ -37,9 +37,9 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "ipakit" / "data"
 IPA_XML = DATA / "ipa.xml"
-# The one supplement in the tree: a worked example rather than data, which
-# is why it lives under docs and its grammar does not.
-SUPPLEMENT_XML = ROOT / "docs" / "examples" / "aspirated-stops.xml"
+# The worked supplement, in the directory it ships from, beside the grammar
+# that states its shape.
+SUPPLEMENT_XML = DATA / "supplements" / "aspirated-stops.xml"
 
 RNG = "{http://relaxng.org/ns/structure/1.0}"
 
@@ -152,12 +152,12 @@ def _grammars_for(document: Path) -> list[Path]:
     keeps "claimed by exactly one grammar" a checkable property.
 
     A rule over file names does not reach as far. The grammars all live
-    in ``ipakit/data``, beside the inventory, because a copied file should
-    carry what states its shape and because an installed user has to be
-    able to reach one -- while a supplement is written by that user, and
-    the one in the tree is a worked example under ``docs``.
-    ``aspirated-stops.xml`` is named after what it declares, not after
-    ``supplement.rng``, and no naming convention was going to relate them.
+    under ``ipakit/data``, beside the documents they describe, because a
+    copied file should carry what states its shape and because an installed
+    user has to be able to reach one. A supplement is named after what it
+    declares -- ``aspirated-stops.xml`` -- rather than after
+    ``supplement.rng`` sitting beside it, and no naming convention was
+    going to relate them.
     """
     return [g for g in _grammars() if _document_root(document) in _grammar_roots(g)]
 
@@ -242,11 +242,11 @@ def test_every_grammar_is_well_formed_relax_ng(
 def test_every_shipped_xml_is_claimed_by_exactly_one_grammar() -> None:
     """A document no grammar covers fails here rather than shipping unstated.
 
-    Every ``.xml`` in the repository, not only the data: a supplement is a
-    document type the library invites its users to write, and the worked
-    example under ``docs/examples`` is the one instance of it anybody can
-    copy. A format demonstrated in the documentation and stated nowhere is
-    a format whose readers are guessing.
+    Every ``.xml`` in the repository, not only the inventory: a supplement
+    is a document type the library invites its users to write, and the
+    worked example is the one instance of it anybody can copy. A format
+    demonstrated in the documentation and stated nowhere is a format whose
+    readers are guessing.
 
     If you have just added an XML document and landed on this failure:
     write a grammar for it, put it in ``ipakit/data`` with the others, and
