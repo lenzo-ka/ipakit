@@ -43,11 +43,18 @@ lint:
 	@$(PYTHON) -m black --check .
 	@$(PYTHON) -m mypy
 
+## PYTEST_WORKERS: how many processes the suite runs in.
+# 'auto' is one per core. Set it to 0 to run serially -- useful when a failure
+# needs a readable traceback, or on a machine already under load, since xdist
+# takes the cores it is given whatever else is running.
+PYTEST_WORKERS ?= auto
+PYTEST_N = $(if $(filter 0,$(PYTEST_WORKERS)),,-n $(PYTEST_WORKERS))
+
 ## check: the gates a release runs
 # lint is a prerequisite rather than a recipe line so it fails in seconds,
 # before the suite spends a minute earning the same verdict.
 check: lint
-	@$(PYTHON) -m pytest -q
+	@$(PYTHON) -m pytest -q $(PYTEST_N)
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
