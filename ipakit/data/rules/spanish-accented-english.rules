@@ -21,11 +21,12 @@
 # answer, and the rhotic block below is five rules because of it.
 #
 # Ordered, like every set here. Each rule sees the previous rule's
-# output. Two orderings below are load-bearing and are marked; the rest
-# are independent, which was measured rather than assumed -- see
-# tests/test_rule_sets.py::TestOrderingMattersWhereTheFileSaysItDoes.
-# (The count used to be two with only one marked. Both are marked now,
-# and the second is the trill's, which did not exist when it was written.)
+# output. Three orderings below are load-bearing and each is marked; the
+# rest are independent, which is measured rather than assumed -- see
+# tests/test_rule_sets.py, where TestHowMuchOrderingMattersAtAll sweeps
+# every transposition of this set and asserts that the ones which move an
+# answer are exactly the ones putting one of the three the wrong way
+# round. So the count in this paragraph is a claim the suite checks.
 
 # --- prothesis ----------------------------------------------------------
 # Spanish permits no word-initial s+consonant onset, so a borrowed one
@@ -58,8 +59,12 @@
 # them, since /l/ is a lateral approximant. The class is a DISJUNCTION of
 # two feature bundles, and a bracketed query is a conjunction, so it
 # cannot be said once. This is the same limit that makes the shipped
-# set's nasal place assimilation two rules instead of one: a limit of the
-# formalism here, not of the phonology. Do not "simplify" these to
+# american-english set's tapping three rules instead of one, and it is
+# worth being exact about which limit it is: an agreement variable says
+# "the same value here and there", which is what the English nasal place
+# assimilation needs and gets in one line. A disjunction is a different
+# thing and there is no variable for it. A limit of the formalism here,
+# not of the phonology. Do not "simplify" these to
 # '[-vowel]' -- that spelling also fires on 'sweet' and 'suit'.
 ∅ -> e / # _ s [-vowel -approximant] ; prothesis (s + obstruent or nasal)
 ∅ -> e / # _ s [channel=lateral] ; prothesis (s + l)
@@ -72,6 +77,12 @@
 # /ʒ/ and /ð/ and send them somewhere wrong, so the class would be doing
 # less work than it looks like it is doing, not more.
 v -> b ; v is b
+# ORDERING (1 of 3), and the quietest one in the file: the /s/ this line
+# produces is a site the rhotic block below reads. 'Israel' is quoted
+# there as a trill environment, and it is /ɪzɹeɪl/ on the way in -- so
+# 'ɹ is the trill after s' sees an /s/ only because this rule has already
+# put one there. Run it after the rhotic block and 'ɪzɹeɪl' comes out
+# with a tap, which is the wrong rhotic in the word the block cites.
 z -> s ; z is s
 ʃ -> t͡ʃ ; ʃ is t͡ʃ
 θ -> t ; θ is t
@@ -85,7 +96,7 @@ h -> x ; h is x
 ŋ -> n / _ # ; final ŋ is n
 
 # --- the rhotic ---------------------------------------------------------
-# ORDERING (1 of 2). The r-colored vowels are decomposed into a plain
+# ORDERING (2 of 3). The r-colored vowels are decomposed into a plain
 # vowel plus a real rhotic FIRST, so that the single statement below --
 # English /ɹ/ is the Spanish tap -- reaches the rhotic that decomposition
 # produced. Run the other way round, 'butter' comes out [bateɹ] with an
@@ -96,7 +107,7 @@ h -> x ; h is x
 ɚ -> eɹ ; unstressed r-colored vowel decomposes
 ɝ -> eɹ ; stressed r-colored vowel decomposes
 
-# ORDERING (2 of 2), and it is the specific-before-general shape the
+# ORDERING (3 of 3), and it is the specific-before-general shape the
 # shipped japanese-moraic set uses for its epenthetic vowels: the trill
 # rules take their sites first, and the tap rule below is then correct
 # with no exceptions written into it. Run the other way round there is no
