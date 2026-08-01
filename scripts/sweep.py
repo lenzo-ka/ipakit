@@ -16,16 +16,16 @@ The corpus
         unit in {base} | {base + mark}   for base in phones, mark in diacritics
         kept when      ipa.segment(unit).to_ipa() == unit
 
-Today that is 139 bare phones + 7921 marked units = 8060.
+``sweep.py corpus`` prints the totals for the commit you are on.
 
 Why this definition and not a strict-parse one. The alternative in use was
 "parses strictly", i.e. ``segment(unit, strict=True)`` does not raise. That
-counts 8340 units now and counted 8618 six commits ago: it moved by 278 when
-``fix: bind a stress mark to the unit that follows it`` changed what the
-parser refuses, without a single phone or diacritic changing. It measures the
-parser's error policy as much as the inventory. Re-emission held at 7921
-across the same commits. A corpus meant to make two lanes comparable should
-depend on what the data spells, not on how strict today's parser is.
+count moved 8618 -> 8340 when ``fix: bind a stress mark to the unit that
+follows it`` changed what the parser refuses, without a single phone or
+diacritic changing. It measures the parser's error policy as much as the
+inventory. Re-emission held at 7921 across the same commits. A corpus meant
+to make two lanes comparable should depend on what the data spells, not on
+how strict today's parser is.
 
 Bare phones are in the corpus because they are the same predicate with the
 empty mark, and because keeping them makes the sweep cover the registered
@@ -127,7 +127,7 @@ def corpus(ipa: IPAFeatures) -> list[tuple[str, str, str]]:
 
     Warnings are silenced here: the prosodic marks warn on every base they are
     tried against, and the point of the loop is to find out which combinations
-    are well-formed, not to be told 8896 times.
+    are well-formed, not to be told so once per candidate.
     """
     units: list[tuple[str, str, str]] = []
     with warnings.catch_warnings():

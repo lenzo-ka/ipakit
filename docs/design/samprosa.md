@@ -208,7 +208,7 @@ So collision (c) is the benign one: one exact agreement and one loud spelling di
 
 ### (d) The collision the brief did not ask about, and the one that decides it
 
-SAMPROSA is not being considered in a vacuum. **ipakit already ships X-SAMPA**, in the same ASCII string space, from `data/phonemaps/xsampa.xml` (173 entries). Comparing the SAMPROSA inventory against that shipped table:
+SAMPROSA is not being considered in a vacuum. **ipakit already ships X-SAMPA**, in the same ASCII string space, from `data/phonemaps/xsampa.xml`. Comparing the SAMPROSA inventory against that shipped table:
 
 ```
 COLLIDING SYMBOLS: 19 of 36

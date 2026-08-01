@@ -1470,12 +1470,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ``articulator="tongue-tip"`` by the apical mark and by the
         linguolabial -- and screening is what makes the coherent one win by
         construction. Today the "fewest declared features" ordering happens
-        to pick the same mark, so either check alone refuses the same 128
-        of 8062 compositions; two orderings agreeing by habit is how this
-        repo has been bitten before, so that agreement is measured in the
-        tests rather than relied on. The read-back is what makes the
-        guarantee, since a mark's declared bundle is not the whole of what
-        wearing it does to a segment.
+        to pick the same mark, so either check alone refuses the same
+        compositions; two orderings agreeing by habit is how this repo has
+        been bitten before, so that agreement is measured in the tests
+        rather than relied on. The read-back is what makes the guarantee,
+        since a mark's declared bundle is not the whole of what wearing it
+        does to a segment.
 
         Examples:
             >>> ipa = IPAFeatures()

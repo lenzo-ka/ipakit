@@ -22,7 +22,7 @@ Each of these happened, more than once.
 
 ### Measure, do not predict
 
-Any change that could touch the metric gets a before/after over all 9591 pairs, and **every mover must be explained**. Not "the movement looks reasonable" — an actual account of which pairs moved and why the change reaches them. Unexplained movement is a finding, not noise.
+Any change that could touch the metric gets a before/after over every pair the inventory makes, and **every mover must be explained**. Not "the movement looks reasonable" — an actual account of which pairs moved and why the change reaches them. Unexplained movement is a finding, not noise.
 
 ```
 pairs moved: 16 of 9591   max 0.0909
@@ -110,7 +110,7 @@ A new data file with no grammar fails the suite, and the failure names the conve
 
 ### State what a measure does not claim
 
-`distance` is symmetric, zero on identity and bounded, and it does **not** satisfy the triangle inequality — about 0.5% of triples violate it, some by a wide margin. That is documented, with the uses it rules out, because a caller reaching for a metric tree needs to know. See [distance.md](distance.md).
+`distance` is symmetric, zero on identity and bounded, and it does **not** satisfy the triangle inequality — a small fraction of triples violate it, some by a wide margin. That is documented, with the uses it rules out, because a caller reaching for a metric tree needs to know. See [distance.md](distance.md).
 
 The general rule: an invariant worth relying on is worth a test, and one that does not hold is worth saying out loud.
 
