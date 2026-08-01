@@ -56,11 +56,20 @@ lint:
 PYTEST_WORKERS ?= auto
 PYTEST_N = $(if $(filter 0,$(PYTEST_WORKERS)),,-n $(PYTEST_WORKERS))
 
+## NICE: what the suite is run under.
+# The default yields the CPU, because this checkout is often worked on by
+# several agents at once and by whoever else is on the box; xdist takes every
+# core it is given, so a suite that does not yield starves the others and they
+# starve it back. Yielding costs the runner wall-clock only when something else
+# wants the cores, and costs it nothing when nothing does. Set NICE= to run at
+# normal priority.
+NICE ?= nice -n 19
+
 ## check: the gates a release runs
 # lint is a prerequisite rather than a recipe line so it fails in seconds,
 # before the suite spends a minute earning the same verdict.
 check: lint
-	@$(PYTHON) -m pytest -q $(PYTEST_N)
+	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
