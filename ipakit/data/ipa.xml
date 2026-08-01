@@ -375,10 +375,16 @@
        voiced="+" without being interchangeable with each other, which a
        flat set of spellings cannot say.
 
-       The projection is a fact about the phonetics, and it is read by the
-       write side only. Nothing resolves it onto a segment's features, so
-       "a̤" does not silently acquire voiced="+"; that would change what
-       every read returns, and the metric with it. -->
+       The projection is a fact about the phonetics, and it is read
+       rather than resolved. compose_unit reads it to tell one glottal
+       fact stated twice from two dimensions dragged along, and
+       ipakit.tract reads it to put a bundle spelling only `voiced` on
+       the scale the vocal folds are drawn from, at the center of the
+       phonations that read that way, which is as far as the coarse
+       spelling commits. What no reader does is write it back onto a
+       segment's features, so "a̤" does not silently acquire voiced="+";
+       that would change what every read returns, and the metric with
+       it. -->
   <projections>
     <projection from="phonation" to="voiced" desc="Glottal state, read two ways instead of four" href="Voice_(phonetics)">
       <value name="creaky" reads="+"/>
@@ -626,7 +632,7 @@
          and breathy and creaky did not, which was an asymmetry in this
          file rather than anything the code did. Stating it here rather
          than resolving the projection at read time is deliberate: the
-         projection is still read by the write side only (see the note
+         projection is still read and never written back (see the note
          above <projections>), and a mark that says one fact twice is
          exactly what that block exists to license. -->
     <diacritic name="̤" phonation="breathy" voiced="+" href="Breathy_voice"/>
