@@ -640,10 +640,12 @@ rule_error("n -> [place=β] / _ [place=β]")
 # letters free today are α γ δ ε ζ η ..."
 ```
 
-Keep rule sets in a file and load them with `--file`, which is what the shipped sets are:
+A rule set is a file. The ones that come with ipakit travel in the package and are asked
+for by name from wherever you happen to be, the way `shipped()` asks for them above;
+`--file` is for one of your own:
 
 ```console
-$ ipakit rules apply --file ipakit/data/rules/german-final-devoicing.rules taːɡ
+$ ipakit rules apply --set german-final-devoicing taːɡ
 taːk
 ```
 
