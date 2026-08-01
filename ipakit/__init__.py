@@ -34,6 +34,11 @@ __version__ = "0.1.0"
 # and ``ipakit.features`` and nothing else in the package, so the dependency
 # runs one way and the model stays free of the renderer.
 from . import rules, tract_svg
+
+# The tutorial notebook is carried in the package and copied out on
+# request, so `pip install ipakit` is the whole of getting the teaching
+# material too -- see ipakit._notebook.
+from ._notebook import notebook
 from .constants import (
     DATA_DIR,
     DEFAULT_CMU_MAP,
@@ -1010,6 +1015,7 @@ __all__ = [
     "nearest_phones",
     "normalize",
     "normalize_lookalikes",
+    "notebook",
     "normalized_distance",
     "phonemap_to_ipa",
     "phones_matching",

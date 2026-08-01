@@ -70,6 +70,11 @@ ipakit = [
     "data/supplements/*.rng",
     "data/rules/*.rules",
     "data/*.json",
+    # Not under data/: everything there is read by the library to compute an
+    # answer, and each document has a grammar beside it stating its shape. The
+    # notebook is read by nothing -- it is handed to a student, copied out of
+    # the install by `ipakit notebook` -- so it travels in a place of its own.
+    "notebooks/*.ipynb",
     "py.typed",
 ]
 
@@ -85,14 +90,23 @@ doctest_optionflags = ["ELLIPSIS"]
 # Don't run slow tests by default
 addopts = "-m 'not slow' --doctest-modules"
 
+# ipakit/notebooks/ is out of both style gates. Its one file is a rendering of
+# docs/tutorial.src.md, compared byte for byte against a fresh render by
+# `make check` -- a formatter that rewrote it would fail that check, and a
+# linter reading tutorial cells reports on the tutorial's prose style rather
+# than on any code anybody wrote here. Every one of those cells is executed by
+# `scripts/tutorial.py check`, which is a stronger claim than either gate makes.
+
 [tool.black]
 line-length = 88
 target-version = ["py311"]
+extend-exclude = "ipakit/notebooks/"
 
 [tool.ruff]
 line-length = 88
 target-version = "py311"
 src = ["ipakit", "tests"]
+extend-exclude = ["ipakit/notebooks/"]
 
 [tool.ruff.lint]
 # black owns formatting; ruff lints only. E501 (line length) is left to black.

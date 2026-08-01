@@ -19,6 +19,11 @@ pip install ipakit
 
 That puts an `ipakit` command on your path and makes `import ipakit` work.
 
+To run this page rather than read it, `ipakit notebook` writes a Jupyter notebook of the
+same material into the current directory: the same examples as cells, with the answers
+left out for you to produce. It is rendered from the source this page is rendered from,
+so the two cannot come to disagree.
+
 Throughout, the Python examples assume:
 
 ```python
@@ -635,10 +640,12 @@ rule_error("n -> [place=β] / _ [place=β]")
 # letters free today are α γ δ ε ζ η ..."
 ```
 
-Keep rule sets in a file and load them with `--file`, which is what the shipped sets are:
+A rule set is a file. The ones that come with ipakit travel in the package and are asked
+for by name from wherever you happen to be, the way `shipped()` asks for them above;
+`--file` is for one of your own:
 
 ```console
-$ ipakit rules apply --file ipakit/data/rules/german-final-devoicing.rules taːɡ
+$ ipakit rules apply --set german-final-devoicing taːɡ
 taːk
 ```
 
