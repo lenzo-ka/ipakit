@@ -147,6 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A declared ligature alias was refused as a literal on either side of the arrow.
 - `Derivation.trace(all_steps=True)` put the rule names at two different columns.
 - An insertion fired twice across a transparent syllable dot, and an insertion naming the dot could never fire.
+- `∅ -> [manner=plosive]` parsed, recognized its sites and edited nothing; a change modifies a matched unit, and an insertion has none.
 - A rule naming `#` stopped the transparency skip, so a dot beside a word edge hid the edge.
 - `_anchors` licensed the trailing gap of a boundary run only on the run's last mark.
 - A form has one edge, not a run of them: `t -> ʔ / _ # # #` fired.
