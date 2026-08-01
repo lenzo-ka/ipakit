@@ -57,6 +57,7 @@ import dataclasses
 import warnings
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from .constants import ZERO_CLASS
@@ -90,15 +91,28 @@ class Unit:
     string as a character. It carries no phonetic features, only the
     declared separator attributes (``level=word``, ``level=syllable``),
     and it is never the target of a feature change.
+
+    :attr:`features` and :attr:`prosody` are read-only. ``frozen`` stops a
+    *field* being rebound and says nothing about the mapping a field points
+    at, so a unit whose prosody could be written in place had a spelling
+    and a prosody that could come to disagree about the same sound. Build
+    a variant with :func:`dataclasses.replace`, or take ``dict(...)`` for
+    a copy of your own.
     """
 
     text: str
     segment: Segment | None = None
-    features: dict[str, str] = field(default_factory=dict)
-    prosody: dict[str, str] = field(default_factory=dict)
+    features: Mapping[str, str] = field(default_factory=dict)
+    prosody: Mapping[str, str] = field(default_factory=dict)
     #: ``(glyph, feature, value)`` per prosodic mark, resolved when the
     #: unit was built so each attribute can name the mark that declared it.
     provenance: tuple[tuple[str, str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        # Wrapped here rather than at each construction site, so a site
+        # added later cannot forget and hand back a writable one.
+        object.__setattr__(self, "features", MappingProxyType(dict(self.features)))
+        object.__setattr__(self, "prosody", MappingProxyType(dict(self.prosody)))
 
     @property
     def is_zero(self) -> bool:
@@ -158,6 +172,15 @@ class Unit:
     def __str__(self) -> str:
         return self.text
 
+    def __repr__(self) -> str:
+        # As :class:`Boundary`: the bundles are shown, not the wrapper
+        # that makes them read-only.
+        return (
+            f"Unit(text={self.text!r}, segment={self.segment!r}, "
+            f"features={dict(self.features)!r}, prosody={dict(self.prosody)!r}, "
+            f"provenance={self.provenance!r})"
+        )
+
 
 @dataclass(frozen=True)
 class Boundary:
@@ -172,6 +195,8 @@ class Boundary:
     is a minor break. :attr:`level` falls back to ``word`` where a mark
     declares none; every shipped glyph declares one, so the fallback is
     reached only by a hand-made boundary or a mark added without a level.
+
+    :attr:`features` is read-only, for the reason :class:`Unit` gives.
     """
 
     text: str
@@ -179,7 +204,18 @@ class Boundary:
     at: int
     #: Everything the mark declared, so putting a form back together
     #: reproduces the unit rather than an impoverished copy of it.
-    features: dict[str, str] = field(default_factory=dict)
+    features: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "features", MappingProxyType(dict(self.features)))
+
+    def __repr__(self) -> str:
+        # Spelled out rather than generated, so what a reader sees is the
+        # bundle and not the wrapper that makes it read-only.
+        return (
+            f"Boundary(text={self.text!r}, level={self.level!r}, "
+            f"at={self.at}, features={dict(self.features)!r})"
+        )
 
 
 @dataclass(frozen=True)
@@ -550,20 +586,33 @@ def with_prosody(
     glyphs are downstream of them.
 
     The write is stated in what the marks **assert**, never in what the
-    marks entail: a level sequence has a contour, so writing the sequence
-    writes the contour and a mark for it would be a second, contradicting
-    claim. A run stating a sequence is kept by walking it -- ``a˩˥``
-    keeps both letters against ``tone="bottom>top"``, and a sequence no
-    single mark spells is spelled one level at a time.
+    marks entail: a level sequence has a contour, and no mark for it is
+    added, because that would be a second claim about a shape the levels
+    already fix. A mark that was *written* for it stays written, agreeing
+    or not -- dropping an assertion because a derivation would reach the
+    same tier is how a caron over a falling sequence came back as a fall.
+    A run stating a sequence is kept by walking it -- ``a˩˥`` keeps both
+    letters against ``tone="bottom>top"``, and a sequence no single mark
+    spells is spelled one level at a time.
 
-    Returns ``None`` where the inventory cannot spell the result, or where
-    the result does not read back as what was asked. That check is a
-    measurement rather than a formality: the marks were picked from the
-    declaration, but whether they re-emit themselves and still say the
-    requested values is exactly the kind of thing this repo has been
-    wrong about while looking right.
+    Returns ``None`` where the inventory cannot spell the result, where
+    the result does not read back as what was asked, or where what was
+    asked cannot be spelled at all: clearing a tier that the retained
+    tiers *entail* is impossible, since a tone reading ``bottom>top``
+    rises whether or not a mark says so, and clearing the tone as well
+    would answer a different request from the one made.
+
+    That check is a measurement rather than a formality: the marks were
+    picked from the declaration, but whether they re-emit themselves and
+    still say the requested values is exactly the kind of thing this repo
+    has been wrong about while looking right.
     """
     wanted = _asserted_prosody(seg, features)
+    #: Tiers the caller asked to be **absent**. Held separately because a
+    #: hole in ``wanted`` is not a negative constraint: a derivable tier
+    #: fills its own hole back in on the read, and only a request that
+    #: says "gone" can tell that apart from one that was never made.
+    cleared: set[str] = set()
     for key, value in changes.items():
         feature = features.features.get(key)
         if feature is None:
@@ -572,13 +621,21 @@ def with_prosody(
             value == feature.default and features.declaring_mark(key, value) is None
         ):
             wanted.pop(key, None)
+            cleared.add(key)
         else:
             wanted[key] = value
-    # An entailed value is not written: it follows from what is.
-    entailed = _derived_contour(wanted, features) or {}
-    for key in entailed:
-        if key in wanted and key not in changes:
-            wanted.pop(key)
+
+    # The read the result must produce, fixed here -- before one glyph is
+    # chosen -- so the check at the bottom is a measurement and not a
+    # restatement of whatever the speller decided. Computing it from the
+    # marks that got picked is what let an asserted contour be dropped and
+    # its opposite derived back, with the check agreeing by construction.
+    target: dict[str, str | None] = {
+        **(_derived_contour(wanted, features) or {}),
+        **wanted,
+    }
+    for key in cleared:
+        target[key] = None
 
     # How far through each wanted sequence the kept marks have got, so a
     # run of level marks is matched as the run it is rather than each
@@ -624,8 +681,20 @@ def with_prosody(
     out = dataclasses.replace(seg, prosody=tuple(kept))
     spelled = out.to_ipa()
     items = units(spelled, features)
-    expected = {**(_derived_contour(wanted, features) or {}), **wanted}
-    if len(items) != 1 or items[0].text != spelled or items[0].prosody != expected:
+    if len(items) != 1 or items[0].text != spelled:
+        return None
+    got = items[0].prosody
+    # Three claims, because one dict comparison cannot make them all. The
+    # marks say what was wanted and no more, so nothing entailed got
+    # written as a second claim; every tier asked to be gone is gone; and
+    # what remains reads as the target -- which includes the tiers the
+    # levels entail, so a request to drop one fails here rather than being
+    # reported as done.
+    if _asserted_prosody(out, features) != wanted:
+        return None
+    if any(key in got for key, value in target.items() if value is None):
+        return None
+    if got != {key: value for key, value in target.items() if value is not None}:
         return None
     return out
 
@@ -869,7 +938,12 @@ class Form:
                         features=dict(unit.features),
                     )
                 )
-            else:
+            elif unit.segment is not None:
+                # ``at`` indexes :attr:`segments`, the same rule
+                # :attr:`attributes` counts by: a structural zero is a
+                # position in the form and none in the projection, so
+                # letting it advance the count put every later boundary
+                # one place right and ``rebuild`` spelled it there.
                 seen += 1
         return tuple(out)
 
@@ -886,6 +960,14 @@ class Form:
 
         The inverse of taking :attr:`segments` and :attr:`boundaries`
         apart, so collapsing a form is recoverable rather than final.
+
+        The inverse of *those two projections*, which is not the inverse
+        of the form. A structural zero is neither a sound nor a relation,
+        so neither projection carries it and a form holding one comes back
+        without it. What does survive is where everything sat:
+        :attr:`Boundary.at` counts the segments before the mark, the same
+        sequence it is used to index, so a zero does not walk a later
+        boundary along it.
 
         The boundary unit is put back from everything the boundary
         carries, which is why :attr:`Boundary.features` exists. Rebuilding

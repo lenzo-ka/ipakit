@@ -133,6 +133,8 @@ str(caught[0].message)
 
 A written contour that contradicts the levels written with it is reported the same way — the mark stands, because only the writer knows which they meant.
 
+Writing prosody keeps the same policy, since a write that disagreed with the read would be a second opinion about one transcription. `with_prosody` keeps a contour a mark *wrote*, agreeing with the levels or not, and never drops an assertion on the grounds that the levels would derive the same tier — that is how a caron over a falling sequence came back a fall, out of a call that changed nothing. It also refuses to clear a contour the levels entail: a tone reading `bottom>top` rises whether or not a mark says so, so a form with those levels and no contour does not exist, and the answer is `None` rather than a report of success.
+
 ## Known limits
 
 - **The level tier is spellable by diacritic only in the middle three.** `ipa.xml` declares `̀` low, `̄` mid and `́` high; the chart's `̋` (extra high) and `̏` (extra low) are undeclared, so `top` and `bottom` are reachable only through the tone letters `˥` and `˩`. That gap is real and separate from contours.

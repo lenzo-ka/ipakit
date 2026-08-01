@@ -1169,11 +1169,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
     @staticmethod
     def _query_matches(
-        feats: dict[str, str],
+        feats: Mapping[str, str],
         required: dict[str, str],
         excluded: dict[str, set[str]],
     ) -> bool:
-        """True if a feature bundle satisfies resolved query constraints."""
+        """True if a feature bundle satisfies resolved query constraints.
+
+        The bundle is read and never written, so it is typed by what is
+        asked of it: a unit's features and prosody are read-only.
+        """
         return all(feats.get(k) == v for k, v in required.items()) and all(
             feats.get(k) not in vals for k, vals in excluded.items()
         )

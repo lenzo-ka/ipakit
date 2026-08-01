@@ -4,9 +4,12 @@ Each test here pins a case where a caller could previously get a wrong
 answer rather than an error.
 """
 
+import dataclasses
+
 import ipakit
 import pytest
 from ipakit import IPAFeatures
+from ipakit.form import Form
 from ipakit.models import Phone
 
 
@@ -98,3 +101,42 @@ class TestInventoryIsImmutable:
         # The supported way to build a variant: make a new Phone.
         variant = Phone(symbol="p", features={**ipa.get_phone("p").features})
         assert variant.features["place"] == "bilabial"
+
+
+class TestAFormIsImmutable:
+    """`Unit`, `Boundary` and `Form` are frozen dataclasses, which stops a
+    *field* being rebound and says nothing about the mapping a field points
+    at. A write to a unit's prosody was accepted and left the form spelling
+    one thing and reading another -- the same shape as the write to a phone
+    bundle above, on the other half of the API.
+    """
+
+    def test_a_units_prosody_cannot_be_written_through(self) -> None:
+        form = Form.parse("a\u02e9")
+        with pytest.raises(TypeError):
+            form.units[0].prosody["tone"] = "top"  # type: ignore[index]
+        assert form.units[0].prosody == {"tone": "bottom"}
+        assert form.to_ipa() == "a\u02e9"
+
+    def test_a_units_features_cannot_be_written_through(self) -> None:
+        form = Form.parse("a")
+        with pytest.raises(TypeError):
+            form.units[0].features["manner"] = "plosive"  # type: ignore[index]
+        assert form.units[0].features["manner"] == "vowel"
+
+    def test_a_boundarys_features_cannot_be_written_through(self) -> None:
+        (boundary,) = Form.parse("a.b").boundaries
+        with pytest.raises(TypeError):
+            boundary.features["level"] = "word"  # type: ignore[index]
+        assert boundary.features["level"] == "syllable"
+
+    def test_a_variant_unit_must_be_constructed(self) -> None:
+        # The supported way to write one: build a new Unit. The copy handed
+        # to `replace` is the caller's, and writing it after the fact must
+        # not reach the unit either.
+        unit = Form.parse("a")[0]
+        mine = {**unit.prosody, "stress": "primary"}
+        variant = dataclasses.replace(unit, prosody=mine)
+        mine["stress"] = "secondary"
+        assert variant.prosody == {"stress": "primary"}
+        assert unit.prosody == {}

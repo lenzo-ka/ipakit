@@ -22,6 +22,7 @@ silently lost them would still "run" while that promise went unchecked.
 from __future__ import annotations
 
 import ipakit
+from ipakit.form import declared_prosody
 
 FEATURES = ipakit.load_ipa_features()
 
@@ -49,6 +50,59 @@ def self_spelling_phones() -> list[str]:
     counts, which move when the inventory does.
     """
     return [p for p in FEATURES.phones if FEATURES.segment(p).to_ipa() == p]
+
+
+#: Marks that state prosody, asked of the declaration rather than listed:
+#: ``declared_prosody`` filters a mark's bundle to the ``mode="prosodic"``
+#: keys, so ``ʰ`` comes back empty and a mark declared later joins the
+#: sweeps without this line being edited.
+PROSODIC_MARKS = tuple(m for m in FEATURES.diacritics if declared_prosody(m, FEATURES))
+
+#: How much of the two-mark half to sweep: one base in this many. See
+#: :func:`prosody_bearing_units` for why sampling is defensible here and
+#: what it costs.
+PAIR_STRIDE = 7
+
+
+def _spells_itself(unit: str) -> bool:
+    try:
+        return FEATURES.segment(unit).to_ipa() == unit
+    except Exception:  # noqa: BLE001 - not self-spelling either way
+        return False
+
+
+def prosody_bearing_units(pair_stride: int = PAIR_STRIDE) -> list[str]:
+    """Self-spelling units carrying prosody: one mark over every base, two
+    over a share of them.
+
+    The canonical corpus is a base plus **one** mark, and one mark cannot
+    contradict itself -- so a sweep over it can say nothing about a
+    contour written against the levels underneath it, which is where
+    ``with_prosody`` returned the opposite contour from the one asserted.
+    This is the same predicate over the extent that reaches it.
+
+    The second mark is swept over every ``pair_stride``-th base rather
+    than every one, and that is a deliberate sample rather than a tuned
+    number: what interacts here is a pair of *marks*, and the base enters
+    only through Unicode recomposition, which the one-mark half covers
+    over every base there is. Swept whole the pairs are an order of
+    magnitude more units and slow enough to be felt in the default run.
+    """
+    out: list[str] = []
+    for index, base in enumerate(self_spelling_phones()):
+        for mark in PROSODIC_MARKS:
+            unit = base + mark
+            if not _spells_itself(unit):
+                continue
+            out.append(unit)
+            if index % pair_stride:
+                continue
+            out.extend(
+                unit + second
+                for second in PROSODIC_MARKS
+                if _spells_itself(unit + second)
+            )
+    return out
 
 
 def assert_swept(checked: int, phones: list[str] | None = None) -> None:
