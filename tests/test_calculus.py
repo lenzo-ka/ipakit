@@ -28,7 +28,9 @@ set rather than argued.
 cannot be a homomorphism, and the counterexample is pinned here rather
 than left as a caveat. Everything else on the page holds of a complete
 answer and none of it holds of a truncated one, which is why
-``VariantSet.complete`` exists.
+``VariantSet.complete`` exists -- and the implication that makes it worth
+asking, that a complete answer holds every form the uncapped one does, is
+swept here rather than left to the construction that gives it.
 """
 
 from __future__ import annotations
@@ -677,6 +679,117 @@ class TestUnexploredCountsChoicesAndNotForms:
         assert over > 0 and under > 0, (over, under)
 
 
+class TestACompleteAnswerHoldsEveryForm:
+    """The implication the whole page rests on, swept rather than argued.
+
+    ``complete is True`` has to mean the answer is every form the same
+    call answers uncapped -- otherwise every algebraic claim above is
+    being checked against a sample of the set it names. It is true by
+    construction, since a step that declines nothing carries forward
+    what it was handed, and construction is exactly what the rest of
+    this file has caught being wrong. So it is measured: capped against
+    uncapped over cascades of one, two and three rules from the pool,
+    every form of a generated corpus, at six limits.
+
+    The converse is not asserted and must not be. ``complete is False``
+    says a step declined a child, not that a form is missing, and the
+    two part company because distinct derivations spell one
+    pronunciation. That direction is pinned below on a named case, so
+    that trading this safe imprecision for an unsafe precision fails
+    here.
+    """
+
+    #: Small enough that a cut is common and large enough that a
+    #: complete answer at the same limit is not rare.
+    LIMITS = (1, 2, 3, 4, 6, 8)
+
+    #: Two rules that spell one form from ``ab``, the second from the
+    #: branch that declined the first.
+    CONVERGE = "a ~> b ; one\na ~> b / _ b ; two"
+
+    def _cascades(self) -> list[tuple[int, ...]]:
+        """Every rule of the pool, every ordered pair, every triple.
+
+        Ordered pairs rather than unordered, because feeding and
+        bleeding live in the order and a cut interacts with both.
+        Unordered triples, because there are already a hundred and
+        twenty of them and the pairs have made the point about order.
+        """
+        return [
+            tuple(combo)
+            for combo in itertools.chain(
+                itertools.permutations(range(len(POOL)), 1),
+                itertools.permutations(range(len(POOL)), 2),
+                itertools.combinations(range(len(POOL)), 3),
+            )
+        ]
+
+    def test_swept_a_complete_answer_is_missing_nothing(self) -> None:
+        """Three tallies, and each of them has to be non-trivial.
+
+        ``checked`` is the sweep's size. ``brim`` counts the complete
+        answers that filled their budget exactly -- the edge cases,
+        where a cap that dropped a branch without recording it would
+        show -- because a sweep at limits nothing reaches would satisfy
+        the implication by never testing it. ``conservative`` counts the
+        other side, and is asserted only to be non-zero: it says the cut
+        answers in this sweep are not all of them missing something, so
+        the implication being swept is the one direction and not both.
+        """
+        corpus = _forms("ate", (2, 3))[:12]
+        cascades = self._cascades()
+        assert len(corpus) == 12, "sweep did not run"
+        assert len(cascades) > 200, f"sweep did not run: {len(cascades)}"
+        checked = brim = conservative = 0
+        broken: list[tuple[tuple[str, ...], str, int, list[str]]] = []
+        for combo in cascades:
+            cascade = _cat(*(R.RuleSet(rules=(RULES[i],)) for i in combo))
+            for form in corpus:
+                whole = cascade.variants(form, FEATURES, limit=UNBOUNDED)
+                assert whole.complete, "the oracle has to be the complete answer"
+                entire = set(whole.forms)
+                for limit in self.LIMITS:
+                    cut = cascade.variants(form, FEATURES, limit=limit)
+                    checked += 1
+                    missing = entire - set(cut.forms)
+                    if not cut.complete:
+                        conservative += not missing
+                        continue
+                    if missing:
+                        rules = tuple(POOL[i] for i in combo)
+                        broken.append((rules, form, limit, sorted(missing)))
+                    brim += len(cut) >= limit
+        assert not broken, broken[:5]
+        assert checked > 10000, f"sweep did not run: {checked}"
+        assert brim > 1000, f"no complete answer was near its limit: {brim}"
+        assert conservative > 0, "every cut answer lost a form; see the pin below"
+
+    def test_a_false_is_allowed_to_be_conservative(self) -> None:
+        """The named case, small enough to follow all the way down.
+
+        Over ``ab`` the first rule offers ``bb``, and the second offers
+        ``bb`` again from the branch that declined the first. At a limit
+        of two the budget is spent before that second child is built, so
+        the step records a declined combination -- and what it declined
+        was already a member. The answer reports itself cut and holds
+        every form the uncapped call holds, in the same order.
+
+        This failing means ``complete`` has been made exact, and making
+        it exact means building the declined children, which is the work
+        the cap exists to avoid. The repair is not to relax the sweep
+        above: that direction is the one a caller is entitled to.
+        """
+        cascade = _set(self.CONVERGE)
+        cut = cascade.variants("ab", FEATURES, limit=2)
+        whole = cascade.variants("ab", FEATURES, limit=UNBOUNDED)
+        assert cut.complete is False
+        assert cut.truncations[0].step == 1
+        assert cut.truncations[0].rule == "two"
+        assert cut.unexplored == 1
+        assert whole.complete is True
+        assert cut.forms == whole.forms == ("ab", "bb")
+
+
 class TestTheCheapestDerivationIsTheOneReported:
     """``choices`` is a fact about the form, not about rule order.
 
@@ -1169,6 +1282,32 @@ class TestTheCommandLineIsInSyncWithTheLibrary:
         # and silent about the rules after it. A bare number here reads
         # as the size of what is missing, which it is not.
         assert "at least 12 choice combination(s) unexplored" in out
+
+    def test_the_count_line_reports_a_cut_and_not_a_loss(
+        self, monkeypatch, capsys
+    ) -> None:
+        """INCOMPLETE says the enumeration was cut. On the conservative
+        case it prints beside every form the uncapped call gives, which
+        is what the word has to be able to mean."""
+        cascade = _set(TestACompleteAnswerHoldsEveryForm.CONVERGE)
+        whole = cascade.variants("ab", FEATURES, limit=UNBOUNDED)
+        rc, out, _ = _cli(
+            monkeypatch,
+            capsys,
+            "rules",
+            "variants",
+            "-r",
+            "a ~> b ; one",
+            "-r",
+            "a ~> b / _ b ; two",
+            "ab",
+            "--limit",
+            "2",
+        )
+        assert rc == 0
+        lines = out.strip().split("\n")
+        assert "INCOMPLETE" in lines[0]
+        assert tuple(line.strip() for line in lines[1:]) == whole.forms
 
     def test_apply_prints_the_first_variant(self, monkeypatch, capsys) -> None:
         rc, out, _ = _cli(

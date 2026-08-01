@@ -120,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/articulatory.py` reads `IPAKIT_XRMB_DIR`; no corpus path is baked in.
 - `scripts/invariants.py` reads provenance and the zero through the library's own API rather than defining them.
 - `is_pure_ipa`'s summary no longer invites the reading "is this valid IPA".
+- `VariantSet.complete` states the direction it is exact in: a `True` holds every form the uncapped answer holds, and a `False` may too.
 - The rule sets and `docs/` ship in the wheel and the sdist, and an unpacked sdist can run its own tests.
 
 ### Fixed
