@@ -179,7 +179,7 @@
       <!-- `aperture="median"` says the folds close toward each other about the
            tract axis rather than toward a wall, the way a tongue closes toward a
            palate. Rendering geometry: `offset` models the one-sided case, so a
-           median articulator is drawn centerd and its closure is not an offset.
+           median articulator is drawn centered and its closure is not an offset.
 
            Only the two an IPA diacritic states carry a label. The others are
            the default organ for a place (read by ipakit.tract), never stated on

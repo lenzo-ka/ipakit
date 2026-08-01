@@ -16,7 +16,7 @@ You can expect an acknowledgement within a week. There is no bounty.
 
 ## What is in scope
 
-ipakit is a library that parses text and computes over declared data. The realiztic risk is a caller feeding it input it does not control. In scope:
+ipakit is a library that parses text and computes over declared data. The realistic risk is a caller feeding it input it does not control. In scope:
 
 - **Untrusted transcription text** that makes ipakit hang, consume unbounded memory, or crash the interpreter — catastrophic backtracking in tokenization, unbounded recursion in composition or in the rewrite engine, and the like. Callers legitimately run `distance`, `tokenize` and `validate_ipa` over out-of-vocabulary text; that is a supported use, so a denial of service there is a real bug.
 - **Anything that escapes the process.** ipakit reads data files and writes nothing outside what a caller asks for; a path that executes code, writes outside its target, or opens a network connection is a vulnerability regardless of how it is reached.

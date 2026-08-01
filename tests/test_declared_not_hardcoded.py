@@ -932,7 +932,7 @@ _SMUGGLED = [
     '_NULL = frozenset({"\u2205", "0", "\u00d8"})',
     # A literal wrapped in a call the member analysis did not recognize
     # walked through it whole, whatever was inside. These are the
-    # realiztic wrappers: a compiled alternation or character class puts
+    # realistic wrappers: a compiled alternation or character class puts
     # its members in one class exactly as a set does, `join` and
     # `fromkeys` consume a sequence, and an f-string of constants
     # interpolates nothing.
