@@ -711,7 +711,7 @@ Ask `complete`, and on the command line the count line says it outright:
 ```python
 many = ipa.variants("aaaa", "[vowel] ~> [length=long]", limit=4)
 many.complete  # False
-many.unexplored  # 12   choice combinations not enumerated
+many.unexplored  # 12   at least this many choices declined
 ipa.variants("aaaa", "[vowel] ~> [length=long]").complete  # True
 ```
 

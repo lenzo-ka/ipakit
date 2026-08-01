@@ -143,7 +143,19 @@ found[0].choices     # 0
 found[1].choices     # 1
 ```
 
-`VariantSet.complete` is the one to ask. `Variant` carries `form`, `choices` — how many optional edits that member takes — and a full `derivation`, so every member can account for itself:
+`VariantSet.complete` is the one to ask. `Variant` carries `form`, `choices` — how many optional edits that member takes — and a full `derivation`, so every member can account for itself.
+
+`choices` is the **fewest** optional edits any derivation of that member takes, and the `derivation` is that one. The distinction is not idle: a cascade can reach one form by two routes, and the route it happens to reach first is not the cheapest one. Here `c` is one optional edit away by the first rule and two by the other two, and the member says one:
+
+```python
+detour = "a ~> c\na ~> b\nb ~> c"
+ipa.variants("a", detour).forms          # ('a', 'b', 'c')
+ipa.variants("a", detour)[2].choices     # 1
+[s.rule for s in ipa.variants("a", detour)[2].derivation.fired]
+# ['a ~> c']
+```
+
+Reporting the first route instead would make `choices` a fact about the order the rules are written in rather than about the form, and there is nothing else on a member for a caller to read cost from:
 
 ```python
 found[1].derivation.result                        # 'ptit'
@@ -163,7 +175,16 @@ french.variants("pətitə")[0].form == french.apply("pətitə")   # True
 
 An optional rule does not fire under `rewrite`, `derive` or `ipakit rules apply`. One form has to come out of those, so one choice has to be taken, and the null choice is the only defensible one. A trace marks the step *not taken* rather than *no change*, because a declined choice and a failed environment are different things.
 
-**A truncated set keeps the members that depart least.** Grading by size rather than counting in binary is what makes that true. Counting in binary would enumerate every subset of a *prefix* of the sites and none of the rest, so a cut set would show the leftmost schwa varying and the rightmost never varying at all — a biased sample dressed as a set.
+**A truncated set keeps the members that depart least.** Two things make that true and the first of them is not enough on its own. Within one branch the subsets are graded by size rather than counted in binary, because counting in binary enumerates every subset of a *prefix* of the sites and none of the rest, so a cut set would show the leftmost schwa varying and the rightmost never varying at all — a biased sample dressed as a set. But a rule is handed a whole *set* of branches, and grading them one branch at a time spends the budget on the first branch's dearest children before the second branch's free child has been offered. So the graded streams are merged and the step keeps the cheapest children across every branch it was given:
+
+```python
+ipa.variants("abbb", "a ~> x\nb ~> y", limit=5).forms
+# ('abbb', 'aybb', 'abyb', 'abby', 'xbbb')
+```
+
+Five members, none of them taking more than one optional edit, where a branch-at-a-time cut would have kept `ayyb` at two and dropped `xbbb` at one.
+
+The cut is by cost and the presentation is derivational, and those are two different orders. Members come back in the order the cascade produced them either way, so a truncated answer is a *subsequence* of the complete one — the same members in the same sequence, with the dear ones missing. A cost-ordered presentation would reshuffle the answer as well as shorten it, and then a caller comparing a capped answer with a complete one would have to sort before diffing.
 
 Nothing in the enumeration iterates a Python set or a hash, so the order does not depend on `PYTHONHASHSEED`.
 
@@ -229,7 +250,7 @@ ipa.variants("kaa", "a ~> [zero]", keep_zeros=True).forms   # ('kaa', 'k∅a', '
 ipa.variants("kaa", "a ~> [zero]").forms                    # ('kaa', 'ka', 'k')
 ```
 
-Four derivations, three pronunciations. `complete` and the cap keep their meanings exactly: the surface rewrite is obligatory, so it offers one child per branch and can merge but never truncate, and `unexplored` goes on counting the choice combinations the *cascade* did not enumerate. What changes is that `len(variants)` counts pronunciations where it counted derivations, and for a rule set that writes no zero those are the same number.
+Four derivations, three pronunciations. `complete` and the cap keep their meanings exactly: the surface rewrite is obligatory, so it offers one child per branch and can merge but never truncate, and `unexplored` goes on counting the choices the *cascade* declined. What changes is that `len(variants)` counts pronunciations where it counted derivations, and for a rule set that writes no zero those are the same number.
 
 Like the cap, it is applied **per call**, and for the same reason: splitting a cascade into two calls applies it twice, so a zero the first half writes is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and what it says is that the intermediate was a derivation rather than a pronunciation.
 
@@ -277,13 +298,37 @@ long_word.truncations[0].rule
 # '[vowel] ~> [length=long]'
 ```
 
-`unexplored` counts **combinations of optional choices** the step did not enumerate — an exact count of what was not looked at, and an upper bound on the distinct forms missing, since distinct choices can spell the same form. It is exact without doing the work the cap exists to avoid, because the arithmetic is known in advance: a branch with n edits offers 2^n.
+`unexplored` counts **combinations of optional choices the cut step declined to build**. That is exact for the step and cheap, because the arithmetic is known in advance — a branch with n edits offers 2^n — which is what lets the number be reported without doing the work the cap exists to avoid.
+
+It is a floor and not a ceiling, and it says nothing about how many *forms* are missing. Both directions fail, and one cascade shows both. Two rules that each insert a consonant after every consonant decline thirty combinations at a cut of four, where the complete answer holds only twelve forms the cut one does not:
+
+```python
+insert = "∅ ~> t / [-vowel] _ ; one\n∅ ~> t / [-vowel] _ ; two"
+cut = ipa.variants("pk", insert, limit=4)
+cut.unexplored                                      # 30
+len(set(ipa.variants("pk", insert).forms) - set(cut.forms))
+# 12
+```
+
+Distinct choices spell the same form, so a step can decline more combinations than there are forms to lose. Now cut the same shape earlier in a longer cascade and it runs the other way:
+
+```python
+pair = "a ~> b\nc ~> d"
+early = ipa.variants("aac", pair, limit=1)
+early.unexplored                                    # 4
+len(set(ipa.variants("aac", pair).forms) - set(early.forms))
+# 7
+```
+
+Every branch the first rule declined would have offered children of its own to every later rule, and none of those are counted. Counting them is not an arithmetic that can be done in advance: it needs the forms those branches would have taken, which is the enumeration the cap declined. On the four-rule version of the insertion cascade above, computing the exact number of forms missing costs some four hundred times the capped call it would be annotating, and one rule further the exact answer is out of reach altogether — the set is [doubly exponential in the number of rules](#finiteness), which is the whole reason there is a cap.
+
+So the number to report is the one that is true: **at least this many choices went unexplored**. It is the number a caller acts on — the limit is too low, raise it — and `complete` is what answers whether anything is missing at all.
 
 On the command line the count line carries it, so it cannot be missed by someone who did not know to look:
 
 ```console
 $ ipakit rules variants -r '[vowel] ~> [length=long]' aaaa --limit 4
-aaaa: 4 variants -- INCOMPLETE: cut at rule 1 ([vowel] ~> [length=long]), 12 choice combination(s) unexplored; raise --limit
+aaaa: 4 variants -- INCOMPLETE: cut at rule 1 ([vowel] ~> [length=long]), at least 12 choice combination(s) unexplored; raise --limit
   aaaa
   aːaaa
   aaːaa

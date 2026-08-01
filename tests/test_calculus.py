@@ -82,6 +82,42 @@ def _forms(alphabet: str, lengths: tuple[int, ...]) -> list[str]:
     return sorted(set(out))
 
 
+def _exhaust(cascade: R.RuleSet, form: str) -> dict[str, int]:
+    """Every form the cascade derives, and the fewest choices reaching it.
+
+    The oracle the cost claims are measured against, written the long
+    way round: no cap, no dedupe between steps, every subset of every
+    rule's edits from every state it is handed, and the minimum taken
+    only at the end. It shares nothing with the engine but the matcher,
+    so agreement is evidence rather than a tautology -- in particular it
+    knows nothing about the order the engine enumerates in, which is
+    what both cost claims are about.
+
+    Exponential in the sites, deliberately. Small cascades and short
+    forms only, and the sweeps that use it say how many they ran.
+    """
+    states = [(list(units(form, FEATURES)), 0)]
+    for rule in cascade.rules:
+        onward = []
+        for items, cost in states:
+            found = rule.edits(items, FEATURES)
+            if not rule.optional:
+                onward.append((R._apply_edits(list(items), found), cost))
+                continue
+            for size in range(len(found) + 1):
+                for subset in itertools.combinations(range(len(found)), size):
+                    picked = [found[i] for i in subset]
+                    onward.append((R._apply_edits(list(items), picked), cost + size))
+        states = onward
+    cheapest: dict[str, int] = {}
+    for items, cost in states:
+        for rule in R.surface(FEATURES):
+            items = R._apply_edits(list(items), rule.edits(items, FEATURES))
+        spelled = spell(items)
+        cheapest[spelled] = min(cheapest.get(spelled, cost), cost)
+    return cheapest
+
+
 #: The rules the composition sweeps draw from. Deliberately mixed:
 #: substitution, insertion, deletion, a feature change, a prosodic
 #: change, a boundary write, and both arrows -- the composition claim is
@@ -101,6 +137,23 @@ POOL = (
 )
 
 RULES = tuple(R.parse(text, FEATURES) for text in POOL)
+
+#: A second pool, for the claims about cost. Every rule here can be
+#: reached another way round -- a is raised to e directly and also
+#: through schwa, a t is glottalled by two rules with different
+#: environments -- so a form is routinely derived twice at two different
+#: prices. A pool of rules that never converge cannot ask which of two
+#: derivations a member reports, because there is never more than one.
+CONVERGENT = (
+    "a ~> e ; straight",
+    "a ~> ə ; halfway",
+    "ə ~> e ; onward",
+    "t ~> ʔ ; stop",
+    "t ~> ʔ / _ # ; final stop",
+    "∅ ~> t / [-vowel] _ ; growth",
+    "t ~> ∅ ; loss",
+    "e ~> a ; back",
+)
 
 #: The shipped set that carries the optional half.
 FRENCH = R.shipped("french-liaison", FEATURES)
@@ -497,10 +550,15 @@ class TestTheCapIsReportedAndNotLogged:
         assert got.unexplored == 12
 
     def test_a_cut_keeps_the_members_that_depart_least(self) -> None:
-        """Grading the subsets by size is what makes this true. Counting
-        in binary would enumerate every subset of a PREFIX of the sites
-        and none of the rest, so the last site would never be seen to
-        vary -- a biased sample dressed as a set."""
+        """Grading the subsets by size is half of what makes this true.
+        Counting in binary would enumerate every subset of a PREFIX of
+        the sites and none of the rest, so the last site would never be
+        seen to vary -- a biased sample dressed as a set.
+
+        One rule over one branch is the half this case can see. The
+        other half is that the grading has to run across branches too,
+        and that is TestTheCutFallsOnTheDearestChoicesAnywhere.
+        """
         got = _set("[vowel] ~> [length=long]").variants("aaaa", FEATURES, limit=5)
         assert got.forms == ("aaaa", "aːaaa", "aaːaa", "aaaːa", "aaaaː")
         assert [v.choices for v in got] == [0, 1, 1, 1, 1]
@@ -521,6 +579,228 @@ class TestTheCapIsReportedAndNotLogged:
         got = _set("a ~> e").variants("aaa", FEATURES, limit=1)
         assert got.forms == ("aaa",)
         assert got.complete is False
+
+
+class TestUnexploredCountsChoicesAndNotForms:
+    """What the number is, pinned in both directions it is not.
+
+    ``unexplored`` is the children the cut step declined to build. It is
+    exact for that step and it is a floor under the cascade, and the
+    reading it invites -- "this many forms are missing" -- is wrong
+    either way round. A single-rule cascade cannot show that, because
+    with one rule the step IS the cascade and the two numbers agree;
+    that agreement is what let the upper-bound claim stand.
+    """
+
+    #: Two rules that each insert a consonant after every consonant, so
+    #: the second finds twice the sites of the first. The same shape as
+    #: the finiteness sweep, which is where the growth is measured.
+    INSERT = "∅ ~> t / [-vowel] _ ; one\n∅ ~> t / [-vowel] _ ; two"
+
+    def _missing(self, cascade: R.RuleSet, form: str, limit: int) -> int:
+        cut = cascade.variants(form, FEATURES, limit=limit)
+        whole = cascade.variants(form, FEATURES, limit=UNBOUNDED)
+        assert whole.complete, "the oracle has to be the complete answer"
+        return len(set(whole.forms) - set(cut.forms))
+
+    def test_one_rule_is_the_case_where_the_two_numbers_agree(self) -> None:
+        cascade = _set("[vowel] ~> [length=long]")
+        got = cascade.variants("aaaa", FEATURES, limit=4)
+        assert got.unexplored == 12
+        assert self._missing(cascade, "aaaa", 4) == 12
+
+    @pytest.mark.parametrize(
+        "rules,form,limit,unexplored,missing",
+        [
+            ("a ~> b\nc ~> d", "aac", 1, 4, 7),
+            ("a ~> b\nc ~> d", "aac", 2, 4, 6),
+            ("a ~> b\nb ~> c\nc ~> d", "abc", 2, 8, 22),
+            ("[vowel] ~> [length=long]\nt ~> ʔ", "atat", 3, 10, 13),
+        ],
+    )
+    def test_a_cut_early_in_a_cascade_under_reports(
+        self, rules: str, form: str, limit: int, unexplored: int, missing: int
+    ) -> None:
+        """Every branch the cut declined would have had children under
+        every later rule, and none of those are counted. So the number
+        is not an upper bound on the forms missing, and each of these
+        cases is one where reading it as one would mislead by name."""
+        cascade = _set(rules)
+        got = cascade.variants(form, FEATURES, limit=limit)
+        assert got.unexplored == unexplored
+        assert self._missing(cascade, form, limit) == missing
+        assert got.unexplored < missing
+
+    def test_a_cut_over_convergent_choices_over_reports(self) -> None:
+        """And it is not a lower bound on the forms missing either.
+        Distinct choices spell one form, so a step can decline more
+        combinations than there are forms left to lose."""
+        cascade = _set(self.INSERT)
+        got = cascade.variants("pk", FEATURES, limit=4)
+        assert got.unexplored == 30
+        assert self._missing(cascade, "pk", 4) == 12
+        assert got.unexplored > 12
+
+    def test_the_two_directions_are_the_same_cascade_at_two_depths(self) -> None:
+        """Not two contrived rule sets: one cascade, cut at four, over
+        and under reporting as it grows a rule."""
+        rule = "∅ ~> t / [-vowel] _ ; epenthesis {}"
+        seen = []
+        for length in (2, 3, 4):
+            cascade = _set("\n".join(rule.format(i) for i in range(1, length + 1)))
+            got = cascade.variants("pk", FEATURES, limit=4)
+            seen.append((got.unexplored, self._missing(cascade, "pk", 4)))
+        assert seen == [(30, 12), (60, 60), (90, 252)]
+
+    def test_swept_it_fails_in_both_directions(self) -> None:
+        """A predicate over the pool rather than four chosen cases: for
+        a truncated answer the count is positive, and it is sometimes
+        above and sometimes below the number of forms lost. If either
+        tally ever comes back zero this file is asserting a bound the
+        library does not have."""
+        corpus = _forms("ate", (2, 3))
+        assert len(corpus) > 20, "sweep did not run"
+        checked = over = under = 0
+        for pair in itertools.combinations(range(len(POOL)), 2):
+            cascade = _cat(*(_set(POOL[i]) for i in pair))
+            for form in corpus:
+                for limit in (1, 2, 3, 4):
+                    got = cascade.variants(form, FEATURES, limit=limit)
+                    if got.complete:
+                        continue
+                    checked += 1
+                    assert got.unexplored > 0, "a cut that counts nothing"
+                    missing = self._missing(cascade, form, limit)
+                    over += got.unexplored > missing
+                    under += got.unexplored < missing
+        assert checked > 500, f"sweep did not run: {checked}"
+        assert over > 0 and under > 0, (over, under)
+
+
+class TestTheCheapestDerivationIsTheOneReported:
+    """``choices`` is a fact about the form, not about rule order.
+
+    Two branches that spell the same thing are one member, and the one
+    to keep is the cheapest -- the member stands where the first of them
+    arrived, and reports what the cheapest cost. Keeping the first
+    instead makes ``choices`` and ``derivation`` answer for whichever
+    route the enumeration happened to walk first, which is not a fact
+    about the pronunciation at all.
+    """
+
+    #: c is one optional edit from a by the first rule and two by the
+    #: other two. The branches are ordered a(0), b(1), c(1) when the
+    #: third rule runs, and expanding b offers c at 2 where c already
+    #: stands at 1.
+    DETOUR = "a ~> c\na ~> b\nb ~> c"
+
+    def test_a_convergent_member_reports_the_shorter_route(self) -> None:
+        got = _set(self.DETOUR).variants("a", FEATURES)
+        assert got.complete, "nothing here is cut; the set is all three"
+        assert got.forms == ("a", "b", "c")
+        assert [v.choices for v in got] == [0, 1, 1]
+        cheap = got[2]
+        assert [step.rule for step in cheap.derivation.fired] == ["a ~> c"]
+        assert cheap.derivation.result == "c"
+
+    def test_the_member_still_stands_where_it_first_arrived(self) -> None:
+        """Cost decides the derivation, never the position. The order is
+        the one a cascade split in two reproduces, and re-sorting the
+        answer by cost would break the composition claim above."""
+        got = _set(self.DETOUR).variants("a", FEATURES)
+        assert got.forms.index("c") == 2
+
+    def test_swept_against_the_exhaustive_oracle(self) -> None:
+        """Every member of a complete answer reports the cheapest
+        derivation the cascade has for it, measured against an
+        enumeration that does no deduping at all."""
+        corpus = ["at", "ta", "tat", "ata", "att", "aat", "ət", "tət", "tt", "ea"]
+        checked = 0
+        for size in (2, 3):
+            for order in itertools.permutations(range(len(CONVERGENT)), size):
+                cascade = _set("\n".join(CONVERGENT[i] for i in order))
+                for form in corpus:
+                    got = cascade.variants(form, FEATURES, limit=UNBOUNDED)
+                    assert got.complete
+                    want = _exhaust(cascade, form)
+                    assert set(got.forms) == set(want), (order, form)
+                    assert {v.form: v.choices for v in got} == want, (order, form)
+                    checked += 1
+        assert checked > 3000, f"sweep did not run: {checked}"
+
+
+class TestTheCutFallsOnTheDearestChoicesAnywhere:
+    """The cap is a cost order over the whole step, not over one branch.
+
+    A rule is handed a set of branches, and grading its subsets by size
+    orders the children of each branch on its own. Spending the budget
+    branch by branch therefore keeps a first branch's dearest children
+    over a second branch's free one, which is the same bias grading was
+    introduced to remove, one level up.
+    """
+
+    def test_the_cut_looks_across_branches_and_not_down_one(self) -> None:
+        got = _set("a ~> x\nb ~> y").variants("abbb", FEATURES, limit=5)
+        assert got.forms == ("abbb", "aybb", "abyb", "abby", "xbbb")
+        assert [v.choices for v in got] == [0, 1, 1, 1, 1]
+        # xbbb takes one optional edit and ayyb takes two, and a cut
+        # that exhausted the first branch first would keep ayyb.
+        assert "ayyb" not in got.forms
+
+    def test_a_capped_answer_is_a_subsequence_of_the_complete_one(self) -> None:
+        """Cheapest first is what is KEPT; the order is still the order
+        the cascade produced. So the two answers can be diffed without
+        sorting either of them."""
+        cascade = _set("a ~> x\nb ~> y")
+        whole = list(cascade.variants("abbb", FEATURES, limit=UNBOUNDED).forms)
+        for limit in range(1, len(whole) + 1):
+            cut = cascade.variants("abbb", FEATURES, limit=limit).forms
+            onward = iter(whole)
+            assert all(any(form == other for other in onward) for form in cut), limit
+
+    def test_no_kept_member_is_dearer_than_one_left_out(self) -> None:
+        """The predicate, ranked globally by total choices against the
+        exhaustive oracle.
+
+        Confined to cascades whose one cut falls on the LAST rule, and
+        that is not a convenience: the cap is a bound per step, so once
+        a step has dropped a branch the steps after it are working from
+        a set that is already short, and a form the whole cascade would
+        have derived cheaply may have no cheap ancestor left to derive
+        it from. What holds at every step is that the step kept the
+        cheapest children it was offered, and the last step is where
+        that is observable in the answer.
+        """
+        corpus = ["ab", "abb", "abbb", "bab", "bba", "abab"]
+        checked = cut_seen = 0
+        for pair in itertools.permutations(("a ~> x", "b ~> y", "a ~> e"), 2):
+            cascade = _set("\n".join(pair))
+            for form in corpus:
+                costs = _exhaust(cascade, form)
+                for limit in (1, 2, 3, 5, 8):
+                    got = cascade.variants(form, FEATURES, limit=limit)
+                    checked += 1
+                    if len(got.truncations) != 1:
+                        continue
+                    if got.truncations[0].step != len(cascade) - 1:
+                        continue
+                    kept = set(got.forms)
+                    lost = [cost for f, cost in costs.items() if f not in kept]
+                    if not lost:
+                        continue
+                    cut_seen += 1
+                    assert max(v.choices for v in got) <= min(lost), (pair, form, limit)
+        assert checked > 100, f"sweep did not run: {checked}"
+        assert cut_seen > 20, f"nothing was actually cut: {cut_seen}"
+
+    def test_a_cut_step_reports_what_it_declined(self) -> None:
+        """The count follows the cut. Two branches of four sites each,
+        cut at five: the step builds five children and declines the
+        rest of both branches' subsets."""
+        got = _set("a ~> x\nb ~> y").variants("abbb", FEATURES, limit=5)
+        assert got.truncations[0].step == 1
+        assert got.truncations[0].kept == 5
+        assert got.unexplored == (2**3 - 4) + (2**3 - 1) == 11
 
 
 # --------------------------------------------------------------------------
@@ -885,7 +1165,10 @@ class TestTheCommandLineIsInSyncWithTheLibrary:
         assert rc == 0
         assert "INCOMPLETE" in out.split("\n")[0]
         assert "lengthening" in out.split("\n")[0]
-        assert "12 choice combination(s) unexplored" in out
+        # "at least", because the count is exact for the step it names
+        # and silent about the rules after it. A bare number here reads
+        # as the size of what is missing, which it is not.
+        assert "at least 12 choice combination(s) unexplored" in out
 
     def test_apply_prints_the_first_variant(self, monkeypatch, capsys) -> None:
         rc, out, _ = _cli(

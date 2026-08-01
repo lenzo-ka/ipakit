@@ -221,6 +221,7 @@ across the library rather than one thing per caller.
 from __future__ import annotations
 
 import dataclasses
+import heapq
 import itertools
 import unicodedata
 import warnings
@@ -2174,13 +2175,23 @@ DEFAULT_LIMIT = 256
 class Truncation:
     """One rule's expansion, cut because the limit was reached.
 
-    ``unexplored`` counts **combinations of optional choices** the step
-    did not enumerate, not distinct forms: distinct choices can spell the
-    same form, so it is an upper bound on what is missing and an exact
-    count of what was not looked at. It is exact rather than estimated
-    because the arithmetic is known before the enumeration -- a branch
-    with *n* edits offers ``2 ** n`` -- which is what makes it reportable
-    without doing the work the limit exists to avoid.
+    ``unexplored`` counts **combinations of optional choices this step
+    declined to build**, and that is the whole of the claim. It is exact
+    for the step, and known before the enumeration rather than estimated
+    -- a branch with *n* edits offers ``2 ** n`` -- which is what makes
+    it reportable without doing the work the limit exists to avoid.
+
+    It is a **floor** under what the whole cascade did not look at, not a
+    ceiling, and it bounds nothing about the number of forms missing from
+    the answer. Every child declined here would have offered children of
+    its own to every later rule, and none of those are counted; so a cut
+    early in a cascade under-reports the forms lost by as much as the
+    remaining rules multiply. In the other direction distinct choices can
+    spell one form, so a step can decline more combinations than there
+    are forms to miss. Read it as "at least this many choices went
+    unexplored" -- which is what a caller needs to know to raise the
+    limit -- and read :attr:`VariantSet.complete` for whether anything is
+    missing at all.
     """
 
     #: Index of the rule in the cascade.
@@ -2219,13 +2230,20 @@ class VariantSet:
     """Every form a rule set derives from one input, and what it cost.
 
     Ordered, and the order is part of the answer: members appear in the
-    order the cascade produced them, and within one optional rule the
-    subsets of its edits are enumerated by **size** first. So
+    order the cascade produced them, branch by branch, and within one
+    branch the subsets of a rule's edits come by **size** first. So
     ``variants[0]`` is always the member that takes no optional choice at
-    all, which is exactly :meth:`RuleSet.apply`'s answer, and a truncated
-    set keeps the members that depart least rather than an arbitrary
-    prefix. Nothing here iterates a set or a hash, so the order does not
-    depend on ``PYTHONHASHSEED``.
+    all, which is exactly :meth:`RuleSet.apply`'s answer. Nothing here
+    iterates a set or a hash, so the order does not depend on
+    ``PYTHONHASHSEED``.
+
+    Presentation and the cut are two different orders and only one of
+    them is derivational. What a step carries forward when it fills is
+    the branches with the fewest optional edits **across every branch it
+    was handed**, not a prefix of the first branch's subsets; they are
+    then presented in the derivational order above. So a truncated set
+    is the members that depart least, and it is also a subsequence of
+    the complete answer, which a cost-ordered presentation would not be.
 
     :attr:`truncations` is empty when the answer is complete, and
     :attr:`complete` says so in one word. Ask it. A capped set of
@@ -2253,7 +2271,12 @@ class VariantSet:
 
     @property
     def unexplored(self) -> int:
-        """Choice combinations the limit kept this answer from reaching."""
+        """Choice combinations the cuts declined -- at least this many.
+
+        The sum over :attr:`truncations`, each of which is exact for its
+        own step and silent about what the steps after it would have made
+        of the branches it dropped. See :class:`Truncation`.
+        """
         return sum(cut.unexplored for cut in self.truncations)
 
     def __len__(self) -> int:
@@ -2288,6 +2311,66 @@ def _subsets(count: int) -> Iterator[tuple[int, ...]]:
     """
     for size in range(count + 1):
         yield from itertools.combinations(range(count), size)
+
+
+#: A branch in flight: the units, the steps that made them, and how many
+#: optional edits those steps took. The last is the cost the cap and the
+#: dedupe are both ordered by.
+_Branch = tuple[list[Unit], tuple[Step, ...], int]
+
+
+def _open_choices(
+    branches: Sequence[_Branch], found: Sequence[Sequence[Edit]]
+) -> Iterator[tuple[int, int, int, tuple[int, ...]]]:
+    """Every choice one optional rule leaves open, cheapest first.
+
+    Yields ``(cost, branch, place, subset)``, where *cost* is the total
+    optional edits the child would have taken -- what the branch already
+    spent plus what the subset spends -- and *place* is the subset's
+    position in :func:`_subsets`.
+
+    Grading the subsets is not enough on its own, because it grades them
+    one parent at a time: exhausting a rule's subsets branch by branch
+    fills the limit on the first branch's expensive children and never
+    reaches the second branch's free one. So the streams are merged, and
+    the cut falls on the most expensive children the step offers rather
+    than on the last branches to be looked at. Each stream is ascending
+    in ``(cost, branch, place)`` because :func:`_subsets` is graded, so
+    the merge is lazy and stops where the caller stops.
+
+    What it costs is that the step holds every branch's edits at once,
+    where taking one branch at a time held one branch's. Being able to
+    expand the cheapest branch at any moment is what wants them all live,
+    and the bill is bounded the way the enumeration is: the branches by
+    the limit, the edits per branch by the length of the form.
+    """
+
+    def stream(at: int) -> Iterator[tuple[int, int, int, tuple[int, ...]]]:
+        spent = branches[at][2]
+        for place, subset in enumerate(_subsets(len(found[at]))):
+            yield (spent + len(subset), at, place, subset)
+
+    return heapq.merge(*(stream(at) for at in range(len(branches))))
+
+
+def _keep_cheapest(carried: dict[str, _Branch], key: str, branch: _Branch) -> None:
+    """File a branch under its spelling, keeping the cheapest derivation.
+
+    Two branches that converge are one member, and the one to keep is
+    the one that got there in the fewest optional edits: ``choices`` says
+    what a form costs, so a member reporting a derivation dearer than one
+    the same cascade found is reporting a wrong number, and its
+    ``derivation`` walks a route the caller had no reason to be shown.
+
+    Position is first arrival and is not disturbed by a later, cheaper
+    arrival -- assigning to a key a dict already holds leaves it where it
+    was. Order is derivational and cost is what the answer says about the
+    member; keeping them apart is what lets the order stay the one a
+    split cascade reproduces.
+    """
+    seen = carried.get(key)
+    if seen is None or branch[2] < seen[2]:
+        carried[key] = branch
 
 
 @dataclass(frozen=True)
@@ -2427,8 +2510,10 @@ class RuleSet:
         maps each branch to one child; an optional rule maps it to one
         child per **subset** of the edits it found, which is what makes
         the choice per site rather than per rule. Branches that converge
-        on the same spelling are one member, and the derivation kept is
-        the first in the order -- the one taking fewest optional edits.
+        on the same spelling are one member, standing where the first of
+        them arrived and carrying the derivation of the cheapest: "first"
+        and "fewest optional edits" are different orders, and ``choices``
+        answers for the second.
 
         The answer is always finite: a rule is matched against a snapshot
         and cannot feed itself, so each step is finite and the cascade is
@@ -2450,26 +2535,26 @@ class RuleSet:
             raise ValueError(f"limit must be at least 1, not {limit!r}")
         items = list(units(form, features))
         start = spell(items)
-        #: (units, the steps that produced them, optional edits taken)
-        branches: list[tuple[list[Unit], tuple[Step, ...], int]] = [(items, (), 0)]
+        branches: list[_Branch] = [(items, (), 0)]
         truncations: list[Truncation] = []
 
         for index, rule in enumerate(self.rules):
-            # Keyed by spelling, so convergent branches are one member and
-            # the FIRST is kept; insertion order is the answer's order.
-            carried: dict[str, tuple[list[Unit], tuple[Step, ...], int]] = {}
-            unexplored = 0
-            for current, steps, choices in branches:
-                before = spell(current)
-                found = rule.edits(current, features)
-                if not rule.optional:
+            # Keyed by spelling, so convergent branches are one member;
+            # arrival order is the answer's order and the record kept is
+            # the cheapest derivation. See _keep_cheapest.
+            carried: dict[str, _Branch] = {}
+            spellings = [spell(current) for current, _, _ in branches]
+            if not rule.optional:
+                for at, (current, steps, choices) in enumerate(branches):
                     # One child per branch, so this can never exceed the
                     # limit that already held of ``branches``: an
                     # obligatory rule is a function and truncating it
                     # would drop a form that was already in the set.
+                    found = rule.edits(current, features)
                     after_items = _apply_edits(list(current), found)
                     after = spell(after_items)
-                    carried.setdefault(
+                    _keep_cheapest(
+                        carried,
                         after,
                         (
                             after_items,
@@ -2477,7 +2562,7 @@ class RuleSet:
                             + (
                                 Step(
                                     rule=rule.name,
-                                    before=before,
+                                    before=spellings[at],
                                     after=after,
                                     edits=tuple(found),
                                 ),
@@ -2485,33 +2570,45 @@ class RuleSet:
                             choices,
                         ),
                     )
-                    continue
-                taken = 0
-                for subset in _subsets(len(found)):
-                    if len(carried) >= limit:
-                        break
-                    picked = tuple(found[i] for i in subset)
-                    after_items = _apply_edits(list(current), picked)
-                    after = spell(after_items)
-                    carried.setdefault(
-                        after,
-                        (
-                            after_items,
-                            steps
-                            + (
-                                Step(
-                                    rule=rule.name,
-                                    before=before,
-                                    after=after,
-                                    edits=picked,
-                                    optional=True,
-                                ),
+                branches = list(carried.values())
+                continue
+
+            offered = [rule.edits(current, features) for current, _, _ in branches]
+            taken = [0] * len(branches)
+            #: Where each surviving spelling stands in the derivational
+            #: order, which is not the order the choices are taken in.
+            place: dict[str, tuple[int, int]] = {}
+            for cost, at, rank, subset in _open_choices(branches, offered):
+                if len(carried) >= limit:
+                    break
+                current, steps, _ = branches[at]
+                picked = tuple(offered[at][i] for i in subset)
+                after_items = _apply_edits(list(current), picked)
+                after = spell(after_items)
+                _keep_cheapest(
+                    carried,
+                    after,
+                    (
+                        after_items,
+                        steps
+                        + (
+                            Step(
+                                rule=rule.name,
+                                before=spellings[at],
+                                after=after,
+                                edits=picked,
+                                optional=True,
                             ),
-                            choices + len(picked),
                         ),
-                    )
-                    taken += 1
-                unexplored += (1 << len(found)) - taken
+                        cost,
+                    ),
+                )
+                if place.get(after, (at, rank)) >= (at, rank):
+                    place[after] = (at, rank)
+                taken[at] += 1
+            unexplored = sum(
+                (1 << len(offered[at])) - taken[at] for at in range(len(branches))
+            )
             if unexplored:
                 truncations.append(
                     Truncation(
@@ -2521,16 +2618,16 @@ class RuleSet:
                         unexplored=unexplored,
                     )
                 )
-            branches = list(carried.values())
+            branches = [carried[key] for key in sorted(carried, key=place.__getitem__)]
 
         if not keep_zeros:
             for rule in surface(features):
                 # Obligatory, so one child per branch: this cannot exceed
-                # a limit that already held, and the ``setdefault`` is
-                # where two zero placements become one pronunciation. The
-                # member kept is the first in the order, which is the one
-                # taking fewest optional choices.
-                merged: dict[str, tuple[list[Unit], tuple[Step, ...], int]] = {}
+                # a limit that already held, and the merge is where two
+                # zero placements become one pronunciation. Cheapest
+                # wins, as everywhere else -- a pronunciation two
+                # derivations reach is the cheaper one's.
+                merged: dict[str, _Branch] = {}
                 for current, steps, choices in branches:
                     before = spell(current)
                     found = rule.edits(current, features)
@@ -2545,7 +2642,7 @@ class RuleSet:
                                 edits=tuple(found),
                             ),
                         )
-                    merged.setdefault(after, (after_items, steps, choices))
+                    _keep_cheapest(merged, after, (after_items, steps, choices))
                 branches = list(merged.values())
 
         out = []
