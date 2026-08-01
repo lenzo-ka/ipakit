@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial lint check
+.PHONY: figures figures-clean tutorial notebook lint check
 
 ## figures: redraw the mid-sagittal tract figures in docs/
 figures:
@@ -35,7 +35,13 @@ figures-clean:
 # produced by executing the call beside it. PYTHONHASHSEED is pinned for the
 # same reason it is pinned for invariants.py -- `check` compares bytes.
 tutorial:
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py build
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py build markdown
+
+## notebook: regenerate the tutorial notebook that ships in the package
+# The same source and the same parse as `tutorial`, emitted as cells with no
+# results in them. Nothing runs, so there is no seed to pin.
+notebook:
+	@$(PYTHON) scripts/tutorial.py build notebook
 
 ## lint: the style gates; needs the `lint` extra (ruff / black / mypy)
 lint:
@@ -58,5 +64,5 @@ check: lint
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py

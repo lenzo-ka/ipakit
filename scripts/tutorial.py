@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate ``docs/tutorial.md`` by executing every example in its source.
+"""Render ``docs/tutorial.src.md`` as a page and as a notebook.
 
 The tutorial is a **derived artifact**, in the same sense as
 ``docs/figures/*.svg`` and ``ipakit/data/confusion.json``: the prose is
@@ -31,6 +31,19 @@ Two block types in the source are executed.
 
 Everything else passes through unchanged, so the prose is untouched.
 
+**The notebook is the same parse with a different emitter.** :func:`parse`
+splits the source once; :func:`generate` renders the page and
+:func:`notebook` renders ``ipakit/notebooks/ipakit-tutorial.ipynb``, where
+prose becomes a markdown cell, ``python-run`` a code cell and
+``console-run`` a code cell of ``!``-prefixed shell lines. One authored
+source, two renderings -- which is what keeps the notebook from rotting:
+its cells are the blocks ``check`` already executes, so an example that
+stops working turns the byte-identical page check red before anyone opens
+the notebook. The notebook ships **without outputs**: deterministic enough
+to compare byte for byte, small enough to carry no embedded SVG, and blank
+enough that a student has to run it to see anything. Writing it executes
+nothing.
+
 **Determinism.** A byte-identical check demands it. ``PYTHONHASHSEED`` is
 pinned for the subprocesses, the CLI is invoked as ``python -m
 ipakit.cli`` from the repository root so no install is required, and the
@@ -47,17 +60,24 @@ import ast
 import contextlib
 import difflib
 import io
+import json
 import os
 import re
 import subprocess
 import sys
 import textwrap
 import warnings
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "docs" / "tutorial.src.md"
 TARGET = ROOT / "docs" / "tutorial.md"
+#: The notebook ships inside the package, not under ``docs/``: it is the
+#: rendering a student is meant to leave with, and only what the wheel
+#: carries reaches somebody who has no checkout.
+NOTEBOOK = ROOT / "ipakit" / "notebooks" / "ipakit-tutorial.ipynb"
 
 # Import the checkout, not whatever happens to be installed: the page must
 # describe the tree it is generated from.
@@ -68,9 +88,11 @@ FENCE = re.compile(r"^```(console-run|python-run)[ \t]*$")
 #: Width at which a quoted value moves from beside a call to beneath it.
 WIDTH = 78
 
+#: Placed under the first heading of each rendering, naming the ``make``
+#: target that rewrites it.
 BANNER = (
     "<!-- Generated from tutorial.src.md by scripts/tutorial.py. "
-    "Do not edit: run `make tutorial`. -->"
+    "Do not edit: run `make {target}`. -->"
 )
 
 
@@ -110,15 +132,23 @@ def _clean(text: str) -> str:
     return "\n".join(line.rstrip() for line in text.rstrip("\n").split("\n"))
 
 
-def render_console(lines: list[str]) -> list[str]:
-    out = ["```console"]
+def commands(lines: list[str]) -> list[str]:
+    """The commands a ``console-run`` block asks for, without the prompt."""
+    out = []
     for line in lines:
         if not line.strip():
             continue
         if not line.startswith("$ "):
             raise SystemExit(f"tutorial: console-run line must start with '$ ': {line}")
-        out.append(line)
-        stdout, stderr = run_command(line[2:])
+        out.append(line[2:])
+    return out
+
+
+def render_console(lines: list[str]) -> list[str]:
+    out = ["```console"]
+    for command in commands(lines):
+        out.append(f"$ {command}")
+        stdout, stderr = run_command(command)
         for stream in (stdout, stderr):
             if stream:
                 out.extend(stream.split("\n"))
@@ -232,8 +262,48 @@ def partition_comment(line: str) -> tuple[str, str, str]:
 
 
 # --------------------------------------------------------------------------
-# driver
+# the parse both renderings share
 # --------------------------------------------------------------------------
+
+
+class Block(NamedTuple):
+    """One run of source lines: ``prose``, ``python-run`` or ``console-run``."""
+
+    kind: str
+    lines: list[str]
+
+
+def parse(source: str) -> list[Block]:
+    """Split the authored source into blocks, running nothing.
+
+    Both emitters walk this list, so a fence the page executes and a
+    cell the notebook offers are the same block rather than two readings
+    of one file that could come to disagree.
+    """
+    lines = strip_front_matter(source).split("\n")
+    blocks: list[Block] = []
+    prose: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        match = FENCE.match(line)
+        if not match:
+            prose.append(line)
+            index += 1
+            continue
+        if prose:
+            blocks.append(Block("prose", prose))
+            prose = []
+        index += 1
+        body: list[str] = []
+        while index < len(lines) and lines[index].rstrip() != "```":
+            body.append(lines[index])
+            index += 1
+        index += 1  # closing fence
+        blocks.append(Block(match.group(1), body))
+    if prose:
+        blocks.append(Block("prose", prose))
+    return blocks
 
 
 def strip_front_matter(source: str) -> str:
@@ -251,79 +321,177 @@ def strip_front_matter(source: str) -> str:
 
 
 def generate() -> str:
-    source = strip_front_matter(SOURCE.read_text(encoding="utf-8"))
-    lines = source.split("\n")
+    """The page: every runnable block executed, its output embedded."""
     env: dict = {}
     out: list[str] = []
-    index = 0
     inserted_banner = False
-    while index < len(lines):
-        line = lines[index]
-        match = FENCE.match(line)
-        if not match:
-            out.append(line)
-            index += 1
-            if not inserted_banner and line.startswith("# "):
-                out.append("")
-                out.append(BANNER)
-                inserted_banner = True
-            continue
-        kind = match.group(1)
-        index += 1
-        body: list[str] = []
-        while index < len(lines) and lines[index].rstrip() != "```":
-            body.append(lines[index])
-            index += 1
-        index += 1  # closing fence
-        if kind == "console-run":
-            out.extend(render_console(body))
+    for block in parse(SOURCE.read_text(encoding="utf-8")):
+        if block.kind == "console-run":
+            out.extend(render_console(block.lines))
+        elif block.kind == "python-run":
+            out.extend(render_python("\n".join(block.lines), env))
         else:
-            out.extend(render_python("\n".join(body), env))
+            for line in block.lines:
+                out.append(line)
+                if not inserted_banner and line.startswith("# "):
+                    out.append("")
+                    out.append(BANNER.format(target="tutorial"))
+                    inserted_banner = True
     text = "\n".join(out)
     return text.rstrip("\n") + "\n"
+
+
+# --------------------------------------------------------------------------
+# notebook
+# --------------------------------------------------------------------------
+
+#: ``.ipynb`` is JSON, so writing one is ``json.dump`` on a dict and needs
+#: neither ``nbformat`` nor Jupyter -- which is the point: ipakit declares
+#: no runtime dependencies, and obtaining the notebook must not add one.
+#: Format 4.4 rather than 4.5 because 4.5 requires a per-cell ``id``, and
+#: an identifier invented by the generator is a byte in the file that says
+#: nothing about the tutorial.
+NBFORMAT = (4, 4)
+
+KERNELSPEC = {
+    "display_name": "Python 3",
+    "language": "python",
+    "name": "python3",
+}
+
+
+def cell_source(text: str) -> list[str]:
+    """Split as nbformat stores a cell: newlines kept, none on the last line."""
+    lines = text.split("\n")
+    return [line + "\n" for line in lines[:-1]] + lines[-1:]
+
+
+def cell(kind: str, text: str) -> dict[str, Any]:
+    """One cell, with no result in it.
+
+    A code cell carries ``execution_count: null`` and no outputs. That is
+    the shipped property, not an oversight: it is what makes the file
+    deterministic enough for ``check`` to compare byte for byte, and it
+    leaves the answers to the reader who runs the cell.
+    """
+    if kind == "markdown":
+        return {"cell_type": "markdown", "metadata": {}, "source": cell_source(text)}
+    return {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": cell_source(text),
+    }
+
+
+def notebook() -> str:
+    """The notebook: the same blocks, offered rather than answered."""
+    cells: list[dict[str, Any]] = []
+    inserted_banner = False
+    for block in parse(SOURCE.read_text(encoding="utf-8")):
+        if block.kind == "console-run":
+            # ``!`` is how a notebook spells "run this in a shell", and the
+            # command is the one the page runs, prompt removed.
+            cells.append(
+                cell("code", "\n".join(f"!{c}" for c in commands(block.lines)))
+            )
+            continue
+        if block.kind == "python-run":
+            cells.append(cell("code", "\n".join(block.lines).strip("\n")))
+            continue
+        lines = list(block.lines)
+        if not inserted_banner:
+            for position, line in enumerate(lines):
+                if line.startswith("# "):
+                    lines[position + 1 : position + 1] = [
+                        "",
+                        BANNER.format(target="notebook"),
+                    ]
+                    inserted_banner = True
+                    break
+        text = "\n".join(lines).strip("\n")
+        # Prose between two adjacent fences is a blank line and nothing else.
+        if text.strip():
+            cells.append(cell("markdown", text))
+    document = {
+        "cells": cells,
+        "metadata": {"kernelspec": KERNELSPEC, "language_info": {"name": "python"}},
+        "nbformat": NBFORMAT[0],
+        "nbformat_minor": NBFORMAT[1],
+    }
+    return json.dumps(document, indent=1, ensure_ascii=False, sort_keys=True) + "\n"
+
+
+# --------------------------------------------------------------------------
+# driver
+# --------------------------------------------------------------------------
+
+#: What each rendering is called, where it goes, what writes it, and the
+#: ``make`` target that rewrites it when it goes stale.
+ARTIFACTS: dict[str, tuple[Path, Callable[[], str], str]] = {
+    "markdown": (TARGET, generate, "tutorial"),
+    "notebook": (NOTEBOOK, notebook, "notebook"),
+}
+
+
+def build(name: str) -> int:
+    path, render, _ = ARTIFACTS[name]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render(), encoding="utf-8")
+    print(f"tutorial: wrote {path.relative_to(ROOT).as_posix()}")
+    return 0
+
+
+def check(name: str) -> int:
+    path, render, target = ARTIFACTS[name]
+    where = path.relative_to(ROOT).as_posix()
+    fresh = render()
+    if not path.exists():
+        print(f"tutorial: {where} is missing; run `make {target}`", file=sys.stderr)
+        return 1
+    current = path.read_text(encoding="utf-8")
+    if current == fresh:
+        print(f"tutorial: {where} is current")
+        return 0
+    diff = difflib.unified_diff(
+        current.split("\n"),
+        fresh.split("\n"),
+        fromfile=f"{where} (checked in)",
+        tofile=f"{where} (regenerated)",
+        lineterm="",
+    )
+    print("\n".join(diff), file=sys.stderr)
+    print(
+        f"\ntutorial: the regenerated {where} differs from the one checked in.\n"
+        "Either the library changed what it prints, or docs/tutorial.src.md is\n"
+        "stale. Read the diff and decide which -- a changed value here is a\n"
+        f"behavior change, not a formatting nit -- then run `make {target}`.",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("action", choices=["build", "check"])
+    parser.add_argument(
+        "target",
+        nargs="?",
+        default="all",
+        choices=[*ARTIFACTS, "all"],
+        help="which rendering (default: both)",
+    )
     args = parser.parse_args()
 
     if not SOURCE.exists():
         print(f"tutorial: no source at {SOURCE}", file=sys.stderr)
         return 1
 
-    fresh = generate()
-    if args.action == "build":
-        TARGET.write_text(fresh, encoding="utf-8")
-        print(f"tutorial: wrote {TARGET.relative_to(ROOT)}")
-        return 0
-
-    if not TARGET.exists():
-        print(
-            "tutorial: docs/tutorial.md is missing; run `make tutorial`",
-            file=sys.stderr,
-        )
-        return 1
-    current = TARGET.read_text(encoding="utf-8")
-    if current == fresh:
-        print("tutorial: docs/tutorial.md is current")
-        return 0
-    diff = difflib.unified_diff(
-        current.split("\n"),
-        fresh.split("\n"),
-        fromfile="docs/tutorial.md (checked in)",
-        tofile="docs/tutorial.md (regenerated)",
-        lineterm="",
-    )
-    print("\n".join(diff), file=sys.stderr)
-    print(
-        "\ntutorial: the regenerated tutorial differs from the one checked in.\n"
-        "Either the library changed what it prints, or docs/tutorial.src.md is\n"
-        "stale. Read the diff and decide which -- a changed value here is a\n"
-        "behavior change, not a formatting nit -- then run `make tutorial`.",
-        file=sys.stderr,
-    )
-    return 1
+    names = list(ARTIFACTS) if args.target == "all" else [args.target]
+    run = build if args.action == "build" else check
+    # Every rendering is visited, so one stale artifact does not hide another.
+    return max(run(name) for name in names)
 
 
 if __name__ == "__main__":
