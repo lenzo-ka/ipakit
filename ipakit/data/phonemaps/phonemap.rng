@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The shape of a phonemap: a table of rows, each pairing an IPA spelling
+     with its spelling in some other notation.
+
+     What this grammar states is structure. It never names a phone, a
+     notation, or a target column, because none of those are structure: the
+     symbols are the inventory, and the column name is whatever notation the
+     file is a table for. Adding a row, or adding a whole new phonemap for a
+     sixth notation, must not require editing this file. Only a new KIND of
+     row would.
+
+     The target column is therefore left open by name. `ipakit/phonemaps.py`
+     reads it as the root's `to` attribute, falling back to the file's own
+     stem, so `cmu.xml` is read through `cmu=` whether or not it says
+     to="cmu". That agreement between the root attribute, the file name and
+     the column name is a cross-reference; RELAX NG has no key/keyref and
+     cannot check it. `scripts/invariants.py` and the library are what do.
+
+     What the grammar can say about a row is that it has an IPA side and at
+     least one other side. `stress` and `note` are named here so that "at
+     least one other side" means a target column rather than any attribute
+     at all: without naming them, a row carrying only `ipa` and `note` would
+     satisfy the requirement and map nothing. The residual gap is a new
+     metadata column, which would be read as a target until it is named
+     here too. -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <element name="phonemap">
+      <attribute name="description"><text/></attribute>
+      <!-- `from` and `to` name the notations the table runs between. Both
+           are optional: a table whose column name already matches its file
+           name states the same fact by being named that, and two of the
+           shipped tables are written that way. -->
+      <optional><attribute name="from"><text/></attribute></optional>
+      <optional><attribute name="to"><text/></attribute></optional>
+      <!-- The rows and the extras section are order-independent to the
+           reader, which finds each by name. Within a run of rows order does
+           matter, and that RELAX NG preserves without being told: the first
+           mapping of a symbol wins, so a row's position is what makes it
+           the canonical spelling rather than an alternate one. -->
+      <interleave>
+        <zeroOrMore><ref name="map"/></zeroOrMore>
+        <optional>
+          <!-- Rows that are read in but are not the canonical spelling of
+               anything: closures, stress-bearing variants, symbols a
+               notation has that the IPA writes some other way. Same row
+               shape, read after the main run, so they never win a tie. -->
+          <element name="extras">
+            <zeroOrMore><ref name="map"/></zeroOrMore>
+          </element>
+        </optional>
+      </interleave>
+    </element>
+  </start>
+
+  <define name="map">
+    <element name="map">
+      <attribute name="ipa"><text/></attribute>
+      <!-- Which stress levels the target spelling admits, and a free note.
+           Metadata about the row, not a side of the mapping. -->
+      <optional><attribute name="stress"><text/></attribute></optional>
+      <optional><attribute name="note"><text/></attribute></optional>
+      <oneOrMore>
+        <attribute>
+          <anyName>
+            <except>
+              <name>ipa</name>
+              <name>stress</name>
+              <name>note</name>
+            </except>
+          </anyName>
+          <text/>
+        </attribute>
+      </oneOrMore>
+    </element>
+  </define>
+
+</grammar>

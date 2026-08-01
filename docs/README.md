@@ -47,7 +47,7 @@ using it.
 
 ## The shape of the repository
 
-- `ipakit/` — the library. `ipakit/data/ipa.xml` is the feature declaration everything reads; `ipakit/data/rules/*.rules` are the shipped rule sets.
+- `ipakit/` — the library. `ipakit/data/ipa.xml` is the feature declaration everything reads; `ipakit/data/rules/*.rules` are the shipped rule sets. Each XML document has a RELAX NG grammar beside it stating its shape — see [reviewing.md](reviewing.md).
 - `ipakit/cli/` — the `ipakit` command. One subcommand group per task area.
 - `ipakit/tract.py` — the tract model, read by the metric. `ipakit/tract_svg.py` draws it; they are separate so nothing that computes a distance can reach a stylesheet.
 - `scripts/` — the measurements, the generators, and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the data guards, `tutorial.py` the artifact generator, and `docexamples.py` checks every value quoted in the hand-written documents against what the library actually returns. `tract_svg.py` here is a shim over the package module, kept so `make figures` and the old invocation still work.
