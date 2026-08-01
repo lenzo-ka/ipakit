@@ -1,6 +1,6 @@
 # Reviewing changes to ipakit
 
-A record of how defects in this library have actually been found, written down because the method mattered more than any individual finding. Over six review rounds, thirty-three defects were fixed. **Every one was a silent wrong answer under a fully green test suite.** Not one was a crash.
+A record of how defects in this library have actually been found, written down because the method mattered more than any individual finding. Across every review round so far, all but one defect fixed was a **silent wrong answer under a fully green test suite**. The single exception announced itself by crashing, which is the easy case and the one the suite would have caught anyway.
 
 That is the shape of the risk here. A phonetics library computes over data most callers cannot check by eye: nobody notices that `d(i, m̥) < d(i, m)`, or that `features("tʲ")` returned `{}`, or that a dental affricate tokenized as a cluster. The suite stays green because the wrong answer is well-formed. So the review method has to be built around producing evidence, not around reading code and forming an opinion.
 

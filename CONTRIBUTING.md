@@ -10,7 +10,7 @@ Most projects cannot invite you to argue with their design, because they have no
 
 **If you think a derivation, a distance, a feature bundle or a transcription convention is wrong, say so.** Open an issue, name your variety or your reference, and give the form you expect. That is a complete contribution. You do not have to write the fix.
 
-The one thing we ask in return is that a change to *behavior* comes with a measurement rather than an argument from plausibility, because that is the only thing that has ever worked here. [docs/reviewing.md](docs/reviewing.md) is the record of why: across six rounds of review, **every single defect found was a silent wrong answer under a fully green test suite**. Not one was a crash. A phonetics library computes over data most callers cannot check by eye, so a wrong answer is well-formed, the suite stays green, and the only thing that catches it is evidence.
+The one thing we ask in return is that a change to *behavior* comes with a measurement rather than an argument from plausibility, because that is the only thing that has ever worked here. [docs/reviewing.md](docs/reviewing.md) is the record of why: across every round of review so far, all but one defect found was a **silent wrong answer under a fully green test suite**, and the lone exception announced itself by crashing. A phonetics library computes over data most callers cannot check by eye, so a wrong answer is well-formed, the suite stays green, and the only thing that catches it is evidence.
 
 Read that document before changing anything. This file does not restate it; it tells you which parts of it apply to which kind of contribution.
 
