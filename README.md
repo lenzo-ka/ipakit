@@ -6,12 +6,33 @@
 [![License: BSD 2-Clause](https://img.shields.io/badge/License-BSD_2--Clause-blue.svg)](LICENSE)
 
 A pure-Python IPA (International Phonetic Alphabet) phonetic toolkit:
-phonetic features, distances, natural classes, and conversion between IPA and
-CMU ARPABET, X-SAMPA, Kirshenbaum, and TIMIT notations.
+phonetic features, distances, natural classes, allophonic rewrite rules, and
+conversion between IPA and CMU ARPABET, X-SAMPA, Kirshenbaum, and TIMIT
+notations.
+
+It is for anyone who needs to compute over speech sounds rather than just store
+them — building a lexicon or a G2P front end, scoring pronunciations, picking
+minimal pairs, searching an inventory by feature, or taking a broad
+transcription to a narrow one.
 
 - **Zero runtime dependencies** — all phonetic data ships as XML in the package.
+- **Declarative** — features, natural classes, tie behavior and the vocal-tract
+  geometry are all read from `ipa.xml`, not hardcoded, so the data is the spec.
 - **Typed** (`py.typed`, mypy-strict clean).
-- **Both a library and a CLI** (`ipakit`).
+- **Both a library and a CLI** (`ipakit`), covering the same ground.
+- **Draws the tract** — `ipakit.tract_svg.figure("t")` is a mid-sagittal SVG of that
+  phone's posture, and a `Segment` renders as one in a notebook. See
+  [docs/tract-figures.md](docs/tract-figures.md).
+
+**New here? Start with the [tutorial](docs/tutorial.md)** — it is organized by
+task and shows the command line and the Python API side by side for each one.
+Every value on that page is produced by executing the call beside it.
+
+## Documentation
+
+- **[docs/tutorial.md](docs/tutorial.md)** — getting things done, from install to applying rule sets.
+- **[docs/README.md](docs/README.md)** — index of every document, what it is for, and the order to read them.
+- Reference: [ties.md](docs/ties.md) (the unit model), [form.md](docs/form.md) (the whole transcription), [rules.md](docs/rules.md) (the rewrite notation), [distance.md](docs/distance.md) (what the metric does and does not claim).
 
 ## Install
 
@@ -149,7 +170,7 @@ eng.word_similarity("kæt", "kæd")
 eng.is_similar("kæt", "kæd", threshold=0.8)  # True
 ```
 
-Distances are **structural**: two segments are close when they are made similarly — same articulator, similar position in the vocal tract, similar constriction. That correlates with perceptual confusability but does not model it. [docs/distance.md](docs/distance.md) documents the representation, the comparison, and what the numbers do and do not mean.
+Distances are **structural**: two segments are close when they are made similarly — same articulator, similar position in the vocal tract, similar constriction. That correlates with perceptual confusability but does not model it. Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. [docs/distance.md](docs/distance.md) documents the representation, the comparison, and what the numbers do and do not mean.
 
 `distance_model()` also accepts `gamma` (power transform to push dissimilar
 pairs apart), `sub_mode="di"` (delete+insert substitution cost for word
@@ -163,14 +184,12 @@ reuse it and only re-slice the percentile distribution.
   onset: `from_cmu(["K", "AE1", "T"])` → `kˈæt`. Syllabification is preserved
   across round trips (`W AO1 T ER0` ↔ `wˈɔtɚ`).
 - **Ties are typed** (house convention; see [docs/ties.md](docs/ties.md)): the over-tie fuses constituents into one timing slot (affricates and double articulations: `t͡ʃ`, `k͡p`), the under-tie binds a sequence into one unit (diphthongs, morae: `e͜ɪ`, `a͜ɪ͜ə`), and the over-tie binds tighter in mixed chains (`t͡s͜a`). The glyph is authoritative everywhere; text written in other conventions (where the glyphs are typographic variants, and where the keyboard stands in for the phonetic alphabet) imports explicitly via `ipakit.from_wild` — default parsing never rewrites its input. Tie *presence* is contrastive: `t͡s` is one segment, `ts` is a cluster.
-Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. See [docs/distance.md](docs/distance.md) for the model.
-
 - **Round-trip guarantee (X-SAMPA only):** IPA written in these conventions round-trips through X-SAMPA (`ipa → xsampa → ipa`), **up to tie sense**: X-SAMPA has a single tie encoding, so the under-tie projects onto the over-tie at the boundary and round trips return canonical over-tie spellings (`t͜s → t_s → t͡s`); the sequential/simultaneous distinction survives only in IPA. Every other exception is enumerated here, and the suite asserts the round-trip failure set over the whole inventory — the accepted ligature alias spellings (`ʧ`, `ʦ`, `ƛ`) included, which convert as the thing they spell and come back canonical — is *exactly* this list, so nothing can join it in silence.
   - *Ambiguous* — `b͡v`, `t͡θ`, `ŋ͡m` come back as `b̬`, `t˥`, `ŋ̻`: the tie encoding `_` collides with a diacritic/tone encoding (`_v`, `_T`, `_m`). Inherent to X-SAMPA; ICU shares it.
   - *Redundant spelling* — `˞`, `̀`, `́`, `̄`, `ʻ` are dropped: X-SAMPA has one encoding where IPA has two, and in a bijective table it belongs to the house-canonical spelling — `ʴ` (`` ` ``), the tone bars `˨`/`˦`/`˧` (`_L`/`_H`/`_M`), `ʰ` (`_h`). Written that way, the sound round-trips exactly.
   - *Unencodable* — `ⱱ`, `ˀ`, `ᵊ` are dropped: X-SAMPA has no notation for the labiodental flap (X-SAMPA predates the IPA's 2005 adoption of the symbol, and the standard chart marks that cell as having none), for glottalization, or for schwa release. An invented spelling would collide with notation already in use, so these stay unmapped rather than approximated.
 
-  A dropped symbol takes its neighbours' adjacency with it (`kⱱt → kt`), which is what `strict=True` is for: `ipa_to_xsampa("kⱱt", strict=True)` raises `ValueError` naming the symbol instead. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA distinctions) and carry no round-trip guarantee; Kirshenbaum has no labiodental-flap notation either.
+  A dropped symbol takes its neighbors' adjacency with it (`kⱱt → kt`), which is what `strict=True` is for: `ipa_to_xsampa("kⱱt", strict=True)` raises `ValueError` naming the symbol instead. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA distinctions) and carry no round-trip guarantee; Kirshenbaum has no labiodental-flap notation either.
 
 ## CLI
 
@@ -186,13 +205,32 @@ ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw structural distance
 ipakit distance confusability p b    # Inventory-relative confusability
 ipakit distance word kæt kæd         # Word similarity
+ipakit rules apply -s american-english pˈɪn    # Broad to narrow: pʰˈɪ̃n
+ipakit rules trace -s american-english bˈʌtɚ   # Which rule fired, and where
+ipakit rules recognize -r 't -> ʔ / _ #' kæt   # Where it holds, nothing rewritten
+ipakit tract draw t -o t.svg         # Mid-sagittal figure for one phone
+ipakit tract heads                   # Head shapes a figure can be drawn on
 ```
 
 The `distance confusability`/`word` commands use the distribution-aware model;
 scope them to a reference inventory with `--phoneset FILE` (one phone per line).
 
+`ipakit rules` applies context-sensitive rewrite rules (`A -> B / C _ D`): a
+shipped set with `-s`, notation with `-r` (repeatable, and an ordered cascade), a
+file with `--file`, and forms one per line on stdin when none are given.
+Single-quote the notation — it contains `#`, `|` and `;`, and the name separator
+is `;` because `|` is a legal context item. See [docs/rules.md](docs/rules.md).
+
 Most commands accept `--format json` (or `-j`) for machine-readable output.
 Run `ipakit`, `ipakit <group>`, or append `help`/`-h` anywhere for usage.
+
+Exit status is uniform across every subcommand: `0` succeeded and the input was
+read in full, `1` the command failed, `2` the command line was not understood,
+and `3` it ran but part of the input could not be read and was dropped — with
+what was dropped named on stderr. `--lax` reports `0` for that last case.
+
+[docs/tutorial.md](docs/tutorial.md) walks the CLI and the API through the same
+dozen tasks, so a command here can be traced to the call behind it.
 
 ## Development
 

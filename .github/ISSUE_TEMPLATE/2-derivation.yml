@@ -1,0 +1,58 @@
+name: Derivation — this is wrong for my variety
+description: A rule set, a transcription convention or a phonetic description does not match the language as you know it.
+labels: ["phonology"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This is a welcome kind of issue and it needs no code.** ipakit can measure whether it is self-consistent; it cannot tell whether it is right about a language. You can.
+
+        A variety is not a bug report against a shipped rule set by default — a set that is right for General American is not thereby wrong for Scottish English. What we want to know is *which* variety you mean, so the answer can be "this set is narrower than it claimed", "this set has an error", or "this deserves a set of its own".
+
+  - type: textarea
+    id: form
+    attributes:
+      label: The form, and what ipakit does with it
+      description: |
+        The input and the output. If you have ipakit installed, `ipakit rules trace -s <set> "<form>"` shows which rule fired and where, which is usually the fastest way to find the culprit — but a plain description of what it produced is enough.
+      render: shell
+      placeholder: |
+        ipakit rules apply -s american-english "pə.tˈe͜ɪ.to͜ʊ"
+    validations:
+      required: true
+
+  - type: input
+    id: variety
+    attributes:
+      label: Which variety, dialect or register
+      description: As precisely as you can — "Standard Southern British", "Rioplatense Spanish", "Tokyo Japanese, careful speech". Speaker generation or register matters where the process is changing.
+      placeholder: e.g. General American, casual speech
+    validations:
+      required: true
+
+  - type: textarea
+    id: correct
+    attributes:
+      label: The correct form
+      description: What the derivation should be, in IPA. If more than one output is acceptable in that variety, give them all and say which is the more usual.
+    validations:
+      required: true
+
+  - type: textarea
+    id: generalization
+    attributes:
+      label: The generalization, if you can state one
+      description: |
+        What is the process, and what conditions it? A prose statement is fine — "coda /l/ is velarized, and the shipped set only does it word-finally". If you can state it as a context (`A -> B / C _ D`), better still, but it is not required.
+
+        If it is easier to give more forms than to state the rule, do that instead: a list of inputs and correct outputs is directly usable as a test.
+    validations:
+      required: false
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Where this comes from
+      description: A reference, a grammar, a corpus, a recording, your own native or trained judgement. All of these count, and saying which it is helps more than leaving it implicit.
+    validations:
+      required: true

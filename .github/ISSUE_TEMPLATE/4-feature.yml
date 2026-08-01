@@ -1,0 +1,46 @@
+name: Feature request — something ipakit cannot do yet
+description: A capability, an API, or a CLI command that is missing.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `TODO.md` in the repository root is the standing roadmap — syllabification, sonority, inventory comparison and language inventories are already on it. If yours is there, say so and add what you need from it; a concrete use case is what moves an item up.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The task, not the solution. What are you building, and where does ipakit stop being able to help? A worked example of the input you have and the answer you need is ideal.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do instead today
+      description: The workaround, another tool, or hand-written code. If you are doing it outside ipakit already, showing that code says a great deal about the shape the feature should have.
+    validations:
+      required: false
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What the call might look like
+      description: A sketched signature or command line, if you have one in mind. Not required — the problem is more useful than the proposal.
+      render: python
+      placeholder: |
+        ipakit.syllabify("ɪnˈkɹɛdəbəl")   # ['ɪn', 'ˈkɹɛ', 'də', 'bəl']
+    validations:
+      required: false
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Anything that would make this the wrong thing to add
+      description: |
+        Optional, and genuinely useful. Does it need language-specific knowledge the library does not have? Would it require a judgement the library currently declines to make? Would it change existing answers?
+
+        ipakit deliberately does not guess: `!` is left unread because it has three live senses, and a word written without syllable dots has *unspecified* syllabification rather than one syllable. A feature that requires guessing needs to say how it will avoid it.
+    validations:
+      required: false

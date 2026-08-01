@@ -1,0 +1,60 @@
+name: Defect — ipakit gives a wrong or surprising answer
+description: Something the library gets wrong. Paste the command and its output.
+labels: ["defect"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Almost every defect this library has shipped was a **silent wrong answer** — well-formed output, no crash, a green test suite. That is why this form asks for the exact command and the exact output rather than a description of them: a wrong answer that can be run is a wrong answer that can be fixed and then pinned.
+
+        If the answer is a *phonological* disagreement — the derivation is not what your variety does — use the **Derivation** form instead. This one is for anything else.
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The command, or the Python
+      description: Exactly what you ran. A shell command or a few lines of Python are both fine.
+      render: shell
+      placeholder: |
+        ipakit describe "tʲ"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What it printed
+      description: The output, pasted rather than paraphrased. Include any warning or traceback in full.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: The value or behavior you expected, and — if you can — where that expectation comes from (a chart, a reference, another tool, the documentation).
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version and Python
+      description: |
+        Paste the output of:
+
+        ```
+        python -c "import ipakit, sys; print(ipakit.__version__, sys.version)"
+        ```
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Related cases you tried, whether it reproduces for other symbols, whether it used to work.
+    validations:
+      required: false
