@@ -844,39 +844,57 @@ def ruleset(text: str, name: str = "") -> RuleSet:
     return RuleSet.parse(text, _get_ipa(), name=name)
 
 
-def rewrite(form: str, spec: str | Rule | RuleSet) -> str:
+def rewrite(form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False) -> str:
     """Apply rules to an IPA form and return the derived form.
 
     ``spec`` may be a shipped set's name, rule notation, a single
     :class:`Rule`, or a :class:`RuleSet`. Use :func:`derive` when the
     trace is wanted.
 
+    The answer is a **surface** form: :func:`ipakit.rules.surface` runs
+    last, so no pronunciation carries a zero. ``keep_zeros`` declines
+    that final rewrite, for a caller assembling one derivation out of
+    several.
+
     Examples:
         >>> rewrite("pˈɪn", "american-english")
         'pʰˈɪ̃n'
         >>> rewrite("kæt", "t -> ʔ / _ #")
         'kæʔ'
+        >>> rewrite("lezami", "z -> [zero] / [vowel] _ [vowel]")
+        'leami'
+        >>> rewrite("lezami", "z -> [zero] / [vowel] _ [vowel]", keep_zeros=True)
+        'le∅ami'
     """
-    return derive(form, spec).result
+    return derive(form, spec, keep_zeros=keep_zeros).result
 
 
-def derive(form: str, spec: str | Rule | RuleSet) -> Derivation:
+def derive(
+    form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False
+) -> Derivation:
     """Apply rules to an IPA form, keeping the rule-by-rule trace.
 
     ``spec`` is read exactly as :func:`ruleset` reads it -- through that
     function, not beside it, so a shipped name works in all three string
     entry points or in none of them.
+
+    The trace holds the zero wherever a rule wrote one, and the final
+    ``surface`` step is what takes it out again; ``keep_zeros`` stops
+    before it.
     """
     features = _get_ipa()
     if isinstance(spec, str):
         spec = ruleset(spec)
     elif isinstance(spec, Rule):
         spec = RuleSet(rules=(spec,))
-    return spec.derive(form, features)
+    return spec.derive(form, features, keep_zeros=keep_zeros)
 
 
 def variants(
-    form: str, spec: str | Rule | RuleSet, limit: int = DEFAULT_LIMIT
+    form: str,
+    spec: str | Rule | RuleSet,
+    limit: int = DEFAULT_LIMIT,
+    keep_zeros: bool = False,
 ) -> VariantSet:
     """Every form the rules derive, not only the one they settle on.
 
@@ -892,6 +910,11 @@ def variants(
     ask :attr:`VariantSet.complete` whether it was reached, because a
     truncated set of pronunciations reads exactly like a whole one.
 
+    Every member is a surface form, and members are deduplicated after
+    that projection, so two branches that differed only in where a zero
+    stood are one pronunciation. ``keep_zeros`` answers with what the
+    cascade itself derived.
+
     Examples:
         >>> variants("kæt", "t -> ʔ / _ #").forms
         ('kæʔ',)
@@ -899,13 +922,15 @@ def variants(
         ('kæt', 'kæʔ')
         >>> variants("kæt", "t ~> ʔ / _ #").complete
         True
+        >>> variants("dəvəniʁ", "ə ~> [zero] / [-vowel] _ [-vowel]").forms
+        ('dəvəniʁ', 'dvəniʁ', 'dəvniʁ', 'dvniʁ')
     """
     features = _get_ipa()
     if isinstance(spec, str):
         spec = ruleset(spec)
     elif isinstance(spec, Rule):
         spec = RuleSet(rules=(spec,))
-    return spec.variants(form, features, limit=limit)
+    return spec.variants(form, features, limit=limit, keep_zeros=keep_zeros)
 
 
 # ``units`` is :func:`ipakit.form.units`, re-exported above rather than
