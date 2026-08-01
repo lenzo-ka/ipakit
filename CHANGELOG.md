@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- RELAX NG grammars beside every shipped XML document, and `tests/test_schema.py` validating each against its own.
 - Context-sensitive rewrite rules over forms, `A -> B / C _ D`, with `Query` and `Action` as separable halves — `docs/rules.md`.
 - `ipakit.form`: `Form`, the unprojected read of a transcription; each narrower read is named and says what it drops — `docs/form.md`.
 - Agreement variables, SPE's `α`: `n -> [place=α] / _ [place=α]` — `docs/rules.md`.

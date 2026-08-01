@@ -98,6 +98,16 @@ Several defects were data errors wearing a code disguise. Clicks scored `d(p, ʘ
 
 In each case correcting the data fixed the metric, and a weight or a special case would have hidden it. When a distance looks wrong, check what the data says before adjusting how it is compared.
 
+### Say what shape the data is in
+
+Every XML document under `ipakit/data` has a RELAX NG grammar beside it — `ipa.rng`, `heads.rng`, `phonemaps/phonemap.rng` — and `tests/test_schema.py` validates each document against its own. The grammars are co-located rather than gathered into a schemas directory because `ipa.xml` travels on its own, and a copy of it should carry what states its shape.
+
+They describe **structure, never vocabulary**. Adding a phone, a diacritic, a feature or a feature value must not require touching a `.rng` file; only a new *kind* of declaration should. So a symbol element requires `name` and then admits any other attribute by shape, because those attribute names are the feature names declared elsewhere in the same document, and a schema listing them would be the second copy of the inventory that `test_declared_not_hardcoded.py` exists to prevent. Two tests hold that line: one asserts no grammar names a declared feature on a symbol element, the other that no grammar enumerates a declared name anywhere.
+
+Cross-references are the acknowledged gap. `<spelling feature= value=>`, `<projection from= to=>`, `<feature over=>` and every `default` point at names declared elsewhere in the document, and RELAX NG has no key/keyref. Enumerating the legal targets would be exactly the drift the grammars avoid, so those attributes are text and `scripts/invariants.py` is what checks they resolve.
+
+A new data file with no grammar fails the suite, and the failure names the convention rather than only the file: a grammar named after the document claims it, a grammar named after no document in its directory claims the rest.
+
 ### State what a measure does not claim
 
 `distance` is symmetric, zero on identity and bounded, and it does **not** satisfy the triangle inequality — about 0.5% of triples violate it, some by a wide margin. That is documented, with the uses it rules out, because a caller reaching for a metric tree needs to know. See [distance.md](distance.md).
