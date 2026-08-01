@@ -2160,9 +2160,9 @@ class Derivation:
 #: ``2 ** n`` children per branch, and the sites multiply across a cascade
 #: -- and the only question is whether a caller can tell it fired. Here
 #: they can: a truncated :class:`VariantSet` names the rule it was cut at
-#: and how many combinations went unexplored, in the returned object,
-#: because a truncated set of variants otherwise reads exactly like a
-#: complete one and that is this repository's whole failure mode.
+#: and at least how many combinations went unexplored, in the returned
+#: object, because a truncated set of variants otherwise reads exactly
+#: like a complete one and that is this repository's whole failure mode.
 #:
 #: 256 is 2**8: eight independently varying sites in a single word, which
 #: is past anything a natural language offers and short of the memory a
@@ -2262,7 +2262,23 @@ class VariantSet:
 
     @property
     def complete(self) -> bool:
-        """Whether every choice the rules offer was enumerated."""
+        """Whether every choice the rules offer was enumerated.
+
+        A fact about the enumeration and not about the forms, and the
+        error in it runs one way. ``True`` is reached by never cutting,
+        so a complete answer holds every form the same call answers with
+        the limit raised -- which is the property every claim in
+        ``docs/calculus.md`` is checked against, and why a ``True`` can
+        be leaned on.
+
+        ``False`` says a step declined a child, which is weaker than "a
+        form is missing". The step does not know what the child would
+        have spelled, and two derivations can spell one pronunciation,
+        so an answer that reports itself cut may hold every form the
+        uncapped one does. Knowing which would mean building the
+        declined children, which is the work ``limit`` exists to avoid.
+        Raise it until this comes back ``True``.
+        """
         return not self.truncations
 
     @property
