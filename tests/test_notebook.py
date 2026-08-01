@@ -13,8 +13,13 @@ So this file asks the questions that check cannot: does the notebook
 regenerate byte for byte, is it a well-formed notebook, does every code
 cell still correspond to a runnable block in the source, and is it empty
 of results. The last is the shipped property -- a notebook with outputs
-in it would be neither comparable byte for byte nor worth opening --
-so it is asserted rather than assumed.
+in it would be neither comparable byte for byte nor worth opening -- so
+it is asserted rather than assumed.
+
+Exactly one cell is the generator's own, the setup that makes a cell show
+every value it computes rather than only the last. It is pinned to its
+text here, so the correspondence stays a correspondence: one declared
+exception, and no room for a second.
 """
 
 from __future__ import annotations
@@ -33,7 +38,14 @@ ROOT = Path(__file__).resolve().parent.parent
 # reach tests/test_notation.py and tests/test_zero.py make.
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from tutorial import NOTEBOOK, commands, notebook, parse  # noqa: E402
+from tutorial import (  # noqa: E402
+    NOTEBOOK,
+    PREAMBLE,
+    PREAMBLE_NOTE,
+    commands,
+    notebook,
+    parse,
+)
 
 SOURCE = ROOT / "docs" / "tutorial.src.md"
 
@@ -109,9 +121,36 @@ class TestItIsAWellFormedNotebook:
 
 
 class TestTheTwoRenderingsCannotDrift:
-    """Every cell is a block of the source, and every block is a cell."""
+    """Every cell is a block of the source, bar the one that is declared.
 
-    def test_every_code_cell_is_a_runnable_block(self, shipped: dict) -> None:
+    The generator writes exactly one cell of its own, and it is named
+    here rather than allowed for: "a cell that came from nowhere" is the
+    hole a drift guard cannot have, so the exception is pinned to that
+    string and everything after it has to be a block.
+    """
+
+    def test_the_generator_adds_one_cell_and_says_which(self, shipped: dict) -> None:
+        note, preamble = shipped["cells"][:2]
+        assert note["cell_type"] == "markdown"
+        assert "".join(note["source"]) == PREAMBLE_NOTE
+        assert preamble["cell_type"] == "code"
+        assert "".join(preamble["source"]) == PREAMBLE
+        # It has to say it is not the tutorial, because it is read first.
+        assert "generator" in PREAMBLE_NOTE
+
+    def test_the_added_cell_is_inert_outside_ipython(self) -> None:
+        """A reader who runs the file as a script gets no traceback from it.
+
+        ``get_ipython`` is a name IPython injects, so outside a kernel it
+        is undefined rather than ``None`` -- which is why the guard is a
+        ``NameError`` and not a truth test.
+        """
+        namespace: dict = {}
+        exec(compile(PREAMBLE, "<preamble>", "exec"), namespace)
+        assert namespace["shell"] is None
+        assert "IPython" not in namespace
+
+    def test_every_other_code_cell_is_a_runnable_block(self, shipped: dict) -> None:
         blocks = parse(SOURCE.read_text(encoding="utf-8"))
         expected = [
             (
@@ -128,7 +167,8 @@ class TestTheTwoRenderingsCannotDrift:
             for cell in shipped["cells"]
             if cell["cell_type"] == "code"
         ]
-        assert written == expected
+        assert written[0] == PREAMBLE, "the added cell is no longer the first"
+        assert written[1:] == expected
 
     def test_a_shell_cell_asks_for_the_command_the_page_runs(
         self, shipped: dict

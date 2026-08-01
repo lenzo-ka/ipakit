@@ -39,10 +39,12 @@ prose becomes a markdown cell, ``python-run`` a code cell and
 source, two renderings -- which is what keeps the notebook from rotting:
 its cells are the blocks ``check`` already executes, so an example that
 stops working turns the byte-identical page check red before anyone opens
-the notebook. The notebook ships **without outputs**: deterministic enough
-to compare byte for byte, small enough to carry no embedded SVG, and blank
-enough that a student has to run it to see anything. Writing it executes
-nothing.
+the notebook. Exactly one cell is the generator's own -- :data:`PREAMBLE`,
+which is there because IPython shows only a cell's last value -- and it
+is the only one; every other cell is a block. The notebook ships
+**without outputs**: deterministic enough to compare byte for byte, small
+enough to carry no embedded SVG, and blank enough that a student has to
+run it to see anything. Writing it executes nothing.
 
 **Determinism.** A byte-identical check demands it. ``PYTHONHASHSEED`` is
 pinned for the subprocesses, the CLI is invoked as ``python -m
@@ -359,6 +361,35 @@ KERNELSPEC = {
     "name": "python3",
 }
 
+#: The one cell the generator writes rather than renders, and the note that
+#: says so. IPython displays a cell's last expression and nothing else,
+#: while a third of the tutorial's blocks compute several values in a row --
+#: so without this, running the notebook shows *less* than reading the page,
+#: in a document whose whole subject is what the library returns. It is the
+#: only cell that does not come from a block, which is why
+#: ``tests/test_notebook.py`` names it and permits exactly one.
+PREAMBLE_NOTE = (
+    "Setup, from the generator rather than from the tutorial: it makes a cell "
+    "show every value it computes, not only the last one. Nothing below "
+    "depends on it -- run it once and forget it."
+)
+#: Guarded rather than assumed: ``get_ipython`` is a name IPython injects, so
+#: outside a kernel it is not merely ``None`` but undefined, and the cell has
+#: to be inert there instead of raising at somebody who ran the file as a
+#: script. IPython is imported only where it is already running, so this adds
+#: nothing to what obtaining or reading the notebook requires.
+PREAMBLE = """\
+try:
+    shell = get_ipython()
+except NameError:
+    shell = None
+
+if shell is not None:
+    from IPython.core.interactiveshell import InteractiveShell
+
+    InteractiveShell.ast_node_interactivity = "all"\
+"""
+
 
 def cell_source(text: str) -> list[str]:
     """Split as nbformat stores a cell: newlines kept, none on the last line."""
@@ -387,7 +418,10 @@ def cell(kind: str, text: str) -> dict[str, Any]:
 
 def notebook() -> str:
     """The notebook: the same blocks, offered rather than answered."""
-    cells: list[dict[str, Any]] = []
+    cells: list[dict[str, Any]] = [
+        cell("markdown", PREAMBLE_NOTE),
+        cell("code", PREAMBLE),
+    ]
     inserted_banner = False
     for block in parse(SOURCE.read_text(encoding="utf-8")):
         if block.kind == "console-run":
