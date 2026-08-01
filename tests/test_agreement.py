@@ -22,6 +22,7 @@ place where a looser reading would be a well-formed wrong answer:
 
 from __future__ import annotations
 
+import re
 import warnings
 
 import pytest
@@ -55,13 +56,42 @@ class TestTheSeriesIsAskedOfTheDeclaration:
     """
 
     def test_the_series_is_the_alphabet_and_nothing_else(self) -> None:
-        # Enumerated from Unicode between the alphabet's own endpoints, so
-        # a stray accented form ('ά' is alpha with a tonos) cannot be a
-        # second variable that looks like the first.
+        """Membership, not size.
+
+        A floor on the length passed while the series held a member
+        nobody had looked at, because no rule string anywhere in this
+        suite spells one. The alphabet is written out so that a filter
+        which swaps one letter for another fails here rather than in a
+        rule somebody writes.
+        """
+        assert "".join(R.SERIES) == "αβγδεζηθικλμνξοπρστυφχψω"
         assert R.SERIES[0] == "α" and R.SERIES[-1] == "ω"
-        assert len(R.SERIES) == len(set(R.SERIES)) >= 24
+        assert len(R.SERIES) == len(set(R.SERIES))
         assert all(len(letter) == 1 for letter in R.SERIES)
+
+    def test_no_two_members_are_one_letter_drawn_two_ways(self) -> None:
+        """The safety property the bound exists for, as a predicate.
+
+        'ά' is alpha with a tonos and sits outside the endpoints; 'ς' is
+        sigma in final position and sits inside them. Both are a member
+        that differs from another only in how it is drawn, which is the
+        typo the endpoints were chosen to keep out -- so the endpoints
+        cannot be the whole of the answer, and this is the part that
+        does not depend on where the range happens to stop.
+        """
+        assert len(R.SERIES) == len({letter.upper() for letter in R.SERIES})
         assert "ά" not in R.SERIES
+        assert "σ" in R.SERIES and "ς" not in R.SERIES
+
+    def test_final_sigma_is_not_a_second_sigma(self) -> None:
+        """What the letter not being in the series means for a rule.
+
+        A variable spelled with it is a value the feature does not
+        declare, refused where every other misspelled value is.
+        """
+        assert _apply("n -> [place=σ] / _ [place=σ]", "anpa") == "ampa"
+        with pytest.raises(R.RuleError, match="is not a value of feature"):
+            R.parse("n -> [place=ς] / _ [place=ς]", FEATURES)
 
     def test_a_free_letter_spells_nothing_and_reaches_no_form(self) -> None:
         """The property that makes a variable safe, over every free letter.
@@ -269,6 +299,79 @@ class TestAVariableThatCannotMeanAnythingIsRefused:
         items = list(units("nk", FEATURES))
         with pytest.raises(R.RuleError, match="never bound"):
             action.edit(R.Site(0, 1), items, FEATURES, rule="probe")
+
+
+class TestBothPathsClassifyOneLetterTheSameWay:
+    """``[β]`` and ``[place=β]`` ask one question in two places.
+
+    Is this letter a variable? The bare-term gate answered it by asking
+    whether the letter is in the series, and the value path by asking
+    whether the inventory reads it, so they disagreed about the three
+    letters that are registered phones: ``[β]`` was refused *as a
+    variable*, with instructions to write ``[place=β]``, which is
+    refused *because β is a phone*. A refusal that names the spelling
+    the next refusal rejects sends the author round a circle, so the two
+    are held to one answer here, over the whole series and both
+    spellings.
+    """
+
+    @staticmethod
+    def _refusal(spec: str) -> str | None:
+        try:
+            R.parse(spec, FEATURES)
+        except R.RuleError as exc:
+            return str(exc)
+        return None
+
+    def test_a_letter_is_a_variable_in_both_spellings_or_in_neither(self) -> None:
+        free = set(R._free_variables(FEATURES))
+        taken = [letter for letter in R.SERIES if letter not in free]
+        assert taken, "no letter of the series collides with this inventory"
+        for letter in R.SERIES:
+            bare = self._refusal(f"n -> t / _ [{letter}]")
+            value = self._refusal(f"n -> [place={letter}] / _ [place={letter}]")
+            assert bare, letter
+            if letter in free:
+                # A variable, both ways: the bare term is missing its
+                # feature, and the value term is a working rule.
+                assert "names the agreement variable" in bare, letter
+                assert value is None, (letter, value)
+            else:
+                # A phone, both ways -- the bare refusal may not call it
+                # a variable, because the value path will not.
+                assert "names the agreement variable" not in bare, (letter, bare)
+                assert "registered phone" in bare, (letter, bare)
+                assert value and "this inventory registers" in value, letter
+
+    def test_no_refusal_names_a_spelling_the_other_path_rejects(self) -> None:
+        """The circle itself, as a predicate over what the messages say.
+
+        Every bracketed spelling a refusal offers is written out and
+        parsed. One that does not parse is the defect this class exists
+        for, whichever message grows it.
+        """
+        offered = 0
+        for letter in R.SERIES:
+            for spec in (f"n -> t / _ [{letter}]", f"n -> t / _ [place={letter}]"):
+                message = self._refusal(spec)
+                assert message, (letter, spec)
+                subject = spec.split("_ ", 1)[1]
+                for suggestion in re.findall(r"'(\[[^']*\])'", message):
+                    if suggestion == subject:
+                        continue
+                    R._pattern(suggestion, FEATURES)
+                    offered += 1
+        assert offered, "no refusal offered a spelling, so nothing was checked"
+
+    def test_a_registered_letter_is_a_phone_wherever_it_appears(self) -> None:
+        """The reading that settles the disagreement, stated on β.
+
+        Brackets ask for a class and β names none; without them it is
+        the phone it spells, and that is what the refusal says to write.
+        """
+        with pytest.raises(R.RuleError, match="registered phone"):
+            R.parse("t -> d / _ [β]", FEATURES)
+        assert _apply("t -> d / _ β", "atβa") == "adβa"
 
 
 class TestTheVariableNeverReachesTheQueryResolver:
