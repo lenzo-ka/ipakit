@@ -86,13 +86,15 @@ The answer is an annotation layer rather than a posture that pretends. Voicing i
 - **Glottal state.** The folds are declared `aperture="median"` — they close toward each other about the tract axis, not toward a wall — so `offset`, which measures travel from the midline to a wall, was never going to reach them. `phonation` is ordinal on its own axis, `+glottal-aperture`, ascending creaky → modal → breathy → devoiced, and the `<projection>` says `voiced` is that same axis read two ways instead of four. The gap between the folds is a position on that axis: a bundle spelling a phonation sits where that value sits, and one spelling only `voiced` sits at the center of the phonations reading that way, which is as far as the coarse spelling commits. A complete closure *at* the folds overrides both, which is what makes `ʔ` shut. So `t`/`d`, `h`/`ɦ` and `a`/`a̤` are now three different pictures.
 - **Secondary articulation.** `velarized` declares `place="velar"`, `palatalized` declares `place="palatal"`, and `IPAFeatures.secondary_places` is that declaration read back — the same one the mode partition and the metric's place table read. A secondary articulation therefore has a place like any other constriction, and it is drawn as one: a dashed ring at that place, at approximant degree, because a secondary constriction that reached the primary's degree would *be* the primary. It is a lesser constriction, so it is drawn lighter. `l` and `ɫ` now differ at the velum, which is where the difference is.
 
-**Annotated, in the strip along the foot of the figure, because the plane cannot hold it.** Each chip's shape says why, and the reason is read off the declaration:
+**Annotated, in the strip along the foot of the figure, because the plane cannot hold it.** Each chip's shape says why, and the reason is read off the declaration. Whether the posture holds a stated value is asked of the *call* — `tract_reading` returns the point and the features it read to get there, and a feature that declares coordinates has not thereby been drawn:
 
 | chip | why | features today |
 |---|---|---|
 | dashed circle | `axis="+z"` — the axis a mid-sagittal section projects away, which the feature's own `desc` says | `channel`: lateral, sibilant |
 | chevron | `mode="release"` — a phase of the segment rather than a posture of it | `release`: aspirated, unreleased, lateral-released |
 | square | not in the model at all | `airstream`, `retroflex`, `rounded`, `syllabic`, `tongue-root`, … |
+| square | `offscale` — a value its own feature declares to hold no position on its axis | `manner`: silence |
+| square | a postural feature *this* bundle's posture did not read: one arc and one offset are on offer, and a bundle stating two postures loses one | `height` and `backness` beside a consonantal manner; `place` beside `manner="vowel"` |
 
 **Left to the caption**, because neither of the above is honest:
 
@@ -138,7 +140,7 @@ Vowels state backness and height rather than place, so no place is named. The to
 
 ![silence](figures/tract-silence.svg)
 
-`␣` is featurally null and has no articulatory position, so it is drawn at the posture the head declares for not speaking: lips together, tongue at rest, jaw closed.
+`␣` has no articulatory position, so it is drawn at the posture the head declares for not speaking: lips together, tongue at rest, jaw closed. It is not featurally null, though — it states `manner="silence"`, and that value declares `offscale`, which is the data saying it holds no position on the constriction axis. So the figure carries a chip naming it, and the picture says why it has no posture rather than leaving a reader to infer that from a drawing that looks like every other rest position.
 
 ## What the figures are not
 
