@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/tutorial.md`, generated from `docs/tutorial.src.md`; `make check` fails on a single byte.
 - `docs/README.md`, `docs/calculus.md`, `docs/form.md`, `docs/rules.md`, `docs/tone.md`, `docs/design/samprosa.md`.
 - `scripts/tutorial.py` and `scripts/docexamples.py` as `make check` gates.
+- `scripts/docquotes.py` as a `make check` gate: a sentence one document quotes out of another has to be in it.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, and the issue and pull-request templates.
 - Structured segment API: `Segment`/`Constituent`/`Sense`/`Kind`, with `segment()`, `segments()` and `build_segment()` (#10).
 - `find(ipa, query)`, natural-class search over a transcription; `to_ipa(units)`; `feature_values(unit)` (#22).

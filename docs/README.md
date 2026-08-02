@@ -56,7 +56,7 @@ using it.
 - `ipakit/` — the library. `ipakit/data/ipa.xml` is the feature declaration everything reads; `ipakit/data/rules/*.rules` are the shipped rule sets. Each XML document has a RELAX NG grammar beside it stating its shape — see [reviewing.md](reviewing.md).
 - `ipakit/cli/` — the `ipakit` command. One subcommand group per task area.
 - `ipakit/tract.py` — the tract model, read by the metric. `ipakit/tract_svg.py` draws it; they are separate so nothing that computes a distance can reach a stylesheet.
-- `scripts/` — the measurements, the generators, and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the data guards, `tutorial.py` the artifact generator, and `docexamples.py` checks every value quoted in the hand-written documents against what the library actually returns. `tract_svg.py` here is a command line over the package module, which is where the drawing itself lives, because `scripts/` reaches nobody who installed ipakit.
+- `scripts/` — the measurements, the generators, and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the data guards, `tutorial.py` the artifact generator, `docexamples.py` checks every value quoted in the hand-written documents against what the library actually returns, and `docquotes.py` checks every sentence one document quotes out of another against the document it names. `tract_svg.py` here is a command line over the package module, which is where the drawing itself lives, because `scripts/` reaches nobody who installed ipakit.
 - `tests/` — the suite. `tests/corpus.py` is the one enumeration the sweeps share.
 
 Derived artifacts are **regenerated, never hand-edited**: `docs/figures/*.svg`
