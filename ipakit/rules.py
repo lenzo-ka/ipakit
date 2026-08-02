@@ -63,6 +63,15 @@ were two anchors: ``∅ -> ə / # _`` took ``tæt`` to ``ətæt`` but ``#tæt#``
 to ``ə#ətæt#ə``. :func:`_anchors` coalesces the anchor set, and the same
 run rule refuses a context that names two boundaries in a row.
 
+The optional item ``(∅)`` answers to this too. Matching the virtual edge
+puts the scan past the end of the form, and refusing everything after it
+without asking whether it was optional made the edge weaker than a
+written mark: ``t -> d / _ # (∅)`` fired on ``at#`` and not on ``at``, so
+typing the mark the form's own edge already asserts turned a rule on. An
+optional item past the end records ``None``, as the edge itself does, and
+the match goes on; a *required* item there still fails, and so does a
+second boundary, written or virtual.
+
 **A boundary can be written and unwritten, and exchanged with a segment
 in neither direction.** A boundary is a relation between segments rather
 than a segment of its own (``ipakit.form``), and for a while that was
@@ -1186,6 +1195,16 @@ class Query:
         probe = {} if bindings is None else bindings
         for pattern in patterns:
             if past_the_end:
+                if pattern.optional:
+                    # There is nothing past the end of a form to take, and
+                    # this item said it need not take anything. Refusing it
+                    # here made the virtual edge weaker than a written one:
+                    # 't -> d / _ # (∅)' fired on 'at#' and not on 'at',
+                    # so typing the mark the form's own edge already asserts
+                    # turned the rule on. None, for the same reason the edge
+                    # itself records None -- no unit licensed this item.
+                    matched.append(None)
+                    continue
                 # The form has one edge, not an unbounded run of them:
                 # '_ # # #' used to match it once per '#' and fire.
                 return None

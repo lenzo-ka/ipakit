@@ -419,6 +419,13 @@ ipa.rewrite("le∅ʃ", "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'la∅ʃ'
 ipa.rewrite("leʃ",  "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'laʃ'   -- one rule, one answer
 ```
 
+An optional item may also stand **past** the virtual edge, where there is nothing at all for it to take. The form's own edge and a written `#` are the same boundary, so the same rule has to hold of both:
+
+```python
+ipa.rewrite("at",  "t -> d / _ # (∅)")   # 'ad'
+ipa.rewrite("at#", "t -> d / _ # (∅)")   # 'ad#'  -- typing the mark changes nothing
+```
+
 The syllable dot is the precedent for "the rule decides", and its shape does not fit here. The dot is *optional notation*, so transparent-by-default is the only safe reading of it, and naming it is the only override it needs. A zero is a claim the transcription makes, so its default is the opposite, and "step over unless named" offers no way to say so. The parenthesis is generative phonology's own mark for an optional element, and it says the thing directly.
 
 **Only a zero may be optional today.** `(t)`, `([vowel])` and `(#)` are refused rather than quietly meaning something: an optional *boundary* would have to answer to the boundary-run rule and the virtual edge, which is a separate question. A `Site` records `None` for an optional item nothing matched, the same as for the virtual edge past the end of a form — one entry per context item either way.
