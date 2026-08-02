@@ -136,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `arc` is stated in `ipa.xml` and again on every vertex in `heads.xml` and nothing held the two together; `scripts/invariants.py` gates the vertex arcs against the declarations, pins the arclength disagreement, and asserts the ascent `project` assumes.
 - `phones_matching` did not put a prosodic term to prosody, so `["-normal"]` answered one phone there and matched every unit in a rule; every query in the library now runs one resolution and one matcher.
 - A prosodic feature's declared default was filled into the feature bag and left out of the prosody, so `[length=normal]` matched nothing anywhere and `[-normal]` matched everything.
 - A term naming a `structural` feature — `[-word]`, `[-simultaneous]` — was matched against a bundle that cannot carry one and satisfied by its absence; it is refused.

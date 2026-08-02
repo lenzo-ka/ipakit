@@ -49,6 +49,43 @@ CHART = "chart"
 #: appearing in ``<notations>`` fails this.
 NON_CHART = frozenset({"␣", "#", "∅"})
 
+#: Midline vertices whose ``arc`` names no value declared in ``ipa.xml``.
+#: A head's midline is a hand-traced polyline whose vertices sit at the
+#: declared places, so the arc column is a second copy of numbers
+#: ``ipa.xml`` owns; a vertex at an arc nothing declares is the escape,
+#: and it is stated so it can only be added on purpose. ``0.40`` carries
+#: the X-Ray Microbeam diameter run between the palatal and velar
+#: anchors, which is why it exists and why it declares no place.
+UNDECLARED_VERTEX_ARCS = frozenset({0.40})
+
+#: The largest disagreement, per shipped polyline, between a vertex's
+#: declared ``arc`` and its own polyline's normalized cumulative
+#: arclength -- the two readings of "proportional position along the
+#: midline" that ``docs/design/tract-validation.md`` 1 relies on being
+#: the same quantity.
+#:
+#: Pinned rather than bounded, deliberately. The smallest tolerance that
+#: passes today is 0.064, and adjacent declared places sit 0.03 to 0.06
+#: apart (``bilabial``->``labiodental`` 0.03, ``alveolar``->
+#: ``postalveolar`` 0.06), so every threshold this data would pass also
+#: permits a vertex to sit where the next place over lives. A bound that
+#: cannot fail is not a guard. The six numbers are stated instead, so
+#: the disagreement is a known quantity that moves only on purpose --
+#: in either direction.
+ARCLENGTH_GAPS = {
+    ("adult-female", "midline"): 0.034624,
+    ("adult-female", "nasal"): 0.053600,
+    ("adult-male", "midline"): 0.027431,
+    ("adult-male", "nasal"): 0.041827,
+    ("child", "midline"): 0.061651,
+    ("child", "nasal"): 0.063599,
+}
+
+#: How far a pinned gap may move before it counts as a change. Loose
+#: enough that the four printed digits are the whole statement, tight
+#: enough that moving any vertex by a thousandth of the tract fails.
+ARCLENGTH_EPSILON = 5e-4
+
 # Provenance and the zero are read through the library's own API --
 # `IPAFeatures.notations`, `.notation_of`, `.zeros`,
 # `ipakit.extensions_in`, `.is_pure_ipa`. This file used to *define*
@@ -583,6 +620,117 @@ def check_contour_marks(ipa: IPAFeatures) -> bool:
     return _report("a compound tone mark's levels are its parts'", failures, checked)
 
 
+def check_head_arcs(ipa: IPAFeatures) -> bool:
+    """``arc`` means one thing across the two files that state it.
+
+    ``ipa.xml`` declares an ``arc`` on the values of ``place``,
+    ``backness`` and ``articulator``. ``heads.xml`` states one again on
+    every polyline vertex, and hand-places an ``(x, y)`` beside it. That
+    is three readings of one quantity and, until this check, no gate
+    between any of them:
+
+    * **the vertex names a declared arc.** A head's midline is traced
+      through the declared places, so its arc column is a copy of
+      numbers ``ipa.xml`` owns. Changing ``place=velar`` from 0.45 to
+      0.47 leaves the 0.45 vertex behind and nothing notices -- the
+      constriction is simply drawn at an interpolated spot that no
+      longer means what it says. Vertices at an arc nothing declares are
+      the stated escape (:data:`UNDECLARED_VERTEX_ARCS`).
+    * **the arc column agrees with the coordinates.** ``arc`` is
+      documented as proportional position along the midline, so a
+      vertex's arc should be its own polyline's normalized cumulative
+      arclength. It is not, by up to 0.064, and no tolerance both passes
+      and means anything -- so the disagreement is pinned rather than
+      bounded (:data:`ARCLENGTH_GAPS`).
+    * **both readings ascend together.** ``Head.project`` and
+      ``_project_along`` locate a point by scanning for the bracketing
+      pair, which assumes the arcs increase; interpolating a diameter
+      over a polyline that doubles back would return a position off the
+      wall it is measured to.
+
+    The nasal branches are checked on the same footing as the midlines.
+    They declare the same attributes, are interpolated by the same code,
+    and make the same claim about their own arc (0 at the nostrils to 1
+    at the port) -- and they are where the largest disagreement in the
+    shipped file actually is, which is why leaving them out would have
+    reported a clean 0.062 over a file whose worst point is 0.064.
+    """
+    import math
+
+    from ipakit.tract import heads
+
+    declared = {
+        round(coords["arc"], 6)
+        for name in ("place", "backness", "articulator")
+        if (feat := ipa.features.get(name)) is not None
+        for coords in feat.coordinates.values()
+        if coords.get("arc") is not None
+    }
+    failures: list[str] = []
+    checked = 0
+    for head_name, shape in sorted(heads().items()):
+        for label, points in (("midline", shape.midline), ("nasal", shape.nasal)):
+            if len(points) < 2:
+                continue
+            checked += 1
+            run = [0.0]
+            for before, after in itertools.pairwise(points):
+                run.append(run[-1] + math.hypot(after.x - before.x, after.y - before.y))
+            total = run[-1]
+            if not total:
+                failures.append(f"{head_name} {label}: polyline has zero length")
+                continue
+            for before, after in itertools.pairwise(points):
+                if before.arc >= after.arc:
+                    failures.append(
+                        f"{head_name} {label}: arc does not ascend at "
+                        f"{before.arc} -> {after.arc}; project() locates a "
+                        "point by the bracketing pair and would miss it"
+                    )
+            for length, onward in itertools.pairwise(run):
+                if length >= onward:
+                    failures.append(
+                        f"{head_name} {label}: the polyline doubles back at "
+                        f"arclength {length}"
+                    )
+            if label == "midline":
+                stray = sorted(
+                    {round(p.arc, 6) for p in points}
+                    - declared
+                    - UNDECLARED_VERTEX_ARCS
+                )
+                if stray:
+                    failures.append(
+                        f"{head_name} midline: vertices at {stray}, which "
+                        "ipa.xml declares for no place, backness or "
+                        "articulator; either the declaration moved and the "
+                        "head did not, or the vertex belongs in "
+                        "UNDECLARED_VERTEX_ARCS with a reason"
+                    )
+            gap = max(
+                abs(length / total - point.arc)
+                for length, point in zip(run, points, strict=True)
+            )
+            pinned = ARCLENGTH_GAPS.get((head_name, label))
+            if pinned is None:
+                failures.append(
+                    f"{head_name} {label}: no pinned arclength gap; a new "
+                    f"polyline disagrees with its own arc column by {gap:.6f} "
+                    "and nothing had stated what that is allowed to be"
+                )
+            elif abs(gap - pinned) > ARCLENGTH_EPSILON:
+                failures.append(
+                    f"{head_name} {label}: arc against its own arclength "
+                    f"disagrees by {gap:.6f}, pinned at {pinned:.6f}"
+                )
+    for key in sorted(ARCLENGTH_GAPS):
+        if key[0] not in heads():
+            failures.append(f"pinned gap for {key}, which no head declares")
+    if not checked:
+        failures.append("no head polyline checked; this check is vacuous")
+    return _report("arc means one thing in ipa.xml and heads.xml", failures, checked)
+
+
 def check_derived_artifacts() -> bool:
     """The shipped matrix and X-SAMPA table match what the code derives."""
     sys.path.insert(0, "scripts")
@@ -623,6 +771,7 @@ def main(argv: list[str] | None = None) -> int:
         check_classes_are_total(ipa),
         check_contour_marks(ipa),
         check_projection_coherence(ipa, args.quick),
+        check_head_arcs(ipa),
         check_derived_artifacts(),
     ]
     ok = all(results)
