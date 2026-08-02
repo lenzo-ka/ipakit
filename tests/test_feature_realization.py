@@ -8,6 +8,7 @@ inverse deterministic, and the errors that must not pass silently.
 
 import pytest
 from ipakit import IPAFeatures, Kind
+from ipakit.constants import METADATA_ATTRS
 
 
 class TestInverse:
@@ -160,3 +161,135 @@ class TestModuleAPI:
         assert {"to_phone", "respell"} <= set(ipakit.__all__)
         assert ipakit.to_phone(ipakit.features("m")) == "m"
         assert ipakit.respell("m", place="velar") == "ŋ"
+
+
+class TestRespellNeverSubstitutesADifferentUnit:
+    """Asking for what a unit already says gives that unit back, or nothing.
+
+    Two ways it did not. A **tied** unit went through its flat bundle, and
+    the flat read of an under-tie chain is its first constituent
+    (docs/ties.md), so ``respell("a͜ɪ", voiced="+")`` was ``"a"`` -- a
+    diphthong replaced by its first half in the name of a change that
+    moved nothing. And **prosody** is outside the bundle by design, so
+    respelling from the bundle alone spent it: ``respell("tː",
+    voiced="+")`` was ``"d"``, with a length nobody asked about gone.
+
+    Both are the same wrong answer: a plausible different unit, returned
+    confidently, where the honest answers are the unit itself or ``None``.
+    """
+
+    def test_a_tied_unit_survives_a_change_it_already_satisfies(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert ipa.respell("a͜ɪ", voiced="+") == "a͜ɪ"
+
+    def test_a_tied_unit_takes_the_change_on_each_constituent(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # Not a no-op: rounding a diphthong rounds both halves of it.
+        assert ipa.respell("a͜ɪ", rounded="+") == "ɶ͜ʏ"
+
+    def test_an_over_tie_compound_keeps_the_flat_path(self, ipa: IPAFeatures) -> None:
+        # Its flat read is a fusion of both constituents and not a
+        # projection of one, so realizing the bundle is the right answer.
+        assert ipa.respell("t͡s", voiced="+") == "d͡z"
+
+    def test_prosody_is_carried_across(self, ipa: IPAFeatures) -> None:
+        assert ipa.respell("tː", voiced="+") == "dː"
+        assert ipa.respell("ˈtː", voiced="+") == "ˈdː"
+        assert ipa.respell("t͡sː", voiced="+") == "d͡zː"
+
+    def test_a_prosodic_change_is_refused_rather_than_swallowed(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """It has nowhere to land: the key would sit in a bundle prosody is
+        defined to be outside of. ``respell("a", length="long")`` answered
+        ``None`` only because ``to_phone`` happened to match nothing, and
+        ``respell("a", length="normal")`` answered ``"a"`` -- a no-op that
+        looks like a write."""
+        for value in ("long", "normal"):
+            with pytest.raises(ValueError, match="respell cannot write"):
+                ipa.respell("a", length=value)
+        with pytest.raises(ValueError, match="respell cannot write"):
+            ipa.respell("a", stress="primary")
+
+    #: One prosody-bearing unit in this many. A deliberate sample: what
+    #: this sweep exercises is the *carrying*, and a unit's prosody is
+    #: carried by the same two lines whichever mark wrote it, while
+    #: `to_phone` scans the whole inventory per call and the unstrided
+    #: corpus is minutes rather than seconds. Every registered phone is
+    #: swept unstrided, because that half is the inventory claim.
+    PROSODY_STRIDE = 13
+
+    def test_it_holds_over_the_corpus(self, ipa: IPAFeatures) -> None:
+        """Swept over every registered phone and a sample of the prosody
+        the data declares, against every key the unit's own constituents
+        agree on.
+
+        Agreement is what makes the request a no-op *for the unit*. The
+        flat bundle of a tied unit reports one constituent's value for the
+        whole, so a key the constituents disagree about is a real change
+        to the other one and has no business in this sweep.
+        """
+        import warnings
+
+        from tests.corpus import prosody_bearing_units, self_spelling_phones
+
+        corpus = (
+            self_spelling_phones() + prosody_bearing_units()[:: self.PROSODY_STRIDE]
+        )
+        prosodic = set(ipa.features_by_mode.get("prosodic", ()))
+        checked, wrong = 0, []
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for unit in corpus:
+                parts = [
+                    ipa.get_features(str(c)) for c in ipa.segment(unit).constituents
+                ]
+                agreed = {
+                    key: value
+                    for key, value in parts[0].items()
+                    if key not in METADATA_ATTRS
+                    and key not in prosodic
+                    and all(part.get(key) == value for part in parts)
+                }
+                for key, value in agreed.items():
+                    got = ipa.respell(unit, **{key.replace("-", "_"): value})
+                    checked += 1
+                    if got is not None and got != unit:
+                        wrong.append((unit, key, value, got))
+        assert len(corpus) > 200, f"corpus collapsed: {len(corpus)}"
+        assert checked > 3000, f"sweep did not run: {checked}"
+        assert not wrong, f"{len(wrong)} substituted, first: {wrong[:5]}"
+
+
+class TestToPhoneIsACanonicalizerAndNotAnInverse:
+    """It said it was the inverse of ``get_features``, and it is not.
+
+    The claim holds where the projection loses nothing and fails where it
+    does. ``to_phone(get_features("a͜ɪ"))`` is ``"a"``, and correctly:
+    the phonetic keys of the two are identical, the second constituent
+    contributes nothing to the flat read, and the one key that differs is
+    ``href`` -- a documentation link, not a fact about the sound, and not
+    something that may pick a spelling.
+
+    What holds instead is idempotence on the answer, which is what a
+    canonicalizer promises.
+    """
+
+    def test_the_inverse_claim_fails_on_a_tied_unit(self, ipa: IPAFeatures) -> None:
+        assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"
+        flat, atom = ipa.get_features("a͜ɪ"), ipa.get_features("a")
+        assert {k: v for k, v in flat.items() if k not in METADATA_ATTRS} == {
+            k: v for k, v in atom.items() if k not in METADATA_ATTRS
+        }
+        assert flat["href"] != atom["href"], "the only difference is metadata"
+
+    def test_it_is_idempotent_over_the_inventory(self, ipa: IPAFeatures) -> None:
+        checked = 0
+        for symbol in ipa.phones:
+            once = ipa.to_phone(ipa.get_features(symbol))
+            assert once is not None, symbol
+            assert ipa.to_phone(ipa.get_features(once)) == once, symbol
+            checked += 1
+        assert checked > 100, f"sweep did not run: {checked}"

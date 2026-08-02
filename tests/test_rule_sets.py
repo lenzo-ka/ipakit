@@ -2144,16 +2144,17 @@ class TestTheTrapsTheFilesRecord:
         And has since been taken up: gemination is two rules over a class,
         one per context, where it was eight literals over one context.
 
-        Written as a pin on "prosody is not writable": respell and
-        compose_unit both answer None for a purely prosodic change, so
-        gemination had to be spelled one literal line per phone. A sibling
-        lane made prosody writable by rewriting Segment.prosody in feature
-        space rather than going through either of those, and this pin fired
-        -- which is what a pin is for. Both facts still hold and are worth
-        keeping: the composers still decline, and the rule now works
-        anyway, which is exactly the seam that was added.
+        Written as a pin on "prosody is not writable": neither respell nor
+        compose_unit spells a purely prosodic change, so gemination had to
+        be spelled one literal line per phone. A sibling lane made prosody
+        writable by rewriting Segment.prosody in feature space rather than
+        going through either of those, and this pin fired -- which is what
+        a pin is for. Both facts still hold and are worth keeping: the
+        composers still decline, and the rule now works anyway, which is
+        exactly the seam that was added.
         """
-        assert FEATURES.respell("t", length="long") is None
+        with pytest.raises(ValueError, match="respell cannot write"):
+            FEATURES.respell("t", length="long")
         assert FEATURES.compose_unit("t", length="long") is None
         # The feature change now reaches the prosody writer instead.
         assert ipakit.rewrite("hot", "t -> [length=long] / [vowel] _ #") == "hotː"

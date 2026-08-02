@@ -1467,6 +1467,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 best, winner = rank, symbol
         return winner
 
+    def _respell_flat(self, symbol: str, changes: Mapping[str, str]) -> str | None:
+        """One symbol's flat bundle with ``changes`` laid on it, realized.
+
+        The core of :meth:`respell`, factored out because a tied unit
+        applies it once per constituent and an atomic one once. ``changes``
+        arrives already resolved and already checked against the
+        declaration.
+        """
+        feats = self.get_features(symbol)
+        if not feats:
+            return None
+        feats.update(changes)
+        for meta in METADATA_ATTRS:
+            feats.pop(meta, None)
+        return self.to_phone(feats)
+
     def respell(self, phone: str, **changes: str) -> str | None:
         """Apply a feature change to ``phone`` and realize the result.
 
@@ -1479,15 +1495,40 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         A feature whose name carries a hyphen is also reachable with an
         underscore (``tongue_root``), since a hyphen cannot be a keyword.
 
+        **Prosody is carried, never spent.** The bundle this reads has
+        prosody taken out of it by design -- ``features("t") ==
+        features("tː")`` -- so respelling from the bundle alone answered
+        ``respell("tː", voiced="+")`` with ``"d"``, dropping a length
+        nobody asked about. The unit's prosody is put back on the answer,
+        so a change asked of one feature moves one feature.
+
+        A change *naming* a prosodic feature is refused rather than
+        answered. It has nowhere to land here: the key would sit in a
+        segmental bundle that prosody is defined to be outside of, and
+        ``respell("a", length="long")`` was stopped only by
+        :meth:`to_phone` happening to match nothing, which is luck and not
+        a contract. :func:`ipakit.form.with_prosody` is what writes
+        prosody.
+
+        A **tied** unit takes the change on each of its constituents.
+        The flat read of an under-tie chain *is* its first constituent
+        (docs/ties.md), so realizing that bundle could only ever answer an
+        atom: ``respell("a͜ɪ", voiced="+")`` was ``"a"``, silently
+        replacing a diphthong with its first half in the name of a change
+        that moved nothing. Over-tie compounds keep the flat path, because
+        their flat read is a genuine fusion of both constituents rather
+        than a projection of one, and ``t͡s`` voiced really is ``d͡z``.
+
         Returns ``None`` when the changed bundle names no registered
-        phone. Raises ``ValueError`` if ``phone`` does not resolve, or if
-        a change names a feature or a value the data does not declare: a
-        misspelled feature has to fail loudly rather than quietly leave
-        the phone as it was.
+        phone; for a tied unit, when any constituent does not. Raises
+        ``ValueError`` if ``phone`` does not resolve, or if a change names
+        a feature or a value the data does not declare: a misspelled
+        feature has to fail loudly rather than quietly leave the phone as
+        it was.
         """
-        feats = self.get_features(phone)
-        if not feats:
+        if not self.get_features(phone):
             raise ValueError(f"cannot resolve phone {phone!r}")
+        wanted: dict[str, str] = {}
         for name, value in changes.items():
             key = name if name in self.features else name.replace("_", "-")
             feature = self.features.get(key)
@@ -1499,10 +1540,45 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # overlap (bilabial^velar) on the same terms.
             if not all(part in feature.values_set for part in feature.expand(resolved)):
                 raise ValueError(f"{value!r} is not a value of feature {key!r}")
-            feats[key] = resolved
-        for meta in METADATA_ATTRS:
-            feats.pop(meta, None)
-        return self.to_phone(feats)
+            wanted[key] = resolved
+        _segmental, prosodic = self._split_by_mode(wanted)
+        if prosodic:
+            raise ValueError(
+                f"respell cannot write {sorted(prosodic)}: a prosodic feature "
+                "is a property of the unit and not of the phone, so it is "
+                "absent from the bundle this respells from and there is "
+                "nothing here for the change to move. Write it with "
+                "ipakit.form.with_prosody, which rewrites Segment.prosody"
+            )
+
+        try:
+            unit = self.segment(phone, strict=True)
+        except (ValueError, KeyError):
+            # Readable as a bundle and not parseable as a unit: answer the
+            # bundle, which is the whole of what such a string offers.
+            return self._respell_flat(phone, wanted)
+
+        tied = Sense.SEQ in unit.junctures
+        parts = [str(c) for c in unit.constituents] if tied else [phone]
+        spelled: list[str] = []
+        for part in parts:
+            got = self._respell_flat(part, wanted)
+            if got is None:
+                return None
+            spelled.append(got)
+        try:
+            if tied:
+                rebuilt = tuple(self._parse_constituent(s) for s in spelled)
+                return dataclasses.replace(unit, constituents=rebuilt).to_ipa()
+            if not unit.prosody:
+                return spelled[0]
+            # The answer is a whole unit, so the prosody goes back onto it
+            # rather than onto one of its constituents: `t͡sː` voiced is
+            # `d͡zː`, and `d͡z` is what the bundle realized.
+            answer = self.segment(spelled[0], strict=True)
+            return dataclasses.replace(answer, prosody=unit.prosody).to_ipa()
+        except (ValueError, KeyError):  # pragma: no cover - to_phone answers
+            return None  # registered symbols, which reparse
 
     def notation_of(self, symbol: str) -> str:
         """Which notation ``symbol`` belongs to; unlisted is the default.
