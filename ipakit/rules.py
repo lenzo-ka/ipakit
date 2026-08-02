@@ -645,6 +645,46 @@ def _check_literal(text: str, features: IPAFeatures) -> list[Unit]:
     return read
 
 
+def _keyed(source: str, terms: Sequence[str]) -> list[tuple[str, str]]:
+    """The ``key=value`` terms of a bracketed bundle, as they were written.
+
+    Read as a **sequence**, because ``dict(...)`` keeps the last of a
+    repeated key and every check on either side of the arrow runs over the
+    mapping it built. So a bundle could smuggle a term past the value arm
+    by restating the key: ``[stress=not_declared stress=primary]`` parsed,
+    while ``[stress=not_declared]`` on its own was refused. The undeclared
+    value was erased before anything looked at it, which made the
+    advertised check blind by construction rather than by oversight.
+
+    Refusing a repeat is what fixes that, and it fixes it the durable way:
+    with no key written twice the sequence and the mapping have the same
+    length, so validating the mapping *is* validating what was written.
+    Validating the terms and then building the mapping anyway would leave
+    two things to be kept in step by vigilance.
+
+    A repeat is refused rather than resolved because nothing in this
+    notation says which of two answers wins. Last-assignment-wins is a
+    convention the language never states, and a rule naming one feature
+    twice is far likelier a mistake than an intent -- most often a
+    contradiction (``[voiced=+ voiced=-]``), which no unit satisfies on
+    the left and which says two things at once on the right.
+    """
+    written = [(t.split("=", 1)[0], t.split("=", 1)[1]) for t in terms if "=" in t]
+    seen: dict[str, int] = {}
+    for key, _ in written:
+        seen[key] = seen.get(key, 0) + 1
+    repeated = sorted(key for key, count in seen.items() if count > 1)
+    if repeated:
+        raise RuleError(
+            f"{source!r} states {', '.join(repr(k) for k in repeated)} more "
+            "than once. A bundle says one thing about each feature, and "
+            "nothing in this notation says which of two answers wins -- so "
+            "the second would quietly erase the first, undeclared value and "
+            "all. Write the feature once, with the value meant."
+        )
+    return written
+
+
 def _zero_named(terms: Sequence[str], features: IPAFeatures) -> str | None:
     """The declared zero a bracketed class term names, or ``None``.
 
@@ -881,7 +921,10 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
         # '[vowel stress=primary]' is the natural way to say it. Each
         # form goes through the same resolver and the results merge,
         # rather than this growing a second query language.
-        pairs = dict(t.split("=", 1) for t in terms if "=" in t)
+        # Read as a sequence and refused where a key repeats, so the
+        # mapping below cannot be shorter than what was written and the
+        # value arm cannot be reached past an erased term. See _keyed.
+        pairs = dict(_keyed(text, terms))
         bare = [t for t in terms if "=" not in t]
         # A bare term that resolves to nothing is refused by the resolver,
         # but a 'key=value' term went straight through: '[mannr=plosive]'
@@ -2156,7 +2199,10 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
                 f"{rhs!r} is a change, so every term must be 'key=value'; "
                 "a bare class does not say what to change it to"
             )
-        pairs = dict(t.split("=", 1) for t in terms)
+        # As on the left of the arrow: the terms are the sequence written,
+        # and a repeated key is refused rather than resolved, so nothing
+        # reaches the checks below already erased. See _keyed.
+        pairs = dict(_keyed(rhs, terms))
         unknown = sorted(k for k in pairs if k not in features.features)
         if unknown:
             raise RuleError(f"{rhs!r} names undeclared feature(s): {unknown}")

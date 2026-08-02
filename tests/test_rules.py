@@ -2486,3 +2486,78 @@ class TestNamingAMarkIsAtLeastAsStrongAsAClass:
                                 )
         assert checked > 200, f"only {checked} edge triples swept"
         assert bad == [], f"{len(bad)} of {checked}, first: {bad[:3]}"
+
+
+class TestABundleIsReadAsWhatWasWritten:
+    """``[stress=not_declared stress=primary]`` parsed and wrote ``ˈa``.
+
+    ``dict(...)`` keeps the last of a repeated key, so the undeclared
+    value was erased before the value arm looked at it: the check that
+    exists to catch a misspelled value was blind to any value a second
+    term stood in front of. The same construction was on both sides of
+    the arrow, so ``[voiced=not_declared voiced=+]`` did it on the left.
+    """
+
+    @pytest.mark.parametrize(
+        "bad,shape",
+        [
+            ("a -> [stress=not_declared stress=primary]", "on the right"),
+            ("[voiced=not_declared voiced=+] -> a", "on the left"),
+            ("a -> [stress=primary stress=not_declared]", "either order"),
+            ("[voiced=+ voiced=-] -> a", "a contradiction no unit satisfies"),
+            ("a -> [stress=primary stress=primary]", "even where they agree"),
+            ("t -> ʔ / _ [voiced=+ voiced=-]", "in a context item too"),
+        ],
+    )
+    def test_a_repeated_key_is_refused_on_both_sides(self, bad, shape):
+        with pytest.raises(R.RuleError) as caught:
+            R.parse(bad, FEATURES)
+        assert "more than once" in str(caught.value), shape
+
+    def test_every_written_term_is_validated_and_not_only_the_survivor(self):
+        """Over the token sequence, since a mapping cannot see the loss.
+
+        A test on the resulting mapping is exactly what could not have
+        caught this: by the time the mapping exists the discarded term is
+        gone. So the sweep pairs a bad term with a good one on the same
+        key and asserts the rule is refused whichever position it takes.
+        """
+        good = {"stress": "primary", "voiced": "+", "manner": "plosive"}
+        checked = 0
+        passed: list[str] = []
+        for key, value in good.items():
+            for bad in ("not_declared", "0", "obstruent"):
+                for terms in (
+                    (f"{key}={bad}", f"{key}={value}"),
+                    (f"{key}={value}", f"{key}={bad}"),
+                ):
+                    spec = f"a -> [{' '.join(terms)}]"
+                    checked += 1
+                    try:
+                        R.parse(spec, FEATURES)
+                    except R.RuleError:
+                        continue
+                    passed.append(spec)
+        assert checked == len(good) * 3 * 2 == 18
+        assert passed == [], f"{len(passed)} of {checked} parsed: {passed[:3]}"
+
+    def test_a_bundle_with_no_repeat_is_read_as_the_mapping_it_builds(self):
+        """The equality the refusal buys, asserted rather than assumed.
+
+        With no key written twice the term sequence and the mapping have
+        the same length, so validating the mapping IS validating what was
+        written -- which is what makes the check above unnecessary a
+        second time rather than merely passing today.
+        """
+        checked = 0
+        for source in (
+            "[voiced=+ manner=plosive]",
+            "[stress=primary length=long]",
+            "[manner=plosive]",
+            "[voiced=α place=labial]",
+        ):
+            terms = [t for t in source[1:-1].split() if t]
+            written = R._keyed(source, terms)
+            assert len(written) == len(dict(written)) == len(terms), source
+            checked += 1
+        assert checked == 4
