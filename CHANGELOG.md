@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ipa.xml` carries the license it is offered under, and a test holds it to the repository `LICENSE`.
 - `docs/tutorial.md`, generated from `docs/tutorial.src.md`; `make check` fails on a single byte.
 - `docs/README.md`, `docs/calculus.md`, `docs/form.md`, `docs/rules.md`, `docs/tone.md`, `docs/design/samprosa.md`.
+- `docs/design/interop.md` and `scripts/interop.py`: ipakit measured against CLTS/BIPA and PanPhon, one subcommand per number.
+- `interop` extra (`pyclts`, `panphon`), dev-only and read by `scripts/interop.py` alone.
 - `scripts/tutorial.py` and `scripts/docexamples.py` as `make check` gates.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, and the issue and pull-request templates.
 - Structured segment API: `Segment`/`Constituent`/`Sense`/`Kind`, with `segment()`, `segments()` and `build_segment()` (#10).
