@@ -39,7 +39,7 @@ Everything measured below comes from Table III (p. 546): equal-interval area fun
 
 Two things had to be checked before relying on it.
 
-**Is `arc` actually proportional to arclength?** It is declared per feature value, and the head midline is hand-placed to realize it, so the two could have drifted apart without anything noticing. Measured over the shipped midlines, the largest disagreement between a point's declared `arc` and its normalized cumulative arclength is 0.027 on `adult-male`, 0.035 on `adult-female`, and 0.062 on `child`. That is not negligible: the tightest measured closure in §2 spans 0.045 of the tract, so the ambiguity is comparable to the margin. It is carried rather than waved away — every verdict in §2 was taken a second time with each declared `arc` read as its own midline's arclength instead (`bilabial` 0.000, `alveolar` 0.157, `velar` 0.446), and not one of them changes. The child head is at 0.062 and nothing in the suite pins it — see §6.
+**Is `arc` actually proportional to arclength?** It is declared per feature value, and the head midline is hand-placed to realize it, so the two could have drifted apart without anything noticing. Measured over every shipped polyline, the largest disagreement between a point's declared `arc` and its normalized cumulative arclength is 0.0636, on the `child` head's nasal branch. The oral midlines are tighter and the worst of them is 0.062, again on `child`. That is not negligible: the tightest measured closure in §2 spans 0.045 of the tract, so the ambiguity is comparable to the margin. It is carried rather than waved away — every verdict in §2 was taken a second time with each declared `arc` read as its own midline's arclength instead (`bilabial` 0.000, `alveolar` 0.157, `velar` 0.446), and not one of them changes. The worst point is on a nasal branch, whose arcs name no place, so nothing in §2 rests on it; the child midline is the one at the edge of what this section can carry. `scripts/invariants.py` holds the gap of every polyline, pinned rather than bounded, and that is where the figures live — see §6.
 
 **Is the vowel identification right?** The PDF's text layer uses a custom encoding that mangles IPA, so the column headings of Table III cannot be trusted. They do not have to be. Column order follows Table II (p. 539), which gives an example word for each imaged phoneme and extracts cleanly. That identification is then confirmed independently by Table IV (p. 548), whose natural-speech formants track Peterson & Barney's male averages column by column — including the low F3 of 2124 Hz that identifies column 11 as the rhotic. The ragged rows of Table III are self-checking as well: the published tract lengths divided by the section interval give 42, 42, 40, 42, 44, 44, 44, 44, 44, 46, 44, 46, 44, 44, 44, 44, 44, 44 sections, and those counts predict the width of every short row in the table exactly.
 
@@ -138,6 +138,10 @@ The two sources are independent — one MRI subject, one comprehensive sample of
 
 Three findings for the lanes that own the files. This lane touched none of them.
 
+[#127](https://github.com/lenzo-ka/ipakit/issues/127) took up all three; each carries a superseded line below saying what it did, and only D3 is closed.
+
+**Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the defect stands and is now a stated limit. Every repair the declaration vocabulary can express was tried, including both named at the end of this entry, and each is refused by measurement; `tests/test_vowel_tract_limit.py` pins the limit and each refusal, so it can only change deliberately.**
+
 **D1 — a vowel's constriction location cannot distinguish velar from pharyngeal.** `tract_point` reads `arc` from `backness` alone; `height` moves `offset` only. `u` and `ɑ` are both `backness=back`, so they share `arc` 0.56 exactly, and the model has no way to say that one constricts at the velum and the other in the pharynx. Reproducing case:
 
 ```python
@@ -150,7 +154,11 @@ tract_point(f, f.get_features("ɑ")).arc    # 0.56
 
 Measured, those two constrict 5.6 cm apart in a 17.5 cm tract. `arc` feeds `ipakit.metric` through `_sagittal`, so this is not confined to drawing. It is a limit of the declarations rather than a coding error, and closing it means either extending `backness` past `uvular` or letting `height` contribute to `arc` for a vowel — both changes to `ipa.xml`, both with a distance sweep behind them, and neither is this lane's to make.
 
+**Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the shared point is what the measurement asks for. `ʌ` and `ɔ` both constrict at `arc` 0.65 in §4's own table, so giving them one tract point is right; what they do not share is a lip aperture, and that is the unmodelled thing.**
+
 **D2 — `ʌ` and `ɔ` are the same point in tract space.** Both are `back` and `open-mid`, so both yield `arc` 0.56, `offset` 0.16. They differ only in `rounded`, which the geometry does not carry (`docs/tract-anatomy.md` §4.4 says so plainly, and the annotation layer reports it). The posture is therefore identical for two segments the data separates. Worth knowing before anyone reads a drawn posture as a claim about the sound.
+
+**Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127), and closed. `check_head_arcs` in `scripts/invariants.py` gates the three relationships this entry runs together as three, over the nasal branches as well as the midlines, pinning each gap rather than bounding it — a bound this data would pass also permits a vertex to sit where the next declared place lives.**
 
 **D3 — `arc` has two meanings and nothing holds them together.** It is declared per feature value in `ipa.xml`, and separately realized as position along a hand-placed midline in `heads.xml`. The largest disagreement between a declared `arc` and its own midline's normalized arclength is 0.027 (adult-male), 0.035 (adult-female), 0.062 (child). Heads never affect distance, so no answer is wrong today, but §1 of this assessment depends on the two agreeing and the child head is at the edge of what it can carry. An invariant over the shipped midlines would cost a few lines and is the sort of thing `scripts/invariants.py` already does.
 

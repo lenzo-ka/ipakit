@@ -133,6 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VariantSet.complete` states the direction it is exact in: a `True` holds every form the uncapped answer holds, and a `False` may too.
 - The snapshot is named as the simultaneous application strategy and a choice; what iterative spreading waits on is the reach of a context, not regularity — `docs/calculus.md` (#113).
 - The gap to a finite-state transducer is inversion alone: regular relations are closed under neither intersection nor complementation — `docs/calculus.md` (#114).
+- The closure-list entry for iterative spreading prices the cascade that stands in for it, `(k−1) × (m+1)` rules — `docs/calculus.md` (#121).
+- A design assessment overtaken by later work carries a superseded line at the finding rather than being rewritten — `docs/reviewing.md` (#128).
 - The rule sets and `docs/` ship in the wheel and the sdist, and an unpacked sdist can run its own tests.
 
 ### Fixed

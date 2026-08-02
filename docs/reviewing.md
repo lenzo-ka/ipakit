@@ -114,6 +114,26 @@ A new data file with no grammar fails the suite, and the failure names the conve
 
 The general rule: an invariant worth relying on is worth a test, and one that does not hold is worth saying out loud.
 
+### Point an assessment forward; do not rewrite it
+
+`docs/design/*.md` are **dated assessments**. Each is one question, measured on one day against a library and a set of outside sources as they stood, and its value is that it records what was believed and on what evidence at that date. A reader deciding whether to trust a verdict needs the argument that produced it, not a tidied version of it. So the body of an assessment is not rewritten as the library moves under it.
+
+That leaves a real cost, and it is the reason this section exists: somebody landing on a closed defect has no way to know it is closed, and lane after lane has correctly declined to edit an assessment it did not own while findings piled up against documents nobody updates. The rule that pays that cost without destroying the record has three parts, and the first is the one to get right.
+
+**Mark the finding, not the document.** A line at the top saying "some of this is superseded" does not reach the reader, because the reader arrives at §12(e) or at D3, not at the front matter. The pointer goes immediately above the finding it is about, in one fixed form so it can be grepped:
+
+```
+**Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127), and closed.** …one clause on what closed it, and how.
+```
+
+A section that carries several may say so once under its own heading as well, but that is a convenience for a skimmer and never a substitute. **Superseded** is the word in every case, and the clause carries the nuance — a finding may be superseded by having been fixed, or by having been tried and refused with the limit pinned instead, and those are different things for the reader to know.
+
+**A finding that was overtaken is marked. A statement that was wrong is corrected.** These are not the same case and they get opposite treatment. A finding that was true when written and has since been closed is the record working, so it keeps its words. A statement that was not true when written — a measurement whose scope was narrower than the sentence claiming it — has no claim on the record at all, and it is corrected in place with no note, because the house rule is to write what is true rather than what a document used to say. A pointer forward is a fact about where the work went; narrating a change is not.
+
+**A quotation is live, not dated.** `scripts/docquotes.py` binds a quoted sentence to the sibling it names, so a quotation is a pointer at a document that moves, and a stale one reads as a citation and is not one. When a correction lands on a sentence another document quotes, both change in the same commit — which means a lane scoped to one file cannot make it, and a brief that scopes one lane to one file will make the correction impossible. Where the quoting passage is a *recommendation to change that very sentence*, it stops quoting and gives the gist instead; dropping the marks is what the check asks for, and the marker supplies the rest.
+
+Worked examples are [design/tract-validation.md](design/tract-validation.md) §1 and §6, where a scope error is corrected in place and the three findings under it are marked, and [design/interop.md](design/interop.md) §1 and §12, where the defects later work has closed are marked and the ones that still reproduce deliberately are not.
+
 ### Measure against something outside the library, where you can
 
 Every check above compares ipakit with itself. Some claims cannot be settled that way at all: whether the declared tract geometry matches a tract. [docs/articulatory-data.md](articulatory-data.md) is that comparison against an external corpus, and `scripts/articulatory.py` is the enumeration written once, in the same shape as `sweep.py` -- one command per measurement, an assertion on the corpus size so a run cannot go quietly vacuous, and a clean exit when the data is not mounted, because it never is in CI.
