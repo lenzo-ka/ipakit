@@ -92,6 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Three shipped sets name `[obstruent]` instead of spelling the class out as a complement.
 - The linking mark `‿` declares `level="word"`.
 - `level` declares `mode="structural"`.
+- `airstream` declares `mode="overriding"`; a mark stating one states the segment's, and `features("ǂʼ")["airstream"]` is `ejective`.
+- A mark that reaches no unit is reported wherever it is written: the default path warns and names it, `strict=True` raises.
+- `̊` U+030A and `̍` U+030D are declared aliases of `̥` and `̩`; the below form stays canonical.
 - The rule-name separator is `;`, since `|` is a legal context item.
 - `Sense.glyph` is a method taking the features, not a property.
 - `Action.becomes` is `dict[str, str | None] | str | None`.
@@ -143,6 +146,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A composed unit could carry two marks stating one feature: `aʱ` asked for an aspirated release was `aʰʱ`, and `compose_unit("c", phonation="modal", voiced="+")` was `c̤̬`.
 - Composed marks are ordered so a combining mark binds to the phone and not to a spacing modifier before it; `dʰ̥` rang the `ʰ`.
 - `respell` on a tied unit answered its first constituent: `respell("a͜ɪ", voiced="+")` was `"a"`.
+- A mark written before its base was dropped without a word by `segments`, `features` and `distance`; 64 of the 68 marks vanished that way, and `strict=True` did not raise.
+- `ǂʼ` read as `ǂ`: `airstream` took the additive default, so the ejective mark was inert on every base declaring its own.
+- `ŋ̊` and `ŋ̍`, the chart's above-the-symbol spellings, were unregistered characters and came back a mark short.
+- `add_ties` declined the tie when a mark stood between two bases (`d̪ɮ`), and on a longer chain moved it to the wrong junction (`d̠ʒxʼ`).
 - `respell` spent a prosodized input's prosody: `respell("tː", voiced="+")` was `"d"`.
 - `respell` refuses a prosodic change rather than letting the key into a bundle prosody is defined to be outside of.
 - The vocal folds are drawn from the feature declaring `axis="+glottal-aperture"`; a second `<projection>` could take the glottal scale over by sorting first.
