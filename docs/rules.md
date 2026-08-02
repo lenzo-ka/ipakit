@@ -508,10 +508,10 @@ f.compose_unit("s", voiced="-")                       # 's'   -- /s/ is voiceles
 f.compose_unit("ɪ̃", nasalized="+", release="aspirated")  # 'ɪ̃ʰ'  -- writes only the new half
 ```
 
-A change naming a *prosodic* feature takes a third route, because neither of those two can carry it — and both are right about what they spell. Prosody lives on the unit, outside the feature bag, so `respell` reports `length=normal` for a long vowel and hands back the unchanged phone, and `compose_unit` verifies *through* the bag and therefore answers `None`:
+A change naming a *prosodic* feature takes a third route, because neither of those two can carry it — and both are right about what they spell. Prosody lives on the unit, outside the feature bag, so `respell` refuses the key rather than letting it into a bundle it is defined to be outside of, and `compose_unit` verifies *through* the bag and therefore answers `None`:
 
 ```python
-f.respell("a", length="normal")     # 'a'   -- the bag never had the length
+f.respell("a", length="normal")     # ValueError: respell cannot write ['length']
 f.compose_unit("a", length="long")  # None  -- verified through the bag
 ```
 

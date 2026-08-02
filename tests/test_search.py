@@ -178,3 +178,96 @@ def test_a_match_carries_its_structure(ipa: IPAFeatures) -> None:
     assert unit.kind.value == "affricate"
     assert unit.left.to_ipa() == "t"
     assert unit.to_ipa() == "t͡ʃ"
+
+
+class TestProsodicTermsAreAskedOfTheProsody:
+    """A query naming stress or length is put to the unit's prosody.
+
+    `find` matched every term against `Segment.scalar`, the read that has
+    prosody taken out of it by design -- `features("a") ==
+    features("ˈa")`. So a prosodic term could only ever be answered about
+    a phone that never carries one: `["primary"]` found nothing, and
+    `["-primary", "-secondary"]`, which is the spelling the resolver's own
+    diagnostic recommends and the shipped American English rule set
+    writes, reported "carries no stress" of a unit carrying primary
+    stress. The negation is the half that matters: an empty answer is
+    visibly wrong, a full one is not.
+    """
+
+    def test_a_stressed_unit_is_found_by_its_stress(self, ipa: IPAFeatures) -> None:
+        assert [(i, u.to_ipa()) for i, u in ipa.find("ˈa a", ["primary"])] == [
+            (0, "ˈa")
+        ]
+
+    def test_the_negation_excludes_the_unit_that_carries_it(
+        self, ipa: IPAFeatures
+    ) -> None:
+        found = ipa.find("ˈa a", ["-primary", "-secondary"])
+        assert [(i, u.to_ipa()) for i, u in found] == [(1, "a")]
+
+    def test_length_is_asked_of_the_unit_and_not_of_the_bag(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # `aː` and `a` share a feature bag, so nothing in it can tell them
+        # apart; the mark rides on the unit and that is where it is read.
+        assert ipa.get_features("aː") == ipa.get_features("a")
+        assert [u.to_ipa() for _, u in ipa.find("aː a", ["long"])] == ["aː"]
+
+    def test_both_namespaces_in_one_query(self, ipa: IPAFeatures) -> None:
+        found = ipa.find("ˈaː ˈk a", ["vowel", "primary", "long"])
+        assert [u.to_ipa() for _, u in found] == ["ˈaː"]
+
+    def test_the_split_is_the_one_rules_makes(self, ipa: IPAFeatures) -> None:
+        """One partition, not two agreeing by habit.
+
+        `ipakit.rules.Pattern` splits a resolved query the same way to
+        decide what it asks of `Unit.prosody`. If these two drift, one
+        query gets two answers depending on whether it was written to
+        `find` or to a rule -- which is the shape of defect this repo has
+        had most often (docs/reviewing.md).
+        """
+        from ipakit.rules import _is_prosodic
+
+        names = sorted(ipa.features)
+        segmental, prosodic = ipa._split_by_mode(dict.fromkeys(names, "x"))
+        assert sorted(prosodic) == [n for n in names if _is_prosodic(n, ipa)]
+        assert set(segmental) | set(prosodic) == set(names)
+        assert not set(segmental) & set(prosodic)
+        assert len(names) > 20, "sweep did not run"
+
+    def test_it_holds_over_every_prosody_the_data_declares(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Swept, not sampled: every mark that states prosody, on a base.
+
+        For each such unit and each key its prosody states, asking for the
+        value it holds finds it and asking for any other value of the same
+        feature does not. Written as a dict so the sweep measures the
+        prosody read and not the bare-term resolver, which answers with
+        the first feature declaring a name and so would put ``mid`` to
+        whichever of ``tone`` and ``height`` the data lists first.
+        """
+        import warnings
+
+        from ipakit.form import _prosodic_features
+
+        from tests.corpus import prosody_bearing_units
+
+        checked = 0
+        # The corpus carries pairs that contradict each other deliberately
+        # -- two lengths, a fall over rising levels -- and each reports
+        # itself. That is the behavior under test elsewhere, not here.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for unit in prosody_bearing_units():
+                stated = _prosodic_features(ipa.segment(unit), ipa)
+                for key, value in stated.items():
+                    feature = ipa.features[key]
+                    if value not in feature.values_set:
+                        continue  # a contour or a level run, not a bare value
+                    found = [u.to_ipa() for _, u in ipa.find(unit, {key: value})]
+                    assert found == [unit], (unit, key, value)
+                    for other in sorted(feature.values_set - {value}):
+                        assert ipa.find(unit, {key: other}) == [], (unit, key, other)
+                    checked += 1
+        assert checked > 200, f"sweep did not run: {checked}"

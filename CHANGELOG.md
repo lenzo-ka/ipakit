@@ -134,6 +134,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A repeated key in a bracketed bundle erased the earlier term before it was validated, so `[stress=not_declared stress=primary]` parsed on either side of the arrow.
 - `. -> .#` was refused as "not a boundary"; a run of declared marks is one, and `∅ -> .#` already wrote it.
 - A rule whose right-hand side its own target entails parsed, found sites and edited none of them: `[voiced=+] -> [voiced=+]`, `[voiced=α] -> [voiced=α]`, `d -> d`, `‿ -> ‿`.
+- `find` asked a prosodic term of the feature bag, which has prosody taken out of it, so `["-primary","-secondary"]` reported "carries no stress" of a stressed unit.
+- Two positive values for one feature overwrote each other: `["alveolar","velar"]` answered the velars and `["velar","alveolar"]` the alveolars. A query is a conjunction, so this is refused.
+- A query dict resolved an undeclared feature name or value to itself and matched nothing, where the list arm raises.
+- `compose_unit` ordered only the marks it picked, so aspirating then devoicing a `d` and devoicing then aspirating gave two spellings of one bundle.
+- A composed unit could carry two marks stating one feature: `aʱ` asked for an aspirated release was `aʰʱ`, and `compose_unit("c", phonation="modal", voiced="+")` was `c̤̬`.
+- Composed marks are ordered so a combining mark binds to the phone and not to a spacing modifier before it; `dʰ̥` rang the `ʰ`.
+- `respell` on a tied unit answered its first constituent: `respell("a͜ɪ", voiced="+")` was `"a"`.
+- `respell` spent a prosodized input's prosody: `respell("tː", voiced="+")` was `"d"`.
+- `respell` refuses a prosodic change rather than letting the key into a bundle prosody is defined to be outside of.
 - The vocal folds are drawn from the feature declaring `axis="+glottal-aperture"`; a second `<projection>` could take the glottal scale over by sorting first.
 - `ς` stood in the agreement series as a second sigma; a variable letter is the one its own capital lowercases back to.
 - `[β]` was refused as a bare agreement variable and sent the author to `[place=β]`, which is refused because `β` is a phone.

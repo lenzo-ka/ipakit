@@ -30,6 +30,9 @@ vacuous.
 
 from __future__ import annotations
 
+import itertools
+import unicodedata
+
 import ipakit
 import pytest
 from ipakit.constants import DATA_DIR, METADATA_ATTRS
@@ -472,3 +475,125 @@ class TestAMisdeclaredProjectionFailsOnLoad:
         )
         with pytest.raises(ValueError, match="onto itself"):
             IPAFeatures(xml_path=path)
+
+
+#: Requests over two different features, sampled by stride. Two values of
+#: one feature are excluded because they are not two changes: the second
+#: undoes the first, and the order of an undoing is what an undoing means.
+CONFLUENCE_STRIDE = 7
+
+
+def _then(unit: str | None, change: tuple[str, str]) -> str | None:
+    return (
+        None if unit is None else FEATURES.compose_unit(unit, **{change[0]: change[1]})
+    )
+
+
+@pytest.fixture(scope="module")
+def confluence() -> (
+    list[
+        tuple[str, tuple[str, str], tuple[str, str], str | None, str | None, str | None]
+    ]
+):
+    """Every base crossed with a sampled pair of independent requests,
+    composed three ways: first then second, second then first, and both at
+    once. Built once because four claims are made of it."""
+    pairs = [
+        (first, second)
+        for first, second in itertools.combinations(declared_pairs(), 2)
+        if first[0] != second[0]
+    ][::CONFLUENCE_STRIDE]
+    rows = []
+    for base in self_spelling_phones():
+        for first, second in pairs:
+            rows.append(
+                (
+                    base,
+                    first,
+                    second,
+                    _then(_then(base, first), second),
+                    _then(_then(base, second), first),
+                    FEATURES.compose_unit(
+                        base, **{first[0]: first[1], second[0]: second[1]}
+                    ),
+                )
+            )
+    return rows
+
+
+class TestCompositionIsConfluent:
+    """Two independent changes give one spelling, whichever order they
+    arrive in.
+
+    ``compose_unit`` ordered only the marks it picked *this call* and
+    appended them after whatever the base was already wearing. So
+    aspirating a ``d`` and then devoicing it gave ``dʰ̥`` while devoicing
+    and then aspirating gave ``d̥ʰ`` -- one feature bundle, two spellings,
+    chosen by the order the calls happened to come in. Iterative rule
+    application is exactly where that bites: a rule set applies one change
+    at a time to whatever the last rule left, so the spelling a word ends
+    up with depends on the order of the file rather than on what the rules
+    say.
+
+    The fix is by construction rather than by vigilance: the base is
+    decomposed and the *whole* mark stack re-emitted in one order, so the
+    two routes cannot diverge. This sweep is what says they do not.
+    """
+
+    def test_either_order_gives_one_spelling(self, confluence) -> None:
+        diverged = [row for row in confluence if row[3] != row[4]]
+        assert len(confluence) > 20000, f"sweep did not run: {len(confluence)}"
+        assert not diverged, f"{len(diverged)} diverged, first: {diverged[:3]}"
+
+    def test_one_call_says_what_two_calls_say(self, confluence) -> None:
+        """The same claim across the other seam. Asking for both changes at
+        once must not be a third answer -- and it was, wherever a mark
+        picked for one request contradicted the other."""
+        comparable = [row for row in confluence if row[3] and row[5]]
+        disagreed = [row for row in comparable if row[3] != row[5]]
+        assert len(comparable) > 5000, f"sweep did not run: {len(comparable)}"
+        assert not disagreed, f"{len(disagreed)} disagreed, first: {disagreed[:3]}"
+
+    def test_no_composed_unit_states_one_feature_twice(self, confluence) -> None:
+        """What makes the stack orderable at all: a mark the base wears
+        gives way to a mark writing the same key, rather than standing
+        beside it. Two marks stating one feature is a contradiction, and
+        the unit reads back as whichever the projection reaches first."""
+        checked, doubled = 0, []
+        for unit in {row[3] for row in confluence if row[3]}:
+            checked += 1
+            seen: dict[str, str] = {}
+            for glyph in FEATURES.segment(unit).constituents[-1].modifiers:
+                mark = FEATURES.diacritics.get(glyph)
+                for key, value in (getattr(mark, "features", None) or {}).items():
+                    if key in METADATA_ATTRS:
+                        continue
+                    if seen.setdefault(key, value) != value:
+                        doubled.append((unit, key, seen[key], value))
+        assert checked > 500, f"sweep did not run: {checked}"
+        assert not doubled, f"{len(doubled)} doubled, first: {doubled[:3]}"
+
+    def test_a_combining_mark_binds_to_the_phone_and_not_to_a_modifier(
+        self, confluence
+    ) -> None:
+        """Why the mark order is not the mode order alone.
+
+        A combining mark attaches to the character before it, so one
+        written after a spacing modifier letter is a mark on that letter:
+        ``dʰ̥`` rings the ``ʰ``. Mode precedence alone put ``release``
+        ahead of ``overriding`` and emitted exactly that.
+        """
+        checked, misbound = 0, []
+        for unit in {row[3] for row in confluence if row[3]}:
+            checked += 1
+            marks = FEATURES.segment(unit).constituents[-1].modifiers
+            spacing = [
+                index
+                for index, glyph in enumerate(marks)
+                if all(unicodedata.combining(ch) == 0 for ch in glyph)
+            ]
+            combining = [i for i in range(len(marks)) if i not in spacing]
+            if spacing and combining and min(spacing) < max(combining):
+                misbound.append((unit, marks))
+        assert checked > 500, f"sweep did not run: {checked}"
+        assert not misbound, f"{len(misbound)} misbound, first: {misbound[:3]}"

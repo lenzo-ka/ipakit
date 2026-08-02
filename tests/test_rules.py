@@ -1377,11 +1377,12 @@ class TestProsodyIsWritableAndNotOnlyAskable:
 
     def test_a_change_may_name_both_namespaces_at_once(self):
         """One bracket, split by declared mode, each half realized where it
-        can be. Neither half alone can do it: ``respell`` reports
-        ``length=normal`` for a long vowel because prosody is not in the
-        bag, and ``compose_unit`` verifies *through* the bag and so answers
-        ``None`` for every prosodic request."""
-        assert FEATURES.respell("a", length="normal") == "a", "premise moved"
+        can be. Neither half alone can do it: ``respell`` refuses a
+        prosodic key outright, since prosody is not in the bag it
+        respells from, and ``compose_unit`` verifies *through* the bag and
+        so answers ``None`` for every prosodic request."""
+        with pytest.raises(ValueError, match="respell cannot write"):
+            FEATURES.respell("a", length="normal")
         assert FEATURES.compose_unit("a", length="long") is None, "premise moved"
         assert ipakit.rewrite("kaː", "[vowel] -> [backness=back]") == "kɑː"
         assert ipakit.rewrite("kaː", "[vowel] -> [backness=back length=normal]") == "kɑ"

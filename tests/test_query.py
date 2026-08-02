@@ -1,5 +1,7 @@
 """Tests for query and matching functionality."""
 
+import itertools
+
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR
@@ -237,22 +239,35 @@ class TestEveryTermMustResolve:
             out |= {term, f"+{term}", f"-{term}", f"0{term}"}
         return sorted(out)
 
-    def resolves(self, ipa: IPAFeatures, query: list[str]) -> bool:
+    def verdict(self, ipa: IPAFeatures, query: list[str]) -> str:
+        """What the resolver does with ``query``: resolve it, refuse a
+        term for naming nothing, or refuse the query as unsatisfiable.
+
+        The third is not a verdict on the term. A bracket is a
+        conjunction, so ``['vowel', 'plosive']`` asks one feature to hold
+        two values at once and is refused for saying something no phone
+        can be. Every manner value does that beside the companion below,
+        and none of them is being dropped -- which is what this sweep is
+        about.
+        """
         try:
             ipa._resolve_query(query)
-        except ValueError:
-            return False
-        return True
+        except ValueError as caught:
+            named = "resolves to no feature term" in str(caught)
+            return "unresolved" if named else "unsatisfiable"
+        return "resolves"
 
     def test_the_two_arities_agree(self, ipa: IPAFeatures) -> None:
         """Bare and mixed must give the same verdict on the same term."""
         # 'vowel' is the resolving companion: a real mixed query has one,
         # and it is what would hide a dropped term.
-        assert self.resolves(ipa, ["vowel"])
+        assert self.verdict(ipa, ["vowel"]) == "resolves"
         checked, disagreed = 0, []
         for term in self.spellings(ipa):
             checked += 1
-            if self.resolves(ipa, [term]) != self.resolves(ipa, ["vowel", term]):
+            alone = self.verdict(ipa, [term]) == "unresolved"
+            mixed = self.verdict(ipa, ["vowel", term]) == "unresolved"
+            if alone != mixed:
                 disagreed.append(term)
         assert checked > 300, "sweep did not run"
         assert not disagreed, f"dropped beside a resolving term: {disagreed[:10]}"
@@ -339,3 +354,155 @@ class TestFeatureBundles:
         bundles = ipakit.feature_bundles("pʰ")
         assert len(bundles) == 1
         assert bundles[0]["release"] == "aspirated"
+
+
+#: The one-character values a binary feature declares. As bare list
+#: terms they are read as the +/-/0 prefix rather than as values, so the
+#: sweeps below reach them through the feature name instead.
+_PREFIXES = frozenset("+-0")
+
+
+class TestABracketIsAConjunction:
+    """Two positive values for one feature contradict; they do not stack.
+
+    `positive[feat] = val` was written at each of the three places a
+    positive term is recognized, so the last one to arrive won:
+    `['alveolar', 'velar']` answered the velars and `['velar',
+    'alveolar']` answered the alveolars. One query, two answers, chosen by
+    the order the terms happened to be written -- and by nothing at all
+    when the query is a `set`, where iteration order is not the caller's
+    to see.
+
+    Refusing is the answer rather than matching nothing. A feature holds
+    one value at a time, so an impossible query is far more likely a
+    mistake than an intent, and "every term must resolve" already refuses
+    a term that resolves and is then dropped.
+    """
+
+    CONTRADICTIONS: list[list[str]] = [
+        ["alveolar", "velar"],
+        ["velar", "alveolar"],
+        ["plosive", "fricative"],
+        ["+voi", "-voi"],
+        ["+voiced", "-voiced"],
+        ["stop", "fricative"],  # through the alias table
+    ]
+
+    @pytest.mark.parametrize("query", CONTRADICTIONS)
+    def test_it_is_refused(self, ipa: IPAFeatures, query: list[str]) -> None:
+        with pytest.raises(ValueError, match="a conjunction"):
+            ipa.phones_matching(query)
+
+    def test_the_two_orders_give_the_same_message(self, ipa: IPAFeatures) -> None:
+        """Which is what makes a `set` query answerable at all: the message
+        names both values, sorted, so it does not depend on which arrived
+        first."""
+        messages = set()
+        for query in (["alveolar", "velar"], ["velar", "alveolar"]):
+            with pytest.raises(ValueError) as caught:
+                ipa.phones_matching(query)
+            messages.add(str(caught.value))
+        assert len(messages) == 1
+        assert "'alveolar' and 'velar'" in messages.pop()
+
+    def test_a_set_is_refused_too(self, ipa: IPAFeatures) -> None:
+        with pytest.raises(ValueError, match="a conjunction"):
+            ipa.phones_matching({"alveolar", "velar"})
+
+    def test_asking_twice_for_the_same_value_is_not_a_contradiction(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert ipa.phones_matching(["plosive", "plo"]) == ipa.phones_matching(["plo"])
+
+    def test_it_holds_over_every_pair_of_values_one_feature_declares(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Swept: no pair of distinct values of one feature resolves.
+
+        Restricted to values whose bare term resolves to that feature --
+        a name several features declare goes to whichever is declared
+        first, and that is the resolver's rule and not this one's.
+        """
+        checked = 0
+        for name, feature in ipa.features.items():
+            spellings = [
+                value
+                for value in sorted(feature.values_set)
+                if value not in _PREFIXES
+                and ipa._resolve_query_term(value) == (name, value)
+            ]
+            for first, second in itertools.combinations(spellings, 2):
+                with pytest.raises(ValueError, match="a conjunction"):
+                    ipa._resolve_query([first, second])
+                checked += 1
+        assert checked > 200, f"sweep did not run: {checked}"
+
+
+class TestTheTwoArmsRefuseAlike:
+    """A dict query is held to the policy stated of the query, not of the
+    list arm.
+
+    `_resolve_query`'s docstring says **every** term must resolve, and why:
+    a narrowed query silently widened is a wrong answer rather than a
+    vacuous one. The dict arm kept neither half of that. `{'not-a-feature':
+    '+'}` and `{'place': 'nonsense'}` resolved to themselves and matched
+    nothing, so a misspelling came back as a plausible inventory fact --
+    the same wrong answer the policy exists to refuse, reached by writing
+    the query the other way round.
+    """
+
+    UNDECLARED = "not-a-declared-name"
+
+    def test_a_name_that_is_no_feature_is_refused_in_both_arms(
+        self, ipa: IPAFeatures
+    ) -> None:
+        for query in ([self.UNDECLARED], {self.UNDECLARED: "+"}):
+            with pytest.raises(ValueError, match="resolves to no feature term"):
+                ipa.phones_matching(query)
+
+    def test_a_value_the_feature_does_not_declare_is_refused(
+        self, ipa: IPAFeatures
+    ) -> None:
+        checked = 0
+        for name in ipa.features:
+            with pytest.raises(ValueError, match="is not a value of feature"):
+                ipa.phones_matching({name: self.UNDECLARED})
+            checked += 1
+        assert checked > 20, f"sweep did not run: {checked}"
+
+    def test_a_natural_class_is_not_a_value_and_the_message_says_so(
+        self, ipa: IPAFeatures
+    ) -> None:
+        with pytest.raises(ValueError) as caught:
+            ipa.phones_matching({"manner": "obstruent"})
+        assert "declared natural class" in str(caught.value)
+        assert ipa.phones_matching(["obstruent"])
+
+    def test_the_arms_agree_where_they_resolve(self, ipa: IPAFeatures) -> None:
+        """And the refusal is not a narrowing: wherever a bare term names
+        one (feature, value), the dict spelling of it selects the same
+        phones."""
+        checked = 0
+        for name, feature in ipa.features.items():
+            for value in sorted(feature.values_set):
+                if value in _PREFIXES:
+                    continue
+                if ipa._resolve_query_term(value) != (name, value):
+                    continue
+                assert ipa.phones_matching([value]) == ipa.phones_matching(
+                    {name: value}
+                ), (name, value)
+                checked += 1
+        assert checked > 50, f"sweep did not run: {checked}"
+
+    def test_a_generative_overlap_still_resolves(self, ipa: IPAFeatures) -> None:
+        # The dict arm expands each component, so a declared overlap is
+        # accepted and one with an undeclared half is not.
+        assert ipa.phones_matching({"place": "bilabial^velar"})
+        with pytest.raises(ValueError, match="is not a value of feature"):
+            ipa.phones_matching({"place": f"bilabial^{self.UNDECLARED}"})
+
+    def test_an_alias_still_resolves(self, ipa: IPAFeatures) -> None:
+        assert ipa.phones_matching({"place": "labial-velar"}) == ipa.phones_matching(
+            {"place": "bilabial^velar"}
+        )
