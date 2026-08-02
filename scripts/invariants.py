@@ -394,6 +394,59 @@ def check_projection_coherence(ipa: IPAFeatures, quick: bool = False) -> bool:
     return _report("no unit contradicts a projection", failures, checked)
 
 
+def check_classes_are_total(ipa: IPAFeatures) -> bool:
+    """A feature carrying a natural class is declared on every phone.
+
+    A positive class query resolves to *exclusions only*: ``['obstruent']``
+    becomes "manner is none of the six sonorant manners", because a
+    bracket is a conjunction and the class is carried as the complement of
+    its own members. That reading is exactly right while every phone
+    states a manner, and vacuous the moment one does not -- a bundle with
+    no ``manner`` key excludes nothing and so satisfies the query, and
+    ``obstruent`` would quietly match the vowels.
+
+    Nothing is in that position today: every feature a class is declared
+    over is stated by every registered phone, with defaults and without.
+    So this is not a fix, it is the assumption the resolver makes, written
+    down where something reads it. The day a class is declared over a
+    partial feature, positive class queries go silently wide, and this is
+    what says so.
+
+    Read off the declaration in both directions -- which features carry
+    classes, and which phones state them -- so a class added to the data
+    joins the check without this function being edited.
+    """
+    carrying = {
+        name: sorted(feat.value_classes)
+        for name, feat in ipa.features.items()
+        if feat.value_classes
+    }
+    failures = []
+    if not carrying:
+        failures.append("no natural class is declared; this check is vacuous")
+    checked = 0
+    for name, classes in sorted(carrying.items()):
+        for with_defaults in (True, False):
+            missing = [
+                phone
+                for phone in ipa.phones
+                if name not in ipa.get_features(phone, with_defaults=with_defaults)
+            ]
+            checked += 1
+            if missing:
+                failures.append(
+                    f"feature {name!r} carries the natural class(es) {classes} "
+                    f"but {len(missing)} phone(s) do not state it "
+                    f"(with_defaults={with_defaults}): {missing[:5]}; a "
+                    "positive class query over it matches them vacuously"
+                )
+    return _report(
+        "every feature carrying a natural class is total over the inventory",
+        failures,
+        checked,
+    )
+
+
 def pitch_marks(ipa: IPAFeatures) -> dict[str, str]:
     """Component name -> the tone value that component declares.
 
@@ -525,6 +578,7 @@ def main(argv: list[str] | None = None) -> int:
         check_descriptions(ipa),
         check_notation(ipa),
         check_zero(ipa),
+        check_classes_are_total(ipa),
         check_contour_marks(ipa),
         check_projection_coherence(ipa, args.quick),
         check_derived_artifacts(),
