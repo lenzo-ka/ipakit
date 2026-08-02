@@ -93,7 +93,12 @@
       <value name="affricate" offset="0.95" short="aff" natural-class="obstruent" href="Affricate"/>
     </feature>
 
-    <feature name="airstream" type="categorical" short="air" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
+    <!-- Overriding, like the other two features a segment can only hold one
+         of at a time. A segment has one airstream, so a mark that states one
+         states the segment's, and the base's cannot survive beside it:
+         additive left the ejective mark inert on every base that declared an
+         airstream of its own, and `ǂʼ` read as `ǂ` with the ejection gone. -->
+    <feature name="airstream" type="categorical" short="air" mode="overriding" desc="Source of airflow" default="pulmonic" href="Airstream_mechanism">
       <value name="pulmonic" short="pul" href="Pulmonic_consonant"/>
       <value name="ejective" short="eje" href="Ejective_consonant"/>
       <value name="implosive" short="imp" href="Implosive_consonant"/>

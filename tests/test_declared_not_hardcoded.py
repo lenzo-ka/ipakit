@@ -84,7 +84,18 @@ class TestTheDataSaysWhatThePythonUsedTo:
             "pharyngealized",
             "labio-palatized",
         }
-        assert by_mode["overriding"] == {"voiced", "place", "manner", "syllabic"}
+        # 'airstream' is here for the reason the other four are: a segment
+        # holds one of each at a time, so a mark that states one states the
+        # segment's. It sat in the additive default because nothing had
+        # chosen, which left the only mark that states it inert on every
+        # base declaring its own -- 'ǂʼ' read as 'ǂ'.
+        assert by_mode["overriding"] == {
+            "voiced",
+            "place",
+            "manner",
+            "syllabic",
+            "airstream",
+        }
 
     def test_the_partition_is_total_and_declared(self, ipa: IPAFeatures) -> None:
         # Every feature lands in exactly one bucket, and every bucket is a
