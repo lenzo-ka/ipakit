@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/README.md`, `docs/calculus.md`, `docs/form.md`, `docs/rules.md`, `docs/tone.md`, `docs/design/samprosa.md`.
 - `docs/design/ecosystem.md`: what the communities around the neighboring tools report, and which of it lands on ipakit.
 - `docs/design/interop.md` and `scripts/interop.py`: ipakit measured against CLTS/BIPA and PanPhon, one subcommand per number.
+- `docs/design/tract-validation.md` and `scripts/areafunctions.py`: the declared tract geometry against MRI-derived area functions; the consonant check holds, the vowel rank correlation is refused.
 - `interop` extra (`pyclts`, `panphon`), dev-only and read by `scripts/interop.py` alone.
 - `scripts/tutorial.py` and `scripts/docexamples.py` as `make check` gates.
 - `scripts/docquotes.py` as a `make check` gate: a sentence one document quotes out of another has to be in it.
