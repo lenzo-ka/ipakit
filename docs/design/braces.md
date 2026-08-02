@@ -4,7 +4,7 @@ Should ipakit's rewrite notation gain **braces**, `{ }` — the device *SPE* int
 
 **Verdict: ADOPT, ONE PER RULE, AND SAY WHAT IT ABBREVIATES.** A brace is an *expansion convention*: it abbreviates a finite sequence of ordinary rules, applied in the order written, each seeing the last one's output. So the thing a brace abbreviates is not one rule, it is a **cascade** — which is the object this engine already is. That is what makes it cheap. Nothing in `Pattern`, `Query`, `Site`, `Action`, `Edit` or the calculus moves, because a brace schema *is* a `RuleSet` the parser already accepts, and every refusal that guards a rule guards a schema for free. It is also what makes the one restriction necessary: two braces in one rule expand to the cross product, and the cross product is right in one shipped family and silently wrong in another with nothing in the notation to tell them apart.
 
-**The count that motivated this assessment does not survive re-derivation, and the way it fails is the finding.** [captures.md](captures.md) counted 27 shipped rules in nine families repeated because the notation cannot say *or*, against 4 repeated because a segment must be copied, and made braces look like the higher-value change by roughly seven to one. Re-derived family by family against the live inventory, **four of the 27 come off today**, with declarations that already exist and no notation at all — the same move `alias="sibilant"` made for the English plural in [morph-boundary.md](morph-boundary.md), found twice more:
+**The count that motivated this assessment does not survive re-derivation, and the way it fails is the finding.** It was 27 shipped rules in nine families repeated because the notation cannot say *or*, against 4 repeated because a segment must be copied, and it made braces look like the higher-value change by roughly seven to one. Re-derived family by family against the live inventory, **four of the 27 come off today**, with declarations that already exist and no notation at all — the same move `alias="sibilant"` made for the English plural in [morph-boundary.md](morph-boundary.md), found twice more:
 
 | | rules | after | corpus words moved |
 |---|---|---|---|
@@ -166,7 +166,7 @@ The formal statement is Expansion Convention (b) in the Appendix to Chapter 8: w
 
 > When notations such as (2) have been used in the construction of generative grammars, it has generally been tacitly assumed that the ordering abbreviated by the use of parentheses is disjunctive (in this case the ordering (2a), (2b)). In the case of braces, however, the ordering is assumed to be conjunctive. (*SPE* p. 61)
 
-The trap is live and has caught people who teach the material: the 2004 UCLA handout states disjunctive ordering for schemata generally, and its 2020 successor corrects it in a footnote — *"Rules from the same curly-bracket schema apply conjunctively… Thanks to Patrick Jones for de-confusing me on this!"* [captures.md](captures.md) calls braces "SPE's disjunction", which is right about the connective and reads as a claim about the ordering; the phrase should go.
+The trap is live and has caught people who teach the material: the 2004 UCLA handout states disjunctive ordering for schemata generally, and its 2020 successor corrects it in a footnote — *"Rules from the same curly-bracket schema apply conjunctively… Thanks to Patrick Jones for de-confusing me on this!"* Calling braces *SPE*'s disjunction is right about the connective and reads as a claim about the ordering, which is why nothing here calls them that.
 
 Conjunctive ordering is *SPE*'s convention (29), p. 341 — *"Rules are applied in linear order, each rule operating on the string as modified by all earlier applicable rules"* — which is this cascade, stated by the source in the words `docs/rules.md` already uses. So a brace schema is a **rule set**, and "what does a brace mean" has exactly one right answer here: the ordered rules it expands to, each seeing the last one's output.
 
@@ -454,13 +454,11 @@ So the check that would have prevented the mistake this document found twice is 
 
 **(a) The two collapses, first, and independently of any decision here.** §1 is two data edits with no notation attached, both measured at 0 corpus words moved, both removing rules the files themselves describe as enumerations. The files' comments should record the widening and its measurement, the way the tapping block records its own.
 
-**(b) The count in [captures.md](captures.md) should be corrected**, and so should one phrase. Its table lists `american-english | syllabic nasal / syllabic lateral | 2 | braces` and `spanish-accented | /ɹ/ → trill | 4 | braces`, and neither is right: the first repeats over a containment and the second over an inventory-exact class. *"Nine of the eleven families repeat because the notation cannot say or, and they hold 27 of the 35 rules"* should become eight families and 23 rules, with the boundary-versus-class split named, since that is the part of the number a recommendation can rest on. And "SPE's disjunction" should go, for §3's reason.
+**(b) Braces, as §10 describes them.** One per rule, terms and not values, refused on the right of an obligatory arrow, expanded at parse into the rules a `RuleSet` holds.
 
-**(c) Braces, as §10 describes them.** One per rule, terms and not values, refused on the right of an obligatory arrow, expanded at parse into the rules a `RuleSet` holds.
+**(c) The containment refusal, in the same commit.** It is the only exact part of §11, and shipping the device without it is shipping the failure mode with no instrument for it.
 
-**(d) The containment refusal, in the same commit.** It is the only exact part of §11, and shipping the device without it is shipping the failure mode with no instrument for it.
-
-**(e) The wildcard, separately and on its own merits.** The French schwa family wants a term meaning *any segment*, there is none, and writing it as a brace over two halves of everything is the one use of the device this document would refuse. It is one term matched against a unit that has a feature bundle, and it is not a braces question.
+**(d) The wildcard, separately and on its own merits.** The French schwa family wants a term meaning *any segment*, there is none, and writing it as a brace over two halves of everything is the one use of the device this document would refuse. It is one term matched against a unit that has a feature bundle, and it is not a braces question.
 
 **Not needed: captures, the span, or anything else from [captures.md](captures.md).** Measured, not assumed. The liaison family still wants a reference, still needs the linkage braces do not supply, and is untouched by anything here.
 
