@@ -86,6 +86,26 @@ class TractPoint:
 
 
 @dataclass(frozen=True)
+class Reading:
+    """A posture, and which of the bundle's features went into it.
+
+    ``read`` names the features whose stated value this call actually
+    consumed -- not the features that *could* be postural. The two are not
+    the same, and the difference is the whole reason this type exists:
+    ``height`` declares tract coordinates, but a bundle stating a
+    consonantal manner is read from ``place`` and ``manner`` and never
+    looks at ``height``, so a stated height reaches nothing.
+
+    :func:`unmodelled` asks this rather than asking whether a feature
+    carries coordinates, so that what a drawing claims to show is what it
+    was given.
+    """
+
+    point: TractPoint
+    read: frozenset[str]
+
+
+@dataclass(frozen=True)
 class Mark:
     """One thing a segment states that a sagittal posture cannot express.
 
@@ -937,9 +957,14 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
     Which features are already drawn is derived, not listed, so a feature
     added to ``ipa.xml`` is annotated without a code change here:
 
-    * a feature whose values declare tract coordinates is **postural** --
-      that is exactly what :func:`tract_point` reads -- so it is the
-      drawing already;
+    * a feature :func:`tract_reading` **read for this bundle** is the
+      drawing already. The question is what this call consumed, not what
+      the feature could have supplied: ``height`` declares coordinates
+      and is the offset of a vowel, and beside a consonantal manner it is
+      read by nothing. Asking whether the *feature* carries coordinates
+      answered for every bundle at once, so a posture that dropped a
+      stated value reported nothing missing and certified itself
+      complete;
     * a ``(feature, value)`` a bridge gives a ``port`` to is drawn as the
       velum, by :func:`velic_aperture`;
     * glottal state is drawn as the folds, by :func:`glottal_aperture`;
@@ -949,7 +974,12 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
       -- a tie joins two units, it does not shape one.
 
     What is left is stated and invisible, and the same declarations say
-    *why*, which is what ``Mark.kind`` carries: ``axis="+z"`` is the axis a
+    *why*, which is what ``Mark.kind`` carries: ``offscale`` is a value
+    declared to hold no position on its own axis (silence is not a degree
+    of constriction), a postural feature the reading did not take is
+    ``unread`` -- the posture went to another feature for that
+    coordinate, which is the only honest thing to say about a bundle
+    stating two postures at once -- ``axis="+z"`` is the axis a
     mid-sagittal section projects away (the feature's own ``desc`` says
     so), ``mode="release"`` is a phase of the segment rather than a posture
     of it, ``mode="prosodic"`` belongs to the unit rather than to the
@@ -967,16 +997,21 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
             if fine == scale.name
         }
     ported = {pair for ports in features.bridge_apertures.values() for pair in ports}
+    read = tract_reading(features, stated).read
     out: list[Mark] = []
     for name, feat in features.features.items():
         value = stated.get(name)
         if value is None or value == feat.default:
             continue
-        if feat.coordinates or name in glottal or name in features.secondary_places:
+        if name in read or name in glottal or name in features.secondary_places:
             continue
         if (name, value) in ported or feat.mode == "structural":
             continue
-        if feat.axis == "+z":
+        if feat.value_aliases.get(value, value) in feat.offscale:
+            kind = "off scale"
+        elif feat.coordinates:
+            kind = "unread"
+        elif feat.axis == "+z":
             kind = "out of plane"
         elif feat.mode == "release":
             kind = "phase"
@@ -1024,10 +1059,41 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
     tongue-tip explicitly), otherwise from the place's declared default.
     Unplaceable bundles (no manner, an off-scale manner like silence)
     yield an unplaced point.
+
+    The point alone does not say which of the bundle's features it came
+    from, and a bundle may state more than this reading takes: see
+    :func:`tract_reading`, which answers both.
     """
-    manner = bundle.get("manner")
+    return tract_reading(features, bundle).point
+
+
+def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
+    """:func:`tract_point`, and the features it read to get there.
+
+    The posture is one arc and one offset, so at most one feature
+    supplies each -- and which one depends on the bundle. A stated
+    ``height`` is the offset of a vowel and nothing at all beside a
+    consonantal manner; a stated ``place`` is the arc of a consonant and
+    nothing at all beside ``manner="vowel"``. Both are reachable: a rule
+    setting ``manner`` over a vowel produces exactly such a bundle.
+
+    A name lands in ``read`` where this call took its stated value and
+    got something back -- an arc, an offset, an articulator, or the
+    branch itself. Recording it here rather than restating the branch in
+    :func:`unmodelled` is what keeps the two from disagreeing about what
+    the picture holds.
+    """
     arc: float | None = None
     offset: float | None = None
+    read: set[str] = set()
+
+    def resolve(feature: str) -> str | None:
+        """The value the bundle states, under the name the data declares."""
+        feat = features.features.get(feature)
+        value = bundle.get(feature)
+        if feat is None or value is None:
+            return value
+        return feat.value_aliases.get(value, value)
 
     def value_attr(feature: str, value: str | None, attr: str) -> float | None:
         if value is None:
@@ -1036,9 +1102,15 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
         if feat is None:
             return None
         raw = feat.coordinates.get(feat.value_aliases.get(value, value), {}).get(attr)
+        if raw is not None:
+            read.add(feature)
         return raw
 
     articulator = bundle.get("articulator")
+    if articulator is not None:
+        # A stated articulator wins over the derived one on either branch,
+        # so stating it is always reading it.
+        read.add("articulator")
 
     def articulator_for(feature: str, value: str | None) -> str | None:
         if value is None:
@@ -1046,9 +1118,18 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
         feat = features.features.get(feature)
         if feat is None:
             return None
-        return feat.articulators.get(feat.value_aliases.get(value, value))
+        organ = feat.articulators.get(feat.value_aliases.get(value, value))
+        if organ is not None:
+            read.add(feature)
+        return organ
+
+    # Resolved through the aliases the same way every other value is: the
+    # branch is a read of the manner the bundle states, and an inventory
+    # spelling that manner by an alias takes the same branch.
+    manner = resolve("manner")
 
     if manner == "vowel":
+        read.add("manner")
         arc = value_attr("backness", bundle.get("backness"), "arc")
         offset = value_attr("height", bundle.get("height"), "offset")
         articulator = articulator or articulator_for("backness", bundle.get("backness"))
@@ -1078,6 +1159,7 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
                     if (organ := feat.articulators.get(comp)) is not None
                 ]
                 if organs:
+                    read.add("place")
                     seen: list[str] = []
                     for organ in organs:
                         if organ not in seen:
@@ -1086,4 +1168,7 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
                     # read back through Feature.expand.
                     articulator = Feature.COMBINER.join(seen)
         offset = value_attr("manner", manner, "offset")
-    return TractPoint(arc=arc, offset=offset, articulator=articulator)
+    return Reading(
+        point=TractPoint(arc=arc, offset=offset, articulator=articulator),
+        read=frozenset(read),
+    )
