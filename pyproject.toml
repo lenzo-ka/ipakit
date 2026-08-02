@@ -38,11 +38,20 @@ dependencies = []
 #   icu  - icukit-pyicu (bundled ICU + PyICU wheel, `import icu`); powers
 #          scripts/xsampa_table.py and the X-SAMPA cross-check. Dev-only, NEVER
 #          imported at runtime (ipakit ships the generated table in data/).
+#   interop - pyclts and panphon, the two libraries scripts/interop.py measures
+#          ipakit against. Same terms as icu: dev-only, NEVER imported at
+#          runtime, and read by one script rather than by the library. Neither
+#          generates anything ipakit ships -- the measurements they support are
+#          arguments in docs/design/interop.md, so the reason to pin them here
+#          is that a number nobody can reproduce is not evidence. pyclts also
+#          wants a clone of cldf-clts/clts, which is data under its own license
+#          and is not a Python dependency at all; the script says how to get it.
 #   dev  - everything, for local development.
 test = ["pytest>=7.0", "pytest-xdist>=3.0", "lxml>=5.0"]
 lint = ["ruff>=0.15", "mypy>=2.1", "black>=26.5,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
-dev = ["ipakit[test,lint,icu]"]
+interop = ["pyclts>=4.0", "panphon>=0.22"]
+dev = ["ipakit[test,lint,icu,interop]"]
 
 [project.urls]
 Homepage = "https://github.com/lenzo-ka/ipakit"
