@@ -24,7 +24,7 @@ The assessment is read-only. Nothing in this lane changed code, data, or tests.
 | Is it expressible on an insertion? | **No, and it fails silently.** 1 site found, 0 edits, no diagnostic. |
 | Would the shipped French liaison set collapse to one rule? | **No.** 2 of 29 corpus words wrong with the liaison half widened, 9 of 29 with both halves widened. |
 | How many shipped rules are repeated because a segment must be *copied*? | **4**, all in one family. |
-| How many are repeated because the notation cannot say *or*? | **27**, in nine families across four sets. |
+| How many are repeated because the notation cannot say *or*? | **23**, in eight families across four sets. |
 | Does a reference threaten finiteness? | **No.** A copying rule is in the growth class insertion already occupies: identical variant counts and form lengths, measured. |
 | Does a *span* threaten anything? | **Yes** — the non-overlap invariant in `Query.sites`, and four types' contracts. |
 | Does any of it reach the metric? | **No.** `ipakit.rules` is not in `ipakit/metric.py`'s module-level import closure, and no bundle key is added. |
@@ -238,17 +238,19 @@ The five shipped sets hold 86 rules. 35 of them sit in eleven families that stat
 |---|---|---|---|---|
 | american-english | tapping | 3 | left and right context | braces |
 | american-english | nasalization | 2 | right context | braces |
-| american-english | syllabic nasal / syllabic lateral | 2 | target and left context | braces |
+| american-english | syllabic nasal / syllabic lateral | 2 | target and left context | **a wider query, available today** |
 | french-liaison | liaison | 4 | **the segment, copied** | **reference** + braces |
 | french-liaison | final consonant deletion | 4 | the segment, not copied | braces |
 | french-liaison | final schwa deletion | 2 | left context | braces |
 | japanese-moraic | gemination | 2 | left context | braces |
 | japanese-moraic | epenthetic /o/, /i/, /u/ | 6 | right context | braces |
 | spanish-accented | prothesis | 2 | right context | braces |
-| spanish-accented | /ɹ/ → trill | 4 | left context | braces |
+| spanish-accented | /ɹ/ → trill | 4 | left context | **a declared class** for three of them, braces for the word edge |
 | spanish-accented, japanese | r-colored vowel | 4 | target | **a declared class, available today** |
 
-Nine of the eleven families repeat because the notation cannot say *or*, and they hold 27 of the 35 rules. One repeats because a segment has to be copied, and it needs both devices. One needs nothing that does not already exist.
+Eight of the eleven families repeat because the notation cannot say *or*, and they hold 23 of the 35 rules. One repeats because a segment has to be copied, and it needs both devices. Two need nothing that does not already exist.
+
+The syllabic and trill rows are [braces.md](braces.md)'s re-derivation: `[obstruent]` is contained in `[-vowel -approximant -trill -tap -silence]`, and `{n l s}` is one bracket over a Spanish inventory. Both are widenings and both are measured, at 0 corpus words moved.
 
 The last row is a free finding: `ɚ -> eɹ` and `ɝ -> eɹ` are the only two phones the inventory marks `+rhotacized`, so `[+rhotacized] -> eɹ` states both today and gives `bˈʌtɚ → bˈʌteɹ`, `ˈnɝs → ˈneɹs`. The Japanese set writes the same pair against `aː`. Four rules could be two with no new notation at all, which is a small thing except as evidence for how much of the apparent need for captures is really something else.
 
@@ -473,7 +475,7 @@ The spin-off finding below. `a -> i / [-vowel] _` fires on `∅a`, so a rule con
 
 ### (c) Braces, third, and ahead of captures
 
-§5 and §6 together: nine of the eleven repeated rule families across the five shipped sets are repeated because the notation cannot say *or*, and the one that is not needs braces as well. SPE has the device and states its expansion semantics at pp. 61–62: braces are ordered conjunctively, so a schema expands into a sequence of rules each of which applies — which is what this engine already is. If one change is built, this is the one.
+§5 and §6 together: eight of the eleven repeated rule families across the five shipped sets are repeated because the notation cannot say *or*, and the one that is not needs braces as well. SPE has the device and states its expansion semantics at pp. 61–62: braces are ordered conjunctively, so a schema expands into a sequence of rules each of which applies — which is what this engine already is. If one change is built, this is the one.
 
 The interaction with `~>` is the thing to get right and is not obvious: a braces schema expands to several rules, and several *optional* rules branch differently from one optional rule with several sites. The French *e caduc* pair is the worked case, and it must not be collapsible.
 
