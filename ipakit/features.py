@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import re
 import unicodedata
@@ -1609,6 +1610,42 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         _, _, order, symbol = min(candidates)
         return order, symbol
 
+    def _mark_rank(self, symbol: str) -> tuple[int, int, int]:
+        """Where one mark sits in a stack: how it binds, then its mode,
+        then its declaration.
+
+        The single ordering over marks, so a mark already spelled on a
+        base and a mark :meth:`compose_unit` picks this call are placed by
+        one rule. ``<modes>`` declares its modes in precedence order and
+        :func:`~ipakit.segment.modifier_mode` reads a mark's mode off the
+        keys the mark itself declares, so nothing here knows which glyph
+        is a release phase and which is a secondary articulation.
+        Declaration order breaks the remaining tie, which is what
+        :meth:`declaring_mark` already returns beside its answer, so two
+        marks of one mode stack in the order the data lists them.
+
+        Binding comes first because it is not this library's decision. A
+        combining mark attaches to the character *before* it, so one
+        written after a spacing modifier letter is a mark on that letter
+        and not on the phone: ``dʰ̥`` rings the ``ʰ``. Every combining
+        mark therefore precedes every spacing one, and the modes order
+        within each -- which is the answer the ``<modes>`` block was
+        always reaching for, since a mark that lands on the wrong
+        character has no mode on this segment at all.
+
+        Unicode has the last word among the combining marks themselves:
+        canonical ordering sorts them by combining class whatever is
+        decided here, which is why the spelling is normalized once before
+        it is checked.
+        """
+        modes = {mode: rank for rank, mode in enumerate(self.modes)}
+        order = {glyph: rank for rank, glyph in enumerate(self.diacritics)}
+        return (
+            1 if all(unicodedata.combining(ch) == 0 for ch in symbol) else 0,
+            modes.get(modifier_mode(self, symbol), len(modes)),
+            order.get(symbol, len(order)),
+        )
+
     def compose_unit(self, base: str, **changes: str) -> str | None:
         """Spell ``base`` wearing the declared marks that supply ``changes``.
 
@@ -1642,6 +1679,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         the same declaration. The marks are emitted in the order the
         ``<modes>`` block declares, so a release phase and a secondary
         articulation cannot land in an arbitrary order.
+
+        **Every** mark the unit ends up carrying is ordered, not only the
+        ones picked this call, and this is the whole of what makes the
+        method confluent. Appending the new marks after whatever was
+        already spelled on the base made the answer depend on the order
+        the calls arrived in: aspirating then devoicing a ``d`` gave
+        ``dʰ̥`` and devoicing then aspirating gave ``d̥ʰ`` -- one feature
+        bundle, two spellings, and iterative rule application is where
+        that bites, since a rule set applies one change at a time to
+        whatever the last rule left. The base is decomposed and the whole
+        mark stack re-emitted, so the two routes cannot diverge rather
+        than being checked not to.
+
+        A mark is ranked by :func:`~ipakit.segment.modifier_mode`, which
+        reads the mode off the mark's own declared keys. That is the same
+        read :func:`~ipakit.segment.apply_modifiers` uses to decide what a
+        mark contributes, and it answers for a mark already on the base --
+        which the requested feature's mode cannot, since a mark on the
+        base was not requested.
 
         Returns ``None`` unless the result re-emits itself, reads back
         carrying every requested value, **and moved nothing else**: the
@@ -1714,11 +1770,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         try:
             was = self.get_features(base)
+            unit = self.segment(base, strict=True)
         except (ValueError, KeyError):
             return None
 
-        precedence = {mode: rank for rank, mode in enumerate(self.modes)}
-        picked: list[tuple[int, int, str]] = []
+        picked: list[str] = []
+        written: dict[str, str] = {}
         for key, value in wanted.items():
             # Already true is a no-op, not a second mark. This is what
             # `respell` does -- `respell('ɫ', velarized='+')` is `'ɫ'` --
@@ -1737,15 +1794,51 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             found = self.declaring_mark(key, value, wanted=wanted)
             if found is None:
                 return None
-            order, symbol = found
-            mode = getattr(self.features[key], "mode", self.default_mode)
-            entry = (precedence.get(mode, len(precedence)), order, symbol)
-            if entry not in picked:
-                picked.append(entry)
+            _order, symbol = found
+            written[key] = value
+            if symbol not in picked:
+                picked.append(symbol)
 
-        picked.sort()
-        candidate = base + "".join(symbol for _, _, symbol in picked)
+        # The new marks join the ones the base already wears, and the whole
+        # stack is ordered together. New marks land on the LAST constituent
+        # because that is where writing them into the spelling put them; a
+        # mark on an earlier constituent of a tied unit belongs to that
+        # constituent and stays on it.
+        tail = unit.constituents[-1]
+        # A mark already on the base that states a key being written gives
+        # way to the mark writing it, rather than standing beside it. Two
+        # marks stating one feature is not a stack, it is a contradiction:
+        # `aʱ` asked for an aspirated release would be `aʰʱ`, which reads
+        # back as whichever of the two the projection reaches first.
+        #
+        # Read against `written` and not `wanted`: a key the base already
+        # satisfies wrote no mark, so nothing supersedes the one that is
+        # saying so. `ǀʼ` asked for the velaric airstream it already has
+        # would otherwise come back `ǀ`, the ejective mark dropped in the
+        # name of a change that moved nothing.
+        kept = tuple(
+            glyph
+            for glyph in tail.modifiers
+            if not any(
+                written.get(key, value) != value
+                for key, value in (
+                    getattr(self.diacritics.get(glyph), "features", None) or {}
+                ).items()
+                if key not in METADATA_ATTRS
+            )
+        )
+        marks = tuple(sorted(dict.fromkeys(kept + tuple(picked)), key=self._mark_rank))
+        rebuilt = unit.constituents[:-1] + (dataclasses.replace(tail, modifiers=marks),)
         try:
+            # Unicode has the last word on the order of combining marks:
+            # `̚` and `̃` are canonically reordered whatever the modes say,
+            # so the spelling is normalized once and then held to
+            # re-emitting *itself*. Ordering by mode and refusing whatever
+            # normalization touched would decline 6,746 compositions the
+            # inventory can spell perfectly well.
+            candidate = self.segment(
+                dataclasses.replace(unit, constituents=rebuilt).to_ipa()
+            ).to_ipa()
             if self.segment(candidate).to_ipa() != candidate:
                 return None
             got = self.get_features(candidate)
@@ -1776,10 +1869,21 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         excuses the other. Anything else is a second, independent claim,
         and a composition that makes one is answering a question nobody
         asked. Metadata is not a phonetic claim and is skipped.
+
+        A projection excuses a key the request is **silent** about, and
+        never one it names. Contradicting a requested value outright is
+        the one thing no other requested value can make right: the breathy
+        ring projects to ``voiced="+"``, so asking for ``phonation="modal"``
+        and ``voiced="+"`` together let it in on the strength of the
+        second half while flatly denying the first, and
+        ``compose_unit("c", phonation="modal", voiced="+")`` came back
+        ``c̤̬`` -- two phonation marks, breathy then modal, on one segment.
         """
         for key, value in bundle.items():
             if key in METADATA_ATTRS or wanted.get(key) == value:
                 continue
+            if key in wanted:
+                return False
             coarse = self.projections.get((key, value))
             if coarse is not None and wanted.get(coarse[0]) == coarse[1]:
                 continue
