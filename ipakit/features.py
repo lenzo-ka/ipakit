@@ -32,7 +32,7 @@ from .distance import DistanceMixin
 # `rules` reads `IPAFeatures._resolve_query`: `find` has to resolve a
 # Segment's prosody exactly as `form` and `rules` do, and a second copy of
 # that read is how the three of them would come to disagree.
-from .form import _prosodic_features
+from .form import _prosodic_features, boundary_marks
 from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
 from .phonemaps import _load_phonemap
@@ -46,11 +46,18 @@ from .segment import (
     flat_projection,
     modifier_mode,
     part_bundle,
+    takes_defaults,
 )
 from .validation import ValidationMixin
 
 #: What a resolved query term carries: one value, or a set of them.
 _T = TypeVar("_T")
+
+#: A resolved query for one namespace: (required, included, excluded).
+#: The three arms answer differently about an absent feature, which is
+#: what :meth:`IPAFeatures._query_matches` documents and what keeps a term
+#: from going vacuous on a bundle that omits the feature it names.
+_Terms = tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]
 
 
 def available_supplements() -> list[str]:
@@ -1166,6 +1173,35 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         positive[feature] = value
         return None
 
+    def _admit_values(
+        self,
+        inclusive: dict[str, set[str]],
+        feature: str,
+        term: str,
+        members: frozenset[str],
+    ) -> str | None:
+        """Record a natural class; report two classes that cannot both hold.
+
+        The counterpart of :meth:`_require_value` for the class arm, and
+        it exists for the same reason: a bracket is a conjunction, so two
+        classes over one feature mean the values in both, and where they
+        share none the query states something no unit can satisfy.
+        Reported rather than answered with silence, on the resolver's
+        standing policy that an impossible query is a mistake far more
+        often than an intent.
+        """
+        held = inclusive.get(feature)
+        admitted = set(members) if held is None else held & set(members)
+        if not admitted:
+            return (
+                f"the query asks for the class {term!r} alongside a class "
+                f"over feature {feature!r} that shares no value with it; a "
+                f"feature holds one value at a time and a query is a "
+                f"conjunction, so nothing can satisfy this"
+            )
+        inclusive[feature] = admitted
+        return None
+
     def _split_by_mode(
         self, terms: Mapping[str, _T]
     ) -> tuple[dict[str, _T], dict[str, _T]]:
@@ -1177,6 +1213,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         to the unit's prosody instead. Which features those are is read
         off :attr:`features_by_mode`, so no list of prosodic feature names
         appears here.
+
+        There is no third bucket, and that is why a term naming a
+        ``structural`` feature is refused before it gets here: a
+        structural feature belongs to a boundary or a juncture, not to a
+        unit, so neither of these two bags could ever answer one.
         """
         prosodic = self.features_by_mode.get("prosodic", frozenset())
         return (
@@ -1184,14 +1225,145 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             {k: v for k, v in terms.items() if k in prosodic},
         )
 
+    def _query_constraints(
+        self, query: dict[str, str] | list[str] | set[str]
+    ) -> tuple[_Terms, _Terms]:
+        """Resolve a query and split it into (segmental, prosodic) halves.
+
+        One resolution and one split, so :meth:`phones_matching`,
+        :meth:`find` and :class:`ipakit.rules.Pattern` cannot come to
+        different conclusions about which namespace a term belongs to.
+        The three of them used to reach that answer three ways --
+        ``phones_matching`` did not split at all, which is why
+        ``['-normal']`` answered one phone there and every unit in a rule.
+        """
+        required, included, excluded = self._resolve_query(query)
+        seg_required, pro_required = self._split_by_mode(required)
+        seg_included, pro_included = self._split_by_mode(included)
+        seg_excluded, pro_excluded = self._split_by_mode(excluded)
+        return (
+            (seg_required, seg_included, seg_excluded),
+            (pro_required, pro_included, pro_excluded),
+        )
+
+    def _prosody_asked(
+        self, feats: Mapping[str, str], prosody: Mapping[str, str]
+    ) -> Mapping[str, str]:
+        """A unit's prosody as a query sees it: asserted, plus the defaults.
+
+        :attr:`Segment.prosody` and :attr:`ipakit.form.Unit.prosody` are
+        what the *marks* say, and a mark for ``length="normal"`` does not
+        exist -- no shipped diacritic spells it, because it is what a unit
+        has when nothing is written on it. That is exactly what
+        ``default="normal"`` declares, and reading the assertion without
+        the declaration made the two halves of one feature answer
+        differently: ``[length=normal]`` found no site anywhere, while
+        ``[-normal]`` matched every unit there is.
+
+        So a query reads prosody the way it reads a feature bag: with the
+        declared defaults filled in under ``with_defaults``, and without
+        them under ``with_defaults=False``, where absence is again the
+        answer. The defaults are read off :attr:`features_by_mode` and the
+        declarations, so a prosodic feature declared later is filled here
+        without an edit.
+
+        Skipped for a non-speech bundle, on the same grounds
+        :func:`~ipakit.segment.fill_defaults` skips it: silence takes no
+        articulatory default and takes no prosodic one either.
+        """
+        if not takes_defaults(self, feats):
+            return prosody
+        filled = dict(prosody)
+        for name in self.features_by_mode.get("prosodic", frozenset()):
+            default = self.features[name].default
+            if default is not None and name not in filled:
+                filled[name] = default
+        return filled
+
+    def _satisfies(
+        self,
+        feats: Mapping[str, str],
+        prosody: Mapping[str, str],
+        segmental: _Terms,
+        prosodic: _Terms,
+        with_defaults: bool = True,
+    ) -> bool:
+        """The one place a unit is judged against a resolved query.
+
+        Every caller of the query language ends here --
+        :meth:`phones_matching` over the registered inventory,
+        :meth:`find` over a transcription, :meth:`ipakit.rules.Pattern.
+        matches` over a rule's site -- so "does this term hold of this
+        unit" has one answer rather than one per entry point.
+        """
+        if with_defaults:
+            prosody = self._prosody_asked(feats, prosody)
+        return self._query_matches(feats, *segmental) and self._query_matches(
+            prosody, *prosodic
+        )
+
+    def _structural_terms(self, *constrained: Mapping[str, object]) -> list[str]:
+        """Complaints for any resolved term naming a ``structural`` feature.
+
+        A structural feature is a property of a **boundary or a juncture**
+        -- ``level``, ``break``, ``linking``, ``tie`` -- and ``ipa.xml``
+        says so in the mode itself: "a level belongs to no segment's
+        feature bag". A unit has a feature bag and a prosody, and neither
+        of them can hold one, so ``[-word]`` and ``[-simultaneous]`` were
+        not narrow terms that happened to find nothing: they were terms
+        matched against a bag that could never carry the key, satisfied by
+        its absence, and so true of every segment there is.
+
+        Refused rather than answered, for the reason the empty query is
+        refused one arity up: a term that cannot constrain anything is a
+        query silently widened, and the widening is what makes it a wrong
+        answer instead of a narrow one. Which features these are is read
+        off :attr:`features_by_mode`, so a structural feature declared
+        later is refused without an edit here.
+        """
+        structural = self.features_by_mode.get("structural", frozenset())
+        named = sorted({k for terms in constrained for k in terms} & structural)
+        # The glyphs that carry a structural feature, read off the same
+        # declarations that carry it, so the advice names what this
+        # inventory actually spells rather than a list written here.
+        marks = " ".join(sorted(set(self.separators) | set(boundary_marks(self))))
+        return [
+            f"feature {name!r} is structural: it is a property of a "
+            f"boundary or a juncture, not of a segment, so no unit's "
+            f"features or prosody can answer a term over it. Name the "
+            f"mark itself instead ({marks}), or the boundary notation."
+            for name in named
+        ]
+
     def _resolve_query(
         self, query: dict[str, str] | list[str] | set[str]
-    ) -> tuple[dict[str, str], dict[str, set[str]]]:
-        """Resolve a feature query into (required, excluded) constraints.
+    ) -> tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]:
+        """Resolve a query into (required, included, excluded) constraints.
 
         The query language is documented on :meth:`phones_matching`;
         resolution is factored out here so :meth:`find` runs that same
         language over a transcription instead of growing a second one.
+
+        The three constraints are three different questions, and keeping
+        them apart is what stops a term going vacuous:
+
+        ``required``
+            one value, from ``place=velar`` or a bare value term.
+        ``included``
+            the values a **declared natural class** admits, from
+            ``[obstruent]``. Carried this way round rather than as the
+            exclusion of every value outside the class, which is what it
+            used to be: an exclusion is satisfied by a bundle that does
+            not carry the feature at all, so a class declared over a
+            feature some bundle omits would have matched that bundle
+            instead of skipping it. No class is declared over such a
+            feature today; this makes the day one is declared uneventful.
+        ``excluded``
+            the values an explicit ``-`` term forbids, from ``[-fricative]``
+            or ``[-obstruent]``.
+
+        The two negative-looking forms differ deliberately, and
+        :meth:`_query_matches` states the difference.
 
         **Every** term must resolve, whatever else is in the query.
         Dropping a term that names nothing while keeping the ones that do
@@ -1209,6 +1381,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         reached by writing the query the other way round.
         """
         positive: dict[str, str] = {}
+        inclusive: dict[str, set[str]] = {}  # feature -> values admitted
         negative: dict[str, set[str]] = {}  # feature -> values to exclude
         unresolved: list[str] = []
 
@@ -1232,22 +1405,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         unresolved.append(clash)
                     continue
                 # A declared natural class names several values of one
-                # feature. A bracket is a conjunction, so the class is
-                # carried as the exclusion of every value of that feature
-                # OUTSIDE it -- which is what the rule sets wrote out by
-                # hand, and is now derived from the declaration, so a
-                # manner added to the data joins the exclusion instead of
-                # widening the class. The negative arm is the class's own
-                # members, and the two compose: '[obstruent -fricative]'
-                # excludes the six sonorant manners and the fricatives.
+                # feature, and a bracket is a conjunction, so the positive
+                # form ADMITS its members and the negated form excludes
+                # them: '[obstruent -fricative]' admits the three
+                # obstruent manners and then takes the fricatives back
+                # out. Both arms are derived from the declaration, so a
+                # manner added to the data joins the class or stays
+                # outside it by what the data says.
+                #
+                # The positive arm used to be spelled as the exclusion of
+                # every value OUTSIDE the class, which agrees with this
+                # wherever the feature is present and disagrees where it
+                # is absent -- an exclusion holds vacuously there, so the
+                # class would have matched a bundle that has no such
+                # feature at all.
                 klass = self._resolve_class_term(term)
                 if klass is not None and prefix in ("", "+", "-"):
                     feat, members = klass
-                    negative.setdefault(feat, set()).update(
-                        members
-                        if prefix == "-"
-                        else self.features[feat].values_set - members
-                    )
+                    if prefix == "-":
+                        negative.setdefault(feat, set()).update(members)
+                    elif clash := self._admit_values(inclusive, feat, term, members):
+                        unresolved.append(clash)
                     continue
                 resolved = self._resolve_query_term(term, prefix=prefix)
                 if not resolved:
@@ -1285,28 +1463,58 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 if clash := self._require_value(positive, key, value):
                     unresolved.append(clash)
 
+        unresolved.extend(self._structural_terms(positive, inclusive, negative))
         if unresolved:
             raise ValueError("; ".join(unresolved))
-        if not positive and not negative:
+        if not positive and not inclusive and not negative:
             raise ValueError(
                 f"no feature terms resolved from {query!r}; an unresolved "
                 "query would match the entire inventory"
             )
-        return positive, negative
+        return positive, inclusive, negative
 
     @staticmethod
     def _query_matches(
         feats: Mapping[str, str],
         required: dict[str, str],
+        included: dict[str, set[str]],
         excluded: dict[str, set[str]],
     ) -> bool:
         """True if a feature bundle satisfies resolved query constraints.
 
         The bundle is read and never written, so it is typed by what is
         asked of it: a unit's features and prosody are read-only.
+
+        **What an absent feature answers**, which is the whole of the
+        difference between the three arms:
+
+        ``required`` and ``included`` are claims *about* a feature, so a
+        bundle that does not carry the feature does not satisfy them. A
+        vowel declares no ``place``, so ``place=velar`` skips it and so
+        does ``[obstruent]``, which is a claim about its manner.
+
+        ``excluded`` is satisfied by absence, and that is a **deliberate
+        three-valued reading**: ``stress`` declares ``primary`` and
+        ``secondary`` and no default, so a unit carrying no stress is
+        unstressed, and ``[-primary -secondary]`` -- which is how the
+        shipped American English rule set says "unstressed" -- has to hold
+        of it.
+
+        That reading is only safe because absence is confined to the
+        features whose declaration allows it. A feature declaring a
+        ``default`` is filled in every bundle a query is asked of, the
+        feature bag through :func:`~ipakit.segment.fill_defaults` and
+        prosody through :meth:`_prosody_asked`, so no term over it is ever
+        decided by absence. That is what ``[-normal]`` turned on: ``length``
+        declares ``default="normal"``, the default was filled into the
+        feature bag where the term is not asked, and left out of the
+        prosody where it is -- so ``[-normal]`` matched every unit and
+        ``[length=normal]`` matched none.
         """
-        return all(feats.get(k) == v for k, v in required.items()) and all(
-            feats.get(k) not in vals for k, vals in excluded.items()
+        return (
+            all(feats.get(k) == v for k, v in required.items())
+            and all(feats.get(k) in vals for k, vals in included.items())
+            and all(feats.get(k) not in vals for k, vals in excluded.items())
         )
 
     def phones_matching(
@@ -1320,15 +1528,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         Searches the registered inventory; :meth:`find` runs the same query
         over the units of a transcription.
+
+        A registered phone is a unit that has been written down with
+        nothing on it, so it is judged as one, through the same
+        :meth:`_satisfies` that answers for a transcription and for a
+        rule's site. It carries no prosodic mark, which is not the same as
+        carrying no prosody: what an unmarked unit has is what the
+        declaration says it has by default. Asked instead of the feature
+        bag alone -- which is what this did -- a prosodic term was put to a
+        bag that has prosody taken out of it, and ``['-normal']`` answered
+        one phone here while the same term matched every unit in a rule.
         """
-        required, excluded = self._resolve_query(query)
+        segmental, prosodic = self._query_constraints(query)
         return [
             symbol
             for symbol in self.phones
-            if self._query_matches(
+            if self._satisfies(
                 self.get_features(symbol, with_defaults=with_defaults),
-                required,
-                excluded,
+                {},
+                segmental,
+                prosodic,
+                with_defaults=with_defaults,
             )
         ]
 
@@ -1371,17 +1591,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         have to be re-parsed for any of them. The token form costs one
         comprehension: ``[(i, u.to_ipa()) for i, u in find(...)]``.
         """
-        required, excluded = self._resolve_query(query)
-        seg_required, pro_required = self._split_by_mode(required)
-        seg_excluded, pro_excluded = self._split_by_mode(excluded)
+        segmental, prosodic = self._query_constraints(query)
         return [
             (i, unit)
             for i, unit in enumerate(self.segments(ipa))
-            if self._query_matches(
-                unit.scalar(with_defaults=with_defaults), seg_required, seg_excluded
-            )
-            and self._query_matches(
-                _prosodic_features(unit, self), pro_required, pro_excluded
+            if self._satisfies(
+                unit.scalar(with_defaults=with_defaults),
+                _prosodic_features(unit, self),
+                segmental,
+                prosodic,
+                with_defaults=with_defaults,
             )
         ]
 

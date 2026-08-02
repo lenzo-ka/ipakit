@@ -2122,18 +2122,22 @@ class TestTheTrapsTheFilesRecord:
     the file's advice is wrong and needs rewriting -- which is the point.
     """
 
-    def test_a_plain_vowel_carries_no_length_so_length_normal_matches_nothing(self):
-        """Why gemination is conditioned on '[vowel -long]'.
+    def test_a_plain_vowel_carries_its_declared_length_so_both_spellings_work(self):
+        """The trap this pinned has been closed, and the pin now says so.
 
-        'normal' is the declared default for the feature, but the default
-        is not written onto the unit, so the positive spelling matches no
-        vowel at all -- and a rule that matches nothing is silent.
+        'normal' is the declared default for the feature. It was not
+        written onto the unit, and a query reads a unit rather than a
+        declaration, so '[length=normal]' matched no vowel anywhere while
+        '[-normal]' matched every unit there is -- one term, two vacuous
+        answers, opposite signs. The default is now filled where the term
+        is asked, so the positive and the negative spelling partition the
+        same units and gemination could be conditioned either way round.
         """
         assert FEATURES.features["length"].default == "normal", "premise moved"
         positive = R._pattern("[vowel length=normal]", FEATURES)
         negative = R._pattern("[vowel -long]", FEATURES)
         short, long = R.units("a aː", FEATURES)[0], R.units("aː", FEATURES)[0]
-        assert not positive.matches(short, FEATURES), "length=normal now works"
+        assert positive.matches(short, FEATURES)
         assert not positive.matches(long, FEATURES)
         assert negative.matches(short, FEATURES)
         assert not negative.matches(long, FEATURES)

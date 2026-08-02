@@ -481,19 +481,34 @@ class TestTheTwoArmsRefuseAlike:
     def test_the_arms_agree_where_they_resolve(self, ipa: IPAFeatures) -> None:
         """And the refusal is not a narrowing: wherever a bare term names
         one (feature, value), the dict spelling of it selects the same
-        phones."""
+        phones.
+
+        A structural feature is refused in both arms rather than answered
+        in either, and the sweep asserts that too. ``level`` is a property
+        of a boundary, a query is asked of a unit, and which way round the
+        term is written does not change either fact.
+        """
+        structural = ipa.features_by_mode.get("structural", frozenset())
         checked = 0
+        refused = 0
         for name, feature in ipa.features.items():
             for value in sorted(feature.values_set):
                 if value in _PREFIXES:
                     continue
                 if ipa._resolve_query_term(value) != (name, value):
                     continue
+                if name in structural:
+                    for query in ([value], {name: value}):
+                        with pytest.raises(ValueError, match="is structural"):
+                            ipa.phones_matching(query)
+                    refused += 1
+                    continue
                 assert ipa.phones_matching([value]) == ipa.phones_matching(
                     {name: value}
                 ), (name, value)
                 checked += 1
         assert checked > 50, f"sweep did not run: {checked}"
+        assert refused >= len(structural), f"structural sweep did not run: {refused}"
 
     def test_a_generative_overlap_still_resolves(self, ipa: IPAFeatures) -> None:
         # The dict arm expands each component, so a declared overlap is

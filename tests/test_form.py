@@ -21,6 +21,7 @@ broken for one above it.
 from __future__ import annotations
 
 import ipakit
+import ipakit.rules as R
 import pytest
 from ipakit.features import IPAFeatures
 from ipakit.form import (
@@ -609,14 +610,19 @@ class TestABoundaryPatternMatchesItsLevelOrStronger:
         assert ipakit.rewrite("ab", "b -> o / _ #") == "ao"
         assert ipakit.rewrite("ab", "b -> o / _ |") == "ab"
 
-    def test_naming_a_level_in_a_query_still_matches_nothing(self):
-        """Pin the escape: the new tiers add no notation.
+    def test_naming_a_level_in_a_query_is_refused(self):
+        """The tiers add no notation, and the query says so out loud.
 
         A bracketed query is compared against a *segment's* bundle, and a
         boundary has none, so ``[level=phrase]`` cannot hold. ``#``, ``.``
         and ``%`` are the level notations, and ``|``/``‖`` are matched as
         the literal marks they are.
+
+        Refused rather than answered "no site". A term over a feature no
+        unit can carry is not a narrow term: on the negative side of the
+        same coin, ``[-word]`` was satisfied by the absence of the key and
+        so matched every segment there is.
         """
-        for spec in ("a -> o / _ [level=phrase]", "a -> o / _ [level=word]"):
-            assert ipakit.rewrite("a|b", spec) == "a|b"
-            assert ipakit.rewrite("a#b", spec) == "a#b"
+        for spec in ("a -> o / _ [level=phrase]", "a -> o / _ [-word]"):
+            with pytest.raises(R.RuleError, match="is structural"):
+                ipakit.rewrite("a|b", spec)

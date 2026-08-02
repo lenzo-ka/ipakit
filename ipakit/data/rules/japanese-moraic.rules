@@ -177,11 +177,12 @@ a͜ʊ -> au ; aʊ is a + u
 # that can be named, and the cost is one rule per member. It is only
 # genuinely inexpressible where that union is open-ended.
 #
-# '[vowel -long]' and not '[vowel length=normal]'. MEASURED: a plain 'a'
-# carries no length in its prosody at all, so 'length=normal' matches
-# NOTHING even though 'normal' is the declared default for the feature.
-# The exclusion form is the one that works. This is recorded here because
-# the positive spelling looks obviously right and fails silently.
+# '[vowel -long]', and '[vowel length=normal]' says the same thing.
+# MEASURED: a plain 'a' reads 'length=normal' in a query, which is what
+# 'default="normal"' declares of a unit nothing is written on, and 'aː'
+# reads 'long'. The two spellings partition the same vowels. The
+# exclusion form is kept because the rule is about a vowel that has not
+# been lengthened, rather than about a declared value.
 #
 # ONE RULE PER CONTEXT, over a class -- and it was eight literal lines per
 # context until a sibling lane made prosody writable. The note that stood

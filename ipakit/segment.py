@@ -18,7 +18,7 @@ sequential diphthong).
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -140,6 +140,19 @@ def _is_non_speech(features: IPAFeatures, feats: dict[str, str]) -> bool:
     )
 
 
+def takes_defaults(features: IPAFeatures, feats: Mapping[str, str]) -> bool:
+    """Whether a bundle is a speech segment, and so takes declared defaults.
+
+    :func:`fill_defaults` asks this of a feature bag and
+    :meth:`~ipakit.IPAFeatures._prosody_asked` asks it of the same bag
+    before filling the *prosody* beside it, so a bundle cannot be
+    articulatorily bare and prosodically furnished. Silence answers no
+    here, and so does a position that is not a segment at all -- a
+    declared zero carries a ``class`` and nothing to constrict with.
+    """
+    return feats.get("manner") is not None and not _is_non_speech(features, dict(feats))
+
+
 def apply_modifiers(
     features: IPAFeatures,
     feats: dict[str, str],
@@ -196,6 +209,19 @@ def fill_defaults(features: IPAFeatures, feats: dict[str, str]) -> dict[str, str
 
     Skipped entirely for a non-speech bundle (see :func:`_is_non_speech`).
     Mutates and returns ``feats``.
+
+    A ``mode="prosodic"`` default lands here too, and it is the one kind
+    that does not belong: prosody is not in this bag by design, so a
+    ``length`` sitting in it can only ever say ``normal``, which is right
+    for ``a`` and wrong for ``aː``. :func:`~ipakit.form._segmental` takes
+    those keys back out of ``Unit.features`` for that reason, and no query
+    reads them here -- a prosodic term is put to the unit's prosody, where
+    :meth:`~ipakit.IPAFeatures._prosody_asked` fills the same declared
+    default. What they are still doing is sitting in the metric's
+    comparison bundle, where an always-agreeing key is a term in the
+    denominator of every distance: taking them out moves 9413 pairs of
+    9591, which is a change to the metric and not to a query, and is not
+    made here.
     """
     if _is_non_speech(features, feats):
         return feats
