@@ -2116,23 +2116,54 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         documented heuristic: two adjacent vocalic bases bind sequentially
         (under-tie: a trajectory), anything else binds simultaneously
         (over-tie). Write the tie explicitly to override.
+
+        A tie binds the preceding **unit** -- a base and the marks written
+        on it -- which is what :meth:`parse` reads back off the result, so
+        the run of marks a base carries is taken by :meth:`_modifier_run`
+        here too and the two cannot come to disagree about where a unit
+        ends. Walking characters and letting any mark reset the left side
+        meant a mark between two bases declined the tie outright
+        (``d̪ɮ``), and on a longer chain moved it to the wrong junction:
+        ``d̠ʒxʼ`` tied ``ʒ`` to ``x``.
+
+        A mark that binds something other than the base before it does end
+        the unit, and that is the same run: a stress mark scopes what
+        follows, a break and the linking tie stand between units. So
+        ``pə.tˈeɪ.toʊ`` still ties within each syllable and across
+        neither.
+
+        Every adjacent pair inside one group is tied, so a whole word
+        handed over as one group comes back as one unit. That is the
+        contract -- the grouping is the assertion -- and not something
+        this can detect: ``add_ties("kæt")`` is ``k͡æ͡t`` because ``kæt``
+        was offered as a segment.
         """
         if self.tie_bars & set(segment):
             return segment
 
-        result = []
+        result: list[str] = []
         prev_phone_char = ""
-        for char in segment:
-            is_phone = char in self.phones
-            if is_phone and prev_phone_char:
-                tie = (
+        i = 0
+        while i < len(segment):
+            char = segment[i]
+            i += 1
+            if char not in self.phones:
+                result.append(char)
+                prev_phone_char = ""
+                continue
+            if prev_phone_char:
+                result.append(
                     self.seq_tie
                     if self._vocalic(prev_phone_char) and self._vocalic(char)
                     else self.tie_bar
                 )
-                result.append(tie)
             result.append(char)
-            prev_phone_char = char if is_phone and char not in self.diacritics else ""
+            prev_phone_char = char
+            # The marks written on this base ride with it into the unit the
+            # next tie binds to.
+            run = self._modifier_run(segment, i)
+            result.extend(run)
+            i += len(run)
         return "".join(result)
 
     def normalize(self, segments: str) -> str:
