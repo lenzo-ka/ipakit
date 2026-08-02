@@ -86,9 +86,11 @@ ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', .
 ### Conversions
 
 ```python
-# CMU ARPABET
+# CMU ARPABET — one symbol per segment, so a tie decides where the segments are
 ipakit.to_cmu("ˈkæt")             # ['K', 'AE1', 'T']
 ipakit.from_cmu(["K", "AE1", "T"])  # 'kˈæt'
+ipakit.to_cmu("nˈɔ͜ɪŋ")            # ['N', 'OY1', 'NG']   tied: one vowel
+ipakit.to_cmu("nˈɔɪŋ")             # ['N', 'AO1', 'IH0', 'NG']   untied: two
 
 # X-SAMPA (ASCII)
 ipakit.ipa_to_xsampa("t͡ʃ")        # 't_S'
@@ -108,8 +110,13 @@ them to raise `ValueError` on unconvertible input instead:
 
 ```python
 ipakit.to_cmu("k4t")                # ['K', 'T']  (the '4' is skipped)
-ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert to CMU ARPABET: ...
+ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert IPA segment: ...
+ipakit.to_cmu("ø", strict=True)     # ValueError: Cannot convert to CMU ARPABET: ...
 ```
+
+Two layers report, and each speaks for itself: `4` is registered nowhere, which
+the tokenizer says, and `ø` is well-formed IPA that ARPABET has no symbol for,
+which the converter says.
 
 Tokenization follows the same policy, and is never silent about it: a character
 registered nowhere is dropped with a warning, and `strict=True` raises instead —

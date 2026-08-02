@@ -150,8 +150,18 @@ class TestTheConverterLanes:
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
     def test_to_cmu(self, ipa: IPAFeatures, alias: str) -> None:
+        """The alias is judged on what it spells, whatever that verdict is.
+
+        Two of the seven spell an affricate ARPABET has a symbol for and
+        five do not, so the shared answer is ``[]`` for those five --
+        ``to_cmu`` reads one unit and the table has no row for it. The
+        next test is what keeps this one from passing vacuously.
+        """
         canonical = ipa.ligature_map[alias]
-        assert ipakit.to_cmu(alias) == ipakit.to_cmu(canonical) != []
+        assert ipakit.to_cmu(alias) == ipakit.to_cmu(canonical)
+
+    def test_the_two_aliases_arpabet_can_spell_convert(self) -> None:
+        assert [ipakit.to_cmu("ʧ"), ipakit.to_cmu("ʤ")] == [["CH"], ["JH"]]
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
     def test_to_timit(self, ipa: IPAFeatures, alias: str) -> None:

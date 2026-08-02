@@ -17,9 +17,11 @@ bundles rather than one named key.
 """
 
 import warnings
+from unittest import mock
 
 import pytest
-from ipakit import IPAFeatures, Segment
+from ipakit import IPAFeatures, Phone, Segment
+from ipakit.analysis import _VOWEL_SLOTS as VOWEL_SLOTS
 from ipakit.constants import METADATA_ATTRS
 
 from tests.corpus import TIES
@@ -294,3 +296,128 @@ def _accounted(ipa: IPAFeatures, text: str) -> bool:
         return sorted(ch for ch in s if not ipa.is_structural_token(ch))
 
     return substantive(emitted) == substantive(text)
+
+
+def _vowel_letters(ipa: IPAFeatures) -> list[str]:
+    """Every registered vowel that is one constituent and spells itself
+    back: the atoms a fused pair is built from."""
+    return [
+        symbol
+        for symbol, phone in ipa.phones.items()
+        if phone.features.get("manner") == "vowel"
+        and not ipa.tie_bars & set(symbol)
+        and ipa.segment(symbol).to_ipa() == symbol
+    ]
+
+
+class TestAPrimarySlotCannotLeakAcrossTheMerge:
+    """A fused unit's flat read merges left to right, last constituent
+    wins -- and a constituent that *states* nothing leaves the earlier
+    value standing. That is the wanted rule for a modifier feature
+    (``kʷ͡p`` keeps ``labialized='+'``, ``ɚ͡ɜ`` stays r-colored), and it
+    is a wrong answer for a slot the phone's own name is built from.
+
+    Fourteen of the vowel letters declared no roundedness at all,
+    leaning on the binary default, so the merge read their silence as
+    "no opinion": ``features("u͡i")`` came out close, front and
+    *rounded*, and ``to_phone`` of it was ``y`` -- a phone neither
+    constituent is, and one nothing in the string spells. The fix is in
+    the data (every vowel now states its own roundedness), and the
+    guard is the sweep below rather than the case: a slot that goes
+    unstated later fails here, not in whichever tie chain a caller
+    happens to write.
+    """
+
+    def test_every_vowel_states_every_slot_of_its_own_name(
+        self, ipa: IPAFeatures
+    ) -> None:
+        vowels = [
+            symbol
+            for symbol, phone in ipa.phones.items()
+            if phone.features.get("manner") == "vowel"
+        ]
+        for symbol in vowels:
+            declared = ipa.phones[symbol].features
+            missing = [slot for slot in VOWEL_SLOTS if slot not in declared]
+            assert not missing, f"{symbol!r} states no {missing}"
+        assert len(vowels) > 30, "the vowel inventory collapsed; sweep is vacuous"
+
+    def test_validate_reports_a_vowel_that_does_not(self, ipa: IPAFeatures) -> None:
+        """The check above is the inventory's; this is the library's, so a
+        caller's own ``ipa.xml`` is held to it too."""
+        assert ipa.validate() == []
+        for slot in VOWEL_SLOTS:
+            stated = dict(ipa.phones["i"].features)
+            stated.pop(slot)
+            doctored = Phone(symbol="i", features=stated)
+            with mock.patch.dict(ipa.phones, {"i": doctored}):
+                assert f"Missing '{slot}' for vowel 'i'" in ipa.validate()
+
+    def test_a_fused_vowel_pair_reads_the_second_vowels_slots(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Over every fused pair of vowel letters, not a sample.
+
+        Letters rather than every registered vowel: a chain holding a
+        *sequential* juncture projects its first block instead of
+        merging the whole of itself, so ``a͡a͜ɪ`` reads ``a͡a`` by rule
+        and has no business being asked what its last constituent says.
+        """
+        vowels = _vowel_letters(ipa)
+        checked = 0
+        for first in vowels:
+            for second in vowels:
+                unit = first + ipa.tie_bar + second
+                if ipa.segment(unit).to_ipa() != unit:
+                    continue
+                flat = ipa.get_features(unit, with_defaults=False)
+                last = ipa.phones[ipa.segment(unit).constituents[-1].base].features
+                for slot in VOWEL_SLOTS:
+                    assert flat.get(slot) == last.get(slot), (unit, slot)
+                checked += 1
+        assert checked > 900, f"sweep covered only {checked} pairs"
+
+    def test_the_flat_read_names_a_vowel_the_unit_spells(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The consequence, and the shape of the reported defect: whatever
+        ``to_phone`` answers for a fused vowel pair, it is one of the
+        vowels written in it -- or the r-colored pair below."""
+        vowels = _vowel_letters(ipa)
+        strangers = []
+        for first in vowels:
+            for second in vowels:
+                unit = first + ipa.tie_bar + second
+                segment = ipa.segment(unit)
+                if segment.to_ipa() != unit:
+                    continue
+                named = ipa.to_phone(ipa.get_features(unit))
+                spelled = {c.base for c in segment.constituents} | {unit}
+                if named is not None and named not in spelled:
+                    strangers.append((unit, named))
+        assert strangers == [("ɚ͡ɜ", "ɝ"), ("ɝ͡ə", "ɚ")]
+
+    def test_the_two_that_still_name_a_stranger_are_the_other_rule(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Pinned rather than fixed, so the boundary stays known.
+
+        ``rhotacized`` is a modifier feature, not a slot of a vowel's
+        name, and a fused unit inheriting it from its first constituent
+        is the documented merge working: ``ɚ͡ɜ`` is an r-colored
+        open-mid central vowel, which ``ɝ`` is the registered spelling
+        of. If these two ever start coming back as constituents, the
+        merge rule has changed and the test above needs re-reading.
+        """
+        assert ipa.get_features("ɚ͡ɜ", with_defaults=False)["rhotacized"] == "+"
+        assert "rhotacized" not in ipa.phones["ɜ"].features
+
+    def test_the_reported_case_and_the_one_next_to_it(self, ipa: IPAFeatures) -> None:
+        assert ipa.to_phone(ipa.get_features("u͡i")) == "i"
+        assert ipa.to_phone(ipa.get_features("i͡u")) == "u"
+        # Rule 3, and not a defect: a sequential chain projects its first
+        # block, so its flat bundle is one constituent's and never
+        # outranks the atom matching it equally well. An assessment
+        # refuted the claim that this one is broken; it is pinned here so
+        # the fix above cannot be widened onto it by mistake.
+        assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"

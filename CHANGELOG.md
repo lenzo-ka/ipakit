@@ -74,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/reviewing.md`, how defects in this library are actually found.
 - `docs/articulatory-data.md` and `scripts/articulatory.py`: the tract geometry measured against the X-Ray Microbeam database.
 - `scripts/invariants.py`, one command for the properties the library holds; it exits non-zero, so it gates a release (#8, #17).
+- `scripts/interop.py premarks`, which marks outside sources write before a base, and `docs/ties.md`'s answer to what ipakit should do with one.
 - `CHANGELOG.md` ships in the sdist.
 
 ### Removed
@@ -136,6 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Eighteen vowel letters declared no roundedness, so a fused pair kept the first vowel's: `features("u͡i")` was close, front and rounded, and `to_phone` of it was `y`. Every vowel states every slot of its own name, and `validate()` says so.
+- `to_cmu` tokenized on its own table and disagreed with `segments`, reading the untied `ɔɪ` of `N AO1 IH0 NG` as `OY1`; it converts one segment at a time, and CMUdict round-trips exactly.
+- `to_cmu` took one tie glyph per category and raised on the other, so `t͜ʃ` and `e͡ɪ` were refused while `t͡ʃ` and `e͜ɪ` converted; ARPABET distinguishes neither, and both spellings convert.
 - `arc` is stated in `ipa.xml` and again on every vertex in `heads.xml` and nothing held the two together; `scripts/invariants.py` gates the vertex arcs against the declarations, pins the arclength disagreement, and asserts the ascent `project` assumes.
 - `scripts/areafunctions.py arc` read only the midlines, so it reported 0.062 as the largest arc disagreement in a file whose largest is 0.064, on a nasal branch.
 - A tract coordinate declared on a typed feature's value was silently dropped by the loader and validated by `ipa.rng`; `scripts/invariants.py` now refuses the declaration instead of ignoring it.

@@ -3067,7 +3067,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         text = self.canonicalize_unicode(text)
         text = self.normalize_lookalikes(text)
-        for variant, canonical in self._wild_variants().items():
+        for variant, canonical in self._wild_variants.items():
             text = text.replace(variant, canonical)
 
         # Remaining ties belong to unregistered chains. Wild text uses one
@@ -3115,25 +3115,40 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     chars[i] = self.seq_tie if both_vocalic else self.tie_bar
         return "".join(chars)
 
+    def tie_glyph_variants(self, spelling: str) -> list[str]:
+        """Every spelling of ``spelling`` differing only in which glyph
+        writes each of its ties -- itself excluded, and ``[]`` when it
+        holds no tie.
+
+        The two glyphs are distinct *senses* in house style, so this is
+        not a normalization the parser performs. It is what a reader of
+        outside convention needs, where the glyphs are typographic free
+        variants: :meth:`from_wild` maps a variant of a registered name
+        back to that name, and a converter whose target alphabet cannot
+        express the sense at all (ARPABET has one ``CH``) keys its table
+        under both. Written once here so those two readers cannot come to
+        enumerate the variants differently.
+        """
+        positions = [i for i, ch in enumerate(spelling) if ch in self.tie_bars]
+        variants = []
+        for mask in range(1, 2 ** len(positions)):
+            chars = list(spelling)
+            for bit, pos in enumerate(positions):
+                if mask & (1 << bit):
+                    chars[pos] = (
+                        self.seq_tie if chars[pos] == self.tie_bar else self.tie_bar
+                    )
+            variants.append("".join(chars))
+        return variants
+
+    @functools.cached_property
     def _wild_variants(self) -> dict[str, str]:
         """Glyph-variant spellings of registered tied names -> canonical,
-        longest first so longer chains win. Cached per instance."""
-        cached: dict[str, str] | None = getattr(self, "_wild_variants_cache", None)
-        if cached is not None:
-            return cached
+        longest first so longer chains win."""
         variants: dict[str, str] = {}
         for name in self.phones:
-            if not self.tie_bars & set(name):
-                continue
-            positions = [i for i, ch in enumerate(name) if ch in self.tie_bars]
-            for mask in range(1, 2 ** len(positions)):
-                chars = list(name)
-                for bit, pos in enumerate(positions):
-                    if mask & (1 << bit):
-                        chars[pos] = (
-                            self.seq_tie if chars[pos] == self.tie_bar else self.tie_bar
-                        )
-                variants["".join(chars)] = name
+            for variant in self.tie_glyph_variants(name):
+                variants[variant] = name
         return dict(sorted(variants.items(), key=lambda kv: -len(kv[0])))
 
     def import_phoneset(self, phoneset: Phoneset) -> Phoneset:

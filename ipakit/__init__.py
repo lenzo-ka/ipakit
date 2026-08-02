@@ -5,7 +5,7 @@ Simple API:
 
     ipa.distance("p", "b")              # a voicing difference
     ipa.features("p")                   # {'manner': 'plosive', ...}
-    ipa.to_cmu("ˈhɛloʊ")                # ['HH', 'EH1', 'L', 'OW0']
+    ipa.to_cmu("ˈhɛlo͜ʊ")               # ['HH', 'EH1', 'L', 'OW0']
     ipa.to_ipa(ipa.segments("hɛl"))     # 'hɛl'
     ipa.tokenize("t͡ʃe͜ɪnd͡ʒ")          # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
     ipa.normalize("tʃ eɪ n dʒ")         # 't͡ʃe͜ɪnd͡ʒ'
@@ -321,6 +321,11 @@ def to_cmu(
     strict: bool = False,
 ) -> list[str]:
     """Convert IPA string to list of CMU ARPABET symbols.
+
+    One symbol per segment :func:`segments` reads, so a word has the same
+    number of phones under both. A tie is what makes two vowels one
+    segment: ``ɔ͜ɪ`` is ``OY`` and untied ``ɔɪ`` is ``AO IH``. Either tie
+    glyph is accepted, since ARPABET draws no distinction between them.
 
     With ``strict=True``, raise ``ValueError`` on unconvertible phones.
     """

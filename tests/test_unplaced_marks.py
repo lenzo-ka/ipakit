@@ -242,3 +242,64 @@ class TestNoMarkIsOverruledByItsBase:
             f"{len(overruled)} units read back a value their own mark "
             f"contradicts, e.g. {overruled[:3]}"
         )
+
+
+class TestWhatARefusedPreArticulationCostsToday:
+    """The refusal above is deliberate and it is not the whole answer.
+
+    ``ⁿd``, ``ˀb``, ``ʰk`` are how every outside source spells a
+    pre-articulation, so refusing them turns away real field data --
+    loudly, which is the fix above, but away. What is pinned here is the
+    boundary of that refusal, because the two halves of it are easy to
+    confuse: the *sound* is in the model already and only the superscript
+    notation is missing. ``docs/ties.md`` argues the shape the notation
+    should take (an ``onset`` counterpart to ``release``) and
+    ``scripts/interop.py premarks`` counts the demand.
+
+    If ``ⁿd`` ever starts reading, these fail, and that is the point:
+    the reading it starts with should be a decision, not a side effect.
+    """
+
+    def test_a_prenasalized_stop_is_a_unit_the_library_already_reads(
+        self, ipa: IPAFeatures
+    ) -> None:
+        for spelling in ("n͡d", "m͡b", "ŋ͡ɡ"):
+            unit = ipa.segment(spelling, strict=True)
+            assert unit.kind.value == "prenasalized", spelling
+            assert unit.to_ipa() == spelling
+
+    def test_the_superscript_spelling_of_it_is_not(self, ipa: IPAFeatures) -> None:
+        with pytest.raises(ValueError, match="unplaced"):
+            ipa.segments("ⁿd", strict=True)
+
+    def test_the_two_spellings_are_not_the_same_claim(self, ipa: IPAFeatures) -> None:
+        """Why the chain is not the answer to the notation question.
+
+        A tied unit is two constituents with a juncture; a mark is one
+        constituent with a phase on it. The metric is structural, so the
+        two sit at very different distances from the same base -- reading
+        ``ⁿd`` as ``n͡d`` would move a prenasalized stop most of the way
+        from ``d`` to something else, where the release-mark spelling of
+        the mirror-image sound stays near it.
+        """
+        assert ipa.segment_distance("n͡d", "d") > 5 * ipa.segment_distance("dⁿ", "d")
+
+    def test_the_marks_written_before_a_base_are_the_release_marks(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The measurement's finding, as a claim about the inventory.
+
+        Over BIPA, CLTS's whole grapheme table and PHOIBLE, the marks
+        outside sources write before a base are the four declaring
+        ``release`` -- so the counterpart feature needs no vocabulary of
+        its own, only the other phase. This asserts that those four are
+        still one mode and still declare one feature between them; the
+        counts live in the script, which is where something re-runs them.
+        """
+        pre_articulations = ("ⁿ", "ˀ", "ʰ", "ʱ")
+        for mark in pre_articulations:
+            assert modifier_mode(ipa, mark) == "release", mark
+            stated = set(ipa.diacritics[mark].features) - METADATA_ATTRS
+            assert stated == {"release"}, mark
+        # And the one that shares the position without being a phase.
+        assert modifier_mode(ipa, "ʷ") == "secondary"

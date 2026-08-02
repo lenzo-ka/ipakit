@@ -57,6 +57,31 @@ Registered separators (the syllable break `.`, the word mark `#`), the declared 
 
 A **tie that binds nothing** on one side is the same kind of loss, and gets the same treatment: it carries no juncture, so it cannot be represented, and it is reported rather than emitted as a token of its own. `validate_ipa` flags it `malformed_tie`, the default path warns, and `strict=True` raises. The distinction matters because the tie is itself a registered diacritic: a dropped tie was never an "unknown symbol", so it slipped past `strict=` entirely and quietly turned one asserted unit into two.
 
+## A mark written before its base
+
+A mark binds the unit written before it. The exception is stress, which announces the syllable to come, and it is an exception the data states rather than a list the parser keeps: the marks that bind forward are the ones declaring `stress=`, read through `IPAFeatures.stress_markers`. Every other mark written where there is no preceding unit binds nothing, and is reported on the terms above — the warning names it, `strict=True` raises, and `validate_ipa` flags it `orphan_diacritic`.
+
+That refusal turns away a real convention. A **pre-articulation** is written before its base everywhere outside this library: `ⁿd` prenasalized, `ˀb` preglottalized, `ʰk` preaspirated. Two things about it are worth keeping apart.
+
+**A prenasalized stop already reads.** It is a tied unit, and the classification is in the model already:
+
+```python
+import ipakit
+
+ipakit.segment("n͡d").kind.value          # 'prenasalized'
+ipakit.segment("d͡n").kind.value          # 'pre-stopped'
+len(ipakit.segments("n͡d"))               # 1
+ipakit.segments("ⁿd", strict=True)       # ValueError: ... unplaced mark(s) ['ⁿ'] ...
+```
+
+So what is missing is the superscript *notation*, not the sound. The tied spelling is available today and it is worth knowing that it makes a different claim: two constituents with a juncture between them, where a mark makes one constituent with a phase on it. The two sit at very different distances from the base — `segment_distance("n͡d", "d")` against `segment_distance("dⁿ", "d")` — and that difference is the argument below.
+
+**The shape the notation should take is decided, and is not built.** A superscript *after* a base states its release: `dʰ` is `d` with `release="aspirated"`, a phase of the segment and never the whole of it. The same superscript *before* the base states the same kind of thing at the other end, so it should state an **onset**: `ⁿd` is `d` with a nasal onset. `release` is a declared feature and its counterpart is not, which is the whole of the gap.
+
+Measured over BIPA's sound table, every spelling CLTS's source datasets used, and PHOIBLE — `scripts/interop.py premarks` is the count — the marks written before a base are, in order, exactly the four that declare `release`: nasal, glottal, aspirated and breathy. The counterpart therefore needs no new vocabulary, only the other phase. Two things share that position and are not pre-articulations: `ʷ` (labialization is a secondary articulation, which spans the segment rather than naming a phase of it, so `ʷk` stays refused) and the tone bars, which are a syllable's pitch written ahead of it and a question of their own.
+
+Three readings were considered and refused. A **binding flag** on the mark says where it attaches and not what the unit becomes, and a prenasalized stop is neither a nasal nor a plain stop — only a feature can say that. Re-reading `ⁿd` **as the tied `n͡d`** answers a feature question with a tokenization decision, and it moves the unit away from its own base by a juncture's worth of distance. Reading `ⁿd` as **two segments** does the same and changes the unit count, which is what alignment and vector counts are built on.
+
 ## Registered compounds are derived, not hand-encoded
 
 Tied entries in `ipa.xml` carry only their spelling, aliases, and reference link; their **features are derived at load** by the same composer that serves unregistered chains, under each entry's sense (affricates via the simultaneous merge, diphthongs via the sequential first-element projection). Registration is therefore a cache of composition by construction — registered and computed values cannot drift, and `IPAFeatures.derived_phones` lists the entries this applies to. Every tied entry is derived — composition resolves diacritic-bearing parts (`ʊ̯` = base + non-syllabic modifier) as constituents.

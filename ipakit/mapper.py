@@ -1,19 +1,28 @@
-"""CMUMapper class for IPA to CMU ARPABET conversion."""
+"""CMUMapper class for IPA to CMU ARPABET conversion.
+
+ARPABET is a **phone set**: every row of ``cmu.xml`` spells one segment,
+and a conversion is therefore one lookup per segment. So this module does
+not tokenize. It asks :meth:`~ipakit.IPAFeatures.segments` where the
+segments are and maps what comes back, which is what keeps ``to_cmu`` and
+``segments`` from being two tokenizers with two answers -- they were, and
+they disagreed on 31 of CMUdict's 135,166 entries, because a greedy walk
+over the table's keys read the untied ``ɔɪ`` of ``N AO1 IH0 NG`` as the
+one segment ``OY1``. The tie is what says whether two vowels are one
+segment, and only the tokenizer reads it.
+"""
 
 from __future__ import annotations
 
 import functools
+import warnings
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from ._convert import (
-    ipa_features,
-    longest_match,
-    report_unconvertible,
-    resolve_aliases,
-)
+from ._convert import ipa_features, report_unconvertible
 from .constants import DEFAULT_CMU_MAP
 from .models import PhoneMapping
+from .segment import Segment
 
 
 @functools.lru_cache(maxsize=1)
@@ -37,6 +46,26 @@ def _stress_to_marker() -> dict[int, str]:
     return {level: sym for sym, level in _stress_markers().items()}
 
 
+@dataclass
+class _Read:
+    """One pass of an IPA string against the CMU table.
+
+    ``ipa_to_cmu`` and ``validate_ipa_for_cmu`` are the same walk asked
+    two questions, so they are one walk: the pair used to be two loops
+    that agreed by habit, which is the arrangement this module's own
+    defect came out of.
+    """
+
+    #: (unit, its row, the stress mark standing on it) per segment read;
+    #: the row is None for a unit the table has no spelling for.
+    units: list[tuple[Segment, PhoneMapping | None, str | None]] = field(
+        default_factory=list
+    )
+    #: What ARPABET cannot carry: a unit with no row, spelled whole, and
+    #: each mark a row was matched without.
+    lost: list[str] = field(default_factory=list)
+
+
 class CMUMapper:
     """Bidirectional mapper between IPA and CMU ARPABET."""
 
@@ -45,7 +74,7 @@ class CMUMapper:
         self._extras_cmu_to_ipa: dict[str, dict[int, str]] = {}
         self._extras_ipa_to_cmu: dict[str, PhoneMapping] = {}
         self._ipa_to_cmu: dict[str, PhoneMapping] = {}
-        self._tie_normalizations: list[tuple[str, str]] = []
+        self._tie_variants: dict[str, str] = {}
         self._load(xml_path)
 
     def _load(self, xml_path: Path) -> None:
@@ -74,35 +103,68 @@ class CMUMapper:
         if (extras := root.find("extras")) is not None:
             load_section(extras, self._extras_ipa_to_cmu, self._extras_cmu_to_ipa)
 
-        # Derive tie normalizations from IPA phones with tie bars. Which
-        # characters those are is ipa.xml's answer, read through
-        # `IPAFeatures.tie_bars` rather than named here -- the same move
-        # `_stress_markers` above makes for the stress glyphs.
-        ties = ipa_features().tie_bars
-        for ipa in self._ipa_to_cmu:
-            if ties & set(ipa):
-                untied = ipa
-                for glyph in ties:
-                    untied = untied.replace(glyph, "")
-                self._tie_normalizations.append((untied, ipa))
-
-    def _normalize_ipa(self, ipa: str) -> str:
-        """Bring input to the spelling the CMU table is keyed on.
-
-        Alias resolution first, by the parser's own code: the table holds
-        ``t͡ʃ``, and an accepted alias spelling of it would otherwise match
-        nothing and be dropped.
-        """
-        ipa = resolve_aliases(ipa)
-        for old, new in self._tie_normalizations:
-            ipa = ipa.replace(old, new)
-        return ipa
+        # A tied row is reachable under either tie glyph, because ARPABET
+        # has no way to say which one was written: `CH` is the affricate
+        # and there is no second symbol for a sequential `t͜ʃ`, so a table
+        # keyed on one glyph and silent about the other refuses half of
+        # what a front end emits -- and it refused opposite halves for
+        # affricates and diphthongs, since cmu.xml spells the affricates
+        # with the over-tie and the diphthongs with the under-tie. Which
+        # spellings those are is `IPAFeatures.tie_glyph_variants`'s
+        # answer, the same read `from_wild` uses.
+        features = ipa_features()
+        for ipa in (*self._ipa_to_cmu, *self._extras_ipa_to_cmu):
+            for variant in features.tie_glyph_variants(ipa):
+                self._tie_variants.setdefault(variant, ipa)
 
     def _ipa_lookup(self, include_extras: bool) -> dict[str, PhoneMapping]:
         """IPA->mapping lookup; extras are a fallback, the main map wins."""
         if include_extras:
             return {**self._extras_ipa_to_cmu, **self._ipa_to_cmu}
         return self._ipa_to_cmu
+
+    def _row(
+        self, spelling: str, lookup: dict[str, PhoneMapping]
+    ) -> PhoneMapping | None:
+        """The table row a unit's spelling names, under either tie glyph."""
+        return lookup.get(spelling) or lookup.get(
+            self._tie_variants.get(spelling, spelling)
+        )
+
+    def _read(
+        self, ipa_string: str, include_extras: bool = False, strict: bool = False
+    ) -> _Read:
+        """Read an IPA string as segments and match each against the table.
+
+        The tokenizer speaks for the input -- an unregistered character is
+        its report to make, and ``strict`` is handed straight to it -- and
+        this speaks for the table. Two layers, two voices, neither of them
+        guessing on the other's behalf.
+
+        A unit whose whole spelling names no row is tried again unmarked,
+        because a diacritic is a distinction ARPABET does not draw at all:
+        ``ɛː`` and ``ɛ̃`` are ``EH``, and the mark that could not come
+        with them is named in the report rather than passed over. What is
+        *not* retried is the unit boundary. A boundary is the tokenizer's
+        answer and this makes no second one.
+        """
+        features = ipa_features()
+        lookup = self._ipa_lookup(include_extras)
+        markers = _stress_markers()
+        read = _Read()
+        for unit in features.segments(ipa_string, strict=strict):
+            stress = next((m for m in unit.prosody if m in markers), None)
+            carried = [m for m in unit.prosody if m not in markers]
+            if (row := self._row(unit.spelling, lookup)) is None:
+                unmarked = unit.unmarked()
+                if (row := self._row(unmarked.spelling, lookup)) is not None:
+                    carried += [m for c in unit.constituents for m in c.modifiers]
+            if row is None:
+                read.lost.append(unit.spelling)
+            else:
+                read.lost += carried
+            read.units.append((unit, row, stress))
+        return read
 
     def ipa_to_cmu(
         self,
@@ -112,6 +174,14 @@ class CMUMapper:
         strict: bool = False,
     ) -> list[str]:
         """Convert IPA string to list of CMU symbols.
+
+        One symbol per segment :meth:`~ipakit.IPAFeatures.segments` reads,
+        so the two never disagree about how many phones a word has. An
+        untied vowel pair is two segments and converts as two: ``ɔɪ`` is
+        ``AO IH`` and only ``ɔ͜ɪ`` is ``OY``, which is what ``from_cmu``
+        writes for it. Untied input from a front end goes through
+        :meth:`~ipakit.IPAFeatures.from_wild` or ``add_ties`` first --
+        espeak's ``--ipa=2`` and phonemizer's ``tie=True`` need neither.
 
         Args:
             ipa_string: IPA string to convert
@@ -126,74 +196,63 @@ class CMUMapper:
         Raises:
             ValueError: If strict=True and unconvertible phones are found
         """
+        read = self._read(ipa_string, include_extras, strict)
+        markers = _stress_markers()
         result = []
-        skipped = []
-        ipa_string = self._normalize_ipa(ipa_string)
-        i = 0
         pending_stress = None
 
-        lookup = self._ipa_lookup(include_extras)
-
-        while i < len(ipa_string):
-            char = ipa_string[i]
-            if char in (markers := _stress_markers()):
-                pending_stress = markers[char]
-                i += 1
+        for _, row, mark in read.units:
+            if mark is not None:
+                pending_stress = markers[mark]
+            if row is None:
                 continue
+            cmu = row.cmu
+            # A mark binds the unit after it, and that unit is often a
+            # consonant -- `ˈkæt` stresses `k` -- while ARPABET writes the
+            # level on the vowel. So the level waits for a row that has
+            # somewhere to put it.
+            if with_stress and row.stress:
+                stress = pending_stress if pending_stress is not None else 0
+                if stress not in row.stress:
+                    stress = (
+                        0
+                        if 0 in row.stress
+                        else (1 if 1 in row.stress else min(row.stress))
+                    )
+                cmu = f"{cmu}{stress}"
+                pending_stress = None
+            result.append(cmu)
 
-            key, match_len = longest_match(ipa_string, i, lookup, 5)
-            match = lookup[key] if key else None
-
-            if match:
-                cmu = match.cmu
-                if with_stress and match.stress:
-                    stress = pending_stress if pending_stress is not None else 0
-                    if stress not in match.stress:
-                        stress = (
-                            0
-                            if 0 in match.stress
-                            else (1 if 1 in match.stress else min(match.stress))
-                        )
-                    cmu = f"{cmu}{stress}"
-                    pending_stress = None
-                result.append(cmu)
-                i += match_len
-            else:
-                # Track skipped character
-                skipped.append(ipa_string[i])
-                i += 1
-
-        report_unconvertible(skipped, "to CMU ARPABET", strict=strict)
+        report_unconvertible(read.lost, "to CMU ARPABET", strict=strict)
 
         return result
 
     def validate_ipa_for_cmu(
         self, ipa_string: str, include_extras: bool = False
     ) -> list[str]:
-        """Check if IPA string can be fully converted to CMU.
+        """Everything in ``ipa_string`` that a CMU conversion cannot carry.
 
-        Returns list of unconvertible characters (empty if all convertible).
+        Empty means :meth:`ipa_to_cmu` loses nothing. The two layers are
+        asked in the order the conversion meets them -- what the inventory
+        cannot read (:meth:`~ipakit.IPAFeatures.validate_ipa`'s errors,
+        each of which is a symbol that reaches no unit), then what the
+        table has no row for -- and the second is the conversion's own
+        walk rather than a copy of it, so a verdict here and an answer
+        there cannot come apart.
+
+        Asked silently: a validator that warns about what it was asked to
+        report leaves a caller nothing to do with the warning.
         """
-        skipped = []
-        ipa_string = self._normalize_ipa(ipa_string)
-        i = 0
-
-        lookup = self._ipa_lookup(include_extras)
-
-        while i < len(ipa_string):
-            char = ipa_string[i]
-            if char in _stress_markers():
-                i += 1
-                continue
-
-            key, match_len = longest_match(ipa_string, i, lookup, 5)
-            if key:
-                i += match_len
-            else:
-                skipped.append(ipa_string[i])
-                i += 1
-
-        return skipped
+        features = ipa_features()
+        unreadable = [
+            item["symbol"]
+            for item in features.validate_ipa(ipa_string)
+            if item["type"] == "error" and "symbol" in item
+        ]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            read = self._read(ipa_string, include_extras)
+        return unreadable + read.lost
 
     def cmu_to_ipa(
         self,
