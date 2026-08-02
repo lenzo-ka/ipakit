@@ -63,6 +63,35 @@ were two anchors: ``∅ -> ə / # _`` took ``tæt`` to ``ətæt`` but ``#tæt#``
 to ``ə#ətæt#ə``. :func:`_anchors` coalesces the anchor set, and the same
 run rule refuses a context that names two boundaries in a row.
 
+The claim is about *every* reading of a run, and there are three: an
+insertion point (:func:`_anchors`), a context item (:meth:`Query._side`)
+and a **target** (:func:`_target_end`). The target was the last to hold
+it, and until it did a rule fired once per written mark -- ``. -> #``
+took ``a..b`` to ``a##b``, one boundary in and two out. The quiet half of
+that is the trace: a rule deleting every mark of a run spelled the right
+surface and still reported one change per mark, where the contract says
+there is one.
+
+So a target that matched a boundary spans the run, ``[lo, hi)``. A site
+wider than one unit is what docs/design/captures.md refused under the
+name *span*, and this is not that. There the width is stated by the
+rule -- ``ab -> ba``, n patterns and n terms with a permutation on the
+right -- and it costs the things that document lists: overlapping sites
+where the scan is one wide, a decision about which of several new units
+inherits a mark that rode the span, an exchange check per term. Here the
+rule states one pattern and matches one boundary; the width is a fact
+about how the *form* was spelled. Maximal stretches cannot overlap, so
+the sites stay disjoint and ``Query.sites`` keeps its promise; the right
+of the arrow keeps its single implicit term; and a boundary carries no
+prosody for anything to inherit. What does widen is :attr:`Edit.before`,
+which reports the run as it was written -- the honest reading of a
+rewrite whose input was two marks.
+
+The run is walked as far as **the pattern** matches rather than as far
+as :func:`_run` goes, which is the same "a boundary pattern is a class"
+rule read from the other side: ``. -> ∅`` takes the whole of ``.‿``,
+while ``‿ -> ∅`` names one mark and leaves the dot where it was written.
+
 The optional item ``(∅)`` answers to this too. Matching the virtual edge
 puts the scan past the end of the form, and refusing everything after it
 without asking whether it was optional made the edge weaker than a
@@ -176,11 +205,14 @@ a variable that reached a form would be a phone. See :func:`_agreement`.
 Metathesis does **not** fall out of this, and the two are worth keeping
 apart because they rhyme. An agreement variable copies a feature *value*
 between positions the rule already matched; metathesis *reorders* the
-positions themselves, which needs a target spanning more than one unit
-and a permutation on the right of the arrow. A :class:`Pattern`
-constrains one unit and a :class:`Site` spans one, so ``ab -> ba`` is
-refused by the parser exactly as it was before this. docs/calculus.md
-records that as a limit that agreement variables do not lift.
+positions themselves, which needs a target of more than one *term* and a
+permutation on the right of the arrow. A target is one :class:`Pattern`,
+so ``ab -> ba`` is refused by the parser exactly as it was before this.
+docs/calculus.md records that as a limit that agreement variables do not
+lift. (A :class:`Site` is one pattern's match, which is one unit for a
+segment and one boundary for a boundary -- and a boundary is however many
+marks were written for it, per the run rule above. Width alone is not
+what metathesis is short of; terms are.)
 
 **A rule may be optional, and optionality is per site.** ``ə ~> ∅ / ...``
 says the rule *may* fire, not that it does, and the branch point is the
@@ -1043,7 +1075,9 @@ class Site:
     """Where a rule's environment holds, against one form.
 
     ``start``/``end`` bound the target in the unit sequence; they are
-    equal for an insertion, which occupies no position. ``left`` and
+    equal for an insertion, which occupies no position, and they bound a
+    whole boundary *run* where the target matched one, since a run of
+    marks is one boundary (:func:`_target_end`). ``left`` and
     ``right`` record the indices the context matched, so a trace can say
     *which* neighbors licensed the change and not merely that some did.
     An entry is ``None`` where no unit licensed that item: the context
@@ -1082,6 +1116,62 @@ def _run(items: Sequence[Unit], gap: int) -> tuple[int, int]:
     while hi < len(items) and items[hi].is_boundary:
         hi += 1
     return lo, hi
+
+
+def _target_end(
+    items: Sequence[Unit], start: int, pattern: Pattern, features: IPAFeatures
+) -> int:
+    """Where a target that matched ``items[start]`` stops.
+
+    ``start + 1`` for a segment, and for a boundary the end of the run it
+    opens: a run of marks is **one** boundary, in a target exactly as in
+    a context (:func:`_side`) and at an insertion point (:func:`_anchors`).
+    Without this a rule fired once per written mark -- ``. -> #`` took
+    ``a..b`` to ``a##b``, turning one boundary into two -- and a deletion
+    that got the spelling right still reported two changes in the trace
+    where the contract says there is one.
+
+    The run is walked as far as **the pattern itself matches**, not as far
+    as :func:`_run` goes. A boundary pattern is a class, and which marks a
+    run is made of is how a rule is exact about which boundary it means:
+    ``. -> ∅`` is "syllable or stronger" and takes the whole of ``.‿``,
+    while ``‿ -> ∅`` names one mark and takes only that one, leaving the
+    dot where it was written. Walking the whole run instead would delete
+    marks the rule never named.
+
+    Only rightward, because :meth:`Query.sites` scans left to right and
+    then resumes at the end returned here: the first unit of the stretch
+    is the first one the pattern matched, so there is nothing to its left
+    to absorb.
+
+    **This is not the span docs/design/captures.md refused.** That span is
+    a target whose width the *rule* states -- ``ab -> ba``, n patterns and
+    n terms, with a permutation on the right -- and it breaks things this
+    does not: ``aa`` on ``aaa`` finds overlapping sites, so non-overlap
+    stops being an accident of a one-wide scan; ``_carry_prosody`` has to
+    say which of several new units inherits a mark that rode a permuted
+    span; ``_check_no_exchange`` has to run per term. Here the rule states
+    one pattern and matches one boundary. The width is a fact about how
+    the *form* was spelled, so the sites stay disjoint by construction --
+    a maximal stretch has no other maximal stretch overlapping it -- the
+    right of the arrow still has the one implicit term it always had, and
+    a boundary carries no prosody for anything to inherit. What widens is
+    :attr:`Edit.before`, which reports the run as written; that is the
+    honest reading of a rewrite whose input was two marks.
+    """
+    if not items[start].is_boundary:
+        return start + 1
+    end = start + 1
+    # No bindings: `Pattern.matches` answers a boundary from `mark` or
+    # `boundary` alone and returns before it reaches a variable, so a run
+    # cannot bind and there is no environment to thread through here.
+    while (
+        end < len(items)
+        and items[end].is_boundary
+        and pattern.matches(items[end], features)
+    ):
+        end += 1
+    return end
 
 
 def _anchors(
@@ -1279,6 +1369,12 @@ class Query:
 
         Scanned left to right against ``items`` as given -- the caller
         passes a snapshot, and nothing here mutates it.
+
+        Non-overlap is what a wider site would put at risk, and a
+        boundary target is one: the scan resumes past the run rather than
+        inside it, and a maximal stretch has no other maximal stretch
+        overlapping it, so the sites stay disjoint. ``_apply_edits``
+        splices rightmost-first on that.
         """
         found: list[Site] = []
         index = 0
@@ -1314,13 +1410,19 @@ class Query:
             if not self.target.matches(unit, features, bindings):
                 index += 1
                 continue
+            end = _target_end(items, index, self.target, features)
+            # Context reads outward from the site, so the right of it
+            # begins past the whole run and not past its first mark.
             left = self._side(items, index, self.left, -1, features, bindings)
-            right = self._side(items, index, self.right, +1, features, bindings)
+            right = self._side(items, end - 1, self.right, +1, features, bindings)
             if left is None or right is None:
-                index += 1
+                # Past the run, not past its first mark. Resuming inside it
+                # would offer the rest of the same boundary as a second
+                # candidate, which is the thing `_target_end` is for.
+                index = end
                 continue
-            found.append(Site(index, index + 1, left, right, _bound(bindings)))
-            index += 1
+            found.append(Site(index, end, left, right, _bound(bindings)))
+            index = end
         return found
 
 
