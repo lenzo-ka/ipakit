@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
+from typing import TypeVar
 
 from ._convert import longest_match, require_convertible
 from .analysis import AnalysisMixin
@@ -24,6 +25,13 @@ from .constants import (
     ZERO_CLASS,
 )
 from .distance import DistanceMixin
+
+# What a unit's prosody marks say, derived contour included. Underscored
+# because it is internal to the package rather than to the module, the way
+# `rules` reads `IPAFeatures._resolve_query`: `find` has to resolve a
+# Segment's prosody exactly as `form` and `rules` do, and a second copy of
+# that read is how the three of them would come to disagree.
+from .form import _prosodic_features
 from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
 from .phonemaps import _load_phonemap
@@ -39,6 +47,9 @@ from .segment import (
     part_bundle,
 )
 from .validation import ValidationMixin
+
+#: What a resolved query term carries: one value, or a set of them.
+_T = TypeVar("_T")
 
 
 def available_supplements() -> list[str]:
@@ -1045,7 +1056,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 return (feat_name, members)
         return None
 
-    def _unresolved_term(self, spelled: str, term: str, prefix: str) -> str:
+    def _unresolved_term(
+        self, spelled: str, term: str, prefix: str, value: str | None = None
+    ) -> str:
         """Why one query term named nothing, and what would have worked.
 
         The value arm of the ``key=value`` guard in :mod:`ipakit.rules`
@@ -1056,7 +1069,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         point -- ``stress`` declares ``primary`` and ``secondary``, so
         there is no ``-`` to take and the spelling that means what it
         looks like is per-value negation.
+
+        ``value`` is the dict arm's case, where the feature name resolved
+        and what was asked of it did not. It is the same diagnostic and
+        not a second one, so a query dict and a query list answer a
+        misspelling in one voice.
         """
+        if value is not None:
+            feature = self.features.get(term)
+            if feature is not None:
+                hint = (
+                    f". {value!r} is a declared natural class over those "
+                    f"values, and a class is not a value: ask for it as the "
+                    f"bare term {value!r}"
+                    if value in feature.value_classes
+                    else ""
+                )
+                return (
+                    f"{spelled!r} resolves to no feature term; {value!r} is "
+                    f"not a value of feature {term!r}, whose declared values "
+                    f"are {sorted(feature.values_set)}{hint}"
+                )
         klass = self._resolve_class_term(term)
         if klass is not None:
             return (
@@ -1091,6 +1124,65 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             f"{values}"
         )
 
+    def _require_value(
+        self, positive: dict[str, str], feature: str, value: str
+    ) -> str | None:
+        """Record ``feature=value``; report a value already required for it.
+
+        The one place a positive constraint is written, because there are
+        three ways to reach one -- a short name, a ``+``/``-``/``0``
+        prefix on a feature name, and a term resolving to a value or a
+        value alias -- and a plain assignment at each of them let the last
+        writer win. ``['alveolar', 'velar']`` answered the velars and
+        ``['velar', 'alveolar']`` answered the alveolars: one query, two
+        answers, chosen by the order the terms were written, and by
+        nothing at all when the query is a ``set``.
+
+        A query is a **conjunction** wherever else this library reads one
+        -- that is what a rule's bracket means and what
+        :meth:`phones_matching` documents -- so two values for one feature
+        state something no phone can satisfy. Reporting it is the answer
+        rather than matching nothing, because an impossible query is far
+        more likely a mistake than an intent, and because a term that
+        resolves and is then discarded is the same silent widening this
+        resolver already refuses one arity up.
+
+        The message names the feature and its two values, sorted, and not
+        the term that happened to arrive second: the whole complaint about
+        the old behavior was that it depended on arrival order, and a
+        ``set`` has none to depend on.
+        """
+        held = positive.get(feature)
+        if held is not None and held != value:
+            both = " and ".join(repr(v) for v in sorted((held, value)))
+            return (
+                f"the query constrains feature {feature!r} to {both}; a "
+                f"feature holds one value at a time and a query is a "
+                f"conjunction, so nothing can satisfy this. Ask for the "
+                f"values in separate queries, or name a declared natural "
+                f"class over them"
+            )
+        positive[feature] = value
+        return None
+
+    def _split_by_mode(
+        self, terms: Mapping[str, _T]
+    ) -> tuple[dict[str, _T], dict[str, _T]]:
+        """Partition resolved query terms into (segmental, prosodic).
+
+        Prosody is a second namespace, not a second phone: ``features("a")
+        == features("ˈa") == features("aː")``, so a term naming ``stress``
+        or ``length`` has nothing to ask of a feature bag and must be put
+        to the unit's prosody instead. Which features those are is read
+        off :attr:`features_by_mode`, so no list of prosodic feature names
+        appears here.
+        """
+        prosodic = self.features_by_mode.get("prosodic", frozenset())
+        return (
+            {k: v for k, v in terms.items() if k not in prosodic},
+            {k: v for k, v in terms.items() if k in prosodic},
+        )
+
     def _resolve_query(
         self, query: dict[str, str] | list[str] | set[str]
     ) -> tuple[dict[str, str], dict[str, set[str]]]:
@@ -1107,6 +1199,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         written to exclude -- which is a wrong answer rather than a
         vacuous one, so it raises at every arity rather than only when
         nothing at all resolves.
+
+        That rule is stated of the *query*, so both arms keep it. The dict
+        arm used to keep neither half of it: ``{'not-a-feature': '+'}`` and
+        ``{'place': 'nonsense'}`` both resolved to themselves and matched
+        nothing, turning a misspelling into a plausible empty result --
+        which is the wrong answer the paragraph above exists to refuse,
+        reached by writing the query the other way round.
         """
         positive: dict[str, str] = {}
         negative: dict[str, set[str]] = {}  # feature -> values to exclude
@@ -1117,7 +1216,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # Whole string is a short name (e.g. '-voi', '+voi', '0trt').
                 if s in self._short_to_feature:
                     feat, val = self._short_to_feature[s]
-                    positive[feat] = val
+                    if clash := self._require_value(positive, feat, val):
+                        unresolved.append(clash)
                     continue
                 # Optional +/-/0 prefix selects a feature value directly.
                 prefix = s[0] if s[:1] in ("+", "-", "0") else ""
@@ -1127,7 +1227,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     and term in self.features
                     and prefix in self.features[term].values
                 ):
-                    positive[term] = prefix
+                    if clash := self._require_value(positive, term, prefix):
+                        unresolved.append(clash)
                     continue
                 # A declared natural class names several values of one
                 # feature. A bracket is a conjunction, so the class is
@@ -1154,15 +1255,34 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 feat, val = resolved
                 if prefix == "-":
                     negative.setdefault(feat, set()).add(val)
-                else:
-                    positive[feat] = val
+                elif clash := self._require_value(positive, feat, val):
+                    unresolved.append(clash)
         else:
-            # A dict names features directly, but its values still go
-            # through the alias table: labial-velar is the readable
-            # spelling of bilabial^velar and must match it.
+            # A dict names features directly, but its key and its value are
+            # held to the same standard the list arm holds a bare term to:
+            # both must be declared. Values go through the alias table --
+            # labial-velar is the readable spelling of bilabial^velar and
+            # must match it -- and a value may be a sequence of steps or a
+            # generative overlap, each part of which is checked in its own
+            # right, exactly as `respell` checks a change.
             for key, val in query.items():
+                spelled = f"{key}={val}"
                 feature = self.features.get(key)
-                positive[key] = feature.value_aliases.get(val, val) if feature else val
+                if feature is None:
+                    unresolved.append(self._unresolved_term(spelled, key, ""))
+                    continue
+                value = feature.value_aliases.get(val, val)
+                if not all(
+                    part in feature.values_set
+                    for step in feature.steps(value)
+                    for part in feature.expand(step)
+                ):
+                    unresolved.append(
+                        self._unresolved_term(spelled, key, "", value=val)
+                    )
+                    continue
+                if clash := self._require_value(positive, key, value):
+                    unresolved.append(clash)
 
         if unresolved:
             raise ValueError("; ".join(unresolved))
@@ -1227,6 +1347,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         exactly when its spelling matches there, and a composed unit, which
         :meth:`phones_matching` never sees, matches on the same terms.
 
+        A term naming a **prosodic** feature is put to the unit's prosody
+        rather than to that projection, because the projection has prosody
+        taken out of it by design: ``features("a") == features("ˈa")``.
+        Matched against the bag, ``['primary']`` found nothing and
+        ``['-primary', '-secondary']`` -- the spelling ``_unresolved_term``
+        recommends, and the shipped American English rule set writes --
+        answered "carries no stress" about a unit carrying primary stress.
+        The split is by declared mode and is the same one
+        :class:`ipakit.rules.Pattern` makes, so a query asked here and the
+        same query asked in a rule cannot come to different conclusions
+        about the same unit.
+
         Positions index :meth:`segments`, not characters: stress and
         structural marks are not units (they ride on the unit they modify,
         or between units), so ``find(s, q)[k]`` is ``(i, segments(s)[i])``.
@@ -1239,17 +1371,36 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         comprehension: ``[(i, u.to_ipa()) for i, u in find(...)]``.
         """
         required, excluded = self._resolve_query(query)
+        seg_required, pro_required = self._split_by_mode(required)
+        seg_excluded, pro_excluded = self._split_by_mode(excluded)
         return [
             (i, unit)
             for i, unit in enumerate(self.segments(ipa))
             if self._query_matches(
-                unit.scalar(with_defaults=with_defaults), required, excluded
+                unit.scalar(with_defaults=with_defaults), seg_required, seg_excluded
+            )
+            and self._query_matches(
+                _prosodic_features(unit, self), pro_required, pro_excluded
             )
         ]
 
     def to_phone(self, bundle: dict[str, str]) -> str | None:
-        """The registered symbol a feature bundle names: the inverse of
-        :meth:`get_features`.
+        """The registered symbol a feature bundle names.
+
+        A **canonicalizer over a lossy projection**, and not an inverse of
+        :meth:`get_features`, which it claimed to be and is not. The claim
+        holds where the projection does not lose anything -- ``t`` reads
+        out and comes back ``t`` -- and fails wherever it does: the flat
+        read of an under-tie chain is its first constituent (docs/ties.md),
+        so ``to_phone(get_features("a͜ɪ"))`` is ``"a"``. Nothing here is
+        wrong; there is simply nothing in a flat bundle that says a
+        diphthong was ever there. The phonetic keys of ``a͜ɪ`` and ``a``
+        are identical, and the one key that differs, ``href``, is a
+        documentation link rather than a fact about the sound and must not
+        be what picks a spelling.
+
+        What holds instead is idempotence on the answer:
+        ``to_phone(get_features(to_phone(b)))`` is ``to_phone(b)``.
 
         A candidate matches when it agrees on every key the caller wrote;
         keys the caller omitted are free. Candidates are read with their

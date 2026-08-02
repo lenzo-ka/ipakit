@@ -298,15 +298,20 @@ class TestCombiningSpellings:
         assert pl.value_distance("bilabial^NOTAPLACE", "bilabial") == 0.5
 
     def test_public_entry_points_are_unregressed(self, ipa: IPAFeatures) -> None:
-        # respell still names the offending value; a query for an unknown
-        # value is still empty rather than an exception.
+        # respell names the offending value, and so does a query: the
+        # generative expansion above is what `value_distance` needs, and
+        # comparison is where an undeclared component is answered with
+        # maximal distance. A *query* asking for one is a misspelling, and
+        # an empty result is a wrong answer that looks like an inventory
+        # fact -- which is the whole of `_resolve_query`'s stated policy.
         assert ipa.respell("k", place="labial-velar") == "k͡p"
         with pytest.raises(ValueError, match="is not a value of feature"):
             ipa.respell("t", place="bilabial^NOTAPLACE")
         with pytest.raises(ValueError, match="malformed value"):
             ipa.respell("t", place="bilabial^")
-        assert ipa.phones_matching({"place": "NOTAPLACE"}) == []
-        assert ipa.phones_matching({"place": "bilabial^NOTAPLACE"}) == []
+        for value in ("NOTAPLACE", "bilabial^NOTAPLACE"):
+            with pytest.raises(ValueError, match="resolves to no feature term"):
+                ipa.phones_matching({"place": value})
 
 
 class TestReferenceFrame:
