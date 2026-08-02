@@ -641,8 +641,17 @@
          above <projections>), and a mark that says one fact twice is
          exactly what that block exists to license. -->
     <diacritic name="̤" phonation="breathy" voiced="+" href="Breathy_voice"/>
-    <diacritic name="̥" phonation="devoiced" voiced="-" href="Voicelessness"/>
-    <diacritic name="̩" syllabic="+" href="Syllabic_consonant"/>
+    <!-- The next two carry the chart's above-the-symbol spelling as an
+         alias. The IPA writes the voicelessness ring and the syllabicity
+         line above a symbol whose descender leaves no room below it, and
+         means by `ŋ̊` and `ŋ̍` exactly what it means by `n̥` and `n̩`. They
+         are one mark spelled two ways, not two marks, so they are declared
+         the way every other second spelling in this file is, and the below
+         form stays canonical. Undeclared, both were unregistered characters:
+         `tokenize("ŋ̊")` answered `["ŋ"]` and dropped the voicelessness,
+         which every PHOIBLE segment spelled that way reaches. -->
+    <diacritic name="̥" phonation="devoiced" voiced="-" alias="̊" href="Voicelessness"/>
+    <diacritic name="̩" syllabic="+" alias="̍" href="Syllabic_consonant"/>
     <diacritic name="̪" place="dental" href="Dental_consonant"/>
     <diacritic name="̬" phonation="modal" voiced="+" href="Voice_(phonetics)"/>
     <diacritic name="̯" syllabic="-" href="Semivowel"/>
