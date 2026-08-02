@@ -1160,6 +1160,78 @@ def cmd_panphon_ties(_: Clts | None, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_premarks(clts: Clts, args: argparse.Namespace) -> int:
+    """Which marks outside sources actually write *before* a base, and how often.
+
+    `marks` asks what ipakit does with a mark in that position. This asks the
+    prior question -- which marks are written there at all -- because the cost
+    of reading them is set by how many distinct ones there are, and by whether
+    each states a phase of the segment or a property of the whole of it.
+
+    Counted over BIPA's sound table, over every spelling any CLTS source
+    dataset used (`data/graphemes.tsv`), and over the PHOIBLE mapping CLTS
+    ships, so a mark common in one and absent from the others cannot pass for
+    a general convention. Each mark is reported with what ipakit's own
+    inventory says it contributes when written *after* a base, which is what
+    says whether the pre-base reading is the same statement at the other end
+    of the segment or a different one.
+    """
+    ipa = load_ipa_features()
+    marks = set(ipa.diacritics) - set(ipa.tie_bars)
+
+    def leading(grapheme: str) -> str:
+        out: list[str] = []
+        for char in grapheme:
+            if char not in marks:
+                break
+            out.append(char)
+        return "".join(out)
+
+    sources = [
+        ("BIPA sounds", [row["GRAPHEME"] for row in clts.sounds]),
+        ("CLTS graphemes", _column(clts.root / "data" / "graphemes.tsv", "GRAPHEME")),
+        (
+            "PHOIBLE via CLTS",
+            _column(
+                clts.root / "pkg" / "transcriptiondata" / "phoible.tsv", "GRAPHEME"
+            ),
+        ),
+    ]
+    totals: collections.Counter[str] = collections.Counter()
+    for name, graphemes in sources:
+        assert len(graphemes) > 1000, f"{name}: read {len(graphemes)} rows"
+        counts = collections.Counter(run for g in graphemes if (run := leading(g)))
+        marked = sum(counts.values())
+        print(f"\n{name}: {len(graphemes)} spellings, {marked} lead with a mark")
+        for run, n in counts.most_common(args.top):
+            print(f"    {n:6d}  {run!r}")
+        for run, n in counts.items():
+            for char in run:
+                totals[char] += n
+
+    print("\n  by mark, over all three, with what ipakit reads it as after a base:")
+    for char, n in totals.most_common():
+        mark = ipa.diacritics.get(char)
+        states = {
+            k: v
+            for k, v in (mark.features.items() if mark else ())
+            if k not in ("name", "class", "href", "xsampa")
+        }
+        print(
+            f"    {n:6d}  {char!r} U+{ord(char):04X} "
+            f"{unicodedata.name(char, '?'):40s} {states}"
+        )
+    assert totals, "no leading marks found at all; the sources did not load"
+    return 0
+
+
+def _column(path: Path, column: str) -> list[str]:
+    """One column of a TSV, or an empty list when the file is not there."""
+    if not path.exists():
+        return []
+    return [row[column] for row in _read_tsv(path) if row.get(column)]
+
+
 # ---------------------------------------------------------------------------
 # Properties of ipakit that every external source runs into
 # ---------------------------------------------------------------------------
@@ -1401,6 +1473,7 @@ def _merge_class(before: list[str], after: list[str]) -> str:
 
 COMMANDS = {
     "segmentation": cmd_segmentation,
+    "premarks": cmd_premarks,
     "ties": cmd_ties,
     "features": cmd_features,
     "similarity": cmd_similarity,
