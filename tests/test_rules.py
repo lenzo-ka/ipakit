@@ -2561,3 +2561,76 @@ class TestABundleIsReadAsWhatWasWritten:
             assert len(written) == len(dict(written)) == len(terms), source
             checked += 1
         assert checked == 4
+
+
+class TestARunIsABoundaryOnTheRightOfTheArrowToo:
+    """``. -> .#`` was refused as "not a boundary", and it is one.
+
+    The exchange guard asked exact membership of the whole spelling in
+    the declared marks, so a right-hand side made *entirely* of boundary
+    marks failed a test named for whether it was a boundary at all. Under
+    this module's own run rule a run of marks is one boundary, which is
+    the reading every other position already took: ``∅ -> .# / a _ b``
+    was accepted and wrote that very run, so the same string was legal on
+    the right of an insertion and refused on the right of a rewrite.
+    """
+
+    def test_a_rewrite_may_write_a_run_as_an_insertion_may(self):
+        """The two positions agree, which is what was wrong."""
+        assert ipakit.rewrite("ab", "∅ -> .# / a _ b") == "a.#b"
+        assert ipakit.rewrite("a.b", ". -> .#") == "a.#b"
+        assert ipakit.rewrite("a.b", ". -> #.") == "a#.b"
+
+    @pytest.mark.parametrize("stray", ["a", "∅", R.ANY_BOUNDARY])
+    def test_a_run_carrying_anything_else_is_still_refused(self, stray):
+        """The guard is per glyph, so one segment among the marks fails.
+
+        ``%`` is deliberately among these: it is a wildcard over the
+        declared marks and names no particular one, so it can be
+        recognized and never written.
+        """
+        with pytest.raises(R.RuleError):
+            R.parse(f". -> .{stray}", FEATURES)
+
+    def test_a_run_a_rule_wrote_is_a_run_every_context_can_read(self):
+        """The measurement the acceptance rests on.
+
+        What would make this wrong is a rule writing a boundary no rule
+        can then match. Every pattern that reaches the run reaches it, the
+        class takes the whole of it and the named mark takes its own.
+        """
+        written = ipakit.rewrite("a.b", ". -> .#")
+        assert written == "a.#b"
+        for general in (*SEPARATORS, R.ANY_BOUNDARY):
+            assert ipakit.rewrite(written, f"b -> x / {general} _") == "a.#x"
+        assert ipakit.rewrite(written, ". -> ∅") == "ab"
+        assert ipakit.rewrite(written, "# -> ∅") == "a.b"
+        assert ipakit.rewrite(written, "∅ -> e / . _ b") == "a.#eb"
+
+    def test_a_context_naming_two_boundaries_is_still_refused(self):
+        """A different proposition, and it did not move.
+
+        There the *rule* states two patterns and a run is one boundary, so
+        the second can never hold. Here the rule states one boundary and
+        spells it with the marks it was written with.
+        """
+        assert ipakit.rewrite("a.#b", "b -> x / . # _") == "a.#b"
+        assert ipakit.rewrite("a.#b", "b -> x / . _") == "a.#x"
+
+    def test_every_run_of_declared_marks_is_writable(self):
+        """Swept over the declaration rather than the pair that was found."""
+        checked = 0
+        refused: list[str] = []
+        for first, second in itertools.product(BOUNDARY_MARKS, repeat=2):
+            spec = f". -> {first}{second}"
+            checked += 1
+            try:
+                rule = R.parse(spec, FEATURES)
+            except R.RuleError as caught:
+                refused.append(f"{spec}: {caught}")
+                continue
+            got = R.spell(rule.apply("a.b", FEATURES)[0])
+            assert got == f"a{first}{second}b", spec
+        assert checked == len(BOUNDARY_MARKS) ** 2
+        assert checked > 20, f"only {checked} runs swept"
+        assert refused == [], f"{len(refused)} of {checked}: {refused[:3]}"

@@ -2061,6 +2061,24 @@ def _check_no_exchange(
     invariant that states this positively is that a boundary rewrite
     leaves the segmental string byte-identical, and these are the three
     shapes that would break it.
+
+    What counts as "a boundary" on the right is asked of the **run rule**
+    and not of a membership test. The check used to be exact membership of
+    the whole spelling in the declared marks, which refused ``. -> .#``
+    with a message saying ``.#`` "is not a boundary" -- and by this
+    module's own invariant it is one, spelled with two marks. The engine
+    already agreed: ``∅ -> .# / a _ b`` was accepted and wrote that very
+    run, so the same string was legal on the right of an insertion and
+    refused on the right of a rewrite. Measured against ``a.#b``, nothing
+    downstream minds -- ``. _``, ``# _`` and ``% _`` all match the run,
+    ``. -> ∅`` takes the whole of it and ``# -> ∅`` takes the mark it
+    names -- so no rule can write a run that no context can then read.
+
+    A context naming two boundaries in a row is still refused
+    (:meth:`Query._side`), and that is a different proposition: there the
+    rule states two *patterns*, and a run is one boundary, so the second
+    can never hold. Here the rule states one boundary and spells it with
+    the marks it was written with.
     """
     marks = _boundary_spellings(features)
     written = becomes if isinstance(becomes, str) else ""
@@ -2074,15 +2092,17 @@ def _check_no_exchange(
                 f"('{target.source} -> #'), or delete it "
                 f"('{target.source} -> ∅')."
             )
-        if becomes is not None and written not in marks:
+        if becomes is not None and not all(glyph in marks for glyph in written):
+            stray = next(glyph for glyph in written if glyph not in marks)
             raise RuleError(
                 f"{source!r} rewrites the boundary {target.source!r} as "
-                f"{written!r}, which is not a boundary; a boundary is a "
-                "relation between segments, not a segment, so the two cannot "
-                "be exchanged. A boundary may be written ('∅ -> .'), unwritten "
-                "('. -> ∅') or restated at another level ('. -> #'); to put a "
-                "segment where one stood, delete the boundary and insert the "
-                "segment, which is two ordered rules."
+                f"{written!r}, and {stray!r} does not spell a boundary; a "
+                "boundary is a relation between segments, not a segment, so "
+                "the two cannot be exchanged. A boundary may be written "
+                "('∅ -> .'), unwritten ('. -> ∅') or restated at another level "
+                "('. -> #', '. -> .#'); to put a segment where one stood, "
+                "delete the boundary and insert the segment, which is two "
+                "ordered rules."
             )
         return
     offending = [glyph for glyph in written if glyph in marks]

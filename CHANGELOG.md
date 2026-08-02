@@ -129,6 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A rule naming the word mark was read as a comment, so `# -> ∅` left `a#a` alone while the general `. -> ∅` deleted that mark; the opening `#` is a target where it is the whole left-hand side.
 - A repeated key in a bracketed bundle erased the earlier term before it was validated, so `[stress=not_declared stress=primary]` parsed on either side of the arrow.
+- `. -> .#` was refused as "not a boundary"; a run of declared marks is one, and `∅ -> .#` already wrote it.
 - The vocal folds are drawn from the feature declaring `axis="+glottal-aperture"`; a second `<projection>` could take the glottal scale over by sorting first.
 - `ς` stood in the agreement series as a second sigma; a variable letter is the one its own capital lowercases back to.
 - `[β]` was refused as a bare agreement variable and sent the author to `[place=β]`, which is refused because `β` is a phone.
