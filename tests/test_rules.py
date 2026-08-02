@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import itertools
 import warnings
 
 import ipakit
@@ -40,6 +41,11 @@ SEPARATORS = tuple(FEATURES.separators)
 #: ``ipa.xml`` says. Named here so it is visible instead of smuggled.
 UNDECLARED_EDGE_MARK = " "
 EDGE_MARKS = (*SEPARATORS, UNDECLARED_EDGE_MARK)
+
+#: Every mark that reads as a boundary unit: the declared separators plus
+#: the declared break and linking marks. Off the declaration rather than
+#: listed, so a newly declared mark is swept without this file changing.
+BOUNDARY_MARKS = (*SEPARATORS, *R.boundary_marks(FEATURES))
 
 
 def _optional_everywhere(mark: str) -> bool:
@@ -977,6 +983,15 @@ class TestABoundaryRunIsOneBoundary:
     #: per-separator contexts are built from the declaration, so a newly
     #: declared tier is swept on both sides and as a run of two; the rest
     #: are the shapes that mix a boundary with a feature query.
+    #:
+    #: The last two shapes put an item **past** the boundary, which is the
+    #: shape every other context here misses: each of the others ends at
+    #: the edge, and matching the virtual edge disqualified whatever came
+    #: next without asking whether it was optional. So the sweep agreed
+    #: with itself while ``t -> d / _ # (∅)`` fired on ``at#`` and not on
+    #: ``at``. An optional item is the only item that can stand there and
+    #: still hold of a form with nothing written at its end, which is why
+    #: it is the one that shows this.
     HEADS = ("∅ -> ə", "t -> ʔ", "t -> ∅")
     CONTEXTS = tuple(
         context
@@ -986,6 +1001,8 @@ class TestABoundaryRunIsOneBoundary:
             f"{mark} _",
             f"{mark} _ {mark}",
             f"_ {mark} {mark}",
+            f"_ {mark} (∅)",
+            f"(∅) {mark} _",
         )
     ) + (
         "_ %",
@@ -1030,14 +1047,19 @@ class TestABoundaryRunIsOneBoundary:
         for mark in SEPARATORS:
             assert f"_ {mark}" in self.CONTEXTS and f"{mark} _" in self.CONTEXTS
             assert mark * 2 in self.RUNS
-        # Exact, not a floor: 39 rules x 8 forms x 18 decorations. A floor
+            # And one shape per mark with an item past the edge, on each
+            # side, or the sweep goes back to testing only contexts that
+            # stop at the boundary.
+            assert f"_ {mark} (∅)" in self.CONTEXTS
+            assert f"(∅) {mark} _" in self.CONTEXTS
+        # Exact, not a floor: 51 rules x 8 forms x 18 decorations. A floor
         # cannot tell that a rule kind or a mark left the sweep. The
         # literal moves if a tier is declared; the derived total is the
         # claim, and the literal is what says it has not moved yet.
         expected = (
             len(self.HEADS) * len(self.CONTEXTS) * len(self.FORMS) * len(self.RUNS) * 3
         )
-        assert checked == expected == 5616, f"sweep covered {checked}, not {expected}"
+        assert checked == expected == 7344, f"sweep covered {checked}, not {expected}"
         assert bad == [], f"{len(bad)} violations, first: {bad[:3]}"
 
     def test_the_corpus_the_review_measured(self):
@@ -1110,6 +1132,34 @@ class TestABoundaryRunIsOneBoundary:
         # A non-boundary pattern may still follow one, or this would have
         # been fixed by refusing everything after a boundary.
         assert ipakit.rewrite("kæt#at", "t -> ʔ / _ # [vowel]") == "kæʔ#at"
+
+    def test_an_optional_item_may_stand_past_the_virtual_edge(self):
+        """The parity, at the size the report gave it.
+
+        A written mark and the form's own edge are the same boundary, so
+        the same rule has to fire against both. It fired against the
+        written one and not the virtual one, because matching the edge
+        disqualified the next context item before anything asked whether
+        the item was optional -- and an optional item that finds nothing
+        records ``None`` and the match goes on, which is what the
+        :class:`~ipakit.rules.Site` contract already says.
+        """
+        assert ipakit.rewrite("at", "t -> d / _ #") == "ad"
+        assert ipakit.rewrite("at", "t -> d / _ # (∅)") == "ad"
+        assert ipakit.rewrite("at#", "t -> d / _ # (∅)") == "ad#"
+        # The mirror: the optional item outside a leading edge.
+        assert ipakit.rewrite("ta", "t -> d / (∅) # _") == "da"
+        assert ipakit.rewrite("#ta", "t -> d / (∅) # _") == "#da"
+        # One entry per context item, with None where nothing licensed it,
+        # so the record stays alignable with the notation.
+        (site,) = ipakit.rule("t -> d / _ # (∅)").recognize("at")
+        assert site.right == (None, None)
+        # The run rule is not what was relaxed: an item past the edge that
+        # is *not* optional still fails, and a second boundary past it
+        # fails whether or not the mark was typed.
+        assert ipakit.rewrite("at", "t -> d / _ # [vowel]") == "at"
+        for form in ("at", "at#"):
+            assert ipakit.rewrite(form, "t -> d / _ # (∅) #") == form
 
     def test_paragoge_still_fires_beside_a_form_final_mark(self):
         """The hazard this fix has twice been broken by.
@@ -2044,6 +2094,156 @@ class TestABoundaryIsWrittenAndUnwrittenAlike:
         assert len(R.RuleSet.parse("∅ -> # / a _ a", FEATURES)) == 1
         assert R.spell(R.parse("# -> ∅", FEATURES).apply("a#b", FEATURES)[0]) == "ab"
         assert ipakit.rewrite("a#b", "% -> ∅") == "ab"
+
+
+class TestARunUsedAsATargetIsOneBoundary:
+    """The third place the run rule has to hold, and the last one to.
+
+    ``_anchors`` coalesces a run for an insertion and ``_side`` coalesces
+    one in a context; a run used as the **target** was left as one site
+    per written mark, so ``. -> #`` took ``a..b`` to ``a##b`` -- one
+    boundary in, two out.
+
+    ``a##b`` is the visible half. The quiet half is the trace: a rule
+    that deletes every mark of a run spells the right surface and still
+    reports two changes where the contract says there is one, which is
+    the shape of defect this suite exists to catch. So the assertions
+    here are on :meth:`Query.sites` and on the edits, and the spelling is
+    checked as well rather than instead.
+
+    The site is the run ``[lo, hi)``, and that is **not** the span
+    docs/design/captures.md refused. That span is a target whose width
+    the *rule* states -- ``ab -> ba``, n patterns and n terms with a
+    permutation on the right -- and what it costs is listed there: ``aa``
+    on ``aaa`` finds overlapping sites, so ``Query.sites``'s promise of
+    non-overlapping positions stops being an accident of a one-wide scan;
+    ``_carry_prosody`` has to say which of several new units inherits a
+    mark; ``_check_no_exchange`` has to run per term. None of that is
+    reached here. The rule states one pattern and matches one boundary,
+    and the extra width is a fact about how the form was spelled, so the
+    sites are disjoint by construction, the right of the arrow keeps its
+    one implicit term, and a boundary has no prosody to inherit.
+    """
+
+    #: Every mark that reads as a boundary unit, off the declaration.
+    MARKS = BOUNDARY_MARKS
+    #: Runs of one, two and three, over every mark and every mixture. A
+    #: run of one is in the corpus because the coalesced answer has to
+    #: agree with the uncoalesced one where there is nothing to coalesce.
+    RUNS = tuple(
+        "".join(combination)
+        for length in (1, 2, 3)
+        for combination in itertools.product(BOUNDARY_MARKS, repeat=length)
+    )
+    #: Where the run sits: interior, initial, final.
+    PLACES = (("a", "b"), ("", "ab"), ("ab", ""))
+    #: One class target that reaches every mark, and one that restates
+    #: the boundary at another level -- the rule the symptom was reported
+    #: against.
+    SPECS = ("% -> ∅", ". -> #")
+
+    def test_a_run_is_one_site_however_long_and_however_spelled(self):
+        """The sweep, on recognition rather than on the spelling."""
+        checked = 0
+        bad: list[str] = []
+        for run in self.RUNS:
+            for pre, post in self.PLACES:
+                form = pre + run + post
+                with _quiet():
+                    items = R.units(form, FEATURES)
+                start = len(pre)
+                # A run that did not read as one unit per mark would make
+                # the rest of this sweep agree about the wrong thing.
+                assert [u.is_boundary for u in items].count(True) == len(run), form
+                for spec in self.SPECS:
+                    sites = R.parse(spec, FEATURES).query.sites(items, FEATURES)
+                    checked += 1
+                    got = [(s.start, s.end) for s in sites]
+                    if got != [(start, start + len(run))]:
+                        bad.append(f"{spec}: {form!r} -> {got}")
+        # Exact, not a floor: every run against every placement and both
+        # class targets. A floor cannot tell that the runs of three, or
+        # one of the marks, left the sweep.
+        expected = len(self.RUNS) * len(self.PLACES) * len(self.SPECS)
+        assert len(self.RUNS) == sum(len(self.MARKS) ** n for n in (1, 2, 3))
+        assert checked == expected == 930, f"sweep covered {checked}, not {expected}"
+        assert bad == [], f"{len(bad)} of {checked}, first: {bad[:3]}"
+
+    def test_the_derivation_reports_one_change_and_not_one_per_mark(self):
+        """The quiet half: right surface, wrong number of changes.
+
+        A deletion of every mark in a run comes out spelled correctly
+        whether the run was one site or several, so the spelling cannot
+        tell the two apart and the trace can.
+        """
+        checked = 0
+        for run in ("..", "...", ".#", "#.", ".‿", "|‖", "..#"):
+            form = f"a{run}b"
+            with _quiet():
+                assert ipakit.rewrite(form, "% -> ∅") == "ab", form
+                derivation = ipakit.derive(form, "% -> ∅")
+            (edit,) = derivation.edits
+            assert (edit.start, edit.end) == (1, 1 + len(run)), form
+            # The run as written is what the trace reports it read.
+            assert edit.before == run and edit.after == "", form
+            assert edit.is_deletion, form
+            checked += 1
+        assert checked == 7, f"sweep covered {checked}"
+
+    def test_restating_a_run_at_another_level_writes_one_mark(self):
+        """The visible symptom, and the length it is invariant over."""
+        for run in (".", "..", "...", "...."):
+            assert ipakit.rewrite(f"a{run}b", ". -> #") == "a#b", run
+
+    def test_a_named_mark_takes_only_its_own_mark_out_of_a_run(self):
+        """Which is what makes this a coalesced *match* and not a span.
+
+        The run is walked as far as the pattern matches, so a rule that
+        names one mark is exact about which boundary it means -- the same
+        claim ``. -> ∅`` deleting a written ``#`` makes from the other
+        side. Walking the whole run regardless would take marks the rule
+        never named.
+        """
+        assert ipakit.rewrite("a.‿b", "‿ -> ∅") == "a.b"
+        assert ipakit.rewrite("a‿.b", "‿ -> ∅") == "a.b"
+        assert ipakit.rewrite("a.‿.b", "‿ -> ∅") == "a..b"
+        assert ipakit.rewrite("a.‿b", ". -> ∅") == "ab", "the class takes the run"
+
+    def test_context_reads_outward_from_the_whole_run(self):
+        """A site's neighbors are the run's neighbors, not the mark's.
+
+        And the run is not its own left context: ``% _`` looks for a
+        boundary beside the target, and inside a run there is none,
+        because the run *is* the boundary. Before this it found the mark
+        next to it and fired.
+        """
+        assert ipakit.rewrite("a..b", ". -> # / a _ b") == "a#b"
+        assert ipakit.rewrite("a..b", ". -> # / _ b") == "a#b"
+        assert ipakit.rewrite("a..b", ". -> # / a _") == "a#b"
+        assert ipakit.rewrite("a..b", ". -> # / % _") == "a..b"
+        assert ipakit.rewrite("a..b", ". -> # / _ %") == "a..b"
+
+    def test_the_sites_of_a_form_stay_disjoint_and_ordered(self):
+        """``Query.sites`` promises non-overlapping positions.
+
+        A wider site is where that promise would go quietly: two runs are
+        maximal stretches and cannot overlap, and the scan resumes past
+        the run rather than inside it, so the property is checked here
+        rather than assumed from the shape of the loop.
+        """
+        forms = ("a..b..c", "..a..b..", "a.#.b", "a‿|‖b.c", "abc", "a.b.c")
+        checked = 0
+        for form in forms:
+            with _quiet():
+                items = R.units(form, FEATURES)
+            for spec in (*self.SPECS, "% -> ∅ / a _"):
+                sites = R.parse(spec, FEATURES).query.sites(items, FEATURES)
+                spans = [(s.start, s.end) for s in sites]
+                assert spans == sorted(spans), f"{spec}: {form!r} {spans}"
+                for first, second in zip(spans, spans[1:], strict=False):
+                    assert first[1] <= second[0], f"{spec}: {form!r} {spans}"
+                checked += 1
+        assert checked == len(forms) * 3 == 18, f"sweep covered {checked}"
 
 
 class TestEnchainementIsNotExpressible:

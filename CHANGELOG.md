@@ -151,6 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A rule naming `#` stopped the transparency skip, so a dot beside a word edge hid the edge.
 - `_anchors` licensed the trailing gap of a boundary run only on the run's last mark.
 - A form has one edge, not a run of them: `t -> ʔ / _ # # #` fired.
+- Matching the virtual edge disqualified the next context item without asking whether it was optional, so `t -> d / _ # (∅)` fired on `at#` and not on `at`.
+- A boundary run used as a target fired once per written mark: `. -> #` took `a..b` to `a##b`, and unwriting a run reported one change per mark.
 - `Unit.features` and `Unit.prosody` disagreed about the same unit; prosody has one home.
 - `with_prosody` dropped a written contour because the levels derive one, so a no-change write turned `ǎ˥˩` into a fall.
 - `with_prosody` reported a cleared tier it had not cleared; a clear the remaining tiers entail is impossible and answers `None`.

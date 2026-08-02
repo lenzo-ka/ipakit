@@ -368,6 +368,17 @@ ipa.rewrite("#kæt#",   "∅ -> ə / # _")   # '#əkæt#'  -- prothesis lands in
 
 Two consequences worth knowing. Which gap of a run an insertion takes is the **inner** one, because there is nothing outside the form to insert into and a schwa written outside a word mark would be a second word. And a context cannot name two boundaries in a row, since there is only one there to name: `_ # #` matches nothing at all.
 
+The run is one boundary wherever it is read, and that includes as a **target**. A rule that restates a boundary writes one mark however many were written for it, and a rule that unwrites one reports a single change over the whole run rather than one change per mark:
+
+```python
+ipa.rewrite("a.b",   ". -> #")   # 'a#b'
+ipa.rewrite("a..b",  ". -> #")   # 'a#b'   -- one boundary in, one out
+ipa.rewrite("a.‿b",  "‿ -> ∅")   # 'a.b'   -- a named mark takes only its own
+ipa.rewrite("a.‿b",  ". -> ∅")   # 'ab'    -- the class takes the whole run
+```
+
+The target is walked as far as the pattern matches, which is what keeps the last two apart: `.` is "syllable or stronger" and reaches every mark of the run, while `‿` names one mark and leaves the dot where it was written. The site is wider than one unit, and the *rule* still states one pattern and matches one boundary — the width is a fact about how the form was spelled, not about the rule, which is why this is not the multi-unit target [metathesis needs](calculus.md).
+
 The edge is a **word** boundary specifically, not the top of the ladder: `_ |` does not fire at the end of a form, because a phrase break is written or it is not there. `#` is the mark a form edge is an unwritten instance of, and `ipakit.form.edge_tier()` reads that off `<separators>`.
 
 ## `∅` is nothing; a zero is a position with no content
@@ -417,6 +428,13 @@ Parenthesising it makes it **optional** — matched if it is there, stepped over
 ```python
 ipa.rewrite("le∅ʃ", "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'la∅ʃ'
 ipa.rewrite("leʃ",  "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'laʃ'   -- one rule, one answer
+```
+
+An optional item may also stand **past** the virtual edge, where there is nothing at all for it to take. The form's own edge and a written `#` are the same boundary, so the same rule has to hold of both:
+
+```python
+ipa.rewrite("at",  "t -> d / _ # (∅)")   # 'ad'
+ipa.rewrite("at#", "t -> d / _ # (∅)")   # 'ad#'  -- typing the mark changes nothing
 ```
 
 The syllable dot is the precedent for "the rule decides", and its shape does not fit here. The dot is *optional notation*, so transparent-by-default is the only safe reading of it, and naming it is the only override it needs. A zero is a claim the transcription makes, so its default is the opposite, and "step over unless named" offers no way to say so. The parenthesis is generative phonology's own mark for an optional element, and it says the thing directly.
