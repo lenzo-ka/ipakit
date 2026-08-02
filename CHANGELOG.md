@@ -136,6 +136,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `arc` is stated in `ipa.xml` and again on every vertex in `heads.xml` and nothing held the two together; `scripts/invariants.py` gates the vertex arcs against the declarations, pins the arclength disagreement, and asserts the ascent `project` assumes.
+- `scripts/areafunctions.py arc` read only the midlines, so it reported 0.062 as the largest arc disagreement in a file whose largest is 0.064, on a nasal branch.
+- A tract coordinate declared on a typed feature's value was silently dropped by the loader and validated by `ipa.rng`; `scripts/invariants.py` now refuses the declaration instead of ignoring it.
+- The vowel tract-position limit — `arc` reads `backness` alone, so `u o ɑ ɔ ʌ` share one point — is asserted in `tests/test_vowel_tract_limit.py` rather than described, with each refused fix and the evidence refusing it.
 - `phones_matching` did not put a prosodic term to prosody, so `["-normal"]` answered one phone there and matched every unit in a rule; every query in the library now runs one resolution and one matcher.
 - A prosodic feature's declared default was filled into the feature bag and left out of the prosody, so `[length=normal]` matched nothing anywhere and `[-normal]` matched everything.
 - A term naming a `structural` feature — `[-word]`, `[-simultaneous]` — was matched against a bundle that cannot carry one and satisfied by its absence; it is refused.
