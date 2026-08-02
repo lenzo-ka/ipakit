@@ -24,6 +24,13 @@ is left alone, because a quotation from *SPE* or from a docstring is not
 one this can reach. It reports how many it left alone. What it does not
 check, it does not claim to have checked.
 
+An explicit bibliographic citation outranks all of that. A sentence
+carrying ``(Webb 1974)`` or ``(Janda 1984: 92, quoted by Hume)`` is
+attributing its quotations to the literature, and reporting what Janda
+wrote is not a claim about whatever sibling the sentence also happens to
+name. The citation has to be the page's own: one inside the quoted words
+is the source citing *its* sources, and attributes nothing.
+
 Comparison is on the words. Quote characters, emphasis, code spans and
 runs of whitespace normalize away, ``...`` elides whatever the citation
 skipped, the first character may change case, and a closing period may
@@ -71,6 +78,13 @@ BREAK = re.compile(r"^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\|)")
 #: The end of a sentence, which is as far back as an attribution
 #: reaches. Never inside a quotation -- the spans are subtracted first.
 SENTENCE = re.compile(r"[.?!]\s")
+
+#: A bibliographic citation: a parenthetical carrying a year, as
+#: ``(Webb 1974)``, ``(Janda 1984: 92, quoted by Hume)`` or ``(1974)``.
+#: A sentence that carries one is attributing its quotations to the
+#: literature, and a quotation of Janda is not a claim about whatever
+#: sibling the sentence also happens to name.
+CITATION = re.compile(r"\([^()]*\b(?:1[6-9]|20)\d{2}\b[^()]*\)")
 
 #: A document named in prose rather than linked -- ``docs/rules.md``
 #: inside a code span, most often. It attributes a sentence exactly as a
@@ -303,6 +317,13 @@ def citations(
             for match in SENTENCE.finditer(masked)
             if not any(lo <= match.start() < hi for lo, hi in spans)
         ]
+        # A citation inside a quotation is part of the words quoted --
+        # the source citing its own sources -- and attributes nothing.
+        cites = [
+            match.start()
+            for match in CITATION.finditer(raw)
+            if not any(lo <= match.start() < hi for lo, hi in spans)
+        ]
         for match in quotes:
             quote = raw[match.start(1) : match.end(1)]
             if len(quote.split()) < MIN_WORDS:
@@ -311,6 +332,17 @@ def citations(
             # sentence and no further: a link two sentences up is the
             # subject of those sentences, not the source of this quote.
             opens = max((stop for stop in stops if stop < match.start()), default=-1)
+            # An explicit bibliographic citation in the same sentence
+            # names a source this tree does not hold, and it wins over
+            # any document the sentence also names. A page reporting
+            # what Janda wrote is not making a claim about its sibling,
+            # however the sibling got mentioned alongside.
+            closes = min(
+                (stop for stop in stops if stop >= match.end()), default=len(raw)
+            )
+            if any(opens < spot < closes for spot in cites):
+                elsewhere += 1
+                continue
             before = [target for end, target in anchors if opens < end <= match.start()]
             if not before or before[-1] is None:
                 elsewhere += 1

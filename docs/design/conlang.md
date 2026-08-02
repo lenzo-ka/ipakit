@@ -562,7 +562,7 @@ Six things, in order. None was applied in this lane.
 
 ### (b) Ship a syllabifier as data, and say what it is for
 
-§2.2. `ipakit/data/rules/` holds five sets and none writes a margin, so the fact that `∅ -> . / [vowel] _ [-vowel] [vowel]` works is undiscoverable. A shipped `syllabify.rules` with one rule per onset size, and a sentence in [rules.md](../rules.md)'s underspecification section pointing at it, turns [braces.md](braces.md) §2's twelve rules from "waiting on structure nobody can supply" into "waiting on a rule set the caller may compose in". It also gives the speech-ML and articulatory audiences the syllabic units they work in, which no query term would have.
+§2.2. `ipakit/data/rules/` holds five sets and none writes a margin, so the fact that `∅ -> . / [vowel] _ [-vowel] [vowel]` works is undiscoverable. A shipped `syllabify.rules` with one rule per onset size, and a sentence in [rules.md](../rules.md)'s underspecification section pointing at it, turns [braces.md](braces.md) §2's twelve rules from *waiting on structure nobody can supply* into *waiting on a rule set the caller may compose in*. It also gives the speech-ML and articulatory audiences the syllabic units they work in, which no query term would have.
 
 ### (c) Correct three closure-list entries
 
