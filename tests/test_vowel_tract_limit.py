@@ -29,8 +29,9 @@ is written down here instead of being worked around:
   `ipa.xml` is one feature, one value, one number.
 * **Declaring `place` on a vowel does not move `arc`** -- `tract_point`
   takes the `manner == "vowel"` branch and reads `backness`
-  unconditionally -- and it renames the phone, because `describe` reads
-  the place slot out of the bundle.
+  unconditionally, and `unmodelled` reports the stated place as `unread`
+  rather than dropping it -- and it renames the phone, because `describe`
+  reads the place slot out of the bundle.
 * **A secondary articulation cannot reach a vowel at all**, which
   `test_a_secondary_articulation_is_drawn_where_it_is_declared` already
   requires and this restates as the reason: a secondary is of
@@ -57,7 +58,7 @@ from pathlib import Path
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit.tract import tract_point
+from ipakit.tract import tract_point, tract_reading, unmodelled
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -129,6 +130,37 @@ class TestTheLimitAsItStands:
         degrees = {tract_point(ipa, ipa.get_features(p)).offset for p in _vowels(ipa)}
         assert degrees, "sweep did not run"
         assert all(d is not None and d < approximant for d in degrees), sorted(degrees)
+
+    def test_the_annotation_layer_cannot_see_this_limit(self, ipa: IPAFeatures) -> None:
+        """And says so, rather than leaving it assumed shut.
+
+        `unmodelled` reports a stated value the posture did not read.
+        This limit is not one: `backness` is read for `arc` and `height`
+        for `offset` on every vowel in the inventory, so nothing is
+        dropped. Five back vowels sharing one point is a *resolution*
+        limit -- `arc` has five values for thirty-five (height, backness)
+        cells -- and a predicate over consumption is blind to it by
+        construction. Anyone reading a clean annotation strip under a
+        vowel figure is reading "nothing was dropped", not "the position
+        is right".
+
+        The attempt the docstring refuses is the other half: a `place`
+        stated on a vowel *is* read by nothing, and is reported.
+        """
+        vowels = _vowels(ipa)
+        assert len(vowels) > 20, f"only {len(vowels)} vowels: the sweep is vacuous"
+        for phone in vowels:
+            stated = ipa.get_features(phone, with_defaults=False)
+            assert {"backness", "height"} <= tract_reading(ipa, stated).read, phone
+            assert not [m for m in unmodelled(ipa, stated) if m.kind == "unread"], phone
+        placed = {**ipa.get_features("a"), "place": "uvular"}
+        assert (
+            tract_point(ipa, placed).arc
+            == ipa.features["backness"].coordinates["front"]["arc"]
+        )
+        assert ("place", "unread") in {
+            (m.feature, m.kind) for m in unmodelled(ipa, placed)
+        }
 
     def test_the_features_that_would_carry_it_declare_no_geometry(
         self, ipa: IPAFeatures

@@ -50,6 +50,7 @@ from ipakit.tract import (
     landmarks,
     secondary_marks,
     tract_point,
+    tract_reading,
     unmodelled,
     velic_aperture,
 )
@@ -318,9 +319,13 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
     def test_nothing_the_posture_already_draws_is_annotated(self) -> None:
         """A feature the constriction expresses must not be repeated.
 
-        Postural is derived -- a feature whose values declare ``arc`` or
-        ``offset`` coordinates is exactly what ``tract_point`` reads -- so
-        this holds for a feature added to the data tomorrow.
+        What the constriction expresses is what the posture *read for this
+        bundle*, which ``tract_reading`` answers, so this holds for a
+        feature added to the data tomorrow. It is deliberately not "a
+        feature whose values declare coordinates": that asks whether the
+        feature could ever be postural, answers for every bundle at once,
+        and leaves the layer silent on every bundle whose stated
+        coordinate the posture drops.
         """
         ipa = IPAFeatures()
         postural = {n for n, f in ipa.features.items() if f.coordinates}
@@ -329,14 +334,108 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         checked, wrong = 0, []
         for phone in sorted(ipa.phones):
             stated = ipa.get_features(phone, with_defaults=False)
+            read = tract_reading(ipa, stated).read
             for mark in unmodelled(ipa, stated):
                 checked += 1
-                if mark.feature in postural or (mark.feature, mark.value) in ported:
+                if mark.feature in read or (mark.feature, mark.value) in ported:
                     wrong.append((phone, mark.feature))
                 if mark.feature in ipa.secondary_places:
                     wrong.append((phone, mark.feature))
         assert checked > 60, f"only {checked} marks over the inventory"
         assert not wrong, f"annotated what the drawing already shows: {wrong[:5]}"
+
+    def test_a_stated_value_the_posture_drops_is_annotated(self) -> None:
+        """The other half, and the one that was missing.
+
+        A posture holds one arc and one offset, so a bundle stating both a
+        consonantal place and a vowel posture must lose one of them. That
+        bundle is what a rule setting ``manner`` over a vowel produces, and
+        it reaches the drawing. Whether a stated value is carried is a
+        property of the *call*: ``height`` is the offset of a vowel and
+        nothing at all beside ``manner="stop"``.
+
+        Swept over every registered phone crossed with every declared
+        manner, so this is a property of the branch rather than of two
+        hand-built bundles.
+        """
+        ipa = IPAFeatures()
+        manners = ipa.features["manner"].values
+        assert len(manners) > 3, "no manner scale: the sweep is vacuous"
+        checked, silent = 0, []
+        for phone in sorted(ipa.phones):
+            base = ipa.get_features(phone, with_defaults=False)
+            for manner in manners:
+                bundle = {**base, "manner": manner}
+                read = tract_reading(ipa, bundle).read
+                dropped = {
+                    name
+                    for name, value in bundle.items()
+                    if name in ipa.features
+                    and ipa.features[name].coordinates
+                    and name not in read
+                    and value != ipa.features[name].default
+                }
+                if not dropped:
+                    continue
+                checked += 1
+                reported = {m.feature for m in unmodelled(ipa, bundle)}
+                if not dropped <= reported:
+                    silent.append((phone, manner, sorted(dropped - reported)))
+        assert checked > 100, f"only {checked} bundles dropped a stated value"
+        assert not silent, f"stated, dropped, and not reported: {silent[:5]}"
+
+    def test_the_two_bundles_that_certified_themselves_complete(self) -> None:
+        """The guard is shown reporting before it is believed silent.
+
+        Both of these drew a posture, dropped what the bundle stated, and
+        answered that nothing was missing: the constructed bundle, and a
+        registered vowel with its manner changed -- whose posture has no
+        position at all.
+        """
+        ipa = IPAFeatures()
+        built = {
+            "manner": "stop",
+            "place": "alveolar",
+            "height": "open",
+            "backness": "front",
+        }
+        assert tract_point(ipa, built) == tract_point(
+            ipa, {"manner": "stop", "place": "alveolar"}
+        ), "the posture no longer drops the vowel coordinates"
+        assert {(m.feature, m.kind) for m in unmodelled(ipa, built)} == {
+            ("height", "unread"),
+            ("backness", "unread"),
+        }
+
+        composed = {**ipa.get_features("a"), "manner": "stop"}
+        assert not tract_point(ipa, composed).placed, "it is the unplaced case"
+        assert {"height", "backness"} <= {m.feature for m in unmodelled(ipa, composed)}
+
+        # And the other direction: a vowel manner reads no place.
+        vocalic = {**ipa.get_features("t", with_defaults=False), "manner": "vowel"}
+        assert ("place", "unread") in {
+            (m.feature, m.kind) for m in unmodelled(ipa, vocalic)
+        }
+
+    def test_a_value_that_declares_no_position_says_why(self) -> None:
+        """``offscale`` is the data's own word for holding no position.
+
+        ``manner="silence"`` declares it, so the posture is unplaced --
+        which the point could say, while nothing said why. The kind is off
+        the declaration, so a second offscale value added tomorrow is
+        annotated without a change here.
+        """
+        ipa = IPAFeatures()
+        offscale = {
+            (name, value)
+            for name, feat in ipa.features.items()
+            for value in feat.offscale
+        }
+        assert offscale, "nothing declares offscale: the sweep is vacuous"
+        for name, value in sorted(offscale):
+            marks = unmodelled(ipa, {name: value})
+            assert [(m.feature, m.kind) for m in marks] == [(name, "off scale")]
+            assert not tract_point(ipa, {name: value}).placed
 
     def test_every_mark_says_what_the_data_says(self) -> None:
         """The word on a mark is the feature's declared ``label``.
@@ -361,19 +460,31 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
 
         ``channel`` declares ``axis="+z"`` and says in its own ``desc`` that
         a mid-sagittal section projects that axis away; ``release`` declares
-        ``mode="release"``, a phase and not a posture.
+        ``mode="release"``, a phase and not a posture; ``silence`` declares
+        ``offscale``, which is the data saying it holds no position.
+
+        Swept over the inventory and over every manner change on it, since
+        ``unread`` is a property of a bundle and no registered phone is
+        incoherent enough to have one.
         """
         ipa = IPAFeatures()
-        kinds: dict[str, set[str]] = {}
+        kinds: dict[str, set[tuple[str, str]]] = {}
         for phone in sorted(ipa.phones):
-            for mark in unmodelled(ipa, ipa.get_features(phone, with_defaults=False)):
-                kinds.setdefault(mark.kind, set()).add(mark.feature)
-        assert kinds["out of plane"] == {
+            stated = ipa.get_features(phone, with_defaults=False)
+            bundles = [stated] + [
+                {**stated, "manner": m} for m in ipa.features["manner"].values
+            ]
+            for bundle in bundles:
+                for mark in unmodelled(ipa, bundle):
+                    kinds.setdefault(mark.kind, set()).add((mark.feature, mark.value))
+        names = {kind: {n for n, _ in pairs} for kind, pairs in kinds.items()}
+        assert names["out of plane"] == {
             n for n, f in ipa.features.items() if f.axis == "+z"
         }
-        assert {"airstream", "retroflex"} <= kinds["unmodelled"]
-        for kind, names in kinds.items():
-            for name in names:
+        assert {"airstream", "retroflex"} <= names["unmodelled"]
+        assert {"height", "backness", "place"} <= names["unread"]
+        for kind, pairs in kinds.items():
+            for name, value in pairs:
                 feat = ipa.features[name]
                 if kind == "out of plane":
                     assert feat.axis == "+z", name
@@ -381,6 +492,10 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
                     assert feat.mode == "release", name
                 elif kind == "prosodic":
                     assert feat.mode == "prosodic", name
+                elif kind == "off scale":
+                    assert feat.value_aliases.get(value, value) in feat.offscale, name
+                elif kind == "unread":
+                    assert feat.coordinates, name
 
     def test_a_secondary_articulation_is_drawn_where_it_is_declared(self) -> None:
         """It has a place, so it is geometry and not an annotation.
