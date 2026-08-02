@@ -585,11 +585,7 @@ class Segment:
         """
         features = self._require_features()
         if not any(c.modifiers for c in self.constituents):
-            chain = "".join(
-                c.base if i == 0 else self.junctures[i - 1].glyph(features) + c.base
-                for i, c in enumerate(self.constituents)
-            )
-            return features.get_features(chain, with_defaults=with_defaults)
+            return features.get_features(self.spelling, with_defaults=with_defaults)
         feats = flat_projection(
             features,
             [part_bundle(features, c) for c in self.constituents],
@@ -602,6 +598,36 @@ class Segment:
         return feats
 
     # -- construction and serialization ---------------------------------------
+
+    @property
+    def spelling(self) -> str:
+        """The unit as written, without its prosody: constituents joined
+        by the glyphs their junctures are spelled with.
+
+        The segmental half of :meth:`to_ipa`, and the half a converter
+        looks a unit up by -- a phone-set table (``cmu.xml``) is keyed on
+        segments and holds no stress, length or tone. Split out rather
+        than rebuilt beside it so the chain join is written once: this,
+        :meth:`to_ipa` and :meth:`scalar` all read it.
+        """
+        return "".join(
+            str(c) if i == 0 else self.junctures[i - 1].glyph(self._features) + str(c)
+            for i, c in enumerate(self.constituents)
+        )
+
+    def unmarked(self) -> Segment:
+        """This unit with the marks written on its constituents taken off:
+        bases and junctures only, and no prosody.
+
+        What a target alphabet that cannot spell a diacritic falls back
+        to, so that the fallback is still *this* unit rather than a
+        second reading of the string.
+        """
+        return Segment(
+            constituents=tuple(Constituent(base=c.base) for c in self.constituents),
+            junctures=self.junctures,
+            _features=self._features,
+        )
 
     def to_ipa(self) -> str:
         """Emit the unit with sense-correct tie glyphs and prosody marks.
@@ -618,11 +644,7 @@ class Segment:
         markers = features.stress_markers if features is not None else {}
         stress = [m for m in self.prosody if m in markers]
         trailing = [m for m in self.prosody if m not in markers]
-        body = "".join(
-            str(c) if i == 0 else self.junctures[i - 1].glyph(features) + str(c)
-            for i, c in enumerate(self.constituents)
-        )
-        return "".join(stress) + body + "".join(trailing)
+        return "".join(stress) + self.spelling + "".join(trailing)
 
     def to_json(self) -> str:
         return json.dumps(

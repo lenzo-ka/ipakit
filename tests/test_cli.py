@@ -1055,7 +1055,13 @@ class TestInputThatWasNotReadInFullReachesTheExitStatus:
         rc, out, err = run(monkeypatch, capsys, "convert", "to-cmu", "k@t")
         assert out == "K T\n", "the conversion itself must not change"
         assert rc == LOSSY
-        assert "unconvertible symbol(s) ['@']" in err
+        # In the tokenizer's voice rather than the converter's: `to-cmu`
+        # reads its input through `segments`, so a character the
+        # inventory does not register is reported by the layer that
+        # could not read it, and the converter speaks only for what the
+        # ARPABET table has no row for. Either way it is audible and
+        # either way it reaches the exit status, which is the claim.
+        assert "unregistered symbol(s) ['@']" in err
 
     def test_the_guard_states_what_it_cannot_see(self, monkeypatch, capsys):
         """A symbol the *target* notation has is not a loss.

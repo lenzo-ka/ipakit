@@ -86,9 +86,11 @@ ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', .
 ### Conversions
 
 ```python
-# CMU ARPABET
+# CMU ARPABET — one symbol per segment, so a tie decides where the segments are
 ipakit.to_cmu("ˈkæt")             # ['K', 'AE1', 'T']
 ipakit.from_cmu(["K", "AE1", "T"])  # 'kˈæt'
+ipakit.to_cmu("nˈɔ͜ɪŋ")            # ['N', 'OY1', 'NG']   tied: one vowel
+ipakit.to_cmu("nˈɔɪŋ")             # ['N', 'AO1', 'IH0', 'NG']   untied: two
 
 # X-SAMPA (ASCII)
 ipakit.ipa_to_xsampa("t͡ʃ")        # 't_S'
