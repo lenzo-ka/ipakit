@@ -247,23 +247,65 @@ def _same(fn: Callable[[str], object], text: str) -> object:
 def check_descriptions(ipa: IPAFeatures) -> bool:
     """No two distinct phones may share a description.
 
-    The documented exception is an atomic vowel and the diphthongs built
-    on it, whose flat projection is that vowel by design.
+    The one collapse that is by design is a nucleus and the diphthongs
+    built on it: the flat projection of ``a͜ɪ`` *is* ``a``, so the
+    sentence read off it is ``a``'s sentence and there is nothing for the
+    describer to have got wrong. :func:`_nucleus_and_its_diphthongs` says
+    all of that and no more.
+
+    Every clause of it is load-bearing, because each one alone excuses a
+    real collision. Two phones that are merely both atomic are not a
+    nucleus and its diphthongs. Neither are two diphthongs with no
+    nucleus between them, nor a diphthong sharing a sentence with a vowel
+    it is not built on, nor one whose bundle has drifted off its
+    nucleus's -- the last being how eight derived diphthongs once
+    acquired explicit features, which is the defect ``docs/reviewing.md``
+    tells this story about. An exception that asks only which *kinds* the
+    group holds excuses all four, and the first of them is every
+    collision this check exists to find.
     """
     groups: dict[str, list[str]] = defaultdict(list)
     for phone in ipa.phones:
         groups[ipa.describe(phone)].append(phone)
-    bad = []
-    for description, members in groups.items():
-        if len(members) < 2:
-            continue
-        kinds = {ipa.segment(m).kind.value for m in members}
-        if kinds <= {"atomic", "diphthong"} and len(members) == len(
-            [m for m in members if ipa.segment(m).kind.value in kinds]
-        ):
-            continue  # a nucleus and its diphthongs
-        bad.append(f"{description!r} names {members}")
+    bad = [
+        f"{description!r} names {members}"
+        for description, members in groups.items()
+        if len(members) > 1 and not _nucleus_and_its_diphthongs(ipa, members)
+    ]
     return _report("descriptions distinguish phones", bad, len(ipa.phones))
+
+
+def _nucleus_and_its_diphthongs(ipa: IPAFeatures, members: list[str]) -> bool:
+    """Whether phones sharing a description are one vowel and its glides.
+
+    Exactly one member is atomic; every other member is a diphthong that
+    opens on that member and carries its phonetic bundle.
+    """
+    from ipakit.segment import Kind
+
+    segments = {m: ipa.segment(m) for m in members}
+    nuclei = [m for m, s in segments.items() if s.kind is Kind.ATOMIC]
+    if len(nuclei) != 1:
+        return False
+    nucleus = nuclei[0]
+    bundle = _phonetic(ipa.get_features(nucleus))
+    return all(
+        s.kind is Kind.DIPHTHONG
+        and s.constituents[0].base == nucleus
+        and _phonetic(ipa.get_features(m)) == bundle
+        for m, s in segments.items()
+        if m != nucleus
+    )
+
+
+def _phonetic(bundle: dict[str, str]) -> dict[str, str]:
+    """A bundle without the keys that name the entry rather than the sound.
+
+    A diphthong's ``href`` points at the article on diphthongs and its
+    nucleus's at the article on that vowel, which is provenance
+    disagreeing, not phonetics.
+    """
+    return {k: v for k, v in bundle.items() if k not in METADATA_ATTRS}
 
 
 def check_notation(ipa: IPAFeatures) -> bool:

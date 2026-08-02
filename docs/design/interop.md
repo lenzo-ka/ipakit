@@ -280,7 +280,7 @@ The two DOLGO classes that do derive are the vowels and one epiglottal pair. The
 
 **Sonority is the near neighbor of this question and the answer is the opposite: build it.** PanPhon computes a sonority value from a decision tree over its features; ipakit exposes none, and a sweep of `ipakit/` for `sonor|syllabif|onset|coda|nucleus` finds `is_nucleus`, onset tracking in `normalize_stress_to_nucleus` and coda reasoning in `rules.py` — every consumer of a sonority scale, and no scale.
 
-[distance.md](../distance.md) says one already exists, in the course of rejecting sonority weighting: "sonority is also already encoded in the manner ordering". **That sentence is half true and the half that is false matters.** The listing order in `ipa.xml` does read as a sonority hierarchy. The *axis* does not, and the axis is what the metric uses:
+Neither the axis nor the listing order in `ipa.xml` supplies one. The listing order is the tempting read, and it descends `vowel approximant trill tap nasal fricative` before putting `plosive` ahead of `affricate`, which no sonority hierarchy does. The *axis* is what the metric uses, and it measures something else entirely:
 
 ```
 manner axis="+constriction", by declared offset, most open first:
@@ -288,11 +288,13 @@ manner axis="+constriction", by declared offset, most open first:
   fricative 0.80   affricate 0.95   nasal 1.00   plosive 1.00
 ```
 
-`nasal` and `plosive` both declare `offset="1.00"`, so `value_distance("nasal", "plosive")` is **0.0** and constriction alone ranks nasals below fricatives. That is correct for a nasal's oral tract and wrong for its sonority, which is precisely why the axis is named `+constriction` and not `+sonority` — the declaration is honest, and the documentation sentence reads it as saying more than it does.
+`nasal` and `plosive` both declare `offset="1.00"`, so `value_distance("nasal", "plosive")` is **0.0** and constriction alone ranks nasals below fricatives. That is correct for a nasal's oral tract and wrong for its sonority, which is precisely why the axis is named `+constriction` and not `+sonority`. The declaration is honest; anything reading a sonority ordering off it is reading it for more than it says.
 
 A scale that does hold falls out of the declarations without a table: the `obstruent` natural class, the same `offset`, and nasal airflow read together score **ρ = 0.938** against PanPhon's over 115 shared phones, with 97.4% of pairs ordered concordantly. That satisfies the house rule — nothing hand-maintained, and it moves when `ipa.xml` moves.
 
-**Verdict: build a derived sonority scale**, and correct distance.md's sentence while doing it. It is the highest-value item this lane found that is not a defect: sonority is what syllabification runs on, it is taught everywhere, and ipakit already has the consumers.
+**Verdict: build a derived sonority scale.** It is the highest-value item this lane found that is not a defect: sonority is what syllabification runs on, it is taught everywhere, and ipakit already has the consumers.
+
+What the derivation still needs before it can ship is a way to be wrong out loud. It rests on one claim no declaration makes — that every sonorant outranks every obstruent — and the only oracle for that claim is PanPhon, a dev-only dependency no release gate imports, so `make check` cannot fail when the scale drifts. Declaring the rank in `ipa.xml`, beside the `obstruent` class that is already there, is what would turn a formula in Python into the derived-and-checked artifact §5 is asking for.
 
 ## 6. Lexibank and CLDF: do not consume
 
