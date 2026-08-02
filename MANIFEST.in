@@ -23,7 +23,8 @@ recursive-include tests *.py
 
 # Not dev-only clutter. test_notation.py and test_zero.py put scripts/ on
 # sys.path and import from it; `make check` runs invariants.py, confusion.py,
-# xsampa_table.py, tutorial.py and docexamples.py as release gates; and
+# xsampa_table.py, tutorial.py, docexamples.py and docquotes.py as release
+# gates; and
 # `make figures` runs tract_svg.py, which is a shim over ipakit.tract_svg --
 # the renderer itself ships in the package, because it has to reach an
 # installed user and nothing under scripts/ does.

@@ -75,3 +75,4 @@ check: lint
 	@$(PYTHON) scripts/xsampa_table.py validate
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py
+	@$(PYTHON) scripts/docquotes.py

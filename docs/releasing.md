@@ -55,7 +55,7 @@ job references it; the OIDC identity is scoped to it).
 
 3. **Verify locally** (all must be clean):
    ```bash
-   make check          # lint, suite, invariants, the two data validators, the two document guards
+   make check          # lint, suite, invariants, the data validators, the document guards
    python -m build && twine check dist/*
    python -c "import importlib.metadata as m, ipakit; \
      assert m.version('ipakit') == ipakit.__version__"

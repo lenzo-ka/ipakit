@@ -115,6 +115,8 @@ The tutorial deserves a note of its own, because it is the page a newcomer is mo
 
 Values quoted in the hand-written documents (`README.md` and `docs/*.md`) are checked too, by `scripts/docexamples.py`. Documentation drifting away from behavior is a recurring failure mode here, not a hypothetical one.
 
+Sentences quoted from one document in another are checked by `scripts/docquotes.py`, over every `.md` in the tree. It binds a quotation to the nearest document named before it in the same sentence, so put quotation marks around what the sibling says and nothing else: if you are giving the gist, drop the marks and the check leaves you alone. A quotation from a book, a handout or a URL is not something it can read, and it says how many of those it left alone rather than pretending to have checked them.
+
 ## What you might be contributing
 
 ### A defect report, or a phonological challenge
@@ -163,7 +165,7 @@ Two specific warnings from that document. A guard that lists today's offenders d
 
 ### A documentation change
 
-Prose fixes are welcome and need no measurement — with the two exceptions above: `docs/tutorial.md` is generated from `docs/tutorial.src.md`, and any value you quote in `README.md` or `docs/*.md` will be executed and compared by `scripts/docexamples.py`.
+Prose fixes are welcome and need no measurement — with the exceptions above: `docs/tutorial.md` is generated from `docs/tutorial.src.md`, any value you quote in `README.md` or `docs/*.md` will be executed and compared by `scripts/docexamples.py`, and any sentence you quote from a sibling document will be looked up in it by `scripts/docquotes.py`.
 
 ## Sending the change
 
@@ -194,7 +196,7 @@ There is no CLA to sign. Contributions are accepted under the project's [BSD 2-C
 
 - `ipakit/` — the library. `ipakit/data/ipa.xml` is the feature declaration everything reads; `ipakit/data/rules/*.rules` are the shipped rule sets; `ipakit/cli/` is the `ipakit` command; `ipakit/tract.py` is the tract model and `ipakit/tract_svg.py` draws it.
 - `tests/` — the suite. `tests/corpus.py` is the one enumeration the sweeps share.
-- `scripts/` — the measurements, the generators and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the properties the library is supposed to hold, `confusion.py` / `xsampa_table.py` / `tutorial.py` the artifact generators, and `docexamples.py` the check on quoted values. `tract_svg.py` here is a shim over the package module and holds no drawing of its own: `scripts/` ships in neither the wheel nor the importable half of the sdist, and an installed ipakit has to be able to draw.
+- `scripts/` — the measurements, the generators and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the properties the library is supposed to hold, `confusion.py` / `xsampa_table.py` / `tutorial.py` the artifact generators, `docexamples.py` the check on quoted values and `docquotes.py` the check on quoted sentences. `tract_svg.py` here is a shim over the package module and holds no drawing of its own: `scripts/` ships in neither the wheel nor the importable half of the sdist, and an installed ipakit has to be able to draw.
 - `docs/` — [docs/README.md](docs/README.md) is the index, and says what each document is for and the order to read them in.
 
 ## Conduct
