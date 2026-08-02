@@ -45,6 +45,7 @@ import itertools
 import os
 import re
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -52,7 +53,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ipakit.features import IPAFeatures  # noqa: E402
-from ipakit.tract import head, tract_point  # noqa: E402
+from ipakit.tract import MidlinePoint, head, tract_point  # noqa: E402
 
 #: Environment variable naming a text extraction of the paper. No default path
 #: is baked in: the paper is copyrighted, not redistributable, and a path from
@@ -376,23 +377,39 @@ def cmd_arc(table: Table, args: argparse.Namespace) -> int:
     Reads no external data -- it is here because every other measurement in
     this script assumes it, and the assumption had never been checked.
     """
-    print("Declared arc against normalized arclength along each head's own midline.\n")
-    worst = 0.0
-    for name in ("adult-male", "adult-female", "child"):
-        shape = head(name)
-        points = shape.midline
+    print("Declared arc against normalized arclength along each head's own polyline.\n")
+
+    def arclength(points: Sequence[MidlinePoint]) -> tuple[list[float], float]:
         run = [0.0]
         for before, after in zip(points, points[1:], strict=False):
             step = ((after.x - before.x) ** 2 + (after.y - before.y) ** 2) ** 0.5
             run.append(run[-1] + step)
-        total = run[-1]
-        gaps = [
-            abs(distance / total - point.arc)
-            for point, distance in zip(points, run, strict=True)
-        ]
-        worst = max(worst, max(gaps))
-        print(f"  {name:14} max |declared arc - arclength fraction| = {max(gaps):.3f}")
+        return run, run[-1]
+
+    worst = 0.0
+    for name in ("adult-male", "adult-female", "child"):
+        shape = head(name)
+        # The nasal branch on the same footing as the midline. It declares
+        # the same attributes, is interpolated by the same code, and makes
+        # the same claim about its own arc -- 0 at the nostrils to 1 at the
+        # velopharyngeal port. Reporting only the midlines called 0.062 the
+        # largest disagreement in a file whose largest is a nasal one.
+        for label, branch in (("midline", shape.midline), ("nasal", shape.nasal)):
+            if len(branch) < 2:
+                continue
+            run, total = arclength(branch)
+            gaps = [
+                abs(distance / total - point.arc)
+                for point, distance in zip(branch, run, strict=True)
+            ]
+            worst = max(worst, max(gaps))
+            said = f"{name} {label}"
+            print(
+                f"  {said:22} max |declared arc - arclength fraction| = {max(gaps):.3f}"
+            )
         if name == "adult-male":
+            points = shape.midline
+            run, total = arclength(points)
             spots: dict[str, float] = {}
             places = IPAFeatures().features["place"].coordinates
             for value in ("bilabial", "alveolar", "velar"):
@@ -407,13 +424,15 @@ def cmd_arc(table: Table, args: argparse.Namespace) -> int:
                 f"{value} {places[value]['arc']:.2f} -> {spot:.3f}"
                 for value, spot in spots.items()
             )
-            print(f"  {'':14} the places occlusions reach: {said}")
-    print(f"\nlargest over all shipped heads: {worst:.3f}")
+            print(f"  {'':22} the places occlusions reach: {said}")
+    print(f"\nlargest over all shipped polylines: {worst:.3f}")
     print(
-        "Heads never affect distance, so nothing is wrong today. But the comparison\n"
-        "in this script reads the two as the same quantity, and nothing else does.\n"
-        "Reading each declared arc as its own midline's arclength instead changes no\n"
-        "verdict in `occlusions`, which is why that section is reported as it stands."
+        "Heads never affect distance, so nothing is wrong today. Reading each\n"
+        "declared arc as its own midline's arclength instead changes no verdict in\n"
+        "`occlusions`, which is why that section is reported as it stands.\n"
+        "`scripts/invariants.py` now gates all of this: the vertex arcs against what\n"
+        "ipa.xml declares, these six gaps against what they are, and the ascent that\n"
+        "`Head.project` assumes. This subcommand is the readable view of that check."
     )
     return 0
 

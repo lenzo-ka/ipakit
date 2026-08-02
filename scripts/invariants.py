@@ -748,6 +748,66 @@ def check_derived_artifacts() -> bool:
     return _report("derived artifacts current", failures, 2)
 
 
+#: The ``<value>`` attributes the loader reads only for a feature that
+#: takes its values from ``<value>`` elements. A typed feature takes its
+#: value *set* from its ``<type>``, so these are never looked at on one.
+POSTURAL_ATTRS = ("arc", "offset", "articulator", "aperture", "alias")
+
+
+def check_typed_values_declare_no_geometry(ipa: IPAFeatures) -> bool:
+    """A typed feature's values may not declare geometry, because the
+    loader would not read it.
+
+    ``IPAFeatures`` builds ``coordinates``, ``articulators``,
+    ``apertures`` and the alias map inside the branch for features that
+    list their own ``<value>`` elements. A feature with ``type="binary"``
+    or ``type="ternary"`` takes its values from the ``<type>`` instead
+    and goes down the other branch, where those attributes are never
+    looked at -- so ``<value name="+" arc="0.19"/>`` on a binary feature
+    loads clean, validates against ``ipa.rng`` (which makes ``arc``
+    optional on any ``<value>``, with no dependency on the parent's
+    type), and does exactly nothing.
+
+    That is a silent wrong answer waiting for the first person who tries
+    to give a binary feature a position -- which is the obvious thing to
+    reach for, since ``rounded`` and ``rhotacized`` are both binary and
+    both name articulations the geometry does not carry. It cost this
+    lane a measurement to find out that a coordinate declared there
+    evaporates.
+
+    The suite already asserts the *result* -- ``test_metric.py``'s
+    ``test_typed_features_carry_no_per_value_tables`` checks that a
+    loaded typed ``Feature`` has no coordinate tables. That passes
+    whether the XML declared any or not, because the loader drops them
+    either way. This is the converse, read off the document: it fails on
+    the declaration rather than on what survived it.
+    """
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(ipa.xml_path).getroot()
+    typed = set(ipa.types)
+    failures: list[str] = []
+    checked = 0
+    features = root.find("features")
+    for elem in features.findall("feature") if features is not None else []:
+        name = elem.get("name")
+        if not name or elem.get("type") not in typed:
+            continue
+        for value in elem.findall("value"):
+            checked += 1
+            stated = [a for a in POSTURAL_ATTRS if value.get(a) is not None]
+            if stated:
+                failures.append(
+                    f"{name}={value.get('name')!r} declares {stated}, and "
+                    f"{name} is typed {elem.get('type')!r} so the loader "
+                    "never reads them; the declaration would be silently "
+                    "inert"
+                )
+    if not checked:
+        failures.append("no typed feature declares a value; this check is vacuous")
+    return _report("a typed feature's values declare no geometry", failures, checked)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -772,6 +832,7 @@ def main(argv: list[str] | None = None) -> int:
         check_contour_marks(ipa),
         check_projection_coherence(ipa, args.quick),
         check_head_arcs(ipa),
+        check_typed_values_declare_no_geometry(ipa),
         check_derived_artifacts(),
     ]
     ok = all(results)
