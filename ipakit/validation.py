@@ -6,6 +6,12 @@ from collections import Counter
 from typing import Any
 
 from ._base import IPAFeaturesBase
+
+# The slots a vowel's own name is built from, imported rather than
+# restated: the sentence that reads them out and the check that they are
+# all there have to be about the same three features, or one of them is
+# checking something the other does not say.
+from .analysis import _VOWEL_SLOTS as VOWEL_SLOTS
 from .constants import METADATA_ATTRS
 
 
@@ -34,10 +40,17 @@ class ValidationMixin(IPAFeaturesBase):
             if manner in self.consonant_manners and "place" not in phone.features:
                 errors.append(f"Missing 'place' for consonant '{symbol}'")
             if manner == "vowel":
-                if "height" not in phone.features:
-                    errors.append(f"Missing 'height' for vowel '{symbol}'")
-                if "backness" not in phone.features:
-                    errors.append(f"Missing 'backness' for vowel '{symbol}'")
+                # Every slot a vowel's own name is built from, not two of
+                # the three. A slot left unstated is not the same claim as
+                # a slot stating the declared default, even where the two
+                # read alike: composition merges a unit's constituents
+                # left to right and a later constituent's *silence* leaves
+                # the earlier one's value standing. So while `i` declared
+                # no roundedness, `u͡i` came out close, front and rounded
+                # -- `y`, a phone neither constituent is.
+                for slot in VOWEL_SLOTS:
+                    if slot not in phone.features:
+                        errors.append(f"Missing '{slot}' for vowel '{symbol}'")
 
         for feat in sorted(undeclared):
             n = sum(1 for p in self.phones.values() if feat in p.features)

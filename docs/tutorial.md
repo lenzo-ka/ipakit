@@ -94,7 +94,7 @@ $ ipakit features p --short
 plo bil
 $ ipakit features kæt --short
 k: plo vel
-æ: vow nop frt +voi
+æ: vow nop frt +voi -rnd
 t: plo alv
 ```
 

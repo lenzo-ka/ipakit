@@ -136,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Eighteen vowel letters declared no roundedness, so a fused pair kept the first vowel's: `features("u͡i")` was close, front and rounded, and `to_phone` of it was `y`. Every vowel states every slot of its own name, and `validate()` says so.
 - `to_cmu` tokenized on its own table and disagreed with `segments`, reading the untied `ɔɪ` of `N AO1 IH0 NG` as `OY1`; it converts one segment at a time, and CMUdict round-trips exactly.
 - `to_cmu` took one tie glyph per category and raised on the other, so `t͜ʃ` and `e͡ɪ` were refused while `t͡ʃ` and `e͜ɪ` converted; ARPABET distinguishes neither, and both spellings convert.
 - `arc` is stated in `ipa.xml` and again on every vertex in `heads.xml` and nothing held the two together; `scripts/invariants.py` gates the vertex arcs against the declarations, pins the arclength disagreement, and asserts the ascent `project` assumes.
