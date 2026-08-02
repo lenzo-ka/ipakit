@@ -167,6 +167,8 @@ Two specific warnings from that document. A guard that lists today's offenders d
 
 Prose fixes are welcome and need no measurement — with the exceptions above: `docs/tutorial.md` is generated from `docs/tutorial.src.md`, any value you quote in `README.md` or `docs/*.md` will be executed and compared by `scripts/docexamples.py`, and any sentence you quote from a sibling document will be looked up in it by `scripts/docquotes.py`.
 
+`docs/design/*.md` are the exception to all of that. They are **dated assessments**, and closing a defect one of them raised does not mean editing it: put a `**Superseded by …**` line above that finding saying what closed it, and leave the finding's own words alone. [docs/reviewing.md](docs/reviewing.md) says why, and when a statement should be corrected in place instead.
+
 ## Sending the change
 
 Work on a branch; do not commit to `main`.

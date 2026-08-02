@@ -69,6 +69,8 @@ CLTS calls a lateral click and a lateral affricate near-identical because both a
 
 ## 1. Segmentation agreement is the spine
 
+**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118): the counts below were taken against a library that has since had §12(a), (b), (d) and (e) fixed, and (b) is the one that reaches this measurement. §12(b) predicts where it lands — roughly 8,368 of 8,765 — and re-deriving it needs a CLTS clone mounted, so the prediction is what stands here until somebody runs `scripts/interop.py` against one.**
+
 Nothing downstream matters if the two systems disagree about where a segment begins, and for a phonetic layer under a model pipeline that agreement *is* the product: a tokenizer that splits where the ecosystem does not changes token counts, alignments and vector counts under everything downstream.
 
 The corpus is BIPA's own sound table, `data/sounds.tsv` — 8,765 resolved sounds, generated and explicit alike. Every one is bucketed three ways, exhaustively: `agree` (ipakit reads one segment, as CLTS reads one sound), `differ` (ipakit reads two or more), `refuse` (ipakit will not read it).
@@ -570,7 +572,11 @@ bʌtər
 
 Reported, not fixed; this lane is read-only on the library.
 
+Each of these that later work has closed carries a superseded line saying what closed it. **(c) and (i) carry none, and still reproduce.**
+
 ### (a) A leading modifier is dropped silently, under `strict=True`
+
+**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed ([#95](https://github.com/lenzo-ka/ipakit/issues/95)). `segments("ⁿd", strict=True)` raises, naming the unplaced mark; the lenient read warns.**
 
 ```python
 >>> ipakit.segments("ⁿd", strict=True)     # one Segment, to_ipa() == 'd'
@@ -598,6 +604,8 @@ Whether ipakit should *model* a pre-modifier is a separate and larger question �
 
 ### (b) `add_ties` declines where it should act, and acts where it should decline
 
+**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed ([#98](https://github.com/lenzo-ka/ipakit/issues/98)). It now ties across an intervening diacritic and ties the junction the chain asks for: `add_ties("d̪ɮ")` is `d̪͡ɮ` and `add_ties("d̠ʒxʼ")` is `d̠͡ʒ͡xʼ`. This is the fix §1's counts predate.**
+
 ```python
 >>> ipakit.add_ties("dɮ")     # 'd͡ɮ'
 >>> ipakit.add_ties("d̪ɮ")    # 'd̪ɮ'  -- unchanged
@@ -612,9 +620,13 @@ The docstring is "Add tie bars between base phones in a multi-phone segment" and
 
 ### (d) The IPA's other voiceless diacritic is not declared
 
+**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed. The ring above and the line above are declared as the marks below, spelled twice, so `features("ŋ̊")` is a full bundle.**
+
 U+030A COMBINING RING ABOVE is the ring the IPA prints for symbols with a descender. `features("ŋ̊")` is `{}` with a dropped-symbol warning; `features("ŋ̥")` is a full bundle. 22 BIPA sounds; it is a row in `ipa.xml`, or a row in `lookalikes.xml`, rather than a gap in both.
 
 ### (e) An ejective click loses its ejection entirely
+
+**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed. An airstream mark states the segment's airstream rather than being discarded against a base that already declares one, so `features("ǂʼ")` and `features("ǂ")` differ and `distance("ǂʼ", "ǂ")` is `0.05`.**
 
 ```python
 >>> ipakit.features("ǂʼ") == ipakit.features("ǂ")   # True
@@ -626,6 +638,8 @@ Found twice independently, from CLTS (33 segments) and from PanPhon (40). The me
 
 ### (f) An over-tied vowel pair reads as a different existing phone
 
+**Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed ([#99](https://github.com/lenzo-ka/ipakit/issues/99)). `to_phone(features("u͡i"))` no longer answers with a phone that is no constituent of the input.**
+
 ```python
 >>> ipakit.to_phone(ipakit.features("u͡i"))    # 'y'
 >>> ipakit.to_phone(ipakit.features("a͡ɪ"))    # 'ɪ'
@@ -634,6 +648,8 @@ Found twice independently, from CLTS (33 segments) and from PanPhon (40). The me
 This one needs care, because the neighboring case is documented and correct. `to_phone(features("a͜ɪ")) == "a"` is the *sequential* tie projecting its first constituent, which `IPAFeatures.to_phone` rule 3 states outright. `u͡i` is not that: `y` is not a constituent of `u͡i` at all. The **simultaneous** tie merges to a bundle reading `close front rounded`, and the nearest registered phone to that is the front rounded monophthong. The metric does not follow it there — `d(a͡ɪ, a) = d(a͡ɪ, ɪ) = d(a, ɪ)/2`, exactly midway, which is coherent — so the flat read and the metric disagree about the same unit. `to_phone(features("ʈ͡ʂ"))` is `None` while `to_phone(features("t͡s"))` is `"t͡s"`, in the same function.
 
 ### (g) `to_cmu` and `segments` are two tokenizers that disagree
+
+**Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed ([#97](https://github.com/lenzo-ka/ipakit/issues/97)). `to_cmu` reads the segments the tokenizer read rather than matching the table's own keys, so it answers `['N', 'AO1', 'IH0', 'NG']` here and the two agree.**
 
 ```python
 >>> ipakit.from_cmu(["N", "AO1", "IH0", "NG"])
@@ -646,6 +662,8 @@ This one needs care, because the neighboring case is documented and correct. `to
 `from_cmu` writes adjacent phones with no boundary marker, and `to_cmu` then matches an untied digraph as a single unit where `segments` correctly reads two. 31 of CMUdict's 135,166 entries do not survive the round trip, in three classes — `AO1 IH0` to `OY1`, `T SH` to `CH`, `AO2 IH0` to `OY2` — and `strict=True` catches none of them. `segments` gets all 31 right, which is what makes this a disagreement between two readers rather than a parsing gap.
 
 ### (h) `to_cmu` accepts one tie glyph per category and rejects the other
+
+**Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed. Ligature aliases resolve where no caller can bypass it, so both tie glyphs are accepted in both categories and no row of the table below raises.**
 
 | spelling | `segments` | `to_cmu` |
 |---|---|---|

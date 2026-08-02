@@ -69,7 +69,7 @@ Phono — Lee Hartman. The SIU page the literature cites is gone (404, and no Wa
 
 Computational phonology.
 
-- Kaplan & Kay, "Regular Models of Phonological Rule Systems", *Computational Linguistics* 20(3), 1994: <https://aclanthology.org/J94-3001/>. §4 pp. 345–350, §5.2 p. 355, §5.5–5.7 pp. 360–363, §6 pp. 364–366.
+- Kaplan & Kay, "Regular Models of Phonological Rule Systems", *Computational Linguistics* 20(3), 1994: <https://aclanthology.org/J94-3001/>. §4 pp. 346–351, §5.2 p. 355, §5.5–5.7 pp. 360–363, §6 pp. 364–366.
 - Mohri & Sproat, "An Efficient Compiler for Weighted Rewrite Rules", ACL 1996: <https://aclanthology.org/P96-1031/>. Abstract and §1 for the finiteness condition, §3.1 for the left-to-right cascade, Theorem 1 in §4.
 - Karttunen, "The Replace Operator", ACL 1995: <https://aclanthology.org/P95-1003/>. §2.3, on the oriented versions.
 - Heinz & Lai, "Vowel Harmony and Subsequentiality", MOL 13, 2013: <https://aclanthology.org/W13-3006/>. §4, and the hierarchy in Fig. 6. Their Theorem 4 is the other half worth knowing: **Majority Rules is not regular**, so "harmony is finite-state" is true of the directional theories and false of some logically possible alternatives.
@@ -124,7 +124,7 @@ Vowel harmony is what a phonology class means by iteration, and ipakit states it
   tetɑtɑtɑ  ->  tetatɑtɑ  ->  tetatatɑ  ->  tetatata
 ```
 
-Three passes for three targets. Written as a cascade of copies — which is what [calculus.md](../calculus.md) recommends, *"an ordered cascade of repeated rules says the same thing and terminates by construction"* — the count is bounded and the bound is the word:
+Three passes for three targets. Written as a cascade of copies — the shape [calculus.md](../calculus.md) prices at *"one copy per pass, and one per cluster width"* — the count is bounded and the bound is the word:
 
 ```
 harmony over a word of k vowels, clusters of 0..m consonants between them
@@ -145,7 +145,7 @@ Two things multiply, and only one of them is iteration. **The other is that ipak
   teɑ      ->  teɑ         none
 ```
 
-This is the finding that changes the recommendation. **A repeat-until-fixpoint block does not repair the second column, and neither does a directional sweep.** Both are about *when* a rule is asked again; neither is about *what a rule can see*. The primary sources agree from both ends: Kaplan & Kay's harmony schema is `Vᵢ → Bᵢ / Bⱼ C* __` (1994: 345), with a Kleene star in the context; Lexurgy's documented harmony rule is `harmony @vowel ltr:` — a **filter** naming the vowels, and a direction. Each needed a second device, and it is the same second device.
+This is the finding that changes the recommendation. **A repeat-until-fixpoint block does not repair the second column, and neither does a directional sweep.** Both are about *when* a rule is asked again; neither is about *what a rule can see*. The primary sources agree from both ends: Kaplan & Kay's harmony schema is `Vᵢ → Bᵢ / Bⱼ C* __` (1994: 346), with a Kleene star in the context; Lexurgy's documented harmony rule is `harmony @vowel ltr:` — a **filter** naming the vowels, and a direction. Each needed a second device, and it is the same second device.
 
 ### 1.3 The regularity question, settled
 
@@ -566,7 +566,9 @@ Six things, in order. None was applied in this lane.
 
 ### (c) Correct three closure-list entries
 
-*Iterative within-rule spreading* says *"an ordered cascade of repeated rules says the same thing and terminates by construction"*. It terminates, and it does not say the same thing: the cascade needs `(k−1) × (m+1)` rules and is bounded by the longest word anticipated. The entry should say what the two multiplicands are, and that the second is the missing one.
+**Superseded in part by [#121](https://github.com/lenzo-ka/ipakit/issues/121): the first paragraph is carried out and [calculus.md](../calculus.md)'s entry now prices the cascade. The other two stand, and so does the same claim where [rules.md](../rules.md) and [captures.md](captures.md) §13 make it unquoted, which is where nothing checks it.**
+
+*Iterative within-rule spreading* said an ordered cascade of repeated rules says the same thing and terminates by construction. It terminates, and it does not say the same thing: the cascade needs `(k−1) × (m+1)` rules and is bounded by the longest word anticipated. The entry should say what the two multiplicands are, and that the second is the missing one.
 
 *Metathesis* should ask for what §4 found the field converged on — a bounded target span and a reversal — rather than for a permutation over numbered terms.
 
