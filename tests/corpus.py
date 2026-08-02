@@ -21,6 +21,8 @@ silently lost them would still "run" while that promise went unchecked.
 
 from __future__ import annotations
 
+import functools
+
 import ipakit
 from ipakit.form import declared_prosody
 
@@ -103,6 +105,34 @@ def prosody_bearing_units(pair_stride: int = PAIR_STRIDE) -> list[str]:
                 if _spells_itself(unit + second)
             )
     return out
+
+
+@functools.lru_cache(maxsize=1)
+def single_mark_units() -> tuple[str, ...]:
+    """Every self-spelling base + one mark, in **either** position.
+
+    ``scripts/sweep.py``'s canonical corpus, plus the position it does not
+    try. A mark goes where it binds, and two of the shipped ones bind
+    forward, so a suffix-only sweep can spell no stressed unit at all --
+    and a sweep that cannot spell one cannot tell a term about stress from
+    a term about nothing. Over the suffix-only extent ``[-primary]``
+    matched every unit and was indistinguishable from ``[-normal]``, which
+    was a defect and is what these sweeps exist to catch.
+
+    Neither position is named here: both are tried and what spells itself
+    back is kept, so a mark declared later lands in the sweep on whichever
+    side it binds.
+
+    Memoized because it parses every base against every mark twice and is
+    swept more than once.
+    """
+    return tuple(
+        unit
+        for base in self_spelling_phones()
+        for mark in FEATURES.diacritics
+        for unit in (base + mark, mark + base)
+        if _spells_itself(unit)
+    )
 
 
 def assert_swept(checked: int, phones: list[str] | None = None) -> None:

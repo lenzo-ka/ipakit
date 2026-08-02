@@ -400,8 +400,15 @@ class Pattern:
     #: prosodic break ``|``, the major break ``‖``, the linking mark ``‿``.
     mark: str | None = None
     seg_required: dict[str, str] = field(default_factory=dict)
+    #: The values a declared natural class admits, per feature. Kept apart
+    #: from ``seg_excluded`` because the two answer differently about a
+    #: bundle that omits the feature: a class is a claim *about* it and
+    #: does not hold there, while an explicit ``-`` term does. See
+    #: :meth:`~ipakit.IPAFeatures._query_matches`.
+    seg_included: dict[str, frozenset[str]] = field(default_factory=dict)
     seg_excluded: dict[str, frozenset[str]] = field(default_factory=dict)
     pro_required: dict[str, str] = field(default_factory=dict)
+    pro_included: dict[str, frozenset[str]] = field(default_factory=dict)
     pro_excluded: dict[str, frozenset[str]] = field(default_factory=dict)
     #: Agreement variables this pattern constrains, keyed by feature.
     #: Split by declared mode exactly as the required/excluded pairs
@@ -433,6 +440,7 @@ class Pattern:
         """
         return (
             frozenset(self.pro_required)
+            | frozenset(self.pro_included)
             | frozenset(self.pro_excluded)
             | frozenset(self.pro_agreements)
         )
@@ -474,17 +482,19 @@ class Pattern:
             return False
         if self.literal is not None and unit.core != self.literal:
             return False
-        if not (
-            features._query_matches(
-                unit.features,
+        if not features._satisfies(
+            unit.features,
+            unit.prosody,
+            (
                 self.seg_required,
+                {k: set(v) for k, v in self.seg_included.items()},
                 {k: set(v) for k, v in self.seg_excluded.items()},
-            )
-            and features._query_matches(
-                unit.prosody,
+            ),
+            (
                 self.pro_required,
+                {k: set(v) for k, v in self.pro_included.items()},
                 {k: set(v) for k, v in self.pro_excluded.items()},
-            )
+            ),
         ):
             return False
         return self._agrees(unit, features, bindings)
@@ -1018,12 +1028,13 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
                     f"declared values are {sorted(feature.values_set)}{hint}"
                 )
         required: dict[str, str] = {}
+        included: dict[str, set[str]] = {}
         excluded: dict[str, set[str]] = {}
         for part in (pairs, bare):
             if not part:
                 continue
             try:
-                got_required, got_excluded = features._resolve_query(part)
+                got_required, got_included, got_excluded = features._resolve_query(part)
             except Exception as exc:  # pragma: no cover - resolver messages vary
                 raise RuleError(f"{text!r}: {exc}") from None
             for key, value in got_required.items():
@@ -1033,27 +1044,28 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
                         f"{required[key]!r} and {value!r}"
                     )
                 required[key] = value
+            for key, values in got_included.items():
+                held = included.get(key)
+                included[key] = set(values) if held is None else held & set(values)
             for key, values in got_excluded.items():
                 excluded.setdefault(key, set()).update(values)
 
+        # The split is asked of the inventory rather than made here. It
+        # used to be made here, term by term, beside the one
+        # `_split_by_mode` makes for `find` -- two readings of one
+        # declaration, agreeing by habit, in a codebase whose standing
+        # rule is to prefer construction to vigilance.
+        seg_required, pro_required = features._split_by_mode(required)
+        seg_included, pro_included = features._split_by_mode(included)
+        seg_excluded, pro_excluded = features._split_by_mode(excluded)
         return Pattern(
             source=text,
-            seg_required={
-                k: v for k, v in required.items() if not _is_prosodic(k, features)
-            },
-            seg_excluded={
-                k: frozenset(v)
-                for k, v in excluded.items()
-                if not _is_prosodic(k, features)
-            },
-            pro_required={
-                k: v for k, v in required.items() if _is_prosodic(k, features)
-            },
-            pro_excluded={
-                k: frozenset(v)
-                for k, v in excluded.items()
-                if _is_prosodic(k, features)
-            },
+            seg_required=seg_required,
+            seg_included={k: frozenset(v) for k, v in seg_included.items()},
+            seg_excluded={k: frozenset(v) for k, v in seg_excluded.items()},
+            pro_required=pro_required,
+            pro_included={k: frozenset(v) for k, v in pro_included.items()},
+            pro_excluded={k: frozenset(v) for k, v in pro_excluded.items()},
             seg_agreements=seg_agreements,
             pro_agreements=pro_agreements,
         )

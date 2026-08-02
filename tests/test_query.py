@@ -1,10 +1,20 @@
 """Tests for query and matching functionality."""
 
 import itertools
+import warnings
 
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR
+from ipakit.form import Unit
+from ipakit.form import units as form_units
+from ipakit.segment import takes_defaults
+
+from tests.corpus import (
+    prosody_bearing_units,
+    self_spelling_phones,
+    single_mark_units,
+)
 
 
 class TestPhonesMatching:
@@ -481,19 +491,34 @@ class TestTheTwoArmsRefuseAlike:
     def test_the_arms_agree_where_they_resolve(self, ipa: IPAFeatures) -> None:
         """And the refusal is not a narrowing: wherever a bare term names
         one (feature, value), the dict spelling of it selects the same
-        phones."""
+        phones.
+
+        A structural feature is refused in both arms rather than answered
+        in either, and the sweep asserts that too. ``level`` is a property
+        of a boundary, a query is asked of a unit, and which way round the
+        term is written does not change either fact.
+        """
+        structural = ipa.features_by_mode.get("structural", frozenset())
         checked = 0
+        refused = 0
         for name, feature in ipa.features.items():
             for value in sorted(feature.values_set):
                 if value in _PREFIXES:
                     continue
                 if ipa._resolve_query_term(value) != (name, value):
                     continue
+                if name in structural:
+                    for query in ([value], {name: value}):
+                        with pytest.raises(ValueError, match="is structural"):
+                            ipa.phones_matching(query)
+                    refused += 1
+                    continue
                 assert ipa.phones_matching([value]) == ipa.phones_matching(
                     {name: value}
                 ), (name, value)
                 checked += 1
         assert checked > 50, f"sweep did not run: {checked}"
+        assert refused >= len(structural), f"structural sweep did not run: {refused}"
 
     def test_a_generative_overlap_still_resolves(self, ipa: IPAFeatures) -> None:
         # The dict arm expands each component, so a declared overlap is
@@ -506,3 +531,225 @@ class TestTheTwoArmsRefuseAlike:
         assert ipa.phones_matching({"place": "labial-velar"}) == ipa.phones_matching(
             {"place": "bilabial^velar"}
         )
+
+
+def _spellable_terms(ipa: IPAFeatures) -> list[str]:
+    """Every single term the bracket language can spell, both polarities.
+
+    Enumerated from the declaration rather than listed: every declared
+    value, every declared natural class, and the ``+``/``-``/``0`` prefix
+    on every feature name. A value, a class or a feature added to
+    ``ipa.xml`` joins these sweeps without an edit here, which is the
+    whole point of asking the data what the language can say.
+    """
+    out: list[str] = []
+    for name, feature in ipa.features.items():
+        for value in feature.values:
+            out += [value, f"-{value}"]
+        for klass in feature.value_classes:
+            out += [klass, f"-{klass}"]
+        out += [f"+{name}", f"-{name}", f"0{name}"]
+    seen: set[str] = set()
+    return [t for t in out if not (t in seen or seen.add(t))]
+
+
+def _corpus_units(ipa: IPAFeatures) -> list[Unit]:
+    """The canonical corpus, parsed into the units a query is asked about.
+
+    ``tests.corpus`` is the one enumeration (docs/reviewing.md), taken
+    here in all three extents it offers: the bare phones, one mark on
+    either side of every base, and the two-prosodic-mark sample. The last
+    two matter for different reasons -- a stressed unit is spelled with
+    the mark in front, and a contour is only *derived* where two levels
+    sit next to each other -- and without them a term about stress and a
+    term about nothing look identical.
+    """
+    seen: set[str] = set()
+    units: list[Unit] = []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for text in (
+            *self_spelling_phones(),
+            *single_mark_units(),
+            *prosody_bearing_units(),
+        ):
+            if text in seen:
+                continue
+            seen.add(text)
+            units.append(form_units(text, ipa)[0])
+    return units
+
+
+class TestNoTermIsTrueOfEverything:
+    """A query term must ask something of a unit, or be refused.
+
+    Fifteen terms matched every segment and no boundary, and one query
+    that reads as their complement matched nothing at all. Both came from
+    the same place: a term was compared against a bundle that could not
+    carry the feature it named, and the comparison answered from the
+    absence rather than declining to answer. On the negative side that is
+    true of everything, on the positive side true of nothing, and neither
+    says a word about it.
+
+    The guards here are written over the *shape* rather than over the
+    fifteen. Each names one way a term can stop constraining anything.
+    """
+
+    def test_a_declared_default_is_in_every_bundle_a_query_reads(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Absence happens only where the declaration leaves room for it.
+
+        The negative arm of a query is satisfied by a bundle that omits
+        the feature, deliberately: ``stress`` declares two values and no
+        default, so a unit carrying no stress is unstressed and
+        ``[-primary -secondary]`` -- which is how the shipped American
+        English set says so -- has to hold of it.
+
+        That reading is only safe while absence is confined to the
+        features whose declaration allows it. A feature declaring a
+        ``default`` is not one of them: every unit has that value until a
+        mark says otherwise, so no term over it can be decided by absence.
+        ``length`` declared ``normal`` and the fill went to the feature
+        bag, which is the bag a prosodic term is *not* asked of -- so
+        ``[-normal]`` was true of every unit and ``[length=normal]`` of
+        none.
+        """
+        prosodic = ipa.features_by_mode.get("prosodic", frozenset())
+        defaulted = [n for n, f in ipa.features.items() if f.default is not None]
+        assert len(defaulted) > 10, f"sweep has nothing to check: {defaulted}"
+        assert prosodic & set(defaulted), "no prosodic feature declares a default"
+        checked = 0
+        for unit in _corpus_units(ipa):
+            if not takes_defaults(ipa, unit.features):
+                continue
+            asked = ipa._prosody_asked(unit.features, unit.prosody)
+            for name in defaulted:
+                bag = asked if name in prosodic else unit.features
+                assert name in bag, (unit.text, name)
+            checked += 1
+        assert checked > 4000, f"sweep did not run: {checked}"
+
+    def test_a_natural_class_declines_a_bundle_that_has_no_such_feature(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The two negative-looking terms differ, and this is how.
+
+        ``[obstruent]`` is a claim *about* a unit's manner, so a bundle
+        carrying no manner does not satisfy it, exactly as
+        ``[manner=plosive]`` does not. ``[-obstruent]`` is an exclusion,
+        and an exclusion is satisfied by absence -- the reading the test
+        above depends on.
+
+        Carried as the exclusion of every value outside the class, which
+        is what a class was, the two were one constraint and the positive
+        one held of any bundle omitting the feature. No class is declared
+        over a feature some unit omits today, so nothing was wrong; this
+        is the guard for the day one is.
+        """
+        classes = [c for f in ipa.features.values() for c in f.value_classes]
+        assert classes, "no natural class is declared"
+        for klass in classes:
+            assert not ipa._query_matches({}, *ipa._resolve_query([klass])), klass
+            assert ipa._query_matches({}, *ipa._resolve_query([f"-{klass}"])), klass
+
+    def test_a_structural_feature_is_refused_rather_than_answered(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """``level``, ``break``, ``tie`` and ``linking`` name a boundary.
+
+        A boundary is a relation between units and a juncture is a
+        relation inside one; neither is a unit, and a query is asked of a
+        unit's features and its prosody. So a term over one of these was
+        matched against a bag that could never carry the key and was
+        satisfied by its absence: ``[-word]`` and ``[-simultaneous]``
+        matched every segment there is.
+        """
+        structural = ipa.features_by_mode.get("structural", frozenset())
+        assert structural, "no structural feature is declared"
+        checked = 0
+        for name in structural:
+            feature = ipa.features[name]
+            # Every spelling that names this feature: a side of it where
+            # it is binary, and each of its values bare and negated. A
+            # bare '+' or '-' is not a term on its own, so it is the name
+            # that carries the prefix.
+            named = [v for v in feature.values if v not in _PREFIXES]
+            queries: list[list[str] | dict[str, str]] = [
+                [f"{prefix}{name}"] for prefix in _PREFIXES if prefix in feature.values
+            ]
+            queries += [[v] for v in named]
+            queries += [[f"-{v}"] for v in named]
+            queries += [{name: v} for v in named]
+            for query in queries:
+                with pytest.raises(ValueError, match="is structural"):
+                    ipa.phones_matching(query)
+                checked += 1
+        assert checked > 20, f"sweep did not run: {checked}"
+
+    def test_the_two_matchers_answer_one_question(self, ipa: IPAFeatures) -> None:
+        """``phones_matching`` and ``find`` over the same registered phone.
+
+        A registered phone is a unit that has been written down with
+        nothing on it, so the inventory query and the transcription query
+        are the same question asked twice, and their answers are compared
+        here term by term rather than at a handful of named cases. They
+        disagreed about ``['-normal']`` -- one phone against every unit --
+        because only one of them put a prosodic term to the prosody.
+
+        They now share ``_query_constraints`` and ``_satisfies``, so the
+        sweep is a check on the construction rather than the thing that
+        keeps them in step.
+        """
+        checked = 0
+        refused = 0
+        for term in _spellable_terms(ipa):
+            try:
+                inventory = ipa.phones_matching([term])
+            except ValueError:
+                with pytest.raises(ValueError):
+                    ipa.find(next(iter(ipa.phones)), [term])
+                refused += 1
+                continue
+            assert inventory == [p for p in ipa.phones if ipa.find(p, [term])], term
+            checked += 1
+        assert checked > 150, f"sweep did not run: {checked}"
+        assert refused > 50, f"the refusals were not swept: {refused}"
+
+    def test_the_guard_states_the_terms_it_cannot_speak_for(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """What is still true of every unit, and why it is not this defect.
+
+        ``articulator`` names the organ that moves, and ``ipa.xml``
+        declares one on each ``place`` and ``backness`` value rather than
+        on a phone: ``velar`` carries ``articulator="tongue-dorsum"``. The
+        metric resolves that mapping and compares the organ
+        (``metric._metric_bundle``); the query language does not, so the
+        only ``articulator`` a bundle ever holds is one a mark wrote --
+        the apical, laminal and linguolabial marks. Every other value of
+        it is carried by nothing, and the negation of a value nothing
+        carries is true of everything.
+
+        That is a *projection* the query language does not make, not a
+        term decided by a missing key, and giving it one would change what
+        every read returns. Stated here so the limit stays known: if one
+        of these stops being universal, the projection has been made and
+        this needs rewriting.
+        """
+        corpus = _corpus_units(ipa)
+        assert len(corpus) > 4000, "sweep did not run"
+        universal = []
+        for term in _spellable_terms(ipa):
+            try:
+                segmental, prosodic = ipa._query_constraints([term])
+            except ValueError:
+                continue
+            if all(
+                ipa._satisfies(u.features, u.prosody, segmental, prosodic)
+                for u in corpus
+            ):
+                universal.append(term)
+        resolved = {ipa._resolve_query_term(t.lstrip("-"))[0] for t in universal}
+        assert resolved == {"articulator"}, sorted(universal)
+        assert len(universal) >= 5, sorted(universal)
