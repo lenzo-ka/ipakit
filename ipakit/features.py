@@ -2628,6 +2628,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         same reason: dropping it silently would make the result shorter
         than the input while still looking well formed.
 
+        Every other mark binds the unit *before* it, so one written where
+        there is no such unit -- ``ⁿd``, the pre-modifier convention every
+        external inventory uses -- binds nothing either, and is reported on
+        exactly those terms. It is not re-read as a modifier of what
+        follows: the library has no pre-modifier, and inventing a binding
+        the data does not declare is how ``ǂʼ`` would come back ``ǂ``.
+        Structural marks are the exception, and by declaration rather than
+        by exemption: a break or the linking tie is a relation *between*
+        units, belongs to no unit at either side, and is kept by ``Form``.
+
         Unregistered characters are dropped with a warning, as in
         :meth:`tokenize`; ``strict=True`` raises instead, which is what
         guarantees ``to_ipa(segments(text)) == text``.
@@ -2635,6 +2645,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         result: list[Segment] = []
         pending_stress: list[str] = []
         superseded: list[str] = []
+        unplaced: list[str] = []
         for token in self.tokenize(text, strict=strict):
             if token and all(ch in self.stress_markers for ch in token):
                 pending_stress.extend(token)
@@ -2647,40 +2658,57 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     pending_stress = pending_stress[-1:]
                 continue
             seg = self._segment_from_token(token, tuple(pending_stress))
-            # A token that carries no unit (a lone linking mark, a stray
-            # combining glyph) has nothing to take the stress, so the
-            # mark stays pending for the unit that does.
+            # A token that carries no unit has nothing to take the stress,
+            # so the mark stays pending for the unit that does.
             if seg is not None:
                 pending_stress = []
                 result.append(seg)
-        self._report_stray_stress(superseded, pending_stress, strict)
+            elif not self.is_structural_token(token):
+                unplaced.append(token)
+        self._report_unplaced(superseded, pending_stress, unplaced, strict)
         return result
 
-    def _report_stray_stress(
-        self, superseded: list[str], unbound: list[str], strict: bool
+    def _report_unplaced(
+        self,
+        superseded: list[str],
+        unbound: list[str],
+        unplaced: list[str],
+        strict: bool,
     ) -> None:
-        """Report stress marks that reached no unit's prosody.
+        """Report marks that reached no unit.
 
         The same contract :meth:`parse` gives an unbound tie: the mark is
         a registered symbol, so ``strict=`` would never have seen it as
         "unknown", and dropping it quietly leaves a shorter result that
         still reads as well formed.
         """
-        for marks, why in ((superseded, "superseded"), (unbound, "unbound")):
+        reports = (
+            (
+                superseded,
+                "superseded stress mark(s)",
+                "a unit bears one stress level, and the mark nearest it binds",
+            ),
+            (
+                unbound,
+                "unbound stress mark(s)",
+                "a stress mark binds the unit that follows it",
+            ),
+            (
+                unplaced,
+                "unplaced mark(s)",
+                "a mark binds the unit written before it, and these have none",
+            ),
+        )
+        for marks, what, detail in reports:
             if not marks:
                 continue
-            detail = (
-                "a unit bears one stress level, and the mark nearest it binds"
-                if why == "superseded"
-                else "a stress mark binds the unit that follows it"
-            )
             if strict:
                 raise ValueError(
-                    f"Cannot parse IPA segment: {len(marks)} {why} stress "
-                    f"mark(s) {sorted(set(marks))} reach no unit: {detail}."
+                    f"Cannot parse IPA segment: {len(marks)} {what} "
+                    f"{sorted(set(marks))} reach no unit: {detail}."
                 )
             warnings.warn(
-                f"dropped {len(marks)} {why} stress mark(s) "
+                f"dropped {len(marks)} {what} "
                 f"{sorted(set(marks))} while parsing IPA: {detail}. "
                 "Pass strict=True to raise instead.",
                 stacklevel=3,
