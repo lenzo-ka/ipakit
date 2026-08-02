@@ -278,6 +278,82 @@ def test_an_ambiguous_name_is_not_guessed_at(tmp_path: Path) -> None:
     assert cited(tmp_path) == []
 
 
+def test_a_bibliographic_citation_outranks_a_document_named_alongside(
+    tmp_path: Path,
+) -> None:
+    """A page reporting the literature is not quoting its sibling.
+
+    ``source.md`` is named in the sentence, but the quotation carries its
+    own attribution -- an author, a year, a page -- and the words are
+    Janda's, who is not a document in this tree.
+    """
+    write(
+        tmp_path,
+        source="Alpha holds at the left edge.\n",
+        quoting="The same source `source.md` quotes reports the objection: "
+        '*"a Pandora\'s box of implausible-seeming processes"* '
+        "(Janda 1984: 92, quoted by Hume).\n",
+    )
+    assert cited(tmp_path) == []
+
+
+def test_the_same_sentence_without_a_citation_is_still_checked(
+    tmp_path: Path,
+) -> None:
+    """The release is the citation's doing and nothing else's.
+
+    Word for word the sentence above, with the parenthetical dropped. If
+    this ever passes, the rule stopped being about attribution.
+    """
+    write(
+        tmp_path,
+        source="Alpha holds at the left edge.\n",
+        quoting="The same source `source.md` quotes reports the objection: "
+        '*"a Pandora\'s box of implausible-seeming processes"*.\n',
+    )
+    assert verdict(tmp_path) == [False]
+
+
+def test_a_citation_inside_the_quoted_words_attributes_nothing(
+    tmp_path: Path,
+) -> None:
+    """The source citing its own sources is not this page's attribution."""
+    write(
+        tmp_path,
+        source="Webb (1974) claims metathesis is not synchronic.\n",
+        quoting='`source.md` says *"Webb (1974) claims metathesis is not '
+        'diachronic"*.\n',
+    )
+    assert verdict(tmp_path) == [False]
+
+
+def test_a_citation_does_not_release_the_next_sentence(tmp_path: Path) -> None:
+    """A citation reaches its own sentence, the same window a link gets."""
+    write(
+        tmp_path,
+        source="Alpha holds at the left edge.\n",
+        quoting="Hume records the objection (Janda 1984: 92). But "
+        '`source.md` says *"alpha holds at the right edge"*.\n',
+    )
+    assert verdict(tmp_path) == [False]
+
+
+def test_a_phrase_in_italics_is_not_read_as_a_quotation(tmp_path: Path) -> None:
+    """Quotation marks mean the source's words, and nothing else does.
+
+    A contrast frame built from the author's own coined phrases wears
+    italics, so neither phrase claims to be the sibling's wording.
+    """
+    write(
+        tmp_path,
+        source="The rules are waiting on a notation.\n",
+        quoting="It turns [source](source.md)'s twelve rules from *waiting on "
+        "structure nobody can supply* into *waiting on a rule set the caller "
+        "may compose in*.\n",
+    )
+    assert cited(tmp_path) == []
+
+
 def test_a_list_item_does_not_claim_the_next_one(tmp_path: Path) -> None:
     """One line per paragraph *or bullet*; a list runs with no blank lines."""
     write(
