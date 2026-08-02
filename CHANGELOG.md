@@ -74,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/reviewing.md`, how defects in this library are actually found.
 - `docs/articulatory-data.md` and `scripts/articulatory.py`: the tract geometry measured against the X-Ray Microbeam database.
 - `scripts/invariants.py`, one command for the properties the library holds; it exits non-zero, so it gates a release (#8, #17).
+- `scripts/interop.py premarks`, which marks outside sources write before a base, and `docs/ties.md`'s answer to what ipakit should do with one.
 - `CHANGELOG.md` ships in the sdist.
 
 ### Removed
