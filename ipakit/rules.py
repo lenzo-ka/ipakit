@@ -645,6 +645,46 @@ def _check_literal(text: str, features: IPAFeatures) -> list[Unit]:
     return read
 
 
+def _keyed(source: str, terms: Sequence[str]) -> list[tuple[str, str]]:
+    """The ``key=value`` terms of a bracketed bundle, as they were written.
+
+    Read as a **sequence**, because ``dict(...)`` keeps the last of a
+    repeated key and every check on either side of the arrow runs over the
+    mapping it built. So a bundle could smuggle a term past the value arm
+    by restating the key: ``[stress=not_declared stress=primary]`` parsed,
+    while ``[stress=not_declared]`` on its own was refused. The undeclared
+    value was erased before anything looked at it, which made the
+    advertised check blind by construction rather than by oversight.
+
+    Refusing a repeat is what fixes that, and it fixes it the durable way:
+    with no key written twice the sequence and the mapping have the same
+    length, so validating the mapping *is* validating what was written.
+    Validating the terms and then building the mapping anyway would leave
+    two things to be kept in step by vigilance.
+
+    A repeat is refused rather than resolved because nothing in this
+    notation says which of two answers wins. Last-assignment-wins is a
+    convention the language never states, and a rule naming one feature
+    twice is far likelier a mistake than an intent -- most often a
+    contradiction (``[voiced=+ voiced=-]``), which no unit satisfies on
+    the left and which says two things at once on the right.
+    """
+    written = [(t.split("=", 1)[0], t.split("=", 1)[1]) for t in terms if "=" in t]
+    seen: dict[str, int] = {}
+    for key, _ in written:
+        seen[key] = seen.get(key, 0) + 1
+    repeated = sorted(key for key, count in seen.items() if count > 1)
+    if repeated:
+        raise RuleError(
+            f"{source!r} states {', '.join(repr(k) for k in repeated)} more "
+            "than once. A bundle says one thing about each feature, and "
+            "nothing in this notation says which of two answers wins -- so "
+            "the second would quietly erase the first, undeclared value and "
+            "all. Write the feature once, with the value meant."
+        )
+    return written
+
+
 def _zero_named(terms: Sequence[str], features: IPAFeatures) -> str | None:
     """The declared zero a bracketed class term names, or ``None``.
 
@@ -881,7 +921,10 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
         # '[vowel stress=primary]' is the natural way to say it. Each
         # form goes through the same resolver and the results merge,
         # rather than this growing a second query language.
-        pairs = dict(t.split("=", 1) for t in terms if "=" in t)
+        # Read as a sequence and refused where a key repeats, so the
+        # mapping below cannot be shorter than what was written and the
+        # value arm cannot be reached past an erased term. See _keyed.
+        pairs = dict(_keyed(text, terms))
         bare = [t for t in terms if "=" not in t]
         # A bare term that resolves to nothing is refused by the resolver,
         # but a 'key=value' term went straight through: '[mannr=plosive]'
@@ -1875,6 +1918,7 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     if target is not None:
         _check_no_exchange(source, target, becomes, features)
         _check_zero_target(source, target, becomes, features)
+        _check_no_change(source, target, becomes, features)
     else:
         _check_inserted_change(source, becomes)
     if target is not None and target.optional:
@@ -2018,6 +2062,24 @@ def _check_no_exchange(
     invariant that states this positively is that a boundary rewrite
     leaves the segmental string byte-identical, and these are the three
     shapes that would break it.
+
+    What counts as "a boundary" on the right is asked of the **run rule**
+    and not of a membership test. The check used to be exact membership of
+    the whole spelling in the declared marks, which refused ``. -> .#``
+    with a message saying ``.#`` "is not a boundary" -- and by this
+    module's own invariant it is one, spelled with two marks. The engine
+    already agreed: ``∅ -> .# / a _ b`` was accepted and wrote that very
+    run, so the same string was legal on the right of an insertion and
+    refused on the right of a rewrite. Measured against ``a.#b``, nothing
+    downstream minds -- ``. _``, ``# _`` and ``% _`` all match the run,
+    ``. -> ∅`` takes the whole of it and ``# -> ∅`` takes the mark it
+    names -- so no rule can write a run that no context can then read.
+
+    A context naming two boundaries in a row is still refused
+    (:meth:`Query._side`), and that is a different proposition: there the
+    rule states two *patterns*, and a run is one boundary, so the second
+    can never hold. Here the rule states one boundary and spells it with
+    the marks it was written with.
     """
     marks = _boundary_spellings(features)
     written = becomes if isinstance(becomes, str) else ""
@@ -2031,15 +2093,17 @@ def _check_no_exchange(
                 f"('{target.source} -> #'), or delete it "
                 f"('{target.source} -> ∅')."
             )
-        if becomes is not None and written not in marks:
+        if becomes is not None and not all(glyph in marks for glyph in written):
+            stray = next(glyph for glyph in written if glyph not in marks)
             raise RuleError(
                 f"{source!r} rewrites the boundary {target.source!r} as "
-                f"{written!r}, which is not a boundary; a boundary is a "
-                "relation between segments, not a segment, so the two cannot "
-                "be exchanged. A boundary may be written ('∅ -> .'), unwritten "
-                "('. -> ∅') or restated at another level ('. -> #'); to put a "
-                "segment where one stood, delete the boundary and insert the "
-                "segment, which is two ordered rules."
+                f"{written!r}, and {stray!r} does not spell a boundary; a "
+                "boundary is a relation between segments, not a segment, so "
+                "the two cannot be exchanged. A boundary may be written "
+                "('∅ -> .'), unwritten ('. -> ∅') or restated at another level "
+                "('. -> #', '. -> .#'); to put a segment where one stood, "
+                "delete the boundary and insert the segment, which is two "
+                "ordered rules."
             )
         return
     offending = [glyph for glyph in written if glyph in marks]
@@ -2125,6 +2189,113 @@ def _check_inserted_change(source: str, becomes: Becomes) -> None:
     )
 
 
+def _stated(target: Pattern, key: str, value: str | None | Agreement) -> bool:
+    """Whether the target already **states** what the right of the arrow asks.
+
+    Only what the target says of itself, never what the inventory says of
+    a phone it names. That line is measured rather than chosen: a literal
+    target's bundle is the flat projection, and a tied unit projects its
+    *first element's* features -- so ``a͜ɪ`` reads ``manner=vowel`` while
+    ``a͜ɪ -> [manner=vowel]`` answers ``a``, collapsing the tie. Reading a
+    guarantee off that bundle refuses rules that do edit.
+    """
+    if isinstance(value, Agreement):
+        # Same letter AND same polarity. '[voiced=α] -> [voiced=-α]' is a
+        # voicing flip and edits every unit it matches, so the polarity is
+        # the whole difference between a no-op and a rule.
+        return target.agreements.get(key) == value
+    if value is None:
+        # Clearing prosody. A required value states what is *present*, and
+        # absence is not a value, so nothing on the left entails this.
+        return False
+    return value in (target.seg_required.get(key), target.pro_required.get(key))
+
+
+def _check_no_change(
+    source: str,
+    target: Pattern,
+    becomes: Becomes,
+    features: IPAFeatures,
+) -> None:
+    """Refuse a rule whose right of the arrow restates its own target.
+
+    The fourth member of the family above, and the one that was open.
+    ``[voiced=+] -> [voiced=+]`` parses, recognizes ``d``, and then
+    :meth:`Action.edit` finds ``before == after`` and hands back ``None``:
+    the rule finds every site and declines every one of them, which is the
+    shape :func:`_check_inserted_change` exists to refuse and the shape
+    this whole family is about. A rule that can never edit any form is a
+    mistake about the rule and not a fact about a word, so it is refused
+    where the rule is read.
+
+    A variable is the same statement with the value left open.
+    ``[voiced=α] -> [voiced=α]`` binds ``α`` from the target and writes it
+    straight back; the polarity is what separates that from
+    ``[voiced=α] -> [voiced=-α]``, which flips voicing and edits wherever
+    it matches.
+
+    A literal on the right says this too, where the target pins one unit.
+    A **mark** pattern names one glyph, so ``‿ -> ‿`` can only ever write
+    what it read. A literal pattern names a core, and prosody the rule
+    does not mention carries across (:meth:`Action.edit`), so ``d -> d``
+    and ``aː -> aː`` are no-ops while ``ˈa -> a`` is not: naming stress on
+    the left and not on the right is how the stress goes away.
+
+    A **level** pattern is not this, and that is the interesting half. A
+    boundary pattern is a class -- ``#`` matches a word boundary or
+    anything stronger -- so ``# -> #`` takes ``a‖a`` to ``a#a`` and
+    ``. -> .`` takes ``a#a`` to ``a.a``. Identity across a class is a
+    *downgrade*, not a no-op.
+
+    What this does **not** reach is a right-hand side entailed by the
+    inventory rather than by the rule: ``d -> [voiced=+]`` still parses
+    and still cannot edit, because ``d`` is voiced already. That escape is
+    pinned in the tests with the measurement that draws the line -- see
+    :func:`_stated`.
+    """
+    if becomes is None:
+        return
+    if isinstance(becomes, dict):
+        if not becomes or not all(_stated(target, k, v) for k, v in becomes.items()):
+            return
+        restated = ", ".join(sorted(becomes))
+        raise RuleError(
+            f"{source!r} asks for nothing its own target does not already "
+            f"require: {restated}. A bracketed right-hand side MODIFIES the "
+            "unit the rule matched, and this one modifies it to what it had "
+            "to be to match -- so the rule would find every site and change "
+            "none of them, silently. Write the value the unit should end up "
+            "with, or the opposite of the variable ('[voiced=α] -> "
+            "[voiced=-α]') if a flip was meant."
+        )
+    if target.mark is not None:
+        if becomes != target.mark:
+            return
+    elif target.literal is not None and not (
+        target.seg_required
+        or target.seg_excluded
+        or target.pro_excluded
+        or target.agreements
+    ):
+        units_written = _reads_as(becomes, features)
+        if len(units_written) != 1:
+            return
+        unit = units_written[0]
+        if unit.core != target.literal or dict(unit.prosody) != target.pro_required:
+            return
+    else:
+        # A level pattern is a class, so identity across the arrow is a
+        # real rewrite: '. -> .' makes a word boundary a syllable one.
+        return
+    raise RuleError(
+        f"{source!r} writes back exactly what it matched, so it would find "
+        "every site and change none of them, silently. A rewrite has to "
+        "differ from its target somewhere: name the unit the rule should "
+        f"produce, or delete the target ('{target.source} -> ∅') if that is "
+        "what was meant."
+    )
+
+
 def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
     """What the right of the arrow says to do.
 
@@ -2156,7 +2327,10 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
                 f"{rhs!r} is a change, so every term must be 'key=value'; "
                 "a bare class does not say what to change it to"
             )
-        pairs = dict(t.split("=", 1) for t in terms)
+        # As on the left of the arrow: the terms are the sequence written,
+        # and a repeated key is refused rather than resolved, so nothing
+        # reaches the checks below already erased. See _keyed.
+        pairs = dict(_keyed(rhs, terms))
         unknown = sorted(k for k in pairs if k not in features.features)
         if unknown:
             raise RuleError(f"{rhs!r} names undeclared feature(s): {unknown}")
@@ -2595,6 +2769,54 @@ def _keep_cheapest(carried: dict[str, _Branch], key: str, branch: _Branch) -> No
         carried[key] = branch
 
 
+def _is_comment(stripped: str, features: IPAFeatures) -> bool:
+    """Whether a ``.rules`` line is prose rather than a rule.
+
+    A line of prose opens with ``#``, and ``#`` also spells a declared
+    separator, so a prefix test cannot tell the two apart -- and it
+    decided the collision against the rule. ``# -> ∅`` was read as prose,
+    which made the word mark the one boundary a rule could not name in a
+    file, while ``. -> ∅`` -- the *class* pattern, which matches a
+    syllable break and everything stronger -- deleted that same mark
+    happily. The general pattern was strictly stronger than the specific
+    one, which inverts what naming a mark is for, and it was silent: the
+    set held no rule at all and derived the form unchanged.
+
+    Position separates them, on the notation's own terms. A target is the
+    whole of what stands left of the arrow, so the opening glyph is a
+    target exactly when it is the whole of it: the glyph, then the arrow,
+    with nothing but space between. Prose that opens with the glyph has
+    words before its arrow if it carries one at all, which is what the
+    comment blocks in ``ipakit/data/rules`` do -- they are full of arrows,
+    and a sweep over every one of them pins that this reads none of them
+    as a rule.
+
+    Asked of the declaration rather than of a list: any separator opening
+    a line is disambiguated this way, so a newly declared mark that is
+    also a comment glyph elsewhere is covered without an edit here, and a
+    glyph the data does *not* declare stays prose whatever follows it.
+
+    The residue is prose whose first word is an arrow, which now fails
+    loudly as a rule rather than passing quietly as a comment. Loud is the
+    side to be wrong on here, and it is the side the rest of this module
+    is already on.
+    """
+    # Spelled here rather than as a module constant: '#' is a registered
+    # separator, and a constant naming it would be the second copy of the
+    # declaration that tests/test_declared_not_hardcoded.py exists to
+    # refuse. The comment glyph is this notation's own choice; which
+    # glyphs it collides with is the data's answer, asked below.
+    head = stripped[:1]
+    if head != "#":
+        return False
+    if head not in features.separators:
+        # Not a boundary in this inventory, so nothing collides and the
+        # whole line is prose.
+        return True
+    rest = stripped[1:].lstrip()
+    return not any(rest.startswith(arrow) for arrow in OPTIONAL_ARROWS + ARROWS)
+
+
 @dataclass(frozen=True)
 class RuleSet:
     """An ordered cascade of rules.
@@ -2614,14 +2836,17 @@ class RuleSet:
     ) -> RuleSet:
         """Build a rule set from one rule per line.
 
-        Blank lines are skipped, and ``#`` begins a comment only where a
-        line starts with it, since ``#`` is also the word edge.
+        Blank lines are skipped, and ``#`` begins a comment where a line
+        starts with it -- unless it is the whole of that line's target,
+        which is how a rule names the word boundary in a file. ``#`` is
+        both the comment marker and the word edge, and :func:`_is_comment`
+        is where the two are told apart.
         """
         features = _default(features)
         parsed = []
         for line in text.splitlines():
             stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
+            if not stripped or _is_comment(stripped, features):
                 continue
             parsed.append(parse(stripped, features))
         return cls(rules=tuple(parsed), name=name)

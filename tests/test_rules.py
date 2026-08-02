@@ -636,15 +636,24 @@ class TestARuleThatCannotWorkIsRefused:
         spot-checked, because what would make this guard wrong is one
         registered spelling it happens to read as two units.
         """
-        checked = 0
+        checked = identity = 0
         bad: list[str] = []
         for phone in _phones():
             for spec in (f"{phone} -> ʔ", f"t -> {phone}", f"t -> ʔ / {phone} _"):
+                checked += 1
+                left, _, right = spec.partition(" -> ")
+                if left == right.partition(" / ")[0]:
+                    # 'ʔ -> ʔ' and 't -> t' fall out of this enumeration and
+                    # are refused by a different guard for a different
+                    # reason: they write back what they matched, so they can
+                    # never edit. See TestARuleMustBeAbleToEdit.
+                    identity += 1
+                    continue
                 try:
                     R.parse(spec, FEATURES)
                 except R.RuleError as refused:
                     bad.append(f"{spec}: {refused}")
-                checked += 1
+        assert identity == 2, "the two identity rules this enumeration makes"
         assert_swept(checked, _phones())
         assert bad == [], f"{len(bad)} of {checked} refused, first: {bad[:3]}"
 
@@ -858,12 +867,19 @@ class TestWhatTheReviewFound:
 
     def test_every_prosody_bearing_unit_keeps_it_through_a_literal_rewrite(self):
         checked = lost = 0
+        # The written form of the target, so 'ʔ -> ʔ' is not asked. It
+        # writes back what it matched and is refused where it is read;
+        # what this sweep is about is a rewrite that changes the segment
+        # and must leave the prosody where it was.
+        rewritten = "ʔ"
         for phone in _phones():
+            if phone == rewritten:
+                continue
             for mark in ("ː", "˥"):
                 unit = f"{phone}{mark}"
                 if FEATURES.segment(unit).to_ipa() != unit:
                     continue
-                got = ipakit.rewrite(unit, f"{phone} -> ʔ")
+                got = ipakit.rewrite(unit, f"{phone} -> {rewritten}")
                 checked += 1
                 if got and mark not in got:
                     lost += 1
@@ -2077,23 +2093,93 @@ class TestABoundaryIsWrittenAndUnwrittenAlike:
         assert checked == len(self.UNWRITING) * len(self.PLAIN) * len(runs) * 3 == 432
         assert bad == [], f"{len(bad)} of {checked}, first: {bad[:3]}"
 
-    def test_a_word_boundary_target_cannot_be_written_in_a_set(self):
-        """A limit the change exposes rather than one it introduces.
+    def test_a_word_boundary_target_can_be_written_in_a_set(self):
+        """The word mark is a target in a file, like every other boundary.
 
-        A line beginning with ``#`` is a comment, because ``#`` is also
-        the word boundary and a set has to be able to carry prose. So the
-        one boundary that cannot be a target *in a file* is the word mark,
-        while ``∅ -> #`` on the same line is a rule. No lexical heuristic
-        separates the two either: the comment lines in ``data/rules``
-        contain arrows, so "a comment does not rewrite" is not a rule that
-        can be written down. ``%`` reaches every boundary and ``R.parse``
-        takes the rule directly; both are stated here so the workaround is
-        as pinned as the limit.
+        A line opening with ``#`` is a comment, because ``#`` is also the
+        word boundary and a set has to carry prose. That was read as a
+        prefix, which decided the collision against the rule: ``# -> ∅``
+        was prose, so the *one* boundary a file could not name was the
+        word mark -- while ``. -> ∅``, the class pattern that matches a
+        syllable break and everything stronger, deleted that same mark. The
+        general pattern was strictly stronger than the specific one, which
+        inverts what naming a mark is for.
+
+        The engine was never the problem, and that is worth pinning: the
+        rule found its site and made its edit all along. What lost the
+        answer was the line reader, so the whole set was empty and the
+        form came back unchanged.
         """
-        assert R.RuleSet.parse("# -> ∅", FEATURES).rules == ()
+        assert len(R.RuleSet.parse("# -> ∅", FEATURES)) == 1
         assert len(R.RuleSet.parse("∅ -> # / a _ a", FEATURES)) == 1
+        # The half that always worked, kept as the witness that the fix is
+        # in the reader and not in what a rule does with a boundary.
         assert R.spell(R.parse("# -> ∅", FEATURES).apply("a#b", FEATURES)[0]) == "ab"
+        assert ipakit.rewrite("a#b", "# -> ∅") == "ab"
         assert ipakit.rewrite("a#b", "% -> ∅") == "ab"
+
+    @pytest.mark.parametrize(
+        "line,rules,because",
+        [
+            ("# -> ∅", 1, "the mark alone, then the arrow"),
+            ("#->∅", 1, "the arrow need not be spaced"),
+            ("# ~> ∅", 1, "and it may be the optional arrow"),
+            ("# → ‿ / a _ b", 1, "any arrow spelling, with a context"),
+            ("# a comment", 0, "prose"),
+            ("#", 0, "a bare rule of hashes"),
+            ("#  ʁaːd  Rad  -> [ʁaːt]", 0, "prose that carries an arrow"),
+            ("# THE CONDITION IS A CODA -> NOT A WORD EDGE", 0, "and shouts one"),
+        ],
+    )
+    def test_the_comment_glyph_and_the_word_mark_are_told_apart_by_position(
+        self, line, rules, because
+    ):
+        """A target is the whole of what stands left of the arrow.
+
+        So the mark is a target exactly when it is the whole of it. Prose
+        opening with the mark has words before its arrow if it carries one
+        at all, which is what makes the two separable at all.
+        """
+        assert len(R.RuleSet.parse(line, FEATURES)) == rules, because
+
+    def test_no_shipped_comment_line_is_read_as_a_rule(self):
+        """The measurement the separation rests on, swept not sampled.
+
+        The comment blocks in ``ipakit/data/rules`` are full of arrows --
+        they tabulate derivations -- which is why "a comment does not
+        rewrite" cannot be the rule. This asserts the rule that IS used
+        holds of every one of them, so a comment written in a new file
+        cannot quietly become a rule.
+        """
+        comments = 0
+        read_as_rules: list[str] = []
+        for name in R.available():
+            path = R.RULES_DIR / f"{name}.rules"
+            for line in path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped.startswith("#"):
+                    continue
+                comments += 1
+                if not R._is_comment(stripped, FEATURES):
+                    read_as_rules.append(f"{name}: {stripped}")
+        assert comments > 1000, f"only {comments} comment lines swept"
+        assert read_as_rules == [], f"{len(read_as_rules)}: {read_as_rules[:3]}"
+
+    def test_every_shipped_set_holds_exactly_the_lines_it_declares(self):
+        """The other side of the same measurement, and the durable form.
+
+        A count per set would be a table to keep in step by hand. What the
+        reader must satisfy is that a set holds one rule per line that is
+        neither blank nor prose -- so the file and the set are counted the
+        same way, and a comment read as a rule shows up as a set that grew
+        or as a file that stopped loading.
+        """
+        for name in R.available():
+            text = (R.RULES_DIR / f"{name}.rules").read_text(encoding="utf-8")
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            written = [ln for ln in lines if not R._is_comment(ln, FEATURES)]
+            assert written, f"{name} declares no rules"
+            assert len(R.shipped(name, FEATURES)) == len(written), name
 
 
 class TestARunUsedAsATargetIsOneBoundary:
@@ -2322,3 +2408,515 @@ class TestEnchainementIsNotExpressible:
         assert _segmental(flattened) == _segmental(self.AFTER)
         tree = ipakit.Form.parse(flattened, FEATURES).tree()
         assert [n.to_ipa() for n in tree.at("word")] == ["pətitami"], "one word now"
+
+
+# --------------------------------------------------------------------------
+# A rule that parses and finds a site must be able to change something
+# --------------------------------------------------------------------------
+
+
+#: Targets to build rules from: literal phones, a bundle, the declared
+#: boundary marks, and the wildcard. Read off the declaration where it can
+#: be, so a newly declared mark joins these sweeps without an edit here.
+SWEEP_TARGETS = (
+    "t",
+    "d",
+    "a",
+    "aː",
+    "ˈa",
+    "[voiced=+]",
+    "[manner=plosive]",
+    "[vowel stress=primary]",
+    "[voiced=α]",
+    R.ANY_BOUNDARY,
+    *BOUNDARY_MARKS,
+)
+
+#: What those targets may become: a phone, a bundle, a boundary, a run of
+#: two boundaries, deletion, and the same spellings the targets use -- so
+#: the identity rules are generated rather than avoided.
+SWEEP_BECOMES = (
+    "t",
+    "d",
+    "a",
+    "aː",
+    "ˈa",
+    "ʔ",
+    "[voiced=+]",
+    "[voiced=-]",
+    "[manner=plosive]",
+    "[stress=primary]",
+    "[voiced=α]",
+    "[voiced=-α]",
+    "∅",
+    *BOUNDARY_MARKS,
+)
+
+#: Forms to run them against: segments, prosody, every boundary mark, a
+#: two-mark run, a form-final mark and a bare space.
+#:
+#: More than one vowel and more than one stressed vowel, deliberately. A
+#: corpus holding only ``ˈa`` makes ``[vowel stress=primary] -> ˈa`` look
+#: like a rule that can never fire, when what it cannot do is fire on
+#: *that* form -- and a sweep whose thinness reads as a defect teaches
+#: the wrong thing about the rules it clears.
+SWEEP_FORMS = (
+    "ata",
+    "ada",
+    "ˈata",
+    "aːta",
+    "kæt",
+    "tʰa",
+    "a.a",
+    "a#a",
+    "a‿a",
+    "a|a",
+    "a‖a",
+    "a b",
+    "a.#a",
+    "a..a",
+    "at#a",
+    "at.",
+    "at#",
+    ".at",
+    "iti",
+    "ˈiti",
+    "ˈuku",
+    "apa",
+    "saɡa",
+    "ˈaːta",
+)
+
+
+class TestARuleMustBeAbleToEdit:
+    """``[voiced=+] -> [voiced=+]`` parsed, recognized, and never fired.
+
+    The right of the arrow asked for exactly what the target had to have
+    to match, so :meth:`Action.edit` found ``before == after`` at every
+    site and answered ``None``. The rule was well formed, found its
+    positions, reported no change, and said nothing about why -- which is
+    the shape ``_check_inserted_change`` was written to refuse for an
+    insertion and the shape this suite exists to catch.
+    """
+
+    @pytest.mark.parametrize(
+        "bad,shape",
+        [
+            ("[voiced=+] -> [voiced=+]", "a value restated"),
+            ("[manner=plosive] -> [manner=plosive]", "and another"),
+            ("[voiced=α] -> [voiced=α]", "a variable bound and written back"),
+            ("[vowel stress=primary] -> [stress=primary]", "prosody restated"),
+            ("[manner=plosive voiced=+] -> [voiced=+]", "part of the target"),
+            ("d -> d", "a literal that writes itself"),
+            ("aː -> aː", "prosody and all"),
+            ("ˈa -> ˈa", "the other prosody"),
+            ("‿ -> ‿", "a mark names one glyph, so this is one too"),
+            ("| -> |", "and so is this"),
+        ],
+    )
+    def test_a_rule_that_can_never_edit_is_refused_where_it_is_read(self, bad, shape):
+        """Refused at parse, for ``_check_inserted_change``'s reason.
+
+        Nothing about it depends on the form, so a set holding one fails
+        to load rather than loading and deriving a quietly unchanged
+        answer one word at a time.
+        """
+        with pytest.raises(R.RuleError) as caught:
+            R.parse(bad, FEATURES)
+        assert "silently" in str(caught.value), shape
+
+    @pytest.mark.parametrize(
+        "good,form,expected,shape",
+        [
+            ("[voiced=α manner=plosive] -> [voiced=-α]", "ada", "ata", "a flip"),
+            ("[voiced=α manner=plosive] -> [voiced=-α]", "ata", "ada", "either way"),
+            ("n -> [place=α] / _ [place=α]", "anpa", "ampa", "the canonical one"),
+            ("ˈa -> a", "ˈata", "ata", "prosody named on one side only"),
+            ("aː -> a", "aːta", "ata", "and the other prosody"),
+            ("[vowel stress=primary] -> [stress=secondary]", "ˈata", "ˌata", "a move"),
+        ],
+    )
+    def test_the_refusal_is_not_wider_than_that(self, good, form, expected, shape):
+        """Each of these differs from its target somewhere, and edits."""
+        assert ipakit.rewrite(form, good) == expected, shape
+
+    @pytest.mark.parametrize("spec", ["# -> #", ". -> ."])
+    def test_identity_across_a_level_pattern_is_a_real_rewrite(self, spec):
+        """The interesting half, and why the guard is not simply textual.
+
+        A boundary pattern is a *class*: ``#`` matches a word boundary or
+        anything stronger, so ``# -> #`` writing ``#`` where a ``‖`` stood
+        is a downgrade rather than a no-op. Identity on the two sides of a
+        class says something; identity on the two sides of a mark, which
+        names one glyph, cannot.
+        """
+        mark = spec[0]
+        stronger = [
+            m
+            for m in BOUNDARY_MARKS
+            if m != mark
+            and R.spell(R.parse(spec, FEATURES).apply(f"a{m}b")[0]) != f"a{m}b"
+        ]
+        assert stronger, f"{spec} rewrites no other mark, so it IS a no-op"
+        for other in stronger:
+            assert (
+                R.spell(R.parse(spec, FEATURES).apply(f"a{other}b")[0]) == f"a{mark}b"
+            )
+
+    def test_the_guard_states_what_it_cannot_see(self):
+        """A pinned escape, with the measurement that draws the line.
+
+        ``d -> [voiced=+]`` cannot edit either -- ``d`` is voiced already
+        -- but the guard does not reach it, and deliberately. It reads
+        only what the *rule states*, never what the inventory says of a
+        phone the rule names, because a literal's bundle is the flat
+        projection and a tied unit projects its FIRST element's features:
+        ``a͜ɪ`` reads ``manner=vowel`` while ``a͜ɪ -> [manner=vowel]``
+        answers ``a``, collapsing the tie. So the bundle is not a
+        guarantee, and a guard that read one off it would refuse rules
+        that do edit.
+
+        The count below is that measurement, so this escape closes only
+        deliberately. If it reaches zero, the bundle has become a
+        guarantee and the guard could be widened.
+        """
+        R.parse("d -> [voiced=+]", FEATURES)
+        assert ipakit.rewrite("ada", "d -> [voiced=+]") == "ada", "still a no-op"
+
+        checked = movers = 0
+        for phone in _phones():
+            read = R._reads_as(phone, FEATURES)
+            if len(read) != 1 or read[0].segment is None:
+                continue
+            for key, value in read[0].features.items():
+                if key not in FEATURES.features:
+                    continue
+                try:
+                    rule = R.parse(f"{phone} -> [{key}={value}]", FEATURES)
+                except R.RuleError:
+                    continue
+                checked += 1
+                if R.spell(rule.apply(phone, FEATURES)[0]) != phone:
+                    movers += 1
+        assert checked > 2000, f"only {checked} literal/bundle pairs swept"
+        assert movers > 0, "the flat bundle has become a guarantee; widen the guard"
+
+    def test_no_generated_rule_finds_sites_and_edits_none_of_them(self):
+        """The general shape, swept rather than named.
+
+        A rule that recognizes a position and then declines every one of
+        them, on every form, is a rule that cannot work. That covers the
+        restated bundle above and the word mark a file could not name
+        alike, and it is the property worth holding rather than either
+        case on its own.
+
+        Where it stops is a **spelled** right-hand side. A rule that says
+        what to write is refused at parse if it writes what it matched, so
+        no spelled rule survives to be idle. A bracketed one can, and for
+        two reasons the rule itself does not state: the unit already had
+        the value asked for (``t -> [voiced=-]``), or the inventory can
+        spell the result neither as a registered phone nor as a composed
+        one and the rule declines rather than inventing a symbol. Both are
+        facts about the data, so the idle set is asserted to be exactly
+        the bracketed ones and asserted to be non-empty -- if it empties,
+        one of those two has stopped being reachable and this pin should
+        say so rather than pass quietly.
+        """
+        rules = built = recognized = 0
+        idle: list[str] = []
+        spelled_idle: list[str] = []
+        for target, becomes in itertools.product(SWEEP_TARGETS, SWEEP_BECOMES):
+            spec = f"{target} -> {becomes}"
+            rules += 1
+            try:
+                rule = R.parse(spec, FEATURES)
+            except R.RuleError:
+                continue
+            built += 1
+            sites = edits = 0
+            for form in SWEEP_FORMS:
+                items = R.units(form, FEATURES)
+                sites += len(rule.recognize(items, FEATURES))
+                edits += len(rule.edits(items, FEATURES))
+            if not sites:
+                continue
+            recognized += 1
+            if edits:
+                continue
+            idle.append(f"{spec}: {sites} sites, no edit on any form")
+            if not isinstance(rule.becomes, dict):
+                spelled_idle.append(spec)
+        assert rules == len(SWEEP_TARGETS) * len(SWEEP_BECOMES)
+        assert built > 100, f"only {built} of {rules} rules parsed"
+        assert recognized > 100, f"only {recognized} rules found a site"
+        assert spelled_idle == [], f"{len(spelled_idle)}: {spelled_idle[:3]}"
+        assert idle, "the escape has closed; widen the guard or drop this pin"
+
+    def test_the_same_sweep_run_through_a_set_agrees(self):
+        """Through ``rewrite``, which is where the word mark was lost.
+
+        The engine found the site and made the edit all along; the line
+        reader dropped the rule, so nothing downstream of it could tell.
+        A sweep that only asks ``Rule`` cannot see that, and this is the
+        same corpus asked at the entry point a caller uses.
+        """
+        checked = 0
+        silent: list[str] = []
+        for target, becomes in itertools.product(SWEEP_TARGETS, SWEEP_BECOMES):
+            spec = f"{target} -> {becomes}"
+            try:
+                rule = R.parse(spec, FEATURES)
+            except R.RuleError:
+                continue
+            for form in SWEEP_FORMS:
+                items = R.units(form, FEATURES)
+                if not rule.edits(items, FEATURES):
+                    continue
+                checked += 1
+                with _quiet():
+                    if ipakit.rewrite(form, spec) == form:
+                        silent.append(f"{spec} on {form!r}")
+        assert checked > 500, f"only {checked} firing rule/form pairs swept"
+        assert silent == [], f"{len(silent)} of {checked}, first: {silent[:3]}"
+
+
+class TestNamingAMarkIsAtLeastAsStrongAsAClass:
+    """``# -> ∅`` left ``a#a`` alone while ``. -> ∅`` took the mark out.
+
+    Naming the mark is how a rule says *which* boundary it means, so a
+    rule that names one must reach it wherever a pattern that merely
+    covers it reaches it. It was the other way round for the word mark,
+    and silently: the line reader read ``# -> ∅`` as prose, the set held
+    no rule, and the form came back unchanged.
+    """
+
+    #: Every pattern that covers a boundary without naming one: the
+    #: declared separators, which match their level or stronger, and the
+    #: wildcard, which matches every boundary there is.
+    GENERAL = (*SEPARATORS, R.ANY_BOUNDARY)
+
+    #: Where the mark can stand: between segments, at each end, and twice.
+    SHAPES = ("a{m}b", "{m}ab", "ab{m}", "a{m}b{m}c")
+
+    def test_a_rule_naming_a_mark_deletes_it_wherever_a_class_does(self):
+        """The specificity relation, over every declared mark and shape.
+
+        Asked of the deletion because that is the one operation every
+        boundary admits, and asked through ``rewrite`` because the entry
+        point is where the answer was lost.
+        """
+        checked = reached = 0
+        weaker: list[str] = []
+        for mark in BOUNDARY_MARKS:
+            for shape in self.SHAPES:
+                form = shape.format(m=mark)
+                named = ipakit.rewrite(form, f"{mark} -> ∅")
+                for general in self.GENERAL:
+                    if general == mark:
+                        continue
+                    checked += 1
+                    covered = ipakit.rewrite(form, f"{general} -> ∅")
+                    if mark in covered:
+                        continue
+                    reached += 1
+                    if mark in named:
+                        weaker.append(
+                            f"{general!r} clears {mark!r} from {form!r} "
+                            f"and {mark!r} leaves {named!r}"
+                        )
+        expected = len(BOUNDARY_MARKS) * len(self.SHAPES) * len(self.GENERAL)
+        assert checked == expected - len(SEPARATORS) * len(self.SHAPES)
+        assert checked > 40, f"only {checked} mark/class pairs swept"
+        assert reached > 30, f"only {reached} pairs where the class acts at all"
+        assert weaker == [], f"{len(weaker)} of {reached}: {weaker[:3]}"
+
+    def test_a_mark_names_only_itself_and_a_class_takes_the_run(self):
+        """The other direction, which is the run rule and not a defect.
+
+        ``. -> ∅`` is "syllable or stronger" and takes the whole of a run;
+        ``‿ -> ∅`` names one mark and leaves the rest where it was
+        written. Specificity means the named rule is not WEAKER, not that
+        the two are the same rule.
+        """
+        assert ipakit.rewrite("a.‿b", ". -> ∅") == "ab"
+        assert ipakit.rewrite("a.‿b", "‿ -> ∅") == "a.b"
+        assert ipakit.rewrite("a.#b", "# -> ∅") == "a.b"
+        assert ipakit.rewrite("a.#b", ". -> ∅") == "ab"
+
+    def test_writing_a_mark_target_in_a_set_holds_the_edge_invariant(self):
+        """The invariant PR #86 strengthened, over the newly reachable rules.
+
+        A form's end is a word boundary whether or not ``#`` is typed, so
+        ``r(f) == strip(r('#' + f)) == strip(r(f + '#'))``. The rules that
+        name a mark as their target are the ones a file could not hold
+        until now, so they are the ones this had never been asked of.
+        """
+        checked = 0
+        bad: list[str] = []
+        for mark in BOUNDARY_MARKS:
+            for becomes in ("∅", R.ANY_BOUNDARY, *BOUNDARY_MARKS):
+                spec = f"{mark} -> {becomes}"
+                try:
+                    R.parse(spec, FEATURES)
+                except R.RuleError:
+                    continue
+                for form in ("kæt", "kæ.t", "kæt.a", "a‿b"):
+                    with _quiet():
+                        base = _ends_stripped(ipakit.rewrite(form, spec))
+                        for written in (f"#{form}", f"{form}#", f"#{form}#"):
+                            got = _ends_stripped(ipakit.rewrite(written, spec))
+                            checked += 1
+                            if got != base:
+                                bad.append(
+                                    f"{spec}: {form}->{base} vs {written}->{got}"
+                                )
+        assert checked > 200, f"only {checked} edge triples swept"
+        assert bad == [], f"{len(bad)} of {checked}, first: {bad[:3]}"
+
+
+class TestABundleIsReadAsWhatWasWritten:
+    """``[stress=not_declared stress=primary]`` parsed and wrote ``ˈa``.
+
+    ``dict(...)`` keeps the last of a repeated key, so the undeclared
+    value was erased before the value arm looked at it: the check that
+    exists to catch a misspelled value was blind to any value a second
+    term stood in front of. The same construction was on both sides of
+    the arrow, so ``[voiced=not_declared voiced=+]`` did it on the left.
+    """
+
+    @pytest.mark.parametrize(
+        "bad,shape",
+        [
+            ("a -> [stress=not_declared stress=primary]", "on the right"),
+            ("[voiced=not_declared voiced=+] -> a", "on the left"),
+            ("a -> [stress=primary stress=not_declared]", "either order"),
+            ("[voiced=+ voiced=-] -> a", "a contradiction no unit satisfies"),
+            ("a -> [stress=primary stress=primary]", "even where they agree"),
+            ("t -> ʔ / _ [voiced=+ voiced=-]", "in a context item too"),
+        ],
+    )
+    def test_a_repeated_key_is_refused_on_both_sides(self, bad, shape):
+        with pytest.raises(R.RuleError) as caught:
+            R.parse(bad, FEATURES)
+        assert "more than once" in str(caught.value), shape
+
+    def test_every_written_term_is_validated_and_not_only_the_survivor(self):
+        """Over the token sequence, since a mapping cannot see the loss.
+
+        A test on the resulting mapping is exactly what could not have
+        caught this: by the time the mapping exists the discarded term is
+        gone. So the sweep pairs a bad term with a good one on the same
+        key and asserts the rule is refused whichever position it takes.
+        """
+        good = {"stress": "primary", "voiced": "+", "manner": "plosive"}
+        checked = 0
+        passed: list[str] = []
+        for key, value in good.items():
+            for bad in ("not_declared", "0", "obstruent"):
+                for terms in (
+                    (f"{key}={bad}", f"{key}={value}"),
+                    (f"{key}={value}", f"{key}={bad}"),
+                ):
+                    spec = f"a -> [{' '.join(terms)}]"
+                    checked += 1
+                    try:
+                        R.parse(spec, FEATURES)
+                    except R.RuleError:
+                        continue
+                    passed.append(spec)
+        assert checked == len(good) * 3 * 2 == 18
+        assert passed == [], f"{len(passed)} of {checked} parsed: {passed[:3]}"
+
+    def test_a_bundle_with_no_repeat_is_read_as_the_mapping_it_builds(self):
+        """The equality the refusal buys, asserted rather than assumed.
+
+        With no key written twice the term sequence and the mapping have
+        the same length, so validating the mapping IS validating what was
+        written -- which is what makes the check above unnecessary a
+        second time rather than merely passing today.
+        """
+        checked = 0
+        for source in (
+            "[voiced=+ manner=plosive]",
+            "[stress=primary length=long]",
+            "[manner=plosive]",
+            "[voiced=α place=labial]",
+        ):
+            terms = [t for t in source[1:-1].split() if t]
+            written = R._keyed(source, terms)
+            assert len(written) == len(dict(written)) == len(terms), source
+            checked += 1
+        assert checked == 4
+
+
+class TestARunIsABoundaryOnTheRightOfTheArrowToo:
+    """``. -> .#`` was refused as "not a boundary", and it is one.
+
+    The exchange guard asked exact membership of the whole spelling in
+    the declared marks, so a right-hand side made *entirely* of boundary
+    marks failed a test named for whether it was a boundary at all. Under
+    this module's own run rule a run of marks is one boundary, which is
+    the reading every other position already took: ``∅ -> .# / a _ b``
+    was accepted and wrote that very run, so the same string was legal on
+    the right of an insertion and refused on the right of a rewrite.
+    """
+
+    def test_a_rewrite_may_write_a_run_as_an_insertion_may(self):
+        """The two positions agree, which is what was wrong."""
+        assert ipakit.rewrite("ab", "∅ -> .# / a _ b") == "a.#b"
+        assert ipakit.rewrite("a.b", ". -> .#") == "a.#b"
+        assert ipakit.rewrite("a.b", ". -> #.") == "a#.b"
+
+    @pytest.mark.parametrize("stray", ["a", "∅", R.ANY_BOUNDARY])
+    def test_a_run_carrying_anything_else_is_still_refused(self, stray):
+        """The guard is per glyph, so one segment among the marks fails.
+
+        ``%`` is deliberately among these: it is a wildcard over the
+        declared marks and names no particular one, so it can be
+        recognized and never written.
+        """
+        with pytest.raises(R.RuleError):
+            R.parse(f". -> .{stray}", FEATURES)
+
+    def test_a_run_a_rule_wrote_is_a_run_every_context_can_read(self):
+        """The measurement the acceptance rests on.
+
+        What would make this wrong is a rule writing a boundary no rule
+        can then match. Every pattern that reaches the run reaches it, the
+        class takes the whole of it and the named mark takes its own.
+        """
+        written = ipakit.rewrite("a.b", ". -> .#")
+        assert written == "a.#b"
+        for general in (*SEPARATORS, R.ANY_BOUNDARY):
+            assert ipakit.rewrite(written, f"b -> x / {general} _") == "a.#x"
+        assert ipakit.rewrite(written, ". -> ∅") == "ab"
+        assert ipakit.rewrite(written, "# -> ∅") == "a.b"
+        assert ipakit.rewrite(written, "∅ -> e / . _ b") == "a.#eb"
+
+    def test_a_context_naming_two_boundaries_is_still_refused(self):
+        """A different proposition, and it did not move.
+
+        There the *rule* states two patterns and a run is one boundary, so
+        the second can never hold. Here the rule states one boundary and
+        spells it with the marks it was written with.
+        """
+        assert ipakit.rewrite("a.#b", "b -> x / . # _") == "a.#b"
+        assert ipakit.rewrite("a.#b", "b -> x / . _") == "a.#x"
+
+    def test_every_run_of_declared_marks_is_writable(self):
+        """Swept over the declaration rather than the pair that was found."""
+        checked = 0
+        refused: list[str] = []
+        for first, second in itertools.product(BOUNDARY_MARKS, repeat=2):
+            spec = f". -> {first}{second}"
+            checked += 1
+            try:
+                rule = R.parse(spec, FEATURES)
+            except R.RuleError as caught:
+                refused.append(f"{spec}: {caught}")
+                continue
+            got = R.spell(rule.apply("a.b", FEATURES)[0])
+            assert got == f"a{first}{second}b", spec
+        assert checked == len(BOUNDARY_MARKS) ** 2
+        assert checked > 20, f"only {checked} runs swept"
+        assert refused == [], f"{len(refused)} of {checked}: {refused[:3]}"

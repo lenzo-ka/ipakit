@@ -592,7 +592,7 @@ The set is always finite and always ordered deterministically, and it is bounded
 
 ## Rule sets
 
-One rule per line. Blank lines are skipped, and a line **beginning** with `#` is a comment — only at line start, since `#` is also the word boundary.
+One rule per line. Blank lines are skipped, and a line **beginning** with `#` is a comment — only at line start, since `#` is also the word boundary. A line whose whole left-hand side is `#` is a rule rather than prose: `# -> ∅` unwrites a word mark and `# -> ‿` restates one as the linking mark. A target is everything left of the arrow, so the mark is a target exactly when nothing else stands there, and prose opening with `#` has words before its arrow if it carries one at all.
 
 ```python
 ipa.ruleset("""
