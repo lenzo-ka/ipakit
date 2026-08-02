@@ -636,15 +636,24 @@ class TestARuleThatCannotWorkIsRefused:
         spot-checked, because what would make this guard wrong is one
         registered spelling it happens to read as two units.
         """
-        checked = 0
+        checked = identity = 0
         bad: list[str] = []
         for phone in _phones():
             for spec in (f"{phone} -> ʔ", f"t -> {phone}", f"t -> ʔ / {phone} _"):
+                checked += 1
+                left, _, right = spec.partition(" -> ")
+                if left == right.partition(" / ")[0]:
+                    # 'ʔ -> ʔ' and 't -> t' fall out of this enumeration and
+                    # are refused by a different guard for a different
+                    # reason: they write back what they matched, so they can
+                    # never edit. See TestARuleMustBeAbleToEdit.
+                    identity += 1
+                    continue
                 try:
                     R.parse(spec, FEATURES)
                 except R.RuleError as refused:
                     bad.append(f"{spec}: {refused}")
-                checked += 1
+        assert identity == 2, "the two identity rules this enumeration makes"
         assert_swept(checked, _phones())
         assert bad == [], f"{len(bad)} of {checked} refused, first: {bad[:3]}"
 
@@ -858,12 +867,19 @@ class TestWhatTheReviewFound:
 
     def test_every_prosody_bearing_unit_keeps_it_through_a_literal_rewrite(self):
         checked = lost = 0
+        # The written form of the target, so 'ʔ -> ʔ' is not asked. It
+        # writes back what it matched and is refused where it is read;
+        # what this sweep is about is a rewrite that changes the segment
+        # and must leave the prosody where it was.
+        rewritten = "ʔ"
         for phone in _phones():
+            if phone == rewritten:
+                continue
             for mark in ("ː", "˥"):
                 unit = f"{phone}{mark}"
                 if FEATURES.segment(unit).to_ipa() != unit:
                     continue
-                got = ipakit.rewrite(unit, f"{phone} -> ʔ")
+                got = ipakit.rewrite(unit, f"{phone} -> {rewritten}")
                 checked += 1
                 if got and mark not in got:
                     lost += 1
@@ -2392,6 +2408,276 @@ class TestEnchainementIsNotExpressible:
         assert _segmental(flattened) == _segmental(self.AFTER)
         tree = ipakit.Form.parse(flattened, FEATURES).tree()
         assert [n.to_ipa() for n in tree.at("word")] == ["pətitami"], "one word now"
+
+
+# --------------------------------------------------------------------------
+# A rule that parses and finds a site must be able to change something
+# --------------------------------------------------------------------------
+
+
+#: Targets to build rules from: literal phones, a bundle, the declared
+#: boundary marks, and the wildcard. Read off the declaration where it can
+#: be, so a newly declared mark joins these sweeps without an edit here.
+SWEEP_TARGETS = (
+    "t",
+    "d",
+    "a",
+    "aː",
+    "ˈa",
+    "[voiced=+]",
+    "[manner=plosive]",
+    "[vowel stress=primary]",
+    "[voiced=α]",
+    R.ANY_BOUNDARY,
+    *BOUNDARY_MARKS,
+)
+
+#: What those targets may become: a phone, a bundle, a boundary, a run of
+#: two boundaries, deletion, and the same spellings the targets use -- so
+#: the identity rules are generated rather than avoided.
+SWEEP_BECOMES = (
+    "t",
+    "d",
+    "a",
+    "aː",
+    "ˈa",
+    "ʔ",
+    "[voiced=+]",
+    "[voiced=-]",
+    "[manner=plosive]",
+    "[stress=primary]",
+    "[voiced=α]",
+    "[voiced=-α]",
+    "∅",
+    *BOUNDARY_MARKS,
+)
+
+#: Forms to run them against: segments, prosody, every boundary mark, a
+#: two-mark run, a form-final mark and a bare space.
+#:
+#: More than one vowel and more than one stressed vowel, deliberately. A
+#: corpus holding only ``ˈa`` makes ``[vowel stress=primary] -> ˈa`` look
+#: like a rule that can never fire, when what it cannot do is fire on
+#: *that* form -- and a sweep whose thinness reads as a defect teaches
+#: the wrong thing about the rules it clears.
+SWEEP_FORMS = (
+    "ata",
+    "ada",
+    "ˈata",
+    "aːta",
+    "kæt",
+    "tʰa",
+    "a.a",
+    "a#a",
+    "a‿a",
+    "a|a",
+    "a‖a",
+    "a b",
+    "a.#a",
+    "a..a",
+    "at#a",
+    "at.",
+    "at#",
+    ".at",
+    "iti",
+    "ˈiti",
+    "ˈuku",
+    "apa",
+    "saɡa",
+    "ˈaːta",
+)
+
+
+class TestARuleMustBeAbleToEdit:
+    """``[voiced=+] -> [voiced=+]`` parsed, recognized, and never fired.
+
+    The right of the arrow asked for exactly what the target had to have
+    to match, so :meth:`Action.edit` found ``before == after`` at every
+    site and answered ``None``. The rule was well formed, found its
+    positions, reported no change, and said nothing about why -- which is
+    the shape ``_check_inserted_change`` was written to refuse for an
+    insertion and the shape this suite exists to catch.
+    """
+
+    @pytest.mark.parametrize(
+        "bad,shape",
+        [
+            ("[voiced=+] -> [voiced=+]", "a value restated"),
+            ("[manner=plosive] -> [manner=plosive]", "and another"),
+            ("[voiced=α] -> [voiced=α]", "a variable bound and written back"),
+            ("[vowel stress=primary] -> [stress=primary]", "prosody restated"),
+            ("[manner=plosive voiced=+] -> [voiced=+]", "part of the target"),
+            ("d -> d", "a literal that writes itself"),
+            ("aː -> aː", "prosody and all"),
+            ("ˈa -> ˈa", "the other prosody"),
+            ("‿ -> ‿", "a mark names one glyph, so this is one too"),
+            ("| -> |", "and so is this"),
+        ],
+    )
+    def test_a_rule_that_can_never_edit_is_refused_where_it_is_read(self, bad, shape):
+        """Refused at parse, for ``_check_inserted_change``'s reason.
+
+        Nothing about it depends on the form, so a set holding one fails
+        to load rather than loading and deriving a quietly unchanged
+        answer one word at a time.
+        """
+        with pytest.raises(R.RuleError) as caught:
+            R.parse(bad, FEATURES)
+        assert "silently" in str(caught.value), shape
+
+    @pytest.mark.parametrize(
+        "good,form,expected,shape",
+        [
+            ("[voiced=α manner=plosive] -> [voiced=-α]", "ada", "ata", "a flip"),
+            ("[voiced=α manner=plosive] -> [voiced=-α]", "ata", "ada", "either way"),
+            ("n -> [place=α] / _ [place=α]", "anpa", "ampa", "the canonical one"),
+            ("ˈa -> a", "ˈata", "ata", "prosody named on one side only"),
+            ("aː -> a", "aːta", "ata", "and the other prosody"),
+            ("[vowel stress=primary] -> [stress=secondary]", "ˈata", "ˌata", "a move"),
+        ],
+    )
+    def test_the_refusal_is_not_wider_than_that(self, good, form, expected, shape):
+        """Each of these differs from its target somewhere, and edits."""
+        assert ipakit.rewrite(form, good) == expected, shape
+
+    @pytest.mark.parametrize("spec", ["# -> #", ". -> ."])
+    def test_identity_across_a_level_pattern_is_a_real_rewrite(self, spec):
+        """The interesting half, and why the guard is not simply textual.
+
+        A boundary pattern is a *class*: ``#`` matches a word boundary or
+        anything stronger, so ``# -> #`` writing ``#`` where a ``‖`` stood
+        is a downgrade rather than a no-op. Identity on the two sides of a
+        class says something; identity on the two sides of a mark, which
+        names one glyph, cannot.
+        """
+        mark = spec[0]
+        stronger = [
+            m
+            for m in BOUNDARY_MARKS
+            if m != mark
+            and R.spell(R.parse(spec, FEATURES).apply(f"a{m}b")[0]) != f"a{m}b"
+        ]
+        assert stronger, f"{spec} rewrites no other mark, so it IS a no-op"
+        for other in stronger:
+            assert (
+                R.spell(R.parse(spec, FEATURES).apply(f"a{other}b")[0]) == f"a{mark}b"
+            )
+
+    def test_the_guard_states_what_it_cannot_see(self):
+        """A pinned escape, with the measurement that draws the line.
+
+        ``d -> [voiced=+]`` cannot edit either -- ``d`` is voiced already
+        -- but the guard does not reach it, and deliberately. It reads
+        only what the *rule states*, never what the inventory says of a
+        phone the rule names, because a literal's bundle is the flat
+        projection and a tied unit projects its FIRST element's features:
+        ``a͜ɪ`` reads ``manner=vowel`` while ``a͜ɪ -> [manner=vowel]``
+        answers ``a``, collapsing the tie. So the bundle is not a
+        guarantee, and a guard that read one off it would refuse rules
+        that do edit.
+
+        The count below is that measurement, so this escape closes only
+        deliberately. If it reaches zero, the bundle has become a
+        guarantee and the guard could be widened.
+        """
+        R.parse("d -> [voiced=+]", FEATURES)
+        assert ipakit.rewrite("ada", "d -> [voiced=+]") == "ada", "still a no-op"
+
+        checked = movers = 0
+        for phone in _phones():
+            read = R._reads_as(phone, FEATURES)
+            if len(read) != 1 or read[0].segment is None:
+                continue
+            for key, value in read[0].features.items():
+                if key not in FEATURES.features:
+                    continue
+                try:
+                    rule = R.parse(f"{phone} -> [{key}={value}]", FEATURES)
+                except R.RuleError:
+                    continue
+                checked += 1
+                if R.spell(rule.apply(phone, FEATURES)[0]) != phone:
+                    movers += 1
+        assert checked > 2000, f"only {checked} literal/bundle pairs swept"
+        assert movers > 0, "the flat bundle has become a guarantee; widen the guard"
+
+    def test_no_generated_rule_finds_sites_and_edits_none_of_them(self):
+        """The general shape, swept rather than named.
+
+        A rule that recognizes a position and then declines every one of
+        them, on every form, is a rule that cannot work. That covers the
+        restated bundle above and the word mark a file could not name
+        alike, and it is the property worth holding rather than either
+        case on its own.
+
+        Where it stops is a **spelled** right-hand side. A rule that says
+        what to write is refused at parse if it writes what it matched, so
+        no spelled rule survives to be idle. A bracketed one can, and for
+        two reasons the rule itself does not state: the unit already had
+        the value asked for (``t -> [voiced=-]``), or the inventory can
+        spell the result neither as a registered phone nor as a composed
+        one and the rule declines rather than inventing a symbol. Both are
+        facts about the data, so the idle set is asserted to be exactly
+        the bracketed ones and asserted to be non-empty -- if it empties,
+        one of those two has stopped being reachable and this pin should
+        say so rather than pass quietly.
+        """
+        rules = built = recognized = 0
+        idle: list[str] = []
+        spelled_idle: list[str] = []
+        for target, becomes in itertools.product(SWEEP_TARGETS, SWEEP_BECOMES):
+            spec = f"{target} -> {becomes}"
+            rules += 1
+            try:
+                rule = R.parse(spec, FEATURES)
+            except R.RuleError:
+                continue
+            built += 1
+            sites = edits = 0
+            for form in SWEEP_FORMS:
+                items = R.units(form, FEATURES)
+                sites += len(rule.recognize(items, FEATURES))
+                edits += len(rule.edits(items, FEATURES))
+            if not sites:
+                continue
+            recognized += 1
+            if edits:
+                continue
+            idle.append(f"{spec}: {sites} sites, no edit on any form")
+            if not isinstance(rule.becomes, dict):
+                spelled_idle.append(spec)
+        assert rules == len(SWEEP_TARGETS) * len(SWEEP_BECOMES)
+        assert built > 100, f"only {built} of {rules} rules parsed"
+        assert recognized > 100, f"only {recognized} rules found a site"
+        assert spelled_idle == [], f"{len(spelled_idle)}: {spelled_idle[:3]}"
+        assert idle, "the escape has closed; widen the guard or drop this pin"
+
+    def test_the_same_sweep_run_through_a_set_agrees(self):
+        """Through ``rewrite``, which is where the word mark was lost.
+
+        The engine found the site and made the edit all along; the line
+        reader dropped the rule, so nothing downstream of it could tell.
+        A sweep that only asks ``Rule`` cannot see that, and this is the
+        same corpus asked at the entry point a caller uses.
+        """
+        checked = 0
+        silent: list[str] = []
+        for target, becomes in itertools.product(SWEEP_TARGETS, SWEEP_BECOMES):
+            spec = f"{target} -> {becomes}"
+            try:
+                rule = R.parse(spec, FEATURES)
+            except R.RuleError:
+                continue
+            for form in SWEEP_FORMS:
+                items = R.units(form, FEATURES)
+                if not rule.edits(items, FEATURES):
+                    continue
+                checked += 1
+                with _quiet():
+                    if ipakit.rewrite(form, spec) == form:
+                        silent.append(f"{spec} on {form!r}")
+        assert checked > 500, f"only {checked} firing rule/form pairs swept"
+        assert silent == [], f"{len(silent)} of {checked}, first: {silent[:3]}"
 
 
 class TestNamingAMarkIsAtLeastAsStrongAsAClass:

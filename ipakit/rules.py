@@ -1918,6 +1918,7 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     if target is not None:
         _check_no_exchange(source, target, becomes, features)
         _check_zero_target(source, target, becomes, features)
+        _check_no_change(source, target, becomes, features)
     else:
         _check_inserted_change(source, becomes)
     if target is not None and target.optional:
@@ -2185,6 +2186,113 @@ def _check_inserted_change(source: str, becomes: Becomes) -> None:
         "describes a class rather than a segment, so it cannot name what to "
         "insert either. Spell the unit on the right ('∅ -> t'), prosody "
         "included ('∅ -> ˈa')."
+    )
+
+
+def _stated(target: Pattern, key: str, value: str | None | Agreement) -> bool:
+    """Whether the target already **states** what the right of the arrow asks.
+
+    Only what the target says of itself, never what the inventory says of
+    a phone it names. That line is measured rather than chosen: a literal
+    target's bundle is the flat projection, and a tied unit projects its
+    *first element's* features -- so ``a͜ɪ`` reads ``manner=vowel`` while
+    ``a͜ɪ -> [manner=vowel]`` answers ``a``, collapsing the tie. Reading a
+    guarantee off that bundle refuses rules that do edit.
+    """
+    if isinstance(value, Agreement):
+        # Same letter AND same polarity. '[voiced=α] -> [voiced=-α]' is a
+        # voicing flip and edits every unit it matches, so the polarity is
+        # the whole difference between a no-op and a rule.
+        return target.agreements.get(key) == value
+    if value is None:
+        # Clearing prosody. A required value states what is *present*, and
+        # absence is not a value, so nothing on the left entails this.
+        return False
+    return value in (target.seg_required.get(key), target.pro_required.get(key))
+
+
+def _check_no_change(
+    source: str,
+    target: Pattern,
+    becomes: Becomes,
+    features: IPAFeatures,
+) -> None:
+    """Refuse a rule whose right of the arrow restates its own target.
+
+    The fourth member of the family above, and the one that was open.
+    ``[voiced=+] -> [voiced=+]`` parses, recognizes ``d``, and then
+    :meth:`Action.edit` finds ``before == after`` and hands back ``None``:
+    the rule finds every site and declines every one of them, which is the
+    shape :func:`_check_inserted_change` exists to refuse and the shape
+    this whole family is about. A rule that can never edit any form is a
+    mistake about the rule and not a fact about a word, so it is refused
+    where the rule is read.
+
+    A variable is the same statement with the value left open.
+    ``[voiced=α] -> [voiced=α]`` binds ``α`` from the target and writes it
+    straight back; the polarity is what separates that from
+    ``[voiced=α] -> [voiced=-α]``, which flips voicing and edits wherever
+    it matches.
+
+    A literal on the right says this too, where the target pins one unit.
+    A **mark** pattern names one glyph, so ``‿ -> ‿`` can only ever write
+    what it read. A literal pattern names a core, and prosody the rule
+    does not mention carries across (:meth:`Action.edit`), so ``d -> d``
+    and ``aː -> aː`` are no-ops while ``ˈa -> a`` is not: naming stress on
+    the left and not on the right is how the stress goes away.
+
+    A **level** pattern is not this, and that is the interesting half. A
+    boundary pattern is a class -- ``#`` matches a word boundary or
+    anything stronger -- so ``# -> #`` takes ``a‖a`` to ``a#a`` and
+    ``. -> .`` takes ``a#a`` to ``a.a``. Identity across a class is a
+    *downgrade*, not a no-op.
+
+    What this does **not** reach is a right-hand side entailed by the
+    inventory rather than by the rule: ``d -> [voiced=+]`` still parses
+    and still cannot edit, because ``d`` is voiced already. That escape is
+    pinned in the tests with the measurement that draws the line -- see
+    :func:`_stated`.
+    """
+    if becomes is None:
+        return
+    if isinstance(becomes, dict):
+        if not becomes or not all(_stated(target, k, v) for k, v in becomes.items()):
+            return
+        restated = ", ".join(sorted(becomes))
+        raise RuleError(
+            f"{source!r} asks for nothing its own target does not already "
+            f"require: {restated}. A bracketed right-hand side MODIFIES the "
+            "unit the rule matched, and this one modifies it to what it had "
+            "to be to match -- so the rule would find every site and change "
+            "none of them, silently. Write the value the unit should end up "
+            "with, or the opposite of the variable ('[voiced=α] -> "
+            "[voiced=-α]') if a flip was meant."
+        )
+    if target.mark is not None:
+        if becomes != target.mark:
+            return
+    elif target.literal is not None and not (
+        target.seg_required
+        or target.seg_excluded
+        or target.pro_excluded
+        or target.agreements
+    ):
+        units_written = _reads_as(becomes, features)
+        if len(units_written) != 1:
+            return
+        unit = units_written[0]
+        if unit.core != target.literal or dict(unit.prosody) != target.pro_required:
+            return
+    else:
+        # A level pattern is a class, so identity across the arrow is a
+        # real rewrite: '. -> .' makes a word boundary a syllable one.
+        return
+    raise RuleError(
+        f"{source!r} writes back exactly what it matched, so it would find "
+        "every site and change none of them, silently. A rewrite has to "
+        "differ from its target somewhere: name the unit the rule should "
+        f"produce, or delete the target ('{target.source} -> ∅') if that is "
+        "what was meant."
     )
 
 
