@@ -50,7 +50,7 @@ The assessment is read-only. Nothing in this lane changed code, data, or tests.
 
 **Read directly.**
 
-- Chomsky & Halle, *The Sound Pattern of English* (Harper & Row 1968), §1.3.1 "Boundary Features", pp. 66–68 and n. 7 — the feature analysis of the boundaries and the transparency convention. Open access on Fulcrum: <https://www.fulcrum.org/concern/monographs/2z10wq58b>, PDF at <https://www.fulcrum.org/ebooks/ms35tc39t/download?locale=en>. See the spin-off finding at the end of this document: [captures.md](captures.md) records *SPE* as unreachable, which is no longer true.
+- Chomsky & Halle, *The Sound Pattern of English* (Harper & Row 1968), §1.3.1 "Boundary Features", pp. 66–68 and n. 7 — the feature analysis of the boundaries and the transparency convention. Open access on Fulcrum: <https://www.fulcrum.org/concern/monographs/2z10wq58b>, PDF at <https://www.fulcrum.org/ebooks/ms35tc39t/download?locale=en>. See the spin-off finding at the end of this document.
 - Bruce Hayes, *Introductory Phonology* (Wiley-Blackwell 2009), pp. 85, 112, 133–135, 220, 259, and p. 86 n. 5: <https://vulms.vu.edu.pk/Courses/ENG507/Downloads/Introductory%20Phonology%20by%20Hayes.pdf>. The PDF's text layer uses a custom-encoded font that mangles IPA, so the rule statements were verified from rendered page images rather than from extracted text.
 - David Odden, *Introducing Phonology* (Cambridge University Press 2005), pp. 72, 77–78, 159: <https://jinxiaosong.wordpress.com/wp-content/uploads/2015/02/odden-introducing-phonology.pdf>
 - Robert Levine, *Ling 601*, Ohio State, Winter 2010: <https://www.asc.ohio-state.edu/levine.1/pdf/601phonology1.pdf> — the fully formal plural derivation with explicit ordering.
@@ -269,7 +269,7 @@ No shipped rule writes `%` — `french-liaison.rules` names it only in a comment
 
 ### (d) `Form.Boundary.level` must not fall back to `word`
 
-[form.md](../form.md) lists the fallback as a known limit and says it is *"reached only by a hand-made boundary or a mark added without a level"*. Declaring `+` is exactly a mark added without a level, so the limit stops being unreachable:
+[form.md](../form.md) lists the fallback as a known limit: *"only a hand-made `Boundary`, or a mark added without a level, reaches it"*. Declaring `+` is exactly a mark added without a level, so the limit stops being unreachable:
 
 ```
 Boundary(text='+', level='word', at=3, features={'morph': 'formative', 'class': 'separator'})
@@ -463,18 +463,14 @@ None of these needs a new API. What they need is the seam, a `docs/examples/` ho
 
 ## Spin-off finding: *SPE* is reachable, and open access
 
-[captures.md](captures.md) records *The Sound Pattern of English* as **not read directly** — *"the copy is borrow-restricted and every mirror reachable was dead"* — and marks every page reference in that document as secondary, corroborated from two other sources each. That was true of the routes tried. It is not true of the book.
-
-*SPE* is open access on Fulcrum, the University of Michigan Press platform, as a 484-page PDF:
+*The Sound Pattern of English* is open access on Fulcrum, the University of Michigan Press platform, as a 484-page PDF:
 
 ```
 https://www.fulcrum.org/concern/monographs/2z10wq58b            landing page
 https://www.fulcrum.org/ebooks/ms35tc39t/download?locale=en     PDF, 54 MB
 ```
 
-archive.org is indeed borrow-restricted and the usual mirrors do indeed fail, which is why the earlier lane concluded what it did. Every *SPE* claim in the present document was read there, including the boundary feature analysis in §1 and the transparency convention in §3, neither of which is the kind of detail a secondary source reports precisely enough to build on.
-
-Two consequences, neither of them this lane's to apply. The **Sources** section of [captures.md](captures.md) should be corrected, since a reader is currently told the primary is unavailable when it is not. And its pp. 361 and 427 references — *SPE* calling metathesis both "a perfectly common phonological process" and "a marginal type of phenomenon" — can now be checked against the page rather than against two secondary reports of it.
+Fulcrum is the route, and it is worth naming because the obvious ones are dead ends: archive.org's copy is borrow-restricted and the usual mirrors fail, so a search that starts there concludes the book cannot be read and settles for secondary reports of it. Every *SPE* claim in the present document was read from the PDF, including the boundary feature analysis in §1 and the transparency convention in §3, neither of which is the kind of detail a secondary source reports precisely enough to build on.
 
 ## Reproducing the measurements
 
