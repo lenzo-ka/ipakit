@@ -1325,23 +1325,24 @@ class TestWhatTheLinkingMarkDoes:
         """So a set could mark the liaison it licenses."""
         assert ipakit.rewrite("lezami", "∅ -> ‿ / [vowel] _ z [vowel]") == "le‿zami"
 
-    def test_a_boundary_can_be_rewritten_as_another_but_not_from_a_file(self):
-        """The space CAN now be put in the mark's place -- just not in a set.
+    def test_a_boundary_can_be_rewritten_as_another_from_a_file_too(self):
+        """The space CAN be put in the mark's place, in a set as on a line.
 
         Rewriting one boundary as another used to be refused outright, and
         that is the reason the French file gives for taking '‿' in its
         input rather than marking a space-separated phrase. It is
         expressible now: a boundary may be written, unwritten or restated
-        at another level (``ipakit.rules``). What still stops a *set* from
-        doing it is the comment rule -- a line beginning with '#' is a
-        comment, so a rule whose target is '#' cannot be written in a
-        ``.rules`` file at all, and no lexical heuristic separates the two,
-        since the comment lines in this very directory contain arrows.
+        at another level (``ipakit.rules``). The comment rule used to stop
+        a *set* from saying it -- a line beginning with '#' was prose, so
+        the word mark was the one boundary no file could name -- and the
+        two are told apart by position now, the mark being a target
+        exactly when it is the whole of what stands left of the arrow.
         """
         rule = R.parse("# -> ‿", FEATURES)
         assert R.spell(rule.apply("lez ami", FEATURES)[0]) == "lez‿ami"
-        assert R.RuleSet.parse("# -> ‿", FEATURES).rules == (), "read as a comment"
-        # So the copy-beside-the-space spelling is still what a set can say.
+        assert len(R.RuleSet.parse("# -> ‿", FEATURES)) == 1, "not read as a comment"
+        assert ipakit.rewrite("lez ami", "# -> ‿") == "lez‿ami"
+        # The copy-beside-the-space spelling still says its own thing.
         assert ipakit.rewrite("lez ami", "∅ -> ‿ / z # _ [vowel]") == "lez ‿ami"
 
 

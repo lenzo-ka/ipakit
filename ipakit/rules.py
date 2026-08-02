@@ -2595,6 +2595,54 @@ def _keep_cheapest(carried: dict[str, _Branch], key: str, branch: _Branch) -> No
         carried[key] = branch
 
 
+def _is_comment(stripped: str, features: IPAFeatures) -> bool:
+    """Whether a ``.rules`` line is prose rather than a rule.
+
+    A line of prose opens with ``#``, and ``#`` also spells a declared
+    separator, so a prefix test cannot tell the two apart -- and it
+    decided the collision against the rule. ``# -> ∅`` was read as prose,
+    which made the word mark the one boundary a rule could not name in a
+    file, while ``. -> ∅`` -- the *class* pattern, which matches a
+    syllable break and everything stronger -- deleted that same mark
+    happily. The general pattern was strictly stronger than the specific
+    one, which inverts what naming a mark is for, and it was silent: the
+    set held no rule at all and derived the form unchanged.
+
+    Position separates them, on the notation's own terms. A target is the
+    whole of what stands left of the arrow, so the opening glyph is a
+    target exactly when it is the whole of it: the glyph, then the arrow,
+    with nothing but space between. Prose that opens with the glyph has
+    words before its arrow if it carries one at all, which is what the
+    comment blocks in ``ipakit/data/rules`` do -- they are full of arrows,
+    and a sweep over every one of them pins that this reads none of them
+    as a rule.
+
+    Asked of the declaration rather than of a list: any separator opening
+    a line is disambiguated this way, so a newly declared mark that is
+    also a comment glyph elsewhere is covered without an edit here, and a
+    glyph the data does *not* declare stays prose whatever follows it.
+
+    The residue is prose whose first word is an arrow, which now fails
+    loudly as a rule rather than passing quietly as a comment. Loud is the
+    side to be wrong on here, and it is the side the rest of this module
+    is already on.
+    """
+    # Spelled here rather than as a module constant: '#' is a registered
+    # separator, and a constant naming it would be the second copy of the
+    # declaration that tests/test_declared_not_hardcoded.py exists to
+    # refuse. The comment glyph is this notation's own choice; which
+    # glyphs it collides with is the data's answer, asked below.
+    head = stripped[:1]
+    if head != "#":
+        return False
+    if head not in features.separators:
+        # Not a boundary in this inventory, so nothing collides and the
+        # whole line is prose.
+        return True
+    rest = stripped[1:].lstrip()
+    return not any(rest.startswith(arrow) for arrow in OPTIONAL_ARROWS + ARROWS)
+
+
 @dataclass(frozen=True)
 class RuleSet:
     """An ordered cascade of rules.
@@ -2614,14 +2662,17 @@ class RuleSet:
     ) -> RuleSet:
         """Build a rule set from one rule per line.
 
-        Blank lines are skipped, and ``#`` begins a comment only where a
-        line starts with it, since ``#`` is also the word edge.
+        Blank lines are skipped, and ``#`` begins a comment where a line
+        starts with it -- unless it is the whole of that line's target,
+        which is how a rule names the word boundary in a file. ``#`` is
+        both the comment marker and the word edge, and :func:`_is_comment`
+        is where the two are told apart.
         """
         features = _default(features)
         parsed = []
         for line in text.splitlines():
             stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
+            if not stripped or _is_comment(stripped, features):
                 continue
             parsed.append(parse(stripped, features))
         return cls(rules=tuple(parsed), name=name)

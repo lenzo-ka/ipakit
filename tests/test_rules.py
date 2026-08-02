@@ -2077,23 +2077,93 @@ class TestABoundaryIsWrittenAndUnwrittenAlike:
         assert checked == len(self.UNWRITING) * len(self.PLAIN) * len(runs) * 3 == 432
         assert bad == [], f"{len(bad)} of {checked}, first: {bad[:3]}"
 
-    def test_a_word_boundary_target_cannot_be_written_in_a_set(self):
-        """A limit the change exposes rather than one it introduces.
+    def test_a_word_boundary_target_can_be_written_in_a_set(self):
+        """The word mark is a target in a file, like every other boundary.
 
-        A line beginning with ``#`` is a comment, because ``#`` is also
-        the word boundary and a set has to be able to carry prose. So the
-        one boundary that cannot be a target *in a file* is the word mark,
-        while ``∅ -> #`` on the same line is a rule. No lexical heuristic
-        separates the two either: the comment lines in ``data/rules``
-        contain arrows, so "a comment does not rewrite" is not a rule that
-        can be written down. ``%`` reaches every boundary and ``R.parse``
-        takes the rule directly; both are stated here so the workaround is
-        as pinned as the limit.
+        A line opening with ``#`` is a comment, because ``#`` is also the
+        word boundary and a set has to carry prose. That was read as a
+        prefix, which decided the collision against the rule: ``# -> ∅``
+        was prose, so the *one* boundary a file could not name was the
+        word mark -- while ``. -> ∅``, the class pattern that matches a
+        syllable break and everything stronger, deleted that same mark. The
+        general pattern was strictly stronger than the specific one, which
+        inverts what naming a mark is for.
+
+        The engine was never the problem, and that is worth pinning: the
+        rule found its site and made its edit all along. What lost the
+        answer was the line reader, so the whole set was empty and the
+        form came back unchanged.
         """
-        assert R.RuleSet.parse("# -> ∅", FEATURES).rules == ()
+        assert len(R.RuleSet.parse("# -> ∅", FEATURES)) == 1
         assert len(R.RuleSet.parse("∅ -> # / a _ a", FEATURES)) == 1
+        # The half that always worked, kept as the witness that the fix is
+        # in the reader and not in what a rule does with a boundary.
         assert R.spell(R.parse("# -> ∅", FEATURES).apply("a#b", FEATURES)[0]) == "ab"
+        assert ipakit.rewrite("a#b", "# -> ∅") == "ab"
         assert ipakit.rewrite("a#b", "% -> ∅") == "ab"
+
+    @pytest.mark.parametrize(
+        "line,rules,because",
+        [
+            ("# -> ∅", 1, "the mark alone, then the arrow"),
+            ("#->∅", 1, "the arrow need not be spaced"),
+            ("# ~> ∅", 1, "and it may be the optional arrow"),
+            ("# → ‿ / a _ b", 1, "any arrow spelling, with a context"),
+            ("# a comment", 0, "prose"),
+            ("#", 0, "a bare rule of hashes"),
+            ("#  ʁaːd  Rad  -> [ʁaːt]", 0, "prose that carries an arrow"),
+            ("# THE CONDITION IS A CODA -> NOT A WORD EDGE", 0, "and shouts one"),
+        ],
+    )
+    def test_the_comment_glyph_and_the_word_mark_are_told_apart_by_position(
+        self, line, rules, because
+    ):
+        """A target is the whole of what stands left of the arrow.
+
+        So the mark is a target exactly when it is the whole of it. Prose
+        opening with the mark has words before its arrow if it carries one
+        at all, which is what makes the two separable at all.
+        """
+        assert len(R.RuleSet.parse(line, FEATURES)) == rules, because
+
+    def test_no_shipped_comment_line_is_read_as_a_rule(self):
+        """The measurement the separation rests on, swept not sampled.
+
+        The comment blocks in ``ipakit/data/rules`` are full of arrows --
+        they tabulate derivations -- which is why "a comment does not
+        rewrite" cannot be the rule. This asserts the rule that IS used
+        holds of every one of them, so a comment written in a new file
+        cannot quietly become a rule.
+        """
+        comments = 0
+        read_as_rules: list[str] = []
+        for name in R.available():
+            path = R.RULES_DIR / f"{name}.rules"
+            for line in path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped.startswith("#"):
+                    continue
+                comments += 1
+                if not R._is_comment(stripped, FEATURES):
+                    read_as_rules.append(f"{name}: {stripped}")
+        assert comments > 1000, f"only {comments} comment lines swept"
+        assert read_as_rules == [], f"{len(read_as_rules)}: {read_as_rules[:3]}"
+
+    def test_every_shipped_set_holds_exactly_the_lines_it_declares(self):
+        """The other side of the same measurement, and the durable form.
+
+        A count per set would be a table to keep in step by hand. What the
+        reader must satisfy is that a set holds one rule per line that is
+        neither blank nor prose -- so the file and the set are counted the
+        same way, and a comment read as a rule shows up as a set that grew
+        or as a file that stopped loading.
+        """
+        for name in R.available():
+            text = (R.RULES_DIR / f"{name}.rules").read_text(encoding="utf-8")
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            written = [ln for ln in lines if not R._is_comment(ln, FEATURES)]
+            assert written, f"{name} declares no rules"
+            assert len(R.shipped(name, FEATURES)) == len(written), name
 
 
 class TestARunUsedAsATargetIsOneBoundary:
@@ -2322,3 +2392,97 @@ class TestEnchainementIsNotExpressible:
         assert _segmental(flattened) == _segmental(self.AFTER)
         tree = ipakit.Form.parse(flattened, FEATURES).tree()
         assert [n.to_ipa() for n in tree.at("word")] == ["pətitami"], "one word now"
+
+
+class TestNamingAMarkIsAtLeastAsStrongAsAClass:
+    """``# -> ∅`` left ``a#a`` alone while ``. -> ∅`` took the mark out.
+
+    Naming the mark is how a rule says *which* boundary it means, so a
+    rule that names one must reach it wherever a pattern that merely
+    covers it reaches it. It was the other way round for the word mark,
+    and silently: the line reader read ``# -> ∅`` as prose, the set held
+    no rule, and the form came back unchanged.
+    """
+
+    #: Every pattern that covers a boundary without naming one: the
+    #: declared separators, which match their level or stronger, and the
+    #: wildcard, which matches every boundary there is.
+    GENERAL = (*SEPARATORS, R.ANY_BOUNDARY)
+
+    #: Where the mark can stand: between segments, at each end, and twice.
+    SHAPES = ("a{m}b", "{m}ab", "ab{m}", "a{m}b{m}c")
+
+    def test_a_rule_naming_a_mark_deletes_it_wherever_a_class_does(self):
+        """The specificity relation, over every declared mark and shape.
+
+        Asked of the deletion because that is the one operation every
+        boundary admits, and asked through ``rewrite`` because the entry
+        point is where the answer was lost.
+        """
+        checked = reached = 0
+        weaker: list[str] = []
+        for mark in BOUNDARY_MARKS:
+            for shape in self.SHAPES:
+                form = shape.format(m=mark)
+                named = ipakit.rewrite(form, f"{mark} -> ∅")
+                for general in self.GENERAL:
+                    if general == mark:
+                        continue
+                    checked += 1
+                    covered = ipakit.rewrite(form, f"{general} -> ∅")
+                    if mark in covered:
+                        continue
+                    reached += 1
+                    if mark in named:
+                        weaker.append(
+                            f"{general!r} clears {mark!r} from {form!r} "
+                            f"and {mark!r} leaves {named!r}"
+                        )
+        expected = len(BOUNDARY_MARKS) * len(self.SHAPES) * len(self.GENERAL)
+        assert checked == expected - len(SEPARATORS) * len(self.SHAPES)
+        assert checked > 40, f"only {checked} mark/class pairs swept"
+        assert reached > 30, f"only {reached} pairs where the class acts at all"
+        assert weaker == [], f"{len(weaker)} of {reached}: {weaker[:3]}"
+
+    def test_a_mark_names_only_itself_and_a_class_takes_the_run(self):
+        """The other direction, which is the run rule and not a defect.
+
+        ``. -> ∅`` is "syllable or stronger" and takes the whole of a run;
+        ``‿ -> ∅`` names one mark and leaves the rest where it was
+        written. Specificity means the named rule is not WEAKER, not that
+        the two are the same rule.
+        """
+        assert ipakit.rewrite("a.‿b", ". -> ∅") == "ab"
+        assert ipakit.rewrite("a.‿b", "‿ -> ∅") == "a.b"
+        assert ipakit.rewrite("a.#b", "# -> ∅") == "a.b"
+        assert ipakit.rewrite("a.#b", ". -> ∅") == "ab"
+
+    def test_writing_a_mark_target_in_a_set_holds_the_edge_invariant(self):
+        """The invariant PR #86 strengthened, over the newly reachable rules.
+
+        A form's end is a word boundary whether or not ``#`` is typed, so
+        ``r(f) == strip(r('#' + f)) == strip(r(f + '#'))``. The rules that
+        name a mark as their target are the ones a file could not hold
+        until now, so they are the ones this had never been asked of.
+        """
+        checked = 0
+        bad: list[str] = []
+        for mark in BOUNDARY_MARKS:
+            for becomes in ("∅", R.ANY_BOUNDARY, *BOUNDARY_MARKS):
+                spec = f"{mark} -> {becomes}"
+                try:
+                    R.parse(spec, FEATURES)
+                except R.RuleError:
+                    continue
+                for form in ("kæt", "kæ.t", "kæt.a", "a‿b"):
+                    with _quiet():
+                        base = _ends_stripped(ipakit.rewrite(form, spec))
+                        for written in (f"#{form}", f"{form}#", f"#{form}#"):
+                            got = _ends_stripped(ipakit.rewrite(written, spec))
+                            checked += 1
+                            if got != base:
+                                bad.append(
+                                    f"{spec}: {form}->{base} vs {written}->{got}"
+                                )
+        assert checked > 200, f"only {checked} edge triples swept"
+        assert bad == [], f"{len(bad)} of {checked}, first: {bad[:3]}"
