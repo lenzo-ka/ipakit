@@ -110,8 +110,13 @@ them to raise `ValueError` on unconvertible input instead:
 
 ```python
 ipakit.to_cmu("k4t")                # ['K', 'T']  (the '4' is skipped)
-ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert to CMU ARPABET: ...
+ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert IPA segment: ...
+ipakit.to_cmu("ø", strict=True)     # ValueError: Cannot convert to CMU ARPABET: ...
 ```
+
+Two layers report, and each speaks for itself: `4` is registered nowhere, which
+the tokenizer says, and `ø` is well-formed IPA that ARPABET has no symbol for,
+which the converter says.
 
 Tokenization follows the same policy, and is never silent about it: a character
 registered nowhere is dropped with a warning, and `strict=True` raises instead —
