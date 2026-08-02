@@ -124,8 +124,20 @@ class TestReleaseMarksDoNotSpeakForTheSegment:
         assert ipa.get_features("kᵊ")["place"] == "velar"
         assert ipa.to_phone(ipa.get_features("kᵊ")) != "ə"
 
-    def test_a_click_keeps_its_airstream(self, ipa: IPAFeatures) -> None:
-        assert ipa.get_features("ǀʼ")["airstream"] == "velaric"
+    def test_a_click_keeps_everything_the_ejective_mark_does_not_state(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # 'ʼ' is not a release mark and never was; it states the segment's
+        # airstream, and 'airstream' is now declared overriding, so it
+        # lands. Under the additive default it did not, and the click's
+        # own value stood: features("ǀʼ")["airstream"] was "velaric",
+        # d("ǂʼ", "ǂ") was 0.0, and an ejective click was the same sound
+        # as a plain one. What a release mark must not touch -- the place,
+        # the manner, the article -- the ejective mark does not touch.
+        assert ipa.get_features("ǀʼ")["airstream"] == "ejective"
+        assert ipa.get_features("ǀʼ")["place"] == ipa.get_features("ǀ")["place"]
+        assert ipa.get_features("ǀʼ")["manner"] == ipa.get_features("ǀ")["manner"]
+        assert ipa.get_features("ǀʼ")["href"] == ipa.get_features("ǀ")["href"]
 
 
 class TestTheOtherModesStillWork:

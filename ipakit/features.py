@@ -2116,23 +2116,54 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         documented heuristic: two adjacent vocalic bases bind sequentially
         (under-tie: a trajectory), anything else binds simultaneously
         (over-tie). Write the tie explicitly to override.
+
+        A tie binds the preceding **unit** -- a base and the marks written
+        on it -- which is what :meth:`parse` reads back off the result, so
+        the run of marks a base carries is taken by :meth:`_modifier_run`
+        here too and the two cannot come to disagree about where a unit
+        ends. Walking characters and letting any mark reset the left side
+        meant a mark between two bases declined the tie outright
+        (``d̪ɮ``), and on a longer chain moved it to the wrong junction:
+        ``d̠ʒxʼ`` tied ``ʒ`` to ``x``.
+
+        A mark that binds something other than the base before it does end
+        the unit, and that is the same run: a stress mark scopes what
+        follows, a break and the linking tie stand between units. So
+        ``pə.tˈeɪ.toʊ`` still ties within each syllable and across
+        neither.
+
+        Every adjacent pair inside one group is tied, so a whole word
+        handed over as one group comes back as one unit. That is the
+        contract -- the grouping is the assertion -- and not something
+        this can detect: ``add_ties("kæt")`` is ``k͡æ͡t`` because ``kæt``
+        was offered as a segment.
         """
         if self.tie_bars & set(segment):
             return segment
 
-        result = []
+        result: list[str] = []
         prev_phone_char = ""
-        for char in segment:
-            is_phone = char in self.phones
-            if is_phone and prev_phone_char:
-                tie = (
+        i = 0
+        while i < len(segment):
+            char = segment[i]
+            i += 1
+            if char not in self.phones:
+                result.append(char)
+                prev_phone_char = ""
+                continue
+            if prev_phone_char:
+                result.append(
                     self.seq_tie
                     if self._vocalic(prev_phone_char) and self._vocalic(char)
                     else self.tie_bar
                 )
-                result.append(tie)
             result.append(char)
-            prev_phone_char = char if is_phone and char not in self.diacritics else ""
+            prev_phone_char = char
+            # The marks written on this base ride with it into the unit the
+            # next tie binds to.
+            run = self._modifier_run(segment, i)
+            result.extend(run)
+            i += len(run)
         return "".join(result)
 
     def normalize(self, segments: str) -> str:
@@ -2628,6 +2659,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         same reason: dropping it silently would make the result shorter
         than the input while still looking well formed.
 
+        Every other mark binds the unit *before* it, so one written where
+        there is no such unit -- ``ⁿd``, the pre-modifier convention every
+        external inventory uses -- binds nothing either, and is reported on
+        exactly those terms. It is not re-read as a modifier of what
+        follows: the library has no pre-modifier, and inventing a binding
+        the data does not declare is how ``ǂʼ`` would come back ``ǂ``.
+        Structural marks are the exception, and by declaration rather than
+        by exemption: a break or the linking tie is a relation *between*
+        units, belongs to no unit at either side, and is kept by ``Form``.
+
         Unregistered characters are dropped with a warning, as in
         :meth:`tokenize`; ``strict=True`` raises instead, which is what
         guarantees ``to_ipa(segments(text)) == text``.
@@ -2635,6 +2676,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         result: list[Segment] = []
         pending_stress: list[str] = []
         superseded: list[str] = []
+        unplaced: list[str] = []
         for token in self.tokenize(text, strict=strict):
             if token and all(ch in self.stress_markers for ch in token):
                 pending_stress.extend(token)
@@ -2647,40 +2689,57 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     pending_stress = pending_stress[-1:]
                 continue
             seg = self._segment_from_token(token, tuple(pending_stress))
-            # A token that carries no unit (a lone linking mark, a stray
-            # combining glyph) has nothing to take the stress, so the
-            # mark stays pending for the unit that does.
+            # A token that carries no unit has nothing to take the stress,
+            # so the mark stays pending for the unit that does.
             if seg is not None:
                 pending_stress = []
                 result.append(seg)
-        self._report_stray_stress(superseded, pending_stress, strict)
+            elif not self.is_structural_token(token):
+                unplaced.append(token)
+        self._report_unplaced(superseded, pending_stress, unplaced, strict)
         return result
 
-    def _report_stray_stress(
-        self, superseded: list[str], unbound: list[str], strict: bool
+    def _report_unplaced(
+        self,
+        superseded: list[str],
+        unbound: list[str],
+        unplaced: list[str],
+        strict: bool,
     ) -> None:
-        """Report stress marks that reached no unit's prosody.
+        """Report marks that reached no unit.
 
         The same contract :meth:`parse` gives an unbound tie: the mark is
         a registered symbol, so ``strict=`` would never have seen it as
         "unknown", and dropping it quietly leaves a shorter result that
         still reads as well formed.
         """
-        for marks, why in ((superseded, "superseded"), (unbound, "unbound")):
+        reports = (
+            (
+                superseded,
+                "superseded stress mark(s)",
+                "a unit bears one stress level, and the mark nearest it binds",
+            ),
+            (
+                unbound,
+                "unbound stress mark(s)",
+                "a stress mark binds the unit that follows it",
+            ),
+            (
+                unplaced,
+                "unplaced mark(s)",
+                "a mark binds the unit written before it, and these have none",
+            ),
+        )
+        for marks, what, detail in reports:
             if not marks:
                 continue
-            detail = (
-                "a unit bears one stress level, and the mark nearest it binds"
-                if why == "superseded"
-                else "a stress mark binds the unit that follows it"
-            )
             if strict:
                 raise ValueError(
-                    f"Cannot parse IPA segment: {len(marks)} {why} stress "
-                    f"mark(s) {sorted(set(marks))} reach no unit: {detail}."
+                    f"Cannot parse IPA segment: {len(marks)} {what} "
+                    f"{sorted(set(marks))} reach no unit: {detail}."
                 )
             warnings.warn(
-                f"dropped {len(marks)} {why} stress mark(s) "
+                f"dropped {len(marks)} {what} "
                 f"{sorted(set(marks))} while parsing IPA: {detail}. "
                 "Pass strict=True to raise instead.",
                 stacklevel=3,

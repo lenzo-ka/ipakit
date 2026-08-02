@@ -40,7 +40,10 @@ from invariants import entry_points  # noqa: E402
 # marks and are covered by the sweep and by TestTheSpacingAliases.
 CONSONANT_ALIASES = ["ʦ", "ʣ", "ʧ", "ʤ", "ʨ", "ʥ", "ƛ"]
 SPACING_ALIASES = ["˖", "˗"]
-ALL_ALIASES = CONSONANT_ALIASES + SPACING_ALIASES
+# The chart's above-the-symbol spellings of the voicelessness ring and the
+# syllabicity line, written where the base's descender leaves no room below.
+ABOVE_ALIASES = ["̊", "̍"]
+ALL_ALIASES = CONSONANT_ALIASES + SPACING_ALIASES + ABOVE_ALIASES
 
 
 def _corpus(ipa: IPAFeatures) -> Iterator[tuple[str, str]]:

@@ -1,0 +1,244 @@
+"""A mark the parser cannot place is reported, never dropped.
+
+``segments`` read a token that carried no unit and moved on. Every
+registered mark written *before* its base is such a token -- ``ⁿd`` is
+``ⁿ`` then ``d`` -- so the mark left no trace in the units, in the
+bundle, or in the distance: ``segments("ⁿd", strict=True)`` was one
+segment spelling ``d``, ``features("ⁿd")`` was ``{}``, and
+``distance("ⁿd", "d")`` was ``0.0``. Swept over the table, **64 of 68
+marks** vanished that way with nothing said, and two more (the ties)
+were reported by ``parse`` before they got here.
+
+``validate_ipa`` had reported the same string as ``orphan_diacritic``
+since long before. Two reads of "is this well formed" disagreed about
+one string, and the quiet one was the one the metric goes through.
+
+The corpus is deliberately not the canonical one. ``scripts/sweep.py``
+enumerates units that spell themselves back; what is under test here is
+exactly the strings that do *not*, so it enumerates every registered
+mark in both placements and asks a weaker question of each: was it kept,
+or was it refused by name.
+"""
+
+from __future__ import annotations
+
+import unicodedata
+import warnings
+
+import pytest
+from ipakit import IPAFeatures
+from ipakit.constants import METADATA_ATTRS
+from ipakit.segment import modifier_mode
+
+#: Modes whose marks describe something other than the segment's own
+#: value for a key -- a phase of it, a constriction added beside the
+#: primary, a property of the unit rather than of its feature bag. Read
+#: off ``<modes>`` by name because the mode names are declared there;
+#: what is *in* each mode is derived from the features every time.
+_NOT_THE_SEGMENTS_OWN = ("structural", "prosodic", "release", "secondary")
+
+
+@pytest.fixture(scope="module")
+def ipa() -> IPAFeatures:
+    return IPAFeatures()
+
+
+def _substantive(ipa: IPAFeatures, text: str) -> list[str]:
+    """The characters of ``text`` a unit can carry, as a multiset.
+
+    Structural marks are excluded on both sides of every comparison
+    below: a break and the linking tie are relations *between* units,
+    belong to no unit at either side, and ``Form`` is the layer that
+    keeps them. A unit emits its marks in its own order, so what is
+    compared is that nothing was lost, not that nothing moved.
+    """
+    return sorted(ch for ch in text if not ipa.is_structural_token(ch))
+
+
+def placements(ipa: IPAFeatures) -> list[str]:
+    """Every registered mark on every registered phone, both sides.
+
+    The two placements are the two the data allows anything to be
+    written in. One of them is canonical and one of them is what every
+    external inventory ships, which is the whole point: PHOIBLE and BIPA
+    write the pre-modifier, and until a mark written there was refused,
+    a source that used it lost it.
+    """
+    return [
+        unicodedata.normalize("NFC", text)
+        for phone in ipa.phones
+        for mark in ipa.diacritics
+        for text in (phone + mark, mark + phone)
+    ]
+
+
+def sweep(ipa: IPAFeatures) -> dict[str, str]:
+    """Each placement, as "kept" or "refused" -- or "dropped", which is
+    the verdict this whole module exists to see none of."""
+    out: dict[str, str] = {}
+    for text in placements(ipa):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            units = ipa.segments(text)
+        emitted = "".join(unit.to_ipa() for unit in units)
+        # An alias is a second spelling of a declared mark, so the
+        # emission is compared against what the alias resolves to.
+        wanted = ipa.expand_ligatures(text)
+        if _substantive(ipa, emitted) == _substantive(ipa, wanted):
+            out[text] = "kept"
+        elif caught:
+            out[text] = "refused"
+        else:
+            out[text] = "dropped"
+    return out
+
+
+@pytest.fixture(scope="module")
+def verdicts(ipa: IPAFeatures) -> dict[str, str]:
+    return sweep(ipa)
+
+
+class TestNoPlacementOfAMarkIsSilentlyLost:
+    """The predicate, over the shape rather than over the 64."""
+
+    def test_the_sweep_is_wide(
+        self, ipa: IPAFeatures, verdicts: dict[str, str]
+    ) -> None:
+        # Two placements of every mark on every phone, less the strings
+        # two placements spell the same way.
+        assert len(verdicts) > 15000, "sweep did not run"
+        assert len(ipa.diacritics) > 60, "the mark table went missing"
+        assert len(ipa.phones) > 130, "the phone inventory went missing"
+
+    def test_the_sweep_reaches_both_answers(self, verdicts: dict[str, str]) -> None:
+        # A predicate that only ever sees one answer is not being tested.
+        # Both counts are in the thousands: a mark on its base is kept, a
+        # mark before it is refused, and that is most of the corpus each.
+        counted = {verdict: 0 for verdict in ("kept", "refused", "dropped")}
+        for verdict in verdicts.values():
+            counted[verdict] += 1
+        assert counted["kept"] > 5000, counted
+        assert counted["refused"] > 5000, counted
+
+    def test_no_placement_is_dropped(self, verdicts: dict[str, str]) -> None:
+        dropped = sorted(
+            text for text, verdict in verdicts.items() if verdict == "dropped"
+        )
+        assert dropped == [], f"{len(dropped)} placements lost a mark in silence"
+
+    def test_what_warns_by_default_raises_under_strict(
+        self, ipa: IPAFeatures, verdicts: dict[str, str]
+    ) -> None:
+        # ``strict=True`` is what a caller passes because they want to be
+        # told, so nothing may reach a warning without reaching this too.
+        refused = [text for text, verdict in verdicts.items() if verdict == "refused"]
+        assert len(refused) > 5000, "nothing was refused"
+        for text in refused:
+            with pytest.raises(ValueError):
+                ipa.segments(text, strict=True)
+
+    def test_the_sweep_sees_the_silence_when_it_is_put_back(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Non-vacuity, by perturbing what is under test rather than by
+        trusting a count. Suppress the one report and the same sweep must
+        find thousands of placements dropped without a word."""
+        report = IPAFeatures._report_unplaced
+        monkeypatch.setattr(
+            IPAFeatures,
+            "_report_unplaced",
+            lambda self, superseded, unbound, unplaced, strict: report(
+                self, superseded, unbound, [], strict
+            ),
+        )
+        dropped = sum(1 for v in sweep(IPAFeatures()).values() if v == "dropped")
+        assert dropped > 5000, "the guard is not looking at the report"
+
+
+class TestTheReportedCases:
+    """The five strings the defect was reported as."""
+
+    def test_a_pre_modifier_raises_under_strict(self, ipa: IPAFeatures) -> None:
+        with pytest.raises(ValueError, match="unplaced"):
+            ipa.segments("ⁿd", strict=True)
+
+    def test_a_pre_modifier_warns_by_default(self, ipa: IPAFeatures) -> None:
+        with pytest.warns(UserWarning, match="unplaced"):
+            ipa.segments("ⁿd")
+        with pytest.warns(UserWarning, match="unplaced"):
+            ipa.get_features("ⁿd")
+
+    def test_the_above_the_symbol_spellings_are_registered(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # U+030A and U+030D were unregistered characters, so a segment
+        # spelled with either came back a mark short and voiceless ŋ read
+        # as ŋ. They are the chart's own spelling for a base whose
+        # descender leaves no room below it.
+        assert ipa.tokenize("ŋ̊") == ["ŋ̥"]
+        assert ipa.tokenize("ŋ̍") == ["ŋ̩"]
+        assert ipa.get_features("ŋ̊")["voiced"] == "-"
+        assert ipa.get_features("ŋ̍")["syllabic"] == "+"
+        assert ipa.validate_ipa("ŋ̊") == []
+
+    def test_an_ejective_click_keeps_its_ejection(self, ipa: IPAFeatures) -> None:
+        assert ipa.get_features("ǂʼ")["airstream"] == "ejective"
+        assert ipa.distance("ǂʼ", "ǂ") > 0
+
+    def test_a_structural_mark_is_not_an_unplaced_one(self, ipa: IPAFeatures) -> None:
+        # A break and the linking tie belong to no unit at either side,
+        # by declaration rather than by exemption, so they carry no unit
+        # and say nothing about it. ``Form`` is where they survive.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert len(ipa.segments("a|b")) == 2
+            assert len(ipa.segments("a‿b")) == 2
+
+
+class TestNoMarkIsOverruledByItsBase:
+    """The other half of the same silence: a mark that parses, is placed,
+    and then states nothing the unit reads back.
+
+    ``ǂʼ`` spelled itself, parsed to one unit and carried the mark -- and
+    read as ``ǂ`` anyway, because ``airstream`` sat in the additive
+    default and the click declares its own. Nothing was dropped and the
+    answer was still wrong by exactly one feature.
+    """
+
+    def test_every_mark_that_states_the_segments_own_value_lands(
+        self, ipa: IPAFeatures
+    ) -> None:
+        overruled: list[tuple[str, str, str, str]] = []
+        checked = 0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for phone in ipa.phones:
+                for mark, declared in ipa.diacritics.items():
+                    if modifier_mode(ipa, mark) in _NOT_THE_SEGMENTS_OWN:
+                        continue
+                    unit = unicodedata.normalize("NFC", phone + mark)
+                    try:
+                        parsed = ipa.segment(unit)
+                    except ValueError:
+                        continue
+                    # One constituent wearing this one mark: anything else
+                    # and the flat read is answering about a chain, which
+                    # is a different question.
+                    if len(parsed.constituents) != 1:
+                        continue
+                    if parsed.constituents[0].modifiers != (mark,):
+                        continue
+                    if parsed.to_ipa() != unit:
+                        continue
+                    checked += 1
+                    read = parsed.scalar(with_defaults=False)
+                    for key, value in declared.features.items():
+                        if key in METADATA_ATTRS:
+                            continue
+                        if read.get(key) != value:
+                            overruled.append((unit, key, value, read.get(key, "")))
+        assert checked > 2000, "sweep did not run"
+        assert overruled == [], (
+            f"{len(overruled)} units read back a value their own mark "
+            f"contradicts, e.g. {overruled[:3]}"
+        )

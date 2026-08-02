@@ -238,3 +238,80 @@ class TestTheTwoEntryPointsSenseATieTheSameWay:
                     disagreed.append((first, second, written, resensed))
         assert checked > 1000, "sweep did not run"
         assert not disagreed, disagreed[:5]
+
+
+class TestATieBindsTheUnitAndNotTheBaseCharacter:
+    """``add_ties`` reads a unit's extent the way ``parse`` does.
+
+    It walked characters and let any non-phone reset the left side, so a
+    mark written between two bases declined the tie outright and said
+    nothing about it -- ``add_ties("d̪ɮ")`` returned its input. On a
+    longer chain the same reset moved the tie to the wrong junction
+    rather than dropping it: ``d̠ʒxʼ`` came back ``d̠ʒ͡xʼ``, joining ʒ to x.
+    293 of the 305 segmentations where ipakit and BIPA disagreed after
+    both normalizations are this one thing.
+    """
+
+    def test_a_mark_on_the_left_element_no_longer_declines_the_tie(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert ipa.add_ties("dɮ") == "d" + ipa.tie_bar + "ɮ"
+        assert ipa.add_ties("d̪ɮ") == "d̪" + ipa.tie_bar + "ɮ"
+        assert ipa.add_ties("ea") == "e" + ipa.seq_tie + "a"
+        assert ipa.add_ties("e̞a") == "e̞" + ipa.seq_tie + "a"
+
+    def test_the_tie_lands_on_the_junction_the_marks_leave(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert ipa.add_ties("d̠ʒxʼ") == "d̠" + ipa.tie_bar + "ʒ" + ipa.tie_bar + "xʼ"
+
+    def test_a_mark_binding_something_else_still_ends_the_unit(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The run a base absorbs is ``_modifier_run``'s, which stops at a
+        # stress mark (it scopes what follows), at a break and at a tie.
+        assert ipa.add_ties("pə.tˈeɪ.toʊ") == "p͡ə.tˈe͜ɪ.t͡o͜ʊ"
+
+    def test_every_mark_between_two_bases_gets_a_tie(self, ipa: IPAFeatures) -> None:
+        """The sweep: one mark written between two bases never costs the
+        junction, whatever the mark is."""
+        bases = sorted(
+            symbol
+            for symbol in ipa.phones
+            if len(symbol) == 1 and symbol not in ipa.diacritics
+        )
+        assert len(bases) > 50, "sweep did not run"
+        marks = [
+            mark
+            for mark in ipa.diacritics
+            if ipa.add_ties("t" + mark + "s") != "t" + mark + "s"
+        ]
+        checked, declined = 0, []
+        for first in bases[::3]:
+            for second in bases[::5]:
+                bare = ipa.add_ties(first + second)
+                if len(bare) != 3:
+                    continue  # not a two-base group; nothing was inserted
+                for mark in marks:
+                    checked += 1
+                    marked = ipa.add_ties(first + mark + second)
+                    if marked != first + mark + bare[1] + second:
+                        declined.append((first, mark, second, marked))
+        assert checked > 5000, "sweep did not run"
+        assert not declined, declined[:5]
+
+    def test_the_marks_that_end_a_unit_are_the_ones_the_parser_ends_it_on(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The escape, pinned: the marks that *do* decline the tie are
+        exactly the marks ``parse`` will not let a base absorb, so the
+        writer and the reader cannot come to disagree about where a unit
+        ends."""
+        declines = {
+            mark
+            for mark in ipa.diacritics
+            if ipa.add_ties("t" + mark + "s") == "t" + mark + "s"
+        }
+        absorbs = {mark for mark in ipa.diacritics if ipa._modifier_run("t" + mark, 1)}
+        assert declines == set(ipa.diacritics) - absorbs
+        assert declines, "no mark ends a unit, so this pins nothing"
