@@ -126,6 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/invariants.py` reads provenance and the zero through the library's own API rather than defining them.
 - `is_pure_ipa`'s summary no longer invites the reading "is this valid IPA".
 - `VariantSet.complete` states the direction it is exact in: a `True` holds every form the uncapped answer holds, and a `False` may too.
+- The snapshot is named as the simultaneous application strategy and a choice; what iterative spreading waits on is the reach of a context, not regularity — `docs/calculus.md` (#113).
+- The gap to a finite-state transducer is inversion alone: regular relations are closed under neither intersection nor complementation — `docs/calculus.md` (#114).
 - The rule sets and `docs/` ship in the wheel and the sdist, and an unpacked sdist can run its own tests.
 
 ### Fixed
