@@ -195,9 +195,9 @@ Two things follow, and both are constraints on how a brace may be introduced rat
 
 `*[dvniʁ]` is *d v n*, and it is not French. Under the expansion reading the pair is safe — measured, the two alternatives in either order give the same three variants of *devenir*, in a different derivational order, which is what [calculus.md](../calculus.md) already says of the two rules. What is lost is not correctness but visibility: the file spends paragraphs explaining that the split is deliberate, and a brace would present the same content as an abbreviation of one generalization. That is a good reason for the shipped French set to go on writing it out, and a bad reason to refuse the device.
 
-## 4. Hayes's objection, and what it costs here
+## 4. The objection to braces, and what it costs here
 
-[morph-boundary.md](morph-boundary.md) records that *"Hayes dismisses curly brackets outright"*. Read in the primary, he does not — see the spin-off finding at the end of this document — and the objection he does report is sharper than a dismissal, because it is an argument rather than a verdict:
+**The objection is in Hayes's book but not in Hayes's voice** — see the spin-off finding at the end of this document — and what he reports is sharper than a dismissal, because it is an argument rather than a verdict:
 
 > Many linguists have expressed the view that curly brackets offer little or no insight into linguistic phenomena, since they evade the question of what the two listed environments might have in common. (Hayes 2009: 259)
 
@@ -464,15 +464,11 @@ So the check that would have prevented the mistake this document found twice is 
 
 **Not needed: captures, the span, or anything else from [captures.md](captures.md).** Measured, not assumed. The liaison family still wants a reference, still needs the linkage braces do not supply, and is untouched by anything here.
 
-## Spin-off finding: Hayes does not dismiss curly brackets
-
-[morph-boundary.md](morph-boundary.md) records, in the course of settling the English plural, that *"Hayes dismisses curly brackets outright"*. Read in the primary, that is not what the book does, and the correction matters because the sentence is doing real work in a sibling document — it is the reason given there for not needing braces.
+## Spin-off finding: the flat objection to braces is Odden's
 
 Hayes never rejects the notation in his own voice. Both times he raises it he attributes the objection: *"Many linguists have expressed the view…"* (p. 259), *"have struck many phonologists as unsatisfactory"* (p. 264). He presents the syllable-based alternative as *"a widely adopted alternative solution"*, not as the only admissible one. And at p. 220 he teaches the notation and sets it as an exercise, offering it and writing two rules as interchangeable: *"Try to reduce the set to just two natural classes, connecting them with curly brackets… or just write two rules."* There is no index entry for braces or curly brackets in the book, and `grep` over the whole text finds five occurrences, at pp. 220, 259 and 263–64.
 
-The stronger citation, in the author's own voice and unhedged, is **Odden 2005: 159** — quoted in §4 — which gives both heads of the objection and names the syllable as the better explanation. A document wanting a flat statement that braces should be avoided should cite Odden and attribute Hayes as Hayes attributes it.
-
-Nothing in [morph-boundary.md](morph-boundary.md)'s conclusion depends on the correction. Its finding was that `[sibilant]` selects the plural's class exactly and no source states the rule with braces; both hold. The sentence about Hayes should say what he says.
+The citation in an author's own voice and unhedged is **Odden 2005: 159** — quoted in §4 — which gives both heads of the objection and names the syllable as the better explanation. A document wanting a flat statement that braces should be avoided should cite Odden, and attribute Hayes as Hayes attributes it.
 
 ## Reproducing the measurements
 
