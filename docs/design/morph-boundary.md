@@ -58,16 +58,21 @@ The assessment is read-only. Nothing in this lane changed code, data, or tests.
 - Selkirk, "The prosodic structure of function words" (1995/96): <http://people.umass.edu/selkirk/pdf/PSFWUMOP'%20copy.pdf> — the decomposition of the Strict Layer Hypothesis into Layeredness, Headedness, Exhaustivity and Nonrecursivity. Must be fetched with `curl` and read with `pdftotext`; an ordinary fetch returns a truncated six-page copy of a paper about 2,600 lines long.
 - Selkirk 2011, on what survives of the case for prosodic constituency; Kiparsky 1982 and Newell 2021 on the stratal reassignment of `+`; Bermúdez-Otero 2013 §28. Quoted in §6.
 
-**Reached only secondhand, and treated as such throughout.**
+**Sought and not reached, with what was tried.** Each entry records an attempt on a date, by a route. None is a claim that the work is unavailable, and a search that came back empty is evidence about the search.
 
-- Selkirk, *Phonology and Syntax: The Relation between Sound and Structure* (MIT Press 1984) — **no open full text found.**
-- Nespor & Vogel, *Prosodic Phonology* (Foris 1986) — **no open full text found.**
+- Selkirk, *Phonology and Syntax: The Relation between Sound and Structure* (MIT Press 1984) — checked 2026-08-02: OpenAlex reports no open location and indexes only paywalled reviews. Read at one remove, through the secondary literature, and labeled where it appears.
+- Nespor & Vogel, *Prosodic Phonology* (Foris 1986) — checked 2026-08-02: no open location for the Foris edition or for the De Gruyter reissue. Read at one remove, and labeled.
+- Kenstowicz, *Phonology in Generative Grammar* (Blackwell 1994), and Kenstowicz & Kisseberth, *Topics in Phonological Theory* (Academic Press 1977) — checked 2026-08-02: no open location in OpenAlex for either, and the archive.org copies are lending-restricted with search-inside reporting no text without a loan. Nothing here is attributed to either.
+- MIT OCW 24.900 problem-set solutions — HTTP 405, and not retried.
 
-Both are the canonical statements of the Prosodic Hierarchy and neither could be read. Every claim attributed to them below is from secondary literature and is labeled where it appears. That matters more than usual, because they are the works the non-isomorphism argument belongs to. One widely circulated line to the effect that prosodic structure is *not necessarily isomorphic to any constituents found elsewhere in the grammar* traces to a search-engine summary of a page nobody could open; it is not quoted here and should not be.
+Selkirk 1984 and Nespor & Vogel are the canonical statements of the Prosodic Hierarchy, and every claim attributed to them below is from secondary literature and is labeled where it appears. That matters more than usual, because they are the works the non-isomorphism argument belongs to. One widely circulated line to the effect that prosodic structure is *not necessarily isomorphic to any constituents found elsewhere in the grammar* traces to a search-engine summary of a page nobody could open; it is not quoted here and should not be.
 
-**Could not be reached at all.** Kenstowicz & Kisseberth, *Generative Phonology* (1979) — archive.org copy lending-restricted, `_djvu.txt` 403, search-inside empty without authentication. Kenstowicz, *Phonology in Generative Grammar* (1994) — likewise restricted. Kenstowicz & Kisseberth, *Topics in Phonological Theory* (1977) — no full text found anywhere. *Essentials of Linguistics* ch. 4.6/4.8 — 403 twice; search snippets attribute a bleeding-order account to it, but the page was never opened and it is not cited here. MIT OCW 24.900 problem-set solutions — HTTP 405.
+**Reachable, and not relied on here.**
 
-The reachability pattern is worth recording on its own: **the pedagogical sources are open, the 1968 primary turned out to be open, and the two 1980s theoretical monographs are not.** Every textbook statement of the plural rule in this document was read in full; neither book the Prosodic Hierarchy is usually cited from could be opened.
+- Anderson et al. (eds.), *Essentials of Linguistics*, 2nd edition (eCampusOntario Pressbooks 2022), CC BY-SA: <https://ecampusontario.pressbooks.pub/essentialsoflinguistics2/>. Openly licensed and readable in full. A search snippet attributing a bleeding-order account of the plural to it does not survive the book: §5.4 states English plural allomorphy descriptively and as a list of allomorphs, and §4.8 demonstrates a derivation table on a single French devoicing rule. There is no rule interaction in either, so the bleeding order here rests on Iverson and Levine.
+- Kenstowicz & Kisseberth, *Generative Phonology: Description and Theory* (Academic Press 1979) — a copy was obtained and read for [braces.md](braces.md), which cites pp. 339–42 and 359–64. Not open access. Nothing in this document rests on it.
+
+The reachability pattern is worth recording on its own: **the pedagogical sources are open, the 1968 primary is open, and the two 1980s theoretical monographs are not.** Every textbook statement of the plural rule in this document was read in full; neither book the Prosodic Hierarchy is usually cited from has an open copy this lane could find.
 
 ## 1. Why the ladder is the wrong home
 

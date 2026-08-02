@@ -78,7 +78,7 @@ Buckley's gloss is the one to keep: *"The need for indexation distinguishes meta
 
 Five conventions of that format matter for what follows.
 
-**Every term is numbered, including boundaries.** Parker's course packet is explicit that the numbers "index each element (**segment and/or boundary symbol**)", and Kenstowicz & Kisseberth's copying rule numbers a stem bracket and a `#`. So a boundary is a term like any other in the source notation — which is a place ipakit must diverge, for the reason §11 gives.
+**Every term is numbered, including boundaries.** Kenstowicz & Kisseberth's rule (79) numbers a stem bracket and a `#` among the terms of its structural description, read from the page at p. 371, and the claim rests on that. Parker's course packet states it in words — the numbers "index each element (**segment and/or boundary symbol**)" — but that URL answers 403 as of 2026-08-02, so the wording is on the record here and is not independently checkable. So a boundary is a term like any other in the source notation — which is a place ipakit must diverge, for the reason §11 gives.
 
 **Deletion is written by putting Ø in the term's slot in the change**, as the UCLA example does for term 2 and Parker's coalescence rule does for the nasal. It is not written by omitting the number; omitting it would be ambiguous with a change that says nothing about that term.
 
