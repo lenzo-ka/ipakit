@@ -122,7 +122,18 @@ The tract terms exist for the same reason at the level of position. The frame's 
 
 No feature carries a weight. Each dimension contributes equally at maximal difference, and anchored dimensions give partial credit for genuine proximity. A total voicing difference therefore costs more than a small place move — which matches the finding that place is the fragile dimension under noise and voicing the robust one.
 
-Weights were considered and rejected for three reasons. Sonority ranks syllabic prominence, not contrast salience, and affricates are the counterexample: low sonority, high salience. Sonority is also already encoded in the manner ordering, so weighting by it would double-count. And most apparent weighting problems turn out to be representation problems: `p` and `ʘ` once scored distance 0 not because voicing was underweighted but because clicks were filed under `manner` while silently defaulting to a pulmonic airstream. Correcting the data fixed it; a weight would have hidden it.
+Weights were considered and rejected for two reasons. Sonority ranks syllabic prominence, not contrast salience, and affricates are the counterexample: low sonority, high salience. And most apparent weighting problems turn out to be representation problems: `p` and `ʘ` once scored distance 0 not because voicing was underweighted but because clicks were filed under `manner` while silently defaulting to a pulmonic airstream. Correcting the data fixed it; a weight would have hidden it.
+
+Neither reason needs the metric to carry a sonority ordering already, which is as well, because it does not. `manner`'s axis is `+constriction` and means it: `nasal` and `plosive` declare one position on it, so the axis does not separate them at all, and it puts a nasal on the closed side of a fricative — right for a nasal's oral tract and backwards for its sonority.
+
+```python
+import ipakit
+
+manner = ipakit.load_ipa_features().features["manner"]
+manner.value_distance("nasal", "plosive")   # 0.0
+```
+
+A sonority scale *is* derivable here — the `obstruent` natural class read alongside that axis puts the manners in the order every hierarchy gives them — but nothing in the metric reads one, and the first reason above is why nothing should: a scale of syllabic prominence would still be the wrong quantity to weight contrasts by.
 
 If weights are ever wanted, the only defensible source is empirical confusion data, and they belong in a layer over this metric rather than inside it — so that the structural claim stays honest.
 
