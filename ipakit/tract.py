@@ -771,8 +771,17 @@ def constrictions(
       declares no arc of its own precisely because its position is its
       components', so ``w`` had nowhere to be drawn at all.
 
-    Returned front to back. The first is always ``tract_point``'s, so anything
-    reading only the primary sees no change.
+    Returned front to back, and every element is a constriction the segment
+    actually makes. That is not ``tract_point``'s answer with company added.
+    A segment naming one place constricts there, so the metric's point is the
+    front-most element; a combining place declares no arc of its own and the
+    metric answers with the mean of its components, which lies strictly
+    between them and so is a constriction at neither. ``w`` is drawn closing
+    at the lips and at the velum, and compared at 0.225, where nothing closes.
+
+    Ask ``tract_point`` for the summary the metric uses and this for the
+    closures a drawing owes. They answer different questions, and only a
+    single named place makes them agree.
     """
     primary = tract_point(features, bundle)
     place = features.features.get("place")
