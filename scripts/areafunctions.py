@@ -24,6 +24,7 @@ quantity ``arc`` claims to be, so the two can be compared without fitting.
     python scripts/areafunctions.py replicate    # does a coordinate reproduce?
     python scripts/areafunctions.py intra        # ... for one speaker, twice?
     python scripts/areafunctions.py anchors      # where the four locations sit
+    python scripts/areafunctions.py chart        # can the vowel chart supply one?
     python scripts/areafunctions.py all
 
 The paper is copyrighted and is NOT bundled: CI will not have it, so every
@@ -46,11 +47,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import functools
 import itertools
+import math
 import os
 import re
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -228,6 +231,91 @@ THIRD_ENV = "IPAKIT_STORY2008_CSV"
 #: those ten -- pairing ``e`` with ``ɛ``, or ``ɝ`` with anything, would be the
 #: substitution this measurement exists to avoid.
 BOTH_SESSIONS = ("i", "ɪ", "ɛ", "æ", "ʌ", "ɑ", "ɔ", "o", "ʊ", "u")
+
+#: The IPA vowel quadrilateral, measured off the Association's own drawing of
+#: it -- *The International Phonetic Alphabet (revised to 2020)*, the Kiel PDF
+#: at https://www.internationalphoneticassociation.org/IPAcharts/ -- by
+#: interpreting the page's content stream and reading the coordinates of the
+#: lines it strokes. The figure's glyphs are in a custom-encoded font and
+#: extract to nonsense, which is a trap this reference library already records;
+#: the *paths* are ordinary numbers and are what is read here.
+#:
+#: In page points: the front edge runs from (381.3, 501.2) to (458.9, 386.3),
+#: the back edge from (532.7, 501.2) to (532.7, 386.3). So the close edge is
+#: 151.4 wide, the open edge 73.8, the two rungs are 114.9 apart, and the back
+#: edge is *vertical* while the front edge slants back by 77.6 as it descends.
+#:
+#: That is Jones's figure drawn to his stated proportions. The footnote to
+#: *An Outline of English Phonetics* 9th edn 149 gives the open, back and close
+#: edges "in the proportion 2:3:4" with right angles at the back edge; measured,
+#: they are 2 : 3.11 : 4.10, so the 2020 chart reproduces a 1969 footnote to
+#: within 4%.
+#:
+#: Two asymmetries, and they are different facts. The back edge is shorter than
+#: the front edge, 114.9 against 138.7 -- Jones's own choice, and he gives the
+#: reason at 137-139: between the four back cardinals the *tongue* moves less,
+#: because the lips do part of the work. And the open edge is shorter than the
+#: close edge, which is what makes the front and back columns converge as a
+#: vowel opens. Only the second is a free number here; the first is a
+#: consequence of it and of the right angles.
+CHART_INSET = 77.6 / 151.4
+
+#: Where each declared ``height`` value sits on that figure, as a fraction of
+#: the 114.9-point drop from the close edge to the open edge. Read the same
+#: way: the text-positioning matrices give a baseline per row without anyone
+#: having to decode which glyph is which, and the four struck rungs (close,
+#: close-mid, open-mid, open) fix the offset between a baseline and its rung.
+#:
+#: The measured fractions are 0.000, 0.155, 0.328, 0.489, 0.657, 0.820, 0.999 --
+#: an even seven-rung ladder to within 0.013, which is what is used, because a
+#: ladder read to three decimals off one drawing is a precision the drawing does
+#: not have. ``height`` declares an ``offset`` per value and its steps are even
+#: to the same tolerance.
+CHART_ROWS = (
+    "close",
+    "near-close",
+    "close-mid",
+    "mid",
+    "open-mid",
+    "near-open",
+    "open",
+)
+
+#: And each declared ``backness`` value, across the figure. The chart strikes
+#: three columns -- front at 0.0, central at 0.500 measured, back at 1.0 -- and
+#: draws no near-front or near-back line at all. Those two are ipakit's own
+#: declaration, and they are placed here at the quarters, which is what their
+#: declared arcs already are to within 0.01.
+CHART_COLUMNS = ("front", "near-front", "central", "near-back", "back")
+
+#: The three corners the quadrilateral is pinned to, as ``place`` names, and
+#: the alternative each could defensibly take. The chart states no scale, no
+#: anatomical anchor and no correspondence to centimetres, so a projection has
+#: to be given its corners from outside the figure; these are the anatomical
+#: names Wood's four locations already carry, which is the least arbitrary
+#: anchoring available and the one most favourable to the construction. Every
+#: corner lands on its own anchor by construction, so what the projection is
+#: actually asked for is the interior of the figure.
+CHART_CORNERS = (
+    ("close", "front", ("palatal",)),
+    ("close", "back", ("velar", "uvular")),
+    ("open", "back", ("pharyngeal", "epiglottal")),
+)
+
+#: How far the tongue body stands off the midline, as a fraction of head
+#: height. It cancels at the corners and does not in the interior, so it is a
+#: free parameter of the construction and is swept. The shipped adult-male
+#: midline is 1.0476 units long for a declared 17.5 cm, so these are roughly
+#: 0.3 to 2.7 cm.
+CHART_STANDOFFS = (0.02, 0.04, 0.08, 0.12, 0.16)
+
+#: Which cell of the figure each measured vowel occupies, from ``ipa.xml``.
+#: Read live rather than restated: ``chart`` asks what the figure would say
+#: about a vowel ipakit has already placed in it.
+#:
+#: The rhotic has no cell of the figure's own -- ``ɝ`` is central and open-mid
+#: by declaration, and its constriction is measured forward of ``i``.
+CHART_SKIP = ("ɝ",)
 
 #: Which Story et al. shape each Japanese vowel is held against, and which of
 #: Wood's families it belongs to. Read as IPA, the paper's own five symbols are
@@ -668,6 +756,395 @@ def wood_proportional() -> dict[str, float]:
         name: (WOOD_REFERENCE_CM - cm) / WOOD_REFERENCE_CM
         for name, cm, _ in WOOD_LOCATIONS
     }
+
+
+@functools.cache
+def _midline() -> tuple[tuple[float, float, float], ...]:
+    """A dense resampling of the shipped adult-male midline.
+
+    Every point behind ``arc`` 0.45 carries ``provenance="extrapolated"``:
+    ``docs/articulatory-data.md`` says outright that the X-Ray Microbeam
+    instrument sees nothing behind 0.44, so the pharyngeal half of this
+    polyline is drawn rather than measured. A projection that gets its
+    behaviour from the tract's bend is getting it from there.
+    """
+    knots = [(p.arc, p.x, p.y) for p in head("adult-male").midline]
+    dense: list[tuple[float, float, float]] = []
+    for (a0, x0, y0), (a1, x1, y1) in itertools.pairwise(knots):
+        for step in range(400):
+            fraction = step / 400
+            dense.append(
+                (
+                    a0 + fraction * (a1 - a0),
+                    x0 + fraction * (x1 - x0),
+                    y0 + fraction * (y1 - y0),
+                )
+            )
+    dense.append(knots[-1])
+    return tuple(dense)
+
+
+@functools.cache
+def _tangent(arc: float) -> tuple[tuple[float, float], tuple[float, float]]:
+    """The midline point at a declared arc, and its unit tangent there."""
+    knots = [(p.arc, p.x, p.y) for p in head("adult-male").midline]
+    for (a0, x0, y0), (a1, x1, y1) in itertools.pairwise(knots):
+        if a0 <= arc <= a1:
+            fraction = (arc - a0) / (a1 - a0)
+            run, rise = x1 - x0, y1 - y0
+            span = math.hypot(run, rise)
+            return (x0 + fraction * run, y0 + fraction * rise), (
+                run / span,
+                rise / span,
+            )
+    raise ValueError(f"arc {arc} is off the midline")
+
+
+def _corner(arc: float, standoff: float) -> tuple[float, float]:
+    """Where the tongue body sits to constrict at ``arc``.
+
+    Off the midline by ``standoff``, on the side the tongue is on -- the
+    tangent turned a quarter turn, which is inferior over the oral run and
+    anterior in the pharynx because the midline bends between them. It cancels
+    at the three pinned corners and does not in the interior, which is why it
+    is a free parameter of the construction rather than a detail of it.
+    """
+    (x, y), (run, rise) = _tangent(arc)
+    return (x + standoff * rise, y - standoff * run)
+
+
+def _projected(point: tuple[float, float]) -> float:
+    """The arc of the midline point nearest a tongue-body position."""
+    x, y = point
+    return min(_midline(), key=lambda q: (q[1] - x) ** 2 + (q[2] - y) ** 2)[0]
+
+
+@functools.cache
+def _pivot() -> tuple[float, float]:
+    """The centre of curvature of the tract, from three points on it.
+
+    Not a free parameter: the circle through the palatal, uvular and
+    pharyngeal midline points, which is where an arch sweeping those three
+    would have to be centred.
+    """
+    places = landmarks(IPAFeatures()).places
+    (ax, ay), (bx, by), (cx, cy) = (
+        _tangent(places[name])[0] for name in ("palatal", "uvular", "pharyngeal")
+    )
+    scale = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    sa, sb, sc = ax**2 + ay**2, bx**2 + by**2, cx**2 + cy**2
+    return (
+        (sa * (by - cy) + sb * (cy - ay) + sc * (ay - by)) / scale,
+        (sa * (cx - bx) + sb * (ax - cx) + sc * (bx - ax)) / scale,
+    )
+
+
+def chart_cell(height: str, backness: str, inset: float) -> tuple[float, float]:
+    """A declared (height, backness) pair as a point of the quadrilateral.
+
+    ``(0, 0)`` is the close front corner and ``(1, 1)`` the open back one. The
+    front edge slants back by ``inset`` of the close edge's width as it
+    descends, which is the figure's whole departure from a rectangle.
+    """
+    down = CHART_ROWS.index(height) / (len(CHART_ROWS) - 1)
+    across = CHART_COLUMNS.index(backness) / (len(CHART_COLUMNS) - 1)
+    return inset * down + across * (1 - inset * down), down
+
+
+def chart_affine(
+    cell: tuple[float, float], standoff: float, corners: tuple[float, ...]
+) -> float:
+    """The figure laid flat in the sagittal plane, three corners pinned.
+
+    Three points fix an affine map, so pinning the close front, close back and
+    open back corners places the whole figure, and the open front corner falls
+    where the trapezoid puts it. Height is then one direction everywhere: the
+    displacement that carries a close back vowel down the pharynx carries a
+    close front vowel back along the palate.
+    """
+    across, down = cell
+    front, back, low = (_corner(arc, standoff) for arc in corners)
+    return _projected(
+        (
+            front[0] + across * (back[0] - front[0]) + down * (low[0] - back[0]),
+            front[1] + across * (back[1] - front[1]) + down * (low[1] - back[1]),
+        )
+    )
+
+
+def chart_polar(
+    cell: tuple[float, float], standoff: float, corners: tuple[float, ...]
+) -> float:
+    """The figure wrapped around the tract's own bend instead.
+
+    The same figure, read as the tongue arch it was named for: backness is an
+    angle about the centre of curvature of the tract, height is how near the
+    arch comes to the wall. Both readings lay the quadrilateral in the
+    mid-sagittal plane and pin it to the same corners. The chart says nothing
+    that chooses between them.
+    """
+    across, down = cell
+    pivot = _pivot()
+
+    def angle(arc: float) -> float:
+        (x, y), _ = _tangent(arc)
+        return math.atan2(y - pivot[1], x - pivot[0])
+
+    swept = angle(corners[0]) + across * (angle(corners[2]) - angle(corners[0]))
+    on_wall = min(
+        _midline(),
+        key=lambda q: abs(math.atan2(q[2] - pivot[1], q[1] - pivot[0]) - swept),
+    )
+    reach = math.hypot(on_wall[1] - pivot[0], on_wall[2] - pivot[1]) - standoff * (
+        0.3 + down
+    )
+    return _projected(
+        (pivot[0] + reach * math.cos(swept), pivot[1] + reach * math.sin(swept))
+    )
+
+
+#: The two readings, and the point of having two. Each lays the quadrilateral
+#: in the mid-sagittal plane, pins it to the same three anatomical corners and
+#: projects onto the same midline. They disagree about the interior by more
+#: than the whole declared span, and nothing in the figure prefers either.
+CHART_READINGS = {"affine": chart_affine, "polar": chart_polar}
+
+
+def _chart_embeddings() -> list[tuple[str, float, float, tuple[float, ...]]]:
+    """Every embedding swept: reading, front-edge inset, standoff, corners."""
+    places = landmarks(IPAFeatures()).places
+    return [
+        (name, inset, standoff, corners)
+        for name in CHART_READINGS
+        for inset in (0.0, CHART_INSET, 0.7)
+        for standoff in CHART_STANDOFFS
+        for corners in itertools.product(
+            *([places[n] for n in names] for _, _, names in CHART_CORNERS)
+        )
+    ]
+
+
+def _chart_arcs(
+    embedding: tuple[str, float, float, tuple[float, ...]],
+    cells: dict[str, tuple[str, str]],
+) -> dict[str, float]:
+    """Every measured vowel's arc under one embedding."""
+    name, inset, standoff, corners = embedding
+    reading = CHART_READINGS[name]
+    return {
+        symbol: reading(chart_cell(height, backness, inset), standoff, corners)
+        for symbol, (height, backness) in cells.items()
+    }
+
+
+def cmd_chart(table: Table, args: argparse.Namespace) -> int:
+    """Can a constriction location be got out of the vowel chart's geometry?
+
+    The quadrilateral is a stated model of tongue-body position with no free
+    parameters to fit, so a location projected out of it would be a
+    declaration rather than a fit -- which is the shape of evidence
+    ``docs/design/vowel-constriction.md`` could not obtain from any source.
+    This measures whether that projection exists.
+
+    Two things are asked. Whether the figure's own asymmetry produces the
+    height-by-backness interaction the measurement shows, which is what would
+    make it worth having; and whether the answer survives the choices the
+    figure does not make, which is what would make it a declaration.
+    """
+    cells = _chart_cells()
+    sources = _chart_sources(table, args)
+    places = landmarks(IPAFeatures()).places
+    default = tuple(places[names[0]] for _, _, names in CHART_CORNERS)
+
+    print(
+        "The IPA quadrilateral, laid in the mid-sagittal plane and projected onto\n"
+        "the shipped adult-male midline. Corners pinned at "
+        + ", ".join(f"{n[0]} {places[n[0]]:.2f}" for _, _, n in CHART_CORNERS)
+        + f";\nfront edge inset {CHART_INSET:.3f}, measured off the 2020 chart.\n"
+    )
+    for name, reading in CHART_READINGS.items():
+        print(f"  {name}")
+        print(f"  {'':>11}" + "".join(f"{b:>12}" for b in CHART_COLUMNS))
+        for row in CHART_ROWS:
+            print(
+                f"  {row:>11}"
+                + "".join(
+                    f"{reading(chart_cell(row, col, CHART_INSET), 0.04, default):>12.3f}"
+                    for col in CHART_COLUMNS
+                )
+            )
+        print()
+
+    print(
+        "The interaction, against the differences `tests/test_vowel_tract_limit.py`\n"
+        "pins the limit on. Height's effect at fixed backness is near zero at the\n"
+        "front and large at the back, and a projection has to reproduce that.\n"
+    )
+    print(f"  {'reading':>10} {'front i-ɛ':>10} {'back u-ʌ':>10} {'back - front':>13}")
+    front_step = _chart_step(sources, ("i", "ɛ"))
+    back_step = _chart_step(sources, ("u", "ʌ"))
+    need = back_step - front_step
+    print(f"  {'measured':>10} {front_step:>+10.3f} {back_step:>+10.3f} {need:>+13.3f}")
+
+    spread: dict[str, list[float]] = {symbol: [] for symbol in cells}
+    gaps: list[float] = []
+    hits: dict[str, list[int]] = {name: [] for name in CHART_READINGS}
+    for embedding in _chart_embeddings():
+        arcs = _chart_arcs(embedding, cells)
+        for symbol, value in arcs.items():
+            spread[symbol].append(value)
+        gaps.append((arcs["ʌ"] - arcs["u"]) - (arcs["ɛ"] - arcs["i"]))
+        hits[embedding[0]].append(_chart_score(sources, arcs))
+        if embedding[1:] == (CHART_INSET, 0.04, default):
+            print(
+                f"  {embedding[0]:>10} {arcs['ɛ'] - arcs['i']:>+10.3f} "
+                f"{arcs['ʌ'] - arcs['u']:>+10.3f} {gaps[-1]:>+13.3f}"
+            )
+
+    print(
+        f"\nOver all {len(gaps)} embeddings the interaction runs {min(gaps):+.3f} to "
+        f"{max(gaps):+.3f}, against\nthe {need:+.3f} the measurement asks for. It is "
+        f"positive in {sum(1 for g in gaps if g > 0)} of {len(gaps)}, and reaches\n"
+        f"{need:+.3f} in {sum(1 for g in gaps if g >= need)}."
+    )
+
+    counted = sum(
+        1
+        for _, source, keys in sources
+        for key in keys
+        if source.band(key, DEFAULT_GLOTTAL_CM, DEFAULT_LABIAL_CM, 2.0) is not None
+        and key.split("/")[-1] in cells
+    )
+    # A floor, not a total: one source gives 10 bands and three give 35, and
+    # which are mounted is the caller's business. What this refuses is a run
+    # that scored nothing and printed counts anyway.
+    assert counted > 5, f"only {counted} bands: the comparison is vacuous"
+    today = _chart_score(sources, declared())
+    families = {sym: name for name, _, family in WOOD_LOCATIONS for sym in family}
+    families.update(dict(JAPANESE))
+    proportional = wood_proportional()
+    place_arcs = landmarks(IPAFeatures()).places
+    wood = _chart_score(
+        sources, {s: proportional.get(n) for s, n in families.items() if n}
+    )
+    as_place = _chart_score(
+        sources,
+        {s: place_arcs.get(WOOD_AS_PLACE[n]) for s, n in families.items() if n},
+    )
+    print(f"\nBand inclusion over the same embeddings, of {counted}.\n")
+    print(
+        f"  {'reading':>10} {'worst':>6} {'best':>6} {'over backness':>14} "
+        f"{'reaching place':>15}"
+    )
+    for name, counts in hits.items():
+        print(
+            f"  {name:>10} {min(counts):>6} {max(counts):>6} "
+            f"{sum(1 for c in counts if c > today):>8} of {len(counts):<3} "
+            f"{sum(1 for c in counts if c >= as_place):>9} of {len(counts):<3}"
+        )
+    print(f"  {'backness':>10} {today:>6} {today:>6}")
+    print(f"  {'place':>10} {as_place:>6} {as_place:>6}   Wood's four families")
+    print(f"  {'Wood':>10} {wood:>6} {wood:>6}   his own four proportions")
+    every = [count for counts in hits.values() for count in counts]
+    print(
+        f"\nA verdict that runs from {min(every)} to {max(every)} on choices the "
+        "chart does not make is a\nreport of the embedding, not of the chart. The "
+        f"best of them beats Wood's {wood} at\n"
+        f"{sum(1 for c in every if c > wood)} of {len(every)} settings, and finding "
+        "the best is reading the scores and taking\none, which is the fit this "
+        "measurement exists to avoid."
+    )
+
+    print("\nAnd what one cell's arc does across the embeddings.\n")
+    print(f"  {'cell':>6} {'lowest':>8} {'highest':>8} {'spread':>8} {'measured':>9}")
+    for symbol in sorted(spread, key=lambda s: min(spread[s]) - max(spread[s])):
+        low, high = min(spread[symbol]), max(spread[symbol])
+        found = _chart_measured(sources, symbol)
+        shown = f"{found:>9.3f}" if found is not None else f"{'-':>9}"
+        print(f"  {symbol:>6} {low:>8.3f} {high:>8.3f} {high - low:>8.3f}{shown}")
+    print(
+        "\nThe declared `backness` span is 0.24 end to end, and the cross-source\n"
+        "spread that refused a fitted cell table ran 0.059 to 0.284."
+    )
+    return 0
+
+
+def _chart_cells() -> dict[str, tuple[str, str]]:
+    """Each measured vowel's cell of the figure, read from ``ipa.xml``."""
+    ipa = IPAFeatures()
+    cells: dict[str, tuple[str, str]] = {}
+    for symbol in sorted({*VOWELS, *BOTH_SESSIONS, *(v for v, _ in JAPANESE)}):
+        if symbol in CHART_SKIP:
+            continue
+        bundle = ipa.get_features(symbol)
+        cells[symbol] = (bundle["height"], bundle["backness"])
+    return cells
+
+
+def _chart_sources(
+    table: Table, args: argparse.Namespace
+) -> list[tuple[str, Table, tuple[str, ...]]]:
+    """The same bands ``anchors`` scores over, so the counts are comparable."""
+    out: list[tuple[str, Table, tuple[str, ...]]] = [
+        ("Story 1996", table, tuple(v for v in VOWELS if v not in CHART_SKIP))
+    ]
+    third = getattr(args, "table_three", None)
+    if third is not None:
+        out.append(("Story 2002", third, BOTH_SESSIONS))
+    second = getattr(args, "table_two", None)
+    if second is not None:
+        out.append(
+            (
+                "Yang & Kasuya",
+                second,
+                tuple(
+                    f"{subject}/{vowel}"
+                    for subject in ("male", "female", "boy")
+                    for vowel, _ in JAPANESE
+                ),
+            )
+        )
+    return out
+
+
+def _chart_score(
+    sources: list[tuple[str, Table, tuple[str, ...]]],
+    arcs: Mapping[str, float | None],
+) -> int:
+    """How many measured bands a reading of the vowels lands inside."""
+    inside = 0
+    for _, source, keys in sources:
+        for key in keys:
+            band = source.band(key, DEFAULT_GLOTTAL_CM, DEFAULT_LABIAL_CM, 2.0)
+            value = arcs.get(key.split("/")[-1])
+            if band is not None and value is not None and band[0] <= value <= band[1]:
+                inside += 1
+    return inside
+
+
+def _chart_step(
+    sources: list[tuple[str, Table, tuple[str, ...]]], pair: tuple[str, str]
+) -> float:
+    """How far the measured constriction moves between two imaged vowels."""
+    first, second = (_chart_measured(sources, symbol) for symbol in pair)
+    assert first is not None and second is not None, pair
+    return second - first
+
+
+def _chart_measured(
+    sources: list[tuple[str, Table, tuple[str, ...]]], symbol: str
+) -> float | None:
+    """The narrowest section's arc, from the first source that images it."""
+    for _, source, keys in sources:
+        for key in keys:
+            if key.split("/")[-1] != symbol:
+                continue
+            found = source.narrowest(
+                symbol if key == symbol else key, DEFAULT_GLOTTAL_CM, DEFAULT_LABIAL_CM
+            )
+            if found is not None:
+                return found[0]
+    return None
 
 
 def cmd_bands(table: Table, args: argparse.Namespace) -> int:
@@ -1159,6 +1636,7 @@ COMMANDS = {
     "replicate": cmd_replicate,
     "intra": cmd_intra,
     "anchors": cmd_anchors,
+    "chart": cmd_chart,
     "arc": cmd_arc,
 }
 
