@@ -1355,11 +1355,17 @@ class TestTheDeliberateApiCliDifferences:
         things. --raw is the missing spelling.
 
         The model figure is a percentile in the shipped distribution and
-        moves when that distribution does, which is why the raw one below
-        is derived rather than written out here.
+        moves when that distribution does, so both figures are derived
+        rather than written out here. It was written out, and it moved:
+        declaring a constriction location on three vowels shifted the
+        distribution enough to take it from 0.9864 to 0.9863 without any
+        pair in this word moving at all. What the test is for is that the
+        two spellings exist and stay distinguishable, and a literal was
+        never part of that.
         """
         rc, model_out, _ = run(monkeypatch, capsys, "distance", "word", "kæt", "kæd")
-        assert rc == 0 and "0.9864" in model_out
+        modelled = ipakit.distance_model().word_distance("kæt", "kæd")
+        assert rc == 0 and f"{modelled.similarity:.4f}" in model_out
 
         rc, raw_out, _ = run(
             monkeypatch, capsys, "distance", "word", "kæt", "kæd", "--raw"
