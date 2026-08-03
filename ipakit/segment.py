@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ._base import IPAFeaturesBase
     from .features import IPAFeatures
 
-_JSON_VERSION = 1
+_JSON_VERSION = 2
 
 # The natural class a phased unit's classification asks about, declared over
 # the manner values in the data (nasals are sonorants, so "obstruent" is
@@ -74,27 +74,95 @@ class Kind(StrEnum):
     CHAIN = "chain"
 
 
-def modifier_mode(features: IPAFeaturesBase, symbol: str) -> str:
+#: The mode a feature declares when it is a property of the phase a
+#: segment is *entered* on. Named here because the two placements a mark
+#: can be written in are a fact about the notation and the mode is the
+#: data's name for one of them; which features are in it, and which marks
+#: therefore stand before a base, stays derived from the declarations.
+APPROACH_MODE = "approach"
+
+
+def phase_keys(features: IPAFeaturesBase, symbol: str, approach: bool) -> set[str]:
+    """The keys a mark contributes in one of the two placements.
+
+    A mark written before a base states how the segment is approached and
+    a mark written after it states how the segment is released, and the
+    four marks that can do both (``ⁿ ˀ ʰ ʱ``) declare a key for each. So
+    the placement selects the keys, and a mark never says both ends at
+    once: ``dⁿ`` is nasally released, ``ⁿd`` is pre-nasalized, and neither
+    is both.
+
+    Membership comes from ``<modes>`` through
+    :attr:`~ipakit.IPAFeatures.features_by_mode`; nothing here knows which
+    glyph or which feature name is which.
+    """
+    mark = features.diacritics.get(symbol)
+    if mark is None:
+        return set()
+    stated = set(mark.features) - METADATA_ATTRS - {"class"}
+    at_approach = features.features_by_mode.get(APPROACH_MODE, frozenset())
+    return {key for key in stated if (key in at_approach) is approach}
+
+
+def modifier_mode(
+    features: IPAFeaturesBase, symbol: str, approach: bool = False
+) -> str:
     """Contribution mode of a diacritic/suprasegmental symbol.
 
     One of the modes the data declares (``structural``, ``prosodic``,
-    ``release``, ``secondary``, ``overriding``, ``additive``), read off
-    the mark's own feature keys: a mark is a release phase because it says
-    ``release=...`` and a secondary articulation because it says
-    ``velarized=...``. Declaration order in ``<modes>`` is precedence, so
-    the first mode any of the mark's keys claims wins. No symbol is
-    classified by name, and no table here restates which key means what.
+    ``release``, ``approach``, ``secondary``, ``overriding``,
+    ``additive``), read off the mark's own feature keys: a mark is a
+    release phase because it says ``release=...`` and a secondary
+    articulation because it says ``velarized=...``. Declaration order in
+    ``<modes>`` is precedence, so the first mode any of the mark's keys
+    claims wins. No symbol is classified by name, and no table here
+    restates which key means what.
+
+    ``approach=True`` asks the same question of the *other* placement,
+    over the keys :func:`phase_keys` leaves the mark there. The default is
+    the trailing placement because that is where every other caller means:
+    a modifier run, a mark stack's order, the prosody check.
 
     Takes the mixin base rather than ``IPAFeatures``: it reads only the
     diacritic table, so the mixins can call it on ``self``.
     """
-    mark = features.diacritics.get(symbol)
-    keys = set(mark.features) - METADATA_ATTRS - {"class"} if mark else set()
+    keys = phase_keys(features, symbol, approach)
     by_mode = features.features_by_mode
     for mode in features.modes:
         if keys & by_mode.get(mode, frozenset()):
             return mode
     return features.default_mode
+
+
+def approach_run(features: IPAFeaturesBase, text: str, start: int) -> list[str]:
+    """The run of marks at ``text[start]`` that a following base carries.
+
+    The mirror of ``IPAFeatures._modifier_run``, and the one place a read
+    of a transcription looks *forward*: a mark declaring an approach-phase
+    feature states a phase of the base written after it, so ``ⁿd`` is one
+    unit the way ``dⁿ`` is. Membership is
+    :attr:`~ipakit.IPAFeatures.approach_marks`, read off the declarations.
+    The run is only meaningful where a base actually follows it, which is
+    each caller's own check, because a mark with nothing after it binds
+    nothing and is reported rather than read.
+
+    This never takes a mark away from a base on its *left*. Every caller
+    reaches here having already taken the modifier run of the unit before,
+    so in ``dⁿd`` the ``ⁿ`` is the release of the first ``d`` and not the
+    approach of the second: a mark binds backward wherever it can, and
+    forward only where it cannot.
+
+    A module function rather than a parser method because the parser and
+    :meth:`~ipakit.IPAFeatures.validate_ipa` both have to agree about
+    where a unit starts, and two reads of that question is how the two
+    came to disagree about ``ⁿd`` in the first place.
+    """
+    run: list[str] = []
+    j = start
+    while j < len(text) and text[j] in features.approach_marks:
+        run.append(text[j])
+        j += 1
+    return run
 
 
 def check_prosody(features: IPAFeaturesBase, prosody: Iterable[str]) -> None:
@@ -158,18 +226,25 @@ def apply_modifiers(
     feats: dict[str, str],
     modifiers: Iterable[str],
     prosody: bool = False,
+    approach: bool = False,
 ) -> dict[str, str]:
     """Overlay a modifier stack onto a base bundle, per mark, by mode.
 
     The single implementation of what a diacritic contributes, so the
     flat projection and the structured bundle cannot disagree about one
     mark. Overriding marks replace their base's value (the devoicing
-    ring makes ``d̥`` voiceless, never both-voiced); additive, secondary
-    and release marks add only keys the base leaves unstated -- a
-    release-phase mark describes a phase, not the whole segment, so the
-    glottal phase of ``tˀ`` never makes the ``t`` glottal. Structural
-    and prosodic marks contribute nothing to a feature bag: ties are
-    junctures and prosody lives on the unit.
+    ring makes ``d̥`` voiceless, never both-voiced); additive, secondary,
+    release and approach marks add only keys the base leaves unstated --
+    a phase mark describes a phase, not the whole segment, so the glottal
+    phase of ``tˀ`` never makes the ``t`` glottal. Structural and prosodic
+    marks contribute nothing to a feature bag: ties are junctures and
+    prosody lives on the unit.
+
+    ``approach=True`` is the stack written *before* the base, and what it
+    changes is which of each mark's keys is read: :func:`phase_keys`
+    hands over the approach-mode ones there and the rest here, so ``ⁿd``
+    states ``approach="nasal"`` and ``dⁿ`` states ``release="nasal"``
+    from one declaration, and neither states both.
 
     ``prosody=True`` is for the one read that has no unit level to put a
     prosodic mark on -- :meth:`IPAFeatures.compose_segments` returns one
@@ -191,11 +266,17 @@ def apply_modifiers(
         mark = features.diacritics.get(mod)
         if mark is None:
             continue
-        mode = modifier_mode(features, mod)
+        keys = phase_keys(features, mod, approach)
+        if not keys:
+            continue
+        mode = modifier_mode(features, mod, approach)
         if mode == "structural" or (mode == "prosodic" and not prosody):
             continue
+        # Iterated in the mark's own declaration order, not over ``keys``:
+        # a set's iteration order moves with PYTHONHASHSEED, and the order
+        # keys land in is the order the assembled bundle is written in.
         for key, value in mark.features.items():
-            if key in METADATA_ATTRS:
+            if key not in keys:
                 continue
             if mode == "overriding":
                 feats[key] = value
@@ -315,13 +396,21 @@ def part_bundle(features: IPAFeatures, constituent: Constituent) -> dict[str, st
 
 @dataclass(frozen=True)
 class Constituent:
-    """A base phone plus its ordered modifier stack."""
+    """A base phone with the marks written on either side of it.
+
+    ``modifiers`` is the stack written after the base and ``approach``
+    the stack written before it. One constituent either way: a
+    pre-articulation is a phase of *this* segment, so ``ⁿd`` is one base
+    wearing one mark, exactly as ``dⁿ`` is, and not a second constituent
+    to be tied on (docs/ties.md).
+    """
 
     base: str
     modifiers: tuple[str, ...] = ()
+    approach: tuple[str, ...] = ()
 
     def __str__(self) -> str:
-        return self.base + "".join(self.modifiers)
+        return "".join(self.approach) + self.base + "".join(self.modifiers)
 
     def bundle(
         self,
@@ -336,6 +425,12 @@ class Constituent:
         present; (3) defaults fill keys still missing. Defaults never apply
         to modifier projections, so a sparse modifier stays sparse.
 
+        The marks written before the base contribute at step (2) as well,
+        and contribute their *approach*-phase keys where the trailing
+        stack contributes the rest. The base is applied before either, so
+        a phone that states a phase of its own is not overwritten by a
+        mark that only adds.
+
         ``metadata=True`` keeps the base's ``class``/``href``/``xsampa``
         instead of dropping them; only the flat projection asks for that
         (see :func:`part_bundle`). A mark never contributes metadata
@@ -346,6 +441,7 @@ class Constituent:
         if base_phone is not None:
             drop = frozenset() if metadata else METADATA_ATTRS
             feats = {k: v for k, v in base_phone.features.items() if k not in drop}
+        apply_modifiers(features, feats, self.approach, approach=True)
         apply_modifiers(features, feats, self.modifiers)
         if with_defaults:
             fill_defaults(features, feats)
@@ -584,7 +680,7 @@ class Segment:
         :attr:`prosody`.
         """
         features = self._require_features()
-        if not any(c.modifiers for c in self.constituents):
+        if not any(c.modifiers or c.approach for c in self.constituents):
             return features.get_features(self.spelling, with_defaults=with_defaults)
         feats = flat_projection(
             features,
@@ -651,7 +747,11 @@ class Segment:
             {
                 "v": _JSON_VERSION,
                 "constituents": [
-                    {"base": c.base, "modifiers": list(c.modifiers)}
+                    {
+                        "base": c.base,
+                        "modifiers": list(c.modifiers),
+                        "approach": list(c.approach),
+                    }
                     for c in self.constituents
                 ],
                 "junctures": [j.value for j in self.junctures],
@@ -671,7 +771,11 @@ class Segment:
             check_prosody(features, prosody)
         return cls(
             constituents=tuple(
-                Constituent(base=c["base"], modifiers=tuple(c.get("modifiers", ())))
+                Constituent(
+                    base=c["base"],
+                    modifiers=tuple(c.get("modifiers", ())),
+                    approach=tuple(c.get("approach", ())),
+                )
                 for c in obj["constituents"]
             ),
             junctures=tuple(Sense(j) for j in obj.get("junctures", ())),
