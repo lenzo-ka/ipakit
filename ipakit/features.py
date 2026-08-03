@@ -353,6 +353,39 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                             if vshort := v.get("short"):
                                 self._short_to_feature[vshort] = (name, val_name)
                                 self._feature_to_short[(name, val_name)] = vshort
+                # A feature may take its value set from another feature
+                # rather than restate it. Two features that name the same
+                # tract locations must not be two declarations of where
+                # those locations are: `constriction-location` says a
+                # nucleus constricts at one of the places `place` locates,
+                # and copying here is what makes the two one statement, so
+                # moving `velar` moves both or neither. The borrower gets
+                # the values, the aliases and the geometry; it does not get
+                # the source's short codes, which are that feature's
+                # notation and must stay unambiguous, nor its labels, which
+                # are how the source reads out in a description.
+                vocabulary = feat_elem.get("vocabulary")
+                if vocabulary is not None:
+                    source = self.features.get(vocabulary)
+                    if source is None:
+                        raise ValueError(
+                            f"feature {name!r} declares vocabulary "
+                            f"{vocabulary!r}, which is not a feature declared "
+                            "before it"
+                        )
+                    if values:
+                        raise ValueError(
+                            f"feature {name!r} takes its values from "
+                            f"{vocabulary!r} and declares "
+                            f"{sorted(set(values))} of its own"
+                        )
+                    values = list(source.values)
+                    self._value_aliases[name] = dict(source.value_aliases)
+                    offscale = set(source.offscale)
+                    coordinates = {v: dict(c) for v, c in source.coordinates.items()}
+                    articulators = dict(source.articulators)
+                    value_apertures = dict(source.apertures)
+                    classes = {k: set(v) for k, v in source.value_classes.items()}
                 # Use feature default, or fall back to type default
                 default = feat_elem.get("default") or self._type_defaults.get(feat_type)
                 desc = feat_elem.get("desc")
@@ -381,6 +414,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     value_classes={k: frozenset(v) for k, v in classes.items()},
                     sequence=feat_elem.get("sequence") == "+",
                     over=feat_elem.get("over"),
+                    vocabulary=vocabulary,
                     moves=moves,
                 )
 

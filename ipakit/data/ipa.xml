@@ -147,6 +147,34 @@
       <value name="back" arc="0.56" articulator="tongue-dorsum" short="bck" href="Back_vowel"/>
     </feature>
 
+    <!-- Where a nucleus constricts the tract, when the segment says. A
+         vowel's tongue-body constriction is a location along the same +x
+         run a consonant's place is on, and `place` is where this file
+         already says how far along each of those locations is. So this
+         feature declares no values of its own: `vocabulary` names the
+         feature whose value set, aliases and coordinates are also this
+         one's, and the two cannot come to put `velar` at different arcs
+         because there is only one declaration of where `velar` is.
+
+         Separate from `place` rather than reusing that slot, on two
+         counts a measurement settles. The dental and linguolabial marks
+         already put a place on a vowel, and a dental vowel's tongue tip
+         is at the teeth while its tongue body stays where `backness` put
+         it, so reading that slot as the body's constriction would move
+         every one of those units and move it the wrong way. And
+         `describe` reads the place slot, so a vowel stating it renames
+         itself: "a̪" is a dental vowel, which is right, and a close back
+         vowel is not a "velar vowel", which is the name that slot would
+         give it.
+
+         No phone declares this today. Which vowel constricts where is a
+         question about sources, open as issue #123: the four locations
+         the literature reproduces are a partition of the (height,
+         backness) plane, and no source classifies the central series at
+         all. See docs/design/vowel-constriction.md. This is the road,
+         not the destination. -->
+    <feature name="constriction-location" axis="+x" short="cnl" applies="nucleus" vocabulary="place" desc="Where a nucleus constricts the tract, stated as one of the places `place` locates" href="Vowel"/>
+
     <feature name="voiced" short="voi" type="binary" mode="overriding" desc="Vocal cord vibration" href="Voice_(phonetics)">
       <value name="+" label="voiced"/>
       <value name="-" label="voiceless"/>

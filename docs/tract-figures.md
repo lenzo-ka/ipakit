@@ -94,7 +94,7 @@ The answer is an annotation layer rather than a posture that pretends. Voicing i
 | chevron | `mode="release"` — a phase of the segment rather than a posture of it | `release`: aspirated, unreleased, lateral-released |
 | square | not in the model at all | `airstream`, `retroflex`, `rounded`, `syllabic`, `tongue-root`, … |
 | square | `offscale` — a value its own feature declares to hold no position on its axis | `manner`: silence |
-| square | a postural feature *this* bundle's posture did not read: one arc and one offset are on offer, and a bundle stating two postures loses one | `height` and `backness` beside a consonantal manner; `place` beside `manner="vowel"` |
+| square | a postural feature *this* bundle's posture did not read: one arc and one offset are on offer, and a bundle stating two postures loses one | `height` and `backness` beside a consonantal manner; `place` beside `manner="vowel"`; `backness` beside a stated `constriction-location` |
 
 **Left to the caption**, because neither of the above is honest:
 
