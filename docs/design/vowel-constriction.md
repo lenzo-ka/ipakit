@@ -53,6 +53,10 @@ Found on the second pass:
 - Cavar, Malgorzata E., Emily M. Rudman, Neha Nagaraj and Lily Peters (2025). "High Central Vowels in Polish, Ukrainian and Russian", *J. Int. Phon. Assoc.* 55, 1–34. <https://doi.org/10.1017/S0025100325000040>. Open access, CC BY. 3D/4D ultrasound, 28 speakers. Read 2026-08-03.
 - Zhou, Xinhui, Carol Y. Espy-Wilson, Suzanne Boyce, Mark Tiede, Christy Holland and Ann Choe (2008). "A magnetic resonance imaging-based articulatory and acoustic study of 'retroflex' and 'bunched' American English /r/", *J. Acoust. Soc. Am.* 123(6), 4466–4481. <https://doi.org/10.1121/1.2902168>. Free at PubMed Central, PMC2680662. Read 2026-08-03.
 
+Added by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and read by the `#175` markers in §7 and §8 rather than by the body of this assessment:
+
+- Story, Brad H., Ingo R. Titze and Eric A. Hoffman (1998). "Vocal tract area functions for an adult female speaker based on volumetric imaging", *J. Acoust. Soc. Am.* 104(1), 471–487. <https://doi.org/10.1121/1.423298>. Closed at the publisher and not on PubMed Central. Subject DJ, a 27-year-old female native to Texas — a different speaker, not a re-analysis of the 1996 male. Table III (p. 476) prints ten vowels plus electron-beam CT versions of `i` and `ɑ`; Table IV (p. 480) prints `ɝ` twice and `l`. Read 2026-08-03.
+
 The numbers below are measurements of three fixed published tables and cannot drift. What they are compared against can: `backness`, `height` and `place` in `ipakit/data/ipa.xml`. `scripts/areafunctions.py` reads both sides live.
 
 ## 1. What arrived, and by what route
@@ -178,6 +182,8 @@ This is an ultrasound study and reports no tract length, so nothing here is a ba
 
 So for the rhotic the evidence is thick and consistent, and it says the phone has no one location. That is a stronger result than the silence over `ɘ ɵ ɜ ɞ ɐ`, and it points the same way.
 
+**Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and reproduced on a tabulated area function rather than at one remove.** Story, Titze & Hoffman (1998) image `ɝ` for an adult female and Story, Titze & Hoffman (1996) image it for an adult male. Both columns carry three or more supralaryngeal minima, and the two constriction bands are disjoint at every band depth up to 2.0 — 0.182–0.250 for the male against 0.316–0.500 for the female, the narrowest sections 0.166 of tract length apart. Zhou et al.'s two configurations are two subjects of one paper; these are two subjects of one laboratory, and they say the same thing about the same symbol. `scripts/areafunctions.py female` prints it.
+
 ### What was tried for the rest, and found nothing
 
 `ə ɘ ɵ ɜ ɞ ɐ` have no measured tongue-body constriction location from any route tried on 2026-08-03. None of the three-dimensional MRI corpora releases a numeric area function; the vowel sets that are tabulated are American English and Japanese, neither of which contrasts a central quality at all. The routes are listed in the reference index rather than here, because a list of things that returned nothing is a record of an afternoon and not a property of the literature.
@@ -251,6 +257,8 @@ So the finding is an ordering with two members, not three. The classification be
 
 **Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), and adopted as written.** Read at the declared arcs, the library scores 26 of the same 35 bands against 25 for the classification and 26 for Wood's proportions, and no consonant moved. The one place the two readings differ over the shipped inventory is `ʌ`, which the scoring here puts in the lower-pharyngeal family off Fig. 5 and the declaration leaves unstated, because a figure is not a classification.
 
+**Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and reproduced on a fourth source without changing its answer.** Story, Titze & Hoffman (1998) adds a second American English speaker — an adult female, ten vowels — and ten bands. On 45 bands the library scores 32, Wood's proportions 34, `place`'s arcs 31 and `backness` 23; the Wood-against-`place` margin still changes sign inside the same 5 × 4 sweep, so the instrument still does not separate the two placements. What the new speaker does add is a *direction*: on her six bands narrower than half the tract the library is inside 2 and Wood 4, and all four of the library's misses are the declared arc sitting in front of the measured band, never behind it. That is the same gap this section already measures between `place` and Wood at the soft palate and the upper pharynx, now with a speaker falling into it. It is not enough to move a `place` arc, which would move every consonant that reads it, and it is why the sentence above says the choice is free rather than settled.
+
 **That makes the proposal the cheap one.** Adopt Wood's four families and read them at the arcs `ipa.xml` already declares for `palatal`, `velar`, `uvular` and `pharyngeal`. No new coordinate is introduced, no `place` value moves, and every consonant stays exactly where it is — which matters, because `place` arcs reach `ipakit.metric` for the whole consonant inventory and `docs/design/tract-validation.md` §2 already checks two of them against measured occlusions. Moving `velar` from 0.45 to 0.514 to satisfy the vowels would move `k` and `ŋ` away from the closures that check them.
 
 Two things argue against pretending the choice is better supported than that. Wood's own conclusion 4 says the palatal location is the language-dependent one:
@@ -287,6 +295,8 @@ The way out of that is not more measurement. It is for `unmodelled` to be able t
 
 The eight symbols named above are also not the whole of the unstated set. `ä œ ɒ ɯ ɶ ʌ ʏ` are outside Wood's families too — `ä` is central and belongs with the other nine, and the rest are qualities his conclusion 2 does not reach — so a treatment that named eight would have been a list that was already wrong. The report is derived from the absence instead.
 
+**Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and `ʌ` re-examined against a source that images it — still unstated, now on a measurement rather than on Wood's silence.** Story, Titze & Hoffman (1998) is the first source to put `ʌ` in a tabulated area function alongside the two sessions that already do, and the three agree: her constriction band is 0.588–0.676, the 2002 male's 0.523–0.705, the 1996 male's 0.500–1.000. The declared vocabulary offers `uvular` 0.56 and `pharyngeal` 0.74 and nothing between them. Over the 5 × 4 sweep against those three bands, `uvular` is inside 42 of 60 and `pharyngeal` 40 of 60, and at every setting tight enough for the band to discriminate neither reaches 2 of 3. `uvular` also *is* the arc `backness` already gives it, so declaring it would move nothing and would only withdraw the `approximate` mark — asserting the number is sourced at the one setting where the measurement says it is outside a band. The evidence narrows the question and does not answer it: what it now says is that `ʌ` constricts where the inventory declares no location, which is a different fact from nobody having looked.
+
 ## 10. How to re-run this
 
 ```console
@@ -294,11 +304,14 @@ $ python scripts/areafunctions.py bands       # section 3
 $ python scripts/areafunctions.py replicate   # section 4
 $ python scripts/areafunctions.py intra       # section 7
 $ python scripts/areafunctions.py anchors     # section 8
+$ python scripts/areafunctions.py female      # the #175 markers in section 7 and section 8
 ```
 
-`bands` needs `--source`, a text extraction of Story et al.; `replicate` needs `--second` as well, a CSV of Yang & Kasuya's Tables 1–3; `intra` needs `--third`, a CSV of Story (2008) Table I; `anchors` uses whichever of the three are given and prints how many bands it scored over. All three papers are copyrighted and outside the repository by policy, so `make check` cannot run any of it and each subcommand prints why and exits 0 without its source — the shape `scripts/articulatory.py` already uses.
+`bands` needs `--source`, a text extraction of Story et al.; `replicate` needs `--second` as well, a CSV of Yang & Kasuya's Tables 1–3; `intra` needs `--third`, a CSV of Story (2008) Table I; `female` needs `--fourth`, a CSV of Story, Titze & Hoffman (1998) Tables III and IV, and reads `--source` and `--third` where they are given so it can put the three American English sessions side by side; `anchors` uses whichever of the four are given and prints how many bands it scored over. All four papers are copyrighted and outside the repository by policy, so `make check` cannot run any of it and each subcommand prints why and exits 0 without its source — the shape `scripts/articulatory.py` already uses.
 
 Both transcribed tables are checked against themselves, because a transcription of a printed table cannot be checked against the table. Each paper prints a tract length and a section length per column as well as the sections, and the parse re-derives one from the others and fails if they disagree. The two identities are not the same and getting them the wrong way round shifts every arc by half a section: Yang & Kasuya's length is `(sections − 1) × dl`, Story's is `sections × dl`. Yang & Kasuya's scan has no text layer and was transcribed from a 300 dpi render; Story (2008) is a real HTML table on PubMed Central, and the one substitution needed there was that its open-mid front vowel is spelled with a Greek epsilon rather than the IPA one.
+
+The 1998 table adds a check of its own, because it needs one the others do not. Its columns are ragged — 30 sections for `æ` against 38 for `u`, which is the table's own record of how much a rounded vowel lengthens a tract — so a dropped or duplicated line shifts every section under it by one without making any single number look wrong. That paper prints the distance from the glottis beside the section number, so `parse_female` re-derives one from the other for every row and refuses a row more than half a section from where its own section number puts it. The bound is half a section rather than a rounding because the two tables round that column differently: Table III prints `section × 0.396825` and Table IV prints `section × 0.396`, though both captions state the interval as 0.396 825 cm.
 
 ## Related
 

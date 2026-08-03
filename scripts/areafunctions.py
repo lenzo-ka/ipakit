@@ -23,6 +23,7 @@ quantity ``arc`` claims to be, so the two can be compared without fitting.
     python scripts/areafunctions.py bands        # two sources against one band each
     python scripts/areafunctions.py replicate    # does a coordinate reproduce?
     python scripts/areafunctions.py intra        # ... for one speaker, twice?
+    python scripts/areafunctions.py female       # ... across two speakers of one language?
     python scripts/areafunctions.py anchors      # where the four locations sit
     python scripts/areafunctions.py chart        # can the vowel chart supply one?
     python scripts/areafunctions.py all
@@ -226,6 +227,58 @@ SECOND_ENV = "IPAKIT_YANG1994_CSV"
 #: Yang & Kasuya's is ``(sections - 1) * dl``.
 THIRD_ENV = "IPAKIT_STORY2008_CSV"
 
+#: The fifth source, and the only adult female of the language the other two
+#: American English sets image:
+#:
+#:     Story, Brad H., Ingo R. Titze and Eric A. Hoffman (1998). "Vocal tract
+#:     area functions for an adult female speaker based on volumetric imaging",
+#:     J. Acoust. Soc. Am. 104(1), 471-487.
+#:     https://doi.org/10.1121/1.423298
+#:
+#: Subject DJ, a 27-year-old female native to Texas, imaged on a GE Signa 1.5-T
+#: scanner -- **a different speaker**, not a re-analysis of the male of Story,
+#: Titze & Hoffman (1996). Table III (p. 476) gives ten vowels plus electron-beam
+#: CT versions of ``i`` and ``ɑ``, and Table IV (p. 480) gives the rhotic ``ɝ``
+#: twice, with and without its sublingual cavity folded into the main tube.
+#: Sections run from the glottis, 0.396825 cm each, the same convention and the
+#: same interval as the 1996 male.
+#:
+#: Two things this source can be asked that no other can. Whether a constriction
+#: location survives a change of *speaker* within one language -- ``replicate``
+#: changes language as well, and ``intra`` changes neither -- and what a second
+#: American English speaker says about ``ʌ`` and ``ɝ``, the two symbols of the
+#: fifteen unclassified ones that any measured source images at all.
+#:
+#: ``--fourth`` wants the same CSV shape as ``--second`` and ``--third``, plus a
+#: ``dist_cm`` column carrying the paper's own printed distance from the glottis.
+#: That column is what makes a transcription of an image-only table checkable
+#: without the table: see :func:`parse_female`.
+FOURTH_ENV = "IPAKIT_STORY1998_CSV"
+
+#: The ten MRI vowels of Table III, in its column order, which is Table I's.
+#: The two CT columns and the two ``ɝ`` columns are in the file and are not
+#: here: the CT pair is a repeat of two of these ten by the same speaker on
+#: another day and is reported as that, and ``ɝ`` has no family in Wood and is
+#: the question ``female`` asks rather than an answer it scores.
+FEMALE_VOWELS = ("i", "ɪ", "ɛ", "æ", "ʌ", "ɑ", "ɔ", "o", "ʊ", "u")
+
+#: The subject's initials, as the paper gives them. Used as the CSV's
+#: ``subject`` so the keys read ``DJ/i`` the way Yang & Kasuya's read
+#: ``female/i``, and so one source's columns cannot be taken for another's.
+FEMALE_SUBJECT = "DJ"
+
+#: The two vowels Table III images twice, by MRI and by electron-beam CT, on
+#: different days. Same speaker, same vowel, two instruments -- which is the
+#: repeatability question Story (2008) asks over eight years, asked here over
+#: a few days and across a change of scanner.
+FEMALE_REPEATS = (("i", "i-ct"), ("ɑ", "ɑ-ct"))
+
+#: The rhotic's two columns: with the sublingual cavity added to the main tube,
+#: and without it. The caption says the choice touches sections 33 and 34 only,
+#: which are inside the labial exclusion, so no constriction reported here turns
+#: on it -- and both are carried so that can be seen rather than asserted.
+FEMALE_RHOTIC = ("ɝ", "ɝ-nosub")
+
 #: The vowels both Story sets image. The 1996 set has ``ɝ`` and no ``e``; the
 #: 2002 set has ``e`` and no ``ɝ``. Ten are common, and the comparison is over
 #: those ten -- pairing ``e`` with ``ɛ``, or ``ɝ`` with anything, would be the
@@ -337,6 +390,7 @@ EXPECTED_COLUMNS = 18
 EXPECTED_SECOND_COLUMNS = 15
 EXPECTED_THIRD_COLUMNS = 11
 EXPECTED_THIRD_SECTIONS = 44
+EXPECTED_FOURTH_COLUMNS = 14
 EXPECTED_SECTIONS = tuple(round(length / INTERVAL_CM) for _, _, length in SHAPES)
 
 ROW = re.compile(r"^(\d+)\s+((?:[\d.]+\s+)*[\d.]+)\s*$")
@@ -753,6 +807,94 @@ def parse_intra(text: str) -> Intra:
     return Intra(area, interval)
 
 
+class Female(Intra):
+    """Story, Titze & Hoffman (1998) Tables III and IV, keyed ``DJ/vowel``.
+
+    The 1996 relation between the printed tract length and the section
+    length, because it is the same laboratory, the same procedure and the
+    same stated convention: section 1 is the glottal end, the last section
+    is the lips, and the tube is ``sections * dl`` long. The columns are
+    ragged -- 30 sections for ``æ`` and 38 for ``u`` -- which is the table's
+    own record of how much longer a rounded vowel's tract is.
+    """
+
+
+def parse_female(text: str) -> Female:
+    """Read the CSV, and check it against the distances it carries.
+
+    Table III is an image in every copy of this paper: the text layer maps
+    every IPA symbol to a different character, and the column headers along
+    with them. So the risk this transcription runs is not a misread digit in
+    one cell but a *row out of register* -- a dropped or duplicated line,
+    which shifts every section under it by one and moves an arc by 1/38 of
+    the tract without making any single number look wrong.
+
+    The paper prints the distance from the glottis beside the section
+    number, so the two can be re-derived from each other. A row at its
+    right section has ``dist_cm`` within a rounding of ``section * dl``; a
+    row out of register is a whole section away. Half a section is
+    therefore the bound, and it is the one used, because it fails on
+    exactly the mistake this check exists for and on nothing else.
+
+    It is not a tight bound, and the reason is worth recording: the two
+    tables round their own distance column differently. Table III prints
+    ``section * 0.396825`` and Table IV prints ``section * 0.396``, though
+    both captions state the interval as 0.396 825 cm. That is a printing
+    inconsistency inside the paper, it reaches 0.032 cm by section 38, and
+    a check tight enough to reject it would be rejecting the paper rather
+    than the transcription.
+
+    Perturbed, over the transcription this reads: dropping a row, adding
+    one, moving a distance by a section, and losing a column are each
+    refused, by name. **What it does not see** is a distance wrong by less
+    than half a section, and an area copied from the neighbouring row with
+    the section number left right -- the distance column pins which section
+    a row is, and nothing here can pin what is in it. The three
+    cross-checks that did that were made once, by hand, off the prose, and
+    are recorded beside the CSV rather than run: the CT ``ɑ`` is "about 0.8
+    cm longer than the MRI" and its column is two sections longer, and the
+    paper's description of where each ``ɑ`` falls after its maximum picks
+    out the right one of the two columns.
+    """
+    area: dict[str, list[float]] = {}
+    interval: dict[str, float] = {}
+    stated: dict[str, float] = {}
+    printed: dict[str, list[tuple[int, float]]] = {}
+    rows = [
+        line for line in text.splitlines() if line.strip() and not line.startswith("#")
+    ]
+    for row in csv.DictReader(rows):
+        key = f"{row['subject']}/{row['vowel']}"
+        area.setdefault(key, []).append(float(row["area_cm2"]))
+        printed.setdefault(key, []).append((int(row["section"]), float(row["dist_cm"])))
+        interval[key] = float(row["dl_cm"])
+        stated[key] = float(row["L_cm"])
+    if len(area) != EXPECTED_FOURTH_COLUMNS:
+        raise ValueError(
+            f"read {len(area)} columns, expected {EXPECTED_FOURTH_COLUMNS} "
+            "(12 in Table III and 2 in Table IV)"
+        )
+    for key, column in area.items():
+        step = interval[key]
+        sections = [n for n, _ in printed[key]]
+        if sections != list(range(1, len(column) + 1)):
+            raise ValueError(f"{key}: sections are not 1..{len(column)} in order")
+        for section, distance in printed[key]:
+            if abs(distance - section * step) > step / 2:
+                raise ValueError(
+                    f"{key}: section {section} is printed at {distance} cm, "
+                    f"more than half a section from the {section * step:.3f} cm "
+                    "its own section number gives"
+                )
+        derived = len(column) * step
+        if abs(derived - stated[key]) > 0.05:
+            raise ValueError(
+                f"{key}: {len(column)} sections of {step} cm give "
+                f"{derived:.2f} cm, against a printed length of {stated[key]}"
+            )
+    return Female(area, interval)
+
+
 def wood_arcs() -> dict[str, tuple[str, float]]:
     """Wood's location for each imaged vowel, as an ``arc`` from the lips.
 
@@ -1048,7 +1190,14 @@ def cmd_chart(table: Table, args: argparse.Namespace) -> int:
     # which are mounted is the caller's business. What this refuses is a run
     # that scored nothing and printed counts anyway.
     assert counted > 5, f"only {counted} bands: the comparison is vacuous"
-    today = _chart_score(sources, declared())
+    # The Japanese vowels are passed, and it matters. `declared` takes the
+    # symbols the caller means to score for the reason its own docstring
+    # gives: Story images no /a/ and no /e/, so a reading built off the shape
+    # list alone is scored over nine of Yang & Kasuya's fifteen columns while
+    # Wood's is scored over all fifteen -- a bias in the instrument, worth six
+    # bands, and it lands on the baseline every embedding here is measured
+    # against.
+    today = _chart_score(sources, declared([vowel for vowel, _ in JAPANESE]))
     families = {sym: name for name, _, family in WOOD_LOCATIONS for sym in family}
     families.update(dict(JAPANESE))
     proportional = wood_proportional()
@@ -1062,7 +1211,7 @@ def cmd_chart(table: Table, args: argparse.Namespace) -> int:
     )
     print(f"\nBand inclusion over the same embeddings, of {counted}.\n")
     print(
-        f"  {'reading':>10} {'worst':>6} {'best':>6} {'over backness':>14} "
+        f"  {'reading':>10} {'worst':>6} {'best':>6} {'over library':>14} "
         f"{'reaching place':>15}"
     )
     for name, counts in hits.items():
@@ -1071,7 +1220,7 @@ def cmd_chart(table: Table, args: argparse.Namespace) -> int:
             f"{sum(1 for c in counts if c > today):>8} of {len(counts):<3} "
             f"{sum(1 for c in counts if c >= as_place):>9} of {len(counts):<3}"
         )
-    print(f"  {'backness':>10} {today:>6} {today:>6}")
+    print(f"  {'library':>10} {today:>6} {today:>6}   what tract_point answers now")
     print(f"  {'place':>10} {as_place:>6} {as_place:>6}   Wood's four families")
     print(f"  {'Wood':>10} {wood:>6} {wood:>6}   his own four proportions")
     every = [count for counts in hits.values() for count in counts]
@@ -1120,6 +1269,15 @@ def _chart_sources(
     third = getattr(args, "table_three", None)
     if third is not None:
         out.append(("Story 2002", third, BOTH_SESSIONS))
+    fourth = getattr(args, "table_four", None)
+    if fourth is not None:
+        out.append(
+            (
+                "Story 1998",
+                fourth,
+                tuple(f"{FEMALE_SUBJECT}/{vowel}" for vowel in FEMALE_VOWELS),
+            )
+        )
     second = getattr(args, "table_two", None)
     if second is not None:
         out.append(
@@ -1458,6 +1616,257 @@ def cmd_intra(table: Table, args: argparse.Namespace) -> int:
     return 0
 
 
+#: The candidate anchors an unclassified vowel could be declared at, as
+#: ``place`` names. Nothing else is a candidate: `vowel-constriction.md` 8
+#: refuses a value fitted to the sources, so a declaration has to land on an
+#: arc the inventory already declares, and these are the four the tongue body
+#: can reach. ``female`` scores every one of them against every band, which is
+#: what turns "declare it" into a question with an answer.
+CANDIDATES = ("palatal", "velar", "uvular", "pharyngeal")
+
+
+def cmd_female(table: Table, args: argparse.Namespace) -> int:
+    """A second speaker of the language the other two sessions image.
+
+    ``replicate`` changes speaker and language together, so a coordinate
+    that fails there can always be answered by saying the sources measured
+    different people speaking different languages. ``intra`` changes
+    neither and asks whether one speaker reproduces herself. This changes
+    the speaker and holds the language, which is the case in between and
+    the one a per-symbol declaration actually rests on: a coordinate
+    declared for ``ʌ`` is a claim about the symbol, not about a person.
+
+    And it is the only measured source that images two of the fifteen
+    vowels stating no constriction location -- ``ʌ`` and ``ɝ`` -- so it is
+    where the question of declaring either gets its evidence.
+    """
+    fourth = getattr(args, "table_four", None)
+    if fourth is None:
+        print(
+            f"no fourth source given: pass --fourth or set ${FOURTH_ENV} to a "
+            "CSV of\nStory, Titze & Hoffman (1998) Tables III and IV. See this "
+            "module's docstring\nfor the columns."
+        )
+        return 0
+    third = getattr(args, "table_three", None)
+    arcs = declared()
+    place_arcs = landmarks(IPAFeatures()).places
+
+    def key(symbol: str) -> str:
+        return f"{FEMALE_SUBJECT}/{symbol}"
+
+    print("Story, Titze & Hoffman (1998): subject DJ, a 27-year-old female native")
+    print("to Texas, on a GE Signa 1.5-T scanner. Table III's ten vowels, the two")
+    print("electron-beam CT repeats, and Table IV's rhotic. Bands are the same")
+    print(f"instrument as `bands`, at a depth factor of {args.depth:g}.\n")
+    print(
+        f"  {'':9} {'sections':>8} {'length cm':>9} {'narrowest':>9} {'cm':>6} "
+        f"{'cm^2':>6}  {'band':>15} {'width':>6}"
+    )
+    wide = 0
+    scored = 0
+    for symbol in (*FEMALE_VOWELS, *(ct for _, ct in FEMALE_REPEATS), *FEMALE_RHOTIC):
+        found = fourth.narrowest(key(symbol), args.glottal, args.labial)
+        band = fourth.band(key(symbol), args.glottal, args.labial, args.depth)
+        if found is None or band is None:
+            print(f"  {symbol:9} {'no minimum in the window':>8}")
+            continue
+        width = band[1] - band[0]
+        if symbol in FEMALE_VOWELS:
+            scored += 1
+            wide += width > 0.5
+        print(
+            f"  {symbol:9} {len(fourth.area[key(symbol)]):>8} "
+            f"{fourth.length(key(symbol)):>9.2f} {found[0]:>9.3f} {found[1]:>6.2f} "
+            f"{found[2]:>6.2f}  {band[0]:.3f}-{band[1]:<9.3f} {width:>6.3f}"
+        )
+    print(
+        f"\n{wide} of this speaker's {scored} bands span more than half the tract "
+        "and admit almost\nany anchor. That is the instrument's limit on this "
+        "source and not a result:\nher area functions are flatter than the male's, "
+        "and the paper says why -- the\nMR scanner's noise made her phonate much "
+        "louder than conversational speech."
+    )
+
+    print("\nThe two vowels imaged twice, by MRI and by CT on different days.")
+    print("Same speaker, same vowel, two instruments: the repeatability floor")
+    print("under everything else here.\n")
+    print(f"  {'':9} {'MRI':>6} {'CT':>6} {'move':>6}  {'bands overlap':>13}")
+    for mri, ct in FEMALE_REPEATS:
+        one = fourth.narrowest(key(mri), args.glottal, args.labial)
+        two = fourth.narrowest(key(ct), args.glottal, args.labial)
+        left = fourth.band(key(mri), args.glottal, args.labial, args.depth)
+        right = fourth.band(key(ct), args.glottal, args.labial, args.depth)
+        assert one and two and left and right
+        touches = not (left[1] < right[0] or right[1] < left[0])
+        print(
+            f"  {mri:9} {one[0]:>6.3f} {two[0]:>6.3f} {abs(two[0] - one[0]):>6.3f}"
+            f"  {'yes' if touches else 'NO':>13}"
+        )
+
+    sessions: list[tuple[str, Table]] = [("1996 male", table)]
+    if third is not None:
+        sessions.append(("2002 male", third))
+    print("\nThe same vowel across every American English session held here, as the")
+    print("arc of the narrowest section and the band around it.\n")
+    print(
+        f"  {'':3} "
+        + " ".join(f"{name:>26}" for name, _ in sessions)
+        + f" {'1998 female':>26}  {'shared':>13}"
+    )
+    for symbol in FEMALE_VOWELS:
+        cells = []
+        windows: list[tuple[float, float]] = []
+        for _, source in sessions:
+            found = source.narrowest(symbol, args.glottal, args.labial)
+            band = source.band(symbol, args.glottal, args.labial, args.depth)
+            if found is None or band is None:
+                cells.append("no minimum")
+                continue
+            windows.append(band)
+            cells.append(f"{found[0]:.3f} [{band[0]:.3f},{band[1]:.3f}]")
+        found = fourth.narrowest(key(symbol), args.glottal, args.labial)
+        band = fourth.band(key(symbol), args.glottal, args.labial, args.depth)
+        assert found is not None and band is not None
+        windows.append(band)
+        cells.append(f"{found[0]:.3f} [{band[0]:.3f},{band[1]:.3f}]")
+        low = max(w[0] for w in windows)
+        high = min(w[1] for w in windows)
+        shared = f"{low:.3f}-{high:.3f}" if low <= high else "none"
+        print(
+            f"  {symbol:3} " + " ".join(f"{c:>26}" for c in cells) + f"  {shared:>13}"
+        )
+    print(
+        "\n`shared` is the intersection of the bands, which is where a single arc\n"
+        "for the symbol would have to sit to satisfy every session at once."
+    )
+
+    print("\nWhat this speaker says about the arcs the library answers today, over")
+    print("her bands narrower than half the tract -- the wide ones admit everything")
+    print("and would count as agreement without being any.\n")
+    print(f"  {'':3} {'band':>15} {'library':>7} {'':>16} {'Wood':>6} {'':>7}")
+    proportional = wood_proportional()
+    families = {sym: name for name, _, family in WOOD_LOCATIONS for sym in family}
+    ahead = missed = 0
+    hits = {"library": 0, "Wood": 0}
+    narrow = 0
+    for symbol in FEMALE_VOWELS:
+        band = fourth.band(key(symbol), args.glottal, args.labial, args.depth)
+        value = arcs[symbol]
+        if band is None or value is None or band[1] - band[0] > 0.5:
+            continue
+        narrow += 1
+        family = families.get(symbol)
+        cells = []
+        for name, anchor in (
+            ("library", value),
+            ("Wood", proportional[family] if family else None),
+        ):
+            if anchor is None:
+                cells.append(f"{'no family':>23}")
+                continue
+            if band[0] <= anchor <= band[1]:
+                hits[name] += 1
+                verdict = "inside"
+            else:
+                if name == "library":
+                    missed += 1
+                    ahead += anchor < band[0]
+                verdict = (
+                    f"{'in front by' if anchor < band[0] else 'behind by'} "
+                    f"{min(abs(anchor - band[0]), abs(anchor - band[1])):.3f}"
+                )
+            cells.append(f"{anchor:>6.3f} {verdict:18}")
+        print(f"  {symbol:3} {band[0]:.3f}-{band[1]:<9.3f} " + " ".join(cells))
+    print(
+        f"\n{hits['library']} of {narrow} for the library and {hits['Wood']} of "
+        f"{narrow} for Wood, and every one of the library's\n{missed} misses is the "
+        "declared arc sitting in *front* of the measured band. That\nis one direction "
+        "and not scatter. Wood's own four proportions all sit further\nback than the "
+        "arcs `place` declares under the same four names, and that gap is\nwhere this "
+        "speaker's back vowels fall."
+    )
+
+    print("\nʌ, the first of the two unclassified vowels this source images.")
+    print("Every anchor the inventory could declare it at, against every band,")
+    print("swept over both free parameters. `today` is what it reads now:")
+    print(f"`backness` back, {arcs['ʌ']:.2f}, reported as approximate.\n")
+    anchors = {"today": arcs["ʌ"], **{n: place_arcs[n] for n in CANDIDATES}}
+    names = list(anchors)
+    print(
+        f"  {'depth':>6} {'cutoff':>6} {'bands':>6} "
+        + " ".join(f"{n:>11}" for n in names)
+    )
+    totals = dict.fromkeys(names, 0)
+    every = 0
+    for depth in DEPTH_FACTORS:
+        for cut in (4.0, 5.0, 6.0, 7.0):
+            counts = dict.fromkeys(names, 0)
+            usable = 0
+            for _, source in sessions:
+                band = source.band("ʌ", cut, args.labial, depth)
+                if band is None:
+                    continue
+                usable += 1
+                for name in names:
+                    counts[name] += band[0] <= anchors[name] <= band[1]
+            band = fourth.band(key("ʌ"), cut, args.labial, depth)
+            if band is not None:
+                usable += 1
+                for name in names:
+                    counts[name] += band[0] <= anchors[name] <= band[1]
+            every += usable
+            for name in names:
+                totals[name] += counts[name]
+            print(
+                f"  {depth:>6.2f} {cut:>6.1f} {usable:>6} "
+                + " ".join(f"{counts[n]:>11}" for n in names)
+            )
+    print(
+        f"  {'all':>6} {'':>6} {every:>6} "
+        + " ".join(f"{totals[n]:>11}" for n in names)
+    )
+    print(
+        "\nThe measured constriction is behind every anchor forward of it and in\n"
+        "front of the one behind it, and the vocabulary declares nothing between\n"
+        "`uvular` and `pharyngeal`. Declaring either is a claim the bands do not\n"
+        "carry; declaring `uvular` would also move no arc at all and only remove\n"
+        "the `approximate` mark, which is withdrawing a true caveat."
+    )
+
+    print("\nɝ, the second. Wood's four families cover the cardinal space and not")
+    print("the American English rhotic, so there is no classification to adopt --")
+    print("only the two sessions that image it, and they are these.\n")
+    rhotic: list[tuple[str, Table, str]] = [("1996 male", table, "ɝ")]
+    for column in FEMALE_RHOTIC:
+        rhotic.append(("1998 female " + column, fourth, key(column)))
+    for name, source, column in rhotic:
+        found = source.narrowest(column, args.glottal, args.labial)
+        assert found is not None
+        print(
+            f"  {name}: tract {source.length(column):.2f} cm, narrowest {found[0]:.3f}"
+        )
+        for arc, center, area in source.minima(column):
+            note = " below the piriform cutoff" if center < args.glottal else ""
+            print(
+                f"     minimum at arc {arc:.3f}  {center:5.2f} cm  {area:5.2f} cm^2{note}"
+            )
+        for depth in DEPTH_FACTORS:
+            band = source.band(column, args.glottal, args.labial, depth)
+            assert band is not None
+            print(f"     band at depth {depth:.2f}: {band[0]:.3f}-{band[1]:.3f}")
+    print(
+        f"\nipakit reads ɝ at {arcs['ɝ']:.2f}, from `backness` central, reported as "
+        "approximate.\nThe two sessions' bands are disjoint at every depth up to "
+        "2.0, so no single\narc is inside both and the question is not which value "
+        "to declare. Both\ncolumns carry three or more supralaryngeal minima, which "
+        "is what Zhou et al.\n(2008) report of the rhotic -- palatal, pharyngeal "
+        "and labial constrictions\nat once -- and an (arc, offset) holds one of "
+        "them."
+    )
+    return 0
+
+
 def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
     """Where would the four locations sit, if the classification were adopted?
 
@@ -1505,6 +1914,21 @@ def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
     third = getattr(args, "table_three", None)
     if third is not None:
         sources.append(("Story 2002", third, BOTH_SESSIONS))
+    fourth = getattr(args, "table_four", None)
+    if fourth is not None:
+        sources.append(
+            (
+                "Story 1998",
+                fourth,
+                tuple(f"{FEMALE_SUBJECT}/{vowel}" for vowel in FEMALE_VOWELS),
+            )
+        )
+        for vowel in FEMALE_VOWELS:
+            key = f"{FEMALE_SUBJECT}/{vowel}"
+            if vowel in families:
+                families[key] = families[vowel]
+            arcs[key] = arcs.get(vowel)
+            live[key] = live.get(vowel)
     second = getattr(args, "table_two", None)
     if second is not None:
         sources.append(
@@ -1590,8 +2014,8 @@ def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
     )
     print(
         f"Wood against place runs from {min(margins):+d} to {max(margins):+d} bands "
-        "of 35 over the same\nsweep, and changes sign inside it: the instrument does "
-        "not separate them."
+        f"of {every} over the same\nsweep, and changes sign inside it: the instrument "
+        "does not separate them."
     )
     return 0
 
@@ -1670,6 +2094,7 @@ COMMANDS = {
     "bands": cmd_bands,
     "replicate": cmd_replicate,
     "intra": cmd_intra,
+    "female": cmd_female,
     "anchors": cmd_anchors,
     "chart": cmd_chart,
     "arc": cmd_arc,
@@ -1712,6 +2137,14 @@ def main(argv: list[str] | None = None) -> int:
         "--third",
         default=os.environ.get(THIRD_ENV),
         help=f"CSV of Story (2008) Table I (default: ${THIRD_ENV})",
+    )
+    parser.add_argument(
+        "--fourth",
+        default=os.environ.get(FOURTH_ENV),
+        help=(
+            "CSV of Story, Titze & Hoffman (1998) Tables III and IV "
+            f"(default: ${FOURTH_ENV})"
+        ),
     )
     parser.add_argument("command", choices=[*COMMANDS, "all"], help="what to measure")
     args = parser.parse_args(argv)
@@ -1760,6 +2193,18 @@ def main(argv: list[str] | None = None) -> int:
                 )
             except ValueError as error:
                 print(f"{path_three}: {error}", file=sys.stderr)
+                return 1
+
+    args.table_four = None
+    if args.fourth:
+        path_four = Path(args.fourth)
+        if path_four.exists():
+            try:
+                args.table_four = parse_female(
+                    path_four.read_text(encoding="utf-8", errors="replace")
+                )
+            except ValueError as error:
+                print(f"{path_four}: {error}", file=sys.stderr)
                 return 1
 
     if args.command != "all":
