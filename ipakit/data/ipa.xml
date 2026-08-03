@@ -167,8 +167,8 @@
          vowel is not a "velar vowel", which is the name that slot would
          give it.
 
-         Sixteen vowels declare one, and every other vowel does not.
-         The sixteen are the ones Wood (1979) names in the four families
+         Nineteen vowels declare one, and every other vowel does not.
+         Sixteen are the ones Wood (1979) names in the four families
          his conclusion 2 gives: [i-ɛ, y-ø]-like at the hard palate,
          [u-ʊ, ɨ]-like at the soft palate, [o-ɔ, ɤ]-like at the upper
          pharynx, [ɑ-a-æ]-like at the lower pharynx, plus Swedish `ʉː`,
@@ -179,13 +179,23 @@
          Wood's own proportions and the declared ones cost nothing: no
          `place` value moves and no consonant moves.
 
+         Three more come from Wood restating those same four families
+         later, and at greater length. Wood (1990: 198) writes the
+         palatal family as [i-ɛ, y-œ]-like and the palatovelar one as
+         [u-ʊ, ɯ]-like, which names `œ` and `ɯ`; his own summary of the
+         1979 figure adds `ʌ` to the upper-pharyngeal family, as [o ɔ]
+         and [ɤ ʌ]. `ʌ` is the one of the three a measured band can
+         check, and the band agrees: over the three American English
+         sessions held, Wood's upper-pharyngeal proportion is inside all
+         three and his lower-pharyngeal one inside one of three.
+
          Every other vowel states none, which is a statement rather than
-         an oversight. `ə ɘ ɵ ɜ ɞ ɐ ɝ ɚ ä œ ɒ ɯ ɶ ʌ ʏ` are the ones no
-         source classifies. Their `arc` still comes from `backness`, and
-         `tract_reading` reports that arc as approximated rather than
-         stated, so a caller can tell a sourced location from an
+         an oversight. `ə ɘ ɵ ɜ ɞ ɐ ɝ ɚ ä ɒ ɶ ʏ` are the ones no source
+         classifies by name. Their `arc` still comes from `backness`,
+         and `tract_reading` reports that arc as approximated rather
+         than stated, so a caller can tell a sourced location from an
          unsourced one without reading the source. See
-         docs/design/vowel-constriction.md, issue #123. -->
+         docs/design/vowel-constriction.md, issues #123 and #175. -->
     <feature name="constriction-location" axis="+x" short="cnl" applies="nucleus" vocabulary="place" desc="Where a nucleus constricts the tract, stated as one of the places `place` locates" href="Vowel"/>
 
     <feature name="voiced" short="voi" type="binary" mode="overriding" desc="Vocal cord vibration" href="Voice_(phonetics)">
@@ -558,7 +568,7 @@
     <phone name="ø" manner="vowel" height="close-mid" backness="front" constriction-location="palatal" rounded="+" voiced="+" href="Close-mid_front_rounded_vowel"/>
     <phone name="ħ" manner="fricative" place="pharyngeal" href="Voiceless_pharyngeal_fricative"/>
     <phone name="ŋ" manner="nasal" place="velar" voiced="+" href="Voiced_velar_nasal"/>
-    <phone name="œ" manner="vowel" height="open-mid" backness="front" rounded="+" voiced="+" href="Open-mid_front_rounded_vowel"/>
+    <phone name="œ" manner="vowel" height="open-mid" backness="front" constriction-location="palatal" rounded="+" voiced="+" href="Open-mid_front_rounded_vowel"/>
     <phone name="ť" manner="plosive" place="alveolar" airstream="ejective" href="Alveolar_ejective"/>
     <phone name="ǀ" manner="plosive" airstream="velaric" place="dental" href="Dental_click"/>
     <phone name="ǁ" manner="plosive" airstream="velaric" place="alveolar" channel="lateral" href="Lateral_click"/>
@@ -597,7 +607,7 @@
     <phone name="ɬ" manner="fricative" place="alveolar" channel="lateral" href="Voiceless_alveolar_lateral_fricative"/>
     <phone name="ɭ" manner="approximant" place="alveolar" voiced="+" channel="lateral" retroflex="+" href="Voiced_retroflex_lateral_approximant"/>
     <phone name="ɮ" manner="fricative" place="alveolar" voiced="+" channel="lateral" href="Voiced_alveolar_lateral_fricative"/>
-    <phone name="ɯ" manner="vowel" height="close" backness="back" rounded="-" voiced="+" href="Close_back_unrounded_vowel"/>
+    <phone name="ɯ" manner="vowel" height="close" backness="back" constriction-location="velar" rounded="-" voiced="+" href="Close_back_unrounded_vowel"/>
     <phone name="ɰ" manner="approximant" place="velar" voiced="+" href="Voiced_velar_approximant"/>
     <phone name="ɱ" manner="nasal" place="labiodental" voiced="+" href="Voiced_labiodental_nasal"/>
     <phone name="ɲ" manner="nasal" place="palatal" voiced="+" href="Voiced_palatal_nasal"/>
@@ -624,7 +634,7 @@
     <phone name="ʊ" manner="vowel" height="near-close" backness="near-back" constriction-location="velar" rounded="+" voiced="+" href="Near-close_near-back_rounded_vowel"/>
 
     <phone name="ʋ" manner="approximant" place="labiodental" voiced="+" href="Voiced_labiodental_approximant"/>
-    <phone name="ʌ" manner="vowel" height="open-mid" backness="back" rounded="-" voiced="+" href="Open-mid_back_unrounded_vowel"/>
+    <phone name="ʌ" manner="vowel" height="open-mid" backness="back" constriction-location="uvular" rounded="-" voiced="+" href="Open-mid_back_unrounded_vowel"/>
     <phone name="ʍ" manner="approximant" place="bilabial^velar" rounded="+" voiced="-" href="Voiceless_labial%E2%80%93velar_fricative"/>
     <phone name="ʎ" manner="approximant" place="palatal" voiced="+" channel="lateral" href="Voiced_palatal_lateral_approximant"/>
     <phone name="ʏ" manner="vowel" height="near-close" backness="near-front" rounded="+" voiced="+" href="Near-close_near-front_rounded_vowel"/>
