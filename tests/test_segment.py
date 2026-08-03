@@ -6,8 +6,24 @@ These tests pin the design-spec acceptance criteria that belong to the
 representation (the distance work builds on it separately).
 """
 
+import json
+
 import pytest
 from ipakit import IPAFeatures, Kind, Segment, Sense
+from ipakit.segment import modifier_mode
+
+
+def _prosody_payload(ipa: IPAFeatures, mark: str) -> str:
+    """A serialized `d` carrying `mark` in its prosody.
+
+    Round-tripped out of a live segment rather than spelled here, so the
+    payload always states the current version and the current constituent
+    shape. A hand-written one goes stale silently: it starts being refused
+    for its version rather than for what it is testing.
+    """
+    obj = json.loads(ipa.segment("d").to_json())
+    obj["prosody"] = [mark]
+    return json.dumps(obj)
 
 
 @pytest.fixture(scope="module")
@@ -159,12 +175,69 @@ class TestSerialization:
             Segment.from_json('{"v": 99, "constituents": []}', ipa)
 
     def test_from_json_rejects_structural_prosody(self, ipa: IPAFeatures) -> None:
-        data = (
-            '{"v": 1, "constituents": [{"base": "a", "modifiers": []}], '
-            '"junctures": [], "prosody": ["͡"]}'
-        )
-        with pytest.raises(ValueError):
+        """A tie is a juncture, so it is not a property of one unit.
+
+        The payload is built from a live segment rather than written out
+        here. Spelled by hand it carried its own version number, and when
+        the version moved this passed on the version instead -- refusing
+        the right payload for the wrong reason, which is no guard at all.
+        """
+        data = _prosody_payload(ipa, "͡")
+        with pytest.raises(ValueError, match="junctures"):
             Segment.from_json(data, ipa)
+
+    def test_prosody_admits_exactly_the_prosodic_marks(self, ipa: IPAFeatures) -> None:
+        """Prosody carries prosodic marks, and the rest are refused there.
+
+        Stated over every mark the inventory declares rather than over a
+        list of offenders, and both arms are required to be reached, so
+        this cannot pass by finding nothing to check.
+        """
+        admitted, refused = [], []
+        for mark in sorted(ipa.diacritics):
+            payload = _prosody_payload(ipa, mark)
+            prosodic = modifier_mode(ipa, mark) == "prosodic"
+            try:
+                Segment.from_json(payload, ipa)
+            except ValueError:
+                refused.append(mark)
+                assert not prosodic, f"{mark!r} is prosodic and was refused"
+            else:
+                admitted.append(mark)
+                assert prosodic, f"{mark!r} states {modifier_mode(ipa, mark)}"
+        assert admitted, "no prosodic mark was admitted: the sweep is vacuous"
+        assert refused, "no other mark was refused: the sweep is vacuous"
+
+    def test_an_accepted_segment_survives_being_written_and_read(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """What `from_json` accepts, `to_ipa` must not turn into something else.
+
+        A segmental diacritic parked in `prosody` changed nothing where it
+        sat, because prosody is not read for features. Then `to_ipa` wrote
+        it in the one position where the parser reads it as a constituent
+        modifier, and a voiced `d` came back devoiced -- accepted, emitted
+        as valid IPA, reparsed correctly, and a different phone, with
+        nothing raising anywhere along the way.
+
+        The invariant is the round trip, not the one mark that broke it:
+        either the payload is refused, or what comes back describes the
+        same sound.
+        """
+        checked = 0
+        for mark in sorted(ipa.diacritics):
+            payload = _prosody_payload(ipa, mark)
+            try:
+                seg = Segment.from_json(payload, ipa)
+            except ValueError:
+                continue
+            checked += 1
+            back = ipa.segment(seg.to_ipa())
+            assert seg.scalar() == back.scalar(), (
+                f"{mark!r} in prosody spells {seg.to_ipa()!r}, which reads "
+                f"back as a different sound"
+            )
+        assert checked, "every payload was refused: the round trip is unchecked"
 
 
 class TestEmissionFaithfulness:

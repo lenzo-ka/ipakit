@@ -169,18 +169,40 @@ def check_prosody(features: IPAFeaturesBase, prosody: Iterable[str]) -> None:
     """Validate a unit's prosody: what may stand in it, and how much.
 
     Two rules, one place, so every construction path states them the
-    same way. Structural marks are not prosody -- a tie is a juncture
-    and a break lives between units, neither of them a property of one.
-    And stress is one feature of one syllable: a unit states at most one
+    same way. Prosody carries prosodic marks and nothing else, and
+    stress is one feature of one syllable: a unit states at most one
     level of it, because two marks on one unit is a contradiction rather
     than a stack.
+
+    Asked as ``mode == "prosodic"`` rather than as a list of the modes
+    to turn away, because the mark decides its own mode by what it
+    declares and a list here would have to be revised every time
+    ``<modes>`` gains a row. Structural marks keep their own message:
+    a tie is a juncture and a break lives between units, so neither is a
+    property of one unit, and saying that is more use than saying the
+    mode is wrong.
+
+    The looser test this replaces refused only structural marks, which
+    let a *segmental* diacritic be stored here. It changed nothing where
+    it sat -- prosody is not read for features -- and then ``to_ipa``
+    wrote it where the parser reads it as a constituent modifier, so a
+    voiced ``d`` with a ring parked in its prosody came back devoiced.
+    An accepted segment must not become a different segment by being
+    written out and read back.
     """
     seen_stress: list[str] = []
     for mark in prosody:
-        if modifier_mode(features, mark) == "structural":
+        mode = modifier_mode(features, mark)
+        if mode == "structural":
             raise ValueError(
                 f"structural mark {mark!r} is not prosody; "
                 "ties are junctures, breaks live between units"
+            )
+        if mode != "prosodic":
+            raise ValueError(
+                f"{mark!r} states {mode}, so it belongs on a constituent "
+                "rather than in prosody; written out it would be read back "
+                "as a modifier and change the segment"
             )
         if mark in features.stress_markers:
             seen_stress.append(mark)
