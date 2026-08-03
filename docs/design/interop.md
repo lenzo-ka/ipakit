@@ -189,6 +189,8 @@ The ejective mark is not held in second place, it is **discarded**. `airstream` 
 
 **(d) `ç` is not a sibilant — 44 assertions, and this one is CLTS's error.** CLTS's data gives the voiceless palatal fricative `airstream=sibilant`; ipakit gives `channel=flat`. The voiceless palatal fricative is not a sibilant under any standard description, and CLTS gets `x`, `ɸ` and `θ` right. This is the counterexample to reading the agreement rate as an ipakit score: some of the 824 are the other system.
 
+**Superseded by [#135](https://github.com/lenzo-ka/ipakit/issues/135), and closed.** The stack is read against the rule `ipa.xml` declares: a `sequence="+"` feature composes across a run of marks, every other feature is single-valued and a second mark stating it is reported, naming what contradicts what. The answer is the first mark's rather than a set, so it is still order-sensitive; what closed is that it is no longer silent and that the read now refuses what `compose_unit` refuses to spell.
+
 **(e) Composition order — 61 assertions, and it is an ipakit defect.** `l̥ˠʱ` is breathy to CLTS and devoiced to ipakit; `ɛ̥̤` is devoiced to CLTS and breathy to ipakit. The cause is that ipakit's answer depends on the order the marks are written in:
 
 ```python
@@ -617,6 +619,8 @@ Whether ipakit should *model* a pre-modifier is a separate and larger question �
 The docstring is "Add tie bars between base phones in a multi-phone segment" and says nothing about declining. A modifier resets the left neighbor, so the next base sees nothing to tie to; on a three-element chain it therefore ties the *wrong* junction — `add_ties("d̠ʒxʼ")` gives `d̠ʒ͡xʼ`, joining ʒ to x rather than d̠ to ʒ. 293 of the 305 residual resegmentations in §1 are this, as are 517 of PHOIBLE's 1,377 untouched and 71 of its tied-wrong; closing it takes BIPA agreement to roughly 8,368 of 8,765 and PHOIBLE from 49.7% to about 90% single-segment. Whether the fix is to tie across an intervening diacritic or to report that it could not is a design question, but returning the input unchanged and silent is the one answer that cannot be right.
 
 ### (c) Composition is order-dependent, and outside data reaches it
+
+**Superseded by [#135](https://github.com/lenzo-ka/ipakit/issues/135), and closed.** What two marks stating one feature mean is declared in `ipa.xml` and had two answers in the code: a `sequence="+"` feature composes across a run of marks, every other feature is single-valued and a second mark stating it is now reported, naming what contradicts what. The answer is the first mark's rather than a set, so it is still order-sensitive; what closed is that it is no longer silent, and that the read now refuses what `compose_unit` refuses to spell.
 
 `compose_segments("ɛ̥̤")` gives `phonation=breathy`; `compose_segments("ɛ̤̥")` gives `devoiced`. Found independently by the composition lane; recorded here because the cross-check adds something that lane could not see — both orders occur in BIPA's data, so the case arrives from real input rather than from a constructed one, and it accounts for 61 of the 824 feature disagreements.
 

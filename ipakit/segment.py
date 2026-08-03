@@ -18,6 +18,7 @@ sequential diphthong).
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -243,12 +244,77 @@ def takes_defaults(features: IPAFeatures, feats: Mapping[str, str]) -> bool:
     return feats.get("manner") is not None and not _is_non_speech(features, dict(feats))
 
 
+def state_mark_value(
+    features: IPAFeaturesBase,
+    feats: dict[str, str],
+    stated: dict[str, str],
+    key: str,
+    value: str,
+    overriding: bool,
+    where: str,
+) -> None:
+    """Fold one mark's statement of one feature into a bundle being read.
+
+    The single answer to "what do two marks stating one feature mean",
+    and the read counterpart of what ``compose_unit`` and
+    :func:`~ipakit.form.with_prosody` already do when they *write* one.
+    Both branches of it are declared in ``ipa.xml``:
+
+    A feature declared ``sequence="+"`` states a trajectory, so a run of
+    marks stating it **concatenates**: ``a˧˦`` is ``tone="mid>high"``,
+    which is what ``᷄`` declares in one glyph, and ``a˧˩˧`` is
+    ``tone="mid>bottom>mid"``. The writer emits exactly such a run --
+    ``[tone=top>bottom]`` spells ``˥˩`` -- so refusing it on the way back
+    in would be the library declining to read what it writes.
+
+    Every other feature is single-valued, so a second mark stating it is a
+    **contradiction rather than a stack**: ``ɛ̥̤`` cannot be both devoiced
+    and breathy. The first statement stands and the second is reported,
+    naming what contradicts what. Which of the two stands is a tie broken
+    for consistency and not for meaning -- a mark stack carries no order
+    the writer chose, since ``compose_unit`` re-emits the whole stack in
+    mode order and Unicode reorders combining marks by combining class --
+    so the report is the load-bearing half, not the choice. What must not
+    happen is the silent answer: reading ``ɛ̥̤`` as breathy and ``ɛ̤̥`` as
+    devoiced assigns a phonation off an order that means nothing, and
+    ``compose_unit`` will not spell either.
+
+    ``stated`` is what the marks of *this* stack have said so far, kept
+    apart from ``feats`` because the base's own value is not a competing
+    mark: a mark overriding what the phone declares is the ordinary case,
+    and only a second *mark* contradicts. ``feats`` is updated in place,
+    following ``overriding`` on a key no mark has claimed yet.
+    """
+    feature = features.features.get(key)
+    if key not in stated:
+        stated[key] = value
+        if overriding or key not in feats:
+            feats[key] = value
+        return
+    incumbent = stated[key]
+    if feature is not None and feature.sequence:
+        merged = feature.sequenced(feature.steps(incumbent) + feature.steps(value))
+        stated[key] = merged
+        # Only where the first statement is the one standing: a mark that
+        # gave way to the base's value has no run for a later one to join.
+        if feats.get(key) == incumbent:
+            feats[key] = merged
+    elif incumbent != value:
+        warnings.warn(
+            f"{where}: two marks state {key!r} ({incumbent!r} then {value!r}); "
+            f"{key!r} is single-valued, so {value!r} is a contradiction and "
+            "is not recorded",
+            stacklevel=3,
+        )
+
+
 def apply_modifiers(
     features: IPAFeatures,
     feats: dict[str, str],
     modifiers: Iterable[str],
     prosody: bool = False,
     approach: bool = False,
+    where: str | None = None,
 ) -> dict[str, str]:
     """Overlay a modifier stack onto a base bundle, per mark, by mode.
 
@@ -279,11 +345,21 @@ def apply_modifiers(
     describes is its base, not the mark riding on it -- the article for
     ``tʰ`` is the one for ``t``, not the one for aspiration.
 
+    What two marks of one stack stating one feature mean is
+    :func:`state_mark_value`, which is also what the unit's prosody is
+    read with -- so the segmental read and the prosodic one cannot come
+    to different ideas of ``a˧˦``. ``where`` names the unit in the report
+    that read makes, and defaults to the stack itself.
+
     Mutates and returns ``feats``. Defaults must not be filled before
     this runs: a mark adding a feature the base leaves unstated
     (nasalization on a vowel) would otherwise find the default already
     sitting in the slot.
     """
+    modifiers = list(modifiers)
+    if where is None:
+        where = repr("".join(modifiers))
+    stated: dict[str, str] = {}
     for mod in modifiers:
         mark = features.diacritics.get(mod)
         if mark is None:
@@ -300,10 +376,15 @@ def apply_modifiers(
         for key, value in mark.features.items():
             if key not in keys:
                 continue
-            if mode == "overriding":
-                feats[key] = value
-            else:
-                feats.setdefault(key, value)
+            state_mark_value(
+                features,
+                feats,
+                stated,
+                key,
+                value,
+                overriding=mode == "overriding",
+                where=where,
+            )
     return feats
 
 
@@ -463,8 +544,9 @@ class Constituent:
         if base_phone is not None:
             drop = frozenset() if metadata else METADATA_ATTRS
             feats = {k: v for k, v in base_phone.features.items() if k not in drop}
-        apply_modifiers(features, feats, self.approach, approach=True)
-        apply_modifiers(features, feats, self.modifiers)
+        where = repr(str(self))
+        apply_modifiers(features, feats, self.approach, approach=True, where=where)
+        apply_modifiers(features, feats, self.modifiers, where=where)
         if with_defaults:
             fill_defaults(features, feats)
         return feats

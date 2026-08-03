@@ -61,6 +61,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from .constants import ZERO_CLASS
+from .segment import state_mark_value
 
 if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
@@ -447,24 +448,27 @@ def _asserted_prosody(seg: Segment, features: IPAFeatures) -> dict[str, str]:
     first stands and the collision is **reported**. Neither case may drop
     a mark in silence: a merge that let the last writer win recorded a
     rise and a fall as opposite level tones, with no diagnostic at all.
+
+    Both branches are :func:`~ipakit.segment.state_mark_value`, which is
+    also how the segmental read folds a modifier stack. Written out here
+    once, the segmental read had neither branch: ``compose("a˧˦")``
+    answered ``tone="mid"`` where this answered ``tone="mid>high"``, and
+    ``compose("ɛ̥̤")`` answered a phonation off the order the marks
+    happened to be written in.
     """
     out: dict[str, str] = {}
+    stated: dict[str, str] = {}
     for glyph in seg.prosody:
         for key, value in declared_prosody(glyph, features).items():
-            feature = features.features.get(key)
-            if key not in out:
-                out[key] = value
-            elif feature is not None and feature.sequence:
-                out[key] = feature.sequenced(
-                    feature.steps(out[key]) + feature.steps(value)
-                )
-            elif out[key] != value:
-                warnings.warn(
-                    f"{seg.to_ipa()!r}: two prosodic marks state {key!r} "
-                    f"({out[key]!r} then {value!r}); {key!r} is single-valued, "
-                    f"so {value!r} is a contradiction and is not recorded",
-                    stacklevel=2,
-                )
+            state_mark_value(
+                features,
+                out,
+                stated,
+                key,
+                value,
+                overriding=True,
+                where=repr(seg.to_ipa()),
+            )
     return out
 
 
