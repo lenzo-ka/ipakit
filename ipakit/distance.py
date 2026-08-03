@@ -589,6 +589,12 @@ class DistanceMixin(IPAFeaturesBase):
         that should read "this was dropped and that one added" is always
         reported as a substitution.
 
+        **Symmetric, and it takes no cost schedule so that it stays that
+        way.** ``d(x, y) == d(y, x)`` is property-tested here and callers
+        rely on it; per-phone prices are what would break it, so they live
+        on :meth:`directional_word_distance`, which names its reference
+        side and promises nothing about symmetry.
+
         Args:
             ipa1: First IPA string
             ipa2: Second IPA string

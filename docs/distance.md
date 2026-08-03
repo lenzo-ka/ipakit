@@ -292,6 +292,10 @@ r.costs        # 'insert=1.0 delete=my-english/deletion'
 
 That reading only holds if the parameterization is nameable, which is why every result carries one. `WordDistanceResult.costs` is `insert=<name> delete=<name>`, a flat cost naming itself and a schedule naming what it is a schedule for. An unnamed lambda reports `<lambda>`, which is the honest answer and the reason to pass a schedule when the number is going anywhere a reader will see it.
 
+**Directional distance.** `word_distance` is symmetric and stays symmetric — its symmetry is property-tested and callers rely on it. `directional_word_distance(reference, hypothesis)` is the entry point that names its reference side: `delete_cost` prices the phones of the reference, which is the material an omission removes, and `insert_cost` prices the phones of the hypothesis, which is the material that was added. "Did the speaker omit something the target has" and "did the speaker add something the target lacks" are different questions and a symmetric score cannot express either. With equal flat costs the two functions agree exactly; the asymmetry comes from the schedule, not from the entry point.
+
+**The denominator sums over the phones.** `similarity` is `1 - edit_cost / denom`, where `denom` is the null alignment's cost: delete every phone of the first word, insert every phone of the second. That is a sum over the actual phones, not a token count times a price. The two agree whenever the price is flat and disagree as soon as it is not, and only the sum keeps `similarity` bounded below by 0 once prices vary.
+
 ### Deriving a schedule instead of typing one
 
 Writing the mapping out by hand is the same pattern this repository rejects everywhere else: a second copy of something already declared, which goes stale in silence. `CostSchedule.from_rules` reads the membership off a rule set — the phones some rule rewrites to zero, or writes where there was nothing — and takes the two prices from the caller:
@@ -316,10 +320,6 @@ Those two are the worked pair the shipped rule sets already supply, one deletion
 **A schedule built this way is a claim about the rule set, not about the language, and it should be read and named as one.** `french-liaison` deletes what that file was written to state; a French speaker drops other things it says nothing about. The narrow claim is the true one, and it is the only kind available — which is also why the *prices* are still the caller's. They are stated nowhere in the data and cannot be derived from it, and inventing them here would be the fitted table again.
 
 **There is no shipped schedule and there will not be a universal one**, for the reason [§9](#9-ranking-deciding-and-gamma) gives about gamma and [design/vowel-constriction.md](design/vowel-constriction.md) gives at length: a table fitted to whatever corpus produced it validates cleanly against that source and is wrong. A per-language table is the same refusal with one more way to be wrong, since it would be fitted to one corpus *and* to one variety of one language.
-
-**Directional distance.** `word_distance` is symmetric and stays symmetric — its symmetry is property-tested and callers rely on it. `directional_word_distance(reference, hypothesis)` is the entry point that names its reference side: `delete_cost` prices the phones of the reference, which is the material an omission removes, and `insert_cost` prices the phones of the hypothesis, which is the material that was added. "Did the speaker omit something the target has" and "did the speaker add something the target lacks" are different questions and a symmetric score cannot express either. With equal flat costs the two functions agree exactly; the asymmetry comes from the schedule, not from the entry point.
-
-**The denominator sums over the phones.** `similarity` is `1 - edit_cost / denom`, where `denom` is the null alignment's cost: delete every phone of the first word, insert every phone of the second. That is a sum over the actual phones, not a token count times a price. The two agree whenever the price is flat and disagree as soon as it is not, and only the sum keeps `similarity` bounded below by 0 once prices vary.
 
 ## 11. Changing the parameters
 
