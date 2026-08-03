@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `scripts/areafunctions.py female`: a fifth measured source, Story, Titze & Hoffman (1998) — a second American English speaker, an adult female, and the only measured table that images `ʌ` and `ɝ` beside the sessions already held (#175).
 - `WordDistanceResult.coverage`, `min(n, m) / max(n, m)`, reported beside the similarity and never folded into it (#165).
 - `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`).
 - `Reading.approximated` and the `approximate` annotation kind: a coordinate the posture took from a feature stating something else, so a vowel's arc from `backness` reads as the stand-in it is (#123).
@@ -156,6 +157,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A vowel's `arc` and `articulator` come from one feature or neither: a stated `constriction-location` with no `arc` supplied the articulator anyway, so the point took its position from `backness` and its organ from the rejected location (#175).
+- A combined position places wholly or not at all: `palatal^X` with `X` unplaceable read as plain `palatal` and reported as a complete stated location, rather than falling back and saying so (#175).
+- `scripts/areafunctions.py chart` scored its own baseline over nine of Yang & Kasuya's fifteen columns and every other row over all fifteen, so the reading the embeddings were measured against read 20 where it scores 26, and 16 of 60 embeddings looked like they beat it where none does (#175).
 - `gamma` at or below zero is refused at construction; it made every pair maximally confusable, or answered outside `[0, 1]` (#171).
 - A fusion's order was meaning to the flat projection and notation to the metric: `distance("u͡i", "i͡u")` was 0 while the two described different vowels. Both reads ask the phase structure now, and a single-phase fusion merges order-free — positions combine, a binary disagreement takes the declared default.
 - A query that was neither a list nor a set fell into the resolver's mapping arm and left an `AttributeError` out of `phones_matching` and `find`; the arm is chosen by shape now, a tuple or frozenset of terms is answered, and anything that is not a query is refused with a `ValueError` like the rule side.
