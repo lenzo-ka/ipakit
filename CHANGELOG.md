@@ -139,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `constrictions` promised its first point was always `tract_point`'s, which no combining place can satisfy: the metric answers with the mean of the components, and a mean lies at neither. Documented as the two different questions they are, and pinned.
 - `unmodelled` asked whether a feature declares tract coordinates, not whether this posture read one, so a bundle stating a consonantal manner over a vowel drew half of it and reported nothing missing; `tract_reading` answers what the point was read from, and the annotation layer asks that.
 - Eighteen vowel letters declared no roundedness, so a fused pair kept the first vowel's: `features("u͡i")` was close, front and rounded, and `to_phone` of it was `y`. Every vowel states every slot of its own name, and `validate()` says so.
 - `to_cmu` tokenized on its own table and disagreed with `segments`, reading the untied `ɔɪ` of `N AO1 IH0 NG` as `OY1`; it converts one segment at a time, and CMUdict round-trips exactly.

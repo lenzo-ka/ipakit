@@ -39,6 +39,7 @@ import pytest
 from ipakit import tract_svg
 from ipakit.constants import METADATA_ATTRS
 from ipakit.features import IPAFeatures
+from ipakit.models import Feature
 from ipakit.tract import (
     GLOTTAL_AXIS,
     Head,
@@ -1104,6 +1105,46 @@ def test_the_checked_in_figure_is_what_the_code_draws(figure: Path) -> None:
     phone = glyph.group(1) if glyph else None
     fresh = tract_svg.figure(phone, "adult-male")
     assert fresh == text, f"{figure.name} is stale: run `make figures`"
+
+
+def test_the_metric_point_is_a_closure_unless_the_place_combines() -> None:
+    """What the metric compares and what a drawing closes are not one tuple.
+
+    ``constrictions`` once promised its first point was always
+    ``tract_point``'s. It cannot be. A combining place declares no arc, so
+    the metric answers with the mean of its components, and a mean of two
+    distinct arcs lies strictly between them -- a coordinate where, for a
+    labial-velar, neither the lips nor the dorsum close. The promise invited
+    a reader to take ``[0]`` as the primary and quietly disagree with the
+    metric on ``w``.
+
+    Stated as the shape of the mistake rather than as today's six segments:
+    a single named place puts the metric's point in the tuple, a combining
+    one keeps it out. Both arms are required to be reached, so removing
+    either kind from the inventory fails here instead of passing vacuously.
+    """
+    ipa = IPAFeatures()
+    combining: list[str] = []
+    simple = 0
+    for phone in sorted(ipa.phones):
+        bundle = ipa.get_features(phone)
+        summary = tract_point(ipa, bundle)
+        points = constrictions(ipa, bundle)
+        if summary.arc is None or not points:
+            continue
+        if Feature.COMBINER in (bundle.get("place") or ""):
+            combining.append(phone)
+            assert all(
+                q.arc is not None and abs(q.arc - summary.arc) > 1e-9 for q in points
+            ), f"{phone}: the mean of two places is not a closure at either"
+        else:
+            simple += 1
+            assert points[0] == summary, (
+                f"{phone}: names one place, so the metric's point is its "
+                f"front-most closure -- got {points[0]} for {summary}"
+            )
+    assert simple > 100, f"only {simple} single-place segments: the sweep is vacuous"
+    assert combining, "no combining place reached: the exception is unchecked"
 
 
 def test_a_click_closes_twice() -> None:
