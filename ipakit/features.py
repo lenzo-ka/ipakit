@@ -8,7 +8,7 @@ import re
 import unicodedata
 import warnings
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
 from typing import TypeVar
@@ -61,6 +61,14 @@ _T = TypeVar("_T")
 #: what :meth:`IPAFeatures._query_matches` documents and what keeps a term
 #: from going vacuous on a bundle that omits the feature it names.
 _Terms = tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]
+
+#: What the query language takes: a mapping of feature to value, or a
+#: collection of terms. Written as a shape rather than as the two concrete
+#: types the resolver used to test for, because everything that failed that
+#: test fell into the mapping arm and was asked for ``.items()`` -- so a
+#: tuple of terms, a frozenset of them and a bare string all left an
+#: ``AttributeError`` out of a public method (#148).
+_Query = Mapping[str, str] | Iterable[str]
 
 
 def available_supplements() -> list[str]:
@@ -1228,9 +1236,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             {k: v for k, v in terms.items() if k in prosodic},
         )
 
-    def _query_constraints(
-        self, query: dict[str, str] | list[str] | set[str]
-    ) -> tuple[_Terms, _Terms]:
+    def _query_constraints(self, query: _Query) -> tuple[_Terms, _Terms]:
         """Resolve a query and split it into (segmental, prosodic) halves.
 
         One resolution and one split, so :meth:`phones_matching`,
@@ -1339,7 +1345,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ]
 
     def _resolve_query(
-        self, query: dict[str, str] | list[str] | set[str]
+        self, query: _Query
     ) -> tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]:
         """Resolve a query into (required, included, excluded) constraints.
 
@@ -1382,14 +1388,48 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         nothing, turning a misspelling into a plausible empty result --
         which is the wrong answer the paragraph above exists to refuse,
         reached by writing the query the other way round.
+
+        **Which arm a query takes is decided by shape**, and the answer for
+        anything that is neither is a :class:`ValueError` like every other
+        refusal here. It used to be decided by ``isinstance(query, (list,
+        set))``, with the mapping arm as the fallback, so every other type
+        reached ``.items()`` and raised ``AttributeError`` -- out of
+        ``phones_matching`` and ``find``, which is a public method telling a
+        caller nothing and raising something they cannot catch beside
+        :class:`ipakit.rules.RuleError`. That reached a tuple of terms and a
+        frozenset of them, which are queries this should simply answer, as
+        well as ``'[+voiced]'``, ``42`` and ``None``, which it should
+        refuse.
+
+        A **string is refused rather than iterated**, and that is the whole
+        reason the test is not "iterable, else mapping": a string is a
+        collection of its characters, so ``'+voiced'`` would resolve as the
+        seven terms ``'+'``, ``'v'``, ``'o'`` ... -- a wrong answer dressed
+        as a query, which is worse than the crash it replaces. Bracket text
+        is the *rule* language's spelling of a query and
+        :func:`ipakit.rules._pattern` parses it; accepting it here would be
+        a second reading of that notation, kept in step by habit.
         """
         positive: dict[str, str] = {}
         inclusive: dict[str, set[str]] = {}  # feature -> values admitted
         negative: dict[str, set[str]] = {}  # feature -> values to exclude
         unresolved: list[str] = []
 
-        if isinstance(query, (list, set)):
-            for s in query:
+        if isinstance(query, (str, bytes)) or not isinstance(
+            query, (Mapping, Iterable)
+        ):
+            raise ValueError(
+                f"a query is a mapping of feature to value or a collection "
+                f"of terms, not {type(query).__name__}: {query!r}. Name the "
+                f"terms in a list -- ['+voiced', 'plosive'] -- or the "
+                f"features in a dict; the bracket spelling '[+voiced]' is "
+                f"the rule language's and is read by ipakit.rules."
+            )
+
+        if not isinstance(query, Mapping):
+            # Read once, so a query written as an iterator is not consumed
+            # here and then found empty by the check at the end.
+            for s in list(query):
                 # Whole string is a short name (e.g. '-voi', '+voi', '0trt').
                 if s in self._short_to_feature:
                     feat, val = self._short_to_feature[s]
@@ -1520,14 +1560,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             and all(feats.get(k) not in vals for k, vals in excluded.items())
         )
 
-    def phones_matching(
-        self, query: dict[str, str] | list[str] | set[str], with_defaults: bool = True
-    ) -> list[str]:
+    def phones_matching(self, query: _Query, with_defaults: bool = True) -> list[str]:
         """Get all phones matching features.
 
-        Accepts dict or list/set of short or long names.
-        Names can be prefixed with + (has value) or - (does not have value).
-        E.g., ['+aspirated', '-voiced'] or ['+asp', '-voi'].
+        Accepts a dict of feature to value, or any collection of short or
+        long names that is not a string -- a string is refused rather than
+        read as its characters. Names can be prefixed with + (has value)
+        or - (does not have value). E.g., ['+aspirated', '-voiced'] or
+        ['+asp', '-voi']. Anything else raises ``ValueError``, as every
+        other refusal in the query language does, so one handler catches a
+        malformed query here and a malformed one in a rule.
 
         Searches the registered inventory; :meth:`find` runs the same query
         over the units of a transcription.
@@ -1558,7 +1600,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def find(
         self,
         ipa: str,
-        query: dict[str, str] | list[str] | set[str],
+        query: _Query,
         with_defaults: bool = True,
     ) -> list[tuple[int, Segment]]:
         """Locate the units of ``ipa`` whose features match ``query``.

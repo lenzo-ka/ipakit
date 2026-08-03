@@ -6,6 +6,7 @@ import warnings
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR
+from ipakit.features import _Query
 from ipakit.form import Unit
 from ipakit.form import units as form_units
 from ipakit.segment import takes_defaults
@@ -753,3 +754,176 @@ class TestNoTermIsTrueOfEverything:
         resolved = {ipa._resolve_query_term(t.lstrip("-"))[0] for t in universal}
         assert resolved == {"articulator"}, sorted(universal)
         assert len(universal) >= 5, sorted(universal)
+
+
+class TestEveryQueryEntryPointRefusesInOneVocabulary:
+    """A malformed query is refused as a domain error, whatever its shape.
+
+    The resolver decided which arm to take with `isinstance(query, (list,
+    set))` and let everything else fall into the mapping arm, where it was
+    asked for `.items()`. So a query the resolver could not place did not
+    reach a refusal at all -- it left an `AttributeError` out of
+    `phones_matching` and `find`, which tells a caller nothing about what
+    they wrote and cannot be caught beside `RuleError`, the `ValueError`
+    the rule side raises for the same mistakes (#148).
+
+    The sweep is over the *shape* of the mistake rather than the three
+    spellings the issue named. It finds the public entry points by
+    signature and puts every malformed shape to each, so an entry point
+    added later is swept without an edit here, and it also puts the
+    well-formed collection shapes to each, so refusing everything is not a
+    way to pass.
+    """
+
+    @staticmethod
+    def entry_points(ipa: IPAFeatures) -> dict[str, object]:
+        """Every public callable taking a query-language query, bound to a call.
+
+        Discovered by the *annotation*, over the module surface and the
+        inventory object, rather than named here: `phones_matching` and
+        `find` are today's two and the point of the guard is the next one.
+        By the annotation and not the parameter name, because
+        `ipakit.Rule.query` is a rules `Query` -- a pattern and its context
+        -- and is not this entry point.
+        """
+        import inspect
+
+        import ipakit
+
+        found = {}
+        for holder, prefix in ((ipakit, "ipakit."), (ipa, "IPAFeatures.")):
+            for name in dir(holder):
+                if name.startswith("_"):
+                    continue
+                member = getattr(holder, name)
+                if not callable(member):
+                    continue
+                try:
+                    params = inspect.signature(member).parameters
+                except (TypeError, ValueError):  # pragma: no cover - builtins
+                    continue
+                asked = params.get("query")
+                if asked is None or asked.annotation not in ("_Query", _Query):
+                    continue
+                if "ipa_string" in params or "ipa" in params:
+                    found[prefix + name] = lambda q, f=member: f("ata", q)
+                else:
+                    found[prefix + name] = lambda q, f=member: f(q)
+        return found
+
+    #: Shapes that are not a query at all. Spelled as a description of the
+    #: shape, not as a list of literals: a bare string (in every spelling
+    #: the issue named and in one that looks well formed), bytes, and the
+    #: non-collections a caller reaches by passing the wrong variable.
+    MALFORMED = [
+        "",
+        " ",
+        "[]",
+        "[ ]",
+        "[+voiced]",
+        "+voiced",
+        "voiced",
+        "manner=plosive",
+        b"+voiced",
+        None,
+        42,
+        3.5,
+        True,
+        object(),
+    ]
+
+    def test_no_entry_point_leaks_a_non_domain_error(self, ipa: IPAFeatures) -> None:
+        checked = 0
+        for name, call in self.entry_points(ipa).items():
+            for query in self.MALFORMED:
+                try:
+                    call(query)
+                except ValueError:
+                    checked += 1
+                    continue
+                except Exception as leaked:  # noqa: BLE001
+                    raise AssertionError(
+                        f"{name}({query!r}) raised "
+                        f"{type(leaked).__name__}: {leaked}"
+                    ) from None
+                raise AssertionError(f"{name}({query!r}) was answered, not refused")
+        assert checked >= 2 * len(self.MALFORMED), f"sweep did not run: {checked}"
+
+    def test_the_entry_points_are_found_by_signature(self, ipa: IPAFeatures) -> None:
+        """The discovery above is what makes the sweep non-vacuous.
+
+        If it silently found nothing the sweep would pass over an empty
+        product, so what it found is asserted here: both entry points, on
+        the module and on the inventory, four bindings in all.
+        """
+        found = self.entry_points(ipa)
+        assert {
+            "ipakit.phones_matching",
+            "ipakit.find",
+            "IPAFeatures.phones_matching",
+            "IPAFeatures.find",
+        } <= set(found), sorted(found)
+
+    def test_a_string_is_never_read_as_its_characters(self, ipa: IPAFeatures) -> None:
+        """Why the test is not "a mapping, else iterate".
+
+        A string is a collection of characters, so iterating one would
+        resolve `'0trt'` -- a declared short name, whole -- as four terms,
+        and `'-voi'` as three. That is a wrong answer wearing the shape of
+        a query, which is worse than the crash it would replace, so every
+        string is refused however well formed it looks whole.
+        """
+        wholes = [s for s in ipa._short_to_feature if len(s) > 1]
+        assert len(wholes) > 20, f"no multi-character short names: {len(wholes)}"
+        for short in wholes:
+            with pytest.raises(ValueError, match="not str"):
+                ipa.phones_matching(short)
+
+    def test_a_collection_of_terms_is_answered_whatever_holds_it(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Refusing everything is not a way to pass the sweep above.
+
+        A tuple of terms and a frozenset of them are queries, and used to
+        leak the same `AttributeError` as `42` because they were neither
+        of the two concrete types the resolver tested for. They now answer
+        what the list answers, term by term over the spellable terms
+        rather than at one named query.
+        """
+        checked = 0
+        for term in _spellable_terms(ipa):
+            try:
+                expected = ipa.phones_matching([term])
+            except ValueError:
+                continue
+            for holder in (tuple, frozenset, iter):
+                assert ipa.phones_matching(holder([term])) == expected, (term, holder)
+            checked += 1
+        assert checked > 150, f"sweep did not run: {checked}"
+
+    def test_the_rule_side_refuses_in_the_same_vocabulary(self) -> None:
+        """What "one vocabulary" means: `except ValueError` catches both.
+
+        `RuleError` is a `ValueError`, so a caller writing one handler
+        around a query and a rule catches both refusals. Pinned because
+        the shared vocabulary is the whole of what #148 asked for, and it
+        would be lost silently if `RuleError` were ever rebased.
+        """
+        from ipakit.rules import RuleError, RuleSet
+
+        assert issubclass(RuleError, ValueError)
+        with pytest.raises(ValueError, match="empty query"):
+            RuleSet.parse("[] -> ∅ / a _")
+
+    def test_the_guard_states_what_it_does_not_reach(self, ipa: IPAFeatures) -> None:
+        """The empty query is refused here and stays #102's question.
+
+        An empty *collection* is a well-formed query that resolves to no
+        term, and it is refused for that -- not for its shape. #148 did
+        not decide whether it should instead answer the whole inventory;
+        if #102 adopts the wildcard, this is the test that has to change,
+        and nothing above it does.
+        """
+        for empty in ([], set(), {}, ()):
+            with pytest.raises(ValueError, match="no feature terms resolved"):
+                ipa.phones_matching(empty)

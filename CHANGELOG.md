@@ -143,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A query that was neither a list nor a set fell into the resolver's mapping arm and left an `AttributeError` out of `phones_matching` and `find`; the arm is chosen by shape now, a tuple or frozenset of terms is answered, and anything that is not a query is refused with a `ValueError` like the rule side.
 - Prosody accepted any mark that was not structural, so a segmental diacritic could be stored there. It changed nothing where it sat and `to_ipa` then wrote it where the parser reads it as a modifier: a `d` with a ring in its prosody came back devoiced. Prosody now carries prosodic marks only.
 - `constrictions` promised its first point was always `tract_point`'s, which no combining place can satisfy: the metric answers with the mean of the components, and a mean lies at neither. Documented as the two different questions they are, and pinned.
 - `unmodelled` asked whether a feature declares tract coordinates, not whether this posture read one, so a bundle stating a consonantal manner over a vowel drew half of it and reported nothing missing; `tract_reading` answers what the point was read from, and the annotation layer asks that.
