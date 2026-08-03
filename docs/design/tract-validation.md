@@ -138,7 +138,7 @@ The two sources are independent — one MRI subject, one comprehensive sample of
 
 Three findings for the lanes that own the files. This lane touched none of them.
 
-[#127](https://github.com/lenzo-ka/ipakit/issues/127) took up all three; each carries a superseded line below saying what it did, and only D3 is closed.
+[#127](https://github.com/lenzo-ka/ipakit/issues/127) took up all three; each carries a superseded line below saying what it did, and only D3 is closed. The documentation correction under them was taken up separately by [#125](https://github.com/lenzo-ka/ipakit/issues/125) and is closed.
 
 **Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the defect stands and is now a stated limit. Every repair the declaration vocabulary can express was tried, including both named at the end of this entry, and each is refused by measurement; `tests/test_vowel_tract_limit.py` pins the limit and each refusal, so it can only change deliberately.**
 
@@ -162,7 +162,9 @@ Measured, those two constrict 5.6 cm apart in a 17.5 cm tract. `arc` feeds `ipak
 
 **D3 — `arc` has two meanings and nothing holds them together.** It is declared per feature value in `ipa.xml`, and separately realized as position along a hand-placed midline in `heads.xml`. The largest disagreement between a declared `arc` and its own midline's normalized arclength is 0.027 (adult-male), 0.035 (adult-female), 0.062 (child). Heads never affect distance, so no answer is wrong today, but §1 of this assessment depends on the two agreeing and the child head is at the edge of what it can carry. An invariant over the shipped midlines would cost a few lines and is the sort of thing `scripts/invariants.py` already does.
 
-**And one correction to the documentation.** `docs/tract-anatomy.md` §6 gives constriction location as "the centerline position of minimum aperture — what `arc` currently declares", and then says that "the current model's hand-placed anchors are what this geometry would compute". Against the one measured aperture function available, that holds for `p m t n` and for `i` to within 0.05, and fails for `ɝ` (0.44 declared, 0.22 measured), `u` and `o` (0.56 declared, 0.38 measured) and `ɑ` (0.56 declared, 0.67 measured). The section is a specification of work not yet done, so it is not wrong to state the intent — but it states an equivalence that has never been checked and is now known to fail in four places, and it should say so.
+**Superseded by [#125](https://github.com/lenzo-ka/ipakit/issues/125), and closed. The sentence was replaced rather than corrected: §6 now states the correspondence as unbuilt work and computes the half of it a reader can check, in a `python` block `scripts/docexamples.py` executes, so a geometric claim there stands only where something checks it. This entry stops quoting the old wording — the words it recommended changing are gone, and a quotation of them would read as a citation and would not be one.**
+
+**And one correction to the documentation.** `docs/tract-anatomy.md` §6 gives constriction location as the centerline position of minimum aperture, which is what `arc` currently declares, and then says that the current model's hand-placed anchors are what this geometry would compute. Against the one measured aperture function available, that holds for `p m t n` and for `i` to within 0.05, and fails for `ɝ` (0.44 declared, 0.22 measured), `u` and `o` (0.56 declared, 0.38 measured) and `ɑ` (0.56 declared, 0.67 measured). The section is a specification of work not yet done, so it is not wrong to state the intent — but it states an equivalence that has never been checked and is now known to fail in four places, and it should say so.
 
 ## 7. What it would take to get a number
 

@@ -89,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `docs/tract-anatomy.md` §6 states the derived-quantity correspondence as unbuilt work and computes the half of it `scripts/docexamples.py` checks.
 - `Segment.to_json` is version 2: a constituent carries its `approach` marks beside its `modifiers`.
 - `scripts/sweep.py`'s corpus covers both placements of a mark; it enumerated the trailing one alone.
 - Phonological corrections across the shipped rule sets; each file records its own choices.
