@@ -44,6 +44,12 @@ using it.
 | [articulatory-data.md](articulatory-data.md) | The model measured against an external corpus (X-Ray Microbeam). What that corpus can ground, what it cannot see, and why its blind spots are facts about the instrument rather than about phonetics. |
 | [gestural-model.md](gestural-model.md) | Design notes on the gestural reading, and the candidate improvements the metric would need external confusion data to fit. |
 
+## The wider literature
+
+| | |
+| --- | --- |
+| [reading.md](reading.md) | **An annotated reading list.** What to read to build with this material or to teach from it — the rewrite calculus and its formal ground, phonological theory and features, phonetics and articulation, speech technology and grapheme-to-phoneme, historical and comparative work, the data catalogs. Every entry says what to read the work *for* and whether it is free, because for a class the second decides the first. It is not the union of what the design assessments rest on; those lists live with their own documents. |
+
 ## Working on ipakit
 
 | | |
