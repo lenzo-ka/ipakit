@@ -125,3 +125,79 @@ def _without_the_tier_feature() -> IPAFeatures:
     handle.write(stripped)
     handle.close()
     return IPAFeatures(xml_path=Path(handle.name))
+
+
+class TestDeclaringATierDoesNotInvalidateASavedMatrix:
+    """§7's promise, held operationally rather than only in the numbers.
+
+    ``docs/design/tiers.md`` §7 commits that a language declaring a tier
+    moves no distance. That was true of the distances and false of the
+    reader: the feature-space fingerprint hashed every declared feature,
+    so declaring ``tier`` moved 0 of 9591 pairs and still refused every
+    saved matrix. A structural feature cannot reach the metric -- the mode
+    gate drops it before a bundle is built -- so the digest now skips it,
+    and the two agree by construction.
+    """
+
+    def test_a_new_structural_feature_leaves_the_fingerprint_alone(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        from ipakit.metric import metric_fingerprint
+
+        phones = tuple(ipa.phones)
+        without = _load(_strip_the_tier_feature(), tmp_path / "without.xml")
+        assert metric_fingerprint(ipa, phones) == metric_fingerprint(without, phones)
+
+    def test_but_changing_a_feature_out_of_structural_does_not(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        """The control, and the case the guard exists for.
+
+        Skipping structural features would be worthless if it also hid a
+        feature *becoming* non-structural, which does reprice things. It
+        does not: the flip moves the feature into the digested set.
+        """
+        from ipakit.metric import metric_fingerprint
+
+        text = SHIPPED.read_text()
+        assert 'name="tier" short="tir" type="categorical" mode="structural"' in text
+        flipped = _load(
+            text.replace(
+                'name="tier" short="tir" type="categorical" mode="structural"',
+                'name="tier" short="tir" type="categorical" mode="additive"',
+            ),
+            tmp_path / "flipped.xml",
+        )
+        phones = tuple(ipa.phones)
+        assert metric_fingerprint(ipa, phones) != metric_fingerprint(flipped, phones)
+
+    def test_and_a_real_metric_change_still_moves_it(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        """The second control: the digest has not been made blind in general."""
+        from ipakit.metric import metric_fingerprint
+
+        text = SHIPPED.read_text()
+        assert 'name="velar" arc="0.45"' in text
+        moved = _load(
+            text.replace('name="velar" arc="0.45"', 'name="velar" arc="0.60"'),
+            tmp_path / "moved.xml",
+        )
+        phones = tuple(ipa.phones)
+        assert metric_fingerprint(ipa, phones) != metric_fingerprint(moved, phones)
+
+
+def _strip_the_tier_feature() -> str:
+    import re
+
+    text = SHIPPED.read_text()
+    stripped = re.sub(
+        r'\n\s*<feature name="tier".*?</feature>\n', "\n", text, flags=re.DOTALL
+    )
+    assert stripped != text, "the tier feature was not found to remove"
+    return stripped
+
+
+def _load(text: str, where: Path) -> IPAFeatures:
+    where.write_text(text, encoding="utf-8")
+    return IPAFeatures(xml_path=where)

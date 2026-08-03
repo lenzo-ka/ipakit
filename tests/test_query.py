@@ -669,6 +669,7 @@ class TestNoTermIsTrueOfEverything:
         structural = ipa.features_by_mode.get("structural", frozenset())
         assert structural, "no structural feature is declared"
         checked = 0
+        ambiguous = 0
         for name in structural:
             feature = ipa.features[name]
             # Every spelling that names this feature: a side of it where
@@ -683,10 +684,26 @@ class TestNoTermIsTrueOfEverything:
             queries += [[f"-{v}"] for v in named]
             queries += [{name: v} for v in named]
             for query in queries:
-                with pytest.raises(ValueError, match="is structural"):
+                # A bare term two features claim is refused one step
+                # earlier, as ambiguous, because nothing has resolved it to
+                # a feature yet -- `syllable` is `level`'s boundary strength
+                # and `tier`'s span. Still a refusal and still not an
+                # answer, which is what this test is about, so both arms
+                # count and both are required to run.
+                bare = query[0].lstrip("-") if isinstance(query, list) else None
+                contested = bare is not None and len(ipa._claimants(bare)) > 1
+                expected = "ambiguous" if contested else "is structural"
+                with pytest.raises(ValueError, match=expected):
                     ipa.phones_matching(query)
-                checked += 1
+                if contested:
+                    ambiguous += 1
+                else:
+                    checked += 1
         assert checked > 20, f"sweep did not run: {checked}"
+        assert ambiguous > 0, (
+            "no structural value is claimed by two features, so the "
+            "ambiguity arm above never ran and proves nothing"
+        )
 
     def test_the_two_matchers_answer_one_question(self, ipa: IPAFeatures) -> None:
         """``phones_matching`` and ``find`` over the same registered phone.
