@@ -158,7 +158,20 @@ None of these are declared; all follow from the posture.
 | **constriction degree** | normalized minimum aperture — what `offset` currently declares |
 | **active articulator** | which mobile structure forms the constriction at that location — what the place table currently declares as a default |
 
-That correspondence is the point: **the current model's hand-placed anchors are what this geometry would compute.** Building the anatomy makes them derivable, and removes the "schematic, not measurements" caveat that `docs/distance.md` carries today.
+That correspondence is the point of building the anatomy: every right-hand column above is declared today and would be computed then. It is a **specification of unbuilt work, not a claim about the anchors** — a geometry built to it has to reproduce the measurement, and whether the anchors already do is a separate question that measurement answers unevenly.
+
+The constriction-location row is where the gap is widest, and the reason is in the declarations rather than in the anatomy. A vowel's anchor is read from `backness` and from nothing else, so every back vowel resolves to one location whatever else it states:
+
+```python
+from ipakit import IPAFeatures
+from ipakit.tract import tract_point
+
+ipa = IPAFeatures()
+sorted({tract_point(ipa, ipa.get_features(v)).arc for v in "uoɑɔʌ"})   # [0.56]
+tract_point(ipa, ipa.get_features("i")).arc                            # 0.32
+```
+
+Measured area functions put those five at two locations well apart, one group forward of that shared anchor and one behind it, and put `ɝ` forward of `i` rather than behind it. The declared `bilabial` and `alveolar` anchors go the other way: each lands inside the measured occlusion of every stop and nasal imaged at that place. So the anchors are hand-placed values that measurement has confirmed in some places and refused in others, which is what makes the correspondence above a specification. [design/tract-validation.md](design/tract-validation.md) is the comparison and [#123](https://github.com/lenzo-ka/ipakit/issues/123) is the open defect; the block above is executed by `scripts/docexamples.py`, so the half of the claim that is computable cannot go stale in silence.
 
 ## 7. Postures
 

@@ -20,6 +20,8 @@ quantity ``arc`` claims to be, so the two can be compared without fitting.
     python scripts/areafunctions.py occlusions   # declared place vs measured closure
     python scripts/areafunctions.py vowels       # every supralaryngeal local minimum
     python scripts/areafunctions.py stability    # what a rank correlation depends on
+    python scripts/areafunctions.py bands        # two sources against one band each
+    python scripts/areafunctions.py replicate    # does a coordinate reproduce?
     python scripts/areafunctions.py all
 
 The paper is copyrighted and is NOT bundled: CI will not have it, so every
@@ -41,6 +43,7 @@ speech formants in Table IV (p. 548) against Peterson & Barney (1952).
 from __future__ import annotations
 
 import argparse
+import csv
 import itertools
 import os
 import re
@@ -111,9 +114,90 @@ DEFAULT_GLOTTAL_CM = 5.0
 #: changes nothing; it is a parameter so that can be seen rather than asserted.
 DEFAULT_LABIAL_CM = 2.0
 
+#: How much wider than its narrowest section a constriction may be and still
+#: count as the same constriction. There is no principled value, so ``bands``
+#: sweeps it and prints the sweep: a verdict that moves across this range is a
+#: report of the factor, the way the rank correlation was a report of the
+#: cutoff.
+DEPTH_FACTORS = (1.25, 1.5, 2.0, 3.0, 4.0)
+
+#: The second measured source, and the only one that covers more than one
+#: speaker:
+#:
+#:     Wood, Sidney (1979). "A radiographic analysis of constriction locations
+#:     for vowels", J. Phonetics 7(1), 25-43.
+#:     https://doi.org/10.1016/S0095-4470(19)31031-9
+#:
+#: 38 sets of mid-sagittal tracings from the literature covering 12 languages,
+#: plus new X-ray motion films of Southern British English and Egyptian Arabic
+#: -- "confirms these four constriction locations without exception by 40
+#: subjects in 13 languages" (p. 27). The tongue narrows the tract at one of
+#: four locations, and conclusion 2 (p. 41) gives each one its family: "[i-ɛ,
+#: y-ø]-like, [u-ʊ, ɨ]-like, [o-ɔ, ɣ]-like and [ɑ-a-æ]-like respectively".
+#:
+#: The distance is from the glottal source, and is the value Wood feeds to the
+#: Stevens & House (1955) nomograms in his Fig. 5 (p. 30). It is a location, not
+#: a measured band: Wood anchors the four anatomically and tabulates no extent.
+#: Reading it as an ``arc`` therefore divides by a tract length -- each shape's
+#: own published length, so that no single divisor is chosen here.
+#:
+#: ``ʌ`` is named in no family. Fig. 5 superimposes Southern British English
+#: vowel areas on the four nomogram surfaces and puts it on the lower pharyngeal
+#: one with ``æ`` and ``ɑ``, which is what it is read as here. The band it lands
+#: in below spans 0.50 to the glottis, so both readings of it are inside and no
+#: verdict here turns on the choice.
+#:
+#: ``ɝ`` is imaged by Story et al. and has no family: Wood's four cover the
+#: cardinal space and not the American English rhotic.
+WOOD_LOCATIONS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
+    ("hard palate", 12.0, ("i", "ɪ", "ɛ")),
+    ("soft palate", 8.5, ("u", "ʊ")),
+    ("upper pharynx", 6.5, ("o", "ɔ")),
+    ("lower pharynx", 4.5, ("ɑ", "æ", "ʌ")),
+)
+
+#: The tract length the Stevens & House (1955) three-parameter model uses, and
+#: so the divisor that turns Wood's four distances into proportions.
+WOOD_REFERENCE_CM = 17.5
+
+#: The third source, and the only measured one covering more than one speaker:
+#:
+#:     Yang, Ching-Shyang and Hideki Kasuya (1994). "Accurate measurement of
+#:     vocal tract shapes from magnetic resonance images of child, female and
+#:     male subjects", ICSLP 94, Yokohama, 623-626.
+#:     https://doi.org/10.21437/ICSLP.1994-158
+#:
+#: Tables 1-3 (p. 625) give equi-length area functions for the five Japanese
+#: vowels from an adult male, an adult female and a boy -- 15 in all, each with
+#: its own printed tract length ``L`` and section length ``dl``. Sections are
+#: "numbered from the glottis to the lips, indicating the last one to be the
+#: area of the lip opening" (p. 625), the opposite end from Story et al.
+#:
+#: The scan has no text layer, so ``--second`` wants a CSV of the three tables:
+#: a header ``subject,vowel,L_cm,dl_cm,section,area_cm2`` and one row per
+#: section. ``replicate`` re-derives ``L`` from the section count and ``dl`` and
+#: fails if the two disagree, which is what a transcription of a table can be
+#: checked against without the table.
+SECOND_ENV = "IPAKIT_YANG1994_CSV"
+
+#: Which Story et al. shape each Japanese vowel is held against, and which of
+#: Wood's families it belongs to. Read as IPA, the paper's own five symbols are
+#: ipakit phones; the narrow readings [ä] and [ɯ] conventionally given to
+#: Japanese /a/ and /u/ are part of why cross-language coordinates for one
+#: symbol should not be expected to coincide, and that is a finding here rather
+#: than a correction applied before measuring.
+JAPANESE = (
+    ("a", "lower pharynx"),
+    ("i", "hard palate"),
+    ("u", "soft palate"),
+    ("e", "hard palate"),
+    ("o", "upper pharynx"),
+)
+
 #: Shape assertions. The parse either reproduces the published table exactly or
 #: it is wrong; these are not floors.
 EXPECTED_COLUMNS = 18
+EXPECTED_SECOND_COLUMNS = 15
 EXPECTED_SECTIONS = tuple(round(length / INTERVAL_CM) for _, _, length in SHAPES)
 
 ROW = re.compile(r"^(\d+)\s+((?:[\d.]+\s+)*[\d.]+)\s*$")
@@ -171,6 +255,35 @@ class Table:
             return None
         best = min(inside, key=lambda n: column[n])
         return (self.arc(symbol, best), (best + 0.5) * INTERVAL_CM, column[best])
+
+    def band(
+        self, symbol: str, glottal_cm: float, labial_cm: float, depth: float
+    ) -> tuple[float, float, float] | None:
+        """The extent of a vowel's constriction as ``(front, back, cm^2)``.
+
+        A constriction is a region and not a point -- both external sources say
+        so, and the argmin over eleven vowels is what
+        docs/design/tract-validation.md 3 refuses. This grows the narrowest
+        section outward while the area stays within ``depth`` of it, which is
+        the closest thing an area function offers to the zero-area run that
+        makes the occlusion check in ``occlusions`` free of any parameter.
+        """
+        column = self.area[symbol]
+        found = self.narrowest(symbol, glottal_cm, labial_cm)
+        if found is None:
+            return None
+        floor = found[2] * depth
+        best = min(
+            (n for n in range(len(column)) if column[n] == found[2]),
+            key=lambda n: abs(self.arc(symbol, n) - found[0]),
+        )
+        low = best
+        while low > 0 and column[low - 1] <= floor:
+            low -= 1
+        high = best
+        while high < len(column) - 1 and column[high + 1] <= floor:
+            high += 1
+        return (self.extent(symbol, high)[0], self.extent(symbol, low)[1], found[2])
 
     def closure(self, symbol: str, ceiling: float = 0.0) -> tuple[float, float]:
         """The ``arc`` span over which the tract is closed, front edge first."""
@@ -371,6 +484,257 @@ def cmd_stability(table: Table, args: argparse.Namespace) -> int:
     return 0
 
 
+class Second(Table):
+    """Yang & Kasuya Tables 1-3: one area function per subject and vowel.
+
+    Keyed ``subject/vowel``. Every section-counting method on :class:`Table`
+    works unchanged -- ``arc`` and ``extent`` are proportions of the column --
+    and only the two that need centimetres are overridden, because each column
+    prints its own section length.
+    """
+
+    def __init__(self, area: dict[str, list[float]], interval: dict[str, float]):
+        super().__init__(area)
+        self.interval = interval
+
+    def length(self, symbol: str) -> float:
+        return (len(self.area[symbol]) - 1) * self.interval[symbol]
+
+    def centers(self, symbol: str) -> list[float]:
+        step = self.interval[symbol]
+        return [(n + 0.5) * step for n in range(len(self.area[symbol]))]
+
+
+def parse_second(text: str) -> Second:
+    """Read the CSV, and check it against the tract lengths it carries.
+
+    A transcription of a printed table cannot be checked against the table, but
+    it can be checked against itself: the paper prints ``L`` and ``dl`` per
+    column as well as the sections, and ``(sections - 1) * dl`` has to give
+    ``L``. A dropped or duplicated row breaks that at once.
+    """
+    area: dict[str, list[float]] = {}
+    interval: dict[str, float] = {}
+    stated: dict[str, float] = {}
+    rows = [
+        line for line in text.splitlines() if line.strip() and not line.startswith("#")
+    ]
+    reader = csv.DictReader(rows)
+    for row in reader:
+        key = f"{row['subject']}/{row['vowel']}"
+        area.setdefault(key, []).append(float(row["area_cm2"]))
+        interval[key] = float(row["dl_cm"])
+        stated[key] = float(row["L_cm"])
+    if len(area) != EXPECTED_SECOND_COLUMNS:
+        raise ValueError(
+            f"read {len(area)} columns, expected {EXPECTED_SECOND_COLUMNS} "
+            "(5 vowels for each of 3 subjects)"
+        )
+    for key, column in area.items():
+        derived = (len(column) - 1) * interval[key]
+        if abs(derived - stated[key]) > 0.05:
+            raise ValueError(
+                f"{key}: {len(column)} sections of {interval[key]} cm give "
+                f"{derived:.2f} cm, against a printed length of {stated[key]}"
+            )
+    return Second(area, interval)
+
+
+def wood_arcs() -> dict[str, tuple[str, float]]:
+    """Wood's location for each imaged vowel, as an ``arc`` from the lips.
+
+    A location is a distance from the glottal source, so it becomes an arc
+    against a tract length. Each shape's own published length is used, so the
+    conversion introduces no divisor of this reader's choosing -- the same
+    reason ``docs/articulatory-data.md`` divides by each speaker's declared
+    head length rather than by one number for everybody.
+    """
+    lengths = {symbol: length for symbol, _, length in SHAPES}
+    out: dict[str, tuple[str, float]] = {}
+    for name, from_glottis, family in WOOD_LOCATIONS:
+        for symbol in family:
+            length = lengths[symbol]
+            out[symbol] = (name, (length - from_glottis) / length)
+    return out
+
+
+def wood_proportional() -> dict[str, float]:
+    """The same four locations read as fixed proportions of any tract.
+
+    Subtracting a fixed number of centimetres is a reading of Wood's anatomical
+    claim, and it is the wrong one off an adult male: on the 13.3 cm tract of
+    Yang & Kasuya's boy it puts the hard palate at ``arc`` 0.10, forward of the
+    teeth. ``arc`` is a proportion, so the proportional reading is the one that
+    transfers -- against the 17.5 cm the Stevens & House model uses, which is
+    the model Wood's four distances parameterize.
+    """
+    return {
+        name: (WOOD_REFERENCE_CM - cm) / WOOD_REFERENCE_CM
+        for name, cm, _ in WOOD_LOCATIONS
+    }
+
+
+def cmd_bands(table: Table, args: argparse.Namespace) -> int:
+    """Two sources against one measured band each, the way ``occlusions`` does.
+
+    ``stability`` shows why a rank correlation over these vowels cannot be
+    reported. This is the instrument that can be: a band from the data, and an
+    anchor that is either in it or not.
+    """
+    arcs = declared()
+    wood = wood_arcs()
+    print("Wood (1979) puts every vowel constriction at one of four locations,")
+    print("over 40 subjects in 13 languages. Story et al. supply the only bands:")
+    print("the run of sections around the narrowest one that stays within a")
+    print(f"factor of {args.depth:g} of it. Both anchors are held against that band.\n")
+    print(f"  {'':3} {'band':>13}  {'ipakit':>6} {'':8}  {'Wood':>6} {'':8}  location")
+    counts = {"ipakit": 0, "wood": 0}
+    comparable = 0
+    for symbol in VOWELS:
+        found = table.band(symbol, args.glottal, args.labial, args.depth)
+        if found is None or symbol not in wood:
+            reason = "no family" if found is not None else "no minimum in window"
+            print(f"  {symbol:3} {'':>13}  {'':>6} {'':8}  {'':>6} {'':8}  {reason}")
+            continue
+        front, back, area = found
+        comparable += 1
+        cells = []
+        for key, value in (("ipakit", arcs[symbol]), ("wood", wood[symbol][1])):
+            if value is None:
+                cells.append(f"{'':>6} {'':8}")
+                continue
+            if front <= value <= back:
+                counts[key] += 1
+                cells.append(f"{value:>6.3f} {'inside':8}")
+            else:
+                miss = min(abs(value - front), abs(value - back))
+                cells.append(f"{value:>6.3f} {'by ' + format(miss, '.3f'):8}")
+        print(
+            f"  {symbol:3} {front:.3f}-{back:<7.3f}  {cells[0]}  {cells[1]}  "
+            f"{wood[symbol][0]} ({area:.2f} cm^2)"
+        )
+    print(
+        f"\n{counts['wood']} of {comparable} of Wood's locations inside the measured "
+        f"band, against\n{counts['ipakit']} of {comparable} of the arcs ipakit "
+        "declares."
+    )
+
+    print("\nThe same counts as the band widens, and as the piriform cutoff moves.")
+    print("A verdict that moves with either is a report of the parameter.\n")
+    print(f"  {'depth':>6} {'cutoff cm':>9} {'n':>4} {'ipakit':>7} {'Wood':>6}")
+    for depth in DEPTH_FACTORS:
+        for cut in (4.0, 5.0, 6.0, 7.0):
+            hits = {"ipakit": 0, "wood": 0}
+            usable = 0
+            for symbol in VOWELS:
+                found = table.band(symbol, cut, args.labial, depth)
+                if found is None or symbol not in wood:
+                    continue
+                usable += 1
+                front, back, _ = found
+                for key, value in (("ipakit", arcs[symbol]), ("wood", wood[symbol][1])):
+                    if value is not None and front <= value <= back:
+                        hits[key] += 1
+            print(
+                f"  {depth:>6.2f} {cut:>9.1f} {usable:>4} {hits['ipakit']:>7} "
+                f"{hits['wood']:>6}"
+            )
+    return 0
+
+
+def cmd_replicate(table: Table, args: argparse.Namespace) -> int:
+    """Does a per-vowel coordinate reproduce across speakers and languages?
+
+    This is the question a table fitted to one speaker cannot answer about
+    itself. Story et al. image one adult male of American English; Yang &
+    Kasuya image an adult male, an adult female and a boy of Japanese. Both
+    tabulate an area function, so the same band instrument reads both.
+    """
+    second = getattr(args, "table_two", None)
+    if second is None:
+        print(
+            f"no second source given: pass --second or set ${SECOND_ENV} to a "
+            "CSV of\nYang & Kasuya (1994) Tables 1-3. See this module's "
+            "docstring for the columns."
+        )
+        return 0
+    proportional = wood_proportional()
+    features = IPAFeatures()
+    arcs = {
+        vowel: tract_point(features, features.get_features(vowel)).arc
+        for vowel, _ in JAPANESE
+    }
+
+    print("Yang & Kasuya (1994) Tables 1-3: the five Japanese vowels from an adult")
+    print("male, an adult female and a boy. Same instrument as `bands`, and Wood's")
+    print("four locations read as proportions of the tract rather than as centimetres")
+    print("subtracted from it, which a 13.3 cm tract cannot carry.\n")
+    print(f"  {'':16} {'constriction':>12} {'band':>13} {'Wood':>6} {'ipakit':>7}")
+    measured: dict[str, list[float]] = {}
+    inside = {"wood": 0, "ipakit": 0, "n": 0}
+    for subject in ("male", "female", "boy"):
+        for vowel, location in JAPANESE:
+            key = f"{subject}/{vowel}"
+            found = second.band(key, args.glottal, args.labial, args.depth)
+            narrow = second.narrowest(key, args.glottal, args.labial)
+            if found is None or narrow is None:
+                print(f"  {key:16} {'no minimum in the window':>12}")
+                continue
+            measured.setdefault(vowel, []).append(narrow[0])
+            front, back, _ = found
+            wood = proportional[location]
+            mine = arcs[vowel]
+            inside["n"] += 1
+            marks = ""
+            for which, value in (("wood", wood), ("ipakit", mine)):
+                if value is not None and front <= value <= back:
+                    inside[which] += 1
+                    marks += " in"
+                else:
+                    marks += " --"
+            print(
+                f"  {key:16} {narrow[0]:>12.3f} {front:.3f}-{back:<7.3f} "
+                f"{wood:>6.3f} {mine if mine is not None else 0.0:>7.2f}{marks}"
+            )
+
+    print(
+        f"\n{inside['wood']} of {inside['n']} of Wood's locations inside the measured "
+        f"band, against\n{inside['ipakit']} of {inside['n']} of the arcs ipakit "
+        "declares."
+    )
+
+    print("\nThe same vowel across the sources that measured it, as arc from the lips.")
+    print("A coordinate per (height, backness) cell has to be one number here.\n")
+    print(
+        f"  {'':3} {'Story (en)':>11} {'Yang & Kasuya (ja)':>26} {'Wood':>6} "
+        f"{'spread':>7}"
+    )
+    for vowel, location in JAPANESE:
+        here = measured.get(vowel, [])
+        theirs = " ".join(f"{value:.3f}" for value in here)
+        # Only where the *same* symbol is imaged by both. Story et al. image no
+        # /a/ and no /e/: their nearest columns are ɑ and ɛ, which are other
+        # vowels, and putting one under the other would be the assumption this
+        # subcommand exists to test.
+        story = (
+            table.narrowest(vowel, args.glottal, args.labial)
+            if vowel in VOWELS
+            else None
+        )
+        pool = list(here) + ([story[0]] if story else [])
+        spread = max(pool) - min(pool) if len(pool) > 1 else float("nan")
+        shown = f"{story[0]:.3f}" if story else "not imaged"
+        print(
+            f"  {vowel:3} {shown:>11} {theirs:>26} {proportional[location]:>6.3f} "
+            f"{spread:>7.3f}"
+        )
+    print(
+        "\nThe spread column is what a fitted table would have to pick one value "
+        "from.\nSee docs/design/vowel-constriction.md for what it is read as."
+    )
+    return 0
+
+
 def cmd_arc(table: Table, args: argparse.Namespace) -> int:
     """Whether ``arc`` is the proportional midline position it says it is.
 
@@ -442,6 +806,8 @@ COMMANDS = {
     "occlusions": cmd_occlusions,
     "vowels": cmd_vowels,
     "stability": cmd_stability,
+    "bands": cmd_bands,
+    "replicate": cmd_replicate,
     "arc": cmd_arc,
 }
 
@@ -467,6 +833,17 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_LABIAL_CM,
         help="ignore sections nearer the lips than this, in cm",
     )
+    parser.add_argument(
+        "--depth",
+        type=float,
+        default=2.0,
+        help="how much wider than its narrowest section a band may run",
+    )
+    parser.add_argument(
+        "--second",
+        default=os.environ.get(SECOND_ENV),
+        help=f"CSV of Yang & Kasuya (1994) Tables 1-3 (default: ${SECOND_ENV})",
+    )
     parser.add_argument("command", choices=[*COMMANDS, "all"], help="what to measure")
     args = parser.parse_args(argv)
 
@@ -491,6 +868,18 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as error:
         print(f"{path}: {error}", file=sys.stderr)
         return 1
+
+    args.table_two = None
+    if args.second:
+        path_two = Path(args.second)
+        if path_two.exists():
+            try:
+                args.table_two = parse_second(
+                    path_two.read_text(encoding="utf-8", errors="replace")
+                )
+            except ValueError as error:
+                print(f"{path_two}: {error}", file=sys.stderr)
+                return 1
 
     if args.command != "all":
         return COMMANDS[args.command](table, args)

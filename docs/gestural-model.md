@@ -42,7 +42,7 @@ This is the microbeam framing: pellets on articulators, tracked relative to plac
 
 ## The geometry a gesture executes
 
-A gesture says which articulator goes where, to what degree. Executing or drawing one needs the anatomy that constrains it: the fixed contours it moves against, the joints it pivots on, what carries what. [docs/tract-anatomy.md](tract-anatomy.md) specifies that — contours, articulators, degrees of freedom, and the constraint graph relating them — and notes that the current hand-placed anchors are exactly what such a geometry would compute.
+A gesture says which articulator goes where, to what degree. Executing or drawing one needs the anatomy that constrains it: the fixed contours it moves against, the joints it pivots on, what carries what. [docs/tract-anatomy.md](tract-anatomy.md) specifies that — contours, articulators, degrees of freedom, and the constraint graph relating them — and sets out which of its quantities the current model declares and which such a geometry would compute instead. That correspondence is unbuilt work rather than a fact about the anchors: measured against area functions the declared consonant places hold and four of the vowels do not.
 
 ## Staging
 
