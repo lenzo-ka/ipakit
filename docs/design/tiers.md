@@ -24,9 +24,9 @@ The assessment is read-only. Nothing in this lane changed code, data, or tests.
 | Is anything relying on the level ladder meaning nesting? | **One function.** `Form.tree()` uses the ladder as recursion depth. Every other consumer is a scalar `>=` or plain string equality. |
 | How much of the ladder is exercised? | **Half.** 4 levels declared; `phrase` and `utterance` are named by **0 of 86** shipped rules. The ladder's whole live weight is that `.` also matches `#` and the form edge, used by **2** rules. |
 | What does the metric pay? | **Nothing.** `level` is `mode="structural"`, so it is in no phone bundle, and `metric.py`, `distance.py` and `distance_model.py` contain zero references to it. |
-| What must be rebased, and how often? | Interval endpoints, on **21 of 86** shipped rules — the ones that change the length of the unit sequence. `Edit` already carries `start`, `end` and `replacement`, so the arithmetic needs no new information from any rule. |
+| What must be rebased, and how often? | Interval endpoints, on **27 of 86** shipped rules — the ones that change the length of the unit sequence. `Edit` already carries `start`, `end` and `replacement`, so the arithmetic needs no new information from any rule. |
 | What can be stated today only by workaround? | Moraic weight. `japanese-moraic.rules` names the mora **20 times in its prose and 0 times in its rules**; all 35 rules are segmental. |
-| What cannot be stated at all? | **Tone stability and compensatory lengthening** — the two founding arguments for autosegmental representation. Measured below; both fail silently. |
+| What cannot be stated as a generalization? | **Tone stability and compensatory lengthening** — the two founding arguments for autosegmental representation. Measured below: an ordered pair of segmental rules does reach `pta˦` and `kaːs`, so it is the generalization that has no statement here, not the output. Written per environment and in advance, or the tone and the weight go in silence. |
 | Can a language's tiers be declared in `ipakit/data/rules/`? | **No, and this contradicts the brief.** A `.rules` file is rewrite rules only: no declaration form, no metadata, no schema. Supplements may add symbols and are explicitly refused declarations. A tier requires `ipa.xml`. |
 | Is C/D a tier architecture for this codebase? | **No.** C/D has no segment; `Syll` is the atom. It is a replacement spine, not an addition to one. |
 
@@ -127,31 +127,41 @@ PY
 
 ## 4. What a syllable-level object costs
 
-### What cannot be stated at all
+### What cannot be stated as a generalization
 
-These are the measurements that decide the capability question, because they are neither workarounds nor gaps in coverage. They are the two founding arguments for autosegmental representation, and both fail silently.
+These are the measurements that decide the capability question, because they are neither workarounds nor gaps in coverage. They are the two founding arguments for autosegmental representation, and what fails is not the derived form — it is the statement.
 
-**Tone stability.** Goldsmith's argument is that a tone is an autosegment: delete the vowel bearing it and the tone survives and relinks. Here it dies with the segment, because `Attribute.at` indexes the segment the tone rides on.
+**Tone stability.** Goldsmith's argument is that a tone is an autosegment: delete the vowel bearing it and the tone survives and relinks. Here it dies with the segment, because `Attribute.at` indexes the segment the tone rides on and a deletion takes the index with it.
 
-```
-python3 -c "
+```python
 import ipakit as ipa
 from ipakit.form import Form
-print(ipa.rewrite('páta', 'a -> ∅ / p _'))
-print([(a.feature, a.value, a.at) for a in Form.parse('páta').attributes])
-"
-# pta
+
+ipa.rewrite("páta", "a -> ∅ / p _")
+# 'pta'
+[(a.feature, a.value, a.at) for a in Form.parse("páta").attributes]
 # [('tone', 'high', 1)]
 ```
 
-The high tone is simply gone. There is no rule that rescues it, and no rule that can, because there is nothing for it to be on.
+The high tone is gone, and nothing in the rule that deleted its bearer was in a position to know it was there.
 
-**Compensatory lengthening.** A coda consonant's mora survives its segment and lengthens the nucleus. `kans` → `kaːs` is the target; the engine gives `kas`, and the weight is lost with the segment:
+**The surface form is nonetheless reachable.** Write the relinking as an ordinary segmental rule, order it before the deletion, and the tone lands on the survivor:
 
+```python
+ipa.rewrite("páta", "a -> [tone=high] / [tone=high] t _\na -> ∅ / p _")
+# 'pta˦'
 ```
-python3 -c "import ipakit as ipa; print(ipa.rewrite('kans', 'n -> ∅ / _ s'))"
-# kas
+
+**Compensatory lengthening.** A coda consonant's mora survives its segment and lengthens the nucleus. `kans` → `kaːs` is the target; a deletion rule on its own gives `kas`, and the weight goes with the segment. Ordered ahead of it, a lengthening rule reaches the target the same way the tone pair does:
+
+```python
+ipa.rewrite("kans", "n -> ∅ / _ s")
+# 'kas'
+ipa.rewrite("kans", "a -> aː / _ n s\nn -> ∅ / _ s")
+# 'kaːs'
 ```
+
+**So the gap is the generalization, and that is the sharper claim.** Each pair above states the compensation for *one* environment, and states it in advance: the rescuing rule has to name the segment that the next rule is about to delete, and it does not fire anywhere else. The autosegmental statement is the opposite shape — the tone survives whatever bore it and the mora survives whatever filled it, once, for every host, including hosts the writer of the rule set never enumerated. That statement has nowhere to live here, because the thing it quantifies over is an association and there is no association to quantify over: the tone is a field on a segment and the mora is not represented at all. What a tier buys is therefore not an output that was otherwise unreachable. It buys the generalization, and with it the right answer for a form nobody enumerated — which is the half that fails in silence, since an unforeseen environment loses its tone and its weight with no complaint and a well-formed spelling.
 
 **Syllable-internal positions cannot be named.** A context item is one unit, so `coda`, `nucleus` and `heavy` parse as sequences of segments and the rule is refused — loudly, which is the good half.
 
@@ -163,23 +173,34 @@ python3 -c "import ipakit as ipa; print(ipa.rewrite('kans', 'n -> ∅ / _ s'))"
 
 **`Form` stops being one sequence with readings, and that is the real cost.** Today `Form` has exactly one field, `units`, and `segments`, `phones`, `attributes`, `boundaries` and `tree()` are all projections of it — which is what makes [form.md](../form.md)'s discipline work, because a projection can say what it drops. A tier is the first thing on a `Form` that is not derivable from the unit sequence. `Form.rebuild` currently inverts two projections; it would need a third, and the round-trip invariant would have to be restated to say what it now covers.
 
-**Rebasing is one loop beside one function, and it is exercised on day one.** `_apply_edits` is six lines and splices rightmost-first so indices hold. An interval endpoint shifts by `len(edit.replacement) - (edit.end - edit.start)` when it sits at or after the edit, and an interval strictly containing the span keeps its start and moves its end. `Edit` already carries all three numbers, so no rule has to report anything new. It cannot be deferred: **21 of 86 shipped rules change the length of the unit sequence** — 12 in French liaison, 7 in Japanese, 2 in Spanish-accented English.
+**Rebasing is one loop beside one function, and it is exercised on day one.** `_apply_edits` is six lines and splices rightmost-first so indices hold. An interval endpoint shifts by `len(edit.replacement) - (edit.end - edit.start)` when it sits at or after the edit, and an interval strictly containing the span keeps its start and moves its end. `Edit` already carries all three numbers, so no rule has to report anything new. It cannot be deferred: **27 of 86 shipped rules change the length of the unit sequence** — 12 in French liaison, 11 in Japanese, 4 in Spanish-accented English.
 
-```
-python3 - <<'PY'
-from ipakit import _get_ipa
-from ipakit.rules import shipped, available
+```python
+from ipakit import _get_ipa, units
+from ipakit.rules import available, shipped
+
 F = _get_ipa()
-n = sum(
-    1
-    for name in available()
-    for r in shipped(name, F).rules
-    if (0 if r.query.target is None or getattr(r.query.target, "is_zero", False) else 1)
-    != (len(r.becomes) if isinstance(r.becomes, (tuple, list)) else (0 if r.becomes is None else 1))
-)
-print(n)
-PY
+
+def delta(rule):
+    """Units added or removed where the rule fires."""
+    was = 0 if rule.query.target is None else 1
+    if rule.becomes is None:
+        now = 0
+    elif isinstance(rule.becomes, str):
+        # A right-hand side is a SPELLING, so it has to be tokenized
+        # before it can be counted: 'ɚ -> eɹ' writes two units over one.
+        now = len(units(rule.becomes, F))
+    else:
+        now = 1  # a feature change rewrites one unit as one unit
+    return now - was
+
+sum(1 for name in available() for r in shipped(name, F).rules if delta(r))
+# 27
+{name: sum(1 for r in shipped(name, F).rules if delta(r)) for name in available()}
+# {'american-english': 0, 'french-liaison': 12, 'german-final-devoicing': 0, 'japanese-moraic': 11, 'spanish-accented-english': 4}
 ```
+
+**Read the block, not the sentence, and the block is pinned elsewhere.** `Rule.becomes` is a `str`, a feature change, or `None` — never a sequence — so six of the twenty-seven are invisible to any count that takes the right-hand side for a unit instead of tokenizing it: `ŋ -> ŋɡ`, the three Japanese untying rules `a͜ɪ -> ai`, `a͜ʊ -> au` and `ɔ͜ɪ -> oi`, and the two Spanish r-colored decompositions `ɚ -> eɹ` and `ɝ -> eɹ` each write two units over one. A sentence cannot catch that, so `tests/test_rule_sets.py` carries the count — the totals above, the six literals by name, and a cross-check that the delta reckoned from a rule's notation equals the delta measured on the `Edit` it actually produces, over every edit the shipped corpora provoke. Nothing sweeps the `python` blocks under `docs/design/` the way `scripts/docexamples.py` sweeps the ones in `docs/*.md`, which is why the test and not the fence is the guard.
 
 **What stays untouched.** The metric, entirely. `level` is `mode="structural"` and so appears in no phone bundle, and `metric.py`, `distance.py` and `distance_model.py` contain zero references to it. A tier declared the same way inherits that by construction, which is `morph-boundary.md`'s measurement — 0 of 8,616 bundles, 0 of 9,591 distances — arriving for the same structural reason. The tract model, the renderer, the supplements, the phone maps and X-SAMPA are all untouched: none of them reads a boundary level today.
 
