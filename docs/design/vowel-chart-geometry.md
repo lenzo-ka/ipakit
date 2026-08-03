@@ -143,6 +143,8 @@ Over the 35 bands the three tabulated sources supply:
 
 The honest reading of that table has two halves. The flat projection is genuinely better than `backness` more often than not — it is not a worthless construction, and saying so is part of the result. And **it beats the classification at no setting of either free parameter.** It reaches `place`'s 25 at three settings of sixty, and the way to find those three is to look at the scores and take the best, which is a fit to the bands being scored against. `vowel-constriction.md` refused a table on that ground and then refused a coordinate on it again; there is no third standard for the same move performed with a ruler.
 
+Even the first half does not survive a change of source. Run on Story 1996 alone — the ten bands `vowel-constriction.md` §3 uses — `backness` scores 5, `place` 6 and Wood 7, and the two readings run 3 to 5 and 2 to 5. On that source **no embedding of either reading beats `backness` at any setting.** So "better than `backness` more often than not" is itself a report of which sources are mounted.
+
 The spread is the honest summary. Per cell, across the whole family:
 
 | cell | lowest | highest | spread | measured |

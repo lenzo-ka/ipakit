@@ -1015,7 +1015,10 @@ def cmd_chart(table: Table, args: argparse.Namespace) -> int:
         if source.band(key, DEFAULT_GLOTTAL_CM, DEFAULT_LABIAL_CM, 2.0) is not None
         and key.split("/")[-1] in cells
     )
-    assert counted > 20, f"only {counted} bands: the comparison is vacuous"
+    # A floor, not a total: one source gives 10 bands and three give 35, and
+    # which are mounted is the caller's business. What this refuses is a run
+    # that scored nothing and printed counts anyway.
+    assert counted > 5, f"only {counted} bands: the comparison is vacuous"
     today = _chart_score(sources, declared())
     families = {sym: name for name, _, family in WOOD_LOCATIONS for sym in family}
     families.update(dict(JAPANESE))
@@ -1042,11 +1045,14 @@ def cmd_chart(table: Table, args: argparse.Namespace) -> int:
     print(f"  {'backness':>10} {today:>6} {today:>6}")
     print(f"  {'place':>10} {as_place:>6} {as_place:>6}   Wood's four families")
     print(f"  {'Wood':>10} {wood:>6} {wood:>6}   his own four proportions")
+    every = [count for counts in hits.values() for count in counts]
     print(
-        "\nA verdict that runs that far on choices the chart does not make is a\n"
-        "report of the embedding. The flat reading is above `backness` more often\n"
-        "than not; it is above the classification at no setting of either free\n"
-        "parameter, and the settings that reach it are picked by the score."
+        f"\nA verdict that runs from {min(every)} to {max(every)} on choices the "
+        "chart does not make is a\nreport of the embedding, not of the chart. The "
+        f"best of them beats Wood's {wood} at\n"
+        f"{sum(1 for c in every if c > wood)} of {len(every)} settings, and finding "
+        "the best is reading the scores and taking\none, which is the fit this "
+        "measurement exists to avoid."
     )
 
     print("\nAnd what one cell's arc does across the embeddings.\n")
