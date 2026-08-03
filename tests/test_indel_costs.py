@@ -419,6 +419,125 @@ class TestRefusals:
             ipa.directional_word_distance("kæt", "kæd", delete_cost=lambda p: bad)
 
 
+class TestSchedulesDerivedFromRuleSets:
+    """``CostSchedule.from_rules``: which phones is read off declared data,
+    what they cost is the caller's, and the scope of the claim is the rule
+    set rather than the language.
+
+    A hand-maintained per-language list of droppable phones is the pattern
+    ``test_declared_not_hardcoded.py`` exists to reject -- a second copy of
+    something already declared, going stale in silence. These check that
+    the derived membership really does come from the file, by a route that
+    does not go through the same machinery that produced it: the phones a
+    schedule prices must all appear literally in the rule text.
+    """
+
+    def _rules_text(self, name: str) -> str:
+        from ipakit.constants import DATA_DIR
+
+        return (DATA_DIR / "rules" / f"{name}.rules").read_text(encoding="utf-8")
+
+    def test_the_french_set_prices_what_it_deletes(self, ipa: IPAFeatures) -> None:
+        from ipakit import rules
+
+        schedule = CostSchedule.from_rules(
+            rules.shipped("french-liaison", ipa),
+            "delete",
+            ipa,
+            price=0.25,
+            default=1.0,
+        )
+        assert schedule.name == "french-liaison/delete"
+        assert len(schedule.prices) >= 5, dict(schedule.prices)
+        text = self._rules_text("french-liaison")
+        for phone in schedule.prices:
+            assert f"{phone} -> ∅" in text, phone
+        assert schedule("k") == 1.0
+
+    def test_the_japanese_set_prices_what_it_inserts(self, ipa: IPAFeatures) -> None:
+        from ipakit import rules
+
+        schedule = CostSchedule.from_rules(
+            rules.shipped("japanese-moraic", ipa),
+            "insert",
+            ipa,
+            price=0.25,
+            default=1.0,
+        )
+        assert schedule.name == "japanese-moraic/insert"
+        assert len(schedule.prices) >= 3, dict(schedule.prices)
+        text = self._rules_text("japanese-moraic")
+        for phone in schedule.prices:
+            assert f"∅ -> {phone}" in text, phone
+        assert schedule("k") == 1.0
+
+    def test_a_set_stating_no_such_edit_is_refused(self, ipa: IPAFeatures) -> None:
+        """A schedule that prices nothing is a flat price wearing a name.
+        Returning one would report a schedule in every result computed under
+        it while doing nothing, which nothing downstream could detect."""
+        from ipakit import rules
+
+        with pytest.raises(ValueError, match="states no deletes"):
+            CostSchedule.from_rules(
+                rules.shipped("japanese-moraic", ipa),
+                "delete",
+                ipa,
+                price=0.25,
+                default=1.0,
+            )
+        with pytest.raises(ValueError, match="must be 'delete' or 'insert'"):
+            CostSchedule.from_rules(
+                rules.shipped("french-liaison", ipa),
+                "sideways",
+                ipa,
+                price=0.25,
+                default=1.0,
+            )
+
+    def test_a_derived_schedule_moves_exactly_the_words_it_names(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """What a schedule moves, and why those are the right movers.
+
+        A deletion schedule prices the reference side, so a pair moves if
+        and only if the reference contains a phone the schedule names. The
+        second count is the one that matters, in the shape
+        ``docs/reviewing.md`` asks for: movers whose reference holds no
+        priced phone must be zero, or the schedule is reaching somewhere it
+        does not name.
+        """
+        from ipakit import rules
+
+        schedule = CostSchedule.from_rules(
+            rules.shipped("french-liaison", ipa),
+            "delete",
+            ipa,
+            price=0.25,
+            default=1.0,
+        )
+        priced = set(schedule.prices)
+        moved = 0
+        unexplained = 0
+        checked = 0
+        for a, b in _pairs(ipa):
+            flat = ipa.word_distance(a, b, strict=False)
+            under = ipa.directional_word_distance(
+                a, b, delete_cost=schedule, strict=False
+            )
+            if flat.edit_cost != pytest.approx(under.edit_cost) or flat.similarity != (
+                pytest.approx(under.similarity)
+            ):
+                moved += 1
+                if not (priced & set(_tokens(ipa, a))):
+                    unexplained += 1
+            checked += 1
+        assert checked > 150, f"sweep checked only {checked} pairs"
+        assert moved > 20, f"a schedule that moves {moved} pairs is not a schedule"
+        assert (
+            unexplained == 0
+        ), f"{unexplained} of {moved} movers hold no phone the schedule names"
+
+
 class TestTheBoundaryWithTheFeatureSpace:
     """docs/design/tiers.md section 7: the feature space, the comparison
     bundle and therefore ``distance`` are not language-relative. A cost

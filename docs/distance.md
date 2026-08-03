@@ -288,9 +288,32 @@ r.costs        # 'insert=1.0 delete=my-english/deletion'
 
 **A cost schedule is language-relative, and a score computed under one is not comparable to a score computed under another.** Which phones are droppable is a fact about a language, not about phonetics: a schwa deletes freely in English and in French and is contrastive elsewhere, and a released final stop is a different kind of loss in a language that permits final clusters than in one that does not. Two similarities computed under different schedules are two different measurements that happen to share a range. Do not average them, threshold them together, or read one against the other. This is the same warning as *thresholds are not portable across versions* in [§8](#8-implications-for-users), one turn further out: a tuned threshold is now portable across neither versions nor languages.
 
-**This does not make `distance` relative.** [design/tiers.md](design/tiers.md) §7 commits that "tiers, their names, their inventory per language, and any phasing declared over them are language-relative. The feature space, the comparison bundle, and therefore `distance` are not," and that commitment stands. A cost schedule parameterizes a comparison; it is not a term in the feature space. It declares no feature, enters no bundle, and moves no value `distance`, `segment_distance` or the shipped matrix returns — measured, and the measurement is in the test suite. What the caller supplies is how much a loss is worth to them. A word similarity is a function of the universal feature space **given** a stated parameterization, and the line between the two is the line between a term in the comparison and a price on it.
+**This does not make `distance` relative.** [design/tiers.md](design/tiers.md) §7 commits that "tiers, their names, their inventory per language, and any phasing declared over them are language-relative. The feature space, the comparison bundle, and therefore `distance` are not." That commitment stands. A cost schedule parameterizes a comparison; it is not a term in the feature space. It declares no feature, enters no bundle, and moves no value `distance`, `segment_distance` or the shipped matrix returns — measured, and the measurement is in the test suite. What the caller supplies is how much a loss is worth to them. A word similarity is a function of the universal feature space **given** a stated parameterization, and the line between the two is the line between a term in the comparison and a price on it.
 
 That reading only holds if the parameterization is nameable, which is why every result carries one. `WordDistanceResult.costs` is `insert=<name> delete=<name>`, a flat cost naming itself and a schedule naming what it is a schedule for. An unnamed lambda reports `<lambda>`, which is the honest answer and the reason to pass a schedule when the number is going anywhere a reader will see it.
+
+### Deriving a schedule instead of typing one
+
+Writing the mapping out by hand is the same pattern this repository rejects everywhere else: a second copy of something already declared, which goes stale in silence. `CostSchedule.from_rules` reads the membership off a rule set — the phones some rule rewrites to zero, or writes where there was nothing — and takes the two prices from the caller:
+
+```python
+import ipakit
+from ipakit import rules
+from ipakit.distance import CostSchedule
+
+ipa = ipakit.load_ipa_features()
+
+deletes = CostSchedule.from_rules(
+    rules.shipped("french-liaison", ipa), "delete", ipa, price=0.25, default=1.0
+)
+inserts = CostSchedule.from_rules(
+    rules.shipped("japanese-moraic", ipa), "insert", ipa, price=0.25, default=1.0
+)
+```
+
+Those two are the worked pair the shipped rule sets already supply, one deletion-driven and one insertion-driven: `french-liaison` deletes the latent final consonants and the schwa, `japanese-moraic` inserts the epenthetic vowels. A rule set stating none of the requested side is refused rather than answered with a schedule that prices nothing.
+
+**A schedule built this way is a claim about the rule set, not about the language, and it should be read and named as one.** `french-liaison` deletes what that file was written to state; a French speaker drops other things it says nothing about. The narrow claim is the true one, and it is the only kind available — which is also why the *prices* are still the caller's. They are stated nowhere in the data and cannot be derived from it, and inventing them here would be the fitted table again.
 
 **There is no shipped schedule and there will not be a universal one**, for the reason [§9](#9-ranking-deciding-and-gamma) gives about gamma and [design/vowel-constriction.md](design/vowel-constriction.md) gives at length: a table fitted to whatever corpus produced it validates cleanly against that source and is wrong. A per-language table is the same refusal with one more way to be wrong, since it would be fitted to one corpus *and* to one variety of one language.
 

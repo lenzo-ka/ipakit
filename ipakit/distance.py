@@ -7,9 +7,14 @@ import unicodedata
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 from ._base import IPAFeaturesBase
 from .constants import METADATA_ATTRS
+
+if TYPE_CHECKING:
+    from .features import IPAFeatures
+    from .rules import RuleSet
 
 # One alignment step pairs a token from each word; None marks an insertion/deletion.
 Alignment = list[tuple[str | None, str | None]]
@@ -148,6 +153,83 @@ class CostSchedule:
         return (
             f"CostSchedule({self.name!r}, {len(self.prices)} priced, "
             f"default={self.default})"
+        )
+
+    @classmethod
+    def from_rules(
+        cls,
+        ruleset: RuleSet,
+        side: str,
+        features: IPAFeatures,
+        *,
+        price: float,
+        default: float,
+        name: str | None = None,
+    ) -> CostSchedule:
+        """Read which phones a rule set deletes, or inserts, and price those.
+
+        **Which phones** is derived; **what they cost** is the caller's, and
+        both arguments are required. That split is the whole design. A
+        hand-maintained per-language list of droppable phones is the pattern
+        this repository refuses -- it is a second copy of something already
+        declared, and it goes stale in silence -- while a schedule read off
+        a rule set regenerates, is checkable against the file, and moves
+        when the file moves. Prices, on the other hand, are not stated
+        anywhere in the data and cannot be derived from it; inventing them
+        here would be a fitted table.
+
+        **Scope, stated plainly: a schedule built this way is a claim about
+        the rule set, not about the language.** ``french-liaison`` deletes
+        four latent final consonants and a schwa because those are the
+        phenomena that file was written to state, and a French speaker
+        drops other things it says nothing about. That is a true and narrow
+        claim, which is the only kind available; read it as "the phones
+        this cascade removes are cheaper to lose than the ones it does
+        not", and name the schedule after the rule set so the result says
+        so too.
+
+        ``side`` is ``"delete"`` -- the phones some rule rewrites to zero,
+        resolved by matching each deleting rule's target against the
+        inventory, so a rule written over a natural class contributes every
+        phone in it -- or ``"insert"``, the phones some rule writes where
+        there was nothing.
+
+        A rule set that states none of the requested side is refused rather
+        than answered with a schedule that prices nothing. Such a schedule
+        is a flat price wearing a name, it would report a name in every
+        result computed under it, and nothing downstream could tell it from
+        a schedule that was doing something.
+        """
+        from .form import units
+
+        if side not in ("delete", "insert"):
+            raise ValueError(f"side must be 'delete' or 'insert', got {side!r}")
+        inventory = [(p, units(p, features)) for p in features.phones]
+        named: set[str] = set()
+        for rule in ruleset.rules:
+            if side == "delete" and rule.deletes and rule.target is not None:
+                named.update(
+                    p
+                    for p, u in inventory
+                    if len(u) == 1 and rule.target.matches(u[0], features)
+                )
+            elif side == "insert" and rule.inserts and isinstance(rule.becomes, str):
+                named.update(
+                    t
+                    for t in features.tokenize(rule.becomes)
+                    if not features.is_structural_token(t)
+                )
+        if not named:
+            raise ValueError(
+                f"rule set {ruleset.name!r} states no {side}s, so a schedule "
+                f"read off it would price every phone at {default!r} while "
+                "reporting a name. Read the other side, or write the "
+                "schedule directly."
+            )
+        return cls(
+            name or f"{ruleset.name}/{side}",
+            dict.fromkeys(sorted(named), price),
+            default,
         )
 
 
