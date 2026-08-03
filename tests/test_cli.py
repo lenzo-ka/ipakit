@@ -1348,11 +1348,11 @@ class TestTheDeliberateApiCliDifferences:
         """'distance word' is the inventory-relative measure and 'pair' is
         the raw one, which left the API's word_distance with no CLI
         spelling at all -- so the two surfaces looked like they disagreed
-        (0.9927 against 0.9833) where they were computing different
+        (0.9854 against 0.9833) where they were computing different
         things. --raw is the missing spelling.
         """
         rc, model_out, _ = run(monkeypatch, capsys, "distance", "word", "kæt", "kæd")
-        assert rc == 0 and "0.9927" in model_out
+        assert rc == 0 and "0.9854" in model_out
 
         rc, raw_out, _ = run(
             monkeypatch, capsys, "distance", "word", "kæt", "kæd", "--raw"

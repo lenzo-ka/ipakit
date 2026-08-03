@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `WordDistanceResult.coverage`, `min(n, m) / max(n, m)`, reported beside the similarity and never folded into it (#165).
 - `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`), and no vowel states one.
 - `docs/reading.md`: an annotated reading list, grouped by what a reader wants and marking what is free to read.
 - `approach`, the counterpart of `release`: a mark written before a base states the phase the closure is entered on, so `ⁿd` is a pre-nasalized `d` — one segment, one constituent — and `ʰ ʱ ⁿ ˀ` state their value at whichever end they are written at.
@@ -84,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `DistanceModel`'s `sub_mode`; a substitution is always priced against the indel pair (#161).
 - `IPAFeatures.word_distance`'s `sub_cost` parameter; `_align` is the parameterized entry point.
 - `ipakit.constants.TIE_BAR`, `SEQ_TIE` and `TIE_BARS`; the tie characters are read from `ipa.xml`.
 - The `to_ipa` alias (use `from_cmu`) and `compose_single` (use `segment(s).scalar()`) (#20).
@@ -91,6 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A word-alignment substitution costs `(delete + insert) x` the pair's dissimilarity, so a maximal one costs the gap pair it stands for (#161).
+- Both word-distance paths normalize by the null alignment's cost, `n * delete + m * insert`, read from one function (#162).
 - `docs/distance.md` §9 documents `gamma`: monotone, so on the phone-level API it is only a change of threshold; its substantive effect is on word alignment, and there is deliberately no tuned default.
 - `docs/tract-anatomy.md` §6 states the derived-quantity correspondence as unbuilt work and computes the half of it `scripts/docexamples.py` checks.
 - `Segment.to_json` is version 2: a constituent carries its `approach` marks beside its `modifiers`.
@@ -148,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `gamma` at or below zero is refused at construction; it made every pair maximally confusable, or answered outside `[0, 1]` (#171).
 - A fusion's order was meaning to the flat projection and notation to the metric: `distance("u͡i", "i͡u")` was 0 while the two described different vowels. Both reads ask the phase structure now, and a single-phase fusion merges order-free — positions combine, a binary disagreement takes the declared default.
 - A query that was neither a list nor a set fell into the resolver's mapping arm and left an `AttributeError` out of `phones_matching` and `find`; the arm is chosen by shape now, a tuple or frozenset of terms is answered, and anything that is not a query is refused with a `ValueError` like the rule side.
 - `segment_distance` counted an unmatched unit both positionally and as a length penalty and then halved the sum, so every multi-unit substitution came back at half its declared cost; length is now positions costing `GAP_COST`, and the answer is one flat positional mean.

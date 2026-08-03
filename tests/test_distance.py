@@ -264,6 +264,197 @@ class TestOneCurrency:
         assert checked > 500, f"sweep checked only {checked} units"
 
 
+class TestTheWordScaleIsOneCurrency:
+    """The same currency at the level above: a substitution is priced against
+    the gap pair it stands in for, and length is charged once.
+
+    The defect these replace was that the aligner's two operations were never
+    related. A substitution cost the pair's dissimilarity, bounded by 1, and a
+    gap cost 1, so every substitution was at worst as cheap as one gap and
+    always cheaper than the two an omission-plus-addition really is. The DP
+    then bought a chain of substitutions wherever it could, and an alignment
+    that should have read "this was dropped and that was added" reported
+    unlike tokens paired up instead.
+
+    Written as predicates over every phone rather than as named pairs, since
+    what is under test is a relation between two scales and a list of today's
+    numbers would document the scales instead of relating them.
+    """
+
+    def _indel(self) -> float:
+        from ipakit.metric import GAP_COST
+
+        return GAP_COST
+
+    def test_a_substitution_is_priced_as_the_delete_and_the_insert_it_stands_for(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """One token a side: the alignment has one choice, and its cost is the
+        pair's dissimilarity times ``delete + insert``.
+
+        The ceiling matters more than the factor. A pair sharing nothing costs
+        exactly a delete plus an insert, so the standard constraint
+        ``sub(a, b) <= delete(a) + insert(b)`` is met with equality at the top
+        rather than with room to spare.
+        """
+        indel = self._indel()
+        phones = self_spelling_phones()
+        checked = 0
+        for left, right in zip(phones, phones[1:], strict=False):
+            d = ipa.segment_distance(left, right)
+            cost = ipa.word_distance(left, right).edit_cost
+            assert cost == pytest.approx(2 * indel * d), (left, right)
+            assert cost <= 2 * indel + 1e-12, (left, right)
+            checked += 1
+        assert_swept(checked + 1, phones)
+
+    def test_a_pair_sharing_nothing_costs_exactly_a_delete_and_an_insert(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Silence is the reachable top of the scale: ``d(␣, X) = 1`` for every
+        speech sound, so the position costs both operations and no more."""
+        indel = self._indel()
+        phones = [p for p in self_spelling_phones() if p != "␣"]
+        checked = 0
+        for phone in phones:
+            assert ipa.segment_distance(phone, "␣") == 1.0, phone
+            assert ipa.word_distance(phone, "␣").edit_cost == pytest.approx(2 * indel)
+            checked += 1
+        assert_swept(checked, phones + ["␣"])
+
+    def test_the_aligner_can_prefer_a_gap_pair_to_a_pair_of_substitutions(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """``X␣`` against ``␣X`` is one token moved past a silence, and the
+        alignment that says so -- match the token, delete one silence, insert
+        the other -- is what the DP must choose.
+
+        Under the old scale the two readings tied at 2.0 and the substitution
+        chain won the tie, so this reported ``(X, ␣), (␣, X)``: two pairs of
+        tokens with nothing in common, and no insertion or deletion anywhere.
+        """
+        phones = [p for p in self_spelling_phones() if p != "␣"]
+        checked = 0
+        for phone in phones:
+            alignment = ipa.word_distance(
+                phone + "␣", "␣" + phone, return_alignment=True
+            ).alignment
+            assert alignment is not None
+            assert (phone, phone) in alignment, (phone, alignment)
+            assert alignment.count((None, "␣")) == 1, (phone, alignment)
+            assert alignment.count(("␣", None)) == 1, (phone, alignment)
+            checked += 1
+        assert_swept(checked, phones + ["␣"])
+
+    def test_similarity_is_the_cost_against_the_null_alignment(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The denominator is what deleting one word and inserting the other
+        costs. That path is one the DP minimizes over, so it bounds every
+        alignment, and the similarity lands in [0, 1] by construction rather
+        than by being clamped.
+
+        Both ends are reachable, which is the point of the denominator: a word
+        against itself scores 1, and a word against the same number of
+        silences scores 0.
+        """
+        indel = self._indel()
+        phones = [p for p in self_spelling_phones() if p != "␣"]
+        checked = 0
+        for phone in phones:
+            for word, other in ((phone * 3, phone * 3), (phone * 3, "␣␣␣")):
+                n, m = len(ipa.segments(word)), len(ipa.segments(other))
+                denom = (n + m) * indel
+                r = ipa.word_distance(word, other)
+                assert r.edit_cost <= denom + 1e-12, (word, other)
+                assert r.similarity == pytest.approx(1.0 - r.edit_cost / denom)
+                assert 0.0 <= r.similarity <= 1.0, (word, other)
+            assert ipa.word_similarity(phone * 3, phone * 3) == 1.0, phone
+            assert ipa.word_similarity(phone * 3, "␣␣␣") == pytest.approx(0.0), phone
+            checked += 1
+        assert_swept(checked, phones + ["␣"])
+
+    def test_a_gap_costs_what_it_costs_one_level_down(self, ipa: IPAFeatures) -> None:
+        """A word against nothing is every token deleted, at ``GAP_COST`` each
+        -- the same price an unmatched position pays inside
+        ``segment_distance``. Substitution is what was rescaled; the gap is the
+        fixed point the two levels share.
+
+        The cross-level claim is asserted as the two levels against *each
+        other*, not each against the constant. Both reading ``GAP_COST`` would
+        make this pass under any uniform rescaling of it -- which is right,
+        since scaling every price by one factor is not a change of model -- but
+        it would also pass if the word level stopped reading that constant at
+        all, which is the change it exists to catch.
+        """
+        indel = self._indel()
+        phones = self_spelling_phones()
+        checked = 0
+        for phone in phones:
+            for count in (1, 2, 3):
+                word = phone * count
+                if len(ipa.segments(word)) != count:
+                    continue
+                r = ipa.word_distance(word, "")
+                assert r.edit_cost == pytest.approx(count * indel), word
+                assert r.similarity == pytest.approx(0.0), word
+                assert r.coverage == 0.0, word
+            one = ipa.word_distance(phone, "")
+            assert one.edit_cost == pytest.approx(
+                ipa.segment_distance(phone, "")
+            ), phone
+            checked += 1
+        assert_swept(checked, phones)
+
+    def test_coverage_is_reported_and_never_multiplied_in(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """``coverage`` is ``min(n, m) / max(n, m)`` and the score does not read
+        it. Length is already charged once, as the gaps the alignment pays for;
+        multiplying a length ratio into the similarity would charge it twice --
+        the defect ``segment_distance`` had, with its separate length penalty --
+        and would destroy the one thing the ratio says.
+
+        The predicate is that the similarity is exactly the cost against the
+        null alignment *without* a coverage factor, asserted where coverage is
+        not 1 so that the two formulas differ.
+        """
+        indel = self._indel()
+        phones = self_spelling_phones()
+        checked = 0
+        asymmetric = 0
+        for phone in phones:
+            for other in ("a", "kat"):
+                word = phone * 2
+                if len(ipa.segments(word)) != 2:
+                    continue
+                n, m = len(ipa.segments(word)), len(ipa.segments(other))
+                r = ipa.word_distance(word, other)
+                assert r.coverage == pytest.approx(min(n, m) / max(n, m))
+                assert r.similarity == pytest.approx(
+                    1.0 - r.edit_cost / ((n + m) * indel)
+                )
+                if r.coverage != 1.0 and r.similarity > 0.0:
+                    asymmetric += 1
+                    assert r.similarity != pytest.approx(r.similarity * r.coverage)
+                checked += 1
+        assert checked > 200, f"sweep checked only {checked} pairs"
+        assert asymmetric > 100, f"only {asymmetric} pairs differed in length"
+
+    def test_coverage_separates_a_truncation_from_a_difference(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The diagnosis the score cannot make. Two pairs at a similar score,
+        one of them a prefix of the other and one of them different
+        throughout, and coverage is what tells them apart.
+        """
+        truncated = ipa.word_distance("kætəloɡ", "kæt")
+        differing = ipa.word_distance("kætəloɡ", "␣␣␣␣␣␣␣")
+        assert truncated.coverage < 0.5 < differing.coverage
+        assert differing.coverage == 1.0
+        assert truncated.similarity > differing.similarity
+
+
 class TestIdentityHolds:
     """``d(x, x) == 0`` for every x the library can build, including the ones
     it cannot read and the empty one.

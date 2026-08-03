@@ -44,6 +44,16 @@ def build_model(
     return DistanceModel.global_(ipa, gamma=args.gamma, **extra)  # type: ignore[arg-type]
 
 
+def _coverage_note(coverage: float) -> str:
+    """The coverage clause for a text line, empty where the words match in length.
+
+    Printed beside the similarity and never inside it: a length ratio
+    folded into the score would charge length a second time, on top of
+    the gaps the alignment already pays for.
+    """
+    return "" if coverage == 1.0 else f"  coverage={coverage:.4f}"
+
+
 class PairCommand(Command):
     """Calculate phonetic distance between two phones.
 
@@ -266,7 +276,7 @@ class WordCommand(Command):
     what ipakit.word_distance() and ipakit.word_similarity() return.
 
     The two disagree, and are meant to: for kæt ~ kæd the model says
-    0.9927 and the raw measure says 0.9833. Without --raw there was no
+    0.9854 and the raw measure says 0.9833. Without --raw there was no
     command line spelling of the second number at all, so a reader
     comparing the API against the CLI saw a discrepancy where there was
     a choice of measure.
@@ -274,6 +284,12 @@ class WordCommand(Command):
     Similarity runs 0.0 to 1.0. Scope the inventory with --phoneset; pass
     --threshold to also report a similar decision (with the model's
     length-ratio short-circuits applied).
+
+    Coverage -- the shorter word's token count over the longer's -- is
+    reported beside the similarity when the two differ in length, and is
+    never folded into it. It is what separates "these differ throughout"
+    from "one is a truncation of the other", two readings the score alone
+    cannot tell apart.
 
     Examples:
         ipakit distance word kæt kæd           # one segment differs
@@ -303,12 +319,6 @@ class WordCommand(Command):
             help="If set, also report whether similarity meets this threshold",
         )
         parser.add_argument(
-            "--sub-mode",
-            choices=["simple", "di"],
-            default="simple",
-            help="Substitution-cost mode (default: simple)",
-        )
-        parser.add_argument(
             "--raw",
             action="store_true",
             help="Use the raw feature distance (ipakit.word_distance) instead "
@@ -334,6 +344,7 @@ class WordCommand(Command):
             "word2": w2,
             "edit_cost": round(result.edit_cost, 4),
             "similarity": round(result.similarity, 4),
+            "coverage": round(result.coverage, 4),
             "reference": "raw",
         }
         threshold = self.args.threshold
@@ -345,7 +356,8 @@ class WordCommand(Command):
             self.output_json(data)
         else:
             print(
-                f"{w1} ~ {w2}: similarity={result.similarity:.4f}  [raw feature distance]"
+                f"{w1} ~ {w2}: similarity={result.similarity:.4f}"
+                f"{_coverage_note(result.coverage)}  [raw feature distance]"
             )
             if threshold is not None:
                 print(f"similar={data['similar']} (threshold={threshold})")
@@ -355,12 +367,7 @@ class WordCommand(Command):
         if self.args.raw:
             return self._run_raw()
         threshold = self.args.threshold
-        model = build_model(
-            self.ipa,
-            self.args,
-            sub_mode=self.args.sub_mode,
-            threshold=threshold,
-        )
+        model = build_model(self.ipa, self.args, threshold=threshold)
         w1, w2 = self.args.word1, self.args.word2
         result = model.word_distance(w1, w2)
         name = model.reference_name
@@ -371,10 +378,10 @@ class WordCommand(Command):
             "word2": w2,
             "edit_cost": round(result.edit_cost, 4),
             "similarity": round(result.similarity, 4),
+            "coverage": round(result.coverage, 4),
             "reference": name,
             "reference_size": size,
             "gamma": model.gamma,
-            "sub_mode": model.sub_mode,
         }
         if threshold is not None:
             data["threshold"] = threshold
@@ -385,6 +392,7 @@ class WordCommand(Command):
         else:
             print(
                 f"{w1} ~ {w2}: similarity={result.similarity:.4f}"
+                f"{_coverage_note(result.coverage)}"
                 f"  [reference: {name}, {size} phones]"
             )
             if threshold is not None:

@@ -59,6 +59,76 @@ def _model(ipa, phones, **kw):
     )
 
 
+class TestGammaIsRefusedOutsideItsDomain:
+    """#171. The exponent redistributes spacing inside [0, 1] and preserves
+    order. At zero it is a constant -- every pair in the inventory comes back
+    maximally confusable -- and below zero it reflects the scale out of the
+    range the library promises. Both answered with a well-formed float that a
+    caller would go on to average or threshold.
+
+    Written as the answer the model *would have given*, not only as the raise,
+    so the test says what the refusal is for. Both wrong answers are recomputed
+    here from the untransformed model, so a check that stopped refusing would
+    fail on the value rather than passing quietly.
+    """
+
+    @pytest.mark.parametrize("bad", [0.0, -1.0, -0.5, float("nan")])
+    def test_a_gamma_outside_its_domain_is_refused_at_construction(self, ipa, bad):
+        with pytest.raises(ValueError, match="gamma"):
+            _model(ipa, _core_phones(ipa), gamma=bad)
+
+    def test_every_constructor_that_takes_a_gamma_is_covered(self, ipa, tmp_path):
+        """One check where gamma is stored, rather than four beside four
+        signatures. Asserted over the constructors themselves so a fifth one
+        cannot route around it."""
+        from ipakit.models import Phoneset
+
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.global_(ipa, gamma=0.0)
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.derive(ipa, phones=_core_phones(ipa), gamma=-2.0)
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.for_phoneset(
+                ipa, Phoneset.from_list(["p", "b", "t"], name="tiny"), gamma=0.0
+            )
+        path = DistanceModel.derive(ipa, phones=_core_phones(ipa)).save(
+            tmp_path / "m.json"
+        )
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.from_matrix_file(ipa, path, gamma=0.0)
+        assert ipakit.distance_model(gamma=2.0).gamma == 2.0
+
+    def test_what_the_refused_values_would_have_answered(self, ipa):
+        """The guard's reason, computed rather than asserted from memory: at
+        gamma 0 every derivable pair is maximally confusable, and at gamma -1
+        the answer leaves [0, 1]."""
+        m = _model(ipa, _core_phones(ipa))
+        p = m.confusability("p", "a")
+        assert 0.0 < p < 1.0
+        assert p**0.0 == 1.0
+        assert p**-1.0 > 1.0
+
+    def test_a_large_gamma_is_deliberately_not_refused(self, ipa):
+        """There is no upper bound, and this pins that as a decision. The
+        transform stays in range and stays order-preserving however large the
+        exponent is, so nothing about a large one is malformed; how far up is
+        useful is a fact about the caller's inventory. If a ceiling is ever
+        added, this fails and the reasoning above needs revisiting.
+        """
+        phones = _core_phones(ipa)
+        flat = _model(ipa, phones)
+        steep = _model(ipa, phones, gamma=50.0)
+        pairs = [(a, b) for a in phones for b in phones if a < b]
+        assert len(pairs) > 100
+        for a, b in pairs:
+            assert 0.0 <= steep.confusability(a, b) <= 1.0, (a, b)
+
+        def rank(m):
+            return sorted(pairs, key=lambda ab: m.confusability(*ab))
+
+        assert rank(flat) == rank(steep)
+
+
 class TestPercentile:
     def test_bounds_identity_unknown(self, ipa):
         m = _model(ipa, _core_phones(ipa))
@@ -170,12 +240,84 @@ class TestWord:
         assert full.word_similarity("kæt", "kæt") == 1.0
         assert full.word_similarity("kæt", "kæd") > 0.85
 
-    def test_di_separates_more_than_simple(self, ipa, full_inputs):
+    def test_a_substitution_never_costs_more_than_the_gap_pair_it_replaces(
+        self, ipa, full_inputs
+    ):
+        """The model's substitution costs are on the same scale as its indels:
+        a token pair sharing nothing costs this model's delete plus its insert,
+        and nothing costs more.
+
+        The ceiling is approached rather than reached here, unlike the plain
+        path, because the cost is an empirical percentile and the top
+        percentile is 1 minus the share of reference pairs at the maximum. What
+        must hold is the inequality, and that the sentinel pair sits at the top
+        of it.
+        """
         phones, M = full_inputs
-        simple = DistanceModel(ipa, "ipa", phones, M, "distance", sub_mode="simple")
-        di = DistanceModel(ipa, "ipa", phones, M, "distance", sub_mode="di")
-        assert di.word_similarity("kæt", "dɒɡ") < simple.word_similarity("kæt", "dɒɡ")
-        assert di.word_similarity("kæt", "kæd") > di.word_similarity("kæt", "dɒɡ")
+        m = DistanceModel(ipa, "ipa", phones, M, "distance")
+        ceiling = 2.0
+        worst = 0.0
+        checked = 0
+        for a, b in itertools.combinations(CORE + ["␣", "t͡ʃ"], 2):
+            cost = m.sub_cost(a, b)
+            assert 0.0 <= cost <= ceiling, (a, b, cost)
+            worst = max(worst, cost)
+            checked += 1
+        assert checked > 100, f"sweep checked only {checked} pairs"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            sentinel = m.sub_cost("p", "ZZZ")
+        assert sentinel == pytest.approx(max(worst, sentinel))
+        assert sentinel > 0.9 * ceiling, sentinel
+
+    def test_asymmetric_indels_keep_the_relation(self, ipa, full_inputs):
+        """The relation is to the pair, not to a constant: with a cheap delete
+        and a dear insert, a substitution still costs at most one of each."""
+        phones, M = full_inputs
+        m = DistanceModel(
+            ipa, "ipa", phones, M, "distance", insert_cost=1.5, delete_cost=0.25
+        )
+        checked = 0
+        for a, b in itertools.combinations(CORE, 2):
+            assert m.sub_cost(a, b) <= 1.75 + 1e-12, (a, b)
+            checked += 1
+        assert checked > 100, f"sweep checked only {checked} pairs"
+        r = m.word_distance("kæt", "kætəloɡ")
+        assert r.similarity == pytest.approx(1.0 - r.edit_cost / (3 * 0.25 + 7 * 1.5))
+
+    def test_both_word_paths_read_one_normalizer(self, ipa, full):
+        """#162: the two implementations answered the same question with
+        different denominators, and diverged exactly on length mismatch.
+
+        Where an alignment is pure indel -- one word a prefix of the other --
+        the two paths see the same costs, so any disagreement left in the
+        number is the normalizer. They now agree exactly, and both report the
+        same coverage.
+
+        What this cannot see is *what* they agree on: the two read one
+        function, so changing that function moves both and this stays green.
+        That is the point -- the fix is one read rather than two kept in step
+        -- and the tests in ``test_distance.py`` are what pin the normalizer
+        itself.
+        """
+        checked = 0
+        asymmetric = 0
+        for word, prefix in (
+            ("kætəloɡ", "kæt"),
+            ("kæt", "kæ"),
+            ("pataka", "pat"),
+            ("kæt", "kæt"),
+        ):
+            plain = ipa.word_distance(word, prefix)
+            model = full.word_distance(word, prefix)
+            assert plain.edit_cost == pytest.approx(model.edit_cost), word
+            assert plain.similarity == pytest.approx(model.similarity), word
+            assert plain.coverage == pytest.approx(model.coverage), word
+            checked += 1
+            if plain.coverage != 1.0:
+                asymmetric += 1
+                assert plain.similarity < 1.0, word
+        assert checked == 4 and asymmetric == 3
 
 
 class TestLengthGating:
@@ -247,7 +389,6 @@ class TestPublicApi:
         assert m.reference_name == "tiny"
         assert set(m.reference_phones) <= {"p", "b", "t"}
         assert m.gamma == 1.0
-        assert m.sub_mode == "simple"
 
 
 class TestDistanceCli:

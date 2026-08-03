@@ -172,13 +172,14 @@ def word_distance(
         return_alignment: If True, include the alignment path in result.
 
     Returns:
-        WordDistanceResult with distance, similarity, and optional alignment.
+        WordDistanceResult with the summed edit cost, the normalized
+        similarity, the length coverage, and an optional alignment.
 
     Examples:
         >>> ipakit.word_distance("kæt", "kæd")
-        WordDistanceResult(edit_cost=0.05..., similarity=0.98..., alignment=None)
-        >>> ipakit.word_distance("kæt", "dɒɡ")
-        WordDistanceResult(edit_cost=..., similarity=..., alignment=None)
+        WordDistanceResult(edit_cost=0.1, similarity=0.98..., coverage=1.0, alignment=None)
+        >>> ipakit.word_distance("kæt", "kæ").coverage
+        0.666...
     """
     return _get_ipa().word_distance(
         ipa1,
@@ -194,8 +195,9 @@ def word_similarity(
 ) -> float:
     """Compute phonetic similarity between two IPA words.
 
-    Returns a value from 0.0 (completely different) to 1.0 (identical).
-    Similarity = 1 - (edit_distance / max_length), with lower bound of 0.
+    Returns a value from 0.0 (completely different) to 1.0 (identical):
+    the alignment cost against the cost of the null alignment, which
+    deletes every token of one word and inserts every token of the other.
 
     Args:
         ipa1: First IPA string
@@ -235,7 +237,6 @@ def distance_model(
     reference: Phoneset | list[str] | None = None,
     *,
     gamma: float = 1.0,
-    sub_mode: str = "simple",
     insert_cost: float = 1.0,
     delete_cost: float = 1.0,
     threshold: float | None = None,
@@ -250,7 +251,6 @@ def distance_model(
         return DistanceModel.global_(
             ipa,
             gamma=gamma,
-            sub_mode=sub_mode,
             insert_cost=insert_cost,
             delete_cost=delete_cost,
             threshold=threshold,
@@ -261,7 +261,6 @@ def distance_model(
         ipa,
         ps,
         gamma=gamma,
-        sub_mode=sub_mode,
         insert_cost=insert_cost,
         delete_cost=delete_cost,
         threshold=threshold,
