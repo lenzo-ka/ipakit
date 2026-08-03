@@ -42,10 +42,17 @@ class TestKindTotality:
         ("t͡l", Kind.LATERAL_RELEASE),
         ("k͡ǂ", Kind.CLICK_ACCOMPANIMENT),
         ("k͡p", Kind.DOUBLE_ARTICULATION),
-        ("u͡i", Kind.DOUBLE_ARTICULATION),  # V-V fusion: shape, not consonant-hood
+        # A double articulation is two places to articulate at, which is
+        # the test the projection applies before it spells one: `t͡d` has
+        # a single alveolar place and a vowel pair declares none, so
+        # neither has anything double about it. All three are still
+        # single-block fusions -- one timing slot, unordered notation --
+        # which `phased` answers below, off the structure and not the name.
+        ("t͡d", Kind.OVERLAY),
+        ("u͡i", Kind.OVERLAY),  # V-V fusion: shape, not consonant-hood
         ("a͡t", Kind.OVERLAY),
         ("a͜ɪ", Kind.DIPHTHONG),
-        ("a͡ɪ", Kind.DOUBLE_ARTICULATION),  # over-tie vowel pair: a fusion claim
+        ("a͡ɪ", Kind.OVERLAY),  # over-tie vowel pair: a fusion claim
         ("u͜i", Kind.DIPHTHONG),
         ("a͜ɪ͜ə", Kind.DIPHTHONG),
         ("t͜a", Kind.CHAIN),

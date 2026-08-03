@@ -85,10 +85,10 @@ D = min over alignments of
 
 with `γ = 1.0`. An atomic segment is lifted to a one-part sequence, which defines every atomic-against-composite comparison.
 
-**Alignment mode follows the unit kinds:**
+**Alignment mode follows the unit's phase structure** (`Segment.phased`), not what the unit is called:
 
-- **Ordered** — sequence alignment with gaps: sequential units, and fused units whose phase order carries meaning (affricate, prenasalized, pre-stopped, lateral release, click accompaniment, overlay). A prenasalized stop and a pre-stopped nasal built from the same constituents are therefore distinct, as are `a͡t` and `t͡a`.
-- **Unordered** — the larger of the two directional best-match means: single-block fusions, where order is notation rather than meaning. `d(u͡i, i͡u)` and `d(k͡p, p͡k)` are exactly 0.
+- **Ordered** — sequence alignment with gaps: sequential units, and fusions of more than one phase block, where the order of the phases carries meaning (an affricate, a prenasalized stop, a pre-stopped nasal, a lateral release, a nasal click). A prenasalized stop and a pre-stopped nasal built from the same constituents are therefore distinct, as are `a͡t` and `t͡a`.
+- **Unordered** — the larger of the two directional best-match means: single-block fusions, one timing slot at one manner, where order is notation rather than meaning. `d(u͡i, i͡u)`, `d(k͡p, p͡k)` and `d(b͡ǀ, ǀ͡b)` are exactly 0.
 
 An n-ary fusion aligns its phase blocks in order and matches unordered within them, so `ŋ͡m͡ɡ͡b` equals `m͡ŋ͡b͡ɡ` and differs from `ɡ͡b͡ŋ͡m`.
 

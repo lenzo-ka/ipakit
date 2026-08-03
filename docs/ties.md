@@ -99,7 +99,7 @@ Tied entries in `ipa.xml` carry only their spelling, aliases, and reference link
 
 An unregistered tie-joined sequence of known phones still resolves (`registered wins, composition is the long-tail fallback`):
 
-- **Over-tie (simultaneous)**: features merge left to right; differing manners collapse to `affricate` (`q͡χ` → uvular affricate); same-manner pairs with a dedicated combined place get it (`ɡ͡b`-style → `labial-velar`).
+- **Over-tie (simultaneous)**: features merge left to right, and the merge stands except where the unit's own classification names a value for the whole of it. There are exactly two such names: a plosive released as a fricative is the manner `affricate` (`q͡χ` → uvular affricate), and a one-manner fusion articulated in two places is the combining place they spell (`ɡ͡b`-style → `labial-velar`, any pair and not only the pre-named ones). Every other reading names a *phase* rather than a value, so the merge reports what the constituents state and `kind` is where the phase is read: `n͡d` projects a plosive and `d͡n` a nasal, classified prenasalized and pre-stopped, and neither is an affricate.
 - **Under-tie (sequential)**: the flat feature projection is the **first element** (`u͜i` → the features of `u`) — the same encoding the registered diphthongs use. The remaining constituents stay recoverable from the token itself.
 - **Mixed chains**: the first top-level part's features (`t͡s͜a` → the affricate's features).
 
@@ -127,7 +127,7 @@ Composition is intent-driven: a voicing-disagreeing tie like `t͡ɮ` is a legiti
 `distance` (and everything built on it: `segment_distance`, the confusion matrix, `DistanceModel`) computes over the structure, not a flattened bag (`ipakit/metric.py`):
 
 - **Constituents compare as whole bundles** — `ɡ͡p` and `k͡b` have identical per-feature value sets but stay apart, because which constituent is voiced matters.
-- **Alignment mode follows the kind**: double articulation is unordered notation (`k͡p` ≈ `p͡k`, `u͡i` ≈ `i͡u`); phased units and sequences are ordered (`n͡d` ≠ `d͡n`, trajectories keep direction). N-ary fusions align their phase blocks in order, unordered within (`ŋ͡m͡ɡ͡b` ≈ `m͡ŋ͡b͡ɡ` ≠ `ɡ͡b͡ŋ͡m`).
+- **Alignment mode follows the phase structure**: a fusion in one timing slot at one manner has no phase to put first, so its notation is unordered (`k͡p` ≈ `p͡k`, `u͡i` ≈ `i͡u`, `b͡ǀ` ≈ `ǀ͡b`); phased units and sequences are ordered (`n͡d` ≠ `d͡n`, trajectories keep direction). Asked of `Segment.phased`, off the structure, so what a fusion is *called* cannot change how it aligns. N-ary fusions align their phase blocks in order, unordered within (`ŋ͡m͡ɡ͡b` ≈ `m͡ŋ͡b͡ɡ` ≠ `ɡ͡b͡ŋ͡m`).
 - **Sharing an articulation is half the distance of not sharing it**: `D(ɡ, ɡ͡b) = d(ɡ,b)/2`, symmetric between the sharers.
 - **The binding sense is one term**: `D(u͡i, u͜i) = 1/3` — same constituents, different timing claim.
 - **Secondary articulations are weighted place components** (σ = 0.5): `tʲ` sits strictly between `t` and `c`.
