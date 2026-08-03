@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Per-phone indel costs: `insert_cost` / `delete_cost` take a `CostSchedule` or any callable, `directional_word_distance` names its reference side, and `WordDistanceResult.costs` reports the schedule a score was computed under (#166).
 - `scripts/areafunctions.py female`: a fifth measured source, Story, Titze & Hoffman (1998) — a second American English speaker, an adult female, and the only measured table that images `ʌ` and `ɝ` beside the sessions already held (#175).
 - `WordDistanceResult.coverage`, `min(n, m) / max(n, m)`, reported beside the similarity and never folded into it (#165).
 - `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`).
@@ -157,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DistanceModel.is_similar` charged structural marks a length and a price the alignment never pays, so `lez‿ami` against `lezami` short-circuited to `False` above 12/13 for two forms it scores identical (#166).
 - A bare query term two features claim resolves by declaration order no longer: a value declares `bare` to own its plain spelling, and a contested term nothing claims is refused naming the claimants (#178).
 - `docs/design/tiers.md` §4 counted a rule's right-hand side without tokenizing it, so every multi-unit literal read as one unit and 27 length-changing rules were reported as 21; `tests/test_rule_sets.py` carries the count now (#145).
 - `docs/design/tiers.md` §4 said tone stability and compensatory lengthening cannot be stated at all; an ordered pair of segmental rules reaches `pta˦` and `kaːs`, and it is the generalization that has no statement (#145).

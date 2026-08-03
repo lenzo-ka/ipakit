@@ -272,7 +272,56 @@ To choose one, hold out pairs your own task has already labeled — words a lexi
 
 **Gamma has no meaning on the plain `word_distance` path.** `ipakit.word_distance` and `IPAFeatures.word_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
 
-## 10. Changing the parameters
+## 10. Per-phone indel costs, and what they are relative to
+
+`insert_cost` and `delete_cost` are `float | Callable[[str], float]`. Passed a float, every phone costs the same to lose or to supply; passed a callable, each phone is priced on its own. `CostSchedule` is the callable to reach for — a name, a mapping, and a default — and the name is what a result reports.
+
+```python
+import ipakit
+
+drop = ipakit.CostSchedule("my-english/deletion", {"ə": 0.25}, default=1.0)
+r = ipakit.directional_word_distance("kætə", "kæt", delete_cost=drop)
+r.costs        # 'insert=1.0 delete=my-english/deletion'
+```
+
+**Why per phone at all.** A flat indel cost is a claim, not a neutral starting point: that a schwa and a released stop are the same kind of loss. What varies by phone should be read from something that states it per phone. That is the justification the feature metric already rests on, applied to the other half of the alignment — the half that was still a constant in the code.
+
+**A cost schedule is language-relative, and a score computed under one is not comparable to a score computed under another.** Which phones are droppable is a fact about a language, not about phonetics: a schwa deletes freely in English and in French and is contrastive elsewhere, and a released final stop is a different kind of loss in a language that permits final clusters than in one that does not. Two similarities computed under different schedules are two different measurements that happen to share a range. Do not average them, threshold them together, or read one against the other. This is the same warning as *thresholds are not portable across versions* in [§8](#8-implications-for-users), one turn further out: a tuned threshold is now portable across neither versions nor languages.
+
+**This does not make `distance` relative.** [design/tiers.md](design/tiers.md) §7 commits that "tiers, their names, their inventory per language, and any phasing declared over them are language-relative. The feature space, the comparison bundle, and therefore `distance` are not." That commitment stands. A cost schedule parameterizes a comparison; it is not a term in the feature space. It declares no feature, enters no bundle, and moves no value `distance`, `segment_distance` or the shipped matrix returns — measured, and the measurement is in the test suite. What the caller supplies is how much a loss is worth to them. A word similarity is a function of the universal feature space **given** a stated parameterization, and the line between the two is the line between a term in the comparison and a price on it.
+
+That reading only holds if the parameterization is nameable, which is why every result carries one. `WordDistanceResult.costs` is `insert=<name> delete=<name>`, a flat cost naming itself and a schedule naming what it is a schedule for. An unnamed lambda reports `<lambda>`, which is the honest answer and the reason to pass a schedule when the number is going anywhere a reader will see it.
+
+**Directional distance.** `word_distance` is symmetric and stays symmetric — its symmetry is property-tested and callers rely on it. `directional_word_distance(reference, hypothesis)` is the entry point that names its reference side: `delete_cost` prices the phones of the reference, which is the material an omission removes, and `insert_cost` prices the phones of the hypothesis, which is the material that was added. "Did the speaker omit something the target has" and "did the speaker add something the target lacks" are different questions and a symmetric score cannot express either. With equal flat costs the two functions agree exactly; the asymmetry comes from the schedule, not from the entry point.
+
+**The denominator sums over the phones.** `similarity` is `1 - edit_cost / denom`, where `denom` is the null alignment's cost: delete every phone of the first word, insert every phone of the second. That is a sum over the actual phones, not a token count times a price. The two agree whenever the price is flat and disagree as soon as it is not, and only the sum keeps `similarity` bounded below by 0 once prices vary.
+
+### Deriving a schedule instead of typing one
+
+Writing the mapping out by hand is the same pattern this repository rejects everywhere else: a second copy of something already declared, which goes stale in silence. `CostSchedule.from_rules` reads the membership off a rule set — the phones some rule rewrites to zero, or writes where there was nothing — and takes the two prices from the caller:
+
+```python
+import ipakit
+from ipakit import rules
+from ipakit.distance import CostSchedule
+
+ipa = ipakit.load_ipa_features()
+
+deletes = CostSchedule.from_rules(
+    rules.shipped("french-liaison", ipa), "delete", ipa, price=0.25, default=1.0
+)
+inserts = CostSchedule.from_rules(
+    rules.shipped("japanese-moraic", ipa), "insert", ipa, price=0.25, default=1.0
+)
+```
+
+Those two are the worked pair the shipped rule sets already supply, one deletion-driven and one insertion-driven: `french-liaison` deletes the latent final consonants and the schwa, `japanese-moraic` inserts the epenthetic vowels. A rule set stating none of the requested side is refused rather than answered with a schedule that prices nothing.
+
+**A schedule built this way is a claim about the rule set, not about the language, and it should be read and named as one.** `french-liaison` deletes what that file was written to state; a French speaker drops other things it says nothing about. The narrow claim is the true one, and it is the only kind available — which is also why the *prices* are still the caller's. They are stated nowhere in the data and cannot be derived from it, and inventing them here would be the fitted table again.
+
+**There is no shipped schedule and there will not be a universal one**, for the reason [§9](#9-ranking-deciding-and-gamma) gives about gamma and [design/vowel-constriction.md](design/vowel-constriction.md) gives at length: a table fitted to whatever corpus produced it validates cleanly against that source and is wrong. A per-language table is the same refusal with one more way to be wrong, since it would be fitted to one corpus *and* to one variety of one language.
+
+## 11. Changing the parameters
 
 `GAP_COST` and `SECONDARY_WEIGHT` are named constants in `ipakit/metric.py`. Anchors, axes, and articulator defaults are data in `data/ipa.xml`. Any change to either requires regenerating the matrix:
 

@@ -1178,6 +1178,9 @@ LIBRARY_ONLY = {
     "phonemap_to_ipa": "generic; the CLI spells one subcommand per map",
     # A second spelling of a number the CLI already prints another way.
     "word_similarity": "'distance word --raw' prints this value via word_distance",
+    # Exists to take a per-phone cost schedule, which is a mapping a
+    # command line cannot hold; with flat costs it is 'distance word'.
+    "directional_word_distance": "takes a CostSchedule; flat, it is 'distance word'",
     "is_valid_ipa": "'analysis validate' prints the issues, not the boolean",
     "is_pure_ipa": "the yes/no over extensions_in; neither is on the CLI",
     "extensions_in": "no CLI surface for the IPA-chart/extension split",

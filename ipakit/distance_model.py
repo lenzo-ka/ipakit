@@ -25,10 +25,13 @@ from typing import TYPE_CHECKING, Self
 
 from .constants import DEFAULT_CONFUSION
 from .distance import (
+    PhoneCost,
     WordDistanceResult,
     _empty_pair_result,
+    _prices,
     _substitution_cost,
     _word_result,
+    price,
 )
 from .metric import metric_fingerprint
 from .models import Phoneset
@@ -173,8 +176,8 @@ class DistanceModel:
         *,
         ref_phones: list[str] | None = None,
         gamma: float = 1.0,
-        insert_cost: float = 1.0,
-        delete_cost: float = 1.0,
+        insert_cost: PhoneCost = 1.0,
+        delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> None:
@@ -192,8 +195,12 @@ class DistanceModel:
             ref_phones: Sub-inventory the CDF is built over (default: ``phones``).
             gamma: Exponent applied to the percentile; ``1.0`` is the identity.
                 Must be greater than zero, and has no upper bound.
-            insert_cost: Per-token insertion cost in word alignment.
-            delete_cost: Per-token deletion cost in word alignment.
+            insert_cost: What supplying a token costs in word alignment: a
+                flat price, or a :class:`~ipakit.distance.CostSchedule` (or
+                any callable) read per phone. A schedule is
+                language-relative; see ``docs/distance.md`` section 10.
+            delete_cost: What losing a token costs in word alignment, on the
+                same terms.
             threshold: Default similarity threshold for :meth:`is_similar`.
             max_length_ratio: Default length-ratio gate for :meth:`is_similar`.
         """
@@ -237,8 +244,8 @@ class DistanceModel:
         ipa: IPAFeatures,
         *,
         gamma: float = 1.0,
-        insert_cost: float = 1.0,
-        delete_cost: float = 1.0,
+        insert_cost: PhoneCost = 1.0,
+        delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -268,8 +275,8 @@ class DistanceModel:
         *,
         phones: list[str] | None = None,
         gamma: float = 1.0,
-        insert_cost: float = 1.0,
-        delete_cost: float = 1.0,
+        insert_cost: PhoneCost = 1.0,
+        delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -353,8 +360,8 @@ class DistanceModel:
         phoneset: Phoneset,
         *,
         gamma: float = 1.0,
-        insert_cost: float = 1.0,
-        delete_cost: float = 1.0,
+        insert_cost: PhoneCost = 1.0,
+        delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -406,8 +413,8 @@ class DistanceModel:
         *,
         space: str | None = None,
         gamma: float = 1.0,
-        insert_cost: float = 1.0,
-        delete_cost: float = 1.0,
+        insert_cost: PhoneCost = 1.0,
+        delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -554,7 +561,9 @@ class DistanceModel:
         else:
             sim = 1.0 - self._ipa.segment_distance(t1, t2)
         return _substitution_cost(
-            1.0 - self._norm_conf(sim), self._insert, self._delete
+            1.0 - self._norm_conf(sim),
+            price(self._insert, t2),
+            price(self._delete, t1),
         )
 
     def word_distance(
@@ -580,23 +589,53 @@ class DistanceModel:
         ]
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
-            return _empty_pair_result(return_alignment)
+            return _empty_pair_result(return_alignment, self._insert, self._delete)
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
         )
-        return _word_result(n, m, dist, alignment, self._insert, self._delete)
+        return _word_result(t1, t2, dist, alignment, self._insert, self._delete)
+
+    def directional_word_distance(
+        self, reference: str, hypothesis: str, *, return_alignment: bool = False
+    ) -> WordDistanceResult:
+        """:meth:`word_distance` with the reference side named.
+
+        Identical in every value it computes; what it adds is that the
+        argument names say which sequence the deletion costs are charged
+        against. Under this model's costs the first argument is the one
+        ``delete_cost`` prices, so it is the reference -- the material an
+        omission removes -- and the second is the hypothesis. With a
+        per-phone schedule on either side the score is not symmetric, and
+        this spelling is the one that says which way round it runs.
+        """
+        return self.word_distance(
+            reference, hypothesis, return_alignment=return_alignment
+        )
 
     def word_similarity(self, ipa1: str, ipa2: str) -> float:
         """The ``similarity`` field of :meth:`word_distance` (in [0, 1])."""
         return self.word_distance(ipa1, ipa2).similarity
 
-    def _max_word_similarity(self, n: int, m: int) -> float:
-        """True content-independent upper bound: only |n-m| forced indels."""
-        denom = n * self._delete + m * self._insert
+    def _max_word_similarity(self, t1: list[str], t2: list[str]) -> float:
+        """True content-independent upper bound: only |n-m| forced indels.
+
+        A bound over the **tokens**, because the prices are read per phone.
+        An alignment of an ``n``-token sequence with an ``m``-token one
+        leaves at least ``|n - m|`` positions unmatched, all on the longer
+        side, so the cheapest they can come to is the sum of the ``|n - m|``
+        smallest prices on that side. With a flat price that is exactly
+        ``|n - m|`` times it; with a schedule it is the cheapest phones the
+        longer word actually contains, which is the honest floor and is
+        still a floor.
+        """
+        dels = _prices(self._delete, t1, "delete_cost")
+        ins = _prices(self._insert, t2, "insert_cost")
+        denom = sum(dels) + sum(ins)
         if not denom:
             return 1.0
-        dmin = abs(n - m) * min(self._insert, self._delete)
-        return 1.0 - dmin / denom
+        n, m = len(t1), len(t2)
+        forced = sorted(dels)[: n - m] if n > m else sorted(ins)[: m - n]
+        return 1.0 - sum(forced) / denom
 
     def is_similar(
         self,
@@ -612,6 +651,13 @@ class DistanceModel:
         model defaults; a missing threshold raises ``ValueError``. Words whose
         length ratio exceeds ``max_length_ratio``, or that cannot reach the
         threshold given an upper-bound check, short-circuit before the DP runs.
+
+        The gates count the tokens :meth:`word_distance` aligns, structural
+        marks excluded. They counted every token the tokenizer emitted,
+        which charged a linking undertie a length and a price that the
+        alignment never pays: ``lez‿ami`` against ``lezami`` is one token
+        longer by that count, and the short-circuit answered ``False`` at
+        any threshold above 12/13 for two forms whose distance is zero.
         """
         th = threshold if threshold is not None else self._threshold
         if th is None:
@@ -621,13 +667,18 @@ class DistanceModel:
         mr = (
             max_length_ratio if max_length_ratio is not None else self._max_length_ratio
         )
-        n = len(self._ipa.tokenize(ipa1))
-        m = len(self._ipa.tokenize(ipa2))
+        t1 = [
+            t for t in self._ipa.tokenize(ipa1) if not self._ipa.is_structural_token(t)
+        ]
+        t2 = [
+            t for t in self._ipa.tokenize(ipa2) if not self._ipa.is_structural_token(t)
+        ]
+        n, m = len(t1), len(t2)
         if n == 0 or m == 0:
             return n == m
         if mr is not None and max(n, m) / min(n, m) > mr:
             return False
-        if self._max_word_similarity(n, m) < th:  # skip DP: can't reach threshold
+        if self._max_word_similarity(t1, t2) < th:  # skip DP: can't reach threshold
             return False
         return self.word_similarity(ipa1, ipa2) >= th
 

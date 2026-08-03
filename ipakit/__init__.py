@@ -46,7 +46,7 @@ from .constants import (
     PHONEMAPS_DIR,
     SUPPLEMENTS_DIR,
 )
-from .distance import WordDistanceResult
+from .distance import CostSchedule, PhoneCost, WordDistanceResult
 from .distance_model import DistanceModel
 from .features import IPAFeatures, _Query, available_supplements, supplement_path
 from .form import Attribute, Boundary, Form, Node, Unit, tiers, units
@@ -177,13 +177,51 @@ def word_distance(
 
     Examples:
         >>> ipakit.word_distance("kæt", "kæd")
-        WordDistanceResult(edit_cost=0.1, similarity=0.98..., coverage=1.0, alignment=None)
+        WordDistanceResult(edit_cost=0.1, similarity=0.98..., coverage=1.0, costs='insert=1.0 delete=1.0', alignment=None)
         >>> ipakit.word_distance("kæt", "kæ").coverage
         0.666...
     """
     return _get_ipa().word_distance(
         ipa1,
         ipa2,
+        weighted=weighted,
+        return_alignment=return_alignment,
+        strict=strict,
+    )
+
+
+def directional_word_distance(
+    reference: str,
+    hypothesis: str,
+    *,
+    insert_cost: PhoneCost | None = None,
+    delete_cost: PhoneCost | None = None,
+    weighted: bool = True,
+    return_alignment: bool = False,
+    strict: bool = True,
+) -> WordDistanceResult:
+    """Edit distance from a reference form to a hypothesis, sides named.
+
+    ``delete_cost`` prices the phones of ``reference`` -- what went missing
+    -- and ``insert_cost`` the phones of ``hypothesis`` -- what was
+    supplied. Give either one a :class:`CostSchedule` and the score stops
+    being symmetric, which is the point: a reference and a hypothesis are
+    not interchangeable. See
+    :meth:`IPAFeatures.directional_word_distance`.
+
+    Examples:
+        >>> drop = ipakit.CostSchedule("example/schwa-drops", {"ə": 0.25}, 1.0)
+        >>> r = ipakit.directional_word_distance("kætə", "kæt", delete_cost=drop)
+        >>> r.costs
+        'insert=1.0 delete=example/schwa-drops'
+        >>> r.edit_cost < ipakit.word_distance("kætə", "kæt").edit_cost
+        True
+    """
+    return _get_ipa().directional_word_distance(
+        reference,
+        hypothesis,
+        insert_cost=insert_cost,
+        delete_cost=delete_cost,
         weighted=weighted,
         return_alignment=return_alignment,
         strict=strict,
@@ -237,8 +275,8 @@ def distance_model(
     reference: Phoneset | list[str] | None = None,
     *,
     gamma: float = 1.0,
-    insert_cost: float = 1.0,
-    delete_cost: float = 1.0,
+    insert_cost: PhoneCost = 1.0,
+    delete_cost: PhoneCost = 1.0,
     threshold: float | None = None,
     max_length_ratio: float | None = None,
 ) -> DistanceModel:
@@ -984,6 +1022,8 @@ __all__ = [
     "import_phoneset",
     "PhoneMapping",
     "Phoneset",
+    "CostSchedule",
+    "PhoneCost",
     "WordDistanceResult",
     # Constants
     "DATA_DIR",
@@ -1037,6 +1077,7 @@ __all__ = [
     "tokenize",
     "validate_ipa",
     "word_distance",
+    "directional_word_distance",
     "segment_distance",
     "pairwise_distances",
     "word_similarity",
