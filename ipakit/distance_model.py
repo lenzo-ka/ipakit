@@ -24,7 +24,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 from .constants import DEFAULT_CONFUSION
-from .distance import WordDistanceResult, _empty_pair_result
+from .distance import (
+    WordDistanceResult,
+    _empty_pair_result,
+    _substitution_cost,
+    _word_result,
+)
 from .metric import metric_fingerprint
 from .models import Phoneset
 
@@ -170,7 +175,6 @@ class DistanceModel:
         gamma: float = 1.0,
         insert_cost: float = 1.0,
         delete_cost: float = 1.0,
-        sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> None:
@@ -189,12 +193,9 @@ class DistanceModel:
             gamma: Exponent applied to the percentile; ``1.0`` is the identity.
             insert_cost: Per-token insertion cost in word alignment.
             delete_cost: Per-token deletion cost in word alignment.
-            sub_mode: ``"simple"`` or ``"di"`` (scale substitution by indel costs).
             threshold: Default similarity threshold for :meth:`is_similar`.
             max_length_ratio: Default length-ratio gate for :meth:`is_similar`.
         """
-        if sub_mode not in ("simple", "di"):
-            raise ValueError(f"sub_mode must be 'simple' or 'di', got {sub_mode!r}")
         if space not in ("distance", "similarity"):
             raise ValueError(f"space must be 'distance' or 'similarity', got {space!r}")
         self._ipa = ipa
@@ -204,7 +205,6 @@ class DistanceModel:
         self._gamma = gamma
         self._insert = insert_cost
         self._delete = delete_cost
-        self._sub_mode = sub_mode
         self._threshold = threshold
         self._max_length_ratio = max_length_ratio
         self._index = {p: i for i, p in enumerate(phones)}
@@ -221,7 +221,6 @@ class DistanceModel:
         gamma: float = 1.0,
         insert_cost: float = 1.0,
         delete_cost: float = 1.0,
-        sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -240,7 +239,6 @@ class DistanceModel:
             gamma=gamma,
             insert_cost=insert_cost,
             delete_cost=delete_cost,
-            sub_mode=sub_mode,
             threshold=threshold,
             max_length_ratio=max_length_ratio,
         )
@@ -254,7 +252,6 @@ class DistanceModel:
         gamma: float = 1.0,
         insert_cost: float = 1.0,
         delete_cost: float = 1.0,
-        sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -290,7 +287,6 @@ class DistanceModel:
             gamma=gamma,
             insert_cost=insert_cost,
             delete_cost=delete_cost,
-            sub_mode=sub_mode,
             threshold=threshold,
             max_length_ratio=max_length_ratio,
         )
@@ -341,7 +337,6 @@ class DistanceModel:
         gamma: float = 1.0,
         insert_cost: float = 1.0,
         delete_cost: float = 1.0,
-        sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -381,7 +376,6 @@ class DistanceModel:
             gamma=gamma,
             insert_cost=insert_cost,
             delete_cost=delete_cost,
-            sub_mode=sub_mode,
             threshold=threshold,
             max_length_ratio=max_length_ratio,
         )
@@ -396,7 +390,6 @@ class DistanceModel:
         gamma: float = 1.0,
         insert_cost: float = 1.0,
         delete_cost: float = 1.0,
-        sub_mode: str = "simple",
         threshold: float | None = None,
         max_length_ratio: float | None = None,
     ) -> Self:
@@ -416,7 +409,6 @@ class DistanceModel:
             gamma=gamma,
             insert_cost=insert_cost,
             delete_cost=delete_cost,
-            sub_mode=sub_mode,
             threshold=threshold,
             max_length_ratio=max_length_ratio,
         )
@@ -444,11 +436,6 @@ class DistanceModel:
         §9 is how to choose one; there is deliberately no tuned default.
         """
         return self._gamma
-
-    @property
-    def sub_mode(self) -> str:
-        """Substitution-cost mode for word alignment ('simple' or 'di')."""
-        return self._sub_mode
 
     # -- internals ------------------------------------------------------------
 
@@ -528,8 +515,10 @@ class DistanceModel:
         """Substitution cost between two tokens for the edit-distance DP.
 
         ``1 - confusability`` for in-inventory pairs, falling back to the
-        feature distance for out-of-inventory tokens. In ``sub_mode='di'`` the
-        cost is scaled by ``insert + delete``.
+        feature distance for out-of-inventory tokens, priced as an edit cost
+        by :func:`~ipakit.distance._substitution_cost` -- so a pair with
+        nothing in common costs this model's delete plus its insert, and the
+        DP compares substitutions against gaps in one currency.
 
         Note: the OOV fallback similarity is feature-derived and is currently
         routed through the same CDF (``_norm_conf``) as matrix-derived
@@ -546,10 +535,9 @@ class DistanceModel:
             sim = self._cell_sim(i, j)
         else:
             sim = 1.0 - self._ipa.segment_distance(t1, t2)
-        cost = 1.0 - self._norm_conf(sim)
-        if self._sub_mode == "di":
-            return (self._insert + self._delete) * cost
-        return cost
+        return _substitution_cost(
+            1.0 - self._norm_conf(sim), self._insert, self._delete
+        )
 
     def word_distance(
         self, ipa1: str, ipa2: str, *, return_alignment: bool = False
@@ -559,6 +547,12 @@ class DistanceModel:
         Uses the model's renormalized substitution costs (and indel costs) in a
         weighted-Levenshtein alignment. Returns a :class:`WordDistanceResult`;
         pass ``return_alignment=True`` to include the aligned token pairs.
+
+        The normalizer is :func:`~ipakit.distance._word_result`, the same
+        function :meth:`IPAFeatures.word_distance` calls, so switching from
+        the plain path to this one to get empirical weights changes which
+        substitution costs the alignment sees and not what a similarity
+        means.
         """
         t1 = [
             t for t in self._ipa.tokenize(ipa1) if not self._ipa.is_structural_token(t)
@@ -572,13 +566,7 @@ class DistanceModel:
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
         )
-        # Consistent denominator across modes keeps similarity in [0, 1] and lets
-        # di-mode separate dissimilar pairs more than simple-mode.
-        denom = n * self._delete + m * self._insert
-        similarity = max(0.0, 1.0 - dist / denom) if denom else 1.0
-        return WordDistanceResult(
-            edit_cost=dist, similarity=similarity, alignment=alignment
-        )
+        return _word_result(n, m, dist, alignment, self._insert, self._delete)
 
     def word_similarity(self, ipa1: str, ipa2: str) -> float:
         """The ``similarity`` field of :meth:`word_distance` (in [0, 1])."""
@@ -628,5 +616,5 @@ class DistanceModel:
     def __repr__(self) -> str:
         return (
             f"DistanceModel(reference={self._name!r}, phones={len(self._ref)}, "
-            f"space={self._space!r}, sub_mode={self._sub_mode!r}, gamma={self._gamma})"
+            f"space={self._space!r}, gamma={self._gamma})"
         )

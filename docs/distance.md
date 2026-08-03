@@ -14,6 +14,8 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 | Triangle inequality | **Not guaranteed** — see [Not a metric](#not-a-metric-in-the-mathematical-sense) |
 | Silence | `d(␣, X) == 1.0` for every speech sound `X` |
 | Weighting | None; every dimension contributes equally at maximal difference |
+| Word alignment | a gap costs `GAP_COST`, a substitution costs `(delete + insert) ×` the pair's dissimilarity, and `similarity` is normalized by the null alignment's cost |
+| Length asymmetry | reported as `WordDistanceResult.coverage`, never folded into the score |
 | Parameters | `GAP_COST = 1.0`, `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` |
 | Regenerate after changes | `python scripts/confusion.py generate --write` |
 
@@ -99,6 +101,12 @@ The flat projection asks the same question of the same structure, so a pair scor
 Prosody — stress, length, tone — is excluded: `d(a, aː) = 0`.
 
 **A string of units is the same mean, one level up.** `segment_distance` compares its two arguments position by position: a position both sides reach costs the segment metric above, a position only one side reaches costs `GAP_COST`, and the answer is the mean over `max(len)` positions. Length is those positions and not a second quantity normalized beside them, so all three levels — parts within a unit, units within a string, tokens within a word — price a substitution against a gap in one currency. Two consequences worth stating: a pair scores the same alone as it does inside a longer string, so appending a unit identical on both sides leaves the summed cost untouched and only divides it over one more position; and an empty string against a spoken one is 1.0 because every position is unmatched, not because of a special case.
+
+**A word is that currency spent, not measured.** `word_distance` searches for the cheapest alignment instead of comparing position by position, so it needs prices rather than proportions, and the two are not the same number. A gap costs `GAP_COST`, exactly what an unmatched position costs one level down. A substitution costs the pair's dissimilarity — the [0, 1] answer from the level below — multiplied by `delete + insert`, because a position whose two tokens share nothing is a deletion and an insertion: the material on one side went, and different material arrived. That fixes the one relation the two scales need. The usual constraint `sub(a, b) <= delete(a) + insert(b)` is met with equality at the top rather than with room to spare, so a chain of substitutions is chosen over a pair of gaps exactly when the tokens along it really do share something, and an alignment can say *this was dropped and that was added* instead of reporting every pair of unlike tokens as a substitution.
+
+**The normalizer is the cost of the null alignment**, `n · delete + m · insert` — deleting every token of the first word and inserting every token of the second. That path is one the search minimizes over, so it is also the most any alignment can cost, and `similarity = 1 − cost / that` reaches both ends: 1 on identity, 0 when the two words share nothing anywhere. `max(n, m)` is a different claim, and the difference is exactly on length mismatch: it charges a truncation once where this charges the material that went missing and the material that replaced it apart. Both word-distance paths — `IPAFeatures.word_distance` and `DistanceModel.word_distance` — read one function for this, so a caller who switches to the model to get empirical weights changes which substitution costs the alignment sees and not what a similarity means.
+
+**Length asymmetry is reported, never folded in.** `WordDistanceResult.coverage` is `min(n, m) / max(n, m)`, and it multiplies nothing. Length is already charged once, as the gaps the alignment pays for; a second multiplicative term would charge it twice, which is the mistake `segment_distance` used to make with its separate length penalty. What the ratio adds is a diagnosis rather than a magnitude — it is what separates "these differ throughout" from "one is a truncation of the other", two readings a single score cannot tell apart, and folding it in would destroy precisely that.
 
 **Identity is checked before any "nothing comparable" sentinel.** The metric returns 1.0 where it has no basis for comparison — an unreadable symbol, a bundle with no key the other side shares — and that is a claim about the pair, not about either side alone: it cannot hold of a thing against itself. So `d(x, x) = 0` for every `x`, including the empty string and including input no inventory can read. The sentinel is reachable only when the two sides genuinely differ.
 
@@ -188,11 +196,13 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **Percentiles are inventory-relative.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution. The same pair scores differently under a small English set and the full bundled inventory; this is intended, and it is why `distance_model(phoneset)` exists.
 
-**Silence behaves as a deletion.** `d(␣, X) = 1.0` for every speech sound, so substituting silence costs exactly what deleting the phone costs in an alignment.
+**Silence is maximally different from every speech sound.** `d(␣, X) = 1.0`, so a position where one word has a phone and the other has silence costs a delete and an insert: the phone went, and a silence arrived. Silence is a token that fills a position, not the absence of one — a word that drops the segment outright is a token shorter, pays a single gap, and scores as the nearer of the two.
 
 **The three scales are named apart.** `distance` is structural and bounded; `normalized_distance` is a percentile within a reference inventory and also bounded, but the two are *not* comparable; `WordDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `word_distance("lez‿ami", "lezami") = 0`.
+
+**A low word similarity has two readings, and `coverage` is which.** Two words can score alike because they differ at every position or because one is half of the other. The score is the same question in both cases — how far apart — and the ratio beside it is the diagnosis. Read them together, and do not multiply them: the gaps already charged the length.
 
 ## 9. Ranking, deciding, and gamma
 

@@ -23,11 +23,71 @@ class WordDistanceResult:
     quantity is named distinctly because the [0, 1] ``distance`` of
     :func:`distance` and the percentile of :func:`normalized_distance`
     already share that word.
+
+    ``coverage`` is ``min(n, m) / max(n, m)`` over the two token counts.
+    It is reported beside the score and deliberately **not** folded into
+    it: length is already charged once, as the gaps the alignment pays
+    for, and a second multiplicative term would charge it twice. What it
+    adds is a diagnosis rather than a magnitude -- it separates "these
+    differ throughout" from "one is a truncation of the other", which a
+    single number cannot say.
     """
 
     edit_cost: float
     similarity: float
+    coverage: float
     alignment: Alignment | None = None
+
+
+def _substitution_cost(
+    dissimilarity: float, insert_cost: float, delete_cost: float
+) -> float:
+    """Price a [0, 1] dissimilarity as an edit cost.
+
+    A substitution is a deletion and an insertion, discounted by what the
+    two tokens share: at 0 the position is free, and at 1 -- nothing in
+    common -- it costs exactly ``delete + insert``, which is what removing
+    one token and supplying the other costs. The standard constraint
+    ``sub(a, b) <= delete(a) + insert(b)`` is then met with equality at the
+    top rather than with room to spare, so a chain of substitutions is
+    preferred to a pair of gaps exactly when the tokens along it really do
+    share something.
+
+    The metric answers a proportion and the aligner charges a price; this
+    is the one place the first is turned into the second, so the two
+    word-distance paths cannot put them on different scales.
+    """
+    return (insert_cost + delete_cost) * dissimilarity
+
+
+def _word_result(
+    n: int,
+    m: int,
+    edit_cost: float,
+    alignment: Alignment | None,
+    insert_cost: float,
+    delete_cost: float,
+) -> WordDistanceResult:
+    """Normalize an alignment cost -- one read for both word-distance paths.
+
+    The denominator is ``n * delete + m * insert``: the cost of the null
+    alignment, which deletes every token of the first word and inserts
+    every token of the second. That path is one the DP minimizes over, so
+    it is also the most any alignment can cost, and ``similarity`` spans
+    [0, 1] with both ends attainable -- 1 on identity, 0 when the two
+    words share nothing at any position. ``max(n, m)`` was the other
+    reading, and it is a different claim: it charges a truncation once,
+    where this charges the material that went missing and the material
+    that replaced it apart.
+    """
+    denom = n * delete_cost + m * insert_cost
+    similarity = 1.0 - edit_cost / denom if denom else 1.0
+    return WordDistanceResult(
+        edit_cost=edit_cost,
+        similarity=similarity,
+        coverage=(min(n, m) / max(n, m)) if max(n, m) else 1.0,
+        alignment=alignment,
+    )
 
 
 def _empty_pair_result(return_alignment: bool) -> WordDistanceResult:
@@ -35,6 +95,7 @@ def _empty_pair_result(return_alignment: bool) -> WordDistanceResult:
     return WordDistanceResult(
         edit_cost=0.0,
         similarity=1.0,
+        coverage=1.0,
         alignment=[] if return_alignment else None,
     )
 
@@ -119,8 +180,11 @@ class DistanceMixin(IPAFeaturesBase):
         applied one level up, and it is what keeps the three costs in
         one currency: a substitution prices the same whether the pair
         stands alone or sits inside a longer string, and an unmatched
-        unit prices exactly what a gap costs in :meth:`word_distance`,
-        which takes this method as its substitution cost.
+        unit prices exactly what a gap costs in :meth:`word_distance`.
+        This is a dissimilarity, in [0, 1]; :meth:`word_distance` takes
+        it as its substitution *cost* by pricing it as the delete and
+        the insert it stands in for, so a maximally different pair costs
+        both and an identical one costs neither.
 
         Length is not a second, separately normalized term. It was one,
         summed with the positional mean and halved, which charged an
@@ -246,24 +310,39 @@ class DistanceMixin(IPAFeaturesBase):
         used to take a ``sub_cost`` of its own documented as the route
         ``DistanceModel`` took, and no caller ever passed it.
 
+        A gap costs ``GAP_COST``, which is what an unmatched position costs
+        one level down in :meth:`segment_distance` and inside
+        :func:`~ipakit.metric.segment_metric`. A substitution costs the
+        token pair's dissimilarity priced by :func:`_substitution_cost`, so
+        a position where the two words share nothing costs exactly the
+        delete and the insert it stands for. That is what puts the two
+        operations in one currency: without it every substitution, however
+        unlike the tokens, is cheaper than a single gap, and an alignment
+        that should read "this was dropped and that one added" is always
+        reported as a substitution.
+
         Args:
             ipa1: First IPA string
             ipa2: Second IPA string
             weighted: If True, use feature distance for substitution costs (0-1).
-                      If False, use standard Levenshtein (cost=1 for any sub).
+                      If False, every mismatch is maximally different, which
+                      is Levenshtein's substitution policy.
             return_alignment: If True, include the alignment path in result.
             strict: Reject input containing symbols the tokenizer cannot
                 convert (the default). Pass ``False`` to measure over
                 whatever survives tokenization.
 
         Returns:
-            WordDistanceResult with distance, similarity (1 - distance/max_len,
-            floored at 0), and optional alignment.
+            WordDistanceResult with the summed edit cost, the similarity
+            normalized by :func:`_word_result`, the length coverage, and an
+            optional alignment.
 
         Examples:
             word_distance("kæt", "kæd")   # Small (minimal pair, ~0.04)
             word_distance("kæt", "dɒɡ")   # Large (different word)
         """
+        from .metric import GAP_COST
+
         if strict:
             self._reject_unconvertible(ipa1, ipa2)
         tokens1 = [
@@ -277,7 +356,8 @@ class DistanceMixin(IPAFeaturesBase):
         def raw_cost(t1: str, t2: str) -> float:
             if t1 == t2:
                 return 0.0
-            return self.segment_distance(t1, t2) if weighted else 1.0
+            d = self.segment_distance(t1, t2) if weighted else 1.0
+            return _substitution_cost(d, GAP_COST, GAP_COST)
 
         # Memoize per call: _align evaluates the cost for every DP cell (and
         # again during backtrace), so without a cache each identical token pair
@@ -297,13 +377,9 @@ class DistanceMixin(IPAFeaturesBase):
             return _empty_pair_result(return_alignment)
 
         distance, alignment = self._align(
-            tokens1, tokens2, cost_fn, return_alignment=return_alignment
+            tokens1, tokens2, cost_fn, GAP_COST, GAP_COST, return_alignment
         )
-        max_len = max(n, m)
-        similarity = max(0.0, 1.0 - (distance / max_len))
-        return WordDistanceResult(
-            edit_cost=distance, similarity=similarity, alignment=alignment
-        )
+        return _word_result(n, m, distance, alignment, GAP_COST, GAP_COST)
 
     def word_similarity(
         self,
@@ -314,8 +390,10 @@ class DistanceMixin(IPAFeaturesBase):
     ) -> float:
         """Compute phonetic similarity between two IPA words.
 
-        Returns a value from 0.0 (completely different) to 1.0 (identical).
-        Similarity = 1 - (edit_distance / max_length), with lower bound of 0.
+        Returns a value from 0.0 (completely different) to 1.0 (identical):
+        the alignment's cost against the cost of the null alignment, which
+        deletes every token of one word and inserts every token of the
+        other. See :func:`_word_result`.
 
         Args:
             ipa1: First IPA string

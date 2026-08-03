@@ -170,12 +170,78 @@ class TestWord:
         assert full.word_similarity("kæt", "kæt") == 1.0
         assert full.word_similarity("kæt", "kæd") > 0.85
 
-    def test_di_separates_more_than_simple(self, ipa, full_inputs):
+    def test_a_substitution_never_costs_more_than_the_gap_pair_it_replaces(
+        self, ipa, full_inputs
+    ):
+        """The model's substitution costs are on the same scale as its indels:
+        a token pair sharing nothing costs this model's delete plus its insert,
+        and nothing costs more.
+
+        The ceiling is approached rather than reached here, unlike the plain
+        path, because the cost is an empirical percentile and the top
+        percentile is 1 minus the share of reference pairs at the maximum. What
+        must hold is the inequality, and that the sentinel pair sits at the top
+        of it.
+        """
         phones, M = full_inputs
-        simple = DistanceModel(ipa, "ipa", phones, M, "distance", sub_mode="simple")
-        di = DistanceModel(ipa, "ipa", phones, M, "distance", sub_mode="di")
-        assert di.word_similarity("kæt", "dɒɡ") < simple.word_similarity("kæt", "dɒɡ")
-        assert di.word_similarity("kæt", "kæd") > di.word_similarity("kæt", "dɒɡ")
+        m = DistanceModel(ipa, "ipa", phones, M, "distance")
+        ceiling = 2.0
+        worst = 0.0
+        checked = 0
+        for a, b in itertools.combinations(CORE + ["␣", "t͡ʃ"], 2):
+            cost = m.sub_cost(a, b)
+            assert 0.0 <= cost <= ceiling, (a, b, cost)
+            worst = max(worst, cost)
+            checked += 1
+        assert checked > 100, f"sweep checked only {checked} pairs"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            sentinel = m.sub_cost("p", "ZZZ")
+        assert sentinel == pytest.approx(max(worst, sentinel))
+        assert sentinel > 0.9 * ceiling, sentinel
+
+    def test_asymmetric_indels_keep_the_relation(self, ipa, full_inputs):
+        """The relation is to the pair, not to a constant: with a cheap delete
+        and a dear insert, a substitution still costs at most one of each."""
+        phones, M = full_inputs
+        m = DistanceModel(
+            ipa, "ipa", phones, M, "distance", insert_cost=1.5, delete_cost=0.25
+        )
+        checked = 0
+        for a, b in itertools.combinations(CORE, 2):
+            assert m.sub_cost(a, b) <= 1.75 + 1e-12, (a, b)
+            checked += 1
+        assert checked > 100, f"sweep checked only {checked} pairs"
+        r = m.word_distance("kæt", "kætəloɡ")
+        assert r.similarity == pytest.approx(1.0 - r.edit_cost / (3 * 0.25 + 7 * 1.5))
+
+    def test_both_word_paths_read_one_normalizer(self, ipa, full):
+        """#162: the two implementations answered the same question with
+        different denominators, and diverged exactly on length mismatch.
+
+        Where an alignment is pure indel -- one word a prefix of the other --
+        the two paths see the same costs, so any disagreement left in the
+        number is the normalizer. They now agree exactly, and both report the
+        same coverage.
+        """
+        checked = 0
+        asymmetric = 0
+        for word, prefix in (
+            ("kætəloɡ", "kæt"),
+            ("kæt", "kæ"),
+            ("pataka", "pat"),
+            ("kæt", "kæt"),
+        ):
+            plain = ipa.word_distance(word, prefix)
+            model = full.word_distance(word, prefix)
+            assert plain.edit_cost == pytest.approx(model.edit_cost), word
+            assert plain.similarity == pytest.approx(model.similarity), word
+            assert plain.coverage == pytest.approx(model.coverage), word
+            checked += 1
+            if plain.coverage != 1.0:
+                asymmetric += 1
+                assert plain.similarity < 1.0, word
+        assert checked == 4 and asymmetric == 3
 
 
 class TestLengthGating:
@@ -247,7 +313,6 @@ class TestPublicApi:
         assert m.reference_name == "tiny"
         assert set(m.reference_phones) <= {"p", "b", "t"}
         assert m.gamma == 1.0
-        assert m.sub_mode == "simple"
 
 
 class TestDistanceCli:
