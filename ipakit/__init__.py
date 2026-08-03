@@ -48,7 +48,7 @@ from .constants import (
 )
 from .distance import WordDistanceResult
 from .distance_model import DistanceModel
-from .features import IPAFeatures, available_supplements, supplement_path
+from .features import IPAFeatures, _Query, available_supplements, supplement_path
 from .form import Attribute, Boundary, Form, Node, Unit, tiers, units
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
@@ -487,10 +487,12 @@ def feature_bundles(
     return _get_ipa().compose(ipa_string, with_defaults=with_defaults)
 
 
-def phones_matching(
-    query: dict[str, str] | list[str] | set[str], with_defaults: bool = True
-) -> list[str]:
-    """Get all phones matching features. Accepts dict or list/set of short names."""
+def phones_matching(query: _Query, with_defaults: bool = True) -> list[str]:
+    """Get all phones matching features.
+
+    Accepts a dict of feature to value, or any collection of names that is
+    not a string. See :meth:`IPAFeatures.phones_matching`.
+    """
     return _get_ipa().phones_matching(query, with_defaults=with_defaults)
 
 
@@ -532,7 +534,7 @@ def respell(phone: str, **changes: str) -> str | None:
 
 def find(
     ipa_string: str,
-    query: dict[str, str] | list[str] | set[str],
+    query: _Query,
     with_defaults: bool = True,
 ) -> list[tuple[int, Segment]]:
     """Find the units of an IPA string matching a feature query.
