@@ -207,6 +207,69 @@ class TestTheLimitAsItStands:
             assert feature.place is None, name
 
 
+class TestTheChartIsAlreadyWhatIsDeclared:
+    """Why deriving a location from the vowel chart's geometry adds nothing.
+
+    The proposal that keeps coming back is to place the IPA vowel
+    quadrilateral in the mid-sagittal plane and read a constriction
+    location off it, on the ground that the figure is a stated model
+    with no free parameters to fit. These two tests are why that is not
+    a new source of information here: both of the figure's axes are
+    already declared, faithfully, and one of them is already read as a
+    position along the tract.
+
+    `docs/design/vowel-chart-geometry.md` is the assessment, and it
+    measures what the projection does with the other axis. If either of
+    these stops holding, the declarations have moved away from the
+    figure and that document's argument needs re-checking.
+    """
+
+    def test_backness_is_the_chart_horizontal_projected_between_two_places(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The five `backness` arcs are the quarters of `palatal` to
+        `uvular`, to within 0.01. So a vowel's `arc` already *is* the
+        chart's front-to-back axis laid on the tract between two
+        anatomical anchors -- which is the horizontal half of what any
+        projection of the quadrilateral would compute."""
+        order = ("front", "near-front", "central", "near-back", "back")
+        arcs = ipa.features["backness"].coordinates
+        places = ipa.features["place"].coordinates
+        low, high = places["palatal"]["arc"], places["uvular"]["arc"]
+        assert set(arcs) == set(order), sorted(arcs)
+        for step, value in enumerate(order):
+            even = low + step * (high - low) / (len(order) - 1)
+            assert round(abs(arcs[value]["arc"] - even), 3) <= 0.01, (value, even)
+
+    def test_height_is_the_chart_vertical_read_as_a_degree(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """And the seven `height` offsets, as fractions of the close-to-open
+        span, reproduce the rows of the Association's own drawing to within
+        0.03 -- measured off the vector paths of the 2020 chart, because its
+        glyphs are in a custom-encoded font and extract to nonsense.
+
+        The vertical axis is declared as `offset`, constriction *degree*.
+        Routing it into `arc` as well is the whole of what a chart-derived
+        location would change, and it is the axis the measurement refuses.
+        """
+        drawn = {
+            "close": 0.000,
+            "near-close": 0.155,
+            "close-mid": 0.328,
+            "mid": 0.489,
+            "open-mid": 0.657,
+            "near-open": 0.820,
+            "open": 0.999,
+        }
+        offsets = ipa.features["height"].coordinates
+        assert set(offsets) == set(drawn), sorted(offsets)
+        close, open_ = offsets["close"]["offset"], offsets["open"]["offset"]
+        for value, row in drawn.items():
+            down = (close - offsets[value]["offset"]) / (close - open_)
+            assert round(abs(down - row), 3) <= 0.03, (value, down, row)
+
+
 class TestTheLoaderTrapThatHidesAnAttempt:
     """A coordinate on a binary feature evaporates, and nothing said so.
 

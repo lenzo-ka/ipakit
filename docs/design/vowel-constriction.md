@@ -294,6 +294,7 @@ Both transcribed tables are checked against themselves, because a transcription 
 
 ## Related
 
+- [vowel-chart-geometry.md](vowel-chart-geometry.md) — the third route, which takes the location out of the vowel chart's own geometry instead of out of a source, and refuses it
 - [tract-validation.md](tract-validation.md) — the first external check, which found the defect and named Wood as the evidence it lacked
 - [../articulatory-data.md](../articulatory-data.md) — the X-Ray Microbeam measurement, and why that instrument cannot see a vowel constriction behind `arc` 0.44
 - [../tract-anatomy.md](../tract-anatomy.md) — §6, the derived quantities, and what is computed rather than asserted about them
