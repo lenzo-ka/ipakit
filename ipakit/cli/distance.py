@@ -27,7 +27,10 @@ def add_model_args(parser: argparse.ArgumentParser) -> None:
         "--gamma",
         type=float,
         default=1.0,
-        help="Percentile exponent; >1 spreads dissimilar pairs apart (default: 1.0)",
+        help=(
+            "Percentile exponent; monotone, so it reorders no phone pair "
+            "(docs/distance.md section 9). Default: 1.0, the identity"
+        ),
     )
 
 
@@ -201,7 +204,7 @@ class ConfusabilityCommand(Command):
         ipakit distance confusability p b      # confusability and its complement
         ipakit distance conf p t               # a nearer pair scores higher
         ipakit d conf p b --phoneset eng.txt   # percentile within eng.txt's phones
-        ipakit d conf p b --gamma 2            # sharpen: push dissimilar pairs apart
+        ipakit d conf p b --gamma 2            # same ranking, spacing stretched
         ipakit d conf p b -j                   # JSON with reference info
     """
 
