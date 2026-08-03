@@ -506,13 +506,42 @@ def spearman(xs: list[float], ys: list[float]) -> float:
     return top / bottom if bottom else float("nan")
 
 
-def declared() -> dict[str, float | None]:
-    """The ``arc`` ipakit computes for each imaged shape, from its own data."""
+def declared(extra: Sequence[str] = ()) -> dict[str, float | None]:
+    """The ``arc`` ipakit computes for each imaged shape, from its own data.
+
+    ``extra`` names symbols outside Story et al.'s eighteen. Yang & Kasuya
+    image Japanese ``/a/`` and ``/e/``, which Story does not, and without them
+    a reading scored off this table is scored over nine of that source's
+    fifteen columns while Wood's is scored over all fifteen. That is a bias in
+    the instrument rather than in either reading, and it is why the caller
+    passes the symbols it means to score rather than taking the shape list.
+    """
     features = IPAFeatures()
     out: dict[str, float | None] = {}
-    for symbol, _, _ in SHAPES:
+    for symbol in [sym for sym, _, _ in SHAPES] + list(extra):
         bundle = features.get_features(symbol)
         out[symbol] = tract_point(features, bundle).arc if bundle else None
+    return out
+
+
+def backness_only(extra: Sequence[str] = ()) -> dict[str, float | None]:
+    """The ``arc`` ``backness`` alone gives each imaged shape.
+
+    Not the same question as :func:`declared`, and it stopped being the same
+    question when sixteen vowels started stating a ``constriction-location``.
+    ``anchors`` scores four readings and two of them would otherwise be the
+    same column under two headings -- which is how a baseline goes stale
+    without anything saying so, because the number moves and the header does
+    not. This one reads the ``backness`` coordinate table directly, so the row
+    the assessment records for it stays reproducible whatever a phone declares.
+    """
+    features = IPAFeatures()
+    coordinates = features.features["backness"].coordinates
+    out: dict[str, float | None] = {}
+    for symbol in [sym for sym, _, _ in SHAPES] + list(extra):
+        bundle = features.get_features(symbol)
+        value = bundle.get("backness") if bundle else None
+        out[symbol] = coordinates.get(value, {}).get("arc") if value else None
     return out
 
 
@@ -1443,7 +1472,9 @@ def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
     families = {symbol: name for name, _, family in WOOD_LOCATIONS for symbol in family}
     place_arcs = landmarks(IPAFeatures()).places
     proportional = wood_proportional()
-    arcs = declared()
+    japanese = [vowel for vowel, _ in JAPANESE]
+    arcs = backness_only(japanese)
+    live = declared(japanese)
 
     print("Wood's four locations, placed two ways.\n")
     print(f"  {'location':>14} {'ipakit name':>11} {'Wood':>6} {'place':>6} {'gap':>6}")
@@ -1459,6 +1490,8 @@ def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
     def anchor_of(symbol: str, reading: str) -> float | None:
         if reading == "backness":
             return arcs.get(symbol)
+        if reading == "library":
+            return live.get(symbol)
         name = families.get(symbol)
         if name is None:
             return None
@@ -1489,11 +1522,13 @@ def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
             for vowel, location in JAPANESE:
                 families[f"{subject}/{vowel}"] = location
                 arcs[f"{subject}/{vowel}"] = arcs.get(vowel)
+                live[f"{subject}/{vowel}"] = live.get(vowel)
 
-    readings = ("backness", "Wood", "place")
+    readings = ("backness", "Wood", "place", "library")
     print("\nBand inclusion, one row per source, at the default settings.")
-    print("`backness` is what a vowel reads today; `Wood` is his four proportions;")
-    print("`place` is his four families read at the arcs ipa.xml already declares.\n")
+    print("`backness` is the backness coordinate alone; `Wood` is his four")
+    print("proportions; `place` is his four families read at the arcs ipa.xml")
+    print("declares; `library` is what `tract_point` answers for the symbol now.\n")
     print(f"  {'source':>14} {'bands':>6} " + " ".join(f"{r:>9}" for r in readings))
     totals = dict.fromkeys(readings, 0)
     every = 0

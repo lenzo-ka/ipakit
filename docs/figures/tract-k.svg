@@ -64,6 +64,7 @@ stroke-linecap:round}
 .chip.out-of-plane{stroke-dasharray:2 2}
 .chip.phase{stroke:#DFA33A}
 .chip.prosodic{stroke:#7FD1B9;stroke-width:2.4}
+.chip.approximate{stroke:#DFA33A;stroke-width:1.6}
 .lbl.chiplbl{fill:#93A3AF}
 .lip{fill:rgba(159,198,220,.30);stroke:#9FC6DC;stroke-width:1.4;stroke-linejoin:round}
 .lipstem{stroke:#DFA33A;stroke-width:2;stroke-linecap:round;fill:none;opacity:.55}
@@ -169,6 +170,7 @@ stroke-linecap:round}
 .chip.out-of-plane{stroke-dasharray:2 2}
 .chip.phase{stroke:#A96F0E}
 .chip.prosodic{stroke:#1F7A63;stroke-width:2.4}
+.chip.approximate{stroke:#A96F0E;stroke-width:1.6}
 .lbl.chiplbl{fill:#6B7C88}
 .lip{fill:rgba(34,67,92,.22);stroke:#22435C;stroke-width:1.4;stroke-linejoin:round}
 .lipstem{stroke:#A96F0E;stroke-width:2;stroke-linecap:round;fill:none;opacity:.55}

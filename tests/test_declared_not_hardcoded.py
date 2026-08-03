@@ -148,8 +148,30 @@ class TestTheDataSaysWhatThePythonUsedTo:
         from ipakit.constants import METADATA_ATTRS
 
         assert excluded_keys(ipa) == frozenset(
-            set(METADATA_ATTRS) | {"place", "nasalized"} | set(ipa.secondary_places)
+            set(METADATA_ATTRS)
+            | {"place", "nasalized", "constriction-location"}
+            | set(ipa.secondary_places)
         )
+
+    def test_a_borrower_is_excluded_with_what_it_borrows(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """And it is excluded *because* the lender is, not by name.
+
+        ``constriction-location`` declares ``vocabulary="place"``, and
+        ``place`` is carried by the weighted place components rather than
+        compared as a key. Comparing the borrower as a key would put the
+        nominal place comparison back in a spelling those components
+        cannot see -- and, since only some vowels state a location, it
+        would score the ones that do not as maximally unlike the ones
+        that do. Moving the lender out of the exclusion moves the
+        borrower with it, so the two cannot agree only by habit.
+        """
+        borrowers = {n for n, f in ipa.features.items() if f.vocabulary is not None}
+        assert borrowers, "nothing borrows a vocabulary: this check is vacuous"
+        assert borrowers <= excluded_keys(ipa)
+        for name in borrowers:
+            assert ipa.features[name].vocabulary in excluded_keys(ipa), name
 
     def test_the_bridges(self, ipa: IPAFeatures) -> None:
         assert ipa.bridges == {

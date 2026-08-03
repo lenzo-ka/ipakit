@@ -160,20 +160,22 @@ None of these are declared; all follow from the posture.
 
 That correspondence is the point of building the anatomy: every right-hand column above is declared today and would be computed then. It is a **specification of unbuilt work, not a claim about the anchors** — a geometry built to it has to reproduce the measurement, and whether the anchors already do is a separate question that measurement answers unevenly.
 
-The constriction-location row is where the gap is widest, and the reason is in the declarations rather than in the anatomy. A vowel may state where it constricts — `constriction-location`, one of the places `place` locates — and no vowel in the inventory states one, so every vowel's anchor still comes from `backness` and every back vowel resolves to one location whatever else it states:
+The constriction-location row is where the gap is widest, and the reason is in the declarations rather than in the anatomy. A vowel may state where it constricts — `constriction-location`, one of the places `place` locates — and sixteen do, in the four families Wood (1979) reproduces over 40 subjects in 13 languages. Every other vowel states none and takes the older reading, `arc` from `backness`:
 
 ```python
 from ipakit import IPAFeatures
-from ipakit.tract import tract_point
+from ipakit.tract import tract_point, tract_reading
 
 ipa = IPAFeatures()
-sorted({tract_point(ipa, ipa.get_features(v)).arc for v in "uoɑɔʌ"})   # [0.56]
+sorted({tract_point(ipa, ipa.get_features(v)).arc for v in "uoɑɔʌ"})   # [0.45, 0.56, 0.74]
 tract_point(ipa, ipa.get_features("i")).arc                            # 0.32
+sorted(tract_reading(ipa, ipa.get_features("ə")).approximated)         # ['backness']
+sorted(tract_reading(ipa, ipa.get_features("i")).approximated)         # []
 ```
 
-Measured area functions put those five at two locations well apart, one group forward of that shared anchor and one behind it, and put `ɝ` forward of `i` rather than behind it. The declared `bilabial` and `alveolar` anchors go the other way: each lands inside the measured occlusion of every stop and nasal imaged at that place. So the anchors are hand-placed values that measurement has confirmed in some places and refused in others, which is what makes the correspondence above a specification. [design/tract-validation.md](design/tract-validation.md) is the comparison and [#123](https://github.com/lenzo-ka/ipakit/issues/123) is the open defect; the block above is executed by `scripts/docexamples.py`, so the half of the claim that is computable cannot go stale in silence.
+`ʌ` is the one of those five Wood names in no family, so it keeps 0.56 by the fallback, and the last two lines are how a caller tells the two readings apart without going to a source. `backness` says where the tongue body *is*; taking it for the constriction is a stand-in, `Reading.approximated` names it as one, and `unmodelled` reports it with kind `approximate`. The declared `bilabial` and `alveolar` anchors need no such report: each lands inside the measured occlusion of every stop and nasal imaged at that place. So the anchors are hand-placed values that measurement has confirmed in some places, refused in others, and replaced in sixteen — which is what makes the correspondence above a specification. [design/tract-validation.md](design/tract-validation.md) is the comparison and [#123](https://github.com/lenzo-ka/ipakit/issues/123) is the defect; the block above is executed by `scripts/docexamples.py`, so the half of the claim that is computable cannot go stale in silence.
 
-What is missing is the values, and not the slot to put them in: the four constriction locations the literature reproduces are a partition of the (height, backness) plane, and no source classifies the central series at all. [design/vowel-constriction.md](design/vowel-constriction.md) is that assessment.
+What is still missing is the central column, and not a slot to put it in: the four constriction locations the literature reproduces are a partition of the (height, backness) plane, and the only two central symbols any source classifies go into different families with the old shared anchor in the gap between them. [design/vowel-constriction.md](design/vowel-constriction.md) is that assessment.
 
 ## 7. Postures
 

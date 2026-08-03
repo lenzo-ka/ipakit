@@ -1,22 +1,35 @@
-"""A vowel may state where it constricts, and none of them does yet.
+"""A vowel may state where it constricts, and sixteen of them do.
 
 `tract_reading` took a vowel's `arc` from `backness` and from nothing
 else, so every vowel agreeing on backness sat at one point whatever else
-it stated. That is a *capability* gap and not a values gap, and this is
-the capability: `constriction-location` is a declared slot a nucleus can
-state, and the vowel branch reads it where it is stated.
+it stated. That was a *capability* gap before it was a values gap, and
+this is the capability: `constriction-location` is a declared slot a
+nucleus can state, and the vowel branch reads it where it is stated.
 
-**No vowel states one.** Which vowel constricts where is
-[#123](https://github.com/lenzo-ka/ipakit/issues/123), it is blocked on a
-source that classifies the central series and there is none, and choosing
-values here would smuggle an unsupported table in behind a mechanical
-change. So the demonstration below is a *hypothetical* vowel in a
-temporary inventory, and the shipped answers are asserted unchanged
-beside it. `tests/test_vowel_tract_limit.py` is the limit as it stands and
-every pin in it still holds: the limit has not moved, only what could move
-it.
+**Sixteen vowels state one and twenty-three do not**, which is
+[#123](https://github.com/lenzo-ka/ipakit/issues/123) closed as far as
+the sources reach. The sixteen are the ones Wood (1979) names in the four
+families of his conclusion 2, plus Swedish `ʉː` from his 1982 monograph;
+they are read at the arcs `place` already declares for the four locations
+under ipakit's own names for them. The rest are not classified by any
+source read for `docs/design/vowel-constriction.md`, so they state
+nothing, keep the `backness` fallback, and have that fallback *reported*:
+`tract_reading` puts `backness` in `approximated` and `unmodelled`
+returns it with kind `approximate`. `tests/test_vowel_tract_limit.py` is
+what the limit has become.
 
-Two things are worth reading for the argument rather than the assertion.
+Three things are worth reading for the argument rather than the
+assertion.
+
+`TestTheUnstatedCaseIsReported` is the treatment chosen for the vowels no
+source classifies, and the argument for it. They keep the `backness`
+fallback and the fallback is reported, rather than being left unplaced.
+Unplaced is not silence in this library: `bundle_distance` scores a
+coordinate one side has and the other lacks as the maximal difference and
+two absences as no difference at all, so dropping schwa's arc would
+assert that schwa is as far from `ɛ` as any two vowels can be on that
+axis and identical to `ɜ` on it. Both assertions are stronger than the
+one being withheld.
 
 `place` was the obvious carrier and is refused on a measurement.
 `TestWhyNotThePlaceSlot` is that measurement: the shipped corpus already
@@ -128,47 +141,164 @@ def _hypothetical(name: str, **attrs: str) -> ET.Element:
     )
 
 
-class TestNoVowelStatesOne:
-    """The boundary this change was built inside, asserted."""
+#: Wood's four families, under ipakit's names for the four locations, and
+#: the vowels this inventory declares in each. Written out here rather
+#: than read from `ipa.xml` on purpose: a test that derives the expected
+#: answer from the file it is checking asserts only that the file equals
+#: itself. Wood (1979: 41) conclusion 2 gives "[i-ɛ, y-ø]-like, [u-ʊ,
+#: ɨ]-like, [o-ɔ, ɤ]-like and [ɑ-a-æ]-like respectively", read as ranges
+#: within a rounding series; `ʉ` is from the 1982 monograph, paper III.
+FAMILIES = {
+    "palatal": ("i", "ɪ", "e", "ɛ", "y", "ø", "ʉ"),
+    "velar": ("u", "ʊ", "ɨ"),
+    "uvular": ("o", "ɔ", "ɤ"),
+    "pharyngeal": ("ɑ", "a", "æ"),
+}
 
-    def test_the_document_states_no_location_on_any_symbol(
-        self, ipa: IPAFeatures
-    ) -> None:
-        """Read off the file, so a value added anywhere fails here.
+#: The monophthongs no source read for `docs/design/vowel-constriction.md`
+#: classifies. Nine of them are central, which is the assessment's finding
+#: -- `ɨ` and `ʉ` are the only central symbols any source places, and it
+#: places them in different families with 0.44 in the gap. The other six
+#: are peripheral qualities outside the ranges Wood's conclusion 2 names.
+UNSTATED = ("ä", "œ", "ɐ", "ɒ", "ɘ", "ə", "ɚ", "ɜ", "ɝ", "ɞ", "ɯ", "ɵ", "ɶ", "ʌ", "ʏ")
 
-        Not `get_features`, which would answer for phones alone and would
-        also answer for a default; the question is whether any symbol
-        element in the document carries the attribute at all.
-        """
+
+class TestWhichVowelsStateOne:
+    """The classification, asserted against the source and not the file."""
+
+    def test_the_declared_families_are_woods(self, ipa: IPAFeatures) -> None:
+        """Read off the document, so a value added or moved fails here."""
         root = ET.parse(ipa.xml_path).getroot()
-        stated = [
-            elem.get("name")
+        stated = {
+            elem.get("name"): elem.get(SLOT)
             for section in root
             for elem in section
             if elem.get(SLOT) is not None
-        ]
-        assert stated == [], f"{SLOT} is stated on {stated}; #123 is not this PR"
+        }
+        want = {sym: place for place, syms in FAMILIES.items() for sym in syms}
+        assert stated == want
 
-    def test_the_slot_reaches_no_shipped_bundle(self, ipa: IPAFeatures) -> None:
-        """It declares no default either, so it is in no feature bag.
+    def test_the_unclassified_vowels_state_nothing(self, ipa: IPAFeatures) -> None:
+        """And the two lists together are every vowel there is.
 
-        This is what keeps the metric still: a key present on every bundle
-        is a term in the denominator of every distance even when the two
-        values agree.
+        The partition is asserted total because the interesting mistake is
+        a vowel in neither list -- one that quietly acquired a family, or
+        one added to the inventory that nobody classified either way.
         """
-        assert ipa.features[SLOT].default is None
-        units = _units(ipa)
-        assert len(units) > 5000, f"only {len(units)} units: the sweep is vacuous"
-        assert not [u for u in units if SLOT in ipa.get_features(u)]
+        vowels = set(_vowels(ipa))
+        declared = {sym for syms in FAMILIES.values() for sym in syms}
+        atoms = {v for v in vowels if len(ipa.segment(v).constituents) == 1}
+        assert declared | set(UNSTATED) == atoms, atoms ^ (declared | set(UNSTATED))
+        for phone in UNSTATED:
+            assert SLOT not in ipa.get_features(phone), phone
 
-    def test_every_vowel_still_reads_its_arc_from_backness(
+    def test_a_diphthong_takes_the_location_of_its_first_element(
         self, ipa: IPAFeatures
     ) -> None:
-        vowels = _vowels(ipa)
-        assert len(vowels) > 20, f"only {len(vowels)} vowels: the sweep is vacuous"
-        for phone in vowels:
-            read = tract_reading(ipa, ipa.get_features(phone)).read
-            assert "backness" in read and SLOT not in read, phone
+        """Not declared on the diphthong: the flat read of an under-tie
+        chain is its first constituent, so the location arrives with
+        everything else about that constituent and cannot drift from it."""
+        tied = [v for v in _vowels(ipa) if len(ipa.segment(v).constituents) > 1]
+        assert tied, "no tied vowels: this check is vacuous"
+        for unit in tied:
+            first = str(ipa.segment(unit).constituents[0])
+            assert ipa.get_features(unit).get(SLOT) == ipa.get_features(first).get(SLOT)
+
+    def test_the_arc_of_a_classified_vowel_is_its_familys_place_arc(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The four locations are read at the arcs `place` declares, which
+        is the anchor decision `vowel-constriction.md` 8 makes by
+        declining: 35 measured bands cannot separate those from Wood's own
+        proportions, and the declared ones move no consonant."""
+        arcs = ipa.features[SOURCE].coordinates
+        for place, syms in FAMILIES.items():
+            for sym in syms:
+                reading = tract_reading(ipa, ipa.get_features(sym))
+                assert reading.point.arc == arcs[place]["arc"], sym
+                assert SLOT in reading.read and "backness" not in reading.read, sym
+
+
+class TestTheUnstatedCaseIsReported:
+    """The treatment chosen for the vowels no source classifies.
+
+    They keep the `backness` fallback and the fallback is annotated. The
+    alternative -- no arc at all, the way `rhotacized` declares no
+    coordinates -- was refused on what the metric does with a missing
+    coordinate, which is asserted here rather than argued.
+    """
+
+    def test_the_fallback_is_reported_as_approximate(self, ipa: IPAFeatures) -> None:
+        for phone in UNSTATED:
+            reading = tract_reading(ipa, ipa.get_features(phone))
+            assert reading.approximated == frozenset({"backness"}), phone
+            assert reading.point.arc is not None, phone
+            stated = ipa.get_features(phone, with_defaults=False)
+            assert ("backness", "approximate") in {
+                (m.feature, m.kind) for m in unmodelled(ipa, stated)
+            }, phone
+
+    def test_an_approximated_feature_is_always_one_the_reading_took(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """`unmodelled` overrides its own skip for a name in `approximated`,
+        so a name there that the reading did not take would annotate a
+        value nothing drew and label it as the drawing. Swept over every
+        unit rather than over the vowels, because the property is about
+        the two fields and not about the branch that fills them."""
+        units = _units(ipa)
+        assert len(units) > 5000, f"only {len(units)} units: the sweep is vacuous"
+        seen = 0
+        for unit in units:
+            reading = tract_reading(ipa, ipa.get_features(unit))
+            assert reading.approximated <= reading.read, unit
+            seen += bool(reading.approximated)
+        assert seen, "nothing is ever approximated: the sweep is vacuous"
+
+    def test_a_stated_location_is_not_approximated(self, ipa: IPAFeatures) -> None:
+        """The other side of the same question, so the report is not simply
+        on for every vowel."""
+        for syms in FAMILIES.values():
+            for sym in syms:
+                assert not tract_reading(ipa, ipa.get_features(sym)).approximated, sym
+
+    def test_a_missing_coordinate_reads_as_maximally_unlike(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        """Why the unclassified vowels keep a number.
+
+        `bundle_distance` has no way to say "unknown". A coordinate one
+        bundle has and the other lacks scores 1.0, the largest any term
+        can contribute; two absences score nothing at all and are not
+        counted. So withholding schwa's arc would not withhold a claim, it
+        would make two -- that schwa is maximally unlike every placed
+        vowel on the tract axis, and exactly like every other unplaced one
+        -- and both are stronger than the claim being declined.
+
+        Measured on a hypothetical that states no `height`, because that
+        is the same shape of absence in the same loop and is reachable
+        without changing the branch. No shipped vowel is unplaced, which
+        is the point.
+        """
+        from ipakit.metric import _sagittal
+
+        made = _inventory(
+            ipa,
+            tmp_path,
+            ET.Element(
+                "phone", {"name": "ⱺ", "manner": "vowel", "rounded": "-", "voiced": "+"}
+            ),
+            ET.Element(
+                "phone", {"name": "ⱻ", "manner": "vowel", "rounded": "-", "voiced": "+"}
+            ),
+        )
+        assert _sagittal(made, made.get_features("ⱺ"))[1] is None
+        assert _sagittal(made, made.get_features("ə"))[1] is not None
+        # One side has the coordinate and the other does not: the maximum.
+        far = made.distance("ⱺ", "ə")
+        # Neither side has it: no term at all, so the two are indiscernible
+        # on the axis rather than merely close.
+        assert made.distance("ⱺ", "ⱻ") == 0.0 < far
 
 
 class TestTheBranchReadsAStatedLocation:
@@ -280,9 +410,9 @@ class TestWhyNotThePlaceSlot:
 
     The slot `place` is not free on a vowel: the dental and linguolabial
     marks put one there, and a vowel wearing one is a vowel whose tongue
-    *tip* is at that place while its tongue *body* is wherever `backness`
-    put it. Reading the place slot as the body's constriction would move
-    every one of those units, and toward a wrong answer.
+    *tip* is at that place while its tongue *body* is where the vowel
+    branch reads it. Reading the place slot as the body's constriction
+    would move every one of those units, and toward a wrong answer.
     """
 
     def test_the_shipped_corpus_already_states_place_on_vowels(
@@ -301,7 +431,13 @@ class TestWhyNotThePlaceSlot:
         for unit in placed:
             bundle = ipa.get_features(unit)
             here = tract_point(ipa, bundle).arc
-            assert here == backness[bundle["backness"]]["arc"], unit
+            # Wherever the body is, it is not read out of the place slot.
+            want = (
+                arcs[bundle[SLOT]]["arc"]
+                if SLOT in bundle
+                else backness[bundle["backness"]]["arc"]
+            )
+            assert here == want, unit
             # And the place slot says somewhere else, so reading it would
             # have been a mover rather than a no-op.
             assert here != arcs[bundle["place"]]["arc"], unit

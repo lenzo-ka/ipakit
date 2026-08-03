@@ -949,6 +949,42 @@ def check_borrowed_vocabulary(ipa: IPAFeatures) -> bool:
     return _report("a borrowed vocabulary is one declaration", failures, checked)
 
 
+def check_no_symbol_states_an_inapplicable_feature(ipa: IPAFeatures) -> bool:
+    """A symbol does not declare a feature its own class is outside.
+
+    ``applies`` says which hosts a feature is expected on -- ``channel``
+    and ``retroflex`` on consonants, ``rhotacized`` and
+    ``constriction-location`` on nuclei -- and a value stated outside that
+    class is read by nothing that routes on it while still sitting in the
+    bundle, where the metric compares it and ``to_phone`` matches on it.
+    Nothing refused one: the grammars state structure and never
+    vocabulary, so a symbol element takes any attribute at all, and the
+    loader keeps it.
+
+    Reached from ``constriction-location``, where the mistake is easy and
+    silent: sixteen vowels state one, the attribute is spelled the same on
+    every symbol element, and a consonant given one would take no branch
+    that reads it and draw no complaint from anything.
+    """
+    failures: list[str] = []
+    checked = 0
+    for symbol in ipa.phones:
+        bundle = ipa.get_features(symbol)
+        for name, value in ipa.get_features(symbol, with_defaults=False).items():
+            if name not in ipa.features:
+                continue
+            checked += 1
+            if not ipa.feature_applies(name, bundle):
+                failures.append(
+                    f"{symbol} states {name}={value!r}, which `applies` puts "
+                    "outside its class: nothing reads it and everything "
+                    "compares it"
+                )
+    return _report(
+        "no symbol states a feature outside its own class", failures, checked
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -976,6 +1012,7 @@ def main(argv: list[str] | None = None) -> int:
         check_typed_values_declare_no_geometry(ipa),
         check_borrowed_vocabulary_is_total(ipa),
         check_borrowed_vocabulary(ipa),
+        check_no_symbol_states_an_inapplicable_feature(ipa),
         check_derived_artifacts(),
     ]
     ok = all(results)

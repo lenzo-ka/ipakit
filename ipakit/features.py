@@ -1772,6 +1772,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         applies it once per constituent and an atomic one once. ``changes``
         arrives already resolved and already checked against the
         declaration.
+
+        **A borrowed reading is spent, not carried.** A feature declaring
+        ``vocabulary`` states no values of its own: it restates another
+        feature's vocabulary as a reading of *this symbol*, sourced for
+        this symbol. ``constriction-location`` is one, and where a
+        published measurement puts ``u``'s tongue-body constriction is a
+        fact about ``u`` rather than about every bundle reachable from
+        it. Laid onto a changed bundle it either asserts that fact of a
+        different vowel or -- since :meth:`to_phone` requires every
+        stated key to agree -- answers ``None`` for a phone that exists.
+        ``respell("u", rounded="-")`` is ``ɯ``, which is in no source's
+        family and declares no location, and carrying ``u``'s location
+        into the query loses it. Dropping the reading can only widen the
+        search, and no two registered phones agree on everything else and
+        differ here, so it cannot change an answer that existed. A change
+        that *names* the borrowing writes it, like any other.
         """
         feats = self.get_features(symbol)
         if not feats:
@@ -1779,6 +1795,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         feats.update(changes)
         for meta in METADATA_ATTRS:
             feats.pop(meta, None)
+        for name, feature in self.features.items():
+            if feature.vocabulary is not None and name not in changes:
+                feats.pop(name, None)
         return self.to_phone(feats)
 
     def respell(self, phone: str, **changes: str) -> str | None:

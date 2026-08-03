@@ -106,14 +106,14 @@ is more different. A voicing contrast is small; a consonant against a vowel is l
 ```python
 ipa.distance("p", "b")  # 0.05
 ipa.distance("p", "k")  # 0.0675
-ipa.distance("p", "a")  # 0.3054545454545455
+ipa.distance("p", "a")  # 0.33772727272727276
 ```
 
 ```console
 $ ipakit distance pair p b
 0.0500
 $ ipakit distance pair p a
-0.3055
+0.3377
 ```
 
 `nearest_phones` is usually the more useful question — not *how far* but *what is close*:
@@ -143,7 +143,7 @@ close as any pair gets" and the numbers spread out:
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
 # 0.996350745490564
-ipa.confusability("f", "a")  # 0.42122823480346155
+ipa.confusability("f", "a")  # 0.3539776874152852
 ```
 
 ```console
@@ -157,7 +157,7 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9833333333333333
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.9853682271574045
+# 0.9863761164981059
 ```
 
 > **These are two numbers for one English phrase**, and the CLI gives the second.
@@ -169,7 +169,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9854  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9864  [reference: ipa, 139 phones]
 ```
 
 A word comparison also reports `coverage`, the shorter token count over the longer. It
@@ -850,8 +850,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.confusability("tʰ", "t"), 4)  # 0.962
-round(ipa.confusability("tʰ", "t"), 4)  # 0.9606
+round(model.confusability("tʰ", "t"), 4)  # 0.9638
+round(ipa.confusability("tʰ", "t"), 4)  # 0.9625
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the

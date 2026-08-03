@@ -81,6 +81,18 @@ def excluded_keys(features: IPAFeatures) -> frozenset[str]:
     listed, so a bridge added to the data cannot leave a stale exclusion
     behind it. Memoized per inventory: this sits in the innermost loop of
     every distance, and the answer is a property of the data.
+
+    A feature that *borrows* an excluded feature's vocabulary is excluded
+    with it. ``constriction-location`` declares ``vocabulary="place"``,
+    so its values are ``place``'s values; comparing them as an ordinary
+    key would put back exactly the nominal place comparison the line
+    above takes out, in a spelling the weighted components cannot see.
+    The reason it matters here rather than in principle is that no vowel
+    is obliged to state one: 16 do and 23 do not, and a key present on
+    one side and absent on the other scores the maximal difference, so
+    counting it would say that schwa is further from ``i`` than ``i`` is
+    from ``p``. What a stated location contributes is its ``arc``, and
+    that reaches every distance through :func:`_sagittal`.
     """
     bridged: set[str] = set()
     for spellings in features.bridges.values():
@@ -95,9 +107,15 @@ def excluded_keys(features: IPAFeatures) -> frozenset[str]:
         informative = set(feat.values) - ({feat.default} if feat.default else set())
         if informative and informative <= claimed:
             carried.add(name)
-    return frozenset(
+    excluded = (
         set(METADATA_ATTRS) | {"place"} | set(features.secondary_places) | carried
     )
+    borrowers = {
+        name
+        for name, feat in features.features.items()
+        if feat.vocabulary is not None and feat.vocabulary in excluded
+    }
+    return frozenset(excluded | borrowers)
 
 
 def _metric_bundle(

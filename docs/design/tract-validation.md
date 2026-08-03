@@ -108,9 +108,13 @@ Supralaryngeal local minima per vowel, as `arc` from the lips with area in cm².
 
 Three things fall out that no choice of window can move.
 
+**Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), and closed.** Wood's four families are declared on the sixteen vowels his conclusion 2 names, read at the arcs `place` already declares, so those five now sit at three locations: `u` at 0.45, `o` and `ɔ` at 0.56, `ɑ` at 0.74. `ʌ` is named in no family and keeps 0.56 by the `backness` fallback, which is reported as an approximation rather than passed off as a reading.
+
 **The back vowels use two locations, not one.** `u` and `o` constrict at `arc` 0.380 and 0.375, at 0.15 and 0.32 cm², with nothing else in either column within a factor of three. `ɑ`, `ɔ` and `ʌ` constrict in a band at `arc` 0.60–0.72, four times narrower than anything forward of it in their columns. The gap between the two groups is 0.22 of tract length — about 4 cm — and no vowel of this speaker constricts inside it. `ipakit` places all five at 0.56, in that gap.
 
 **`i` is forward of `ɑ`, robustly.** `i` constricts at `arc` 0.27 with the deepest constriction in the whole vowel set (0.10 cm²), `ɑ` at 0.67, and the ordering survives every cutoff and every instrument tried. `ɑ`'s narrowing is pharyngeal and it is where the data puts it. This is the claim that would have carried a rank correlation, and it does not need one.
+
+**Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), in its last clause only.** `ɝ` is still at 0.44 and no source classifies it, so everything up to that clause stands. What changed is the note: the layer now annotates the *coordinate* as well as the property, with a mark naming `backness` and kind `approximate`, because `backness` says where the tongue body is and not where it constricts. A reader of `ɝ`'s strip is told which number is a stand-in rather than only that something else is absent.
 
 **`ɝ` is the most anterior constriction in the set.** At `arc` 0.22 it is forward of `i`, which is the geometric signature of American English r-coloring. `ipakit` places it at 0.44, the most posterior of everything it calls non-back. The model is not silent about this: `rhotacized` declares no coordinates, so `unmodelled()` returns it with kind `unmodelled` and a renderer annotates rather than invents. The annotation layer is doing its job. The `arc` is still 0.22 away from the measurement, which means a figure drawn from it puts the constriction in the wrong place *and* prints a note saying something is missing, and a reader has no way to know the note explains the error.
 
