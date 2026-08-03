@@ -391,7 +391,12 @@ def apply_modifiers(
 def fill_defaults(features: IPAFeatures, feats: dict[str, str]) -> dict[str, str]:
     """Fill each still-unset feature with its declared default.
 
-    Skipped entirely for a non-speech bundle (see :func:`_is_non_speech`).
+    Skipped entirely for a bundle :func:`takes_defaults` refuses, which is
+    the same question this used to answer for itself off a narrower test:
+    silence answered no to both, but a position that is not a segment at
+    all -- a declared zero, whose ``class`` is dropped from a feature bag,
+    leaving nothing to constrict with -- answered no there and was filled
+    here anyway, so a structural zero acquired an airstream and a channel.
     Mutates and returns ``feats``.
 
     A ``mode="prosodic"`` default lands here too, and it is the one kind
@@ -407,12 +412,125 @@ def fill_defaults(features: IPAFeatures, feats: dict[str, str]) -> dict[str, str
     9591, which is a change to the metric and not to a query, and is not
     made here.
     """
-    if _is_non_speech(features, feats):
+    if not takes_defaults(features, feats):
         return feats
     for name, feat in features.features.items():
         if name not in feats and feat.default is not None:
             feats[name] = feat.default
     return feats
+
+
+def phase_blocks(bundles: Sequence[Mapping[str, str]]) -> list[tuple[int, int]]:
+    """Maximal same-manner runs of constituents, as ``(start, end)`` slices.
+
+    A unit's phase structure, read once: :func:`classify` asks it and so
+    does :attr:`Segment.children`, so the grouping a caller walks and the
+    classification it is given cannot disagree about where a phase ends.
+    """
+    blocks: list[tuple[int, int]] = []
+    start = 0
+    for i in range(1, len(bundles)):
+        if bundles[i].get("manner") != bundles[start].get("manner"):
+            blocks.append((start, i))
+            start = i
+    blocks.append((start, len(bundles)))
+    return blocks
+
+
+def combining_place(
+    features: IPAFeatures, bundles: Sequence[Mapping[str, str]]
+) -> str | None:
+    """The place a simultaneous fusion is spelled with when its
+    constituents constrict in more than one, and ``None`` when there is
+    nothing to combine.
+
+    One timing slot at one manner, articulated in two places, is a double
+    articulation, and its place is the canonical combining spelling --
+    components ordered by scale position, any pair and not just the
+    pre-named ones. This is the whole of that test: :func:`classify` calls
+    a fusion a double articulation exactly where this returns a value, and
+    :func:`flat_projection` writes exactly the value it returns, so the
+    name and the spelling are one decision. ``t͡d`` acquiring the name
+    without the spelling is what it looks like when they are two.
+
+    ``None`` for a phased unit, whose place is the phase the merge ends on
+    (``t̪͡s`` is alveolar, not dental^alveolar).
+    """
+    if len(phase_blocks(bundles)) > 1:
+        return None
+    places = [bundle["place"] for bundle in bundles if "place" in bundle]
+    if len(set(places)) < 2:
+        return None
+    place_feature = features.features.get("place")
+    if place_feature is None:
+        return None
+    return str(place_feature.combine(tuple(places)))
+
+
+def classify(
+    features: IPAFeatures,
+    bundles: Sequence[Mapping[str, str]],
+    junctures: Sequence[Sense],
+) -> Kind:
+    """What one unit is, from its constituents' bundles and its junctures.
+
+    The single read of that question. :attr:`Segment.kind` is this over a
+    parsed unit's constituents, and :func:`flat_projection` is this over
+    the very bundles it merges, so the structured classification and the
+    flat projection cannot call one unit two things. They did: a
+    prenasalized stop was projected with ``manner="affricate"`` while
+    ``kind`` called it prenasalized, and ``t͡d`` was classified a double
+    articulation while the projection beside it read one alveolar place.
+    Both were two answers to this question, kept in step by vigilance.
+
+    Read off the bundles rather than off the base phones, because a mark
+    is part of the constituent it is written on: the mark that overrides a
+    place is what decides whether two constituents constrict in two
+    places, and the mark that overrides an airstream is what decides
+    whether a constituent is still a click.
+
+    The order of the tests is the classification's own precedence: a
+    sequence before a fusion, an airstream before a manner, and a
+    single-block fusion -- one timing slot, no phase to order -- before
+    the phased readings.
+    """
+    if len(bundles) == 1:
+        return Kind.ATOMIC
+    if Sense.SEQ in junctures:
+        if all(bundle.get("manner") == "vowel" for bundle in bundles):
+            return Kind.DIPHTHONG
+        return Kind.CHAIN
+    if any(bundle.get("airstream") == "velaric" for bundle in bundles):
+        return Kind.CLICK_ACCOMPANIMENT
+    blocks = phase_blocks(bundles)
+    if len(blocks) == 1:
+        # One manner, so the only thing that can make this two
+        # articulations is two places to articulate at -- and that is the
+        # question :func:`combining_place` answers for the projection. With
+        # one effective place there is nothing to combine and nothing
+        # double about it: the constituents are laid over each other.
+        if combining_place(features, bundles) is not None:
+            return Kind.DOUBLE_ARTICULATION
+        return Kind.OVERLAY
+    manner_feature = features.features.get("manner")
+    obstruent = (
+        manner_feature.value_classes.get(_OBSTRUENT, frozenset())
+        if manner_feature is not None
+        else frozenset()
+    )
+    first = bundles[blocks[0][0]].get("manner")
+    second = bundles[blocks[1][0]].get("manner")
+    if first == "plosive" and second == "fricative":
+        return Kind.AFFRICATE
+    if first == "nasal" and second in obstruent:
+        return Kind.PRENASALIZED
+    if first in obstruent and second == "nasal":
+        return Kind.PRE_STOPPED
+    if first == "plosive" and second == "approximant":
+        start, end = blocks[1]
+        if any(bundle.get("channel") == "lateral" for bundle in bundles[start:end]):
+            return Kind.LATERAL_RELEASE
+    return Kind.OVERLAY
 
 
 def flat_projection(
@@ -446,10 +564,23 @@ def flat_projection(
     affricate takes the place of its release (``t͡ʃ`` is postalveolar,
     from ``ʃ``), and a mark on an earlier constituent survives only where
     the later ones state nothing -- which is exactly why ``kʷ͡p`` keeps
-    ``labialized='+'`` while ``t̪͡s`` is alveolar, not dental. A differing
-    manner across the block collapses to "affricate"; same-manner parts
-    with different places are a double articulation, spelled with the
-    canonical combining value.
+    ``labialized='+'`` while ``t̪͡s`` is alveolar, not dental.
+
+    The merge stands except where the unit's own reading names a declared
+    value for the whole of it, and there are exactly two such names: an
+    affricate *is* the manner ``affricate`` (``q͡χ`` is a uvular
+    affricate), and a simultaneous fusion in two places *is* the combining
+    place they spell. Both are asked here of the same functions that name
+    the unit -- :func:`classify` and :func:`combining_place` -- so a unit
+    cannot be called one thing and projected as another.
+
+    Every other reading -- a prenasalized stop, a pre-stopped nasal, a
+    lateral release -- names a phase rather than a value, so the merge
+    reports what the constituents state and :attr:`Segment.kind` is where
+    the phase is read. Collapsing every differing manner to ``affricate``
+    is what once made ``describe("n͡d")`` and ``describe("d͡n")`` the same
+    sentence, and made the metric compare a prenasalized stop as an
+    affricate.
 
     ``href`` is dropped from any composed unit: it names a specific
     Wikipedia article for a symbol, and an ad hoc compound has none.
@@ -458,26 +589,18 @@ def flat_projection(
     """
     composed = bool(junctures)
     if Sense.SEQ in junctures:
-        bundles = list(bundles)[: list(junctures).index(Sense.SEQ) + 1]
+        cut = list(junctures).index(Sense.SEQ) + 1
+        bundles, junctures = list(bundles)[:cut], list(junctures)[: cut - 1]
     feats: dict[str, str] = {}
-    manners: set[str | None] = set()
-    places: list[str] = []
     for bundle in bundles:
-        manners.add(bundle.get("manner"))
-        if "place" in bundle:
-            places.append(bundle["place"])
         feats.update(bundle)
     if composed:
         feats.pop("href", None)
-    if len(manners) > 1:
+    if classify(features, bundles, junctures) is Kind.AFFRICATE:
         feats["manner"] = "affricate"
-    elif len(set(places)) > 1:
-        # A same-manner multi-place fusion is a double articulation; its
-        # place is the canonical combining spelling (components ordered
-        # by scale position): any pair, not just the pre-named ones.
-        place_feature = features.features.get("place")
-        if place_feature is not None:
-            feats["place"] = place_feature.combine(tuple(places))
+    place = combining_place(features, bundles)
+    if place is not None:
+        feats["place"] = place
     return feats
 
 
@@ -595,29 +718,15 @@ class Segment:
             )
         return self._features
 
-    def _manner(self, constituent: Constituent) -> str | None:
-        phone = self._require_features().get_phone(constituent.base)
-        return phone.features.get("manner") if phone else None
-
-    def _vocalic(self, constituent: Constituent) -> bool:
-        return self._manner(constituent) == "vowel"
-
-    def _airstream(self, constituent: Constituent) -> str | None:
-        phone = self._require_features().get_phone(constituent.base)
-        return phone.features.get("airstream") if phone else None
+    def _part_bundles(self) -> list[dict[str, str]]:
+        """Each constituent's own explicit bundle -- what the projection
+        merges, and what the classification is read off."""
+        features = self._require_features()
+        return [part_bundle(features, c) for c in self.constituents]
 
     def _phase_blocks(self) -> list[tuple[int, int]]:
         """Maximal same-manner runs of constituents, as (start, end) slices."""
-        blocks: list[tuple[int, int]] = []
-        start = 0
-        for i in range(1, len(self.constituents)):
-            if self._manner(self.constituents[i]) != self._manner(
-                self.constituents[start]
-            ):
-                blocks.append((start, i))
-                start = i
-        blocks.append((start, len(self.constituents)))
-        return blocks
+        return phase_blocks(self._part_bundles())
 
     def _sub(self, start: int, end: int) -> Segment:
         return Segment(
@@ -709,42 +818,26 @@ class Segment:
 
     @property
     def kind(self) -> Kind:
-        """Total classification (design spec section 5)."""
-        if len(self.constituents) == 1:
-            return Kind.ATOMIC
-        if Sense.SEQ in self.junctures:
-            if all(self._vocalic(c) for c in self.constituents):
-                return Kind.DIPHTHONG
-            return Kind.CHAIN
-        features = self._require_features()
-        manner_feature = features.features.get("manner")
-        obstruent = (
-            manner_feature.value_classes.get(_OBSTRUENT, frozenset())
-            if manner_feature is not None
-            else frozenset()
-        )
-        blocks = self._phase_blocks()
-        manners = [self._manner(self.constituents[s]) for s, _ in blocks]
-        if any(self._airstream(c) == "velaric" for c in self.constituents):
-            return Kind.CLICK_ACCOMPANIMENT
-        if len(blocks) == 1:
-            return Kind.DOUBLE_ARTICULATION
-        first, second = manners[0], manners[1]
-        if first == "plosive" and second == "fricative":
-            return Kind.AFFRICATE
-        if first == "nasal" and second in obstruent:
-            return Kind.PRENASALIZED
-        if first in obstruent and second == "nasal":
-            return Kind.PRE_STOPPED
-        if first == "plosive" and second == "approximant":
-            block_start, block_end = blocks[1]
-            if any(
-                (p := self._require_features().get_phone(c.base))
-                and p.features.get("channel") == "lateral"
-                for c in self.constituents[block_start:block_end]
-            ):
-                return Kind.LATERAL_RELEASE
-        return Kind.OVERLAY
+        """Total classification (design spec section 5).
+
+        :func:`classify` over this unit's own bundles -- the same read the
+        flat projection is named by, not a second one beside it.
+        """
+        return classify(self._require_features(), self._part_bundles(), self.junctures)
+
+    @property
+    def phased(self) -> bool:
+        """Whether the unit's parts stand in phase or sequence, so their
+        order is meaning rather than notation.
+
+        What the metric aligns on (docs/distance.md): a sequential chain
+        and a fusion of more than one phase block are read in order; a
+        single-block fusion and an atomic unit are not, because one timing
+        slot at one manner has no phase to put first. Asked of the
+        structure rather than of a list of :class:`Kind` names, so that
+        naming a fusion differently cannot silently change how it aligns.
+        """
+        return Sense.SEQ in self.junctures or len(self._phase_blocks()) > 1
 
     def bag(self) -> dict[str, tuple[str, ...]]:
         """Union feature bag: per-feature value tuples in constituent order,

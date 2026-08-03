@@ -2,8 +2,8 @@
 
 Distance is computed over the derived grouping, never the flat feature
 bag: constituents compare as whole bundles, alignment mode follows the
-unit kinds (ordered where order is meaning, unordered where it is
-notation), junctures carry the binding-sense term, and secondary
+unit's phase structure (ordered where order is meaning, unordered where
+it is notation), junctures carry the binding-sense term, and secondary
 articulations enter as weighted place components. All values lie in
 [0, 1].
 
@@ -17,7 +17,7 @@ Key properties, pinned by tests:
 - ``place(t, tʲ) = δ/3 < place(tʲ, c) = 2δ/3 < place(t, c) = δ`` — a
   secondary articulation moves a segment toward its secondary place,
   strictly between the plain segments.
-- ``D(u͡i, i͡u) = 0`` but ``D(a͡t, t͡a) > 0`` — double articulation is
+- ``D(u͡i, i͡u) = 0`` but ``D(a͡t, t͡a) > 0`` — a single-block fusion is
   unordered notation; phased units are ordered.
 """
 
@@ -29,7 +29,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
-from .segment import Constituent, Kind, Segment, Sense
+from .segment import Constituent, Segment, Sense
 from .tract import tract_point
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -49,21 +49,12 @@ SECONDARY_WEIGHT = 0.5
 # habit. Combining place values (bilabial^palatal) carry their expansion in
 # the name; Feature.expand supplies the components.
 
-# Kinds whose part order is meaning (phased units and sequences); pairs
-# involving any of these align ordered. Single-block fusions and atomic
-# units are unordered notation.
-ORDERED_KINDS = frozenset(
-    {
-        Kind.AFFRICATE,
-        Kind.PRENASALIZED,
-        Kind.PRE_STOPPED,
-        Kind.LATERAL_RELEASE,
-        Kind.CLICK_ACCOMPANIMENT,
-        Kind.OVERLAY,
-        Kind.DIPHTHONG,
-        Kind.CHAIN,
-    }
-)
+# Which pairs align ordered is asked of the unit's phase structure --
+# Segment.phased -- and not of a list of Kind names beside it. The list was
+# the kinds that happen to be phased, which held only while every
+# single-block fusion was called a double articulation; a fusion renamed
+# for having one place would have fallen off it and started aligning as a
+# sequence, with nothing to say so.
 
 PlaceComponents = tuple[tuple[str, float], ...]
 
@@ -265,7 +256,7 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
     if len(x.constituents) == 1 and len(y.constituents) == 1:
         return bundle_distance(features, x.constituents[0], y.constituents[0])
 
-    ordered = x.kind in ORDERED_KINDS or y.kind in ORDERED_KINDS
+    ordered = x.phased or y.phased
     px, py = _parts(x), _parts(y)
 
     if not ordered:
