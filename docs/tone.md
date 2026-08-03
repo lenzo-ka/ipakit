@@ -118,7 +118,7 @@ The X-SAMPA table is a third opinion and was corrected to match: ICU encodes `�
 
 A run of prosodic marks used to merge into one bundle by last-writer-wins, so `a˩˥` was recorded as `tone=top` and `a˥˩` as `tone=bottom` — a rise and a fall stored as opposite **level** tones, with no error and no warning. Anything spelled with tone letters lost its contours entirely.
 
-Sequence-valued features now concatenate, so nothing is dropped. Where two marks state a **single-valued** prosodic feature, the first stands and the collision is reported rather than silently overwritten:
+Sequence-valued features now concatenate, so nothing is dropped. Where two marks state a **single-valued** feature, the first stands and the collision is reported rather than silently overwritten. That is not a rule about prosody: it is what two marks of one stack stating one feature mean anywhere ([ties.md](ties.md)), and the segmental projection and the unit's prosody read it through one function, so `compose("a˧˦")` and `units("a˧˦")[0].prosody` cannot disagree about the tone.
 
 ```python
 import warnings
@@ -128,7 +128,7 @@ with warnings.catch_warnings(record=True) as caught:
     units("aːˑ")
 
 str(caught[0].message)
-# "'aːˑ': two prosodic marks state 'length' ('long' then 'half-long'); 'length' is single-valued, so 'half-long' is a contradiction and is not recorded"
+# "'aːˑ': two marks state 'length' ('long' then 'half-long'); 'length' is single-valued, so 'half-long' is a contradiction and is not recorded"
 ```
 
 A written contour that contradicts the levels written with it is reported the same way — the mark stands, because only the writer knows which they meant.
