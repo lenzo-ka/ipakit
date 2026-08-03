@@ -97,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `œ`, `ɯ` and `ʌ` declare a constriction location, from Wood's later restatements of the same four families; 268 of 9591 pairs move and no consonant pair does (#175).
 - Sixteen vowels declare their constriction location, in Wood's (1979) four families read at the arcs `place` declares; 2421 of 9591 pairs move and `ɑ a æ` are the first vowels to reach the pharyngeal anchor (#123).
 - A feature borrowing an excluded feature's vocabulary is excluded from per-key comparison with it, and a borrowed reading is dropped rather than carried across a `respell`.
 - A word-alignment substitution costs `(delete + insert) x` the pair's dissimilarity, so a maximal one costs the gap pair it stands for (#161).

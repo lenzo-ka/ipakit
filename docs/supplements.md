@@ -27,7 +27,7 @@ ipakit.describe("tʰ")
 round(ipakit.distance("tʰ", "t"), 4)
 # 0.0476
 round(ipakit.confusability("tʰ", "t"), 4)
-# 0.9625
+# 0.9624
 [p for p, _ in ipakit.nearest_phones("tʰ", n=3)]
 # ['t', 'ȶ', 'p']
 ```

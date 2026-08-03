@@ -152,19 +152,24 @@ DEPTH_FACTORS = (1.25, 1.5, 2.0, 3.0, 4.0)
 #: Reading it as an ``arc`` therefore divides by a tract length -- each shape's
 #: own published length, so that no single divisor is chosen here.
 #:
-#: ``ʌ`` is named in no family. Fig. 5 superimposes Southern British English
-#: vowel areas on the four nomogram surfaces and puts it on the lower pharyngeal
-#: one with ``æ`` and ``ɑ``, which is what it is read as here. The band it lands
-#: in below spans 0.50 to the glottis, so both readings of it are inside and no
-#: verdict here turns on the choice.
+#: Wood restates the same four families twice more, and the restatements name
+#: three symbols conclusion 2 does not. Wood (1990: 198) gives the palatal
+#: family as "[i-ɛ,y-œ]-like" and the palatovelar one as "[u-ʊ,ɯ]-like"; his own
+#: summary of the 1979 figure gives the third as "[o ɔ] and [ɤ ʌ]". So ``ʌ`` is
+#: upper-pharyngeal here, which is where the measurement puts it too: Wood's
+#: 0.629 is inside all three American English bands for it and his 0.743 inside
+#: one of three. Reading it off Fig. 5 instead -- which superimposes Southern
+#: British English formant areas on the four nomogram surfaces and assigns no
+#: area to a surface -- put it in the lower pharyngeal family, and that is what
+#: made the classification and the bands appear to disagree.
 #:
 #: ``ɝ`` is imaged by Story et al. and has no family: Wood's four cover the
 #: cardinal space and not the American English rhotic.
 WOOD_LOCATIONS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
-    ("hard palate", 12.0, ("i", "ɪ", "ɛ")),
-    ("soft palate", 8.5, ("u", "ʊ")),
-    ("upper pharynx", 6.5, ("o", "ɔ")),
-    ("lower pharynx", 4.5, ("ɑ", "æ", "ʌ")),
+    ("hard palate", 12.0, ("i", "ɪ", "ɛ", "œ")),
+    ("soft palate", 8.5, ("u", "ʊ", "ɯ")),
+    ("upper pharynx", 6.5, ("o", "ɔ", "ʌ")),
+    ("lower pharynx", 4.5, ("ɑ", "æ")),
 )
 
 #: The tract length the Stevens & House (1955) three-parameter model uses, and
@@ -582,7 +587,7 @@ def backness_only(extra: Sequence[str] = ()) -> dict[str, float | None]:
     """The ``arc`` ``backness`` alone gives each imaged shape.
 
     Not the same question as :func:`declared`, and it stopped being the same
-    question when sixteen vowels started stating a ``constriction-location``.
+    question when vowels started stating a ``constriction-location``.
     ``anchors`` scores four readings and two of them would otherwise be the
     same column under two headings -- which is how a baseline goes stale
     without anything saying so, because the number moves and the header does
@@ -908,7 +913,13 @@ def wood_arcs() -> dict[str, tuple[str, float]]:
     out: dict[str, tuple[str, float]] = {}
     for name, from_glottis, family in WOOD_LOCATIONS:
         for symbol in family:
-            length = lengths[symbol]
+            # A family may name a vowel no source here images -- `œ` and `ɯ`
+            # are Wood's and nobody's MRI -- and those have no shape to divide
+            # by. They are not dropped from the classification, only from this
+            # reading of it.
+            length = lengths.get(symbol)
+            if length is None:
+                continue
             out[symbol] = (name, (length - from_glottis) / length)
     return out
 

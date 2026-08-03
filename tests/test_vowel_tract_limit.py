@@ -1,18 +1,17 @@
 """A vowel's constriction location is read from a source where there is
 one, and from `backness` where there is not.
 
-Sixteen vowels state a `constriction-location` and twenty-three do not,
-so the limit this file pins has moved and what it pins has changed with
+Nineteen vowels state a `constriction-location` and twenty do not, so
+the limit this file pins has moved and what it pins has changed with
 it. What used to be here was that a vowel's `arc` is a function of
 `backness` alone, so `u o ɑ ɔ ʌ` all sat at 0.56 while the measurement
 put them at two locations 0.22 of a tract apart. That is fixed for the
-vowels a source classifies. `u` is at 0.45, `o` and `ɔ` at 0.56, `ɑ` at
-0.74, and `ʌ` -- which Wood names in no family -- is still at 0.56, by
-the fallback, and says so.
+vowels a source classifies. `u` is at 0.45, `o`, `ɔ` and `ʌ` at 0.56 and
+`ɑ` at 0.74.
 
 **What remains pinned is the fallback and its report.** The nine central
-vowels no source places, and six peripheral qualities outside the ranges
-Wood's conclusion 2 names, keep an `arc` from `backness`; `backness` says
+vowels no source places, and three peripheral qualities outside the
+ranges Wood names, keep an `arc` from `backness`; `backness` says
 where the tongue body is rather than where it constricts, so that arc is
 reported in `Reading.approximated` and by `unmodelled` as kind
 `approximate`. A caller can tell a sourced location from an unsourced one
@@ -166,17 +165,16 @@ class TestTheLimitAsItStands:
         """The headline case, with the measurement beside it.
 
         Measured: `u` and `o` at 0.38, `ɑ` at 0.67, `ɔ` and `ʌ` at 0.65 in
-        the 1996 session; Wood puts `u` at the soft palate, `o` and `ɔ` at
-        the upper pharynx and `ɑ` at the lower one. `ʌ` is named in no
-        family and keeps 0.56 by the fallback -- which is the honest
-        answer, not an oversight: his Fig. 5 is the only place he puts it
-        anywhere, and a figure is not a classification.
+        the 1996 session; Wood puts `u` at the soft palate, `o`, `ɔ` and
+        `ʌ` at the upper pharynx and `ɑ` at the lower one. All five state
+        a location, and three arcs remain: `ʌ` shares `o` and `ɔ`'s,
+        which is what its family says and what its own 0.65 says.
         """
         arcs = {p: tract_point(ipa, ipa.get_features(p)).arc for p in "uoɑɔʌ"}
         assert arcs == {"u": 0.45, "o": 0.56, "ɑ": 0.74, "ɔ": 0.56, "ʌ": 0.56}
         assert len(set(arcs.values())) == 3
         stated = {p for p in arcs if "constriction-location" in ipa.get_features(p)}
-        assert stated == {"u", "o", "ɑ", "ɔ"}
+        assert stated == {"u", "o", "ɑ", "ɔ", "ʌ"}
 
     def test_the_pharyngeal_anchor_is_reached_only_by_a_stated_location(
         self, ipa: IPAFeatures
