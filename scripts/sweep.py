@@ -130,17 +130,26 @@ def corpus(ipa: IPAFeatures) -> list[tuple[str, str, str]]:
     are well-formed, not to be told so once per candidate.
     """
     units: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for base in ipa.phones:
+            # Both placements a mark can be written in, because both are
+            # placements the data allows: a mark after the base states its
+            # release and one before it states its approach. Enumerating
+            # the trailing one alone measured half the notation, and the
+            # half left out is the half every external inventory ships.
             for mark in ("", *ipa.diacritics):
-                unit = base + mark
-                try:
-                    if ipa.segment(unit).to_ipa() != unit:
+                for unit in dict.fromkeys((base + mark, mark + base)):
+                    if unit in seen:
                         continue
-                except Exception:  # noqa: BLE001 - not self-spelling either way
-                    continue
-                units.append((unit, base, mark))
+                    try:
+                        if ipa.segment(unit).to_ipa() != unit:
+                            continue
+                    except Exception:  # noqa: BLE001 - not self-spelling either way
+                        continue
+                    seen.add(unit)
+                    units.append((unit, base, mark))
     return units
 
 

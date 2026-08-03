@@ -153,7 +153,12 @@ class TestTheDataSaysWhatThePythonUsedTo:
 
     def test_the_bridges(self, ipa: IPAFeatures) -> None:
         assert ipa.bridges == {
-            "nasality": (("manner", "nasal"), ("nasalized", "+"), ("release", "nasal")),
+            "nasality": (
+                ("manner", "nasal"),
+                ("nasalized", "+"),
+                ("release", "nasal"),
+                ("approach", "nasal"),
+            ),
             "laterality": (("channel", "lateral"), ("release", "lateral")),
         }
 

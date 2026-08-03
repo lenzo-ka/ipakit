@@ -51,7 +51,7 @@ from pathlib import Path
 import ipakit
 import pytest
 from ipakit import IPAFeatures
-from ipakit.segment import modifier_mode
+from ipakit.segment import APPROACH_MODE, modifier_mode, phase_keys
 
 from tests.corpus import self_spelling_phones
 
@@ -227,17 +227,26 @@ class TestWhatTheFixDidNotChange:
             }
         )
         assert len(pairs) > 50, "sweep did not run"
+
+        def stated(symbol: str, key: str) -> tuple[tuple[str, str], ...]:
+            """What a mark says where a request for ``key`` is written.
+
+            Specificity is measured over the placement, not over the whole
+            declaration, because that is what `declaring_mark` measures: a
+            mark stating one key at each phase says one thing at each end,
+            and counting both would make `ʰ` look less specific about an
+            aspirated release than `ʻ`, which says the same thing and is
+            the spelling nobody writes.
+            """
+            approach = key in FEATURES.features_by_mode.get(APPROACH_MODE, frozenset())
+            here = phase_keys(FEATURES, symbol, approach)
+            bundle = FEATURES.diacritics[symbol].features or {}
+            return tuple(sorted((k, v) for k, v in bundle.items() if k in here))
+
         contested = {}
         for key, value in pairs:
             candidates = [
-                (
-                    sum(
-                        1
-                        for k in (m.features or {})
-                        if k not in ("name", "class", "href", "xsampa")
-                    ),
-                    s,
-                )
+                (len(stated(s, key)), s)
                 for s, m in FEATURES.diacritics.items()
                 if (m.features or {}).get(key) == value
             ]
@@ -247,20 +256,10 @@ class TestWhatTheFixDidNotChange:
                 contested[(key, value)] = tied
         assert len(contested) == 7, sorted(contested)
 
-        def stated(symbol: str) -> tuple[tuple[str, str], ...]:
-            bundle = FEATURES.diacritics[symbol].features or {}
-            return tuple(
-                sorted(
-                    (k, v)
-                    for k, v in bundle.items()
-                    if k not in ("name", "class", "href", "xsampa")
-                )
-            )
-
         separable = {
             pair: tied
             for pair, tied in contested.items()
-            if len({stated(s) for s in tied}) > 1
+            if len({stated(s, pair[0]) for s in tied}) > 1
         }
         assert list(separable) == [("voiced", "+")], sorted(separable)
 
