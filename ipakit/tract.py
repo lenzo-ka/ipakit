@@ -1137,45 +1137,61 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     # spelling that manner by an alias takes the same branch.
     manner = resolve("manner")
 
+    def combined_attr(feature: str, value: str | None, attr: str) -> float | None:
+        """The mean of the components' positions.
+
+        A combining value sits at its components' center of gravity --
+        the fusion's balance point in the tract, where ``w`` falls
+        between the lips and the velum. A single value expands to itself,
+        so this is the ordinary read as well as the combined one, and
+        every axis takes it: a simultaneous fusion spells a combination
+        on whichever feature its constituents disagree about, so
+        ``front^back`` is a position for the same reason
+        ``bilabial^velar`` is.
+        """
+        if value is None:
+            return None
+        feat = features.features.get(feature)
+        if feat is None:
+            return None
+        found = [
+            a
+            for comp in feat.expand(value)
+            if (a := value_attr(feature, comp, attr)) is not None
+        ]
+        return sum(found) / len(found) if found else None
+
+    def combined_articulator(feature: str, value: str | None) -> str | None:
+        """Every organ the components move, in the combining spelling.
+
+        A labial-velar moves the lower lip AND the dorsum. (The gestural
+        model makes these two gestures; see docs/gestural-model.md.)
+        """
+        if value is None:
+            return None
+        feat = features.features.get(feature)
+        if feat is None:
+            return None
+        organs: list[str] = []
+        for comp in feat.expand(value):
+            organ = articulator_for(feature, comp)
+            if organ is not None and organ not in organs:
+                organs.append(organ)
+        # The combiner, not a literal "+": this spelling is read back
+        # through Feature.expand.
+        return Feature.COMBINER.join(organs) if organs else None
+
     if manner == "vowel":
         read.add("manner")
-        arc = value_attr("backness", bundle.get("backness"), "arc")
-        offset = value_attr("height", bundle.get("height"), "offset")
-        articulator = articulator or articulator_for("backness", bundle.get("backness"))
+        backness = bundle.get("backness")
+        arc = combined_attr("backness", backness, "arc")
+        offset = combined_attr("height", bundle.get("height"), "offset")
+        articulator = articulator or combined_articulator("backness", backness)
     else:
         place = bundle.get("place")
-        if place is not None:
-            feat = features.features.get("place")
-            if feat is not None:
-                # A combining place (bilabial^velar) sits at the mean of
-                # its components' positions -- the fusion's center of
-                # gravity in the tract.
-                arcs = [
-                    a
-                    for comp in feat.expand(place)
-                    if (a := value_attr("place", comp, "arc")) is not None
-                ]
-                if arcs:
-                    arc = sum(arcs) / len(arcs)
-            if articulator is None and feat is not None:
-                # A combining place combines its articulators: a
-                # labial-velar moves the lower lip AND the dorsum. (The
-                # gestural model makes these two gestures; see
-                # docs/gestural-model.md.)
-                organs = [
-                    organ
-                    for comp in feat.expand(place)
-                    if (organ := feat.articulators.get(comp)) is not None
-                ]
-                if organs:
-                    read.add("place")
-                    seen: list[str] = []
-                    for organ in organs:
-                        if organ not in seen:
-                            seen.append(organ)
-                    # The combiner, not a literal "+": this spelling is
-                    # read back through Feature.expand.
-                    articulator = Feature.COMBINER.join(seen)
+        arc = combined_attr("place", place, "arc")
+        if articulator is None:
+            articulator = combined_articulator("place", place)
         offset = value_attr("manner", manner, "offset")
     return Reading(
         point=TractPoint(arc=arc, offset=offset, articulator=articulator),

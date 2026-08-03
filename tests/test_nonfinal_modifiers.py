@@ -91,7 +91,13 @@ class TestLeadingConstituentMarks:
 
 class TestAnOverridingMarkDoesNotWinBackwards:
     """The merge is left to right; a mark cannot reach past its own
-    constituent to overrule a later one's stated value."""
+    constituent to overrule a later one's stated value.
+
+    Every unit here stands in two phases -- a place or a voicing on one
+    side of a manner change -- which is what makes the order meaning and
+    the last constituent the one that decides. A fusion sharing one phase
+    has no last constituent and merges order-free instead (#155).
+    """
 
     @pytest.mark.parametrize(("unit", "feature", "expected"), OVERRIDING_MARK)
     def test_the_release_decides(
@@ -174,12 +180,26 @@ class TestScalarNeverInventsAValue:
         strings. Here the claim is about one read on its own: a value
         the flat projection reports is a value some constituent holds,
         so the two would agree on an invented value and this would not.
+
+        A projected value is compared by its **components**, because a
+        simultaneous fusion spells a disagreement as the combination of
+        the two values, on any feature and not only on place. So the
+        claim is that every component of what the projection reports is
+        a component of something a constituent holds -- which is the
+        stronger reading, and the one that would have caught a
+        combination assembled out of a value nobody stated.
+
+        `manner` is the one exclusion: differing manners collapse to
+        `affricate`, which is a name for the whole unit rather than a
+        combination of its parts (docs/ties.md).
         """
-        # manner and place are excluded because fusion derives them --
-        # differing manners collapse to affricate and places combine, so
-        # neither is a constituent value by design (docs/ties.md).
-        derived = {"manner", "place"}
+        derived = {"manner"}
         checked = 0
+
+        def components(key: str, value: str) -> tuple[str, ...]:
+            feature = ipa.features.get(key)
+            return feature.expand(value) if feature is not None else (value,)
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for base in ipa.phones:
@@ -195,13 +215,15 @@ class TestScalarNeverInventsAValue:
                             for key, value in unit.scalar().items():
                                 if key in derived or key in METADATA_ATTRS:
                                     continue
-                                if key in bag:
-                                    assert value in bag[key], (
-                                        base + mark + tie + tail,
-                                        key,
-                                        value,
-                                        bag[key],
-                                    )
+                                if key not in bag:
+                                    continue
+                                held = {c for v in bag[key] for c in components(key, v)}
+                                assert set(components(key, value)) <= held, (
+                                    base + mark + tie + tail,
+                                    key,
+                                    value,
+                                    bag[key],
+                                )
         assert checked > 30_000, "sweep did not run"
 
 

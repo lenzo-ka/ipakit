@@ -437,6 +437,81 @@ def phase_blocks(bundles: Sequence[Mapping[str, str]]) -> list[tuple[int, int]]:
     return blocks
 
 
+def phase_ordered(
+    bundles: Sequence[Mapping[str, str]], junctures: Sequence[Sense]
+) -> bool:
+    """Whether a unit's constituents stand in an order that carries
+    meaning, from its phase structure and its junctures.
+
+    What a tie's order means, asked once. A sequential tie orders its
+    constituents in time. A simultaneous tie orders nothing by itself:
+    it asserts one timing slot, and the only order inside one is the
+    order of the phases -- the closure before the release, the nasal
+    before the stop. So a fusion whose constituents share a phase has no
+    order at all, and writing them the other way round is the same unit.
+
+    :attr:`Segment.phased` is this over a parsed unit and
+    :func:`flat_projection` is this over the bundles it merges, so the
+    metric's alignment mode and the projection's merge cannot come to
+    different ideas about whether ``u͡i`` and ``i͡u`` are one sound. They
+    did: the metric called them identical while the projection read the
+    last constituent's backness and rounding, so one sound had two
+    descriptions and no distance between them.
+    """
+    return Sense.SEQ in junctures or len(phase_blocks(bundles)) > 1
+
+
+def simultaneous_merge(
+    features: IPAFeatures, bundles: Sequence[Mapping[str, str]]
+) -> dict[str, str]:
+    """Merge constituent bundles that stand in no order.
+
+    Position cannot break a tie here, so nothing about which constituent
+    was written first may reach the result. What breaks it instead is
+    what the feature declares itself to be:
+
+    * One constituent states the key -- that value. A mark on either
+      constituent still reaches the projection where the other states
+      nothing, so ``kʷ͡p`` keeps ``labialized='+'`` and ``p͡kʷ`` agrees.
+    * Both state it, on a feature whose values are **positions** -- the
+      combining spelling of the two, which :meth:`Feature.combine` orders
+      by scale position and which is therefore the same string either way
+      round. ``k͡p`` is ``bilabial^velar`` written from either end, which
+      is the rule :func:`combining_place` already applied to place alone;
+      ``u͡i`` is ``front^back``, and ``s͡ɬ`` is ``lateral^grooved``.
+    * Both state it, on a **binary** feature -- the declared default,
+      which for a binary type is the negative: its two values are the
+      presence and the absence of one articulation, so constituents that
+      disagree do not give the unit one to assert. ``ɡ͡b̥`` is voiceless
+      written either way round, where before it was voiceless one way and
+      voiced the other.
+
+    The disagreement itself is not thrown away by any of these:
+    :meth:`Segment.disagreements` reads it off the union bag, which is
+    where composition reports rather than referees.
+
+    A key naming no declared feature is metadata rather than an
+    articulation; there is nothing to combine, and ``href`` is dropped by
+    the projection in any case.
+    """
+    stated: dict[str, list[str]] = {}
+    for bundle in bundles:
+        for key, value in bundle.items():
+            values = stated.setdefault(key, [])
+            if value not in values:
+                values.append(value)
+    merged: dict[str, str] = {}
+    for key, values in stated.items():
+        feature = features.features.get(key)
+        if feature is None or len(values) == 1:
+            merged[key] = values[0]
+        elif feature.is_binary and feature.default is not None:
+            merged[key] = feature.default
+        else:
+            merged[key] = feature.combine(tuple(values))
+    return merged
+
+
 def combining_place(
     features: IPAFeatures, bundles: Sequence[Mapping[str, str]]
 ) -> str | None:
@@ -560,11 +635,17 @@ def flat_projection(
     later block does not reach the projection at all -- ``a͜ɪ̃`` projects
     ``a``, and ``t͡s͜ã`` projects the affricate.
 
-    The block then merges left to right, last constituent wins. An
-    affricate takes the place of its release (``t͡ʃ`` is postalveolar,
-    from ``ʃ``), and a mark on an earlier constituent survives only where
-    the later ones state nothing -- which is exactly why ``kʷ͡p`` keeps
-    ``labialized='+'`` while ``t̪͡s`` is alveolar, not dental.
+    How the block then merges is asked of :func:`phase_ordered`, the one
+    read of what the constituents' order means. Where they stand in
+    phases the order is meaning, and the merge runs left to right, last
+    constituent wins: an affricate takes the place of its release
+    (``t͡ʃ`` is postalveolar, from ``ʃ``), and a mark on an earlier
+    constituent survives only where the later ones state nothing -- which
+    is why ``t̪͡s`` is alveolar, not dental. Where they share one phase
+    there is no order to read, and :func:`simultaneous_merge` takes the
+    tie off what the features declare instead of off the writing: ``kʷ͡p``
+    still keeps ``labialized='+'``, and ``u͡i`` and ``i͡u`` project one
+    bundle, as the metric already scores them one sound.
 
     The merge stands except where the unit's own reading names a declared
     value for the whole of it, and there are exactly two such names: an
@@ -592,8 +673,11 @@ def flat_projection(
         cut = list(junctures).index(Sense.SEQ) + 1
         bundles, junctures = list(bundles)[:cut], list(junctures)[: cut - 1]
     feats: dict[str, str] = {}
-    for bundle in bundles:
-        feats.update(bundle)
+    if phase_ordered(bundles, junctures):
+        for bundle in bundles:
+            feats.update(bundle)
+    else:
+        feats = simultaneous_merge(features, bundles)
     if composed:
         feats.pop("href", None)
     if classify(features, bundles, junctures) is Kind.AFFRICATE:
@@ -833,11 +917,14 @@ class Segment:
         What the metric aligns on (docs/distance.md): a sequential chain
         and a fusion of more than one phase block are read in order; a
         single-block fusion and an atomic unit are not, because one timing
-        slot at one manner has no phase to put first. Asked of the
-        structure rather than of a list of :class:`Kind` names, so that
-        naming a fusion differently cannot silently change how it aligns.
+        slot at one manner has no phase to put first. :func:`phase_ordered`
+        over this unit's own bundles: asked of the structure rather than
+        of a list of :class:`Kind` names, so that naming a fusion
+        differently cannot silently change how it aligns, and the same
+        read :func:`flat_projection` merges by, so the alignment mode and
+        the projection cannot disagree about what the order means.
         """
-        return Sense.SEQ in self.junctures or len(self._phase_blocks()) > 1
+        return phase_ordered(self._part_bundles(), self.junctures)
 
     def bag(self) -> dict[str, tuple[str, ...]]:
         """Union feature bag: per-feature value tuples in constituent order,

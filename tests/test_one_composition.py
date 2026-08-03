@@ -104,16 +104,30 @@ class TestTheSweep:
     def test_no_value_is_invented(
         self, ipa: IPAFeatures, units: list[tuple[str, Segment]]
     ) -> None:
-        # A value in the projection is one some constituent holds, except
-        # where fusion derives it (differing manners collapse to affricate
-        # and differing places combine).
-        derived = {"manner", "place"}
+        # A value in the projection is built out of values some
+        # constituent holds -- compared by components, because a
+        # simultaneous fusion spells a disagreement as the combination of
+        # the two, on any feature and not only on place. `manner` is the
+        # exception: a differing pair collapses there to a name for the
+        # whole unit (`affricate`) rather than to a combination of parts.
+        derived = {"manner"}
+
+        def components(key: str, value: str) -> tuple[str, ...]:
+            feature = ipa.features.get(key)
+            return feature.expand(value) if feature is not None else (value,)
+
         for text, unit in units:
             bag = unit.bag()
             for key, value in unit.scalar().items():
                 if key in derived or key in METADATA_ATTRS or key not in bag:
                     continue
-                assert value in bag[key], (text, key, value, bag[key])
+                held = {c for v in bag[key] for c in components(key, v)}
+                assert set(components(key, value)) <= held, (
+                    text,
+                    key,
+                    value,
+                    bag[key],
+                )
 
 
 class TestTheDocumentedDivergenceSurvives:
@@ -311,11 +325,10 @@ def _vowel_letters(ipa: IPAFeatures) -> list[str]:
 
 
 class TestAPrimarySlotCannotLeakAcrossTheMerge:
-    """A fused unit's flat read merges left to right, last constituent
-    wins -- and a constituent that *states* nothing leaves the earlier
-    value standing. That is the wanted rule for a modifier feature
-    (``kʷ͡p`` keeps ``labialized='+'``, ``ɚ͡ɜ`` stays r-colored), and it
-    is a wrong answer for a slot the phone's own name is built from.
+    """A constituent that *states* nothing leaves the other's value
+    standing. That is the wanted rule for a modifier feature (``kʷ͡p``
+    keeps ``labialized='+'``, ``ɚ͡ɜ`` stays r-colored), and it is a wrong
+    answer for a slot the phone's own name is built from.
 
     Fourteen of the vowel letters declared no roundedness at all,
     leaning on the binary default, so the merge read their silence as
@@ -326,6 +339,11 @@ class TestAPrimarySlotCannotLeakAcrossTheMerge:
     guard is the sweep below rather than the case: a slot that goes
     unstated later fails here, not in whichever tie chain a caller
     happens to write.
+
+    Two vowels fused are one manner and one phase, so since #155 the
+    merge takes no value from either end in particular: it combines
+    them. The mixture the defect produced cannot be spelled by a
+    combination, which is why nothing here names a stranger any more.
     """
 
     def test_every_vowel_states_every_slot_of_its_own_name(
@@ -353,36 +371,56 @@ class TestAPrimarySlotCannotLeakAcrossTheMerge:
             with mock.patch.dict(ipa.phones, {"i": doctored}):
                 assert f"Missing '{slot}' for vowel 'i'" in ipa.validate()
 
-    def test_a_fused_vowel_pair_reads_the_second_vowels_slots(
+    def test_a_fused_vowel_pair_states_every_slot_from_both_vowels(
         self, ipa: IPAFeatures
     ) -> None:
         """Over every fused pair of vowel letters, not a sample.
 
+        Every slot of a vowel's name is stated by the flat read, and
+        what it states is what both constituents hold -- never one slot
+        taken from one vowel while the next is taken from the other,
+        which is the mixture that named ``y``. On a slot whose values are
+        positions the claim is exact: the projection spells the
+        combination of the two. ``rounded`` is binary, so a disagreement
+        there has no combination to spell and resolves to the declared
+        default; that its two values reach the merge at all is what
+        ``test_every_vowel_states_every_slot_of_its_own_name`` above
+        holds.
+
         Letters rather than every registered vowel: a chain holding a
         *sequential* juncture projects its first block instead of
         merging the whole of itself, so ``a͡a͜ɪ`` reads ``a͡a`` by rule
-        and has no business being asked what its last constituent says.
+        and has no business being asked what its constituents say.
         """
         vowels = _vowel_letters(ipa)
-        checked = 0
+        checked = combined = 0
         for first in vowels:
             for second in vowels:
                 unit = first + ipa.tie_bar + second
-                if ipa.segment(unit).to_ipa() != unit:
+                segment = ipa.segment(unit)
+                if segment.to_ipa() != unit:
                     continue
                 flat = ipa.get_features(unit, with_defaults=False)
-                last = ipa.phones[ipa.segment(unit).constituents[-1].base].features
+                bag = segment.bag()
                 for slot in VOWEL_SLOTS:
-                    assert flat.get(slot) == last.get(slot), (unit, slot)
+                    feature = ipa.features[slot]
+                    assert slot in flat, (unit, slot)
+                    held = {c for v in bag[slot] for c in feature.expand(v)}
+                    stated = set(feature.expand(flat[slot]))
+                    assert stated <= held, (unit, slot, flat[slot], bag[slot])
+                    if not feature.is_binary:
+                        assert stated == held, (unit, slot, flat[slot], bag[slot])
+                        combined += len(stated) > 1
                 checked += 1
         assert checked > 900, f"sweep covered only {checked} pairs"
+        assert combined > 900, "no pair ever combined; the claim is vacuous"
 
     def test_the_flat_read_names_a_vowel_the_unit_spells(
         self, ipa: IPAFeatures
     ) -> None:
         """The consequence, and the shape of the reported defect: whatever
         ``to_phone`` answers for a fused vowel pair, it is one of the
-        vowels written in it -- or the r-colored pair below."""
+        vowels written in it."""
         vowels = _vowel_letters(ipa)
         strangers = []
         for first in vowels:
@@ -395,26 +433,31 @@ class TestAPrimarySlotCannotLeakAcrossTheMerge:
                 spelled = {c.base for c in segment.constituents} | {unit}
                 if named is not None and named not in spelled:
                     strangers.append((unit, named))
-        assert strangers == [("ɚ͡ɜ", "ɝ"), ("ɝ͡ə", "ɚ")]
+        assert strangers == []
 
-    def test_the_two_that_still_name_a_stranger_are_the_other_rule(
-        self, ipa: IPAFeatures
-    ) -> None:
-        """Pinned rather than fixed, so the boundary stays known.
+    def test_a_modifier_feature_still_crosses_the_merge(self, ipa: IPAFeatures) -> None:
+        """The rule the two remaining strangers used to demonstrate.
 
         ``rhotacized`` is a modifier feature, not a slot of a vowel's
-        name, and a fused unit inheriting it from its first constituent
-        is the documented merge working: ``ɚ͡ɜ`` is an r-colored
-        open-mid central vowel, which ``ɝ`` is the registered spelling
-        of. If these two ever start coming back as constituents, the
-        merge rule has changed and the test above needs re-reading.
+        name, and a fused unit inheriting it from the one constituent
+        that states it is the documented merge working. It used to make
+        ``ɚ͡ɜ`` answer ``ɝ`` -- the registered r-colored open-mid central
+        vowel -- because the height came whole from the last constituent;
+        the two heights combine now, so the unit names no registered
+        vowel while the r-coloring still reaches it.
         """
-        assert ipa.get_features("ɚ͡ɜ", with_defaults=False)["rhotacized"] == "+"
+        flat = ipa.get_features("ɚ͡ɜ", with_defaults=False)
+        assert flat["rhotacized"] == "+"
         assert "rhotacized" not in ipa.phones["ɜ"].features
+        assert set(ipa.features["height"].expand(flat["height"])) == {"mid", "open-mid"}
 
     def test_the_reported_case_and_the_one_next_to_it(self, ipa: IPAFeatures) -> None:
-        assert ipa.to_phone(ipa.get_features("u͡i")) == "i"
-        assert ipa.to_phone(ipa.get_features("i͡u")) == "u"
+        # Both reversals answer alike, and neither names a vowel: a fusion
+        # of a front and a back vowel is in two places on the arc at once,
+        # and no registered vowel is (#155). They answered `i` and `u`,
+        # which is the last constituent on a unit that has no last.
+        assert ipa.to_phone(ipa.get_features("u͡i")) is None
+        assert ipa.to_phone(ipa.get_features("i͡u")) is None
         # Rule 3, and not a defect: a sequential chain projects its first
         # block, so its flat bundle is one constituent's and never
         # outranks the atom matching it equally well. An assessment
