@@ -46,6 +46,23 @@ table copied out of one speaker's MRI is the fit this refuses to make.
 `docs/design/tract-validation.md` 6 (D1, D2) is the assessment; this is
 the same finding where something checks it.
 
+**Two further sources have since been measured, and they refuse the
+table rather than supplying it.** Wood (1979) reviews X-rayed vowel
+articulations from 40 subjects in 13 languages; Yang & Kasuya (1994)
+print area functions for the five Japanese vowels from an adult male, an
+adult female and a boy. Held against the constriction bands those
+tabulated sources give, one symbol's measured location moves 0.059 to
+0.284 of tract length between them -- for `o`, more than the whole
+declared backness span of 0.24 that a cell table would have to resolve.
+So there is no coordinate to copy. What reproduces is Wood's four
+discrete locations, which land inside the measured band in 21 of 25
+columns against 12 of 25 for the arcs ipakit declares -- a partition of
+the (height, backness) plane into four families, which is a shape no
+one-feature-one-value-one-number declaration can state, and which no
+source assigns the central vowel series to at all.
+`docs/design/vowel-constriction.md` is that assessment. The limit is
+unchanged and every pin below stands; what moved is the reason.
+
 If one of these stops holding, the limit has moved and the write-up
 needs revising -- which is the point of asserting it.
 """
