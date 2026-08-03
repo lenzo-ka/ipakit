@@ -277,7 +277,11 @@ There is **no jaw articulator, no upper lip articulator and no larynx** in the m
 
 Whether these numbers could drive a synthesizer splits cleanly, and the split falls on a familiar line.
 
-**Full formant synthesis is blocked, for two independent reasons.** F1 and F2 depend on the pharyngeal cavity, and the pharynx is unmeasured — two points of wall and no articulator against them. And a sagittal distance is not an area: converting one to the other needs an `alpha * d^beta` mapping whose coefficients vary along the tract and have to come from imaging XRMB does not do. Either reason alone is sufficient.
+**Full formant synthesis is blocked, and the two reasons for it are not independent.** F1 and F2 depend on the pharyngeal cavity, and the pharynx is unmeasured — two points of wall and no articulator against them. That one stands alone.
+
+The second is that a sagittal distance is not an area. Converting one to the other is the Heinz & Stevens power law, `A = αd^β`, and Ericsdotter (2007) evaluates exactly that equation over two Swedish speakers and eleven Swedish vowels imaged by MRI. Her finding is that the constants are **"vowel, place and speaker specific"** — vowel identity as well as position along the tract, which is a stronger parameterization than "varies along the tract" and makes a general mapping harder rather than easier. Even with equations that specific, average absolute area errors stay under 10% at most tract places in her female speaker and exceed it at three in her male, reaching 17% at the teeth and lips; the posterior oral cavity and velopharynx are worst; and the laryngopharynx is unproblematic only in the speaker whose larynx barely moves between vowels.
+
+What that paper also finds is that it may not matter here, and the reason is why the two blockers collapse into one. Fitting the constants to vowel, place and speaker improves the *areas* and does not improve the *formants*: "Satisfactory acoustic patterns could be predicted from mid-sagittal profiles using specific as well as general conversion rules for obtaining the area functions, while satisfactory articulatory predictions were more dependent on specification." A single equation pooled over eight speakers loses almost nothing acoustically. But she gets that result by holding the midline and the tract's termination points fixed between conditions, "which practically assured cavity lengths were preserved" — and cavity length behind arc 0.44 is precisely what this corpus cannot supply. So the distance-to-area mapping is not the load-bearing obstacle it was written as; the unmeasured pharynx is, twice over.
 
 **Fricatives are more tractable.** The noise source sits at the constriction, and the resonance that shapes it is the cavity *anterior* to the constriction. Both are inside the measured window: the constriction location is finding 7, its degree is the clearance profile, and the anterior cavity is bounded by the palate outline and the tongue, which are exactly what this corpus measures. What it still cannot supply is the cross-sectional shape of the channel — ipakit's `channel` axis, grooved against flat, is the difference between `s` and a non-sibilant fricative at the same place, and it is the one thing a mid-sagittal instrument cannot see.
 
@@ -310,6 +314,7 @@ Three reasons it is not ready even then:
 
 ## Related
 
+- Ericsdotter, Christine (2007). "Detail in vowel area functions", *ICPhS XVI*, Saarbrücken, paper 1337, 513–516 — the evaluation of `A = αd^β` the synthesis section rests on. The `α`/`β` pair is Heinz & Stevens's; she calls them constants rather than coefficients, and the paper publishes no per-vowel area function table, only deviations and comparisons in figures.
 - [docs/tract-anatomy.md](tract-anatomy.md) — the geometry this measures against; §6 names `diameter` as the aperture function and §11 asks for exactly this kind of cited source
 - [docs/distance.md](distance.md) — `arc` and `offset` as the metric reads them, and why heads never touch them
 - [docs/reviewing.md](reviewing.md) — why the before/after above is the shape the check takes
