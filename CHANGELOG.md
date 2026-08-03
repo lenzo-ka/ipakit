@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Per-phone indel costs: `insert_cost` / `delete_cost` take a `CostSchedule` or any callable, `directional_word_distance` names its reference side, and `WordDistanceResult.costs` reports the schedule a score was computed under (#166).
+- `tier`: the vocabulary an interval may be declared on, nominal and structural, beside the ordinal `level` rather than on it (#145).
 - `scripts/areafunctions.py female`: a fifth measured source, Story, Titze & Hoffman (1998) — a second American English speaker, an adult female, and the only measured table that images `ʌ` and `ɝ` beside the sessions already held (#175).
 - `WordDistanceResult.coverage`, `min(n, m) / max(n, m)`, reported beside the similarity and never folded into it (#165).
 - `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`).
