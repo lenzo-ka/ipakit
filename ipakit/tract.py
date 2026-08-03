@@ -99,10 +99,22 @@ class Reading:
     :func:`unmodelled` asks this rather than asking whether a feature
     carries coordinates, so that what a drawing claims to show is what it
     was given.
+
+    ``approximated`` names the features in ``read`` that supplied a
+    coordinate they do not state. There is exactly one such reading and
+    it is a vowel's: ``backness`` says where the tongue body *is*, and
+    the branch takes it for the ``arc`` -- where the tongue body
+    *constricts* -- when the segment states no
+    ``constriction-location``. That stand-in is the whole of what
+    [#123](https://github.com/lenzo-ka/ipakit/issues/123) is about, so
+    a caller has to be able to tell a stated location from it without
+    reading a source, and this is where the answer is. A stated location
+    is in ``read`` and not in ``approximated``.
     """
 
     point: TractPoint
     read: frozenset[str]
+    approximated: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -967,10 +979,11 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
     added to ``ipa.xml`` is annotated without a code change here:
 
     * a feature :func:`tract_reading` **read for this bundle** is the
-      drawing already. The question is what this call consumed, not what
-      the feature could have supplied: ``height`` declares coordinates
-      and is the offset of a vowel, and beside a consonantal manner it is
-      read by nothing. Asking whether the *feature* carries coordinates
+      drawing already, *unless* it was read for a coordinate it does not
+      state. The question is what this call consumed, not what the
+      feature could have supplied: ``height`` declares coordinates and is
+      the offset of a vowel, and beside a consonantal manner it is read
+      by nothing. Asking whether the *feature* carries coordinates
       answered for every bundle at once, so a posture that dropped a
       stated value reported nothing missing and certified itself
       complete;
@@ -992,10 +1005,24 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
     mid-sagittal section projects away (the feature's own ``desc`` says
     so), ``mode="release"`` is a phase of the segment rather than a posture
     of it, ``mode="prosodic"`` belongs to the unit rather than to the
-    articulation. Anything else is simply not in the model -- rounding is
-    lip protrusion, which ``docs/tract-anatomy.md`` 4.4 specifies and this
-    geometry does not implement. None of them gets a contour invented for
-    it.
+    articulation, and ``approximate`` is a coordinate taken from a
+    feature that states something else. Anything else is simply not in
+    the model -- rounding is lip protrusion, which
+    ``docs/tract-anatomy.md`` 4.4 specifies and this geometry does not
+    implement. None of them gets a contour invented for it.
+
+    ``approximate`` is the one kind that names a feature the posture
+    *did* draw, and it is the reason this call has to ask the reading
+    rather than the declaration twice over. A vowel stating no
+    ``constriction-location`` still gets an ``arc``, from ``backness``,
+    which says where the tongue body is and not where it constricts. A
+    mark naming ``backness`` is what lets a caller tell that arc from a
+    stated one, and it is a mark rather than a note beside the figure
+    because ``docs/design/tract-validation.md`` 4 measured the note and
+    found it insufficient: the rhotic is drawn 0.22 of a tract from
+    where it was measured, with an annotation saying that something is
+    missing, and a reader has no way to know which number the annotation
+    is about.
     """
     scale = glottal_scale(features)
     glottal: set[str] = set()
@@ -1006,17 +1033,22 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
             if fine == scale.name
         }
     ported = {pair for ports in features.bridge_apertures.values() for pair in ports}
-    read = tract_reading(features, stated).read
+    reading = tract_reading(features, stated)
+    read, approximated = reading.read, reading.approximated
     out: list[Mark] = []
     for name, feat in features.features.items():
         value = stated.get(name)
         if value is None or value == feat.default:
             continue
-        if name in read or name in glottal or name in features.secondary_places:
+        if name not in approximated and (
+            name in read or name in glottal or name in features.secondary_places
+        ):
             continue
         if (name, value) in ported or feat.mode == "structural":
             continue
-        if feat.value_aliases.get(value, value) in feat.offscale:
+        if name in approximated:
+            kind = "approximate"
+        elif feat.value_aliases.get(value, value) in feat.offscale:
             kind = "off scale"
         elif feat.coordinates:
             kind = "unread"
@@ -1090,15 +1122,27 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     A vowel has two features that can supply its arc, and takes the more
     specific one. ``constriction-location`` says where the tongue body
     constricts, and ``backness`` says where the tongue body is, which the
-    vowel branch has always read *as* the constriction for want of
-    anything else -- so every vowel agreeing on ``backness`` sits at one
-    point whatever else it states. A segment stating a location is read
-    at that location, and ``backness`` is then not read at all: the
-    posture is one arc, so the feature that did not supply it is reported
-    as ``unread`` like any other value the picture did not take. No phone
-    in the shipped inventory states one, so this is a capability and not
-    a change of answer; which vowel constricts where is a question about
-    sources, open as #123 and untouched here.
+    vowel branch read *as* the constriction for want of anything else --
+    so every vowel agreeing on ``backness`` sat at one point whatever
+    else it stated. A segment stating a location is read at that
+    location, and ``backness`` is then not read at all: the posture is
+    one arc, so the feature that did not supply it is reported as
+    ``unread`` like any other value the picture did not take.
+
+    Where no location is stated the fallback still runs, and the arc it
+    produces is reported in ``approximated``. Sixteen of the shipped
+    vowels state a location and the rest do not, so both readings are
+    live and a caller cannot tell them apart from the number: the arc is
+    a float either way. The alternative -- leaving an unclassified vowel
+    unplaced -- is not silence in this library, because
+    :func:`ipakit.metric.bundle_distance` scores a coordinate one side
+    has against one the other lacks as the maximal difference and two
+    absences as no difference at all. Dropping schwa's arc would
+    therefore assert that schwa is as far from ``ɛ`` as any two vowels
+    can be on that axis, and identical to ``ɜ`` on it. Reporting the
+    approximation withholds the claim the number does not support;
+    withholding the number makes two claims the sources do not support
+    either.
 
     A name lands in ``read`` where this call took its stated value and
     got something back -- an arc, an offset, an articulator, or the
@@ -1109,6 +1153,7 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     arc: float | None = None
     offset: float | None = None
     read: set[str] = set()
+    approximated: set[str] = set()
 
     def resolve(feature: str) -> str | None:
         """The value the bundle states, under the name the data declares."""
@@ -1206,6 +1251,8 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
         arc = combined_attr("constriction-location", located, "arc")
         if arc is None:
             arc = combined_attr("backness", backness, "arc")
+            if arc is not None:
+                approximated.add("backness")
         offset = combined_attr("height", bundle.get("height"), "offset")
         articulator = (
             articulator
@@ -1221,4 +1268,5 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     return Reading(
         point=TractPoint(arc=arc, offset=offset, articulator=articulator),
         read=frozenset(read),
+        approximated=frozenset(approximated),
     )

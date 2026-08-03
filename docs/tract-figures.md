@@ -86,7 +86,7 @@ The answer is an annotation layer rather than a posture that pretends. Voicing i
 - **Glottal state.** The folds are declared `aperture="median"` — they close toward each other about the tract axis, not toward a wall — so `offset`, which measures travel from the midline to a wall, was never going to reach them. `phonation` is ordinal on its own axis, `+glottal-aperture`, ascending creaky → modal → breathy → devoiced, and the `<projection>` says `voiced` is that same axis read two ways instead of four. The gap between the folds is a position on that axis: a bundle spelling a phonation sits where that value sits, and one spelling only `voiced` sits at the center of the phonations reading that way, which is as far as the coarse spelling commits. A complete closure *at* the folds overrides both, which is what makes `ʔ` shut. So `t`/`d`, `h`/`ɦ` and `a`/`a̤` are now three different pictures.
 - **Secondary articulation.** `velarized` declares `place="velar"`, `palatalized` declares `place="palatal"`, and `IPAFeatures.secondary_places` is that declaration read back — the same one the mode partition and the metric's place table read. A secondary articulation therefore has a place like any other constriction, and it is drawn as one: a dashed ring at that place, at approximant degree, because a secondary constriction that reached the primary's degree would *be* the primary. It is a lesser constriction, so it is drawn lighter. `l` and `ɫ` now differ at the velum, which is where the difference is.
 
-**Annotated, in the strip along the foot of the figure, because the plane cannot hold it.** Each chip's shape says why, and the reason is read off the declaration. Whether the posture holds a stated value is asked of the *call* — `tract_reading` returns the point and the features it read to get there, and a feature that declares coordinates has not thereby been drawn:
+**Annotated, in the strip along the foot of the figure, because the plane cannot hold it — or holds it only approximately.** Each chip's shape says why, and the reason is read off the declaration. Whether the posture holds a stated value is asked of the *call* — `tract_reading` returns the point and the features it read to get there, and a feature that declares coordinates has not thereby been drawn:
 
 | chip | why | features today |
 |---|---|---|
@@ -95,6 +95,9 @@ The answer is an annotation layer rather than a posture that pretends. Voicing i
 | square | not in the model at all | `airstream`, `retroflex`, `rounded`, `syllabic`, `tongue-root`, … |
 | square | `offscale` — a value its own feature declares to hold no position on its axis | `manner`: silence |
 | square | a postural feature *this* bundle's posture did not read: one arc and one offset are on offer, and a bundle stating two postures loses one | `height` and `backness` beside a consonantal manner; `place` beside `manner="vowel"`; `backness` beside a stated `constriction-location` |
+| tilde | a coordinate the posture *did* draw, read off a feature that states something else | `backness` supplying the `arc` of a vowel that states no `constriction-location` |
+
+The tilde is the one chip that does not mean "missing", and it is the answer to a failure this layer had. `docs/design/tract-validation.md` §4 measured `ɝ` at `arc` 0.22 against the 0.44 the drawing gives it, beside a chip saying `rhotacized` is unmodelled, and observed that "a reader has no way to know the note explains the error". A chip that names the coordinate rather than a neighbouring property is what closes that: under `ə` the strip says the horizontal position came from `backness`, which is where the tongue body is and not where it constricts.
 
 **Left to the caption**, because neither of the above is honest:
 

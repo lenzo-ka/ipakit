@@ -573,6 +573,16 @@ def _chip(x: float, y: float, kind: str) -> str:
         return (
             f'<path d="M{x:.1f},{y:.1f} L{x + CHIP:.1f},{y:.1f}" class="chip {cls}"/>'
         )
+    if kind == "approximate":
+        # A tilde. Every other chip says the drawing does not hold this;
+        # this one says the drawing holds it with a stand-in, and a square
+        # beside the others would read as the opposite of what it means.
+        return (
+            f'<path d="M{x:.1f},{y + half / 2:.1f} '
+            f"Q{x + CHIP / 4:.1f},{y - half:.1f} {x + CHIP / 2:.1f},{y:.1f} "
+            f"Q{x + 3 * CHIP / 4:.1f},{y + half:.1f} {x + CHIP:.1f},"
+            f'{y - half / 2:.1f}" class="chip {cls}"/>'
+        )
     return (
         f'<rect x="{x:.1f}" y="{y - half:.1f}" width="{CHIP:.1f}" '
         f'height="{CHIP:.1f}" class="chip {cls}"/>'
@@ -1289,6 +1299,7 @@ stroke-linecap:round}
 .chip.out-of-plane{stroke-dasharray:2 2}
 .chip.phase{stroke:var(--signal)}
 .chip.prosodic{stroke:var(--velum);stroke-width:2.4}
+.chip.approximate{stroke:var(--signal);stroke-width:1.6}
 .lbl.chiplbl{fill:var(--inkQuiet)}
 .lip{fill:var(--lipFill);stroke:var(--trace);stroke-width:1.4;stroke-linejoin:round}
 .lipstem{stroke:var(--signal);stroke-width:2;stroke-linecap:round;fill:none;opacity:.55}
