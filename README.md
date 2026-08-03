@@ -179,11 +179,7 @@ eng.is_similar("kæt", "kæd", threshold=0.8)  # True
 
 Distances are **structural**: two segments are close when they are made similarly — same articulator, similar position in the vocal tract, similar constriction. That correlates with perceptual confusability but does not model it. Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. [docs/distance.md](docs/distance.md) documents the representation, the comparison, and what the numbers do and do not mean.
 
-`distance_model()` also accepts `gamma` (power transform to push dissimilar
-pairs apart), `sub_mode="di"` (delete+insert substitution cost for word
-alignment), and `threshold` / `max_length_ratio` defaults for `is_similar`. The
-raw pairwise matrix ships as `ipakit/data/confusion.json`; per-inventory models
-reuse it and only re-slice the percentile distribution.
+`distance_model()` also accepts `gamma` (an exponent on the percentile; it reorders no phone pair, and its real effect is to reprice substitutions against gaps in word alignment — [docs/distance.md](docs/distance.md) §9 is what it is and is not good for), `sub_mode="di"` (delete+insert substitution cost for word alignment), and `threshold` / `max_length_ratio` defaults for `is_similar`. The raw pairwise matrix ships as `ipakit/data/confusion.json`; per-inventory models reuse it and only re-slice the percentile distribution.
 
 ## Conventions
 

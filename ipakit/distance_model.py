@@ -186,7 +186,7 @@ class DistanceModel:
             matrix: Symmetric phone x phone values.
             space: ``"distance"`` or ``"similarity"`` -- how to read ``matrix``.
             ref_phones: Sub-inventory the CDF is built over (default: ``phones``).
-            gamma: Exponent applied to the percentile (>1 spreads dissimilar pairs).
+            gamma: Exponent applied to the percentile; ``1.0`` is the identity.
             insert_cost: Per-token insertion cost in word alignment.
             delete_cost: Per-token deletion cost in word alignment.
             sub_mode: ``"simple"`` or ``"di"`` (scale substitution by indel costs).
@@ -435,7 +435,14 @@ class DistanceModel:
 
     @property
     def gamma(self) -> float:
-        """Percentile exponent (>1 spreads dissimilar pairs apart)."""
+        """Percentile exponent; ``1.0`` is the identity.
+
+        Monotone, so it reorders no phone pair, and on the phone-level API
+        a gamma is exactly a change of threshold. Its one substantive
+        effect is in word alignment, where :meth:`sub_cost` is summed
+        against flat indel costs it does not touch. ``docs/distance.md``
+        §9 is how to choose one; there is deliberately no tuned default.
+        """
         return self._gamma
 
     @property

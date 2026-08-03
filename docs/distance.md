@@ -184,7 +184,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **The numbers are structural.** Two segments are close when they are made similarly. That correlates with confusability but does not model it: `t͡ʃ` is much closer to `t͡s` than to `ʃ`, because an affricate shares phase structure with another affricate and not with a bare fricative. If your task is perceptual, treat these as a prior and calibrate against your own data.
 
-**Thresholds are not portable across versions.** The shipped `confusion.json` is a derived artifact; changes to the anchors, the inventory, or the metric regenerate it and shift absolute values. Orderings are far more stable than magnitudes. If you have tuned an `is_similar` threshold, re-tune it after upgrading.
+**Thresholds are not portable across versions.** The shipped `confusion.json` is a derived artifact; changes to the anchors, the inventory, or the metric regenerate it and shift absolute values. Orderings are far more stable than magnitudes. If you have tuned an `is_similar` threshold, re-tune it after upgrading — and see [§9](#9-ranking-deciding-and-gamma), which is about the same subject from the other end: what a threshold on a percentile scale can and cannot mean in the first place.
 
 **Percentiles are inventory-relative.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution. The same pair scores differently under a small English set and the full bundled inventory; this is intended, and it is why `distance_model(phoneset)` exists.
 
@@ -194,7 +194,75 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `word_distance("lez‿ami", "lezami") = 0`.
 
-## 9. Changing the parameters
+## 9. Ranking, deciding, and gamma
+
+`DistanceModel` takes a `gamma` that raises the percentile to a power, and it defaults to `1.0`, which is the identity. This section is why the knob exists, why it ships switched off, and what it is actually good for — which is narrower than its name suggests.
+
+**A percentile is a ranking scale, not a decision scale.** The model counts how many reference pairs are no more similar than the pair in hand and divides by the total. That is a rank expressed as a fraction, and it is uniform over the reference pairs by construction, whatever the underlying similarities look like:
+
+```python
+import ipakit
+
+model = ipakit.distance_model()
+ref = model.reference_phones
+sims = [model.confusability(a, b) for i, a in enumerate(ref) for b in ref[i + 1 :]]
+round(sum(s > 0.5 for s in sims) / len(sims), 1)   # 0.5
+```
+
+Half the pairs sit above 0.5 because half of anything sits above its own median. That is exactly what makes the scale good at ranking — the value *is* the rank, so "how many pairs are nearer than this one" is read straight off it — and exactly what makes it bad at deciding. The number says nothing about whether the inventory is crowded or sparse, so a cut point tuned on one inventory means something else on another. Worse, the ranks are uniform over *pairs*, not over degrees of likeness, and most pairs of phones are nothing like each other; so every pair a listener could plausibly confuse is packed into the last few percent of the range, with the whole rest of the scale spent separating pairs no one would confuse either way.
+
+**Gamma is monotone, so it reorders nothing at the phone level.** Raising every value to a common positive power leaves every comparison as it was; it only redistributes the spacing, pulling values below 1.0 toward 0 in proportion to how far below they already are.
+
+```python
+import ipakit
+
+flat = ipakit.distance_model()
+sharp = ipakit.distance_model(gamma=3.0)
+pairs = [("p", "b"), ("p", "k"), ("s", "ʃ"), ("p", "a")]
+rank = lambda m: sorted(pairs, key=lambda ab: m.confusability(*ab))
+rank(flat) == rank(sharp)   # True
+```
+
+**On the phone-level API, a gamma is exactly a change of threshold.** This follows from monotonicity and is worth stating plainly, because it is the part that gets overclaimed: `p ** g >= t` holds precisely when `p >= t ** (1 / g)`, so any partition of pairs a gamma and a cut point produce is one some other cut point produces on the untransformed scale.
+
+```python
+cut = 0.5
+({ab for ab in pairs if sharp.confusability(*ab) >= cut}
+ == {ab for ab in pairs if flat.confusability(*ab) >= cut ** (1 / 3)})   # True
+```
+
+So on `confusability`, `distance` and `nearest`, gamma buys no decision that moving the threshold could not. What it buys there is legibility. A power above 1 stretches the scale near 1.0 and compresses it near 0 — the slope of `p ** g` is `g * p ** (g - 1)`, which is above 1 at the top and below it at the bottom — and the top is the crowded end. So it spreads the pairs worth telling apart and squeezes together the ones that were never in question:
+
+```python
+near = lambda m: m.confusability("s", "ʃ") - m.confusability("p", "b")
+far = lambda m: m.confusability("k", "i") - m.confusability("p", "a")
+near(sharp) > near(flat), far(sharp) < far(flat)   # (True, True)
+```
+
+Calling this *spreading the dissimilar pairs apart* invites the opposite reading, and the opposite reading is wrong: dissimilar pairs move **down**, toward each other and toward 0, and it is the similar ones that gain room. A cut point that sat at the median moves with them — under `gamma=3.0`, 0.5 falls where the top fifth of pairs begins:
+
+```python
+round(sum(s ** 3 > 0.5 for s in sims) / len(sims), 2)   # 0.21
+```
+
+**Where gamma does real work is word alignment**, because there the transformed values are *summed* rather than compared. `sub_cost` runs through the same percentile as `confusability`, but insertion and deletion cost a flat `insert_cost` and `delete_cost` and gamma never touches them. Raising gamma therefore raises the price of a substitution against a fixed price for a gap, and that is a change of exchange rate, not a relabeling. It can change which alignment the dynamic program picks:
+
+```python
+flat.word_distance("kæt", "atə", return_alignment=True).alignment
+# [('k', 'a'), ('æ', 't'), ('t', 'ə')]
+sharp.word_distance("kæt", "atə", return_alignment=True).alignment
+# [('k', None), ('æ', 'a'), ('t', 't'), (None, 'ə')]
+```
+
+At `gamma=1.0` three substitutions are cheaper than a gap at each end; at `gamma=3.0` they are not, and the words align on the material they share. Ordering of *word* pairs is not preserved either: a transform applied term by term does not survive being summed, so two word pairs can swap places. If you are tuning an `is_similar` threshold, that threshold is on word similarity, and gamma genuinely moves which pairs clear it — which is the other half of the warning in §8 about re-tuning thresholds.
+
+**There is no tuned default, and there will not be one.** Any specific value is a fit to whichever inventory and task produced it, and a number fitted to one source cannot be checked against anything — [docs/design/vowel-constriction.md](design/vowel-constriction.md) is the worked case of refusing exactly that, and concludes that "a table is refused on evidence, not on taste." `1.0` is the honest default precisely because it is the identity: it asserts nothing.
+
+To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `word_similarity` on that set, not over `confusability`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; values at or below 0 are meaningless here and nothing rejects them.
+
+**Gamma has no meaning on the plain `word_distance` path.** `ipakit.word_distance` and `IPAFeatures.word_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
+
+## 10. Changing the parameters
 
 `GAP_COST` and `SECONDARY_WEIGHT` are named constants in `ipakit/metric.py`. Anchors, axes, and articulator defaults are data in `data/ipa.xml`. Any change to either requires regenerating the matrix:
 
