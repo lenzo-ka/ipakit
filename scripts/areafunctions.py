@@ -587,7 +587,7 @@ def backness_only(extra: Sequence[str] = ()) -> dict[str, float | None]:
     """The ``arc`` ``backness`` alone gives each imaged shape.
 
     Not the same question as :func:`declared`, and it stopped being the same
-    question when sixteen vowels started stating a ``constriction-location``.
+    question when vowels started stating a ``constriction-location``.
     ``anchors`` scores four readings and two of them would otherwise be the
     same column under two headings -- which is how a baseline goes stale
     without anything saying so, because the number moves and the header does

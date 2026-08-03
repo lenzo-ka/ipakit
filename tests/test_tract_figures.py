@@ -364,7 +364,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         """The two vowel readings, told apart without reading a source.
 
         This is what a partial declaration has to buy to be worth making.
-        Sixteen vowels state where they constrict and the rest do not; the
+        Some vowels state where they constrict and the rest do not; the
         arc is a float either way, so nothing in the number says which is
         which. ``ə`` gets an ``approximate`` mark naming ``backness`` and
         ``i`` does not -- ``i`` reports ``backness`` as ``unread``

@@ -110,6 +110,8 @@ Three things fall out that no choice of window can move.
 
 **Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), and closed.** Wood's four families are declared on the sixteen vowels his conclusion 2 names, read at the arcs `place` already declares, so those five now sit at three locations: `u` at 0.45, `o` and `ɔ` at 0.56, `ɑ` at 0.74. `ʌ` is named in no family and keeps 0.56 by the `backness` fallback, which is reported as an approximation rather than passed off as a reading.
 
+**Superseded again by [#175](https://github.com/lenzo-ka/ipakit/issues/175), on the last sentence only.** Conclusion 2 is not Wood's last statement of the four. His own summary of the 1979 figure gives the upper pharyngeal family as "[o ɔ] and [ɤ ʌ]", so `ʌ` states `uvular` and reads the same 0.56 it read by the fallback. The three locations above do not move; what is withdrawn is the `approximate` mark on one of them.
+
 **The back vowels use two locations, not one.** `u` and `o` constrict at `arc` 0.380 and 0.375, at 0.15 and 0.32 cm², with nothing else in either column within a factor of three. `ɑ`, `ɔ` and `ʌ` constrict in a band at `arc` 0.60–0.72, four times narrower than anything forward of it in their columns. The gap between the two groups is 0.22 of tract length — about 4 cm — and no vowel of this speaker constricts inside it. `ipakit` places all five at 0.56, in that gap.
 
 **`i` is forward of `ɑ`, robustly.** `i` constricts at `arc` 0.27 with the deepest constriction in the whole vowel set (0.10 cm²), `ɑ` at 0.67, and the ordering survives every cutoff and every instrument tried. `ɑ`'s narrowing is pharyngeal and it is where the data puts it. This is the claim that would have carried a rank correlation, and it does not need one.

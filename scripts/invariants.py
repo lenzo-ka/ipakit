@@ -966,7 +966,7 @@ def check_no_symbol_states_an_inapplicable_feature(ipa: IPAFeatures) -> bool:
     loader keeps it.
 
     Reached from ``constriction-location``, where the mistake is easy and
-    silent: sixteen vowels state one, the attribute is spelled the same on
+    silent: vowels state one, the attribute is spelled the same on
     every symbol element, and a consonant given one would take no branch
     that reads it and draw no complaint from anything.
     """

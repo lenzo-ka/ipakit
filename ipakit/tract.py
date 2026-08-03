@@ -1130,8 +1130,8 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     ``unread`` like any other value the picture did not take.
 
     Where no location is stated the fallback still runs, and the arc it
-    produces is reported in ``approximated``. Sixteen of the shipped
-    vowels state a location and the rest do not, so both readings are
+    produces is reported in ``approximated``. Some of the shipped vowels
+    state a location and the rest do not, so both readings are
     live and a caller cannot tell them apart from the number: the arc is
     a float either way. The alternative -- leaving an unclassified vowel
     unplaced -- is not silence in this library, because

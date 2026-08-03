@@ -1,4 +1,5 @@
-"""A vowel may state where it constricts, and sixteen of them do.
+"""A vowel may state where it constricts, and the ones a source
+classifies do.
 
 `tract_reading` took a vowel's `arc` from `backness` and from nothing
 else, so every vowel agreeing on backness sat at one point whatever else
@@ -6,14 +7,17 @@ it stated. That was a *capability* gap before it was a values gap, and
 this is the capability: `constriction-location` is a declared slot a
 nucleus can state, and the vowel branch reads it where it is stated.
 
-**Sixteen vowels state one and twenty-three do not**, which is
+**Some vowels state one and the rest do not**, which is
 [#123](https://github.com/lenzo-ka/ipakit/issues/123) closed as far as
-the sources reach. The sixteen are the ones Wood (1979) names in the four
-families of his conclusion 2, plus Swedish `ʉː` from his 1982 monograph;
-they are read at the arcs `place` already declares for the four locations
-under ipakit's own names for them. The rest are not classified by any
-source read for `docs/design/vowel-constriction.md`, so they state
-nothing, keep the `backness` fallback, and have that fallback *reported*:
+the sources reach. The ones that state a location are those Wood (1979)
+names in the four families of his conclusion 2, plus Swedish `ʉː` from
+his 1982 monograph and the three his later restatements name — `œ` and
+`ɯ` in Wood (1990: 198), `ʌ` in his own summary of the 1979 figure,
+which is [#175](https://github.com/lenzo-ka/ipakit/issues/175). They are
+read at the arcs `place` already declares for the four locations under
+ipakit's own names for them. The rest are not classified by any source
+read for `docs/design/vowel-constriction.md`, so they state nothing,
+keep the `backness` fallback, and have that fallback *reported*:
 `tract_reading` puts `backness` in `approximated` and `unmodelled`
 returns it with kind `approximate`. `tests/test_vowel_tract_limit.py` is
 what the limit has become.
