@@ -2965,7 +2965,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # what the base leaves unstated has to land before defaults do.
             if not (feats := unit.scalar(with_defaults=False)):
                 continue
-            apply_modifiers(self, feats, unit.prosody, prosody=True)
+            apply_modifiers(
+                self, feats, unit.prosody, prosody=True, where=repr(unit.to_ipa())
+            )
             if with_defaults:
                 fill_defaults(self, feats)
             token = unicodedata.normalize("NFC", base + "".join(diacritics))
