@@ -55,6 +55,7 @@ from pathlib import Path
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import METADATA_ATTRS
+from ipakit.features import Feature
 from ipakit.tract import tract_point, tract_reading, unmodelled
 
 
@@ -113,6 +114,34 @@ def _inventory(ipa: IPAFeatures, tmp_path: Path, *phones: ET.Element) -> IPAFeat
     section = tree.getroot().find("phones")
     assert section is not None
     section.extend(phones)
+    path = tmp_path / "ipa.xml"
+    tree.write(path, encoding="utf-8", xml_declaration=True)
+    return IPAFeatures(path)
+
+
+def _inventory_declaring(
+    ipa: IPAFeatures, tmp_path: Path, values: dict[str, dict[str, str]], **phones: str
+) -> IPAFeatures:
+    """The shipped inventory with further `place` values, and vowels stating them.
+
+    `ipa.rng` makes `arc` and `articulator` independently optional on a
+    `<value>`, so a value carrying one and not the other is a legal
+    declaration and the loader accepts it. Nothing in `ipa.xml` is shaped
+    that way -- every place it declares carries both -- which is why the
+    two readings below are latent rather than live, and why reaching them
+    takes a whole inventory of one's own. That is a supported extension
+    point: `load_ipa_features(xml_path=...)` takes any document, and
+    `docs/reviewing.md` says outright that `ipa.xml` travels on its own.
+    """
+    tree = ET.parse(ipa.xml_path)
+    root = tree.getroot()
+    feature = root.find(f".//feature[@name='{SOURCE}']")
+    assert feature is not None
+    for name, attrs in values.items():
+        ET.SubElement(feature, "value", {"name": name, **attrs})
+    section = root.find("phones")
+    assert section is not None
+    section.extend(_hypothetical(sym, **{SLOT: value}) for sym, value in phones.items())
     path = tmp_path / "ipa.xml"
     tree.write(path, encoding="utf-8", xml_declaration=True)
     return IPAFeatures(path)
@@ -371,6 +400,155 @@ class TestTheBranchReadsAStatedLocation:
             assert tract_point(located, located.get_features(phone)) == tract_point(
                 ipa, ipa.get_features(phone)
             ), phone
+
+
+class TestTheLocationWinsWholeOrNotAtAll:
+    """Two ways the fallback used to be taken half way.
+
+    Both are **latent on the shipped inventory** and were found by review
+    rather than by a wrong answer: every `place` value `ipa.xml` declares
+    carries an `arc`, and the only two that do not are combining ones
+    whose components both do. Neither case can arise from the inventory
+    as it stands. Both are reachable through the extension points the
+    library documents -- a supplement for the second, a whole inventory
+    of one's own for the first -- and a supplement is exactly where the
+    next vowel classification would arrive.
+
+    What they had in common is that the *trial* of the stated location
+    left marks: asking it for an arc, failing, and still taking its
+    articulator, or averaging over the components that answered and
+    calling that the stated fusion. The reading now commits one source
+    whole -- arc, articulator and the name in `read` together -- so a
+    location that cannot place the vowel places nothing about it.
+    """
+
+    def test_a_location_with_no_arc_supplies_no_articulator_either(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        """`arc` and `articulator` are one statement about one
+        constriction. Taking the position from `backness` and the organ
+        from a location that could not supply a position makes a point
+        that describes no gesture, and reports nothing amiss: `backness`
+        is marked `approximate` for the arc and the location is not
+        marked at all, because taking its articulator put it in `read`."""
+        made = _inventory_declaring(
+            ipa,
+            tmp_path,
+            {"tongue-root-only": {"articulator": "tongue-root"}},
+            **{"ⱺ": "tongue-root-only"},
+        )
+        source = made.features[SOURCE]
+        # The constructed case has the shape it is meant to have, and the
+        # two organs differ, so an assertion on the organ cannot be
+        # satisfied by the fallback happening to supply the same one.
+        assert "tongue-root-only" not in source.coordinates
+        assert source.articulators["tongue-root-only"] == "tongue-root"
+        assert made.features["backness"].articulators["central"] == "tongue-dorsum"
+
+        reading = tract_reading(made, made.get_features("ⱺ"))
+        assert (
+            reading.point.arc == made.features["backness"].coordinates["central"]["arc"]
+        )
+        assert reading.point.articulator == "tongue-dorsum"
+        assert SLOT not in reading.read
+        assert reading.approximated == frozenset({"backness"})
+        stated = made.get_features("ⱺ", with_defaults=False)
+        marks = {(m.feature, m.kind) for m in unmodelled(made, stated)}
+        assert ("backness", "approximate") in marks
+        assert (SLOT, "unread") in marks
+
+    def test_a_half_placeable_fusion_falls_back_whole(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        """A mean over the components that answered is another value's
+        position, not the stated one's: `palatal^X` came back as plain
+        `palatal`, and came back unflagged, so nothing downstream could
+        tell it from a vowel that stated `palatal`."""
+        made = _inventory_declaring(
+            ipa,
+            tmp_path,
+            {"unplaceable": {"articulator": "tongue-root"}},
+            **{"ⱻ": f"palatal{Feature.COMBINER}unplaceable"},
+        )
+        source = made.features[SOURCE]
+        placed = source.coordinates["palatal"]["arc"]
+        fallback = made.features["backness"].coordinates["central"]["arc"]
+        # Non-vacuity: the wrong answer and the right one are different
+        # numbers, so the assertion cannot pass with the fix removed.
+        assert placed != fallback
+        reading = tract_reading(made, made.get_features("ⱻ"))
+        assert reading.point.arc == fallback
+        assert SLOT not in reading.read
+        assert reading.approximated == frozenset({"backness"})
+
+    def test_the_same_case_arrives_through_a_supplement(
+        self, ipa: IPAFeatures, tmp_path: Path
+    ) -> None:
+        """The reachable route, and the one a classification would use.
+
+        A supplement declares no feature and no value -- that is the line
+        `supplement.rng` holds -- but it states them, and it may state a
+        fusion naming a component the inventory has no coordinate for.
+        No inventory of one's own is needed for this half."""
+        path = tmp_path / "half.xml"
+        path.write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<supplement name="half"><phones>'
+            '<phone name="ⱻ" manner="vowel" height="close" backness="central" '
+            f'rounded="-" voiced="+" {SLOT}="palatal^nonesuch"/>'
+            "</phones></supplement>",
+            encoding="utf-8",
+        )
+        made = IPAFeatures(supplements=[path])
+        assert made.get_features("ⱻ")[SLOT] == "palatal^nonesuch"
+        assert "nonesuch" not in made.features[SOURCE].coordinates
+        reading = tract_reading(made, made.get_features("ⱻ"))
+        assert (
+            reading.point.arc == made.features["backness"].coordinates["central"]["arc"]
+        )
+        assert reading.approximated == frozenset({"backness"})
+
+    def test_one_feature_supplies_both_coordinates_of_the_point(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The property the two cases above are instances of, swept over
+        the whole corpus so it holds for the inventory and not only for
+        the constructed cases: whichever feature gave the point its arc
+        is the one that gave it its articulator, unless the bundle stated
+        an articulator outright, which always wins.
+
+        **This one passes with the fix removed**, and is here anyway. The
+        three above are the regression, and they need a declaration
+        `ipa.xml` does not make; this is the class invariant over the
+        inventory that does ship, and it says what the shipped data would
+        have to become for those three to stop being hypothetical. A
+        `place` value declaring an organ and no position would break it.
+        """
+        units = _units(ipa)
+        assert len(units) > 5000, f"only {len(units)} units: the sweep is vacuous"
+        checked = 0
+        for unit in units:
+            bundle = ipa.get_features(unit)
+            reading = tract_reading(ipa, bundle)
+            organ = reading.point.articulator
+            if organ is None or bundle.get("articulator") is not None:
+                continue
+            sources = [
+                name
+                for name in (SLOT, "backness", "place")
+                if name in reading.read and bundle.get(name) is not None
+            ]
+            assert len(sources) == 1, (unit, sources)
+            feature = ipa.features[sources[0]]
+            want = [
+                feature.articulators.get(comp)
+                for comp in feature.expand(bundle[sources[0]])
+            ]
+            assert organ == Feature.COMBINER.join(
+                dict.fromkeys(o for o in want if o is not None)
+            ), unit
+            checked += 1
+        assert checked > 5000, f"only {checked} points carried an organ"
 
 
 class TestItDoesNotRenameThePhone:

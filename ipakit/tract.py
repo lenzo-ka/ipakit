@@ -1149,6 +1149,15 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     branch itself. Recording it here rather than restating the branch in
     :func:`unmodelled` is what keeps the two from disagreeing about what
     the picture holds.
+
+    Whichever feature supplies the ``arc`` is the one asked for the
+    ``articulator``, and the only one. They are two halves of one
+    statement about one constriction -- where it is, and what makes it --
+    so a point taking its position from ``backness`` and its organ from a
+    location that could not supply a position would describe no gesture,
+    and would report nothing amiss, because taking the organ is what puts
+    a name in ``read``. A stated ``articulator`` is the exception and
+    wins over both.
     """
     arc: float | None = None
     offset: float | None = None
@@ -1163,16 +1172,18 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
             return value
         return feat.value_aliases.get(value, value)
 
+    # None of the four lookups below touches ``read``. They are asked
+    # speculatively -- the vowel branch asks the stated location for an arc
+    # and takes ``backness`` when it has none -- and a lookup that records
+    # the asking cannot tell a source that won from one that was tried and
+    # rejected. Each branch commits the names of the sources it took.
     def value_attr(feature: str, value: str | None, attr: str) -> float | None:
         if value is None:
             return None
         feat = features.features.get(feature)
         if feat is None:
             return None
-        raw = feat.coordinates.get(feat.value_aliases.get(value, value), {}).get(attr)
-        if raw is not None:
-            read.add(feature)
-        return raw
+        return feat.coordinates.get(feat.value_aliases.get(value, value), {}).get(attr)
 
     articulator = bundle.get("articulator")
     if articulator is not None:
@@ -1186,10 +1197,7 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
         feat = features.features.get(feature)
         if feat is None:
             return None
-        organ = feat.articulators.get(feat.value_aliases.get(value, value))
-        if organ is not None:
-            read.add(feature)
-        return organ
+        return feat.articulators.get(feat.value_aliases.get(value, value))
 
     # Resolved through the aliases the same way every other value is: the
     # branch is a read of the manner the bundle states, and an inventory
@@ -1207,18 +1215,25 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
         on whichever feature its constituents disagree about, so
         ``front^back`` is a position for the same reason
         ``bilabial^velar`` is.
+
+        All the components or none. A mean over the subset that happens
+        to carry the coordinate is not the stated value's position, it is
+        another value's -- ``palatal^X`` with ``X`` unplaceable would come
+        back as plain ``palatal``, and come back as a *complete* answer,
+        so nothing downstream could tell it from a vowel that stated
+        ``palatal``. A fusion the model can only half place is one it
+        cannot place, and returning None here is what lets the caller
+        fall back and say so.
         """
         if value is None:
             return None
         feat = features.features.get(feature)
         if feat is None:
             return None
-        found = [
-            a
-            for comp in feat.expand(value)
-            if (a := value_attr(feature, comp, attr)) is not None
-        ]
-        return sum(found) / len(found) if found else None
+        found = [value_attr(feature, comp, attr) for comp in feat.expand(value)]
+        if not found or any(a is None for a in found):
+            return None
+        return sum(found) / len(found)  # type: ignore[arg-type]
 
     def combined_articulator(feature: str, value: str | None) -> str | None:
         """Every organ the components move, in the combining spelling.
@@ -1240,31 +1255,49 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
         # through Feature.expand.
         return Feature.COMBINER.join(organs) if organs else None
 
+    def place_the_point(*candidates: tuple[str, str | None]) -> str | None:
+        """The first candidate that supplies the arc, committed whole.
+
+        ``arc`` and ``articulator`` are one statement about one
+        constriction -- where it is and what makes it -- so they come
+        from one feature or the point is a chimera: a position from
+        ``backness`` wearing the organ of a location that could not
+        supply a position. Whichever candidate answers first is the one
+        put in ``read`` and the only one asked for an organ; the rest
+        were tried and are unread like any other stated value the
+        picture did not take.
+        """
+        nonlocal arc, articulator
+        for feature, value in candidates:
+            arc = combined_attr(feature, value, "arc")
+            if arc is None:
+                continue
+            read.add(feature)
+            if articulator is None:
+                articulator = combined_articulator(feature, value)
+            return feature
+        return None
+
     if manner == "vowel":
         read.add("manner")
-        backness = bundle.get("backness")
         # The stated constriction first, `backness` where none is stated.
         # Asking for the arc is what decides it: a location the data gives
         # no `arc` supplies nothing, and the fallback is then the same read
         # a vowel has always had, rather than an unplaced point.
-        located = bundle.get("constriction-location")
-        arc = combined_attr("constriction-location", located, "arc")
-        if arc is None:
-            arc = combined_attr("backness", backness, "arc")
-            if arc is not None:
-                approximated.add("backness")
-        offset = combined_attr("height", bundle.get("height"), "offset")
-        articulator = (
-            articulator
-            or combined_articulator("constriction-location", located)
-            or combined_articulator("backness", backness)
+        took = place_the_point(
+            ("constriction-location", bundle.get("constriction-location")),
+            ("backness", bundle.get("backness")),
         )
+        if took == "backness":
+            approximated.add("backness")
+        offset = combined_attr("height", bundle.get("height"), "offset")
+        if offset is not None:
+            read.add("height")
     else:
-        place = bundle.get("place")
-        arc = combined_attr("place", place, "arc")
-        if articulator is None:
-            articulator = combined_articulator("place", place)
+        place_the_point(("place", bundle.get("place")))
         offset = value_attr("manner", manner, "offset")
+        if offset is not None:
+            read.add("manner")
     return Reading(
         point=TractPoint(arc=arc, offset=offset, articulator=articulator),
         read=frozenset(read),
