@@ -297,6 +297,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 feat_type = feat_elem.get("type", "ordinal")
                 feat_short = feat_elem.get("short", name[:DEFAULT_SHORT_NAME_LEN])
                 offscale: set[str] = set()
+                bare_values: set[str] = set()
                 coordinates: dict[str, dict[str, float]] = {}
                 articulators: dict[str, str] = {}
                 value_apertures: dict[str, str] = {}
@@ -335,6 +336,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):
                             values.append(val_name)
+                            # Which feature a term spelled bare belongs to,
+                            # where more than one declares it. Stated, because
+                            # the alternative is document order: `nasal` is a
+                            # manner, a release phase and an approach phase,
+                            # and `[nasal]` meant the manner only because
+                            # `manner` is declared first in this file.
+                            if v.get("bare"):
+                                bare_values.add(val_name)
                             if v.get("offscale"):
                                 offscale.add(val_name)
                             coords = {
@@ -416,6 +425,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     over=feat_elem.get("over"),
                     vocabulary=vocabulary,
                     moves=moves,
+                    bare=frozenset(bare_values),
                 )
 
         # `applies` names a declared manner value, or one of the derived
@@ -1075,17 +1085,31 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         For binary features, +featurename means feature='+', -featurename means feature='-'.
         """
-        # Try short name first
-        if term in self._short_to_feature:
-            return self._short_to_feature[term]
-        # Try as a feature value (long name), or a friendly alias of one
+        # A short name, a value (long name), or a friendly alias of one
         # (labial-velar -> bilabial^velar): aliases resolve everywhere a
-        # value is accepted, including here.
-        for feat_name, feat in self.features.items():
-            if term in feat.values:
-                return (feat_name, term)
-            if term in feat.value_aliases:
-                return (feat_name, feat.value_aliases[term])
+        # value is accepted, including here. All three are asked together,
+        # because they are spelled in one namespace and a reader writing a
+        # bare term is not saying which kind it is.
+        #
+        # Every claimant, not the first one. Scanning in declaration order
+        # and taking the first hit made a term that two features claim mean
+        # whichever of them ``ipa.xml`` happens to declare earlier, and said
+        # nothing about the choice: ``[high]`` is a constraint on vowel
+        # HEIGHT, because ``height`` declares ``high`` as an alias of
+        # ``close`` and sits above ``tone``, for which ``high`` is a value
+        # outright. A tone rule written the obvious way parsed, ran, and
+        # answered about height. That is the shape docs/reviewing.md names:
+        # not a match against nothing, which the guards below already catch
+        # loudly, but a match against something else. Deciding it here
+        # rather than by where a feature sits in the file is the point --
+        # declaration order is not meaning.
+        claims = self._claimants(term)
+        if len(claims) == 1:
+            return claims[0]
+        if len(claims) > 1:
+            # Ambiguous, so unresolved: reported by :meth:`_unresolved_term`
+            # in the same voice as any other term that named nothing.
+            return None
         # Try as a binary feature name (e.g., 'voiced' -> ('voiced', '+' or '-'))
         if term in self.features and self.features[term].type == "binary":
             if prefix == "+":
@@ -1093,6 +1117,68 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             elif prefix == "-":
                 return (term, "-")
         return None
+
+    def _claimants(self, term: str) -> list[tuple[str, str]]:
+        """Every feature that claims ``term``, as ``(feature, value)``.
+
+        A value or a friendly alias of one -- aliases resolve everywhere a
+        value is accepted, so ``labial-velar`` is a claim on ``place`` in
+        the same way ``bilabial^velar`` is.
+
+        **A borrower does not compete with its lender.** A feature
+        declaring ``vocabulary="place"`` states no values of its own; it
+        restates ``place``'s as a reading of the same symbol, so
+        ``[velar]`` means one thing whichever of the two answers and there
+        is nothing to disambiguate. Dropping the borrower where the lender
+        is also in the running is what keeps the ordinary place terms
+        working while the genuinely contested ones -- ``high``, ``mid``,
+        ``nasal``, ``lateral`` -- are refused. Without it this would refuse
+        eighteen terms that no one has ever been confused by.
+
+        A short code counts as a claim, and is not privileged for being
+        looked up first. ``mid`` is ``height``'s short code for its own
+        ``mid`` and is also ``tone``'s value outright; the two are spelled
+        the same, so answering from the short table before asking who else
+        claims the term just moved the silent choice one line earlier.
+        """
+        claims: list[tuple[str, str]] = []
+        short = self._short_to_feature.get(term)
+        if short is not None:
+            claims.append(short)
+        for feat_name, feat in self.features.items():
+            if term in feat.values:
+                claim = (feat_name, term)
+            elif term in feat.value_aliases:
+                claim = (feat_name, feat.value_aliases[term])
+            else:
+                continue
+            if claim not in claims:
+                claims.append(claim)
+        if len(claims) < 2:
+            return claims
+        running = {name for name, _ in claims}
+        claims = [
+            (name, value)
+            for name, value in claims
+            if (self.features[name].vocabulary or "") not in running
+        ]
+        if len(claims) < 2:
+            return claims
+        # Contested, so the data decides rather than the file's order. A
+        # value declaring `bare` owns the plain spelling; the others are
+        # still reachable as `feature=value`. Exactly one may claim it --
+        # two would be the same silent choice wearing a declaration -- and
+        # none is a legitimate answer, meaning the term is refused.
+        declared = [
+            (name, value) for name, value in claims if value in self.features[name].bare
+        ]
+        if len(declared) > 1:
+            raise ValueError(
+                f"{term!r} is declared bare by more than one feature: "
+                f"{sorted(name for name, _ in declared)}. A bare term "
+                f"resolves to one feature, so at most one may claim it"
+            )
+        return declared or claims
 
     def _resolve_class_term(self, term: str) -> tuple[str, frozenset[str]] | None:
         """Resolve a declared natural-class name to (feature, its values).
@@ -1143,6 +1229,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     f"not a value of feature {term!r}, whose declared values "
                     f"are {sorted(feature.values_set)}{hint}"
                 )
+        # Ambiguity before the misspelling diagnostics: a contested term is
+        # not a term that named nothing, and telling its writer it "is not a
+        # declared value" would be false as well as useless.
+        claims = self._claimants(term)
+        if len(claims) > 1:
+            spellings = ", ".join(f"{name}={value}" for name, value in sorted(claims))
+            return (
+                f"{spelled!r} is ambiguous; {term!r} is claimed by "
+                f"{sorted({name for name, _ in claims})}, and none of them "
+                f"declares it bare, so nothing says which one a plain term "
+                f"means. Name the feature: {spellings}"
+            )
         klass = self._resolve_class_term(term)
         if klass is not None:
             return (
@@ -1465,7 +1563,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # here and then found empty by the check at the end.
             for s in list(query):
                 # Whole string is a short name (e.g. '-voi', '+voi', '0trt').
-                if s in self._short_to_feature:
+                # Not where another feature claims the same spelling: `mid`
+                # is `height`'s short code for its own `mid` and `tone`'s
+                # value outright, and answering from this table first only
+                # moved the silent choice one branch earlier. A contested
+                # term falls through to the resolver, which refuses it.
+                if s in self._short_to_feature and len(self._claimants(s)) < 2:
                     feat, val = self._short_to_feature[s]
                     if clash := self._require_value(positive, feat, val):
                         unresolved.append(clash)

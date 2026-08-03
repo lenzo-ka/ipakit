@@ -927,3 +927,148 @@ class TestEveryQueryEntryPointRefusesInOneVocabulary:
         for empty in ([], set(), {}, ()):
             with pytest.raises(ValueError, match="no feature terms resolved"):
                 ipa.phones_matching(empty)
+
+
+class TestABareTermBelongsToOneFeature:
+    """Which feature a plain term names is declared, not inherited from
+    the order ``ipa.xml`` happens to list its features in.
+
+    Twenty-six value names are claimed by more than one feature. Resolving
+    them by scanning in declaration order and taking the first hit made
+    ``[high]`` a constraint on vowel HEIGHT -- ``height`` declares ``high``
+    as an alias of ``close`` and sits above ``tone``, for which ``high`` is
+    a value outright -- so a tone rule written the obvious way parsed, ran,
+    and answered about height. That is a well-formed wrong answer, which is
+    the shape docs/reviewing.md says every defect here has had.
+    """
+
+    def test_a_contested_term_no_feature_claims_is_refused(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """And the refusal names the claimants and what to write instead."""
+        for term, claimants in (
+            ("high", ["height", "tone"]),
+            ("low", ["height", "tone"]),
+            ("mid", ["height", "tone"]),
+        ):
+            assert ipa._resolve_query_term(term) is None, term
+            with pytest.raises(ValueError) as caught:
+                ipa.phones_matching([term])
+            message = str(caught.value)
+            assert "ambiguous" in message, term
+            for claimant in claimants:
+                assert claimant in message, (term, claimant)
+            # The way out is spelled, not just the complaint.
+            assert "=" in message, term
+
+    def test_the_keyed_spelling_of_a_refused_term_still_answers(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Refusing the bare spelling takes nothing away.
+
+        ``mid`` is the case that no precedence rule could have saved: it is
+        a canonical value of ``height`` AND of ``tone``, so there is no
+        alias-versus-value tie-break to apply.
+        """
+        for feature, value in (("height", "mid"), ("height", "close")):
+            assert ipa.phones_matching({feature: value}), (feature, value)
+        # And the prosodic side is reachable too, which is the reading the
+        # bare spelling could never give: `tone` is prosodic, so it is in no
+        # phone bundle and the query is refused as structural rather than
+        # answered emptily.
+        assert "mid" in ipa.features["tone"].values
+
+    def test_a_declared_claim_wins_the_bare_spelling(self, ipa: IPAFeatures) -> None:
+        """``nasal`` is a manner, a release phase and an approach phase.
+
+        Two shipped rules in ``japanese-moraic.rules`` write ``[-vowel
+        -nasal]`` and mean the manner. That now holds because ``manner``
+        declares it, rather than because ``manner`` is declared first.
+        """
+        for term, feature in (
+            ("nasal", "manner"),
+            ("lateral", "channel"),
+            ("glottal", "place"),
+            ("aspirated", "release"),
+        ):
+            resolved = ipa._resolve_query_term(term)
+            assert resolved is not None, term
+            assert resolved[0] == feature, (term, resolved)
+            assert term in ipa.features[feature].bare, (term, feature)
+
+    def test_a_borrower_does_not_contest_its_lender(self, ipa: IPAFeatures) -> None:
+        """A feature declaring ``vocabulary`` restates the lender's values
+        rather than competing with them, so the term is not contested at
+        all and needs no ``bare`` declaration to keep working.
+
+        Without the exemption this would refuse every ordinary place term.
+        """
+        borrowers = {
+            name: feature.vocabulary
+            for name, feature in ipa.features.items()
+            if feature.vocabulary
+        }
+        assert borrowers, "no borrowing feature is declared; this cannot fail"
+        exercised = 0
+        for name, lender in borrowers.items():
+            for value in sorted(ipa.features[name].values):
+                if value in _PREFIXES:
+                    continue
+                resolved = ipa._resolve_query_term(value)
+                if resolved is None:
+                    continue
+                assert resolved[0] != name or lender not in ipa.features, (
+                    name,
+                    value,
+                )
+                exercised += 1
+        assert exercised > 10, f"borrowing sweep did not run: {exercised}"
+
+    def test_at_most_one_feature_may_declare_a_term_bare(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Two declarations would be the same silent choice wearing a
+        declaration, so the loader refuses them rather than picking."""
+        claimed: dict[str, list[str]] = {}
+        for name, feature in ipa.features.items():
+            for value in feature.bare:
+                claimed.setdefault(value, []).append(name)
+        assert claimed, "nothing declares a bare term; this cannot fail"
+        for value, names in claimed.items():
+            assert len(names) == 1, (value, names)
+
+    def test_every_contested_term_is_declared_or_refused(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The sweep that pins this, and the proof it can see.
+
+        No contested term may resolve without a declaration. The instrument
+        is shown to work by counting the contested terms it found: if the
+        claim-gathering were broken it would find none and the sweep would
+        pass vacuously.
+        """
+        claims: dict[str, set[str]] = {}
+        for name, feature in ipa.features.items():
+            for value in feature.values:
+                claims.setdefault(value, set()).add(name)
+            for alias in feature.value_aliases:
+                claims.setdefault(alias, set()).add(name)
+        contested = {t: names for t, names in claims.items() if len(names) > 1}
+        assert len(contested) > 20, f"contest sweep did not run: {len(contested)}"
+        for term in contested:
+            resolved = ipa._resolve_query_term(term)
+            if resolved is None:
+                continue
+            feature, value = resolved
+            borrowed = {
+                name
+                for name in contested[term]
+                if (ipa.features[name].vocabulary or "") in contested[term]
+            }
+            uncontested_by_borrowing = contested[term] - borrowed
+            if len(uncontested_by_borrowing) == 1:
+                continue
+            assert value in ipa.features[feature].bare, (
+                f"{term!r} resolves to {feature}={value} and no feature "
+                f"declares it bare, so declaration order decided it"
+            )

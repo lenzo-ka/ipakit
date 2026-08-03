@@ -94,7 +94,7 @@
       <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
       <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
       <value name="tap" offset="0.75" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
-      <value name="nasal" offset="1.00" short="nas" href="Nasal_consonant"/>
+      <value name="nasal" offset="1.00" short="nas" bare="+" href="Nasal_consonant"/>
       <value name="fricative" offset="0.80" short="fri" natural-class="obstruent" href="Fricative"/>
       <value name="plosive" offset="1.00" short="plo" alias="stop" natural-class="obstruent" href="Plosive"/>
       <value name="affricate" offset="0.95" short="aff" natural-class="obstruent" href="Affricate"/>
@@ -126,7 +126,7 @@
       <value name="uvular" arc="0.56" articulator="tongue-dorsum" short="uvu" href="Uvular_consonant"/>
       <value name="pharyngeal" arc="0.74" articulator="tongue-root" short="pha" href="Pharyngeal_consonant"/>
       <value name="epiglottal" arc="0.87" articulator="epiglottis" short="epi" href="Epiglottal_consonant"/>
-      <value name="glottal" arc="1.00" articulator="vocal-folds" short="glo" href="Glottal_consonant"/>
+      <value name="glottal" arc="1.00" articulator="vocal-folds" short="glo" bare="+" href="Glottal_consonant"/>
     </feature>
 
     <feature name="height" axis="+y" short="hgt" desc="Vertical tongue position for vowels" href="Vowel#Height">
@@ -197,7 +197,7 @@
       <value name="-" label="unrounded"/>
     </feature>
     <feature name="channel" axis="+z" short="chn" default="flat" applies="consonant" desc="Where the airflow channel sits in cross-section: the mid-sagittal plane projects this axis away, so it has no contour, only an ordering" href="Sibilant">
-      <value name="lateral" short="lat" label="lateral" href="Lateral_consonant"/>  <!-- out: airflow at the sides, midline occluded -->
+      <value name="lateral" short="lat" label="lateral" bare="+" href="Lateral_consonant"/>  <!-- out: airflow at the sides, midline occluded -->
       <value name="flat" short="flt" href="Fricative"/>  <!-- diffuse central airflow -->
       <value name="grooved" short="grv" alias="sibilant" label="sibilant" href="Sibilant"/>  <!-- in: concentrated central jet -->
     </feature>
@@ -289,7 +289,7 @@
 
     <!-- Diacritic multi-valued features -->
     <feature name="release" type="categorical" short="rel" mode="release" desc="How stop closure is released" href="Consonant_release">
-      <value name="aspirated" label="aspirated" short="asp" href="Aspirated_consonant"/>
+      <value name="aspirated" label="aspirated" short="asp" bare="+" href="Aspirated_consonant"/>
       <value name="breathy" label="breathy-released" short="brt" href="Breathy_voice"/>
       <value name="lateral" label="lateral-released" short="lrl" href="Lateral_release_(phonetics)"/>
       <value name="nasal" label="nasally-released" short="nrl" href="Nasal_release"/>
