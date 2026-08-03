@@ -43,12 +43,16 @@ from ipakit.segment import (
     part_bundle,
     takes_defaults,
 )
+from ipakit.tract import tract_point
 
 # Floors, not pins: the inventory has moved three times in this repo's
 # history. They exist so a sweep that has quietly stopped composing fails
 # loudly instead of reporting a clean run over nothing.
 MIN_FUSIONS = 5000
 MIN_PER_KIND = 20
+# Reversible pairs the inventory spells at one manner: fewer than the
+# fusions above, because a reversal has to spell itself back too.
+MIN_REVERSALS = 1000
 
 
 @pytest.fixture(scope="module")
@@ -288,6 +292,151 @@ class TestAlignmentModeIsAskedOfTheStructure:
                 unit.kind.value,
             )
         assert checked > MIN_FUSIONS and both > MIN_PER_KIND
+
+
+class TestBothReadsOfAFusionReadItsOrderAlike:
+    """#155: the metric scored ``u͡i`` and ``i͡u`` at exactly 0 while the
+    flat projection described them as two different vowels, because the
+    merge took the last constituent's value on a unit that has no last
+    constituent -- one timing slot, one manner, nothing to put first.
+
+    Stated over the two public reads rather than over the shared
+    :func:`phase_ordered`, so a test cannot agree with the decision it is
+    checking. What the projection may still differ on is metadata, and
+    ``test_the_guard_states_what_it_cannot_see`` says so.
+    """
+
+    @staticmethod
+    def _articulation(unit: Segment) -> dict[str, str]:
+        """The projection's articulatory half: metadata is not a feature."""
+        return {
+            k: v for k, v in unit.scalar().items() if k not in ("href", "name", "class")
+        }
+
+    def _reversals(
+        self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
+    ) -> list[tuple[str, Segment, Segment]]:
+        out = []
+        for text, unit in fusions:
+            first, second = (c.base for c in unit.constituents)
+            if first == second:
+                continue
+            reverse = second + ipa.tie_bar + first
+            back = ipa.segment(reverse)
+            if back.to_ipa() != reverse:
+                continue
+            out.append((text, unit, back))
+        return out
+
+    def test_a_pair_at_no_distance_is_described_alike(
+        self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
+    ) -> None:
+        """A distance of exactly 0 is a claim that two spellings are one
+        sound. Then one sound has one description."""
+        checked = 0
+        for text, unit, back in self._reversals(ipa, fusions):
+            if ipa.distance(text, back.to_ipa()) != 0.0:
+                continue
+            checked += 1
+            assert self._articulation(unit) == self._articulation(back), text
+            assert ipa.describe(text) == ipa.describe(back.to_ipa()), text
+        assert checked > MIN_REVERSALS, "no reversible pair scored 0"
+
+    def test_the_pairs_that_would_have_failed_are_in_the_sweep(
+        self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
+    ) -> None:
+        """The test above passes vacuously over a fusion whose
+        constituents state the same things. It has to reach the ones that
+        do not: a key both constituents state, differently, is the only
+        place an order could have broken a tie.
+        """
+        disagreeing = 0
+        for text, unit, back in self._reversals(ipa, fusions):
+            if ipa.distance(text, back.to_ipa()) != 0.0:
+                continue
+            first, second = (part_bundle(ipa, c) for c in unit.constituents)
+            if any(
+                first[k] != second[k]
+                for k in set(first) & set(second)
+                if k not in ("href", "name", "class")
+            ):
+                disagreeing += 1
+        assert disagreeing > MIN_REVERSALS, disagreeing
+
+    def test_a_declared_default_is_never_one_component_of_a_value(
+        self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
+    ) -> None:
+        """How the order-free merge breaks a tie without using position.
+
+        A default is what an *unstated* feature contributes, so a
+        constituent stating it adds no articulation to the fusion: it can
+        be the whole of a projected value and never one component of a
+        combination. The consequence worth naming is that a binary
+        feature -- whose negative value *is* the default its type
+        declares -- cannot be projected as a combination at all, so
+        ``u͡i`` is rounded rather than rounded-and-unrounded.
+        """
+        checked = 0
+        for text, unit in fusions:
+            for key, value in unit.scalar(with_defaults=False).items():
+                feature = ipa.features.get(key)
+                if feature is None or feature.default is None:
+                    continue
+                components = feature.expand(value)
+                if len(components) < 2:
+                    continue
+                checked += 1
+                assert feature.default not in components, (text, key, value)
+        assert checked > MIN_PER_KIND, "no defaulted feature was ever combined"
+
+    def test_a_fusion_of_two_placed_constituents_is_placed(
+        self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
+    ) -> None:
+        """One sound is somewhere.
+
+        A combining value holds no position on its own scale, and the
+        tract reads it by expanding to its components and taking their
+        center of gravity -- which is how ``w`` falls between the lips
+        and the velum. A fused vowel pair spells a combining *backness*
+        now, so it needs the same read: an unplaced point is where an
+        unplaceable bundle goes, and this one is placeable.
+        """
+        checked = 0
+        for _text, unit, _back in self._reversals(ipa, fusions):
+            parts = [
+                tract_point(ipa, part_bundle(ipa, c) | {"manner": m})
+                for c in unit.constituents
+                if (m := part_bundle(ipa, c).get("manner")) is not None
+            ]
+            if len(parts) != 2 or any(p.arc is None for p in parts):
+                continue
+            checked += 1
+            assert tract_point(ipa, unit.scalar()).arc is not None, _text
+        assert checked > MIN_REVERSALS, "no fusion had two placed constituents"
+
+    def test_the_guard_states_what_it_cannot_see(
+        self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
+    ) -> None:
+        """Metadata is exempt above, and it does differ: a registered
+        spelling carries the article for its symbol and the reversal that
+        no entry names carries none. That is a fact about the two
+        spellings, not about the sound they agree on -- but if it ever
+        stops being only metadata, this fails and the exemption above
+        needs revisiting.
+        """
+        differ = [
+            text
+            for text, unit, back in self._reversals(ipa, fusions)
+            if ipa.distance(text, back.to_ipa()) == 0.0
+            and unit.scalar() != back.scalar()
+        ]
+        assert differ, "nothing differs at all; the exemption is now dead"
+        for text in differ:
+            first, second = text.split(ipa.tie_bar)
+            assert (
+                ipa.get_phone(text) is not None
+                or ipa.get_phone(second + ipa.tie_bar + first) is not None
+            ), text
 
 
 class TestDefaultsAreOneDecision:

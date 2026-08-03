@@ -92,6 +92,8 @@ with `γ = 1.0`. An atomic segment is lifted to a one-part sequence, which defin
 
 An n-ary fusion aligns its phase blocks in order and matches unordered within them, so `ŋ͡m͡ɡ͡b` equals `m͡ŋ͡b͡ɡ` and differs from `ɡ͡b͡ŋ͡m`.
 
+The flat projection asks the same question of the same structure, so a pair scored at 0 here is a pair `describe` reads alike. An over-tie's order is phase order, and a fusion with one phase has none; [docs/ties.md](ties.md) is what the projection does with the disagreement that leaves it.
+
 **Junctures contribute one term each.** A juncture on one side aligns with one on the other when both flanking pairs are matched; aligned junctures score 0 when their senses agree and 1 when they do not, and unaligned junctures score 1. So `d(u͡i, u͜i) = 1/3` exactly: the same constituents in the same order, one juncture-sense mismatch over three terms.
 
 Prosody — stress, length, tone — is excluded: `d(a, aː) = 0`.
