@@ -45,6 +45,10 @@ class IPAFeaturesBase:
         raise NotImplementedError
 
     @property
+    def approach_marks(self) -> frozenset[str]:
+        raise NotImplementedError
+
+    @property
     def consonant_manners(self) -> frozenset[str]:
         raise NotImplementedError
 

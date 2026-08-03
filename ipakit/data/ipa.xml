@@ -59,11 +59,18 @@
        a secondary articulation because it says velarized=, and so on. No
        symbol is classified by its own name. Declaration order is
        precedence: the first mode any of the mark's keys claims wins. The
-       mode named by `default` is what an undeclared feature contributes. -->
+       mode named by `default` is what an undeclared feature contributes.
+
+       Where a mark stands selects which of its own keys it contributes. A
+       superscript after a base states that base's release; the same
+       superscript before it states the phase the base is approached on, so
+       the four marks below that declare both keys say one of them at each
+       end and never both at one end. -->
   <modes default="additive">
     <mode name="structural" desc="a juncture or boundary; belongs to no segment's feature bag"/>
     <mode name="prosodic" desc="belongs to the unit, not to its feature bag"/>
     <mode name="release" desc="names a phase of the segment, never the whole of it"/>
+    <mode name="approach" desc="names the phase a segment is entered on; stated by a mark written before the base"/>
     <mode name="secondary" desc="a secondary articulation: adds a constriction, keeps the primary"/>
     <mode name="overriding" desc="replaces the base's value"/>
     <mode name="additive" desc="adds only what the base leaves unstated"/>
@@ -250,6 +257,33 @@
       <value name="schwa" label="schwa-released" short="srl" href="Schwa"/>  <!-- the schwa-colored release of a stop: a phase, not the segment's own vowel quality -->
     </feature>
 
+    <!-- The counterpart of `release`, at the other end of the same segment.
+         A stop is approached, held and released; `release` names the last
+         phase and this names the first, which is what an outside source
+         writes when it puts a superscript in front of a base: `ⁿd`
+         pre-nasalized, `ˀb` pre-glottalized, `ʰk` pre-aspirated, `ʱd`
+         pre-breathy-aspirated. Measured over BIPA's sound table, every
+         spelling CLTS's source datasets use and PHOIBLE, the marks written
+         in that position are exactly those four, and each already declares
+         its value as a release, so this borrows that vocabulary and coins
+         none of its own (scripts/interop.py premarks; docs/ties.md).
+
+         Only the four values a mark can write are declared. `release` also
+         holds lateral, no-audible and schwa; no mark spells any of them
+         before a base, and an unreachable value would be vocabulary this
+         file cannot say. A mark that starts writing one declares it here.
+
+         NOT named `onset`: that word is the syllable margin, and this file
+         is already half of that vocabulary (`nucleus` is a derived class,
+         and the rule sets syllabify). `approach` is the articulatory phase
+         literature's own term and cannot be read as syllable structure. -->
+    <feature name="approach" type="categorical" short="apr" mode="approach" desc="The phase a stop closure is entered on" href="Preaspiration">
+      <value name="aspirated" label="pre-aspirated" short="pas" href="Preaspiration"/>
+      <value name="breathy" label="pre-breathy-aspirated" short="pbr" href="Breathy_voice"/>
+      <value name="nasal" label="pre-nasalized" short="pns" href="Prenasalized_consonant"/>
+      <value name="glottal" label="pre-glottalized" short="pgl" href="Glottalization"/>
+    </feature>
+
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
       <value name="less" label="less-rounded" short="les"/>
       <value name="more" label="more-rounded" short="mor"/>
@@ -352,6 +386,7 @@
       <spelling feature="manner" value="nasal" port="1.0"/>
       <spelling feature="nasalized" value="+" port="0.5"/>
       <spelling feature="release" value="nasal" port="1.0"/>
+      <spelling feature="approach" value="nasal" port="1.0"/>
     </bridge>
     <bridge name="laterality" desc="Airflow at the sides of the tongue" href="Lateral_consonant">
       <spelling feature="channel" value="lateral"/>
@@ -607,8 +642,12 @@
   </phones>
 
   <diacritics>
-    <diacritic name="ʰ" release="aspirated" href="Aspirated_consonant"/>
-    <diacritic name="ʱ" release="breathy" href="Breathy_voice"/>
+    <!-- The four marks that state a phase at either end. Which of the two
+         keys a mark contributes is decided by where it is written, never by
+         the mark: `dʰ` is aspirated-released and `ʰd` pre-aspirated. See
+         <modes> above and docs/ties.md. -->
+    <diacritic name="ʰ" release="aspirated" approach="aspirated" href="Aspirated_consonant"/>
+    <diacritic name="ʱ" release="breathy" approach="breathy" href="Breathy_voice"/>
     <diacritic name="ʲ" palatalized="+" href="Palatalization_(phonetics)"/>
     <diacritic name="ʴ" rhotacized="+" href="R-colored_vowel"/>
     <diacritic name="ʷ" labialized="+" href="Labialization"/>
@@ -663,9 +702,9 @@
     <diacritic name="̼" articulator="tongue-tip" place="bilabial" href="Linguolabial_consonant"/>
     <diacritic name="̽" mid-centralized="+" href="Relative_articulation#Centralization"/>
     <diacritic name="ᶣ" labio-palatized="+"/>
-    <diacritic name="ⁿ" release="nasal" href="Nasal_release"/>
+    <diacritic name="ⁿ" release="nasal" approach="nasal" href="Nasal_release"/>
     <diacritic name="ʻ" release="aspirated" href="Aspirated_consonant"/>
-    <diacritic name="ˀ" release="glottal" href="Glottal_stop"/>
+    <diacritic name="ˀ" release="glottal" approach="glottal" href="Glottal_stop"/>
     <diacritic name="ᵊ" release="schwa" href="Schwa"/>
   </diacritics>
 

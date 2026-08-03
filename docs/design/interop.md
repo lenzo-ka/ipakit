@@ -212,7 +212,9 @@ CLTS gives one answer for both, because its bundle is a set. This is the order-d
      46  palatal-velar
 ```
 
-The **pre-modifier series is 402 assertions** and it is not an exotic corner: prenasalized stops are ordinary across Bantu, Austronesian and Sinitic, and pronunciation lexicons for those languages need them. ipakit has no pre-modifier position, and what it does with one instead is §12's defect. `apical` and `laminal` (184) are a laminality dimension ipakit does not declare. The co-articulated places are ipakit's `^` mechanism meeting CLTS's `X-and-Y`, in orders ipakit does not declare — a data question, not a model one.
+**Superseded by [#131](https://github.com/lenzo-ka/ipakit/issues/131), and closed.** ipakit reads a pre-articulation: a mark before a base states the segment's `approach`, the counterpart of `release`, over the same values.
+
+The **pre-modifier series is 402 assertions** and it is not an exotic corner: prenasalized stops are ordinary across Bantu, Austronesian and Sinitic, and pronunciation lexicons for those languages need them. ipakit had no pre-modifier position, and what it did with one instead is §12's defect. `apical` and `laminal` (184) are a laminality dimension ipakit does not declare. The co-articulated places are ipakit's `^` mechanism meeting CLTS's `X-and-Y`, in orders ipakit does not declare — a data question, not a model one.
 
 ## 3. The ties, and why they decide the direction
 
@@ -576,7 +578,7 @@ Each of these that later work has closed carries a superseded line saying what c
 
 ### (a) A leading modifier is dropped silently, under `strict=True`
 
-**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed ([#95](https://github.com/lenzo-ka/ipakit/issues/95)). `segments("ⁿd", strict=True)` raises, naming the unplaced mark; the lenient read warns.**
+**Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed ([#95](https://github.com/lenzo-ka/ipakit/issues/95)). A mark reaching no unit is reported: `segments("ʷk", strict=True)` raises, naming the unplaced mark, and the lenient read warns. Superseded again by [#131](https://github.com/lenzo-ka/ipakit/issues/131): the four marks an outside source actually writes before a base are read there rather than refused, so `segments("ⁿd", strict=True)` is one unit spelling `ⁿd`, with `approach="nasal"`.**
 
 ```python
 >>> ipakit.segments("ⁿd", strict=True)     # one Segment, to_ipa() == 'd'

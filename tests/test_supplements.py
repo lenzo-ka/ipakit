@@ -419,16 +419,23 @@ class TestASupplementReachesTheDerivedReads:
     def test_which_reads_the_base_load_populates(self) -> None:
         """Pinned, because it is what decides whether the drop above matters.
 
-        Only the tie tables are asked for while the base file loads, so
-        today the drop is insurance rather than a fix. If another derived
-        read starts being populated at load time this fails, and whether a
-        supplement can move it wants looking at. A fresh instance, not the
-        session fixture: the point is what *loading* asks for, and a shared
-        inventory accumulates whatever the suite has asked it since.
+        The tie tables and the mode partition are asked for while the base
+        file loads: deriving a tied phone's features parses its
+        constituents, and reading how far one extends asks which marks
+        state an approach phase, which is the mode partition. None of the
+        three is movable by a supplement, which may declare no feature and
+        no mode, so the drop stays insurance for these. ``approach_marks``
+        reads the diacritic table a supplement *can* extend, is not
+        populated here, and is dropped by the same mechanism regardless. If
+        another derived read starts being populated at load time this
+        fails, and whether a supplement can move that one wants looking at.
+        A fresh instance, not the session fixture: the
+        point is what *loading* asks for, and a shared inventory
+        accumulates whatever the suite has asked it since.
         """
         fresh = IPAFeatures()
         populated = set(_cached_names(fresh)) & set(fresh.__dict__)
-        assert populated == {"tie_marks", "tie_bars"}
+        assert populated == {"tie_marks", "tie_bars", "features_by_mode"}
 
 
 def _cached_names(ipa: IPAFeatures) -> list[str]:

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `approach`, the counterpart of `release`: a mark written before a base states the phase the closure is entered on, so `ⁿd` is a pre-nasalized `d` — one segment, one constituent — and `ʰ ʱ ⁿ ˀ` state their value at whichever end they are written at.
 - `ipakit notebook` and `ipakit.notebook()`: the tutorial as a Jupyter notebook, shipped in the package and rendered from `docs/tutorial.src.md` by `make notebook`.
 - RELAX NG grammars for every XML document the repository ships, and `tests/test_schema.py` validating each against its own.
 - `ipakit/data/supplements/supplement.rng`: the supplemental-inventory format as a grammar, so a supplement can be checked before it is loaded.
@@ -86,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Segment.to_json` is version 2: a constituent carries its `approach` marks beside its `modifiers`.
+- `scripts/sweep.py`'s corpus covers both placements of a mark; it enumerated the trailing one alone.
 - Phonological corrections across the shipped rule sets; each file records its own choices.
 - American English tapping asks for a following unstressed nucleus rather than a preceding stressed vowel.
 - Nasal place assimilation is stated once over an agreement variable, which widens it to every declared place.

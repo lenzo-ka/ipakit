@@ -168,8 +168,10 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # 61 before the six contour diacritics declared their level
         # sequences: a contour is a sequence of tone values, so each of the
         # six names a tone that is not one of the five levels.
-        assert len(pairs) == 67, f"{len(pairs)} declared pairs, not 67"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 9313
+        # 67 before the four phase marks declared their approach as well as
+        # their release: one further pair each, at the other phase.
+        assert len(pairs) == 71, f"{len(pairs)} declared pairs, not 71"
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 9869
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (
@@ -483,6 +485,32 @@ class TestAMisdeclaredProjectionFailsOnLoad:
 CONFLUENCE_STRIDE = 7
 
 
+def independent(
+    first: tuple[str, str], second: tuple[str, str], features: IPAFeatures = FEATURES
+) -> bool:
+    """Whether two requests are two changes rather than one dimension twice.
+
+    Two features joined by a declared ``<projection>`` are one phonetic
+    fact at two granularities, so a request naming both is not two
+    independent changes and the order it arrives in is the whole of what
+    it says: ``phonation="breathy"`` fixes ``voiced="+"``, so asking for
+    that and for ``voiced="-"`` is asking a contradiction, and each order
+    answers with whichever arrived last (``a̤`` one way, ``ḁ`` the other).
+    Confluence is not claimed there and could not be.
+
+    Read off ``<projections>`` by feature name, never by value: it is the
+    *dimensions* that are one, where the value-level read
+    (:func:`restates`) holds only when the two values agree -- which is
+    exactly not the contradictory case this has to exclude.
+    """
+    joined = {
+        (fine, coarse)
+        for (fine, _), (coarse, _) in features.projections.items()
+        if fine != coarse
+    }
+    return (first[0], second[0]) not in joined and (second[0], first[0]) not in joined
+
+
 def _then(unit: str | None, change: tuple[str, str]) -> str | None:
     return (
         None if unit is None else FEATURES.compose_unit(unit, **{change[0]: change[1]})
@@ -501,7 +529,7 @@ def confluence() -> (
     pairs = [
         (first, second)
         for first, second in itertools.combinations(declared_pairs(), 2)
-        if first[0] != second[0]
+        if first[0] != second[0] and independent(first, second)
     ][::CONFLUENCE_STRIDE]
     rows = []
     for base in self_spelling_phones():
