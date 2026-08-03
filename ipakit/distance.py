@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -44,12 +45,18 @@ class DistanceMixin(IPAFeaturesBase):
     def _feature_dict_distance(self, f1: dict[str, str], f2: dict[str, str]) -> float:
         """Compute distance between two feature dictionaries.
 
-        Returns the sentinel ``1.0`` (maximally different) when the two dicts
-        share no non-metadata feature keys -- there is nothing to compare on.
+        An empty union of comparable keys scores 0.0, not 1.0. The
+        branch reads as "nothing to compare on", but it is reachable
+        only when *both* sides carry no comparable key, and then neither
+        holds anything the other lacks -- which is identity, not maximal
+        difference. The case that actually is maximally different, one
+        side comparable and the other not, never reaches here: its keys
+        are all present on one side only, each scores 1, and 1.0 falls
+        out of the mean rather than being asserted.
         """
         all_keys = (set(f1) | set(f2)) - METADATA_ATTRS
         if not all_keys:
-            return 1.0
+            return 0.0
         total = sum(
             (
                 self.features[k].value_distance(f1.get(k), f2.get(k))
@@ -74,6 +81,12 @@ class DistanceMixin(IPAFeaturesBase):
         as maximally different is worse than refusing to answer. Use
         :meth:`word_distance` for words, :meth:`segment_distance` for
         segment strings.
+
+        An input the metric cannot read is maximally different from
+        anything else, but not from itself: identity is checked before
+        the sentinel, over NFC forms, since string identity is the only
+        basis left once the segment cannot be built. ``distance("", "")``
+        is 0.0 for the same reason.
         """
         for arg in (phone1, phone2):
             units = self.segments(arg)  # type: ignore[attr-defined]
@@ -87,7 +100,10 @@ class DistanceMixin(IPAFeaturesBase):
             s1 = self.segment(phone1)  # type: ignore[attr-defined]
             s2 = self.segment(phone2)  # type: ignore[attr-defined]
         except ValueError:
-            return 1.0
+            same = unicodedata.normalize("NFC", phone1) == unicodedata.normalize(
+                "NFC", phone2
+            )
+            return 0.0 if same else 1.0
         from .metric import segment_metric
 
         return segment_metric(self, s1, s2)  # type: ignore[arg-type]
@@ -95,30 +111,44 @@ class DistanceMixin(IPAFeaturesBase):
     def segment_distance(self, seg1: str, seg2: str) -> float:
         """Distance between two segment strings (potentially multi-unit).
 
-        Single units go through the Segment metric; multi-unit strings
-        compare positionally with a length penalty, each aligned pair
-        through the metric.
+        One flat positional mean over ``max(len(t1), len(t2))`` terms:
+        a position where both sides carry a unit costs the Segment
+        metric, a position only one side reaches costs ``GAP_COST``.
+        This is the normalization :func:`~ipakit.metric.segment_metric`
+        already uses over a unit's parts (docs/distance.md section 4),
+        applied one level up, and it is what keeps the three costs in
+        one currency: a substitution prices the same whether the pair
+        stands alone or sits inside a longer string, and an unmatched
+        unit prices exactly what a gap costs in :meth:`word_distance`,
+        which takes this method as its substitution cost.
+
+        Length is not a second, separately normalized term. It was one,
+        summed with the positional mean and halved, which charged an
+        unmatched unit its full 1.0 twice -- once positionally and once
+        as length -- and paid for it by halving every ordinary
+        substitution. Length enters here the way it enters every other
+        alignment in the library: as positions that cost a gap.
+
+        Two empty inputs are identical and score 0.0. An empty input
+        against a non-empty one needs no special case: every position is
+        unmatched, so the mean is exactly 1.0.
         """
-        from .metric import segment_metric
+        from .metric import GAP_COST, segment_metric
 
         t1 = self.segments(seg1)  # type: ignore[attr-defined]
         t2 = self.segments(seg2)  # type: ignore[attr-defined]
-        if not t1 or not t2:
-            return 1.0
-        if len(t1) == 1 and len(t2) == 1:
-            return segment_metric(self, t1[0], t2[0])  # type: ignore[arg-type]
-
-        len_penalty = abs(len(t1) - len(t2)) / max(len(t1), len(t2))
         max_len = max(len(t1), len(t2))
+        if max_len == 0:
+            return 0.0
         total = sum(
             (
                 segment_metric(self, t1[i], t2[i])  # type: ignore[arg-type,misc]
                 if i < len(t1) and i < len(t2)
-                else 1.0
+                else GAP_COST
             )
             for i in range(max_len)
         )
-        return (total / max_len + len_penalty) / 2
+        return total / max_len
 
     def pairwise_distances(self, phones: list[str]) -> list[list[float]]:
         """Compute pairwise distance matrix for a list of phones.

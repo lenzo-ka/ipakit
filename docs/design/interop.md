@@ -222,6 +222,8 @@ The **pre-modifier series is 402 assertions** and it is not an exotic corner: pr
 
 ipakit reads the tie as structure. BIPA deletes it.
 
+**Superseded by [#151](https://github.com/lenzo-ka/ipakit/issues/151), in one figure only.** `segment_distance` normalized a multi-unit comparison twice, so the `ts` row below reads half of what a current run gives — the untied member is two units against one, and it re-derives at 0.8333. The `t͡s`/`t͜s` row is one unit a side, never reached that normalizer, and stands unchanged, as does everything this section concludes from either.
+
 ```
 string   codepoints             BIPA reads ipakit reads
 ts       0074 0073              ts         2 segment(s) ['t', 's']
