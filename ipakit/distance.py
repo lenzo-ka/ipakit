@@ -180,7 +180,7 @@ class CostSchedule:
 
         **Scope, stated plainly: a schedule built this way is a claim about
         the rule set, not about the language.** ``french-liaison`` deletes
-        four latent final consonants and a schwa because those are the
+        the latent final consonants and the schwa because those are the
         phenomena that file was written to state, and a French speaker
         drops other things it says nothing about. That is a true and narrow
         claim, which is the only kind available; read it as "the phones
@@ -204,7 +204,12 @@ class CostSchedule:
 
         if side not in ("delete", "insert"):
             raise ValueError(f"side must be 'delete' or 'insert', got {side!r}")
-        inventory = [(p, units(p, features)) for p in features.phones]
+        # Built once, and only where a target has to be matched against it.
+        inventory = (
+            [(p, units(p, features)) for p in features.phones]
+            if side == "delete"
+            else []
+        )
         named: set[str] = set()
         for rule in ruleset.rules:
             if side == "delete" and rule.deletes and rule.target is not None:
