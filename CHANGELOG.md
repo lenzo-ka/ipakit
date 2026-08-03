@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `approach`, the counterpart of `release`: a mark written before a base states the phase the closure is entered on, so `ⁿd` is a pre-nasalized `d` — one segment, one constituent — and `ʰ ʱ ⁿ ˀ` state their value at whichever end they are written at.
+- `docs/design/tiers.md`: tiers over the segmental spine, assessed — build intervals a rule may read and may not rewrite, with tier names declared rather than ranked on the `level` ladder.
 - `ipakit notebook` and `ipakit.notebook()`: the tutorial as a Jupyter notebook, shipped in the package and rendered from `docs/tutorial.src.md` by `make notebook`.
 - RELAX NG grammars for every XML document the repository ships, and `tests/test_schema.py` validating each against its own.
 - `ipakit/data/supplements/supplement.rng`: the supplemental-inventory format as a grammar, so a supplement can be checked before it is loaded.
