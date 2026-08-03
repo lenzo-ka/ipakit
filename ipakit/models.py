@@ -77,6 +77,13 @@ class Feature:
     # positive value constricts at, so the metric can carry the
     # articulation as a weighted place component rather than as a key.
     place: str | None = None
+    # The feature this one takes its value set from, declared in the data.
+    # Two features naming the same tract locations must not be two
+    # declarations of where those locations are: the values, their
+    # aliases and their coordinates are the named feature's, copied at
+    # load, so the borrower and the source cannot come to disagree. A
+    # feature declaring this declares no values of its own.
+    vocabulary: str | None = None
     # Manner classes whose descriptions read this feature out; empty means
     # every class. ``channel`` places the airflow channel within a
     # constriction and a vowel has none; ``rhotacized`` is a vowel color

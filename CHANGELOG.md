@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`), and no vowel states one.
 - `docs/reading.md`: an annotated reading list, grouped by what a reader wants and marking what is free to read.
 - `approach`, the counterpart of `release`: a mark written before a base states the phase the closure is entered on, so `ⁿd` is a pre-nasalized `d` — one segment, one constituent — and `ʰ ʱ ⁿ ˀ` state their value at whichever end they are written at.
 - `docs/design/vowel-constriction.md`: where a vowel constricts, against two further measured sources — a per-cell coordinate does not reproduce across them, so the fit is refused on evidence; `scripts/areafunctions.py bands` and `replicate` are the measurement.

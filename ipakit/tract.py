@@ -1063,7 +1063,8 @@ def tract_point(features: IPAFeatures, bundle: dict[str, str]) -> TractPoint:
     """Where a feature bundle sits in tract space.
 
     Consonants read arc from place and offset from manner; vowels read
-    arc from backness and offset from height. The articulator comes from
+    arc from the constriction location they state, or from backness where
+    they state none, and offset from height. The articulator comes from
     the bundle when a phone or diacritic states one (a linguolabial says
     tongue-tip explicitly), otherwise from the place's declared default.
     Unplaceable bundles (no manner, an off-scale manner like silence)
@@ -1085,6 +1086,19 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     consonantal manner; a stated ``place`` is the arc of a consonant and
     nothing at all beside ``manner="vowel"``. Both are reachable: a rule
     setting ``manner`` over a vowel produces exactly such a bundle.
+
+    A vowel has two features that can supply its arc, and takes the more
+    specific one. ``constriction-location`` says where the tongue body
+    constricts, and ``backness`` says where the tongue body is, which the
+    vowel branch has always read *as* the constriction for want of
+    anything else -- so every vowel agreeing on ``backness`` sits at one
+    point whatever else it states. A segment stating a location is read
+    at that location, and ``backness`` is then not read at all: the
+    posture is one arc, so the feature that did not supply it is reported
+    as ``unread`` like any other value the picture did not take. No phone
+    in the shipped inventory states one, so this is a capability and not
+    a change of answer; which vowel constricts where is a question about
+    sources, open as #123 and untouched here.
 
     A name lands in ``read`` where this call took its stated value and
     got something back -- an arc, an offset, an articulator, or the
@@ -1184,9 +1198,20 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     if manner == "vowel":
         read.add("manner")
         backness = bundle.get("backness")
-        arc = combined_attr("backness", backness, "arc")
+        # The stated constriction first, `backness` where none is stated.
+        # Asking for the arc is what decides it: a location the data gives
+        # no `arc` supplies nothing, and the fallback is then the same read
+        # a vowel has always had, rather than an unplaced point.
+        located = bundle.get("constriction-location")
+        arc = combined_attr("constriction-location", located, "arc")
+        if arc is None:
+            arc = combined_attr("backness", backness, "arc")
         offset = combined_attr("height", bundle.get("height"), "offset")
-        articulator = articulator or combined_articulator("backness", backness)
+        articulator = (
+            articulator
+            or combined_articulator("constriction-location", located)
+            or combined_articulator("backness", backness)
+        )
     else:
         place = bundle.get("place")
         arc = combined_attr("place", place, "arc")

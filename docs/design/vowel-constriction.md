@@ -117,7 +117,10 @@ Three things, in descending order of how much they change.
 What an implementation would need, so that the next lane starts from the cost rather than from the idea.
 
 - **A constriction location per vowel phone**, from a source. Wood supplies roughly a dozen; the inventory has 39.
+**Superseded by [#160](https://github.com/lenzo-ka/ipakit/issues/160), and closed.** The branch reads a `constriction-location` a nucleus states, and `backness` where none is stated. `place` was refused as the carrier on the second obstacle named below, and on a third this assessment did not reach: the dental and linguolabial marks already put a place on a vowel, and reading that slot as the tongue body's constriction would have moved every one of those units, toward saying a dental vowel's *body* is at the teeth. The slot takes `place`'s values, aliases and arcs by declaration — `vocabulary="place"` — rather than restating them, so where `velar` is stays one number in one file and the last bullet below stays a single decision. No vowel states one, and nothing moved: zero movers over every pair the inventory makes and over the whole unit corpus.
+
 - **A vowel branch that reads it.** `tract_reading` takes `arc` from `backness` unconditionally on the `manner == "vowel"` branch. `place` is the obvious carrier — it already declares `palatal` 0.32, `velar` 0.45, `uvular` 0.56 and `pharyngeal` 0.74, which is Wood's four locations under ipakit's own names — but `place` on a vowel is currently read by nothing and reported as `unread`, and stating it renames the phone, because `describe` reads the place slot.
+
 - **A before and after over all 9591 pairs, with every mover explained.** `arc` reaches `ipakit.metric` through `_sagittal`. Moving the vowel anchors moves a large part of the matrix, and `confusion.json` has to be regenerated.
 - **A decision about the anchors themselves.** Wood's four proportional positions are 0.314, 0.514, 0.629 and 0.743. Two of those land on values `place` already declares almost exactly; two sit between `velar` and `uvular`. Adopting the classification and keeping the current place arcs are not the same change.
 

@@ -29,7 +29,7 @@ A constriction is three facts, and ipakit stores all three:
 | **where it goes** | `arc` | position along the tract midline, 0 at the lips to 1 at the glottis |
 | **how close** | `offset` | constriction degree, 0 at the open midline to 1 at full closure |
 
-`arc` and `offset` are declared per feature value in `data/ipa.xml`: consonants take `arc` from `place` and `offset` from `manner`; vowels take `arc` from `backness` and `offset` from `height`. The values are hand-placed from published mid-sagittal anatomy and are schematic, not measurements.
+`arc` and `offset` are declared per feature value in `data/ipa.xml`: consonants take `arc` from `place` and `offset` from `manner`; vowels take `arc` from the `constriction-location` they state, or from `backness` where they state none, and `offset` from `height`. No vowel in the inventory states one, so every vowel's arc comes from `backness` today. The values are hand-placed from published mid-sagittal anatomy and are schematic, not measurements.
 
 The articulator is declared per place value as a default and overridden per phone where it differs. Place names the *target*, not the mover: a linguolabial `t̼` is the tongue tip at a labial target, and `t̺`/`t̻` differ only in which part of the tongue arrives. A combining place combines its articulators, so `w` moves the lower lip and the dorsum both.
 
@@ -53,7 +53,7 @@ Ordinal scales ascend a declared axis, recorded per feature in the data as `axis
 
 | feature | axis | ascends |
 |---|---|---|
-| `place`, `backness` | `+x` | lips → glottis |
+| `place`, `backness`, `constriction-location` | `+x` | lips → glottis |
 | `height`, `tone` | `+y` | jaw → palate, low → high |
 | `manner` | `+constriction` | open → closed |
 | `channel` | `+z` | lateral → flat → grooved (out → in) |

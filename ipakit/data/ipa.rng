@@ -154,11 +154,16 @@
           <optional><attribute name="default"><text/></attribute></optional>
           <!-- `over` names the feature this one is derived from; `place`
                gives the constriction a secondary-articulation feature adds;
-               `applies` restricts the feature to a class of hosts. All
-               three point at names declared elsewhere. -->
+               `applies` restricts the feature to a class of hosts;
+               `vocabulary` names the feature whose value set, aliases and
+               tract coordinates this one takes as its own instead of
+               restating them, and a feature declaring it declares no
+               <value> of its own. All four point at names declared
+               elsewhere. -->
           <optional><attribute name="over"><text/></attribute></optional>
           <optional><attribute name="place"><text/></attribute></optional>
           <optional><attribute name="applies"><text/></attribute></optional>
+          <optional><attribute name="vocabulary"><text/></attribute></optional>
           <!-- A sequence-valued feature states a trajectory: its value is
                an ordered run of its declared values, not one of them. -->
           <optional><attribute name="sequence"><ref name="flag"/></attribute></optional>

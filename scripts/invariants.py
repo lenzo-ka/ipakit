@@ -808,6 +808,147 @@ def check_typed_values_declare_no_geometry(ipa: IPAFeatures) -> bool:
     return _report("a typed feature's values declare no geometry", failures, checked)
 
 
+#: What a borrowed vocabulary is: the value set, the spellings that
+#: resolve into it, and what each value carries.
+BORROWED = frozenset(
+    {
+        "values",
+        "value_aliases",
+        "offscale",
+        "coordinates",
+        "articulators",
+        "apertures",
+        "value_classes",
+    }
+)
+#: What is the borrower's own, and why. Every one of these is a fact about
+#: the *declaration* rather than about the values: which host class it
+#: applies to, how a mark stating it combines, what it is called.
+#:
+#: ``labels`` is the one that is neither obvious nor cosmetic. A label is
+#: how a value reads out in a description, and a description reads a
+#: modifier out *because* its feature declares one -- so a borrowed label
+#: would put the source's word into the name of the borrower's host, which
+#: is the rename that made `place` the wrong carrier for a vowel's
+#: constriction in the first place.
+NOT_BORROWED = {
+    "name": "the borrower's own name",
+    "default": "what the borrower reports unstated, which the source does not decide",
+    "type": "the borrower's comparison discipline",
+    "desc": "the borrower's own description",
+    "axis": "the borrower's own axis, though a borrower will usually share it",
+    "mode": "how a mark stating the borrower combines with its base",
+    "place": "the constriction a secondary articulation adds, if the borrower is one",
+    "vocabulary": "the borrowing itself",
+    "applies": "which hosts the borrower is expected on",
+    "sequence": "whether the borrower's values may be trajectories",
+    "over": "the scale the borrower's values move along",
+    "moves": "a move is read only beside `over`, which is the borrower's own",
+    "labels": "how a value reads out in a description; see above",
+}
+
+
+def check_borrowed_vocabulary_is_total(_: IPAFeatures) -> bool:
+    """Every field of a ``Feature`` is classified as borrowed or not.
+
+    The check below compares the borrowed ones. What it cannot see is a
+    field nobody thought about: add a per-value table to ``Feature``,
+    forget to copy it in the loader, and the borrower silently has an
+    empty one while the source has a full one -- a second declaration of
+    the same thing, arrived at by omission, which is exactly what
+    borrowing exists to prevent. So the partition is asserted total, and a
+    new field fails here until it is put on one side or the other.
+    """
+    from dataclasses import fields
+
+    from ipakit.models import Feature
+
+    declared = {f.name for f in fields(Feature)}
+    failures = [
+        f"Feature.{name} is neither borrowed nor declared as the borrower's own"
+        for name in sorted(declared - BORROWED - set(NOT_BORROWED))
+    ]
+    failures += [
+        f"{name!r} is classified here and is not a field of Feature"
+        for name in sorted((BORROWED | set(NOT_BORROWED)) - declared)
+    ]
+    return _report(
+        "every Feature field is borrowed or the borrower's own",
+        failures,
+        len(declared),
+    )
+
+
+def check_borrowed_vocabulary(ipa: IPAFeatures) -> bool:
+    """A feature that borrows a value set is not a second copy of it.
+
+    ``constriction-location`` declares ``vocabulary="place"``: a nucleus
+    constricts at one of the places ``place`` already locates, and where
+    ``velar`` is must be stated once. This is the same hazard the
+    secondary-articulation set was -- three copies of one set in three
+    modules, agreeing by habit until one drifted and ``l`` and ``ɫ`` came
+    out identical -- reached before there are copies to drift.
+
+    Read off the document as well as off the load, because the two say
+    different things. The document says the borrower spells no ``<value>``
+    of its own, which is what stops a value being added on one side only.
+    The load says the tables came out equal, which is what the readers
+    actually see. A check on either alone passes a file where the
+    borrowing silently did not happen.
+
+    Cross-references are the acknowledged gap in the grammars
+    (``ipa.rng``), so the resolution is checked here: ``vocabulary`` must
+    name a feature, and name one declared *earlier*, since the loader
+    copies as it goes and a forward reference would quietly load a feature
+    with no values at all.
+    """
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(ipa.xml_path).getroot()
+    features = root.find("features")
+    elems = list(features.findall("feature")) if features is not None else []
+    declared_before: set[str] = set()
+    failures: list[str] = []
+    checked = 0
+    for elem in elems:
+        name = elem.get("name")
+        if not name:
+            continue
+        source_name = elem.get("vocabulary")
+        if source_name is None:
+            declared_before.add(name)
+            continue
+        checked += 1
+        if source_name not in declared_before:
+            failures.append(
+                f"{name} borrows {source_name!r}, which is not a feature "
+                "declared before it"
+            )
+            declared_before.add(name)
+            continue
+        if own := [v.get("name") for v in elem.findall("value")]:
+            failures.append(
+                f"{name} borrows {source_name!r} and also spells {own}; the "
+                "loader drops one of the two and nothing says which"
+            )
+        if elem.get("type") in ipa.types:
+            failures.append(
+                f"{name} borrows {source_name!r} and is typed "
+                f"{elem.get('type')!r}, which is a second value set"
+            )
+        feature, source = ipa.features[name], ipa.features[source_name]
+        for attr in sorted(BORROWED):
+            if getattr(feature, attr) != getattr(source, attr):
+                failures.append(
+                    f"{name}.{attr} is not {source_name}.{attr}; the two are "
+                    "two declarations of one thing and will drift"
+                )
+        declared_before.add(name)
+    if not checked:
+        failures.append("no feature borrows a vocabulary; this check is vacuous")
+    return _report("a borrowed vocabulary is one declaration", failures, checked)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -833,6 +974,8 @@ def main(argv: list[str] | None = None) -> int:
         check_projection_coherence(ipa, args.quick),
         check_head_arcs(ipa),
         check_typed_values_declare_no_geometry(ipa),
+        check_borrowed_vocabulary_is_total(ipa),
+        check_borrowed_vocabulary(ipa),
         check_derived_artifacts(),
     ]
     ok = all(results)
