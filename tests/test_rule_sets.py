@@ -1256,6 +1256,102 @@ class TestEachRuleKindHasAShippedExample:
         assert all(kinds.values()), f"a rule kind has no example: {kinds}"
 
 
+def _length_delta(rule: R.Rule) -> int:
+    """Units the rule adds or removes where it fires.
+
+    A right-hand side is a **spelling**, not a unit, so it has to be
+    tokenized before it can be counted: 'ɚ -> eɹ' writes two units over
+    one and 'a͜ɪ -> ai' unties one into two. Anything that treats
+    ``becomes`` as already-a-sequence counts every literal as one unit and
+    silently misses those, because ``Rule.becomes`` is only ever ``str``,
+    a feature change, or ``None``. A feature change rewrites one unit as
+    one unit and so is always zero.
+    """
+    was = 0 if rule.query.target is None else 1
+    if rule.becomes is None:
+        now = 0
+    elif isinstance(rule.becomes, str):
+        now = len(ipakit.units(rule.becomes, FEATURES))
+    else:
+        now = 1
+    return now - was
+
+
+class TestHowManyShippedRulesChangeTheLengthOfTheUnitSequence:
+    """The count docs/design/tiers.md §4 rests on, kept where it can fail.
+
+    A length change is what an interval endpoint has to be rebased across,
+    so this number is the answer to whether tier rebasing can be deferred.
+    It was typed into that document as prose and was wrong by six -- every
+    rule whose right-hand side spells two units -- which is the shape of
+    mistake a sentence cannot catch and this file can.
+
+    The instrument is checked against the sets in motion, not only read off
+    the parsed rules: the delta measured on the ``Edit`` a rule actually
+    produces must agree with the delta reckoned from its notation, for
+    every edit the shipped corpora provoke. A counter that reports zero
+    everywhere would pass the first test and fail the last.
+    """
+
+    def test_the_count_is_twenty_seven_of_eighty_six(self):
+        counts = {
+            name: sum(1 for r in _set(name) if _length_delta(r)) for name in ALL_SETS
+        }
+        assert counts == {ENGLISH: 0, FRENCH: 12, GERMAN: 0, JAPANESE: 11, SPANISH: 4}
+        assert sum(counts.values()) == 27
+        assert sum(len(_set(name).rules) for name in ALL_SETS) == 86
+
+    def test_the_multi_unit_literals_are_the_ones_easy_to_miss(self):
+        """Six rules add a unit without inserting or deleting anything."""
+        wider = {
+            rule.source
+            for name in ALL_SETS
+            for rule in _set(name)
+            if isinstance(rule.becomes, str)
+            and _length_delta(rule) > 0
+            and rule.query.target is not None
+        }
+        assert len(wider) == 6, sorted(wider)
+        assert all(
+            len(ipakit.units(rule.becomes, FEATURES)) == 2
+            for name in ALL_SETS
+            for rule in _set(name)
+            if rule.source in wider
+        )
+
+    def test_the_reckoning_agrees_with_the_edits_the_sets_actually_make(self):
+        reckoned = {
+            (name, rule.name): _length_delta(rule)
+            for name in ALL_SETS
+            for rule in _set(name)
+        }
+        seen, moved = 0, set()
+        for name in ALL_SETS:
+            ruleset = _set(name)
+            for word in CORPUS[name]:
+                for edit in ruleset.derive(word, FEATURES).edits:
+                    seen += 1
+                    measured = len(edit.replacement) - (edit.end - edit.start)
+                    assert measured == reckoned[(name, edit.rule)], (
+                        f"{name}/{edit.rule} on {word}: measured {measured}, "
+                        f"reckoned {reckoned[(name, edit.rule)]}"
+                    )
+                    if measured:
+                        moved.add((name, edit.rule))
+        assert seen > 200, f"the sweep collapsed: {seen} edits"
+        # Every length-changing rule the corpora can reach is reached. The
+        # two that are not are the optional ones, which an obligatory
+        # derivation never takes.
+        obligatory = {
+            (name, rule.name)
+            for name in ALL_SETS
+            for rule in _set(name)
+            if _length_delta(rule) and not rule.optional
+        }
+        assert moved == obligatory
+        assert len(obligatory) == 25
+
+
 class TestWhatTheLinkingMarkDoes:
     """'‿' is new as a nameable context item, and it behaves three ways
     that are load-bearing for liaison and surprising out of it. Pinned so

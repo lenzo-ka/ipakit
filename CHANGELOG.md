@@ -157,6 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `docs/design/tiers.md` §4 counted a rule's right-hand side without tokenizing it, so every multi-unit literal read as one unit and 27 length-changing rules were reported as 21; `tests/test_rule_sets.py` carries the count now (#145).
+- `docs/design/tiers.md` §4 said tone stability and compensatory lengthening cannot be stated at all; an ordered pair of segmental rules reaches `pta˦` and `kaːs`, and it is the generalization that has no statement (#145).
 - A vowel's `arc` and `articulator` come from one feature or neither: a stated `constriction-location` with no `arc` supplied the articulator anyway, so the point took its position from `backness` and its organ from the rejected location (#175).
 - A combined position places wholly or not at all: `palatal^X` with `X` unplaceable read as plain `palatal` and reported as a complete stated location, rather than falling back and saying so (#175).
 - `scripts/areafunctions.py chart` scored its own baseline over nine of Yang & Kasuya's fifteen columns and every other row over all fifteen, so the reading the embeddings were measured against read 20 where it scores 26, and 16 of 60 embeddings looked like they beat it where none does (#175).
