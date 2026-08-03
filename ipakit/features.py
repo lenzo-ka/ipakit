@@ -37,15 +37,18 @@ from .hierarchy import HierarchyMixin
 from .models import Feature, Phone, Phoneset
 from .phonemaps import _load_phonemap
 from .segment import (
+    APPROACH_MODE,
     Constituent,
     Segment,
     Sense,
     apply_modifiers,
+    approach_run,
     check_prosody,
     fill_defaults,
     flat_projection,
     modifier_mode,
     part_bundle,
+    phase_keys,
     takes_defaults,
 )
 from .validation import ValidationMixin
@@ -1880,9 +1883,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         no mark at all".
         """
         asked = set(wanted) if wanted is not None else {key}
+        # Which placement the request is about, so a mark is judged on what
+        # it says *there*. The four phase marks declare one key at each end
+        # of the segment, and counting both would make each of them look
+        # twice as unspecific as it is: asked for an aspirated release,
+        # `ʰ` would lose to `ʻ`, which says the same thing and is the
+        # spelling nobody writes.
+        approach = key in self.features_by_mode.get(APPROACH_MODE, frozenset())
         candidates: list[tuple[int, int, int, str]] = []
-        for order, (symbol, declared) in enumerate(self.diacritics.items()):
-            bundle = getattr(declared, "features", None) or {}
+        for order, symbol in enumerate(self.diacritics):
+            here = phase_keys(self, symbol, approach)
+            declared = self.diacritics[symbol]
+            bundle = {
+                k: v
+                for k, v in (getattr(declared, "features", None) or {}).items()
+                if k in here
+            }
             if bundle.get(key) != value:
                 continue
             if wanted is not None and not self._coheres(bundle, wanted):
@@ -1905,7 +1921,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         _, _, order, symbol = min(candidates)
         return order, symbol
 
-    def _mark_rank(self, symbol: str) -> tuple[int, int, int]:
+    def _mark_rank(self, symbol: str, approach: bool = False) -> tuple[int, int, int]:
         """Where one mark sits in a stack: how it binds, then its mode,
         then its declaration.
 
@@ -1932,12 +1948,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         canonical ordering sorts them by combining class whatever is
         decided here, which is why the spelling is normalized once before
         it is checked.
+
+        ``approach=True`` ranks the stack written before the base, where a
+        mark's mode is the one it makes *there*.
         """
         modes = {mode: rank for rank, mode in enumerate(self.modes)}
         order = {glyph: rank for rank, glyph in enumerate(self.diacritics)}
         return (
             1 if all(unicodedata.combining(ch) == 0 for ch in symbol) else 0,
-            modes.get(modifier_mode(self, symbol), len(modes)),
+            modes.get(modifier_mode(self, symbol, approach), len(modes)),
             order.get(symbol, len(order)),
         )
 
@@ -2069,7 +2088,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         except (ValueError, KeyError):
             return None
 
-        picked: list[str] = []
+        # Picks are kept per placement: a mark supplying an approach-phase
+        # key is written before the base and one supplying anything else
+        # after it, which is the same rule the reader applies and the only
+        # thing that makes `compose_unit(d, approach="nasal")` spell `ⁿd`
+        # rather than a `dⁿ` that reads back as a release.
+        at_approach = self.features_by_mode.get(APPROACH_MODE, frozenset())
+        picked: dict[bool, list[str]] = {False: [], True: []}
         written: dict[str, str] = {}
         for key, value in wanted.items():
             # Already true is a no-op, not a second mark. This is what
@@ -2091,15 +2116,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 return None
             _order, symbol = found
             written[key] = value
-            if symbol not in picked:
-                picked.append(symbol)
+            side = picked[key in at_approach]
+            if symbol not in side:
+                side.append(symbol)
 
-        # The new marks join the ones the base already wears, and the whole
-        # stack is ordered together. New marks land on the LAST constituent
-        # because that is where writing them into the spelling put them; a
-        # mark on an earlier constituent of a tied unit belongs to that
-        # constituent and stays on it.
-        tail = unit.constituents[-1]
         # A mark already on the base that states a key being written gives
         # way to the mark writing it, rather than standing beside it. Two
         # marks stating one feature is not a stack, it is a contradiction:
@@ -2111,19 +2131,52 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # saying so. `ǀʼ` asked for the velaric airstream it already has
         # would otherwise come back `ǀ`, the ejective mark dropped in the
         # name of a change that moved nothing.
-        kept = tuple(
-            glyph
-            for glyph in tail.modifiers
-            if not any(
-                written.get(key, value) != value
-                for key, value in (
-                    getattr(self.diacritics.get(glyph), "features", None) or {}
-                ).items()
-                if key not in METADATA_ATTRS
+        #
+        # And read over what each mark says *where it stands*: `ʰ` in the
+        # approach stack is not saying anything about the release, so a
+        # requested release does not evict it.
+        def survivors(glyphs: tuple[str, ...], approach: bool) -> tuple[str, ...]:
+            return tuple(
+                glyph
+                for glyph in glyphs
+                if not any(
+                    written.get(key, value) != value
+                    for key, value in (
+                        getattr(self.diacritics.get(glyph), "features", None) or {}
+                    ).items()
+                    if key in phase_keys(self, glyph, approach)
+                )
             )
+
+        # The new marks join the ones the base already wears, and each
+        # stack is ordered together. A trailing mark lands on the LAST
+        # constituent and an approach mark on the FIRST, because that is
+        # where writing them into the spelling put them; a mark on an
+        # inner constituent of a tied unit belongs to that constituent and
+        # stays on it.
+        constituents = list(unit.constituents)
+        tail, head = constituents[-1], constituents[0]
+        constituents[-1] = dataclasses.replace(
+            tail,
+            modifiers=tuple(
+                sorted(
+                    dict.fromkeys(
+                        survivors(tail.modifiers, False) + tuple(picked[False])
+                    ),
+                    key=self._mark_rank,
+                )
+            ),
         )
-        marks = tuple(sorted(dict.fromkeys(kept + tuple(picked)), key=self._mark_rank))
-        rebuilt = unit.constituents[:-1] + (dataclasses.replace(tail, modifiers=marks),)
+        constituents[0] = dataclasses.replace(
+            constituents[0],
+            approach=tuple(
+                sorted(
+                    dict.fromkeys(survivors(head.approach, True) + tuple(picked[True])),
+                    key=lambda glyph: self._mark_rank(glyph, approach=True),
+                )
+            ),
+        )
+        rebuilt = tuple(constituents)
         try:
             # Unicode has the last word on the order of combining marks:
             # `̚` and `̃` are canonically reordered whatever the modes say,
@@ -2695,13 +2748,26 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         n = len(segment)
         i = 0
         while i < n:
+            # A mark declaring an approach phase states it of the base
+            # written after it, so the run is read forward and kept only
+            # when a base is actually there. Where none is, ``lead`` is
+            # discarded and the mark falls through to the refusal below,
+            # which is what ``ʷk`` and a trailing ``ⁿ`` still get.
+            lead = approach_run(self, segment, i)
             best_phone, best_len = longest_match(
-                segment, i, phone_lookup, MAX_MATCH_LEN, phone_lookup, self.tie_bars
+                segment,
+                i + len(lead),
+                phone_lookup,
+                MAX_MATCH_LEN,
+                phone_lookup,
+                self.tie_bars,
             )
+            if not best_phone:
+                lead = []
 
             if best_phone:
-                chain = best_phone
-                j = i + best_len
+                chain = "".join(lead) + best_phone
+                j = i + len(lead) + best_len
                 diacritics = self._modifier_run(segment, j)
                 j += len(diacritics)
                 # A tie joins the unit just read -- base *and* the
@@ -2711,9 +2777,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # this, a tie written after a diacritic falls through to
                 # the standalone branch and the juncture is lost.
                 while j < n and segment[j] in self.tie_bars:
+                    # Each constituent of the chain may carry its own
+                    # approach run, on the same terms as the first.
+                    next_lead = approach_run(self, segment, j + 1)
                     next_phone, next_len = longest_match(
                         segment,
-                        j + 1,
+                        j + 1 + len(next_lead),
                         phone_lookup,
                         MAX_MATCH_LEN,
                         phone_lookup,
@@ -2721,8 +2790,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     )
                     if not next_phone:
                         break
-                    chain += "".join(diacritics) + segment[j] + next_phone
-                    j += 1 + next_len
+                    chain += (
+                        "".join(diacritics)
+                        + segment[j]
+                        + "".join(next_lead)
+                        + next_phone
+                    )
+                    j += 1 + len(next_lead) + next_len
                     diacritics = self._modifier_run(segment, j)
                     j += len(diacritics)
                 result.append((chain, diacritics))
@@ -3205,14 +3279,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         cannot carry.
         """
         part = self._resolve_token(part)
-        base, best_len = longest_match(part, 0, self.phones, MAX_MATCH_LEN)
+        approach = approach_run(self, part, 0)
+        base, best_len = longest_match(part, len(approach), self.phones, MAX_MATCH_LEN)
         if not base:
             raise ValueError(f"no registered base phone in {part!r}")
-        modifiers = self._modifier_run(part, best_len)
-        if best_len + len(modifiers) != len(part):
-            stray = part[best_len + len(modifiers)]
+        start = len(approach) + best_len
+        modifiers = self._modifier_run(part, start)
+        if start + len(modifiers) != len(part):
+            stray = part[start + len(modifiers)]
             raise ValueError(f"unknown modifier {stray!r} in {part!r}")
-        return Constituent(base=base, modifiers=tuple(modifiers))
+        return Constituent(
+            base=base, modifiers=tuple(modifiers), approach=tuple(approach)
+        )
 
     def _segment_from_token(
         self, token: str, stress: tuple[str, ...] = ()
@@ -3268,9 +3346,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if modifiers:
             last = constituents[-1]
             constituents = constituents[:-1] + (
-                Constituent(
-                    base=last.base, modifiers=last.modifiers + tuple(modifiers)
-                ),
+                dataclasses.replace(last, modifiers=last.modifiers + tuple(modifiers)),
             )
         return Segment(
             constituents=constituents,
@@ -3319,6 +3395,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         for name, feat in self.features.items():
             grouped.setdefault(feat.mode or self.default_mode, set()).add(name)
         return {mode: frozenset(names) for mode, names in grouped.items()}
+
+    @functools.cached_property
+    def approach_marks(self) -> frozenset[str]:
+        """The marks that may stand before a base, derived from the data.
+
+        A mark belongs here because it declares a feature the ``<modes>``
+        block puts at the approach phase, which is the whole of the rule:
+        no glyph is listed, and a mark that starts declaring one joins
+        without a change here. Everything else written where no unit
+        precedes it still binds nothing and is still reported
+        (:meth:`_report_unplaced`) -- ``ʷ`` is a secondary articulation,
+        which spans the segment rather than naming a phase of it, so
+        ``ʷk`` stays refused.
+        """
+        return frozenset(
+            symbol
+            for symbol in self.diacritics
+            if phase_keys(self, symbol, approach=True)
+        )
 
     @functools.cached_property
     def secondary_places(self) -> dict[str, str]:

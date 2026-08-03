@@ -6,7 +6,7 @@ from ._base import IPAFeaturesBase
 from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS
 from .form import units
-from .segment import modifier_mode
+from .segment import approach_run, modifier_mode
 
 # The slots a conventional name renders itself, in the order it renders
 # them. There is one sentence, not two: "[voice] [modifiers] [place]
@@ -656,7 +656,24 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Check for diacritics (modifiers that require a base phone)
             if char in known_diacritics:
-                if not last_was_phone:
+                # A mark declaring an approach phase states it of the base
+                # written *after* it, so it needs no preceding phone --
+                # only a following one. Asked through ``approach_run``,
+                # the same read ``IPAFeatures.parse`` admits the run with,
+                # so the parser and the validator cannot come to disagree
+                # about whether "ⁿd" is well formed. Where no base
+                # follows, the mark binds nothing and this is an orphan
+                # exactly as before.
+                lead = len(approach_run(self, ipa, i))
+                _, ahead = longest_match(
+                    ipa,
+                    i + lead,
+                    known_phones,
+                    MAX_MATCH_LEN,
+                    known_phones,
+                    self.tie_bars,
+                )
+                if not last_was_phone and not (lead and ahead):
                     issues.append(
                         {
                             "type": "error",
