@@ -258,17 +258,17 @@ round(sum(s ** 3 > 0.5 for s in sims) / len(sims), 2)   # 0.21
 **Where gamma does real work is word alignment**, because there the transformed values are *summed* rather than compared. `sub_cost` runs through the same percentile as `confusability`, but insertion and deletion cost a flat `insert_cost` and `delete_cost` and gamma never touches them. Raising gamma therefore raises the price of a substitution against a fixed price for a gap, and that is a change of exchange rate, not a relabeling. It can change which alignment the dynamic program picks:
 
 ```python
-flat.word_distance("kæt", "atə", return_alignment=True).alignment
-# [('k', 'a'), ('æ', 't'), ('t', 'ə')]
-sharp.word_distance("kæt", "atə", return_alignment=True).alignment
-# [('k', None), ('æ', 'a'), ('t', 't'), (None, 'ə')]
+flat.word_distance("atə", "abt", return_alignment=True).alignment
+# [('a', 'a'), ('t', 'b'), ('ə', 't')]
+sharp.word_distance("atə", "abt", return_alignment=True).alignment
+# [('a', 'a'), (None, 'b'), ('t', 't'), ('ə', None)]
 ```
 
-At `gamma=1.0` three substitutions are cheaper than a gap at each end; at `gamma=3.0` they are not, and the words align on the material they share. Ordering of *word* pairs is not preserved either: a transform applied term by term does not survive being summed, so two word pairs can swap places. If you are tuning an `is_similar` threshold, that threshold is on word similarity, and gamma genuinely moves which pairs clear it — which is the other half of the warning in §8 about re-tuning thresholds.
+At `gamma=1.0` substituting straight through is cheaper than a gap on each side of the shared `t`; at `gamma=3.0` it is not, and the words align on the material they share. Ordering of *word* pairs is not preserved either: a transform applied term by term does not survive being summed, so two word pairs can swap places. If you are tuning an `is_similar` threshold, that threshold is on word similarity, and gamma genuinely moves which pairs clear it — which is the other half of the warning in §8 about re-tuning thresholds.
 
 **There is no tuned default, and there will not be one.** Any specific value is a fit to whichever inventory and task produced it, and a number fitted to one source cannot be checked against anything — [docs/design/vowel-constriction.md](design/vowel-constriction.md) is the worked case of refusing exactly that, and concludes that "a table is refused on evidence, not on taste." `1.0` is the honest default precisely because it is the identity: it asserts nothing.
 
-To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `word_similarity` on that set, not over `confusability`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; values at or below 0 are meaningless here and nothing rejects them.
+To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `word_similarity` on that set, not over `confusability`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it. There is no upper bound: the transform stays in range and stays order-preserving however large the exponent gets, and how far up is useful is a fact about the caller's inventory rather than about the library.
 
 **Gamma has no meaning on the plain `word_distance` path.** `ipakit.word_distance` and `IPAFeatures.word_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
 

@@ -157,7 +157,7 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9833333333333333
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.9926841135787022
+# 0.9853682271574045
 ```
 
 > **These are two numbers for one English phrase**, and the CLI gives the second.
@@ -169,7 +169,17 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9927  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9854  [reference: ipa, 139 phones]
+```
+
+A word comparison also reports `coverage`, the shorter token count over the longer. It
+is beside the score and never inside it, because a low similarity has two readings and
+the score cannot tell them apart on its own — these two are alike as numbers and are not
+alike as diagnoses.
+
+```python
+ipa.word_distance("kætəloɡ", "kæt").coverage  # 0.42857142857142855
+ipa.word_distance("kætəloɡ", "ɡolətæk").coverage  # 1.0
 ```
 
 **Do not build a metric tree on `distance`.** It is symmetric and bounded and zero on

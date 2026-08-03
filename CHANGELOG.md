@@ -152,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `gamma` at or below zero is refused at construction; it made every pair maximally confusable, or answered outside `[0, 1]` (#171).
 - A fusion's order was meaning to the flat projection and notation to the metric: `distance("u͡i", "i͡u")` was 0 while the two described different vowels. Both reads ask the phase structure now, and a single-phase fusion merges order-free — positions combine, a binary disagreement takes the declared default.
 - A query that was neither a list nor a set fell into the resolver's mapping arm and left an `AttributeError` out of `phones_matching` and `find`; the arm is chosen by shape now, a tuple or frozenset of terms is answered, and anything that is not a query is refused with a `ValueError` like the rule side.
 - `segment_distance` counted an unmatched unit both positionally and as a length penalty and then halved the sum, so every multi-unit substitution came back at half its declared cost; length is now positions costing `GAP_COST`, and the answer is one flat positional mean.

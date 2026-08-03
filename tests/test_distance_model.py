@@ -59,6 +59,76 @@ def _model(ipa, phones, **kw):
     )
 
 
+class TestGammaIsRefusedOutsideItsDomain:
+    """#171. The exponent redistributes spacing inside [0, 1] and preserves
+    order. At zero it is a constant -- every pair in the inventory comes back
+    maximally confusable -- and below zero it reflects the scale out of the
+    range the library promises. Both answered with a well-formed float that a
+    caller would go on to average or threshold.
+
+    Written as the answer the model *would have given*, not only as the raise,
+    so the test says what the refusal is for. Both wrong answers are recomputed
+    here from the untransformed model, so a check that stopped refusing would
+    fail on the value rather than passing quietly.
+    """
+
+    @pytest.mark.parametrize("bad", [0.0, -1.0, -0.5, float("nan")])
+    def test_a_gamma_outside_its_domain_is_refused_at_construction(self, ipa, bad):
+        with pytest.raises(ValueError, match="gamma"):
+            _model(ipa, _core_phones(ipa), gamma=bad)
+
+    def test_every_constructor_that_takes_a_gamma_is_covered(self, ipa, tmp_path):
+        """One check where gamma is stored, rather than four beside four
+        signatures. Asserted over the constructors themselves so a fifth one
+        cannot route around it."""
+        from ipakit.models import Phoneset
+
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.global_(ipa, gamma=0.0)
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.derive(ipa, phones=_core_phones(ipa), gamma=-2.0)
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.for_phoneset(
+                ipa, Phoneset.from_list(["p", "b", "t"], name="tiny"), gamma=0.0
+            )
+        path = DistanceModel.derive(ipa, phones=_core_phones(ipa)).save(
+            tmp_path / "m.json"
+        )
+        with pytest.raises(ValueError, match="gamma"):
+            DistanceModel.from_matrix_file(ipa, path, gamma=0.0)
+        assert ipakit.distance_model(gamma=2.0).gamma == 2.0
+
+    def test_what_the_refused_values_would_have_answered(self, ipa):
+        """The guard's reason, computed rather than asserted from memory: at
+        gamma 0 every derivable pair is maximally confusable, and at gamma -1
+        the answer leaves [0, 1]."""
+        m = _model(ipa, _core_phones(ipa))
+        p = m.confusability("p", "a")
+        assert 0.0 < p < 1.0
+        assert p**0.0 == 1.0
+        assert p**-1.0 > 1.0
+
+    def test_a_large_gamma_is_deliberately_not_refused(self, ipa):
+        """There is no upper bound, and this pins that as a decision. The
+        transform stays in range and stays order-preserving however large the
+        exponent is, so nothing about a large one is malformed; how far up is
+        useful is a fact about the caller's inventory. If a ceiling is ever
+        added, this fails and the reasoning above needs revisiting.
+        """
+        phones = _core_phones(ipa)
+        flat = _model(ipa, phones)
+        steep = _model(ipa, phones, gamma=50.0)
+        pairs = [(a, b) for a in phones for b in phones if a < b]
+        assert len(pairs) > 100
+        for a, b in pairs:
+            assert 0.0 <= steep.confusability(a, b) <= 1.0, (a, b)
+
+        def rank(m):
+            return sorted(pairs, key=lambda ab: m.confusability(*ab))
+
+        assert rank(flat) == rank(steep)
+
+
 class TestPercentile:
     def test_bounds_identity_unknown(self, ipa):
         m = _model(ipa, _core_phones(ipa))
@@ -223,6 +293,12 @@ class TestWord:
         the two paths see the same costs, so any disagreement left in the
         number is the normalizer. They now agree exactly, and both report the
         same coverage.
+
+        What this cannot see is *what* they agree on: the two read one
+        function, so changing that function moves both and this stays green.
+        That is the point -- the fix is one read rather than two kept in step
+        -- and the tests in ``test_distance.py`` are what pin the normalizer
+        itself.
         """
         checked = 0
         asymmetric = 0

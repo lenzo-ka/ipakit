@@ -191,6 +191,7 @@ class DistanceModel:
             space: ``"distance"`` or ``"similarity"`` -- how to read ``matrix``.
             ref_phones: Sub-inventory the CDF is built over (default: ``phones``).
             gamma: Exponent applied to the percentile; ``1.0`` is the identity.
+                Must be greater than zero, and has no upper bound.
             insert_cost: Per-token insertion cost in word alignment.
             delete_cost: Per-token deletion cost in word alignment.
             threshold: Default similarity threshold for :meth:`is_similar`.
@@ -198,6 +199,23 @@ class DistanceModel:
         """
         if space not in ("distance", "similarity"):
             raise ValueError(f"space must be 'distance' or 'similarity', got {space!r}")
+        if not gamma > 0.0:
+            # Refused here, where gamma is stored, so every constructor that
+            # takes one is covered by a single check. The exponent redistributes
+            # spacing within [0, 1] and preserves order; at zero it is not a
+            # redistribution but a constant, and every pair in the inventory
+            # comes back maximally confusable, while below zero it reflects the
+            # scale out of the interval the range promises. Neither is an
+            # unusual choice, both are malformed, and both answer with a
+            # well-formed float a caller would go on to average or threshold.
+            #
+            # There is no upper bound, deliberately. p**g stays in [0, 1] and
+            # stays order-preserving however large g is, so nothing about a
+            # large exponent is ill-formed; it only concentrates the scale at
+            # the top, and how far is worth going is a property of the caller's
+            # inventory and task. A ceiling here would be a taste, not a
+            # constraint. NaN fails this test as written, which is intended.
+            raise ValueError(f"gamma must be greater than 0, got {gamma!r}")
         self._ipa = ipa
         self._name = reference_name
         self._m = matrix

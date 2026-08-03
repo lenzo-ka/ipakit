@@ -379,6 +379,13 @@ class TestTheWordScaleIsOneCurrency:
         -- the same price an unmatched position pays inside
         ``segment_distance``. Substitution is what was rescaled; the gap is the
         fixed point the two levels share.
+
+        The cross-level claim is asserted as the two levels against *each
+        other*, not each against the constant. Both reading ``GAP_COST`` would
+        make this pass under any uniform rescaling of it -- which is right,
+        since scaling every price by one factor is not a change of model -- but
+        it would also pass if the word level stopped reading that constant at
+        all, which is the change it exists to catch.
         """
         indel = self._indel()
         phones = self_spelling_phones()
@@ -392,6 +399,10 @@ class TestTheWordScaleIsOneCurrency:
                 assert r.edit_cost == pytest.approx(count * indel), word
                 assert r.similarity == pytest.approx(0.0), word
                 assert r.coverage == 0.0, word
+            one = ipa.word_distance(phone, "")
+            assert one.edit_cost == pytest.approx(
+                ipa.segment_distance(phone, "")
+            ), phone
             checked += 1
         assert_swept(checked, phones)
 

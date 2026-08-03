@@ -157,6 +157,16 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 $ ipakit distance word kæt kæd
 ```
 
+A word comparison also reports `coverage`, the shorter token count over the longer. It
+is beside the score and never inside it, because a low similarity has two readings and
+the score cannot tell them apart on its own — these two are alike as numbers and are not
+alike as diagnoses.
+
+```python-run
+ipa.word_distance("kætəloɡ", "kæt").coverage
+ipa.word_distance("kætəloɡ", "ɡolətæk").coverage
+```
+
 **Do not build a metric tree on `distance`.** It is symmetric and bounded and zero on
 identity, but about 0.5% of triples violate the triangle inequality. That is measured,
 not feared, and [distance.md](distance.md) documents which uses it rules out and offers
