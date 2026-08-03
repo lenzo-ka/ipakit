@@ -58,10 +58,26 @@ So there is no coordinate to copy. What reproduces is Wood's four
 discrete locations, which land inside the measured band in 21 of 25
 columns against 12 of 25 for the arcs ipakit declares -- a partition of
 the (height, backness) plane into four families, which is a shape no
-one-feature-one-value-one-number declaration can state, and which no
-source assigns the central vowel series to at all.
+one-feature-one-value-one-number declaration can state.
 `docs/design/vowel-constriction.md` is that assessment. The limit is
 unchanged and every pin below stands; what moved is the reason.
+
+**A fourth source has since re-imaged the third one's speaker, and the
+central series has been looked for and largely is not there.** Story
+(2008) re-measured the 1996 speaker in 2002: `i`, `ɪ` and `o` move by
+more than 0.10 of tract length at every cutoff tried, and `o`'s two
+bands do not overlap at any of them -- so a coordinate does not
+reproduce even with the speaker, the laboratory and the procedure all
+held fixed. And of the ten central symbols this inventory places at arc
+0.44, exactly two are classified by any source, and they go to
+*different* families: Wood puts `ɨ` at the soft palate (0.514) and
+Swedish `ʉː` at the hard palate (0.314), leaving 0.44 in the gap
+between them. That is the same shape of failure this file already pins
+for the back vowels, one column to the right. Cavar et al. (2025)
+measure Polish `ɨ` with a front dorsum and Russian `ɨ` with a back one
+over 28 speakers, so the disagreement is not an artifact of Wood's
+review. The central column is not under-measured; it is not one
+constriction location.
 
 If one of these stops holding, the limit has moved and the write-up
 needs revising -- which is the point of asserting it.

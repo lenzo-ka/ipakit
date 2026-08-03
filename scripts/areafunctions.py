@@ -22,6 +22,8 @@ quantity ``arc`` claims to be, so the two can be compared without fitting.
     python scripts/areafunctions.py stability    # what a rank correlation depends on
     python scripts/areafunctions.py bands        # two sources against one band each
     python scripts/areafunctions.py replicate    # does a coordinate reproduce?
+    python scripts/areafunctions.py intra        # ... for one speaker, twice?
+    python scripts/areafunctions.py anchors      # where the four locations sit
     python scripts/areafunctions.py all
 
 The paper is copyrighted and is NOT bundled: CI will not have it, so every
@@ -56,7 +58,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ipakit.features import IPAFeatures  # noqa: E402
-from ipakit.tract import MidlinePoint, head, tract_point  # noqa: E402
+from ipakit.tract import (  # noqa: E402
+    MidlinePoint,
+    head,
+    landmarks,
+    tract_point,
+)
 
 #: Environment variable naming a text extraction of the paper. No default path
 #: is baked in: the paper is copyrighted, not redistributable, and a path from
@@ -160,6 +167,19 @@ WOOD_LOCATIONS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
 #: so the divisor that turns Wood's four distances into proportions.
 WOOD_REFERENCE_CM = 17.5
 
+#: What ipakit already calls each of Wood's four locations. The names line up
+#: exactly -- hard palate, soft palate, upper pharynx, lower pharynx against
+#: palatal, velar, uvular, pharyngeal -- and the arcs do not, so adopting the
+#: classification and keeping the declared place arcs are two different changes.
+#: ``anchors`` measures the difference rather than arguing it. The arcs on this
+#: side are read live from ``ipa.xml`` and are not repeated here.
+WOOD_AS_PLACE = {
+    "hard palate": "palatal",
+    "soft palate": "velar",
+    "upper pharynx": "uvular",
+    "lower pharynx": "pharyngeal",
+}
+
 #: The third source, and the only measured one covering more than one speaker:
 #:
 #:     Yang, Ching-Shyang and Hideki Kasuya (1994). "Accurate measurement of
@@ -180,6 +200,35 @@ WOOD_REFERENCE_CM = 17.5
 #: checked against without the table.
 SECOND_ENV = "IPAKIT_YANG1994_CSV"
 
+#: The fourth source, and the only one that images the same speaker twice:
+#:
+#:     Story, Brad H. (2008). "Comparison of magnetic resonance imaging-based
+#:     vocal tract area functions obtained from the same speaker in 1994 and
+#:     2002", J. Acoust. Soc. Am. 123(1), 327-335.
+#:     https://doi.org/10.1121/1.2805683
+#:
+#: Table I gives 44 cross-sectional areas per vowel for the eleven American
+#: English vowels [i ɪ e ɛ æ ʌ ɑ ɔ o ʊ u], from images collected on 22 May 2002
+#: from the speaker of Story, Titze & Hoffman (1996), whose images were
+#: collected in June 1994. Same speaker, same laboratory, same procedure, eight
+#: years apart -- so it asks of a per-vowel coordinate the one question the
+#: other sources cannot. Cross-speaker and cross-language disagreement can
+#: always be answered by saying the sources measured different people speaking
+#: different languages. This cannot.
+#:
+#: ``--third`` wants the same CSV shape as ``--second``:
+#: ``subject,vowel,L_cm,dl_cm,section,area_cm2``, sections numbered from the
+#: glottis, which is this table's own stated convention. The self-check differs
+#: by one section: this paper's printed tract length is ``sections * dl``, where
+#: Yang & Kasuya's is ``(sections - 1) * dl``.
+THIRD_ENV = "IPAKIT_STORY2008_CSV"
+
+#: The vowels both Story sets image. The 1996 set has ``ɝ`` and no ``e``; the
+#: 2002 set has ``e`` and no ``ɝ``. Ten are common, and the comparison is over
+#: those ten -- pairing ``e`` with ``ɛ``, or ``ɝ`` with anything, would be the
+#: substitution this measurement exists to avoid.
+BOTH_SESSIONS = ("i", "ɪ", "ɛ", "æ", "ʌ", "ɑ", "ɔ", "o", "ʊ", "u")
+
 #: Which Story et al. shape each Japanese vowel is held against, and which of
 #: Wood's families it belongs to. Read as IPA, the paper's own five symbols are
 #: ipakit phones; the narrow readings [ä] and [ɯ] conventionally given to
@@ -198,6 +247,8 @@ JAPANESE = (
 #: it is wrong; these are not floors.
 EXPECTED_COLUMNS = 18
 EXPECTED_SECOND_COLUMNS = 15
+EXPECTED_THIRD_COLUMNS = 11
+EXPECTED_THIRD_SECTIONS = 44
 EXPECTED_SECTIONS = tuple(round(length / INTERVAL_CM) for _, _, length in SHAPES)
 
 ROW = re.compile(r"^(\d+)\s+((?:[\d.]+\s+)*[\d.]+)\s*$")
@@ -383,8 +434,7 @@ def cmd_table(table: Table, args: argparse.Namespace) -> int:
     for symbol, word, length in SHAPES:
         column = table.area[symbol]
         print(
-            f"  {symbol:3} {word:7} {len(column):>8} {length:>9.2f} "
-            f"{min(column):>9.2f}"
+            f"  {symbol:3} {word:7} {len(column):>8} {length:>9.2f} {min(column):>9.2f}"
         )
     print(
         "\nevery column has the section count its published tract length predicts, "
@@ -538,6 +588,52 @@ def parse_second(text: str) -> Second:
                 f"{derived:.2f} cm, against a printed length of {stated[key]}"
             )
     return Second(area, interval)
+
+
+class Intra(Second):
+    """Story (2008) Table I: one area function per vowel, one speaker.
+
+    Identical to :class:`Second` but for the relation between the printed tract
+    length and the section length. Yang & Kasuya's ``L`` spans the gaps between
+    section centers and so is ``(sections - 1) * dl``; this table's ``L`` is the
+    whole tube, ``sections * dl``. Getting that wrong shifts every arc by half a
+    section, which is 0.011 of the tract -- small, and larger than some of the
+    misses this script reports, so it is worth being exact about.
+    """
+
+    def length(self, symbol: str) -> float:
+        return len(self.area[symbol]) * self.interval[symbol]
+
+
+def parse_intra(text: str) -> Intra:
+    """Read the CSV, and check it against the tract lengths it carries."""
+    area: dict[str, list[float]] = {}
+    interval: dict[str, float] = {}
+    stated: dict[str, float] = {}
+    rows = [
+        line for line in text.splitlines() if line.strip() and not line.startswith("#")
+    ]
+    for row in csv.DictReader(rows):
+        key = row["vowel"]
+        area.setdefault(key, []).append(float(row["area_cm2"]))
+        interval[key] = float(row["dl_cm"])
+        stated[key] = float(row["L_cm"])
+    if len(area) != EXPECTED_THIRD_COLUMNS:
+        raise ValueError(
+            f"read {len(area)} columns, expected {EXPECTED_THIRD_COLUMNS} vowels"
+        )
+    for key, column in area.items():
+        if len(column) != EXPECTED_THIRD_SECTIONS:
+            raise ValueError(
+                f"{key}: {len(column)} sections, expected {EXPECTED_THIRD_SECTIONS}"
+            )
+        derived = len(column) * interval[key]
+        if abs(derived - stated[key]) > 0.05:
+            raise ValueError(
+                f"{key}: {len(column)} sections of {interval[key]} cm give "
+                f"{derived:.2f} cm, against a printed length of {stated[key]}"
+            )
+    return Intra(area, interval)
 
 
 def wood_arcs() -> dict[str, tuple[str, float]]:
@@ -735,6 +831,259 @@ def cmd_replicate(table: Table, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_intra(table: Table, args: argparse.Namespace) -> int:
+    """Does a per-vowel coordinate reproduce for one speaker across sessions?
+
+    ``replicate`` asks whether a coordinate survives a change of speaker and
+    language, and it does not. The obvious reply is that those were different
+    people speaking different languages, and that a coordinate could still be
+    well defined once a speaker is fixed. Story (2008) is that reply's test: the
+    speaker of Story, Titze & Hoffman (1996), re-imaged eight years later by the
+    same author with the same procedure.
+    """
+    third = getattr(args, "table_three", None)
+    if third is None:
+        print(
+            f"no third source given: pass --third or set ${THIRD_ENV} to a CSV "
+            "of\nStory (2008) Table I. See this module's docstring for the "
+            "columns."
+        )
+        return 0
+    arcs = declared()
+    wood = wood_arcs()
+
+    print("Story, Titze & Hoffman (1996) and Story (2008) image the same speaker")
+    print("in June 1994 and May 2002. Same lab, same procedure, same eleven-vowel")
+    print("task. Ten vowels are in both sets. Bands are the same instrument as")
+    print(f"`bands`, at a depth factor of {args.depth:g}.\n")
+    print(
+        f"  {'':3} {'1994 band':>14} {'1994':>6}  {'2002 band':>14} {'2002':>6}  "
+        f"{'move':>5}  {'overlap':>7}"
+    )
+    moves: list[tuple[str, float]] = []
+    overlapping = 0
+    usable = 0
+    for symbol in BOTH_SESSIONS:
+        old = table.band(symbol, args.glottal, args.labial, args.depth)
+        new = third.band(symbol, args.glottal, args.labial, args.depth)
+        old_point = table.narrowest(symbol, args.glottal, args.labial)
+        new_point = third.narrowest(symbol, args.glottal, args.labial)
+        if old is None or new is None or old_point is None or new_point is None:
+            print(f"  {symbol:3} {'no minimum in the window':>14}")
+            continue
+        usable += 1
+        move = abs(new_point[0] - old_point[0])
+        moves.append((symbol, move))
+        touches = not (old[1] < new[0] or new[1] < old[0])
+        overlapping += touches
+        print(
+            f"  {symbol:3} {old[0]:.3f}-{old[1]:<8.3f} {old_point[0]:>6.3f}  "
+            f"{new[0]:.3f}-{new[1]:<8.3f} {new_point[0]:>6.3f}  "
+            f"{move:>5.3f}  {'yes' if touches else 'NO':>7}"
+        )
+
+    if usable:
+        worst = max(moves, key=lambda pair: pair[1])
+        median = sorted(move for _, move in moves)[len(moves) // 2]
+        print(
+            f"\nThe same speaker's own constriction moves a median of {median:.3f} of "
+            f"tract\nlength between the two sessions, and {worst[1]:.3f} for "
+            f"[{worst[0]}]. The two bands\noverlap for {overlapping} of {usable} "
+            "vowels."
+        )
+
+    print("\nHow much of that is the piriform cutoff. A move that holds across the")
+    print("range a reader could defend is the speaker; one that does not is the")
+    print("parameter, and section 3 of tract-validation.md refuses those.\n")
+    print(f"  {'':3} " + " ".join(f"{cut:>6.1f}" for cut in (4.0, 5.0, 6.0, 7.0)))
+    stable: list[tuple[str, float]] = []
+    for symbol in BOTH_SESSIONS:
+        cells = []
+        seen: list[float] = []
+        for cut in (4.0, 5.0, 6.0, 7.0):
+            old_point = table.narrowest(symbol, cut, args.labial)
+            new_point = third.narrowest(symbol, cut, args.labial)
+            if old_point is None or new_point is None:
+                cells.append(f"{'--':>6}")
+                continue
+            move = abs(new_point[0] - old_point[0])
+            seen.append(move)
+            cells.append(f"{move:>6.3f}")
+        print(f"  {symbol:3} " + " ".join(cells))
+        if seen:
+            stable.append((symbol, min(seen)))
+    big = [symbol for symbol, floor in stable if floor >= 0.10]
+    print(
+        "\nMoving by at least 0.100 of tract length at every cutoff: "
+        + (", ".join(f"[{symbol}]" for symbol in big) if big else "none")
+        + ".\nThe declared `backness` span is 0.24 in total, front 0.32 to back "
+        "0.56."
+    )
+
+    print("\nAnd the check `bands` makes, run again on the 2002 session alone.")
+    print("A classification that survives a re-imaging is a different claim from")
+    print("one fitted to a single session.\n")
+    print(f"  {'':3} {'2002 band':>14}  {'ipakit':>6} {'':8}  {'Wood':>6} {'':8}")
+    counts = {"ipakit": 0, "wood": 0}
+    comparable = 0
+    for symbol in BOTH_SESSIONS:
+        new = third.band(symbol, args.glottal, args.labial, args.depth)
+        if new is None or symbol not in wood:
+            continue
+        front, back, _ = new
+        comparable += 1
+        cells = []
+        for key, value in (("ipakit", arcs[symbol]), ("wood", wood[symbol][1])):
+            if value is None:
+                cells.append(f"{'':>6} {'':8}")
+                continue
+            if front <= value <= back:
+                counts[key] += 1
+                cells.append(f"{value:>6.3f} {'inside':8}")
+            else:
+                miss = min(abs(value - front), abs(value - back))
+                cells.append(f"{value:>6.3f} {'by ' + format(miss, '.3f'):8}")
+        print(f"  {symbol:3} {front:.3f}-{back:<8.3f}  {cells[0]}  {cells[1]}")
+    print(
+        f"\n{counts['wood']} of {comparable} of Wood's locations inside the 2002 "
+        f"band, against\n{counts['ipakit']} of {comparable} of the arcs ipakit "
+        "declares."
+    )
+    return 0
+
+
+def cmd_anchors(table: Table, args: argparse.Namespace) -> int:
+    """Where would the four locations sit, if the classification were adopted?
+
+    Two changes get run together and are not the same one. Adopting Wood's
+    four-way classification says which family a vowel belongs to. Placing those
+    families says where the family is, and there are two answers already on the
+    table: the proportions Wood's own four distances give against the tract
+    length his nomograms use, and the arcs ``place`` already declares under the
+    same four names. They differ, and the difference is measurable by the same
+    band instrument as everything else here rather than arguable.
+    """
+    families = {symbol: name for name, _, family in WOOD_LOCATIONS for symbol in family}
+    place_arcs = landmarks(IPAFeatures()).places
+    proportional = wood_proportional()
+    arcs = declared()
+
+    print("Wood's four locations, placed two ways.\n")
+    print(f"  {'location':>14} {'ipakit name':>11} {'Wood':>6} {'place':>6} {'gap':>6}")
+    for name, _, _ in WOOD_LOCATIONS:
+        under = WOOD_AS_PLACE[name]
+        mine = place_arcs.get(under)
+        gap = abs(proportional[name] - mine) if mine is not None else float("nan")
+        print(
+            f"  {name:>14} {under:>11} {proportional[name]:>6.3f} "
+            f"{mine if mine is not None else float('nan'):>6.3f} {gap:>6.3f}"
+        )
+
+    def anchor_of(symbol: str, reading: str) -> float | None:
+        if reading == "backness":
+            return arcs.get(symbol)
+        name = families.get(symbol)
+        if name is None:
+            return None
+        if reading == "Wood":
+            return proportional[name]
+        return place_arcs.get(WOOD_AS_PLACE[name])
+
+    sources: list[tuple[str, Table, tuple[str, ...]]] = [
+        ("Story 1996", table, VOWELS),
+    ]
+    third = getattr(args, "table_three", None)
+    if third is not None:
+        sources.append(("Story 2002", third, BOTH_SESSIONS))
+    second = getattr(args, "table_two", None)
+    if second is not None:
+        sources.append(
+            (
+                "Yang & Kasuya",
+                second,
+                tuple(
+                    f"{subject}/{vowel}"
+                    for subject in ("male", "female", "boy")
+                    for vowel, _ in JAPANESE
+                ),
+            )
+        )
+        for subject in ("male", "female", "boy"):
+            for vowel, location in JAPANESE:
+                families[f"{subject}/{vowel}"] = location
+                arcs[f"{subject}/{vowel}"] = arcs.get(vowel)
+
+    readings = ("backness", "Wood", "place")
+    print("\nBand inclusion, one row per source, at the default settings.")
+    print("`backness` is what a vowel reads today; `Wood` is his four proportions;")
+    print("`place` is his four families read at the arcs ipa.xml already declares.\n")
+    print(f"  {'source':>14} {'bands':>6} " + " ".join(f"{r:>9}" for r in readings))
+    totals = dict.fromkeys(readings, 0)
+    every = 0
+    for label, source, keys in sources:
+        counts = dict.fromkeys(readings, 0)
+        usable = 0
+        for key in keys:
+            found = source.band(key, args.glottal, args.labial, args.depth)
+            if found is None or key not in families:
+                continue
+            usable += 1
+            front, back, _ = found
+            for reading in readings:
+                value = anchor_of(key, reading)
+                if value is not None and front <= value <= back:
+                    counts[reading] += 1
+        every += usable
+        for reading in readings:
+            totals[reading] += counts[reading]
+        print(
+            f"  {label:>14} {usable:>6} "
+            + " ".join(f"{counts[r]:>9}" for r in readings)
+        )
+    print(f"  {'all':>14} {every:>6} " + " ".join(f"{totals[r]:>9}" for r in readings))
+
+    print("\nAnd the same three counts as both free parameters move.\n")
+    print(
+        f"  {'depth':>6} {'cutoff':>6} {'bands':>6} "
+        + " ".join(f"{r:>9}" for r in readings)
+    )
+    margins: list[float] = []
+    behind = 0
+    rows = 0
+    for depth in DEPTH_FACTORS:
+        for cut in (4.0, 5.0, 6.0, 7.0):
+            counts = dict.fromkeys(readings, 0)
+            usable = 0
+            for _, source, keys in sources:
+                for key in keys:
+                    found = source.band(key, cut, args.labial, depth)
+                    if found is None or key not in families:
+                        continue
+                    usable += 1
+                    front, back, _ = found
+                    for reading in readings:
+                        value = anchor_of(key, reading)
+                        if value is not None and front <= value <= back:
+                            counts[reading] += 1
+            rows += 1
+            margins.append(counts["Wood"] - counts["place"])
+            behind += counts["backness"] < min(counts["Wood"], counts["place"])
+            print(
+                f"  {depth:>6.2f} {cut:>6.1f} {usable:>6} "
+                + " ".join(f"{counts[r]:>9}" for r in readings)
+            )
+    print(
+        f"\n`backness` is below both of the other two in {behind} of {rows} rows. "
+        "That\nordering is not a report of either parameter, and it is the finding."
+    )
+    print(
+        f"Wood against place runs from {min(margins):+d} to {max(margins):+d} bands "
+        "of 35 over the same\nsweep, and changes sign inside it: the instrument does "
+        "not separate them."
+    )
+    return 0
+
+
 def cmd_arc(table: Table, args: argparse.Namespace) -> int:
     """Whether ``arc`` is the proportional midline position it says it is.
 
@@ -808,6 +1157,8 @@ COMMANDS = {
     "stability": cmd_stability,
     "bands": cmd_bands,
     "replicate": cmd_replicate,
+    "intra": cmd_intra,
+    "anchors": cmd_anchors,
     "arc": cmd_arc,
 }
 
@@ -844,6 +1195,11 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get(SECOND_ENV),
         help=f"CSV of Yang & Kasuya (1994) Tables 1-3 (default: ${SECOND_ENV})",
     )
+    parser.add_argument(
+        "--third",
+        default=os.environ.get(THIRD_ENV),
+        help=f"CSV of Story (2008) Table I (default: ${THIRD_ENV})",
+    )
     parser.add_argument("command", choices=[*COMMANDS, "all"], help="what to measure")
     args = parser.parse_args(argv)
 
@@ -879,6 +1235,18 @@ def main(argv: list[str] | None = None) -> int:
                 )
             except ValueError as error:
                 print(f"{path_two}: {error}", file=sys.stderr)
+                return 1
+
+    args.table_three = None
+    if args.third:
+        path_three = Path(args.third)
+        if path_three.exists():
+            try:
+                args.table_three = parse_intra(
+                    path_three.read_text(encoding="utf-8", errors="replace")
+                )
+            except ValueError as error:
+                print(f"{path_three}: {error}", file=sys.stderr)
                 return 1
 
     if args.command != "all":
