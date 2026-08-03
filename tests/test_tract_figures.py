@@ -327,23 +327,71 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         feature could ever be postural, answers for every bundle at once,
         and leaves the layer silent on every bundle whose stated
         coordinate the posture drops.
+
+        The one exception is a feature read for a coordinate it does not
+        state, which the reading reports as ``approximated``. A vowel
+        that declares no ``constriction-location`` still gets an ``arc``,
+        from ``backness`` -- which says where the tongue body is and not
+        where it constricts -- and that arc is drawn. Annotating it is
+        not repeating the drawing; it is saying which part of the drawing
+        is a stand-in. The exemption is taken from the reading rather
+        than from a list of features, so it cannot cover a second one by
+        accident.
         """
         ipa = IPAFeatures()
         postural = {n for n, f in ipa.features.items() if f.coordinates}
         assert len(postural) >= 5, "no postural features found: the sweep is vacuous"
         ported = {p for ports in ipa.bridge_apertures.values() for p in ports}
-        checked, wrong = 0, []
+        checked, wrong, approximate = 0, [], 0
         for phone in sorted(ipa.phones):
             stated = ipa.get_features(phone, with_defaults=False)
-            read = tract_reading(ipa, stated).read
+            reading = tract_reading(ipa, stated)
+            drawn = reading.read - reading.approximated
             for mark in unmodelled(ipa, stated):
                 checked += 1
-                if mark.feature in read or (mark.feature, mark.value) in ported:
+                approximate += mark.kind == "approximate"
+                if mark.feature in drawn or (mark.feature, mark.value) in ported:
                     wrong.append((phone, mark.feature))
                 if mark.feature in ipa.secondary_places:
                     wrong.append((phone, mark.feature))
         assert checked > 60, f"only {checked} marks over the inventory"
         assert not wrong, f"annotated what the drawing already shows: {wrong[:5]}"
+        assert approximate > 10, "no approximate marks: the exemption is vacuous"
+
+    def test_an_approximated_coordinate_is_annotated_and_a_stated_one_is_not(
+        self,
+    ) -> None:
+        """The two vowel readings, told apart without reading a source.
+
+        This is what a partial declaration has to buy to be worth making.
+        Sixteen vowels state where they constrict and the rest do not; the
+        arc is a float either way, so nothing in the number says which is
+        which. ``ə`` gets an ``approximate`` mark naming ``backness`` and
+        ``i`` does not -- ``i`` reports ``backness`` as ``unread``
+        instead, because the location took the arc and backness supplied
+        nothing.
+        """
+        ipa = IPAFeatures()
+        vowels = [
+            p
+            for p in sorted(ipa.phones)
+            if ipa.get_features(p).get("manner") == "vowel"
+        ]
+        assert len(vowels) > 20, f"only {len(vowels)} vowels: the sweep is vacuous"
+        stated_location, approximated = [], []
+        for phone in vowels:
+            stated = ipa.get_features(phone, with_defaults=False)
+            kinds = {(m.feature, m.kind) for m in unmodelled(ipa, stated)}
+            if "constriction-location" in stated:
+                stated_location.append(phone)
+                assert ("backness", "unread") in kinds, phone
+                assert ("backness", "approximate") not in kinds, phone
+            else:
+                approximated.append(phone)
+                assert ("backness", "approximate") in kinds, phone
+                assert ("backness", "unread") not in kinds, phone
+        assert stated_location and approximated, (stated_location, approximated)
+        assert "ə" in approximated and "i" in stated_location
 
     def test_a_stated_value_the_posture_drops_is_annotated(self) -> None:
         """The other half, and the one that was missing.
@@ -554,14 +602,23 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         the same picture. That is why the shipped rule sets' emitted units
         still collapse in pairs. If one of these starts arriving in a
         bundle this fails, and the documented limits need updating.
+
+        Asked as "the marked unit annotates exactly what the bare one
+        does" rather than as "it annotates nothing", because the second
+        was a claim about ``a`` and not about prosody: ``a`` now states a
+        ``constriction-location``, so its ``backness`` is reported
+        ``unread`` and an emptiness assertion would fail without prosody
+        having reached anything.
         """
         ipa = IPAFeatures()
         prosodic = {n for n, f in ipa.features.items() if f.mode == "prosodic"}
         assert prosodic, "no prosodic features declared"
+        bare = ipa.get_features("a", with_defaults=False)
         for unit in ("aː", "ˈa", "aˑ"):
             stated = ipa.get_features(unit, with_defaults=False)
             assert not (set(stated) & prosodic), unit
-            assert not unmodelled(ipa, stated), unit
+            assert stated == bare, unit
+            assert unmodelled(ipa, stated) == unmodelled(ipa, bare), unit
 
 
 DATA = Path(ipakit.__file__).resolve().parent / "data" / "ipa.xml"
@@ -996,7 +1053,12 @@ FIGURES = ROOT / "docs" / "figures"
 #: or that something later paints over, is the failure mode these exist for:
 #: reading the DOM said "present, styled, in frame, painted late" four times
 #: while the thing was invisible.
-LAYERS = {"fold": "ʔ", "second": "ɫ", "chip": "s"}
+#:
+#: ``approximate`` is its own entry rather than being covered by ``chip``,
+#: because it is the one chip drawn as something other than the default
+#: square and a shape that falls back to the square would pass the generic
+#: test while saying the opposite of what it means.
+LAYERS = {"fold": "ʔ", "second": "ɫ", "chip": "s", "approximate": "ə"}
 
 
 def _pixels(svg: str, path: Path, width: int = 1520) -> tuple[int, list[bytes]]:

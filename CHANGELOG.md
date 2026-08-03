@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `WordDistanceResult.coverage`, `min(n, m) / max(n, m)`, reported beside the similarity and never folded into it (#165).
-- `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`), and no vowel states one.
+- `constriction-location`: a nucleus may state where it constricts and the vowel branch reads it in place of `backness`; it borrows `place`'s values and arcs (`vocabulary=`).
+- `Reading.approximated` and the `approximate` annotation kind: a coordinate the posture took from a feature stating something else, so a vowel's arc from `backness` reads as the stand-in it is (#123).
 - `docs/reading.md`: an annotated reading list, grouped by what a reader wants and marking what is free to read.
 - `approach`, the counterpart of `release`: a mark written before a base states the phase the closure is entered on, so `ⁿd` is a pre-nasalized `d` — one segment, one constituent — and `ʰ ʱ ⁿ ˀ` state their value at whichever end they are written at.
 - `docs/design/vowel-chart-geometry.md`: a constriction location projected out of the IPA vowel quadrilateral, refused — the figure supplies no embedding, and none of 120 reproduces the measured height-by-backness interaction; `scripts/areafunctions.py chart` is the measurement.
@@ -94,6 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sixteen vowels declare their constriction location, in Wood's (1979) four families read at the arcs `place` declares; 2421 of 9591 pairs move and `ɑ a æ` are the first vowels to reach the pharyngeal anchor (#123).
+- A feature borrowing an excluded feature's vocabulary is excluded from per-key comparison with it, and a borrowed reading is dropped rather than carried across a `respell`.
 - A word-alignment substitution costs `(delete + insert) x` the pair's dissimilarity, so a maximal one costs the gap pair it stands for (#161).
 - Both word-distance paths normalize by the null alignment's cost, `n * delete + m * insert`, read from one function (#162).
 - `docs/distance.md` §9 documents `gamma`: monotone, so on the phone-level API it is only a change of threshold; its substantive effect is on word alignment, and there is deliberately no tuned default.

@@ -167,12 +167,25 @@
          vowel is not a "velar vowel", which is the name that slot would
          give it.
 
-         No phone declares this today. Which vowel constricts where is a
-         question about sources, open as issue #123: the four locations
-         the literature reproduces are a partition of the (height,
-         backness) plane, and no source classifies the central series at
-         all. See docs/design/vowel-constriction.md. This is the road,
-         not the destination. -->
+         Sixteen vowels declare one, and every other vowel does not.
+         The sixteen are the ones Wood (1979) names in the four families
+         his conclusion 2 gives: [i-ɛ, y-ø]-like at the hard palate,
+         [u-ʊ, ɨ]-like at the soft palate, [o-ɔ, ɤ]-like at the upper
+         pharynx, [ɑ-a-æ]-like at the lower pharynx, plus Swedish `ʉː`,
+         which Wood's 1982 monograph puts in the first. The four
+         locations are read at the arcs this file already declares for
+         `palatal`, `velar`, `uvular` and `pharyngeal`, because 35
+         measured bands from three sources cannot tell those apart from
+         Wood's own proportions and the declared ones cost nothing: no
+         `place` value moves and no consonant moves.
+
+         Every other vowel states none, which is a statement rather than
+         an oversight. `ə ɘ ɵ ɜ ɞ ɐ ɝ ɚ ä œ ɒ ɯ ɶ ʌ ʏ` are the ones no
+         source classifies. Their `arc` still comes from `backness`, and
+         `tract_reading` reports that arc as approximated rather than
+         stated, so a caller can tell a sourced location from an
+         unsourced one without reading the source. See
+         docs/design/vowel-constriction.md, issue #123. -->
     <feature name="constriction-location" axis="+x" short="cnl" applies="nucleus" vocabulary="place" desc="Where a nucleus constricts the tract, stated as one of the places `place` locates" href="Vowel"/>
 
     <feature name="voiced" short="voi" type="binary" mode="overriding" desc="Vocal cord vibration" href="Voice_(phonetics)">
@@ -512,37 +525,37 @@
          convention. It is a phone all the same, a segment with duration,
          which is the whole difference between it and the zero below. -->
     <phone name="␣" manner="silence"/>
-    <phone name="a" manner="vowel" height="open" backness="front" rounded="-" voiced="+" href="Open_front_unrounded_vowel"/>
+    <phone name="a" manner="vowel" height="open" backness="front" constriction-location="pharyngeal" rounded="-" voiced="+" href="Open_front_unrounded_vowel"/>
     <phone name="b" manner="plosive" place="bilabial" voiced="+" href="Voiced_bilabial_plosive"/>
     <phone name="c" manner="plosive" place="palatal" href="Voiceless_palatal_plosive"/>
     <phone name="d" manner="plosive" place="alveolar" voiced="+" href="Voiced_alveolar_plosive"/>
-    <phone name="e" manner="vowel" height="close-mid" backness="front" rounded="-" voiced="+" href="Close-mid_front_unrounded_vowel"/>
+    <phone name="e" manner="vowel" height="close-mid" backness="front" constriction-location="palatal" rounded="-" voiced="+" href="Close-mid_front_unrounded_vowel"/>
     <phone name="f" manner="fricative" place="labiodental" href="Voiceless_labiodental_fricative"/>
     <phone name="ɡ" manner="plosive" place="velar" voiced="+" href="Voiced_velar_plosive"/>
     <phone name="h" manner="fricative" place="glottal" href="Voiceless_glottal_fricative"/>
-    <phone name="i" manner="vowel" height="close" backness="front" rounded="-" voiced="+" href="Close_front_unrounded_vowel"/>
+    <phone name="i" manner="vowel" height="close" backness="front" constriction-location="palatal" rounded="-" voiced="+" href="Close_front_unrounded_vowel"/>
     <phone name="j" manner="approximant" place="palatal" voiced="+" href="Voiced_palatal_approximant"/>
     <phone name="k" manner="plosive" place="velar" href="Voiceless_velar_plosive"/>
     <phone name="l" manner="approximant" place="alveolar" voiced="+" channel="lateral" href="Voiced_alveolar_lateral_approximant"/>
     <phone name="m" manner="nasal" place="bilabial" voiced="+" href="Voiced_bilabial_nasal"/>
     <phone name="n" manner="nasal" place="alveolar" voiced="+" href="Voiced_alveolar_nasal"/>
-    <phone name="o" manner="vowel" height="close-mid" backness="back" rounded="+" voiced="+" href="Close-mid_back_rounded_vowel"/>
+    <phone name="o" manner="vowel" height="close-mid" backness="back" constriction-location="uvular" rounded="+" voiced="+" href="Close-mid_back_rounded_vowel"/>
     <phone name="p" manner="plosive" place="bilabial" href="Voiceless_bilabial_plosive"/>
     <phone name="q" manner="plosive" place="uvular" href="Voiceless_uvular_plosive"/>
     <phone name="r" manner="trill" place="alveolar" voiced="+" href="Voiced_alveolar_trill"/>
     <phone name="s" channel="grooved" manner="fricative" place="alveolar" href="Voiceless_alveolar_fricative"/>
     <phone name="t" manner="plosive" place="alveolar" href="Voiceless_alveolar_plosive"/>
-    <phone name="u" manner="vowel" height="close" backness="back" rounded="+" voiced="+" href="Close_back_rounded_vowel"/>
+    <phone name="u" manner="vowel" height="close" backness="back" constriction-location="velar" rounded="+" voiced="+" href="Close_back_rounded_vowel"/>
     <phone name="v" manner="fricative" place="labiodental" voiced="+" href="Voiced_labiodental_fricative"/>
     <phone name="w" manner="approximant" place="bilabial^velar" voiced="+" rounded="+" href="Voiced_labial%E2%80%93velar_approximant"/>
     <phone name="x" manner="fricative" place="velar" href="Voiceless_velar_fricative"/>
-    <phone name="y" manner="vowel" height="close" backness="front" rounded="+" voiced="+" href="Close_front_rounded_vowel"/>
+    <phone name="y" manner="vowel" height="close" backness="front" constriction-location="palatal" rounded="+" voiced="+" href="Close_front_rounded_vowel"/>
     <phone name="z" channel="grooved" manner="fricative" place="alveolar" voiced="+" href="Voiced_alveolar_fricative"/>
     <phone name="ä" manner="vowel" height="open" backness="central" rounded="-" voiced="+" href="Open_central_unrounded_vowel"/>
-    <phone name="æ" manner="vowel" height="near-open" backness="front" rounded="-" voiced="+" href="Near-open_front_unrounded_vowel"/>
+    <phone name="æ" manner="vowel" height="near-open" backness="front" constriction-location="pharyngeal" rounded="-" voiced="+" href="Near-open_front_unrounded_vowel"/>
     <phone name="ç" manner="fricative" place="palatal" href="Voiceless_palatal_fricative"/>
     <phone name="ð" manner="fricative" place="dental" voiced="+" href="Voiced_dental_fricative"/>
-    <phone name="ø" manner="vowel" height="close-mid" backness="front" rounded="+" voiced="+" href="Close-mid_front_rounded_vowel"/>
+    <phone name="ø" manner="vowel" height="close-mid" backness="front" constriction-location="palatal" rounded="+" voiced="+" href="Close-mid_front_rounded_vowel"/>
     <phone name="ħ" manner="fricative" place="pharyngeal" href="Voiceless_pharyngeal_fricative"/>
     <phone name="ŋ" manner="nasal" place="velar" voiced="+" href="Voiced_velar_nasal"/>
     <phone name="œ" manner="vowel" height="open-mid" backness="front" rounded="+" voiced="+" href="Open-mid_front_rounded_vowel"/>
@@ -556,17 +569,17 @@
 
     <phone name="ȶ" manner="plosive" place="alveolo-palatal" href="Voiceless_alveolo-palatal_plosive"/>
     <phone name="ɐ" manner="vowel" height="near-open" backness="central" rounded="-" voiced="+" href="Near-open_central_vowel"/>
-    <phone name="ɑ" manner="vowel" height="open" backness="back" rounded="-" voiced="+" href="Open_back_unrounded_vowel"/>
+    <phone name="ɑ" manner="vowel" height="open" backness="back" constriction-location="pharyngeal" rounded="-" voiced="+" href="Open_back_unrounded_vowel"/>
     <phone name="ɒ" manner="vowel" height="open" backness="back" rounded="+" voiced="+" href="Open_back_rounded_vowel"/>
     <phone name="ɓ" manner="plosive" place="bilabial" voiced="+" airstream="implosive" href="Voiced_bilabial_implosive"/>
-    <phone name="ɔ" manner="vowel" height="open-mid" backness="back" rounded="+" voiced="+" href="Open-mid_back_rounded_vowel"/>
+    <phone name="ɔ" manner="vowel" height="open-mid" backness="back" constriction-location="uvular" rounded="+" voiced="+" href="Open-mid_back_rounded_vowel"/>
     <phone name="ɕ" channel="grooved" manner="fricative" place="alveolo-palatal" href="Voiceless_alveolo-palatal_fricative"/>
     <phone name="ɖ" manner="plosive" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_plosive"/>
     <phone name="ɗ" manner="plosive" place="alveolar" voiced="+" airstream="implosive" href="Voiced_alveolar_implosive"/>
     <phone name="ɘ" manner="vowel" height="close-mid" backness="central" rounded="-" voiced="+" href="Close-mid_central_unrounded_vowel"/>
     <phone name="ə" manner="vowel" height="mid" backness="central" rounded="-" voiced="+" href="Schwa"/>
     <phone name="ɚ" manner="vowel" height="mid" backness="central" rounded="-" rhotacized="+" voiced="+" href="R-colored_vowel"/>
-    <phone name="ɛ" manner="vowel" height="open-mid" backness="front" rounded="-" voiced="+" href="Open-mid_front_unrounded_vowel"/>
+    <phone name="ɛ" manner="vowel" height="open-mid" backness="front" constriction-location="palatal" rounded="-" voiced="+" href="Open-mid_front_unrounded_vowel"/>
     <phone name="ɜ" manner="vowel" height="open-mid" backness="central" rounded="-" voiced="+" href="Open-mid_central_unrounded_vowel"/>
     <phone name="ɝ" manner="vowel" height="open-mid" backness="central" rounded="-" rhotacized="+" voiced="+" href="R-colored_vowel"/>
     <phone name="ɞ" manner="vowel" height="open-mid" backness="central" rounded="+" voiced="+" href="Open-mid_central_rounded_vowel"/>
@@ -574,11 +587,11 @@
     <phone name="ɠ" manner="plosive" place="velar" voiced="+" airstream="implosive" href="Voiced_velar_implosive"/>
     <phone name="ɢ" manner="plosive" place="uvular" voiced="+" href="Voiced_uvular_plosive"/>
     <phone name="ɣ" manner="fricative" place="velar" voiced="+" href="Voiced_velar_fricative"/>
-    <phone name="ɤ" manner="vowel" height="close-mid" backness="back" rounded="-" voiced="+" href="Close-mid_back_unrounded_vowel"/>
+    <phone name="ɤ" manner="vowel" height="close-mid" backness="back" constriction-location="uvular" rounded="-" voiced="+" href="Close-mid_back_unrounded_vowel"/>
     <phone name="ɥ" manner="approximant" place="bilabial^palatal" voiced="+" rounded="+" href="Voiced_labial%E2%80%93palatal_approximant"/>
     <phone name="ɦ" manner="fricative" place="glottal" voiced="+" href="Voiced_glottal_fricative"/>
-    <phone name="ɨ" manner="vowel" height="close" backness="central" rounded="-" voiced="+" href="Close_central_unrounded_vowel"/>
-    <phone name="ɪ" manner="vowel" height="near-close" backness="near-front" rounded="-" voiced="+" href="Near-close_near-front_unrounded_vowel"/>
+    <phone name="ɨ" manner="vowel" height="close" backness="central" constriction-location="velar" rounded="-" voiced="+" href="Close_central_unrounded_vowel"/>
+    <phone name="ɪ" manner="vowel" height="near-close" backness="near-front" constriction-location="palatal" rounded="-" voiced="+" href="Near-close_near-front_unrounded_vowel"/>
 
     <phone name="ɫ" manner="approximant" place="alveolar" voiced="+" channel="lateral" velarized="+" href="Voiced_velarized_alveolar_lateral_approximant"/>
     <phone name="ɬ" manner="fricative" place="alveolar" channel="lateral" href="Voiceless_alveolar_lateral_fricative"/>
@@ -607,8 +620,8 @@
     <phone name="ʄ" manner="plosive" place="palatal" voiced="+" airstream="implosive" href="Voiced_palatal_implosive"/>
 
     <phone name="ʈ" manner="plosive" place="alveolar" retroflex="+" href="Voiceless_retroflex_plosive"/>
-    <phone name="ʉ" manner="vowel" height="close" backness="central" rounded="+" voiced="+" href="Close_central_rounded_vowel"/>
-    <phone name="ʊ" manner="vowel" height="near-close" backness="near-back" rounded="+" voiced="+" href="Near-close_near-back_rounded_vowel"/>
+    <phone name="ʉ" manner="vowel" height="close" backness="central" constriction-location="palatal" rounded="+" voiced="+" href="Close_central_rounded_vowel"/>
+    <phone name="ʊ" manner="vowel" height="near-close" backness="near-back" constriction-location="velar" rounded="+" voiced="+" href="Near-close_near-back_rounded_vowel"/>
 
     <phone name="ʋ" manner="approximant" place="labiodental" voiced="+" href="Voiced_labiodental_approximant"/>
     <phone name="ʌ" manner="vowel" height="open-mid" backness="back" rounded="-" voiced="+" href="Open-mid_back_unrounded_vowel"/>

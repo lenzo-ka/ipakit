@@ -1,17 +1,28 @@
-"""A vowel's constriction location is read from `backness` and nothing else.
+"""A vowel's constriction location is read from a source where there is
+one, and from `backness` where there is not.
 
-That is a real limit and it reaches the metric through `metric._sagittal`,
-not only the drawing: `u o ɑ ɔ ʌ` are all `back`, so all five sit at one
-point. MRI-derived area functions (Story, Titze & Hoffman 1996, read by
-`scripts/areafunctions.py`) put `u`/`o` at arc 0.38 and `ɑ`/`ɔ`/`ʌ` at
-0.65 to 0.67, with 0.22 of tract length between the two groups that no
-vowel of that speaker occupies -- and ipakit puts all five in the middle
-of it. Gaines et al. (2021) reach the same two groups from a continuous
-articulatory model.
+Sixteen vowels state a `constriction-location` and twenty-three do not,
+so the limit this file pins has moved and what it pins has changed with
+it. What used to be here was that a vowel's `arc` is a function of
+`backness` alone, so `u o ɑ ɔ ʌ` all sat at 0.56 while the measurement
+put them at two locations 0.22 of a tract apart. That is fixed for the
+vowels a source classifies. `u` is at 0.45, `o` and `ɔ` at 0.56, `ɑ` at
+0.74, and `ʌ` -- which Wood names in no family -- is still at 0.56, by
+the fallback, and says so.
 
-**This is pinned open, not closed.** Every declarative fix was tried and
-each is refused by evidence rather than by taste, which is why the limit
-is written down here instead of being worked around:
+**What remains pinned is the fallback and its report.** The nine central
+vowels no source places, and six peripheral qualities outside the ranges
+Wood's conclusion 2 names, keep an `arc` from `backness`; `backness` says
+where the tongue body is rather than where it constricts, so that arc is
+reported in `Reading.approximated` and by `unmodelled` as kind
+`approximate`. A caller can tell a sourced location from an unsourced one
+without reading a source, which is the property that makes a partial
+declaration worth making. `tests/test_constriction_location.py` holds the
+classification and the report; this file holds what is still not known.
+
+**Every declarative fix short of a source was tried and each is refused
+by evidence rather than by taste.** These are why the repair took a
+source rather than a rule:
 
 * **`rounded` does not bear on `arc`.** The one minimal pair the
   measurement supplies is `ʌ` and `ɔ`, identical but for rounding, and
@@ -27,11 +38,12 @@ is written down here instead of being worked around:
   near-close, +0.39 open-mid), so multiplicative, threshold and `max`
   rules all die on the same `ɛ` against `ʌ` pair. Every coordinate in
   `ipa.xml` is one feature, one value, one number.
-* **Declaring `place` on a vowel does not move `arc`** -- `tract_point`
-  takes the `manner == "vowel"` branch and reads `backness`
-  unconditionally, and `unmodelled` reports the stated place as `unread`
-  rather than dropping it -- and it renames the phone, because `describe`
-  reads the place slot out of the bundle.
+* **Declaring `place` on a vowel does not move `arc`** -- the vowel
+  branch never reads that slot, and `unmodelled` reports the stated place
+  as `unread` rather than dropping it -- and it renames the phone,
+  because `describe` reads the place slot out of the bundle. This is why
+  the carrier is a separate `constriction-location` borrowing `place`'s
+  vocabulary rather than `place` itself.
 * **A secondary articulation cannot reach a vowel at all**, which
   `test_a_secondary_articulation_is_drawn_where_it_is_declared` already
   requires and this restates as the reason: a secondary is of
@@ -59,8 +71,11 @@ discrete locations, which land inside the measured band in 21 of 25
 columns against 12 of 25 for the arcs ipakit declares -- a partition of
 the (height, backness) plane into four families, which is a shape no
 one-feature-one-value-one-number declaration can state.
-`docs/design/vowel-constriction.md` is that assessment. The limit is
-unchanged and every pin below stands; what moved is the reason.
+`docs/design/vowel-constriction.md` is that assessment. **The
+classification is what has since been adopted**, at the arcs `place`
+already declares for the four locations: over the same 35 measured bands
+the library now scores 26, against 25 for the classification read at
+those arcs, 26 for Wood's own proportions, and 17 for `backness` alone.
 
 **A fourth source has since re-imaged the third one's speaker, and the
 central series has been looked for and largely is not there.** Story
@@ -68,16 +83,20 @@ central series has been looked for and largely is not there.** Story
 more than 0.10 of tract length at every cutoff tried, and `o`'s two
 bands do not overlap at any of them -- so a coordinate does not
 reproduce even with the speaker, the laboratory and the procedure all
-held fixed. And of the ten central symbols this inventory places at arc
-0.44, exactly two are classified by any source, and they go to
+held fixed. And of the eleven central symbols this inventory placed at
+arc 0.44, exactly two are classified by any source, and they go to
 *different* families: Wood puts `ɨ` at the soft palate (0.514) and
 Swedish `ʉː` at the hard palate (0.314), leaving 0.44 in the gap
-between them. That is the same shape of failure this file already pins
-for the back vowels, one column to the right. Cavar et al. (2025)
-measure Polish `ɨ` with a front dorsum and Russian `ɨ` with a back one
-over 28 speakers, so the disagreement is not an artifact of Wood's
-review. The central column is not under-measured; it is not one
-constriction location.
+between them. Both now state their family and neither is at 0.44. Cavar
+et al. (2025) measure Polish `ɨ` with a front dorsum and Russian `ɨ`
+with a back one over 28 speakers, so the disagreement is not an artifact
+of Wood's review. The central column is not under-measured; it is not one
+constriction location, and the nine symbols left in it state none.
+
+The assessment counts ten symbols at 0.44 and there are eleven: `ä` is
+`a` with the centralizing diaeresis, a registered phone with
+`backness="central"`, and it is in none of its lists. Nothing in that
+document's argument turns on the count.
 
 If one of these stops holding, the limit has moved and the write-up
 needs revising -- which is the point of asserting it.
@@ -115,38 +134,67 @@ def _vowels(ipa: IPAFeatures) -> list[str]:
 
 
 class TestTheLimitAsItStands:
-    def test_a_vowel_arc_is_a_function_of_backness_alone(
+    def test_a_vowel_arc_is_a_function_of_backness_only_where_no_source_speaks(
         self, ipa: IPAFeatures
     ) -> None:
-        """Two vowels agreeing on `backness` agree on `arc`, whatever else
-        they state. This is the defect, asserted rather than described."""
-        by_backness: dict[str, set[float | None]] = {}
+        """Two vowels agreeing on `backness` used to agree on `arc`
+        whatever else they stated. That was the defect. What is left of it
+        is that the vowels no source classifies still behave that way, and
+        the ones a source classifies do not: `front` alone now spans 0.32
+        to 0.74, because `a` and `æ` are in Wood's lower-pharyngeal family
+        and `i e ɛ y ø` are in his palatal one."""
+        spread: dict[str, set[float | None]] = {}
+        unsourced: dict[str, set[float | None]] = {}
         for phone in _vowels(ipa):
             bundle = ipa.get_features(phone)
-            by_backness.setdefault(bundle["backness"], set()).add(
-                tract_point(ipa, bundle).arc
-            )
-        assert len(by_backness) == 5, sorted(by_backness)
-        for backness, arcs in by_backness.items():
+            arc = tract_point(ipa, bundle).arc
+            spread.setdefault(bundle["backness"], set()).add(arc)
+            if "constriction-location" not in bundle:
+                unsourced.setdefault(bundle["backness"], set()).add(arc)
+        assert len(spread) == 5, sorted(spread)
+        assert len(spread["front"]) > 1, sorted(spread["front"])
+        assert len(spread["back"]) > 1, sorted(spread["back"])
+        # And the fallback is still exactly one number per backness value,
+        # which is the part of the defect that no source closed.
+        assert unsourced, "no vowel falls back: the second half is vacuous"
+        for backness, arcs in unsourced.items():
             assert len(arcs) == 1, f"{backness}: {sorted(arcs)}"
 
-    def test_the_five_back_vowels_share_one_point(self, ipa: IPAFeatures) -> None:
+    def test_the_five_back_vowels_no_longer_share_one_point(
+        self, ipa: IPAFeatures
+    ) -> None:
         """The headline case, with the measurement beside it.
 
-        Measured: `u` and `o` at 0.38, `ɑ` at 0.67, `ɔ` and `ʌ` at 0.65.
+        Measured: `u` and `o` at 0.38, `ɑ` at 0.67, `ɔ` and `ʌ` at 0.65 in
+        the 1996 session; Wood puts `u` at the soft palate, `o` and `ɔ` at
+        the upper pharynx and `ɑ` at the lower one. `ʌ` is named in no
+        family and keeps 0.56 by the fallback -- which is the honest
+        answer, not an oversight: his Fig. 5 is the only place he puts it
+        anywhere, and a figure is not a classification.
         """
         arcs = {p: tract_point(ipa, ipa.get_features(p)).arc for p in "uoɑɔʌ"}
-        assert set(arcs.values()) == {0.56}, arcs
+        assert arcs == {"u": 0.45, "o": 0.56, "ɑ": 0.74, "ɔ": 0.56, "ʌ": 0.56}
+        assert len(set(arcs.values())) == 3
+        stated = {p for p in arcs if "constriction-location" in ipa.get_features(p)}
+        assert stated == {"u", "o", "ɑ", "ɔ"}
 
-    def test_no_vowel_reaches_the_pharyngeal_anchor(self, ipa: IPAFeatures) -> None:
-        """The tongue-body sweep stops at `uvular` and `place` declares a
-        location past it that no `backness` value reaches -- the third of
-        Gaines et al.'s three constriction locations."""
+    def test_the_pharyngeal_anchor_is_reached_only_by_a_stated_location(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """`backness` stops at `uvular`, so the third of Gaines et al.'s
+        three constriction locations was unreachable by any vowel. It is
+        reached now, and only through a stated location: `a ɑ æ` are
+        Wood's `[ɑ-a-æ]`-like family and nothing else gets there."""
         places = ipa.features["place"].coordinates
-        reached = {tract_point(ipa, ipa.get_features(p)).arc for p in _vowels(ipa)}
-        assert max(reached) == places["uvular"]["arc"] == 0.56
+        arcs = {p: tract_point(ipa, ipa.get_features(p)).arc for p in _vowels(ipa)}
+        backness = ipa.features["backness"].coordinates
+        assert max(c["arc"] for c in backness.values()) == places["uvular"]["arc"]
         assert places["pharyngeal"]["arc"] == 0.74
-        assert not [a for a in reached if a > places["uvular"]["arc"]]
+        past = {p for p, a in arcs.items() if a is not None and a > 0.56}
+        assert past, "nothing reaches past uvular: the fix did not land"
+        for phone in past:
+            assert ipa.get_features(phone)["constriction-location"] == "pharyngeal"
+            assert arcs[phone] == places["pharyngeal"]["arc"]
 
     def test_a_secondary_articulation_cannot_reach_a_vowel(
         self, ipa: IPAFeatures
@@ -164,32 +212,50 @@ class TestTheLimitAsItStands:
         assert degrees, "sweep did not run"
         assert all(d is not None and d < approximant for d in degrees), sorted(degrees)
 
-    def test_the_annotation_layer_cannot_see_this_limit(self, ipa: IPAFeatures) -> None:
-        """And says so, rather than leaving it assumed shut.
+    def test_the_annotation_layer_can_now_see_this_limit(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """And that is the change, not a side effect of it.
 
-        `unmodelled` reports a stated value the posture did not read.
-        This limit is not one: `backness` is read for `arc` and `height`
-        for `offset` on every vowel in the inventory, so nothing is
-        dropped. Five back vowels sharing one point is a *resolution*
-        limit -- `arc` has five values for thirty-five (height, backness)
-        cells -- and a predicate over consumption is blind to it by
+        `unmodelled` reports a stated value the posture did not read, and
+        this limit used to be invisible to it: `backness` was read for
+        `arc` and `height` for `offset` on every vowel, so nothing was
+        dropped and a predicate over consumption was blind by
         construction. Anyone reading a clean annotation strip under a
-        vowel figure is reading "nothing was dropped", not "the position
+        vowel figure was reading "nothing was dropped", not "the position
         is right".
 
-        The attempt the docstring refuses is the other half: a `place`
-        stated on a vowel *is* read by nothing, and is reported.
+        A third kind fixes that without inventing a coordinate.
+        `backness` supplying the `arc` is now reported as `approximate`,
+        because the coordinate it supplied is not the coordinate it
+        states. So the strip under `ə` says which number is a stand-in,
+        and the strip under `i` does not, and neither says anything about
+        the other's position being right.
+
+        The attempt the docstring refuses is unchanged: a `place` stated
+        on a vowel is read by nothing, and is reported.
         """
         vowels = _vowels(ipa)
         assert len(vowels) > 20, f"only {len(vowels)} vowels: the sweep is vacuous"
+        approximate, sourced = 0, 0
         for phone in vowels:
             stated = ipa.get_features(phone, with_defaults=False)
-            assert {"backness", "height"} <= tract_reading(ipa, stated).read, phone
-            assert not [m for m in unmodelled(ipa, stated) if m.kind == "unread"], phone
-        placed = {**ipa.get_features("a"), "place": "uvular"}
+            reading = tract_reading(ipa, stated)
+            assert "height" in reading.read, phone
+            kinds = {m.feature: m.kind for m in unmodelled(ipa, stated)}
+            if "constriction-location" in stated:
+                sourced += 1
+                assert reading.read >= {"constriction-location", "height"}, phone
+                assert kinds.get("backness") == "unread", phone
+            else:
+                approximate += 1
+                assert reading.approximated == frozenset({"backness"}), phone
+                assert kinds.get("backness") == "approximate", phone
+        assert approximate and sourced, (approximate, sourced)
+        placed = {**ipa.get_features("ə"), "place": "uvular"}
         assert (
             tract_point(ipa, placed).arc
-            == ipa.features["backness"].coordinates["front"]["arc"]
+            == ipa.features["backness"].coordinates["central"]["arc"]
         )
         assert ("place", "unread") in {
             (m.feature, m.kind) for m in unmodelled(ipa, placed)
@@ -298,8 +364,9 @@ class TestTheLoaderTrapThatHidesAnAttempt:
 
         patched = IPAFeatures(path)
         assert not patched.features["rounded"].coordinates
-        # `u` is rounded, and is exactly where it was.
-        assert tract_point(patched, patched.get_features("u")).arc == 0.56
+        # `u` is rounded, and is exactly where its declared location puts
+        # it -- at `velar`, unmoved by an arc on the rounding feature.
+        assert tract_point(patched, patched.get_features("u")).arc == 0.45
 
     def test_the_guard_fires_on_that_declaration(
         self, ipa: IPAFeatures, tmp_path: Path
