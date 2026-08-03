@@ -84,6 +84,16 @@ class Feature:
     # load, so the borrower and the source cannot come to disagree. A
     # feature declaring this declares no values of its own.
     vocabulary: str | None = None
+    # The values of this feature that own their bare spelling, declared in
+    # the data. Several features may declare a value of the same name --
+    # ``nasal`` is a manner, a release phase and an approach phase -- and a
+    # query naming one bare has to resolve to exactly one of them. Whichever
+    # declares ``bare`` wins the plain term; the others stay reachable as
+    # ``feature=value``. Where none declares it the term is contested and
+    # refused, which is the point: the alternative is that a bare term means
+    # whichever feature ``ipa.xml`` happens to declare first, silently, and
+    # reordering the file changes what a rule does.
+    bare: frozenset[str] = field(default_factory=frozenset)
     # Manner classes whose descriptions read this feature out; empty means
     # every class. ``channel`` places the airflow channel within a
     # constriction and a vowel has none; ``rhotacized`` is a vowel color

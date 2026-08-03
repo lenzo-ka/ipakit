@@ -183,6 +183,14 @@
               <!-- A value that holds no position on the continuum at all:
                    silence is not a degree of constriction. -->
               <optional><attribute name="offscale"><ref name="flag"/></attribute></optional>
+              <!-- This value owns the bare spelling of its name, where more
+                   than one feature declares a value so named: `nasal` is a
+                   manner, a release phase and an approach phase, and only
+                   the manner answers to a plain `[nasal]`. At most one
+                   feature may claim a given name; a name no feature claims
+                   is contested and refused rather than resolved by the
+                   order this file happens to declare its features in. -->
+              <optional><attribute name="bare"><ref name="flag"/></attribute></optional>
               <optional><attribute name="articulator"><text/></attribute></optional>
               <optional><attribute name="natural-class"><text/></attribute></optional>
               <optional><attribute name="aperture"><text/></attribute></optional>

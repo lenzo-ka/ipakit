@@ -297,6 +297,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 feat_type = feat_elem.get("type", "ordinal")
                 feat_short = feat_elem.get("short", name[:DEFAULT_SHORT_NAME_LEN])
                 offscale: set[str] = set()
+                bare_values: set[str] = set()
                 coordinates: dict[str, dict[str, float]] = {}
                 articulators: dict[str, str] = {}
                 value_apertures: dict[str, str] = {}
@@ -335,6 +336,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     for v in feat_elem.findall("value"):
                         if val_name := v.get("name"):
                             values.append(val_name)
+                            # Which feature a term spelled bare belongs to,
+                            # where more than one declares it. Stated, because
+                            # the alternative is document order: `nasal` is a
+                            # manner, a release phase and an approach phase,
+                            # and `[nasal]` meant the manner only because
+                            # `manner` is declared first in this file.
+                            if v.get("bare"):
+                                bare_values.add(val_name)
                             if v.get("offscale"):
                                 offscale.add(val_name)
                             coords = {
@@ -416,6 +425,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     over=feat_elem.get("over"),
                     vocabulary=vocabulary,
                     moves=moves,
+                    bare=frozenset(bare_values),
                 )
 
         # `applies` names a declared manner value, or one of the derived
@@ -1147,11 +1157,28 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if len(claims) < 2:
             return claims
         running = {name for name, _ in claims}
-        return [
+        claims = [
             (name, value)
             for name, value in claims
             if (self.features[name].vocabulary or "") not in running
         ]
+        if len(claims) < 2:
+            return claims
+        # Contested, so the data decides rather than the file's order. A
+        # value declaring `bare` owns the plain spelling; the others are
+        # still reachable as `feature=value`. Exactly one may claim it --
+        # two would be the same silent choice wearing a declaration -- and
+        # none is a legitimate answer, meaning the term is refused.
+        declared = [
+            (name, value) for name, value in claims if value in self.features[name].bare
+        ]
+        if len(declared) > 1:
+            raise ValueError(
+                f"{term!r} is declared bare by more than one feature: "
+                f"{sorted(name for name, _ in declared)}. A bare term "
+                f"resolves to one feature, so at most one may claim it"
+            )
+        return declared or claims
 
     def _resolve_class_term(self, term: str) -> tuple[str, frozenset[str]] | None:
         """Resolve a declared natural-class name to (feature, its values).
@@ -1210,9 +1237,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             spellings = ", ".join(f"{name}={value}" for name, value in sorted(claims))
             return (
                 f"{spelled!r} is ambiguous; {term!r} is claimed by "
-                f"{sorted({name for name, _ in claims})}, and which one a "
-                f"bare term meant would depend on the order ipa.xml declares "
-                f"them in. Name the feature: {spellings}"
+                f"{sorted({name for name, _ in claims})}, and none of them "
+                f"declares it bare, so nothing says which one a plain term "
+                f"means. Name the feature: {spellings}"
             )
         klass = self._resolve_class_term(term)
         if klass is not None:
@@ -1536,7 +1563,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # here and then found empty by the check at the end.
             for s in list(query):
                 # Whole string is a short name (e.g. '-voi', '+voi', '0trt').
-                if s in self._short_to_feature:
+                # Not where another feature claims the same spelling: `mid`
+                # is `height`'s short code for its own `mid` and `tone`'s
+                # value outright, and answering from this table first only
+                # moved the silent choice one branch earlier. A contested
+                # term falls through to the resolver, which refuses it.
+                if s in self._short_to_feature and len(self._claimants(s)) < 2:
                     feat, val = self._short_to_feature[s]
                     if clash := self._require_value(positive, feat, val):
                         unresolved.append(clash)

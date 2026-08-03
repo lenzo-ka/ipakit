@@ -845,6 +845,10 @@ NOT_BORROWED = {
     "over": "the scale the borrower's values move along",
     "moves": "a move is read only beside `over`, which is the borrower's own",
     "labels": "how a value reads out in a description; see above",
+    "bare": (
+        "which feature answers a plain term, which is notation and stays "
+        "with the lender for the same reason its short codes do"
+    ),
 }
 
 
