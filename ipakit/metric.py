@@ -217,7 +217,12 @@ def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> fl
             continue
         total += abs(s1 - s2) if (s1 is not None and s2 is not None) else 1.0
         count += 1
-    return total / count if count else 1.0
+    # No terms means no key on either side, no place on either side and no
+    # tract coordinate on either side -- the two comparable forms are equal,
+    # so the answer is 0, not the maximal difference this used to assert.
+    # A constituent the metric cannot read is not this case: its keys are
+    # present on one side only, each scores 1, and the mean is 1.0 anyway.
+    return total / count if count else 0.0
 
 
 def _parts(segment: Segment) -> tuple[Segment, ...]:

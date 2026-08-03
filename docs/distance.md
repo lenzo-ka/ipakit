@@ -96,6 +96,10 @@ An n-ary fusion aligns its phase blocks in order and matches unordered within th
 
 Prosody — stress, length, tone — is excluded: `d(a, aː) = 0`.
 
+**A string of units is the same mean, one level up.** `segment_distance` compares its two arguments position by position: a position both sides reach costs the segment metric above, a position only one side reaches costs `GAP_COST`, and the answer is the mean over `max(len)` positions. Length is those positions and not a second quantity normalized beside them, so all three levels — parts within a unit, units within a string, tokens within a word — price a substitution against a gap in one currency. Two consequences worth stating: a pair scores the same alone as it does inside a longer string, so appending a unit identical on both sides leaves the summed cost untouched and only divides it over one more position; and an empty string against a spoken one is 1.0 because every position is unmatched, not because of a special case.
+
+**Identity is checked before any "nothing comparable" sentinel.** The metric returns 1.0 where it has no basis for comparison — an unreadable symbol, a bundle with no key the other side shares — and that is a claim about the pair, not about either side alone: it cannot hold of a thing against itself. So `d(x, x) = 0` for every `x`, including the empty string and including input no inventory can read. The sentinel is reachable only when the two sides genuinely differ.
+
 ## 5. Comparing two bundles
 
 A bundle distance is the mean over these terms:

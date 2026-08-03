@@ -126,14 +126,23 @@ class TestEmptyInputs:
     def test_tokenize_empty(self) -> None:
         assert ipakit.tokenize("") == []
 
-    def test_distance_empty_is_max(self) -> None:
-        # Empty strings have no features -> the 1.0 sentinel.
-        assert ipakit.distance("", "") == 1.0
-
-    def test_word_distance_both_empty_identical(self) -> None:
+    def test_every_entry_point_calls_two_empties_identical(self) -> None:
+        # These three used to disagree: distance and segment_distance
+        # answered 1.0 while word_distance answered 0.0, so the two public
+        # entry points gave opposite answers to one question. "Nothing
+        # comparable" and "maximally far apart" are different claims, and
+        # only the first is true of two empty inputs.
+        assert ipakit.distance("", "") == 0.0
+        assert ipakit.segment_distance("", "") == 0.0
         r = ipakit.word_distance("", "")
         assert r.edit_cost == 0.0
         assert r.similarity == 1.0
+
+    def test_an_empty_input_against_a_spoken_one_is_still_max(self) -> None:
+        # Identity must not cost the silence-is-a-deletion claim: every
+        # position is unmatched, so the mean is 1.0 with no special case.
+        assert ipakit.segment_distance("", "a") == 1.0
+        assert ipakit.segment_distance("kat", "") == 1.0
 
     def test_feature_bundles_empty(self) -> None:
         assert ipakit.feature_bundles("") == []
