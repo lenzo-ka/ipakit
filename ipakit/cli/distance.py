@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from ..distance_model import DistanceModel
 from ..models import Phoneset
@@ -324,6 +324,12 @@ class WordCommand(Command):
             help="Use the raw feature distance (ipakit.word_distance) instead "
             "of the inventory-relative model",
         )
+        parser.add_argument(
+            "--explain",
+            action="store_true",
+            help="Print a per-position alignment trace (raw feature path) "
+            "instead of a single score",
+        )
         add_model_args(parser)
         add_format_arg(parser)
 
@@ -363,7 +369,30 @@ class WordCommand(Command):
                 print(f"similar={data['similar']} (threshold={threshold})")
         return 0
 
+    def _run_explain(self) -> int:
+        """A per-position alignment trace -- ipakit.explain_word_distance."""
+        w1, w2 = self.args.word1, self.args.word2
+        steps = self.ipa.explain_word_distance(w1, w2, strict=False)
+        if self.format == "json":
+            self.output_json({"word1": w1, "word2": w2, "steps": steps})
+            return 0
+        print(f"{w1} ~ {w2}")
+        for step in steps:
+            a = step["a"] if step["a"] is not None else "-"
+            b = step["b"] if step["b"] is not None else "-"
+            print(f"  {step['op']:6} {a!s:>4} ~ {b!s:<4}  cost={step['cost']:.4f}")
+            terms = cast("list[dict[str, object]]", step["terms"])
+            for term in terms:
+                if cast("float", term["cost"]) > 0:
+                    va = term["a"] if term["a"] is not None else ""
+                    vb = term["b"] if term["b"] is not None else ""
+                    detail = f"{va} vs {vb}".strip(" vs")
+                    print(f"         · {term['label']}: {detail} = {term['cost']}")
+        return 0
+
     def run(self) -> int:
+        if self.args.explain:
+            return self._run_explain()
         if self.args.raw:
             return self._run_raw()
         threshold = self.args.threshold
@@ -548,7 +577,7 @@ class SeqCommand(Command):
 
 
 class DistanceGroup(CommandGroup):
-    """Calculate phonetic distances between IPA phones and words.
+    """Calculate phonetic distances between IPA phones, words, and phone sequences.
 
     Two flavors: 'pair'/'segment'/'matrix' give the raw feature distance
     (0.0 identical to 1.0 maximal); 'confusability'/'word' use the
@@ -562,6 +591,7 @@ class DistanceGroup(CommandGroup):
         confusability  Inventory-relative confusability/distance (phones)
         word           Inventory-relative distance/similarity (IPA words)
         nearest        Best match of a form against a set of acceptable variants
+        seq            Distance between two pre-tokenized phone sequences
 
     Examples:
         ipakit distance pair p b               # Raw feature distance: ~0.04

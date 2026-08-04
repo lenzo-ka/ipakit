@@ -91,3 +91,11 @@ class TestExplainTrace:
         steps = ipa.explain_word_distance("ˈkɛt", "ˌkɛt")
         matches = [s for s in steps if s["op"] == "match"]
         assert matches and all(s["cost"] == 0.0 for s in matches)
+
+    def test_the_module_level_wrapper_traces_too(self):
+        import ipakit
+
+        steps = ipakit.explain_word_distance("ˈkɛt", "ˌkɛt")
+        sub = next(s for s in steps if s["op"] == "sub")
+        stress = next(t for t in sub["terms"] if t["label"].startswith("stress"))
+        assert stress["a"] == "primary" and stress["b"] == "secondary"
