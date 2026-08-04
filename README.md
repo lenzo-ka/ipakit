@@ -67,6 +67,8 @@ ipakit.respell("t", manner="nasal") # None  (unattested — no phone spells it)
 ipakit.distance("p", "b")       # small: differ only in voicing
 ipakit.nearest_phones("p", n=3) # [(phone, distance), ...] closest first
 ipakit.word_similarity("kæt", "kæd")   # near 1.0: a minimal pair
+ipakit.sequence_distance(["k", "a", "t"], ["k", "æ", "t"])  # over pre-tokenized phones
+ipakit.nearest_pronunciation("kat", ["kæt", "kɑt"])   # best-matching acceptable variant
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
 ipakit.tokenize("t͡ʃe͜ɪnd͡ʒ")   # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
@@ -220,6 +222,8 @@ ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw structural distance
 ipakit distance confusability p b    # Inventory-relative confusability
 ipakit distance word kæt kæd         # Word similarity
+ipakit distance seq "k a t" "k æ t" # Distance over pre-tokenized phone sequences
+ipakit distance nearest kat kæt kɑt  # Best-matching acceptable variant
 ipakit rules apply -s american-english pˈɪn    # Broad to narrow: pʰˈɪ̃n
 ipakit rules trace -s american-english bˈʌtɚ   # Which rule fired, and where
 ipakit rules recognize -r 't -> ʔ / _ #' kæt   # Where it holds, nothing rewritten

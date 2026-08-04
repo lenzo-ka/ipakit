@@ -374,13 +374,7 @@ The test suite pins the metric's exact properties — `d(ɡ, ɡ͡b) = d_b(ɡ,b)/
 
 This document states relations and invariants rather than measured values, deliberately: exact numbers belong in the test suite, where a change that moves them fails loudly. Prose that quotes them goes stale in silence.
 
-## Related
-
-- [docs/ties.md](ties.md) — tie conventions, the representation, and how segments compose
-- [docs/gestural-model.md](gestural-model.md) — the model this representation is converging on, not yet implemented
-- [docs/tract-anatomy.md](tract-anatomy.md) — the vocal-tract geometry that would derive these anchors rather than declare them
-
-## 11. Pre-tokenized sequences, n-best, and local matching
+## 12. Pre-tokenized sequences, n-best, and local matching
 
 `word_distance` and `word_similarity` take IPA **strings** and tokenize them. When you already hold phone tokens — each element one unit, possibly multi-character like `d͡ʒ` — pass them to `sequence_distance` / `sequence_similarity` instead, and the boundaries you gave are kept:
 
@@ -401,3 +395,9 @@ ipakit.rank_sequences(["b", "ʌ", "t", "ɚ"],
 **Local (fit) matching.** `mode="local"` scores the second sequence as a **target that must align fully** while the first sequence's ends are free — for a target embedded in a longer, noisier sequence. It is directional (the two sides are not interchangeable), which is why it is offered on the sequence and ranking methods and not on the symmetric `word_distance`. It is a specialized tool: on whole-to-whole comparison it over-accepts, because free ends stop charging the surrounding material, so reach for it only when the target really is embedded.
 
 On the command line: `distance seq` compares two pre-tokenized sequences (each argument a space-separated token list, `--local` for the fit), and `distance nearest -n K --local` ranks candidates.
+
+## Related
+
+- [docs/ties.md](ties.md) — tie conventions, the representation, and how segments compose
+- [docs/gestural-model.md](gestural-model.md) — the model this representation is converging on, not yet implemented
+- [docs/tract-anatomy.md](tract-anatomy.md) — the vocal-tract geometry that would derive these anchors rather than declare them
