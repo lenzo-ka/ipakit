@@ -961,6 +961,11 @@ def derive(
     The trace holds the zero wherever a rule wrote one, and the final
     ``surface`` step is what takes it out again; ``keep_zeros`` stops
     before it.
+
+    ``form`` may be a :class:`~ipakit.form.Form`, and then a tier it
+    carries survives the cascade: each rule sees the spans as the rule
+    before it left them, and :attr:`Derivation.intervals` is where they
+    come back. A string carries none and none is derived from it.
     """
     features = _get_ipa()
     if isinstance(spec, str):
