@@ -149,8 +149,12 @@ class TestModifiers:
     def test_additive_modifier_registers(self, ipa: IPAFeatures) -> None:
         assert D(ipa, "a", "ã") > 0.0
 
-    def test_prosody_excluded(self, ipa: IPAFeatures) -> None:
-        assert D(ipa, "a", "aː") == 0.0
+    def test_a_prosodic_rider_bears_graded_distance(self, ipa: IPAFeatures) -> None:
+        # A prosodic-tier mark rides on the unit and bears distance (#190):
+        # length long vs unmarked is a step on the length ordinal, graded --
+        # one tier among the unit's features -- rather than excluded.
+        d = D(ipa, "a", "aː")
+        assert 0.0 < d < 0.2
 
 
 class TestOrdinalScales:

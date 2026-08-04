@@ -29,6 +29,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
+from .models import Feature
 from .segment import Constituent, Segment, Sense
 from .tract import constrictions, tract_point
 
@@ -377,7 +378,12 @@ def _segment_prosodic(features: IPAFeatures, segment: Segment) -> dict[str, str]
         if decl is None:
             continue
         for feat, val in decl.features.items():
-            if feat in prosodic:
+            # A sequence value is a trajectory (a tone contour, ``mid>high``),
+            # not a point on the scale, so ``value_distance`` has no honest
+            # answer for it; those stay out of the metric until a sequence
+            # comparison exists. Single-level riders (stress, a plain tone,
+            # length) ride here.
+            if feat in prosodic and Feature.SEQUENCER not in val:
                 out[feat] = val
     return out
 

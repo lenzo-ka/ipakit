@@ -349,7 +349,10 @@
 
     <!-- Suprasegmental multi-valued features -->
     <feature name="stress" short="str" mode="prosodic" desc="Prosodic prominence" href="Stress_(linguistics)">
-      <value name="none" short="0" desc="Unstressed -- the ordinal anchor; unspelled and underspecified, never rides onto a unit"/>
+      <!-- Unstressed: the ordinal anchor. Unspelled and underspecified (no
+           diacritic writes it), so it never rides onto a unit; it only anchors
+           the scale, putting primary and secondary a half-step apart. -->
+      <value name="none" short="0"/>
       <value name="secondary" short="2" href="Secondary_stress"/>
       <value name="primary" short="1" href="Stress_(linguistics)"/>
     </feature>
