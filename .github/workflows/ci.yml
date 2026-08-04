@@ -14,8 +14,55 @@ permissions:
   contents: read
 
 jobs:
+  # Decide whether this push/PR touches anything but documentation. A doc-only
+  # change cannot move the metric, the derived artifacts or the Python surface,
+  # so the three build jobs below skip it and only `docs` runs. The default is
+  # to run everything: anything we cannot cleanly diff sets code=true, so the
+  # optimization can only ever skip work it is sure is safe to skip.
+  changes:
+    name: detect doc-only changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -eu
+          # Fail safe: no usable base (first push, force-push, missing SHA) runs
+          # the full build rather than guessing what changed.
+          if [ -z "${BASE:-}" ] || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "no usable base ('${BASE:-}'); running full CI"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          echo "changed files:"
+          printf '  %s\n' $changed
+          code=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              # The doc set: docs/, any markdown, the generated tutorial
+              # notebook, and the license. Everything else is code.
+              docs/*|*.md|ipakit/notebooks/*|LICENSE*) ;;
+              *) code=true ;;
+            esac
+          done <<INNER
+          $changed
+          INNER
+          echo "run build jobs? code=$code"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   lint:
     name: lint (ruff / black / mypy)
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +79,8 @@ jobs:
 
   test:
     name: test (py${{ matrix.python-version }})
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -57,6 +106,8 @@ jobs:
 
   guards:
     name: derived-artifact guards (ICU)
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
