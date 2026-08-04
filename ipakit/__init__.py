@@ -51,6 +51,7 @@ from .distance import (
     PhoneCost,
     PronunciationMatch,
     ScoringParameters,
+    SequenceMatch,
     WordDistanceResult,
 )
 from .distance_model import DistanceModel
@@ -275,6 +276,8 @@ def nearest_pronunciation(
     acceptable: str | Iterable[str],
     weighted: bool = True,
     strict: bool = True,
+    *,
+    mode: str = "global",
 ) -> PronunciationMatch:
     """The nearest acceptable pronunciation in a set, and which pair matched.
 
@@ -292,7 +295,88 @@ def nearest_pronunciation(
         ('fæmli', 1.0)
     """
     return _get_ipa().nearest_pronunciation(
-        forms, acceptable, weighted=weighted, strict=strict
+        forms, acceptable, weighted=weighted, strict=strict, mode=mode
+    )
+
+
+def rank_pronunciations(
+    forms: str | Iterable[str],
+    acceptable: str | Iterable[str],
+    *,
+    n: int | None = None,
+    weighted: bool = True,
+    strict: bool = True,
+    mode: str = "global",
+) -> list[PronunciationMatch]:
+    """The acceptable pronunciations ranked, best first -- the n-best form of
+    :func:`nearest_pronunciation`. ``mode="local"`` matches each as a target
+    embedded in the form.
+
+    Examples:
+        >>> ms = ipakit.rank_pronunciations("fæmli", ["fæmɪli", "fæməli", "fæmli"])
+        >>> [round(m.similarity, 2) for m in ms][:1]
+        [1.0]
+    """
+    return _get_ipa().rank_pronunciations(
+        forms, acceptable, n=n, weighted=weighted, strict=strict, mode=mode
+    )
+
+
+def sequence_distance(
+    seq1: Sequence[str],
+    seq2: Sequence[str],
+    *,
+    weighted: bool = True,
+    mode: str = "global",
+    return_alignment: bool = False,
+) -> WordDistanceResult:
+    """Distance between two pre-tokenized phone sequences (each element one
+    phone unit), aligned as given -- see
+    :meth:`~ipakit.distance.DistanceMixin.sequence_distance`.
+
+    Examples:
+        >>> ipakit.sequence_distance(["t", "ʃ"], ["t͡ʃ"]).similarity < 1.0
+        True
+    """
+    return _get_ipa().sequence_distance(
+        seq1, seq2, weighted=weighted, mode=mode, return_alignment=return_alignment
+    )
+
+
+def sequence_similarity(
+    seq1: Sequence[str],
+    seq2: Sequence[str],
+    *,
+    weighted: bool = True,
+    mode: str = "global",
+) -> float:
+    """The ``similarity`` of :func:`sequence_distance`, in [0, 1].
+
+    Examples:
+        >>> round(ipakit.sequence_similarity(["k", "æ", "t"], ["k", "æ", "d"]), 2)
+        0.98
+    """
+    return _get_ipa().sequence_similarity(seq1, seq2, weighted=weighted, mode=mode)
+
+
+def rank_sequences(
+    observed: Sequence[str],
+    candidates: Iterable[Sequence[str]],
+    *,
+    n: int | None = None,
+    weighted: bool = True,
+    mode: str = "global",
+) -> list[SequenceMatch]:
+    """Candidate phone sequences ranked by similarity to ``observed``, best
+    first -- see :meth:`~ipakit.distance.DistanceMixin.rank_sequences`.
+
+    Examples:
+        >>> ms = ipakit.rank_sequences(["k", "æ", "t"], [["k", "æ", "t"], ["k", "ʊ", "t"]])
+        >>> ms[0].similarity
+        1.0
+    """
+    return _get_ipa().rank_sequences(
+        observed, candidates, n=n, weighted=weighted, mode=mode
     )
 
 
@@ -1083,6 +1167,7 @@ __all__ = [
     "WordDistanceResult",
     "ScoringParameters",
     "PronunciationMatch",
+    "SequenceMatch",
     # Constants
     "DATA_DIR",
     "DEFAULT_CMU_MAP",
@@ -1140,6 +1225,10 @@ __all__ = [
     "pairwise_distances",
     "word_similarity",
     "nearest_pronunciation",
+    "rank_pronunciations",
+    "sequence_distance",
+    "sequence_similarity",
+    "rank_sequences",
     "xsampa_to_ipa",
     # Form representation
     "Attribute",

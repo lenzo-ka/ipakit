@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import unicodedata
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -462,6 +462,23 @@ class PronunciationMatch:
     result: WordDistanceResult
 
 
+@dataclass(frozen=True)
+class SequenceMatch:
+    """The best-matching candidate for an observed phone sequence, and its score.
+
+    Like :class:`PronunciationMatch`, but over pre-tokenized phone sequences
+    (each element one phone unit) rather than IPA strings, so the caller's
+    phone boundaries are authoritative and nothing is re-tokenized. ``observed``
+    and ``candidate`` are the two token tuples that produced ``similarity``;
+    ``result`` is the full comparison.
+    """
+
+    similarity: float
+    observed: tuple[str, ...]
+    candidate: tuple[str, ...]
+    result: WordDistanceResult
+
+
 class DistanceMixin(IPAFeaturesBase):
     """Mixin providing phonetic distance calculations."""
 
@@ -742,6 +759,7 @@ class DistanceMixin(IPAFeaturesBase):
         return_alignment: bool,
         insert_cost: PhoneCost,
         delete_cost: PhoneCost,
+        mode: str = "global",
     ) -> WordDistanceResult:
         """Align two token sequences under one indel parameterization.
 
@@ -777,11 +795,64 @@ class DistanceMixin(IPAFeaturesBase):
         if n == 0 and m == 0:
             return _empty_pair_result(return_alignment, insert_cost, delete_cost)
 
+        if mode == "local":
+            return self._fit_result(tokens1, tokens2, cost_fn, insert_cost, delete_cost)
+
         distance, alignment = self._align(
             tokens1, tokens2, cost_fn, insert_cost, delete_cost, return_alignment
         )
         return _word_result(
             tokens1, tokens2, distance, alignment, insert_cost, delete_cost
+        )
+
+    def _fit_result(
+        self,
+        haystack: list[str],
+        needle: list[str],
+        cost_fn: Callable[[str, str], float],
+        insert_cost: PhoneCost,
+        delete_cost: PhoneCost,
+    ) -> WordDistanceResult:
+        """Semi-global FIT: ``needle`` must align fully, but leading and
+        trailing material on the ``haystack`` side is free, so a target
+        embedded in a longer, noisier sequence is scored on how well it is
+        realized rather than penalized for the surrounding tokens. The needle
+        is not free-ended, so a truncated target is still penalized. The score
+        is normalized by the needle's own insertion cost -- the cost of the
+        needle matching nothing -- so it reads as "how much of the needle is
+        present". Directional by construction: the two sides are not
+        interchangeable, which is why this is not offered on the symmetric
+        :meth:`word_distance`.
+        """
+        n, m = len(haystack), len(needle)
+        ins = _prices(insert_cost, needle, "insert_cost")
+        dels = _prices(delete_cost, haystack, "delete_cost")
+        denom = sum(ins)
+        if m == 0:
+            similarity = 1.0
+            best = 0.0
+        else:
+            dp = [[0.0] * (m + 1) for _ in range(n + 1)]
+            for j in range(1, m + 1):
+                dp[0][j] = dp[0][j - 1] + ins[j - 1]
+            for i in range(1, n + 1):
+                dp[i][0] = 0.0  # free leading gap on the haystack
+                hi = haystack[i - 1]
+                for j in range(1, m + 1):
+                    dp[i][j] = min(
+                        dp[i - 1][j] + dels[i - 1],
+                        dp[i][j - 1] + ins[j - 1],
+                        dp[i - 1][j - 1] + cost_fn(hi, needle[j - 1]),
+                    )
+            best = min(dp[i][m] for i in range(n + 1))  # free trailing gap
+            similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
+        coverage = m / max(n, m) if max(n, m) else 1.0
+        return WordDistanceResult(
+            edit_cost=best,
+            similarity=similarity,
+            coverage=coverage,
+            costs=costs_identity(insert_cost, delete_cost),
+            alignment=None,
         )
 
     def directional_word_distance(
@@ -889,6 +960,8 @@ class DistanceMixin(IPAFeaturesBase):
         acceptable: str | Iterable[str],
         weighted: bool = True,
         strict: bool = True,
+        *,
+        mode: str = "global",
     ) -> PronunciationMatch:
         """The best match between an observed form and a set of acceptable ones.
 
@@ -907,25 +980,136 @@ class DistanceMixin(IPAFeaturesBase):
         :class:`PronunciationMatch` for why a maximum over variants must not be
         read as a distance between two words.
         """
-        forms = [forms] if isinstance(forms, str) else list(forms)
-        acceptable = [acceptable] if isinstance(acceptable, str) else list(acceptable)
-        if not forms or not acceptable:
+        return self.rank_pronunciations(
+            forms, acceptable, n=1, weighted=weighted, strict=strict, mode=mode
+        )[0]
+
+    def sequence_distance(
+        self,
+        seq1: Sequence[str],
+        seq2: Sequence[str],
+        *,
+        weighted: bool = True,
+        mode: str = "global",
+        return_alignment: bool = False,
+    ) -> WordDistanceResult:
+        """Distance between two **pre-tokenized** phone sequences.
+
+        Each element of ``seq1``/``seq2`` is one phone unit (possibly
+        multi-character, like ``d͡ʒ`` or ``o͡ʊ``). The sequences are aligned
+        exactly as given -- unlike :meth:`word_distance`, which tokenizes a
+        string and so may join or split units -- so a caller who already has
+        phone tokens keeps their boundaries.
+
+        ``mode="global"`` is the symmetric whole-sequence alignment;
+        ``mode="local"`` is a fit in which ``seq2`` is the target that must
+        align fully and ``seq1``'s ends are free, for a target embedded in a
+        longer, noisier sequence (see :meth:`_fit_result`).
+        """
+        from .metric import GAP_COST
+
+        return self._aligned_words(
+            list(seq1),
+            list(seq2),
+            weighted,
+            return_alignment,
+            GAP_COST,
+            GAP_COST,
+            mode,
+        )
+
+    def sequence_similarity(
+        self,
+        seq1: Sequence[str],
+        seq2: Sequence[str],
+        *,
+        weighted: bool = True,
+        mode: str = "global",
+    ) -> float:
+        """The ``similarity`` of :meth:`sequence_distance`, in [0, 1]."""
+        return self.sequence_distance(
+            seq1, seq2, weighted=weighted, mode=mode
+        ).similarity
+
+    def rank_sequences(
+        self,
+        observed: Sequence[str],
+        candidates: Iterable[Sequence[str]],
+        *,
+        n: int | None = None,
+        weighted: bool = True,
+        mode: str = "global",
+    ) -> list[SequenceMatch]:
+        """Candidate phone sequences ranked by similarity to ``observed``.
+
+        Best first; a tie keeps the earliest-listed candidate, so the ranking
+        is deterministic. ``n`` truncates to the n-best. ``mode="local"`` fits
+        each candidate as the target inside ``observed`` (see
+        :meth:`sequence_distance`). No lexicon is involved -- the candidates
+        are simply the phone sequences the caller supplies.
+        """
+        obs = list(observed)
+        cands = [list(c) for c in candidates]
+        if not cands:
+            raise ValueError("rank_sequences needs at least one candidate")
+        scored = [
+            SequenceMatch(
+                similarity=(
+                    r := self.sequence_distance(obs, c, weighted=weighted, mode=mode)
+                ).similarity,
+                observed=tuple(obs),
+                candidate=tuple(c),
+                result=r,
+            )
+            for c in cands
+        ]
+        scored.sort(key=lambda x: -x.similarity)
+        return scored if n is None else scored[:n]
+
+    def _score_pronunciation(
+        self, form: str, candidate: str, weighted: bool, strict: bool, mode: str
+    ) -> WordDistanceResult:
+        if mode == "global":
+            return self.word_distance(form, candidate, weighted=weighted, strict=strict)
+        t1 = [t for t in self.tokenize(form) if not self.is_structural_token(t)]  # type: ignore[attr-defined]
+        t2 = [t for t in self.tokenize(candidate) if not self.is_structural_token(t)]  # type: ignore[attr-defined]
+        return self.sequence_distance(t1, t2, weighted=weighted, mode=mode)
+
+    def rank_pronunciations(
+        self,
+        forms: str | Iterable[str],
+        acceptable: str | Iterable[str],
+        *,
+        n: int | None = None,
+        weighted: bool = True,
+        strict: bool = True,
+        mode: str = "global",
+    ) -> list[PronunciationMatch]:
+        """:meth:`nearest_pronunciation`, but the whole ranking, best first.
+
+        The n-best acceptable pronunciations for the observed form(s), each a
+        :class:`PronunciationMatch`; ``n`` truncates. ``mode="local"`` matches
+        each acceptable pronunciation as a target embedded in the form. A tie
+        keeps the earliest-listed, so the order is deterministic.
+        """
+        fs = [forms] if isinstance(forms, str) else list(forms)
+        accs = [acceptable] if isinstance(acceptable, str) else list(acceptable)
+        if not fs or not accs:
             raise ValueError(
-                "nearest_pronunciation needs at least one form and one "
+                "rank_pronunciations needs at least one form and one "
                 "acceptable pronunciation"
             )
-        best: PronunciationMatch | None = None
-        for form in forms:
-            for candidate in acceptable:
-                result = self.word_distance(
-                    form, candidate, weighted=weighted, strict=strict
-                )
-                if best is None or result.similarity > best.similarity:
-                    best = PronunciationMatch(
-                        similarity=result.similarity,
-                        form=form,
-                        accepted=candidate,
-                        result=result,
-                    )
-        assert best is not None
-        return best
+        scored = [
+            PronunciationMatch(
+                similarity=(
+                    r := self._score_pronunciation(form, cand, weighted, strict, mode)
+                ).similarity,
+                form=form,
+                accepted=cand,
+                result=r,
+            )
+            for form in fs
+            for cand in accs
+        ]
+        scored.sort(key=lambda x: -x.similarity)
+        return scored if n is None else scored[:n]

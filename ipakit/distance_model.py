@@ -20,6 +20,7 @@ import bisect
 import functools
 import json
 import warnings
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
@@ -27,6 +28,7 @@ from .constants import DEFAULT_CONFUSION
 from .distance import (
     PhoneCost,
     ScoringParameters,
+    SequenceMatch,
     WordDistanceResult,
     _empty_pair_result,
     _prices,
@@ -636,6 +638,64 @@ class DistanceModel:
     def word_similarity(self, ipa1: str, ipa2: str) -> float:
         """The ``similarity`` field of :meth:`word_distance` (in [0, 1])."""
         return self.word_distance(ipa1, ipa2).similarity
+
+    def sequence_distance(
+        self,
+        seq1: Sequence[str],
+        seq2: Sequence[str],
+        *,
+        mode: str = "global",
+        return_alignment: bool = False,
+    ) -> WordDistanceResult:
+        """:meth:`word_distance` over pre-tokenized phone sequences, under this
+        model's renormalized (gamma-aware) costs. The tokens are aligned as
+        given; ``mode="local"`` fits ``seq2`` as a target inside ``seq1`` (see
+        :meth:`~ipakit.distance.DistanceMixin.sequence_distance`)."""
+        t1, t2 = list(seq1), list(seq2)
+        if not t1 and not t2:
+            return _empty_pair_result(return_alignment, self._insert, self._delete)
+        if mode == "local":
+            return self._ipa._fit_result(
+                t1, t2, self.sub_cost, self._insert, self._delete
+            )
+        dist, alignment = self._ipa._align(
+            t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
+        )
+        return _word_result(t1, t2, dist, alignment, self._insert, self._delete)
+
+    def sequence_similarity(
+        self, seq1: Sequence[str], seq2: Sequence[str], *, mode: str = "global"
+    ) -> float:
+        """The ``similarity`` of :meth:`sequence_distance` (in [0, 1])."""
+        return self.sequence_distance(seq1, seq2, mode=mode).similarity
+
+    def rank_sequences(
+        self,
+        observed: Sequence[str],
+        candidates: Iterable[Sequence[str]],
+        *,
+        n: int | None = None,
+        mode: str = "global",
+    ) -> list[SequenceMatch]:
+        """Candidate phone sequences ranked by similarity to ``observed`` under
+        this model's costs; best first, ``n`` truncates to the n-best. A tie
+        keeps the earliest-listed. ``mode="local"`` fits each candidate as a
+        target inside ``observed``."""
+        obs = list(observed)
+        cands = [list(c) for c in candidates]
+        if not cands:
+            raise ValueError("rank_sequences needs at least one candidate")
+        scored = [
+            SequenceMatch(
+                similarity=(r := self.sequence_distance(obs, c, mode=mode)).similarity,
+                observed=tuple(obs),
+                candidate=tuple(c),
+                result=r,
+            )
+            for c in cands
+        ]
+        scored.sort(key=lambda x: -x.similarity)
+        return scored if n is None else scored[:n]
 
     def _max_word_similarity(self, t1: list[str], t2: list[str]) -> float:
         """True content-independent upper bound: only |n-m| forced indels.
