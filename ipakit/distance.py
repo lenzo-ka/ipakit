@@ -681,6 +681,14 @@ class DistanceMixin(IPAFeaturesBase):
         for text in texts:
             self.parse(text, strict=True)  # type: ignore[attr-defined]
 
+    def _word_units(self, text: str) -> list[str]:
+        """The units a word aligns over: one per segment, each with its prosody
+        (stress, tone, length) bound to it, so a prosodic mark rides on the
+        unit it scopes rather than floating as its own token. Boundaries are
+        dropped -- transparent to distance. Identical to the former glyph
+        tokenization for any word carrying no prosodic mark."""
+        return [s.to_ipa() for s in self.segments(text)]  # type: ignore[attr-defined]
+
     def word_distance(
         self,
         ipa1: str,
@@ -741,12 +749,8 @@ class DistanceMixin(IPAFeaturesBase):
 
         if strict:
             self._reject_unconvertible(ipa1, ipa2)
-        tokens1 = [
-            t for t in self.tokenize(ipa1) if not self.is_structural_token(t)  # type: ignore[attr-defined]
-        ]
-        tokens2 = [
-            t for t in self.tokenize(ipa2) if not self.is_structural_token(t)  # type: ignore[attr-defined]
-        ]
+        tokens1 = self._word_units(ipa1)
+        tokens2 = self._word_units(ipa2)
         return self._aligned_words(
             tokens1, tokens2, weighted, return_alignment, GAP_COST, GAP_COST
         )
@@ -912,12 +916,8 @@ class DistanceMixin(IPAFeaturesBase):
 
         if strict:
             self._reject_unconvertible(reference, hypothesis)
-        tokens1 = [
-            t for t in self.tokenize(reference) if not self.is_structural_token(t)  # type: ignore[attr-defined]
-        ]
-        tokens2 = [
-            t for t in self.tokenize(hypothesis) if not self.is_structural_token(t)  # type: ignore[attr-defined]
-        ]
+        tokens1 = self._word_units(reference)
+        tokens2 = self._word_units(hypothesis)
         return self._aligned_words(
             tokens1,
             tokens2,
@@ -953,6 +953,63 @@ class DistanceMixin(IPAFeaturesBase):
         return self.word_distance(
             ipa1, ipa2, weighted=weighted, strict=strict
         ).similarity
+
+    def explain_word_distance(
+        self,
+        ipa1: str,
+        ipa2: str,
+        *,
+        weighted: bool = True,
+        strict: bool = True,
+    ) -> list[dict[str, object]]:
+        """A per-position trace of a word comparison, for debugging and detail.
+
+        One step per aligned position of the two words' units, in order:
+        ``op`` is ``match``/``sub``/``insert``/``delete``, ``a``/``b`` are the
+        units (one is ``None`` for a gap), ``cost`` is that position's
+        contribution, and for a substitution ``terms`` lists the
+        ``(label, a, b, cost)`` rows behind it -- each comparable feature, the
+        tract coordinates, and every prosodic rider (stress, tone, length). The
+        mean of the position costs over ``max(len)`` is the word distance.
+        """
+        from .metric import GAP_COST, segment_metric, segment_terms
+
+        result = self.word_distance(
+            ipa1, ipa2, weighted=weighted, return_alignment=True, strict=strict
+        )
+        steps: list[dict[str, object]] = []
+        for a, b in result.alignment or []:
+            if a is not None and b is not None:
+                sa, sb = self.segment(a), self.segment(b)  # type: ignore[attr-defined]
+                cost = segment_metric(self, sa, sb) if a != b else 0.0  # type: ignore[arg-type]
+                terms = (
+                    []
+                    if a == b
+                    else [
+                        {"label": lbl, "a": va, "b": vb, "cost": round(c, 4)}
+                        for lbl, va, vb, c in segment_terms(self, sa, sb)  # type: ignore[arg-type]
+                    ]
+                )
+                steps.append(
+                    {
+                        "op": "match" if a == b else "sub",
+                        "a": a,
+                        "b": b,
+                        "cost": round(cost, 4),
+                        "terms": terms,
+                    }
+                )
+            else:
+                steps.append(
+                    {
+                        "op": "insert" if a is None else "delete",
+                        "a": a,
+                        "b": b,
+                        "cost": round(GAP_COST, 4),
+                        "terms": [],
+                    }
+                )
+        return steps
 
     def nearest_pronunciation(
         self,
@@ -1071,8 +1128,8 @@ class DistanceMixin(IPAFeaturesBase):
     ) -> WordDistanceResult:
         if mode == "global":
             return self.word_distance(form, candidate, weighted=weighted, strict=strict)
-        t1 = [t for t in self.tokenize(form) if not self.is_structural_token(t)]  # type: ignore[attr-defined]
-        t2 = [t for t in self.tokenize(candidate) if not self.is_structural_token(t)]  # type: ignore[attr-defined]
+        t1 = self._word_units(form)
+        t2 = self._word_units(candidate)
         return self.sequence_distance(t1, t2, weighted=weighted, mode=mode)
 
     def rank_pronunciations(

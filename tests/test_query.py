@@ -769,7 +769,12 @@ class TestNoTermIsTrueOfEverything:
             ):
                 universal.append(term)
         resolved = {ipa._resolve_query_term(t.lstrip("-"))[0] for t in universal}
-        assert resolved == {"articulator"}, sorted(universal)
+        # ``articulator`` (above) and ``stress``: the stress feature's ``none``
+        # value is the unstressed ordinal anchor, spelled by no mark, so no unit
+        # carries it and its negation ``-none`` is true of everything -- the
+        # same projection shape, a value carried by nothing rather than a term
+        # decided by a missing key.
+        assert resolved == {"articulator", "stress"}, sorted(universal)
         assert len(universal) >= 5, sorted(universal)
 
 

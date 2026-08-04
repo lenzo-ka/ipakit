@@ -698,7 +698,7 @@ Smaller, in the same family: `to_ipa` reorders two combining marks of the same c
 
 The brief and its follow-ups named two behaviors as suspect. Both are documented and deliberate, and saying so is part of the job.
 
-**`distance("a", "aː")` is `0.0`.** [distance.md](../distance.md) states it outright: "Prosody — stress, length, tone — is excluded: `d(a, aː) = 0`." Not a defect.
+**`distance("a", "aː")` was `0.0`: prosody was excluded from the metric.** Superseded by [#190](https://github.com/lenzo-ka/ipakit/issues/190) — stress, tone and length now ride on the unit they attach to and each adds a graded ordinal term (see [distance.md](../distance.md)). At the time this was written it was documented and deliberate, not a defect; the design has since changed.
 
 **`d(n, d) = 0.05` is not a nasality defect, and checking that was worth the time.** The PanPhon arm reported it as one, on a real observation: `/n/` and `/d/` differ in exactly one declared feature, `manner`, and `manner`'s axis is `+constriction`, on which `nasal` and `plosive` both declare `offset="1.00"` — so `value_distance("nasal", "plosive")` is `0.0`. The inference was that nothing carries nasal airflow, since `features("n")["nasalized"]` is `-`. The inference is wrong:
 

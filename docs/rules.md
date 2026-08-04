@@ -78,12 +78,12 @@ ipa.rule("[mannr=plosive] -> t")
 ipa.rule("[manner=obstruent] -> [voiced=-]")
 # RuleError: '[manner=obstruent]': 'obstruent' is not a value of feature 'manner'; declared values are ['affricate', 'approximant', 'fricative', 'nasal', 'plosive', 'silence', 'tap', 'trill', 'vowel']. 'obstruent' is a natural class over those values; ask for it as the bare term '[obstruent]'
 ipa.rule("t -> ɾ / [vowel] _ [vowel -stress]")
-# RuleError: '[vowel -stress]': '-stress' resolves to no feature term; feature 'stress' is not binary...; negate them individually instead, as '-primary -secondary'
+# RuleError: '[vowel -stress]': '-stress' resolves to no feature term; feature 'stress' is not binary...; negate them individually instead, as '-none -primary -secondary'
 ```
 
 The value arm was the later of the two. `[manner=obstruent]` — the query a reader reaches for first — used to build a constraint no phone can satisfy and match nothing, silently, while this document already promised the opposite; the claim was prose rather than an executed example, which is how it survived a pass that verified thirty others. Values resolve through the alias table and `expand()` as on every other write path, so a spelled alias and a generative overlap (`bilabial^velar`) are still accepted. A class is not a value of the feature it groups, so this spelling stays an error; the message names the one that works.
 
-**Every** term must resolve, at every arity: a bracket that mixes a good term with a bad one raises rather than dropping the bad one, since a dropped term is a narrower query silently widened. The message names what would have worked. `stress` has no `-` to take — it declares `primary` and `secondary` and no default — so the spelling that means "unstressed" is per-value negation, `[vowel -primary -secondary]`.
+**Every** term must resolve, at every arity: a bracket that mixes a good term with a bad one raises rather than dropping the bad one, since a dropped term is a narrower query silently widened. The message names what would have worked. `stress` has no `-` to take — its values are `none`, `secondary` and `primary` — so a query about stress negates the marked values, `[vowel -primary -secondary]`; `none` is the unspelled ordinal anchor and matches no unit on its own.
 
 ## A rule may bind a value and re-use it
 
