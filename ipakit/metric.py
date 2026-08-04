@@ -281,8 +281,12 @@ def _weighted_place_distance(
     return max(direction(c1, c2), direction(c2, c1))
 
 
-def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> float:
-    """Distance between two constituents' bundles, in [0, 1]."""
+def _bundle_terms(
+    features: IPAFeatures, a: Constituent, b: Constituent
+) -> tuple[float, int]:
+    """The summed term cost and term count for two constituents' bundles.
+    :func:`bundle_distance` is their ratio; exposing them lets a caller fold
+    in further terms (prosodic riders) at the same weight before dividing."""
     f1, p1 = _metric_bundle(features, a)
     f2, p2 = _metric_bundle(features, b)
     # Sorted, not set order: the loop below sums floats, and addition is
@@ -331,7 +335,78 @@ def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> fl
     # so the answer is 0, not the maximal difference this used to assert.
     # A constituent the metric cannot read is not this case: its keys are
     # present on one side only, each scores 1, and the mean is 1.0 anyway.
+    return total, count
+
+
+def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> float:
+    """Distance between two constituents' bundles, in [0, 1]."""
+    total, count = _bundle_terms(features, a, b)
     return total / count if count else 0.0
+
+
+@functools.cache
+def _prosodic_anchor(features: IPAFeatures, feature: str) -> str | None:
+    """The unmarked value of a prosodic feature -- the declared value no
+    diacritic spells (stress's ``none``). A unit with no mark on this tier
+    reads as this anchor, so an unstressed unit is a graded step from a
+    stressed one rather than a categorical mismatch. ``None`` when every
+    value is spelled (tone), where present-vs-absent is a full step."""
+    feat = features.features.get(feature)
+    if feat is None:
+        return None
+    spelled = {
+        v
+        for d in features.diacritics.values()
+        for k, v in d.features.items()
+        if k == feature
+    }
+    unspelled = [v for v in feat.values if v not in spelled]
+    return unspelled[0] if len(unspelled) == 1 else None
+
+
+def _segment_prosodic(features: IPAFeatures, segment: Segment) -> dict[str, str]:
+    """The prosodic-tier values riding on a unit: its prosody marks mapped to
+    the ``mode="prosodic"`` features they declare (stress, tone, length, ...).
+    Read for the metric only -- the unit's stored features are untouched, so
+    round-trips are unaffected. Empty when the unit carries no prosodic mark,
+    which is every shipped phone."""
+    out: dict[str, str] = {}
+    prosodic = features.features_by_mode.get("prosodic", frozenset())
+    for mark in getattr(segment, "prosody", ()) or ():
+        decl = features.diacritics.get(mark)
+        if decl is None:
+            continue
+        for feat, val in decl.features.items():
+            if feat in prosodic:
+                out[feat] = val
+    return out
+
+
+def _prosodic_terms(
+    features: IPAFeatures, x: dict[str, str], y: dict[str, str]
+) -> tuple[float, int]:
+    """Summed cost and count of the prosodic-rider terms between two units.
+    A term is added only when at least one unit carries that rider, so a pair
+    with no prosody adds nothing and is scored exactly as before. Where both
+    carry it, the ordinal ``value_distance`` grades them (primary vs secondary
+    stress is half a step); where one is unmarked, it reads as the tier's
+    anchor if one is declared, else a full step."""
+    total = 0.0
+    count = 0
+    for key in sorted(set(x) | set(y)):
+        feat = features.features.get(key)
+        v1, v2 = x.get(key), y.get(key)
+        if v1 is not None and v2 is not None:
+            total += feat.value_distance(v1, v2) if feat else (0.0 if v1 == v2 else 1.0)
+        else:
+            present = v1 if v1 is not None else v2
+            anchor = _prosodic_anchor(features, key)
+            if anchor is not None and feat is not None:
+                total += feat.value_distance(present, anchor)
+            else:
+                total += 1.0
+        count += 1
+    return total, count
 
 
 def _parts(segment: Segment) -> tuple[Segment, ...]:
@@ -364,11 +439,32 @@ def _monotone_matchings(n: int, m: int) -> list[tuple[tuple[int, int], ...]]:
     return results
 
 
+def _fold_prosody(seg_d: float, weight: int, pt: float, pc: int) -> float:
+    """Fold prosodic-rider terms into a multi-constituent unit's distance,
+    weighting the segmental result as ``weight`` equal terms so a rider sits at
+    one-term weight beside them. A no-rider pair (``pc == 0``) is unchanged."""
+    if not pc:
+        return seg_d
+    return (seg_d * weight + pt) / (weight + pc)
+
+
 def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
-    """The structural distance ``D`` (design spec section 7). Prosody is
-    excluded; the result is in [0, 1] and symmetric."""
+    """The structural distance ``D`` (design spec section 7), plus the unit's
+    prosodic riders. In [0, 1] and symmetric.
+
+    Prosodic-tier marks -- stress, tone, length -- ride on the unit clock: each
+    tier the two units differ on adds one graded term, at the same weight as a
+    segmental feature, read via the ordinal ``value_distance`` (primary vs
+    secondary stress is half a step). A pair where neither unit carries a rider
+    adds nothing, so every shipped phone -- which carries none -- is scored
+    exactly as before, and the prosody a unit stores stays untouched, so
+    round-trips are unaffected."""
+    pt, pc = _prosodic_terms(
+        features, _segment_prosodic(features, x), _segment_prosodic(features, y)
+    )
     if len(x.constituents) == 1 and len(y.constituents) == 1:
-        return bundle_distance(features, x.constituents[0], y.constituents[0])
+        bt, bc = _bundle_terms(features, x.constituents[0], y.constituents[0])
+        return (bt + pt) / (bc + pc) if (bc + pc) else 0.0
 
     ordered = x.phased or y.phased
     px, py = _parts(x), _parts(y)
@@ -380,7 +476,8 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
                 min(segment_metric(features, s, d) for d in dst) for s in src
             ) / len(src)
 
-        return max(direction(px, py), direction(py, px))
+        seg_d = max(direction(px, py), direction(py, px))
+        return _fold_prosody(seg_d, max(len(px), len(py)), pt, pc)
 
     jx, jy = _part_junctures(x), _part_junctures(y)
     best = 1.0
@@ -407,7 +504,7 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
             continue
         value = (pair_cost + GAP_COST * gaps + juncture_cost) / denom
         best = min(best, value)
-    return best
+    return _fold_prosody(best, max(len(px), len(py)), pt, pc)
 
 
 #: Bytes of digest a fingerprint carries. Sixty-four bits, because the

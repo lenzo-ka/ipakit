@@ -349,8 +349,9 @@
 
     <!-- Suprasegmental multi-valued features -->
     <feature name="stress" short="str" mode="prosodic" desc="Prosodic prominence" href="Stress_(linguistics)">
-      <value name="primary" short="1" href="Stress_(linguistics)"/>
+      <value name="none" short="0" desc="Unstressed -- the ordinal anchor; unspelled and underspecified, never rides onto a unit"/>
       <value name="secondary" short="2" href="Secondary_stress"/>
+      <value name="primary" short="1" href="Stress_(linguistics)"/>
     </feature>
 
     <!-- A unit's pitch is a SEQUENCE of levels, read left to right as time
