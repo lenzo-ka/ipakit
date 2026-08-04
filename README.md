@@ -55,6 +55,14 @@ import ipakit
 ipakit.describe("p")            # 'voiceless bilabial plosive'
 ipakit.features("p")            # {'manner': 'plosive', 'place': 'bilabial', ...}
 
+# Respell a phone under a feature change — feature algebra, realized back to IPA
+ipakit.respell("t", voiced="+")     # 'd'   (voice a voiceless stop)
+ipakit.respell("θ", voiced="+")     # 'ð'
+ipakit.respell("p", place="velar")  # 'k'   (shift the place of articulation)
+ipakit.respell("d", manner="nasal") # 'n'   (a stop becomes its nasal)
+ipakit.respell("i", rounded="+")    # 'y'   (round a front vowel)
+ipakit.respell("t", manner="nasal") # None  (unattested — no phone spells it)
+
 # Phonetic distance (0.0 identical … 1.0 maximally different)
 ipakit.distance("p", "b")       # small: differ only in voicing
 ipakit.nearest_phones("p", n=3) # [(phone, distance), ...] closest first
