@@ -168,7 +168,10 @@ class TestAnUnroutedClassIsRefused:
         # The control: the same transcription with the zero taken out.
         (plain,) = Form.parse("a.b", FEATURES).boundaries
         assert boundary.at == plain.at
-        assert Form.rebuild(form.segments, form.boundaries, FEATURES).to_ipa() == "a.b"
+        assert (
+            Form.rebuild(form.segments, form.boundaries, features=FEATURES).to_ipa()
+            == "a.b"
+        )
 
     def test_it_carries_no_phonetic_features(self) -> None:
         bundle = zeros(FEATURES)["∅"]
@@ -836,7 +839,7 @@ class TestWhatTheZeroDoesNotDoYet:
         # must not do is lose anything else on the way: the boundaries come
         # back where they were written, and only the zero position is gone.
         form = Form.parse("le∅ʃ.a", FEATURES)
-        back = Form.rebuild(form.segments, form.boundaries, FEATURES)
+        back = Form.rebuild(form.segments, form.boundaries, features=FEATURES)
         assert back.to_ipa() == "leʃ.a"
         assert back.boundaries == form.boundaries
 
