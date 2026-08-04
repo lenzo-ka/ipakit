@@ -839,6 +839,7 @@ NOT_BORROWED = {
     "axis": "the borrower's own axis, though a borrower will usually share it",
     "mode": "how a mark stating the borrower combines with its base",
     "place": "the constriction a secondary articulation adds, if the borrower is one",
+    "constriction": "whether the borrower's constriction has no single location (a rhotic); the borrower's own fact, not the source's",
     "vocabulary": "the borrowing itself",
     "applies": "which hosts the borrower is expected on",
     "sequence": "whether the borrower's values may be trajectories",

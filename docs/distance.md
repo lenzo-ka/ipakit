@@ -35,6 +35,8 @@ A constriction is three facts, and ipakit stores all three:
 
 The articulator is declared per place value as a default and overridden per phone where it differs. Place names the *target*, not the mover: a linguolabial `t̼` is the tongue tip at a labial target, and `t̺`/`t̻` differ only in which part of the tongue arrives. A combining place combines its articulators, so `w` moves the lower lip and the dorsum both.
 
+The metric reads *every* constriction a segment makes, not one summary point: the tract-`x` term is the set of arcs a segment closes at — two for a double articulation (`w` at the lips and the velum) or a click (its named place and the velum) — compared by directional best-match, the reduction place components already take. A single constriction is a one-element set, so its distance is the plain difference it always was and no single-constriction pair moved. A rhotacized nucleus is the exception the evidence forces: it declares `constriction="unlocalized"` because [docs/design/vowel-constriction.md](design/vowel-constriction.md) §6 finds no single arc the sources support, and the metric withholds its tract-`x` term entirely — scored neither as agreement nor as maximal difference, so no position is invented and its absence is not punished.
+
 Everything above is head-independent. A head shape (`data/heads.xml`) projects these coordinates to 2D for rendering; heads never enter distance, so the shipped matrix does not depend on whose vocal tract you picture.
 
 ## 2. Why anchors rather than scale positions

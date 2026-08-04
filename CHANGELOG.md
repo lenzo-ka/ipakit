@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The metric reads every constriction a segment makes: a double articulation or click compares by best-match over its real closures instead of their average, and a rhotacized nucleus declares `constriction="unlocalized"` so the metric withholds its tract-x term rather than asserting a single central arc the evidence denies. `confusion.json` and `metric_fingerprint` move; no single-constriction pair does (#183).
 - `ScoringParameters`: the named, versioned bundle of `gamma` and the two indel costs a score was computed under, reported by `DistanceModel.scoring`; a callable cost is captured by its `cost_name` identity so the configuration compares by value (#169).
 - Per-phone indel costs: `insert_cost` / `delete_cost` take a `CostSchedule` or any callable, `directional_word_distance` names its reference side, and `WordDistanceResult.costs` reports the schedule a score was computed under (#166).
 - `rules.rebase` moves an interval under the edits a rule made, and `RuleSet.derive` takes a `Form` so a cascade carries a tier; an insertion on a span's edge lands outside it, and an endpoint inside a rewritten span raises `RebaseError` (#145).

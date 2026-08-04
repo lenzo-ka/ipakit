@@ -418,6 +418,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     apertures=value_apertures,
                     mode=mode,
                     place=feat_elem.get("place"),
+                    constriction=feat_elem.get("constriction"),
                     applies=frozenset((feat_elem.get("applies") or "").split()),
                     labels=labels,
                     value_classes={k: frozenset(v) for k, v in classes.items()},

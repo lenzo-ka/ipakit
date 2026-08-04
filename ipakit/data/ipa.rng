@@ -162,6 +162,10 @@
                elsewhere. -->
           <optional><attribute name="over"><text/></attribute></optional>
           <optional><attribute name="place"><text/></attribute></optional>
+          <!-- A feature whose stated presence makes the tract-x
+               constriction unlocalizable (a rhotic): the metric withholds
+               the x term rather than asserting a position. -->
+          <optional><attribute name="constriction"><text/></attribute></optional>
           <optional><attribute name="applies"><text/></attribute></optional>
           <optional><attribute name="vocabulary"><text/></attribute></optional>
           <!-- A sequence-valued feature states a trajectory: its value is
