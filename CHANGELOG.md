@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `nearest_pronunciation` / `PronunciationMatch`: score a form against a set of acceptable variants (a lexicon's several pronunciations, a homograph's two readings) and report the best match and which member won; on the CLI as `distance nearest`. Named for acceptability, not word-to-word distance (#167).
 - The metric reads every constriction a segment makes: a double articulation or click compares by best-match over its real closures instead of their average, and a rhotacized nucleus declares `constriction="unlocalized"` so the metric withholds its tract-x term rather than asserting a single central arc the evidence denies. `confusion.json` and `metric_fingerprint` move; no single-constriction pair does (#183).
 - `ScoringParameters`: the named, versioned bundle of `gamma` and the two indel costs a score was computed under, reported by `DistanceModel.scoring`; a callable cost is captured by its `cost_name` identity so the configuration compares by value (#169).
 - Per-phone indel costs: `insert_cost` / `delete_cost` take a `CostSchedule` or any callable, `directional_word_distance` names its reference side, and `WordDistanceResult.costs` reports the schedule a score was computed under (#166).

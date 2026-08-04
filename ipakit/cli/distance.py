@@ -400,6 +400,65 @@ class WordCommand(Command):
         return 0
 
 
+class NearestCommand(Command):
+    """The nearest acceptable pronunciation in a set, and which one matched.
+
+    Scores a form against a set of acceptable variants -- a lexicon's several
+    pronunciations, a homograph's two readings -- and reports the best match
+    and which member won. This is the "is this an acceptable pronunciation?"
+    question, and it is spelled apart from 'word' on purpose: a maximum over
+    variants depends on how many are listed, so it must not be read as a
+    word-to-word distance.
+
+    Examples:
+        ipakit distance nearest waɪnd wɪnd waɪnd     # wind: the 'turn' reading wins
+        ipakit distance nearest ˈaɪðɚ ˈiːðɚ ˈaɪðɚ    # either: the aɪ variant
+        ipakit d nearest kæt dɒɡ kæd                 # nearest of two, below 1.0
+        ipakit d nearest kæt dɒɡ kæd -j              # JSON (form, accepted, similarity)
+    """
+
+    name = "nearest"
+    aliases = []
+    help = "Nearest acceptable pronunciation in a set (best match + which won)"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+
+        parser.add_argument("form", help="The observed IPA form")
+        parser.add_argument(
+            "acceptable",
+            nargs="+",
+            help="One or more acceptable IPA pronunciations to match against",
+        )
+        add_format_arg(parser)
+
+    def run(self) -> int:
+        # strict=False for the same reason 'word --raw' uses it: a lossy read
+        # is reported through the exit status by ipakit.cli.policy, not by
+        # failing the command.
+        match = self.ipa.nearest_pronunciation(
+            self.args.form, self.args.acceptable, strict=False
+        )
+        if self.format == "json":
+            self.output_json(
+                {
+                    "form": match.form,
+                    "accepted": match.accepted,
+                    "similarity": round(match.similarity, 4),
+                    "candidates": len(self.args.acceptable),
+                }
+            )
+        else:
+            print(
+                f"{match.form} ≈ {match.accepted}: "
+                f"similarity={match.similarity:.4f}"
+                f"  (best of {len(self.args.acceptable)})"
+            )
+        return 0
+
+
 class DistanceGroup(CommandGroup):
     """Calculate phonetic distances between IPA phones and words.
 
@@ -414,6 +473,7 @@ class DistanceGroup(CommandGroup):
         matrix         Pairwise feature-distance matrix for multiple phones
         confusability  Inventory-relative confusability/distance (phones)
         word           Inventory-relative distance/similarity (IPA words)
+        nearest        Best match of a form against a set of acceptable variants
 
     Examples:
         ipakit distance pair p b               # Raw feature distance: ~0.04
@@ -424,11 +484,12 @@ class DistanceGroup(CommandGroup):
 
     name = "distance"
     aliases = ["d"]
-    help = "Phonetic distances (pair, segment, matrix, confusability, word)"
+    help = "Phonetic distances (pair, segment, matrix, confusability, word, nearest)"
     commands = [
         PairCommand,
         SegmentCommand,
         MatrixCommand,
         ConfusabilityCommand,
         WordCommand,
+        NearestCommand,
     ]
