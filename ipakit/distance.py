@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import unicodedata
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -438,6 +438,30 @@ def _empty_pair_result(
     )
 
 
+@dataclass(frozen=True)
+class PronunciationMatch:
+    """The nearest acceptable pronunciation in a set, and which pair won.
+
+    Answers "is this an acceptable pronunciation of the word?" -- the best
+    match over a set of acceptable variants (``iːðɚ``/``aɪðɚ``, a homograph's
+    two readings, a regional vowel). ``similarity`` is that best, ``form`` and
+    ``accepted`` are the two members that produced it, and ``result`` is the
+    full winning comparison.
+
+    It is the wrong tool for "how far is this word from that word." A maximum
+    over variants makes the answer depend on how many each side happens to
+    list, which is a property of the lexicon and not of the pair -- a word
+    with more listed variants would look closer for no phonetic reason. Use
+    :meth:`DistanceMixin.word_distance` for the symmetric pairwise question,
+    which is why that one is named for distance and this one for acceptability.
+    """
+
+    similarity: float
+    form: str
+    accepted: str
+    result: WordDistanceResult
+
+
 class DistanceMixin(IPAFeaturesBase):
     """Mixin providing phonetic distance calculations."""
 
@@ -858,3 +882,50 @@ class DistanceMixin(IPAFeaturesBase):
         return self.word_distance(
             ipa1, ipa2, weighted=weighted, strict=strict
         ).similarity
+
+    def nearest_pronunciation(
+        self,
+        forms: str | Iterable[str],
+        acceptable: str | Iterable[str],
+        weighted: bool = True,
+        strict: bool = True,
+    ) -> PronunciationMatch:
+        """The best match between an observed form and a set of acceptable ones.
+
+        ``forms`` is what was said -- one string, or several if the
+        observation itself has variants -- and ``acceptable`` is the set a
+        lexicon lists for the word: free variants (``iːðɚ``/``aɪðɚ``, the flap
+        or not), or a homograph's readings (``record`` the noun ``ˈɹɛkɚd`` and
+        the verb ``ɹɪˈkɔɹd``, ``wind`` the breeze ``wɪnd`` and the turn
+        ``waɪnd``). Returns the nearest pair by :meth:`word_similarity`, and
+        *which* pair: a caller learns their form matched the ``aɪ`` variant,
+        not only how close it was.
+
+        The maximum is over the full cross product, and the earliest listed
+        member breaks a tie, so the answer does not depend on iteration order.
+        This is the acceptability question, not distance -- see
+        :class:`PronunciationMatch` for why a maximum over variants must not be
+        read as a distance between two words.
+        """
+        forms = [forms] if isinstance(forms, str) else list(forms)
+        acceptable = [acceptable] if isinstance(acceptable, str) else list(acceptable)
+        if not forms or not acceptable:
+            raise ValueError(
+                "nearest_pronunciation needs at least one form and one "
+                "acceptable pronunciation"
+            )
+        best: PronunciationMatch | None = None
+        for form in forms:
+            for candidate in acceptable:
+                result = self.word_distance(
+                    form, candidate, weighted=weighted, strict=strict
+                )
+                if best is None or result.similarity > best.similarity:
+                    best = PronunciationMatch(
+                        similarity=result.similarity,
+                        form=form,
+                        accepted=candidate,
+                        result=result,
+                    )
+        assert best is not None
+        return best

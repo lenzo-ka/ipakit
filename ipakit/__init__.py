@@ -21,7 +21,7 @@ transcription string (``ipa_to_xsampa``, ``to_kirshenbaum``) return ``str``.
 from __future__ import annotations
 
 import functools
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +49,7 @@ from .constants import (
 from .distance import (
     CostSchedule,
     PhoneCost,
+    PronunciationMatch,
     ScoringParameters,
     WordDistanceResult,
 )
@@ -267,6 +268,32 @@ def word_similarity(
         0.8...
     """
     return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted, strict=strict)
+
+
+def nearest_pronunciation(
+    forms: str | Iterable[str],
+    acceptable: str | Iterable[str],
+    weighted: bool = True,
+    strict: bool = True,
+) -> PronunciationMatch:
+    """The nearest acceptable pronunciation in a set, and which pair matched.
+
+    For "is this an acceptable pronunciation of the word?" -- the best match
+    over a set of variants a lexicon lists. Every real lexicon has them:
+    CMUdict lists several pronunciations per entry, and a homograph reads two
+    ways. Not for word-to-word distance, where a maximum over variants would
+    depend on how many each side lists; see
+    :class:`~ipakit.distance.PronunciationMatch`.
+
+    Examples:
+        >>> # "family" with and without the optional medial schwa
+        >>> m = ipakit.nearest_pronunciation("fæmli", ["fæməli", "fæmli"])
+        >>> m.accepted, round(m.similarity, 2)
+        ('fæmli', 1.0)
+    """
+    return _get_ipa().nearest_pronunciation(
+        forms, acceptable, weighted=weighted, strict=strict
+    )
 
 
 def normalized_distance(phone1: str, phone2: str) -> float:
@@ -1051,6 +1078,7 @@ __all__ = [
     "PhoneCost",
     "WordDistanceResult",
     "ScoringParameters",
+    "PronunciationMatch",
     # Constants
     "DATA_DIR",
     "DEFAULT_CMU_MAP",
@@ -1107,6 +1135,7 @@ __all__ = [
     "segment_distance",
     "pairwise_distances",
     "word_similarity",
+    "nearest_pronunciation",
     "xsampa_to_ipa",
     # Form representation
     "Attribute",
