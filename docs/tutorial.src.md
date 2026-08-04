@@ -167,6 +167,23 @@ ipa.word_distance("kætəloɡ", "kæt").coverage
 ipa.word_distance("kætəloɡ", "ɡolətæk").coverage
 ```
 
+Two shapes come up often enough to name. **`nearest_pronunciation`** answers "is this an
+acceptable pronunciation?" — the best match of a form against the several transcriptions a
+lexicon lists (free variants, a homograph read two ways), reporting which one won rather
+than a bare number.
+
+```python-run
+match = ipa.nearest_pronunciation("kat", ["kæt", "kɑt"])
+match.accepted, round(match.similarity, 3)
+```
+
+**`sequence_distance`** scores phone tokens you already hold — one element per unit —
+without re-tokenizing, so boundaries you drew (`d͡ʒ` as one token) are kept as given.
+
+```python-run
+ipa.sequence_distance(["k", "a", "t"], ["k", "æ", "t"]).similarity
+```
+
 **Do not build a metric tree on `distance`.** It is symmetric and bounded and zero on
 identity, but about 0.5% of triples violate the triangle inequality. That is measured,
 not feared, and [distance.md](distance.md) documents which uses it rules out and offers
