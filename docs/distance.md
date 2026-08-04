@@ -204,6 +204,8 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `word_distance("lez‿ami", "lezami") = 0`.
 
+**Score against a set of acceptable pronunciations with `nearest_pronunciation`, not a citation form.** Every real lexicon lists several transcriptions per word — free variants (`iːðɚ`/`aɪðɚ`, optional schwa deletion), a homograph read two ways (`record` the noun and the verb) — and the question "is this an acceptable pronunciation?" is the best match over that set, with `PronunciationMatch` reporting which member won. It is deliberately *not* the same operation as word-to-word distance: a maximum over variants depends on how many each side lists, which is a property of the lexicon and not of the pair, so the two are named apart to keep the max from being read as a distance. `word_distance` remains the symmetric pairwise measure.
+
 **A low word similarity has two readings, and `coverage` is which.** Two words can score alike because they differ at every position or because one is half of the other. The score is the same question in both cases — how far apart — and the ratio beside it is the diagnosis. Read them together, and do not multiply them: the gaps already charged the length.
 
 ## 9. Ranking, deciding, and gamma
