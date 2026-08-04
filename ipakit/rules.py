@@ -48,6 +48,18 @@ declared ``level``: ``syllable`` is optional annotation and transparent,
 either way, because the dot is what lets nucleus-marked stress be turned
 back into syllable-marked stress.
 
+**A tier is read and never written.** A rule may name a declared tier in
+its context -- ``<mora`` where an interval on it starts, ``mora>`` where
+one ends -- and may not name one in its center. That is not caution: the
+restriction buying regularity is on a rule's center and not on its
+contexts (docs/calculus.md), and what leaves the finite-state tradition
+is rewriting a tier rather than reading one, the multi-tape treatments
+going beyond regular power precisely for structure-modifying rules
+(docs/design/tiers.md). A tier term claims a **position** rather than a
+unit and so consumes nothing, which is what keeps the restriction from
+costing anything: "a ``t`` that begins a syllable" is a statement about
+where the target sits, and where the target sits is context.
+
 **A boundary run is one boundary, and the virtual edge is part of it.**
 The general form of the claim above, stated so it can be swept: for any
 rule ``r`` and form ``f`` whose ends carry no boundary run,
@@ -2151,6 +2163,12 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     ``~>`` in place of the arrow marks the rule **optional**: it may fire
     at a site or not, and :meth:`RuleSet.variants` enumerates the choices.
     ``~->``, ``~→`` and ``~=>`` say the same of the other two arrows.
+
+    ``<mora`` and ``mora>`` are **tier terms** -- a position where an
+    interval on a declared tier starts or ends. They are legal in a
+    context and refused in the target and on the right of the arrow,
+    which is the read-only restriction stated at parse time; see
+    :func:`_tier_term`.
     """
     features = _default(features)
     source = text.strip()
