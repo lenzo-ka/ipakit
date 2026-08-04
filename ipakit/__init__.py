@@ -75,7 +75,9 @@ from .rules import (
     Action,
     Derivation,
     Edit,
+    Matchable,
     Query,
+    RebaseError,
     Rule,
     RuleError,
     RuleSet,
@@ -85,6 +87,7 @@ from .rules import (
     Variant,
     VariantSet,
     available,
+    rebase,
     shipped,
 )
 from .segment import Constituent, Kind, Segment, Sense
@@ -919,7 +922,9 @@ def ruleset(text: str, name: str = "") -> RuleSet:
     return RuleSet.parse(text, _get_ipa(), name=name)
 
 
-def rewrite(form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False) -> str:
+def rewrite(
+    form: Matchable, spec: str | Rule | RuleSet, keep_zeros: bool = False
+) -> str:
     """Apply rules to an IPA form and return the derived form.
 
     ``spec`` may be a shipped set's name, rule notation, a single
@@ -945,7 +950,7 @@ def rewrite(form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False) -> 
 
 
 def derive(
-    form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False
+    form: Matchable, spec: str | Rule | RuleSet, keep_zeros: bool = False
 ) -> Derivation:
     """Apply rules to an IPA form, keeping the rule-by-rule trace.
 
@@ -956,6 +961,11 @@ def derive(
     The trace holds the zero wherever a rule wrote one, and the final
     ``surface`` step is what takes it out again; ``keep_zeros`` stops
     before it.
+
+    ``form`` may be a :class:`~ipakit.form.Form`, and then a tier it
+    carries survives the cascade: each rule sees the spans as the rule
+    before it left them, and :attr:`Derivation.intervals` is where they
+    come back. A string carries none and none is derived from it.
     """
     features = _get_ipa()
     if isinstance(spec, str):
@@ -966,7 +976,7 @@ def derive(
 
 
 def variants(
-    form: str,
+    form: Matchable,
     spec: str | Rule | RuleSet,
     limit: int = DEFAULT_LIMIT,
     keep_zeros: bool = False,
@@ -1105,6 +1115,7 @@ __all__ = [
     "Derivation",
     "Edit",
     "Query",
+    "RebaseError",
     "Rule",
     "RuleError",
     "RuleSet",
@@ -1112,6 +1123,7 @@ __all__ = [
     "Step",
     "Unit",
     "available",
+    "rebase",
     "rule",
     "ruleset",
     "rewrite",

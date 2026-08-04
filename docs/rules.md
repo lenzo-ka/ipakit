@@ -449,11 +449,32 @@ ipa.rules.parse("t -> [tier=mora]")
 # RuleError: '[tier=mora]' rewrites the structural feature(s) ['tier'].
 ```
 
+### A tier survives the cascade, because a rewrite rebases what it moved
+
+A rule changes the length of the sequence an interval indexes, so a cascade that kept the spans as written would have every step after the first describing a different span. `RuleSet.derive` takes a `Form` and rebases at each step, so a rule conditioned on `<syllable` finds its sites at step ten for the same reason it finds them at step one:
+
+```python
+held = Form.of(Form.parse("pətit‿ami").units, syllables)
+ipa.ruleset("p -> ∅ / # _\nt -> tʰ / <syllable _").derive(held).result
+# 'ətʰitʰ‿ami'   -- the deletion moved every span left, and the tier rule still fires
+```
+
+`Rule.rewrite` is the single-rule form of it: a `Form` in, a `Form` out, spans rebased. `Rule.apply` still answers with a unit sequence, which carries no tier — that is a projection of `rewrite` rather than a gap, and the two are one implementation.
+
+**The policy is one sentence: an interval may lose material to an edit and may never gain material from outside itself.** It is the only reading available where a rule may read a tier and may not write one, because an edit says what happened to the *units* and says nothing about the tier. Three consequences, and each is a case with a test:
+
+- An edit **wholly outside** a span never joins it. So an insertion sitting exactly on an edge lands outside, and the epenthetic unit is on **no** tier rather than on the one it abuts — [form.md](form.md)'s rule that an unspecified tier is not invented, read from this side. Nothing said which mora it belongs to, and intervals do not tile.
+- An edit **inside** a span stretches or shrinks it, coextensive or not. `a͜ɪ -> ai` under a mora gives one mora over two units. That is determined arithmetic and not a claim: "a long vowel is two morae" is a well-formedness statement about a language's tier, and deriving it here would be the structure creation a rule may not do.
+- An endpoint **strictly inside a rewritten span** has no image, and `rebase` refuses with a `RebaseError` naming the span, the edit and the rule. It is reachable — a boundary target covers the whole run it opens, so `. -> #` on `a..b` is one edit over `[1, 3)` — and no shipped rule reaches it.
+
+The first two policies and their opposites differ in **no spelling anywhere in the shipped corpus** and in the spans of a large minority of it. Only a tier read can tell them apart, which is why each is declared and tested as its own case rather than left to whichever formula fell out.
+
 ### What a tier term does not do yet
 
 - **A term names an edge, not membership.** `<mora>` is refused rather than read as one of the two. Membership is true of nearly every position a span covers and so states almost nothing, while both cases the shipped sets reach for are edges.
-- **`RuleSet.derive` takes a string**, so a *cascade* cannot see a tier at all: each step would need the spans rebased onto its own output. `Rule.recognize`, `Rule.edits` and `Rule.apply` take a `Form`, and those are where a tier is readable today.
-- **`Rule.apply` returns units and no intervals.** A rule reads a tier and hands back none. Re-attaching the spans it was given would describe a different span wherever the rule changed the length of the sequence, which 27 of the 86 shipped rules do; `Form.without_boundaries()` refuses for the same reason.
+- **`RuleSet.variants` refuses a form carrying an interval.** A variant is keyed by its spelling, and two branches that spell alike with different spans are two structures and one key; merging them would drop a tier reading in silence. `derive` is the cascade that carries a tier.
+- **`Form.without_boundaries()` still refuses one.** Removing a position moves every index after it, and `rebase` lives beside `Edit` in the rule engine, which `form.py` sits below rather than above.
+- **Association is not here at all.** What a stranded tone or a compensatory length does after a deletion is language-particular, is not endpoint arithmetic, and is the structure-modifying capability the extra formal power was for ([design/tiers.md](design/tiers.md)).
 
 ## `∅` is nothing; a zero is a position with no content
 

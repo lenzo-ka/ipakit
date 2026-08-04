@@ -1008,7 +1008,7 @@ class Form:
                 return tuple(
                     Node(level="segment", unit=u) for u, _ in items if not u.is_boundary
                 )
-            tier = order[depth]
+            level = order[depth]
             # A level exists only where a boundary asserts it. With the
             # dot optional, a word written without one has *unspecified*
             # syllabification, not one syllable, and inventing a node
@@ -1017,18 +1017,18 @@ class Form:
             # the one a separator spells (:func:`edge_level`) rather than
             # whichever happens to be outermost: declaring a level above
             # 'word' must not stop '#'-less input from having a word.
-            if tier != edge and not any(
-                u.is_boundary and u.level == tier for u, _ in items
+            if level != edge and not any(
+                u.is_boundary and u.level == level for u, _ in items
             ):
                 return build(items, depth + 1, opened, closed)
             groups: list[list[tuple[Unit, Boundary | None]]] = [[]]
-            # A skipped tier hands its brackets down, and a split hands
+            # A skipped level hands its brackets down, and a split hands
             # the splitting boundary to both sides: an inner node's edges
             # are its parent's until something is written between them.
             opens: list[Boundary | None] = [opened]
             closes: list[Boundary | None] = []
             for unit, boundary in items:
-                if unit.is_boundary and unit.level == tier:
+                if unit.is_boundary and unit.level == level:
                     closes.append(boundary)
                     opens.append(boundary)
                     groups.append([])
@@ -1037,7 +1037,7 @@ class Form:
             closes.append(closed)
             return tuple(
                 Node(
-                    level=tier,
+                    level=level,
                     children=build(group, depth + 1, opener, closer),
                     opened_by=opener,
                     closed_by=closer,

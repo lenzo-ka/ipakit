@@ -1171,6 +1171,7 @@ LIBRARY_ONLY = {
     "import_phoneset": "takes and returns a Phoneset",
     "levels": "returns the boundary ladder, outermost first",
     "tier_names": "the vocabulary an Interval is checked against; 'features' prints it",
+    "rebase": "takes Interval and Edit objects; an interval is not spelled",
     "feature_values": "returns per-feature value tuples, not a flat bundle",
     "feature_bundles": "returns one dict per segment; 'features' prints that",
     # Generic over a phonemap name; the CLI ships a subcommand per map
