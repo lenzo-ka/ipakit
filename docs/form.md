@@ -26,9 +26,11 @@ form.phones                            # ('k', 'æ', 't', 'd', 'ɒ', 'ɡ')
 
 | projection | drops | keeps |
 | --- | --- | --- |
-| `to_ipa()` | nothing — round-trips | everything |
+| `to_ipa()` | nothing of what was **spelled** — round-trips | every position in `units` |
 | `segments` | boundaries | prosody, which rides on each `Segment` |
 | `phones` | boundaries **and** attributes | the phone's identity name |
+
+`to_ipa()` says *spelled* rather than *everything* because a `Form` has a second field and it is not spelled. `units` is the sequence all three of the above read; [`intervals`](#an-interval-is-carried-because-no-glyph-delimits-one) is a span on a declared tier, carried beside the units because nothing in the string delimits one. Round-tripping through `to_ipa()` gives back the units and no intervals, which is a fact about the notation and not a loss here — there is no agreed way to write a mora interval into a transcription, and inventing one would put a claim in the string that nothing reads.
 
 `phones` is identity, and prosody is not part of an identity. `a`, `ˈa` and `aː` are one phone, for the reason [ties.md](ties.md) gives: the `mode="prosodic"` features live on the unit, outside the feature bag.
 
@@ -67,6 +69,8 @@ back.boundaries == form.boundaries      # True
 ```
 
 `rebuild` is an inverse, not a re-spelling. It puts the boundary back from `Boundary.features` — everything the mark declared — rather than from `Boundary.level`, because a level cannot say that `‿` *links* or that `|` is a *minor* break. Rebuilding from the level alone spelled each mark correctly and described it wrongly: the same spelling, a different unit, which is exactly the kind of error a `to_ipa()` round-trip check cannot see.
+
+It is an inverse of the projections it is handed, and it takes a third data argument for the same reason it takes the first two: `Form.rebuild(segments, boundaries, intervals=(), features=None)`. An interval is not a sound and not a relation, so neither of the first two carries one, and nothing derives one from the units — it is the caller's to supply, and the endpoints are the caller's to get right, because only the caller knows whether the sequence being rebuilt is the one they were taken off. An endpoint past the end of the rebuilt form is refused rather than carried.
 
 Recoverability is not tidiness. The syllable break is what `normalize_stress_to_syllable` reads to turn nucleus-marked stress back into syllable-marked stress, so a form that has been collapsed and cannot be rebuilt has lost its stress positions.
 
@@ -236,10 +240,69 @@ Five syllables, not four: the `ta` was split into `t` and `a` by the word divisi
 
 Neither spelling states both facts, and no bracketing would let it, because the two constituents genuinely overlap. The string is not the limit here — `Form.units` reads `pə.ti.t‿a.mi` faithfully, boundaries and all, and `rules.py` operates on that flat sequence without ever building a tree. `tree()` is the projection that cannot say it, which is the same lesson as the top of this document: the tree is a narrower read, and it should say what it drops.
 
+## An interval is carried because no glyph delimits one
+
+`Interval(tier, start, end)` is a span on a declared tier over `Form.units`, half-open — the convention `rules.Site` already uses. It indexes the *unit* sequence rather than the segmental one, because a span may need to cross a boundary and a boundary is a unit.
+
+```python
+from ipakit.form import Interval, tier_names
+
+tier_names()                                  # ('syllable', 'mora', 'morph')
+Interval("mora", 0, 2)                        # Interval('mora', 0, 2)
+```
+
+The tier name is checked against `<feature name="tier">`, so an undeclared one is refused rather than carried as an assertion about a tier nothing declares:
+
+```python
+Interval("gesture", 0, 2)
+# ValueError: 'gesture' is not a declared tier; declared: syllable, mora, morph
+```
+
+This is the **one field on a `Form` that is not a read of `units`**, and it is worth being precise about why, because a syllable tier *is* derivable — `tree()` derives it off the dots. What is not derivable is a tier no glyph delimits: a mora, a morph, a gesture, or the syllable of the section above that crosses a word boundary. Those have to be carried.
+
+What that buys is the thing `tree()` cannot state. Give the crossing syllable an interval and the four syllables come out:
+
+```python
+form = Form.parse("pə.ti.t‿a.mi")
+spans = [Interval("syllable", 0, 2), Interval("syllable", 3, 5),
+         Interval("syllable", 6, 9), Interval("syllable", 10, 12)]
+held = Form.of(form.units, spans)
+["".join(u.text for u in held.units[s.start:s.end] if not u.is_boundary)
+ for s in held.intervals]
+# ['pə', 'ti', 'ta', 'mi']
+```
+
+`t‿a` is `[6, 9)`, and the `‿` at 7 is inside it. No node of the tree covers those units, at any depth — the `t` is in *petite* and the `a` is in *amie*, and containment is all a tree has. An interval makes no claim to nest, which is why two of them may overlap with neither containing the other; nothing here orders two tiers, and nothing should, because `tier` is declared nominal precisely so a mora cannot be ranked against a morph.
+
+Three consequences follow from carrying rather than deriving, and each is a commitment rather than an incidental:
+
+**Nothing is invented.** `Form.parse` derives no interval from a separator. A form with no dots has no syllable intervals rather than one, and a form *with* dots has none either — the dot asserts a boundary, and a span on a tier is a different claim. This is the same policy as the tree's, applied from the other end, and it is what makes it safe to add tiers to old transcriptions without re-reading any of them as having asserted something they did not.
+
+```python
+Form.parse("kæt.dɒɡ").intervals    # ()
+```
+
+**The round trip covers the spelling.** An interval is not spelled, so it does not survive a round trip through the string. `to_ipa()` is unchanged by one, and re-parsing gives the units back and no intervals.
+
+```python
+held.to_ipa() == "pə.ti.t‿a.mi"          # True
+Form.parse(held.to_ipa()).intervals      # ()
+```
+
+**A stale endpoint is refused, not carried.** An interval indexes positions, so anything that moves a position invalidates it. An endpoint past the end of the form is refused when the form is built, and `without_boundaries()` — which removes positions — is refused outright on a form that carries one. Returning the intervals unchanged there would spell the same sounds and describe a different span, which is the silent wrong answer this whole document is arranged against. Shifting them is *rebasing*, and rebasing needs to know what moved.
+
+```python
+held.without_boundaries()
+# ValueError: removing boundaries moves the positions 4 interval(s) index; rebase them first
+```
+
 ## Known limits
 
 - **Boundaries are atomic separators, not a balanced bracketing** (above). `Form.parse` accepts `##kæt` and `kæt..dɒɡ` without complaint; `validate_ipa` warns on both, and neither layer rejects them.
-- **`tree()` cannot represent a constituent that crosses a stronger boundary** (enchaînement, above). `Form.units` can; the tree is the read that cannot.
+- **`tree()` cannot represent a constituent that crosses a stronger boundary** (enchaînement, above). `Form.units` can, and an `Interval` can say so; the tree is the read that cannot.
+- **An interval is carried, so it is only as good as whoever set it.** Nothing derives one and nothing checks that it lands where a tier plausibly starts — the only refusals are an undeclared tier name, a span running backwards, and an endpoint past the end of the form. An interval that is merely *wrong about the phonology* is accepted, the way a mis-typed transcription is.
+- **An interval is not spelled, so `to_ipa()` does not round-trip one.** `Form.parse(f.to_ipa())` gives back the units and no intervals. Carry the `Form`, not the string, where the tiers matter.
+- **Nothing rebases an interval under an edit.** The rule engine rewrites `units` and says nothing about a span over them, so a form whose units changed has intervals that no longer index what they did. `without_boundaries()` refuses for that reason rather than guessing; the rule engine does not yet refuse, because no rule can name a tier.
 - **`Form.rebuild` is an inverse up to spelling.** `Boundary` equality is not object equality with the original, though it does reproduce each boundary *unit* — text and declared features — from `Boundary.features`.
 - **`rebuild` is the inverse of the two projections it is handed, and neither of them carries a zero.** `segments` keeps sounds and `boundaries` keeps relations; `∅` is neither, so a form containing one rebuilds without it and the claim above is an inverse of the *sounds and the relations*, not of every position. Carrying zeros through would mean a third projection to put beside those two, which is a decision rather than a repair. What must hold either way is that nothing else moves: `Boundary.at` counts the segments before the mark, so a zero does not push a later boundary along the sequence it indexes into.
 - **`Boundary.level` falls back to `word` where a mark declares none.** Every shipped glyph declares one, so only a hand-made `Boundary`, or a mark added without a level, reaches it.
