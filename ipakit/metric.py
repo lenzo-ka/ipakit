@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
 from .segment import Constituent, Segment, Sense
-from .tract import tract_point
+from .tract import constrictions, tract_point
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
@@ -180,6 +180,83 @@ def _sagittal(
     return point.arc, point.offset
 
 
+class _Unlocalized:
+    """A tract-x reading with no single point: the segment constricts, but at
+    no location the evidence localizes (a rhotic)."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:  # lands in the fingerprint, so it is fixed text
+        return "unlocalized"
+
+
+_UNLOCALIZED = _Unlocalized()
+
+
+def _tract_x(
+    features: IPAFeatures, bundle: dict[str, str]
+) -> tuple[float, ...] | _Unlocalized | None:
+    """The tract-x reading: the arcs a segment constricts at.
+
+    A sorted tuple of every constriction's arc, so a double articulation is
+    two positions rather than the average of two -- ``w`` closes at the lips
+    AND the velum, not between them, and a click at its named place AND the
+    velum. ``None`` where the segment holds no arc at all, exactly as the
+    single-point reading did. ``_UNLOCALIZED`` where a stated feature
+    declares its constriction has no single location: a rhotacized nucleus
+    constricts, but the evidence gives no arc to place it at
+    (docs/design/vowel-constriction.md section 6), so the metric withholds
+    the term rather than inventing a position.
+
+    A single-constriction segment yields a one-tuple ``(arc,)`` whose arc is
+    the single point's, so its distances and its fingerprint line do not
+    move.
+    """
+    for name, feat in features.features.items():
+        if feat.constriction == "unlocalized":
+            value = bundle.get(name)
+            if value is not None and value != feat.default:
+                return _UNLOCALIZED
+    arcs = tuple(
+        sorted(p.arc for p in constrictions(features, bundle) if p.arc is not None)
+    )
+    return arcs or None
+
+
+def _arc_distance(a: tuple[float, ...], b: tuple[float, ...]) -> float:
+    """Directional best-match between two sets of arcs, in [0, 1].
+
+    ``max`` of the two directional means, the shape
+    :func:`_weighted_place_distance` uses for place components. Over two
+    one-tuples it is ``|a - b|``, so a single-constriction pair scores
+    exactly as the single-point subtraction did. The tuples are sorted, so
+    the mean sums them in a fixed order and the matrix stays reproducible.
+    """
+
+    def direction(src: tuple[float, ...], dst: tuple[float, ...]) -> float:
+        return sum(min(abs(s - t) for t in dst) for s in src) / len(src)
+
+    return max(direction(a, b), direction(b, a))
+
+
+def _tract_terms_text(features: IPAFeatures, bundle: dict[str, str]) -> list[str]:
+    """The sagittal terms as fingerprint text: the arc(s), then the offset.
+
+    A single-constriction bundle yields the two reprs the single point
+    yielded; a double articulation yields one repr per constriction, and a
+    rhotic the fixed ``unlocalized`` in the arc slot.
+    """
+    x = _tract_x(features, bundle)
+    offset = _sagittal(features, bundle)[1]
+    if isinstance(x, _Unlocalized):
+        arcs = [repr(x)]
+    elif x is None:
+        arcs = [repr(None)]
+    else:
+        arcs = [repr(v) for v in x]
+    return arcs + [repr(offset)]
+
+
 def _weighted_place_distance(
     features: IPAFeatures, c1: PlaceComponents, c2: PlaceComponents
 ) -> float:
@@ -230,10 +307,24 @@ def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> fl
     # scalars make cross-class spatial proximity visible (j~i, w~u, k~u).
     b1 = a.bundle(features, with_defaults=True)
     b2 = b.bundle(features, with_defaults=True)
-    for s1, s2 in zip(_sagittal(features, b1), _sagittal(features, b2), strict=True):
-        if s1 is None and s2 is None:
-            continue
-        total += abs(s1 - s2) if (s1 is not None and s2 is not None) else 1.0
+    # x (tract position) first, then y (aperture), in that order: the sum is
+    # not associative and the shipped matrix is bit-reproducible, so the term
+    # order the single-point reading used is kept.
+    x1, x2 = _tract_x(features, b1), _tract_x(features, b2)
+    if not (isinstance(x1, _Unlocalized) or isinstance(x2, _Unlocalized)):
+        # A rhotic states no locatable x: the term is withheld, scored
+        # neither 0 (identical) nor 1 (maximal). Otherwise several
+        # constrictions compare by best-match, one absent against a present
+        # one is maximal, and two absences are no difference -- as the single
+        # point was.
+        if x1 is not None or x2 is not None:
+            total += (
+                _arc_distance(x1, x2) if (x1 is not None and x2 is not None) else 1.0
+            )
+            count += 1
+    y1, y2 = _sagittal(features, b1)[1], _sagittal(features, b2)[1]
+    if y1 is not None or y2 is not None:
+        total += abs(y1 - y2) if (y1 is not None and y2 is not None) else 1.0
         count += 1
     # No terms means no key on either side, no place on either side and no
     # tract coordinate on either side -- the two comparable forms are equal,
@@ -345,7 +436,7 @@ def _fingerprint_lines(features: IPAFeatures, phones: tuple[str, ...]) -> Iterat
             yield "\t".join(
                 [f"{key}={value}" for key, value in sorted(feats.items())]
                 + [f"{place}*{weight!r}" for place, weight in components]
-                + [repr(coordinate) for coordinate in _sagittal(features, bundle)]
+                + _tract_terms_text(features, bundle)
             )
     # Every declared feature EXCEPT the structural ones, and the exception
     # is what makes this agree with the metric rather than merely track it.

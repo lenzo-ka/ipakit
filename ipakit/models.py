@@ -77,6 +77,15 @@ class Feature:
     # positive value constricts at, so the metric can carry the
     # articulation as a weighted place component rather than as a key.
     place: str | None = None
+    # A feature whose stated presence makes the tract-x constriction
+    # unlocalizable: the segment constricts, but at no single point the
+    # evidence supports (a rhotacized nucleus -- docs/design/
+    # vowel-constriction.md §6). Declared in the data as
+    # constriction="unlocalized"; the metric withholds the tract-x term
+    # for such a segment rather than asserting a position or a maximal
+    # difference. None means the ordinary case: the constriction has a
+    # place the reading locates.
+    constriction: str | None = None
     # The feature this one takes its value set from, declared in the data.
     # Two features naming the same tract locations must not be two
     # declarations of where those locations are: the values, their
