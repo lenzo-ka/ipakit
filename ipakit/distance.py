@@ -97,6 +97,82 @@ def costs_identity(insert_cost: PhoneCost, delete_cost: PhoneCost) -> str:
     return f"insert={cost_name(insert_cost)} delete={cost_name(delete_cost)}"
 
 
+#: The scoring vocabulary's version. Bump it when the fields of
+#: :class:`ScoringParameters` change meaning, so a pinned identity from an
+#: older release is recognizably not this one. It is the scoring analogue of
+#: ``MATRIX_VERSION``, which versions the matrix file's shape.
+SCORING_VERSION = "1.0"
+
+
+@dataclass(frozen=True)
+class ScoringParameters:
+    """The scoring configuration a word-distance number was computed under.
+
+    Named and versioned so a published score can say which configuration
+    produced it, the way :func:`~ipakit.metric.metric_fingerprint` says which
+    feature space a saved matrix means its numbers in. The fingerprint covers
+    the *space*; this covers the *scoring* laid on top of it, and the two
+    together name a number completely. Without it, ``docs/distance.md`` can
+    only tell a caller who tuned a threshold to re-tune after an upgrade,
+    because nothing pins what they tuned against; this is the object that
+    sentence wanted to point at.
+
+    The costs are stored as their :func:`cost_name` identities, not as the
+    callables themselves. A callable cost cannot be compared by value across
+    two processes, and a configuration that could not be compared would
+    defeat the purpose: a flat cost round-trips exactly, a named schedule
+    reports its name, and an unnamed lambda reports ``<lambda>`` -- the
+    honest admission that it named nothing a reader could pin.
+
+    ``threshold`` and ``max_length_ratio`` are deliberately absent. They gate
+    a *verdict* (:meth:`~ipakit.distance_model.DistanceModel.is_similar`)
+    without changing the score, so they are what a caller tunes *against* a
+    configuration rather than part of it. Pinning the configuration is
+    exactly what lets a tuned threshold be re-used instead of re-derived.
+
+    Frozen, so it is hashable and compares by value: two models built with
+    the same numbers report equal configurations, and a difference in
+    ``gamma`` or either cost is a difference here.
+    """
+
+    gamma: float
+    insert: str
+    delete: str
+    version: str = SCORING_VERSION
+
+    @classmethod
+    def of(
+        cls,
+        *,
+        gamma: float,
+        insert_cost: PhoneCost,
+        delete_cost: PhoneCost,
+    ) -> ScoringParameters:
+        """Read a configuration off the arguments a model was built with.
+
+        Runs the costs through :func:`cost_name` so a callable is captured by
+        the identity it reports, not by object identity.
+        """
+        return cls(
+            gamma=float(gamma),
+            insert=cost_name(insert_cost),
+            delete=cost_name(delete_cost),
+        )
+
+    @property
+    def identity(self) -> str:
+        """One line naming this configuration, version and all.
+
+        Shares the ``insert=... delete=...`` spelling :func:`costs_identity`
+        already reports in a result, with ``gamma`` and the version added, so
+        a reader sees one vocabulary in both places.
+        """
+        return (
+            f"scoring/{self.version} gamma={self.gamma!r} "
+            f"insert={self.insert} delete={self.delete}"
+        )
+
+
 @dataclass(frozen=True)
 class CostSchedule:
     """A named per-phone indel cost: what a loss is worth, in one language.

@@ -46,7 +46,12 @@ from .constants import (
     PHONEMAPS_DIR,
     SUPPLEMENTS_DIR,
 )
-from .distance import CostSchedule, PhoneCost, WordDistanceResult
+from .distance import (
+    CostSchedule,
+    PhoneCost,
+    ScoringParameters,
+    WordDistanceResult,
+)
 from .distance_model import DistanceModel
 from .features import IPAFeatures, _Query, available_supplements, supplement_path
 from .form import (
@@ -1045,6 +1050,7 @@ __all__ = [
     "CostSchedule",
     "PhoneCost",
     "WordDistanceResult",
+    "ScoringParameters",
     # Constants
     "DATA_DIR",
     "DEFAULT_CMU_MAP",

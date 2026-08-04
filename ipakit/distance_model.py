@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Self
 from .constants import DEFAULT_CONFUSION
 from .distance import (
     PhoneCost,
+    ScoringParameters,
     WordDistanceResult,
     _empty_pair_result,
     _prices,
@@ -237,6 +238,26 @@ class DistanceModel:
         self._cdf = self._build_cdf()
 
     # -- construction ---------------------------------------------------------
+
+    @property
+    def scoring(self) -> ScoringParameters:
+        """The scoring configuration this model computes distances under.
+
+        The named, versioned bundle of ``gamma`` and the two indel costs, so
+        a caller can say which configuration a published number came from and
+        an upgrade can report that the configuration changed rather than
+        leaving it to be discovered from drifting results. It is not written
+        into a saved matrix: the matrix is the model's numbers, and
+        :meth:`save` keeps these constructor arguments out of the file on
+        purpose, since baking them in would put one number in two places.
+        The costs are reported by :func:`~ipakit.distance.cost_name`, so a
+        callable cost is captured by the identity it reports.
+        """
+        return ScoringParameters.of(
+            gamma=self._gamma,
+            insert_cost=self._insert,
+            delete_cost=self._delete,
+        )
 
     @classmethod
     def global_(
