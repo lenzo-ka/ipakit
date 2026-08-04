@@ -56,8 +56,8 @@ from .form import (
     Interval,
     Node,
     Unit,
+    levels,
     tier_names,
-    tiers,
     units,
 )
 from .mapper import CMUMapper
@@ -1098,8 +1098,8 @@ __all__ = [
     "Form",
     "Interval",
     "Node",
+    "levels",
     "tier_names",
-    "tiers",
     # Rewrite rules
     "Action",
     "Derivation",

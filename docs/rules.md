@@ -326,7 +326,7 @@ ipa.rewrite("ə.tˈæk", asp)   # 'ə.tʰˈæk' -- an explicit syllable margin
 
 The reverse does not hold: `#` is not matched by a mere syllable break.
 
-Every boundary glyph declares its tier, so `#` reaches all of them and no rule needs to name two:
+Every boundary glyph declares its level, so `#` reaches all of them and no rule needs to name two:
 
 | Glyph | `level` | also declares |
 | --- | --- | --- |
@@ -379,7 +379,7 @@ ipa.rewrite("a.‿b",  ". -> ∅")   # 'ab'    -- the class takes the whole run
 
 The target is walked as far as the pattern matches, which is what keeps the last two apart: `.` is "syllable or stronger" and reaches every mark of the run, while `‿` names one mark and leaves the dot where it was written. The site is wider than one unit, and the *rule* still states one pattern and matches one boundary — the width is a fact about how the form was spelled, not about the rule, which is why this is not the multi-unit target [metathesis needs](calculus.md).
 
-The edge is a **word** boundary specifically, not the top of the ladder: `_ |` does not fire at the end of a form, because a phrase break is written or it is not there. `#` is the mark a form edge is an unwritten instance of, and `ipakit.form.edge_tier()` reads that off `<separators>`.
+The edge is a **word** boundary specifically, not the top of the ladder: `_ |` does not fire at the end of a form, because a phrase break is written or it is not there. `#` is the mark a form edge is an unwritten instance of, and `ipakit.form.edge_level()` reads that off `<separators>`.
 
 ## `∅` is nothing; a zero is a position with no content
 
@@ -751,5 +751,5 @@ Recorded so they are not discovered the hard way:
 - A `Derivation`'s `start` is the form **as the engine read it**, not the string handed in. Reading drops what the inventory does not register, with a warning, and a trace whose first line is not what the first rule saw would account for a derivation that did not happen.
 - `Form.rebuild` is an inverse up to spelling; `Boundary` equality is not object equality with the original. It does reproduce each boundary *unit* — text and declared features — from `Boundary.features`; rebuilding from `Boundary.level` alone put `‿` back as a plain word boundary with its `linking=+` gone, the same spelling describing a different unit.
 - `Boundary.level` falls back to `word` where a mark declares none. Every shipped glyph declares one, so only a hand-made `Boundary`, or a mark added without a level, reaches it.
-- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it the tier a form edge delimits (`form.edge_tier()`, `word` today) rather than a literal. A space and the form's own end therefore assert the same level by construction, which is what stops a context from matching one and not the other.
+- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it the level a form edge delimits (`form.edge_level()`, `word` today) rather than a literal. A space and the form's own end therefore assert the same level by construction, which is what stops a context from matching one and not the other.
 - The CLI parses a rule per invocation, so applying a set to a large corpus pays that parse once and the inventory load once; it is a filter, not a batch engine.

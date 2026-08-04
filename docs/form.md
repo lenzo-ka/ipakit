@@ -113,20 +113,20 @@ ipa.rewrite("ətˈæk",  asp)   # 'ətˈæk'     margin unspecified, so no claim
 
 The direction here is **unspecified**, and later **underspecified** — a tier that is absent because nothing said anything about it, distinct from a tier that is present and empty. That distinction is what makes it safe to add structure later without re-reading old transcriptions as having asserted something they did not.
 
-## The tier ladder, and where a form's edges sit
+## The level ladder, and where a form's edges sit
 
 `ipa.xml` declares `<feature name="level">` with its values **in order**, and the feature is ordinal. The tree's nesting is that declaration, not a constant in `form.py`, so declaring a further value extends the tree with no code change.
 
 ```python
-from ipakit.form import tiers, edge_tier
+from ipakit.form import levels, edge_level
 
 f = ipa.load_ipa_features()
 f.features["level"].values       # ['syllable', 'word', 'phrase', 'utterance']
 f.features["level"].is_ordinal   # True
-tiers()                          # ('utterance', 'phrase', 'word', 'syllable')
+levels()                          # ('utterance', 'phrase', 'word', 'syllable')
 ```
 
-Every boundary glyph declares which tier it terminates:
+Every boundary glyph declares which level it terminates:
 
 | glyph | `level` | also declares |
 | --- | --- | --- |
@@ -147,12 +147,12 @@ from ipakit.form import units
 # [('l', None), ('e', None), ('z', None), ('‿', 'word'), ('a', None), ('m', None), ('i', None)]
 ```
 
-### `edge_tier()`: a form edge is an unwritten `#`, not an unwritten `‖`
+### `edge_level()`: a form edge is an unwritten `#`, not an unwritten `‖`
 
-Running off the end of a form is a **word** edge. It is not "the outermost declared tier" — `|` and `‖` declare levels above `word`, and a form with no break mark in it is not thereby one phrase, for the same reason an undotted word has no syllable tier.
+Running off the end of a form is a **word** edge. It is not "the outermost declared level" — `|` and `‖` declare levels above `word`, and a form with no break mark in it is not thereby one phrase, for the same reason an undotted word has no syllable structure.
 
 ```python
-edge_tier()   # 'word'
+edge_level()   # 'word'
 ```
 
 That is read off `<separators>` — the strongest level a *separator* spells — rather than stated in Python, so declaring a stronger separator moves the edge with it. The distinction is load-bearing in both directions:
@@ -164,7 +164,7 @@ ipa.rewrite("kæt", "t -> ʔ / _ |")   # 'kæt'   a phrase break is written, or 
 ipa.rewrite("kæt", "t -> ʔ / _ ‖")   # 'kæt'
 ```
 
-Before `edge_tier()` existed, `tree()` took depth 0 to be the outermost tier, which was the same thing only while `word` happened to be outermost. Declaring `phrase` and `utterance` above it would have stopped a bare `kæt` from having a word at all. Whitespace, which `ipa.xml` does not declare, takes its level from the same read rather than a literal `"word"`, so a space and the form's own end cannot come to disagree about what an edge asserts.
+Before `edge_level()` existed, `tree()` took depth 0 to be the outermost level, which was the same thing only while `word` happened to be outermost. Declaring `phrase` and `utterance` above it would have stopped a bare `kæt` from having a word at all. Whitespace, which `ipa.xml` does not declare, takes its level from the same read rather than a literal `"word"`, so a space and the form's own end cannot come to disagree about what an edge asserts.
 
 ## `Node.opened_by`, `closed_by`, `asserted`
 
@@ -306,5 +306,5 @@ held.without_boundaries()
 - **`Form.rebuild` is an inverse up to spelling.** `Boundary` equality is not object equality with the original, though it does reproduce each boundary *unit* — text and declared features — from `Boundary.features`.
 - **`rebuild` is the inverse of the two projections it is handed, and neither of them carries a zero.** `segments` keeps sounds and `boundaries` keeps relations; `∅` is neither, so a form containing one rebuilds without it and the claim above is an inverse of the *sounds and the relations*, not of every position. Carrying zeros through would mean a third projection to put beside those two, which is a decision rather than a repair. What must hold either way is that nothing else moves: `Boundary.at` counts the segments before the mark, so a zero does not push a later boundary along the sequence it indexes into.
 - **`Boundary.level` falls back to `word` where a mark declares none.** Every shipped glyph declares one, so only a hand-made `Boundary`, or a mark added without a level, reaches it.
-- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it `edge_tier()` rather than a declared literal. That is a code-side convention, and it is stated here so it stays known.
+- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it `edge_level()` rather than a declared literal. That is a code-side convention, and it is stated here so it stays known.
 - **A stress mark standing before a separator is read two ways.** `segments("kæt.ˈ.dɒɡ")` binds the mark to `d`; `Form.parse` flushes at the separator, is handed a bare mark, calls it unbound and drops it — so that form does not spell itself back out, which is the one thing `Form` advertises. Pinned by a test that fails when it is fixed.

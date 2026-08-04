@@ -278,7 +278,7 @@ from .form import (
     _unit_for,
     boundary_marks,
     declared_prosody,
-    edge_tier,
+    edge_level,
     spell,
     split_prosody,
     units,
@@ -546,7 +546,7 @@ def _is_prosodic(name: str, features: IPAFeatures) -> bool:
 def _reaches(level: str | None, wanted: str, features: IPAFeatures) -> bool:
     """Whether a boundary at ``level`` counts as one at ``wanted``.
 
-    The tiers nest, so a word boundary *is* a syllable boundary: a rule
+    The levels nest, so a word boundary *is* a syllable boundary: a rule
     conditioned on a syllable margin fires at a word margin too, and
     aspiration is syllable-initial rather than only word-initial. The
     containment is not asserted here -- ``<feature name="level">``
@@ -563,16 +563,16 @@ def _reaches(level: str | None, wanted: str, features: IPAFeatures) -> bool:
 
 
 def _edge_level(features: IPAFeatures) -> str:
-    """The level a form's own edge asserts, which is ``form.edge_tier()``.
+    """The level a form's own edge asserts, which is ``form.edge_level()``.
 
     ``_ #`` fires at the end of a form without a ``#`` having been typed,
-    and since the tiers nest, so does every weaker level. Which level
+    and since the levels nest, so does every weaker level. Which level
     that *is* is a question ``ipakit.form`` already answers for the tree
     it builds, so it is asked there rather than answered again here.
 
     It used to be answered again here, as ``level.values[-1]`` -- the top
     of the whole ladder -- and the two **already disagreed**:
-    ``edge_tier()`` is ``word`` and ``values[-1]`` is ``utterance``,
+    ``edge_level()`` is ``word`` and ``values[-1]`` is ``utterance``,
     because ``|`` and ``‖`` declare levels above ``word`` while no
     *separator* spells one. That was harmless only by accident. A level
     pattern is built for a declared separator, so the virtual edge is
@@ -583,7 +583,7 @@ def _edge_level(features: IPAFeatures) -> str:
     read" -- is exactly what would not have fired, since one of them
     tracks the separators and the other does not.
     """
-    return edge_tier(features)
+    return edge_level(features)
 
 
 #: Notation for "a boundary of any level". Not a declared separator -- it
@@ -1400,7 +1400,7 @@ class Query:
             if not 0 <= index < len(items):
                 # Running off the form is the strongest edge there is, so
                 # '#' matches there without one having been typed -- and
-                # since the tiers nest, so does any weaker level: the edge
+                # since the levels nest, so does any weaker level: the edge
                 # of a form is a syllable margin as well as a word margin.
                 edge = pattern.boundary
                 if edge is not None and (

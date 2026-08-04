@@ -40,7 +40,7 @@ Three levels, and the difference between them is the whole module:
 
 Carry the widest one you can, and collapse at the point of use.
 
-:meth:`Form.tree` reads the tiers off ``<feature name="level">`` rather
+:meth:`Form.tree` reads the levels off ``<feature name="level">`` rather
 than naming them, so the ladder is data: ``syllable``, ``word``,
 ``phrase``, ``utterance`` today, and a further value extends the tree
 with no change here. Each node also records **which delimiter supplied
@@ -393,8 +393,8 @@ class Interval:
         return f"Interval({self.tier!r}, {self.start}, {self.end})"
 
 
-def tiers(features: IPAFeatures | None = None) -> tuple[str, ...]:
-    """The boundary tiers, outermost first, read off the declaration.
+def levels(features: IPAFeatures | None = None) -> tuple[str, ...]:
+    """The boundary levels, outermost first, read off the declaration.
 
     ``ipa.xml`` declares ``<feature name="level">`` with its values in
     order -- ``syllable``, ``word``, ``phrase``, ``utterance`` -- and each
@@ -406,15 +406,15 @@ def tiers(features: IPAFeatures | None = None) -> tuple[str, ...]:
     return tuple(reversed(features.features["level"].values))
 
 
-def edge_tier(features: IPAFeatures | None = None) -> str:
-    """The tier the form's own edges delimit, read off the declaration.
+def edge_level(features: IPAFeatures | None = None) -> str:
+    """The level the form's own edges delimit, read off the declaration.
 
     A form with no ``#`` in it still has one word, because running off
     the end of a form is a word edge -- the same reading the rule engine
     uses when ``_ #`` matches without a ``#`` having been typed. That is
-    not "the outermost tier": ``|`` and ``‖`` declare levels *above*
+    not "the outermost level": ``|`` and ``‖`` declare levels *above*
     ``word``, and a form with no break mark in it is not thereby one
-    phrase. So the tier is the strongest one a **separator** spells,
+    phrase. So the level is the strongest one a **separator** spells,
     which is what a form edge is an unwritten instance of.
 
     Read from ``<separators>`` rather than stated here, so declaring a
@@ -424,17 +424,23 @@ def edge_tier(features: IPAFeatures | None = None) -> str:
     while this is ``word``, since ``|`` and ``‖`` declare levels above
     ``word`` without being separators. The two are one read now, so they
     cannot drift apart when a separator above ``word`` is declared.
+
+    Called ``edge_tier`` until ``tier`` became a declared feature of its
+    own. A function named for one declared feature and answering with a
+    value of another is exactly the confusion this increment exists to
+    prevent, so nothing named ``tier`` in this module answers with a
+    ``level`` and nothing named ``level`` answers with a ``tier``.
     """
     features = _default(features)
     order = features.features["level"].values
-    levels = {
+    spelled = {
         level
         for sep in features.separators.values()
         if (level := (sep.features or {}).get("level")) in order
     }
-    if not levels:  # pragma: no cover - no separator declares a level
+    if not spelled:  # pragma: no cover - no separator declares a level
         return order[-1]
-    return max(levels, key=order.index)
+    return max(spelled, key=order.index)
 
 
 def boundary_marks(features: IPAFeatures) -> dict[str, dict[str, str]]:
@@ -818,7 +824,7 @@ def units(form: str, features: IPAFeatures | None = None) -> list[Unit]:
 
     marks = boundary_marks(features)
     nulls = features.zeros
-    edge = edge_tier(features)
+    edge = edge_level(features)
     for char in form:
         if char in nulls:
             # A declared zero: a position with nothing in it. Flushed
@@ -971,20 +977,21 @@ class Form:
         return tuple(out)
 
     def tree(self, features: IPAFeatures | None = None) -> Node:
-        """The transcription as a tree, nested by declared boundary tier.
+        """The transcription as a tree, nested by declared boundary level.
 
         The flat string is a projection of this: ``#`` and ``.`` are
-        nesting depth written on one line. Tiers come from
-        :func:`tiers`, so the shape is generated from ``ipa.xml`` rather
-        than stated here.
+        nesting depth written on one line. The levels come from
+        :func:`levels`, so the shape is generated from ``ipa.xml`` rather
+        than stated here. They are levels and not :func:`tier_names`:
+        this tree nests, and a tier does not.
 
         Each node records which delimiter supplied each end of its span
         (:attr:`Node.opened_by`, :attr:`Node.closed_by`), ``None`` being
         the form edge. That is provenance, not shape -- the endpoints are
         the same either way.
         """
-        order = tiers(features)
-        edge = edge_tier(features)
+        order = levels(features)
+        edge = edge_level(features)
         # Paired with the one read of where the boundaries sat, rather
         # than a second walk computing 'at' again: the two are in the
         # same order by construction, so they cannot disagree.
@@ -1002,12 +1009,12 @@ class Form:
                     Node(level="segment", unit=u) for u, _ in items if not u.is_boundary
                 )
             tier = order[depth]
-            # A tier exists only where a boundary asserts it. With the
+            # A level exists only where a boundary asserts it. With the
             # dot optional, a word written without one has *unspecified*
             # syllabification, not one syllable, and inventing a node
             # here would state a claim the transcription never made. The
-            # tier the form's edges delimit is the exception, and it is
-            # the one a separator spells (:func:`edge_tier`) rather than
+            # level the form's edges delimit is the exception, and it is
+            # the one a separator spells (:func:`edge_level`) rather than
             # whichever happens to be outermost: declaring a level above
             # 'word' must not stop '#'-less input from having a word.
             if tier != edge and not any(
