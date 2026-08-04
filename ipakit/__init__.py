@@ -146,7 +146,13 @@ def load_ipa_features(
 
 
 def distance(phone1: str, phone2: str) -> float:
-    """Compute phonetic distance between two IPA phones (0.0-1.0)."""
+    """Compute phonetic distance between two IPA phones (0.0 identical, 1.0 maximal).
+
+    Each argument is one unit: a phone with any diacritics, but not a word.
+    Multi-unit input raises ``ValueError`` -- use :func:`word_distance` for a
+    string of units. An unknown phone scores 1.0 (maximally far); two empty
+    inputs are identical (0.0).
+    """
     return _get_ipa().distance(phone1, phone2)
 
 
@@ -190,10 +196,13 @@ def word_distance(
         ipa2: Second IPA string
         weighted: If True, use feature distance for substitution costs.
         return_alignment: If True, include the alignment path in result.
+        strict: Reject input the tokenizer cannot convert (the default); pass
+            ``False`` to measure over whatever survives, warning instead.
 
     Returns:
         WordDistanceResult with the summed edit cost, the normalized
-        similarity, the length coverage, and an optional alignment.
+        similarity, the length coverage, the cost identity, and an optional
+        alignment.
 
     Examples:
         >>> ipakit.word_distance("kæt", "kæd")
@@ -271,6 +280,31 @@ def word_similarity(
     return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted, strict=strict)
 
 
+def explain_word_distance(
+    ipa1: str,
+    ipa2: str,
+    *,
+    weighted: bool = True,
+    strict: bool = True,
+) -> list[dict[str, object]]:
+    """A per-position trace of a word comparison, for debugging and detail.
+
+    One step per aligned position: ``op`` (match/sub/insert/delete), the two
+    units, the position ``cost``, and for a substitution the ``(label, a, b,
+    cost)`` term rows behind it -- each comparable feature, the tract
+    coordinates, and every prosodic rider (stress, tone, length). The raw
+    feature-distance path, the one :func:`word_distance` reads.
+
+    Examples:
+        >>> steps = ipakit.explain_word_distance("kæt", "kæd")
+        >>> steps[-1]["op"], steps[-1]["a"], steps[-1]["b"]
+        ('sub', 't', 'd')
+    """
+    return _get_ipa().explain_word_distance(
+        ipa1, ipa2, weighted=weighted, strict=strict
+    )
+
+
 def nearest_pronunciation(
     forms: str | Iterable[str],
     acceptable: str | Iterable[str],
@@ -284,9 +318,10 @@ def nearest_pronunciation(
     For "is this an acceptable pronunciation of the word?" -- the best match
     over a set of variants a lexicon lists. Every real lexicon has them:
     CMUdict lists several pronunciations per entry, and a homograph reads two
-    ways. Not for word-to-word distance, where a maximum over variants would
-    depend on how many each side lists; see
-    :class:`~ipakit.distance.PronunciationMatch`.
+    ways. ``mode="local"`` matches each acceptable pronunciation as a target
+    embedded in the form (a fit), rather than whole-to-whole. Not for
+    word-to-word distance, where a maximum over variants would depend on how
+    many each side lists; see :class:`~ipakit.distance.PronunciationMatch`.
 
     Examples:
         >>> # "family" with and without the optional medial schwa
@@ -1224,6 +1259,7 @@ __all__ = [
     "segment_distance",
     "pairwise_distances",
     "word_similarity",
+    "explain_word_distance",
     "nearest_pronunciation",
     "rank_pronunciations",
     "sequence_distance",

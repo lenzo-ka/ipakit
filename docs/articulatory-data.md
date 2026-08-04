@@ -165,8 +165,6 @@ Re-express every pellet in a frame fixed to the mandible — origin at MNI, x-ax
 | **T3** | **7.6%** | -65.0% to 29.2% |
 | **T4** (tongue back) | **1.3%** | -81.9% to 25.5% |
 
-0%, T1 28.0%, T2 21.2%, T4 6.5%; measured 7.6% and 1.3%). The speaker set differs too — 34 pass the rigid-body screen over the whole corpus, not 40.
-
 The upper lip is the control, and it behaves as it must: it is on the maxilla, rides on nothing, and subtracting mandible motion can only *add* to its variance. If that number came out positive the frame would be wrong.
 
 What the ordering says is worth more than any single figure. The mandible carries two thirds of the lower lip's motion, about a quarter of the tongue tip's, and — with the median at 1.3% and the range straddling zero — **none of the tongue back's**. So a renderer that hangs the whole tongue off the jaw is wrong at the back, and one that moves the tongue independently of the jaw is wrong at the front. `ipakit/tract.py` has no jaw at all, so it is neither; what this measures is the chain such a renderer would have to build.

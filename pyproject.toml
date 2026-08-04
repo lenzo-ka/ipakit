@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ipakit"
 dynamic = ["version"]
-description = "IPA phonetic toolkit"
+description = "Zero-dependency IPA toolkit: phonetic features, distance, tokenization, rules, and conversions"
 readme = "README.md"
 authors = [
     {name = "Kevin Lenzo"}
@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
     "Typing :: Typed",
 ]
-keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit"]
+keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = []
 
 [project.optional-dependencies]
@@ -56,6 +56,8 @@ dev = ["ipakit[test,lint,icu,interop]"]
 [project.urls]
 Homepage = "https://github.com/lenzo-ka/ipakit"
 Repository = "https://github.com/lenzo-ka/ipakit"
+Documentation = "https://github.com/lenzo-ka/ipakit/tree/main/docs"
+Changelog = "https://github.com/lenzo-ka/ipakit/blob/main/CHANGELOG.md"
 Issues = "https://github.com/lenzo-ka/ipakit/issues"
 
 [project.scripts]

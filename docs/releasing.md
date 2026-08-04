@@ -51,7 +51,7 @@ job references it; the OIDC identity is scoped to it).
 
 2. **Update `CHANGELOG.md`** — move the `## [Unreleased]` entries under a new
    `## [X.Y.Z] - YYYY-MM-DD` heading (and fix the compare/tag links at the
-   bottom). The changelog currently ships as an empty skeleton.
+   bottom).
 
 3. **Verify locally** (all must be clean):
    ```bash

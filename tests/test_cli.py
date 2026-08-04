@@ -136,6 +136,13 @@ class TestDistance:
         assert rc == 0
         assert "similarity" in out
 
+    def test_word_explain(self, monkeypatch, capsys):
+        rc, out, _ = run(
+            monkeypatch, capsys, "distance", "word", "ˈkɛt", "ˌkɛt", "--explain"
+        )
+        assert rc == 0
+        assert "sub" in out and "stress" in out
+
 
 class TestHierarchy:
     def test_text(self, monkeypatch, capsys):
