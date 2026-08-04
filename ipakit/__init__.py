@@ -608,6 +608,10 @@ def respell(phone: str, **changes: str) -> str | None:
         'd'
         >>> ipakit.respell("p", place="velar")
         'k'
+        >>> ipakit.respell("d", manner="nasal")   # a stop becomes its nasal
+        'n'
+        >>> ipakit.respell("i", rounded="+")      # round a front vowel
+        'y'
         >>> ipakit.respell("t", manner="nasal") is None  # unattested
         True
     """
