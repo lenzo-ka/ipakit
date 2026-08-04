@@ -335,25 +335,31 @@ class TestARuleNamingNoTierIsUnchanged:
         assert ipakit.rewrite("kæt", "t -> ʔ / _ #") == "kæʔ"
 
 
-class TestTheInputsARuleCannotCarryOut:
-    """Pinned, so the limits stay known rather than assumed shut."""
+class TestWhatARuleCarriesOut:
+    """Both of these were pinned as *limits* while rebasing did not exist.
+    Rebasing exists (``tests/test_tier_rebase.py``), so what they pin now
+    is the shape rather than the absence, and this file is not left
+    asserting a limit that has been lifted."""
 
-    def test_apply_returns_units_and_no_intervals(self) -> None:
-        """A rule reads a tier and hands back none. Rebasing a span across
-        an edit is a further increment; until it lands, re-attaching the
-        spans handed in would describe a different span whenever the rule
-        changed the length of the sequence."""
+    def test_apply_returns_units_and_rewrite_returns_a_form(self) -> None:
+        """A unit sequence carries no tier, so asking for units is asking
+        for the units. ``rewrite`` is the same operation answering with a
+        form, spans rebased onto it."""
         held = _liaison()
-        out, edits = R.parse("t -> ∅ / _ i", FEATURES).apply(held, FEATURES)
+        rule = R.parse("t -> ∅ / _ i", FEATURES)
+        out, edits = rule.apply(held, FEATURES)
         assert isinstance(out, list) and all(isinstance(u, R.Unit) for u in out)
         assert edits and len(out) < len(held.units)
+        after, again = rule.rewrite(held, FEATURES)
+        assert tuple(out) == after.units and edits == again and after.intervals
 
-    def test_a_rule_set_derivation_takes_a_string_and_so_carries_no_tier(self) -> None:
-        """``RuleSet.derive`` reads a string, so a cascade cannot see a tier
-        at all yet -- every step would need the spans rebased onto its own
-        output. Stated here so the gap is a decision and not a surprise."""
+    def test_a_cascade_carries_a_tier_and_a_string_still_carries_none(self) -> None:
+        """``RuleSet.derive`` takes a form now, so a tier-conditioned rule
+        fires at step ten as it does at step one. A string still carries no
+        tier, because nothing derives one from the dots."""
         rules = R.RuleSet.parse(f"t -> tʰ / {TIER_OPEN}syllable _", FEATURES)
         assert rules.apply(LIAISON, FEATURES) == LIAISON
+        assert rules.apply(_liaison(), FEATURES) == "pətʰitʰ‿ami"
 
 
 class TestTheNotationRefusesWhatItDoesNotOffer:

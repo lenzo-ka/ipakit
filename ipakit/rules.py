@@ -367,6 +367,15 @@ class RuleError(ValueError):
     """A rule could not be parsed, or names something undeclared."""
 
 
+class RebaseError(RuleError):
+    """An edit rewrote across an interval's endpoint, so it has no image.
+
+    Its own class rather than a bare :class:`RuleError` because a caller
+    can act on it: the rule fired and the units are fine, and what has no
+    answer is where a span it was carrying now ends. See :func:`rebase`.
+    """
+
+
 @dataclass(frozen=True)
 class Agreement:
     """A variable standing for a value of one feature: SPE's ``α``.
@@ -2109,21 +2118,59 @@ class Rule:
         live. Pinned by a test, so the limit stays known rather than
         assumed shut.
 
-        **The intervals do not come back.** What is returned is a unit
-        sequence, so a rule *reads* a tier and hands back no tier at all
-        -- and that is the read-only restriction arriving where it is
-        felt rather than a gap. Rebasing a span across an edit is a
-        further increment (docs/design/tiers.md §6(d)); until it lands,
-        re-attaching the intervals handed in would describe a different
-        span whenever the rule changed the length of the sequence, which
-        27 of the 86 shipped rules do. :meth:`Form.without_boundaries`
-        refuses for the same reason.
+        **The intervals do not come back**, and that is now a projection
+        rather than a gap. A unit sequence carries no tier, so asking for
+        one is asking for the units; :meth:`rewrite` is the same operation
+        answering with a :class:`~ipakit.form.Form`, with the spans
+        rebased onto it. The two produce one unit sequence by
+        construction, and a test asserts it.
+
+        The difference that matters at a call site is what happens where
+        a span cannot be rebased: :meth:`rewrite` raises
+        :class:`RebaseError`, and this answers, because it is not carrying
+        the span that has no answer.
         """
         features = _default(features)
+        items, _, found = self._rewritten(form, features)
+        return items, found
+
+    def rewrite(
+        self, form: Matchable, features: IPAFeatures | None = None
+    ) -> tuple[Form, list[Edit]]:
+        """Apply this rule once, form in and form out, spans carried.
+
+        :meth:`apply` with the tier kept. What comes back is a
+        :class:`~ipakit.form.Form` whose intervals are the ones handed in,
+        moved to where the edits put them -- :func:`rebase` is that
+        arithmetic and states the policy, including the positions it
+        refuses.
+
+        A rule that reads no tier and a form that carries none make this
+        exactly :meth:`apply` with the units wrapped, which is what lets a
+        cascade take one path rather than two.
+
+        Raises :class:`RebaseError` where an edit rewrote across an
+        interval endpoint. The units are fine in that case and
+        :meth:`apply` will hand them over; what has no answer is the span,
+        and answering anyway is what this library does not do.
+        """
+        features = _default(features)
+        items, spans, found = self._rewritten(form, features)
+        return Form.of(items, rebase(spans, found, features)), found
+
+    def _rewritten(
+        self, form: Matchable, features: IPAFeatures
+    ) -> tuple[list[Unit], tuple[Interval, ...], list[Edit]]:
+        """The units after this rule, the spans it was handed, its edits.
+
+        One read and one splice, so :meth:`apply` and :meth:`rewrite`
+        cannot come apart on what the rule did -- they differ only in
+        whether the spans are rebased and returned.
+        """
         read, spans = _read(form, features)
         items = list(read)
         found = self._edits(items, spans, features)
-        return _apply_edits(items, found), found
+        return _apply_edits(items, found), tuple(spans), found
 
     def __str__(self) -> str:
         return self.source or self.name
@@ -2135,6 +2182,114 @@ def _apply_edits(items: list[Unit], edits: Sequence[Edit]) -> list[Unit]:
     for edit in sorted(edits, key=lambda e: e.start, reverse=True):
         out[edit.start : edit.end] = list(edit.replacement)
     return out
+
+
+def rebase(
+    spans: Sequence[Interval],
+    edits: Sequence[Edit],
+    features: IPAFeatures | None = None,
+) -> tuple[Interval, ...]:
+    """Where the same spans sit after :func:`_apply_edits` has run.
+
+    An :class:`~ipakit.form.Interval` indexes :attr:`Form.units`, so an
+    edit that changes the length of that sequence leaves every endpoint
+    after it stale. This is the arithmetic that moves them, and the
+    declared policy for the positions the arithmetic does not reach.
+
+    **The policy: an interval may lose material to an edit and may never
+    gain material from outside itself.** Everything below follows from
+    that one sentence, and it is the only reading available to a system
+    where a rule may read a tier and may not write one (§2 of
+    docs/design/tiers.md): a rule says what happened to the *units*, and
+    says nothing about the tier, so rebasing may carry the caller's claim
+    forward and may not enlarge it.
+
+    Written out, for an edit over ``[a, b)`` replacing ``b - a`` units
+    with ``r`` and a span ``[s, e)``, with ``delta = r - (b - a)``:
+
+    * ``b <= s`` -- the edit is wholly before the span, which **includes
+      an insertion exactly at** ``s``; ``s += delta``.
+    * ``b <= e and a < e`` -- the edit ends at or before the span's end
+      and has some width before it, so it is inside; ``e += delta``. An
+      insertion exactly at ``e`` fails the second clause and moves
+      nothing.
+    * ``a < s < b`` or ``a < e < b`` -- an endpoint strictly inside a
+      rewritten span. **Refused**, as :class:`RebaseError`.
+
+    So an insertion at either edge of a span lands **outside** it, and
+    that is the load-bearing choice rather than a fallout: insertion is
+    the one length-changing shape the shipped sets make often, and the
+    seam is the only one of the three cases that is live on shipped data.
+    It is the answer ``docs/form.md`` already gives everywhere else --
+    *an unspecified tier is not invented*. Nothing said which mora an
+    epenthetic vowel belongs
+    to, intervals do not tile, and a unit on no tier is an ordinary state
+    of a form; so the vowel joins no interval rather than joining the one
+    it happens to abut. The alternative, growing the neighboring span,
+    would assert the language-particular fact that nothing stated.
+
+    A rewrite of width ``!= 1`` **is** rebased, and the interval stretches
+    or shrinks with it. That is determined -- both endpoints have a unique
+    image -- and refusing it would be arbitrary: ``a -> ai`` inside a
+    wider mora grows that mora by one unit whatever else is true, so the
+    same edit must not be refused merely because a span happens to be
+    coextensive with it. What "a long vowel is two morae" states is a
+    well-formedness condition on a language's tier, not a fact about
+    splicing, and deriving it here would be structure creation.
+
+    The endpoint inside a rewritten span is the one case with no answer,
+    and it is reachable rather than hypothetical: :func:`_target_end`
+    extends a boundary target over the whole run it opens, so ``. -> #``
+    on ``a..b`` is one edit over ``[1, 3)`` and a span ending at 2 has
+    nowhere to go. **No shipped rule reaches it**: no target any of the
+    five sets produces is wider than one unit, which is asserted over the
+    corpus in ``tests/test_tier_rebase.py`` rather than believed. That is
+    why it is refused rather than given a policy -- there is no evidence
+    to pick one from, and a well-formed wrong answer is the shape of every
+    defect this library has had.
+
+    Refusing is what :meth:`Form.without_boundaries` already does for the
+    same reason, and :class:`RebaseError` is separable so a caller can
+    catch it and drop the span itself.
+
+    ``edits`` are the ones :meth:`Rule.apply` found: disjoint, and indexed
+    against the sequence *before* any of them ran, which is what lets the
+    deltas be summed rather than applied in order.
+    """
+    if not spans or not edits:
+        return tuple(spans)
+    out: list[Interval] = []
+    for span in spans:
+        start, end = span.start, span.end
+        for edit in edits:
+            delta = len(edit.replacement) - (edit.end - edit.start)
+            for point, which in ((span.start, "starts"), (span.end, "ends")):
+                if edit.start < point < edit.end:
+                    raise RebaseError(
+                        f"{span!r} {which} at {point}, inside the span "
+                        f"[{edit.start}, {edit.end}) that {edit.rule!r} "
+                        "rewrote; the edit says nothing about where inside "
+                        "its replacement that position went, so there is no "
+                        "answer to give"
+                    )
+            if edit.end <= span.start:
+                start += delta
+            if edit.end <= span.end and edit.start < span.end:
+                end += delta
+        if end < start:
+            # An empty span with an insertion exactly on it: the one
+            # place the two clauses above disagree, because the span has
+            # no inside for "outside" to be the complement of.
+            raise RebaseError(
+                f"{span!r} is empty and an edit inserted at {span.start}, "
+                "so the span has no side to be on"
+            )
+        out.append(
+            span
+            if (start, end) == (span.start, span.end)
+            else Interval(span.tier, start, end, features)
+        )
+    return tuple(out)
 
 
 # --------------------------------------------------------------------------
@@ -2839,6 +2994,11 @@ class Derivation:
     start: str
     result: str
     steps: tuple[Step, ...]
+    #: The spans of :attr:`result`, rebased through every step. Empty
+    #: where the cascade was handed a string, because a string carries no
+    #: tier and nothing derives one from it. They index the units of
+    #: :attr:`result`, which is the sequence the last rule left.
+    intervals: tuple[Interval, ...] = ()
 
     @property
     def fired(self) -> tuple[Step, ...]:
@@ -3226,7 +3386,7 @@ class RuleSet:
 
     def derive(
         self,
-        form: str,
+        form: Matchable,
         features: IPAFeatures | None = None,
         keep_zeros: bool = False,
     ) -> Derivation:
@@ -3244,13 +3404,23 @@ class RuleSet:
         is recorded, so a zero is in the trace where it was written and
         out of the answer. ``keep_zeros`` declines it and hands back the
         derivation's own last form.
+
+        **A tier survives the cascade**, where the form handed in carries
+        one. Each rule sees the spans as the rule before it left them, so
+        a rule conditioned on ``<syllable`` finds its sites at step ten
+        for the same reason it finds them at step one. It has to be that
+        way rather than a convenience: a cascade that dropped the spans
+        after the first length-changing rule would leave a tier-reading
+        rule quietly not firing, which is a wrong answer nothing reports.
+        :func:`rebase` is the arithmetic and says what it refuses.
         """
         features = _default(features)
-        items = units(form, features)
+        read, spans = _read(form, features)
+        held = Form.of(read, spans)
         # Not ``form``: reading it can drop what the inventory does not
         # register, and the trace has to start from what the rules saw or
         # it accounts for a derivation that did not happen. See Derivation.
-        current = spell(items)
+        current = held.to_ipa()
         start = current
         steps: list[Step] = []
         for rule in self.rules:
@@ -3266,21 +3436,21 @@ class RuleSet:
                     )
                 )
                 continue
-            items, edits = rule.apply(items, features)
-            current = spell(items)
+            held, edits = rule.rewrite(held, features)
+            current = held.to_ipa()
             steps.append(
                 Step(rule=rule.name, before=before, after=current, edits=tuple(edits))
             )
         if not keep_zeros:
             for rule in surface(features):
-                items, edits = rule.apply(items, features)
+                held, edits = rule.rewrite(held, features)
                 # Recorded only where it fires. It is not a rule of this
                 # set -- ``len(RuleSet)`` and ``all_steps`` answer for what
                 # the cascade declares -- so a derivation with no zero in
                 # it is the same derivation it was, line for line.
                 if not edits:
                     continue
-                before, current = current, spell(items)
+                before, current = current, held.to_ipa()
                 steps.append(
                     Step(
                         rule=rule.name,
@@ -3289,20 +3459,30 @@ class RuleSet:
                         edits=tuple(edits),
                     )
                 )
-        return Derivation(start=start, result=current, steps=tuple(steps))
+        return Derivation(
+            start=start,
+            result=current,
+            steps=tuple(steps),
+            intervals=held.intervals,
+        )
 
     def apply(
         self,
-        form: str,
+        form: Matchable,
         features: IPAFeatures | None = None,
         keep_zeros: bool = False,
     ) -> str:
-        """The derived form, discarding the trace."""
+        """The derived form, discarding the trace.
+
+        A spelling, so a tier the form carried is discarded with the
+        trace; :meth:`derive` is where it comes back, on
+        :attr:`Derivation.intervals`.
+        """
         return self.derive(form, features, keep_zeros=keep_zeros).result
 
     def variants(
         self,
-        form: str,
+        form: Matchable,
         features: IPAFeatures | None = None,
         limit: int = DEFAULT_LIMIT,
         keep_zeros: bool = False,
@@ -3332,11 +3512,31 @@ class RuleSet:
         surface rewrite is obligatory, so it offers one child per branch
         and can only merge, never truncate. ``keep_zeros`` declines it,
         and then the members are what the cascade itself derived.
+
+        **A form carrying a tier is refused here**, and :meth:`derive` is
+        where a cascade carries one. This is not an oversight and it is
+        not the arithmetic: :func:`rebase` would answer per branch. It is
+        that a branch here is keyed by its **spelling**, and two branches
+        that spell alike but ended with different spans are two structures
+        and one key. Merging them would pick one tier reading and drop the
+        other silently, which is the defect shape this whole increment is
+        built against; deciding which to keep is a question about
+        optionality and structure that no measurement here settles. So it
+        refuses, and the limit stays known rather than assumed shut.
         """
         features = _default(features)
         if limit < 1:
             raise ValueError(f"limit must be at least 1, not {limit!r}")
-        items = list(units(form, features))
+        read, spans = _read(form, features)
+        if spans:
+            raise RuleError(
+                f"variants() was handed a form carrying {len(spans)} interval(s), "
+                "and a variant is keyed by its spelling: two branches that spell "
+                "alike with different spans would merge and one tier reading "
+                "would go silently. Use derive() for a cascade that carries a "
+                "tier, or hand variants() the units."
+            )
+        items = list(read)
         start = spell(items)
         branches: list[_Branch] = [(items, (), 0)]
         truncations: list[Truncation] = []

@@ -75,7 +75,9 @@ from .rules import (
     Action,
     Derivation,
     Edit,
+    Matchable,
     Query,
+    RebaseError,
     Rule,
     RuleError,
     RuleSet,
@@ -85,6 +87,7 @@ from .rules import (
     Variant,
     VariantSet,
     available,
+    rebase,
     shipped,
 )
 from .segment import Constituent, Kind, Segment, Sense
@@ -919,7 +922,9 @@ def ruleset(text: str, name: str = "") -> RuleSet:
     return RuleSet.parse(text, _get_ipa(), name=name)
 
 
-def rewrite(form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False) -> str:
+def rewrite(
+    form: Matchable, spec: str | Rule | RuleSet, keep_zeros: bool = False
+) -> str:
     """Apply rules to an IPA form and return the derived form.
 
     ``spec`` may be a shipped set's name, rule notation, a single
@@ -945,7 +950,7 @@ def rewrite(form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False) -> 
 
 
 def derive(
-    form: str, spec: str | Rule | RuleSet, keep_zeros: bool = False
+    form: Matchable, spec: str | Rule | RuleSet, keep_zeros: bool = False
 ) -> Derivation:
     """Apply rules to an IPA form, keeping the rule-by-rule trace.
 
@@ -966,7 +971,7 @@ def derive(
 
 
 def variants(
-    form: str,
+    form: Matchable,
     spec: str | Rule | RuleSet,
     limit: int = DEFAULT_LIMIT,
     keep_zeros: bool = False,
@@ -1105,6 +1110,7 @@ __all__ = [
     "Derivation",
     "Edit",
     "Query",
+    "RebaseError",
     "Rule",
     "RuleError",
     "RuleSet",
@@ -1112,6 +1118,7 @@ __all__ = [
     "Step",
     "Unit",
     "available",
+    "rebase",
     "rule",
     "ruleset",
     "rewrite",
