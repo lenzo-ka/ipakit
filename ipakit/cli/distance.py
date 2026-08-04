@@ -451,10 +451,12 @@ class NearestCommand(Command):
         # is reported through the exit status by ipakit.cli.policy, not by
         # failing the command.
         mode = "local" if self.args.local else "global"
+        # No -n means the single nearest; -n K means the K-best.
+        top = self.args.n if self.args.n is not None else 1
         ranked = self.ipa.rank_pronunciations(
             self.args.form,
             self.args.acceptable,
-            n=self.args.n,
+            n=top,
             strict=False,
             mode=mode,
         )
