@@ -347,7 +347,31 @@ def _fingerprint_lines(features: IPAFeatures, phones: tuple[str, ...]) -> Iterat
                 + [f"{place}*{weight!r}" for place, weight in components]
                 + [repr(coordinate) for coordinate in _sagittal(features, bundle)]
             )
+    # Every declared feature EXCEPT the structural ones, and the exception
+    # is what makes this agree with the metric rather than merely track it.
+    # A structural feature is excluded from every phone bundle by
+    # construction -- the mode gate drops it before a bundle is built -- so
+    # it cannot reach a distance through a phone or through a mark, which
+    # is the route `phonation` takes and the reason this half is not
+    # restricted to the features the listed phones spell.
+    #
+    # Including them made the digest stricter than the metric, and the gap
+    # had a cost: declaring `tier` moves 0 of 9591 distances and still
+    # invalidated every saved matrix, so a language declaring a tier of its
+    # own was refused a matrix that was provably still correct for it.
+    # docs/design/tiers.md §7 promises that does not happen.
+    #
+    # Omitting them outright rather than digesting a reduced line is
+    # deliberate: it means declaring one changes nothing, which is the
+    # property wanted. A mode change is still caught in both directions,
+    # because it moves the feature into or out of this loop and so adds or
+    # removes a line. And two inventories differing only in a structural
+    # feature agree here, which is correct -- their matrices are
+    # interchangeable.
+    structural = features.features_by_mode.get("structural", frozenset())
     for name in sorted(features.features):
+        if name in structural:
+            continue
         feature = features.features[name]
         values = list(feature.values)
         yield "\t".join(

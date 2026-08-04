@@ -416,6 +416,38 @@
       <value name="phrase" short="phr" href="Prosodic_unit"/>
       <value name="utterance" short="utt" href="Utterance_(linguistics)"/>
     </feature>
+
+    <!-- The tiers an interval may be declared on. Nominal on purpose, and
+         separate from `level` three lines above on purpose: `level` is an
+         ordinal ladder and is read as one in two places, while a syllable,
+         a mora and a morph do not nest. A mora is not a rung between the
+         syllable and the segment; a morph cuts across all of them. Ranking
+         them would let `_reaches` answer that a morph "reaches" a syllable,
+         which is not a fact about anything.
+
+         type="categorical" is what says so: values come from the <value>
+         children below and compare as unordered, so no code can take an
+         index into them and call the difference a distance.
+
+         mode="structural" for the reason `level` gives, and it is what
+         keeps the metric out of this: a structural feature is in no phone's
+         bundle by construction, so declaring a tier, or a language
+         declaring three more, moves no distance. That boundary is the
+         commitment docs/design/tiers.md §7 makes: tiers and their
+         inventories are language-relative, the feature space and therefore
+         `distance` are not.
+
+         `syllable` is deliberately spelled the same as `level`'s value and
+         is deliberately NOT declared `bare`. Two features claim the name
+         and they mean different things (a boundary at syllable strength
+         against the tier a span sits on), so a plain `syllable` in a query
+         is refused rather than resolved by which feature this file declares
+         first. Write `level=syllable` or `tier=syllable`. -->
+    <feature name="tier" short="tir" type="categorical" mode="structural" desc="The tier an interval is declared on" href="Autosegmental_phonology">
+      <value name="syllable" short="syl" href="Syllable"/>
+      <value name="mora" short="mor" href="Mora_(linguistics)"/>
+      <value name="morph" short="mph" href="Morpheme"/>
+    </feature>
   </features>
 
   <!-- One phonetic dimension, spelled several ways. Nasality is a manner
