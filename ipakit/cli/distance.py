@@ -432,29 +432,109 @@ class NearestCommand(Command):
             nargs="+",
             help="One or more acceptable IPA pronunciations to match against",
         )
+        parser.add_argument(
+            "-n",
+            type=int,
+            default=None,
+            help="Show the n-best matches instead of only the nearest",
+        )
+        parser.add_argument(
+            "--local",
+            action="store_true",
+            help="Match each candidate as a target embedded in the form "
+            "(local fit) rather than whole-to-whole",
+        )
         add_format_arg(parser)
 
     def run(self) -> int:
         # strict=False for the same reason 'word --raw' uses it: a lossy read
         # is reported through the exit status by ipakit.cli.policy, not by
         # failing the command.
-        match = self.ipa.nearest_pronunciation(
-            self.args.form, self.args.acceptable, strict=False
+        mode = "local" if self.args.local else "global"
+        ranked = self.ipa.rank_pronunciations(
+            self.args.form,
+            self.args.acceptable,
+            n=self.args.n,
+            strict=False,
+            mode=mode,
         )
+        total = len(self.args.acceptable)
         if self.format == "json":
             self.output_json(
                 {
-                    "form": match.form,
-                    "accepted": match.accepted,
-                    "similarity": round(match.similarity, 4),
-                    "candidates": len(self.args.acceptable),
+                    "form": self.args.form,
+                    "mode": mode,
+                    "candidates": total,
+                    "matches": [
+                        {"accepted": m.accepted, "similarity": round(m.similarity, 4)}
+                        for m in ranked
+                    ],
+                }
+            )
+        else:
+            for m in ranked:
+                print(f"{m.form} \u2248 {m.accepted}: similarity={m.similarity:.4f}")
+            if self.args.n is None:
+                print(f"  (best of {total})")
+        return 0
+
+
+class SeqCommand(Command):
+    """Distance/similarity between two PRE-TOKENIZED phone sequences.
+
+    Each argument is a whitespace-separated list of phone tokens, aligned
+    exactly as given -- unlike 'word', which tokenizes a string and may join
+    or split units. Use this when you already have phone tokens (each token one
+    unit) and want their boundaries respected.
+
+    --local fits the second sequence as a target inside the first, with the
+    first sequence's ends free, for a target embedded in a longer sequence.
+
+    Examples:
+        ipakit distance seq "t ʃ" "t͡ʃ"          # two units vs one: not equal
+        ipakit distance seq "k æ t" "k æ d"       # a minimal pair
+        ipakit d seq "b ə b t aɪ ɹ d" "t aɪ ɹ d" --local   # target embedded
+        ipakit d seq "k æ t" "k æ d" -j
+    """
+
+    name = "seq"
+    aliases = []
+    help = "Distance/similarity between two pre-tokenized phone sequences"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+
+        parser.add_argument("seq1", help="First phone sequence (space-separated)")
+        parser.add_argument("seq2", help="Second phone sequence (space-separated)")
+        parser.add_argument(
+            "--local",
+            action="store_true",
+            help="Fit seq2 as a target embedded in seq1 (free ends on seq1)",
+        )
+        add_format_arg(parser)
+
+    def run(self) -> int:
+        t1 = self.args.seq1.split()
+        t2 = self.args.seq2.split()
+        mode = "local" if self.args.local else "global"
+        result = self.ipa.sequence_distance(t1, t2, mode=mode)
+        if self.format == "json":
+            self.output_json(
+                {
+                    "seq1": t1,
+                    "seq2": t2,
+                    "mode": mode,
+                    "similarity": round(result.similarity, 4),
+                    "edit_cost": round(result.edit_cost, 4),
+                    "coverage": round(result.coverage, 4),
                 }
             )
         else:
             print(
-                f"{match.form} ≈ {match.accepted}: "
-                f"similarity={match.similarity:.4f}"
-                f"  (best of {len(self.args.acceptable)})"
+                f"{' '.join(t1)} ~ {' '.join(t2)}: "
+                f"similarity={result.similarity:.4f}  [{mode}]"
             )
         return 0
 
@@ -484,7 +564,9 @@ class DistanceGroup(CommandGroup):
 
     name = "distance"
     aliases = ["d"]
-    help = "Phonetic distances (pair, segment, matrix, confusability, word, nearest)"
+    help = (
+        "Phonetic distances (pair, segment, matrix, confusability, word, nearest, seq)"
+    )
     commands = [
         PairCommand,
         SegmentCommand,
@@ -492,4 +574,5 @@ class DistanceGroup(CommandGroup):
         ConfusabilityCommand,
         WordCommand,
         NearestCommand,
+        SeqCommand,
     ]

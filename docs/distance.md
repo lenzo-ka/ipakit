@@ -276,6 +276,36 @@ To choose one, hold out pairs your own task has already labeled — words a lexi
 
 **Gamma has no meaning on the plain `word_distance` path.** `ipakit.word_distance` and `IPAFeatures.word_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
 
+### Sweeping gamma, and choosing a threshold
+
+Gamma and any `is_similar` threshold are tuned **together, on data your task has labeled** — never hand-picked. The recipe:
+
+1. Collect labeled pairs: a `1` for pairs your task treats as the same, a `0` for pairs it does not.
+2. Sweep gamma. For each candidate value build a model at that gamma and score every pair with `word_similarity` (or `sequence_similarity`, below, for pre-tokenized input). Rank the gammas by a **threshold-independent** measure of separation — the probability a positive scores above a negative (ROC-AUC) is the honest one, since it smuggles in no threshold.
+3. Fix the threshold **last**, on the winning gamma, to the false-negative/false-positive balance the task wants. A threshold is not portable across gammas, inventories, or versions (§8), so pin the gamma it was chosen under — `DistanceModel.scoring` records it.
+
+```python
+import ipakit
+
+# (a, b, label) triples your task has labeled
+pairs = [(("k", "æ", "t"), ("k", "æ", "d"), 1),
+         (("k", "æ", "t"), ("d", "ɒ", "ɡ"), 0)]
+
+def auc(scores, labels):
+    pos = [s for s, y in zip(scores, labels) if y]
+    neg = [s for s, y in zip(scores, labels) if not y]
+    wins = sum((s > t) + 0.5 * (s == t) for s in pos for t in neg)
+    return wins / (len(pos) * len(neg))
+
+labels = [y for *_, y in pairs]
+for g in (1, 2, 4, 8, 16):
+    model = ipakit.distance_model(gamma=g)
+    scores = [model.sequence_similarity(a, b) for a, b, _ in pairs]
+    print(g, round(auc(scores, labels), 3))
+```
+
+Sweep on `word_similarity` / `sequence_similarity`, **not** on `confusability` or `distance`: on the phone-level API a gamma is exactly a change of threshold (above), so a sweep there measures nothing a cut point could not. How far up is useful is a fact about your inventory and task, not the library — which is why the default stays `1.0` and there is no shipped calibration.
+
 ## 10. Per-phone indel costs, and what they are relative to
 
 `insert_cost` and `delete_cost` are `float | Callable[[str], float]`. Passed a float, every phone costs the same to lose or to supply; passed a callable, each phone is priced on its own. `CostSchedule` is the callable to reach for — a name, a mapping, and a default — and the name is what a result reports.
@@ -347,3 +377,25 @@ This document states relations and invariants rather than measured values, delib
 - [docs/ties.md](ties.md) — tie conventions, the representation, and how segments compose
 - [docs/gestural-model.md](gestural-model.md) — the model this representation is converging on, not yet implemented
 - [docs/tract-anatomy.md](tract-anatomy.md) — the vocal-tract geometry that would derive these anchors rather than declare them
+
+## 11. Pre-tokenized sequences, n-best, and local matching
+
+`word_distance` and `word_similarity` take IPA **strings** and tokenize them. When you already hold phone tokens — each element one unit, possibly multi-character like `d͡ʒ` — pass them to `sequence_distance` / `sequence_similarity` instead, and the boundaries you gave are kept:
+
+```python
+ipakit.sequence_similarity(["t", "ʃ"], ["t͡ʃ"])   # < 1.0: two units, not the affricate
+ipakit.sequence_similarity(["k", "æ", "t"], ["k", "æ", "d"])
+```
+
+Re-tokenizing a joined string would merge `["t", "ʃ"]` into the affricate `t͡ʃ` and change the length; the sequence methods never do. They exist on the raw `IPAFeatures` path and on `DistanceModel` (gamma-aware). No lexicon is involved anywhere — the inputs are the phone sequences you supply.
+
+**Best of a set (n-best).** `rank_sequences(observed, candidates)` ranks candidate sequences by similarity, best first; `rank_pronunciations` is the same for IPA strings, and `nearest_pronunciation` is its top-1. Pass `n` for the n-best; a tie keeps the earliest-listed candidate.
+
+```python
+ipakit.rank_sequences(["b", "ʌ", "t", "ɚ"],
+                      [["b", "ʌ", "t", "ɝ"], ["b", "ɪ", "t"]], n=2)
+```
+
+**Local (fit) matching.** `mode="local"` scores the second sequence as a **target that must align fully** while the first sequence's ends are free — for a target embedded in a longer, noisier sequence. It is directional (the two sides are not interchangeable), which is why it is offered on the sequence and ranking methods and not on the symmetric `word_distance`. It is a specialized tool: on whole-to-whole comparison it over-accepts, because free ends stop charging the surrounding material, so reach for it only when the target really is embedded.
+
+On the command line: `distance seq` compares two pre-tokenized sequences (each argument a space-separated token list, `--local` for the fit), and `distance nearest -n K --local` ranks candidates.
