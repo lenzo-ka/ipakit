@@ -230,7 +230,9 @@ Four pieces. Each is small, each is checkable, and a richer model extends them r
 
 **(c) A rule may name a tier interval in its context, and may not rewrite one.** This is the restriction §2 argues for, and it is the whole of the formal claim. Notation is open and is the one genuinely undecided piece; whatever it is, it must not collide with the bracketed feature-query language or with a declared glyph, and the parser's existing behavior of refusing an unknown bare word loudly is the right default to keep.
 
-**(d) Rebasing at `_apply_edits`.** One loop, from data `Edit` already carries. Endpoint arithmetic only.
+**Superseded by [#145](https://github.com/lenzo-ka/ipakit/issues/145), and closed.** `rules.rebase` moves a span under the edits a rule made, `RuleSet.derive` carries a tier through a cascade, and the two positions the arithmetic does not determine got a declared policy rather than a formula: an insertion sitting on a span's edge lands outside it, and an endpoint strictly inside a rewritten span is refused.
+
+**(d) Rebasing at `_apply_edits`.** From data `Edit` already carries. But not endpoint arithmetic alone, and not one loop: arithmetic determines an endpoint only where the edit did not rewrite across it, and it is silent about which side of a seam an insertion joins. Both cases need a policy, and the seam is the one that is live on shipped data.
 
 **What is deliberately not in the minimum.** Association — whether a tone stranded by a deletion floats, relinks left, or relinks right — is not endpoint arithmetic and is not derivable from an `Edit`. It is a phonological policy and it is language-particular, which makes it the fourth instance of the pattern [#103](https://github.com/lenzo-ka/ipakit/issues/103) and [#101](https://github.com/lenzo-ka/ipakit/issues/101) established: what is particular to a language gets declared by that language. It is also exactly the structure-modifying capability that Wiebe needed extra power for. So the minimum ships intervals a rule can see, and leaves stranding for a second decision made against evidence rather than at the same time as this one.
 
