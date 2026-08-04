@@ -142,13 +142,13 @@ close as any pair gets" and the numbers spread out:
 
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
-# 0.996350745490564
-ipa.confusability("f", "a")  # 0.3535606297570639
+# 0.9962464810760088
+ipa.confusability("f", "a")  # 0.35439474507350643
 ```
 
 ```console
 $ ipakit distance conf f θ
-f ~ θ: confusability=0.9964 distance=0.0036  [reference: ipa, 139 phones]
+f ~ θ: confusability=0.9962 distance=0.0038  [reference: ipa, 139 phones]
 ```
 
 For whole words there are two different measures, and it matters which one you get.
@@ -157,7 +157,7 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9833333333333333
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.986341361693254
+# 0.9864108713029577
 ```
 
 > **These are two numbers for one English phrase**, and the CLI gives the second.
@@ -169,7 +169,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9863  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9864  [reference: ipa, 139 phones]
 ```
 
 A word comparison also reports `coverage`, the shorter token count over the longer. It
