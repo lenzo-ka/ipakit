@@ -49,7 +49,17 @@ from .constants import (
 from .distance import CostSchedule, PhoneCost, WordDistanceResult
 from .distance_model import DistanceModel
 from .features import IPAFeatures, _Query, available_supplements, supplement_path
-from .form import Attribute, Boundary, Form, Node, Unit, tiers, units
+from .form import (
+    Attribute,
+    Boundary,
+    Form,
+    Interval,
+    Node,
+    Unit,
+    tier_names,
+    tiers,
+    units,
+)
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
 from .phonemaps import (
@@ -1086,7 +1096,9 @@ __all__ = [
     "Attribute",
     "Boundary",
     "Form",
+    "Interval",
     "Node",
+    "tier_names",
     "tiers",
     # Rewrite rules
     "Action",

@@ -49,6 +49,15 @@ each end of its span** -- ``None`` meaning the form's own edge -- so
 brackets were written (:attr:`Node.asserted`). The delimiters stay out of
 :attr:`Form.units`, because that sequence is the faithful read of what
 was *spelled* and the rule engine's site indices point into it.
+
+:class:`Interval` is the one thing on a form that is **not** a read of
+that sequence. A span on a declared tier -- a mora, a morph, a syllable
+crossing a word boundary -- is delimited by no glyph, so it cannot be
+projected out of the units and is carried beside them instead. It is not
+spelled either, which is why ``to_ipa`` round-trips the string and not
+the whole form. What it buys is the thing :meth:`Form.tree` cannot state:
+an interval makes no claim to nest, so two of them may overlap with
+neither containing the other, which is what enchaînement is.
 """
 
 from __future__ import annotations
@@ -312,6 +321,76 @@ class Node:
         if self.is_leaf:
             return f"Node({self.level}, {self.to_ipa()!r})"
         return f"Node({self.level}, {len(self.children)} children, {self.to_ipa()!r})"
+
+
+def tier_names(features: IPAFeatures | None = None) -> tuple[str, ...]:
+    """The tiers an :class:`Interval` may be declared on, read off the data.
+
+    ``<feature name="tier">`` is nominal and ``mode="structural"``, and it
+    is a different thing from the ordinal ``level`` three lines above it in
+    ``ipa.xml``: ``level=syllable`` is how strong a boundary is,
+    ``tier=syllable`` is which tier a span sits on. They are read by
+    separate functions for that reason, and neither is written out here, so
+    a language declaring a further tier gets it without a change to this
+    module.
+    """
+    features = _default(features)
+    declared = features.features.get("tier")
+    return tuple(declared.values) if declared is not None else ()
+
+
+@dataclass(frozen=True)
+class Interval:
+    """A span on a declared tier, over :attr:`Form.units`.
+
+    Half-open -- ``[start, end)``, the convention :class:`rules.Site`
+    already uses -- and indexing the *unit* sequence rather than the
+    segmental projection, because a tier may need to span a boundary and a
+    boundary is a unit.
+
+    An interval makes **no claim to nest**. That is the whole of what it
+    buys over :meth:`Form.tree`, which splits on the strongest boundary
+    first and so cannot state a syllable that crosses a word: in
+    ``pə.ti.t‿a.mi`` the syllable ``t‿a`` is contained by neither word, and
+    two intervals may overlap with neither containing the other. Nothing
+    here orders two tiers, and nothing should -- ``tier`` is nominal
+    precisely so a mora cannot be ranked against a morph.
+
+    An interval is not spelled, so it does not survive
+    :meth:`Form.to_ipa`; and it is not derived from the units, so nothing
+    invents one. A form with no dots has no syllable intervals rather than
+    one, for the reason the rest of this module gives about unspecified
+    structure.
+
+    ``features`` names the inventory the tier is checked against and is not
+    stored: two intervals with the same tier and span are the same
+    interval, whichever inventory declared the name.
+    """
+
+    tier: str
+    start: int
+    end: int
+    features: dataclasses.InitVar[IPAFeatures | None] = None
+
+    def __post_init__(self, features: IPAFeatures | None) -> None:
+        declared = tier_names(features)
+        if self.tier not in declared:
+            raise ValueError(
+                f"{self.tier!r} is not a declared tier; "
+                f"declared: {', '.join(declared) or '(none)'}"
+            )
+        if self.start < 0:
+            raise ValueError(f"interval starts before the form: {self.start}")
+        if self.end < self.start:
+            raise ValueError(
+                f"interval ends before it starts: [{self.start}, {self.end})"
+            )
+
+    def __len__(self) -> int:
+        return self.end - self.start
+
+    def __repr__(self) -> str:
+        return f"Interval({self.tier!r}, {self.start}, {self.end})"
 
 
 def tiers(features: IPAFeatures | None = None) -> tuple[str, ...]:
@@ -784,26 +863,63 @@ def spell(items: Sequence[Unit]) -> str:
 class Form:
     """A transcription carrying everything it was written with.
 
-    Immutable. Projections are properties, each named for what it drops,
-    and none of them happens on the way in.
+    Immutable. :attr:`units` is the one sequence, and :attr:`segments`,
+    :attr:`phones`, :attr:`attributes`, :attr:`boundaries` and
+    :meth:`tree` are projections of it, each named for what it drops, none
+    of them happening on the way in.
+
+    :attr:`intervals` is the exception, and it is the only one. A span on a
+    declared tier is **not derivable from the unit sequence** -- a mora, a
+    gesture, or a syllable crossing a word boundary is delimited by no
+    glyph -- so it is carried rather than computed. Two consequences, both
+    of them the point rather than a wart:
+
+    * :meth:`to_ipa` round-trips the **spelling**, and an interval is not
+      spelled. ``Form.parse(f.to_ipa())`` gives back the units and no
+      intervals, whatever ``f`` carried.
+    * Nothing synthesizes one. A form with no dots has no syllable
+      intervals rather than one, the same policy :meth:`tree` follows about
+      an unspecified tier.
     """
 
     units: tuple[Unit, ...]
+    #: Spans on declared tiers. Carried, never derived, never spelled.
+    intervals: tuple[Interval, ...] = ()
+
+    def __post_init__(self) -> None:
+        for span in self.intervals:
+            if span.end > len(self.units):
+                raise ValueError(
+                    f"{span!r} runs past the {len(self.units)} units of the form"
+                )
 
     @classmethod
     def parse(cls, text: str, features: IPAFeatures | None = None) -> Form:
-        """Read a transcription without projecting anything away."""
+        """Read a transcription without projecting anything away.
+
+        No interval is derived from the separators. The dot is optional
+        notation, so reading one as a syllable interval would state a claim
+        the transcription never made -- and a transcription that *does*
+        state its tiers hands them in with :meth:`of`.
+        """
         return cls(units=tuple(units(text, features)))
 
     @classmethod
-    def of(cls, items: Sequence[Unit]) -> Form:
+    def of(cls, items: Sequence[Unit], intervals: Sequence[Interval] = ()) -> Form:
         """Wrap a unit sequence that has already been read."""
-        return cls(units=tuple(items))
+        return cls(units=tuple(items), intervals=tuple(intervals))
 
     # -- the faithful read ------------------------------------------------
 
     def to_ipa(self) -> str:
-        """Every position, spelled back. Round-trips what was parsed."""
+        """Every position, spelled back. Round-trips what was *spelled*.
+
+        Not every position the form carries: an interval is not spelled, so
+        it does not come back through a round-trip through the string. That
+        is a fact about the notation rather than a loss here -- there is no
+        agreed way to write a mora interval into a transcription, and
+        inventing one would put a claim in the string that nothing reads.
+        """
         return spell(self.units)
 
     # -- projections, each named for what it drops -------------------------
@@ -958,6 +1074,7 @@ class Form:
         cls,
         segments: Sequence[Segment],
         boundaries: Sequence[Boundary],
+        intervals: Sequence[Interval] = (),
         features: IPAFeatures | None = None,
     ) -> Form:
         """Reassemble a form from a segmental projection and its boundaries.
@@ -972,6 +1089,17 @@ class Form:
         :attr:`Boundary.at` counts the segments before the mark, the same
         sequence it is used to index, so a zero does not walk a later
         boundary along it.
+
+        ``intervals`` is the third **data** argument and it sits beside
+        that asymmetry rather than repairing it. An interval is not
+        derivable from a sound or a relation, so it has to be handed in;
+        and it indexes the unit sequence of the form being built, which is
+        the caller's to get right. Where the sequence handed in differs
+        from the one the intervals were taken off -- a dropped zero, a
+        collapsed boundary -- the endpoints are stale, and a stale endpoint
+        past the end is refused here rather than carried. Rebasing an
+        interval under an edit is not this: it is a separate operation over
+        what the edit says moved.
 
         The boundary unit is put back from everything the boundary
         carries, which is why :attr:`Boundary.features` exists. Rebuilding
@@ -994,13 +1122,25 @@ class Form:
                 out.append(Unit(text=boundary.text, features=declared))
             if index < len(segments):
                 out.append(_unit_for(segments[index], features))
-        return cls(units=tuple(out))
+        return cls(units=tuple(out), intervals=tuple(intervals))
 
     def without_boundaries(self) -> Form:
         """This form with its boundary positions removed.
 
         Named so the collapse is visible at the call site.
+
+        Refused where the form carries an interval, because removing a
+        position moves every index after it and an interval indexes
+        positions. Returning the intervals unchanged would spell the same
+        sounds and describe a different span -- the silent wrong answer
+        this module is built to avoid -- and shifting them is rebasing,
+        which belongs to whatever knows what moved.
         """
+        if self.intervals:
+            raise ValueError(
+                "removing boundaries moves the positions "
+                f"{len(self.intervals)} interval(s) index; rebase them first"
+            )
         return Form(units=tuple(u for u in self.units if not u.is_boundary))
 
     # -- sequence behavior ------------------------------------------------
@@ -1018,4 +1158,7 @@ class Form:
         return self.to_ipa()
 
     def __repr__(self) -> str:
-        return f"Form({self.to_ipa()!r}, {len(self.units)} units)"
+        held = f"{len(self.units)} units"
+        if self.intervals:
+            held += f", {len(self.intervals)} intervals"
+        return f"Form({self.to_ipa()!r}, {held})"

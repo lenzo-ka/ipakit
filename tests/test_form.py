@@ -126,7 +126,7 @@ class TestWhatIsDroppedIsStillRecorded:
         for phone in _phones():
             text = f"#{phone}.{phone}#"
             form = Form.parse(text, FEATURES)
-            back = Form.rebuild(form.segments, form.boundaries, FEATURES)
+            back = Form.rebuild(form.segments, form.boundaries, features=FEATURES)
             assert back.to_ipa() == text, text
             checked += 1
         assert_swept(checked, _phones())
@@ -135,9 +135,9 @@ class TestWhatIsDroppedIsStillRecorded:
         form = Form.parse("kˌæn.tˈiːn", FEATURES)
         flat = form.without_boundaries()
         assert flat.to_ipa() == "kˌæntˈiːn"
-        assert Form.rebuild(flat.segments, form.boundaries, FEATURES).to_ipa() == (
-            "kˌæn.tˈiːn"
-        )
+        assert Form.rebuild(
+            flat.segments, form.boundaries, features=FEATURES
+        ).to_ipa() == ("kˌæn.tˈiːn")
 
     def test_rebuild_reproduces_the_boundary_unit_not_just_its_spelling(self):
         """The spelling round-tripped while the description did not.
@@ -153,7 +153,7 @@ class TestWhatIsDroppedIsStillRecorded:
         for glyph in marks:
             text = f"a{glyph}b"
             form = Form.parse(text, FEATURES)
-            back = Form.rebuild(form.segments, form.boundaries, FEATURES)
+            back = Form.rebuild(form.segments, form.boundaries, features=FEATURES)
             assert back.to_ipa() == text, text
             assert [(u.text, u.features) for u in back.units] == [
                 (u.text, u.features) for u in form.units
