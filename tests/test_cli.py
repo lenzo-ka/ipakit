@@ -1180,6 +1180,8 @@ LIBRARY_ONLY = {
     "phonemap_to_ipa": "generic; the CLI spells one subcommand per map",
     # A second spelling of a number the CLI already prints another way.
     "word_similarity": "'distance word --raw' prints this value via word_distance",
+    "sequence_similarity": "the similarity of sequence_distance, which 'distance seq' spells",
+    "rank_sequences": "the n-best over a set of pre-tokenized sequences; the CLI compares one sequence to one, not a set",
     # Exists to take a per-phone cost schedule, which is a mapping a
     # command line cannot hold; with flat costs it is 'distance word'.
     "directional_word_distance": "takes a CostSchedule; flat, it is 'distance word'",
