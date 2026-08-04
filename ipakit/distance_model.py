@@ -604,12 +604,8 @@ class DistanceModel:
         substitution costs the alignment sees and not what a similarity
         means.
         """
-        t1 = [
-            t for t in self._ipa.tokenize(ipa1) if not self._ipa.is_structural_token(t)
-        ]
-        t2 = [
-            t for t in self._ipa.tokenize(ipa2) if not self._ipa.is_structural_token(t)
-        ]
+        t1 = self._ipa._word_units(ipa1)
+        t2 = self._ipa._word_units(ipa2)
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
             return _empty_pair_result(return_alignment, self._insert, self._delete)
@@ -748,12 +744,8 @@ class DistanceModel:
         mr = (
             max_length_ratio if max_length_ratio is not None else self._max_length_ratio
         )
-        t1 = [
-            t for t in self._ipa.tokenize(ipa1) if not self._ipa.is_structural_token(t)
-        ]
-        t2 = [
-            t for t in self._ipa.tokenize(ipa2) if not self._ipa.is_structural_token(t)
-        ]
+        t1 = self._ipa._word_units(ipa1)
+        t2 = self._ipa._word_units(ipa2)
         n, m = len(t1), len(t2)
         if n == 0 or m == 0:
             return n == m

@@ -507,6 +507,71 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
     return _fold_prosody(best, max(len(px), len(py)), pt, pc)
 
 
+def segment_terms(
+    features: IPAFeatures, x: Segment, y: Segment
+) -> list[tuple[str, str | None, str | None, float]]:
+    """The per-term breakdown behind :func:`segment_metric`, for tracing.
+
+    One ``(label, value_x, value_y, cost)`` row per term the metric summed --
+    each comparable feature, the tract coordinates, and each prosodic rider --
+    so a caller can see *why* two units scored as they did. The mean of the
+    costs is the segment distance (single-constituent units); for a
+    multi-constituent unit the segmental part is reported as one aggregate row
+    beside its prosodic riders. Ordering follows the metric, not display.
+    """
+    rows: list[tuple[str, str | None, str | None, float]] = []
+    if len(x.constituents) == 1 and len(y.constituents) == 1:
+        f1, p1 = _metric_bundle(features, x.constituents[0])
+        f2, p2 = _metric_bundle(features, y.constituents[0])
+        for key in sorted(set(f1) | set(f2)):
+            feat = features.features.get(key)
+            v1, v2 = f1.get(key), f2.get(key)
+            cost = (
+                feat.value_distance(v1, v2)
+                if feat is not None
+                else (0.0 if v1 == v2 else 1.0)
+            )
+            rows.append((key, v1, v2, cost))
+        if p1 or p2:
+            rows.append(
+                ("place", None, None, _weighted_place_distance(features, p1, p2))
+            )
+        b1 = x.constituents[0].bundle(features, with_defaults=True)
+        b2 = y.constituents[0].bundle(features, with_defaults=True)
+        x1, x2 = _tract_x(features, b1), _tract_x(features, b2)
+        if not (isinstance(x1, _Unlocalized) or isinstance(x2, _Unlocalized)) and (
+            x1 is not None or x2 is not None
+        ):
+            cost = _arc_distance(x1, x2) if (x1 is not None and x2 is not None) else 1.0
+            rows.append(("tract-x", None, None, cost))
+        y1, y2 = _sagittal(features, b1)[1], _sagittal(features, b2)[1]
+        if y1 is not None or y2 is not None:
+            cost = abs(y1 - y2) if (y1 is not None and y2 is not None) else 1.0
+            rows.append(("tract-y", None, None, cost))
+    else:
+        rows.append(
+            ("segmental", x.to_ipa(), y.to_ipa(), segment_metric(features, x, y))
+        )
+    # prosodic riders
+    xp, yp = _segment_prosodic(features, x), _segment_prosodic(features, y)
+    for key in sorted(set(xp) | set(yp)):
+        feat = features.features.get(key)
+        v1, v2 = xp.get(key), yp.get(key)
+        if v1 is not None and v2 is not None:
+            cost = feat.value_distance(v1, v2) if feat else (0.0 if v1 == v2 else 1.0)
+        else:
+            present = v1 if v1 is not None else v2
+            anchor_v = _prosodic_anchor(features, key)
+            cost = (
+                feat.value_distance(present, anchor_v)
+                if (anchor_v is not None and feat is not None)
+                else 1.0
+            )
+            v1, v2 = v1 or anchor_v, v2 or anchor_v
+        rows.append((f"{key} (prosodic)", v1, v2, cost))
+    return rows
+
+
 #: Bytes of digest a fingerprint carries. Sixty-four bits, because the
 #: question it answers is "is this the same space", not "who wrote this":
 #: two feature spaces colliding by accident is not a failure mode, and a
