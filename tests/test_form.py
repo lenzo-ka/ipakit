@@ -29,9 +29,9 @@ from ipakit.form import (
     Form,
     Node,
     boundary_marks,
-    edge_tier,
+    edge_level,
+    levels,
     spell,
-    tiers,
     units,
 )
 
@@ -183,8 +183,8 @@ class TestWhatIsDroppedIsStillRecorded:
 class TestTheTreeIsGeneratedFromTheDeclarations:
     def test_tiers_come_from_the_level_feature(self):
         """Outermost first, read off ipa.xml rather than stated in code."""
-        assert tiers(FEATURES) == tuple(reversed(FEATURES.features["level"].values))
-        assert tiers(FEATURES) == ("utterance", "phrase", "word", "syllable")
+        assert levels(FEATURES) == tuple(reversed(FEATURES.features["level"].values))
+        assert levels(FEATURES) == ("utterance", "phrase", "word", "syllable")
 
     def test_a_separator_declares_which_tier_it_terminates(self):
         for glyph, level in ((".", "syllable"), ("#", "word")):
@@ -213,10 +213,10 @@ class TestTheTreeIsGeneratedFromTheDeclarations:
         ]
         assert carriers == [], f"{len(carriers)} phones carry a level"
 
-    def test_the_edge_tier_is_the_strongest_a_separator_spells(self):
+    def test_the_edge_level_is_the_strongest_a_separator_spells(self):
         """Not "the outermost tier": there are now tiers above ``word``."""
-        assert edge_tier(FEATURES) == "word"
-        assert edge_tier(FEATURES) != tiers(FEATURES)[0]
+        assert edge_level(FEATURES) == "word"
+        assert edge_level(FEATURES) != levels(FEATURES)[0]
         strongest = max(
             (
                 level
@@ -225,7 +225,7 @@ class TestTheTreeIsGeneratedFromTheDeclarations:
             ),
             key=FEATURES.features["level"].values.index,
         )
-        assert edge_tier(FEATURES) == strongest
+        assert edge_level(FEATURES) == strongest
 
     def test_the_tree_nests_by_declared_tier(self):
         tree = Form.parse("#kˌæn.tˈiːn dɒɡ#", FEATURES).tree(FEATURES)
@@ -272,7 +272,7 @@ class TestAnUnspecifiedTierIsNotInvented:
     def test_a_form_with_no_break_mark_has_no_phrase_or_utterance_tier(self):
         """The tiers above ``word`` are not invented either.
 
-        This is what makes :func:`edge_tier` a different question from
+        This is what makes :func:`edge_level` a different question from
         "the outermost tier": a bare word is one word, not one utterance.
         """
         tree = Form.parse("kˌæn.tˈiːn", FEATURES).tree(FEATURES)
@@ -285,8 +285,8 @@ class TestAnUnspecifiedTierIsNotInvented:
         checked = 0
         for phone in _phones():
             tree = Form.parse(phone, FEATURES).tree(FEATURES)
-            present = [t for t in tiers(FEATURES) if tree.at(t)]
-            assert present == [edge_tier(FEATURES)], (phone, present)
+            present = [t for t in levels(FEATURES) if tree.at(t)]
+            assert present == [edge_level(FEATURES)], (phone, present)
             checked += 1
         assert_swept(checked, _phones())
 
@@ -453,7 +453,7 @@ class TestANodeSaysWhichDelimiterSuppliedEachEnd:
             tree = form.tree(FEATURES)
             used = [
                 (b.text, b.at)
-                for level in tiers(FEATURES)
+                for level in levels(FEATURES)
                 for node in tree.at(level)
                 for b in (node.opened_by, node.closed_by)
                 if b is not None
@@ -485,7 +485,7 @@ class TestANodeSaysWhichDelimiterSuppliedEachEnd:
 class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
     """The promise ``form.py``'s docstring makes, tested rather than assumed.
 
-    ``tiers()`` and ``rules._reaches()`` read one ordinal declaration and
+    ``levels()`` and ``rules._reaches()`` read one ordinal declaration and
     neither restates it, so a value added to ``<feature name="level">``
     should reach the tree and the rule engine on its own. That is only
     true if nothing in Python enumerates the tiers, which is exactly the
@@ -516,8 +516,8 @@ class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
         return IPAFeatures(xml_path=path)
 
     def test_the_ladder_grows_at_the_top(self, extended):
-        assert tiers(extended)[0] == self.LEVEL
-        assert tiers(extended) == (self.LEVEL, *tiers(FEATURES))
+        assert levels(extended)[0] == self.LEVEL
+        assert levels(extended) == (self.LEVEL, *levels(FEATURES))
 
     def test_the_tree_splits_on_the_new_tier(self, extended):
         tree = Form.parse(f"a{self.GLYPH}b", extended).tree(extended)
@@ -530,9 +530,9 @@ class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
         assert (first.opened_by, first.closed_by.text) == (None, self.GLYPH)
         assert (second.opened_by.text, second.closed_by) == (self.GLYPH, None)
 
-    def test_the_edge_tier_does_not_move_with_it(self, extended):
+    def test_the_edge_level_does_not_move_with_it(self, extended):
         """A form with no ``¶`` in it is not thereby one discourse."""
-        assert edge_tier(extended) == "word"
+        assert edge_level(extended) == "word"
         tree = Form.parse("kæt", extended).tree(extended)
         assert tree.at(self.LEVEL) == ()
         assert len(tree.at("word")) == 1
@@ -548,7 +548,7 @@ class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
         """
         for inventory in (FEATURES, extended):
             (space,) = [u for u in units("a b", inventory) if u.text == " "]
-            assert space.level == edge_tier(inventory)
+            assert space.level == edge_level(inventory)
 
     def test_the_rule_engine_ranks_it_from_the_same_declaration(self, extended):
         """``_reaches`` is the other reader of the ladder, and it is not mine.
@@ -558,7 +558,7 @@ class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
         """
         from ipakit.rules import _reaches
 
-        for weaker in tiers(FEATURES):
+        for weaker in levels(FEATURES):
             assert _reaches(self.LEVEL, weaker, extended)
             assert not _reaches(weaker, self.LEVEL, extended)
 

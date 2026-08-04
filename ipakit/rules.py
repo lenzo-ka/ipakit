@@ -48,6 +48,18 @@ declared ``level``: ``syllable`` is optional annotation and transparent,
 either way, because the dot is what lets nucleus-marked stress be turned
 back into syllable-marked stress.
 
+**A tier is read and never written.** A rule may name a declared tier in
+its context -- ``<mora`` where an interval on it starts, ``mora>`` where
+one ends -- and may not name one in its center. That is not caution: the
+restriction buying regularity is on a rule's center and not on its
+contexts (docs/calculus.md), and what leaves the finite-state tradition
+is rewriting a tier rather than reading one, the multi-tape treatments
+going beyond regular power precisely for structure-modifying rules
+(docs/design/tiers.md). A tier term claims a **position** rather than a
+unit and so consumes nothing, which is what keeps the restriction from
+costing anything: "a ``t`` that begins a syllable" is a statement about
+where the target sits, and where the target sits is context.
+
 **A boundary run is one boundary, and the virtual edge is part of it.**
 The general form of the claim above, stated so it can be swept: for any
 rule ``r`` and form ``f`` whose ends carry no boundary run,
@@ -273,14 +285,17 @@ from typing import TYPE_CHECKING
 
 from .constants import DATA_DIR, ZERO_CLASS
 from .form import (
+    Form,
+    Interval,
     Unit,
     _default,
     _unit_for,
     boundary_marks,
     declared_prosody,
-    edge_tier,
+    edge_level,
     spell,
     split_prosody,
+    tier_names,
     units,
     with_prosody,
 )
@@ -399,6 +414,15 @@ class Pattern:
     #: A declared separating mark named literally in a context: the
     #: prosodic break ``|``, the major break ``‖``, the linking mark ``‿``.
     mark: str | None = None
+    #: A declared tier this term claims an interval edge on, or ``None``.
+    #: A tier term is the one pattern that constrains a **position**
+    #: rather than a unit, so it takes no unit and :meth:`matches` refuses
+    #: it; :meth:`holds_at` is what answers it. See :func:`_tier_term`.
+    tier: str | None = None
+    #: Which end of an interval on :attr:`tier` the position is:
+    #: :data:`TIER_START` or :data:`TIER_END`. Meaningless, and ``None``,
+    #: where :attr:`tier` is ``None``.
+    tier_edge: str | None = None
     seg_required: dict[str, str] = field(default_factory=dict)
     #: The values a declared natural class admits, per feature. Kept apart
     #: from ``seg_excluded`` because the two answer differently about a
@@ -426,6 +450,47 @@ class Pattern:
     @property
     def names_boundary(self) -> bool:
         return self.boundary is not None or self.mark is not None
+
+    @property
+    def names_tier(self) -> bool:
+        """Whether this term claims an interval edge rather than a unit.
+
+        Deliberately **not** folded into :attr:`names_boundary`. A
+        boundary is a unit the transcription spelled and a tier edge is a
+        position an :class:`~ipakit.form.Interval` asserts, and the whole
+        of what piece 2 of this increment bought is that those two are
+        different claims: a syllable may cross a word boundary, so an
+        interval edge need not sit at a glyph and a glyph need not open
+        an interval.
+        """
+        return self.tier is not None
+
+    def holds_at(self, gap: int, intervals: Sequence[Interval]) -> bool:
+        """Whether this tier term's claim holds at the position ``gap``.
+
+        ``gap`` counts the positions *between* units, so it runs from 0
+        to ``len(units)``, and it is compared against the half-open span
+        an :class:`~ipakit.form.Interval` carries: a span ``[s, e)``
+        starts at ``s`` and ends at ``e``.
+
+        Nothing here is invented. A form carrying no interval on the
+        named tier answers ``False`` everywhere, which is
+        ``docs/form.md``'s policy read from the rule side -- an
+        unspecified tier is not synthesized, so a rule conditioned on one
+        does not fire where nothing said it was there. That is the same
+        answer a margin-conditioned rule already gives on an undotted
+        word.
+        """
+        if self.tier is None:
+            raise RuleError(
+                f"{self.source!r} is not a tier term, so it has no position "
+                "to hold at. Match it against a unit with Pattern.matches."
+            )
+        return any(
+            (span.start if self.tier_edge == TIER_START else span.end) == gap
+            for span in intervals
+            if span.tier == self.tier
+        )
 
     @property
     def prosodic_keys(self) -> frozenset[str]:
@@ -470,6 +535,15 @@ class Pattern:
         well-formed wrong answer is the shape of every defect this
         library has had (docs/reviewing.md).
         """
+        if self.tier is not None:
+            raise RuleError(
+                f"{self.source!r} claims a position -- the "
+                f"{self.tier_edge} of an interval on the {self.tier!r} tier "
+                "-- and a position is not a unit. Nothing spells it, so a "
+                "unit cannot answer it; ask Pattern.holds_at with the gap "
+                "index and the form's intervals. Answering False here would "
+                "make every tier term a rule that quietly never fires."
+            )
         if self.mark is not None:
             return unit.is_boundary and unit.text == self.mark
         if self.boundary is not None:
@@ -546,7 +620,7 @@ def _is_prosodic(name: str, features: IPAFeatures) -> bool:
 def _reaches(level: str | None, wanted: str, features: IPAFeatures) -> bool:
     """Whether a boundary at ``level`` counts as one at ``wanted``.
 
-    The tiers nest, so a word boundary *is* a syllable boundary: a rule
+    The levels nest, so a word boundary *is* a syllable boundary: a rule
     conditioned on a syllable margin fires at a word margin too, and
     aspiration is syllable-initial rather than only word-initial. The
     containment is not asserted here -- ``<feature name="level">``
@@ -563,16 +637,16 @@ def _reaches(level: str | None, wanted: str, features: IPAFeatures) -> bool:
 
 
 def _edge_level(features: IPAFeatures) -> str:
-    """The level a form's own edge asserts, which is ``form.edge_tier()``.
+    """The level a form's own edge asserts, which is ``form.edge_level()``.
 
     ``_ #`` fires at the end of a form without a ``#`` having been typed,
-    and since the tiers nest, so does every weaker level. Which level
+    and since the levels nest, so does every weaker level. Which level
     that *is* is a question ``ipakit.form`` already answers for the tree
     it builds, so it is asked there rather than answered again here.
 
     It used to be answered again here, as ``level.values[-1]`` -- the top
     of the whole ladder -- and the two **already disagreed**:
-    ``edge_tier()`` is ``word`` and ``values[-1]`` is ``utterance``,
+    ``edge_level()`` is ``word`` and ``values[-1]`` is ``utterance``,
     because ``|`` and ``‖`` declare levels above ``word`` while no
     *separator* spells one. That was harmless only by accident. A level
     pattern is built for a declared separator, so the virtual edge is
@@ -583,13 +657,37 @@ def _edge_level(features: IPAFeatures) -> str:
     read" -- is exactly what would not have fired, since one of them
     tracks the separators and the other does not.
     """
-    return edge_tier(features)
+    return edge_level(features)
 
 
 #: Notation for "a boundary of any level". Not a declared separator -- it
 #: is a wildcard over the declared ones, which is why it is spelled here
 #: and the marks are not.
 ANY_BOUNDARY = "%"
+
+#: The two halves of a **labeled bracket**, which is how prosodic
+#: constituency has been written since SPE: ``[[kæt]σ]ω``. A tier term
+#: borrows the bracket and puts the label inside it, so ``<mora`` is an
+#: opening bracket labeled ``mora`` and ``mora>`` a closing one.
+#:
+#: The pair is spelled here and the tier *names* are not, which is the
+#: whole of the declared-not-hardcoded discipline for this notation:
+#: ``<`` and ``>`` are punctuation this module chooses, the labels come
+#: from :func:`~ipakit.form.tier_names`, and a language declaring a
+#: fourth tier can write it with no edit to this file.
+#:
+#: Angle brackets because the other two pairs are taken and mean
+#: something else: ``[...]`` is a feature query over a unit's bundle and
+#: ``(...)`` marks a context item optional. Neither is a claim about
+#: structure, and a tier term is nothing else.
+TIER_OPEN = "<"
+TIER_CLOSE = ">"
+
+#: Which end of an interval a tier term names. Notation, not data: these
+#: are the two ends a half-open span has, not values of any declared
+#: feature, so writing them here restates nothing that ``ipa.xml`` says.
+TIER_START = "start"
+TIER_END = "end"
 
 
 def _reads_as(text: str, features: IPAFeatures) -> list[Unit]:
@@ -891,6 +989,93 @@ def _optional(text: str, features: IPAFeatures) -> Pattern:
     return dataclasses.replace(inner, source=text, optional=True)
 
 
+def _tier_spelling(text: str) -> tuple[str, str] | None:
+    """The ``(label, end)`` a labeled bracket spells, or ``None``.
+
+    Notation only. The label is **not** checked against the declared
+    vocabulary here, so a misspelled tier is refused by the caller with
+    the declared names in the message instead of falling through to be
+    refused as an unregistered phone -- which is what ``<mora`` got
+    before this existed, and it named the wrong problem.
+    """
+    if len(text) > 1 and text.startswith(TIER_OPEN) and not text.endswith(TIER_CLOSE):
+        return text[1:], TIER_START
+    if len(text) > 1 and text.endswith(TIER_CLOSE) and not text.startswith(TIER_OPEN):
+        return text[:-1], TIER_END
+    return None
+
+
+def _tier_term(text: str, features: IPAFeatures) -> Pattern | None:
+    """``<mora`` / ``mora>``: a position at an interval edge on a tier.
+
+    **What it asserts.** ``<mora`` holds at a position where an interval
+    on the ``mora`` tier *starts*; ``mora>`` where one *ends*. It asserts
+    nothing about the units either side, and it consumes none: a tier
+    term is the one context item that takes no unit, so ``t -> tʰ /
+    <syllable _`` says "a ``t`` that begins a syllable" and not "a ``t``
+    preceded by something".
+
+    **An edge, not membership.** ``<mora>`` -- "somewhere inside a mora"
+    -- is refused rather than quietly meaning one of the two, because an
+    edge is what the shipped sets reach for and membership is the weaker
+    claim. Every interval covers its units, so on a fully parsed form
+    membership is true of nearly every position and states almost
+    nothing, while the two founding cases are both edges: aspiration is
+    syllable-*initial*, and the mora claims ``japanese-moraic.rules``
+    argues in prose are about where a mora *closes*. The limit is pinned
+    by a test, so widening it is a decision rather than a drift.
+
+    **Why the position and not the unit.** A :class:`Pattern` constrains
+    one unit, so the obvious shape is a per-unit predicate -- "this unit
+    begins a mora". That shape cannot state the cases that matter. The
+    read-only restriction puts a tier term out of a rule's *center*, so a
+    per-unit tier term could only ever describe a **neighbor**, and
+    "aspirate a ``t`` that begins a syllable" would be unwritable: the
+    claim is about the target. A position term is a claim about the
+    context by construction -- it is where the target sits, not what it
+    is -- so read-only costs the notation nothing. That is the reason the
+    restriction is livable rather than merely principled.
+
+    **Not a boundary.** ``.`` and ``#`` are units the transcription
+    spelled, and matching one consumes it. A tier edge is asserted by an
+    :class:`~ipakit.form.Interval` and may sit where no glyph is written
+    -- which is the point of piece 2, since a syllable crossing ``‿`` has
+    an edge inside a word and none at the word mark. The notations are
+    different so a reader can see that they are different claims.
+
+    **Nothing orders two tiers.** ``<mora`` and ``<syllable`` are two
+    independent claims about one position; writing both says both hold
+    there and says nothing about which contains which. ``tier`` is
+    nominal, and no spelling here can make it otherwise.
+    """
+    if len(text) > 2 and text.startswith(TIER_OPEN) and text.endswith(TIER_CLOSE):
+        inner = text[1:-1]
+        if inner in tier_names(features):
+            raise RuleError(
+                f"{text!r} asks for membership of an interval on the "
+                f"{inner!r} tier, and a tier term names an EDGE: write "
+                f"'{TIER_OPEN}{inner}' for a position where one starts, or "
+                f"'{inner}{TIER_CLOSE}' for one where it ends. Membership is "
+                "true of nearly every position a span covers and so states "
+                "almost nothing; the two cases the shipped rule sets reach "
+                "for are both edges."
+            )
+    spelled = _tier_spelling(text)
+    if spelled is None:
+        return None
+    label, end = spelled
+    declared = tier_names(features)
+    if label not in declared:
+        raise RuleError(
+            f"{text!r} names the tier {label!r}, which this inventory does "
+            f"not declare. Declared tiers are "
+            f"{', '.join(declared) or '(none)'} -- '<feature name=\"tier\">' "
+            "in ipa.xml, and a language declaring a further one gets it with "
+            "no change to the notation."
+        )
+    return Pattern(source=text, tier=label, tier_edge=end)
+
+
 def _pattern(source: str, features: IPAFeatures) -> Pattern:
     """Build a pattern from one notation item."""
     text = source.strip()
@@ -900,6 +1085,13 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
         if not text[1:-1].strip():
             raise RuleError(f"{text!r} is an empty optional item")
         return _optional(text, features)
+    # A labeled bracket, before the separator and literal branches: '<'
+    # and '>' spell no separator and no phone, so a tier term would fall
+    # all the way through to be refused as an unregistered symbol, which
+    # names the wrong problem to whoever misspelled a tier.
+    tier = _tier_term(text, features)
+    if tier is not None:
+        return tier
     # A separator's notation is the separator, and its level is the level
     # ipa.xml declares for it -- '<separator name="." level="syllable"/>'.
     # Read, not restated: writing '#' -> word here meant a newly declared
@@ -1136,10 +1328,11 @@ class Site:
     ``right`` record the indices the context matched, so a trace can say
     *which* neighbors licensed the change and not merely that some did.
     An entry is ``None`` where no unit licensed that item: the context
-    matched the virtual edge past the end of the form, or the item was
-    optional (``(∅)``) and nothing was there. One entry per context
-    item either way, so the two sequences stay alignable with the
-    notation.
+    matched the virtual edge past the end of the form, the item was
+    optional (``(∅)``) and nothing was there, or the item was a tier term
+    (``<mora``), which claims a position and so takes no unit at all. One
+    entry per context item either way, so the two sequences stay
+    alignable with the notation.
 
     ``bindings`` is the same kind of record for the other thing a site
     can carry: what each agreement variable took as its value here. It is
@@ -1321,11 +1514,20 @@ class Query:
         step: int,
         features: IPAFeatures,
         bindings: dict[str, str] | None = None,
+        intervals: Sequence[Interval] = (),
     ) -> tuple[int | None, ...] | None:
         """Match context outward from ``anchor``; None if it fails.
 
         ``patterns`` is ordered innermost-first, so it reads outward from
         the target in both directions.
+
+        ``intervals`` are the spans the form carries, and only a tier
+        term reads them. A tier term claims the **position** the cursor
+        is at rather than a unit, so it takes nothing and the cursor does
+        not move: two of them in a row are two claims about one position,
+        which is what lets ``mora> <syllable _`` say that a mora closes
+        and a syllable opens where the target sits without either one
+        being inside the other.
 
         ``bindings`` is the site's variable environment, threaded through
         so a context item can agree with the target or with an item on
@@ -1339,6 +1541,21 @@ class Query:
         on_boundary = False
         probe = {} if bindings is None else bindings
         for pattern in patterns:
+            if pattern.tier is not None:
+                # The gap the cursor sits against, reading outward: to the
+                # left of items[index] going left, to its right going
+                # right. Clamped because the cursor has stepped off the
+                # form once a boundary matched the virtual edge, and the
+                # form's own end is a position an interval may end at.
+                gap = index if step < 0 else index + 1
+                if not pattern.holds_at(min(max(gap, 0), len(items)), intervals):
+                    return None
+                # None, as for the virtual edge and for an absent optional
+                # item: no unit licensed this item, because a position is
+                # not a unit. One entry per item either way, so the record
+                # stays alignable with the notation.
+                matched.append(None)
+                continue
             if past_the_end:
                 if pattern.optional:
                     # There is nothing past the end of a form to take, and
@@ -1400,7 +1617,7 @@ class Query:
             if not 0 <= index < len(items):
                 # Running off the form is the strongest edge there is, so
                 # '#' matches there without one having been typed -- and
-                # since the tiers nest, so does any weaker level: the edge
+                # since the levels nest, so does any weaker level: the edge
                 # of a form is a syllable margin as well as a word margin.
                 edge = pattern.boundary
                 if edge is not None and (
@@ -1419,11 +1636,22 @@ class Query:
             on_boundary = items[index].is_boundary
         return tuple(matched)
 
-    def sites(self, items: Sequence[Unit], features: IPAFeatures) -> list[Site]:
+    def sites(
+        self,
+        items: Sequence[Unit],
+        features: IPAFeatures,
+        intervals: Sequence[Interval] = (),
+    ) -> list[Site]:
         """Every non-overlapping position where this environment holds.
 
         Scanned left to right against ``items`` as given -- the caller
         passes a snapshot, and nothing here mutates it.
+
+        ``intervals`` are the spans a :class:`~ipakit.form.Form` carries,
+        defaulting to none: a query naming no tier is answered exactly as
+        it was before they existed, and one that does name a tier finds
+        no site on a form that asserts none. Nothing is derived from the
+        units, here or in ``form.py``.
 
         Non-overlap is what a wider site would put at risk, and a
         boundary target is one: the scan resumes past the run rather than
@@ -1443,8 +1671,12 @@ class Query:
                 # An insertion sits between units, so it is anchored on
                 # the gap: left context ends at index-1, right begins at
                 # index.
-                left = self._side(items, index, self.left, -1, features, bindings)
-                right = self._side(items, index - 1, self.right, +1, features, bindings)
+                left = self._side(
+                    items, index, self.left, -1, features, bindings, intervals
+                )
+                right = self._side(
+                    items, index - 1, self.right, +1, features, bindings, intervals
+                )
                 if (
                     left is not None
                     and right is not None
@@ -1468,8 +1700,12 @@ class Query:
             end = _target_end(items, index, self.target, features)
             # Context reads outward from the site, so the right of it
             # begins past the whole run and not past its first mark.
-            left = self._side(items, index, self.left, -1, features, bindings)
-            right = self._side(items, end - 1, self.right, +1, features, bindings)
+            left = self._side(
+                items, index, self.left, -1, features, bindings, intervals
+            )
+            right = self._side(
+                items, end - 1, self.right, +1, features, bindings, intervals
+            )
             if left is None or right is None:
                 # Past the run, not past its first mark. Resuming inside it
                 # would offer the rest of the same boundary as a second
@@ -1766,6 +2002,35 @@ class Action:
 # --------------------------------------------------------------------------
 
 
+#: What a rule may be matched against. A :class:`~ipakit.form.Form` is
+#: the widest of the three and the only one that can carry a tier, which
+#: is why it was added rather than a separate ``intervals=`` argument: a
+#: span indexes the units it is a span over, so handing the two in
+#: separately is two arguments that can disagree, and the common call
+#: site stays one argument long. The other two spellings mean exactly
+#: what they meant before, and a rule naming no tier cannot tell the
+#: three apart.
+Matchable = str | Sequence[Unit] | Form
+
+
+def _read(
+    form: Matchable, features: IPAFeatures
+) -> tuple[Sequence[Unit], tuple[Interval, ...]]:
+    """The units and the spans a matchable form offers.
+
+    A string and a bare unit sequence carry no interval, and none is
+    derived from their separators -- ``docs/form.md``'s policy, which is
+    why :meth:`Form.parse` does not derive one either. So a rule naming a
+    tier finds no site on a string, for the same reason a rule naming a
+    syllable margin does not fire on an undotted word.
+    """
+    if isinstance(form, Form):
+        return form.units, form.intervals
+    if isinstance(form, str):
+        return units(form, features), ()
+    return form, ()
+
+
 @dataclass(frozen=True)
 class Rule:
     """A :class:`Query` composed with an :class:`Action`.
@@ -1801,33 +2066,40 @@ class Rule:
         return self.action.becomes is None and self.query.target is not None
 
     def recognize(
-        self, form: str | Sequence[Unit], features: IPAFeatures | None = None
+        self, form: Matchable, features: IPAFeatures | None = None
     ) -> list[Site]:
         """Where this rule's environment holds. No rewriting."""
         features = _default(features)
-        items = units(form, features) if isinstance(form, str) else form
-        return self.query.sites(items, features)
+        items, spans = _read(form, features)
+        return self.query.sites(items, features, spans)
 
-    def edits(
-        self, form: str | Sequence[Unit], features: IPAFeatures | None = None
-    ) -> list[Edit]:
+    def edits(self, form: Matchable, features: IPAFeatures | None = None) -> list[Edit]:
         """The edits this rule would make, without making them."""
         features = _default(features)
-        items = units(form, features) if isinstance(form, str) else form
+        items, spans = _read(form, features)
+        return self._edits(items, spans, features)
+
+    def _edits(
+        self,
+        items: Sequence[Unit],
+        spans: Sequence[Interval],
+        features: IPAFeatures,
+    ) -> list[Edit]:
+        """:meth:`edits` with the form already read, for :meth:`apply`."""
         # What the left half named is what the right half's silence is
         # about; see Action.edit and Pattern.prosodic_keys. The halves stay
         # separable -- this is the composition telling the action something
         # it could not otherwise know, not the action reaching backwards.
         named = self.query.target.prosodic_keys if self.query.target else frozenset()
         out = []
-        for site in self.query.sites(items, features):
+        for site in self.query.sites(items, features, spans):
             edit = self.action.edit(site, items, features, rule=self.name, named=named)
             if edit is not None:
                 out.append(edit)
         return out
 
     def apply(
-        self, form: str | Sequence[Unit], features: IPAFeatures | None = None
+        self, form: Matchable, features: IPAFeatures | None = None
     ) -> tuple[list[Unit], list[Edit]]:
         """Apply this rule once, against a snapshot of ``form``.
 
@@ -1836,10 +2108,21 @@ class Rule:
         about a derivation, and :class:`RuleSet` is where derivations
         live. Pinned by a test, so the limit stays known rather than
         assumed shut.
+
+        **The intervals do not come back.** What is returned is a unit
+        sequence, so a rule *reads* a tier and hands back no tier at all
+        -- and that is the read-only restriction arriving where it is
+        felt rather than a gap. Rebasing a span across an edit is a
+        further increment (docs/design/tiers.md §6(d)); until it lands,
+        re-attaching the intervals handed in would describe a different
+        span whenever the rule changed the length of the sequence, which
+        27 of the 86 shipped rules do. :meth:`Form.without_boundaries`
+        refuses for the same reason.
         """
         features = _default(features)
-        items = list(units(form, features) if isinstance(form, str) else form)
-        found = self.edits(items, features)
+        read, spans = _read(form, features)
+        items = list(read)
+        found = self._edits(items, spans, features)
         return _apply_edits(items, found), found
 
     def __str__(self) -> str:
@@ -1880,6 +2163,12 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     ``~>`` in place of the arrow marks the rule **optional**: it may fire
     at a site or not, and :meth:`RuleSet.variants` enumerates the choices.
     ``~->``, ``~→`` and ``~=>`` say the same of the other two arrows.
+
+    ``<mora`` and ``mora>`` are **tier terms** -- a position where an
+    interval on a declared tier starts or ends. They are legal in a
+    context and refused in the target and on the right of the arrow,
+    which is the read-only restriction stated at parse time; see
+    :func:`_tier_term`.
     """
     features = _default(features)
     source = text.strip()
@@ -1924,6 +2213,23 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
         raise RuleError(f"{source!r} has nothing on the right of the arrow")
 
     target = None if lhs in NULL else _pattern(lhs, features)
+    if target is not None and target.tier is not None:
+        # THE READ-ONLY RESTRICTION, by construction and at parse time.
+        # A rule's center is what it rewrites, and Kaplan & Kay's
+        # restriction is on the center rather than on the contexts
+        # (docs/calculus.md); a tier term in the center is a rule that
+        # rewrites structure, which is exactly the power the multi-tape
+        # treatments needed to go beyond regular for
+        # (docs/design/tiers.md section 2). Refused here rather than
+        # answered at match time, because a refusal at match time would
+        # be site-dependent: fine on one form, quietly nothing on the
+        # next.
+        raise RuleError(
+            f"{source!r} names the tier {target.tier!r} in its target, and a "
+            "rule may READ a tier and may not rewrite one. A target is what "
+            "the rule rewrites; a tier term belongs in the context, where it "
+            f"says where the target sits: '{lhs} -> {rhs} / {target.source} _'."
+        )
     becomes = _becomes(rhs, features)
     if target is None and becomes is None:
         raise RuleError(f"{source!r} rewrites nothing as nothing")
@@ -2346,6 +2652,31 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
         unknown = sorted(k for k in pairs if k not in features.features)
         if unknown:
             raise RuleError(f"{rhs!r} names undeclared feature(s): {unknown}")
+        # THE READ-ONLY RESTRICTION, from the other side of the arrow.
+        # 't -> [tier=mora]' PARSED and then did nothing at all: the
+        # change was written into a bundle no unit carries, so the rule
+        # was a well-formed statement with no effect and no complaint --
+        # the shape of every defect this library has had
+        # (docs/reviewing.md). The query side already refuses a
+        # structural term (`_structural_terms`) and this side did not.
+        #
+        # Refused for the reason the target is: a structural feature is a
+        # property of a boundary, a juncture or a tier, and rewriting one
+        # is a structure-modifying rule. Which features those are is read
+        # off the declared modes, so a structural feature declared later
+        # is refused with no edit here.
+        structural = sorted(
+            set(pairs) & set(features.features_by_mode.get("structural", ()))
+        )
+        if structural:
+            raise RuleError(
+                f"{rhs!r} rewrites the structural feature(s) {structural}. A "
+                "structural feature is a property of a boundary, a juncture "
+                "or a tier rather than of a segment, so no unit carries one "
+                "for a change to reach -- this wrote a value into a bundle "
+                "that does not exist and reported nothing. A rule may read "
+                "structure and may not write it."
+            )
         change: Change = {}
         for key, value in pairs.items():
             prosodic = _is_prosodic(key, features)
@@ -2384,6 +2715,19 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
                 )
             change[key] = resolved
         return change
+    # A tier term on the right of the arrow. Refused by name rather than
+    # left to the unregistered-literal branch below, which would call it
+    # a misspelled phone: it is not a misspelling, it is the one thing a
+    # rule may never do.
+    spelled = _tier_spelling(rhs)
+    if spelled is not None and spelled[0] in tier_names(features):
+        raise RuleError(
+            f"{rhs!r} writes an interval edge on the {spelled[0]!r} tier. A "
+            "rule may READ a tier in its context and may not rewrite one: "
+            "the right of the arrow is the center of the rule, and a rule "
+            "that moves an interval edge is a structure-modifying rule "
+            "(docs/design/tiers.md section 2)."
+        )
     # A literal that spells no phone spells nothing to put anywhere. An
     # insertion inserts a position, and a prosodic mark is a property of a
     # position rather than one of its own, so '∅ -> ˈ' had no unit to

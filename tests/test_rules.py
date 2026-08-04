@@ -425,7 +425,7 @@ class TestTheNotation:
         """One read, not two that agree by habit -- and they did not.
 
         The engine used to answer this itself, as the top of the ordinal
-        ``level`` ladder, while ``form.edge_tier()`` answered "the
+        ``level`` ladder, while ``form.edge_level()`` answered "the
         strongest level a **separator** spells". Those are different
         questions and already gave different answers -- ``utterance``
         against ``word`` -- because ``|`` and ``‖`` declare levels above
@@ -436,7 +436,7 @@ class TestTheNotation:
         promising the two would be reconciled was in the function that
         would not have noticed.
         """
-        strongest = R.edge_tier(FEATURES)
+        strongest = R.edge_level(FEATURES)
         assert R._edge_level(FEATURES) == strongest
         assert strongest != FEATURES.features["level"].values[-1], "the two differ"
         for mark in SEPARATORS:

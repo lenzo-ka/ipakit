@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Per-phone indel costs: `insert_cost` / `delete_cost` take a `CostSchedule` or any callable, `directional_word_distance` names its reference side, and `WordDistanceResult.costs` reports the schedule a score was computed under (#166).
+- A rule may name a declared tier in its **context**: `<mora` where an interval on it starts, `mora>` where one ends, refused at parse time in the target or on the right of the arrow (#145).
 - `Interval(tier, start, end)`: a half-open span on a declared tier, carried on `Form.intervals` and handed to `Form.rebuild`, stating the syllable crossing a word boundary that `tree()` cannot (#145).
 - `tier`: the vocabulary an interval may be declared on, nominal and structural, beside the ordinal `level` rather than on it (#145).
 - `scripts/areafunctions.py female`: a fifth measured source, Story, Titze & Hoffman (1998) — a second American English speaker, an adult female, and the only measured table that images `ʌ` and `ɝ` beside the sessions already held (#175).
@@ -99,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `form.edge_tier()` and `form.tiers()` are `edge_level()` and `levels()`: both answer with the ordinal `level` feature, and `tier` is a declared feature of its own now (#145).
 - `œ`, `ɯ` and `ʌ` declare a constriction location, from Wood's later restatements of the same four families; 268 of 9591 pairs move and no consonant pair does (#175).
 - Sixteen vowels declare their constriction location, in Wood's (1979) four families read at the arcs `place` declares; 2421 of 9591 pairs move and `ɑ a æ` are the first vowels to reach the pharyngeal anchor (#123).
 - A feature borrowing an excluded feature's vocabulary is excluded from per-key comparison with it, and a borrowed reading is dropped rather than carried across a `respell`.
@@ -161,6 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A bracketed change naming a structural feature is refused: `t -> [tier=mora]` parsed, fired at every `t` and wrote into a bundle no unit carries (#145).
 - `DistanceModel.is_similar` charged structural marks a length and a price the alignment never pays, so `lez‿ami` against `lezami` short-circuited to `False` above 12/13 for two forms it scores identical (#166).
 - The feature-space fingerprint no longer digests structural features, which cannot reach a distance, so declaring one leaves a saved matrix readable (#145).
 - A bare query term two features claim resolves by declaration order no longer: a value declares `bare` to own its plain spelling, and a contested term nothing claims is refused naming the claimants (#178).

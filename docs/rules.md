@@ -326,7 +326,7 @@ ipa.rewrite("ə.tˈæk", asp)   # 'ə.tʰˈæk' -- an explicit syllable margin
 
 The reverse does not hold: `#` is not matched by a mere syllable break.
 
-Every boundary glyph declares its tier, so `#` reaches all of them and no rule needs to name two:
+Every boundary glyph declares its level, so `#` reaches all of them and no rule needs to name two:
 
 | Glyph | `level` | also declares |
 | --- | --- | --- |
@@ -379,7 +379,81 @@ ipa.rewrite("a.‿b",  ". -> ∅")   # 'ab'    -- the class takes the whole run
 
 The target is walked as far as the pattern matches, which is what keeps the last two apart: `.` is "syllable or stronger" and reaches every mark of the run, while `‿` names one mark and leaves the dot where it was written. The site is wider than one unit, and the *rule* still states one pattern and matches one boundary — the width is a fact about how the form was spelled, not about the rule, which is why this is not the multi-unit target [metathesis needs](calculus.md).
 
-The edge is a **word** boundary specifically, not the top of the ladder: `_ |` does not fire at the end of a form, because a phrase break is written or it is not there. `#` is the mark a form edge is an unwritten instance of, and `ipakit.form.edge_tier()` reads that off `<separators>`.
+The edge is a **word** boundary specifically, not the top of the ladder: `_ |` does not fire at the end of a form, because a phrase break is written or it is not there. `#` is the mark a form edge is an unwritten instance of, and `ipakit.form.edge_level()` reads that off `<separators>`.
+
+## A rule may read a tier, and may not rewrite one
+
+A **tier** is not a rung on the boundary ladder above. `level` is ordinal — a word boundary *is* a syllable boundary — and `tier` is nominal: a syllable, a mora and a morph do not nest, and nothing orders two of them. A span on a tier is an [`Interval`](form.md#an-interval-is-carried-because-no-glyph-delimits-one) carried on a `Form`, and a rule may name one **in its context only**.
+
+The notation is a labeled bracket, which is how prosodic constituency has been written since SPE, with the label inside it:
+
+| term | holds where |
+| --- | --- |
+| `<mora` | an interval on the `mora` tier **starts** |
+| `mora>` | an interval on the `mora` tier **ends** |
+
+The labels come from `<feature name="tier">`, so a language declaring a fourth tier writes it with no code change; the brackets are notation and are spelled in `rules.py`. Angle brackets because the other two pairs mean something else — `[...]` is a feature query over a unit's bundle, `(...)` marks a context item optional — and neither is a claim about structure.
+
+### A tier term claims a position, not a unit
+
+Every other context item takes a unit. A tier term takes none: it says something about the **gap** the cursor is at, so `<syllable _` reads "the target begins a syllable" rather than "something precedes the target".
+
+That is the choice that makes the read-only restriction livable, and it is worth stating why. The center of a rule is closed to a tier term, so a *per-unit* tier term could only ever describe a neighbor — and the statements that matter are about the target. "Aspirate a `t` that begins a syllable" would be unwritable. As a position term it is a claim about where the target sits, which is a context, so nothing is lost by the restriction.
+
+Two consequences. A tier term can be conjoined with an ordinary item at the same position, because it consumed nothing: `[vowel] <syllable _` is a vowel before the target *and* an interval starting at the target. And two tier terms may sit together, which is a conjunction over one position and not a nesting — `mora> <syllable _` says a mora closes and a syllable opens where the target sits, in either written order, and says nothing about which contains which.
+
+### It is a different claim from a boundary glyph
+
+`.` and `#` are units the transcription spelled. An interval edge is asserted by a `Form`, and it may sit where no glyph is written — which is the whole point of carrying one. *Petite amie* is the case: the syllable `t‿a` starts inside a word, and no boundary pattern can name that position.
+
+```python
+from ipakit.form import Form, Interval
+
+form = Form.parse("pətit‿ami")
+syllables = [Interval("syllable", 0, 2), Interval("syllable", 2, 4),
+             Interval("syllable", 4, 7), Interval("syllable", 7, 9)]
+held = Form.of(form.units, syllables)
+
+rule = ipa.rules.parse("t -> tʰ / <syllable _")
+[s.start for s in rule.recognize(held)]        # [2, 4]
+ipa.rules.spell(rule.apply(held)[0])           # 'pətʰitʰ‿ami'
+```
+
+Unit 4 is the `t` that opens `t‿a`. No spelling of a boundary reaches it — `.`, `#`, `%` and `‿` were all tried — because there is no boundary there: `‿` sits at unit 5, *inside* the syllable.
+
+The converse holds too. A dot asserts a boundary and not a span, so a dotted form carries no interval and no tier term holds of it:
+
+```python
+dotted = Form.parse("pə.ti.t‿a.mi")
+dotted.intervals                               # ()
+rule.recognize(dotted)                         # []
+```
+
+Nothing is invented, here or in `form.py`: a form that asserts no interval is not given one, so a rule conditioned on a tier does not fire there — the same answer a margin-conditioned rule gives on an undotted word.
+
+### The center is closed, and the refusal is at parse time
+
+A tier term in the target or on the right of the arrow is refused when the rule is read, not answered when it is applied. A refusal at match time would be site-dependent: fine on one form and quietly nothing on the next.
+
+```python
+ipa.rules.parse("<mora -> d")
+# RuleError: '<mora -> d' names the tier 'mora' in its target, and a rule may READ a tier and may not rewrite one.
+```
+
+The restriction is the finding rather than a caution. Kaplan & Kay's restriction is on a rule's **center** and not on its contexts ([calculus.md](calculus.md)), and what leaves the finite-state tradition is rewriting a tier rather than reading one: the multi-tape treatments go beyond regular power, and that power is required precisely for structure-modifying rules ([design/tiers.md](design/tiers.md)). So a tier read in a context costs nothing in formal power, nothing in intermediates and nothing in the derivation trace.
+
+The same line closes a hole on the change side. A **structural** feature — `level`, `tier`, `tie`, `linking`, `break` — is a property of a boundary, a juncture or a tier rather than of a segment, so no unit carries one. A query naming one was already refused; a *change* naming one was not, and `t -> [tier=mora]` parsed, fired at every `t`, wrote into a bundle that does not exist and reported nothing.
+
+```python
+ipa.rules.parse("t -> [tier=mora]")
+# RuleError: '[tier=mora]' rewrites the structural feature(s) ['tier'].
+```
+
+### What a tier term does not do yet
+
+- **A term names an edge, not membership.** `<mora>` is refused rather than read as one of the two. Membership is true of nearly every position a span covers and so states almost nothing, while both cases the shipped sets reach for are edges.
+- **`RuleSet.derive` takes a string**, so a *cascade* cannot see a tier at all: each step would need the spans rebased onto its own output. `Rule.recognize`, `Rule.edits` and `Rule.apply` take a `Form`, and those are where a tier is readable today.
+- **`Rule.apply` returns units and no intervals.** A rule reads a tier and hands back none. Re-attaching the spans it was given would describe a different span wherever the rule changed the length of the sequence, which 27 of the 86 shipped rules do; `Form.without_boundaries()` refuses for the same reason.
 
 ## `∅` is nothing; a zero is a position with no content
 
@@ -751,5 +825,5 @@ Recorded so they are not discovered the hard way:
 - A `Derivation`'s `start` is the form **as the engine read it**, not the string handed in. Reading drops what the inventory does not register, with a warning, and a trace whose first line is not what the first rule saw would account for a derivation that did not happen.
 - `Form.rebuild` is an inverse up to spelling; `Boundary` equality is not object equality with the original. It does reproduce each boundary *unit* — text and declared features — from `Boundary.features`; rebuilding from `Boundary.level` alone put `‿` back as a plain word boundary with its `linking=+` gone, the same spelling describing a different unit.
 - `Boundary.level` falls back to `word` where a mark declares none. Every shipped glyph declares one, so only a hand-made `Boundary`, or a mark added without a level, reaches it.
-- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it the tier a form edge delimits (`form.edge_tier()`, `word` today) rather than a literal. A space and the form's own end therefore assert the same level by construction, which is what stops a context from matching one and not the other.
+- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it the level a form edge delimits (`form.edge_level()`, `word` today) rather than a literal. A space and the form's own end therefore assert the same level by construction, which is what stops a context from matching one and not the other.
 - The CLI parses a rule per invocation, so applying a set to a large corpus pays that parse once and the inventory load once; it is a filter, not a batch engine.
