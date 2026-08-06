@@ -39,7 +39,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-FENCE = re.compile(r"```(python|console)\n(.*?)```", re.S)
+FENCE = re.compile(r"```(python|console)([^\n]*)\n(.*?)```", re.S)
+
+#: A ``python`` fence tagged ```` ```python no-run ```` is an illustrative
+#: fragment -- a function-body excerpt, a snippet that names context the
+#: document did not define, or a recipe with a side effect -- not a
+#: self-contained example with a value to check. It still highlights as
+#: Python (renderers key on the first word), but this reader skips it and
+#: says how many it skipped, so the exemption cannot go quietly.
+NO_RUN = "no-run"
 EXC = re.compile(
     r"^([A-Za-z_][A-Za-z_0-9]*(?:Error|Warning|Exception))\b:?\s*(.*)$", re.S
 )
@@ -197,30 +205,36 @@ def main() -> int:
     args = parser.parse_args()
 
     paths = [ROOT / "README.md"] + sorted(
-        path for path in (ROOT / "docs").glob("*.md") if path.name not in GENERATED
+        path for path in (ROOT / "docs").rglob("*.md") if path.name not in GENERATED
     )
-    total = failures = 0
+    total = failures = skipped_total = 0
     for path in paths:
         env: dict = {}
         report: list = []
-        checked = failed = 0
-        for language, block in FENCE.findall(path.read_text(encoding="utf-8")):
+        checked = failed = skipped = 0
+        for language, info, block in FENCE.findall(path.read_text(encoding="utf-8")):
             if language != "python":
+                continue
+            if NO_RUN in info:
+                skipped += 1
                 continue
             one, two = check_block(block, env, report)
             checked, failed = checked + one, failed + two
         total += checked
         failures += failed
-        if checked or failed:
+        skipped_total += skipped
+        if checked or failed or skipped:
             mark = "ok  " if not failed else "FAIL"
             name = path.relative_to(ROOT)
-            print(f"  [{mark}] {name}: {checked} values checked, {failed} wrong")
+            note = f", {skipped} illustrative skipped" if skipped else ""
+            print(f"  [{mark}] {name}: {checked} values checked, {failed} wrong{note}")
         for source, want, got in report:
             print(f"         {' '.join(source.split())[:88]}")
             print(f"           document says: {want}")
             print(f"           library gives: {got}")
 
-    print(f"\n{total} quoted values checked in the hand-written documents")
+    tail = f" ({skipped_total} illustrative fences skipped)" if skipped_total else ""
+    print(f"\n{total} quoted values checked in the hand-written documents{tail}")
     if total < args.floor:
         print(
             f"only {total} values checked, below the floor of {args.floor}: the "

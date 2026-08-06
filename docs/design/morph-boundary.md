@@ -233,7 +233,7 @@ This must land with the data, because without it the notation is silently broken
 
 The clause is short, and the shape is already in the file. `‿`, `|` and `‖` are matched by `Pattern(mark=text)`, which is exact-glyph equality with no `_reaches` call at all — precisely the semantics a nominal tier wants:
 
-```python
+```python no-run
 declared = features.separators.get(text)
 if declared is not None:
     level = (declared.features or {}).get("level")
