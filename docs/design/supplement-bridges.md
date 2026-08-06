@@ -45,7 +45,7 @@ The loader's stated reason for the refusal is that "a bundle key is a term in th
 
 Read against `ipakit/metric.py`, it describes a bridge precisely. `_metric_bundle` ends with
 
-```python
+```python no-run
 for bridge, spellings in features.bridges.items():
     feats[bridge] = "+" if any(bundle.get(f) == v for f, v in spellings) else "-"
 ```
@@ -287,7 +287,7 @@ The scale is the feature that declares `axis="+glottal-aperture"`, which `phonat
 
 Every number here was taken under `PYTHONHASHSEED=0` against this worktree, on `main`. The recipe, in full:
 
-```python
+```python no-run
 # splice one <bridge> into a copy of the shipped inventory
 text = (DATA_DIR / "ipa.xml").read_text()
 Path("variant.xml").write_text(text.replace("  </bridges>", BLOCK + "\n  </bridges>", 1))

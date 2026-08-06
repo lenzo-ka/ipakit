@@ -4,7 +4,7 @@ What do the people using the existing phonetics tools say goes wrong, and what s
 
 **Verdict: the dominant complaint is a silent wrong answer at the string boundary, and the reason it never gets fixed upstream is that there is no "correct IPA" to appeal to.** A character a tool does not recognize gets dropped, and the caller is handed a well-formed result computed over less than they wrote. The instance that recurs most is the two `g`s — three separate projects have been asked to accept `U+0067` where `U+0261` was meant, and each declined on the grounds that it implements the standard strictly. Measured today, **the field's two flagship cross-linguistic catalogs normalize that character in opposite directions**: PHOIBLE to `U+0261`, CLTS to `U+0067`. Strictness is not available as a position. What is available is *saying which one you chose and why*, which is what `data/phonemaps/lookalikes.xml` is.
 
-Two of the complaints land on ipakit as well, and they are the most useful findings here. It cannot read the IPA's own raised-diacritic variants — `U+030A` and `U+030D`, the forms prescribed on glyphs with descenders — so `ŋ̊` loses its voicelessness. And chasing PHOIBLE's "two segments, one feature vector" complaint into ipakit turned up not the collapse itself, which is deliberate and documented, but **a guard that has stopped guarding**: the exception in `check_descriptions` that excuses a vowel and its diphthongs in fact excuses any two atomic phones, consonants included, and one of its two conjuncts is tautological. Both are reported here with a reproducing case, not fixed; this lane changed no code, data or tests, and `make check` exits 0.
+Two of the complaints land on ipakit as well, and they are the most useful findings here. It cannot read the IPA's own raised-diacritic variants — `U+030A` and `U+030D`, the forms prescribed on glyphs with descenders — so `ŋ̊` loses its voicelessness. *(Since closed — these are now declared as `alias` spellings in the inventory; §5.)* And chasing PHOIBLE's "two segments, one feature vector" complaint into ipakit turned up not the collapse itself, which is deliberate and documented, but **a guard that has stopped guarding**: the exception in `check_descriptions` that excuses a vowel and its diphthongs in fact excuses any two atomic phones, consonants included, and one of its two conjuncts is tautological. Both are reported here with a reproducing case, not fixed; this lane changed no code, data or tests, and `make check` exits 0.
 
 The articulatory hole is real. Nothing surveyed maps IPA to constriction location and degree. The symbolic toolkits emit distinctive features, which are phonological rather than geometric; the articulatory tools infer measured traces from audio or drive a synthesizer from a gestural score, and none of them takes IPA in.
 
@@ -17,7 +17,7 @@ The articulatory hole is real. Nothing surveyed maps IPA to constriction locatio
 | Is "just use correct IPA" an answer? | **No.** PHOIBLE normalizes `U+0067` → `U+0261`; CLTS/BIPA normalizes `U+0261` → `U+0067`. Both byte-verified 2026-08-02. |
 | Is the confusion recognized outside linguistics? | **Yes.** Unicode UTS #39 `confusables.txt` v17.0.0 lists `ɡ→g`, `ː→:`, `ˈ→'`, `ʼ→'`, `ɑ→a`, `ə→ǝ`, `ǃ→!`, `ʔ→?`. |
 | Does ipakit have that problem? | **No, and by an explicit decision.** Strict reads report `unknown_symbol` and name the character; substitution lives behind `from_wild`. |
-| Does ipakit have a *different* Unicode gap? | **Yes. `U+030A` and `U+030D` are unregistered**, so `ŋ̊` tokenizes to `ŋ` under one warning. PHOIBLE ships segments spelled that way. |
+| Does ipakit have a *different* Unicode gap? | **It did; now closed.** `U+030A` and `U+030D` were unregistered, so `ŋ̊` tokenized to `ŋ` under one warning; they are now `alias` spellings in the inventory and `ŋ̊` reads `['ŋ̥']`. PHOIBLE ships segments spelled that way. §5. |
 | Do distinct segments collapse to one feature vector? | **Yes, everywhere, and worst where the table is largest.** panphon: 4,769 of 6,367 (74.9%). PHOIBLE: 839 of 2,162 (38.8%). ipakit: 4 of 139, all diphthongs, by design. |
 | Is enumeration-versus-composition a real published critique? | **Yes.** SCiL 2024: fixed sound sets lack "a dynamic component", and meeting an unlisted sound is "rather the rule than the exception". |
 | What is panphon actually used for? | **69 of 96 engaged papers use it as model input; 30 use it as an error metric.** The metric use was not anticipated by the brief and has stricter stability requirements. |
@@ -242,7 +242,7 @@ Ties compose, so a unit nobody enumerated still reads. **ipakit's tie is an oper
 
 ### Does ipakit have this problem?
 
-**Yes, in the strict direction, and it is a real gap.** Measured against this worktree:
+**Yes, in the strict direction, and it was a real gap — now closed; see the note at the reproducing case below.** Measured against the worktree this survey read:
 
 ```
 COMBINING RING BELOW           U+0325 registered=True
@@ -262,12 +262,14 @@ A transcription written the way the IPA prescribes for glyphs with descenders lo
 
 Two things make this more than a missing row. **It is a class, not a character** — at minimum `U+030A` (voiceless) and `U+030D` (syllabic), and whether the class is closed is a question about the inventory whose answer should be derived from the declared marks rather than typed out. And **the base-glyph condition is data, not code**: "above when the base has a descender" is a fact about `ŋ ɡ ɟ j ɥ ɰ`, and a hardcoded list of those would be the second copy of the inventory that `test_declared_not_hardcoded.py` exists to prevent.
 
-Reproducing case:
+**Superseded, and closed. Recommendation (a) below was taken: the voicelessness ring and the syllabicity line are declared in the inventory as `alias` spellings of the below forms — `<diacritic name="̥" … alias="̊">` and `<diacritic name="̩" … alias="̍">` in `ipakit/data/ipa.xml` — conditioned on nothing but being the same mark, which is how the IPA means them. Refusal (g) was honored: no `lookalikes.xml` soft read was added, so a caller doing strict IPA work reaches these without going through the wild-import door. The reproducing case below now reads them.**
+
+Reproducing case, now accepting the raised spelling:
 
 ```python
 import ipakit
-ipakit.tokenize("ŋ̊")        # ['ŋ'] + UserWarning; the voicelessness is dropped
-ipakit.validate_ipa("ŋ̊")    # [{'code': 'unknown_symbol', ...}]
+ipakit.tokenize("ŋ̊")        # ['ŋ̥'] — the raised ring composes to the voiceless mark, no warning
+ipakit.validate_ipa("ŋ̊")    # [] — accepted
 ipakit.tokenize("ŋ̥")        # ['ŋ̥'] — the same sound, the other spelling, fine
 ```
 
@@ -533,7 +535,7 @@ The complaints separate into three kinds and only one is ipakit's to answer.
 
 Seven things, in the order they should be considered. None was applied here.
 
-**(a) Register the raised diacritic variants.** §5. `U+030A` and `U+030D` at minimum, conditioned on the base glyph the way the IPA conditions them, declared in the inventory rather than mapped in `lookalikes.xml`. This is the one place the survey found ipakit refusing chart-proper IPA, and a PHOIBLE inventory it cannot read.
+**(a) Register the raised diacritic variants. — Done.** §5. `U+030A` and `U+030D`, declared in the inventory as `alias` spellings rather than mapped in `lookalikes.xml`. This was the one place the survey found ipakit refusing chart-proper IPA, and a PHOIBLE inventory it could not read; `ŋ̊` now reads `['ŋ̥']`.
 
 **(b) Narrow `check_descriptions`' exception to what its docstring says.** §6. Its second conjunct is tautological and the first admits every atomic phone, so an exception written for a vowel and its diphthongs currently excuses `['p', 't']`. State the shape instead: exactly one atomic member, every other member a diphthong whose nucleus is that member. This is the only outright defect the survey found in ipakit, and it was found by cross-checking a measurement against the suite rather than by reading either.
 
@@ -545,7 +547,7 @@ Seven things, in the order they should be considered. None was applied here.
 
 **(f) Say that the tie is an operator.** §4. One sentence, in interop material rather than here, because it explains most of the difference between what ipakit and panphon accept and a reader comparing them would otherwise have to derive it.
 
-**(g) Do not add a soft read for `U+030A`.** Recorded as a refusal, because it is the obvious wrong fix for (a) and someone will propose it.
+**(g) Do not add a soft read for `U+030A`. — Honored.** Recorded as a refusal, because it is the obvious wrong fix for (a) and someone will propose it. (a) landed as an inventory `alias`, not a `lookalikes.xml` soft read, so strict IPA work reaches it directly.
 
 ## Sources
 
@@ -585,7 +587,7 @@ Theme counts are title matches against a stated pattern, given at each use — t
 
 Other-tool behavior was measured against the current PyPI release in a throwaway virtualenv, not read from documentation:
 
-```python
+```python no-run
 import panphon
 ft = panphon.FeatureTable()
 ft.word_fts("gat"); ft.ipa_segs("a͡ɪ"); ft.validate_word("p̪")
@@ -595,7 +597,7 @@ PHOIBLE's collision count groups the 2,162 rows of `phoible-segments-features.ts
 
 ipakit measurements were run under `PYTHONHASHSEED=0` against this worktree and read the library only:
 
-```python
+```python no-run
 import sweep                                    # scripts/ owns the corpus definition
 from ipakit.features import IPAFeatures
 f = IPAFeatures()

@@ -4,7 +4,7 @@ Does the tract posture `ipakit` computes from a phone's declared features agree 
 
 **Verdict: SPLIT. The consonant check holds and should be believed; the vowel rank correlation is a free parameter wearing a statistic's clothes, and is refused.** The declared place arcs for `bilabial` and `alveolar` land inside the measured occlusion of all four imaged stops and nasals at those places, absolutely, with no fitting. The one external check this geometry had before (`docs/articulatory-data.md`, against the X-Ray Microbeam database) can see nothing behind `arc` 0.44 and nothing below the oral cavity; this source reaches the glottis. The vowel figure does not survive: the place of maximum constriction is not recoverable from an area function without deciding where the vocal tract begins, the source itself says the narrowing at 4–5 cm is the piriform sinuses and not a lingual constriction, and Spearman's ρ over the eleven imaged vowels runs from −0.02 to +0.73 as that cutoff moves through the range a reader could defend. There is no plateau to report a number from. Two instruments were tried and both move the same way.
 
-**What the measurement did expose is a modeling limit worth a defect report.** A vowel takes `arc` from `backness` and from nothing else, so `u o ɑ ɔ ʌ` are all `back` and all sit at `arc` 0.56. The MRI data spreads those five over `arc` 0.38 to 0.72 — a third of the tract — in two clean groups, and Gaines et al. reach the same two groups from a comprehensive sample of a continuous articulatory model. Both sources say the back vowels use two tongue-body constriction locations. `ipakit` has one, at a position where the data puts neither group.
+**What the measurement did expose is a modeling limit worth a defect report.** A vowel takes `arc` from `backness` and from nothing else, so `u o ɑ ɔ ʌ` are all `back` and all sit at `arc` 0.56. The MRI data spreads those five over `arc` 0.38 to 0.72 — a third of the tract — in two clean groups, and Gaines et al. reach the same two groups from a comprehensive sample of a continuous articulatory model. Both sources say the back vowels use two tongue-body constriction locations. `ipakit` has one, at a position where the data puts neither group. *(Since closed: a per-vowel `constriction-location` now spreads `u o ɔ ɑ` across `arc` 0.45–0.74 — §4 and §6 D1 below carry the detail.)*
 
 The assessment changed no code, no data and no tests. It adds this document, `scripts/areafunctions.py`, and a changelog line.
 
@@ -148,14 +148,16 @@ Three findings for the lanes that own the files. This lane touched none of them.
 
 **Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the defect stands and is now a stated limit. Every repair the declaration vocabulary can express was tried, including both named at the end of this entry, and each is refused by measurement; `tests/test_vowel_tract_limit.py` pins the limit and each refusal, so it can only change deliberately.**
 
-**D1 — a vowel's constriction location cannot distinguish velar from pharyngeal.** `tract_point` reads `arc` from `backness` alone; `height` moves `offset` only. `u` and `ɑ` are both `backness=back`, so they share `arc` 0.56 exactly, and the model has no way to say that one constricts at the velum and the other in the pharynx. Reproducing case:
+**Superseded again by [#123](https://github.com/lenzo-ka/ipakit/issues/123): a third path the entry did not list — a per-vowel `constriction-location` read ahead of `backness` — carries the split the two repairs above could not. `u` and `ɑ` declare `velar` and `pharyngeal` and now read `arc` 0.45 and 0.74, and the reproducing block below shows that split rather than the collision. The limit is narrower than the entry reads: it bites only a vowel that declares no location and falls back to `backness`, so `ʌ` still reads 0.56, and that residual is what `tests/test_vowel_tract_limit.py` now pins — the split itself is pinned by `tests/test_constriction_location.py`.**
+
+**D1 — a vowel's constriction location cannot distinguish velar from pharyngeal.** `tract_point` reads `arc` from `backness` alone; `height` moves `offset` only. `u` and `ɑ` are both `backness=back`, so they share `arc` 0.56 exactly, and the model has no way to say that one constricts at the velum and the other in the pharynx. Reproducing case, now reading the split that closed it:
 
 ```python
 from ipakit.features import IPAFeatures
 from ipakit.tract import tract_point
 f = IPAFeatures()
-tract_point(f, f.get_features("u")).arc    # 0.56
-tract_point(f, f.get_features("ɑ")).arc    # 0.56
+tract_point(f, f.get_features("u")).arc    # 0.45
+tract_point(f, f.get_features("ɑ")).arc    # 0.74
 ```
 
 Measured, those two constrict 5.6 cm apart in a 17.5 cm tract. `arc` feeds `ipakit.metric` through `_sagittal`, so this is not confined to drawing. It is a limit of the declarations rather than a coding error, and closing it means either extending `backness` past `uvular` or letting `height` contribute to `arc` for a vowel — both changes to `ipa.xml`, both with a distance sweep behind them, and neither is this lane's to make.
