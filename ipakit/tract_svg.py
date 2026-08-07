@@ -754,7 +754,20 @@ def _tongue(src: dict[str, Any], to: Scaler) -> str:
     top = [to(x, y) for _, x, y in surface]
     lo, hi = surface[0][0], surface[-1][0]
     floor = [to(*row["open"]) for row in src["rows"] if lo <= row["arc"] <= hi]
-    body = _path(top + list(reversed(floor)), close=True) if floor else _path(top)
+    if floor:
+        # Curl the tip under. Dropping straight from the tip to the floor draws
+        # a flat front face; a quadratic from the front-most floor point back to
+        # the tip, bulged forward, rounds the body into a tip rather than a wall.
+        floor_rev = list(reversed(floor))
+        tx, ty = top[0]
+        fx, fy = floor_rev[-1]
+        # Round the front-bottom corner up to the tip: a control at the tip's own
+        # x, at floor height, curls the underside up to the tip without poking a
+        # spur forward of the contact.
+        seg = " L".join(f"{x:.2f},{y:.2f}" for x, y in top + floor_rev)
+        body = f"M{seg} Q{tx:.2f},{fy:.2f} {tx:.2f},{ty:.2f} Z"
+    else:
+        body = _path(top)
     return (
         f'<path d="{body}" class="tonguebody"/>'
         f'<path d="{_path(top)}" class="tongue"/>'
