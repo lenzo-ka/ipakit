@@ -737,6 +737,34 @@ class Landmarks:
     frication: frozenset[str]
 
 
+@dataclass(frozen=True)
+class Posture:
+    """What one phone contributes to a drawing, before any head projects it.
+
+    A figure is symbol -> vector -> geometry. This is the vector: everything
+    :func:`ipakit.tract_svg.build_geometry` needs that the *symbol* fixes
+    rather than the head -- the primary reading, the closures the segment is
+    made of, the velic and glottal apertures, and the marks a sagittal
+    posture cannot carry. Separating it out is what lets animation be
+    interpolation of the numbers, projected per frame.
+
+    ``reading`` is ``None`` for the reference drawing, which poses nothing and
+    names every landmark; a phone always has one, and an unplaced reading
+    (silence) falls back to ``rest``, the head's home posture. ``velic`` and
+    ``glottal`` keep the shapes the readers return -- a float and a
+    ``float | None`` -- so nothing about what counts as nasal or voiced moves
+    here.
+    """
+
+    reading: TractPoint | None
+    rest: TractPoint | None
+    constrictions: tuple[TractPoint, ...]
+    velic: float
+    glottal: float | None
+    secondary: tuple[Mark, ...]
+    unmodelled: tuple[Mark, ...]
+
+
 def landmarks(features: IPAFeatures) -> Landmarks:
     """Read the drawable landmarks out of the declared data."""
 
@@ -1302,4 +1330,46 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
         point=TractPoint(arc=arc, offset=offset, articulator=articulator),
         read=frozenset(read),
         approximated=frozenset(approximated),
+    )
+
+
+def posture(
+    features: IPAFeatures, phone: str | None, head_shape: Head | None = None
+) -> Posture:
+    """The symbol -> vector step of a drawing: read a phone into a Posture.
+
+    Everything a figure needs from the segment, computed once and in one
+    place: the primary reading, the closures, the two apertures and the
+    marks. Projecting the vector to geometry is the head's job and stays in
+    :func:`ipakit.tract_svg.build_geometry`, so this may read the symbol and
+    that may not.
+
+    ``phone`` is ``None`` for the reference drawing, whose reading is ``None``
+    and which carries no closures. A phone whose bundle places nowhere
+    (silence) still has a reading -- an unplaced one -- and takes ``rest``, the
+    home posture ``head_shape`` declares, so the fallback follows the head the
+    figure is drawn on rather than a default. ``head_shape`` defaults to the
+    shipped default head.
+    """
+    if phone is None:
+        return Posture(
+            reading=None,
+            rest=None,
+            constrictions=(),
+            velic=0.0,
+            glottal=None,
+            secondary=(),
+            unmodelled=(),
+        )
+    h = head_shape if head_shape is not None else head()
+    bundle = features.get_features(phone)
+    stated = features.get_features(phone, with_defaults=False)
+    return Posture(
+        reading=tract_point(features, bundle),
+        rest=h.rest.point if h.rest is not None else None,
+        constrictions=constrictions(features, bundle),
+        velic=velic_aperture(features, bundle),
+        glottal=glottal_aperture(features, bundle),
+        secondary=secondary_marks(features, bundle),
+        unmodelled=unmodelled(features, stated),
     )
