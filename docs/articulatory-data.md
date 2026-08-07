@@ -218,6 +218,24 @@ The residual difference at the back is real but small against a between-speaker 
 
 This is the evidence for giving `adult-female` the same normalized shape as `adult-male`, scaled to its own peak, rather than leaving it alone.
 
+#### The front of the palate is the alveolar ridge
+
+The clearance profile stops being quotable forward of arc 0.20, but that is a limit of the *estimator*, not of the corpus: the tongue rarely reaches the low front of the roof, so a max-clearance read there is biased narrow. `PAL.DAT` itself has no such limit. It is a static cast, so it measures the roof directly wherever the outline reaches — median front edge arc 0.11 (male 0.112, female 0.109; range 0.085-0.135). Mapped to arc by the same wall, the outline height rises monotonically from about 5-6 mm above the occlusal plane at the front edge to the vault, and that front-low region — every speaker shows it — is the alveolar ridge the smooth extrapolation had erased.
+
+Carried into the model's aperture, holding the floor at the vault level forward of the peak and scaling the roof's drop from the arc-0.24 peak by the per-sex peak clearance (30.5 mm male, 27.25 mm female, spanning frames), the ridge is:
+
+| arc | male | female | roof drop from peak |
+|---|---|---|---|
+| 0.11 | 0.10 | 0.10 | 14.0 mm / 11.4 mm |
+| 0.13 | 0.11 | 0.11 | 12.2 mm / 10.0 mm |
+| 0.24 | 0.18 | 0.17 | 0 (the peak) |
+
+Both sexes land on the same two front diameters, for the same reason section 6 gives: the shorter female tract has a smaller peak clearance *and* a smaller peak diameter, and the two cancel. Linear interpolation from arc 0.13 to the peak reproduces the measured front-vault rise (arc 0.13-0.24) to within 0.003, so the ridge and the vault together cost only the two front points. `adult-male` and `adult-female` now carry a measured alveolar ridge; the child head is left hand-placed for the reason section 6 already gives.
+
+One thing the outline says that the aperture does not: the roof's own vault apex sits near arc 0.30, *behind* the aperture peak at arc 0.24. Forward of 0.30 the roof descends toward the ridge; behind it the roof stays high while the tongue dorsum rises into it, so the aperture falls though the roof does not. The aperture peak and the roof apex are different landmarks, and only the aperture is what `diameter` declares.
+
+A couple of speakers sit apart from the aggregate. Spanning-frame peak clearance runs 17.8 to 39.0 mm across the females and 27.2 to 33.5 mm across the males; the low female (JW48, 17.8 mm) and JW63 (the worst palate-recovery speaker at 5.4 mm rms, section 1) are the ones to distrust. The median front-edge shape is stable without them, since it is aggregated over the outline itself, not the clearance.
+
 ### 7. Two coronal constriction zones
 
 Where the near-contact frames pile up, for the two pellets that reach the coronal region: T1 and T2 within 3 mm of the outline.
@@ -242,8 +260,9 @@ The adult midline, each point marked in the file with where its number came from
 
 | arc | aperture | |
 |---|---|---|
-| 0.00 | 0.16 | extrapolated — no palate outline forward of arc 0.11 |
-| 0.13 | 0.17 | extrapolated |
+| 0.00 | 0.16 | extrapolated — the lip aperture, which `PAL.DAT` does not reach |
+| 0.11 | 0.10 | **measured** — the outline's front edge, the alveolar ridge |
+| 0.13 | 0.11 | **measured** — the ridge rising into the vault |
 | 0.24 | 0.18 | **measured** — the peak |
 | 0.32 | 0.16 | **measured** — 0.90 of the peak |
 | 0.40 | 0.13 | **measured** — 0.73 of the peak |
