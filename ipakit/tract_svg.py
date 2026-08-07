@@ -1106,6 +1106,7 @@ def section_svg(
     caption: dict[str, Any] | None = None,
     active: dict[str, str] | None = None,
     extent: tuple[float, float, float, float] | None = None,
+    mark: bool = True,
 ) -> str:
     # A single figure fits its own extent; a frame of an animation is handed
     # the whole sequence's extent instead, so the scale is one across frames
@@ -1168,7 +1169,14 @@ def section_svg(
     parts.append(_annotate(current, to, taken, active, posed))
     parts.append(_nasal(current, to, aperture, taken))
     parts.append(_tongue(current, to))
-    parts.append(_constriction(current, to, posture, taken))
+    if mark:
+        # The target knob marks a phone's primary constriction in a still. In an
+        # animation frame the primary reading interpolates -- it slides from one
+        # place's arc to the next (velar to pharyngeal across `k`->`a`) -- so
+        # drawing it there shows a constriction migrating through the tract,
+        # while the tongue geometry already carries the real per-articulator
+        # motion. So the knob is a still-only aid; frames pass `mark=False`.
+        parts.append(_constriction(current, to, posture, taken))
     parts.append(_secondary(current, to, taken))
     parts.append(_folds(current, to))
     parts.append(strip)
@@ -1494,7 +1502,9 @@ def _frame_svg(
     is a function of the numbers only. The shared ``extent`` fixes the scale
     so nothing jumps between frames.
     """
-    return section_svg(geom, None, p.velic, _pose(p), None, None, extent=extent)
+    return section_svg(
+        geom, None, p.velic, _pose(p), None, None, extent=extent, mark=False
+    )
 
 
 PLAYER_CSS = """
