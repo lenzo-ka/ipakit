@@ -25,13 +25,24 @@
      shorter overall and proportionally shorter in the pharynx; an adult
      female tract is shorter than an adult male's, again more so in the
      pharynx). They are not measurements, with one exception: the adult
-     midline `diameter` over arc 0.20-0.40 is now the shape measured from
+     midline `diameter` over arc 0.11-0.40 is now the shape measured from
      the X-Ray Microbeam database (Westbury 1994) over all 48 speakers.
      Each adult point below says whether it is measured or extrapolated.
      Diameters elsewhere, all x/y coordinates, and the whole child head are
      unchanged and remain hand-placed. See docs/articulatory-data.md.
 
-     The arc 0.24 and arc 0.40 points were inserted to carry the measured
+     The measured run reaches its front edge at arc 0.11 — the palate
+     outline's own median front edge — where the roof drops to the alveolar
+     ridge, the front-low region every speaker's PAL.DAT shows, rising into
+     the vault. The ridge diameter is the measured palate-roof height carried
+     into the model's aperture: the roof's drop from the arc-0.24 peak, scaled
+     so the peak diameter equals the per-sex peak clearance (30.5 mm male,
+     27.25 mm female), with the floor held at the vault level forward of the
+     peak. The tongue rarely reaches the low ridge, so the clearance profile
+     reads there biased narrow and cannot ground the front; the palate
+     outline is a static cast and measures the roof directly.
+
+     The arc 0.11, 0.24 and 0.40 points were inserted to carry the measured
      shape; their x and y are linear interpolations of the midline that was
      already there, so the drawn centerline is exactly what it was and only
      `diameter` moved.
@@ -56,8 +67,9 @@
   <head name="adult-male" desc="Adult male mid-sagittal tract" length-cm="17.5">
     <rest arc="0.38" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
-      <point arc="0.00" x="0.06" y="0.62" diameter="0.16" provenance="extrapolated"/>       <!-- extrapolated: no palate outline forward of arc 0.11 -->
-      <point arc="0.13" x="0.22" y="0.66" diameter="0.17" provenance="extrapolated"/>       <!-- extrapolated: same -->
+      <point arc="0.00" x="0.06" y="0.62" diameter="0.16" provenance="extrapolated"/>       <!-- extrapolated: the lip aperture; PAL.DAT does not reach the lips -->
+      <point arc="0.11" x="0.1954" y="0.6538" diameter="0.10" provenance="measured"/>   <!-- measured: the palate outline's front edge: the alveolar ridge, the tract's front-low point -->
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.11" provenance="measured"/>       <!-- measured: the ridge rising into the vault -->
       <point arc="0.24" x="0.3242" y="0.6716" diameter="0.18" provenance="measured"/>   <!-- measured: the peak, over arc 0.22 to 0.28 -->
       <point arc="0.32" x="0.40" y="0.68" diameter="0.16" provenance="measured"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4738" y="0.6677" diameter="0.13" provenance="measured"/>   <!-- measured: 0.73 of the peak -->
@@ -135,8 +147,9 @@
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
     <rest arc="0.37" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
-      <point arc="0.00" x="0.07" y="0.62" diameter="0.15" provenance="extrapolated"/>       <!-- extrapolated -->
-      <point arc="0.13" x="0.22" y="0.66" diameter="0.16" provenance="extrapolated"/>       <!-- extrapolated -->
+      <point arc="0.00" x="0.07" y="0.62" diameter="0.15" provenance="extrapolated"/>       <!-- extrapolated: the lip aperture; PAL.DAT does not reach the lips -->
+      <point arc="0.11" x="0.1969" y="0.6538" diameter="0.10" provenance="measured"/>   <!-- measured: the palate outline's front edge: the alveolar ridge, the tract's front-low point -->
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.11" provenance="measured"/>       <!-- measured: the ridge rising into the vault -->
       <point arc="0.24" x="0.3184" y="0.6716" diameter="0.17" provenance="measured"/>   <!-- measured: the peak -->
       <point arc="0.32" x="0.39" y="0.68" diameter="0.15" provenance="measured"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4577" y="0.6677" diameter="0.12" provenance="measured"/>   <!-- measured: 0.73 of the peak -->
