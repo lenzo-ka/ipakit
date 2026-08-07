@@ -121,9 +121,30 @@ def tongue_surface(
     it and projects. Outside the span the tongue is not the boundary.
     """
     h = head(name)
+    controls = [control] if isinstance(control, TractPoint) else list(control)
+    # The tongue ends at its tip: a raised tongue-tip constriction is the
+    # frontmost point of the body, so the surface stops there -- forward of the
+    # tip is the sublingual space, its underside, not its top. Without a tip
+    # constriction the resting tip stands at the span's front. (A dorsum or root
+    # constriction leaves the tip at rest in front of it, so it does not bound
+    # the body.) Clamped to the sample grid, one step of slack so the tip's own
+    # cell is drawn, which keeps every surface arc a row arc.
+    tip = min(
+        (
+            c.arc
+            for c in controls
+            if c.articulator == "tongue-tip"
+            and c.arc is not None
+            and c.offset is not None
+        ),
+        default=None,
+    )
+    front = tip - 1.0 / SAMPLES if tip is not None else None
     out: list[tuple[float, float, float]] = []
     for i in range(SAMPLES + 1):
         arc = i / SAMPLES
+        if front is not None and arc < front:
+            continue
         point = h.tongue_point(arc, control, close)
         if point is None:
             continue
