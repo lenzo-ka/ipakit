@@ -1,0 +1,308 @@
+"""The gate for animating a posture trajectory (H0.2).
+
+H0.1 split a drawing into ``symbol -> vector -> geometry``: a phone reads to a
+:class:`~ipakit.tract.Posture`, and ``build_geometry(head, marks, posture)``
+projects that vector reading *no symbol*. Animation is the payoff of that
+split -- a word becomes a sequence of Postures, you blend between them, and you
+project each blended Posture through the same ``build_geometry``. Nothing new
+reaches the picture; the symbol channel stays shut per frame.
+
+This file gates that trajectory API:
+
+* ``ipakit.tract.score(features, word) -> tuple[Posture, ...]`` -- one Posture
+  per segment (via ``features.segments(word)``).
+* ``ipakit.tract.blend(units, t, falloff=...) -> Posture`` -- a dominance blend
+  at ordinal ``t`` in ``[0, N-1]``; a real Posture, endpoints landing on the
+  units, unit centers reproducing them.
+* ``ipakit.tract_svg.animate(word, head_name=None, features=None,
+  frames_per_unit=...) -> str`` -- a self-contained animated artifact whose
+  frames are ``build_geometry(head, marks, blend(score, t))``.
+
+None of the three exists until the animation lane lands. Until then the import
+below fails and every ``@needs_api`` test skips; there is no soft path through
+them -- once the API is present the assertions are real. The H0.1 gate in
+``tests/test_posture_no_side_channel.py`` still owns the per-phone side-channel
+proof; this file adds the per-frame one.
+
+The known-weak cases this cut does not cover are enumerated in
+``tests/ANIMATION_LIMITS.md``. The one with a test here is the
+articulator-change slide (``test_articulator_change_slides_xfail``, xfail); the
+rest are documented there only.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import inspect
+import re
+
+import pytest
+from ipakit.features import IPAFeatures
+from ipakit.tract import Posture, head, landmarks
+from ipakit.tract_svg import build_geometry
+
+# The animation API. Absent until the score/blend/animate lane lands: import
+# what exists, and let every check below skip until it does. score, blend and
+# animate arrive together, so a single failed import gates the whole surface.
+try:
+    from ipakit.tract import blend, score
+    from ipakit.tract_svg import animate
+
+    HAS_ANIM_API = True
+except ImportError:  # pragma: no cover - exercised only pre-integration
+    blend = None  # type: ignore[assignment]
+    score = None  # type: ignore[assignment]
+    animate = None  # type: ignore[assignment]
+    HAS_ANIM_API = False
+
+needs_api = pytest.mark.skipif(
+    not HAS_ANIM_API,
+    reason="score()/blend()/animate() not present until the H0.2 animation lane lands",
+)
+
+# The default head heads.xml declares -- the one figures draw on.
+HEAD_NAME = head().name
+
+# Dictionary pronunciations that must animate without raising.
+WORDS = ["kat", "aki", "sun"]
+
+# Two vowels on one articulator (both tongue-front: i off=0.38, e off=0.28),
+# so a blend between them moves one constriction degree monotonically.
+SAME_ARTICULATOR_VOWELS = "ie"
+
+# Two vowels on *different* articulators (a tongue-root, i tongue-front): the
+# transition this cut cannot yet model as two gestures. See ANIMATION_LIMITS.md.
+ARTICULATOR_CHANGE = "ai"
+
+# Words the model surface must never grow a clock for. A blend takes an ordinal
+# t and a falloff; a Posture carries articulation, not seconds.
+TIME_WORDS = {
+    "seconds",
+    "second",
+    "duration",
+    "dur",
+    "ms",
+    "millis",
+    "milliseconds",
+    "time",
+    "timing",
+    "fps",
+    "rate",
+    "tempo",
+    "bpm",
+}
+
+
+@pytest.fixture(scope="module")
+def ipa() -> IPAFeatures:
+    return IPAFeatures()
+
+
+def _assert_self_contained(art: str) -> None:
+    """No frame may reach the network -- a zero-dep artifact ships whole.
+
+    The SVG/XML namespace URIs (``xmlns="http://www.w3.org/2000/svg"``) are
+    identifiers, not fetches, and are allowed; a fetched resource is a
+    ``src``/``href`` pointing at ``http(s)``, a CSS ``url(http...)`` or an
+    ``@import``, and none of those may appear.
+    """
+    assert "src=" not in art, "animation references an external src"
+    assert not re.search(
+        r'(?:xlink:)?href\s*=\s*["\'][^"\']*https?://', art
+    ), "animation references an external href"
+    assert not re.search(
+        r'url\(\s*["\']?\s*https?://', art
+    ), "animation pulls a CSS resource over the network"
+    assert "@import" not in art, "animation @imports an external stylesheet"
+
+
+# --------------------------------------------------------------------------
+# 1. A dictionary pronunciation animates.
+# --------------------------------------------------------------------------
+@needs_api
+@pytest.mark.parametrize("word", WORDS)
+def test_word_animates_self_contained(word: str, ipa: IPAFeatures) -> None:
+    """``animate(word)`` returns a non-empty, self-contained artifact."""
+    art = animate(word, head_name=HEAD_NAME, features=ipa)
+    assert isinstance(art, str)
+    assert art.strip(), f"animate({word!r}) produced an empty artifact"
+    _assert_self_contained(art)
+
+
+# --------------------------------------------------------------------------
+# 2. A uniform ordinal clock: one unit per unit, endpoints on the units.
+# --------------------------------------------------------------------------
+@needs_api
+@pytest.mark.parametrize("word", ["kat", SAME_ARTICULATOR_VOWELS])
+def test_one_posture_per_segment(word: str, ipa: IPAFeatures) -> None:
+    """``score`` returns exactly one Posture per segment, each a real Posture."""
+    units = score(ipa, word)
+    expected = len(ipa.segments(word))
+    assert (
+        len(units) == expected
+    ), f"score({word!r}) has {len(units)} units for {expected} segments"
+    assert all(isinstance(u, Posture) for u in units)
+
+
+@needs_api
+@pytest.mark.parametrize("word", ["kat", SAME_ARTICULATOR_VOWELS])
+def test_timeline_endpoints_and_centers_land_on_units(
+    word: str, ipa: IPAFeatures
+) -> None:
+    """The clock is ordinal: ``blend(units, i)`` is unit ``i`` for every i.
+
+    The timeline spans ``[0, N-1]`` -- one unit per unit -- so each integer
+    ordinal lands exactly on its unit, endpoints included. Nothing in this
+    model is measured in seconds; it is measured in units.
+    """
+    units = score(ipa, word)
+    n = len(units)
+    for i in range(n):
+        assert blend(units, i) == units[i], f"blend at t={i} is not unit {i}"
+    # Endpoints, stated explicitly: the trajectory begins on the first unit
+    # and ends on the last.
+    assert blend(units, 0) == units[0]
+    assert blend(units, n - 1) == units[-1]
+
+
+@needs_api
+def test_no_seconds_on_the_model_surface() -> None:
+    """The model surface names ordinals and falloff, never a duration.
+
+    ``blend`` and ``score`` take no time-shaped parameter, and ``Posture``
+    carries no time-shaped field -- the clock is the unit index, and turning
+    frames into seconds is a rendering choice that never reaches the vector.
+    """
+    for fn in (blend, score):
+        params = {p.lower() for p in inspect.signature(fn).parameters}
+        clash = TIME_WORDS & params
+        assert not clash, f"{fn.__name__} exposes a time parameter: {sorted(clash)}"
+    fields = {f.name.lower() for f in dataclasses.fields(Posture)}
+    clash = TIME_WORDS & fields
+    assert not clash, f"Posture carries a time field: {sorted(clash)}"
+
+
+# --------------------------------------------------------------------------
+# 3. No side-channel per frame: every frame is a pure function of a Posture.
+# --------------------------------------------------------------------------
+@needs_api
+@pytest.mark.parametrize("word", ["kat", "aki"])
+def test_every_frame_is_pure_in_the_posture(word: str, ipa: IPAFeatures) -> None:
+    """A blended frame's geometry depends on the vector and nothing else.
+
+    Mirrors the H0.1 round-trip: for sampled ordinals, ``blend`` yields a real
+    Posture, and a symbol-free copy rebuilt from its own fields alone
+    (``dataclasses.replace``) projects to byte-identical geometry. If a frame
+    could differ, something other than the Posture reached ``build_geometry``.
+    """
+    h = head(HEAD_NAME)
+    marks = landmarks(ipa)
+    units = score(ipa, word)
+    n = len(units)
+    step = 0.5
+    t = 0.0
+    while t <= n - 1 + 1e-9:
+        blended = blend(units, t)
+        assert isinstance(blended, Posture), f"blend at t={t} is not a Posture"
+        rebuilt = dataclasses.replace(blended)  # fields only -- no symbol
+        assert build_geometry(h, marks, blended) == build_geometry(h, marks, rebuilt)
+        t += step
+
+
+# --------------------------------------------------------------------------
+# 4. Blend sanity.
+# --------------------------------------------------------------------------
+@needs_api
+def test_blend_at_centers_equals_units(ipa: IPAFeatures) -> None:
+    """The unit centers are fixed points of the blend."""
+    units = score(ipa, "kat")
+    for i, unit in enumerate(units):
+        assert blend(units, i) == unit
+
+
+@needs_api
+def test_same_articulator_vowels_move_monotonically(ipa: IPAFeatures) -> None:
+    """Between two vowels on one articulator, the constriction moves one way.
+
+    ``i`` and ``e`` share the tongue-front articulator and one arc, differing
+    only in offset (0.38 -> 0.28). A dominance blend from the first to the
+    second must walk that offset monotonically -- no overshoot, no reversal --
+    and must actually move, so the frames are an interpolation and not a jump.
+    """
+    units = score(ipa, SAME_ARTICULATOR_VOWELS)
+    assert len(units) == 2
+    offsets = []
+    t = 0.0
+    while t <= 1.0 + 1e-9:
+        point = blend(units, t).reading
+        assert point is not None and point.offset is not None
+        offsets.append(point.offset)
+        t += 0.25
+    assert offsets == sorted(offsets) or offsets == sorted(
+        offsets, reverse=True
+    ), f"offset is not monotonic across the transition: {offsets}"
+    assert offsets[0] != offsets[-1], "the vowels did not move -- no interpolation"
+
+
+@needs_api
+def test_glottal_and_velic_never_blend_through_none(ipa: IPAFeatures) -> None:
+    """A None glottal is resolved before blending; the aperture stays a float.
+
+    ``glottal_aperture`` returns None when a bundle fixes no glottal state, and
+    a trajectory cannot interpolate through None. The contract is that ``blend``
+    resolves it first: for units where one endpoint carries ``glottal=None``,
+    every ordinal along the span -- endpoints included -- yields a real float
+    glottal, and velic (already a float) stays one.
+    """
+    voiced = score(ipa, "aki")
+    for word_units in (voiced,):
+        n = len(word_units)
+        t = 0.0
+        while t <= n - 1 + 1e-9:
+            b = blend(word_units, t)
+            assert b.glottal is not None, f"glottal is None at t={t}"
+            assert isinstance(b.velic, float), f"velic is not a float at t={t}"
+            t += 0.5
+
+    # A directed case: force one endpoint's glottal to None and confirm the
+    # blend never returns None -- the resolution happens inside blend, at the
+    # blend() surface, not upstream in score().
+    a = dataclasses.replace(score(ipa, "a")[0], glottal=None)
+    i = score(ipa, "i")[0]
+    pair = (a, i)
+    for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+        assert (
+            blend(pair, t).glottal is not None
+        ), f"blend passed a None glottal through at t={t}"
+
+
+# --------------------------------------------------------------------------
+# Limits characterization -- see tests/ANIMATION_LIMITS.md.
+# The one weak case with a test lives here; it asserts the behavior this cut
+# *should* have and is expected to fail until the transition model gains a
+# second gesture, so it is xfail rather than a silent gap.
+# --------------------------------------------------------------------------
+@needs_api
+@pytest.mark.xfail(
+    reason="articulator-change transitions slide one primary point; "
+    "the two-gesture model is not in this cut (ANIMATION_LIMITS.md #1)",
+    strict=False,
+)
+def test_articulator_change_slides_xfail(ipa: IPAFeatures) -> None:
+    """A transition across articulators should not slide through phantom arcs.
+
+    ``a`` constricts with the tongue-root (arc 0.74) and ``i`` with the
+    tongue-front (arc 0.32). A true two-gesture transition would fade one
+    constriction out while the other fades in; it would never place a single
+    constriction at arc ~0.53, where neither articulator reaches. This cut
+    blends the primary point, so the midpoint sits squarely between the two --
+    which is exactly what this asserts must *not* happen. xfail until the
+    transition carries both gestures.
+    """
+    units = score(ipa, ARTICULATOR_CHANGE)
+    assert len(units) == 2
+    lo, hi = sorted((units[0].reading.arc, units[1].reading.arc))
+    mid_arc = blend(units, 0.5).reading.arc
+    assert not (
+        lo < mid_arc < hi
+    ), f"the primary point slid to a phantom arc {mid_arc} between {lo} and {hi}"
