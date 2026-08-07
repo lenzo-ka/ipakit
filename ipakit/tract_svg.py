@@ -808,13 +808,14 @@ def _constriction(
     shut = offset >= 0.995
     if arc <= 0.02 and shut:
         return ""  # drawn as the lips meeting, see _lips
+    # The dot marks the constriction target on the articulator, with its name
+    # and state beside it. The reach line from the midline up to the dot was
+    # drawn before the tongue was a body; the body now shows the reach, so the
+    # line only read as a stray dash under the tip.
     parts = [
-        f'<line x1="{openp[0]:.1f}" y1="{openp[1]:.1f}" x2="{ax:.1f}" '
-        f'y2="{ay:.1f}" class="reach"/>',
         f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="5" '
-        f'class="constriction{" shut" if shut else ""}"/>',
+        f'class="constriction{" shut" if shut else ""}"/>'
     ]
-    return "".join(parts)  # named once, on the articulator itself
     name = articulator.replace("-", " ")
     label = f"{name}\n{'closed' if shut else f'{1 - offset:.2f} open'}"
     for text, lx, ly, depth in _place_labels([(label, (ax, ay))], -18, -13, taken):
