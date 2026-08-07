@@ -47,7 +47,7 @@ dependencies = []
 #          wants a clone of cldf-clts/clts, which is data under its own license
 #          and is not a Python dependency at all; the script says how to get it.
 #   dev  - everything, for local development.
-test = ["pytest>=7.0", "pytest-xdist>=3.0", "lxml>=5.0"]
+test = ["pytest>=7.0", "pytest-xdist>=3.0", "lxml>=6.1.1"]
 lint = ["ruff>=0.15", "mypy>=2.1", "black>=26.5,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
 interop = ["pyclts>=4.0", "panphon>=0.22"]
