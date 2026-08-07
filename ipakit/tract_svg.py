@@ -72,6 +72,8 @@ SECTION_HEIGHT = 560
 CHART_HEIGHT = 300
 PAD = 54
 CEILING = 0.20
+FRAMES_PER_UNIT = 8  # how finely the ordinal timeline is sampled between units
+MS_PER_UNIT = 420  # playback only: maps one ordinal unit to wall-clock ms
 
 Point = tuple[float, float]
 Scaler = Callable[[float, float], Point]
@@ -1100,9 +1102,13 @@ def section_svg(
     posture: tuple[float, float, str] | None = None,
     caption: dict[str, Any] | None = None,
     active: dict[str, str] | None = None,
+    extent: tuple[float, float, float, float] | None = None,
 ) -> str:
+    # A single figure fits its own extent; a frame of an animation is handed
+    # the whole sequence's extent instead, so the scale is one across frames
+    # and the tract does not jump between them. The default is unchanged.
     sets = [current] if prior is None else [current, prior]
-    to = _scaler(*_extent(*sets))
+    to = _scaler(*(extent if extent is not None else _extent(*sets)))
     parts = []
     if prior is not None:
         parts.append(
@@ -1471,6 +1477,183 @@ Places in amber host a fricative or affricate somewhere in the inventory.</p>
 </div></body></html>"""
 
 
+def _frame_svg(
+    geom: dict[str, Any],
+    p: Posture,
+    extent: tuple[float, float, float, float],
+) -> str:
+    """One frame, drawn exactly as a still is.
+
+    A frame is a blended :class:`~ipakit.tract.Posture` projected to geometry
+    and handed to the same assembly a single figure uses -- ``section_svg``,
+    the path ``render`` reaches through ``standalone_svg``. It carries no
+    caption and no ``active`` layer because those name the symbol, and a frame
+    is a function of the numbers only. The shared ``extent`` fixes the scale
+    so nothing jumps between frames.
+    """
+    return section_svg(geom, None, p.velic, _pose(p), None, None, extent=extent)
+
+
+PLAYER_CSS = """
+.wrap{max-width:900px}
+.filmstrip{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px}
+.filmstrip .cell{flex:0 0 auto;width:190px;background:var(--panel);
+border:1px solid var(--edge);border-radius:3px;padding:6px}
+.filmstrip .cell svg{display:block;width:100%;height:auto}
+.filmstrip .cell .num{font:400 11px ui-monospace,SFMono-Regular,Menlo,monospace;
+color:var(--dim);text-align:center;padding-top:4px}
+.stage{background:var(--panel);border:1px solid var(--edge);border-radius:3px;
+padding:10px;overflow-x:auto}
+.stage .frame{display:none}
+.stage .frame.on{display:block}
+.stage .frame svg{display:block;width:100%;height:auto;min-width:520px}
+.controls{display:flex;gap:14px;align-items:center;margin-top:14px;
+font:400 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim)}
+.controls button{font:inherit;color:var(--text);background:transparent;
+border:1px solid var(--edge);border-radius:3px;padding:6px 14px;cursor:pointer}
+.controls button:hover{border-color:var(--dim)}
+.controls input[type=range]{flex:1;accent-color:var(--signal)}
+.controls .count{font-variant-numeric:tabular-nums;min-width:72px;text-align:right}
+"""
+
+
+def _player_page(
+    word: str,
+    name: str,
+    frames: list[str],
+    stills: list[str],
+    ms_per_frame: int,
+) -> str:
+    """One self-contained page: a filmstrip of the units, and a player.
+
+    Every frame is the literal output of ``section_svg`` and shares one
+    ``<style>`` and one viewBox, so a frame is byte-for-byte what a still
+    figure would be. The player is a flipbook -- one frame shown at a time,
+    advanced by an inline scrubber and autoplay -- rather than a morph,
+    because the frames already differ in full and there is nothing to tween
+    in the document itself. Zero runtime dependencies; ``ms_per_frame`` is
+    the only place the ordinal clock is mapped to wall-clock time.
+    """
+    cells = "".join(
+        f'<div class="cell">{svg}<div class="num">{i + 1}</div></div>'
+        for i, svg in enumerate(stills)
+    )
+    stage = "".join(
+        f'<div class="frame{" on" if i == 0 else ""}">{svg}</div>'
+        for i, svg in enumerate(frames)
+    )
+    last = max(len(frames) - 1, 0)
+    script = (
+        "(function(){var s=document.getElementById('stage');"
+        "var f=s.querySelectorAll('.frame');var N=f.length;"
+        "var r=document.getElementById('scrub');var b=document.getElementById('play');"
+        "var c=document.getElementById('count');var i=0,t=null;"
+        "var MS=__MS__;"
+        "function show(k){f[i].classList.remove('on');i=((k%N)+N)%N;"
+        "f[i].classList.add('on');r.value=i;c.textContent=(i+1)+' / '+N;}"
+        "r.addEventListener('input',function(){stop();show(+r.value);});"
+        "function start(){if(t)return;t=setInterval(function(){show(i+1);},MS);"
+        "b.textContent='Pause';}"
+        "function stop(){clearInterval(t);t=null;b.textContent='Play';}"
+        "b.addEventListener('click',function(){t?stop():start();});"
+        "show(0);start();})();"
+    ).replace("__MS__", str(ms_per_frame))
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{word} — animated tract</title>
+<style>{_literal_style()}{PLAYER_CSS}</style></head><body>
+<div class="wrap">
+<header><p class="eyebrow">ipakit · {name}</p>
+<h1>Mid-sagittal tract, animated</h1>
+<p style="margin-top:12px;color:var(--dim)">The word <b>{word}</b> as a
+trajectory: {len(stills)} units on an ordinal clock, sampled to
+{len(frames)} frames. Each frame is one blended posture projected through the
+head — the same drawing a single phone gets, with no symbol read per frame.</p>
+</header>
+
+<section><h2>Filmstrip — one still per unit</h2>
+<div class="filmstrip">{cells}</div></section>
+
+<section><h2>Play</h2>
+<div class="stage" id="stage">{stage}</div>
+<div class="controls">
+<button id="play" type="button">Play</button>
+<input id="scrub" type="range" min="0" max="{last}" value="0" step="1"
+aria-label="frame">
+<span class="count" id="count">1 / {len(frames)}</span>
+</div></section>
+</div>
+<script>{script}</script></body></html>"""
+
+
+def animate(
+    word: str,
+    head_name: str | None = None,
+    features: IPAFeatures | None = None,
+    frames_per_unit: int = FRAMES_PER_UNIT,
+) -> str:
+    """A word as a played trajectory, drawn frame by frame.
+
+    ``ipakit.tract.score`` reads the word into one :class:`~ipakit.tract.Posture`
+    per segment; the timeline is sampled on a uniform ordinal clock at
+    ``frames_per_unit`` frames per unit, so frame ``f`` between units ``i`` and
+    ``i+1`` sits at ordinal ``t = i + f/frames_per_unit`` with no notion of
+    duration -- one unit is one unit. Each ordinal is blended to a Posture by
+    ``ipakit.tract.blend`` and projected through the head, and every frame goes
+    through the same ``section_svg`` a still figure does, so a frame cannot
+    drift from a drawing. The scale is fixed across frames from the whole
+    sequence's extent. Playback maps the ordinal clock to milliseconds and is
+    the only place time in seconds appears.
+
+    The result is one self-contained page -- a filmstrip of the units and a
+    flipbook player with an inline scrubber and autoplay -- with no runtime
+    dependencies, readable in a browser without a rasterizer.
+    """
+    # ``score`` and ``blend`` are the model lane's half of H0.2 and land on
+    # ``ipakit.tract`` there; resolved dynamically so this half type-checks and
+    # imports on its own branch, and picks up the real functions once present.
+    from . import tract
+
+    score = getattr(tract, "score")  # noqa: B009  (may be absent on this branch)
+    blend = getattr(tract, "blend")  # noqa: B009  (may be absent on this branch)
+
+    ipa = features or IPAFeatures()
+    name = head_name if head_name is not None else head().name
+    h = head(name)
+    marks = landmarks(ipa)
+    units = score(ipa, word)
+    n = len(units)
+    if n == 0:
+        raise ValueError(f"nothing to animate: {word!r} scored to no units")
+
+    # The still per unit is that unit's own posture; the frames are the
+    # blended postures along the ordinal clock. For a single unit the clock
+    # has one point and the two coincide.
+    if n == 1:
+        ordinals = [0.0]
+    else:
+        steps = (n - 1) * frames_per_unit
+        ordinals = [k / frames_per_unit for k in range(steps + 1)]
+
+    frame_postures = [blend(units, t) for t in ordinals]
+    still_geoms = [build_geometry(h, marks, u) for u in units]
+    frame_geoms = [build_geometry(h, marks, p) for p in frame_postures]
+
+    # One extent over every still and every frame, so the scale is stable.
+    extent = _extent(*still_geoms, *frame_geoms)
+    stills = [
+        section_svg(g, None, u.velic, _pose(u), None, None, extent=extent)
+        for g, u in zip(still_geoms, units, strict=True)
+    ]
+    frames = [
+        _frame_svg(g, p, extent)
+        for g, p in zip(frame_geoms, frame_postures, strict=True)
+    ]
+    ms = max(1, round(MS_PER_UNIT / frames_per_unit))
+    return _player_page(word, name, frames, stills, ms)
+
+
 def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
     prior: dict[str, Any] | None = None
     if args.compare:
@@ -1505,6 +1688,18 @@ def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
     return 0
 
 
+def cmd_animate(args: argparse.Namespace) -> int:
+    if args.head not in heads():
+        print(
+            f"no head {args.head!r}; have {', '.join(sorted(heads()))}", file=sys.stderr
+        )
+        return 1
+    text = animate(args.word, args.head, frames_per_unit=args.frames_per_unit)
+    Path(args.output).write_text(text, encoding="utf-8")
+    print(f"wrote {args.output}: {args.head}, {args.word!r}")
+    return 0
+
+
 def cmd_dump(args: argparse.Namespace) -> int:
     out = {name: geometry(name) for name in sorted(heads())}
     Path(args.output).write_text(json.dumps(out), encoding="utf-8")
@@ -1524,6 +1719,18 @@ def main(argv: list[str] | None = None) -> int:
     p_draw.add_argument("--compare", help="a dump from another revision, overlaid")
     p_draw.add_argument("--phone", help="open the velic port as this phone asks")
     p_draw.set_defaults(func=cmd_draw)
+
+    p_anim = sub.add_parser("animate", help="draw a word as a played trajectory")
+    p_anim.add_argument("word", help="the word to animate, in IPA")
+    p_anim.add_argument("--head", default="adult-male")
+    p_anim.add_argument("-o", "--output", default="tract-animation.html")
+    p_anim.add_argument(
+        "--frames-per-unit",
+        type=int,
+        default=FRAMES_PER_UNIT,
+        help="how finely the ordinal timeline is sampled between units",
+    )
+    p_anim.set_defaults(func=cmd_animate)
 
     p_dump = sub.add_parser("dump", help="project every head to JSON, for --compare")
     p_dump.add_argument("-o", "--output", default="heads.json")
