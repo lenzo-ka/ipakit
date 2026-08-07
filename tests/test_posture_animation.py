@@ -12,8 +12,8 @@ This file gates that trajectory API:
 * ``ipakit.tract.score(features, word) -> tuple[Posture, ...]`` -- one Posture
   per segment (via ``features.segments(word)``).
 * ``ipakit.tract.blend(units, t, falloff=...) -> Posture`` -- a dominance blend
-  at ordinal ``t`` in ``[0, N-1]``; a real Posture, endpoints landing on the
-  units, unit centers reproducing them.
+  at ordinal ``t`` in ``[0, N-1]``; a real Posture, each integer ``t=i``
+  dominated by unit ``i`` (coarticulated, not identical -- see ``CENTER_TOL``).
 * ``ipakit.tract_svg.animate(word, head_name=None, features=None,
   frames_per_unit=...) -> str`` -- a self-contained animated artifact whose
   frames are ``build_geometry(head, marks, blend(score, t))``.
@@ -25,9 +25,9 @@ them -- once the API is present the assertions are real. The H0.1 gate in
 proof; this file adds the per-frame one.
 
 The known-weak cases this cut does not cover are enumerated in
-``tests/ANIMATION_LIMITS.md``. The one with a test here is the
-articulator-change slide (``test_articulator_change_slides_xfail``, xfail); the
-rest are documented there only.
+``tests/ANIMATION_LIMITS.md``. The anti-slide guarantee it *does* hold --
+no constriction leaves its articulator's arc across an articulator change --
+is pinned by ``test_articulator_change_does_not_slide_the_constriction``.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ from ipakit.tract_svg import build_geometry
 # what exists, and let every check below skip until it does. score, blend and
 # animate arrive together, so a single failed import gates the whole surface.
 try:
-    from ipakit.tract import blend, score
+    from ipakit.tract import GLOTTAL_REST, blend, score
     from ipakit.tract_svg import animate
 
     HAS_ANIM_API = True
@@ -53,6 +53,7 @@ except ImportError:  # pragma: no cover - exercised only pre-integration
     blend = None  # type: ignore[assignment]
     score = None  # type: ignore[assignment]
     animate = None  # type: ignore[assignment]
+    GLOTTAL_REST = 1.0
     HAS_ANIM_API = False
 
 needs_api = pytest.mark.skipif(
@@ -73,6 +74,14 @@ SAME_ARTICULATOR_VOWELS = "ie"
 # Two vowels on *different* articulators (a tongue-root, i tongue-front): the
 # transition this cut cannot yet model as two gestures. See ANIMATION_LIMITS.md.
 ARTICULATOR_CHANGE = "ai"
+
+# How far a coarticulated center may sit from its citation posture, per scalar.
+# The dominance blend is non-cardinal (chosen 2026-08-07): at t=i the owning
+# unit's weight is ~0.96 and each neighbor leaks ~0.018, so any one blendable
+# scalar moves at most a few hundredths -- undershoot/overlap, the point of
+# Cohen-Massaro. A center must still be *dominated by* its own unit; this bounds
+# how much it may be pulled, well below the gap between distinct units.
+CENTER_TOL = 0.06
 
 # Words the model surface must never grow a clock for. A blend takes an ordinal
 # t and a falloff; a Posture carries articulation, not seconds.
@@ -96,6 +105,29 @@ TIME_WORDS = {
 @pytest.fixture(scope="module")
 def ipa() -> IPAFeatures:
     return IPAFeatures()
+
+
+def _scalars(p: Posture) -> tuple[float, float, float, float]:
+    """A posture's blendable scalars, for a coarse posture distance.
+
+    The primary reading's arc and offset, the velic and the glottal (a ``None``
+    glottal resolved to rest the way ``blend`` resolves it). Enough to say which
+    unit a blended posture sits nearest and how far off it is.
+    """
+    r = p.reading
+    arc, off = (r.arc or 0.0, r.offset or 0.0) if r is not None else (0.0, 0.0)
+    glottal = GLOTTAL_REST if p.glottal is None else p.glottal
+    return (arc, off, p.velic, glottal)
+
+
+def _apart(a: Posture, b: Posture) -> float:
+    """L1 distance over the blendable scalars -- for ranking the nearest unit."""
+    return sum(abs(x - y) for x, y in zip(_scalars(a), _scalars(b), strict=True))
+
+
+def _max_dev(a: Posture, b: Posture) -> float:
+    """Largest single-scalar deviation -- the tolerance a center is held to."""
+    return max(abs(x - y) for x, y in zip(_scalars(a), _scalars(b), strict=True))
 
 
 def _assert_self_contained(art: str) -> None:
@@ -146,23 +178,27 @@ def test_one_posture_per_segment(word: str, ipa: IPAFeatures) -> None:
 
 @needs_api
 @pytest.mark.parametrize("word", ["kat", SAME_ARTICULATOR_VOWELS])
-def test_timeline_endpoints_and_centers_land_on_units(
-    word: str, ipa: IPAFeatures
-) -> None:
-    """The clock is ordinal: ``blend(units, i)`` is unit ``i`` for every i.
+def test_timeline_lands_each_center_on_its_unit(word: str, ipa: IPAFeatures) -> None:
+    """The clock is ordinal: integer ``t=i`` is dominated by unit ``i``.
 
-    The timeline spans ``[0, N-1]`` -- one unit per unit -- so each integer
-    ordinal lands exactly on its unit, endpoints included. Nothing in this
-    model is measured in seconds; it is measured in units.
+    Not exact equality -- the dominance blend coarticulates (chosen behavior:
+    non-cardinal, so a center is slightly pulled toward its neighbors, which is
+    the undershoot/overlap Cohen-Massaro is for). The ordinal-clock guarantee is
+    weaker and truer: at every integer ``i`` the blend sits *nearer its own unit
+    than any other* and within ``CENTER_TOL`` of it, endpoints included. The
+    timeline spans ``[0, N-1]`` -- one unit per unit; the model counts units,
+    never seconds.
     """
     units = score(ipa, word)
     n = len(units)
     for i in range(n):
-        assert blend(units, i) == units[i], f"blend at t={i} is not unit {i}"
-    # Endpoints, stated explicitly: the trajectory begins on the first unit
-    # and ends on the last.
-    assert blend(units, 0) == units[0]
-    assert blend(units, n - 1) == units[-1]
+        b = blend(units, i)
+        nearest = min(range(n), key=lambda j: _apart(b, units[j]))
+        assert nearest == i, f"blend at t={i} sits nearer unit {nearest} than {i}"
+        dev = _max_dev(b, units[i])
+        assert (
+            dev < CENTER_TOL
+        ), f"blend at t={i} is {dev:.3f} from unit {i} (>{CENTER_TOL})"
 
 
 @needs_api
@@ -213,11 +249,20 @@ def test_every_frame_is_pure_in_the_posture(word: str, ipa: IPAFeatures) -> None
 # 4. Blend sanity.
 # --------------------------------------------------------------------------
 @needs_api
-def test_blend_at_centers_equals_units(ipa: IPAFeatures) -> None:
-    """The unit centers are fixed points of the blend."""
+def test_centers_coarticulate_but_only_slightly(ipa: IPAFeatures) -> None:
+    """A medial center is pulled toward its neighbors -- really, and a little.
+
+    This pins the chosen non-cardinal behavior from both sides: the pull is
+    real (a segment in context is not its isolated citation posture, so the
+    deviation is nonzero) and bounded (within ``CENTER_TOL``). The static
+    ``figure()`` still draws the exact citation posture; only the animation
+    coarticulates.
+    """
     units = score(ipa, "kat")
-    for i, unit in enumerate(units):
-        assert blend(units, i) == unit
+    assert len(units) >= 3, "need a medial unit with neighbors on both sides"
+    medial = blend(units, 1)
+    dev = _max_dev(medial, units[1])
+    assert 0.0 < dev < CENTER_TOL, f"medial center deviates {dev:.4f} from its unit"
 
 
 @needs_api
