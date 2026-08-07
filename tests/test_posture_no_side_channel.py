@@ -117,19 +117,26 @@ def test_build_geometry_signature_has_no_symbol() -> None:
         f"build_geometry exposes a symbol channel: "
         f"{sorted(FORBIDDEN_PARAMS & names)}"
     )
-    assert (
-        "posture" in names
-    ), f"build_geometry has no posture parameter: {sorted(names)}"
 
-    # If the posture parameter is annotated, it must be the Posture type.
-    annotation = params["posture"].annotation
-    if annotation is not inspect.Parameter.empty:
-        text = (
+    # The law is by type, not by name: one parameter carries the posture,
+    # found by its Posture annotation whatever it happens to be called.
+    def _text(annotation: object) -> str:
+        return (
             annotation
             if isinstance(annotation, str)
             else getattr(annotation, "__name__", str(annotation))
         )
-        assert "Posture" in str(text), f"posture parameter is not a Posture: {text!r}"
+
+    carries_posture = [
+        name
+        for name, param in params.items()
+        if param.annotation is not inspect.Parameter.empty
+        and "Posture" in _text(param.annotation)
+    ]
+    assert carries_posture, (
+        "build_geometry takes no Posture-annotated parameter: "
+        f"{ {n: str(params[n].annotation) for n in names} }"
+    )
 
 
 @needs_api
