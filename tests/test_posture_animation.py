@@ -277,32 +277,31 @@ def test_glottal_and_velic_never_blend_through_none(ipa: IPAFeatures) -> None:
 
 
 # --------------------------------------------------------------------------
-# Limits characterization -- see tests/ANIMATION_LIMITS.md.
-# The one weak case with a test lives here; it asserts the behavior this cut
-# *should* have and is expected to fail until the transition model gains a
-# second gesture, so it is xfail rather than a silent gap.
+# The anti-slide guarantee -- see tests/ANIMATION_LIMITS.md.
 # --------------------------------------------------------------------------
 @needs_api
-@pytest.mark.xfail(
-    reason="articulator-change transitions slide one primary point; "
-    "the two-gesture model is not in this cut (ANIMATION_LIMITS.md #1)",
-    strict=False,
-)
-def test_articulator_change_slides_xfail(ipa: IPAFeatures) -> None:
-    """A transition across articulators should not slide through phantom arcs.
+def test_articulator_change_does_not_slide_the_constriction(ipa: IPAFeatures) -> None:
+    """A transition across articulators fades gestures; it does not slide one.
 
     ``a`` constricts with the tongue-root (arc 0.74) and ``i`` with the
-    tongue-front (arc 0.32). A true two-gesture transition would fade one
-    constriction out while the other fades in; it would never place a single
-    constriction at arc ~0.53, where neither articulator reaches. This cut
-    blends the primary point, so the midpoint sits squarely between the two --
-    which is exactly what this asserts must *not* happen. xfail until the
-    transition carries both gestures.
+    tongue-front (arc 0.32). A true two-gesture transition fades one
+    constriction out while the other fades in; it never places a *constriction*
+    at arc ~0.53, where neither articulator reaches. The blend keeps each
+    articulator at its own arc, so no constriction slides -- checked here at the
+    midpoint over the whole transition.
+
+    ``reading`` is exempt: it is the weighted mean of the units' readings and
+    drives jaw close only, not a tongue closure, so it does interpolate through
+    the midpoint by design -- which is why the guarantee is on ``constrictions``
+    and not on ``reading``.
     """
     units = score(ipa, ARTICULATOR_CHANGE)
     assert len(units) == 2
-    lo, hi = sorted((units[0].reading.arc, units[1].reading.arc))
-    mid_arc = blend(units, 0.5).reading.arc
-    assert not (
-        lo < mid_arc < hi
-    ), f"the primary point slid to a phantom arc {mid_arc} between {lo} and {hi}"
+    unit_arcs = {round(c.arc, 6) for u in units for c in u.constrictions}
+    for step in range(11):
+        t = step / 10
+        for c in blend(units, t).constrictions:
+            assert round(c.arc, 6) in unit_arcs, (
+                f"a constriction slid to phantom arc {c.arc} at t={t}; "
+                f"the declared articulator arcs are {sorted(unit_arcs)}"
+            )
