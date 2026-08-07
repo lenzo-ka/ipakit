@@ -143,15 +143,17 @@ def test_a_polyline_that_doubles_back_fails(
     assert not check_head_arcs(ipa)
 
 
-def test_the_undeclared_vertex_is_the_one_the_data_explains() -> None:
-    """0.40 is the stated escape, and it is stated for a reason.
+def test_the_undeclared_vertices_are_the_ones_the_data_explains() -> None:
+    """The stated escapes, and each is stated for a reason.
 
-    ``heads.xml`` inserts it to carry the X-Ray Microbeam diameter run
-    between the palatal and velar anchors, so it declares no place. If a
-    second such vertex appears, this fails and the reason has to be
+    ``heads.xml`` inserts them to carry the X-Ray Microbeam diameter run
+    between declared anchors: 0.40 between the palatal and velar, and 0.11
+    (the palate outline's front edge) and 0.15 (the alveolar knee) across
+    the front, where the measured shape has a corner no place sits on. If
+    another such vertex appears, this fails and the reason has to be
     written down rather than absorbed.
     """
-    assert UNDECLARED_VERTEX_ARCS == frozenset({0.40})
+    assert UNDECLARED_VERTEX_ARCS == frozenset({0.11, 0.15, 0.40})
     carrying = {
         name
         for name, shape in heads().items()

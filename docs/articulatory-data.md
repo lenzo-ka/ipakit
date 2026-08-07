@@ -220,17 +220,19 @@ This is the evidence for giving `adult-female` the same normalized shape as `adu
 
 #### The front of the palate is the alveolar ridge
 
-The clearance profile stops being quotable forward of arc 0.20, but that is a limit of the *estimator*, not of the corpus: the tongue rarely reaches the low front of the roof, so a max-clearance read there is biased narrow. `PAL.DAT` itself has no such limit. It is a static cast, so it measures the roof directly wherever the outline reaches — median front edge arc 0.11 (male 0.112, female 0.109; range 0.085-0.135). Mapped to arc by the same wall, the outline height rises monotonically from about 5-6 mm above the occlusal plane at the front edge to the vault, and that front-low region — every speaker shows it — is the alveolar ridge the smooth extrapolation had erased.
+The clearance profile stops being quotable forward of arc 0.20, but that is a limit of the *estimator*, not of the corpus: the tongue rarely reaches the low front of the roof, so a max-clearance read there is biased narrow. `PAL.DAT` itself has no such limit. It is a static cast, so it measures the roof directly wherever the outline reaches — median front edge arc 0.11 (male 0.112, female 0.109; range 0.085-0.135). Mapped to arc by the same wall and aggregated over the 46 speakers outside JW48/JW63, the outline height rises from about 5-6 mm above the occlusal plane at the front edge to the vault — but not uniformly. It is a flat-low shelf over arc 0.11-0.13 (5.7 mm rising to 7.3 mm, the alveolar region toward the teeth), then a steep arc up to the vault (7.3 mm to 19.6 mm over arc 0.13-0.24), with the knee between them near arc 0.15. That front-low shelf and the knee — every speaker shows them — are the alveolar ridge the smooth extrapolation had erased.
 
 Carried into the model's aperture, holding the floor at the vault level forward of the peak and scaling the roof's drop from the arc-0.24 peak by the per-sex peak clearance (30.5 mm male, 27.25 mm female, spanning frames), the ridge is:
 
-| arc | male | female | roof drop from peak |
+| arc | male | female | roof drop from peak (M / F) |
 |---|---|---|---|
-| 0.11 | 0.10 | 0.10 | 14.0 mm / 11.4 mm |
-| 0.13 | 0.11 | 0.11 | 12.2 mm / 10.0 mm |
+| 0.11 | 0.098 | 0.099 | 13.9 mm / 11.4 mm |
+| 0.13 | 0.108 | 0.107 | 12.2 mm / 10.1 mm |
+| 0.15 | 0.118 | 0.117 | 10.5 mm / 8.5 mm |
+| 0.19 | 0.145 | 0.141 | 6.0 mm / 4.6 mm |
 | 0.24 | 0.18 | 0.17 | 0 (the peak) |
 
-Both sexes land on the same two front diameters, for the same reason section 6 gives: the shorter female tract has a smaller peak clearance *and* a smaller peak diameter, and the two cancel. Linear interpolation from arc 0.13 to the peak reproduces the measured front-vault rise (arc 0.13-0.24) to within 0.003, so the ridge and the vault together cost only the two front points. `adult-male` and `adult-female` now carry a measured alveolar ridge; the child head is left hand-placed for the reason section 6 already gives.
+Both sexes land on the same front diameters, for the same reason section 6 gives: the shorter female tract has a smaller peak clearance *and* a smaller peak diameter, and the two cancel. The front is carried at five arcs, not the two it was, because two draw the shelf-knee-arc shape as a single straight ramp to the peak — a triangular spike the outline does not have. `_project_along` interpolates diameter linearly, so the knee has to be a declared vertex; at five points (0.11, 0.13, 0.15, 0.19, 0.24) the drawn roof reproduces the flat shelf, its corner at arc 0.15, and the steep rise to the vault, and matches the measured curve at the skipped arcs 0.17 and 0.21 to within 0.002. Arc 0.13, 0.19 and 0.24 are the declared alveolar, postalveolar and alveolo-palatal; 0.11 and 0.15 name no place and are stated in `UNDECLARED_VERTEX_ARCS`. `adult-male` and `adult-female` now carry a measured alveolar ridge; the child head is left hand-placed for the reason section 6 already gives.
 
 One thing the outline says that the aperture does not: the roof's own vault apex sits near arc 0.30, *behind* the aperture peak at arc 0.24. Forward of 0.30 the roof descends toward the ridge; behind it the roof stays high while the tongue dorsum rises into it, so the aperture falls though the roof does not. The aperture peak and the roof apex are different landmarks, and only the aperture is what `diameter` declares.
 
@@ -261,8 +263,10 @@ The adult midline, each point marked in the file with where its number came from
 | arc | aperture | |
 |---|---|---|
 | 0.00 | 0.16 | extrapolated — the lip aperture, which `PAL.DAT` does not reach |
-| 0.11 | 0.10 | **measured** — the outline's front edge, the alveolar ridge |
-| 0.13 | 0.11 | **measured** — the ridge rising into the vault |
+| 0.11 | 0.098 | **measured** — the outline's front edge, the alveolar ridge |
+| 0.13 | 0.108 | **measured** — the flat-low alveolar shelf, toward the teeth |
+| 0.15 | 0.118 | **measured** — the knee, where the shelf turns up |
+| 0.19 | 0.145 | **measured** — the steep arc up to the vault |
 | 0.24 | 0.18 | **measured** — the peak |
 | 0.32 | 0.16 | **measured** — 0.90 of the peak |
 | 0.40 | 0.13 | **measured** — 0.73 of the peak |

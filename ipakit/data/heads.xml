@@ -34,12 +34,13 @@
      The measured run reaches its front edge at arc 0.11 — the palate
      outline's own median front edge — where the roof drops to the alveolar
      ridge, the front-low region every speaker's PAL.DAT shows, rising into
-     the vault. The front is carried at arc 0.11, 0.13, 0.15, 0.17, 0.19 and
-     0.21, densely enough that linear interpolation draws the measured knee:
-     a flat-low alveolar shelf toward the teeth, a steep arc up to the vault,
-     and where they meet near arc 0.15. Two points (0.11, 0.13) drew that as
-     a single straight ramp to the peak, a triangular spike the outline does
-     not have. Each diameter is the measured palate-roof height carried into
+     the vault. The front is carried at arc 0.11, 0.13, 0.15, 0.19 and 0.24,
+     enough that linear interpolation draws the measured knee: a flat-low
+     alveolar shelf toward the teeth (0.11-0.15), a steep arc up to the vault
+     (0.15-0.24), and the corner between them at arc 0.15. Two points (0.11,
+     0.13) drew that as a single straight ramp to the peak, a triangular
+     spike the outline does not have. Each diameter is the measured
+     palate-roof height carried into
      the model's aperture: the roof's drop from the arc-0.24 peak, scaled so
      the peak diameter equals the per-sex peak clearance (30.5 mm male,
      27.25 mm female), with the floor held at the vault level forward of the
@@ -49,10 +50,13 @@
      cannot ground the front; the palate outline is a static cast and
      measures the roof directly.
 
-     The arc 0.11 through 0.21, 0.24 and 0.40 points were inserted to carry
-     the measured shape; their x and y are linear interpolations of the
-     midline that was already there, so the drawn centerline is exactly what
-     it was and only `diameter` moved.
+     The arc 0.11, 0.15, 0.24 and 0.40 points were inserted to carry the
+     measured shape; their x and y are linear interpolations of the midline
+     that was already there, so the drawn centerline is exactly what it was
+     and only `diameter` moved. Arc 0.11, 0.15 and 0.40 name no phonetic
+     place, so they are stated in scripts/invariants.py UNDECLARED_VERTEX_ARCS
+     with that reason; 0.13, 0.19 and 0.24 are the declared alveolar,
+     postalveolar and alveolo-palatal.
 
      Behind the measured run the diameters keep their original *shape* but are
      rescaled to join it — each by the ratio the seam moved (0.13/0.18 for the
@@ -78,9 +82,7 @@
       <point arc="0.11" x="0.1954" y="0.6538" diameter="0.098" provenance="measured"/>  <!-- measured: the palate outline's front edge: the alveolar ridge, the tract's front-low point -->
       <point arc="0.13" x="0.22" y="0.66" diameter="0.108" provenance="measured"/>      <!-- measured: the flat-low alveolar shelf, toward the teeth -->
       <point arc="0.15" x="0.2389" y="0.6621" diameter="0.118" provenance="measured"/>  <!-- measured: the knee, where the shelf turns up toward the vault -->
-      <point arc="0.17" x="0.2579" y="0.6642" diameter="0.130" provenance="measured"/>  <!-- measured: the steep arc up to the vault -->
       <point arc="0.19" x="0.2768" y="0.6663" diameter="0.145" provenance="measured"/>  <!-- measured: the steep arc up to the vault -->
-      <point arc="0.21" x="0.2958" y="0.6684" diameter="0.158" provenance="measured"/>  <!-- measured: approaching the peak -->
       <point arc="0.24" x="0.3242" y="0.6716" diameter="0.18" provenance="measured"/>   <!-- measured: the peak, over arc 0.22 to 0.28 -->
       <point arc="0.32" x="0.40" y="0.68" diameter="0.16" provenance="measured"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4738" y="0.6677" diameter="0.13" provenance="measured"/>   <!-- measured: 0.73 of the peak -->
@@ -162,9 +164,7 @@
       <point arc="0.11" x="0.1969" y="0.6538" diameter="0.099" provenance="measured"/>  <!-- measured: the palate outline's front edge: the alveolar ridge, the tract's front-low point -->
       <point arc="0.13" x="0.22" y="0.66" diameter="0.107" provenance="measured"/>      <!-- measured: the flat-low alveolar shelf, toward the teeth -->
       <point arc="0.15" x="0.2379" y="0.6621" diameter="0.117" provenance="measured"/>  <!-- measured: the knee, where the shelf turns up toward the vault -->
-      <point arc="0.17" x="0.2558" y="0.6642" diameter="0.127" provenance="measured"/>  <!-- measured: the steep arc up to the vault -->
       <point arc="0.19" x="0.2737" y="0.6663" diameter="0.141" provenance="measured"/>  <!-- measured: the steep arc up to the vault -->
-      <point arc="0.21" x="0.2916" y="0.6684" diameter="0.153" provenance="measured"/>  <!-- measured: approaching the peak -->
       <point arc="0.24" x="0.3184" y="0.6716" diameter="0.17" provenance="measured"/>   <!-- measured: the peak -->
       <point arc="0.32" x="0.39" y="0.68" diameter="0.15" provenance="measured"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4577" y="0.6677" diameter="0.12" provenance="measured"/>   <!-- measured: 0.73 of the peak -->
