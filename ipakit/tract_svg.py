@@ -59,10 +59,12 @@ from .tract import (
     Landmarks,
     Posture,
     TractPoint,
+    blend,
     head,
     heads,
     landmarks,
     posture,
+    score,
     tract_point,
 )
 
@@ -1610,14 +1612,6 @@ def animate(
     flipbook player with an inline scrubber and autoplay -- with no runtime
     dependencies, readable in a browser without a rasterizer.
     """
-    # ``score`` and ``blend`` are the model lane's half of H0.2 and land on
-    # ``ipakit.tract`` there; resolved dynamically so this half type-checks and
-    # imports on its own branch, and picks up the real functions once present.
-    from . import tract
-
-    score = getattr(tract, "score")  # noqa: B009  (may be absent on this branch)
-    blend = getattr(tract, "blend")  # noqa: B009  (may be absent on this branch)
-
     ipa = features or IPAFeatures()
     name = head_name if head_name is not None else head().name
     h = head(name)
