@@ -64,6 +64,14 @@ HEADS_FILE = PHONEMAPS_DIR.parent / "heads.xml"
 #: the data's call.
 GLOTTAL_AXIS = "+glottal-aperture"
 
+#: The glottal aperture a unit that fixes no glottal state contributes to a
+#: :func:`blend`. ``glottal`` is ``None`` where a bundle commits to nothing
+#: about the folds, and a dominance mean cannot average a ``None``, so it is
+#: resolved first to the neutral rest -- the folds standing open, the way a
+#: tract sits between voiced gestures. 1.0 is fully abducted on the scale
+#: :func:`glottal_aperture` reads (0 shut .. 1 as wide as the tract).
+GLOTTAL_REST = 1.0
+
 
 @dataclass(frozen=True)
 class TractPoint:
@@ -1372,4 +1380,173 @@ def posture(
         glottal=glottal_aperture(features, bundle),
         secondary=secondary_marks(features, bundle),
         unmodelled=unmodelled(features, stated),
+    )
+
+
+def score(features: IPAFeatures, word: str) -> tuple[Posture, ...]:
+    """A word as one :class:`Posture` per segment, in order.
+
+    The symbol -> vector step over a whole transcription: tokenize with the
+    inventory's own tokenizer -- the same split :func:`ipakit.tokenize` and
+    the metric use, so ties and diacritics bind into single units the way
+    they do everywhere else -- and read each unit through :func:`posture`. A
+    dictionary pronunciation in plain IPA (``"kat"``, ``"aki"``) goes
+    straight through as its segments.
+
+    The result is what :func:`blend` interpolates. Every posture is read on
+    the shipped default head, because that is the head :func:`posture`
+    poses on; a caller drawing on another head reads its rest through
+    :func:`blend`'s own output, which carries a ``rest`` for silence.
+    """
+    return tuple(posture(features, unit) for unit in features.tokenize(word))
+
+
+def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
+    """The interpolated posture at ordinal time ``t`` across ``units``.
+
+    ``t`` runs 0..N-1 over N units, one integer per unit. The blend is by
+    dominance functions (Cohen & Massaro 1993), **per articulator**: each
+    articulator keeps its own fixed place and only its constriction *degree*
+    is interpolated, so nothing slides a closure through the palate. Sliding
+    one primary point from alveolar 0.13 to velar 0.45 would draw a tract no
+    tongue makes -- a closure travelling across the hard palate -- which is
+    exactly the trap this avoids.
+
+    The dominance of unit ``i`` at ``t`` is a peaked Gaussian,
+    ``w_i = exp(-((t - i) / falloff) ** 2)``: 1 at its own moment and falling
+    away on either side, so a smaller ``falloff`` makes each unit reign more
+    sharply over its own instant. At an integer ``t`` the owning unit's weight
+    is 1 and its neighbours' is ``exp(-(1/falloff)**2)`` -- with the default
+    ``falloff`` a couple of percent -- so ``blend(units, i)`` is unit ``i``
+    to within that leak.
+
+    Every articulator any unit constricts is collected. A unit closes the
+    articulators it names (its ``constrictions``) and leaves the rest at the
+    head's resting offset -- the tongue at the floor, not constricting. Each
+    articulator's degree at ``t`` is the dominance-weighted mean of those
+    per-unit targets, taken at the articulator's OWN arc (itself the
+    dominance-weighted mean of the arcs the constricting units place it at, so
+    a place shared by two units settles between them and never leaves the
+    articulator). An articulator whose blended degree stays at or below rest
+    is not emitted: it is not constricting. The survivors are the blended
+    ``constrictions``, each ``(fixed arc, blended offset, articulator)`` --
+    which :func:`ipakit.tract_svg.build_geometry` renders as-is, because
+    ``Head.tongue_point`` already takes the max over controls and so draws a
+    hump per active articulator.
+
+    ``velic`` and ``glottal`` blend as scalars. ``glottal`` is resolved to
+    :data:`GLOTTAL_REST` wherever a unit fixed none, so the mean never runs
+    through ``None``; ``velic`` is already a float resting at 0 (sealed).
+    ``reading`` -- the primary point the renderer derives jaw close from --
+    is the dominance-weighted mean of the units' readings; it drives no
+    tongue closure, so blending its arc is jaw motion, not a sliding
+    constriction. The annotations (``secondary``, ``unmodelled``) and the
+    silence ``rest`` follow the single dominant unit rather than
+    interpolating, being labels on a frame and not quantities of it.
+    """
+    if not units:
+        raise ValueError("blend needs at least one unit")
+    if falloff <= 0.0:
+        raise ValueError("falloff must be positive")
+
+    weights = [math.exp(-(((t - i) / falloff) ** 2)) for i in range(len(units))]
+    total = sum(weights) or 1.0
+    dominant = units[max(range(len(units)), key=lambda i: weights[i])]
+
+    rest_offset = next(
+        (
+            u.rest.offset
+            for u in units
+            if u.rest is not None and u.rest.offset is not None
+        ),
+        0.0,
+    )
+
+    def weighted(values: Sequence[tuple[float, float]]) -> float | None:
+        """Dominance-weighted mean of (weight, value) pairs, or None if empty."""
+        denom = sum(w for w, _ in values)
+        if denom <= 0.0:
+            return None
+        return sum(w * v for w, v in values) / denom
+
+    # Each unit's per-articulator target: the offset it constricts that
+    # articulator to (max where a unit closes one twice, as a click does),
+    # keyed by name so a place travels only between a unit's own closures.
+    names: list[str] = []
+    per_unit: list[dict[str, TractPoint]] = []
+    for u in units:
+        closed: dict[str, TractPoint] = {}
+        for q in u.constrictions:
+            if q.articulator is None or q.arc is None or q.offset is None:
+                continue
+            prior = closed.get(q.articulator)
+            if prior is None or (prior.offset or 0.0) < q.offset:
+                closed[q.articulator] = q
+            if q.articulator not in names:
+                names.append(q.articulator)
+        per_unit.append(closed)
+
+    blended: list[TractPoint] = []
+    for name in names:
+        arc = weighted(
+            [
+                (weights[i], closed[name].arc)  # type: ignore[misc]
+                for i, closed in enumerate(per_unit)
+                if name in closed
+            ]
+        )
+        offset = weighted(
+            [
+                (weights[i], closed[name].offset if name in closed else rest_offset)  # type: ignore[misc]
+                for i, closed in enumerate(per_unit)
+            ]
+        )
+        if arc is None or offset is None or offset <= rest_offset:
+            continue
+        blended.append(TractPoint(arc=arc, offset=offset, articulator=name))
+    blended.sort(key=lambda q: q.arc or 0.0)
+
+    reading_arc = weighted(
+        [
+            (weights[i], u.reading.arc)
+            for i, u in enumerate(units)
+            if u.reading is not None and u.reading.arc is not None
+        ]
+    )
+    reading_offset = weighted(
+        [
+            (weights[i], u.reading.offset)
+            for i, u in enumerate(units)
+            if u.reading is not None and u.reading.offset is not None
+        ]
+    )
+    reading = (
+        TractPoint(
+            arc=reading_arc,
+            offset=reading_offset,
+            articulator=(
+                dominant.reading.articulator if dominant.reading is not None else None
+            ),
+        )
+        if reading_arc is not None or reading_offset is not None
+        else dominant.reading
+    )
+
+    velic = sum(weights[i] * u.velic for i, u in enumerate(units)) / total
+    glottal = (
+        sum(
+            weights[i] * (GLOTTAL_REST if u.glottal is None else u.glottal)
+            for i, u in enumerate(units)
+        )
+        / total
+    )
+
+    return Posture(
+        reading=reading,
+        rest=dominant.rest,
+        constrictions=tuple(blended),
+        velic=velic,
+        glottal=glottal,
+        secondary=dominant.secondary,
+        unmodelled=dominant.unmodelled,
     )
