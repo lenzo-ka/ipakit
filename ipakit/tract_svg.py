@@ -56,16 +56,14 @@ from typing import Any
 from .features import IPAFeatures
 from .tract import (
     Head,
+    Landmarks,
+    Posture,
     TractPoint,
-    constrictions,
-    glottal_aperture,
     head,
     heads,
     landmarks,
-    secondary_marks,
+    posture,
     tract_point,
-    unmodelled,
-    velic_aperture,
 )
 
 SAMPLES = 240
@@ -166,15 +164,97 @@ def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
     }
 
 
+def _pose(p: Posture) -> tuple[float, float, str] | None:
+    """The (arc, offset, articulator) a posture holds, or None.
+
+    A placed reading poses at itself; an unplaced one -- silence -- falls back
+    to the head's rest, named ``"at rest"``; the reference drawing carries no
+    reading and poses nowhere. This is the tuple ``render`` and the property
+    tests read, so it is derived here rather than twice.
+    """
+    reading = p.reading
+    if reading is not None and reading.arc is not None and reading.offset is not None:
+        return (reading.arc, reading.offset, reading.articulator or "articulator")
+    rest = p.rest
+    if rest is not None and rest.arc is not None and rest.offset is not None:
+        return (rest.arc, rest.offset, "at rest")
+    return None
+
+
+def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
+    """Project a :class:`~ipakit.tract.Posture` to the geometry a figure draws.
+
+    The vector -> geometry step. It reads only ``p`` (what the symbol fixed),
+    ``head`` (the geometry that projects it) and ``marks`` (the inventory's
+    landmarks) -- never a phone or a feature bundle -- so animating a figure is
+    interpolating ``p`` and calling this per frame. Jaw close is derived here,
+    from the posture's own point, because it is a fact about the head and not
+    about the segment.
+    """
+    pose = _pose(p)
+    close = 0.0
+    if pose is not None:
+        close = head.jaw_close(TractPoint(arc=pose[0], offset=pose[1]))
+    current = geometry(head.name, close)
+    current["landmarks"] = marks
+    current["lips_closed_now"] = bool(
+        pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995
+    )
+    # A reading is present for every phone and absent only for the reference
+    # drawing, so it stands in for "this is a phone": the closures, the marks
+    # and the carried teeth belong to a phone and not to the reference.
+    if p.reading is not None and pose is not None:
+        current["teeth"] = [
+            {
+                **t,
+                **(
+                    dict(
+                        zip(
+                            ("x", "y"),
+                            head.carried((t["x"], t["y"]), 0.045, close),
+                            strict=True,
+                        )
+                    )
+                    if t["carrier"] == "mandible"
+                    else {}
+                ),
+            }
+            for t in current["teeth"]
+        ]
+        points = list(p.constrictions)
+        current["tongue"] = tongue_surface(head.name, points, close)
+        current["extra"] = [
+            (q.arc, q.offset, q.articulator or "")
+            for q in points[1:]
+            if q.arc is not None and q.offset is not None
+        ]
+    if p.reading is not None:
+        current["marks"] = [{"label": m.label, "kind": m.kind} for m in p.unmodelled]
+        current["secondary"] = [
+            {"arc": m.arc, "offset": m.offset, "label": m.label}
+            for m in p.secondary
+            if m.placed
+        ]
+        if p.glottal is not None:
+            current["folds"] = [
+                {"edges": edges, "shut": p.glottal <= 0.01}
+                for arc in sorted(marks.median.values())
+                if (edges := head.median_body(arc, p.glottal)) is not None
+            ]
+    return current
+
+
 def drawing(
     name: str, phone: str | None, features: IPAFeatures | None = None
 ) -> dict[str, Any]:
     """Everything a figure needs, derived once.
 
-    ``cmd_draw`` and the property tests both draw the same phone and used
-    to derive the posture separately, which is two chances to disagree
-    about what the picture is. This is that derivation, written once, so a
-    test cannot pass against a drawing the command would not produce.
+    Three steps kept apart: :func:`~ipakit.tract.posture` reads the symbol
+    into a number vector, :func:`build_geometry` projects that vector through
+    the head, and the caption and ``active`` layer name the symbol itself.
+    Every caller reaches a picture through here -- ``cmd_draw`` and the
+    property tests once derived the posture separately, which is two chances
+    to disagree about what the picture is.
     """
     ipa = features or IPAFeatures()
     # Read off the same inventory as the geometry and the caption. These were
@@ -183,16 +263,12 @@ def drawing(
     # places and the articulators speaking for a different inventory.
     marks = landmarks(ipa)
     h = head(name)
-    aperture = 0.0
-    posture: tuple[float, float, str] | None = None
+    p = posture(ipa, phone, h)
+    current = build_geometry(h, marks, p)
     caption: dict[str, Any] | None = None
     active: dict[str, str] | None = None
-    bundle: dict[str, str] = {}
-    stated: dict[str, str] = {}
     if phone is not None:
-        bundle = ipa.get_features(phone)
         stated = ipa.get_features(phone, with_defaults=False)
-        aperture = velic_aperture(ipa, bundle)
         caption = {
             "phone": phone,
             # Asked of the inventory this drawing is being made against,
@@ -204,6 +280,7 @@ def drawing(
                 (k, v) for k, v in sorted(stated.items()) if k not in ("href", "class")
             ],
         }
+        bundle = ipa.get_features(phone)
         point = tract_point(ipa, bundle)
         # A vowel states backness and height, not place, so its place set is
         # empty rather than absent -- absent would mean "label them all".
@@ -222,67 +299,12 @@ def drawing(
                 break
         if point.articulator:
             active["articulator"] = str(point.articulator)
-        if point.arc is not None and point.offset is not None:
-            posture = (point.arc, point.offset, point.articulator or "articulator")
-        elif h.rest is not None:
-            # Silence is featurally null but still has to be drawn somewhere.
-            # The head declares where everything sits when not speaking.
-            posture = (h.rest.arc, h.rest.offset, "at rest")
-    close = 0.0
-    if posture is not None:
-        close = h.jaw_close(TractPoint(arc=posture[0], offset=posture[1]))
-    current = geometry(name, close)
-    current["landmarks"] = marks
-    current["lips_closed_now"] = bool(
-        posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
-    )
-    if phone is not None and posture is not None:
-        current["teeth"] = [
-            {
-                **t,
-                **(
-                    dict(
-                        zip(
-                            ("x", "y"),
-                            h.carried((t["x"], t["y"]), 0.045, close),
-                            strict=True,
-                        )
-                    )
-                    if t["carrier"] == "mandible"
-                    else {}
-                ),
-            }
-            for t in current["teeth"]
-        ]
-        points = list(constrictions(ipa, bundle))
-        current["tongue"] = tongue_surface(name, points, close)
-        current["extra"] = [
-            (q.arc, q.offset, q.articulator or "")
-            for q in points[1:]
-            if q.arc is not None and q.offset is not None
-        ]
-    if phone is not None:
-        current["marks"] = [
-            {"label": m.label, "kind": m.kind} for m in unmodelled(ipa, stated)
-        ]
-        current["secondary"] = [
-            {"arc": m.arc, "offset": m.offset, "label": m.label}
-            for m in secondary_marks(ipa, bundle)
-            if m.placed
-        ]
-        glottal = glottal_aperture(ipa, bundle)
-        if glottal is not None:
-            current["folds"] = [
-                {"edges": edges, "shut": glottal <= 0.01}
-                for arc in sorted(marks.median.values())
-                if (edges := h.median_body(arc, glottal)) is not None
-            ]
     return {
         "head": name,
         "phone": phone,
         "geometry": current,
-        "aperture": aperture,
-        "posture": posture,
+        "aperture": p.velic,
+        "posture": _pose(p),
         "caption": caption,
         "active": active,
     }
