@@ -55,6 +55,7 @@ from typing import Any
 
 from .features import IPAFeatures
 from .tract import (
+    GLOTTAL_REST,
     Head,
     Landmarks,
     Posture,
@@ -1616,34 +1617,58 @@ def animate(
     name = head_name if head_name is not None else head().name
     h = head(name)
     marks = landmarks(ipa)
-    units = score(ipa, word)
-    n = len(units)
+    word_units = score(ipa, word)
+    n = len(word_units)
     if n == 0:
         raise ValueError(f"nothing to animate: {word!r} scored to no units")
 
-    # The still per unit is that unit's own posture; the frames are the
-    # blended postures along the ordinal clock. For a single unit the clock
-    # has one point and the two coincide.
-    if n == 1:
+    # Bookend the played trajectory with the head's rest posture, so the loop
+    # begins and ends on a clear neutral pose -- the start is legible and the
+    # direction reads -- and the wrap from the last unit back to the first is
+    # rest-to-rest rather than a hard snap. The filmstrip stills stay the word's
+    # own units; only the player is bookended.
+    rest_point = h.rest.point if h.rest is not None else None
+    play_units: tuple[Posture, ...] = tuple(word_units)
+    if rest_point is not None:
+        rest_pose = Posture(
+            reading=rest_point,
+            rest=rest_point,
+            constrictions=(),
+            velic=0.0,
+            glottal=GLOTTAL_REST,
+            secondary=(),
+            unmodelled=(),
+        )
+        play_units = (rest_pose, *word_units, rest_pose)
+
+    # The frames are the blended postures along the ordinal clock over the
+    # played units. For a single point the clock has one step.
+    m = len(play_units)
+    if m == 1:
         ordinals = [0.0]
     else:
-        steps = (n - 1) * frames_per_unit
+        steps = (m - 1) * frames_per_unit
         ordinals = [k / frames_per_unit for k in range(steps + 1)]
 
-    frame_postures = [blend(units, t) for t in ordinals]
-    still_geoms = [build_geometry(h, marks, u) for u in units]
+    frame_postures = [blend(play_units, t) for t in ordinals]
+    still_geoms = [build_geometry(h, marks, u) for u in word_units]
     frame_geoms = [build_geometry(h, marks, p) for p in frame_postures]
 
     # One extent over every still and every frame, so the scale is stable.
     extent = _extent(*still_geoms, *frame_geoms)
     stills = [
         section_svg(g, None, u.velic, _pose(u), None, None, extent=extent)
-        for g, u in zip(still_geoms, units, strict=True)
+        for g, u in zip(still_geoms, word_units, strict=True)
     ]
     frames = [
         _frame_svg(g, p, extent)
         for g, p in zip(frame_geoms, frame_postures, strict=True)
     ]
+    # Hold the rest bookends a moment (one unit's worth of frames) at each end,
+    # so the neutral start is unmistakable each time the flipbook loops.
+    if rest_point is not None:
+        hold = frames_per_unit
+        frames = [frames[0]] * hold + frames + [frames[-1]] * hold
     ms = max(1, round(MS_PER_UNIT / frames_per_unit))
     return _player_page(word, name, frames, stills, ms)
 
