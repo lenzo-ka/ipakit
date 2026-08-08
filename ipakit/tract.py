@@ -181,6 +181,29 @@ class MidlinePoint:
     provenance: str = "hand-placed"
 
 
+def _pchip_slopes(ts: list[float], ys: list[float]) -> list[float]:
+    """Fritsch-Carlson monotone-cubic tangents at each control point.
+
+    A curve drawn with these tangents passes through every point and never
+    overshoots between them -- the smooth-but-not-bulging read a hand- or
+    measurement-placed outline wants. Used only for drawing.
+    """
+    n = len(ys)
+    if n < 2:
+        return [0.0] * n
+    h = [ts[i + 1] - ts[i] for i in range(n - 1)]
+    delta = [(ys[i + 1] - ys[i]) / h[i] if h[i] else 0.0 for i in range(n - 1)]
+    m = [0.0] * n
+    m[0], m[-1] = delta[0], delta[-1]
+    for i in range(1, n - 1):
+        if delta[i - 1] * delta[i] <= 0:
+            m[i] = 0.0
+        else:
+            w1, w2 = 2 * h[i] + h[i - 1], h[i] + 2 * h[i - 1]
+            m[i] = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i])
+    return m
+
+
 @dataclass(frozen=True)
 class Head:
     """A mid-sagittal geometry that projects tract space to 2D."""
@@ -248,9 +271,31 @@ class Head:
         before, after = pts[index], pts[index + 1]
         span = after.arc - before.arc
         t = (arc - before.arc) / span if span else 0.0
-        x = before.x + (after.x - before.x) * t
-        y = before.y + (after.y - before.y) * t
-        diameter = before.diameter + (after.diameter - before.diameter) * t
+        # Monotone-cubic interpolation of the declared control points, so a
+        # measured dip -- the alveolar ridge -- draws as an arc *through* the
+        # points rather than straight segments meeting at a corner. Monotone
+        # (Fritsch-Carlson) so it never overshoots a point, which would bulge a
+        # wall past what was measured. Linear stays only where there is nothing
+        # to curve (two points). Rendering only: distance reads arc/offset, not
+        # this projection.
+        arcs = [p.arc for p in pts]
+        h00 = 2 * t**3 - 3 * t**2 + 1
+        h10 = t**3 - 2 * t**2 + t
+        h01 = -2 * t**3 + 3 * t**2
+        h11 = t**3 - t**2
+
+        def _cubic(values: list[float]) -> float:
+            m = _pchip_slopes(arcs, values)
+            return (
+                h00 * values[index]
+                + h10 * span * m[index]
+                + h01 * values[index + 1]
+                + h11 * span * m[index + 1]
+            )
+
+        x = _cubic([p.x for p in pts])
+        y = _cubic([p.y for p in pts])
+        diameter = _cubic([p.diameter for p in pts])
         tangents = self._tangents_of(pts)
         tx0, ty0 = tangents[index]
         tx1, ty1 = tangents[index + 1]
