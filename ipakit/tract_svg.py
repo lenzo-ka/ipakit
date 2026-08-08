@@ -77,6 +77,7 @@ PAD = 54
 CEILING = 0.20
 FRAMES_PER_UNIT = 8  # how finely the ordinal timeline is sampled between units
 MS_PER_UNIT = 420  # playback only: maps one ordinal unit to wall-clock ms
+NASAL_FLOOR_THICKNESS = 0.012  # bony thickness between the oral roof and nasal floor
 
 Point = tuple[float, float]
 Scaler = Callable[[float, float], Point]
@@ -155,12 +156,34 @@ def tongue_surface(
 def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
     h = head(name)
     rest = h.rest
+    # The hard palate is one shared boundary: its top is the nasal floor, its
+    # underside the oral roof. Over the palate the nasal lower wall therefore
+    # rides the measured roof outline (a thin bony thickness above it) rather
+    # than floating on the branch's own diameter, which left a hollow gap. In
+    # front of the palate the branch's own lower wall carries the external nose.
+    roof_xy = sorted(((p.x, p.y) for p in h.roof), key=lambda q: q[0])
+
+    def nasal_floor(narc: float) -> tuple[float, float] | None:
+        base = h.project_nasal(narc, -1.0)
+        if (
+            base is None
+            or not roof_xy
+            or not (roof_xy[0][0] <= base[0] <= roof_xy[-1][0])
+        ):
+            return base
+        x = base[0]
+        for (x0, y0), (x1, y1) in zip(roof_xy, roof_xy[1:], strict=False):
+            if x0 <= x <= x1:
+                f = (x - x0) / (x1 - x0) if x1 > x0 else 0.0
+                return (x, y0 + f * (y1 - y0) + NASAL_FLOOR_THICKNESS)
+        return base
+
     nasal = [
         {
             "arc": i / 60,
             "mid": h.project_nasal(i / 60, 0.0),
             "wall": h.project_nasal(i / 60, 1.0),
-            "low": h.project_nasal(i / 60, -1.0),
+            "low": nasal_floor(i / 60),
         }
         for i in range(61)
     ]
@@ -1099,6 +1122,18 @@ def _nasal(
         f'<path d="{_path(lower[:keep])}" class="nasalside"/>',
         f'<path d="{mid}" class="nasalmid"/>',
     ]
+    # The nares: the branch's front is the nostril, not a sealed cap. The two
+    # side walls stop at the tip and the opening between them faces down and
+    # forward past the lip -- the way the lips open the mouth -- so air leaves
+    # here. Name it.
+    ntop, nbot = upper[0], lower[0]
+    nares = ((ntop[0] + nbot[0]) / 2, (ntop[1] + nbot[1]) / 2)
+    for label, nx, ny, depth in _place_labels([("nares", nares)], 16, 13, taken):
+        parts.append(
+            f'<line x1="{nx:.1f}" y1="{ny:.1f}" x2="{nx:.1f}" '
+            f'y2="{ny + depth:.1f}" class="lead nasal"/>'
+            + _text(nx, ny + depth + 10, "lbl nasal", label)
+        )
     lx, ly = to(*rows[len(rows) // 3]["wall"])
     for label, nx, ny, depth in _place_labels(
         [("nasal cavity", (lx, ly))], -20, -13, taken

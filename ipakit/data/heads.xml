@@ -113,15 +113,16 @@
          oral tract at oral arc 0.50. A raised velum seals the port and
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
-      <point arc="0.00" x="0.0006" y="0.8577" diameter="0.035" provenance="hand-placed"/>
-      <point arc="0.16" x="0.1221" y="0.8898" diameter="0.042" provenance="hand-placed"/>
-      <point arc="0.32" x="0.231" y="0.9101" diameter="0.047" provenance="hand-placed"/>
-      <point arc="0.47" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.61" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
-      <point arc="0.73" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
-      <point arc="0.84" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.93" x="0.6198" y="0.7804" diameter="0.020" provenance="hand-placed"/>
-      <point arc="1.00" x="0.6266" y="0.7457" diameter="0.006" provenance="hand-placed"/>
+      <point arc="0.0000" x="0.005" y="0.73" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: the nose tip, forward of and below the upper lip -->
+      <point arc="0.0642" x="0.015" y="0.778" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
+      <point arc="0.1715" x="0.095" y="0.796" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, descending toward the face -->
+      <point arc="0.2963" x="0.19" y="0.804" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
+      <point arc="0.5380" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.6813" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.7918" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.8840" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.9537" x="0.6198" y="0.7804" diameter="0.02" provenance="hand-placed"/>
+      <point arc="1.0000" x="0.6266" y="0.7457" diameter="0.006" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
@@ -208,15 +209,16 @@
          oral tract at oral arc 0.50. A raised velum seals the port and
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
-      <point arc="0.00" x="0.0094" y="0.8471" diameter="0.035" provenance="hand-placed"/>
-      <point arc="0.16" x="0.1242" y="0.8794" diameter="0.042" provenance="hand-placed"/>
-      <point arc="0.32" x="0.2278" y="0.8999" diameter="0.047" provenance="hand-placed"/>
-      <point arc="0.47" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.61" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
-      <point arc="0.73" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
-      <point arc="0.84" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.93" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
-      <point arc="1.00" x="0.5966" y="0.7456" diameter="0.006" provenance="hand-placed"/>
+      <point arc="0.0000" x="0.005" y="0.725" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: the nose tip, forward of and below the upper lip -->
+      <point arc="0.0660" x="0.015" y="0.772" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
+      <point arc="0.1766" x="0.093" y="0.792" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, descending toward the face -->
+      <point arc="0.3144" x="0.193" y="0.8" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
+      <point arc="0.5517" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.6966" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.8054" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.8898" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.9551" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
+      <point arc="1.0000" x="0.5966" y="0.7456" diameter="0.006" provenance="hand-placed"/>
     </nasal>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
