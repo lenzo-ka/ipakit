@@ -53,13 +53,13 @@ NON_CHART = frozenset({"␣", "#", "∅"})
 #: A head's midline is a hand-traced polyline whose vertices sit at the
 #: declared places, so the arc column is a second copy of numbers
 #: ``ipa.xml`` owns; a vertex at an arc nothing declares is the escape,
-#: and it is stated so it can only be added on purpose. All four carry the
+#: and it is stated so it can only be added on purpose. All carry the
 #: X-Ray Microbeam diameter run between declared anchors: ``0.40`` between
 #: the palatal and velar, and ``0.11`` (the palate outline's front edge,
-#: the alveolar ridge) and ``0.15`` (the knee where the alveolar shelf
-#: turns up into the vault) across the front, where the measured shape has
-#: a corner that no phonetic place sits on. See docs/articulatory-data.md.
-UNDECLARED_VERTEX_ARCS = frozenset({0.11, 0.15, 0.40})
+#: the alveolar ridge) plus ``0.15``, ``0.17`` and ``0.21`` sampling the
+#: measured palate arch between the alveolar front and the vault, where the
+#: dome's curve sits on no phonetic place. See docs/articulatory-data.md.
+UNDECLARED_VERTEX_ARCS = frozenset({0.11, 0.15, 0.17, 0.21, 0.40})
 
 #: The largest disagreement, per shipped polyline, between a vertex's
 #: declared ``arc`` and its own polyline's normalized cumulative

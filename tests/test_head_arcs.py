@@ -50,7 +50,7 @@ from pathlib import Path
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit.tract import heads
+from ipakit.tract import TractPoint, heads
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -148,15 +148,34 @@ def test_the_undeclared_vertices_are_the_ones_the_data_explains() -> None:
 
     ``heads.xml`` inserts them to carry the X-Ray Microbeam diameter run
     between declared anchors: 0.40 between the palatal and velar, and 0.11
-    (the palate outline's front edge) and 0.15 (the alveolar knee) across
-    the front, where the measured shape has a corner no place sits on. If
+    (the palate outline's front edge), 0.15, 0.17 and 0.21 across the front,
+    where the measured arch needs samples no phonetic place sits on. If
     another such vertex appears, this fails and the reason has to be
     written down rather than absorbed.
     """
-    assert UNDECLARED_VERTEX_ARCS == frozenset({0.11, 0.15, 0.40})
+    assert UNDECLARED_VERTEX_ARCS == frozenset({0.11, 0.15, 0.17, 0.21, 0.40})
     carrying = {
         name
         for name, shape in heads().items()
         if any(p.arc in UNDECLARED_VERTEX_ARCS for p in shape.midline)
     }
     assert carrying == {"adult-male", "adult-female"}, sorted(carrying)
+
+
+def test_adult_palates_project_to_the_declared_roof() -> None:
+    """The wall is the roof outline, not midline plus aperture."""
+    for shape in (heads()["adult-male"], heads()["adult-female"]):
+        assert shape.roof
+        for point in shape.roof:
+            assert shape.project(
+                TractPoint(arc=point.arc, offset=1.0)
+            ) == pytest.approx((point.x, point.y))
+
+
+def test_the_roof_apex_is_behind_the_aperture_peak() -> None:
+    """The distinction that a diameter-only wall could not express."""
+    for shape in (heads()["adult-male"], heads()["adult-female"]):
+        roof_apex = max(shape.roof, key=lambda point: point.y)
+        aperture_peak = max(shape.midline, key=lambda point: point.diameter)
+        assert roof_apex.arc == pytest.approx(0.30)
+        assert aperture_peak.arc == pytest.approx(0.24)

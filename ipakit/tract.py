@@ -206,10 +206,16 @@ def _pchip_slopes(ts: list[float], ys: list[float]) -> list[float]:
 
 @dataclass(frozen=True)
 class Head:
-    """A mid-sagittal geometry that projects tract space to 2D."""
+    """A mid-sagittal geometry that projects tract space to 2D.
+
+    ``midline`` and its diameters define tract aperture.  ``roof`` may
+    independently declare the measured hard-palate outline: a palate vault
+    apex is not necessarily the place where aperture is widest.
+    """
 
     name: str
     midline: tuple[MidlinePoint, ...]
+    roof: tuple[MidlinePoint, ...] = ()
     rest: RestPosture | None = None
     desc: str | None = None
     length_cm: float | None = None
@@ -606,10 +612,11 @@ class Head:
         and end of an utterance.
 
         The midline is interpolated at the point's arc; the offset then
-        carries the position from the midline toward the wall, scaled by
-        the local tract diameter. Offset lifts toward the palate over the
-        oral run and toward the pharyngeal wall behind it, following the
-        midline's own direction.
+        carries the position from the midline toward the wall.  Along a
+        declared hard-palate roof it interpolates directly to that measured
+        outline. Elsewhere local diameter scales travel along the midline's
+        normal. This keeps aperture and roof shape distinct: their peaks are
+        different anatomical landmarks.
         """
         if not point.placed:
             if not (at_rest and self.rest is not None):
@@ -639,7 +646,12 @@ class Head:
         tx, ty = tx0 + (tx1 - tx0) * t, ty0 + (ty1 - ty0) * t
         norm = (tx * tx + ty * ty) ** 0.5 or 1.0
         nx, ny = -ty / norm, tx / norm
-        travel = (point.offset or 0.0) * diameter
+        offset = point.offset or 0.0
+        if self.roof and self.roof[0].arc <= arc <= self.roof[-1].arc:
+            roof = self._project_along(self.roof, arc, 0.0)
+            if roof is not None:
+                return (x + (roof[0] - x) * offset, y + (roof[1] - y) * offset)
+        travel = offset * diameter
         return (x + nx * travel, y + ny * travel)
 
     # -- notebook display -----------------------------------------------------
@@ -689,6 +701,19 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                         provenance=pt.get("provenance", "hand-placed"),
                     )
                 )
+        roof_elem = elem.find("roof")
+        roof_points: tuple[MidlinePoint, ...] = ()
+        if roof_elem is not None:
+            roof_points = tuple(
+                MidlinePoint(
+                    arc=float(pt.get("arc", 0.0)),
+                    x=float(pt.get("x", 0.0)),
+                    y=float(pt.get("y", 0.0)),
+                    diameter=0.0,
+                    provenance=pt.get("provenance", "hand-placed"),
+                )
+                for pt in roof_elem.findall("point")
+            )
         nasal_elem = elem.find("nasal")
         nasal_points: tuple[MidlinePoint, ...] = ()
         port_arc: float | None = None
@@ -747,6 +772,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
         heads[name] = Head(
             name=name,
             midline=tuple(sorted(points, key=lambda p: p.arc)),
+            roof=tuple(sorted(roof_points, key=lambda p: p.arc)),
             rest=rest,
             desc=elem.get("desc"),
             length_cm=float(length) if length else None,
