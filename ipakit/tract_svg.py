@@ -755,17 +755,23 @@ def _tongue(src: dict[str, Any], to: Scaler) -> str:
     lo, hi = surface[0][0], surface[-1][0]
     floor = [to(*row["open"]) for row in src["rows"] if lo <= row["arc"] <= hi]
     if floor:
-        # Curl the tip under. Dropping straight from the tip to the floor draws
-        # a flat front face; a quadratic from the front-most floor point back to
-        # the tip, bulged forward, rounds the body into a tip rather than a wall.
+        # Curl the tip. Dropping straight from the tip to the floor draws a flat
+        # front face; a quadratic from the front-most floor point up to the tip,
+        # bulged out perpendicular to that face, rounds the front into a tip.
         floor_rev = list(reversed(floor))
         tx, ty = top[0]
         fx, fy = floor_rev[-1]
-        # Round the front-bottom corner up to the tip: a control at the tip's own
-        # x, at floor height, curls the underside up to the tip without poking a
-        # spur forward of the contact.
+        dx, dy = tx - fx, ty - fy
+        face = (dx * dx + dy * dy) ** 0.5 or 1.0
+        # Perpendicular to the front face, turned to point away from the body
+        # (out and down), so the curl bulges forward rather than into the tongue.
+        px, py = -dy / face, dx / face
+        if px > 0:
+            px, py = -px, -py
+        mx, my = (tx + fx) / 2, (ty + fy) / 2
+        cx, cy = mx + px * face * 0.55, my + py * face * 0.55
         seg = " L".join(f"{x:.2f},{y:.2f}" for x, y in top + floor_rev)
-        body = f"M{seg} Q{tx:.2f},{fy:.2f} {tx:.2f},{ty:.2f} Z"
+        body = f"M{seg} Q{cx:.2f},{cy:.2f} {tx:.2f},{ty:.2f} Z"
     else:
         body = _path(top)
     return (
