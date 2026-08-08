@@ -1572,13 +1572,20 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
                 if name in closed
             ]
         )
-        offset = weighted(
-            [
-                (weights[i], closed[name].offset if name in closed else rest_offset)  # type: ignore[misc]
-                for i, closed in enumerate(per_unit)
-            ]
+        # Degree is dominance *activation* above rest, not a mean that counts
+        # every non-constricting unit as a vote for rest. Each constricting
+        # unit lifts the degree toward its own target by its dominance weight,
+        # so at a unit's own moment (weight 1) its closure is reached in full --
+        # a stop reads as closed, not as a near-closure ring -- while away from
+        # it the lift decays and the articulator relaxes to rest. Overlapping
+        # closures on one articulator sum, capped at full closure.
+        lift = sum(
+            weights[i] * ((closed[name].offset or 0.0) - rest_offset)
+            for i, closed in enumerate(per_unit)
+            if name in closed
         )
-        if arc is None or offset is None or offset <= rest_offset:
+        offset = min(1.0, rest_offset + lift)
+        if arc is None or offset <= rest_offset:
             continue
         blended.append(TractPoint(arc=arc, offset=offset, articulator=name))
     blended.sort(key=lambda q: q.arc or 0.0)
