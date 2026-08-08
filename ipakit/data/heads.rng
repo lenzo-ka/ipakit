@@ -4,10 +4,10 @@
 
      This file describes geometry rather than inventory, so unlike the
      grammar beside ipa.xml it can afford to name every attribute it admits:
-     a head has a midline, a nasal branch, teeth, a carriage profile, a
-     tongue body and a rest posture, and that list is the anatomy the model
-     knows. A seventh part would be a new kind of declaration and belongs
-     here. What it still does not name is vocabulary — `provenance`,
+     a head has a midline, an optional measured roof outline, a nasal branch,
+     teeth, a carriage profile, a tongue body and a rest posture, and that
+     list is the anatomy the model knows. Another part would be a new kind of
+     declaration and belongs here. What it still does not name is vocabulary — `provenance`,
      `carrier`, `lips`, `velum` are left as text, because how a coordinate
      was arrived at and which rigid body carries it are facts the model
      states, not shapes this grammar should be able to veto.
@@ -53,6 +53,7 @@
           <interleave>
             <ref name="rest"/>
             <ref name="midline"/>
+            <optional><ref name="roof"/></optional>
             <ref name="nasal"/>
             <ref name="teeth"/>
             <ref name="carriage"/>
@@ -94,6 +95,23 @@
            its own arc, 0 at the nostrils to 1 at the port. -->
       <attribute name="port"><ref name="normalized"/></attribute>
       <oneOrMore><ref name="tract-point"/></oneOrMore>
+    </element>
+  </define>
+
+  <define name="roof">
+    <!-- The measured hard-palate outline. Unlike diameter, this is an
+         absolute drawing boundary: the aperture peak and the vault apex are
+         different landmarks. Outside its declared span projection falls
+         back to midline plus diameter. -->
+    <element name="roof">
+      <oneOrMore>
+        <element name="point">
+          <attribute name="arc"><ref name="normalized"/></attribute>
+          <attribute name="x"><ref name="normalized"/></attribute>
+          <attribute name="y"><ref name="normalized"/></attribute>
+          <attribute name="provenance"><text/></attribute>
+        </element>
+      </oneOrMore>
     </element>
   </define>
 

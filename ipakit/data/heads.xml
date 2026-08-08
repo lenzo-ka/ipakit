@@ -10,7 +10,10 @@
      normalized box - lips at the left, glottis at the lower right, the
      palate above the oral run and the pharyngeal bend behind - plus the
      tract diameter along the arc, which scales how far an offset carries
-     a point from the midline toward the wall.
+     a point from the midline toward the wall. Adult heads additionally
+     declare the measured hard-palate roof as an absolute outline. This is
+     deliberately separate from aperture: the roof apex is near arc 0.30,
+     while the greatest tongue-to-palate clearance is near arc 0.24.
 
      Each head also declares its rest posture: where the articulators sit
      when not speaking - jaw and lips closed, tongue neutral, velum
@@ -31,15 +34,12 @@
      Diameters elsewhere, all x/y coordinates, and the whole child head are
      unchanged and remain hand-placed. See docs/articulatory-data.md.
 
-     The measured run reaches its front edge at arc 0.11 — the palate
+     The measured roof reaches its front edge at arc 0.11 — the palate
      outline's own median front edge — where the roof drops to the alveolar
      ridge, the front-low region every speaker's PAL.DAT shows, rising into
      the vault. The front is carried at arc 0.11, 0.13, 0.15, 0.19 and 0.24,
-     enough that linear interpolation draws the measured knee: a flat-low
-     alveolar shelf toward the teeth (0.11-0.15), a steep arc up to the vault
-     (0.15-0.24), and the corner between them at arc 0.15. Two points (0.11,
-     0.13) drew that as a single straight ramp to the peak, a triangular
-     spike the outline does not have. Each diameter is the measured
+     while the separately declared roof carries the outline itself through
+     the vault apex at arc 0.30. Each diameter is the measured
      palate-roof height carried into
      the model's aperture: the roof's drop from the arc-0.24 peak, scaled so
      the peak diameter equals the per-sex peak clearance (30.5 mm male,
@@ -79,11 +79,13 @@
     <rest arc="0.38" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
       <point arc="0.00" x="0.06" y="0.62" diameter="0.16" provenance="extrapolated"/>       <!-- extrapolated: the lip aperture; PAL.DAT does not reach the lips -->
-      <point arc="0.11" x="0.1954" y="0.6538" diameter="0.098" provenance="measured"/>  <!-- measured: the palate outline's front edge: the alveolar ridge, the tract's front-low point -->
-      <point arc="0.13" x="0.22" y="0.66" diameter="0.108" provenance="measured"/>      <!-- measured: the flat-low alveolar shelf, toward the teeth -->
-      <point arc="0.15" x="0.2389" y="0.6621" diameter="0.118" provenance="measured"/>  <!-- measured: the knee, where the shelf turns up toward the vault -->
-      <point arc="0.19" x="0.2768" y="0.6663" diameter="0.145" provenance="measured"/>  <!-- measured: the steep arc up to the vault -->
-      <point arc="0.24" x="0.3242" y="0.6716" diameter="0.18" provenance="measured"/>   <!-- measured: the peak, over arc 0.22 to 0.28 -->
+      <point arc="0.11" x="0.1954" y="0.6538" diameter="0.098" provenance="measured"/>  <!-- measured: the palate outline's front edge, the alveolar ridge -->
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.1105" provenance="measured"/>    <!-- measured: rising off the alveolar ridge -->
+      <point arc="0.15" x="0.2389" y="0.6621" diameter="0.126" provenance="measured"/> <!-- measured: the steep front flank of the arch -->
+      <point arc="0.17" x="0.2579" y="0.6642" diameter="0.1436" provenance="measured"/><!-- measured: mid-flank, the steepest rise -->
+      <point arc="0.19" x="0.2768" y="0.6663" diameter="0.1575" provenance="measured"/> <!-- measured: the flank easing toward the vault -->
+      <point arc="0.21" x="0.2958" y="0.6684" diameter="0.1716" provenance="measured"/> <!-- measured: the vault shoulder, where the dome rounds over -->
+      <point arc="0.24" x="0.3242" y="0.6716" diameter="0.18" provenance="measured"/>   <!-- measured: the vault peak, rounded, over arc 0.22 to 0.28 -->
       <point arc="0.32" x="0.40" y="0.68" diameter="0.16" provenance="measured"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4738" y="0.6677" diameter="0.13" provenance="measured"/>   <!-- measured: 0.73 of the peak -->
       <point arc="0.45" x="0.52" y="0.66" diameter="0.13" provenance="extrapolated"/>       <!-- extrapolated: held flat past the palate trace -->
@@ -92,6 +94,19 @@
       <point arc="0.87" x="0.73" y="0.30" diameter="0.094" provenance="extrapolated"/>      <!-- extrapolated: same -->
       <point arc="1.00" x="0.75" y="0.16" diameter="0.079" provenance="extrapolated"/>      <!-- extrapolated: same -->
     </midline>
+    <!-- PAL.DAT roof outline, normalized into the drawing box. The low front
+         is the alveolar ridge; the apex at arc 0.30 is behind the aperture
+         peak at 0.24. Offsets interpolate to this curve, so the palate draws
+         as the measured dome rather than as floor + aperture. -->
+    <roof>
+      <point arc="0.11" x="0.190" y="0.754" provenance="measured"/>
+      <point arc="0.13" x="0.216" y="0.770" provenance="measured"/>
+      <point arc="0.15" x="0.237" y="0.790" provenance="measured"/>
+      <point arc="0.19" x="0.275" y="0.825" provenance="measured"/>
+      <point arc="0.24" x="0.323" y="0.850" provenance="measured"/>
+      <point arc="0.30" x="0.380" y="0.858" provenance="measured"/>
+      <point arc="0.40" x="0.475" y="0.797" provenance="measured"/>
+    </roof>
     <!-- The nasal branch, hand-placed: no instrument in
          docs/articulatory-data.md can see it. Its own arc runs 0 at the
          nostrils to 1 at the velopharyngeal port, where it couples to the
@@ -114,9 +129,9 @@
          anterior attachment), so their position is posture-dependent
          and these coordinates are the rest posture. Hand-placed. -->
     <teeth provenance="hand-placed">
-      <point name="upper-crown" x="0.0668" y="0.7204" carrier="skull"/>
-      <point name="upper-incisal-edge" x="0.0600" y="0.7496" carrier="skull"/>
-      <point name="upper-arch" x="0.0989" y="0.7616" carrier="skull"/>
+      <point name="upper-crown" x="0.0660" y="0.7670" carrier="skull"/>
+      <point name="upper-incisal-edge" x="0.0780" y="0.7020" carrier="skull"/>
+      <point name="upper-arch" x="0.1000" y="0.7610" carrier="skull"/>
       <point name="lower-crown" x="0.0901" y="0.6584" carrier="mandible"/>
       <point name="lower-incisal-edge" x="0.0969" y="0.6292" carrier="mandible"/>
       <point name="lower-arch" x="0.1338" y="0.6385" carrier="mandible"/>
@@ -161,11 +176,13 @@
     <rest arc="0.37" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
       <point arc="0.00" x="0.07" y="0.62" diameter="0.15" provenance="extrapolated"/>       <!-- extrapolated: the lip aperture; PAL.DAT does not reach the lips -->
-      <point arc="0.11" x="0.1969" y="0.6538" diameter="0.099" provenance="measured"/>  <!-- measured: the palate outline's front edge: the alveolar ridge, the tract's front-low point -->
-      <point arc="0.13" x="0.22" y="0.66" diameter="0.107" provenance="measured"/>      <!-- measured: the flat-low alveolar shelf, toward the teeth -->
-      <point arc="0.15" x="0.2379" y="0.6621" diameter="0.117" provenance="measured"/>  <!-- measured: the knee, where the shelf turns up toward the vault -->
-      <point arc="0.19" x="0.2737" y="0.6663" diameter="0.141" provenance="measured"/>  <!-- measured: the steep arc up to the vault -->
-      <point arc="0.24" x="0.3184" y="0.6716" diameter="0.17" provenance="measured"/>   <!-- measured: the peak -->
+      <point arc="0.11" x="0.1969" y="0.6538" diameter="0.099" provenance="measured"/>  <!-- measured: the palate outline's front edge, the alveolar ridge -->
+      <point arc="0.13" x="0.22" y="0.66" diameter="0.1104" provenance="measured"/>    <!-- measured: rising off the alveolar ridge -->
+      <point arc="0.15" x="0.2379" y="0.6621" diameter="0.1231" provenance="measured"/><!-- measured: the steep front flank of the arch -->
+      <point arc="0.17" x="0.2558" y="0.6642" diameter="0.1386" provenance="measured"/><!-- measured: mid-flank, the steepest rise -->
+      <point arc="0.19" x="0.2737" y="0.6663" diameter="0.1537" provenance="measured"/> <!-- measured: the flank easing toward the vault -->
+      <point arc="0.21" x="0.2916" y="0.6684" diameter="0.1629" provenance="measured"/> <!-- measured: the vault shoulder, where the dome rounds over -->
+      <point arc="0.24" x="0.3184" y="0.6716" diameter="0.17" provenance="measured"/>   <!-- measured: the vault peak, rounded -->
       <point arc="0.32" x="0.39" y="0.68" diameter="0.15" provenance="measured"/>       <!-- measured: 0.90 of the peak -->
       <point arc="0.40" x="0.4577" y="0.6677" diameter="0.12" provenance="measured"/>   <!-- measured: 0.73 of the peak -->
       <point arc="0.45" x="0.50" y="0.66" diameter="0.12" provenance="extrapolated"/>       <!-- extrapolated: held flat -->
@@ -174,6 +191,17 @@
       <point arc="0.87" x="0.69" y="0.35" diameter="0.090" provenance="extrapolated"/>      <!-- extrapolated: same -->
       <point arc="1.00" x="0.71" y="0.23" diameter="0.075" provenance="extrapolated"/>      <!-- extrapolated: same -->
     </midline>
+    <!-- Same normalized PAL.DAT outline for the female aggregate, scaled to
+         the female head. -->
+    <roof>
+      <point arc="0.11" x="0.192" y="0.753" provenance="measured"/>
+      <point arc="0.13" x="0.216" y="0.770" provenance="measured"/>
+      <point arc="0.15" x="0.236" y="0.787" provenance="measured"/>
+      <point arc="0.19" x="0.272" y="0.820" provenance="measured"/>
+      <point arc="0.24" x="0.317" y="0.840" provenance="measured"/>
+      <point arc="0.30" x="0.371" y="0.848" provenance="measured"/>
+      <point arc="0.40" x="0.459" y="0.789" provenance="measured"/>
+    </roof>
     <!-- The nasal branch, hand-placed: no instrument in
          docs/articulatory-data.md can see it. Its own arc runs 0 at the
          nostrils to 1 at the velopharyngeal port, where it couples to the
@@ -196,9 +224,9 @@
          anterior attachment), so their position is posture-dependent
          and these coordinates are the rest posture. Hand-placed. -->
     <teeth provenance="hand-placed">
-      <point name="upper-crown" x="0.0751" y="0.7157" carrier="skull"/>
-      <point name="upper-incisal-edge" x="0.0678" y="0.7448" carrier="skull"/>
-      <point name="upper-arch" x="0.1044" y="0.7569" carrier="skull"/>
+      <point name="upper-crown" x="0.0700" y="0.7600" carrier="skull"/>
+      <point name="upper-incisal-edge" x="0.0820" y="0.7000" carrier="skull"/>
+      <point name="upper-arch" x="0.1040" y="0.7570" carrier="skull"/>
       <point name="lower-crown" x="0.0974" y="0.6583" carrier="mandible"/>
       <point name="lower-incisal-edge" x="0.1046" y="0.6292" carrier="mandible"/>
       <point name="lower-arch" x="0.1392" y="0.6385" carrier="mandible"/>
