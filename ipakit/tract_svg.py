@@ -763,13 +763,16 @@ def _tongue(src: dict[str, Any], to: Scaler) -> str:
         fx, fy = floor_rev[-1]
         dx, dy = tx - fx, ty - fy
         face = (dx * dx + dy * dy) ** 0.5 or 1.0
-        # Perpendicular to the front face, turned to point away from the body
-        # (out and down), so the curl bulges forward rather than into the tongue.
+        # Perpendicular to the front face, turned to point away from the body,
+        # so the front rounds into a tip. Kept modest and the control clamped to
+        # sit no further forward than the tip, so the curl does not loop past the
+        # contact and double the semi-transparent fill (a darker lobe).
         px, py = -dy / face, dx / face
         if px > 0:
             px, py = -px, -py
         mx, my = (tx + fx) / 2, (ty + fy) / 2
-        cx, cy = mx + px * face * 0.55, my + py * face * 0.55
+        cx, cy = mx + px * face * 0.32, my + py * face * 0.32
+        cx = max(cx, min(tx, fx))
         seg = " L".join(f"{x:.2f},{y:.2f}" for x, y in top + floor_rev)
         body = f"M{seg} Q{cx:.2f},{cy:.2f} {tx:.2f},{ty:.2f} Z"
     else:
