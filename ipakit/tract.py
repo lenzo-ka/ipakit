@@ -361,8 +361,14 @@ class Head:
         ax, ay = dx / span, dy / span  # down the aperture
         wx, wy = -ay, ax  # along the tract
 
-        # Proportions of the aperture, so a head of any size keeps them.
-        reach, half, shoulder = span * 0.18, span * 0.10, span * 0.09
+        # Size the lip flesh from the *resting* aperture, a constant for the head,
+        # so a raised jaw carries the lower lip without shrinking it -- only the
+        # seat travels. Sizing off the live aperture made the lip shrink as the
+        # mouth closed. Scaled per head, so any head keeps the proportions.
+        resting = self.lips(close=0.0) or seats
+        (rux, ruy), (rlx, rly) = resting
+        ref = math.hypot(rlx - rux, rly - ruy) or 1.0
+        reach, half, shoulder = ref * 0.18, ref * 0.10, ref * 0.09
 
         def one(
             seat: tuple[float, float], tip: tuple[float, float], out: float
