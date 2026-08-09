@@ -203,9 +203,23 @@ def test_lane_c_owned_fixture_verdicts_execute_through_builder(
         result = {"verdict": "valid", "kind": "deletion"}
     elif case_id == "interval-crosses-tier-boundary":
         units = case["legacy_units"]
+        builder = GraphBuilder(declarations())
+        for unit in units:
+            if unit in {".", "‿"}:
+                builder.append_input_occurrence(
+                    "boundary", value(unit), refines_tick=True
+                )
+            else:
+                builder.append_input_atom("input", value(unit))
+        builder.build()
+        coordinates = builder.compatibility_coordinates()
         interval = case["legacy_interval"]
+        start = coordinates.to_graph(interval["start"])
+        end = coordinates.to_graph(interval["end"])
+        round_tripped_start = coordinates.to_legacy(start)
+        round_tripped_end = coordinates.to_legacy(end)
         contained = [
-            item for item in units[interval["start"] : interval["end"]] if item == "‿"
+            item for item in units[round_tripped_start:round_tripped_end] if item == "‿"
         ]
         result = {"verdict": "valid", "contains_boundaries": contained}
     else:
