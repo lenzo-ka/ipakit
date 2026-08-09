@@ -30,7 +30,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from ._base import IPAFeaturesBase
     from .features import IPAFeatures
 
-_JSON_VERSION = 2
+_JSON_VERSION = 3
+_JSON_TYPE = "ipa-segment"
 
 # The natural class a phased unit's classification asks about, declared over
 # the manner values in the data (nasals are sonorants, so "obstruent" is
@@ -1037,6 +1038,7 @@ class Segment:
         JSON-encode/JSON-decode detour or a second serialization schema.
         """
         return {
+            "type": _JSON_TYPE,
             "v": _JSON_VERSION,
             "constituents": [
                 {
@@ -1060,6 +1062,10 @@ class Segment:
         cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
     ) -> Segment:
         """Read the representation returned by :meth:`to_dict`."""
+        if obj.get("type") != _JSON_TYPE:
+            raise ValueError(
+                f"unsupported Segment representation type: {obj.get('type')!r}"
+            )
         version = obj.get("v")
         if version != _JSON_VERSION:
             raise ValueError(f"unsupported Segment JSON version: {version!r}")
