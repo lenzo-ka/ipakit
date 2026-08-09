@@ -63,11 +63,12 @@ neither containing the other, which is what enchaînement is.
 from __future__ import annotations
 
 import dataclasses
+import json
 import warnings
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .constants import ZERO_CLASS
 from .segment import state_mark_value
@@ -78,6 +79,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 #: Keys on a declaration that name a symbol rather than describe a sound.
 _METADATA = frozenset({"class", "href", "xsampa"})
+_JSON_VERSION = 1
 
 
 def _default(features: IPAFeatures | None) -> IPAFeatures:
@@ -927,6 +929,75 @@ class Form:
         inventing one would put a claim in the string that nothing reads.
         """
         return spell(self.units)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the complete internal representation.
+
+        Unlike :meth:`to_ipa`, this includes unspelled tier intervals and
+        the already-resolved feature, prosody, and provenance views.  A
+        segment is embedded using :meth:`Segment.to_dict`, so there is one
+        schema for a segment whether it travels alone or inside a form.
+        """
+        return {
+            "v": _JSON_VERSION,
+            "units": [
+                {
+                    "text": unit.text,
+                    "segment": (
+                        unit.segment.to_dict() if unit.segment is not None else None
+                    ),
+                    "features": dict(unit.features),
+                    "prosody": dict(unit.prosody),
+                    "provenance": [list(item) for item in unit.provenance],
+                }
+                for unit in self.units
+            ],
+            "intervals": [
+                {"tier": span.tier, "start": span.start, "end": span.end}
+                for span in self.intervals
+            ],
+        }
+
+    def to_json(self) -> str:
+        """Return the complete, versioned representation as JSON."""
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+    @classmethod
+    def from_dict(
+        cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
+    ) -> Form:
+        """Restore a form without reparsing its IPA surface spelling."""
+        if obj.get("v") != _JSON_VERSION:
+            raise ValueError(f"unsupported Form JSON version: {obj.get('v')!r}")
+        inventory = _default(features)
+        from .segment import Segment
+
+        restored: list[Unit] = []
+        for raw in obj.get("units", ()):
+            segment_data = raw.get("segment")
+            restored.append(
+                Unit(
+                    text=raw["text"],
+                    segment=(
+                        Segment.from_dict(segment_data, inventory)
+                        if segment_data is not None
+                        else None
+                    ),
+                    features=raw.get("features", {}),
+                    prosody=raw.get("prosody", {}),
+                    provenance=tuple(tuple(item) for item in raw.get("provenance", ())),
+                )
+            )
+        intervals = tuple(
+            Interval(raw["tier"], raw["start"], raw["end"], inventory)
+            for raw in obj.get("intervals", ())
+        )
+        return cls(tuple(restored), intervals)
+
+    @classmethod
+    def from_json(cls, data: str, features: IPAFeatures | None = None) -> Form:
+        """Restore :meth:`to_json` output without a lossy IPA round trip."""
+        return cls.from_dict(json.loads(data), features)
 
     # -- projections, each named for what it drops -------------------------
 

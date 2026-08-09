@@ -68,6 +68,40 @@ class TestAFormCarriesEverythingItWasWrittenWith:
         assert Form.parse(text, FEATURES).to_ipa() == text
 
 
+class TestFormSerialization:
+    def test_round_trip_carries_the_complete_representation(self):
+        source = Form.parse("#ⁿd͡ʒʷ.ˈaː∅#", FEATURES)
+        form = Form.of(
+            source.units,
+            [ipakit.Interval("mora", 1, 4, FEATURES)],
+        )
+
+        restored = Form.from_json(form.to_json(), FEATURES)
+
+        assert restored == form
+        assert restored.to_ipa() == form.to_ipa()
+        assert restored.segments == form.segments
+        assert restored.intervals == form.intervals
+        assert [dict(unit.features) for unit in restored.units] == [
+            dict(unit.features) for unit in form.units
+        ]
+        assert [dict(unit.prosody) for unit in restored.units] == [
+            dict(unit.prosody) for unit in form.units
+        ]
+        assert [unit.provenance for unit in restored.units] == [
+            unit.provenance for unit in form.units
+        ]
+
+    def test_dict_and_json_use_one_schema(self):
+        form = Form.parse("kˌæn.tˈiːn", FEATURES)
+        assert Form.from_dict(form.to_dict(), FEATURES) == form
+        assert Form.from_json(form.to_json(), FEATURES).to_dict() == form.to_dict()
+
+    def test_unknown_version_is_refused(self):
+        with pytest.raises(ValueError, match="unsupported Form JSON version"):
+            Form.from_json('{"v": 99, "units": [], "intervals": []}', FEATURES)
+
+
 class TestEachProjectionDropsExactlyWhatItNames:
     FORM = "#kˌæn.tˈiːn dɒɡ#"
 
