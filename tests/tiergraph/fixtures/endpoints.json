@@ -6,6 +6,7 @@
     {"id":"gap-interior-refined","refiners":{"1":[".","."]},"input":"/clock/1/gaps/1","expected":{"verdict":"canonical-form","endpoint":"/clock/1/gaps/1"}},
     {"id":"gap-k-refined","refiners":{"1":[".","."]},"input":"/clock/1/gaps/2","expected":{"verdict":"canonical-form","endpoint":"/clock/1/gaps/2"}},
     {"id":"gap-zero-unrefined-alias","refiners":{},"input":"/clock/1/gaps/0","expected":{"verdict":"canonical-form","endpoint":"/clock/1","input_is_noncanonical":true}},
+    {"id":"coarse-refined-span-endpoint","refiners":{"1":["."]},"span":{"start":"/clock/1","end":"/clock/2"},"expected":{"verdict":"rejected-with-reason","reason":"refined span endpoint must name a gap","input_is_noncanonical":true,"must_reject":true}},
     {"id":"reversed-refined-span","refiners":{"1":[".","."]},"span":{"start":"/clock/1/gaps/2","end":"/clock/1/gaps/1"},"expected":{"verdict":"rejected-with-reason","reason":"refined span end precedes start","must_reject":true}},
     {"id":"gap-outside-named-tick","refiners":{"1":["."]},"input":"/clock/1/gaps/2","expected":{"verdict":"rejected-with-reason","reason":"gap does not belong to named tick","must_reject":true}}
   ]

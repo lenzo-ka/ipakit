@@ -27,6 +27,12 @@ def _walk(value: Any):
         yield value
 
 
+def _position(pointer: str) -> tuple[int, int]:
+    match = POINTER.match(pointer)
+    assert match, pointer
+    return int(match["tick"]), int(match["gap"] or 0)
+
+
 def test_index_names_every_fixture_once() -> None:
     names = _load("index.json")["fixtures"]
     assert len(names) == len(set(names))
@@ -72,7 +78,22 @@ def test_reversed_spans_are_explicit_must_reject_cases() -> None:
     cases = _load("endpoints.json")["cases"]
     case = next(case for case in cases if case["id"] == "reversed-refined-span")
     assert case["expected"]["must_reject"] is True
-    assert case["span"]["start"] > case["span"]["end"]
+    assert _position(case["span"]["start"]) > _position(case["span"]["end"])
+
+
+def test_endpoint_rejections_are_derived_from_the_fixture_data() -> None:
+    by_id = {case["id"]: case for case in _load("endpoints.json")["cases"]}
+    outside = by_id["gap-outside-named-tick"]
+    match = POINTER.match(outside["input"])
+    assert match
+    assert int(match["gap"]) > len(outside["refiners"][match["tick"]])
+
+    coarse = by_id["coarse-refined-span-endpoint"]
+    refined_ticks = {int(tick) for tick, values in coarse["refiners"].items() if values}
+    assert any(
+        _position(endpoint)[0] in refined_ticks and "/gaps/" not in endpoint
+        for endpoint in coarse["span"].values()
+    )
 
 
 def test_choices_pin_zero_or_one_selection_and_all_rejections() -> None:
@@ -89,8 +110,12 @@ def test_choices_pin_zero_or_one_selection_and_all_rejections() -> None:
         "duplicate-candidate",
         "multiple-alternatives-links",
         "multiple-selects-links",
+        "selects-without-alternatives",
         "selection-outside-candidates",
     }
+    bare = by_id["selects-without-alternatives"]["links"]
+    assert any(relation == "selects" for _, relation, _ in bare)
+    assert not any(relation == "alternatives" for _, relation, _ in bare)
 
 
 def test_signature_slot_counts_match_the_pinned_verdicts() -> None:
