@@ -76,9 +76,11 @@ def test_constriction_place_is_pinned_across_the_transition() -> None:
     # /t/ closes at the alveolar ridge; through the whole /a/->/t/ transition
     # the peak constriction stays there and only its degree grows. Nothing
     # slides toward the velum.
-    arcs = [_offset_at("ata", t)[0] for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+    # At t=0 the vowel's own below-rest root gesture is active. Once the /t/
+    # gesture enters, its peak stays pinned at the ridge.
+    arcs = [_offset_at("ata", t)[0] for t in (0.25, 0.5, 0.75, 1.0)]
     assert max(arcs) - min(arcs) < 1e-6
-    degrees = [_offset_at("ata", t)[1] for t in (0.0, 0.5, 1.0)]
+    degrees = [_offset_at("ata", t)[1] for t in (0.25, 0.5, 1.0)]
     assert degrees[0] < degrees[1] < degrees[2]
 
 
@@ -91,12 +93,13 @@ def test_velar_and_alveolar_do_not_share_an_arc() -> None:
 
 
 def test_only_one_articulator_is_active_in_a_single_place_word() -> None:
-    # /ata/ constricts the tip alone; the dorsum never appears, so a blend of
-    # it carries exactly one control at every sampled instant.
+    # /a/ lowers the tongue root and /t/ raises the tip. The transition may
+    # overlap those two real gestures, but no phantom articulator appears.
     for t in (0.0, 0.5, 1.0, 1.5, 2.0):
         cons = blend(score(IPA, "ata"), t).constrictions
-        assert len(cons) == 1
-        assert cons[0].articulator == "tongue-tip"
+        assert {c.articulator for c in cons} <= {"tongue-root", "tongue-tip"}
+    assert blend(score(IPA, "ata"), 0.0).constrictions[0].articulator == "tongue-root"
+    assert blend(score(IPA, "ata"), 1.0).constrictions[0].articulator == "tongue-tip"
 
 
 def test_two_stops_blend_per_articulator_in_opposite_directions() -> None:
@@ -160,3 +163,13 @@ def test_blend_rejects_empty_and_nonpositive_falloff() -> None:
         blend([], 0.0)
     with pytest.raises(ValueError):
         blend(score(IPA, "at"), 0.5, falloff=0.0)
+
+
+def test_distant_gaussian_tails_do_not_emit_ghost_controls() -> None:
+    # A Gaussian never reaches mathematical zero. Its remote tail is not a
+    # physical gesture: at /t/'s center in /kat/, the /k/ dorsum must be gone,
+    # and conversely at /k/. Such ghosts used to flash at animation bookends
+    # and changed the tongue front clamp.
+    units = score(IPA, "kat")
+    assert {c.articulator for c in blend(units, 2.0).constrictions} == {"tongue-tip"}
+    assert {c.articulator for c in blend(units, 0.0).constrictions} == {"tongue-dorsum"}

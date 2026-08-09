@@ -191,6 +191,7 @@ def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
         "rows": sample(h, close=close),
         "nasal": [n for n in nasal if None not in n.values()],
         "port_arc": h.port_arc,
+        "velum_thickness": h.velum_thickness,
         "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
         "lips_open": h.lips(close=close),
         "lips_body": h.lip_body(close=close),
@@ -1161,10 +1162,18 @@ def _nasal(
         state = "open"
     else:
         state = "part-open"
+    # The soft palate is a flap, not a centerline.  Its thickness is declared
+    # by the head model; the renderer only turns that extent into a closed
+    # quadratic body around the same hinge and tip trajectory.
+    declared_thickness = float(src.get("velum_thickness", 0.018))
+    origin = to(0.0, 0.0)
+    edge = to(declared_thickness, 0.0)
+    thickness = max(2.0, abs(edge[0] - origin[0]))
+    half = thickness / 2
     parts.append(
-        f'<path d="M{hx:.1f},{hy:.1f} Q{hx:.1f},{ty:.1f} {tx:.1f},{ty:.1f}" '
-        f'class="velum"/>'
-        f'<circle cx="{tx:.1f}" cy="{ty:.1f}" r="3" class="velumtip"/>'
+        f'<path d="M{hx:.1f},{hy-half:.1f} Q{hx:.1f},{ty-half:.1f} '
+        f"{tx:.1f},{ty-half:.1f} L{tx:.1f},{ty+half:.1f} "
+        f'Q{hx:.1f},{ty+half:.1f} {hx:.1f},{hy+half:.1f} Z" class="velum"/>'
     )
     for text, vx, vy, depth in _place_labels(
         [(f"velum\nport {state}", (tx, ty))], 14, 13, taken
@@ -1402,7 +1411,7 @@ fill:var(--text)}
 .nasalside{fill:none;stroke:var(--trace);stroke-width:1.5;opacity:.75}
 .nasalmid{fill:none;stroke:var(--trace);stroke-width:.8;
 stroke-dasharray:2 4;opacity:.5}
-.velum{stroke:var(--velum);stroke-width:1.5;stroke-linecap:round;fill:none}
+.velum{stroke:var(--velum);stroke-width:1.2;stroke-linejoin:round;fill:var(--velum)}
 .velumtip{fill:var(--velum)}
 .lbl.velum{fill:var(--velumText);font-weight:400}
 .median{stroke:var(--dim);stroke-width:1;stroke-dasharray:1 3}

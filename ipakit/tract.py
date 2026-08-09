@@ -221,6 +221,7 @@ class Head:
     length_cm: float | None = None
     nasal: tuple[MidlinePoint, ...] = ()
     port_arc: float | None = None
+    velum_thickness: float = 0.018
     teeth: tuple[tuple[str, float, float, str], ...] = ()
     carriage: tuple[tuple[float, float], ...] = ()
     tongue_span: tuple[float, float, float, float] | None = None
@@ -730,6 +731,12 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 )
                 for pt in nasal_elem.findall("point")
             )
+        velum_elem = elem.find("velum")
+        velum_thickness = (
+            float(velum_elem.get("thickness", 0.018))
+            if velum_elem is not None
+            else 0.018
+        )
         teeth_elem = elem.find("teeth")
         teeth: tuple[tuple[str, float, float, str], ...] = ()
         if teeth_elem is not None:
@@ -778,6 +785,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             length_cm=float(length) if length else None,
             nasal=nasal_points,
             port_arc=port_arc,
+            velum_thickness=velum_thickness,
             teeth=teeth,
             carriage=carriage,
             tongue_span=tongue_span,
@@ -1504,8 +1512,9 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     per-unit targets, taken at the articulator's OWN arc (itself the
     dominance-weighted mean of the arcs the constricting units place it at, so
     a place shared by two units settles between them and never leaves the
-    articulator). An articulator whose blended degree stays at or below rest
-    is not emitted: it is not constricting. The survivors are the blended
+    articulator). An articulator whose blended degree remains imperceptibly
+    close to rest is not emitted; a below-rest gesture such as a lowered
+    vowel root remains a real control. The survivors are the blended
     ``constrictions``, each ``(fixed arc, blended offset, articulator)`` --
     which :func:`ipakit.tract_svg.build_geometry` renders as-is, because
     ``Head.tongue_point`` already takes the max over controls and so draws a
@@ -1572,20 +1581,32 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
                 if name in closed
             ]
         )
-        # Degree is dominance *activation* above rest, not a mean that counts
+        # Degree is dominance *activation* away from rest, not a mean that counts
         # every non-constricting unit as a vote for rest. Each constricting
         # unit lifts the degree toward its own target by its dominance weight,
         # so at a unit's own moment (weight 1) its closure is reached in full --
         # a stop reads as closed, not as a near-closure ring -- while away from
         # it the lift decays and the articulator relaxes to rest. Overlapping
         # closures on one articulator sum, capped at full closure.
-        lift = sum(
-            weights[i] * ((closed[name].offset or 0.0) - rest_offset)
+        # A Gaussian is positive at every finite distance.  Treating that
+        # mathematical tail as an active gesture emitted near-rest controls
+        # from segments several units away.  Besides drawing a flash at a
+        # rest bookend, a ghost tongue-tip changes the surface's anterior
+        # clamp.  Below this activation the gesture is geometrically absent.
+        active = [
+            i
             for i, closed in enumerate(per_unit)
-            if name in closed
+            if name in closed and weights[i] >= 1e-6
+        ]
+        lift = sum(
+            weights[i] * ((per_unit[i][name].offset or 0.0) - rest_offset)
+            for i in active
         )
-        offset = min(1.0, rest_offset + lift)
-        if arc is None or offset <= rest_offset:
+        offset = max(0.0, min(1.0, rest_offset + lift))
+        # Below-rest vowel gestures are real too (for example /a/'s lowered
+        # tongue root). Keep either direction, while discarding the tiny
+        # remote tail which has no visible or articulatory meaning.
+        if arc is None or abs(offset - rest_offset) < 0.02:
             continue
         blended.append(TractPoint(arc=arc, offset=offset, articulator=name))
     blended.sort(key=lambda q: q.arc or 0.0)
