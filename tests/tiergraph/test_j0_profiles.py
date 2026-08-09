@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import ast
+import io
 import json
+import tokenize
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -18,6 +21,26 @@ from ipakit._tiergraph_builder import GraphBuilder
 
 ROOT = Path(__file__).parents[2]
 CMU_MAP = ROOT / "ipakit" / "data" / "phonemaps" / "cmu.xml"
+_PROFILE_VOCABULARY = frozenset(
+    {"cmu", "cmudict", "arpabet", "pinyin", "stress", "syllable", "tone", "phone"}
+)
+
+
+def _profile_vocabulary_in_code(source: str) -> set[str]:
+    docstrings = {
+        (node.value.lineno, node.value.col_offset)
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    }
+    code = tokenize.untokenize(
+        token
+        for token in tokenize.generate_tokens(io.StringIO(source).readline)
+        if token.type != tokenize.COMMENT
+        and not (token.type == tokenize.STRING and token.start in docstrings)
+    ).lower()
+    return {word for word in _PROFILE_VOCABULARY if word in code}
 
 
 def _stress_values() -> dict[str, str]:
@@ -153,9 +176,15 @@ def test_pinyin_tone_attachment_differs_from_codec_placement() -> None:
 
 
 def test_generic_modules_contain_no_j0_profile_vocabulary() -> None:
-    sources = "\n".join(
-        (ROOT / "ipakit" / name).read_text()
-        for name in ("_tiergraph.py", "_tiergraph_builder.py")
-    ).lower()
-    forbidden = ("cmudict", "arpabet", "pinyin", "tone mark", "tone-mark")
-    assert not any(word in sources for word in forbidden)
+    for name in ("_tiergraph.py", "_tiergraph_builder.py"):
+        source = (ROOT / "ipakit" / name).read_text()
+        assert not _profile_vocabulary_in_code(source), name
+
+
+def test_profile_vocabulary_guard_flags_profile_conditionals() -> None:
+    assert _profile_vocabulary_in_code('if tier == "cmu":\n    pass\n') == {"cmu"}
+    assert _profile_vocabulary_in_code('if name == "syllable":\n    pass\n') == {
+        "syllable"
+    }
+    prose = '# CMU stress phone\n"""Pinyin syllable tone."""\n'
+    assert not _profile_vocabulary_in_code(prose)
