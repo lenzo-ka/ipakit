@@ -101,28 +101,27 @@ def _default(features: IPAFeatures | None) -> IPAFeatures:
 class Timing:
     """An optional time span, in seconds, on an occurrence or tier span.
 
-    Half-open by convention, like :class:`Interval`; ``start == end`` is a
+    Half-open by convention, like :class:`Interval`; zero duration is a
     point target.  Timing belongs to occurrences rather than ``Segment``
     identities, because two instances of the same phone need not last the
     same time.  No interpolation or edit-rebasing policy is implied here.
     """
 
     start: float
-    end: float
+    duration: float
 
     def __post_init__(self) -> None:
-        if not math.isfinite(self.start) or not math.isfinite(self.end):
-            raise ValueError("timing endpoints must be finite")
+        if not math.isfinite(self.start) or not math.isfinite(self.duration):
+            raise ValueError("timing values must be finite")
         if self.start < 0:
             raise ValueError(f"timing starts before zero: {self.start}")
-        if self.end < self.start:
-            raise ValueError(
-                f"timing ends before it starts: [{self.start}, {self.end})"
-            )
+        if self.duration < 0:
+            raise ValueError(f"timing duration is negative: {self.duration}")
 
     @property
-    def duration(self) -> float:
-        return self.end - self.start
+    def end(self) -> float:
+        """Derived half-open endpoint for interval arithmetic."""
+        return self.start + self.duration
 
 
 @dataclass(frozen=True)
@@ -987,7 +986,7 @@ class Form:
                     "timing": (
                         {
                             "start": unit.timing.start,
-                            "end": unit.timing.end,
+                            "duration": unit.timing.duration,
                         }
                         if unit.timing is not None
                         else None
@@ -1001,7 +1000,10 @@ class Form:
                     "start": span.start,
                     "end": span.end,
                     "timing": (
-                        {"start": span.timing.start, "end": span.timing.end}
+                        {
+                            "start": span.timing.start,
+                            "duration": span.timing.duration,
+                        }
                         if span.timing is not None
                         else None
                     ),
@@ -1043,7 +1045,7 @@ class Form:
                 prosody=raw.get("prosody", {}),
                 provenance=tuple(tuple(item) for item in raw.get("provenance", ())),
                 timing=(
-                    Timing(timing_data["start"], timing_data["end"])
+                    Timing(timing_data["start"], timing_data["duration"])
                     if timing_data is not None
                     else None
                 ),
@@ -1072,7 +1074,7 @@ class Form:
                 raw["end"],
                 inventory,
                 (
-                    Timing(raw["timing"]["start"], raw["timing"]["end"])
+                    Timing(raw["timing"]["start"], raw["timing"]["duration"])
                     if raw.get("timing") is not None
                     else None
                 ),

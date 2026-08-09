@@ -124,7 +124,7 @@ class TestFormSerialization:
     def test_occurrence_and_tier_timings_round_trip(self):
         source = Form.parse("a.ta", FEATURES)
         timed_units = tuple(
-            dataclasses.replace(unit, timing=Timing(i * 0.1, (i + 1) * 0.1))
+            dataclasses.replace(unit, timing=Timing(i * 0.1, 0.1))
             for i, unit in enumerate(source.units)
         )
         form = Form.of(
@@ -138,21 +138,27 @@ class TestFormSerialization:
             unit.timing for unit in timed_units
         ]
         assert restored.intervals[0].timing == Timing(0.0, 0.4)
+        assert restored.to_dict()["units"][0]["timing"] == {
+            "start": 0.0,
+            "duration": 0.1,
+        }
 
     @pytest.mark.parametrize(
-        "start,end,message",
+        "start,duration,message",
         [
             (-0.1, 0.0, "starts before zero"),
-            (0.2, 0.1, "ends before it starts"),
+            (0.2, -0.1, "duration is negative"),
             (0.0, float("inf"), "must be finite"),
         ],
     )
-    def test_invalid_timing_is_refused(self, start, end, message):
+    def test_invalid_timing_is_refused(self, start, duration, message):
         with pytest.raises(ValueError, match=message):
-            Timing(start, end)
+            Timing(start, duration)
 
     def test_a_point_target_has_zero_duration(self):
-        assert Timing(0.25, 0.25).duration == 0.0
+        timing = Timing(0.25, 0.0)
+        assert timing.duration == 0.0
+        assert timing.end == 0.25
 
 
 class TestTheCanonicalRead:

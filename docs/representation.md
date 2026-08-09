@@ -56,8 +56,8 @@ $ ipakit convert to-json "kæt" | ipakit convert from-json -
 
 Timing belongs to an occurrence, not a `Segment` identity: two occurrences of
 the same phone can have different durations. A `Unit` or tier `Interval` may
-therefore carry `Timing(start, end)` in seconds. Equal endpoints state a point
-target.
+therefore carry `Timing(start, duration)` in seconds. Zero duration states a
+point target; the half-open endpoint is derived as `start + duration`.
 
 Timing is optional. With no explicit endpoints, the ordered units and tier spans
 state only their partial order on the animation's base clock. The representation
