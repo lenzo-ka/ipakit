@@ -1,0 +1,94 @@
+{
+  "artifacts": [
+    {
+      "bytes": 172100,
+      "path": "ipakit/data/confusion.json",
+      "sha256": "aecabe393e38b23dd23f6dbb44b11226bb34a7839f103f709890de432f7827bb"
+    },
+    {
+      "bytes": 5876,
+      "path": "ipakit/data/phonemaps/xsampa.xml",
+      "sha256": "5ee7e6d1da708826b474995cf82d829ca3c44002356b90cc38a2a90c61170f5c"
+    },
+    {
+      "bytes": 32165,
+      "path": "docs/tutorial.md",
+      "sha256": "f249186bb8abbd17550e571ad840b11f9fd37c5b3a22032918975003e689b273"
+    },
+    {
+      "bytes": 41600,
+      "path": "ipakit/notebooks/ipakit-tutorial.ipynb",
+      "sha256": "f28b48f3055f5df0a312e1080894703d4270c05860d97b5897c27c43d99147bb"
+    },
+    {
+      "bytes": 43564,
+      "path": "docs/figures/tract-a.svg",
+      "sha256": "29c4b88c17246290e73c8adc7bf08a59048ba967b8f2b4db31881bcbae3174e7"
+    },
+    {
+      "bytes": 42735,
+      "path": "docs/figures/tract-eng.svg",
+      "sha256": "f34fb87fa554ab5f3965c269067d329b4b669145d994ebae2d3c00298bebeb6f"
+    },
+    {
+      "bytes": 43477,
+      "path": "docs/figures/tract-esh.svg",
+      "sha256": "116c7175263e843fba62cbcc5330b09a08c452ac1a5355404dde023e10055ef5"
+    },
+    {
+      "bytes": 43565,
+      "path": "docs/figures/tract-i.svg",
+      "sha256": "b5c2ad0d6bf106efcd44372e7ad617a89e64a39cb27d989160791e86b628d986"
+    },
+    {
+      "bytes": 43189,
+      "path": "docs/figures/tract-k.svg",
+      "sha256": "ee945bd19fe01b07b73bb9d4deaeb045e31da984e1a10de8df84f418a687d1ce"
+    },
+    {
+      "bytes": 42444,
+      "path": "docs/figures/tract-m.svg",
+      "sha256": "84d721693cd6c8e881088b03f83061e406d40b5925c6e1286de7dc6cfdf5365b"
+    },
+    {
+      "bytes": 42242,
+      "path": "docs/figures/tract-n.svg",
+      "sha256": "f3cef26591b0927d61deac220d8dff2ff7a21f2891bfdd3acc3afc84529329ba"
+    },
+    {
+      "bytes": 38784,
+      "path": "docs/figures/tract-reference.svg",
+      "sha256": "0ffa0e9db75639ebc885853d501ca4a9319a0a2008d042d09b8113f89aa90298"
+    },
+    {
+      "bytes": 42965,
+      "path": "docs/figures/tract-s.svg",
+      "sha256": "edf1adec11e236ca4c0c34400464eea7ba26c2a6707e9ee8fa0d5b60d8f6b581"
+    },
+    {
+      "bytes": 36432,
+      "path": "docs/figures/tract-silence.svg",
+      "sha256": "23cddcfc4529e396f80da71d52cbc83d2faecc78bfa725fc8d4f4fa20b2e60d5"
+    },
+    {
+      "bytes": 42697,
+      "path": "docs/figures/tract-t.svg",
+      "sha256": "619ce680d0f8d0d1f2f5877996da2f9aa5289efbce0576c86f50d36754c2b3ef"
+    },
+    {
+      "bytes": 43189,
+      "path": "docs/figures/tract-theta.svg",
+      "sha256": "1bec9f66e578bf5ad4635638154db2549f624b72c429d921ccd668a9da5e07e8"
+    },
+    {
+      "bytes": 43717,
+      "path": "docs/figures/tract-u.svg",
+      "sha256": "dbff80d220bb5463499ad21dcf4e1f1c8a416821e3c134cdfc250ce83a6a9ea0"
+    }
+  ],
+  "format": 1,
+  "fresh_confusion_matches_shipped_byte_for_byte": true,
+  "ipakit": "0.1.0",
+  "kind": "derived-artifact-bytes",
+  "python_hash_seed": 0
+}

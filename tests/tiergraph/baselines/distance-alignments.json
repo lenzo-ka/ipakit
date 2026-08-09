@@ -1,0 +1,778 @@
+{
+  "format": 1,
+  "ipakit": "0.1.0",
+  "kind": "distance-alignments",
+  "pairs": [
+    {
+      "explain_word_distance": [
+        {
+          "a": "k",
+          "b": "k",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "æ",
+          "b": "æ",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "t",
+          "b": "t",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        }
+      ],
+      "id": "match",
+      "left": "kæt",
+      "right": "kæt",
+      "segment_distance": 0.0,
+      "word_distance": {
+        "alignment": [
+          [
+            "k",
+            "k"
+          ],
+          [
+            "æ",
+            "æ"
+          ],
+          [
+            "t",
+            "t"
+          ]
+        ],
+        "costs": "insert=1.0 delete=1.0",
+        "coverage": 1.0,
+        "edit_cost": 0.0,
+        "similarity": 1.0
+      },
+      "word_similarity": 1.0
+    },
+    {
+      "explain_word_distance": [
+        {
+          "a": "k",
+          "b": "k",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "æ",
+          "b": "æ",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "t",
+          "b": "d",
+          "cost": 0.05,
+          "op": "sub",
+          "terms": [
+            {
+              "a": "pulmonic",
+              "b": "pulmonic",
+              "cost": 0.0,
+              "label": "airstream"
+            },
+            {
+              "a": "tongue-tip",
+              "b": "tongue-tip",
+              "cost": 0.0,
+              "label": "articulator"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "centralized"
+            },
+            {
+              "a": "flat",
+              "b": "flat",
+              "cost": 0.0,
+              "label": "channel"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "fronting"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "height-mod"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "laterality"
+            },
+            {
+              "a": "normal",
+              "b": "normal",
+              "cost": 0.0,
+              "label": "length"
+            },
+            {
+              "a": "plosive",
+              "b": "plosive",
+              "cost": 0.0,
+              "label": "manner"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "mid-centralized"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "nasality"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "retroflex"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "rhotacized"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "rounded"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "syllabic"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "tongue-root"
+            },
+            {
+              "a": "-",
+              "b": "+",
+              "cost": 1.0,
+              "label": "voiced"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "place"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "tract-x"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "tract-y"
+            }
+          ]
+        }
+      ],
+      "id": "substitution",
+      "left": "kæt",
+      "right": "kæd",
+      "segment_distance": 0.016666666666666666,
+      "word_distance": {
+        "alignment": [
+          [
+            "k",
+            "k"
+          ],
+          [
+            "æ",
+            "æ"
+          ],
+          [
+            "t",
+            "d"
+          ]
+        ],
+        "costs": "insert=1.0 delete=1.0",
+        "coverage": 1.0,
+        "edit_cost": 0.1,
+        "similarity": 0.9833333333333333
+      },
+      "word_similarity": 0.9833333333333333
+    },
+    {
+      "explain_word_distance": [
+        {
+          "a": "k",
+          "b": "k",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "æ",
+          "b": "æ",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "t",
+          "b": "t",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": null,
+          "b": "s",
+          "cost": 1.0,
+          "op": "insert",
+          "terms": []
+        }
+      ],
+      "id": "insertion",
+      "left": "kæt",
+      "right": "kæts",
+      "segment_distance": 0.25,
+      "word_distance": {
+        "alignment": [
+          [
+            "k",
+            "k"
+          ],
+          [
+            "æ",
+            "æ"
+          ],
+          [
+            "t",
+            "t"
+          ],
+          [
+            null,
+            "s"
+          ]
+        ],
+        "costs": "insert=1.0 delete=1.0",
+        "coverage": 0.75,
+        "edit_cost": 1.0,
+        "similarity": 0.8571428571428572
+      },
+      "word_similarity": 0.8571428571428572
+    },
+    {
+      "explain_word_distance": [
+        {
+          "a": "k",
+          "b": "k",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "æ",
+          "b": "æ",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "t",
+          "b": "t",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "s",
+          "b": null,
+          "cost": 1.0,
+          "op": "delete",
+          "terms": []
+        }
+      ],
+      "id": "deletion",
+      "left": "kæts",
+      "right": "kæt",
+      "segment_distance": 0.25,
+      "word_distance": {
+        "alignment": [
+          [
+            "k",
+            "k"
+          ],
+          [
+            "æ",
+            "æ"
+          ],
+          [
+            "t",
+            "t"
+          ],
+          [
+            "s",
+            null
+          ]
+        ],
+        "costs": "insert=1.0 delete=1.0",
+        "coverage": 0.75,
+        "edit_cost": 1.0,
+        "similarity": 0.8571428571428572
+      },
+      "word_similarity": 0.8571428571428572
+    },
+    {
+      "explain_word_distance": [
+        {
+          "a": "s",
+          "b": "s",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": null,
+          "b": "u",
+          "cost": 1.0,
+          "op": "insert",
+          "terms": []
+        },
+        {
+          "a": "t",
+          "b": "t",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": null,
+          "b": "o",
+          "cost": 1.0,
+          "op": "insert",
+          "terms": []
+        },
+        {
+          "a": "ɹ",
+          "b": "ɾ",
+          "cost": 0.0333,
+          "op": "sub",
+          "terms": [
+            {
+              "a": "pulmonic",
+              "b": "pulmonic",
+              "cost": 0.0,
+              "label": "airstream"
+            },
+            {
+              "a": "tongue-tip",
+              "b": "tongue-tip",
+              "cost": 0.0,
+              "label": "articulator"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "centralized"
+            },
+            {
+              "a": "flat",
+              "b": "flat",
+              "cost": 0.0,
+              "label": "channel"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "fronting"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "height-mod"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "laterality"
+            },
+            {
+              "a": "normal",
+              "b": "normal",
+              "cost": 0.0,
+              "label": "length"
+            },
+            {
+              "a": "approximant",
+              "b": "tap",
+              "cost": 0.4167,
+              "label": "manner"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "mid-centralized"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "nasality"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "retroflex"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "rhotacized"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "rounded"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "syllabic"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "tongue-root"
+            },
+            {
+              "a": "+",
+              "b": "+",
+              "cost": 0.0,
+              "label": "voiced"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "place"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "tract-x"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.25,
+              "label": "tract-y"
+            }
+          ]
+        },
+        {
+          "a": "a͜ɪ",
+          "b": "a",
+          "cost": 0.6667,
+          "op": "sub",
+          "terms": [
+            {
+              "a": "a͜ɪ",
+              "b": "a",
+              "cost": 0.6667,
+              "label": "segmental"
+            }
+          ]
+        },
+        {
+          "a": null,
+          "b": "i",
+          "cost": 1.0,
+          "op": "insert",
+          "terms": []
+        },
+        {
+          "a": "k",
+          "b": "k",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": null,
+          "b": "u",
+          "cost": 1.0,
+          "op": "insert",
+          "terms": []
+        }
+      ],
+      "id": "mixed",
+      "left": "stɹa͜ɪk",
+      "right": "sutoɾaiku",
+      "segment_distance": 0.5869086099086099,
+      "word_distance": {
+        "alignment": [
+          [
+            "s",
+            "s"
+          ],
+          [
+            null,
+            "u"
+          ],
+          [
+            "t",
+            "t"
+          ],
+          [
+            null,
+            "o"
+          ],
+          [
+            "ɹ",
+            "ɾ"
+          ],
+          [
+            "a͜ɪ",
+            "a"
+          ],
+          [
+            null,
+            "i"
+          ],
+          [
+            "k",
+            "k"
+          ],
+          [
+            null,
+            "u"
+          ]
+        ],
+        "costs": "insert=1.0 delete=1.0",
+        "coverage": 0.5555555555555556,
+        "edit_cost": 5.4,
+        "similarity": 0.6142857142857143
+      },
+      "word_similarity": 0.6142857142857143
+    },
+    {
+      "explain_word_distance": [
+        {
+          "a": "k",
+          "b": "k",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        },
+        {
+          "a": "ˈæ",
+          "b": "ˌæ",
+          "cost": 0.0227,
+          "op": "sub",
+          "terms": [
+            {
+              "a": "pulmonic",
+              "b": "pulmonic",
+              "cost": 0.0,
+              "label": "airstream"
+            },
+            {
+              "a": "tongue-root",
+              "b": "tongue-root",
+              "cost": 0.0,
+              "label": "articulator"
+            },
+            {
+              "a": "front",
+              "b": "front",
+              "cost": 0.0,
+              "label": "backness"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "centralized"
+            },
+            {
+              "a": "flat",
+              "b": "flat",
+              "cost": 0.0,
+              "label": "channel"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "fronting"
+            },
+            {
+              "a": "near-open",
+              "b": "near-open",
+              "cost": 0.0,
+              "label": "height"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "height-mod"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "laterality"
+            },
+            {
+              "a": "normal",
+              "b": "normal",
+              "cost": 0.0,
+              "label": "length"
+            },
+            {
+              "a": "vowel",
+              "b": "vowel",
+              "cost": 0.0,
+              "label": "manner"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "mid-centralized"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "nasality"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "retroflex"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "rhotacized"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "rounded"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "syllabic"
+            },
+            {
+              "a": "0",
+              "b": "0",
+              "cost": 0.0,
+              "label": "tongue-root"
+            },
+            {
+              "a": "+",
+              "b": "+",
+              "cost": 0.0,
+              "label": "voiced"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "tract-x"
+            },
+            {
+              "a": null,
+              "b": null,
+              "cost": 0.0,
+              "label": "tract-y"
+            },
+            {
+              "a": "primary",
+              "b": "secondary",
+              "cost": 0.5,
+              "label": "stress (prosodic)"
+            }
+          ]
+        },
+        {
+          "a": "t",
+          "b": "t",
+          "cost": 0.0,
+          "op": "match",
+          "terms": []
+        }
+      ],
+      "id": "prosody",
+      "left": "kˈæt",
+      "right": "kˌæt",
+      "segment_distance": 0.007575757575757576,
+      "word_distance": {
+        "alignment": [
+          [
+            "k",
+            "k"
+          ],
+          [
+            "ˈæ",
+            "ˌæ"
+          ],
+          [
+            "t",
+            "t"
+          ]
+        ],
+        "costs": "insert=1.0 delete=1.0",
+        "coverage": 1.0,
+        "edit_cost": 0.045454545454545456,
+        "similarity": 0.9924242424242424
+      },
+      "word_similarity": 0.9924242424242424
+    }
+  ],
+  "python_hash_seed": 0
+}

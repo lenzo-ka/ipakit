@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "relations": {"alternatives":{"ordered":false,"choice":true},"selects":{"ordered":false,"source_arity":1,"target_arity":1,"member_of":"alternatives"}},
+  "cases": [
+    {"id":"choice-no-selection","links":[[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/0","/clock/0/delivery/1"]]],"expected":{"verdict":"valid","selected":null}},
+    {"id":"choice-one-selection","links":[[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/0","/clock/0/delivery/1"]],[["/clock/0/analysis/0"],"selects",["/clock/0/delivery/1"]]],"expected":{"verdict":"valid","selected":"/clock/0/delivery/1"}},
+    {"id":"duplicate-candidate","links":[[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/0","/clock/0/delivery/0"]]],"expected":{"verdict":"rejected-with-reason","reason":"choice candidates must be distinct","must_reject":true}},
+    {"id":"multiple-alternatives-links","links":[[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/0"]],[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/1"]]],"expected":{"verdict":"rejected-with-reason","reason":"choice event owns at most one alternatives relation","must_reject":true}},
+    {"id":"multiple-selects-links","links":[[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/0","/clock/0/delivery/1"]],[["/clock/0/analysis/0"],"selects",["/clock/0/delivery/0"]],[["/clock/0/analysis/0"],"selects",["/clock/0/delivery/1"]]],"expected":{"verdict":"rejected-with-reason","reason":"choice event owns at most one selects relation","must_reject":true}},
+    {"id":"selection-outside-candidates","links":[[["/clock/0/analysis/0"],"alternatives",["/clock/0/delivery/0"]],[["/clock/0/analysis/0"],"selects",["/clock/0/delivery/1"]]],"expected":{"verdict":"rejected-with-reason","reason":"selection is not a member of alternatives","must_reject":true}},
+    {"id":"selects-without-alternatives","links":[[["/clock/0/analysis/0"],"selects",["/clock/0/delivery/0"]]],"expected":{"verdict":"rejected-with-reason","reason":"selection source owns no alternatives relation","must_reject":true}},
+    {"id":"heterogeneous-phrase-contains-silence","links":[[["/clock/0/phrase/0"],"contains",["/clock/0/segment/0","/clock/1/word/0","/clock/4/word/0","/clock/7/segment/0"]]],"event_features":{"/clock/0/segment/0":{"class":"silence"},"/clock/7/segment/0":{"class":"silence"}},"expected":{"verdict":"valid","direct_child_tiers":["segment","word","word","segment"],"lexical_words":["/clock/1/word/0","/clock/4/word/0"]}}
+  ]
+}

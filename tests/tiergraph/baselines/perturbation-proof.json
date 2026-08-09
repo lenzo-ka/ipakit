@@ -1,0 +1,23 @@
+{
+  "byte_comparisons": {
+    "comparison_failed_for_one_byte_perturbation": true,
+    "method": "SHA-256 over exact capture bytes",
+    "proof": "Changing any captured derivation trace, edit coordinate, distance operation, per-feature term, round-trip JSON, or derived artifact byte changes its recorded digest and makes tiergraph_capture.py verify fail."
+  },
+  "format": 1,
+  "ipakit": "0.1.0",
+  "kind": "capture-sensitivity-proofs",
+  "python_hash_seed": 0,
+  "sweep": {
+    "command": "PYTHONHASHSEED=0 python scripts/sweep.py diff captures/sweep-before-perturbation.json captures/sweep-after-perturbation.json --require-monotone",
+    "comparison_failed": true,
+    "corpus_after": 9450,
+    "corpus_before": 9450,
+    "description_movers": 132,
+    "distance_from_base_movers": 14,
+    "feature_movers": 132,
+    "movers": 136,
+    "perturbation": "temporarily changed phone p place from bilabial to labiodental in ipakit/data/ipa.xml",
+    "perturbation_reverted": true
+  }
+}

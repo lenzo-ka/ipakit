@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "cases": [
+    {"id":"exact-syllable-host-count","signature":".ˈˌ#","hosts":["/clock/0/syllable/0","/clock/1/syllable/0","/clock/2/syllable/0"],"expected":{"verdict":"valid","slots":3,"hosts":3}},
+    {"id":"exact-nucleus-host-count","signature":"ˈ.#","hosts":["/clock/0/segment/0","/clock/1/segment/0"],"expected":{"verdict":"valid","slots":2,"hosts":2}},
+    {"id":"slot-host-count-mismatch","signature":".ˈˌ#","hosts":["/clock/0/syllable/0","/clock/1/syllable/0"],"expected":{"verdict":"rejected-with-reason","reason":"signature slot count 3 does not equal host count 2","must_reject":true}},
+    {"id":"nucleus-stress-associated-with-later-syllable","input":"kˈæt","stress_event":"/clock/1/prosody/0","original_host":"/clock/1/segment/0","later_host":"/clock/0/syllable/0","links":[[["/clock/1/prosody/0"],"associates-with",["/clock/1/segment/0","/clock/0/syllable/0"]]],"expected":{"verdict":"valid","stress_facts":1,"moved_or_duplicated":false}}
+  ]
+}

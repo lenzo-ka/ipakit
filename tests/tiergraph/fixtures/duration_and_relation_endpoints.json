@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "cases": [
+    {"id":"ordinary-one-span-omits-duration","event":{"path":"/clock/0/segment/0","features":{"ipa":"a"}},"expected":{"verdict":"canonical-form","structural_duration":1,"duration_field":"omitted"}},
+    {"id":"point-writes-zero-duration","event":{"path":"/clock/1/segment/0","duration":0},"expected":{"verdict":"canonical-form","structural_duration":0}},
+    {"id":"multi-span-writes-duration","event":{"path":"/clock/0/word/0","duration":3},"expected":{"verdict":"canonical-form","structural_duration":3}},
+    {"id":"refined-span-excludes-duration","event":{"path":"/clock/0/mora/0","span":{"start":"/clock/0","end":"/clock/1/gaps/1"}},"expected":{"verdict":"canonical-form","duration_field":"forbidden"}},
+    {"id":"physical-time-is-independent","event":{"path":"/clock/1/segment/0","duration":0,"timing":{"start":0.125,"duration":0.09}},"expected":{"verdict":"valid","structural_duration":0,"physical_duration":0.09}},
+    {"id":"timed-point-distinct-from-untimed","event":{"path":"/clock/1/target/0","duration":0,"timing":{"start":0.125,"duration":0.0}},"expected":{"verdict":"valid","physical_timing":"present"}},
+    {"id":"input-silence-consumes-span","event":{"path":"/clock/0/segment/0","features":{"class":"silence"}},"expected":{"verdict":"valid","structural_duration":1}},
+    {"id":"derived-silence-is-phantom","event":{"path":"/clock/1/segment/0","duration":0,"features":{"class":"silence"},"timing":{"start":0.2,"duration":0.1}},"expected":{"verdict":"valid","structural_duration":0,"physical_duration":0.1}},
+    {"id":"tick-source-insertion","link":[["/clock/1"],"inserts",["/clock/1/narrow/0"]],"endpoint_constraints":{"source":["coarse-tick"],"target":["event"]},"expected":{"verdict":"valid"}},
+    {"id":"event-source-rewrite","link":[["/clock/0/broad/0"],"rewrites-to",["/clock/0/narrow/0","/clock/0/narrow/1"]],"endpoint_constraints":{"source":["event"],"target":["event"]},"expected":{"verdict":"valid"}},
+    {"id":"gap-endpoint-association","link":[["/clock/1/gaps/1"],"associates-with",["/clock/0/syllable/0"]],"endpoint_constraints":{"source":["refined-gap"],"target":["event"]},"expected":{"verdict":"valid"}},
+    {"id":"wrong-endpoint-kind","link":[["/clock/1/narrow/0"],"inserts",["/clock/1/narrow/1"]],"endpoint_constraints":{"source":["coarse-tick"],"target":["event"]},"expected":{"verdict":"rejected-with-reason","reason":"inserts source requires a coarse tick endpoint","must_reject":true}}
+  ]
+}
