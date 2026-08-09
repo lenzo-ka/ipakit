@@ -5,6 +5,9 @@ import math
 from pathlib import Path
 
 import pytest
+from ipakit import IPAFeatures
+from ipakit._ipa_graph import assign_signature
+from ipakit._ipa_graph import declarations as ipa_declarations
 from ipakit._tiergraph import (
     ClockNode,
     Declarations,
@@ -406,6 +409,86 @@ def _fixture_cases() -> list[dict[str, object]]:
 def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
     """Execute kernel pins and explicitly enumerate profile-owned exclusions."""
     case_id = str(case["id"])
+    if PROFILE_FIXTURE_OWNERS.get(case_id) == "D":
+        expected = case["expected"]
+        assert isinstance(expected, dict)
+        inventory = IPAFeatures()
+        if case_id == "prosodic-deliveries":
+            assert expected["verdict"] == "valid"
+            deliveries = case["deliveries"]
+            assert isinstance(deliveries, list)
+            stress = {value for delivery in deliveries for value in delivery["stress"]}
+            segment_events = tuple(Event({"value": word}) for word in case["shared_input"]["words"])  # type: ignore[index,union-attr]
+            current = Graph(
+                ipa_declarations(inventory),
+                (
+                    ClockNode(
+                        groups=(
+                            EventGroup("segment", (segment_events[0],)),
+                            EventGroup(
+                                "delivery",
+                                tuple(
+                                    Event({"value": delivery["id"]})
+                                    for delivery in deliveries
+                                ),
+                            ),
+                            EventGroup("analysis", (Event({"value": "choice"}),)),
+                        )
+                    ),
+                    ClockNode(groups=(EventGroup("segment", (segment_events[1],)),)),
+                    ClockNode(groups=(EventGroup("segment", (segment_events[2],)),)),
+                    ClockNode(),
+                ),
+                (
+                    Relation(
+                        ("/clock/0/analysis/0",),
+                        "alternatives",
+                        tuple(f"/clock/0/delivery/{i}" for i in range(3)),
+                    ),
+                ),
+            )
+            assert len(current.event_references()) == 7
+            assert stress == set(expected["stress_values_covered"])
+            assert all(
+                assign_signature(
+                    delivery["house_signature"],
+                    tuple(str(i) for i in range(4)),
+                    inventory,
+                )
+                for delivery in deliveries
+            )
+        else:
+            hosts = tuple(case["hosts"]) if "hosts" in case else ()
+            if expected["verdict"] == "rejected-with-reason":
+                with pytest.raises(ValueError, match=str(expected["reason"])):
+                    assign_signature(str(case["signature"]), hosts, inventory)
+            elif case_id == "nucleus-stress-associated-with-later-syllable":
+                assert expected["verdict"] == "valid"
+                current = Graph(
+                    ipa_declarations(inventory),
+                    (
+                        ClockNode(groups=(EventGroup("syllable", (event(),)),)),
+                        ClockNode(
+                            groups=(
+                                EventGroup("segment", (event(),)),
+                                EventGroup("prosody", (Event({"stress": "primary"}),)),
+                            )
+                        ),
+                        ClockNode(),
+                    ),
+                    (
+                        Relation(
+                            ("/clock/1/prosody/0",),
+                            "associates-with",
+                            ("/clock/1/segment/0", "/clock/0/syllable/0"),
+                        ),
+                    ),
+                )
+                assert len(current.relations) == expected["stress_facts"]
+            else:
+                assigned = assign_signature(str(case["signature"]), hosts, inventory)
+                assert len(assigned) == expected["slots"] == expected["hosts"]
+        return
     if case_id in PROFILE_FIXTURE_OWNERS:
         assert PROFILE_FIXTURE_OWNERS[case_id] in {"C", "D"}
         return
