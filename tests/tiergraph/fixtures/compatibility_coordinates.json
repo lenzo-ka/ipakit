@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "cases": [
+    {"id":"a-dot-dot-b-mora","legacy_units":["a",".",".","b"],"clock_atoms":["a","b"],"tick_refiners":{"1":[".","."]},"legacy_interval":{"tier":"mora","start":0,"end":2},"graph_span":{"start":"/clock/0","end":"/clock/1/gaps/1"},"round_trip":{"graph_endpoint":"/clock/1/gaps/1","legacy_gap_index":2},"expected":{"verdict":"canonical-form","clock_entries":3,"gap_counts":{"0":1,"1":3,"2":1}}},
+    {"id":"boundary-zero-whitespace-units","surface":"a.#∅ b","legacy_kinds":["segment","boundary","boundary","zero","whitespace","segment"],"consumes_span":[true,false,false,true,false,true],"expected":{"verdict":"valid","clock_entries":4}},
+    {"id":"inserted-site","legacy_site":{"start":1,"end":1},"graph_anchor":"/clock/1","expected":{"verdict":"valid","kind":"insertion"}},
+    {"id":"deleted-boundary-run-site","legacy_units":["a",".",".","b"],"legacy_site":{"start":1,"end":3},"graph_span":{"start":"/clock/1/gaps/0","end":"/clock/1/gaps/2"},"expected":{"verdict":"valid","kind":"deletion"}},
+    {"id":"interval-crosses-tier-boundary","legacy_units":["p","ə",".","t","i","‿","a",".","m","i"],"legacy_interval":{"tier":"syllable","start":3,"end":7},"expected":{"verdict":"valid","contains_boundaries":["‿"]}}
+  ]
+}

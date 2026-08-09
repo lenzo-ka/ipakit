@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "cases": [
+    {"id":"n-plus-one-clock","input_atoms":["a","b","c"],"expected":{"verdict":"canonical-form","clock_entries":4,"spans":[[0,1],[1,2],[2,3]]}},
+    {"id":"final-tick-insertion-anchor","input_atoms":["a","b","c"],"insertion":{"source":["/clock/3"],"relation":"inserts","target":["/clock/3/segment/0"]},"expected":{"verdict":"valid","anchor":"/clock/3","structural_duration":0}},
+    {"id":"clock-consumption","occurrences":[{"surface":"a","kind":"segment","consumes_span":true},{"surface":".","kind":"written-boundary","consumes_span":false,"refines_tick":true},{"surface":"ˈ","kind":"attached-stress","consumes_span":false,"refines_tick":false},{"surface":"∅","kind":"structural-zero","consumes_span":true},{"surface":"#","kind":"separator","consumes_span":false,"refines_tick":true}],"expected":{"verdict":"valid","clock_entries":3}},
+    {"id":"builder-lane-order","sort_key":["clock","declared-tier-order","lane-position"],"events":[{"handle":"later-added","clock":1,"tier_order":2,"lane_position":1},{"handle":"first-added","clock":1,"tier_order":2,"lane_position":0},{"handle":"higher-tier","clock":1,"tier_order":1,"lane_position":5}],"expected":{"verdict":"canonical-form","handles":["higher-tier","first-added","later-added"]}},
+    {"id":"chained-phantom-scan-order","coordinates":["derivation_step","source_site_order","application_order","target_index"],"phantoms":[{"name":"p3","coordinate":[2,0,0,0]},{"name":"p1","coordinate":[1,0,0,1]},{"name":"p0","coordinate":[1,0,0,0]},{"name":"p2","coordinate":[1,1,0,0]}],"expected":{"verdict":"canonical-form","scan":["p0","p1","p2","p3"]}}
+  ]
+}
