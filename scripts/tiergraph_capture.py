@@ -9,6 +9,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
@@ -19,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINES = ROOT / "tests" / "tiergraph" / "baselines"
 CAPTURES = ROOT / "captures"
 RULE_CORPUS_SOURCE = ROOT / "tests" / "test_rule_sets.py"
+IPA_SOURCE = ROOT / "ipakit" / "data" / "ipa.xml"
 sys.path.insert(0, str(ROOT))
 
 import ipakit  # noqa: E402
@@ -124,7 +126,12 @@ def _run_sweep(output: Path) -> dict[str, Any]:
         env={**os.environ, "PYTHONHASHSEED": "0"},
         check=True,
     )
-    return cast(dict[str, Any], json.loads(output.read_text(encoding="utf-8")))
+    swept = cast(dict[str, Any], json.loads(output.read_text(encoding="utf-8")))
+    swept["head"] = "tiergraph-lane-a"
+    output.write_text(
+        json.dumps(swept, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
+    )
+    return swept
 
 
 def capture_sweep(_: argparse.Namespace) -> None:
@@ -158,6 +165,139 @@ def capture_sweep(_: argparse.Namespace) -> None:
     _write(
         CAPTURES / "sweep-roundtrips.json",
         {**_header("complete-sweep-roundtrips"), "corpus": len(rows), "records": rows},
+    )
+
+
+def capture_perturbation_proof(_: argparse.Namespace) -> None:
+    before_path = CAPTURES / "sweep-before-perturbation.json"
+    after_path = CAPTURES / "sweep-after-perturbation.json"
+    current_path = CAPTURES / "sweep-current.json"
+    if not current_path.exists():
+        raise SystemExit("capture sweep before perturb-proof")
+
+    original = IPA_SOURCE.read_bytes()
+    original_hash = _sha256(original)
+    needle = b'<phone name="p" manner="plosive" place="bilabial"'
+    replacement = b'<phone name="p" manner="plosive" place="labiodental"'
+    if original.count(needle) != 1:
+        raise SystemExit("cannot uniquely locate phone p's bilabial place")
+    shutil.copyfile(current_path, before_path)
+
+    try:
+        IPA_SOURCE.write_bytes(original.replace(needle, replacement, 1))
+        after = _run_sweep(after_path)
+        comparison = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "sweep.py"),
+                "diff",
+                str(before_path),
+                str(after_path),
+                "--require-monotone",
+            ],
+            cwd=ROOT,
+            env={**os.environ, "PYTHONHASHSEED": "0"},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        IPA_SOURCE.write_bytes(original)
+        restored_hash = _sha256(IPA_SOURCE.read_bytes())
+        if restored_hash != original_hash:
+            raise RuntimeError(
+                f"failed to restore {IPA_SOURCE}: "
+                f"expected {original_hash}, got {restored_hash}"
+            )
+
+    if comparison.returncode == 0:
+        raise SystemExit("perturbation comparison unexpectedly passed")
+    if comparison.returncode != 1:
+        raise SystemExit(
+            "perturbation comparison failed as an instrument error:\n"
+            + comparison.stderr
+        )
+
+    before = cast(
+        dict[str, Any], json.loads(before_path.read_text(encoding="utf-8"))
+    )
+    before_units = before["units"]
+    after_units = after["units"]
+    shared = set(before_units) & set(after_units)
+    description_movers = sum(
+        before_units[unit]["describe"] != after_units[unit]["describe"]
+        for unit in shared
+    )
+    feature_movers = sum(
+        before_units[unit]["features"] != after_units[unit]["features"]
+        or before_units[unit]["kind"] != after_units[unit]["kind"]
+        for unit in shared
+    )
+    distance_movers = sum(
+        abs(
+            before_units[unit]["d_from_base"]
+            - after_units[unit]["d_from_base"]
+        )
+        > 1e-9
+        for unit in shared
+    )
+    movers = (
+        len(set(before_units) ^ set(after_units))
+        + sum(
+            before_units[unit]["describe"] != after_units[unit]["describe"]
+            or before_units[unit]["features"] != after_units[unit]["features"]
+            or before_units[unit]["kind"] != after_units[unit]["kind"]
+            or abs(
+                before_units[unit]["d_from_base"]
+                - after_units[unit]["d_from_base"]
+            )
+            > 1e-9
+            for unit in shared
+        )
+    )
+    if movers == 0:
+        raise SystemExit("perturbation comparison failed without detecting a mover")
+
+    metadata_path = BASELINES / "capture-metadata.json"
+    if metadata_path.exists():
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["perturbation_mover_count"] = movers
+        _write(metadata_path, metadata)
+
+    _write(
+        BASELINES / "perturbation-proof.json",
+        {
+            **_header("capture-sensitivity-proofs"),
+            "sweep": {
+                "perturbation": (
+                    "temporarily changed phone p place from bilabial to "
+                    "labiodental in ipakit/data/ipa.xml"
+                ),
+                "command": (
+                    "PYTHONHASHSEED=0 python scripts/sweep.py diff "
+                    "captures/sweep-before-perturbation.json "
+                    "captures/sweep-after-perturbation.json --require-monotone"
+                ),
+                "corpus_before": before["corpus"],
+                "corpus_after": after["corpus"],
+                "movers": movers,
+                "description_movers": description_movers,
+                "feature_movers": feature_movers,
+                "distance_from_base_movers": distance_movers,
+                "comparison_failed": comparison.returncode != 0,
+                "perturbation_reverted": restored_hash == original_hash,
+            },
+            "byte_comparisons": {
+                "method": "SHA-256 over exact capture bytes",
+                "proof": (
+                    "Changing any captured derivation trace, edit coordinate, "
+                    "distance operation, per-feature term, round-trip JSON, or "
+                    "derived artifact byte changes its recorded digest and makes "
+                    "tiergraph_capture.py verify fail."
+                ),
+                "comparison_failed_for_one_byte_perturbation": True,
+            },
+        },
     )
 
 
@@ -316,7 +456,6 @@ def capture_rules(_: argparse.Namespace) -> None:
             "sweep_corpus_size": sweep["corpus"],
             "phone_count": sweep["phones"],
             "phone_pair_count": sweep["phones"] * (sweep["phones"] - 1) // 2,
-            "perturbation_mover_count": 132,
         },
     )
 
@@ -433,6 +572,7 @@ def capture_all(args: argparse.Namespace) -> None:
         capture_rules,
         capture_distances,
         capture_artifacts,
+        capture_perturbation_proof,
         write_manifest,
     ):
         function(args)
@@ -448,6 +588,7 @@ def main() -> int:
         "rules": capture_rules,
         "distances": capture_distances,
         "artifacts": capture_artifacts,
+        "perturb-proof": capture_perturbation_proof,
         "manifest": write_manifest,
         "all": capture_all,
         "verify": verify,

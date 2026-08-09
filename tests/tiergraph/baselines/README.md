@@ -1,6 +1,6 @@
 # Lane A baseline captures
 
-Run every capture from the repository root with PYTHONHASHSEED=0 python scripts/tiergraph_capture.py all.
+Regenerate every capture and its manifest from the repository root with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py all`, then authenticate the result with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify`.
 
 Small captures are committed in this directory.
 
@@ -12,4 +12,4 @@ Verify every present capture with PYTHONHASHSEED=0 python scripts/tiergraph_capt
 
 The fresh confusion matrix is regenerated with PYTHONHASHSEED=0 python scripts/confusion.py generate and is never measured through a cache-backed distance model.
 
-For a sweep sensitivity proof, capture a clean baseline, temporarily perturb one declared IPA feature value, capture again, run PYTHONHASHSEED=0 python scripts/sweep.py diff captures/sweep-before-perturbation.json captures/sweep-after-perturbation.json --require-monotone, read the mover count from its output rather than its exit status, and revert the perturbation.
+Regenerate only the sweep sensitivity proof with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py perturb-proof`. The command records the clean capture, temporarily changes phone `p` from bilabial to labiodental, captures again, runs the documented failing diff, derives the proof from the captures, and restores `ipa.xml` byte-for-byte.
