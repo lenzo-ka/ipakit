@@ -1,0 +1,1060 @@
+{
+  "format": 1,
+  "forms": [
+    {
+      "attributes": [],
+      "boundaries": [],
+      "id": "segments",
+      "intervals": [],
+      "json": "{\"type\": \"ipakit.form\", \"v\": 1, \"units\": [{\"text\": \"a\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"open\", \"backness\": \"front\", \"constriction-location\": \"pharyngeal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Open_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"b\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"bilabial\", \"voiced\": \"+\", \"href\": \"Voiced_bilabial_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}], \"intervals\": [], \"spelling\": null}",
+      "spelling": "ab",
+      "to_ipa": "ab",
+      "units": [
+        {
+          "core": "a",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "pharyngeal",
+            "fronting": "0",
+            "height": "open",
+            "height-mod": "0",
+            "href": "Open_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 0,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "a"
+        },
+        {
+          "core": "b",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiced_bilabial_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 1,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "b"
+        }
+      ]
+    },
+    {
+      "attributes": [],
+      "boundaries": [
+        {
+          "at": 1,
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "level": "syllable",
+          "text": "."
+        },
+        {
+          "at": 1,
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "level": "syllable",
+          "text": "."
+        },
+        {
+          "at": 1,
+          "features": {
+            "class": "separator",
+            "href": "Word",
+            "level": "word"
+          },
+          "level": "word",
+          "text": "#"
+        }
+      ],
+      "id": "boundaries",
+      "intervals": [],
+      "json": "{\"type\": \"ipakit.form\", \"v\": 1, \"units\": [{\"text\": \"a\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"open\", \"backness\": \"front\", \"constriction-location\": \"pharyngeal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Open_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \".\", \"segment\": null, \"features\": {\"level\": \"syllable\", \"href\": \"Syllable\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \".\", \"segment\": null, \"features\": {\"level\": \"syllable\", \"href\": \"Syllable\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"#\", \"segment\": null, \"features\": {\"level\": \"word\", \"href\": \"Word\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"b\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"bilabial\", \"voiced\": \"+\", \"href\": \"Voiced_bilabial_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}], \"intervals\": [], \"spelling\": null}",
+      "spelling": "a..#b",
+      "to_ipa": "a..#b",
+      "units": [
+        {
+          "core": "a",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "pharyngeal",
+            "fronting": "0",
+            "height": "open",
+            "height-mod": "0",
+            "href": "Open_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 0,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "a"
+        },
+        {
+          "core": ".",
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "index": 1,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "."
+        },
+        {
+          "core": ".",
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "index": 2,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "."
+        },
+        {
+          "core": "#",
+          "features": {
+            "class": "separator",
+            "href": "Word",
+            "level": "word"
+          },
+          "index": 3,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "#"
+        },
+        {
+          "core": "b",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiced_bilabial_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 4,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "b"
+        }
+      ]
+    },
+    {
+      "attributes": [],
+      "boundaries": [],
+      "id": "zeros",
+      "intervals": [],
+      "json": "{\"type\": \"ipakit.form\", \"v\": 1, \"units\": [{\"text\": \"a\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"open\", \"backness\": \"front\", \"constriction-location\": \"pharyngeal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Open_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"∅\", \"segment\": null, \"features\": {\"href\": \"Zero_(linguistics)\", \"class\": \"zero\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"b\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"bilabial\", \"voiced\": \"+\", \"href\": \"Voiced_bilabial_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}], \"intervals\": [], \"spelling\": null}",
+      "spelling": "a∅b",
+      "to_ipa": "a∅b",
+      "units": [
+        {
+          "core": "a",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "pharyngeal",
+            "fronting": "0",
+            "height": "open",
+            "height-mod": "0",
+            "href": "Open_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 0,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "a"
+        },
+        {
+          "core": "∅",
+          "features": {
+            "class": "zero",
+            "href": "Zero_(linguistics)"
+          },
+          "index": 1,
+          "kind": "zero",
+          "prosody": {},
+          "provenance": [],
+          "text": "∅"
+        },
+        {
+          "core": "b",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiced_bilabial_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 2,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "b"
+        }
+      ]
+    },
+    {
+      "attributes": [],
+      "boundaries": [
+        {
+          "at": 1,
+          "features": {
+            "level": "word"
+          },
+          "level": "word",
+          "text": " "
+        },
+        {
+          "at": 1,
+          "features": {
+            "level": "word"
+          },
+          "level": "word",
+          "text": "\t"
+        },
+        {
+          "at": 1,
+          "features": {
+            "level": "word"
+          },
+          "level": "word",
+          "text": " "
+        }
+      ],
+      "id": "whitespace",
+      "intervals": [],
+      "json": "{\"type\": \"ipakit.form\", \"v\": 1, \"units\": [{\"text\": \"a\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"open\", \"backness\": \"front\", \"constriction-location\": \"pharyngeal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Open_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \" \", \"segment\": null, \"features\": {\"level\": \"word\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"\\t\", \"segment\": null, \"features\": {\"level\": \"word\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \" \", \"segment\": null, \"features\": {\"level\": \"word\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"b\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"bilabial\", \"voiced\": \"+\", \"href\": \"Voiced_bilabial_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}], \"intervals\": [], \"spelling\": null}",
+      "spelling": "a \t b",
+      "to_ipa": "a \t b",
+      "units": [
+        {
+          "core": "a",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "pharyngeal",
+            "fronting": "0",
+            "height": "open",
+            "height-mod": "0",
+            "href": "Open_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 0,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "a"
+        },
+        {
+          "core": " ",
+          "features": {
+            "level": "word"
+          },
+          "index": 1,
+          "kind": "whitespace",
+          "prosody": {},
+          "provenance": [],
+          "text": " "
+        },
+        {
+          "core": "\t",
+          "features": {
+            "level": "word"
+          },
+          "index": 2,
+          "kind": "whitespace",
+          "prosody": {},
+          "provenance": [],
+          "text": "\t"
+        },
+        {
+          "core": " ",
+          "features": {
+            "level": "word"
+          },
+          "index": 3,
+          "kind": "whitespace",
+          "prosody": {},
+          "provenance": [],
+          "text": " "
+        },
+        {
+          "core": "b",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiced_bilabial_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 4,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "b"
+        }
+      ]
+    },
+    {
+      "attributes": [],
+      "boundaries": [
+        {
+          "at": 1,
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "level": "syllable",
+          "text": "."
+        },
+        {
+          "at": 1,
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "level": "syllable",
+          "text": "."
+        }
+      ],
+      "id": "a-dot-dot-b-mora",
+      "intervals": [
+        {
+          "end": 2,
+          "start": 0,
+          "tier": "mora"
+        }
+      ],
+      "json": "{\"type\": \"ipakit.form\", \"v\": 1, \"units\": [{\"text\": \"a\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"open\", \"backness\": \"front\", \"constriction-location\": \"pharyngeal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Open_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \".\", \"segment\": null, \"features\": {\"level\": \"syllable\", \"href\": \"Syllable\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \".\", \"segment\": null, \"features\": {\"level\": \"syllable\", \"href\": \"Syllable\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"b\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"bilabial\", \"voiced\": \"+\", \"href\": \"Voiced_bilabial_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}], \"intervals\": [{\"tier\": \"mora\", \"start\": 0, \"end\": 2, \"timing\": null}], \"spelling\": null}",
+      "spelling": "a..b",
+      "to_ipa": "a..b",
+      "units": [
+        {
+          "core": "a",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "pharyngeal",
+            "fronting": "0",
+            "height": "open",
+            "height-mod": "0",
+            "href": "Open_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 0,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "a"
+        },
+        {
+          "core": ".",
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "index": 1,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "."
+        },
+        {
+          "core": ".",
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "index": 2,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "."
+        },
+        {
+          "core": "b",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiced_bilabial_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 3,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "b"
+        }
+      ]
+    },
+    {
+      "attributes": [],
+      "boundaries": [
+        {
+          "at": 2,
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "level": "syllable",
+          "text": "."
+        },
+        {
+          "at": 4,
+          "features": {
+            "level": "word",
+            "linking": "+"
+          },
+          "level": "word",
+          "text": "‿"
+        },
+        {
+          "at": 5,
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "level": "syllable",
+          "text": "."
+        }
+      ],
+      "id": "cross-tier-boundaries",
+      "intervals": [
+        {
+          "end": 7,
+          "start": 3,
+          "tier": "syllable"
+        }
+      ],
+      "json": "{\"type\": \"ipakit.form\", \"v\": 1, \"units\": [{\"text\": \"p\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"p\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"bilabial\", \"href\": \"Voiceless_bilabial_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"voiced\": \"-\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"ə\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"ə\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"mid\", \"backness\": \"central\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Schwa\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \".\", \"segment\": null, \"features\": {\"level\": \"syllable\", \"href\": \"Syllable\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"t\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"t\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"plosive\", \"place\": \"alveolar\", \"href\": \"Voiceless_alveolar_plosive\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"voiced\": \"-\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"i\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"i\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"close\", \"backness\": \"front\", \"constriction-location\": \"palatal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Close_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"‿\", \"segment\": null, \"features\": {\"linking\": \"+\", \"level\": \"word\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"a\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"open\", \"backness\": \"front\", \"constriction-location\": \"pharyngeal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Open_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \".\", \"segment\": null, \"features\": {\"level\": \"syllable\", \"href\": \"Syllable\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"m\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"m\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"nasal\", \"place\": \"bilabial\", \"voiced\": \"+\", \"href\": \"Voiced_bilabial_nasal\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"rounded\": \"-\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}, {\"text\": \"i\", \"segment\": {\"v\": 2, \"constituents\": [{\"base\": \"i\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"features\": {\"manner\": \"vowel\", \"height\": \"close\", \"backness\": \"front\", \"constriction-location\": \"palatal\", \"rounded\": \"-\", \"voiced\": \"+\", \"href\": \"Close_front_unrounded_vowel\", \"class\": \"phone\", \"airstream\": \"pulmonic\", \"channel\": \"flat\", \"retroflex\": \"-\", \"velarized\": \"-\", \"nasalized\": \"-\", \"tongue-root\": \"0\", \"fronting\": \"0\", \"centralized\": \"-\", \"labialized\": \"-\", \"labio-palatized\": \"-\", \"mid-centralized\": \"-\", \"palatalized\": \"-\", \"pharyngealized\": \"-\", \"height-mod\": \"0\", \"rhotacized\": \"-\", \"syllabic\": \"-\"}, \"prosody\": {}, \"provenance\": [], \"timing\": null}], \"intervals\": [{\"tier\": \"syllable\", \"start\": 3, \"end\": 7, \"timing\": null}], \"spelling\": null}",
+      "spelling": "pə.ti‿a.mi",
+      "to_ipa": "pə.ti‿a.mi",
+      "units": [
+        {
+          "core": "p",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiceless_bilabial_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "-"
+          },
+          "index": 0,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "p"
+        },
+        {
+          "core": "ə",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "central",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height": "mid",
+            "height-mod": "0",
+            "href": "Schwa",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 1,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "ə"
+        },
+        {
+          "core": ".",
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "index": 2,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "."
+        },
+        {
+          "core": "t",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiceless_alveolar_plosive",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "plosive",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "alveolar",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "-"
+          },
+          "index": 3,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "t"
+        },
+        {
+          "core": "i",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "palatal",
+            "fronting": "0",
+            "height": "close",
+            "height-mod": "0",
+            "href": "Close_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 4,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "i"
+        },
+        {
+          "core": "‿",
+          "features": {
+            "level": "word",
+            "linking": "+"
+          },
+          "index": 5,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "‿"
+        },
+        {
+          "core": "a",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "pharyngeal",
+            "fronting": "0",
+            "height": "open",
+            "height-mod": "0",
+            "href": "Open_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 6,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "a"
+        },
+        {
+          "core": ".",
+          "features": {
+            "class": "separator",
+            "href": "Syllable",
+            "level": "syllable"
+          },
+          "index": 7,
+          "kind": "boundary",
+          "prosody": {},
+          "provenance": [],
+          "text": "."
+        },
+        {
+          "core": "m",
+          "features": {
+            "airstream": "pulmonic",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "fronting": "0",
+            "height-mod": "0",
+            "href": "Voiced_bilabial_nasal",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "nasal",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "place": "bilabial",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 8,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "m"
+        },
+        {
+          "core": "i",
+          "features": {
+            "airstream": "pulmonic",
+            "backness": "front",
+            "centralized": "-",
+            "channel": "flat",
+            "class": "phone",
+            "constriction-location": "palatal",
+            "fronting": "0",
+            "height": "close",
+            "height-mod": "0",
+            "href": "Close_front_unrounded_vowel",
+            "labialized": "-",
+            "labio-palatized": "-",
+            "manner": "vowel",
+            "mid-centralized": "-",
+            "nasalized": "-",
+            "palatalized": "-",
+            "pharyngealized": "-",
+            "retroflex": "-",
+            "rhotacized": "-",
+            "rounded": "-",
+            "syllabic": "-",
+            "tongue-root": "0",
+            "velarized": "-",
+            "voiced": "+"
+          },
+          "index": 9,
+          "kind": "segment",
+          "prosody": {},
+          "provenance": [],
+          "text": "i"
+        }
+      ]
+    }
+  ],
+  "ipakit": "0.1.0",
+  "kind": "unit-interval-site-coordinates",
+  "python_hash_seed": 0,
+  "rule_sites": [
+    {
+      "edits": [
+        {
+          "after": "ə",
+          "before": "",
+          "end": 1,
+          "is_deletion": false,
+          "is_insertion": true,
+          "replacement": [
+            "ə"
+          ],
+          "rule": "∅ -> ə / a _ b",
+          "site": {
+            "bindings": [],
+            "end": 1,
+            "is_insertion": true,
+            "left": [
+              0
+            ],
+            "right": [
+              1
+            ],
+            "start": 1
+          },
+          "start": 1
+        }
+      ],
+      "id": "inserted",
+      "rule": "∅ -> ə / a _ b",
+      "sites": [
+        {
+          "bindings": [],
+          "end": 1,
+          "is_insertion": true,
+          "left": [
+            0
+          ],
+          "right": [
+            1
+          ],
+          "start": 1
+        }
+      ],
+      "spelling": "ab"
+    },
+    {
+      "edits": [
+        {
+          "after": "",
+          "before": "a",
+          "end": 1,
+          "is_deletion": true,
+          "is_insertion": false,
+          "replacement": [],
+          "rule": "a -> ∅",
+          "site": {
+            "bindings": [],
+            "end": 1,
+            "is_insertion": false,
+            "left": [],
+            "right": [],
+            "start": 0
+          },
+          "start": 0
+        }
+      ],
+      "id": "deleted",
+      "rule": "a -> ∅",
+      "sites": [
+        {
+          "bindings": [],
+          "end": 1,
+          "is_insertion": false,
+          "left": [],
+          "right": [],
+          "start": 0
+        }
+      ],
+      "spelling": "ab"
+    },
+    {
+      "edits": [
+        {
+          "after": "",
+          "before": "..",
+          "end": 3,
+          "is_deletion": true,
+          "is_insertion": false,
+          "replacement": [],
+          "rule": ". -> ∅",
+          "site": {
+            "bindings": [],
+            "end": 3,
+            "is_insertion": false,
+            "left": [],
+            "right": [],
+            "start": 1
+          },
+          "start": 1
+        }
+      ],
+      "id": "boundary-run",
+      "rule": ". -> ∅",
+      "sites": [
+        {
+          "bindings": [],
+          "end": 3,
+          "is_insertion": false,
+          "left": [],
+          "right": [],
+          "start": 1
+        }
+      ],
+      "spelling": "a..b"
+    },
+    {
+      "edits": [
+        {
+          "after": "p",
+          "before": "b",
+          "end": 4,
+          "is_deletion": false,
+          "is_insertion": false,
+          "replacement": [
+            "p"
+          ],
+          "rule": "b -> p / # _",
+          "site": {
+            "bindings": [],
+            "end": 4,
+            "is_insertion": false,
+            "left": [
+              2
+            ],
+            "right": [],
+            "start": 3
+          },
+          "start": 3
+        }
+      ],
+      "id": "boundary-crossing-context",
+      "rule": "b -> p / # _",
+      "sites": [
+        {
+          "bindings": [],
+          "end": 4,
+          "is_insertion": false,
+          "left": [
+            2
+          ],
+          "right": [],
+          "start": 3
+        }
+      ],
+      "spelling": "a.#b"
+    }
+  ]
+}
