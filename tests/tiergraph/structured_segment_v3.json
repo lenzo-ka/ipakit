@@ -1,0 +1,39 @@
+{
+  "spelling": "ⁿd͡ʒʷː",
+  "value": {
+    "type": "ipa-segment",
+    "v": 3,
+    "constituents": [
+      {"base": "d", "modifiers": [], "approach": ["ⁿ"]},
+      {"base": "ʒ", "modifiers": ["ʷ"], "approach": []}
+    ],
+    "junctures": ["fuse"],
+    "prosody": ["ː"]
+  },
+  "features": {
+    "manner": "affricate",
+    "place": "postalveolar",
+    "voiced": "+",
+    "class": "phone",
+    "approach": "nasal",
+    "channel": "grooved",
+    "labialized": "+",
+    "airstream": "pulmonic",
+    "rounded": "-",
+    "retroflex": "-",
+    "velarized": "-",
+    "nasalized": "-",
+    "tongue-root": "0",
+    "fronting": "0",
+    "centralized": "-",
+    "labio-palatized": "-",
+    "mid-centralized": "-",
+    "palatalized": "-",
+    "pharyngealized": "-",
+    "height-mod": "0",
+    "rhotacized": "-",
+    "syllabic": "-"
+  },
+  "prosody": {"length": "long"},
+  "provenance": [["ː", "length", "long"]]
+}

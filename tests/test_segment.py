@@ -34,7 +34,25 @@ def ipa() -> IPAFeatures:
 def test_segment_dict_is_the_json_representation(ipa: IPAFeatures) -> None:
     segment = ipa.segment("ⁿd͡ʒʷː")
     assert json.loads(segment.to_json()) == segment.to_dict()
+    assert segment.to_dict()["type"] == "ipa-segment"
+    assert segment.to_dict()["v"] == 3
     assert Segment.from_dict(segment.to_dict(), ipa) == segment
+
+
+@pytest.mark.parametrize("kind", [None, "another-profile"])
+def test_segment_v3_requires_ipa_type(ipa: IPAFeatures, kind: object) -> None:
+    representation = ipa.segment("d").to_dict()
+    representation["type"] = kind
+    with pytest.raises(ValueError, match="Segment representation type"):
+        Segment.from_dict(representation, ipa)
+
+
+def test_segment_refuses_untyped_older_schema(ipa: IPAFeatures) -> None:
+    representation = ipa.segment("d").to_dict()
+    representation.pop("type")
+    representation["v"] = 2
+    with pytest.raises(ValueError, match="Segment representation type"):
+        Segment.from_dict(representation, ipa)
 
 
 class TestKindTotality:
