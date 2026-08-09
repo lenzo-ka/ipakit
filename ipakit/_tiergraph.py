@@ -2,7 +2,8 @@
 
 This module deliberately has no profile vocabulary.  It exists below public
 construction APIs so profiles can share addressing and validation laws without
-making those laws depend on a spelling system.
+making those laws depend on a spelling system.  ``Graph.roots`` may be empty;
+root-reachability diagnostics belong to higher profile lanes.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ FrozenValue: TypeAlias = (
     | tuple["FrozenValue", ...]
     | Mapping[str, "FrozenValue"]
 )
+
+_NODE_STRUCTURAL_KEYS = frozenset({"gaps"})
 
 
 class GraphValidationError(ValueError):
@@ -69,6 +72,7 @@ class RelationDeclaration:
     allow_empty_source: bool = False
     allow_empty_target: bool = False
     semantic_precedence: bool = False
+    containment: bool = False
     choice: bool = False
     member_of: str | None = None
 
@@ -76,6 +80,8 @@ class RelationDeclaration:
         _validate_name(self.name, "relation")
         _validate_arity(self.source_arity, "source")
         _validate_arity(self.target_arity, "target")
+        if self.member_of is not None and self.target_arity != (1, 1):
+            raise GraphValidationError("member_of relation requires target arity 1")
 
 
 @dataclass(frozen=True)
@@ -91,6 +97,8 @@ class Declarations:
         _unique((item.name for item in self.relations), "relation declaration")
         feature_names = {item.name for item in self.features}
         relation_names = {item.name for item in self.relations}
+        if any(tier.name in _NODE_STRUCTURAL_KEYS for tier in self.tiers):
+            raise GraphValidationError("tier name is reserved for graph structure")
         for tier in self.tiers:
             if not tier.features <= feature_names:
                 raise GraphValidationError("tier permits an undeclared feature")
@@ -272,7 +280,7 @@ class Graph:
         children = tuple(
             target
             for relation in self.relations
-            if relation.name == "contains" and relation.sources == (parent,)
+            if self._is_containment(relation) and relation.sources == (parent,)
             for target in relation.targets
         )
         if tier is None:
@@ -299,7 +307,7 @@ class Graph:
         return tuple(
             source
             for relation in self.relations
-            if relation.name == "contains" and child in relation.targets
+            if self._is_containment(relation) and child in relation.targets
             for source in relation.sources
         )
 
@@ -312,6 +320,10 @@ class Graph:
                 result.append(item)
                 pending.extend(self.parents(item))
         return tuple(result)
+
+    def _is_containment(self, relation: Relation) -> bool:
+        declaration = self.declarations.relation(relation.name)
+        return declaration is not None and declaration.containment
 
     def validate(self) -> None:
         if not self.clock:
@@ -528,7 +540,7 @@ class Graph:
                         tier.name, tuple(_event_from_data(item) for item in raw_events)
                     )
                 )
-            if set(raw_node) - tier_names - {"gaps"}:
+            if set(raw_node) - tier_names - _NODE_STRUCTURAL_KEYS:
                 raise GraphValidationError("undeclared tier")
             clock.append(ClockNode(len(raw_gaps), tuple(groups)))
         roots = tuple(_require_string(item) for item in raw_roots)
@@ -681,5 +693,5 @@ def _thaw(value: FrozenValue) -> JsonValue:
     if isinstance(value, tuple):
         return [_thaw(item) for item in value]
     if isinstance(value, Mapping):
-        return {name: _thaw(item) for name, item in value.items()}
+        return {name: _thaw(value[name]) for name in sorted(value)}
     return value
