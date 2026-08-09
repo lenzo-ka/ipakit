@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from ._convert import longest_match, require_convertible
 from .analysis import AnalysisMixin
@@ -52,6 +52,9 @@ from .segment import (
     takes_defaults,
 )
 from .validation import ValidationMixin
+
+if TYPE_CHECKING:
+    from .form import Form
 
 #: What a resolved query term carries: one value, or a set of them.
 _T = TypeVar("_T")
@@ -3134,6 +3137,24 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # -------------------------------------------------------------------------
     # Structured segments (docs/ties.md; design spec)
     # -------------------------------------------------------------------------
+
+    def read(self, text: str, strict: bool = False) -> Form:
+        """Parse an IPA transcription into its canonical structured form.
+
+        This is the lossless ingestion boundary.  Computation should carry
+        the returned :class:`~ipakit.form.Form` and take named projections
+        from it instead of tokenizing or reparsing the source string.
+        ``strict=True`` refuses any material that cannot be represented.
+        """
+        from .form import Form
+
+        return Form.parse(text, self, strict=strict)
+
+    def read_json(self, data: str) -> Form:
+        """Restore a canonical representation serialized by ``Form.to_json``."""
+        from .form import Form
+
+        return Form.from_json(data, self)
 
     def segments(self, text: str, strict: bool = False) -> list[Segment]:
         """Parse IPA text into structured :class:`Segment` units.

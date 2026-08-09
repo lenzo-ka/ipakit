@@ -62,6 +62,7 @@ from .form import (
     Form,
     Interval,
     Node,
+    Timing,
     Unit,
     levels,
     tier_names,
@@ -140,6 +141,16 @@ def load_ipa_features(
     this package are built from the bare inventory and do not see it.
     """
     return IPAFeatures(xml_path, supplements=supplements)
+
+
+def read(ipa_string: str, strict: bool = False) -> Form:
+    """Parse IPA once into the canonical, lossless internal representation."""
+    return _get_ipa().read(ipa_string, strict=strict)
+
+
+def read_json(data: str) -> Form:
+    """Restore the versioned JSON representation returned by ``Form.to_json``."""
+    return _get_ipa().read_json(data)
 
 
 # --- Distance & Features ---
@@ -1272,6 +1283,9 @@ __all__ = [
     "Form",
     "Interval",
     "Node",
+    "Timing",
+    "read",
+    "read_json",
     "levels",
     "tier_names",
     # Rewrite rules

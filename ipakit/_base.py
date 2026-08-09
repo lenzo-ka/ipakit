@@ -12,7 +12,12 @@ every member below, so the stub bodies are never executed.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .models import Feature, Phone, Phoneset
+
+if TYPE_CHECKING:
+    from .form import Form
 
 
 class IPAFeaturesBase:
@@ -113,6 +118,12 @@ class IPAFeaturesBase:
         phoneset: Phoneset | None = None,
         strict: bool = False,
     ) -> list[str]:
+        raise NotImplementedError
+
+    def read(self, text: str, strict: bool = False) -> Form:
+        raise NotImplementedError
+
+    def read_json(self, data: str) -> Form:
         raise NotImplementedError
 
     def distance(self, phone1: str, phone2: str) -> float:

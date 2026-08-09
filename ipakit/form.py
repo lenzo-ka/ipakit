@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 import warnings
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -95,6 +96,34 @@ def _default(features: IPAFeatures | None) -> IPAFeatures:
     return _get_ipa()
 
 
+@dataclass(frozen=True, order=True)
+class Timing:
+    """An optional time span, in seconds, on an occurrence or tier span.
+
+    Half-open by convention, like :class:`Interval`; ``start == end`` is a
+    point target.  Timing belongs to occurrences rather than ``Segment``
+    identities, because two instances of the same phone need not last the
+    same time.  No interpolation or edit-rebasing policy is implied here.
+    """
+
+    start: float
+    end: float
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.start) or not math.isfinite(self.end):
+            raise ValueError("timing endpoints must be finite")
+        if self.start < 0:
+            raise ValueError(f"timing starts before zero: {self.start}")
+        if self.end < self.start:
+            raise ValueError(
+                f"timing ends before it starts: [{self.start}, {self.end})"
+            )
+
+    @property
+    def duration(self) -> float:
+        return self.end - self.start
+
+
 @dataclass(frozen=True)
 class Unit:
     """One position in a form: a segment, or a boundary between segments.
@@ -119,6 +148,7 @@ class Unit:
     #: ``(glyph, feature, value)`` per prosodic mark, resolved when the
     #: unit was built so each attribute can name the mark that declared it.
     provenance: tuple[tuple[str, str, str], ...] = ()
+    timing: Timing | None = None
 
     def __post_init__(self) -> None:
         # Wrapped here rather than at each construction site, so a site
@@ -190,7 +220,7 @@ class Unit:
         return (
             f"Unit(text={self.text!r}, segment={self.segment!r}, "
             f"features={dict(self.features)!r}, prosody={dict(self.prosody)!r}, "
-            f"provenance={self.provenance!r})"
+            f"provenance={self.provenance!r}, timing={self.timing!r})"
         )
 
 
@@ -373,6 +403,7 @@ class Interval:
     start: int
     end: int
     features: dataclasses.InitVar[IPAFeatures | None] = None
+    timing: Timing | None = None
 
     def __post_init__(self, features: IPAFeatures | None) -> None:
         declared = tier_names(features)
@@ -392,7 +423,8 @@ class Interval:
         return self.end - self.start
 
     def __repr__(self) -> str:
-        return f"Interval({self.tier!r}, {self.start}, {self.end})"
+        held = f", timing={self.timing!r}" if self.timing is not None else ""
+        return f"Interval({self.tier!r}, {self.start}, {self.end}{held})"
 
 
 def levels(features: IPAFeatures | None = None) -> tuple[str, ...]:
@@ -808,7 +840,9 @@ def _unit_for(seg: Segment, features: IPAFeatures) -> Unit:
     )
 
 
-def units(form: str, features: IPAFeatures | None = None) -> list[Unit]:
+def units(
+    form: str, features: IPAFeatures | None = None, strict: bool = False
+) -> list[Unit]:
     """Split a transcription into positions, keeping boundaries.
 
     The unprojected read. :class:`Form` is the object around it; this is
@@ -821,7 +855,13 @@ def units(form: str, features: IPAFeatures | None = None) -> list[Unit]:
     def flush() -> None:
         nonlocal buffer
         if buffer:
-            out.extend(_unit_for(s, features) for s in features.segments(buffer))
+            # Locate segment positions here; attachment is resolved once,
+            # over the complete transcription, below.  Treating each
+            # boundary-delimited buffer as authoritative was the second
+            # parser that made ``kæt.ˈ.dɒɡ`` lose its stress.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                out.extend(_unit_for(s, features) for s in features.segments(buffer))
             buffer = ""
 
     marks = boundary_marks(features)
@@ -859,7 +899,26 @@ def units(form: str, features: IPAFeatures | None = None) -> list[Unit]:
         else:
             buffer += char
     flush()
-    return out
+
+    # The complete read owns attachment and diagnostics.  Replace segment
+    # semantics in their already-located positions, retaining boundary units.
+    resolved = iter(features.segments(form, strict=strict))
+    rebuilt: list[Unit] = []
+    for unit in out:
+        if unit.segment is None:
+            rebuilt.append(unit)
+            continue
+        try:
+            segment = next(resolved)
+        except StopIteration:
+            rebuilt.append(unit)
+            continue
+        semantic = _unit_for(segment, features)
+        # A prefix mark may have been written across a boundary.  Its exact
+        # linear spelling is retained by Form.spelling rather than moved into
+        # this position's text.
+        rebuilt.append(dataclasses.replace(semantic, text=unit.text))
+    return rebuilt
 
 
 def spell(items: Sequence[Unit]) -> str:
@@ -893,6 +952,9 @@ class Form:
     units: tuple[Unit, ...]
     #: Spans on declared tiers. Carried, never derived, never spelled.
     intervals: tuple[Interval, ...] = ()
+    #: Exact source where unit-local spellings cannot reproduce its order.
+    #: Constructed/edited forms leave this unset, preventing stale source.
+    spelling: str | None = None
 
     def __post_init__(self) -> None:
         for span in self.intervals:
@@ -902,7 +964,12 @@ class Form:
                 )
 
     @classmethod
-    def parse(cls, text: str, features: IPAFeatures | None = None) -> Form:
+    def parse(
+        cls,
+        text: str,
+        features: IPAFeatures | None = None,
+        strict: bool = False,
+    ) -> Form:
         """Read a transcription without projecting anything away.
 
         No interval is derived from the separators. The dot is optional
@@ -910,7 +977,12 @@ class Form:
         the transcription never made -- and a transcription that *does*
         state its tiers hands them in with :meth:`of`.
         """
-        return cls(units=tuple(units(text, features)))
+        parsed = tuple(units(text, features, strict=strict))
+        emitted = spell(parsed)
+        return cls(
+            units=parsed,
+            spelling=text if emitted != text else None,
+        )
 
     @classmethod
     def of(cls, items: Sequence[Unit], intervals: Sequence[Interval] = ()) -> Form:
@@ -928,7 +1000,7 @@ class Form:
         agreed way to write a mora interval into a transcription, and
         inventing one would put a claim in the string that nothing reads.
         """
-        return spell(self.units)
+        return self.spelling if self.spelling is not None else spell(self.units)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the complete internal representation.
@@ -949,13 +1021,31 @@ class Form:
                     "features": dict(unit.features),
                     "prosody": dict(unit.prosody),
                     "provenance": [list(item) for item in unit.provenance],
+                    "timing": (
+                        {
+                            "start": unit.timing.start,
+                            "end": unit.timing.end,
+                        }
+                        if unit.timing is not None
+                        else None
+                    ),
                 }
                 for unit in self.units
             ],
             "intervals": [
-                {"tier": span.tier, "start": span.start, "end": span.end}
+                {
+                    "tier": span.tier,
+                    "start": span.start,
+                    "end": span.end,
+                    "timing": (
+                        {"start": span.timing.start, "end": span.timing.end}
+                        if span.timing is not None
+                        else None
+                    ),
+                }
                 for span in self.intervals
             ],
+            "spelling": self.spelling,
         }
 
     def to_json(self) -> str:
@@ -975,6 +1065,7 @@ class Form:
         restored: list[Unit] = []
         for raw in obj.get("units", ()):
             segment_data = raw.get("segment")
+            timing_data = raw.get("timing")
             restored.append(
                 Unit(
                     text=raw["text"],
@@ -986,13 +1077,31 @@ class Form:
                     features=raw.get("features", {}),
                     prosody=raw.get("prosody", {}),
                     provenance=tuple(tuple(item) for item in raw.get("provenance", ())),
+                    timing=(
+                        Timing(timing_data["start"], timing_data["end"])
+                        if timing_data is not None
+                        else None
+                    ),
                 )
             )
         intervals = tuple(
-            Interval(raw["tier"], raw["start"], raw["end"], inventory)
+            Interval(
+                raw["tier"],
+                raw["start"],
+                raw["end"],
+                inventory,
+                (
+                    Timing(raw["timing"]["start"], raw["timing"]["end"])
+                    if raw.get("timing") is not None
+                    else None
+                ),
+            )
             for raw in obj.get("intervals", ())
         )
-        return cls(tuple(restored), intervals)
+        spelling = obj.get("spelling")
+        if spelling is not None and not isinstance(spelling, str):
+            raise ValueError("Form spelling must be a string or null")
+        return cls(tuple(restored), intervals, spelling)
 
     @classmethod
     def from_json(cls, data: str, features: IPAFeatures | None = None) -> Form:

@@ -687,7 +687,7 @@ class DistanceMixin(IPAFeaturesBase):
         unit it scopes rather than floating as its own token. Boundaries are
         dropped -- transparent to distance. Identical to the former glyph
         tokenization for any word carrying no prosodic mark."""
-        return [s.to_ipa() for s in self.segments(text)]  # type: ignore[attr-defined]
+        return [s.to_ipa() for s in self.read(text).segments]
 
     def word_distance(
         self,
