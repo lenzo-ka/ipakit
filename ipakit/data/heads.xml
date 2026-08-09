@@ -113,17 +113,18 @@
          oral tract at oral arc 0.50. A raised velum seals the port and
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
-      <point arc="0.0000" x="0.005" y="0.73" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: the nose tip, forward of and below the upper lip -->
-      <point arc="0.0642" x="0.015" y="0.778" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
-      <point arc="0.1715" x="0.095" y="0.796" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, descending toward the face -->
-      <point arc="0.2963" x="0.19" y="0.804" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
-      <point arc="0.5380" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.6813" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
-      <point arc="0.7918" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
-      <point arc="0.8840" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.9537" x="0.6198" y="0.7804" diameter="0.02" provenance="hand-placed"/>
+      <point arc="0.0000" x="0.025" y="0.755" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: compact tip, clear of the upper lip -->
+      <point arc="0.0523" x="0.040" y="0.790" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
+      <point arc="0.1510" x="0.110" y="0.806" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, returning toward the face -->
+      <point arc="0.2610" x="0.19" y="0.804" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
+      <point arc="0.5148" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.6654" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.7814" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.8782" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.9514" x="0.6198" y="0.7804" diameter="0.02" provenance="hand-placed"/>
       <point arc="1.0000" x="0.6266" y="0.7457" diameter="0.006" provenance="hand-placed"/>
     </nasal>
+    <velum thickness="0.018" provenance="hand-placed"/>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
          carries the lower teeth, the lower lip and the tongue's
@@ -133,9 +134,9 @@
       <point name="upper-crown" x="0.0660" y="0.7670" carrier="skull"/>
       <point name="upper-incisal-edge" x="0.0780" y="0.7020" carrier="skull"/>
       <point name="upper-arch" x="0.1000" y="0.7610" carrier="skull"/>
-      <point name="lower-crown" x="0.0901" y="0.6584" carrier="mandible"/>
-      <point name="lower-incisal-edge" x="0.0969" y="0.6292" carrier="mandible"/>
-      <point name="lower-arch" x="0.1338" y="0.6385" carrier="mandible"/>
+      <point name="lower-crown" x="0.0901" y="0.6040" carrier="mandible"/>
+      <point name="lower-incisal-edge" x="0.0969" y="0.6330" carrier="mandible"/>
+      <point name="lower-arch" x="0.1338" y="0.6140" carrier="mandible"/>
     </teeth>
     <!-- How much of what sits at each arc is carried by the jaw rather than
          moved on its own. The mandible makes no constriction, but the lower
@@ -209,17 +210,18 @@
          oral tract at oral arc 0.50. A raised velum seals the port and
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
-      <point arc="0.0000" x="0.005" y="0.725" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: the nose tip, forward of and below the upper lip -->
-      <point arc="0.0660" x="0.015" y="0.772" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
-      <point arc="0.1766" x="0.093" y="0.792" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, descending toward the face -->
-      <point arc="0.3144" x="0.193" y="0.8" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
-      <point arc="0.5517" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.6966" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
-      <point arc="0.8054" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
-      <point arc="0.8898" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.9551" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
+      <point arc="0.0000" x="0.025" y="0.750" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: compact tip, clear of the upper lip -->
+      <point arc="0.0537" x="0.040" y="0.784" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
+      <point arc="0.1554" x="0.108" y="0.802" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, returning toward the face -->
+      <point arc="0.2783" x="0.193" y="0.8" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
+      <point arc="0.5282" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.6807" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.7952" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.8841" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.9527" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
       <point arc="1.0000" x="0.5966" y="0.7456" diameter="0.006" provenance="hand-placed"/>
     </nasal>
+    <velum thickness="0.017" provenance="hand-placed"/>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
          carries the lower teeth, the lower lip and the tongue's
@@ -229,9 +231,9 @@
       <point name="upper-crown" x="0.0700" y="0.7600" carrier="skull"/>
       <point name="upper-incisal-edge" x="0.0820" y="0.7000" carrier="skull"/>
       <point name="upper-arch" x="0.1040" y="0.7570" carrier="skull"/>
-      <point name="lower-crown" x="0.0974" y="0.6583" carrier="mandible"/>
-      <point name="lower-incisal-edge" x="0.1046" y="0.6292" carrier="mandible"/>
-      <point name="lower-arch" x="0.1392" y="0.6385" carrier="mandible"/>
+      <point name="lower-crown" x="0.0974" y="0.6020" carrier="mandible"/>
+      <point name="lower-incisal-edge" x="0.1046" y="0.6340" carrier="mandible"/>
+      <point name="lower-arch" x="0.1392" y="0.6130" carrier="mandible"/>
     </teeth>
     <!-- How much of what sits at each arc is carried by the jaw rather than
          moved on its own. The mandible makes no constriction, but the lower
@@ -300,6 +302,7 @@
       <point arc="0.93" x="0.5435" y="0.7748" diameter="0.016" provenance="hand-placed"/>
       <point arc="1.00" x="0.528" y="0.7575" diameter="0.005" provenance="hand-placed"/>
     </nasal>
+    <velum thickness="0.015" provenance="hand-placed"/>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
          carries the lower teeth, the lower lip and the tongue's
@@ -309,9 +312,9 @@
       <point name="upper-crown" x="0.0906" y="0.7114" carrier="skull"/>
       <point name="upper-incisal-edge" x="0.0834" y="0.7364" carrier="skull"/>
       <point name="upper-arch" x="0.1151" y="0.7485" carrier="skull"/>
-      <point name="lower-crown" x="0.1128" y="0.6342" carrier="mandible"/>
-      <point name="lower-incisal-edge" x="0.1200" y="0.6092" carrier="mandible"/>
-      <point name="lower-arch" x="0.1500" y="0.6185" carrier="mandible"/>
+      <point name="lower-crown" x="0.1128" y="0.6380" carrier="mandible"/>
+      <point name="lower-incisal-edge" x="0.1200" y="0.6680" carrier="mandible"/>
+      <point name="lower-arch" x="0.1500" y="0.6470" carrier="mandible"/>
     </teeth>
     <!-- How much of what sits at each arc is carried by the jaw rather than
          moved on its own. The mandible makes no constriction, but the lower
