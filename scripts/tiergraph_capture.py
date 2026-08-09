@@ -218,9 +218,7 @@ def capture_perturbation_proof(_: argparse.Namespace) -> None:
             + comparison.stderr
         )
 
-    before = cast(
-        dict[str, Any], json.loads(before_path.read_text(encoding="utf-8"))
-    )
+    before = cast(dict[str, Any], json.loads(before_path.read_text(encoding="utf-8")))
     before_units = before["units"]
     after_units = after["units"]
     shared = set(before_units) & set(after_units)
@@ -234,26 +232,16 @@ def capture_perturbation_proof(_: argparse.Namespace) -> None:
         for unit in shared
     )
     distance_movers = sum(
-        abs(
-            before_units[unit]["d_from_base"]
-            - after_units[unit]["d_from_base"]
-        )
-        > 1e-9
+        abs(before_units[unit]["d_from_base"] - after_units[unit]["d_from_base"]) > 1e-9
         for unit in shared
     )
-    movers = (
-        len(set(before_units) ^ set(after_units))
-        + sum(
-            before_units[unit]["describe"] != after_units[unit]["describe"]
-            or before_units[unit]["features"] != after_units[unit]["features"]
-            or before_units[unit]["kind"] != after_units[unit]["kind"]
-            or abs(
-                before_units[unit]["d_from_base"]
-                - after_units[unit]["d_from_base"]
-            )
-            > 1e-9
-            for unit in shared
-        )
+    movers = len(set(before_units) ^ set(after_units)) + sum(
+        before_units[unit]["describe"] != after_units[unit]["describe"]
+        or before_units[unit]["features"] != after_units[unit]["features"]
+        or before_units[unit]["kind"] != after_units[unit]["kind"]
+        or abs(before_units[unit]["d_from_base"] - after_units[unit]["d_from_base"])
+        > 1e-9
+        for unit in shared
     )
     if movers == 0:
         raise SystemExit("perturbation comparison failed without detecting a mover")
