@@ -418,13 +418,36 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
             deliveries = case["deliveries"]
             assert isinstance(deliveries, list)
             stress = {value for delivery in deliveries for value in delivery["stress"]}
-            segment_events = tuple(Event({"value": word}) for word in case["shared_input"]["words"])  # type: ignore[index,union-attr]
+            segment_events = tuple(
+                Event({"value": word}) for word in case["shared_input"]["words"]
+            )  # type: ignore[index,union-attr]
+            segment_refs = tuple(
+                f"/clock/{i}/segment/0" for i in range(len(segment_events))
+            )
+            slot_hosts = segment_refs + (segment_refs[-1],)
+            prosody_events = tuple(
+                tuple(Event({"stress": value}) for value in delivery["stress"])
+                for delivery in deliveries
+            )
+            associations = tuple(
+                Relation(
+                    (f"/clock/{slot}/prosody/{delivery_index}",),
+                    "associates-with",
+                    (slot_hosts[slot],),
+                )
+                for delivery_index in range(len(deliveries))
+                for slot in range(len(slot_hosts))
+            )
             current = Graph(
                 ipa_declarations(inventory),
                 (
                     ClockNode(
                         groups=(
                             EventGroup("segment", (segment_events[0],)),
+                            EventGroup(
+                                "prosody",
+                                tuple(events[0] for events in prosody_events),
+                            ),
                             EventGroup(
                                 "delivery",
                                 tuple(
@@ -435,8 +458,32 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
                             EventGroup("analysis", (Event({"value": "choice"}),)),
                         )
                     ),
-                    ClockNode(groups=(EventGroup("segment", (segment_events[1],)),)),
-                    ClockNode(groups=(EventGroup("segment", (segment_events[2],)),)),
+                    ClockNode(
+                        groups=(
+                            EventGroup("segment", (segment_events[1],)),
+                            EventGroup(
+                                "prosody",
+                                tuple(events[1] for events in prosody_events),
+                            ),
+                        )
+                    ),
+                    ClockNode(
+                        groups=(
+                            EventGroup("segment", (segment_events[2],)),
+                            EventGroup(
+                                "prosody",
+                                tuple(events[2] for events in prosody_events),
+                            ),
+                        )
+                    ),
+                    ClockNode(
+                        groups=(
+                            EventGroup(
+                                "prosody",
+                                tuple(events[3] for events in prosody_events),
+                            ),
+                        )
+                    ),
                     ClockNode(),
                 ),
                 (
@@ -445,17 +492,35 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
                         "alternatives",
                         tuple(f"/clock/0/delivery/{i}" for i in range(3)),
                     ),
+                    *associations,
                 ),
             )
-            assert len(current.event_references()) == 7
+            assert case["shared_input"]["segmental_material_duplicated"] is False  # type: ignore[index]
             assert stress == set(expected["stress_values_covered"])
-            assert all(
-                assign_signature(
-                    delivery["house_signature"],
-                    tuple(str(i) for i in range(4)),
-                    inventory,
+            assigned_hosts = tuple(
+                tuple(
+                    host
+                    for host, _ in assign_signature(
+                        delivery["house_signature"],
+                        slot_hosts,
+                        inventory,
+                    )
                 )
                 for delivery in deliveries
+            )
+            assert all(hosts == slot_hosts for hosts in assigned_hosts)
+            referenced_segments = tuple(
+                tuple(current.resolve(host).event for host in hosts)
+                for hosts in assigned_hosts
+            )
+            assert all(
+                all(
+                    actual is shared
+                    for actual, shared in zip(
+                        events, referenced_segments[0], strict=True
+                    )
+                )
+                for events in referenced_segments[1:]
             )
         else:
             hosts = tuple(case["hosts"]) if "hosts" in case else ()
@@ -484,7 +549,16 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
                         ),
                     ),
                 )
+                fixture_relation = case["links"][0]
+                relation = current.relations[0]
+                assert list(relation.sources) == fixture_relation[0]
+                assert relation.name == fixture_relation[1]
+                assert list(relation.targets) == fixture_relation[2]
+                assert relation.sources == (case["stress_event"],)
+                assert case["original_host"] in relation.targets
+                assert case["later_host"] in relation.targets
                 assert len(current.relations) == expected["stress_facts"]
+                assert expected["moved_or_duplicated"] is False
             else:
                 assigned = assign_signature(str(case["signature"]), hosts, inventory)
                 assert len(assigned) == expected["slots"] == expected["hosts"]
@@ -550,7 +624,10 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
                 "/delivery/", "/variant/"
             )
 
-        links = tuple(Relation(tuple(map(replace, x[0])), x[1], tuple(map(replace, x[2]))) for x in case["links"])  # type: ignore[union-attr]
+        links = tuple(
+            Relation(tuple(map(replace, x[0])), x[1], tuple(map(replace, x[2])))
+            for x in case["links"]
+        )  # type: ignore[union-attr]
 
         def build() -> object:
             return choice_graph(links)
@@ -599,7 +676,12 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
         tick = int(str(raw["path"]).split("/")[2])
         tier = str(raw["path"]).split("/")[3]
         features = raw.get("features", {})
-        item = Event(features, raw.get("duration"), RefinedSpan(**raw["span"]) if "span" in raw else None, Timing(**raw["timing"]) if "timing" in raw else None)  # type: ignore[arg-type]
+        item = Event(
+            features,
+            raw.get("duration"),
+            RefinedSpan(**raw["span"]) if "span" in raw else None,
+            Timing(**raw["timing"]) if "timing" in raw else None,
+        )  # type: ignore[arg-type]
         nodes = [
             ClockNode()
             for _ in range(max(tick + (item.structural_duration or 0) + 1, 3))
