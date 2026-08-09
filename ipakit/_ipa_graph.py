@@ -130,9 +130,7 @@ def prosody_host_tiers(inventory: IPAFeatures) -> frozenset[str]:
     """Return semantic hosts without treating written placement as attachment."""
 
     boundary_levels = set(inventory.features["level"].values)
-    return frozenset(
-        boundary_levels & {"word", "syllable"} | {"foot", SEGMENT_TIER, PROSODY_TIER}
-    )
+    return frozenset(boundary_levels | {"foot", SEGMENT_TIER, PROSODY_TIER})
 
 
 @dataclass(frozen=True)
@@ -150,11 +148,18 @@ def parse_signature(text: str, inventory: IPAFeatures) -> Signature:
         symbol: inventory.diacritics[symbol].features["stress"]
         for symbol in inventory.stress_markers
     }
-    stress_values[inventory.syllable_break] = "unstressed"
+    unmarked_stress_values = set(inventory.features["stress"].values) - set(
+        stress_values.values()
+    )
+    if len(unmarked_stress_values) != 1:
+        raise ValueError("stress signature requires exactly one unmarked value")
+    stress_values[inventory.syllable_break] = unmarked_stress_values.pop()
     boundary_symbols = {
         symbol
         for symbol, phone in {**inventory.separators, **inventory.diacritics}.items()
-        if "level" in phone.features and phone.features["level"] != "syllable"
+        if "level" in phone.features
+        and phone.features["level"] != "syllable"
+        and phone.features.get("linking") != "+"
     }
     slots: list[str] = []
     boundaries: list[str] = []

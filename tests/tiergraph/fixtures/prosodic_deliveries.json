@@ -3,9 +3,9 @@
   "shared_input": {"words":["you","were","engaged"],"segmental_material_duplicated":false},
   "choice": {"source":"/clock/0/analysis/0","relation":"alternatives","targets":["delivery-0","delivery-1","delivery-2"]},
   "deliveries": [
-    {"id":"delivery-0","stress":["primary","unstressed","unstressed","primary"],"house_signature":"ˈ#.#.ˈ‖","segmental_signature":"ˈyuw # .wer # .ehn.ˈgeyjhd ‖","rendering":"YOU were en-GAGED"},
-    {"id":"delivery-1","stress":["unstressed","primary","unstressed","secondary"],"house_signature":".#ˈ#.ˌ‖","segmental_signature":".yuw # ˈwer # .ehn.ˌgeyjhd ‖","rendering":"You WERE en-Gaged"},
-    {"id":"delivery-2","stress":["unstressed","unstressed","unstressed","primary"],"house_signature":".#.#.ˈ‖","segmental_signature":".yuw # .wer # .ehn.ˈgeyjhd ‖","rendering":"You were en-GAGED"}
+    {"id":"delivery-0","stress":["primary","none","none","primary"],"house_signature":"ˈ#.#.ˈ‖","segmental_signature":"ˈyuw # .wer # .ehn.ˈgeyjhd ‖","rendering":"YOU were en-GAGED"},
+    {"id":"delivery-1","stress":["none","primary","none","secondary"],"house_signature":".#ˈ#.ˌ‖","segmental_signature":".yuw # ˈwer # .ehn.ˌgeyjhd ‖","rendering":"You WERE en-Gaged"},
+    {"id":"delivery-2","stress":["none","none","none","primary"],"house_signature":".#.#.ˈ‖","segmental_signature":".yuw # .wer # .ehn.ˈgeyjhd ‖","rendering":"You were en-GAGED"}
   ],
-  "expected": {"verdict":"valid","stress_values_covered":["unstressed","primary","secondary"]}
+  "expected": {"verdict":"valid","stress_values_covered":["none","primary","secondary"]}
 }
