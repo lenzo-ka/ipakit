@@ -476,6 +476,13 @@ def add_event_copy(
 def remove_events_copy(graph: Graph, references: Iterable[str]) -> Graph:
     """Remove events and dependent links while reindexing surviving references."""
     removed = set(references)
+    for reference in removed:
+        resolved = graph.resolve(reference)
+        if resolved.event is not None and resolved.event.structural_duration == 1:
+            raise GraphValidationError(
+                f"cannot remove clock-consuming input atom {reference}: "
+                "the structural clock is immutable and input-owned"
+            )
     builder, _ = _copy_builder(graph, removed)
     return builder.build()
 

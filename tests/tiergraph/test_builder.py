@@ -437,3 +437,36 @@ def test_build_restore_and_persistent_edits_preserve_order_without_ids() -> None
     unlinked = remove_relations_copy(linked, (added_relation,))
     removed = remove_events_copy(unlinked, ("/clock/0/derived/0",))
     assert removed == current
+
+
+def test_persistent_event_removal_rejects_clock_consuming_input_atom() -> None:
+    builder = GraphBuilder(declarations())
+    builder.append_input_atom("input", value("a"))
+    builder.append_input_atom("input", value("b"))
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            r"clock-consuming input atom /clock/1/input/0: "
+            r"the structural clock is immutable and input-owned"
+        ),
+    ):
+        remove_events_copy(builder.build(), ("/clock/1/input/0",))
+
+
+def test_persistent_refiner_removal_preserves_input_owned_gaps_and_spans() -> None:
+    builder = GraphBuilder(declarations())
+    builder.append_input_atom("input", value("a"))
+    builder.append_input_occurrence("boundary", value("."), refines_tick=True)
+    builder.append_input_occurrence("boundary", value("‿"), refines_tick=True)
+    builder.append_input_atom("input", value("b"))
+    builder.add_span("derived", builder.gap(1, 0), builder.gap(1, 2), value("syllable"))
+    current = builder.build()
+
+    removed = remove_events_copy(current, ("/clock/1/boundary/0",))
+
+    assert [node.gap_count for node in removed.clock] == [1, 3, 1]
+    assert removed.to_data()["clock"][1]["derived"][0]["span"] == {
+        "start": "/clock/1/gaps/0",
+        "end": "/clock/1/gaps/2",
+    }
