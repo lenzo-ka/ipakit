@@ -104,3 +104,27 @@ def test_signature_slot_counts_match_the_pinned_verdicts() -> None:
             assert count == len(case["hosts"])
         else:
             assert count != len(case["hosts"])
+
+
+def test_structural_duration_and_refined_span_forms_are_exclusive() -> None:
+    cases = _load("duration_and_relation_endpoints.json")["cases"]
+    for case in cases:
+        event = case.get("event")
+        if event is None:
+            continue
+        assert not ("duration" in event and "span" in event)
+    refined = next(
+        case for case in cases if case["id"] == "refined-span-excludes-duration"
+    )
+    assert refined["expected"]["duration_field"] == "forbidden"
+
+
+def test_relation_endpoint_constraints_cover_ticks_gaps_and_events() -> None:
+    cases = _load("duration_and_relation_endpoints.json")["cases"]
+    endpoint_kinds = {
+        kind
+        for case in cases
+        for kinds in case.get("endpoint_constraints", {}).values()
+        for kind in kinds
+    }
+    assert endpoint_kinds == {"coarse-tick", "refined-gap", "event"}
