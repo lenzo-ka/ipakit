@@ -120,7 +120,7 @@ class IPAFeaturesBase:
     ) -> list[str]:
         raise NotImplementedError
 
-    def read(self, text: str, strict: bool = False) -> Form:
+    def read(self, text: str | Form, strict: bool = False) -> Form:
         raise NotImplementedError
 
     def read_json(self, data: str) -> Form:

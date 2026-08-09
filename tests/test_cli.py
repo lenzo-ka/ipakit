@@ -693,12 +693,12 @@ class TestRuleUnitsKeepTheBoundariesTokenizeDrops:
         self, monkeypatch, capsys
     ):
         """Two differences, both load-bearing for a rule: `tokenize` drops
-        the boundary a rule may name, and splits the stress mark off the
-        nucleus it belongs to. A rule unit carries its own prosody."""
+        the boundary a rule may name. Both projections now attach stress to
+        the nucleus it belongs to; a rule unit additionally keeps boundaries."""
         units = run(monkeypatch, capsys, "rules", "units", "bˈʌ.tɚ")
         tokens = run(monkeypatch, capsys, "convert", "tokenize", "bˈʌ.tɚ")
         assert units[1] == "b ˈʌ . t ɚ\n"
-        assert tokens[1] == "b ˈ ʌ t ɚ\n"
+        assert tokens[1] == "b ˈʌ t ɚ\n"
 
     def test_a_word_mark_is_a_unit_too(self, monkeypatch, capsys):
         rc, out, _ = run(monkeypatch, capsys, "rules", "units", "kæt#dɒɡ")
@@ -736,6 +736,7 @@ class TestRepresentationCommands:
         assert rc == 0
         assert err == ""
         representation = json.loads(out)
+        assert representation["type"] == "ipakit.form"
         assert representation["v"] == 1
         assert representation["spelling"] == "kæt.ˈ.dɒɡ"
         assert [

@@ -102,7 +102,24 @@ class TestFormSerialization:
 
     def test_unknown_version_is_refused(self):
         with pytest.raises(ValueError, match="unsupported Form JSON version"):
-            Form.from_json('{"v": 99, "units": [], "intervals": []}', FEATURES)
+            Form.from_json(
+                '{"type": "ipakit.form", "v": 99, "units": [], "intervals": []}',
+                FEATURES,
+            )
+
+    def test_representation_type_is_explicit(self):
+        assert Form.parse("a", FEATURES).to_dict()["type"] == "ipakit.form"
+        with pytest.raises(ValueError, match="unsupported representation type"):
+            Form.from_json(
+                '{"type": "something.else", "v": 1, "units": [], "intervals": []}',
+                FEATURES,
+            )
+
+    def test_serialized_derived_views_cannot_disagree(self):
+        representation = Form.parse("ˈa", FEATURES).to_dict()
+        representation["units"][0]["prosody"]["stress"] = "secondary"
+        with pytest.raises(ValueError, match="views disagree with segment"):
+            Form.from_dict(representation, FEATURES)
 
     def test_occurrence_and_tier_timings_round_trip(self):
         source = Form.parse("a.ta", FEATURES)
@@ -139,6 +156,29 @@ class TestFormSerialization:
 
 
 class TestTheCanonicalRead:
+    def test_one_read_performs_one_token_scan(self, monkeypatch):
+        calls = 0
+        original = FEATURES._parse_all
+
+        def counted(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(FEATURES, "_parse_all", counted)
+        form = FEATURES.read("#kæt.ˈ.dɒɡ#", strict=True)
+        assert form.to_ipa() == "#kæt.ˈ.dɒɡ#"
+        assert calls == 1
+
+    def test_reading_a_form_is_identity_and_never_scans(self, monkeypatch):
+        form = FEATURES.read("kæt")
+
+        def scanned_again(*args, **kwargs):
+            raise AssertionError("an existing Form was parsed again")
+
+        monkeypatch.setattr(FEATURES, "_parse_all", scanned_again)
+        assert FEATURES.read(form) is form
+
     def test_inventory_read_is_form_parse(self):
         text = "#kˌæn.tˈiːn∅#"
         assert FEATURES.read(text) == Form.parse(text, FEATURES)

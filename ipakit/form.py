@@ -81,6 +81,7 @@ if TYPE_CHECKING:  # pragma: no cover
 #: Keys on a declaration that name a symbol rather than describe a sound.
 _METADATA = frozenset({"class", "href", "xsampa"})
 _JSON_VERSION = 1
+_JSON_TYPE = "ipakit.form"
 
 
 def _default(features: IPAFeatures | None) -> IPAFeatures:
@@ -848,77 +849,7 @@ def units(
     The unprojected read. :class:`Form` is the object around it; this is
     here for callers that want the sequence alone.
     """
-    features = _default(features)
-    out: list[Unit] = []
-    buffer = ""
-
-    def flush() -> None:
-        nonlocal buffer
-        if buffer:
-            # Locate segment positions here; attachment is resolved once,
-            # over the complete transcription, below.  Treating each
-            # boundary-delimited buffer as authoritative was the second
-            # parser that made ``kæt.ˈ.dɒɡ`` lose its stress.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", UserWarning)
-                out.extend(_unit_for(s, features) for s in features.segments(buffer))
-            buffer = ""
-
-    marks = boundary_marks(features)
-    nulls = features.zeros
-    edge = edge_level(features)
-    for char in form:
-        if char in nulls:
-            # A declared zero: a position with nothing in it. Flushed
-            # first like any non-segmental mark, so the phones either
-            # side stay two units rather than one, and carried as a unit
-            # of its own so the form spells back out with the position
-            # still in it.
-            flush()
-            out.append(Unit(text=char, features=dict(nulls[char].features or {})))
-        elif char in features.separators:
-            flush()
-            declared = features.separators[char]
-            out.append(Unit(text=char, features=dict(declared.features or {})))
-        elif char in marks:
-            # A declared break or linking mark: preserved, and opaque,
-            # since it separates rather than modifies. Which tier it
-            # splits is whatever its declaration says -- '|' phrase, '‖'
-            # utterance, '‿' word -- and no glyph is named here.
-            flush()
-            out.append(Unit(text=char, features=dict(marks[char])))
-        elif char.isspace():
-            flush()
-            # Whitespace is not declared in ipa.xml, but it separates
-            # words wherever it appears. It gets the tier a form edge
-            # delimits rather than a literal 'word', so a space and the
-            # form's own end cannot come to disagree about which level
-            # they assert: a context that matches one must match the
-            # other, or the optional-edge reading splits in two.
-            out.append(Unit(text=char, features={"level": edge}))
-        else:
-            buffer += char
-    flush()
-
-    # The complete read owns attachment and diagnostics.  Replace segment
-    # semantics in their already-located positions, retaining boundary units.
-    resolved = iter(features.segments(form, strict=strict))
-    rebuilt: list[Unit] = []
-    for unit in out:
-        if unit.segment is None:
-            rebuilt.append(unit)
-            continue
-        try:
-            segment = next(resolved)
-        except StopIteration:
-            rebuilt.append(unit)
-            continue
-        semantic = _unit_for(segment, features)
-        # A prefix mark may have been written across a boundary.  Its exact
-        # linear spelling is retained by Form.spelling rather than moved into
-        # this position's text.
-        rebuilt.append(dataclasses.replace(semantic, text=unit.text))
-    return rebuilt
+    return list(_default(features).read(form, strict=strict).units)
 
 
 def spell(items: Sequence[Unit]) -> str:
@@ -964,6 +895,42 @@ class Form:
                 )
 
     @classmethod
+    def from_parsed(
+        cls,
+        source: str,
+        parsed: Sequence[tuple[str, list[str]]],
+        features: IPAFeatures,
+        strict: bool = False,
+    ) -> Form:
+        """Build from the inventory's single canonical token scan."""
+        out: list[Unit] = []
+        marks = boundary_marks(features)
+        nulls = features.zeros
+        edge = edge_level(features)
+        aligned = features._units_from_parsed(parsed, strict)
+        for token, segment in aligned:
+            if segment is not None:
+                out.append(_unit_for(segment, features))
+            elif token and all(ch in features.stress_markers for ch in token):
+                # Prefix attributes occupy no independent structural slot;
+                # their spelling remains in ``spelling`` and their semantic
+                # value rides on the segment they resolved to.
+                continue
+            elif token in nulls:
+                out.append(Unit(text=token, features=dict(nulls[token].features or {})))
+            elif token in features.separators:
+                declared = features.separators[token]
+                out.append(Unit(text=token, features=dict(declared.features or {})))
+            elif token in marks:
+                out.append(Unit(text=token, features=dict(marks[token])))
+            elif token.isspace():
+                out.append(Unit(text=token, features={"level": edge}))
+
+        local = spell(out)
+        scanned = "".join(base + "".join(diacritics) for base, diacritics in parsed)
+        return cls(tuple(out), spelling=scanned if scanned != local else None)
+
+    @classmethod
     def parse(
         cls,
         text: str,
@@ -977,12 +944,7 @@ class Form:
         the transcription never made -- and a transcription that *does*
         state its tiers hands them in with :meth:`of`.
         """
-        parsed = tuple(units(text, features, strict=strict))
-        emitted = spell(parsed)
-        return cls(
-            units=parsed,
-            spelling=text if emitted != text else None,
-        )
+        return _default(features).read(text, strict=strict)
 
     @classmethod
     def of(cls, items: Sequence[Unit], intervals: Sequence[Interval] = ()) -> Form:
@@ -1011,6 +973,7 @@ class Form:
         schema for a segment whether it travels alone or inside a form.
         """
         return {
+            "type": _JSON_TYPE,
             "v": _JSON_VERSION,
             "units": [
                 {
@@ -1057,6 +1020,8 @@ class Form:
         cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
     ) -> Form:
         """Restore a form without reparsing its IPA surface spelling."""
+        if obj.get("type") != _JSON_TYPE:
+            raise ValueError(f"unsupported representation type: {obj.get('type')!r}")
         if obj.get("v") != _JSON_VERSION:
             raise ValueError(f"unsupported Form JSON version: {obj.get('v')!r}")
         inventory = _default(features)
@@ -1066,24 +1031,40 @@ class Form:
         for raw in obj.get("units", ()):
             segment_data = raw.get("segment")
             timing_data = raw.get("timing")
-            restored.append(
-                Unit(
-                    text=raw["text"],
-                    segment=(
-                        Segment.from_dict(segment_data, inventory)
-                        if segment_data is not None
-                        else None
-                    ),
-                    features=raw.get("features", {}),
-                    prosody=raw.get("prosody", {}),
-                    provenance=tuple(tuple(item) for item in raw.get("provenance", ())),
-                    timing=(
-                        Timing(timing_data["start"], timing_data["end"])
-                        if timing_data is not None
-                        else None
-                    ),
-                )
+            segment = (
+                Segment.from_dict(segment_data, inventory)
+                if segment_data is not None
+                else None
             )
+            unit = Unit(
+                text=raw["text"],
+                segment=segment,
+                features=raw.get("features", {}),
+                prosody=raw.get("prosody", {}),
+                provenance=tuple(tuple(item) for item in raw.get("provenance", ())),
+                timing=(
+                    Timing(timing_data["start"], timing_data["end"])
+                    if timing_data is not None
+                    else None
+                ),
+            )
+            if segment is not None:
+                expected = _unit_for(segment, inventory)
+                held = (
+                    dict(unit.features),
+                    dict(unit.prosody),
+                    unit.provenance,
+                )
+                derived = (
+                    dict(expected.features),
+                    dict(expected.prosody),
+                    expected.provenance,
+                )
+                if held != derived:
+                    raise ValueError(
+                        f"serialized views disagree with segment {segment.to_ipa()!r}"
+                    )
+            restored.append(unit)
         intervals = tuple(
             Interval(
                 raw["tier"],
