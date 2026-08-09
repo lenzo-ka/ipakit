@@ -31,7 +31,7 @@ def declarations() -> Declarations:
         tuple(TierDeclaration(name, frozenset({"value", "class"})) for name in TIERS),
         (FeatureDeclaration("value"), FeatureDeclaration("class")),
         (
-            RelationDeclaration("contains", acyclic=True),
+            RelationDeclaration("contains", acyclic=True, containment=True),
             RelationDeclaration(
                 "rewrites-to", allow_empty_target=True, target_arity=(0, None)
             ),
@@ -176,9 +176,26 @@ def test_pointer_escaping_resolution_and_failures() -> None:
     )
     assert current.event_references() == ("/clock/0/a~1b~0c/0",)
     assert current.resolve(current.event_references()[0]).event is not None
+    assert Graph.from_data(declared, current.to_data()).event_references() == (
+        "/clock/0/a~1b~0c/0",
+    )
     for pointer in ("clock/0", "/clock/x", "/clock/9", "/clock/0/~2/0"):
         with pytest.raises(GraphValidationError):
             current.resolve(pointer)
+
+
+def test_structural_tier_names_are_reserved() -> None:
+    with pytest.raises(GraphValidationError, match="reserved"):
+        Declarations((TierDeclaration("gaps"),), (), ())
+
+
+def test_nested_feature_mappings_serialize_canonically() -> None:
+    left = Event({"value": {"b": {"d": 4, "c": 3}, "a": 1}})
+    right = Event({"value": {"a": 1, "b": {"c": 3, "d": 4}}})
+    left_graph = graph(node(unit=(left,)), node())
+    right_graph = graph(node(unit=(right,)), node())
+    assert left_graph == right_graph
+    assert json.dumps(left_graph.to_data()) == json.dumps(right_graph.to_data())
 
 
 def test_endpoint_kinds_and_relation_constraints() -> None:
@@ -228,6 +245,11 @@ def test_relation_arity_empty_tiers_and_undeclared_values() -> None:
         )
     with pytest.raises(GraphValidationError, match="undeclared relation"):
         graph(*base, links=(Relation(("/clock/0/unit/0",), "unknown", ()),))
+
+
+def test_member_of_declaration_requires_exactly_one_target() -> None:
+    with pytest.raises(GraphValidationError, match="target arity 1"):
+        RelationDeclaration("selects", member_of="alternatives")
 
 
 def choice_graph(links: tuple[Relation, ...]) -> Graph:
@@ -304,6 +326,32 @@ def test_heterogeneous_containment_traversal_and_cycles() -> None:
         )
 
 
+def test_containment_traversal_uses_declared_property_across_relations() -> None:
+    declared = Declarations(
+        declarations().tiers,
+        declarations().features,
+        (
+            RelationDeclaration("owns", containment=True),
+            RelationDeclaration("groups", containment=True),
+        ),
+    )
+    parent, middle, child = (
+        "/clock/0/top/0",
+        "/clock/0/group/0",
+        "/clock/0/unit/0",
+    )
+    current = Graph(
+        declared,
+        (node(top=(event(),), group=(event(),), unit=(event(),)), node()),
+        (
+            Relation((parent,), "owns", (middle,)),
+            Relation((middle,), "groups", (child,)),
+        ),
+    )
+    assert current.descendants(parent) == (middle, child)
+    assert current.parents(child) == (middle,)
+
+
 def test_roots_must_resolve_to_events() -> None:
     with pytest.raises(GraphValidationError, match="root"):
         graph(node(), roots=("/clock/0",))
@@ -323,58 +371,221 @@ def test_immutable_structures_and_input_owned_gaps() -> None:
     assert len(current.clock[0].groups[0].events) == 1
 
 
-def test_all_lane_a_fixture_cases_are_accounted_for() -> None:
-    """Keep profile pins visible without teaching their vocabulary to the kernel."""
-    exercised = {
-        "n-plus-one-clock",
-        "final-tick-insertion-anchor",
-        "clock-consumption",
-        "builder-lane-order",
-        "chained-phantom-scan-order",
-        "a-dot-dot-b-mora",
-        "boundary-zero-whitespace-units",
-        "inserted-site",
-        "deleted-boundary-run-site",
-        "interval-crosses-tier-boundary",
-        "coarse-unrefined",
-        "gap-zero-refined",
-        "gap-interior-refined",
-        "gap-k-refined",
-        "gap-zero-unrefined-alias",
-        "coarse-refined-span-endpoint",
-        "reversed-refined-span",
-        "gap-outside-named-tick",
-        "choice-no-selection",
-        "choice-one-selection",
-        "duplicate-candidate",
-        "multiple-alternatives-links",
-        "multiple-selects-links",
-        "selection-outside-candidates",
-        "selects-without-alternatives",
-        "heterogeneous-phrase-contains-silence",
-        "exact-syllable-host-count",
-        "exact-nucleus-host-count",
-        "slot-host-count-mismatch",
-        "nucleus-stress-associated-with-later-syllable",
-        "ordinary-one-span-omits-duration",
-        "point-writes-zero-duration",
-        "multi-span-writes-duration",
-        "refined-span-excludes-duration",
-        "physical-time-is-independent",
-        "timed-point-distinct-from-untimed",
-        "input-silence-consumes-span",
-        "derived-silence-is-phantom",
-        "tick-source-insertion",
-        "event-source-rewrite",
-        "gap-endpoint-association",
-        "wrong-endpoint-kind",
-    }
-    found: set[str] = set()
+PROFILE_FIXTURE_OWNERS = {
+    # Lane C owns input interpretation, compatibility coordinates, and builders.
+    "clock-consumption": "C",
+    "builder-lane-order": "C",
+    "chained-phantom-scan-order": "C",
+    "a-dot-dot-b-mora": "C",
+    "boundary-zero-whitespace-units": "C",
+    "inserted-site": "C",
+    "deleted-boundary-run-site": "C",
+    "interval-crosses-tier-boundary": "C",
+    # Lane D owns signature parsing, host assignment, and prosodic semantics.
+    "prosodic-deliveries": "D",
+    "exact-syllable-host-count": "D",
+    "exact-nucleus-host-count": "D",
+    "slot-host-count-mismatch": "D",
+    "nucleus-stress-associated-with-later-syllable": "D",
+}
+
+
+def _fixture_cases() -> list[dict[str, object]]:
     index = json.loads((FIXTURES / "index.json").read_text())
+    result = []
     for name in index["fixtures"]:
         data = json.loads((FIXTURES / name).read_text())
-        found.update(case["id"] for case in data.get("cases", ()))
-    assert found == exercised
+        if "cases" in data:
+            result.extend(data["cases"])
+        else:
+            result.append({"id": "prosodic-deliveries", **data})
+    return result
+
+
+@pytest.mark.parametrize("case", _fixture_cases(), ids=lambda case: str(case["id"]))
+def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
+    """Execute kernel pins and explicitly enumerate profile-owned exclusions."""
+    case_id = str(case["id"])
+    if case_id in PROFILE_FIXTURE_OWNERS:
+        assert PROFILE_FIXTURE_OWNERS[case_id] in {"C", "D"}
+        return
+    expected = case["expected"]  # type: ignore[index]
+    assert isinstance(expected, dict)
+
+    if case_id == "n-plus-one-clock":
+        current = graph(*(node(unit=(event(),)) for _ in case["input_atoms"]), node())  # type: ignore[union-attr]
+        assert len(current.to_data()["clock"]) == expected["clock_entries"]  # type: ignore[arg-type]
+        return
+    if case_id == "final-tick-insertion-anchor":
+        current = graph(
+            node(),
+            node(),
+            node(),
+            node(target=(event(duration=0),)),
+            links=(Relation(("/clock/3",), "inserts", ("/clock/3/target/0",)),),
+        )
+        assert current.resolve(str(expected["anchor"])).kind is EndpointKind.COARSE_TICK
+        return
+    if "input" in case or "span" in case:
+        gaps = len(case.get("refiners", {}).get("1", ())) + 1  # type: ignore[union-attr]
+        if "span" in case:
+            raw_span = case["span"]
+            assert isinstance(raw_span, dict)
+
+            def build() -> object:
+                return graph(
+                    node(),
+                    node(
+                        gaps,
+                        unit=(
+                            event(
+                                span=RefinedSpan(
+                                    str(raw_span["start"]), str(raw_span["end"])
+                                )
+                            ),
+                        ),
+                    ),
+                    node(),
+                )
+
+        else:
+            current = graph(node(), node(gaps), node())
+
+            def build() -> object:
+                return current.canonical_endpoint(str(case["input"]))
+
+        if expected["verdict"] == "rejected-with-reason":
+            with pytest.raises(GraphValidationError, match=str(expected["reason"])):
+                build()
+        else:
+            assert build() == expected["endpoint"]
+        return
+    if "links" in case and case_id != "heterogeneous-phrase-contains-silence":
+
+        def replace(value: str) -> str:
+            return value.replace("/analysis/", "/top/").replace(
+                "/delivery/", "/variant/"
+            )
+
+        links = tuple(Relation(tuple(map(replace, x[0])), x[1], tuple(map(replace, x[2]))) for x in case["links"])  # type: ignore[union-attr]
+
+        def build() -> object:
+            return choice_graph(links)
+
+        if expected["verdict"] == "rejected-with-reason":
+            with pytest.raises(GraphValidationError, match=str(expected["reason"])):
+                build()
+        else:
+            assert build()
+        return
+    if case_id == "heterogeneous-phrase-contains-silence":
+        declared = Declarations(
+            tuple(
+                TierDeclaration(name, frozenset({"class"}))
+                for name in ("phrase", "segment", "word")
+            ),
+            (FeatureDeclaration("class"),),
+            (RelationDeclaration("contains", containment=True),),
+        )
+        nodes = [ClockNode() for _ in range(9)]
+        nodes[0] = ClockNode(
+            groups=(
+                EventGroup("phrase", (event(),)),
+                EventGroup("segment", (Event({"class": "silence"}),)),
+            )
+        )
+        nodes[1] = ClockNode(groups=(EventGroup("word", (event(),)),))
+        nodes[4] = ClockNode(groups=(EventGroup("word", (event(),)),))
+        nodes[7] = ClockNode(
+            groups=(EventGroup("segment", (Event({"class": "silence"}),)),)
+        )
+        raw_link = case["links"][0]  # type: ignore[index]
+        current = Graph(
+            declared,
+            tuple(nodes),
+            (Relation(tuple(raw_link[0]), raw_link[1], tuple(raw_link[2])),),
+        )
+        assert [
+            current.resolve(ref).tier
+            for ref in current.direct_children("/clock/0/phrase/0")
+        ] == expected["direct_child_tiers"]
+        return
+    if "event" in case:
+        raw = case["event"]
+        assert isinstance(raw, dict)
+        tick = int(str(raw["path"]).split("/")[2])
+        tier = str(raw["path"]).split("/")[3]
+        features = raw.get("features", {})
+        item = Event(features, raw.get("duration"), RefinedSpan(**raw["span"]) if "span" in raw else None, Timing(**raw["timing"]) if "timing" in raw else None)  # type: ignore[arg-type]
+        nodes = [
+            ClockNode()
+            for _ in range(max(tick + (item.structural_duration or 0) + 1, 3))
+        ]
+        nodes[tick] = ClockNode(groups=(EventGroup(tier, (item,)),))
+        if item.span is not None:
+            nodes[1] = ClockNode(2)
+        declared = Declarations(
+            (TierDeclaration(tier, frozenset(features)),),
+            tuple(FeatureDeclaration(name) for name in features),
+            (),
+        )
+        current = Graph(declared, tuple(nodes))
+        restored = Graph.from_data(declared, current.to_data())
+        assert restored.resolve(str(raw["path"])).event is not None
+        return
+    if "link" in case:
+        raw_link = case["link"]
+        assert isinstance(raw_link, list)
+        constraints = case["endpoint_constraints"]
+        assert isinstance(constraints, dict)
+        kind_map = {kind.value: kind for kind in EndpointKind}
+        relation_declaration = RelationDeclaration(
+            str(raw_link[1]),
+            source_kinds=frozenset(kind_map[name] for name in constraints["source"]),
+            target_kinds=frozenset(kind_map[name] for name in constraints["target"]),
+        )
+        tiers = sorted(
+            {
+                parts[3]
+                for pointer in raw_link[0] + raw_link[2]
+                if len(parts := pointer.split("/")) == 5 and parts[3] != "gaps"
+            }
+        )
+        declared = Declarations(
+            tuple(TierDeclaration(name) for name in tiers), (), (relation_declaration,)
+        )
+        nodes = [ClockNode(), ClockNode(2), ClockNode()]
+        for tick in (0, 1):
+            groups = []
+            for tier in tiers:
+                maximum = max(
+                    (
+                        int(pointer.rsplit("/", 1)[1])
+                        for pointer in raw_link[0] + raw_link[2]
+                        if pointer.startswith(f"/clock/{tick}/{tier}/")
+                    ),
+                    default=-1,
+                )
+                if maximum >= 0:
+                    groups.append(
+                        EventGroup(tier, tuple(event() for _ in range(maximum + 1)))
+                    )
+            nodes[tick] = ClockNode(2 if tick == 1 else 1, tuple(groups))
+
+        def build() -> object:
+            return Graph(
+                declared,
+                tuple(nodes),
+                (Relation(tuple(raw_link[0]), raw_link[1], tuple(raw_link[2])),),
+            )
+
+        if expected["verdict"] == "rejected-with-reason":
+            with pytest.raises(GraphValidationError, match="coarse-tick"):
+                build()
+        else:
+            assert build()
+        return
+    raise AssertionError(f"fixture case lacks an owner or kernel adapter: {case_id}")
 
 
 def test_kernel_contains_no_profile_vocabulary() -> None:
