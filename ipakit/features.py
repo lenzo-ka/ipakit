@@ -1780,7 +1780,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         segmental, prosodic = self._query_constraints(query)
         return [
             (i, unit)
-            for i, unit in enumerate(self.segments(ipa))
+            for i, unit in enumerate(self.read(ipa).segments)
             if self._satisfies(
                 unit.scalar(with_defaults=with_defaults),
                 _prosodic_features(unit, self),
