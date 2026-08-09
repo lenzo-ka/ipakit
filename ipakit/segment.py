@@ -1027,26 +1027,39 @@ class Segment:
         return "".join(stress) + self.spelling + "".join(trailing)
 
     def to_json(self) -> str:
-        return json.dumps(
-            {
-                "v": _JSON_VERSION,
-                "constituents": [
-                    {
-                        "base": c.base,
-                        "modifiers": list(c.modifiers),
-                        "approach": list(c.approach),
-                    }
-                    for c in self.constituents
-                ],
-                "junctures": [j.value for j in self.junctures],
-                "prosody": list(self.prosody),
-            },
-            ensure_ascii=False,
-        )
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the versioned, JSON-compatible structured representation.
+
+        This is the non-string counterpart of :meth:`to_json`.  Keeping it
+        public lets a :class:`~ipakit.form.Form` embed segments without a
+        JSON-encode/JSON-decode detour or a second serialization schema.
+        """
+        return {
+            "v": _JSON_VERSION,
+            "constituents": [
+                {
+                    "base": c.base,
+                    "modifiers": list(c.modifiers),
+                    "approach": list(c.approach),
+                }
+                for c in self.constituents
+            ],
+            "junctures": [j.value for j in self.junctures],
+            "prosody": list(self.prosody),
+        }
 
     @classmethod
     def from_json(cls, data: str, features: IPAFeatures | None = None) -> Segment:
         obj: dict[str, Any] = json.loads(data)
+        return cls.from_dict(obj, features)
+
+    @classmethod
+    def from_dict(
+        cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
+    ) -> Segment:
+        """Read the representation returned by :meth:`to_dict`."""
         version = obj.get("v")
         if version != _JSON_VERSION:
             raise ValueError(f"unsupported Segment JSON version: {version!r}")

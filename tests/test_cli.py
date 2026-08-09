@@ -693,12 +693,12 @@ class TestRuleUnitsKeepTheBoundariesTokenizeDrops:
         self, monkeypatch, capsys
     ):
         """Two differences, both load-bearing for a rule: `tokenize` drops
-        the boundary a rule may name, and splits the stress mark off the
-        nucleus it belongs to. A rule unit carries its own prosody."""
+        the boundary a rule may name. Both projections now attach stress to
+        the nucleus it belongs to; a rule unit additionally keeps boundaries."""
         units = run(monkeypatch, capsys, "rules", "units", "bˈʌ.tɚ")
         tokens = run(monkeypatch, capsys, "convert", "tokenize", "bˈʌ.tɚ")
         assert units[1] == "b ˈʌ . t ɚ\n"
-        assert tokens[1] == "b ˈ ʌ t ɚ\n"
+        assert tokens[1] == "b ˈʌ t ɚ\n"
 
     def test_a_word_mark_is_a_unit_too(self, monkeypatch, capsys):
         rc, out, _ = run(monkeypatch, capsys, "rules", "units", "kæt#dɒɡ")
@@ -721,6 +721,46 @@ class TestRuleUnitsKeepTheBoundariesTokenizeDrops:
         rc, out, _ = run(monkeypatch, capsys, "rules", "units", "kæt", "bˈʌ.tɚ")
         assert rc == 0
         assert out.splitlines() == ["k æ t", "b ˈʌ . t ɚ"]
+
+
+class TestRepresentationCommands:
+    def test_to_json_emits_the_complete_representation(self, monkeypatch, capsys):
+        rc, out, err = run(
+            monkeypatch,
+            capsys,
+            "convert",
+            "to-json",
+            "kæt.ˈ.dɒɡ",
+            "--strict",
+        )
+        assert rc == 0
+        assert err == ""
+        representation = json.loads(out)
+        assert representation["type"] == "ipakit.form"
+        assert representation["v"] == 1
+        assert representation["spelling"] == "kæt.ˈ.dɒɡ"
+        assert [
+            unit["segment"]["prosody"]
+            for unit in representation["units"]
+            if unit["segment"] is not None
+        ] == [[], [], [], ["ˈ"], [], []]
+        assert all("timing" in unit for unit in representation["units"])
+
+    def test_json_round_trip_through_cli(self, monkeypatch, capsys):
+        parsed = ipakit.read("#kæt.ˈ.dɒɡ#", strict=True)
+        rc, out, err = run(
+            monkeypatch,
+            capsys,
+            "convert",
+            "from-json",
+            parsed.to_json(),
+        )
+        assert (rc, out, err) == (0, "#kæt.ˈ.dɒɡ#\n", "")
+
+    def test_from_json_reads_stdin(self, monkeypatch, capsys):
+        monkeypatch.setattr("sys.stdin", io.StringIO(ipakit.read("kæt").to_json()))
+        rc, out, err = run(monkeypatch, capsys, "convert", "from-json", "-")
+        assert (rc, out, err) == (0, "kæt\n", "")
 
 
 class TestListingTheShippedRuleSets:
@@ -1174,7 +1214,6 @@ def _library_only_functions():
 #: this lane was opened to close.
 LIBRARY_ONLY = {
     # Take or return Python objects a command line cannot hold.
-    "to_ipa": "takes a list of Segment objects",
     "import_phoneset": "takes and returns a Phoneset",
     "levels": "returns the boundary ladder, outermost first",
     "tier_names": "the vocabulary an Interval is checked against; 'features' prints it",

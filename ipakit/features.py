@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from ._convert import longest_match, require_convertible
 from .analysis import AnalysisMixin
@@ -52,6 +52,9 @@ from .segment import (
     takes_defaults,
 )
 from .validation import ValidationMixin
+
+if TYPE_CHECKING:
+    from .form import Form
 
 #: What a resolved query term carries: one value, or a set of them.
 _T = TypeVar("_T")
@@ -1777,7 +1780,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         segmental, prosodic = self._query_constraints(query)
         return [
             (i, unit)
-            for i, unit in enumerate(self.segments(ipa))
+            for i, unit in enumerate(self.read(ipa).segments)
             if self._satisfies(
                 unit.scalar(with_defaults=with_defaults),
                 _prosodic_features(unit, self),
@@ -2864,9 +2867,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             >>> IPAFeatures().tokenize("t͡ʃa")
             ['t͡ʃ', 'a']
         """
+        if phoneset is not None:
+            return [
+                unicodedata.normalize("NFC", base + "".join(diacs))
+                for base, diacs in self.parse(ipa, phoneset=phoneset, strict=strict)
+            ]
+        parsed = self.read(ipa, strict=strict)
+        opaque = boundary_marks(self)
         return [
-            unicodedata.normalize("NFC", base + "".join(diacs))
-            for base, diacs in self.parse(ipa, phoneset=phoneset, strict=strict)
+            unicodedata.normalize("NFC", unit.text)
+            for unit in parsed.units
+            if unit.segment is not None or unit.text in opaque
         ]
 
     def segmented(
@@ -2878,7 +2889,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Parse IPA string and return whitespace-separated segments."""
         return " ".join(self.tokenize(ipa, phoneset=phoneset, strict=strict))
 
-    def parse(
+    def _parse_all(
         self,
         segment: str,
         phoneset: Phoneset | None = None,
@@ -3018,7 +3029,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # reported as an unregistered symbol -- the parser
                 # calling unknown what ``<zeros>`` declares, and
                 # shortening the string to say so.
-                if not (segment[i].isspace() or segment[i] in unitless):
+                if segment[i].isspace() or segment[i] in unitless:
+                    # Preserve every registered non-segmental position in
+                    # the canonical scan. Public ``parse`` projects the
+                    # separators/zeros/space it historically dropped; Form
+                    # consumes them here, from this same pass.
+                    result.append((segment[i], []))
+                else:
                     skipped.append(segment[i])
                 i += 1
 
@@ -3050,6 +3067,24 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 )
 
         return result
+
+    def parse(
+        self,
+        segment: str,
+        phoneset: Phoneset | None = None,
+        strict: bool = False,
+    ) -> list[tuple[str, list[str]]]:
+        """Compatibility projection of the canonical token scan.
+
+        Segment and opaque structural tokens are retained; separators,
+        structural zeros, and whitespace are the positions this historical
+        API drops. :meth:`read` is the lossless ingestion boundary.
+        """
+        scanned = self._parse_all(segment, phoneset=phoneset, strict=strict)
+        dropped = set(self.separators) | set(self.zeros)
+        return [
+            item for item in scanned if not (item[0].isspace() or item[0] in dropped)
+        ]
 
     def _modifier_run(self, text: str, start: int) -> list[str]:
         """The run of modifier diacritics starting at ``text[start]``.
@@ -3113,27 +3148,69 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         :attr:`Segment.prosody`.
         """
         result: list[tuple[str, dict[str, str]]] = []
-        for base, diacritics in self.parse(segment, phoneset=phoneset):
-            unit = self._segment_from_parsed(base, diacritics)
-            if unit is None:
-                continue
+        parsed_units = (
+            [
+                unit
+                for base, diacritics in self.parse(segment, phoneset=phoneset)
+                if (unit := self._segment_from_parsed(base, diacritics)) is not None
+            ]
+            if phoneset is not None
+            else list(self.read(segment).segments)
+        )
+        for unit in parsed_units:
+            # This compatibility projection has never represented prefix
+            # stress: it returns segmental bundles, whereas Form retains
+            # stress on the occurrence. Project it away only here, after the
+            # canonical read, instead of giving it a second parse path.
+            projected = dataclasses.replace(
+                unit,
+                prosody=tuple(
+                    mark for mark in unit.prosody if mark not in self.stress_markers
+                ),
+            )
             # The unit's own flat projection, undefaulted: a mark belongs
             # to the constituent it is written on, and a mark that adds
             # what the base leaves unstated has to land before defaults do.
-            if not (feats := unit.scalar(with_defaults=False)):
+            if not (feats := projected.scalar(with_defaults=False)):
                 continue
             apply_modifiers(
-                self, feats, unit.prosody, prosody=True, where=repr(unit.to_ipa())
+                self,
+                feats,
+                projected.prosody,
+                prosody=True,
+                where=repr(projected.to_ipa()),
             )
             if with_defaults:
                 fill_defaults(self, feats)
-            token = unicodedata.normalize("NFC", base + "".join(diacritics))
-            result.append((token, feats))
+            result.append((unicodedata.normalize("NFC", projected.to_ipa()), feats))
         return result
 
     # -------------------------------------------------------------------------
     # Structured segments (docs/ties.md; design spec)
     # -------------------------------------------------------------------------
+
+    def read(self, text: str | Form, strict: bool = False) -> Form:
+        """Parse an IPA transcription into its canonical structured form.
+
+        This is the lossless ingestion boundary.  Computation should carry
+        the returned :class:`~ipakit.form.Form` and take named projections
+        from it instead of tokenizing or reparsing the source string.
+        ``strict=True`` refuses any material that cannot be represented.
+        """
+        from .form import Form
+
+        if isinstance(text, Form):
+            return text
+
+        return Form.from_parsed(
+            text, self._parse_all(text, strict=strict), self, strict
+        )
+
+    def read_json(self, data: str) -> Form:
+        """Restore a canonical representation serialized by ``Form.to_json``."""
+        from .form import Form
+
+        return Form.from_json(data, self)
 
     def segments(self, text: str, strict: bool = False) -> list[Segment]:
         """Parse IPA text into structured :class:`Segment` units.
@@ -3167,12 +3244,30 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         :meth:`tokenize`; ``strict=True`` raises instead, which is what
         guarantees ``to_ipa(segments(text)) == text``.
         """
-        result: list[Segment] = []
+        return list(self.read(text, strict=strict).segments)
+
+    def _segments_from_parsed(
+        self, parsed: Sequence[tuple[str, list[str]]], strict: bool
+    ) -> list[Segment]:
+        """Build segments from one canonical token scan."""
+        return [
+            segment
+            for _, segment in self._units_from_parsed(parsed, strict)
+            if segment is not None
+        ]
+
+    def _units_from_parsed(
+        self, parsed: Sequence[tuple[str, list[str]]], strict: bool
+    ) -> list[tuple[str, Segment | None]]:
+        """Attach one scan while retaining its structural token positions."""
+        result: list[tuple[str, Segment | None]] = []
         pending_stress: list[str] = []
         superseded: list[str] = []
         unplaced: list[str] = []
-        for token in self.tokenize(text, strict=strict):
+        for base, diacritics in parsed:
+            token = unicodedata.normalize("NFC", base + "".join(diacritics))
             if token and all(ch in self.stress_markers for ch in token):
+                result.append((token, None))
                 pending_stress.extend(token)
                 # Stress is a single-valued feature of a syllable, so a
                 # unit cannot carry two of these. The nearest mark binds:
@@ -3182,14 +3277,24 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     superseded.extend(pending_stress[:-1])
                     pending_stress = pending_stress[-1:]
                 continue
-            seg = self._segment_from_token(token, tuple(pending_stress))
+            if token.isspace() or token in self.carries_no_segment:
+                result.append((token, None))
+                continue
+            # ``base`` and ``diacritics`` are already the canonical scan's
+            # unit. Building from them is the point of this path: feeding
+            # ``token`` back through ``_segment_from_token`` would perform a
+            # second tokenization once for every segment in the form.
+            seg = self._segment_from_parsed(base, diacritics, tuple(pending_stress))
             # A token that carries no unit has nothing to take the stress,
             # so the mark stays pending for the unit that does.
             if seg is not None:
                 pending_stress = []
-                result.append(seg)
+                result.append((token, seg))
             elif not self.is_structural_token(token):
                 unplaced.append(token)
+                result.append((token, None))
+            else:
+                result.append((token, None))
         self._report_unplaced(superseded, pending_stress, unplaced, strict)
         return result
 

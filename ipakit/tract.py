@@ -1483,7 +1483,9 @@ def score(features: IPAFeatures, word: str) -> tuple[Posture, ...]:
     poses on; a caller drawing on another head reads its rest through
     :func:`blend`'s own output, which carries a ``rest`` for silence.
     """
-    return tuple(posture(features, unit) for unit in features.tokenize(word))
+    return tuple(
+        posture(features, unit.to_ipa()) for unit in features.read(word).segments
+    )
 
 
 def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:

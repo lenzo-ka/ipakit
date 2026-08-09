@@ -152,7 +152,7 @@ class CMUMapper:
         lookup = self._ipa_lookup(include_extras)
         markers = _stress_markers()
         read = _Read()
-        for unit in features.segments(ipa_string, strict=strict):
+        for unit in features.read(ipa_string, strict=strict).segments:
             stress = next((m for m in unit.prosody if m in markers), None)
             carried = [m for m in unit.prosody if m not in markers]
             if (row := self._row(unit.spelling, lookup)) is None:

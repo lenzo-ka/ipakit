@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from .base import Command, CommandGroup, add_convert_strict_arg, add_format_arg
 
@@ -230,6 +231,65 @@ class TokenizeCommand(Command):
         return 0
 
 
+class ToJsonCommand(Command):
+    """Parse IPA into the complete, versioned internal representation.
+
+    The JSON carries structured segments, resolved feature/prosody views,
+    boundaries, zeros, tier intervals, optional timing, and exact spelling.
+
+    Examples:
+        ipakit convert to-json "#kæt.dɒɡ#"
+        ipakit c to-json "kæt.ˈ.dɒɡ" --strict
+    """
+
+    name = "to-json"
+    aliases = ["repr"]
+    help = "Parse IPA into the complete JSON representation"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.add_argument("ipa", help="IPA string to parse")
+        add_convert_strict_arg(parser)
+
+    def run(self) -> int:
+        self.output_json(
+            self.ipa.read(self.args.ipa, strict=self.args.strict).to_dict()
+        )
+        return 0
+
+
+class FromJsonCommand(Command):
+    """Restore a JSON representation and emit its IPA spelling.
+
+    Pass ``-`` to read JSON from standard input.
+
+    Examples:
+        ipakit convert from-json '{"v": 1, ...}'
+        ipakit convert to-json "kæt" | ipakit convert from-json -
+    """
+
+    name = "from-json"
+    aliases = []
+    help = "Restore the JSON representation and emit IPA"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.add_argument("representation", help="JSON text, or - for stdin")
+
+    def run(self) -> int:
+        data = (
+            sys.stdin.read()
+            if self.args.representation == "-"
+            else self.args.representation
+        )
+        self.print(self.ipa.read_json(data).to_ipa())
+        return 0
+
+
 class AddTiesCommand(Command):
     """Add tie bars between phones in a multi-phone segment.
 
@@ -438,5 +498,7 @@ class ConvertGroup(CommandGroup):
         FromKirshenbaumCommand,
         NormalizeCommand,
         TokenizeCommand,
+        ToJsonCommand,
+        FromJsonCommand,
         AddTiesCommand,
     ]

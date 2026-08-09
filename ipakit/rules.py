@@ -711,7 +711,7 @@ def _reads_as(text: str, features: IPAFeatures) -> list[Unit]:
     """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        return list(units(text, features))
+        return list(features.read(text).units)
 
 
 #: Said in both refusals below, because the mistake it describes reaches
@@ -2036,7 +2036,8 @@ def _read(
     if isinstance(form, Form):
         return form.units, form.intervals
     if isinstance(form, str):
-        return units(form, features), ()
+        parsed = features.read(form)
+        return parsed.units, parsed.intervals
     return form, ()
 
 

@@ -31,6 +31,12 @@ def ipa() -> IPAFeatures:
     return IPAFeatures()
 
 
+def test_segment_dict_is_the_json_representation(ipa: IPAFeatures) -> None:
+    segment = ipa.segment("ⁿd͡ʒʷː")
+    assert json.loads(segment.to_json()) == segment.to_dict()
+    assert Segment.from_dict(segment.to_dict(), ipa) == segment
+
+
 class TestKindTotality:
     CASES = [
         ("a", Kind.ATOMIC),

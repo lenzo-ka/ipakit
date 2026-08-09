@@ -42,6 +42,14 @@ class TestConvenienceFunctions:
         result = ipakit.tokenize("pat")
         assert result == ["p", "a", "t"]
 
+    def test_read_and_read_json_share_the_representation(self) -> None:
+        parsed = ipakit.read("kæt.ˈ.dɒɡ", strict=True)
+        restored = ipakit.read_json(parsed.to_json())
+        assert restored == parsed
+        assert restored.to_ipa() == "kæt.ˈ.dɒɡ"
+        assert "read" in ipakit.__all__
+        assert "read_json" in ipakit.__all__
+
     def test_segmented(self) -> None:
         assert ipakit.segmented("pat") == "p a t"
 

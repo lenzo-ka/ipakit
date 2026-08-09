@@ -529,7 +529,7 @@ class DistanceMixin(IPAFeaturesBase):
         is 0.0 for the same reason.
         """
         for arg in (phone1, phone2):
-            units = self.segments(arg)  # type: ignore[attr-defined]
+            units = self.read(arg).segments
             if len(units) > 1:
                 raise ValueError(
                     f"distance() compares single units; {arg!r} is "
@@ -537,8 +537,8 @@ class DistanceMixin(IPAFeaturesBase):
                     "or segment_distance() for segment strings."
                 )
         try:
-            s1 = self.segment(phone1)  # type: ignore[attr-defined]
-            s2 = self.segment(phone2)  # type: ignore[attr-defined]
+            (s1,) = self.read(phone1).segments
+            (s2,) = self.read(phone2).segments
         except ValueError:
             same = unicodedata.normalize("NFC", phone1) == unicodedata.normalize(
                 "NFC", phone2
@@ -578,8 +578,8 @@ class DistanceMixin(IPAFeaturesBase):
         """
         from .metric import GAP_COST, segment_metric
 
-        t1 = self.segments(seg1)  # type: ignore[attr-defined]
-        t2 = self.segments(seg2)  # type: ignore[attr-defined]
+        t1 = self.read(seg1).segments
+        t2 = self.read(seg2).segments
         max_len = max(len(t1), len(t2))
         if max_len == 0:
             return 0.0
@@ -679,7 +679,7 @@ class DistanceMixin(IPAFeaturesBase):
         number computed from truncated input.
         """
         for text in texts:
-            self.parse(text, strict=True)  # type: ignore[attr-defined]
+            self.read(text, strict=True)
 
     def _word_units(self, text: str) -> list[str]:
         """The units a word aligns over: one per segment, each with its prosody
@@ -687,7 +687,7 @@ class DistanceMixin(IPAFeaturesBase):
         unit it scopes rather than floating as its own token. Boundaries are
         dropped -- transparent to distance. Identical to the former glyph
         tokenization for any word carrying no prosodic mark."""
-        return [s.to_ipa() for s in self.segments(text)]  # type: ignore[attr-defined]
+        return [s.to_ipa() for s in self.read(text).segments]
 
     def word_distance(
         self,

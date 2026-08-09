@@ -125,26 +125,15 @@ class TestTheWarningNamesTheDiscardedConstituent:
         # byte-faithful round trip is what Form exists for. Reporting must
         # leave every flagged form spelling itself back out.
         checked = 0
-        for text in sorted(EMPTY - {"kæt.ˈ.dɒɡ"}):  # see the next class
+        for text in sorted(EMPTY):
             ipa.validate_ipa(text)
             assert Form.parse(text).to_ipa() == text, text
             checked += 1
         assert checked >= 8, "the round-trip sweep did not run"
 
 
-class TestAStressMarkBeforeASeparatorIsADifferentDisagreementAgain:
-    """Found while pinning the round trip, pre-existing at c8d742e, and not
-    fixed here: ``form.py`` belongs to another lane.
-
-    ``validate_ipa`` and ``segments`` both read the stress mark in
-    ``'kæt.ˈ.dɒɡ'`` as binding ``d`` -- separators are transparent to
-    stress binding -- and ``segments`` puts it in ``d``'s prosody.
-    ``Form.parse`` flushes its buffer at the separator, so it hands
-    ``segments`` the bare mark, calls it unbound, warns, and **drops it**.
-    The form then does not spell itself back out, which is the one thing
-    ``Form`` advertises. Same defect class as this file's subject: two
-    layers, two readings, and the loud one is the one that is wrong.
-    """
+class TestStressAttachmentHasOneReadAcrossBoundaries:
+    """The canonical reader preserves spelling and attaches semantics once."""
 
     def test_the_segmental_layer_binds_it(self, ipa: IPAFeatures) -> None:
         stressed = [s for s in ipa.segments("kæt.ˈ.dɒɡ") if s.prosody]
@@ -156,11 +145,13 @@ class TestAStressMarkBeforeASeparatorIsADifferentDisagreementAgain:
         assert "unbound_stress" not in codes(ipa, "kæt.ˈ.dɒɡ")
 
     @pytest.mark.parametrize("form", ["kæt.ˈ.dɒɡ", "kæt.ˈ dɒɡ", "kæt.ˈ#dɒɡ"])
-    def test_the_form_layer_still_drops_it(self, form: str) -> None:
-        # When form.py stops disagreeing, this fails -- and the exclusion
-        # in test_nothing_is_repaired above can come out.
-        with pytest.warns(UserWarning, match="unbound stress mark"):
-            assert Form.parse(form).to_ipa() != form
+    def test_the_form_layer_agrees_and_round_trips(self, form: str) -> None:
+        parsed = Form.parse(form)
+        stressed = [segment for segment in parsed.segments if segment.prosody]
+        assert [(s.constituents[0].base, s.prosody) for s in stressed] == [
+            ("d", ("ˈ",))
+        ]
+        assert parsed.to_ipa() == form
 
 
 class TestTheFlaggedSetIsExactlyThis:

@@ -20,6 +20,8 @@ broken for one above it.
 
 from __future__ import annotations
 
+import dataclasses
+
 import ipakit
 import ipakit.rules as R
 import pytest
@@ -28,6 +30,7 @@ from ipakit.form import (
     Attribute,
     Form,
     Node,
+    Timing,
     boundary_marks,
     edge_level,
     levels,
@@ -66,6 +69,154 @@ class TestAFormCarriesEverythingItWasWrittenWith:
         text = "#kæt.dɒɡ#"
         assert ipakit.to_ipa(ipakit.segments(text)) != text
         assert Form.parse(text, FEATURES).to_ipa() == text
+
+
+class TestFormSerialization:
+    def test_round_trip_carries_the_complete_representation(self):
+        source = Form.parse("#ⁿd͡ʒʷ.ˈaː∅#", FEATURES)
+        form = Form.of(
+            source.units,
+            [ipakit.Interval("mora", 1, 4, FEATURES)],
+        )
+
+        restored = Form.from_json(form.to_json(), FEATURES)
+
+        assert restored == form
+        assert restored.to_ipa() == form.to_ipa()
+        assert restored.segments == form.segments
+        assert restored.intervals == form.intervals
+        assert [dict(unit.features) for unit in restored.units] == [
+            dict(unit.features) for unit in form.units
+        ]
+        assert [dict(unit.prosody) for unit in restored.units] == [
+            dict(unit.prosody) for unit in form.units
+        ]
+        assert [unit.provenance for unit in restored.units] == [
+            unit.provenance for unit in form.units
+        ]
+
+    def test_dict_and_json_use_one_schema(self):
+        form = Form.parse("kˌæn.tˈiːn", FEATURES)
+        assert Form.from_dict(form.to_dict(), FEATURES) == form
+        assert Form.from_json(form.to_json(), FEATURES).to_dict() == form.to_dict()
+
+    def test_unknown_version_is_refused(self):
+        with pytest.raises(ValueError, match="unsupported Form JSON version"):
+            Form.from_json(
+                '{"type": "ipakit.form", "v": 99, "units": [], "intervals": []}',
+                FEATURES,
+            )
+
+    def test_representation_type_is_explicit(self):
+        assert Form.parse("a", FEATURES).to_dict()["type"] == "ipakit.form"
+        with pytest.raises(ValueError, match="unsupported representation type"):
+            Form.from_json(
+                '{"type": "something.else", "v": 1, "units": [], "intervals": []}',
+                FEATURES,
+            )
+
+    def test_serialized_derived_views_cannot_disagree(self):
+        representation = Form.parse("ˈa", FEATURES).to_dict()
+        representation["units"][0]["prosody"]["stress"] = "secondary"
+        with pytest.raises(ValueError, match="views disagree with segment"):
+            Form.from_dict(representation, FEATURES)
+
+    def test_occurrence_and_tier_timings_round_trip(self):
+        source = Form.parse("a.ta", FEATURES)
+        timed_units = tuple(
+            dataclasses.replace(unit, timing=Timing(i * 0.1, 0.1))
+            for i, unit in enumerate(source.units)
+        )
+        form = Form.of(
+            timed_units,
+            [ipakit.Interval("mora", 0, len(timed_units), FEATURES, Timing(0.0, 0.4))],
+        )
+
+        restored = Form.from_json(form.to_json(), FEATURES)
+        assert restored == form
+        assert [unit.timing for unit in restored.units] == [
+            unit.timing for unit in timed_units
+        ]
+        assert restored.intervals[0].timing == Timing(0.0, 0.4)
+        assert restored.to_dict()["units"][0]["timing"] == {
+            "start": 0.0,
+            "duration": 0.1,
+        }
+
+    @pytest.mark.parametrize(
+        "start,duration,message",
+        [
+            (-0.1, 0.0, "starts before zero"),
+            (0.2, -0.1, "duration is negative"),
+            (0.0, float("inf"), "must be finite"),
+        ],
+    )
+    def test_invalid_timing_is_refused(self, start, duration, message):
+        with pytest.raises(ValueError, match=message):
+            Timing(start, duration)
+
+    def test_a_point_target_has_zero_duration(self):
+        timing = Timing(0.25, 0.0)
+        assert timing.duration == 0.0
+        assert timing.end == 0.25
+
+
+class TestTheCanonicalRead:
+    def test_one_read_performs_one_token_scan(self, monkeypatch):
+        calls = 0
+        original = FEATURES._parse_all
+
+        def counted(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(FEATURES, "_parse_all", counted)
+        form = FEATURES.read("#kæt.ˈ.dɒɡ#", strict=True)
+        assert form.to_ipa() == "#kæt.ˈ.dɒɡ#"
+        assert calls == 1
+
+    def test_reading_a_form_is_identity_and_never_scans(self, monkeypatch):
+        form = FEATURES.read("kæt")
+
+        def scanned_again(*args, **kwargs):
+            raise AssertionError("an existing Form was parsed again")
+
+        monkeypatch.setattr(FEATURES, "_parse_all", scanned_again)
+        assert FEATURES.read(form) is form
+
+    def test_inventory_read_is_form_parse(self):
+        text = "#kˌæn.tˈiːn∅#"
+        assert FEATURES.read(text) == Form.parse(text, FEATURES)
+
+    def test_strictness_reaches_the_single_ingestion_boundary(self):
+        with pytest.raises(ValueError, match="Cannot convert IPA segment"):
+            FEATURES.read("kæt!", strict=True)
+
+    def test_stress_crosses_every_declared_boundary_without_two_reads(self):
+        marks = sorted(set(FEATURES.separators) | set(boundary_marks(FEATURES)) | {" "})
+        assert marks
+        for left in marks:
+            for right in marks:
+                text = f"a{left}ˈ{right}ta"
+                parsed = FEATURES.read(text, strict=True)
+                assert parsed.to_ipa() == text
+                assert [segment.to_ipa() for segment in parsed.segments] == [
+                    "a",
+                    "ˈt",
+                    "a",
+                ]
+
+    def test_nonlocal_spelling_survives_json(self):
+        parsed = FEATURES.read("kæt.ˈ.dɒɡ", strict=True)
+        restored = Form.from_json(parsed.to_json(), FEATURES)
+        assert restored == parsed
+        assert restored.to_ipa() == "kæt.ˈ.dɒɡ"
+        assert [segment.to_ipa() for segment in restored.segments] == list("kæt") + [
+            "ˈd",
+            "ɒ",
+            "ɡ",
+        ]
 
 
 class TestEachProjectionDropsExactlyWhatItNames:
