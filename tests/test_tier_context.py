@@ -481,11 +481,14 @@ class TestNothingNamedTierAnswersWithALevel:
     def test_every_tier_named_read_answers_with_a_declared_tier(self) -> None:
         declared = set(FEATURES.features["tier"].values)
         assert set(tier_names(FEATURES)) == declared
-        assert not declared & set(FEATURES.features["level"].values) - {"syllable"}
+        assert declared & set(FEATURES.features["level"].values) == {
+            "syllable",
+            "word",
+        }
 
     def test_and_the_two_vocabularies_are_not_the_same_vocabulary(self) -> None:
-        """``syllable`` is in both and means two different things: how
-        strong a boundary is, and which tier a span sits on. That overlap
+        """``syllable`` and ``word`` are in both and mean two different things:
+        how strong a boundary is, and which tier a span sits on. That overlap
         is why a function may not be named for one and answer with the
         other."""
         assert set(tier_names(FEATURES)) != set(FEATURES.features["level"].values)

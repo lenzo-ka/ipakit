@@ -1213,18 +1213,18 @@ class _CompatibilityProjection:
 
     @property
     def intervals(self) -> tuple[Interval, ...]:
-        from ._tiergraph_builder import _pointer_position
+        from ._tiergraph_builder import PositionHandle, _pointer_position
 
         if self._intervals is not None:
             return self._intervals
         indexed = []
-        for node in self.graph.clock:
+        for tick, node in enumerate(self.graph.clock):
             for group in node.groups:
                 for event in group.events:
                     index = event.features.get("compatibility-interval")
                     if not isinstance(index, int):
                         continue
-                    if event.span is None:
+                    if event.span is None and event.structural_duration is None:
                         raise FormProjectionError(
                             "compatibility interval has no exact span"
                         )
@@ -1235,16 +1235,20 @@ class _CompatibilityProjection:
                     )
                     interval = Interval.__new__(Interval)
                     object.__setattr__(interval, "tier", group.tier)
-                    object.__setattr__(
-                        interval,
-                        "start",
-                        self.coordinates.to_legacy(_pointer_position(event.span.start)),
+                    start = (
+                        _pointer_position(event.span.start)
+                        if event.span is not None
+                        else PositionHandle(tick)
+                    )
+                    end = (
+                        _pointer_position(event.span.end)
+                        if event.span is not None
+                        else PositionHandle(tick + event.structural_duration)
                     )
                     object.__setattr__(
-                        interval,
-                        "end",
-                        self.coordinates.to_legacy(_pointer_position(event.span.end)),
+                        interval, "start", self.coordinates.to_legacy(start)
                     )
+                    object.__setattr__(interval, "end", self.coordinates.to_legacy(end))
                     object.__setattr__(interval, "timing", timing)
                     indexed.append((index, interval))
         indexed.sort(key=lambda item: item[0])

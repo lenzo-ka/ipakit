@@ -138,3 +138,10 @@ files = ["ipakit"]
 module = "panphon.*"
 ignore_missing_imports = true
 follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# Optional C extension without a py.typed marker; align.py keeps the import
+# function-local and tests its runtime boundary with and without the extra.
+module = "pocketsphinx.*"
+ignore_missing_imports = true
+follow_imports = "skip"

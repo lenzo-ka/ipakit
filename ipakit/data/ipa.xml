@@ -441,14 +441,15 @@
          inventories are language-relative, the feature space and therefore
          `distance` are not.
 
-         `syllable` is deliberately spelled the same as `level`'s value and
-         is deliberately NOT declared `bare`. Two features claim the name
-         and they mean different things (a boundary at syllable strength
-         against the tier a span sits on), so a plain `syllable` in a query
-         is refused rather than resolved by which feature this file declares
-         first. Write `level=syllable` or `tier=syllable`. -->
+         `syllable` and `word` are deliberately spelled the same as `level`'s
+         values and are deliberately NOT declared `bare`. Two features claim
+         each name and mean different things (a boundary strength against the
+         tier a span sits on), so a plain name in a query is refused rather
+         than resolved by which feature this file declares first. Write
+         `level=syllable` or `tier=syllable`, for example. -->
     <feature name="tier" short="tir" type="categorical" mode="structural" desc="The tier an interval is declared on" href="Autosegmental_phonology">
       <value name="syllable" short="syl" href="Syllable"/>
+      <value name="word" short="wrd" href="Word"/>
       <value name="mora" short="mor" href="Mora_(linguistics)"/>
       <value name="morph" short="mph" href="Morpheme"/>
     </feature>
