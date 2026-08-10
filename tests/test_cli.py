@@ -819,6 +819,22 @@ class TestAttestedJapaneseAdaptationCommands:
         assert "not approximated" in err
 
 
+def _assert_flat_exports_are_inventoried(source, declared_exports, contract):
+    """Require both declared and syntactically visible flat exports in the table."""
+    exported = set(declared_exports)
+    for node in ast.parse(source).body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            if not node.name.startswith("_"):
+                exported.add(node.name)
+        elif isinstance(node, ast.ImportFrom):
+            for item in node.names:
+                name = item.asname or item.name
+                if not name.startswith("_"):
+                    exported.add(name)
+    missing = sorted(name for name in exported if f"`{name}`" not in contract)
+    assert not missing, f"flat exports missing from CLI capability contract: {missing}"
+
+
 class TestCapabilityInventoryContract:
     def test_every_row_has_exactly_one_contract_state(self):
         text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
@@ -834,24 +850,15 @@ class TestCapabilityInventoryContract:
     def test_every_intentional_flat_export_is_inventoried(self):
         """Keep a newly exported symbol from silently escaping the table."""
         source = (ROOT / "ipakit" / "__init__.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        exported = set()
-        for node in tree.body:
-            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-                if not node.name.startswith("_"):
-                    exported.add(node.name)
-            elif isinstance(node, ast.ImportFrom):
-                for item in node.names:
-                    name = item.asname or item.name
-                    if not name.startswith("_"):
-                        exported.add(name)
-        # Typing/future implementation imports are not the package's public API.
-        exported -= {"annotations", "Iterable", "Sequence", "Path", "Any"}
         contract = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
-        missing = sorted(name for name in exported if f"`{name}`" not in contract)
-        assert (
-            not missing
-        ), f"flat exports missing from CLI capability contract: {missing}"
+        _assert_flat_exports_are_inventoried(source, ipakit.__all__, contract)
+
+    def test_assignment_style_export_missing_from_contract_fails_the_gate(self):
+        source = "PUBLIC_NEW_CONST = 42\n__all__ = ['PUBLIC_NEW_CONST']\n"
+        with pytest.raises(AssertionError, match="PUBLIC_NEW_CONST"):
+            _assert_flat_exports_are_inventoried(
+                source, ["PUBLIC_NEW_CONST"], "| Capability | Public/API entry points |"
+            )
 
     def test_new_routes_are_named_by_top_level_and_group_help(
         self, monkeypatch, capsys
