@@ -1,5 +1,7 @@
 # Morphological boundaries: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 How should ipakit mark the boundary in *cat+s*, *un+happy*, *hand+ful* — the morphological seam, which no IPA symbol names and which the prosodic hierarchy has no rung for?
 
 **Verdict: BUILD IT, as a tier of its own, and make it transparent.** One separator, `+`, declaring a `morph` feature and no `level`, so `rules._reaches` never ranks it against `syllable`, `word`, `phrase`, `utterance`, and so context scanning steps over it unless a rule names it.

@@ -1,22 +1,22 @@
-# The gestural model (design note, post-release)
+# The gestural model
 
-*Not implemented. This records a model that the current representation is converging on, so the reasoning survives the release. The minimal articulator work (articulator declared per place value, phone-level overrides, an articulator term in distance) is a deliberate first step toward it and does not conflict with it.*
+The tier-graph backend now projects segment occurrences into declared gesture and articulatory-target tiers, and the animation traversal uses complete timed targets, then gestures, then structural segments as an explicit fallback. The larger dynamic model discussed below—gesture-set segment identity, articulator-keyed distance, and continuous phase relations—remains a historical design direction rather than implemented behavior; [representation.md](representation.md) is authoritative for the stored representation.
 
 ## The idea
 
-A constriction is a triple, and ipakit currently carries two thirds of it:
+A constriction is represented as a triple in the landed gesture projection:
 
 ```
 gesture = (articulator, location, degree)
            what moves    where      how close
-             [gap]        arc        offset
+          articulator      arc       offset
 ```
 
-`arc` and `offset` are already in the data as tract coordinates (`docs/ties.md`). The articulator — the organ that travels — is the missing third. This is the tract-variable framing of articulatory phonology (Browman & Goldstein): tongue-tip constriction location and degree, tongue-body constriction location and degree, lip aperture and protrusion, each an independent gestural dimension.
+`arc`, `offset`, and `articulator` are read from the inventory's tract declarations. This is the tract-variable framing of articulatory phonology (Browman & Goldstein): tongue-tip constriction location and degree, tongue-body constriction location and degree, lip aperture and protrusion, each an independent gestural dimension.
 
 ## What it unifies
 
-Once articulator is explicit, a segment is a **set of simultaneous gestures**, and several things ipakit currently models by separate machinery become one thing:
+Under the proposed larger model, a segment would be a **set of simultaneous gestures**, and several things still modeled by separate machinery would become one thing:
 
 | segment | gestures |
 |---|---|
@@ -44,10 +44,11 @@ This is the microbeam framing: pellets on articulators, tracked relative to plac
 
 A gesture says which articulator goes where, to what degree. Executing or drawing one needs the anatomy that constrains it: the fixed contours it moves against, the joints it pivots on, what carries what. [docs/tract-anatomy.md](tract-anatomy.md) specifies that — contours, articulators, degrees of freedom, and the constraint graph relating them — and sets out which of its quantities the current model declares and which such a geometry would compute instead. That correspondence is unbuilt work rather than a fact about the anchors: measured against area functions the declared consonant places hold and four of the vowels do not.
 
-## Staging
+## Historical staging
 
-1. **Minimal (shipped pre-release)**: articulator declared per place value with phone-level overrides where it differs (linguolabial, retroflex); `articulator` re-typed categorical over the real organ inventory; one articulator term in distance. Closes the visible gap (`t̼`, `t̺`, `t̻` were invisible to the metric) and gives the renderer its organ.
-2. **Gestural (post-release)**: segments carry gesture sets; secondary and double articulation unify; distance matches by articulator and drops the secondary weight fudge; the visualization engine consumes gestures directly.
+1. **Minimal (landed)**: articulator is declared per place value with phone-level overrides, participates in distance, and gives the renderer its organ.
+2. **Projection backend (landed)**: graph occurrences can carry gestures and timed targets, and animation consumes them with progressive fallback.
+3. **Dynamic gestural model (not implemented)**: segments carry gesture sets as identity, secondary and double articulation unify, distance matches by articulator, and phase relations become continuous.
 
 Step 1 is strictly a subset of what step 2 needs, so nothing done now has to be undone.
 

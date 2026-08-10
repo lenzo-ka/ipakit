@@ -205,6 +205,17 @@ identity, but about 0.5% of triples violate the triangle inequality. That is mea
 not feared, and [distance.md](distance.md) documents which uses it rules out and offers
 `ipakit.closure.MetricClosure` when you genuinely need the inequality.
 
+When a score needs an explanation, `explain_word_distance` exposes the alignment operation at each position and, for a substitution, the feature and tract terms that contributed to its cost.
+
+```python
+explanation = ipa.explain_word_distance("kæt", "kæd")
+[(step["op"], step["a"], step["b"]) for step in explanation]
+# [('match', 'k', 'k'), ('match', 'æ', 'æ'), ('sub', 't', 'd')]
+[term["label"] for term in explanation[-1]["terms"] if term["cost"] != 0]
+# ['voiced']
+sum(step["cost"] for step in explanation)  # 0.05
+```
+
 ## 3. What phones match a description?
 
 `phones_matching` takes the same query language the rule engine uses, so a pattern you
@@ -282,8 +293,7 @@ ipa.minimal_pairs("p")[:5]
 
 ## 4. Converting between notations
 
-Four ASCII and machine notations are supported in both directions. The round trip is the
-thing worth checking, and it holds:
+The supported ASCII and machine notations convert in both directions. The round trip is the thing worth checking, and it holds:
 
 ```python
 ipa.to_cmu("kˈæt")  # ['K', 'AE1', 'T']
@@ -386,6 +396,41 @@ Carry the widest reading you can and collapse at the point of use.
 [form.md](form.md) has the full account, including what `Form.rebuild` does and does not
 promise.
 
+### Build, navigate, and serialize a form
+
+`FormBuilder` constructs the same graph-backed `Form` without requiring an IPA string to express its hierarchy. Builder handles are temporary construction identities; after `build()`, navigation returns canonical graph paths.
+
+```python
+builder = ipa.FormBuilder()
+utterance = builder.begin("utterance")
+phrase = builder.begin("phrase")
+segment_nodes = builder.append_ipa("kæt")
+builder.end(phrase)
+builder.end(utterance)
+builder.contain(phrase, segment_nodes)
+builder.contain(utterance, (phrase,))
+builder.add_root(utterance)
+built = builder.build()
+
+built.to_ipa()  # 'kæt'
+built.direct_children(built.roots[0])  # ('/clock/0/phrase/0',)
+built.leaves(built.roots[0])
+# ('/clock/0/segment/0', '/clock/1/segment/0', '/clock/2/segment/0')
+```
+
+`Form.to_json()` is the version 2 compatibility wire: it preserves the established unit and interval coordinates while the `Form` itself stores the canonical tier graph. The default wire is lean. `self_contained=True` additionally embeds each IPA segment's resolved feature view, so restoration can validate that snapshot against the structured segment source instead of resolving it only from the inventory.
+
+```python
+import json
+
+lean_wire = json.loads(built.to_json())
+snapshot_wire = json.loads(built.to_json(self_contained=True))
+lean_wire["type"], lean_wire["v"]  # ('ipakit.form', 2)
+"features" in lean_wire["units"][0]  # False
+"features" in snapshot_wire["units"][0]  # True
+ipa.read_json(built.to_json()).to_ipa()  # 'kæt'
+```
+
 ## 6. Is this transcription well formed?
 
 ```python
@@ -430,7 +475,7 @@ $ ipakit rules apply -r "t -> ɾ / [vowel stress=primary] _ [vowel]" bˈʌtɚ
 bˈʌɾɚ
 ```
 
-Five rule sets ship with the library:
+The shipped rule sets are discoverable from the command line:
 
 ```console
 $ ipakit rules list
@@ -441,8 +486,7 @@ japanese-moraic
 spanish-accented-english
 ```
 
-`american-english` is the worked example: twelve ordered rules taking a broad, phonemic
-transcription to a narrow, phonetic one.
+`american-english` is the worked example: an ordered cascade taking a broad, phonemic transcription to a narrow, phonetic one.
 
 ```console
 $ ipakit rules list american-english
@@ -568,6 +612,25 @@ The two loanword sets are the insertion examples:
 ipa.rewrite("skul", shipped("spanish-accented-english"))  # 'eskul'
 ipa.rewrite("stap", shipped("spanish-accented-english"))  # 'estap'
 ```
+
+### English to katakana as attested loanword adaptation
+
+The `japanese-moraic` rules model established gairaigo adaptations, not imitation of Japanese speech and not accent conversion. The rewrite bridge preserves the broad input, each fired derivation layer, and derived morae on one graph-backed `Form`; the katakana codec renders only those morae. This worked example uses the attested adaptation of English *hot* as ホット.
+
+```python
+japanese = shipped("japanese-moraic")
+hot_derivation = japanese.derive("hɑt")
+hot_form = hot_derivation.to_form()
+hot_derivation.result  # 'hotːo'
+[event.features["value"] for node in hot_form._graph.clock for group in node.groups if group.tier == "mora" for event in group.events]
+# ['ho', 't', 'to']
+
+from ipakit._katakana_codec import render as render_katakana
+
+render_katakana(hot_form._graph)  # 'ホット'
+```
+
+The leading underscore on the codec module marks this as a backend surface rather than a stable top-level convenience API. Keeping the example executable still checks the complete rules → derivation → graph → derived morae → katakana path; applications should treat the attested fixture vocabulary as the codec's declared domain.
 
 ## 8. Writing your own rule set
 
@@ -757,17 +820,14 @@ express.
 
 ## 10. Looking at the articulation
 
-The feature data is backed by a declared vocal-tract geometry, and that geometry can be
-drawn. Thirteen mid-sagittal figures are checked in under [figures/](figures/) and
-regenerated with `make figures`:
+The feature data is backed by a declared vocal-tract geometry, and that geometry can be drawn. The checked-in mid-sagittal figures under [figures/](figures/) are regenerated with `make figures`:
 
 ```bash
 make figures
 ```
 
 Each is drawn through `Head.project` by `ipakit.tract_svg`, which computes no
-geometry of its own — so a figure that looks wrong is the model being wrong, which is
-how nine defects invisible to the test suite were found.
+geometry of its own — so a figure that looks wrong is the model being wrong, a route that has exposed defects invisible to the test suite.
 
 ![Mid-sagittal reference](figures/tract-reference.svg)
 
@@ -802,6 +862,31 @@ let each segment draw.
 [tract-anatomy.md](tract-anatomy.md) is the model itself. What the geometry can and
 cannot be checked against externally is in
 [articulatory-data.md](articulatory-data.md).
+
+The animation backend chooses the most specific complete description available: complete timed articulatory targets, otherwise untimed gestures, otherwise segment-derived constrictions. A partially timed target tier falls back to gestures as a whole, so it never silently drops the untimed occurrences.
+
+```python
+from ipakit._gesture_backend import oral_tract_frames
+from ipakit._gesture_graph import project as project_gestures
+from ipakit._tiergraph import Timing
+
+gesture_inventory = ipa.IPAFeatures()
+segment_graph = Form.parse("at", gesture_inventory)._graph
+gesture_graph = project_gestures(segment_graph, gesture_inventory)
+timed_graph = project_gestures(segment_graph, gesture_inventory, target_timing={"/clock/0/segment/0": (Timing(0.0, 0.1),), "/clock/1/segment/0": (Timing(0.1, 0.1),)})
+partial_graph = project_gestures(segment_graph, gesture_inventory, target_timing={"/clock/0/segment/0": (Timing(0.0, 0.1),)})
+
+tuple(dict.fromkeys(frame.level for frame in oral_tract_frames(timed_graph, gesture_inventory)))
+# ('timed-targets',)
+tuple(dict.fromkeys(frame.level for frame in oral_tract_frames(gesture_graph, gesture_inventory)))
+# ('gestures',)
+tuple(dict.fromkeys(frame.level for frame in oral_tract_frames(segment_graph, gesture_inventory)))
+# ('segments',)
+tuple(dict.fromkeys(frame.level for frame in oral_tract_frames(partial_graph, gesture_inventory)))
+# ('gestures',)
+```
+
+These gesture modules are backend interfaces, so their underscore-prefixed imports are intentionally more specialized than the public `Form` and rewrite APIs above.
 
 ## 11. Extending the inventory
 

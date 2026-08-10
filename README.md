@@ -5,34 +5,27 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/ipakit.svg)](https://pypi.org/project/ipakit/)
 [![License: BSD 2-Clause](https://img.shields.io/badge/License-BSD_2--Clause-blue.svg)](LICENSE)
 
-A pure-Python IPA (International Phonetic Alphabet) phonetic toolkit:
-phonetic features, distances, natural classes, allophonic rewrite rules, and
-conversion between IPA and CMU ARPABET, X-SAMPA, Kirshenbaum, and TIMIT
-notations.
+A pure-Python IPA (International Phonetic Alphabet) phonetic toolkit: phonetic features, distances, natural classes, allophonic rewrite rules, and conversion between IPA and CMU ARPABET, X-SAMPA, Kirshenbaum, and TIMIT notations.
 
-It is for anyone who needs to compute over speech sounds rather than just store
-them — building a lexicon or a G2P front end, scoring pronunciations, picking
-minimal pairs, searching an inventory by feature, or taking a broad
-transcription to a narrow one.
+It is for anyone who needs to compute over speech sounds rather than just store them — building a lexicon or a G2P front end, scoring pronunciations, picking minimal pairs, searching an inventory by feature, or taking a broad transcription to a narrow one.
+
+`Form` is the sole public stored representation: text, features, boundaries, tiers, rewrite layers, alignments, and rendering views are projections around one validated graph. See [the canonical representation](docs/representation.md).
 
 - **Zero runtime dependencies** — all phonetic data ships as XML in the package.
-- **Declarative** — features, natural classes, tie behavior and the vocal-tract
-  geometry are all read from `ipa.xml`, not hardcoded, so the data is the spec.
+- **Declarative** — features, natural classes, tie behavior, codec transcription-tier selections, and vocal-tract geometry are read from declarations rather than inferred by the graph kernel.
 - **Typed** (`py.typed`, mypy-strict clean).
 - **Both a library and a CLI** (`ipakit`), covering the same ground.
 - **Draws the tract** — `ipakit.tract_svg.figure("t")` is a mid-sagittal SVG of that
   phone's posture, and a `Segment` renders as one in a notebook. See
   [docs/tract-figures.md](docs/tract-figures.md).
 
-**New here? Start with the [tutorial](docs/tutorial.md)** — it is organized by
-task and shows the command line and the Python API side by side for each one.
-Every value on that page is produced by executing the call beside it.
+**New here? Start with the [tutorial](docs/tutorial.md)** — it is organized by task and shows the command line and the Python API side by side for each one. Every value on that page is produced by executing the call beside it.
 
 ## Documentation
 
 - **[docs/tutorial.md](docs/tutorial.md)** — getting things done, from install to applying rule sets.
 - **[docs/README.md](docs/README.md)** — index of every document, what it is for, and the order to read them.
-- Reference: [ties.md](docs/ties.md) (the unit model), [form.md](docs/form.md) (the whole transcription), [rules.md](docs/rules.md) (the rewrite notation), [distance.md](docs/distance.md) (what the metric does and does not claim).
+- Reference: [representation.md](docs/representation.md) (the canonical graph), [ties.md](docs/ties.md) (the unit model), [form.md](docs/form.md) (compatibility projections), [rules.md](docs/rules.md) (the rewrite notation), [distance.md](docs/distance.md) (what the metric does and does not claim).
 
 ## Install
 
