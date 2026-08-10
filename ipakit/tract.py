@@ -1663,15 +1663,19 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
 
 TRACK_VERSION = 1
 TRACK_TYPE = "ipakit.trajectory"
-TRACK_PARAMETERS = (
-    "reading",
-    "rest",
-    "constrictions",
-    "velic",
-    "glottal",
-    "secondary",
-    "unmodelled",
-)
+
+
+def _track_parameters() -> tuple[str, ...]:
+    """The versioned vector field order declared by the track codec."""
+    return (
+        "reading",
+        "rest",
+        "constrictions",
+        "velic",
+        "glottal",
+        "secondary",
+        "unmodelled",
+    )
 
 
 def _point_data(point: TractPoint | None) -> list[Any] | None:
@@ -1778,7 +1782,7 @@ class Trajectory:
                     self.ordinals, self.frames, self.stamps, strict=True
                 )
             ],
-            "parameters": list(TRACK_PARAMETERS),
+            "parameters": list(_track_parameters()),
             "play_units": [_posture_data(value) for value in self.play_units],
             "provenance": {
                 "display_interval": self.display_interval,
@@ -1817,7 +1821,7 @@ def trajectory_from_track(data: str) -> Trajectory:
         raise ValueError(f"track type must be {TRACK_TYPE!r}")
     if document.get("v") != TRACK_VERSION:
         raise ValueError(f"unsupported track version: {document.get('v')!r}")
-    if document.get("parameters") != list(TRACK_PARAMETERS):
+    if document.get("parameters") != list(_track_parameters()):
         raise ValueError("track parameter declaration does not match its version")
     provenance = document["provenance"]
     unit_rows = document["units"]
