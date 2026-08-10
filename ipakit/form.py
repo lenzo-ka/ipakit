@@ -82,6 +82,30 @@ if TYPE_CHECKING:  # pragma: no cover
 _METADATA = frozenset({"class", "href", "xsampa"})
 _JSON_VERSION = 2
 _JSON_TYPE = "ipakit.form"
+_VIEW_ABSENT = object()
+
+
+class _DerivedMapping(Mapping[str, str]):
+    """An immutable resolved view that ``replace`` can recognize as pass-through."""
+
+    def __init__(self, value: Mapping[str, str]) -> None:
+        self._value = MappingProxyType(dict(value))
+
+    def __getitem__(self, key: str) -> str:
+        return self._value[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._value)
+
+    def __len__(self) -> int:
+        return len(self._value)
+
+
+class _DerivedProvenance(tuple[tuple[str, str, str], ...]):
+    """A resolved provenance tuple tagged as lazy pass-through."""
+
+    def __new__(cls, value: Sequence[tuple[str, str, str]]) -> _DerivedProvenance:
+        return tuple.__new__(cls, value)
 
 
 def _default(features: IPAFeatures | None) -> IPAFeatures:
@@ -133,6 +157,13 @@ class Unit:
     declared separator attributes (``level=word``, ``level=syllable``),
     and it is never the target of a feature change.
 
+    Segment views are derived together on first access in a lax parse; a
+    strict parse resolves them during parsing so full validation and its
+    diagnostics happen before the form is returned. An explicitly supplied
+    ``features``, ``prosody``, or ``provenance`` value is already resolved and
+    is never replaced by inventory derivation; derivation fills only absent
+    views.
+
     :attr:`features` and :attr:`prosody` are read-only. ``frozen`` stops a
     *field* being rebound and says nothing about the mapping a field points
     at, so a unit whose prosody could be written in place had a spelling
@@ -143,11 +174,17 @@ class Unit:
 
     text: str
     segment: Segment | None = None
-    features: Mapping[str, str] = field(default_factory=dict, compare=False)
-    prosody: Mapping[str, str] = field(default_factory=dict, compare=False)
+    features: Mapping[str, str] = field(
+        default=cast(Mapping[str, str], _VIEW_ABSENT), compare=False
+    )
+    prosody: Mapping[str, str] = field(
+        default=cast(Mapping[str, str], _VIEW_ABSENT), compare=False
+    )
     #: ``(glyph, feature, value)`` per prosodic mark, resolved when the
     #: unit was built so each attribute can name the mark that declared it.
-    provenance: tuple[tuple[str, str, str], ...] = field(default=(), compare=False)
+    provenance: tuple[tuple[str, str, str], ...] = field(
+        default=cast(tuple[tuple[str, str, str], ...], _VIEW_ABSENT), compare=False
+    )
     timing: Timing | None = None
     _inventory: IPAFeatures | None = field(
         default=None, compare=False, hash=False, repr=False
@@ -160,28 +197,73 @@ class Unit:
         # Wrapped here rather than at each construction site, so a site
         # added later cannot forget and hand back a writable one.
         namespace = object.__getattribute__(self, "__dict__")
-        features = MappingProxyType(dict(namespace["features"]))
-        prosody = MappingProxyType(dict(namespace["prosody"]))
-        provenance = tuple(namespace["provenance"])
+        segment_view = (
+            namespace["segment"] is not None and namespace["_inventory"] is not None
+        )
+        features_absent = namespace["features"] is _VIEW_ABSENT or isinstance(
+            namespace["features"], _DerivedMapping
+        )
+        prosody_absent = namespace["prosody"] is _VIEW_ABSENT or isinstance(
+            namespace["prosody"], _DerivedMapping
+        )
+        provenance_absent = namespace["provenance"] is _VIEW_ABSENT or isinstance(
+            namespace["provenance"], _DerivedProvenance
+        )
+        features = (
+            MappingProxyType({})
+            if features_absent
+            else MappingProxyType(dict(namespace["features"]))
+        )
+        prosody = (
+            MappingProxyType({})
+            if prosody_absent
+            else MappingProxyType(dict(namespace["prosody"]))
+        )
+        provenance = () if provenance_absent else tuple(namespace["provenance"])
         object.__setattr__(self, "features", features)
         object.__setattr__(self, "prosody", prosody)
         object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "_views_pending",
+            frozenset(
+                name
+                for name, absent in (
+                    ("features", features_absent),
+                    ("prosody", prosody_absent),
+                    ("provenance", provenance_absent),
+                )
+                if segment_view and absent
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_views_resolved",
+            not segment_view or not object.__getattribute__(self, "_views_pending"),
+        )
 
     def __getattribute__(self, name: str) -> Any:
         if name in {"features", "prosody", "provenance"}:
             namespace = object.__getattribute__(self, "__dict__")
             inventory = namespace.get("_inventory")
+            pending = namespace.get("_views_pending", ())
             if (
                 namespace.get("segment") is not None
                 and inventory is not None
-                and not namespace.get("_views_resolved", False)
+                and pending
             ):
                 resolved = _resolve_unit_views(namespace["segment"], inventory)
-                object.__setattr__(self, "features", resolved[0])
-                object.__setattr__(self, "prosody", resolved[1])
-                object.__setattr__(self, "provenance", resolved[2])
+                if "features" in pending:
+                    object.__setattr__(self, "features", _DerivedMapping(resolved[0]))
+                if "prosody" in pending:
+                    object.__setattr__(self, "prosody", _DerivedMapping(resolved[1]))
+                if "provenance" in pending:
+                    object.__setattr__(
+                        self, "provenance", _DerivedProvenance(resolved[2])
+                    )
+                object.__setattr__(self, "_views_pending", frozenset())
                 object.__setattr__(self, "_views_resolved", True)
-                return resolved[{"features": 0, "prosody": 1, "provenance": 2}[name]]
+                return object.__getattribute__(self, name)
         return object.__getattribute__(self, name)
 
     def _identity(self) -> tuple[Any, ...]:
@@ -1236,7 +1318,12 @@ class Form:
         features: IPAFeatures,
         strict: bool = False,
     ) -> Form:
-        """Build from the inventory's single canonical token scan."""
+        """Build from the inventory's single canonical token scan.
+
+        Strict construction resolves segment views eagerly, so resolution
+        diagnostics fire here. Lax construction leaves them until first view
+        access; spelling-only operations do not trigger them.
+        """
         from ._ipa_graph import (
             BOUNDARY_TIER,
             CLOCK_TREATMENTS,
@@ -1258,6 +1345,8 @@ class Form:
         for token, segment in aligned:
             if segment is not None:
                 unit = _unit_for(segment, features)
+                if strict:
+                    _ = unit.prosody
                 out.append(unit)
                 segment_features = {
                     "value": segment,
@@ -1372,6 +1461,10 @@ class Form:
     ) -> Form:
         """Read a transcription without projecting anything away.
 
+        ``strict=True`` resolves every segment view eagerly, so resolution
+        diagnostics fire during parsing. Lax parsing defers them until the
+        first view access; :meth:`to_ipa` alone does not trigger them.
+
         No interval is derived from the separators. The dot is optional
         notation, so reading one as a syllable interval would state a claim
         the transcription never made -- and a transcription that *does*
@@ -1461,7 +1554,11 @@ class Form:
     def from_dict(
         cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
     ) -> Form:
-        """Restore a form without reparsing its IPA surface spelling."""
+        """Restore a form without reparsing its IPA surface spelling.
+
+        A lean document derives all its views coherently from this restoring
+        inventory. Use the self-contained mode to pin views across inventories.
+        """
         if obj.get("type") != _JSON_TYPE:
             raise ValueError(f"unsupported representation type: {obj.get('type')!r}")
         if obj.get("v") != _JSON_VERSION:
@@ -1491,18 +1588,25 @@ class Form:
                     raise ValueError(
                         f"serialized views disagree with segment {segment.to_ipa()!r}"
                     )
+            view_arguments: dict[str, Any] = (
+                {
+                    "features": supplied[0],
+                    "prosody": supplied[1],
+                    "provenance": supplied[2],
+                }
+                if segment is None or has_views
+                else {}
+            )
             unit = Unit(
                 text=raw["text"],
                 segment=segment,
-                features=supplied[0] if segment is None else {},
-                prosody=supplied[1] if segment is None else {},
-                provenance=supplied[2] if segment is None else (),
                 timing=(
                     Timing(timing_data["start"], timing_data["duration"])
                     if timing_data is not None
                     else None
                 ),
                 _inventory=inventory if segment is not None else None,
+                **view_arguments,
             )
             restored.append(unit)
         intervals = tuple(
@@ -1526,7 +1630,11 @@ class Form:
 
     @classmethod
     def from_json(cls, data: str, features: IPAFeatures | None = None) -> Form:
-        """Restore :meth:`to_json` output without a lossy IPA round trip."""
+        """Restore :meth:`to_json` output without a lossy IPA round trip.
+
+        A lean document derives all its views coherently from this restoring
+        inventory. Self-contained JSON pins those views across inventories.
+        """
         return cls.from_dict(json.loads(data), features)
 
     # -- projections, each named for what it drops -------------------------
