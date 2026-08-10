@@ -192,6 +192,12 @@ def test_add_rejects_invalid_and_duplicate_ids(tmp_path: Path):
         corpus.add("same", {}, {})
 
 
+def test_apostrophe_is_filesystem_safe_in_entry_ids(tmp_path: Path):
+    corpus = _corpus.create(tmp_path / "corpus")
+    corpus.add("tom's", {}, {})
+    assert list(corpus.ids()) == ["tom's"]
+
+
 def test_create_and_open_layout_contract(tmp_path: Path):
     occupied = tmp_path / "occupied"
     occupied.mkdir()

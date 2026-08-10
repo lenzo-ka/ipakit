@@ -49,6 +49,32 @@ class Add(Command):
         return 0
 
 
+class IngestCMUdict(Command):
+    name, aliases, help = "ingest-cmudict", [], "Ingest an external CMUdict file"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("corpus", type=Path)
+        parser.add_argument("path", type=Path)
+
+    def run(self) -> int:
+        report = corpus.ingest_cmudict(
+            corpus.open(self.args.corpus),
+            self.args.path,
+            mapper=self.cmu,
+            features=self.ipa,
+        )
+        for refusal in report.refusals:
+            word = refusal.word or "-"
+            print(
+                f"refusal\t{refusal.line_number}\t{word}\t"
+                f"{refusal.reason}\t{refusal.line}",
+                file=sys.stderr,
+            )
+        self.print(f"summary\tadded={report.added}\trefused={len(report.refusals)}")
+        return 0 if report.accepted else 1
+
+
 class Validate(Command):
     name, aliases, help = "validate", [], "Validate a corpus and its assets"
 
@@ -112,7 +138,7 @@ class Query(Command):
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("dsl")
-        parser.add_argument("--role", "-r", required=True)
+        parser.add_argument("--role", "-r", default="cited")
         parser.add_argument("--exact", action="store_true")
         _location(parser)
 
@@ -184,4 +210,4 @@ class Derives(Command):
 
 class CorpusGroup(CommandGroup):
     name, aliases, help = "corpus", [], "Build, inspect, query, and validate corpora"
-    commands = [Init, Add, Validate, Ids, Show, Query, Derives]
+    commands = [Init, Add, IngestCMUdict, Validate, Ids, Show, Query, Derives]

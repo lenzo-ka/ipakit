@@ -10,6 +10,7 @@ from ._corpus import (
     open,
     validate,
 )
+from ._corpus_cmudict import CMUdictIngestReport, CMUdictRefusal, ingest_cmudict
 from ._corpus_query import (
     BudgetRefusal,
     CorpusMatch,
@@ -30,6 +31,8 @@ __all__ = [
     "Corpus",
     "CorpusError",
     "CorpusMatch",
+    "CMUdictIngestReport",
+    "CMUdictRefusal",
     "DerivationAnswer",
     "Entry",
     "ExhaustiveRefusal",
@@ -40,6 +43,7 @@ __all__ = [
     "create",
     "derives",
     "find",
+    "ingest_cmudict",
     "open",
     "parse_query",
     "query",
