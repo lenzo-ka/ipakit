@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/cmusphinx/cmudict.git",
+  "commit": "74790861f652b15e4ac49015a90074ad62a27690",
+  "oracle_program": "make_ps_dict.py",
+  "fixture": "pocketsphinx.tsv",
+  "network_required": false
+}

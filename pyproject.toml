@@ -129,3 +129,11 @@ python_version = "3.11"
 strict = true
 warn_unused_configs = true
 files = ["ipakit"]
+
+[[tool.mypy.overrides]]
+# The interop extra is optional: panphon is untyped when installed and absent
+# in CI, and a per-module override is clean in both environments where an
+# inline ignore cannot be.
+module = "panphon.*"
+ignore_missing_imports = true
+follow_imports = "skip"
