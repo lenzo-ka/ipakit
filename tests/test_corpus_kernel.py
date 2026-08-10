@@ -95,12 +95,17 @@ def test_order_and_bytes_do_not_depend_on_add_order(tmp_path: Path):
 def test_ids_do_not_read_or_restore_entries(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
+    """ID iteration must not open an entry document or restore its forms."""
     corpus = _corpus.create(tmp_path / "corpus")
     corpus.add("one", {}, {"utt": _form("a")})
+
+    def forbid_read_text(*args: object, **kwargs: object) -> str:
+        raise AssertionError("ID iteration opened an entry document")
 
     def forbidden(*args: object, **kwargs: object) -> Form:
         raise AssertionError("ID iteration restored a form")
 
+    monkeypatch.setattr(Path, "read_text", forbid_read_text)
     monkeypatch.setattr(Form, "from_dict", forbidden)
     assert list(corpus.ids()) == ["one"]
 
