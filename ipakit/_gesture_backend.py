@@ -39,10 +39,13 @@ def oral_tract_frames(
     drawing_head = head_shape or head()
     targets = _tier_events(graph, TARGET_TIER)
     if targets and all(event.timing is not None for _, event in targets):
-        ordered = sorted(targets, key=lambda item: (item[1].timing.start, item[0]))  # type: ignore[union-attr]
+        ordered = sorted(
+            enumerate(targets),
+            key=lambda item: (item[1][1].timing.start, item[0]),  # type: ignore[union-attr]
+        )
         return tuple(
             _declared_frame("timed-targets", ref, event, drawing_head)
-            for ref, event in ordered
+            for _, (ref, event) in ordered
         )
 
     gestures = _tier_events(graph, GESTURE_TIER)
