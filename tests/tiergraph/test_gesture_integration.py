@@ -55,15 +55,13 @@ def test_projection_reads_inventory_tract_vocabulary() -> None:
     )
 
 
-def test_three_level_backend_fallback_is_explicit_and_never_fabricates_seconds() -> (
-    None
-):
+def test_timed_targets_follow_time_while_fallbacks_follow_structure() -> None:
     inventory, segments = _inventory_and_graph()
     gestures = project(segments, inventory)
     timed = project(
         segments,
         inventory,
-        target_timing=_timings((0.00, 0.08), (0.07, 0.0), (0.11, 0.12)),
+        target_timing=_timings((0.90, 0.08), (0.50, 0.0), (0.10, 0.12)),
     )
 
     timed_frames = oral_tract_frames(timed, inventory)
@@ -72,19 +70,47 @@ def test_three_level_backend_fallback_is_explicit_and_never_fabricates_seconds()
 
     assert {frame.level for frame in timed_frames} == {"timed-targets"}
     assert [(f.timing.start, f.timing.duration) for f in timed_frames] == [
-        (0.00, 0.08),
-        (0.07, 0.0),
-        (0.11, 0.12),
+        (0.10, 0.12),
+        (0.50, 0.0),
+        (0.90, 0.08),
+    ]
+    assert [frame.source for frame in timed_frames] == [
+        f"/clock/2/{TARGET_TIER}/0",
+        f"/clock/1/{TARGET_TIER}/0",
+        f"/clock/0/{TARGET_TIER}/0",
     ]
     assert {frame.level for frame in gesture_frames} == {"gestures"}
     assert all(frame.timing is None for frame in gesture_frames)
+    assert [frame.source for frame in gesture_frames] == [
+        f"/clock/0/{GESTURE_TIER}/0",
+        f"/clock/1/{GESTURE_TIER}/0",
+        f"/clock/2/{GESTURE_TIER}/0",
+    ]
     assert {frame.level for frame in segment_frames} == {"segments"}
     assert all(frame.timing is None for frame in segment_frames)
-    assert (
-        [frame.point for frame in timed_frames]
-        == [frame.point for frame in gesture_frames]
-        == [frame.point for frame in segment_frames]
+    assert [frame.source for frame in segment_frames] == [
+        "/clock/0/segment/0",
+        "/clock/1/segment/0",
+        "/clock/2/segment/0",
+    ]
+    assert [frame.point for frame in gesture_frames] == [
+        frame.point for frame in segment_frames
+    ]
+
+
+def test_equal_start_targets_keep_numeric_graph_order_past_ten_ticks() -> None:
+    inventory, segments = _inventory_and_graph("a" * 12)
+    timed = project(
+        segments,
+        inventory,
+        target_timing=_timings(*((0.25, 0.0),) * 12),
     )
+
+    frames = oral_tract_frames(timed, inventory)
+
+    assert [frame.source for frame in frames] == [
+        f"/clock/{tick}/{TARGET_TIER}/0" for tick in range(12)
+    ]
 
 
 def test_partial_target_timing_falls_back_without_dropping_occurrences() -> None:
