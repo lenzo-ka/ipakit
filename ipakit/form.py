@@ -103,6 +103,7 @@ class FormBuilder:
 
         self.features = _default(features)
         self._builder = GraphBuilder(declarations(self.features))
+        self._compatibility_unit_count = 0
 
     def begin(
         self,
@@ -154,6 +155,7 @@ class FormBuilder:
         for index in range(len(parsed.units)):
             tick, tier, event = by_index[index]
             values = dict(event.features)
+            values["compatibility-index"] = self._compatibility_unit_count
             if event.structural_duration == 1:
                 handles.append(self._builder.append_input_atom(tier, values))
             else:
@@ -162,6 +164,7 @@ class FormBuilder:
                         tier, values, refines_tick=graph.clock[tick].gap_count > 1
                     )
                 )
+            self._compatibility_unit_count += 1
         return tuple(handles)
 
     def contain(

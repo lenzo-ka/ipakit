@@ -134,3 +134,41 @@ def test_public_builder_returns_form_and_navigation_stays_on_form() -> None:
     form = builder.build()
     assert form.to_ipa() == "kæt"
     assert form.leaves(form.roots[0]) == form.direct_children(form.roots[0])
+
+
+def test_public_builder_renumbers_compatibility_units_across_raw_appends() -> None:
+    builder = FormBuilder()
+    builder.append_ipa("ka")
+    builder.append_ipa("ta")
+    form = builder.build()
+
+    assert tuple(unit.text for unit in form.units) == ("k", "a", "t", "a")
+    assert form.to_ipa() == "kata"
+    assert json.loads(form.to_json())["units"]
+    assert [
+        event.features["compatibility-index"]
+        for node in form._graph.clock
+        for group in node.groups
+        for event in group.events
+        if "compatibility-index" in event.features
+    ] == [0, 1, 2, 3]
+
+
+def test_public_builder_two_phrase_pattern_projects_and_round_trips() -> None:
+    builder = FormBuilder()
+    utterance = builder.begin("utterance")
+    phrases = []
+    for text in ("ka", "ta"):
+        phrase = builder.begin("phrase")
+        segments = builder.append_ipa(text)
+        builder.end(phrase)
+        builder.contain(phrase, segments)
+        phrases.append(phrase)
+    builder.end(utterance)
+    builder.contain(utterance, phrases)
+    builder.add_root(utterance)
+
+    form = builder.build()
+    assert tuple(unit.text for unit in form.units) == ("k", "a", "t", "a")
+    assert form.to_ipa() == "kata"
+    assert type(form).from_json(form.to_json()) == form
