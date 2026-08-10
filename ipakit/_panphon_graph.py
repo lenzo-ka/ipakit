@@ -23,7 +23,7 @@ def bundles(
     spellings: tuple[str, ...],
 ) -> tuple[tuple[str, ...], tuple[dict[str, int], ...]]:
     """Return PanPhon's own feature names and numeric value domain lazily."""
-    import panphon  # type: ignore[import-untyped]  # optional interop extra
+    import panphon  # optional interop extra
 
     table = panphon.FeatureTable()
     names = tuple(table.names)
