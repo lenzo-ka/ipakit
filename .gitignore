@@ -44,3 +44,10 @@ omp-review-*.session.jsonl
 
 # Agent / local tooling (not part of the repo)
 .claude/
+
+# Our local stash
+untracked/
+
+# macOS
+.DS_Store
+
