@@ -7,10 +7,10 @@ import xml.etree.ElementTree as ET
 
 from ._convert import (
     convert_greedy,
+    convert_structured_ipa,
     ipa_features,
     report_unconvertible,
     resolve_aliases,
-    structured_ipa_spellings,
 )
 from .constants import PHONEMAPS_DIR
 
@@ -135,17 +135,13 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
     # That compatibility normalization is necessarily string-level because
     # it changes where the structured segment boundary will be read.
     ipa = _normalize_for_map(ipa, ipa_to_target)
-    spellings = structured_ipa_spellings(ipa, strict=strict)
-    return [
-        symbol
-        for spelling in spellings
-        for symbol in convert_greedy(
-            spelling,
-            ipa_to_target,
-            strict=strict,
-            what=f"IPA -> {phonemap}",
-        )
-    ]
+    return convert_structured_ipa(
+        ipa,
+        ipa_to_target,
+        strict=strict,
+        what=f"IPA -> {phonemap}",
+        stacklevel=5,
+    )
 
 
 def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> str:

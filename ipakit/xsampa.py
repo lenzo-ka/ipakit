@@ -15,9 +15,9 @@ import xml.etree.ElementTree as ET
 
 from ._convert import (
     convert_greedy,
+    convert_structured_ipa,
     ipa_features,
     resolve_aliases,
-    structured_ipa_spellings,
 )
 from .constants import PHONEMAPS_DIR
 
@@ -72,9 +72,5 @@ def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     if ipa in ipa2xs:
         return ipa2xs[ipa]
     return "".join(
-        symbol
-        for spelling in structured_ipa_spellings(ipa, strict=strict)
-        for symbol in convert_greedy(
-            spelling, ipa2xs, strict=strict, what="IPA -> X-SAMPA"
-        )
+        convert_structured_ipa(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA")
     )
