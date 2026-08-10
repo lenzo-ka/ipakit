@@ -22,6 +22,7 @@ from ._tiergraph import (
     RefinedSpan,
     Relation,
     Timing,
+    _escape,
 )
 
 
@@ -576,7 +577,3 @@ def _pointer_position(pointer: str) -> PositionHandle:
     if len(parts) == 5 and parts[1] == "clock" and parts[3] == "gaps":
         return PositionHandle(int(parts[2]), int(parts[4]))
     raise ValueError("pointer does not name a clock position")
-
-
-def _escape(value: str) -> str:
-    return value.replace("~", "~0").replace("/", "~1")
