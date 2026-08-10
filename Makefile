@@ -70,6 +70,7 @@ NICE ?= nice -n 19
 # before the suite spends a minute earning the same verdict.
 check: lint
 	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/consolidation_parity.py check
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate

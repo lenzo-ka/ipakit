@@ -1,20 +1,35 @@
-"""Emit representative serialization bytes for the consolidation DRY pass."""
+"""Generate and check representative serialization bytes for consolidation."""
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
+import sys
+from pathlib import Path
 
-from ipakit import FormBuilder, IPAFeatures
-from ipakit._cmu_graph import declarations as cmu_declarations
-from ipakit._cmu_graph import read as read_cmu
-from ipakit._mora_graph import build as build_mora
-from ipakit._mora_graph import declarations as mora_declarations
-from ipakit._panphon_graph import declaration as panphon_declaration
-from ipakit._panphon_graph import fingerprint as panphon_fingerprint
-from ipakit._pinyin_graph import build as build_pinyin
-from ipakit._tiergraph import Graph
-from ipakit._tiergraph_builder import GraphBuilder
-from ipakit._tiergraph_json import Model, dumps, loads
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from ipakit import FormBuilder, IPAFeatures  # noqa: E402
+from ipakit._cmu_graph import declarations as cmu_declarations  # noqa: E402
+from ipakit._cmu_graph import read as read_cmu  # noqa: E402
+from ipakit._mora_graph import build as build_mora  # noqa: E402
+from ipakit._mora_graph import declarations as mora_declarations  # noqa: E402
+from ipakit._panphon_graph import declaration as panphon_declaration  # noqa: E402
+from ipakit._panphon_graph import fingerprint as panphon_fingerprint  # noqa: E402
+from ipakit._pinyin_graph import build as build_pinyin  # noqa: E402
+from ipakit._tiergraph import (  # noqa: E402
+    Declarations,
+    FeatureDeclaration,
+    Graph,
+    GraphValidationError,
+    TierDeclaration,
+)
+from ipakit._tiergraph_builder import GraphBuilder  # noqa: E402
+from ipakit._tiergraph_json import Model, dumps, loads  # noqa: E402
+
+DIGEST = ROOT / "scripts" / "consolidation_parity.sha256"
 
 
 def _wire(graph: Graph, model: Model) -> str:
@@ -23,7 +38,7 @@ def _wire(graph: Graph, model: Model) -> str:
     return wire
 
 
-def main() -> None:
+def corpus_bytes() -> bytes:
     inventory = IPAFeatures()
     parsed = inventory.read("k\u00e6t..\u02c8d\u0252\u0261")
     parsed_wire = parsed.to_json(self_contained=True)
@@ -57,9 +72,32 @@ def main() -> None:
     )
     panphon = panphon_builder.build()
 
+    escaped_tier = "custom~/tier"
+    escaped_feature = "feature~/key"
+    escaped_declarations = Declarations(
+        (TierDeclaration(escaped_tier, frozenset({escaped_feature})),),
+        (FeatureDeclaration(escaped_feature),),
+        (),
+    )
+    escaped_builder = GraphBuilder(escaped_declarations)
+    escaped_root = escaped_builder.append_input_atom(
+        escaped_tier, {escaped_feature: "pointer oracle"}
+    )
+    escaped_builder.add_root(escaped_root)
+    escaped_model = Model("escaped-pointer", "1", escaped_declarations)
+    try:
+        escaped = escaped_builder.build()
+        escaped_wire = dumps(escaped, escaped_model)
+        assert dumps(loads(escaped_wire, escaped_model), escaped_model) == escaped_wire
+    except GraphValidationError as error:
+        # Keep mutation runs observable as corpus bytes even when a broken
+        # pointer cannot form a valid graph.
+        escaped_wire = f"ERROR: {error}"
+
     payload = {
         "build": built_wire,
         "cmu": _wire(cmu, Model("cmudict", "base-1", cmu_declarations())),
+        "escaped": escaped_wire,
         "mora": _wire(mora, Model("moraic-gairaigo", "1", mora_declarations())),
         "panphon": _wire(
             panphon,
@@ -74,7 +112,33 @@ def main() -> None:
         pinyin.declarations, json.loads(payload["pinyin"])
     )
     assert restored_pinyin == pinyin
-    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+
+
+def digest() -> str:
+    return hashlib.sha256(corpus_bytes()).hexdigest()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "command", choices=("emit", "generate", "check"), nargs="?", default="emit"
+    )
+    command = parser.parse_args().command
+    if command == "emit":
+        print(corpus_bytes().decode())
+    elif command == "generate":
+        DIGEST.write_text(f"{digest()}\n", encoding="ascii")
+        print(DIGEST.relative_to(ROOT))
+    else:
+        expected = DIGEST.read_text(encoding="ascii")
+        actual = f"{digest()}\n"
+        if actual != expected:
+            raise SystemExit(
+                f"DRIFT: {DIGEST.relative_to(ROOT)}; run "
+                "python scripts/consolidation_parity.py generate"
+            )
+        print(f"OK: {DIGEST.relative_to(ROOT)} matches derived corpus")
 
 
 if __name__ == "__main__":
