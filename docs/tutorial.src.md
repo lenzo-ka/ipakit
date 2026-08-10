@@ -239,8 +239,7 @@ ipa.minimal_pairs("p")[:5]
 
 ## 4. Converting between notations
 
-Four ASCII and machine notations are supported in both directions. The round trip is the
-thing worth checking, and it holds:
+The supported ASCII and machine notations convert in both directions. The round trip is the thing worth checking, and it holds:
 
 ```python-run
 ipa.to_cmu("kˈæt")
@@ -400,14 +399,13 @@ ipa.rewrite("bˈʌtɚ", "t -> ɾ / [vowel stress=primary] _ [vowel]")
 $ ipakit rules apply -r "t -> ɾ / [vowel stress=primary] _ [vowel]" bˈʌtɚ
 ```
 
-Five rule sets ship with the library:
+The shipped rule sets are discoverable from the command line:
 
 ```console-run
 $ ipakit rules list
 ```
 
-`american-english` is the worked example: twelve ordered rules taking a broad, phonemic
-transcription to a narrow, phonetic one.
+`american-english` is the worked example: an ordered cascade taking a broad, phonemic transcription to a narrow, phonetic one.
 
 ```console-run
 $ ipakit rules list american-english
@@ -675,17 +673,14 @@ express.
 
 ## 10. Looking at the articulation
 
-The feature data is backed by a declared vocal-tract geometry, and that geometry can be
-drawn. Thirteen mid-sagittal figures are checked in under [figures/](figures/) and
-regenerated with `make figures`:
+The feature data is backed by a declared vocal-tract geometry, and that geometry can be drawn. The checked-in mid-sagittal figures under [figures/](figures/) are regenerated with `make figures`:
 
 ```bash
 make figures
 ```
 
 Each is drawn through `Head.project` by `ipakit.tract_svg`, which computes no
-geometry of its own — so a figure that looks wrong is the model being wrong, which is
-how nine defects invisible to the test suite were found.
+geometry of its own — so a figure that looks wrong is the model being wrong, a route that has exposed defects invisible to the test suite.
 
 ![Mid-sagittal reference](figures/tract-reference.svg)
 
