@@ -120,7 +120,7 @@ them to raise `ValueError` on unconvertible input instead:
 
 ```python
 ipakit.to_cmu("k4t")                # ['K', 'T']  (the '4' is skipped)
-ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert IPA segment: ...
+ipakit.to_cmu("k4t", strict=True)   # ValueError: Cannot convert to CMU ARPABET: unknown symbols ['4']
 ipakit.to_cmu("ø", strict=True)     # ValueError: Cannot convert to CMU ARPABET: ...
 ```
 
