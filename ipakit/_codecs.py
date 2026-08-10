@@ -11,7 +11,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._tiergraph import Event, Graph
+from ._pinyin_graph import tone_index
+from ._tiergraph import Event, Graph, _escape
 
 ValueRenderer = Callable[[Event], str]
 
@@ -123,21 +124,14 @@ def render_pinyin(
             spelling = str(
                 event.features.get("spelling", event.features.get("value", ""))
             )
-            level = tones.get(f"/clock/{tick}/{syllable_tier}/{index}")
+            level = tones.get(f"/clock/{tick}/{_escape(syllable_tier)}/{index}")
             if level is None or level == 5:
                 out.append(spelling)
                 continue
-            lowered = spelling.lower()
-            if "a" in lowered or "e" in lowered:
-                position = min(p for vowel in "ae" if (p := lowered.find(vowel)) >= 0)
-            elif "ou" in lowered:
-                position = lowered.index("o")
-            else:
-                positions = [lowered.rfind(vowel) for vowel in tone_marks]
-                position = max(positions)
+            position = tone_index(spelling)
             if position < 0 or not 1 <= level <= 4:
                 raise ValueError(f"tone {level!r} cannot be placed on {spelling!r}")
-            vowel = lowered[position]
+            vowel = spelling[position].lower()
             out.append(
                 spelling[:position]
                 + tone_marks[vowel][level - 1]
@@ -173,7 +167,7 @@ class DeliverySelectionError(ValueError):
 
 def _event_table(graph: Graph) -> dict[str, tuple[int, str, Event]]:
     return {
-        f"/clock/{tick}/{group.tier}/{index}": (tick, group.tier, event)
+        f"/clock/{tick}/{_escape(group.tier)}/{index}": (tick, group.tier, event)
         for tick, node in enumerate(graph.clock)
         for group in node.groups
         for index, event in enumerate(group.events)

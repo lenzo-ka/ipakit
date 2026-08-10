@@ -11,6 +11,7 @@ from ipakit._codecs import (
     render_graph,
     render_pinyin,
 )
+from ipakit._gesture_backend import _tier_events
 from ipakit._ipa_graph import declarations, parse_signature, render_signature
 from ipakit._tiergraph import (
     Declarations,
@@ -66,6 +67,34 @@ def test_pinyin_tone_surface_does_not_move_semantic_attachment() -> None:
     graph = builder.build()
     assert render_pinyin(graph) == "shuǐ"
     assert graph.relations[0].targets == ("/clock/0/syllable/0",)
+
+
+def test_pointer_formatters_use_the_kernel_escape() -> None:
+    tier = "a/b~c"
+    declared = Declarations(
+        (
+            TierDeclaration(tier, frozenset({"spelling"})),
+            TierDeclaration("tone", frozenset({"value"})),
+        ),
+        (FeatureDeclaration("spelling"), FeatureDeclaration("value")),
+        (
+            RelationDeclaration(
+                "associates-with",
+                source_tiers=frozenset({"tone"}),
+                target_tiers=frozenset({tier}),
+            ),
+        ),
+    )
+    builder = GraphBuilder(declared)
+    syllable = builder.append_input_atom(tier, {"spelling": "ma"})
+    tone = builder.add_event("tone", 0, {"value": 1}, duration=0)
+    builder.relate((tone,), "associates-with", (syllable,))
+    graph = builder.build()
+
+    reference, event = _tier_events(graph, tier)[0]
+    assert reference == graph.event_references()[0] == "/clock/0/a~1b~0c/0"
+    assert graph.resolve(reference).event is event
+    assert render_pinyin(graph, syllable_tier=tier) == "mā"
 
 
 def _delivery_graph(stress: tuple[str, ...]):
