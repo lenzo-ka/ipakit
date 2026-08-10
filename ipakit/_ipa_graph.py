@@ -25,7 +25,21 @@ ZERO_TIER = "zero"
 BOUNDARY_TIER = "boundary"
 PROSODY_TIER = "prosody"
 _PROFILE_FEATURES = frozenset(
-    {"value", "spelling", "symbol", "provenance", "input", "phantom", "class"}
+    {
+        "value",
+        "spelling",
+        "symbol",
+        "provenance",
+        "input",
+        "phantom",
+        "class",
+        # Private profile values used by Form's compatibility projection.
+        # The kernel deliberately permits immutable domain values; the IPA
+        # value codec remains responsible for their eventual wire shape.
+        "compatibility-unit",
+        "compatibility-index",
+        "compatibility-interval",
+    }
 )
 
 
@@ -71,7 +85,18 @@ def declarations(inventory: IPAFeatures) -> Declarations:
     feature_names = inventory_names | _PROFILE_FEATURES
     prosodic = inventory.features_by_mode.get("prosodic", frozenset())
     structural = inventory.features_by_mode.get("structural", frozenset())
-    common = frozenset({"value", "spelling", "provenance", "input", "phantom"})
+    common = frozenset(
+        {
+            "value",
+            "spelling",
+            "provenance",
+            "input",
+            "phantom",
+            "compatibility-unit",
+            "compatibility-index",
+            "compatibility-interval",
+        }
+    )
     declared_tier = inventory.features.get("tier")
     hierarchy_tiers = tuple(
         dict.fromkeys(

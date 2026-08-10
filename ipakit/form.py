@@ -856,6 +856,194 @@ def spell(items: Sequence[Unit]) -> str:
     return "".join(u.text for u in items)
 
 
+class _CompatibilityProjection:
+    """Map the graph's input-owned positions to the frozen public coordinates."""
+
+    def __init__(self, graph: Any) -> None:
+        from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
+
+        self.graph = graph
+        indexed: list[tuple[int, Unit, Any]] = []
+        for node in graph.clock:
+            for group in node.groups:
+                for event in group.events:
+                    unit = event.features.get("compatibility-unit")
+                    index = event.features.get("compatibility-index")
+                    if isinstance(unit, Unit) and isinstance(index, int):
+                        indexed.append((index, unit, event))
+        indexed.sort(key=lambda item: item[0])
+        if [index for index, _, _ in indexed] != list(range(len(indexed))):
+            raise ValueError("graph compatibility unit order is not contiguous")
+        self._indexed = tuple(indexed)
+        self.coordinates = LegacyCoordinates(
+            tuple(
+                LegacyOccurrence(
+                    consumes_span=not unit.is_boundary,
+                    refines_tick=unit.is_boundary,
+                )
+                for _, unit, _ in indexed
+            )
+        )
+        # The adapter is required to be bidirectional.  Check every position,
+        # not merely interval endpoints that happen to exist on this form.
+        for index in range(len(indexed) + 1):
+            if self.coordinates.to_legacy(self.coordinates.to_graph(index)) != index:
+                raise ValueError("graph compatibility coordinates are not lossless")
+
+    @property
+    def units(self) -> tuple[Unit, ...]:
+        out = []
+        for _, unit, event in self._indexed:
+            timing = (
+                Timing(event.timing.start, event.timing.duration)
+                if event.timing is not None
+                else None
+            )
+            out.append(dataclasses.replace(unit, timing=timing))
+        return tuple(out)
+
+    @property
+    def intervals(self) -> tuple[Interval, ...]:
+        from ._tiergraph_builder import _pointer_position
+
+        out = []
+        for node in self.graph.clock:
+            for group in node.groups:
+                for event in group.events:
+                    if event.features.get("compatibility-interval") is not True:
+                        continue
+                    if event.span is None:
+                        raise ValueError("compatibility interval has no exact span")
+                    timing = (
+                        Timing(event.timing.start, event.timing.duration)
+                        if event.timing is not None
+                        else None
+                    )
+                    interval = Interval.__new__(Interval)
+                    object.__setattr__(interval, "tier", group.tier)
+                    object.__setattr__(
+                        interval,
+                        "start",
+                        self.coordinates.to_legacy(_pointer_position(event.span.start)),
+                    )
+                    object.__setattr__(
+                        interval,
+                        "end",
+                        self.coordinates.to_legacy(_pointer_position(event.span.end)),
+                    )
+                    object.__setattr__(interval, "timing", timing)
+                    out.append(interval)
+        return tuple(out)
+
+
+def _graph_from_compatibility(
+    units: Sequence[Unit], intervals: Sequence[Interval]
+) -> Any:
+    """Build constructed/edited forms from units once, without lexical scanning."""
+    from ._ipa_graph import BOUNDARY_TIER, SEGMENT_TIER, ZERO_TIER, declarations
+    from ._tiergraph import Declarations, TierDeclaration
+    from ._tiergraph import Timing as GraphTiming
+    from ._tiergraph_builder import GraphBuilder
+
+    inventory = _default(None)
+    declared = declarations(inventory)
+    known = {tier.name for tier in declared.tiers}
+    extras = tuple(
+        dict.fromkeys(span.tier for span in intervals if span.tier not in known)
+    )
+    if extras:
+        permitted = frozenset(
+            {"compatibility-interval", "compatibility-unit", "compatibility-index"}
+        )
+        declared = Declarations(
+            tuple(TierDeclaration(name, permitted) for name in extras) + declared.tiers,
+            declared.features,
+            declared.relations,
+            declared.closed,
+        )
+    builder = GraphBuilder(declared)
+    allowed = {tier.name: tier.features for tier in declared.tiers}
+    for index, unit in enumerate(units):
+        base = {
+            "spelling": unit.text,
+            "input": True,
+            "compatibility-unit": dataclasses.replace(unit, timing=None),
+            "compatibility-index": index,
+        }
+        timing = (
+            GraphTiming(unit.timing.start, unit.timing.duration)
+            if unit.timing is not None
+            else None
+        )
+        if unit.segment is not None:
+            tier = SEGMENT_TIER
+            facts = {
+                **base,
+                "value": unit.segment,
+                "provenance": unit.provenance,
+                **dict(unit.features),
+                **dict(unit.prosody),
+            }
+            builder.append_input_atom(
+                tier,
+                cast(
+                    Any,
+                    {
+                        key: value
+                        for key, value in facts.items()
+                        if key in allowed[tier]
+                    },
+                ),
+                timing=timing,
+            )
+        elif unit.is_zero:
+            tier = ZERO_TIER
+            facts = {**base, "symbol": unit.text, **dict(unit.features)}
+            builder.append_input_atom(
+                tier,
+                cast(
+                    Any,
+                    {
+                        key: value
+                        for key, value in facts.items()
+                        if key in allowed[tier]
+                    },
+                ),
+                timing=timing,
+            )
+        else:
+            tier = BOUNDARY_TIER
+            facts = {**base, "symbol": unit.text, **dict(unit.features)}
+            builder.append_input_occurrence(
+                tier,
+                cast(
+                    Any,
+                    {
+                        key: value
+                        for key, value in facts.items()
+                        if key in allowed[tier]
+                    },
+                ),
+                refines_tick=True,
+                timing=timing,
+            )
+    coordinates = builder.compatibility_coordinates()
+    for span in intervals:
+        timing = (
+            GraphTiming(span.timing.start, span.timing.duration)
+            if span.timing is not None
+            else None
+        )
+        builder.add_span(
+            span.tier,
+            coordinates.to_graph(span.start),
+            coordinates.to_graph(span.end),
+            {"compatibility-interval": True},
+            timing=timing,
+        )
+    return builder.build()
+
+
 @dataclass(frozen=True)
 class Form:
     """A transcription carrying everything it was written with.
@@ -887,11 +1075,41 @@ class Form:
     spelling: str | None = None
 
     def __post_init__(self) -> None:
-        for span in self.intervals:
-            if span.end > len(self.units):
+        held_units = object.__getattribute__(self, "units")
+        held_intervals = object.__getattribute__(self, "intervals")
+        for span in held_intervals:
+            if span.end > len(held_units):
                 raise ValueError(
-                    f"{span!r} runs past the {len(self.units)} units of the form"
+                    f"{span!r} runs past the {len(held_units)} units of the form"
                 )
+        object.__setattr__(
+            self,
+            "_tiergraph_graph",
+            _graph_from_compatibility(held_units, held_intervals),
+        )
+        # These names stay dataclass fields so the constructor,
+        # dataclasses.fields/replace, equality, and hash behavior retain their
+        # public coordinates.  The instance values are deliberately removed:
+        # __getattribute__ below projects them from the graph store.
+        object.__delattr__(self, "units")
+        object.__delattr__(self, "intervals")
+
+    def __getattribute__(self, name: str) -> Any:
+        if name in {"units", "intervals"}:
+            namespace = object.__getattribute__(self, "__dict__")
+            graph = namespace.get("_tiergraph_graph")
+            if graph is not None:
+                projection = _CompatibilityProjection(graph)
+                return projection.units if name == "units" else projection.intervals
+        return object.__getattribute__(self, name)
+
+    @classmethod
+    def _from_graph(cls, graph: Any, spelling: str | None = None) -> Form:
+        """Adopt a validated parser graph without rebuilding or rescanning it."""
+        form = cls.__new__(cls)
+        object.__setattr__(form, "spelling", spelling)
+        object.__setattr__(form, "_tiergraph_graph", graph)
+        return form
 
     @classmethod
     def from_parsed(
@@ -925,10 +1143,12 @@ class Form:
                 unit = _unit_for(segment, features)
                 out.append(unit)
                 segment_features = {
-                    "value": segment.to_dict(),
+                    "value": segment,
                     "spelling": token,
                     "provenance": unit.provenance,
                     "input": True,
+                    "compatibility-unit": dataclasses.replace(unit, timing=None),
+                    "compatibility-index": len(out) - 1,
                     **unit.features,
                     **unit.prosody,
                 }
@@ -952,7 +1172,13 @@ class Form:
                 out.append(Unit(text=token, features=dict(nulls[token].features or {})))
                 builder.append_input_atom(
                     ZERO_TIER,
-                    {"symbol": token, "spelling": token, "input": True},
+                    {
+                        "symbol": token,
+                        "spelling": token,
+                        "input": True,
+                        "compatibility-unit": dataclasses.replace(out[-1], timing=None),
+                        "compatibility-index": len(out) - 1,
+                    },
                 )
             elif token in features.separators:
                 declared = features.separators[token]
@@ -962,6 +1188,8 @@ class Form:
                     "symbol": token,
                     "spelling": token,
                     "input": True,
+                    "compatibility-unit": dataclasses.replace(out[-1], timing=None),
+                    "compatibility-index": len(out) - 1,
                     **dict(declared.features or {}),
                 }
                 builder.append_input_occurrence(
@@ -983,6 +1211,8 @@ class Form:
                     "symbol": token,
                     "spelling": token,
                     "input": True,
+                    "compatibility-unit": dataclasses.replace(out[-1], timing=None),
+                    "compatibility-index": len(out) - 1,
                     **dict(marks[token]),
                 }
                 builder.append_input_occurrence(
@@ -1007,17 +1237,17 @@ class Form:
                         "spelling": token,
                         "input": True,
                         "level": edge,
+                        "compatibility-unit": dataclasses.replace(out[-1], timing=None),
+                        "compatibility-index": len(out) - 1,
                     },
                     refines_tick=treatment.refines_tick,
                 )
 
         local = spell(out)
         scanned = "".join(base + "".join(diacritics) for base, diacritics in parsed)
-        form = cls(tuple(out), spelling=scanned if scanned != local else None)
-        # Lane F deliberately leaves the public Form store untouched.  Carry the
-        # graph privately so Lane G can adopt it without scanning or rebuilding.
-        object.__setattr__(form, "_tiergraph_graph", builder.build())
-        return form
+        return cls._from_graph(
+            builder.build(), spelling=scanned if scanned != local else None
+        )
 
     @classmethod
     def parse(
