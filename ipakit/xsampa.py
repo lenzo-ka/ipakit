@@ -13,7 +13,12 @@ from __future__ import annotations
 import functools
 import xml.etree.ElementTree as ET
 
-from ._convert import convert_greedy, ipa_features, resolve_aliases
+from ._convert import (
+    convert_greedy,
+    convert_structured_ipa,
+    ipa_features,
+    resolve_aliases,
+)
 from .constants import PHONEMAPS_DIR
 
 _XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
@@ -64,4 +69,8 @@ def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     """
     _, ipa2xs = _maps()
     ipa = resolve_aliases(ipa)
-    return "".join(convert_greedy(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA"))
+    if ipa in ipa2xs:
+        return ipa2xs[ipa]
+    return "".join(
+        convert_structured_ipa(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA")
+    )

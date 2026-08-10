@@ -1479,7 +1479,7 @@ class Form:
 
     # -- the faithful read ------------------------------------------------
 
-    def to_ipa(self) -> str:
+    def to_ipa(self, mode: str = "exact") -> str:
         """Every position, spelled back. Round-trips what was *spelled*.
 
         Not every position the form carries: an interval is not spelled, so
@@ -1488,7 +1488,13 @@ class Form:
         agreed way to write a mora interval into a transcription, and
         inventing one would put a claim in the string that nothing reads.
         """
-        return self.spelling if self.spelling is not None else spell(self.units)
+        if mode == "exact":
+            return self.spelling if self.spelling is not None else spell(self.units)
+        if mode == "canonical":
+            from ._codecs import ipa_profile, render_graph
+
+            return render_graph(self._graph, ipa_profile(exact=False))
+        raise ValueError("IPA spelling mode must be 'exact' or 'canonical'")
 
     def to_dict(self, self_contained: bool = False) -> dict[str, Any]:
         """Serialize the versioned representation.

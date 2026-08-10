@@ -165,6 +165,7 @@ class Signature:
 
     stress: tuple[str, ...]
     boundaries: tuple[str, ...]
+    items: tuple[tuple[str, str], ...] = ()
 
 
 def parse_signature(text: str, inventory: IPAFeatures) -> Signature:
@@ -189,14 +190,35 @@ def parse_signature(text: str, inventory: IPAFeatures) -> Signature:
     }
     slots: list[str] = []
     boundaries: list[str] = []
+    items: list[tuple[str, str]] = []
     for symbol in text:
         if symbol in stress_values:
             slots.append(stress_values[symbol])
+            items.append(("stress", stress_values[symbol]))
         elif symbol in boundary_symbols:
             boundaries.append(symbol)
+            items.append(("boundary", symbol))
         elif not symbol.isspace():
             raise ValueError(f"undeclared prosodic signature symbol: {symbol!r}")
-    return Signature(tuple(slots), tuple(boundaries))
+    return Signature(tuple(slots), tuple(boundaries), tuple(items))
+
+
+def render_signature(signature: Signature, inventory: IPAFeatures) -> str:
+    """Encode a decoded house signature without collapsing its stress values."""
+
+    marked = {
+        phone.features["stress"]: symbol
+        for symbol, phone in inventory.diacritics.items()
+        if symbol in inventory.stress_markers
+    }
+    unmarked = set(inventory.features["stress"].values) - set(marked)
+    if len(unmarked) != 1:
+        raise ValueError("stress signature requires exactly one unmarked value")
+    glyphs = {unmarked.pop(): inventory.syllable_break, **marked}
+    items = signature.items or tuple(("stress", value) for value in signature.stress)
+    return "".join(
+        glyphs[value] if kind == "stress" else value for kind, value in items
+    )
 
 
 def assign_signature(

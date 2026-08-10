@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ._convert import ipa_features, report_unconvertible
+from ._convert import ipa_features, report_unconvertible, structured_ipa_read
 from .constants import DEFAULT_CMU_MAP
 from .models import PhoneMapping
 from .segment import Segment
@@ -148,11 +148,16 @@ class CMUMapper:
         *not* retried is the unit boundary. A boundary is the tokenizer's
         answer and this makes no second one.
         """
-        features = ipa_features()
         lookup = self._ipa_lookup(include_extras)
         markers = _stress_markers()
         read = _Read()
-        for unit in features.read(ipa_string, strict=strict).segments:
+        form, parser_lost = structured_ipa_read(ipa_string)
+        read.lost.extend(parser_lost)
+        for occurrence in form.units:
+            if occurrence.segment is None:
+                read.lost.append(occurrence.text)
+                continue
+            unit = occurrence.segment
             stress = next((m for m in unit.prosody if m in markers), None)
             carried = [m for m in unit.prosody if m not in markers]
             if (row := self._row(unit.spelling, lookup)) is None:
@@ -223,7 +228,7 @@ class CMUMapper:
                 pending_stress = None
             result.append(cmu)
 
-        report_unconvertible(read.lost, "to CMU ARPABET", strict=strict)
+        report_unconvertible(read.lost, "to CMU ARPABET", strict=strict, stacklevel=4)
 
         return result
 
@@ -243,16 +248,10 @@ class CMUMapper:
         Asked silently: a validator that warns about what it was asked to
         report leaves a caller nothing to do with the warning.
         """
-        features = ipa_features()
-        unreadable = [
-            item["symbol"]
-            for item in features.validate_ipa(ipa_string)
-            if item["type"] == "error" and "symbol" in item
-        ]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             read = self._read(ipa_string, include_extras)
-        return unreadable + read.lost
+        return read.lost
 
     def cmu_to_ipa(
         self,

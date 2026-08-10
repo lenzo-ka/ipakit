@@ -18,13 +18,16 @@ stays in the caller; only these shared steps live here.
 
 from __future__ import annotations
 
+import ast
 import functools
+import re
 import warnings
 from collections.abc import Collection, Mapping
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .features import IPAFeatures
+    from .form import Form
 
 
 @functools.lru_cache(maxsize=1)
@@ -149,6 +152,8 @@ def convert_greedy(
     max_len: int | None = None,
     strict: bool = False,
     what: str = "",
+    skipped: list[str] | None = None,
+    report: bool = True,
 ) -> list[str]:
     """Greedy longest-match conversion of ``text`` through a string->string map.
 
@@ -163,7 +168,7 @@ def convert_greedy(
     if max_len is None:
         max_len = max(len(k) for k in lookup)
     out: list[str] = []
-    skipped: list[str] = []
+    lost: list[str] = []
     i = 0
     n = len(text)
     while i < n:
@@ -172,10 +177,72 @@ def convert_greedy(
             out.append(lookup[key])
             i += length
         else:
-            skipped.append(text[i])
+            lost.append(text[i])
             i += 1
     # stacklevel 4: report_unconvertible -> here -> the converter that
     # called it (to_kirshenbaum, ipa_to_xsampa, ...) -> that converter's
     # caller, which is the frame worth naming.
-    report_unconvertible(skipped, what, strict=strict, stacklevel=4)
+    if skipped is not None:
+        skipped.extend(lost)
+    if report:
+        report_unconvertible(lost, what, strict=strict, stacklevel=4)
     return out
+
+
+_PARSER_LOSS = re.compile(r"dropped (\d+) .*? (\[[^\n]*?\]) while parsing IPA")
+
+
+def structured_ipa_read(text: str) -> tuple[Form, list[str]]:
+    """Read IPA once while turning parser losses into converter-owned losses.
+
+    A converter is one diagnostic boundary.  The IPA reader remains the sole
+    tokenizer, but its warnings are captured here so a converter entry point
+    never leaks a parser-framed warning (or raises before later units are read).
+    """
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        form = ipa_features().read(text, strict=False)
+    lost: list[str] = []
+    for warning in caught:
+        match = _PARSER_LOSS.search(str(warning.message))
+        if match is None:
+            warnings.warn(warning.message, warning.category, stacklevel=2)
+            continue
+        count = int(match.group(1))
+        values = [str(value) for value in ast.literal_eval(match.group(2))]
+        occurrences = [value for value in values for _ in range(text.count(value))]
+        lost.extend(occurrences if len(occurrences) == count else values)
+    return form, lost
+
+
+def structured_ipa_spellings(text: str) -> tuple[tuple[str, ...], list[str]]:
+    """Return structured spellings and every loss found while reading them."""
+
+    form, lost = structured_ipa_read(text)
+    # ``Unit.text`` is the structured occurrence's retained spelling.  This
+    # deliberately preserves accepted-but-noncanonical atomic spellings: the
+    # historical phoneset contracts drop those unless their own table has a
+    # row, while registered ligature aliases were resolved before this call.
+    return tuple(unit.text for unit in form.units) or (text,), lost
+
+
+def convert_structured_ipa(
+    text: str,
+    lookup: Mapping[str, str],
+    *,
+    what: str,
+    strict: bool,
+    stacklevel: int = 4,
+) -> list[str]:
+    """Convert all structured IPA units under one diagnostic boundary."""
+
+    spellings, lost = structured_ipa_spellings(text)
+    result = [
+        symbol
+        for spelling in spellings
+        for symbol in convert_greedy(spelling, lookup, skipped=lost, report=False)
+    ]
+    # stacklevel 4: reporter -> this route -> public converter -> caller.
+    report_unconvertible(lost, what, strict=strict, stacklevel=stacklevel)
+    return result
