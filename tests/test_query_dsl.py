@@ -60,6 +60,22 @@ def test_braces_are_a_conjunction_and_a_literal_is_exact():
     assert corpus.parse_query("ˈa").target.brace_base is False
 
 
+@pytest.mark.parametrize("source", ["#{+voiced}", ".{+voiced}", "‿{+voiced}"])
+def test_feature_braces_refuse_boundary_bases(source):
+    with pytest.raises(corpus.QueryParseError) as caught:
+        corpus.parse_query(source)
+    assert caught.value.position == 0
+    assert str(caught.value).endswith(
+        f"{source!r} puts a feature constraint on a boundary; "
+        "a boundary carries no features"
+    )
+
+
+def test_feature_braces_still_constrain_wildcard_bases():
+    parsed = corpus.parse_query("*{+voiced}")
+    assert [match.text for match in corpus.find("td", parsed)] == ["d"]
+
+
 def test_wild_normalization_skips_feature_bundles():
     wild = corpus.parse_query("[channel=grooved]", wild=True)
     exact = corpus.parse_query("[channel=grooved]")

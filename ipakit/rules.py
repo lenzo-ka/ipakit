@@ -1127,6 +1127,16 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
                 "'{stress=primary}' or '{+nasalized}'"
             )
         base = _pattern(base_text, features)
+        if base.names_boundary:
+            raise RuleError(
+                f"{text!r} puts a feature constraint on a boundary; "
+                "a boundary carries no features"
+            )
+        if base.names_tier:
+            raise RuleError(
+                f"{text!r} puts a feature constraint on a tier edge; "
+                "a tier edge carries no features"
+            )
         constraint = _pattern(f"[{inner}]", features)
         if (
             constraint.literal is not None
