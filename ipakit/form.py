@@ -90,6 +90,103 @@ class FormProjectionError(ValueError):
     """A stored graph cannot reproduce Form's compatibility coordinates."""
 
 
+class FormBuilder:
+    """Build an IPA :class:`Form` incrementally without exposing graph internals.
+
+    Event handles returned while editing are intentionally opaque.  Canonical
+    JSON Pointer paths become observable only on the immutable built form.
+    """
+
+    def __init__(self, features: IPAFeatures | None = None) -> None:
+        from ._ipa_graph import declarations
+        from ._tiergraph_builder import GraphBuilder
+
+        self.features = _default(features)
+        self._builder = GraphBuilder(declarations(self.features))
+
+    def begin(
+        self,
+        tier: str,
+        features: Mapping[str, Any] | None = None,
+        *,
+        start: int | None = None,
+    ) -> Any:
+        """Begin an event whose structural extent ends with :meth:`end`."""
+        return self._builder.begin(tier, features or {}, start=start)
+
+    def end(self, handle: Any, end: int | None = None) -> None:
+        """Close an event opened by :meth:`begin`."""
+        self._builder.end(handle, end)
+
+    @property
+    def current_tick(self) -> int:
+        """The next input-clock position."""
+        return self._builder.current_tick
+
+    def add_event(
+        self,
+        tier: str,
+        features: Mapping[str, Any] | None = None,
+        *,
+        start: int | None = None,
+        duration: int = 1,
+    ) -> Any:
+        """Add an occurrence with arbitrary features permitted by ``tier``."""
+        return self._builder.add_event(
+            tier,
+            self.current_tick if start is None else start,
+            features or {},
+            duration=duration,
+        )
+
+    def append_ipa(self, text: str, *, strict: bool = False) -> tuple[Any, ...]:
+        """Scan IPA once and append its input occurrences to the shared clock."""
+        parsed = self.features.read(text, strict=strict)
+        graph = parsed._graph
+        by_index: dict[int, tuple[int, str, Any]] = {}
+        for tick, node in enumerate(graph.clock):
+            for group in node.groups:
+                for event in group.events:
+                    index = event.features.get("compatibility-index")
+                    if isinstance(index, int):
+                        by_index[index] = (tick, group.tier, event)
+        handles = []
+        for index in range(len(parsed.units)):
+            tick, tier, event = by_index[index]
+            values = dict(event.features)
+            if event.structural_duration == 1:
+                handles.append(self._builder.append_input_atom(tier, values))
+            else:
+                handles.append(
+                    self._builder.append_input_occurrence(
+                        tier, values, refines_tick=graph.clock[tick].gap_count > 1
+                    )
+                )
+        return tuple(handles)
+
+    def contain(
+        self, parent: Any, children: Sequence[Any], *, relation: str = "contains"
+    ) -> None:
+        """Add one ordered containment sequence."""
+        self._builder.contain(parent, children, relation=relation)
+
+    def relate(self, sources: Sequence[Any], name: str, targets: Sequence[Any]) -> None:
+        """Add a declared relation while preserving endpoint order."""
+        self._builder.relate(sources, name, targets)
+
+    def add_root(self, handle: Any) -> None:
+        """Declare an event as a rendering or traversal root."""
+        self._builder.add_root(handle)
+
+    def attach_timing(self, handle: Any, start: float, duration: float) -> None:
+        """Attach optional physical time without changing structural order."""
+        self._builder.attach_timing(handle, start, duration)
+
+    def build(self) -> Form:
+        """Validate and return the immutable public representation."""
+        return Form._from_graph(self._builder.build())
+
+
 class _DerivedMapping(Mapping[str, str]):
     """An immutable resolved view that ``replace`` can recognize as pass-through."""
 
@@ -1364,6 +1461,31 @@ class Form:
         object.__setattr__(form, "spelling", spelling)
         object.__setattr__(form, "_tiergraph_graph", graph)
         return form
+
+    @property
+    def roots(self) -> tuple[str, ...]:
+        """Canonical paths of the graph's declared traversal roots."""
+        return cast(tuple[str, ...], self._graph.roots)
+
+    def direct_children(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
+        """Return the declared ordered children of ``parent``."""
+        return cast(tuple[str, ...], self._graph.direct_children(parent, tier))
+
+    def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
+        """Walk containment routes once each, optionally filtering by tier."""
+        return cast(tuple[str, ...], self._graph.descendants(parent, tier))
+
+    def leaves(self, parent: str) -> tuple[str, ...]:
+        """Return expanded containment leaves in declared order."""
+        return cast(tuple[str, ...], self._graph.leaves(parent))
+
+    def parents(self, child: str) -> tuple[str, ...]:
+        """Return every direct containment parent of ``child``."""
+        return cast(tuple[str, ...], self._graph.parents(child))
+
+    def ancestors(self, child: str) -> tuple[str, ...]:
+        """Return every reachable containment ancestor once."""
+        return cast(tuple[str, ...], self._graph.ancestors(child))
 
     @classmethod
     def from_parsed(

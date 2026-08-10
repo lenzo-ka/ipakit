@@ -74,6 +74,7 @@ from .form import (
     tier_names,
     units,
 )
+from .form import FormBuilder as FormBuilder
 from .form import (
     FormProjectionError as FormProjectionError,
 )
