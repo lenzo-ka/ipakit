@@ -21,6 +21,7 @@ broken for one above it.
 from __future__ import annotations
 
 import dataclasses
+import warnings
 
 import ipakit
 import ipakit.rules as R
@@ -101,6 +102,57 @@ class TestFormSerialization:
         assert Form.from_json(form.to_json(), FEATURES).to_dict() == form.to_dict()
         assert Form.from_dict(form.to_dict(self_contained=True), FEATURES) == form
         assert Form.from_json(form.to_json(self_contained=True), FEATURES) == form
+
+    def test_self_contained_json_is_identical_warm_or_cold(self):
+        cold = Form.parse("ⁿd͡ʒʷ.ˈaː", FEATURES)
+        warm = Form.parse("ⁿd͡ʒʷ.ˈaː", FEATURES)
+        for unit in warm.units:
+            _ = (unit.features, unit.prosody, unit.provenance)
+
+        assert cold.to_json(self_contained=True) == warm.to_json(self_contained=True)
+
+
+class TestLazyUnitViews:
+    def test_replace_honors_explicit_view_overrides(self):
+        unit = Form.parse("ˈa", FEATURES).units[0]
+        changed = dataclasses.replace(
+            unit,
+            features={"caller": "features"},
+            prosody={"stress": "caller"},
+            provenance=(("x", "caller", "provenance"),),
+        )
+
+        assert dict(changed.features) == {"caller": "features"}
+        assert dict(changed.prosody) == {"stress": "caller"}
+        assert changed.provenance == (("x", "caller", "provenance"),)
+
+    def test_replace_without_views_preserves_lazy_derivation(self):
+        unit = Form.parse("ˈa", FEATURES).units[0]
+        changed = dataclasses.replace(unit, timing=Timing(0.0, 0.1))
+
+        assert not changed._views_resolved
+        assert dict(changed.prosody) == {"stress": "primary"}
+        assert changed._views_resolved
+
+    def test_strict_parse_reports_resolution_warning_eagerly(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            form = Form.parse("â˩˥", FEATURES, strict=True)
+
+        assert form.to_ipa() == "â˩˥"
+        assert sum("levels written on it" in str(w.message) for w in caught) == 1
+
+    def test_lax_parse_reports_resolution_warning_on_first_view(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            form = Form.parse("â˩˥", FEATURES)
+            assert caught == []
+            assert form.to_ipa() == "â˩˥"
+            assert caught == []
+            assert form.units[0].prosody["contour"] == "falling"
+            assert sum("levels written on it" in str(w.message) for w in caught) == 1
+            _ = form.units[0].prosody
+            assert sum("levels written on it" in str(w.message) for w in caught) == 1
 
     def test_unknown_version_is_refused(self):
         with pytest.raises(ValueError, match="unsupported Form JSON version"):
