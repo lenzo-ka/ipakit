@@ -255,6 +255,22 @@ def test_member_of_declaration_requires_exactly_one_target() -> None:
         RelationDeclaration("selects", member_of="alternatives")
 
 
+@pytest.mark.parametrize(
+    "relation",
+    [
+        Relation(("/clock/0/top/0",), "contains", ("/clock/0/unit/0",)),
+        Relation(("/clock/1",), "inserts", ("/clock/0/unit/0",)),
+    ],
+)
+def test_duplicate_relations_are_rejected_at_construction(relation: Relation) -> None:
+    with pytest.raises(GraphValidationError, match="duplicate relation"):
+        graph(
+            node(top=(event(),), unit=(event(),)),
+            node(),
+            links=(relation, relation),
+        )
+
+
 def choice_graph(links: tuple[Relation, ...]) -> Graph:
     return graph(node(top=(event(),), variant=(event(), event())), node(), links=links)
 

@@ -31,6 +31,7 @@ def generic_model() -> Model:
         ),
         (FeatureDeclaration("value"),),
         (
+            RelationDeclaration("contains", acyclic=True, containment=True),
             RelationDeclaration(
                 "inserts",
                 source_kinds=frozenset(
@@ -114,6 +115,29 @@ def test_generic_envelope_round_trip_and_canonical_bytes() -> None:
     assert '"id"' not in dumps(graph, model)
 
 
+def test_default_duration_has_one_canonical_kernel_and_envelope_form() -> None:
+    model = generic_model()
+    implicit = Graph(
+        model.declarations,
+        (
+            ClockNode(groups=(EventGroup("a/b~c", (Event({"value": "x"}),)),)),
+            ClockNode(),
+        ),
+    )
+    explicit = Graph(
+        model.declarations,
+        (
+            ClockNode(
+                groups=(EventGroup("a/b~c", (Event({"value": "x"}, duration=1),)),)
+            ),
+            ClockNode(),
+        ),
+    )
+    assert implicit == explicit
+    assert implicit.to_data() == explicit.to_data()
+    assert dumps(implicit, model).encode() == dumps(explicit, model).encode()
+
+
 def test_structured_segment_round_trip_does_not_reparse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -130,12 +154,10 @@ def test_structured_segment_round_trip_does_not_reparse(
         **fixture["prosody"],
         "provenance": tuple(tuple(item) for item in fixture["provenance"]),
     }
-    if "class" not in {feature.name for feature in declared.features}:
-        pytest.xfail("IPA declarations omit the structured fixture's class feature")
     graph = Graph(
         declared,
         (
-            ClockNode(groups=(EventGroup("segment", (Event(feature_values),)),)),  # type: ignore[arg-type]
+            ClockNode(groups=(EventGroup("segment", (Event(feature_values),)),)),
             ClockNode(),
         ),
     )
@@ -221,3 +243,20 @@ def test_choice_rejections_survive_restoration() -> None:
         data["links"] = replacement
         with pytest.raises(GraphValidationError, match=reason):
             from_data(data, model)
+
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        [["/clock/0/a~1b~0c/0"], "contains", ["/clock/0/choice/0"]],
+        [["/clock/2"], "inserts", ["/clock/0/choice/0"]],
+    ],
+)
+def test_duplicate_relations_are_rejected_through_restoration(
+    link: list[object],
+) -> None:
+    model = generic_model()
+    data = to_data(generic_graph(), model)
+    data["links"] = [link, link]
+    with pytest.raises(GraphValidationError, match="duplicate relation"):
+        from_data(data, model)
