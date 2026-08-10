@@ -1,5 +1,7 @@
 # The conlang sound-change appliers: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 The constructed-language community has built the most-used rewrite-rule engines outside the finite-state world — **Lexurgy**, **SCA²** and **Brassica** — and they are built on the same object historical phonology uses, which is why **Phono**, a diachronic tool rather than a conlang one, belongs beside them. Which of their capabilities should ipakit gain, and which should it refuse?
 
 **Verdict: ADOPT ONE, REFUSE EIGHT, AND THE ONE WORTH BUILDING IS NOT ON THE LIST.** The wildcard is the adopt, and it is a *narrowing* rather than an addition: the notation already has **fifteen** terms that match every segment and no boundary, every one of them an accident of vacuous satisfaction, and every one of them collapses the shipped family that wants a wildcard with no corpus word moving. Everything else the brief expected to adopt fails its own demand test, and the capability the measurements keep arriving at — a **declared projection**, a rule that states which units it reads and steps over the rest — was not asked for by anybody and is the only change here that unlocks a process every phonology course teaches.

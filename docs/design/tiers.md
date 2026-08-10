@@ -1,5 +1,7 @@
 # Tiers: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 Should the calculus support structures that ride the linearization without nesting — syllables, morae, morphs above the segment ([#137](https://github.com/lenzo-ka/ipakit/issues/137)); a gestural or phase timeline below it ([#136](https://github.com/lenzo-ka/ipakit/issues/136)) — and if so, which architecture, and what does it cost?
 
 They are one question. #136 is a tier below the segment and #137 is tiers above it, over the same shared linearization, and an assessment that split them would produce two answers to one problem.

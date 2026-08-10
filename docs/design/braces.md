@@ -1,5 +1,7 @@
 # Braces in the rewrite notation: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 Should ipakit's rewrite notation gain **braces**, `{ }` — the device *SPE* introduces so that one rule may state a term as a choice among alternatives?
 
 **Verdict: ADOPT, ONE PER RULE, AND SAY WHAT IT ABBREVIATES.** A brace is an *expansion convention*: it abbreviates a finite sequence of ordinary rules, applied in the order written, each seeing the last one's output. So the thing a brace abbreviates is not one rule, it is a **cascade** — which is the object this engine already is. That is what makes it cheap. Nothing in `Pattern`, `Query`, `Site`, `Action`, `Edit` or the calculus moves, because a brace schema *is* a `RuleSet` the parser already accepts, and every refusal that guards a rule guards a schema for free. It is also what makes the one restriction necessary: two braces in one rule expand to the cross product, and the cross product is right in one shipped family and silently wrong in another with nothing in the notation to tell them apart.

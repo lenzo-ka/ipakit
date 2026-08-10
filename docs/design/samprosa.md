@@ -1,5 +1,7 @@
 # SAMPROSA: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 Should ipakit carry SAMPROSA (the SAM PROSodic Alphabet) as a declared ASCII notation for the prosodic tier, the way X-SAMPA is the declared ASCII notation for the segmental one?
 
 **Verdict: DON'T BUILD.** SAMPROSA is a separate-tier notation by its own design, and ipakit's string API is a single tier; shipping it would give 12 ASCII characters two incompatible readings in one string space, with no reference implementation to validate the table against and the canonical source offline.

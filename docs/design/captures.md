@@ -1,5 +1,7 @@
 # Captures in the rewrite notation: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 Should ipakit's rewrite notation gain **captures** — terms of the match that the right of the arrow can name, copy and reorder, in the way PCRE writes `s/(a)(b)/\2\1/` and SPE writes `1 2 3 → 2 1 3`?
 
 **Verdict: ADOPT THE REFERENCE. REFUSE THE SPAN.** They are two changes, they have been travelling under one name, and only one of them earns its keep. A *reference* lets the right of the arrow name a term the left matched; a *span* lets the target cover more than one unit. Metathesis needs both. Everything else needs only the first, and the first turns out not to be a new mechanism at all — the right of the arrow is **already** a capture with exactly one implicit term. `ʃ -> [voiced=+]` gives `aʒa`, keeping grooved, postalveolar and fricative, because a bundle on the right *modifies the matched unit* rather than constructing a segment from nothing. So the proposal is not "add captures beside what is there"; it is "let the one term that is already captured be named, and let there be more than one of them".

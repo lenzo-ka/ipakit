@@ -1,5 +1,7 @@
 # Interoperating with the transcription ecosystem: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 Should ipakit interoperate with CLTS/BIPA, the speech-technology stack, external inventories and PanPhon — in which direction, and at what cost?
 
 **Verdict: CONSUME FREELY, EMIT ALMOST NOTHING, AND SHIP NO MAPPING TABLE AT ALL.** The brief expected a BIPA phonemap in the shape of `xsampa.xml` and a PanPhon emitter on the same terms. Neither survives measurement, and both fail for the same reason: **a mapping table has to be a bijection, and ipakit's segment set is finer than either target's in a dimension it cannot give up.** BIPA deletes both tie bars — 0 of its 8,765 graphemes contain one, and both normalize to the empty string — so `ts`, `t͡s` and `t͜s` are one BIPA sound with one name, where ipakit reads two segments, one segment, and a different one segment. 275 ipakit spellings are claimed by more than one BIPA grapheme. The relation is not a function, and no amount of care makes it one.

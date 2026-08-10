@@ -1,5 +1,7 @@
 # A constriction location from the vowel chart: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 [#123](https://github.com/lenzo-ka/ipakit/issues/123) is that a vowel reads its tract position from `backness` and nothing else, so `u o ɑ ɔ ʌ` all sit at `arc` 0.56. Two passes established that the values that would fix it by declaration do not exist: no coordinate per `(height, backness)` cell reproduces across sources, across languages, or across one speaker imaged twice, and almost nothing classifies the central series. This is the third route, and it does not go through a source at all. The IPA vowel quadrilateral is a **stated figure** with its two axes named as height and backness, and its proportions were fixed by publication rather than estimated from data. Placing it in the mid-sagittal plane and projecting each cell onto the tract wall is a geometric operation with a real answer, and that answer would be a declaration rather than a fit — checkable against measurement instead of validated against the data that produced it. That is exactly the shape of evidence the first two passes could not obtain.
 
 **Verdict: NOT DEFENSIBLE, on three independent grounds, and measured anyway to show what it does.**

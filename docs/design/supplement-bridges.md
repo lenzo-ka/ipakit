@@ -1,5 +1,7 @@
 # Supplement-level bridges: assessment
 
+> Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
+
 Should a supplemental inventory be allowed to declare `<bridges>` — and, secondarily, `<projections>` — where today it may declare only symbols?
 
 **Verdict: DON'T ADMIT, and the reason is measured rather than categorical.** A bridge really does put no key in any symbol's feature bundle; that half of the case for it holds exactly. But the metric does not read bundles, it reads *comparison bundles*, and a bridge puts a derived key in every one of those — which makes it a term in the denominator of every distance the inventory can compute, including distances between phones the supplement never named. A supplement that adds three phones moves no existing distance. A supplement that adds one three-line bridge moves up to 98% of them.
