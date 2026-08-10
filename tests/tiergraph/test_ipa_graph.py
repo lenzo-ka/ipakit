@@ -14,6 +14,7 @@ from ipakit._ipa_graph import (
     prosody_host_tiers,
 )
 from ipakit._tiergraph import ClockNode, Event, EventGroup, Graph, Relation
+from ipakit.constants import DEFAULT_IPA_FEATS
 
 
 def test_structured_segment_fixture_restores_without_tokenizing(
@@ -97,6 +98,29 @@ def test_inventory_drives_feature_and_mark_declarations() -> None:
         "prosody",
     }
     assert "capitalized" not in {feature.name for feature in declared.features}
+
+
+def test_declarations_are_cached_by_inventory_identity(tmp_path: Path) -> None:
+    inventory = IPAFeatures()
+    first = declarations(inventory)
+    assert declarations(inventory) is first
+
+    source = DEFAULT_IPA_FEATS.read_text(encoding="utf-8")
+    perturbed = source.replace(
+        '<value name="morph" short="mph" href="Morpheme"/>',
+        '<value name="morph" short="mph" href="Morpheme"/>\n'
+        '      <value name="gesture" short="gst"/>',
+    )
+    assert perturbed != source
+    path = tmp_path / "ipa.xml"
+    path.write_text(perturbed, encoding="utf-8")
+    reloaded = IPAFeatures(path)
+    fresh = declarations(reloaded)
+
+    assert fresh is declarations(reloaded)
+    assert fresh is not first
+    assert "gesture" in {tier.name for tier in fresh.tiers}
+    assert "gesture" not in {tier.name for tier in first.tiers}
 
 
 def test_clock_treatment_and_structural_distinctions() -> None:

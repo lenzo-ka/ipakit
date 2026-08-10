@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
 from typing import TypeAlias, cast
@@ -84,6 +84,14 @@ class Declarations:
     features: tuple[FeatureDeclaration, ...]
     relations: tuple[RelationDeclaration, ...]
     closed: bool = True
+    _tier_by_name: Mapping[str, TierDeclaration] = field(
+        init=False, repr=False, compare=False
+    )
+    _relation_by_name: Mapping[str, RelationDeclaration] = field(
+        init=False, repr=False, compare=False
+    )
+    _tier_order: Mapping[str, int] = field(init=False, repr=False, compare=False)
+    _feature_names: frozenset[str] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         _unique((item.name for item in self.tiers), "tier declaration")
@@ -102,12 +110,30 @@ class Declarations:
                 and relation.member_of not in relation_names
             ):
                 raise GraphValidationError("member_of names an undeclared relation")
+        object.__setattr__(
+            self,
+            "_tier_by_name",
+            MappingProxyType({item.name: item for item in self.tiers}),
+        )
+        object.__setattr__(
+            self,
+            "_relation_by_name",
+            MappingProxyType({item.name: item for item in self.relations}),
+        )
+        object.__setattr__(
+            self,
+            "_tier_order",
+            MappingProxyType(
+                {item.name: index for index, item in enumerate(self.tiers)}
+            ),
+        )
+        object.__setattr__(self, "_feature_names", frozenset(feature_names))
 
     def tier(self, name: str) -> TierDeclaration | None:
-        return next((item for item in self.tiers if item.name == name), None)
+        return self._tier_by_name.get(name)
 
     def relation(self, name: str) -> RelationDeclaration | None:
-        return next((item for item in self.relations if item.name == name), None)
+        return self._relation_by_name.get(name)
 
 
 @dataclass(frozen=True, order=True)
@@ -335,10 +361,8 @@ class Graph:
     def validate(self) -> None:
         if not self.clock:
             raise GraphValidationError("clock requires a final tick")
-        tier_order = {
-            tier.name: index for index, tier in enumerate(self.declarations.tiers)
-        }
-        feature_names = {feature.name for feature in self.declarations.features}
+        tier_order = self.declarations._tier_order
+        feature_names = self.declarations._feature_names
         for tick_index, node in enumerate(self.clock):
             if node.gap_count < 1:
                 raise GraphValidationError("noncanonical gap cardinality")

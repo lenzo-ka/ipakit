@@ -74,6 +74,12 @@ CLOCK_TREATMENTS: Mapping[OccurrenceKind, ClockTreatment] = {
 
 
 def declarations(inventory: IPAFeatures) -> Declarations:
+    """Return declarations cached on this inventory instance."""
+
+    return inventory._graph_declarations
+
+
+def _derive_declarations(inventory: IPAFeatures) -> Declarations:
     """Build IPA declarations from one inventory.
 
     Feature names and their contribution modes come from ``ipa.xml`` so a
