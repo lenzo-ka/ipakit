@@ -179,11 +179,13 @@ class TestLazyUnitViews:
                 FEATURES,
             )
 
-    def test_serialized_derived_views_cannot_disagree(self):
+    def test_self_contained_serialized_views_are_authoritative(self):
+        """Rejecting stored views contradicted self-contained mode's purpose."""
         representation = Form.parse("ˈa", FEATURES).to_dict(self_contained=True)
         representation["units"][0]["prosody"]["stress"] = "secondary"
-        with pytest.raises(ValueError, match="views disagree with segment"):
-            Form.from_dict(representation, FEATURES)
+        restored = Form.from_dict(representation, FEATURES)
+
+        assert restored.units[0].prosody["stress"] == "secondary"
 
     def test_occurrence_and_tier_timings_round_trip(self):
         source = Form.parse("a.ta", FEATURES)

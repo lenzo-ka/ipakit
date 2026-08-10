@@ -66,15 +66,23 @@ def test_structured_segment_fixture_restores_without_tokenizing(
 
 
 @pytest.mark.parametrize("view", ["features", "prosody", "provenance"])
-def test_structured_segment_cached_views_must_agree(view: str) -> None:
+def test_structured_segment_embedded_views_are_authoritative(view: str) -> None:
+    """Rejecting stored views contradicted self-contained mode's purpose."""
     inventory = IPAFeatures()
     form = Form.parse("ⁿd͡ʒʷː", inventory).to_dict(self_contained=True)
     if view == "provenance":
         form["units"][0][view] = []
     else:
         form["units"][0][view]["wrong"] = "value"
-    with pytest.raises(ValueError, match="views disagree with segment"):
-        Form.from_dict(form, inventory)
+    restored = Form.from_dict(form, inventory)
+
+    expected = () if view == "provenance" else "value"
+    actual = (
+        restored.units[0].provenance
+        if view == "provenance"
+        else getattr(restored.units[0], view)["wrong"]
+    )
+    assert actual == expected
 
 
 def test_inventory_drives_feature_and_mark_declarations() -> None:
