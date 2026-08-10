@@ -98,6 +98,38 @@ def _json_bytes(value: object) -> bytes:
     return (text + "\n").encode("utf-8")
 
 
+def _entry_bytes(document: Mapping[str, Any]) -> bytes:
+    """Canonically encode an entry without rewriting embedded form wires."""
+    try:
+        forms = document["forms"]
+        encoded_forms = ",".join(
+            f"{json.dumps(role, ensure_ascii=False)}:"
+            f"{json.dumps(forms[role], ensure_ascii=False, allow_nan=False, separators=(',', ':'))}"
+            for role in sorted(forms)
+        )
+        fields = {
+            "forms": f"{{{encoded_forms}}}",
+            "id": json.dumps(document["id"], ensure_ascii=False),
+            "meta": json.dumps(
+                document["meta"],
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            "type": json.dumps(document["type"], ensure_ascii=False),
+            "v": json.dumps(document["v"]),
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CorpusError(f"value is not canonical JSON data: {exc}") from exc
+    text = (
+        "{"
+        + ",".join(f"{json.dumps(key)}:{fields[key]}" for key in sorted(fields))
+        + "}"
+    )
+    return (text + "\n").encode("utf-8")
+
+
 def _load_object(path: Path, what: str) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -154,7 +186,7 @@ class Corpus:
             "meta": dict(meta),
             "forms": encoded_forms,
         }
-        data = _json_bytes(document)
+        data = _entry_bytes(document)
         path = self._entry_path(entry_id)
         try:
             descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)

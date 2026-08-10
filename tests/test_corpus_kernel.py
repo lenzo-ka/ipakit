@@ -13,9 +13,10 @@ def _form(text: str) -> Form:
     return ipakit.read(text)
 
 
-def test_round_trip_and_canonical_entry_bytes(tmp_path: Path):
+@pytest.mark.parametrize("text", ["ˈkæt", "#kæt#", "ˈkæt.dɒɡ"])
+def test_round_trip_and_canonical_entry_bytes(tmp_path: Path, text: str):
     corpus = _corpus.create(tmp_path / "speech")
-    original = _form("ˈkæt")
+    original = _form(text)
     corpus.add("utt-001", {"text": "cat", "n": 1}, {"utt": original})
     before = (tmp_path / "speech" / "entries" / "utt-001.json").read_bytes()
 
@@ -24,6 +25,19 @@ def test_round_trip_and_canonical_entry_bytes(tmp_path: Path):
     assert before == (tmp_path / "speech" / "entries" / "utt-001.json").read_bytes()
     assert before.endswith(b"\n")
     assert b'"features"' in before
+
+
+def test_same_form_has_identical_entry_bytes(tmp_path: Path):
+    form = _form("#kæt#")
+    first = _corpus.create(tmp_path / "first")
+    second = _corpus.create(tmp_path / "second")
+
+    first.add("same", {}, {"utt": form})
+    second.add("same", {}, {"utt": form})
+
+    assert (tmp_path / "first" / "entries" / "same.json").read_bytes() == (
+        tmp_path / "second" / "entries" / "same.json"
+    ).read_bytes()
 
 
 def test_order_and_bytes_do_not_depend_on_add_order(tmp_path: Path):
