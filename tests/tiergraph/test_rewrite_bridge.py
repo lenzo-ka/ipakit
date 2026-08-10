@@ -5,7 +5,11 @@ from pathlib import Path
 
 import ipakit
 import pytest
-from ipakit._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
+from ipakit._rewrite_graph import (
+    japanese_moraic_fixture,
+    japanese_moraic_fixtures,
+    project_derivation,
+)
 from ipakit._tiergraph_builder import GraphBuilder
 
 HERE = Path(__file__).parent
@@ -18,6 +22,70 @@ def _events(graph, tier):
         for group in node.groups
         if group.tier == tier
         for index, event in enumerate(group.events)
+    ]
+
+
+def _one_step_derivation(inventory, edits, result):
+    seed = (
+        ipakit.rules.RuleSet.parse("t -> s", inventory).derive("ta", inventory).edits[0]
+    )
+    traced = tuple(
+        ipakit.rules.Edit(
+            rule=rule,
+            start=start,
+            end=end,
+            replacement=tuple(inventory.read(replacement).units),
+            before="ta"[start:end],
+            after=replacement,
+            site=seed.site,
+        )
+        for rule, start, end, replacement in edits
+    )
+    return ipakit.rules.Derivation(
+        start="ta",
+        result=result,
+        steps=(ipakit.rules.Step("batch", "ta", result, traced),),
+    )
+
+
+def test_one_step_projection_keeps_adjacent_edits_and_their_rule_provenance():
+    inventory = ipakit.load_ipa_features()
+    derivation = _one_step_derivation(
+        inventory,
+        (("t-to-s", 0, 1, "s"), ("a-to-o", 1, 2, "o")),
+        "so",
+    )
+
+    form = project_derivation(derivation, inventory)
+
+    assert form.to_ipa() == "so"
+    events = [event for _, event in _events(form._graph, "narrow")]
+    assert [
+        (event.features["spelling"], event.features["rule"]) for event in events
+    ] == [
+        ("s", "t-to-s"),
+        ("o", "a-to-o"),
+    ]
+
+
+def test_one_step_projection_keeps_same_start_edits():
+    inventory = ipakit.load_ipa_features()
+    derivation = _one_step_derivation(
+        inventory,
+        (("insert-s", 0, 0, "s"), ("t-to-d", 0, 1, "d")),
+        "sda",
+    )
+
+    form = project_derivation(derivation, inventory)
+
+    assert form.to_ipa() == "sda"
+    events = [event for _, event in _events(form._graph, "narrow")]
+    assert [
+        (event.features["spelling"], event.features["rule"]) for event in events
+    ] == [
+        ("s", "insert-s"),
+        ("d", "t-to-d"),
+        ("a", "batch"),
     ]
 
 

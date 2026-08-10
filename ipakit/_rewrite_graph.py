@@ -301,8 +301,8 @@ def project_derivation(
                     )
                     furthest = max(furthest, edit.end)
                     site_order += 1
-                cursor = furthest
                 edits.pop(cursor, None)
+                cursor = furthest
                 continue
             if cursor == len(current):
                 break
