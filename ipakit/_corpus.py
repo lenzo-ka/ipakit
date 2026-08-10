@@ -21,7 +21,7 @@ CORPUS_VERSION = 1
 ENTRY_VERSION = 1
 _CORPUS_TYPE = "ipakit.corpus"
 _ENTRY_TYPE = "ipakit.corpus.entry"
-_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+_ID_RE = re.compile(r"[A-Za-z0-9'][A-Za-z0-9.'_-]{0,127}\Z")
 _KIND_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
 _EXTENSIONS = {"textgrid": "TextGrid"}
 
@@ -71,7 +71,7 @@ def _check_id(entry_id: str) -> str:
     if not isinstance(entry_id, str) or _ID_RE.fullmatch(entry_id) is None:
         raise CorpusError(
             f"invalid entry id {entry_id!r}: expected 1-128 ASCII letters, "
-            "digits, '.', '_' or '-', beginning with a letter or digit"
+            "digits, apostrophe, '.', '_' or '-', beginning with one of those"
         )
     return entry_id
 
