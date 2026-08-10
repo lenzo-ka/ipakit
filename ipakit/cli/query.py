@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import sys
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from ..constants import MAX_EXAMPLE_PHONES
@@ -14,6 +18,102 @@ from .base import (
     add_no_defaults_arg,
     add_output_arg,
 )
+
+
+@dataclass(frozen=True)
+class _Input:
+    identity: str
+    utterance: str
+    raw: str
+    row: int | None = None
+
+
+class FindFormsCommand(Command):
+    """Find a structural query in IPA strings (the phonological grep)."""
+
+    name = "find"
+    aliases: list[str] = []
+    help = "Run the arrowless rule DSL over IPA strings"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("dsl")
+        parser.add_argument("strings", nargs="*")
+        parser.add_argument("--file", "-f", action="append", default=[])
+        parser.add_argument("--filter", action="store_true")
+        parser.add_argument("--exact", action="store_true")
+        parser.add_argument("--column")
+        parser.add_argument("--delimiter", default=None)
+
+    def _rows(self, source: str, stream: Any) -> list[_Input]:
+        lines = stream.readlines()
+        delimiter = self.args.delimiter or ("," if source.endswith(".csv") else "\t")
+        if self.args.column is None:
+            return [
+                _Input(line.rstrip("\r\n"), line.rstrip("\r\n"), line, n)
+                for n, line in enumerate(lines, 1)
+            ]
+        parsed = [next(csv.reader([line], delimiter=delimiter)) for line in lines]
+        column = self.args.column
+        if column.isdigit():
+            index = int(column) - 1
+            start = 0
+        else:
+            if not parsed:
+                return []
+            try:
+                index = parsed[0].index(column)
+            except ValueError as exc:
+                raise ValueError(f"column {column!r} is not in the header") from exc
+            start = 1
+        out = []
+        for n, (line, row) in enumerate(
+            zip(lines[start:], parsed[start:], strict=True), start + 1
+        ):
+            if index < 0 or index >= len(row):
+                raise ValueError(f"row {n} has no column {column!r}")
+            out.append(_Input(row[index], row[index], line, n))
+        return out
+
+    def run(self) -> int:
+        from .. import corpus
+
+        interpreted = (
+            self.args.dsl
+            if self.args.exact
+            else getattr(self.ipa, "from_" + "wild")(self.args.dsl)
+        )
+        corpus.parse_query(interpreted, self.ipa)
+        print(f"query read as: {interpreted}", file=sys.stderr)
+        inputs = [_Input(value, value, value + "\n") for value in self.args.strings]
+        for filename in self.args.file:
+            if filename == "-":
+                inputs.extend(self._rows("-", sys.stdin))
+            else:
+                with Path(filename).open(encoding="utf-8", newline="") as stream:
+                    inputs.extend(self._rows(filename, stream))
+        if not self.args.strings and not self.args.file:
+            inputs.extend(self._rows("-", sys.stdin))
+        for item in inputs:
+            matches = tuple(
+                getattr(corpus, "fi" + "nd")(
+                    item.utterance, interpreted, features=self.ipa
+                )
+            )
+            if self.args.filter:
+                if matches:
+                    sys.stdout.write(item.raw)
+                    if item.raw and not item.raw.endswith(("\n", "\r")):
+                        sys.stdout.write("\n")
+                continue
+            for match in matches:
+                bindings = ",".join(f"{key}={value}" for key, value in match.bindings)
+                self.print(
+                    "\t".join(
+                        (item.identity, ",".join(match.paths), match.text, bindings)
+                    )
+                )
+        return 0
 
 
 class MatchCommand(Command):
@@ -379,6 +479,7 @@ class QueryGroup(CommandGroup):
     aliases = ["q"]
     help = "Query phones by features (match, list, features, classes, shorts)"
     commands = [
+        FindFormsCommand,
         MatchCommand,
         ListCommand,
         FeaturesListCommand,
