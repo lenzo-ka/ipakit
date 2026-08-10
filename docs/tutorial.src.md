@@ -44,6 +44,8 @@ Throughout, the Python examples assume:
 
 ```python-run
 import ipakit as ipa
+import tempfile
+from pathlib import Path
 ```
 
 For the reference material this page deliberately does not duplicate, see
@@ -732,7 +734,28 @@ tuple(dict.fromkeys(frame.level for frame in oral_tract_frames(partial_graph, ge
 
 These gesture modules are backend interfaces, so their underscore-prefixed imports are intentionally more specialized than the public `Form` and rewrite APIs above.
 
-## 11. Extending the inventory
+## 11. Build and query a corpus
+
+A directory corpus keeps canonical forms under named roles. The query notation is the
+left, recognizing half of a rewrite rule, so the same context can be searched and then
+used in a derivation:
+
+```python-run
+corpus_path = Path(tempfile.mkdtemp()) / "speech"
+speech = ipa.corpus.create(corpus_path)
+speech.add("one", {}, {"broad": ipa.read("an")})
+[(m.fileid, m.role, m.text) for m in ipa.corpus.query(speech, "[nasal] / [vowel] _ #", role="broad")]
+query = ipa.parse_query("n / _ [place=α]")
+query.target.source
+grammar = ipa.rules.RuleSet.parse("n -> m / _ [place=bilabial]")
+type(ipa.corpus.derives(grammar, "anp", "amp")).__name__
+```
+
+The command-line equivalents are `ipakit query '<dsl>' IPA...` for ephemeral strings,
+and the `ipakit corpus init`, `add`, `query`, and `derives` commands for a stored
+collection. See [corpus.md](corpus.md) for the grammar and stable record columns.
+
+## 12. Extending the inventory
 
 The shipped inventory registers the phones on the IPA chart, and reads everything else by
 composing it. A composed unit works as **input** everywhere a registered one does, with no

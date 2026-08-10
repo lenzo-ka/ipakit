@@ -44,6 +44,7 @@ from .analysis_cmds import AnalysisGroup, DescribeCommand
 from .analyze import AnalyzeGroup
 from .base import Command, add_lax_arg
 from .convert import ConvertGroup
+from .corpus import CorpusGroup
 from .distance import DistanceGroup
 from .features import FeaturesCommand
 from .hierarchy import HierarchyGroup
@@ -56,6 +57,7 @@ from .tract import TractGroup
 
 # All command groups for help lookup
 GROUPS = [
+    CorpusGroup,
     ConvertGroup,
     QueryGroup,
     RulesGroup,
@@ -144,6 +146,24 @@ def _preprocess_help(argv: list[str]) -> list[str]:
         ['convert', 'to-cmu', 'help'] → ['convert', 'to-cmu', '--help']
     """
     if "help" not in argv:
+        # ``query`` predates the corpus DSL as an inventory-query group.
+        # Keep those named subcommands while making the new form-level door
+        # read naturally as ``ipakit query '<dsl>' IPA...``.
+        if argv[:1] in (["query"], ["q"]) and len(argv) > 1:
+            inventory_commands = {
+                "find",
+                "match",
+                "m",
+                "list",
+                "l",
+                "features",
+                "f",
+                "classes",
+                "shorts",
+                "s",
+            }
+            if argv[1] not in inventory_commands and not argv[1].startswith("-"):
+                return [argv[0], "find", *argv[1:]]
         return argv
 
     # Remove 'help' and collect non-help args

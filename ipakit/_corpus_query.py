@@ -8,8 +8,9 @@ paths.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import rules
 from ._corpus import Corpus
@@ -38,7 +39,60 @@ class BudgetRefusal:
 DerivationAnswer = Derivation | ExhaustiveRefusal | BudgetRefusal
 
 
-def context(spec: str, features: IPAFeatures | None = None) -> Query:
+def _normalize_wild_query(spec: str, inventory: IPAFeatures) -> str:
+    """Import IPA spellings without rewriting feature-group vocabulary."""
+    out: list[str] = []
+    buffer = ""
+    depth = 0
+    for char in spec:
+        if char in rules._GROUPS:
+            if depth == 0:
+                out.append(inventory.from_wild(buffer))
+                buffer = ""
+            depth += 1
+        buffer += char
+        if char in rules._CLOSERS:
+            depth -= 1
+            if depth == 0:
+                out.append(buffer)
+                buffer = ""
+    out.append(inventory.from_wild(buffer) if depth == 0 else buffer)
+    return "".join(out)
+
+
+class QueryParseError(rules.RuleError):
+    """A query token could not be parsed, with its source position."""
+
+    def __init__(self, source: str, message: str, token: str | None = None):
+        quoted = re.search(r"'([^']+)'", message)
+        offending = token or (quoted.group(1) if quoted else _offending_token(source))
+        position = source.find(offending) if offending else 0
+        self.position = max(position, 0)
+        self.expected = message
+        self.token = offending
+        super().__init__(
+            f"query error at position {self.position}: expected a valid pattern "
+            f"element; offending token {offending!r}: {message}"
+        )
+
+
+def _offending_token(source: str) -> str:
+    return next(
+        (
+            token
+            for token in source.replace("/", " ").replace("_", " ").split()
+            if token
+        ),
+        source,
+    )
+
+
+def _parse_query(
+    spec: str,
+    features: IPAFeatures | None = None,
+    *,
+    wild: bool = False,
+) -> Query:
     """Compile rule-context notation for an anywhere query.
 
     ``[vowel]`` matches that target anywhere.  A slash adds the ordinary
@@ -46,6 +100,8 @@ def context(spec: str, features: IPAFeatures | None = None) -> Query:
     constructor for the engine's Pattern and Query objects, not a matcher.
     """
     inventory = _default(features)
+    if wild:
+        spec = _normalize_wild_query(spec, inventory)
     target_text, slash, environment = spec.partition("/")
     target_text = target_text.strip()
     if not target_text:
@@ -65,6 +121,12 @@ def context(spec: str, features: IPAFeatures | None = None) -> Query:
         raise rules.RuleError("a structural query target must name a unit")
     _check_query_variables(spec, (target,))
     if not slash:
+        if target.source == "*":
+            raise rules.RuleError(
+                "a bare '*' query is an unconstrained everything-matcher; "
+                "add an anchored feature bundle such as '[vowel]' or use '*' "
+                "only in a context"
+            )
         return Query(target)
     if environment.count("_") != 1:
         raise rules.RuleError(
@@ -77,6 +139,108 @@ def context(spec: str, features: IPAFeatures | None = None) -> Query:
     right = tuple(rules._pattern(item, inventory) for item in rules._items(after))
     _check_query_variables(spec, (target, *left, *right))
     return Query(target, left, right)
+
+
+def parse_query(
+    spec: str,
+    features: IPAFeatures | None = None,
+    *,
+    wild: bool = False,
+) -> Query:
+    """Parse arrowless rule notation into the rewrite engine's query object."""
+    try:
+        return _parse_query(spec, features, wild=wild)
+    except QueryParseError:
+        raise
+    except rules.RuleError as exc:
+        raise QueryParseError(spec, str(exc)) from exc
+
+
+# K2's spelling remains a compatibility alias; K3's public name says what it
+# does and exposes wild-input policy explicitly.
+context = parse_query
+
+
+def query_rule(
+    spec: str | Query,
+    replacement: str,
+    features: IPAFeatures | None = None,
+    *,
+    wild: bool = False,
+) -> rules.Rule:
+    """Compose an arrowless query and replacement into a rewrite rule."""
+    inventory = _default(features)
+    compiled = (
+        parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
+    )
+    target = compiled.target.source if compiled.target is not None else "∅"
+    if compiled.left or compiled.right:
+        left = " ".join(pattern.source for pattern in reversed(compiled.left))
+        right = " ".join(pattern.source for pattern in compiled.right)
+        environment = " ".join(part for part in (left, "_", right) if part)
+        source = f"{target} -> {replacement} / {environment}"
+    else:
+        source = f"{target} -> {replacement}"
+    return rules.parse(source, inventory)
+
+
+def _query_source(query: Query) -> str:
+    target = query.target.source if query.target is not None else "∅"
+    if not query.left and not query.right:
+        return target
+    left = " ".join(pattern.source for pattern in reversed(query.left))
+    right = " ".join(pattern.source for pattern in query.right)
+    return f"{target} / {left} _ {right}".rstrip()
+
+
+@dataclass(frozen=True)
+class Match:
+    """One form-level structural match, independent of collection identity."""
+
+    paths: tuple[str, ...]
+    text: str
+    bindings: tuple[tuple[str, str], ...] = ()
+    _preceding_text: tuple[str, ...] = field(default=(), repr=False, compare=False)
+
+    @property
+    def offset(self) -> int:
+        """Codepoint offset in the form's string representation."""
+        return sum(len(text) for text in self._preceding_text)
+
+
+@dataclass(frozen=True)
+class CorpusMatch:
+    """A :class:`Match` paired with its corpus identity."""
+
+    fileid: str
+    role: str
+    match: Match
+
+    @property
+    def paths(self) -> tuple[str, ...]:
+        return self.match.paths
+
+    @property
+    def text(self) -> str:
+        return self.match.text
+
+    @property
+    def bindings(self) -> tuple[tuple[str, str], ...]:
+        return self.match.bindings
+
+    @property
+    def offset(self) -> int:
+        return self.match.offset
+
+    # Transitional tuple projection for K2 callers.  The record remains the
+    # public shape, while unpacking/indexing old streams still reaches their
+    # former ``(fileid, paths)`` view.
+    def __iter__(self) -> Iterator[str | tuple[str, ...]]:
+        yield self.fileid
+        yield self.paths
+
+    def __getitem__(self, index: int) -> str | tuple[str, ...]:
+        return (self.fileid, self.paths)[index]
 
 
 def _check_query_variables(source: str, patterns: Sequence[rules.Pattern]) -> None:
@@ -113,14 +277,38 @@ def _unit_paths(form: Form) -> dict[int, str]:
     return paths
 
 
+def find(
+    form: str | Form,
+    spec: str | Query,
+    *,
+    features: IPAFeatures | None = None,
+    wild: bool = False,
+) -> Iterator[Match]:
+    """Yield match records from one utterance."""
+    inventory = _default(features)
+    parsed = inventory.read(form) if isinstance(form, str) else form
+    compiled = (
+        parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
+    )
+    paths = _unit_paths(parsed)
+    for site in compiled.sites(parsed.units, inventory, parsed.intervals):
+        span_paths = tuple(paths[index] for index in range(site.start, site.end))
+        yield Match(
+            span_paths,
+            "".join(unit.text for unit in parsed.units[site.start : site.end]),
+            site.bindings,
+            tuple(unit.text for unit in parsed.units[: site.start]),
+        )
+
+
 def query(
     corpus: Corpus,
     pattern: str | Query,
     *,
     role: str,
     features: IPAFeatures | None = None,
-) -> Iterator[tuple[str, tuple[str, ...]]]:
-    """Yield entry IDs and canonical graph paths matching ``pattern``."""
+) -> Iterator[CorpusMatch]:
+    """Yield form matches paired with entry and role identity."""
     inventory = _default(features)
     compiled = context(pattern, inventory) if isinstance(pattern, str) else pattern
     for entry_id in corpus.ids():
@@ -128,13 +316,8 @@ def query(
         form = entry.forms.get(role)
         if form is None:
             continue
-        paths = _unit_paths(form)
-        matched = tuple(
-            paths[site.start]
-            for site in compiled.sites(form.units, inventory, form.intervals)
-        )
-        if matched:
-            yield entry_id, matched
+        for match in find(form, compiled, features=inventory):
+            yield CorpusMatch(entry_id, role, match)
 
 
 def derives(

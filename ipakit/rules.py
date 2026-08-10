@@ -419,6 +419,10 @@ class Pattern:
 
     source: str
     literal: str | None = None
+    #: A postfix brace constrains a literal's base rather than requiring the
+    #: whole unit to have exactly that spelling.  Set by the parser; matching
+    #: must not infer syntax by searching :attr:`source`.
+    brace_base: bool = False
     boundary: str | None = None
     #: A declared separating mark named literally in a context: the
     #: prosodic break ``|``, the major break ``‖``, the linking mark ``‿``.
@@ -564,7 +568,16 @@ class Pattern:
         if unit.is_boundary:
             return False
         if self.literal is not None and unit.core != self.literal:
-            return False
+            # A brace tightens the literal's base by conjunction, so the
+            # diacritic realizing that conjunction is allowed on the unit.
+            brace_base = (
+                self.brace_base
+                and unit.segment is not None
+                and len(unit.segment.constituents) == 1
+                and unit.segment.constituents[0].base == self.literal
+            )
+            if not brace_base:
+                return False
         if not features._satisfies(
             unit.features,
             unit.prosody,
@@ -1090,10 +1103,68 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
     text = source.strip()
     if not text:
         raise RuleError("empty pattern")
+    # Postfix braces are a conjunction with the element they follow.  They
+    # deliberately reuse the bracket-bundle parser below: braces introduce
+    # no second feature language, they only make it possible to tighten a
+    # literal (or any other pattern item) without replacing it by a class.
+    if text.endswith("}") and "{" in text:
+        base_text, _, constraint_text = text.rpartition("{")
+        if not base_text.strip():
+            raise RuleError(f"{text!r} has a brace bundle with no pattern element")
+        inner = constraint_text[:-1].strip()
+        if not inner:
+            raise RuleError(f"{text!r} has an empty brace constraint")
+        terms = [term for term in inner.replace(",", " ").split() if term]
+        non_features = [
+            term
+            for term in terms
+            if "=" not in term and term.lstrip("+-0") not in features.features
+        ]
+        if non_features:
+            raise RuleError(
+                f"{text!r} has non-feature term(s) in a brace bundle: "
+                f"{non_features}; braces accept feature constraints such as "
+                "'{stress=primary}' or '{+nasalized}'"
+            )
+        base = _pattern(base_text, features)
+        if base.names_boundary:
+            raise RuleError(
+                f"{text!r} puts a feature constraint on a boundary; "
+                "a boundary carries no features"
+            )
+        if base.names_tier:
+            raise RuleError(
+                f"{text!r} puts a feature constraint on a tier edge; "
+                "a tier edge carries no features"
+            )
+        constraint = _pattern(f"[{inner}]", features)
+        if (
+            constraint.literal is not None
+            or constraint.names_boundary
+            or constraint.names_tier
+        ):
+            raise RuleError(f"{text!r} contains a non-feature brace constraint")
+        return dataclasses.replace(
+            base,
+            source=text,
+            brace_base=base.literal is not None,
+            seg_required={**base.seg_required, **constraint.seg_required},
+            seg_included={**base.seg_included, **constraint.seg_included},
+            seg_excluded={**base.seg_excluded, **constraint.seg_excluded},
+            pro_required={**base.pro_required, **constraint.pro_required},
+            pro_included={**base.pro_included, **constraint.pro_included},
+            pro_excluded={**base.pro_excluded, **constraint.pro_excluded},
+            seg_agreements={**base.seg_agreements, **constraint.seg_agreements},
+            pro_agreements={**base.pro_agreements, **constraint.pro_agreements},
+        )
     if text.startswith("(") and text.endswith(")"):
         if not text[1:-1].strip():
             raise RuleError(f"{text!r} is an empty optional item")
         return _optional(text, features)
+    if text == "*":
+        # Fixed width and vacuous, but still a segmental unit: Pattern.matches
+        # already refuses boundaries before testing its constraints.
+        return Pattern(source=text)
     # A labeled bracket, before the separator and literal branches: '<'
     # and '>' spell no separator and no phone, so a tier term would fall
     # all the way through to be refused as an unregistered symbol, which
@@ -2916,7 +2987,7 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
 #: neither can be split on whitespace alone -- '([vowel])' has to arrive
 #: as one item to be refused as one, rather than as three of which the
 #: middle one looks fine.
-_GROUPS = {"[": "]", "(": ")"}
+_GROUPS = {"[": "]", "(": ")", "{": "}"}
 _CLOSERS = {close: open_ for open_, close in _GROUPS.items()}
 
 
