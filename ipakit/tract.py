@@ -43,18 +43,20 @@ None of them is read by ``ipakit.metric``, and none moves a distance.
 from __future__ import annotations
 
 import functools
+import json
 import math
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .constants import PHONEMAPS_DIR
 from .models import Feature
 
 if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
+    from .form import Form
 
 HEADS_FILE = PHONEMAPS_DIR.parent / "heads.xml"
 
@@ -1656,4 +1658,279 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         glottal=glottal,
         secondary=dominant.secondary,
         unmodelled=dominant.unmodelled,
+    )
+
+
+TRACK_VERSION = 1
+TRACK_TYPE = "ipakit.trajectory"
+TRACK_PARAMETERS = (
+    "reading",
+    "rest",
+    "constrictions",
+    "velic",
+    "glottal",
+    "secondary",
+    "unmodelled",
+)
+
+
+def _point_data(point: TractPoint | None) -> list[Any] | None:
+    if point is None:
+        return None
+    return [point.arc, point.offset, point.articulator]
+
+
+def _mark_data(mark: Mark) -> dict[str, Any]:
+    return {
+        "arc": mark.arc,
+        "feature": mark.feature,
+        "kind": mark.kind,
+        "label": mark.label,
+        "offset": mark.offset,
+        "value": mark.value,
+    }
+
+
+def _posture_data(value: Posture) -> dict[str, Any]:
+    return {
+        "constrictions": [_point_data(point) for point in value.constrictions],
+        "glottal": value.glottal,
+        "reading": _point_data(value.reading),
+        "rest": _point_data(value.rest),
+        "secondary": [_mark_data(mark) for mark in value.secondary],
+        "unmodelled": [_mark_data(mark) for mark in value.unmodelled],
+        "velic": value.velic,
+    }
+
+
+def _point_from_data(value: Any) -> TractPoint | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) != 3:
+        raise ValueError("track point must be [arc, offset, articulator]")
+    return TractPoint(value[0], value[1], value[2])
+
+
+def _required_point_from_data(value: Any) -> TractPoint:
+    point = _point_from_data(value)
+    if point is None:
+        raise ValueError("track constriction cannot be null")
+    return point
+
+
+def _mark_from_data(value: Any) -> Mark:
+    if not isinstance(value, dict):
+        raise ValueError("track mark must be an object")
+    return Mark(
+        feature=value["feature"],
+        value=value["value"],
+        label=value["label"],
+        kind=value["kind"],
+        arc=value.get("arc"),
+        offset=value.get("offset"),
+    )
+
+
+def _posture_from_data(value: Any) -> Posture:
+    if not isinstance(value, dict):
+        raise ValueError("track posture must be an object")
+    return Posture(
+        reading=_point_from_data(value["reading"]),
+        rest=_point_from_data(value["rest"]),
+        constrictions=tuple(
+            _required_point_from_data(p) for p in value["constrictions"]
+        ),
+        velic=value["velic"],
+        glottal=value["glottal"],
+        secondary=tuple(_mark_from_data(mark) for mark in value["secondary"]),
+        unmodelled=tuple(_mark_from_data(mark) for mark in value["unmodelled"]),
+    )
+
+
+@dataclass(frozen=True)
+class Trajectory:
+    """A view-free scored utterance and its sampled render timeline.
+
+    Unlike :class:`Posture`, this render-side model deliberately carries a
+    wall-clock coordinate.  Articulation and dominance remain ordinal; the
+    stamps only say when their already-blended vectors should be displayed.
+    """
+
+    source: str
+    head_name: str
+    units: tuple[str, ...]
+    postures: tuple[Posture, ...]
+    play_units: tuple[Posture, ...]
+    ordinals: tuple[float, ...]
+    frames: tuple[Posture, ...]
+    frames_per_unit: int
+    display_interval: float
+    stamps: tuple[float, ...]
+    fps: float | None = None
+    rate: float = 1.0
+
+    def to_track(self) -> str:
+        """Serialize this trajectory as canonical, path-free JSON."""
+        document = {
+            "frames": [
+                {"ordinal": ordinal, "posture": _posture_data(posture), "stamp": stamp}
+                for ordinal, posture, stamp in zip(
+                    self.ordinals, self.frames, self.stamps, strict=True
+                )
+            ],
+            "parameters": list(TRACK_PARAMETERS),
+            "play_units": [_posture_data(value) for value in self.play_units],
+            "provenance": {
+                "display_interval": self.display_interval,
+                "fps": self.fps,
+                "frames_per_unit": self.frames_per_unit,
+                "head": self.head_name,
+                "rate": self.rate,
+                "source": self.source,
+            },
+            "type": TRACK_TYPE,
+            "units": [
+                {"posture": _posture_data(posture), "text": text}
+                for text, posture in zip(self.units, self.postures, strict=True)
+            ],
+            "v": TRACK_VERSION,
+        }
+        return (
+            json.dumps(
+                document,
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        )
+
+
+def trajectory_from_track(data: str) -> Trajectory:
+    """Restore a :class:`Trajectory` from its canonical JSON track."""
+    try:
+        document = json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid trajectory JSON: {exc}") from exc
+    if not isinstance(document, dict) or document.get("type") != TRACK_TYPE:
+        raise ValueError(f"track type must be {TRACK_TYPE!r}")
+    if document.get("v") != TRACK_VERSION:
+        raise ValueError(f"unsupported track version: {document.get('v')!r}")
+    if document.get("parameters") != list(TRACK_PARAMETERS):
+        raise ValueError("track parameter declaration does not match its version")
+    provenance = document["provenance"]
+    unit_rows = document["units"]
+    frame_rows = document["frames"]
+    result = Trajectory(
+        source=provenance["source"],
+        head_name=provenance["head"],
+        units=tuple(row["text"] for row in unit_rows),
+        postures=tuple(_posture_from_data(row["posture"]) for row in unit_rows),
+        play_units=tuple(_posture_from_data(row) for row in document["play_units"]),
+        ordinals=tuple(row["ordinal"] for row in frame_rows),
+        frames=tuple(_posture_from_data(row["posture"]) for row in frame_rows),
+        frames_per_unit=provenance["frames_per_unit"],
+        display_interval=provenance["display_interval"],
+        stamps=tuple(row["stamp"] for row in frame_rows),
+        fps=provenance["fps"],
+        rate=provenance["rate"],
+    )
+    return result
+
+
+def trajectory(
+    form_or_word: str | Form,
+    *,
+    head: Head | str,
+    frames_per_unit: int = 8,
+    fps: float | None = None,
+    features: IPAFeatures | None = None,
+    rate: float = 1.0,
+) -> Trajectory:
+    """Score and sample a word or timed Form without projecting a view."""
+    from .features import IPAFeatures
+    from .form import Form
+
+    if frames_per_unit <= 0:
+        raise ValueError("frames_per_unit must be positive")
+    if fps is not None and (not math.isfinite(fps) or fps <= 0.0):
+        raise ValueError("fps must be finite and positive")
+    if not math.isfinite(rate) or rate <= 0.0:
+        raise ValueError("rate must be finite and positive")
+    head_shape = globals()["head"](head) if isinstance(head, str) else head
+    ipa = features or IPAFeatures()
+    form = ipa.read(form_or_word)
+    segment_units = tuple(unit for unit in form.units if unit.segment is not None)
+    texts = tuple(unit.segment.to_ipa() for unit in segment_units if unit.segment)
+    word_postures = tuple(posture(ipa, text) for text in texts)
+    if not word_postures:
+        raise ValueError(f"nothing to animate: {form_or_word!r} scored to no units")
+
+    rest_point = head_shape.rest.point if head_shape.rest is not None else None
+    play_units = word_postures
+    if rest_point is not None:
+        rest_pose = Posture(rest_point, rest_point, (), 0.0, GLOTTAL_REST, (), ())
+        play_units = (rest_pose, *word_postures, rest_pose)
+
+    timings = tuple(unit.timing for unit in segment_units)
+    measured = isinstance(form_or_word, Form) and any(t is not None for t in timings)
+    if measured:
+        if fps is None:
+            raise ValueError("a timed Form requires fps")
+        if any(t is None for t in timings):
+            raise ValueError("every segment occurrence in a timed Form needs Timing")
+        spans = tuple(t for t in timings if t is not None)
+        for index, span in enumerate(spans):
+            if span.duration <= 0.0:
+                raise ValueError(f"timing for unit {index} has zero duration")
+            if (
+                index
+                and span.start < spans[index - 1].end
+                and not math.isclose(span.start, spans[index - 1].end)
+            ):
+                raise ValueError(f"timing for unit {index} overlaps its predecessor")
+            if index and not math.isclose(span.start, spans[index - 1].end):
+                raise ValueError(f"timing for unit {index} leaves a gap")
+        start, end = spans[0].start, spans[-1].end
+        count = math.ceil((end - start) * fps)
+        stamps_list = [start + k / fps for k in range(count)] + [end]
+        # Measured boundaries are semantic samples even when off the fps grid.
+        for boundary in (span.start for span in spans[1:]):
+            if not any(math.isclose(boundary, stamp) for stamp in stamps_list):
+                stamps_list.append(boundary)
+        stamps_list.sort()
+
+        def warped(stamp: float) -> float:
+            for index, span in enumerate(spans):
+                if stamp <= span.end or index == len(spans) - 1:
+                    return 1.0 + index + (stamp - span.start) / span.duration
+            raise AssertionError("unreachable timing warp")
+
+        ordinals = (0.0, *(warped(stamp) for stamp in stamps_list))
+        stamps = (start, *stamps_list)
+        interval = 1.0 / fps
+    else:
+        m = len(play_units)
+        if m == 1:
+            ordinals = (0.0,)
+        else:
+            steps = (m - 1) * frames_per_unit
+            ordinals = tuple(k / frames_per_unit for k in range(steps + 1))
+        interval = 0.420 / frames_per_unit
+        stamps = tuple(index * interval for index in range(len(ordinals)))
+    frames = tuple(blend(play_units, ordinal) for ordinal in ordinals)
+    return Trajectory(
+        source=form_or_word if isinstance(form_or_word, str) else form.to_ipa(),
+        head_name=head_shape.name,
+        units=texts,
+        postures=word_postures,
+        play_units=play_units,
+        ordinals=ordinals,
+        frames=frames,
+        frames_per_unit=frames_per_unit,
+        display_interval=interval,
+        stamps=stamps,
+        fps=fps if measured else None,
+        rate=rate,
     )

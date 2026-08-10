@@ -55,18 +55,19 @@ from typing import Any
 
 from .features import IPAFeatures
 from .tract import (
-    GLOTTAL_REST,
     Head,
     Landmarks,
     Posture,
     TractPoint,
-    blend,
+    Trajectory,
     head,
     heads,
     landmarks,
     posture,
-    score,
     tract_point,
+)
+from .tract import (
+    trajectory as build_trajectory,
 )
 
 SAMPLES = 240
@@ -750,9 +751,9 @@ def _caption(caption: dict[str, Any] | None) -> str:
     right = WIDTH - 26
     parts = [
         f'<text x="{right}" y="44" class="glyph" text-anchor="end">'
-        f'{caption["phone"]}</text>',
+        f"{caption['phone']}</text>",
         f'<text x="{right}" y="64" class="lbl caption" text-anchor="end">'
-        f'{caption["describe"]}</text>',
+        f"{caption['describe']}</text>",
     ]
     y = 84
     for key, value in caption["features"]:
@@ -802,8 +803,7 @@ def _tongue(src: dict[str, Any], to: Scaler) -> str:
     else:
         body = _path(top)
     return (
-        f'<path d="{body}" class="tonguebody"/>'
-        f'<path d="{_path(top)}" class="tongue"/>'
+        f'<path d="{body}" class="tonguebody"/><path d="{_path(top)}" class="tongue"/>'
     )
 
 
@@ -1171,9 +1171,9 @@ def _nasal(
     thickness = max(2.0, abs(edge[0] - origin[0]))
     half = thickness / 2
     parts.append(
-        f'<path d="M{hx:.1f},{hy-half:.1f} Q{hx:.1f},{ty-half:.1f} '
-        f"{tx:.1f},{ty-half:.1f} L{tx:.1f},{ty+half:.1f} "
-        f'Q{hx:.1f},{ty+half:.1f} {hx:.1f},{hy+half:.1f} Z" class="velum"/>'
+        f'<path d="M{hx:.1f},{hy - half:.1f} Q{hx:.1f},{ty - half:.1f} '
+        f"{tx:.1f},{ty - half:.1f} L{tx:.1f},{ty + half:.1f} "
+        f'Q{hx:.1f},{ty + half:.1f} {hx:.1f},{hy + half:.1f} Z" class="velum"/>'
     )
     for text, vx, vy, depth in _place_labels(
         [(f"velum\nport {state}", (tx, ty))], 14, 13, taken
@@ -1689,7 +1689,7 @@ aria-label="frame">
 
 
 def animate(
-    word: str,
+    word: str | Trajectory,
     head_name: str | None = None,
     features: IPAFeatures | None = None,
     frames_per_unit: int = FRAMES_PER_UNIT,
@@ -1712,43 +1712,28 @@ def animate(
     dependencies, readable in a browser without a rasterizer.
     """
     ipa = features or IPAFeatures()
-    name = head_name if head_name is not None else head().name
+    name = (
+        word.head_name
+        if isinstance(word, Trajectory) and head_name is None
+        else head_name if head_name is not None else head().name
+    )
     h = head(name)
     marks = landmarks(ipa)
-    word_units = score(ipa, word)
-    n = len(word_units)
-    if n == 0:
-        raise ValueError(f"nothing to animate: {word!r} scored to no units")
-
-    # Bookend the played trajectory with the head's rest posture, so the loop
-    # begins and ends on a clear neutral pose -- the start is legible and the
-    # direction reads -- and the wrap from the last unit back to the first is
-    # rest-to-rest rather than a hard snap. The filmstrip stills stay the word's
-    # own units; only the player is bookended.
-    rest_point = h.rest.point if h.rest is not None else None
-    play_units: tuple[Posture, ...] = tuple(word_units)
-    if rest_point is not None:
-        rest_pose = Posture(
-            reading=rest_point,
-            rest=rest_point,
-            constrictions=(),
-            velic=0.0,
-            glottal=GLOTTAL_REST,
-            secondary=(),
-            unmodelled=(),
+    track = (
+        word
+        if isinstance(word, Trajectory)
+        else build_trajectory(
+            word, head=h, frames_per_unit=frames_per_unit, features=ipa
         )
-        play_units = (rest_pose, *word_units, rest_pose)
-
-    # The frames are the blended postures along the ordinal clock over the
-    # played units. For a single point the clock has one step.
-    m = len(play_units)
-    if m == 1:
-        ordinals = [0.0]
-    else:
-        steps = (m - 1) * frames_per_unit
-        ordinals = [k / frames_per_unit for k in range(steps + 1)]
-
-    frame_postures = [blend(play_units, t) for t in ordinals]
+    )
+    if track.head_name != h.name:
+        raise ValueError(
+            f"trajectory was built for head {track.head_name!r}, not {h.name!r}"
+        )
+    label = track.source
+    word_units = track.postures
+    rest_point = h.rest.point if h.rest is not None else None
+    frame_postures = track.frames
     still_geoms = [build_geometry(h, marks, u) for u in word_units]
     frame_geoms = [build_geometry(h, marks, p) for p in frame_postures]
 
@@ -1765,10 +1750,10 @@ def animate(
     # Hold the rest bookends a moment (one unit's worth of frames) at each end,
     # so the neutral start is unmistakable each time the flipbook loops.
     if rest_point is not None:
-        hold = frames_per_unit
+        hold = track.frames_per_unit
         frames = [frames[0]] * hold + frames + [frames[-1]] * hold
-    ms = max(1, round(MS_PER_UNIT / frames_per_unit))
-    return _player_page(word, name, frames, stills, ms)
+    ms = max(1, round(track.display_interval * 1000 / track.rate))
+    return _player_page(label, name, frames, stills, ms)
 
 
 def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901
