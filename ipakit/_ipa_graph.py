@@ -72,11 +72,12 @@ def declarations(inventory: IPAFeatures) -> Declarations:
     prosodic = inventory.features_by_mode.get("prosodic", frozenset())
     structural = inventory.features_by_mode.get("structural", frozenset())
     common = frozenset({"value", "spelling", "provenance", "input", "phantom"})
+    declared_tier = inventory.features.get("tier")
     hierarchy_tiers = tuple(
         dict.fromkeys(
             [
                 *inventory.features["level"].values,
-                *inventory.features["tier"].values,
+                *(declared_tier.values if declared_tier is not None else ()),
                 "foot",
             ]
         )

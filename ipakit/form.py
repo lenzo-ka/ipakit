@@ -69,7 +69,7 @@ import warnings
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from .constants import ZERO_CLASS
 from .segment import state_mark_value
@@ -902,14 +902,47 @@ class Form:
         strict: bool = False,
     ) -> Form:
         """Build from the inventory's single canonical token scan."""
+        from ._ipa_graph import (
+            BOUNDARY_TIER,
+            CLOCK_TREATMENTS,
+            SEGMENT_TIER,
+            ZERO_TIER,
+            OccurrenceKind,
+            declarations,
+        )
+        from ._tiergraph_builder import GraphBuilder
+
         out: list[Unit] = []
+        graph_declarations = declarations(features)
+        builder = GraphBuilder(graph_declarations)
+        graph_features = {tier.name: tier.features for tier in graph_declarations.tiers}
         marks = boundary_marks(features)
         nulls = features.zeros
         edge = edge_level(features)
         aligned = features._units_from_parsed(parsed, strict)
         for token, segment in aligned:
             if segment is not None:
-                out.append(_unit_for(segment, features))
+                unit = _unit_for(segment, features)
+                out.append(unit)
+                segment_features = {
+                    "value": segment.to_dict(),
+                    "spelling": token,
+                    "provenance": unit.provenance,
+                    "input": True,
+                    **unit.features,
+                    **unit.prosody,
+                }
+                builder.append_input_atom(
+                    SEGMENT_TIER,
+                    cast(
+                        Any,
+                        {
+                            key: value
+                            for key, value in segment_features.items()
+                            if key in graph_features[SEGMENT_TIER]
+                        },
+                    ),
+                )
             elif token and all(ch in features.stress_markers for ch in token):
                 # Prefix attributes occupy no independent structural slot;
                 # their spelling remains in ``spelling`` and their semantic
@@ -917,17 +950,74 @@ class Form:
                 continue
             elif token in nulls:
                 out.append(Unit(text=token, features=dict(nulls[token].features or {})))
+                builder.append_input_atom(
+                    ZERO_TIER,
+                    {"symbol": token, "spelling": token, "input": True},
+                )
             elif token in features.separators:
                 declared = features.separators[token]
                 out.append(Unit(text=token, features=dict(declared.features or {})))
+                treatment = CLOCK_TREATMENTS[OccurrenceKind.BOUNDARY]
+                boundary_features = {
+                    "symbol": token,
+                    "spelling": token,
+                    "input": True,
+                    **dict(declared.features or {}),
+                }
+                builder.append_input_occurrence(
+                    BOUNDARY_TIER,
+                    cast(
+                        Any,
+                        {
+                            key: value
+                            for key, value in boundary_features.items()
+                            if key in graph_features[BOUNDARY_TIER]
+                        },
+                    ),
+                    refines_tick=treatment.refines_tick,
+                )
             elif token in marks:
                 out.append(Unit(text=token, features=dict(marks[token])))
+                treatment = CLOCK_TREATMENTS[OccurrenceKind.BOUNDARY]
+                boundary_features = {
+                    "symbol": token,
+                    "spelling": token,
+                    "input": True,
+                    **dict(marks[token]),
+                }
+                builder.append_input_occurrence(
+                    BOUNDARY_TIER,
+                    cast(
+                        Any,
+                        {
+                            key: value
+                            for key, value in boundary_features.items()
+                            if key in graph_features[BOUNDARY_TIER]
+                        },
+                    ),
+                    refines_tick=treatment.refines_tick,
+                )
             elif token.isspace():
                 out.append(Unit(text=token, features={"level": edge}))
+                treatment = CLOCK_TREATMENTS[OccurrenceKind.BOUNDARY]
+                builder.append_input_occurrence(
+                    BOUNDARY_TIER,
+                    {
+                        "symbol": token,
+                        "spelling": token,
+                        "input": True,
+                        "level": edge,
+                    },
+                    refines_tick=treatment.refines_tick,
+                )
 
         local = spell(out)
         scanned = "".join(base + "".join(diacritics) for base, diacritics in parsed)
-        return cls(tuple(out), spelling=scanned if scanned != local else None)
+        form = cls(tuple(out), spelling=scanned if scanned != local else None)
+        # Lane F deliberately leaves the public Form store untouched.  Carry the
+        # graph privately so Lane G can adopt it without scanning or rebuilding.
+        object.__setattr__(form, "_tiergraph_graph", builder.build())
+        return form
 
     @classmethod
     def parse(
