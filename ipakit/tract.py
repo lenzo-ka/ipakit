@@ -1766,6 +1766,8 @@ class Trajectory:
     Unlike :class:`Posture`, this render-side model deliberately carries a
     wall-clock coordinate.  Articulation and dominance remain ordinal; the
     stamps only say when their already-blended vectors should be displayed.
+    Timed trajectories contain exactly the measured window, without synthetic
+    rest lead-in or lead-out frames.
     """
 
     source: str
@@ -1833,24 +1835,27 @@ def trajectory_from_track(data: str) -> Trajectory:
         raise ValueError(f"unsupported track version: {document.get('v')!r}")
     if document.get("parameters") != list(_track_parameters()):
         raise ValueError("track parameter declaration does not match its version")
-    provenance = document["provenance"]
-    unit_rows = document["units"]
-    frame_rows = document["frames"]
-    result = Trajectory(
-        source=provenance["source"],
-        head_name=provenance["head"],
-        units=tuple(row["text"] for row in unit_rows),
-        postures=tuple(_posture_from_data(row["posture"]) for row in unit_rows),
-        play_units=tuple(_posture_from_data(row) for row in document["play_units"]),
-        ordinals=tuple(row["ordinal"] for row in frame_rows),
-        frames=tuple(_posture_from_data(row["posture"]) for row in frame_rows),
-        frames_per_unit=provenance["frames_per_unit"],
-        display_interval=provenance["display_interval"],
-        stamps=tuple(row["stamp"] for row in frame_rows),
-        fps=provenance["fps"],
-        rate=provenance["rate"],
-        anchor=provenance["anchor"],
-    )
+    try:
+        provenance = document["provenance"]
+        unit_rows = document["units"]
+        frame_rows = document["frames"]
+        result = Trajectory(
+            source=provenance["source"],
+            head_name=provenance["head"],
+            units=tuple(row["text"] for row in unit_rows),
+            postures=tuple(_posture_from_data(row["posture"]) for row in unit_rows),
+            play_units=tuple(_posture_from_data(row) for row in document["play_units"]),
+            ordinals=tuple(row["ordinal"] for row in frame_rows),
+            frames=tuple(_posture_from_data(row["posture"]) for row in frame_rows),
+            frames_per_unit=provenance["frames_per_unit"],
+            display_interval=provenance["display_interval"],
+            stamps=tuple(row["stamp"] for row in frame_rows),
+            fps=provenance["fps"],
+            rate=provenance["rate"],
+            anchor=provenance["anchor"],
+        )
+    except KeyError as exc:
+        raise ValueError(f"track is missing required key {exc.args[0]!r}") from exc
     return result
 
 
@@ -1938,8 +1943,8 @@ def trajectory(
                     return base + index + (stamp - span.start) / span.duration
             raise AssertionError("unreachable timing warp")
 
-        ordinals = (0.0, *(warped(stamp) for stamp in stamps_list))
-        stamps = (start, *stamps_list)
+        stamps = tuple(stamps_list)
+        ordinals = tuple(warped(stamp) for stamp in stamps)
         interval = 1.0 / fps
     else:
         m = len(play_units)

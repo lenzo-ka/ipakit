@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 
 import pytest
@@ -42,8 +43,28 @@ def test_measured_boundaries_are_samples_and_count_tracks_fps() -> None:
     value = trajectory(form, head=head(), fps=20)
     for boundary in (0.1, 0.3, 0.7, 1.0):
         assert any(math.isclose(stamp, boundary) for stamp in value.stamps)
-    assert len(value.frames) == math.ceil(0.9 * 20) + 2
+    assert len(value.frames) == math.ceil(0.9 * 20) + 1
     assert trajectory_from_track(value.to_track()) == value
+
+
+@pytest.mark.parametrize("anchor", ["center", "onset"])
+def test_timed_trajectory_covers_exactly_the_measured_window(anchor: str) -> None:
+    value = trajectory(
+        _timed_form((0.1, 0.2), (0.3, 0.4), (0.7, 0.3)),
+        head=head(),
+        fps=20,
+        anchor=anchor,
+    )
+    assert len(value.stamps) == len(value.ordinals) == len(value.frames)
+    assert math.isclose(value.stamps[0], 0.1)
+    assert math.isclose(value.stamps[-1], 1.0)
+    assert all(
+        left < right
+        for left, right in zip(value.stamps, value.stamps[1:], strict=False)
+    )
+    assert len(dict(zip(value.stamps, value.ordinals, strict=True))) == len(
+        value.stamps
+    )
 
 
 def _ordinal_at(value, stamp: float) -> float:
@@ -67,7 +88,7 @@ def test_center_anchor_puts_centers_on_units_and_boundaries_between() -> None:
 def test_onset_anchor_reproduces_original_timed_warp() -> None:
     spans = ((0.1, 0.2), (0.3, 0.4), (0.7, 0.3))
     value = trajectory(_timed_form(*spans), head=head(), fps=20, anchor="onset")
-    for ordinal, stamp in zip(value.ordinals[1:], value.stamps[1:], strict=True):
+    for ordinal, stamp in zip(value.ordinals, value.stamps, strict=True):
         index = next(
             i
             for i, (start, duration) in enumerate(spans)
@@ -100,3 +121,10 @@ def test_anchor_refusals_are_explicit() -> None:
 def test_degenerate_measured_timing_refuses(spans, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         trajectory(_timed_form(*spans), head=head(), fps=20)
+
+
+def test_track_missing_key_uses_codec_refusal() -> None:
+    document = json.loads(trajectory("kat", head=head()).to_track())
+    del document["provenance"]["source"]
+    with pytest.raises(ValueError, match="missing required key 'source'"):
+        trajectory_from_track(json.dumps(document))
