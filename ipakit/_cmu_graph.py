@@ -32,14 +32,16 @@ class ProjectionLoss:
 
 def _inventory() -> tuple[frozenset[str], Mapping[str, frozenset[str]]]:
     root = ET.parse(_MAP).getroot()
-    stress: dict[str, frozenset[str]] = {}
+    stress: dict[str, set[str]] = {}
     symbols: set[str] = set()
     for item in root.findall("map"):
         symbol = item.get("cmu")
         if symbol is not None:
             symbols.add(symbol)
-            stress[symbol] = frozenset(item.get("stress", "").split())
-    return frozenset(symbols), stress
+            stress.setdefault(symbol, set()).update(item.get("stress", "").split())
+    return frozenset(symbols), {
+        symbol: frozenset(policy) for symbol, policy in stress.items()
+    }
 
 
 def _stress_values() -> Mapping[str, str]:
@@ -95,7 +97,7 @@ def read(tokens: Iterable[str], dialect: CMUDialect = BASE_CMUDICT) -> Graph:
         facts: dict[str, str] = {"phone": phone}
         if dialect.preserves_stress:
             policy = _STRESS_POLICY.get(phone, frozenset())
-            if policy and digit not in policy:
+            if (policy or digit) and digit not in policy:
                 raise ValueError(f"invalid {dialect.name} stress: {token}")
             if digit:
                 facts["stress"] = stress_values[digit]

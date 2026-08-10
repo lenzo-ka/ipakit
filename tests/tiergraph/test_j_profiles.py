@@ -51,6 +51,13 @@ def test_cmu_family_capabilities_and_stress_projection_are_declared():
     assert event is not None and "stress" not in event.features
 
 
+def test_cmu_stress_digit_requires_a_declared_phone_policy():
+    with pytest.raises(ValueError, match=r"B1$"):
+        read(("B1",))
+    assert render(read(("B",))) == ("B",)
+    assert render(read(("AH1",))) == ("AH1",)
+
+
 def test_pinned_upstream_oracle_fixture_is_offline_and_matches_codec():
     metadata = json.loads((CMUDICT / "upstream.json").read_text())
     assert metadata["repository"] == "https://github.com/cmusphinx/cmudict.git"
