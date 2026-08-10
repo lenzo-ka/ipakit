@@ -153,3 +153,34 @@ def test_every_corpus_subcommand_runs_through_the_binary(tmp_path: Path):
     )
     assert derived.returncode == 0
     assert derived.stdout.startswith("summary\t")
+
+
+def test_ingest_cmudict_reports_refusal_and_default_cited_query(tmp_path: Path):
+    location = tmp_path / "cmudict"
+    fixture = ROOT / "tests" / "fixtures" / "cmudict_excerpt.dict"
+    assert invoke("corpus", "init", location).returncode == 0
+    ingested = invoke("corpus", "ingest-cmudict", location, fixture)
+    assert ingested.returncode == 1
+    assert ingested.stdout == "summary\tadded=101\trefused=1\n"
+    assert "refusal\t106\tunmappable\t" in ingested.stderr
+    assert "ZZZ" in ingested.stderr
+
+    queried = invoke("corpus", "query", "[+nasal] / _ #", "-C", location)
+    assert queried.returncode == 0
+    assert queried.stderr == "query read as: [+nasal] / _ #\n"
+    assert any(line.startswith("tom\tcited\t") for line in queried.stdout.splitlines())
+
+    derived = invoke(
+        "corpus",
+        "derives",
+        "--rules",
+        "american-english",
+        "--source",
+        "cited",
+        "--target",
+        "cited",
+        "-C",
+        location,
+    )
+    assert derived.returncode == 0
+    assert derived.stdout.endswith("\n")
