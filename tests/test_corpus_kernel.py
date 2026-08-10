@@ -41,6 +41,23 @@ def test_same_form_has_identical_entry_bytes(tmp_path: Path):
     ).read_bytes()
 
 
+def test_put_form_preserves_entry_and_replaces_only_named_role(tmp_path: Path):
+    corpus = _corpus.create(tmp_path / "corpus")
+    source = _form("kæt")
+    first = _form("dɒɡ")
+    second = _form("bɜːd")
+    corpus.add("word", {"text": "cat"}, {"source": source})
+
+    written = corpus.put_form("word", "aligned", first)
+    assert written.meta == {"text": "cat"}
+    assert written.forms == {"source": source, "aligned": first}
+    corpus.put_form("word", "aligned", second)
+
+    restored = _corpus.open(tmp_path / "corpus").read("word")
+    assert restored.meta == {"text": "cat"}
+    assert restored.forms == {"source": source, "aligned": second}
+
+
 def test_self_contained_views_survive_changed_ambient_inventory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

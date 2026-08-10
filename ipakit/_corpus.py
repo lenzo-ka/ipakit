@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -203,6 +204,34 @@ class Corpus:
     def read(self, entry_id: str) -> Entry:
         """Restore one entry and all its named forms."""
         return self.read_roles(entry_id)
+
+    def put_form(self, entry_id: str, role: str, form: Form) -> Entry:
+        """Atomically add or replace one form role on an existing entry."""
+        _check_id(entry_id)
+        if not isinstance(role, str) or not role:
+            raise CorpusError("form role names must be non-empty strings")
+        if not isinstance(form, Form):
+            raise CorpusError(f"form {role!r} is not a Form")
+        path = self._entry_path(entry_id)
+        if not path.is_file():
+            raise KeyError(entry_id)
+        document = _load_object(path, "entry")
+        # Reading first applies all entry and form validation before a write can
+        # preserve or extend a malformed document.
+        current = self.read(entry_id)
+        raw_forms = document["forms"]
+        assert isinstance(raw_forms, dict)
+        raw_forms[role] = form.to_dict(self_contained=True)
+        data = _entry_bytes(document)
+        descriptor, temporary = tempfile.mkstemp(dir=self._entries, prefix=".entry-")
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(data)
+            os.replace(temporary, path)
+        except BaseException:
+            Path(temporary).unlink(missing_ok=True)
+            raise
+        return Entry(entry_id, current.meta, {**current.forms, role: form})
 
     def read_roles(self, entry_id: str, roles: Iterable[str] | None = None) -> Entry:
         """Restore one entry, optionally restoring only selected form roles.
