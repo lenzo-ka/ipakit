@@ -64,10 +64,10 @@ same nucleus placement as `from_cmu`, with no ingest-specific mapping table.
 
 The corresponding shell door is:
 
-```console
-ipakit corpus init ./cmu-corpus
-ipakit corpus ingest-cmudict ./cmu-corpus /path/to/cmudict.dict
-ipakit corpus query '[+nasal] / _ #' -C ./cmu-corpus
+```sh
+$ ipakit corpus init ./cmu-corpus
+$ ipakit corpus ingest-cmudict ./cmu-corpus /path/to/cmudict.dict
+$ ipakit corpus query '[+nasal] / _ #' -C ./cmu-corpus
 ```
 
 Refusals are written to stderr, one tab-separated record per source line; a
