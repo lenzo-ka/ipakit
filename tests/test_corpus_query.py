@@ -3,12 +3,49 @@ from __future__ import annotations
 from pathlib import Path
 
 import ipakit
+import pytest
 from ipakit import _corpus, rules
 from ipakit import _corpus_query as Q
 from ipakit._rewrite_graph import japanese_moraic_fixtures
 from ipakit.form import Form
 
 FEATURES = ipakit.load_ipa_features()
+
+
+class TestContextCompilerVariables:
+    def test_lone_environment_variable_binds_like_the_shipped_rule(self):
+        grammar = rules.shipped("american-english", FEATURES)
+        assimilation = next(
+            rule for rule in grammar.rules if rule.name == "nasal assimilation"
+        )
+        form = ipakit.read("ˈɪnpʊt")
+
+        compiled = Q.context("n / _ [place=α]", FEATURES)
+        found = tuple(compiled.sites(form.units, FEATURES, form.intervals))
+        recognized = tuple(assimilation.recognize(form, FEATURES))
+
+        assert found == recognized
+        assert found[0].bindings == (("α", "bilabial"),)
+
+    def test_lone_target_variable_is_also_a_bind_only_query(self):
+        form = ipakit.read("pa")
+        query = Q.context("[place=α]", FEATURES)
+
+        sites = tuple(query.sites(form.units, FEATURES, form.intervals))
+
+        assert [site.bindings for site in sites] == [(("α", "bilabial"),)]
+
+    def test_two_occurrences_still_require_agreement(self):
+        query = Q.context("a / [place=α] _ [place=α]", FEATURES)
+        agreeing = ipakit.read("pap")
+        disagreeing = ipakit.read("pat")
+
+        assert len(tuple(query.sites(agreeing.units, FEATURES))) == 1
+        assert tuple(query.sites(disagreeing.units, FEATURES)) == ()
+
+    def test_one_variable_still_cannot_name_two_features(self):
+        with pytest.raises(rules.RuleError, match="on two features"):
+            Q.context("a / [place=α] _ [voiced=α]", FEATURES)
 
 
 def test_feature_context_returns_exact_resolvable_graph_paths(tmp_path: Path):

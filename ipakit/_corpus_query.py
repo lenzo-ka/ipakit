@@ -8,7 +8,7 @@ paths.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 from . import rules
@@ -64,8 +64,31 @@ def context(spec: str, features: IPAFeatures | None = None) -> Query:
         reversed([rules._pattern(item, inventory) for item in rules._items(before)])
     )
     right = tuple(rules._pattern(item, inventory) for item in rules._items(after))
-    rules._check_variables(spec, target, left, right, None)
+    _check_query_variables(spec, (target, *left, *right))
     return Query(target, left, right)
+
+
+def _check_query_variables(source: str, patterns: Sequence[rules.Pattern]) -> None:
+    """Refuse only variable uses that cannot describe a query binding.
+
+    Every variable in a recognition pattern binds a value into its site's
+    payload.  It therefore need not occur twice, whether it appears in the
+    target or its environment.  Repeated occurrences retain agreement
+    semantics, and one variable still cannot range over two feature domains.
+    """
+    features_of: dict[str, str] = {}
+    for pattern in patterns:
+        for key, variable in pattern.agreements.items():
+            seen = features_of.setdefault(variable.name, key)
+            if seen != key:
+                raise rules.RuleError(
+                    f"{source!r} uses the variable {variable.name!r} on two "
+                    f"features, {seen!r} and {key!r}. A variable ranges over "
+                    "the declared values of ONE feature -- two features "
+                    "declare two different sets of values, so there is "
+                    "nothing for it to be. Use a second variable for the "
+                    "second feature."
+                )
 
 
 def _unit_paths(form: Form) -> dict[int, str]:
