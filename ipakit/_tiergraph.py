@@ -72,6 +72,8 @@ class RelationDeclaration:
         _validate_name(self.name, "relation")
         _validate_arity(self.source_arity, "source")
         _validate_arity(self.target_arity, "target")
+        if self.containment and not self.acyclic:
+            raise GraphValidationError("containment relation requires acyclic=True")
         if self.member_of is not None and self.target_arity != (1, 1):
             raise GraphValidationError("member_of relation requires target arity 1")
 
@@ -284,18 +286,29 @@ class Graph:
     def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
         result: list[str] = []
         pending = list(self.direct_children(parent))
+        visited = {parent}
         while pending:
             item = pending.pop(0)
-            if tier is None or self.resolve(item).tier == tier:
-                result.append(item)
-            pending[0:0] = self.direct_children(item)
+            if item not in visited:
+                visited.add(item)
+                if tier is None or self.resolve(item).tier == tier:
+                    result.append(item)
+                pending[0:0] = self.direct_children(item)
         return tuple(result)
 
     def leaves(self, parent: str) -> tuple[str, ...]:
-        children = self.direct_children(parent)
-        if not children:
-            return (parent,)
-        return tuple(leaf for child in children for leaf in self.leaves(child))
+        visited: set[str] = set()
+
+        def walk(item: str) -> tuple[str, ...]:
+            if item in visited:
+                return ()
+            visited.add(item)
+            children = self.direct_children(item)
+            if not children:
+                return (item,)
+            return tuple(leaf for child in children for leaf in walk(child))
+
+        return walk(parent)
 
     def parents(self, child: str) -> tuple[str, ...]:
         return tuple(
@@ -349,8 +362,17 @@ class Graph:
                 raise GraphValidationError("root must resolve to an event")
         if len(self.relations) != len(set(self.relations)):
             raise GraphValidationError("duplicate relation")
+        containment_sources: set[tuple[str, str]] = set()
         for relation in self.relations:
             self._validate_relation(relation)
+            if self._is_containment(relation):
+                for source in relation.sources:
+                    key = (relation.name, source)
+                    if key in containment_sources:
+                        raise GraphValidationError(
+                            f"duplicate containment source {source}"
+                        )
+                    containment_sources.add(key)
         self._validate_choices()
         for declaration in self.declarations.relations:
             if declaration.acyclic:

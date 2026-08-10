@@ -255,6 +255,11 @@ def test_member_of_declaration_requires_exactly_one_target() -> None:
         RelationDeclaration("selects", member_of="alternatives")
 
 
+def test_containment_declaration_requires_acyclic() -> None:
+    with pytest.raises(GraphValidationError, match="containment.*acyclic"):
+        RelationDeclaration("contains", containment=True)
+
+
 @pytest.mark.parametrize(
     "relation",
     [
@@ -268,6 +273,19 @@ def test_duplicate_relations_are_rejected_at_construction(relation: Relation) ->
             node(top=(event(),), unit=(event(),)),
             node(),
             links=(relation, relation),
+        )
+
+
+def test_containment_source_has_one_ordered_sequence() -> None:
+    source = "/clock/0/top/0"
+    with pytest.raises(GraphValidationError, match=f"containment source {source}"):
+        graph(
+            node(top=(event(),), unit=(event(), event())),
+            node(),
+            links=(
+                Relation((source,), "contains", ("/clock/0/unit/1",)),
+                Relation((source,), "contains", ("/clock/0/unit/0",)),
+            ),
         )
 
 
@@ -350,8 +368,8 @@ def test_containment_traversal_uses_declared_property_across_relations() -> None
         declarations().tiers,
         declarations().features,
         (
-            RelationDeclaration("owns", containment=True),
-            RelationDeclaration("groups", containment=True),
+            RelationDeclaration("owns", containment=True, acyclic=True),
+            RelationDeclaration("groups", containment=True, acyclic=True),
         ),
     )
     parent, middle, child = (
@@ -661,7 +679,7 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
                 for name in ("phrase", "segment", "word")
             ),
             (FeatureDeclaration("class"),),
-            (RelationDeclaration("contains", containment=True),),
+            (RelationDeclaration("contains", containment=True, acyclic=True),),
         )
         nodes = [ClockNode() for _ in range(9)]
         nodes[0] = ClockNode(
