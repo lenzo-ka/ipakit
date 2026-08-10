@@ -203,11 +203,12 @@ def test_timeline_lands_each_center_on_its_unit(word: str, ipa: IPAFeatures) -> 
 
 @needs_api
 def test_no_seconds_on_the_model_surface() -> None:
-    """The model surface names ordinals and falloff, never a duration.
+    """Articulation stays clockless; the render-side Trajectory owns time.
 
     ``blend`` and ``score`` take no time-shaped parameter, and ``Posture``
-    carries no time-shaped field -- the clock is the unit index, and turning
-    frames into seconds is a rendering choice that never reaches the vector.
+    carries no time-shaped field.  The line deliberately moves no farther:
+    Trajectory may map these ordinal vectors to measured display stamps, but
+    the phone vector and both articulation operations remain barred.
     """
     for fn in (blend, score):
         params = {p.lower() for p in inspect.signature(fn).parameters}
