@@ -33,7 +33,7 @@ __version__ = "0.1.0"
 # have to learn a second module name to get one. It reads ``ipakit.tract``
 # and ``ipakit.features`` and nothing else in the package, so the dependency
 # runs one way and the model stays free of the renderer.
-from . import rules, tract_svg
+from . import corpus, rules, tract_svg
 
 # The tutorial notebook is carried in the package and copied out on
 # request, so `pip install ipakit` is the whole of getting the teaching
@@ -46,6 +46,7 @@ from .constants import (
     PHONEMAPS_DIR,
     SUPPLEMENTS_DIR,
 )
+from .corpus import Corpus, CorpusMatch, Match, parse_query
 from .distance import (
     Alignment as Alignment,
 )
@@ -1289,6 +1290,7 @@ __all__ = [
     "sequence_similarity",
     "rank_sequences",
     "xsampa_to_ipa",
+    "parse_query",
     # Form representation
     "Attribute",
     "Boundary",
@@ -1313,6 +1315,9 @@ __all__ = [
     "Site",
     "Step",
     "Unit",
+    "Corpus",
+    "CorpusMatch",
+    "Match",
     "available",
     "rebase",
     "rule",
@@ -1323,6 +1328,7 @@ __all__ = [
     "units",
     # The tract, drawn
     "tract_svg",
+    "corpus",
     # The calculus over the string set (docs/calculus.md)
     "DEFAULT_LIMIT",
     "Truncation",
