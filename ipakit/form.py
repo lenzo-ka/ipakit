@@ -875,6 +875,8 @@ class _CompatibilityProjection:
         if [index for index, _, _ in indexed] != list(range(len(indexed))):
             raise ValueError("graph compatibility unit order is not contiguous")
         self._indexed = tuple(indexed)
+        self._units: tuple[Unit, ...] | None = None
+        self._intervals: tuple[Interval, ...] | None = None
         self.coordinates = LegacyCoordinates(
             tuple(
                 LegacyOccurrence(
@@ -892,6 +894,8 @@ class _CompatibilityProjection:
 
     @property
     def units(self) -> tuple[Unit, ...]:
+        if self._units is not None:
+            return self._units
         out = []
         for _, unit, event in self._indexed:
             timing = (
@@ -900,12 +904,15 @@ class _CompatibilityProjection:
                 else None
             )
             out.append(dataclasses.replace(unit, timing=timing))
-        return tuple(out)
+        self._units = tuple(out)
+        return self._units
 
     @property
     def intervals(self) -> tuple[Interval, ...]:
         from ._tiergraph_builder import _pointer_position
 
+        if self._intervals is not None:
+            return self._intervals
         indexed = []
         for node in self.graph.clock:
             for group in node.groups:
@@ -937,7 +944,8 @@ class _CompatibilityProjection:
         indexed.sort(key=lambda item: item[0])
         if [index for index, _ in indexed] != list(range(len(indexed))):
             raise ValueError("graph compatibility interval order is not contiguous")
-        return tuple(interval for _, interval in indexed)
+        self._intervals = tuple(interval for _, interval in indexed)
+        return self._intervals
 
 
 def _graph_from_compatibility(
@@ -945,26 +953,11 @@ def _graph_from_compatibility(
 ) -> Any:
     """Build constructed/edited forms from units once, without lexical scanning."""
     from ._ipa_graph import BOUNDARY_TIER, SEGMENT_TIER, ZERO_TIER, declarations
-    from ._tiergraph import Declarations, TierDeclaration
     from ._tiergraph import Timing as GraphTiming
     from ._tiergraph_builder import GraphBuilder
 
     inventory = _default(None)
     declared = declarations(inventory)
-    known = {tier.name for tier in declared.tiers}
-    extras = tuple(
-        dict.fromkeys(span.tier for span in intervals if span.tier not in known)
-    )
-    if extras:
-        permitted = frozenset(
-            {"compatibility-interval", "compatibility-unit", "compatibility-index"}
-        )
-        declared = Declarations(
-            tuple(TierDeclaration(name, permitted) for name in extras) + declared.tiers,
-            declared.features,
-            declared.relations,
-            declared.closed,
-        )
     builder = GraphBuilder(declared)
     allowed = {tier.name: tier.features for tier in declared.tiers}
     for index, unit in enumerate(units):
@@ -1103,7 +1096,10 @@ class Form:
             namespace = object.__getattribute__(self, "__dict__")
             graph = namespace.get("_tiergraph_graph")
             if graph is not None:
-                projection = _CompatibilityProjection(graph)
+                projection = namespace.get("_compatibility_projection")
+                if projection is None:
+                    projection = _CompatibilityProjection(graph)
+                    object.__setattr__(self, "_compatibility_projection", projection)
                 return projection.units if name == "units" else projection.intervals
         return object.__getattribute__(self, name)
 
