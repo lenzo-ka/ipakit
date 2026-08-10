@@ -14,6 +14,7 @@ from ipakit._cmu_graph import (
     read,
     render,
 )
+from ipakit._codecs import render_pinyin as render_generic_pinyin
 from ipakit._katakana_codec import render as render_katakana
 from ipakit._mora_graph import build as build_mora_tone
 from ipakit._mora_graph import declarations as mora_declarations
@@ -92,12 +93,19 @@ def test_pinyin_tone_is_syllable_hosted_but_codec_placed(plain, tone, marked, in
     )
     assert tone_index(plain) == index
     assert render_pinyin(graph) == marked
+    assert render_generic_pinyin(graph) == marked
     relation = next(r for r in graph.relations if r.name == "associates-with")
     assert relation.targets == ("/clock/0/syllable/0",)
     restored = Graph.from_data(
         graph.declarations, json.loads(json.dumps(graph.to_data()))
     )
     assert restored == graph
+
+
+def test_pinyin_renderers_share_a_priority_for_synthetic_both_vowels():
+    graph = build_pinyin("ea", "", "ea", 1)
+    assert tone_index("ea") == 1
+    assert render_pinyin(graph) == render_generic_pinyin(graph) == "eā"
 
 
 def test_pinyin_referenced_phonetic_realization_is_optional():

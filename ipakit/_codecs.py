@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from ._pinyin_graph import tone_index
 from ._tiergraph import Event, Graph, _escape
 
 ValueRenderer = Callable[[Event], str]
@@ -127,17 +128,10 @@ def render_pinyin(
             if level is None or level == 5:
                 out.append(spelling)
                 continue
-            lowered = spelling.lower()
-            if "a" in lowered or "e" in lowered:
-                position = min(p for vowel in "ae" if (p := lowered.find(vowel)) >= 0)
-            elif "ou" in lowered:
-                position = lowered.index("o")
-            else:
-                positions = [lowered.rfind(vowel) for vowel in tone_marks]
-                position = max(positions)
+            position = tone_index(spelling)
             if position < 0 or not 1 <= level <= 4:
                 raise ValueError(f"tone {level!r} cannot be placed on {spelling!r}")
-            vowel = lowered[position]
+            vowel = spelling[position].lower()
             out.append(
                 spelling[:position]
                 + tone_marks[vowel][level - 1]
