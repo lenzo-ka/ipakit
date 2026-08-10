@@ -419,6 +419,10 @@ class Pattern:
 
     source: str
     literal: str | None = None
+    #: A postfix brace constrains a literal's base rather than requiring the
+    #: whole unit to have exactly that spelling.  Set by the parser; matching
+    #: must not infer syntax by searching :attr:`source`.
+    brace_base: bool = False
     boundary: str | None = None
     #: A declared separating mark named literally in a context: the
     #: prosodic break ``|``, the major break ``‖``, the linking mark ``‿``.
@@ -567,7 +571,7 @@ class Pattern:
             # A brace tightens the literal's base by conjunction, so the
             # diacritic realizing that conjunction is allowed on the unit.
             brace_base = (
-                "{" in self.source
+                self.brace_base
                 and unit.segment is not None
                 and len(unit.segment.constituents) == 1
                 and unit.segment.constituents[0].base == self.literal
@@ -1133,6 +1137,7 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
         return dataclasses.replace(
             base,
             source=text,
+            brace_base=base.literal is not None,
             seg_required={**base.seg_required, **constraint.seg_required},
             seg_included={**base.seg_included, **constraint.seg_included},
             seg_excluded={**base.seg_excluded, **constraint.seg_excluded},
@@ -1150,9 +1155,6 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
         # Fixed width and vacuous, but still a segmental unit: Pattern.matches
         # already refuses boundaries before testing its constraints.
         return Pattern(source=text)
-    if text in {"V", "C"}:
-        expanded = _pattern("[vowel]" if text == "V" else "[consonant]", features)
-        return dataclasses.replace(expanded, source=text)
     # A labeled bracket, before the separator and literal branches: '<'
     # and '>' spell no separator and no phone, so a tier term would fall
     # all the way through to be refused as an unregistered symbol, which
@@ -1179,10 +1181,6 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
 
     if text.startswith("[") and text.endswith("]"):
         terms = [t for t in text[1:-1].replace(",", " ").split() if t]
-        # Traditional feature geometry uses [+high] for close vowels.  The
-        # inventory calls that categorical dimension ``height``; this shared
-        # notation alias keeps the conventional rule/query spelling useful.
-        terms = ["height=close" if term == "+high" else term for term in terms]
         if not terms:
             raise RuleError(f"{text!r} is an empty query")
         # A declared zero, named by its element class. It is matched as

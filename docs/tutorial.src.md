@@ -744,7 +744,7 @@ used in a derivation:
 corpus_path = Path(tempfile.mkdtemp()) / "speech"
 speech = ipa.corpus.create(corpus_path)
 speech.add("one", {}, {"broad": ipa.read("an")})
-[(m.fileid, m.role, m.text) for m in ipa.corpus.query(speech, "[nasal] / V _ #", role="broad")]
+[(m.fileid, m.role, m.text) for m in ipa.corpus.query(speech, "[nasal] / [vowel] _ #", role="broad")]
 query = ipa.parse_query("n / _ [place=α]")
 query.target.source
 grammar = ipa.rules.RuleSet.parse("n -> m / _ [place=bilabial]")
