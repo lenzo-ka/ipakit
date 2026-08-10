@@ -302,6 +302,7 @@ from .form import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
+    from .models import Phoneset
 
 #: Spellings accepted for the empty string in a rule (insertion/deletion).
 #:
@@ -400,6 +401,60 @@ class Agreement:
 #: :class:`Agreement` -- a literal spelling, or ``None`` to delete.
 Change = dict[str, "str | None | Agreement"]
 Becomes = Change | str | None
+
+
+@dataclass(frozen=True)
+class Invertibility:
+    """One rule's inventory-relative invertibility classification."""
+
+    invertible: bool
+    clause: int | None = None
+    reason: str = ""
+    culprit: str | None = None
+
+
+@dataclass(frozen=True)
+class InvertibilityReport:
+    """The per-rule classifications and the regime they imply for a set."""
+
+    ruleset: str
+    rules: tuple[Invertibility, ...]
+
+    @property
+    def invertible(self) -> bool:
+        return all(item.invertible for item in self.rules)
+
+    @property
+    def lost_at(self) -> int | None:
+        return next(
+            (index for index, item in enumerate(self.rules, 1) if not item.invertible),
+            None,
+        )
+
+    @property
+    def regime(self) -> str:
+        return (
+            "deterministic backward"
+            if self.invertible
+            else "capped candidate enumeration"
+        )
+
+    def __str__(self) -> str:
+        lines = [f"{self.ruleset or 'ruleset'}: {len(self.rules)} rule(s)"]
+        for index, item in enumerate(self.rules, 1):
+            verdict = (
+                "invertible" if item.invertible else f"not invertible: {item.reason}"
+            )
+            lines.append(f"  {index}  {verdict}")
+        if self.invertible:
+            lines.append("set: invertible; regime: deterministic backward")
+        else:
+            first = self.rules[self.lost_at - 1]  # type: ignore[operator]
+            lines.append(
+                f"set: invertibility is lost at rule {self.lost_at}, because {first.reason}; "
+                "regime: capped candidate enumeration"
+            )
+        return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------
@@ -2149,6 +2204,44 @@ class Rule:
     def deletes(self) -> bool:
         return self.action.becomes is None and self.query.target is not None
 
+    def invertibility(
+        self, phoneset: Phoneset, features: IPAFeatures | None = None
+    ) -> Invertibility:
+        """Classify this rule against a declared underlying inventory.
+
+        Clause 1 excludes every length change. Clause 2 asks whether an
+        underlying inventory member can have the rule's output shape in a
+        satisfiable environment while failing the target, and therefore be
+        left untouched. The witness is returned as ``culprit`` and named in
+        the teaching diagnostic.
+        """
+        features = _default(features)
+        if self.inserts or self.deletes:
+            side = "left" if self.inserts else "right"
+            return Invertibility(
+                False,
+                1,
+                f"clause 1 fails: the {side} side is ∅, so the rule is not length-preserving",
+            )
+        if isinstance(self.becomes, str) and len(units(self.becomes, features)) != 1:
+            return Invertibility(
+                False,
+                1,
+                "clause 1 fails: the replacement is not exactly one unit, so the rule is not length-preserving",
+            )
+        culprit = _confusable_output(self, phoneset, features)
+        if culprit is not None:
+            return Invertibility(
+                False,
+                2,
+                f"clause 2 fails: underlying {culprit!r} is output-shaped in this environment and is left unchanged",
+                culprit,
+            )
+        return Invertibility(
+            True,
+            reason="passes clause 1 (one unit on each side) and clause 2 (no output-shaped inventory member is left unchanged)",
+        )
+
     def recognize(
         self, form: Matchable, features: IPAFeatures | None = None
     ) -> list[Site]:
@@ -3377,6 +3470,73 @@ def _keep_cheapest(carried: dict[str, _Branch], key: str, branch: _Branch) -> No
         carried[key] = branch
 
 
+def _confusable_output(
+    rule: Rule, phoneset: Phoneset, features: IPAFeatures
+) -> str | None:
+    """Return the first declared B-shaped phone the rule leaves alone.
+
+    This is a small constraint search, not a corpus sample. Inventory members
+    supply the segment terms; boundary and tier terms constrain positions and
+    are satisfiable without supplying a segment. Agreement bindings are
+    threaded through the same :meth:`Pattern.matches` operation recognition
+    uses, and the action itself decides what output shape a matching input has.
+    """
+    parsed: list[tuple[str, Unit]] = []
+    for phone in phoneset:
+        read = list(units(phone, features))
+        if len(read) == 1 and not read[0].is_boundary:
+            parsed.append((phone, read[0]))
+    target = rule.target
+    assert target is not None
+    patterns = (*rule.query.left, *rule.query.right)
+
+    def environments(
+        at: int, bindings: dict[str, str], chosen: tuple[Unit | None, ...] = ()
+    ) -> Iterator[tuple[dict[str, str], tuple[Unit | None, ...]]]:
+        if at == len(patterns):
+            yield bindings, chosen
+            return
+        pattern = patterns[at]
+        if pattern.names_boundary or pattern.names_tier or pattern.optional:
+            yield from environments(at + 1, dict(bindings), chosen + (None,))
+        if pattern.names_boundary or pattern.names_tier:
+            return
+        for _, unit in parsed:
+            probe = dict(bindings)
+            if pattern.matches(unit, features, probe):
+                yield from environments(at + 1, probe, chosen + (unit,))
+
+    def left_alone(output: Unit, chosen: tuple[Unit | None, ...]) -> bool:
+        probe: dict[str, str] = {}
+        if not target.matches(output, features, probe):
+            return True
+        for pattern, unit in zip(patterns, chosen, strict=True):
+            if unit is None:
+                continue
+            if not pattern.matches(unit, features, probe):
+                return True
+        return False
+
+    for culprit, output_unit in parsed:
+        for _, input_unit in parsed:
+            target_bindings: dict[str, str] = {}
+            if not target.matches(input_unit, features, target_bindings):
+                continue
+            for bindings, chosen in environments(0, target_bindings):
+                edit = rule.action.edit(
+                    Site(0, 1, bindings=_bound(bindings)),
+                    (input_unit,),
+                    features,
+                    rule=rule.name,
+                    named=target.prosodic_keys,
+                )
+                if edit is None or edit.after != output_unit.text:
+                    continue
+                if left_alone(output_unit, chosen):
+                    return culprit
+    return None
+
+
 def _is_comment(stripped: str, features: IPAFeatures) -> bool:
     """Whether a ``.rules`` line is prose rather than a rule.
 
@@ -3437,6 +3597,16 @@ class RuleSet:
 
     rules: tuple[Rule, ...]
     name: str = ""
+
+    def invertibility(
+        self, phoneset: Phoneset, features: IPAFeatures | None = None
+    ) -> InvertibilityReport:
+        """Report every rule and the backward-search regime for this set."""
+        features = _default(features)
+        return InvertibilityReport(
+            self.name,
+            tuple(rule.invertibility(phoneset, features) for rule in self.rules),
+        )
 
     @classmethod
     def parse(
