@@ -48,6 +48,14 @@ class TestContextCompilerVariables:
             Q.context("a / [place=α] _ [voiced=α]", FEATURES)
 
 
+@pytest.mark.parametrize("target", ["∅", "[zero]", "0", "Ø"])
+def test_context_refuses_null_and_zero_targets_loudly(target: str):
+    with pytest.raises(
+        rules.RuleError, match="insertion sites are not recognizable patterns"
+    ):
+        Q.context(f"{target} / _ [manner=nasal]", FEATURES)
+
+
 def test_feature_context_returns_exact_resolvable_graph_paths(tmp_path: Path):
     corpus = _corpus.create(tmp_path / "c")
     corpus.add("cat", {}, {"broad": ipakit.read("kæt")})

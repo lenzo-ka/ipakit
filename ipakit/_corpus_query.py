@@ -50,7 +50,17 @@ def context(spec: str, features: IPAFeatures | None = None) -> Query:
     target_text = target_text.strip()
     if not target_text:
         raise rules.RuleError(f"{spec!r} has no target")
+    if target_text in rules.NULL:
+        raise rules.RuleError(
+            f"{spec!r} has an insertion target; insertion sites are not "
+            "recognizable patterns"
+        )
     target = rules._pattern(target_text, inventory)
+    if target.literal in inventory.zeros:
+        raise rules.RuleError(
+            f"{spec!r} has a zero target; insertion sites are not "
+            "recognizable patterns"
+        )
     if target.names_tier:
         raise rules.RuleError("a structural query target must name a unit")
     if not slash:
