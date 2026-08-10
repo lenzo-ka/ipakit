@@ -2,7 +2,10 @@
 
 This module intentionally implements no recognition or rewriting.  It consumes
 the immutable trace produced by :mod:`ipakit.rules` and projects that trace onto
-the input-owned graph clock.
+the input-owned graph clock.  The rule engine scans its changing derivation
+state.  The graph stores the resulting phantoms in the builder's pinned
+four-coordinate order, tested by
+``test_chained_phantom_sequences_have_pinned_subsequent_scan_order``.
 """
 
 from __future__ import annotations
@@ -129,6 +132,66 @@ class _Token:
     anchor: PositionHandle
 
 
+@dataclass(frozen=True)
+class _Mora:
+    spelling: str
+    children: tuple[int, ...]
+    kind: str = "ordinary"
+
+
+def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[_Mora, ...]:
+    """Deterministically segment a derived narrow sequence into morae.
+
+    Classification is read from the inventory's ``manner`` declaration.
+    A consonant onset joins the following vowel; coda nasals, geminate first
+    halves, long-vowel second halves, and diphthong second vowels stand alone.
+    """
+    morae: list[_Mora] = []
+    onset: list[tuple[int, str]] = []
+    for index, unit in enumerate(units):
+        segment = unit.segment
+        if segment is None:
+            continue
+        is_vowel = inventory.get_features(unit.text).get("manner") == "vowel"
+        if is_vowel:
+            phases = tuple(part.base for part in segment.constituents)
+            first = phases[0]
+            onset_spelling = "".join(spelling for _, spelling in onset)
+            children = tuple(child for child, _ in onset) + (index,)
+            morae.append(_Mora(onset_spelling + first, children))
+            for phase in phases[1:]:
+                morae.append(_Mora(phase, (index,), "diphthong-second"))
+            if "ː" in segment.prosody:
+                morae.append(_Mora(first, (index,), "long-vowel-second"))
+            onset.clear()
+            continue
+
+        base = segment.constituents[0].base
+        if "ː" in segment.prosody:
+            morae.append(_Mora(base, (index,), "geminate-half"))
+            onset = [(index, base)]
+            continue
+        manner = inventory.get_features(unit.text).get("manner")
+        next_is_vowel = index + 1 < len(units) and (
+            inventory.get_features(units[index + 1].text).get("manner") == "vowel"
+        )
+        if manner == "nasal" and not next_is_vowel:
+            if onset:
+                # Settled Japanese fixtures have no non-nasal coda here;
+                # retain any pending material with the independently moraic nasal.
+                base = "".join(spelling for _, spelling in onset) + base
+                children = tuple(child for child, _ in onset) + (index,)
+                onset.clear()
+            else:
+                children = (index,)
+            morae.append(_Mora(base, children, "nasal"))
+        else:
+            onset.append((index, unit.text))
+    if onset:
+        raise ValueError("derived mora segmentation ended with a non-nasal coda")
+    return tuple(morae)
+
+
 def _input(builder: GraphBuilder, form: Form, source_tier: str) -> list[_Token]:
     tokens: list[_Token] = []
     for index, unit in enumerate(form.units):
@@ -157,15 +220,14 @@ def project_derivation(
     *,
     source_tiers: Sequence[str] = ("broad",),
     target_tiers: Sequence[str] = ("narrow", "allophonic"),
-    morae: Sequence[str] = (),
 ) -> Form:
     """Project an existing :class:`~ipakit.rules.Derivation` onto one clock.
 
     ``source_tiers`` is explicit and ordered.  The first is the compatibility
-    input sequence; subsequent rule passes read the preceding emitted tier in
-    the builder's pinned total order.  Target tier names cycle only when the
-    derivation has more passes than names, which keeps arbitrary cascades
-    representable without inventing clocks.
+    input sequence. Only fired passes emit a layer; each reads the preceding
+    emitted layer. Target names are clamped at the last supplied name, so an
+    arbitrary number of fired passes remains representable without inventing
+    tiers. Ordering within a layer is the builder's pinned total order.
     """
     if not source_tiers:
         raise ValueError("a derivation projection requires an ordered source tier")
@@ -175,66 +237,72 @@ def project_derivation(
     current = _input(builder, start, source_tiers[0])
     coordinates = builder.compatibility_coordinates()
 
-    for step_index, step in enumerate(derivation.steps):
+    for step_index, step in enumerate(derivation.fired):
         tier = (
             target_tiers[min(step_index, len(target_tiers) - 1)]
             if target_tiers
             else source_tiers[-1]
         )
-        edits = {edit.start: edit for edit in step.edits}
+        edits: dict[int, list[Any]] = {}
+        for edit in step.edits:
+            edits.setdefault(edit.start, []).append(edit)
         output: list[_Token] = []
         cursor = 0
         site_order = 0
         while cursor <= len(current):
-            edit = edits.get(cursor)
-            if edit is not None:
-                sources = current[edit.start : edit.end]
-                anchor = (
-                    sources[0].anchor
-                    if sources
-                    else coordinates.to_graph(min(edit.start, len(start.units)))
-                )
-                specs = tuple(
-                    EventSpec(
-                        {
-                            "value": (
-                                unit.segment if unit.segment is not None else unit.text
-                            ),
-                            "spelling": unit.text,
-                            "phantom": True,
-                            "rule": edit.rule,
-                            "trace": str(edit),
-                            "derivation-step": step_index,
-                            "source-site-order": site_order,
-                            "application-order": site_order,
-                            "target-index": target_index,
-                        },
-                        duration=0,
+            at_site = edits.get(cursor)
+            if at_site is not None:
+                furthest = cursor
+                for edit in at_site:
+                    sources = current[edit.start : edit.end]
+                    anchor = (
+                        sources[0].anchor
+                        if sources
+                        else coordinates.to_graph(min(edit.start, len(start.units)))
                     )
-                    for target_index, unit in enumerate(edit.replacement)
-                )
-                targets = builder.add_ordered_sequence(
-                    tier,
-                    anchor,
-                    specs,
-                    derivation_step=step_index,
-                    source_site_order=site_order,
-                    application_order=site_order,
-                )
-                if sources:
-                    builder.relate(
-                        (token.handle for token in sources), "rewrites-to", targets
+                    specs = tuple(
+                        EventSpec(
+                            {
+                                "value": (
+                                    unit.segment
+                                    if unit.segment is not None
+                                    else unit.text
+                                ),
+                                "spelling": unit.text,
+                                "phantom": True,
+                                "rule": edit.rule,
+                                "trace": str(edit),
+                                "derivation-step": step_index,
+                                "source-site-order": site_order,
+                                "application-order": site_order,
+                                "target-index": target_index,
+                            },
+                            duration=0,
+                        )
+                        for target_index, unit in enumerate(edit.replacement)
                     )
-                elif targets:
-                    builder.relate((anchor,), "inserts", targets)
-                output.extend(
-                    _Token(unit, handle, anchor)
-                    for unit, handle in zip(edit.replacement, targets, strict=True)
-                )
-                cursor = edit.end
-                site_order += 1
-                if edit.start == edit.end:
-                    edits.pop(cursor)
+                    targets = builder.add_ordered_sequence(
+                        tier,
+                        anchor,
+                        specs,
+                        derivation_step=step_index,
+                        source_site_order=site_order,
+                        application_order=site_order,
+                    )
+                    if sources:
+                        builder.relate(
+                            (token.handle for token in sources), "rewrites-to", targets
+                        )
+                    elif targets:
+                        builder.relate((anchor,), "inserts", targets)
+                    output.extend(
+                        _Token(unit, handle, anchor)
+                        for unit, handle in zip(edit.replacement, targets, strict=True)
+                    )
+                    furthest = max(furthest, edit.end)
+                    site_order += 1
+                cursor = furthest
+                edits.pop(cursor, None)
                 continue
             if cursor == len(current):
                 break
@@ -263,59 +331,31 @@ def project_derivation(
             cursor += 1
         current = output
 
-    if morae:
-        offset = 0
-        for index, spelling in enumerate(morae):
-            count = len(inventory.read(spelling).units)
-            # A long segment contributes the repeated vowel mora without
-            # requiring a second rewrite event; containment may therefore
-            # share its canonical event with the adjacent mora.
-            is_single_consonant = count == 1 and spelling not in "aeiou"
-            repeats_long_vowel = (
-                count == 1
-                and spelling in "aeiou"
-                and offset > 0
-                and current[offset - 1].unit.text.endswith("ː")
-            )
-            if repeats_long_vowel:
-                children = current[offset - 1 : offset]
-            else:
-                children = current[offset : min(len(current), offset + max(1, count))]
-            anchor = children[0].anchor if children else builder.tick(0)
-            mora = builder.add_ordered_sequence(
-                "mora",
-                anchor,
-                (
-                    EventSpec(
-                        {
-                            "value": spelling,
-                            "spelling": spelling,
-                            "phantom": True,
-                            "mora-kind": (
-                                "nasal"
-                                if spelling in {"n", "ŋ"}
-                                else (
-                                    "geminate-half"
-                                    if len(spelling) == 1 and spelling not in "aeiou"
-                                    else "ordinary"
-                                )
-                            ),
-                        },
-                        duration=0,
-                    ),
+    analyses = derive_morae(tuple(t.unit for t in current), inventory)
+    for index, analysis in enumerate(analyses):
+        spelling = analysis.spelling
+        children = [current[child] for child in analysis.children]
+        anchor = children[0].anchor if children else builder.tick(0)
+        mora = builder.add_ordered_sequence(
+            "mora",
+            anchor,
+            (
+                EventSpec(
+                    {
+                        "value": spelling,
+                        "spelling": spelling,
+                        "phantom": True,
+                        "mora-kind": analysis.kind,
+                    },
+                    duration=0,
                 ),
-                derivation_step=len(derivation.steps),
-                source_site_order=index,
-                application_order=index,
-            )[0]
-            if children:
-                builder.contain(mora, (child.handle for child in children))
-            # A geminate's first half and the onset of the following CV mora
-            # are two temporal portions of the same long-consonant event.
-            if not repeats_long_vowel and not (
-                is_single_consonant and children and children[0].unit.text.endswith("ː")
-            ):
-                offset += max(1, count)
+            ),
+            derivation_step=len(derivation.fired),
+            source_site_order=index,
+            application_order=index,
+        )[0]
+        if children:
+            builder.contain(mora, (child.handle for child in children))
 
     return Form._from_graph(builder.build(), spelling=derivation.result)
 
@@ -330,4 +370,16 @@ def japanese_moraic_fixture(name: str, inventory: Any) -> Form:
         raise AssertionError(
             f"japanese-moraic {name}: {derivation.result!r} != {fixture.output!r}"
         )
-    return project_derivation(derivation, inventory, morae=fixture.morae)
+    form = project_derivation(derivation, inventory)
+    derived = tuple(
+        event.features["value"]
+        for node in form._graph.clock
+        for group in node.groups
+        if group.tier == "mora"
+        for event in group.events
+    )
+    if derived != fixture.morae:
+        raise AssertionError(
+            f"japanese-moraic {name}: derived morae {derived!r} != {fixture.morae!r}"
+        )
+    return form
