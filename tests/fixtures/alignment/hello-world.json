@@ -1,0 +1,35 @@
+{
+  "frame_rate": 100,
+  "words": [
+    {
+      "word": "hello",
+      "start": 0,
+      "duration": 33,
+      "phones": [
+        {"phone": "HH", "start": 0, "duration": 7},
+        {"phone": "EH", "start": 7, "duration": 7},
+        {"phone": "L", "start": 14, "duration": 6},
+        {"phone": "OW", "start": 20, "duration": 13}
+      ]
+    },
+    {
+      "word": "world",
+      "start": 33,
+      "duration": 40,
+      "phones": [
+        {"phone": "W", "start": 33, "duration": 10},
+        {"phone": "ER", "start": 43, "duration": 11},
+        {"phone": "L", "start": 54, "duration": 14},
+        {"phone": "D", "start": 68, "duration": 5}
+      ]
+    },
+    {
+      "word": "<sil>",
+      "start": 73,
+      "duration": 22,
+      "phones": [
+        {"phone": "SIL", "start": 73, "duration": 22}
+      ]
+    }
+  ]
+}

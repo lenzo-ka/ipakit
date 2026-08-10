@@ -247,7 +247,7 @@ Neither spelling states both facts, and no bracketing would let it, because the 
 ```python
 from ipakit.form import Interval, tier_names
 
-tier_names()                                  # ('syllable', 'mora', 'morph')
+tier_names()                                  # ('syllable', 'word', 'mora', 'morph')
 Interval("mora", 0, 2)                        # Interval('mora', 0, 2)
 ```
 
@@ -255,7 +255,7 @@ The tier name is checked against `<feature name="tier">`, so an undeclared one i
 
 ```python
 Interval("gesture", 0, 2)
-# ValueError: 'gesture' is not a declared tier; declared: syllable, mora, morph
+# ValueError: 'gesture' is not a declared tier; declared: syllable, word, mora, morph
 ```
 
 This is the **one field on a `Form` that is not a read of `units`**, and it is worth being precise about why, because a syllable tier *is* derivable — `tree()` derives it off the dots. What is not derivable is a tier no glyph delimits: a mora, a morph, a gesture, or the syllable of the section above that crosses a word boundary. Those have to be carried.

@@ -51,7 +51,8 @@ test = ["pytest>=7.0", "pytest-xdist>=3.0", "lxml>=6.1.1"]
 lint = ["ruff>=0.16.1", "mypy>=2.1", "black>=26.5,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
 interop = ["pyclts>=4.0.2", "panphon>=0.22"]
-dev = ["ipakit[test,lint,icu,interop]"]
+align = ["pocketsphinx>=5,<6"]
+dev = ["ipakit[test,lint,icu,interop,align]"]
 
 [project.urls]
 Homepage = "https://github.com/lenzo-ka/ipakit"
@@ -135,5 +136,12 @@ files = ["ipakit"]
 # in CI, and a per-module override is clean in both environments where an
 # inline ignore cannot be.
 module = "panphon.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# Optional C extension without a py.typed marker; align.py keeps the import
+# function-local and tests its runtime boundary with and without the extra.
+module = "pocketsphinx.*"
 ignore_missing_imports = true
 follow_imports = "skip"
