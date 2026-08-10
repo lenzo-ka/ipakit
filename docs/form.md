@@ -10,7 +10,7 @@ ipa.to_ipa(ipa.segments("#kæt.dɒɡ#"))   # 'kætdɒɡ'
 
 That is the right answer to that question. The problem is that it is a **projection** and does not say so, and a caller who needed the whole transcription has already lost it by the time they notice. `ipakit.form.Form` is the unprojected reading: every position the transcription had, sounds and boundaries alike, spelling back out byte-identical for well-formed input. Everything narrower is reachable from it *by name*, and each name says what it drops.
 
-The engine that consumes this is [rules.md](rules.md); this document is the representation underneath it, and the commitments that representation makes.
+The canonical stored representation is the tier graph documented in [representation.md](representation.md). This page documents `Form`'s compatibility projections—`units`, boundaries, attributes, intervals, and the derived tree—which remain public views over that graph and are still consumed by the rule API.
 
 ## The three projections
 

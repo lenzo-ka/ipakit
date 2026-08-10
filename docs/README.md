@@ -27,8 +27,8 @@ using it.
 | | |
 | --- | --- |
 | [ties.md](ties.md) | **The unit model.** Tie bars, diacritics, what a `Segment` is made of, and why prosodic features live on the unit rather than in the feature bag. The foundation the other documents assume. |
-| [form.md](form.md) | **The whole transcription.** `Form` is the reading that drops nothing; `segments` and `phones` are projections of it that each say what they drop. Boundaries versus attributes, and the tier tree. |
-| [representation.md](representation.md) | **The canonical internal value and JSON.** Parse once with `read`; carry segments, resolved features, prosody, tiers, exact spelling, and optional occurrence/tier timing across API, library, and CLI boundaries. |
+| [representation.md](representation.md) | **The canonical representation.** `Form` as the sole public graph-backed value, public construction and navigation, the tier-graph envelope, compatibility JSON, codecs, and deferred mechanisms. |
+| [form.md](form.md) | **Compatibility projections of the whole transcription.** `units`, `segments`, `phones`, boundaries, attributes, intervals, and the derived tier tree: what each view retains and drops from graph-backed `Form`. |
 | [tone.md](tone.md) | **Pitch.** A contour is a *sequence of tone levels* rather than a value, so the diacritic and tone-letter spellings of one contour read as one thing; what a bare caron does not say; and where the IPA chart's tone-letter equivalents disagree with its own level column. |
 | [rules.md](rules.md) | **The rewrite notation.** `A -> B / C _ D` in full: feature queries, boundaries and tiers, insertion and deletion, the trace, and the known limits — which are a queue, not a disclaimer. |
 | [calculus.md](calculus.md) | **Form to *set* of forms.** What the optional arrow `A ~> B` opens: optionality per site, the closure and the identity, whether composition is associative and where the cap stops it, whether the set is finite, and how a truncation is reported. What the algebra cannot express is said near the top rather than in a footnote. |
@@ -43,7 +43,7 @@ using it.
 | [tract-reference.md](tract-reference.md) | The labeled key to the mid-sagittal figures. |
 | [tract-figures.md](tract-figures.md) | The figures in [figures/](figures/), what each shows, how `make figures` draws them, and how to draw your own — from Python, from a notebook, or from the command line. |
 | [articulatory-data.md](articulatory-data.md) | The model measured against an external corpus (X-Ray Microbeam). What that corpus can ground, what it cannot see, and why its blind spots are facts about the instrument rather than about phonetics. |
-| [gestural-model.md](gestural-model.md) | Design notes on the gestural reading, and the candidate improvements the metric would need external confusion data to fit. |
+| [gestural-model.md](gestural-model.md) | The landed gesture and timed-target projection backend, its three-level animation fallback, and the larger dynamic gestural model that remains a design direction. |
 
 ## The wider literature
 
@@ -57,6 +57,8 @@ using it.
 | --- | --- |
 | [reviewing.md](reviewing.md) | **Read this before changing anything.** How defects in this library have actually been found — every one a silent wrong answer under a green suite. Measure rather than predict; sweep rather than sample; make two things equal by construction. |
 | [releasing.md](releasing.md) | The release checklist. |
+
+The documents in `design/` are dated historical design records. They preserve the evidence and decisions that led to the implementation, but [representation.md](representation.md) supersedes them wherever they describe the stored representation.
 
 ## The shape of the repository
 
