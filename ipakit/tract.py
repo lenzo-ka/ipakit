@@ -1929,12 +1929,19 @@ def trajectory(
                 raise ValueError(f"timing for unit {index} leaves a gap")
         start, end = spans[0].start, spans[-1].end
         count = math.ceil((end - start) * fps)
-        stamps_list = [start + k / fps for k in range(count)] + [end]
         # Measured boundaries are semantic samples even when off the fps grid.
-        for boundary in (span.start for span in spans[1:]):
-            if not any(math.isclose(boundary, stamp) for stamp in stamps_list):
-                stamps_list.append(boundary)
-        stamps_list.sort()
+        candidates = (
+            [start + k / fps for k in range(count)]
+            + [span.start for span in spans[1:]]
+            + [end]
+        )
+        stamps_list: list[float] = []
+        for candidate in sorted(candidates):
+            if stamps_list and math.isclose(candidate, stamps_list[-1]):
+                if candidate == end:
+                    stamps_list[-1] = end
+            else:
+                stamps_list.append(candidate)
 
         def warped(stamp: float) -> float:
             for index, span in enumerate(spans):

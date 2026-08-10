@@ -58,12 +58,35 @@ def test_timed_trajectory_covers_exactly_the_measured_window(anchor: str) -> Non
     assert len(value.stamps) == len(value.ordinals) == len(value.frames)
     assert math.isclose(value.stamps[0], 0.1)
     assert math.isclose(value.stamps[-1], 1.0)
+    assert not any(
+        math.isclose(left, right)
+        for left, right in zip(value.stamps, value.stamps[1:], strict=False)
+    )
     assert all(
         left < right
-        for left, right in zip(value.stamps, value.stamps[1:], strict=False)
+        for left, right in zip(value.ordinals, value.ordinals[1:], strict=False)
     )
     assert len(dict(zip(value.stamps, value.ordinals, strict=True))) == len(
         value.stamps
+    )
+
+
+@pytest.mark.parametrize("fps", [10, 20, 30])
+@pytest.mark.parametrize("anchor", ["center", "onset"])
+def test_grid_sample_is_deduplicated_against_measured_end(
+    fps: int, anchor: str
+) -> None:
+    form = _timed_form((0.0, 0.1), (0.1, 0.1), (0.2, 0.1))
+    value = trajectory(form, head=head(), fps=fps, anchor=anchor)
+    end = form.units[-1].timing.end
+    assert value.stamps[-1] == end
+    assert not any(
+        math.isclose(left, right)
+        for left, right in zip(value.stamps, value.stamps[1:], strict=False)
+    )
+    assert all(
+        left < right
+        for left, right in zip(value.ordinals, value.ordinals[1:], strict=False)
     )
 
 
