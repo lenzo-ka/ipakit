@@ -179,3 +179,14 @@ def convert_greedy(
     # caller, which is the frame worth naming.
     report_unconvertible(skipped, what, strict=strict, stacklevel=4)
     return out
+
+
+def structured_ipa_spellings(text: str, *, strict: bool = False) -> tuple[str, ...]:
+    """Return canonical spellings of the structured IPA occurrences in ``text``."""
+
+    form = ipa_features().read(text, strict=strict)
+    # ``Unit.text`` is the structured occurrence's retained spelling.  This
+    # deliberately preserves accepted-but-noncanonical atomic spellings: the
+    # historical phoneset contracts drop those unless their own table has a
+    # row, while registered ligature aliases were resolved before this call.
+    return tuple(unit.text for unit in form.units) or (text,)

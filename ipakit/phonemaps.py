@@ -10,6 +10,7 @@ from ._convert import (
     ipa_features,
     report_unconvertible,
     resolve_aliases,
+    structured_ipa_spellings,
 )
 from .constants import PHONEMAPS_DIR
 
@@ -126,8 +127,25 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
         List of target symbols
     """
     ipa_to_target, _ = _load_phonemap(phonemap)
-    ipa = _normalize_for_map(resolve_aliases(ipa), ipa_to_target)
-    return convert_greedy(ipa, ipa_to_target, strict=strict, what=f"IPA -> {phonemap}")
+    ipa = resolve_aliases(ipa)
+    if ipa in ipa_to_target:
+        return [ipa_to_target[ipa]]
+    # The generic phonemap contract historically repairs an omitted tie when
+    # a table declares only the tied sequence (notably TIMIT ``oʊ`` -> OW).
+    # That compatibility normalization is necessarily string-level because
+    # it changes where the structured segment boundary will be read.
+    ipa = _normalize_for_map(ipa, ipa_to_target)
+    spellings = structured_ipa_spellings(ipa, strict=strict)
+    return [
+        symbol
+        for spelling in spellings
+        for symbol in convert_greedy(
+            spelling,
+            ipa_to_target,
+            strict=strict,
+            what=f"IPA -> {phonemap}",
+        )
+    ]
 
 
 def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> str:
