@@ -121,8 +121,8 @@ class Query(Command):
             if self.args.exact
             else getattr(self.ipa, "from_" + "wild")(self.args.dsl)
         )
-        corpus.parse_query(interpreted, self.ipa)
         print(f"query read as: {interpreted}", file=sys.stderr)
+        corpus.parse_query(interpreted, self.ipa)
         for found in corpus.query(
             corpus.open(self.args.corpus),
             interpreted,

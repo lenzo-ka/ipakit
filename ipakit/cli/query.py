@@ -83,8 +83,8 @@ class FindFormsCommand(Command):
             if self.args.exact
             else getattr(self.ipa, "from_" + "wild")(self.args.dsl)
         )
-        corpus.parse_query(interpreted, self.ipa)
         print(f"query read as: {interpreted}", file=sys.stderr)
+        corpus.parse_query(interpreted, self.ipa)
         inputs = [_Input(value, value, value + "\n") for value in self.args.strings]
         for filename in self.args.file:
             if filename == "-":
