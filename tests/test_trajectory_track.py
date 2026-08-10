@@ -46,6 +46,50 @@ def test_measured_boundaries_are_samples_and_count_tracks_fps() -> None:
     assert trajectory_from_track(value.to_track()) == value
 
 
+def _ordinal_at(value, stamp: float) -> float:
+    return next(
+        ordinal
+        for ordinal, sampled in zip(value.ordinals, value.stamps, strict=True)
+        if math.isclose(sampled, stamp)
+    )
+
+
+def test_center_anchor_puts_centers_on_units_and_boundaries_between() -> None:
+    form = _timed_form((0.1, 0.2), (0.3, 0.4), (0.7, 0.3))
+    value = trajectory(form, head=head(), fps=20)
+    for ordinal, center in ((1.0, 0.2), (2.0, 0.5), (3.0, 0.85)):
+        assert math.isclose(_ordinal_at(value, center), ordinal)
+    for ordinal, boundary in ((1.5, 0.3), (2.5, 0.7)):
+        assert math.isclose(_ordinal_at(value, boundary), ordinal)
+    assert value.anchor == "center"
+
+
+def test_onset_anchor_reproduces_original_timed_warp() -> None:
+    spans = ((0.1, 0.2), (0.3, 0.4), (0.7, 0.3))
+    value = trajectory(_timed_form(*spans), head=head(), fps=20, anchor="onset")
+    for ordinal, stamp in zip(value.ordinals[1:], value.stamps[1:], strict=True):
+        index = next(
+            i
+            for i, (start, duration) in enumerate(spans)
+            if stamp <= start + duration or i == len(spans) - 1
+        )
+        start, duration = spans[index]
+        assert math.isclose(ordinal, 1.0 + index + (stamp - start) / duration)
+    assert trajectory_from_track(value.to_track()).anchor == "onset"
+
+
+def test_anchor_refusals_are_explicit() -> None:
+    with pytest.raises(ValueError, match="only valid for a timed Form"):
+        trajectory("kat", head=head(), anchor="center")
+    with pytest.raises(ValueError, match="'center' or 'onset'"):
+        trajectory(
+            _timed_form((0.0, 0.2), (0.2, 0.2), (0.4, 0.2)),
+            head=head(),
+            fps=20,
+            anchor="coda",
+        )
+
+
 @pytest.mark.parametrize(
     "spans, message",
     [

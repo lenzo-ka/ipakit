@@ -16,7 +16,7 @@ The blend is a symmetric dominance function of the ordinal distance to each unit
 
 ## 4. No real timings — uniform ordinal clock only — [tested]
 
-The dominance timeline is `[0, N-1]`, one ordinal unit per segment. A timed Form may give those units measured spans: the sampler then warps fixed-fps wall-clock samples piecewise-linearly onto this ordinal axis, but dominance itself stays ordinal and a long span changes sampling density rather than the blend law. This is a deliberate cut — `test_no_seconds_on_the_model_surface` keeps `blend`, `score`, and `Posture` clockless while allowing the render-side `Trajectory` to carry stamps — and `test_timeline_endpoints_and_centers_land_on_units` still checks each integer ordinal lands on its unit; untimed input retains uniform `frames_per_unit` sampling exactly.
+The dominance timeline is `[0, N-1]`, one ordinal unit per segment. A timed Form may give those units measured spans: the sampler then warps fixed-fps wall-clock samples piecewise-linearly onto this ordinal axis, with an explicit `center` (default) or `onset` anchor choice, but dominance itself stays ordinal and a long span changes sampling density rather than the blend law. That single global anchor cannot express class-specific target timing; such phasing belongs to the gesture model. This is a deliberate cut — `test_no_seconds_on_the_model_surface` keeps `blend`, `score`, and `Posture` clockless while allowing the render-side `Trajectory` to carry stamps — and the timed trajectory pins check centers, boundaries, and the old onset arithmetic; untimed input retains uniform `frames_per_unit` sampling exactly.
 
 ## 5. None-glottal resolution is the blend's, not the model's — [tested]
 

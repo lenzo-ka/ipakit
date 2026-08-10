@@ -75,6 +75,14 @@ GLOTTAL_AXIS = "+glottal-aperture"
 GLOTTAL_REST = 1.0
 
 
+class _DefaultAnchor(str):
+    """Distinguish omitted ``anchor='center'`` from an explicit argument."""
+
+
+_DEFAULT_ANCHOR = _DefaultAnchor("center")
+_ANCHORS = ("center", "onset")
+
+
 @dataclass(frozen=True)
 class TractPoint:
     """Where a constriction is, and what makes it.
@@ -1772,6 +1780,7 @@ class Trajectory:
     stamps: tuple[float, ...]
     fps: float | None = None
     rate: float = 1.0
+    anchor: str | None = None
 
     def to_track(self) -> str:
         """Serialize this trajectory as canonical, path-free JSON."""
@@ -1785,6 +1794,7 @@ class Trajectory:
             "parameters": list(_track_parameters()),
             "play_units": [_posture_data(value) for value in self.play_units],
             "provenance": {
+                "anchor": self.anchor,
                 "display_interval": self.display_interval,
                 "fps": self.fps,
                 "frames_per_unit": self.frames_per_unit,
@@ -1839,6 +1849,7 @@ def trajectory_from_track(data: str) -> Trajectory:
         stamps=tuple(row["stamp"] for row in frame_rows),
         fps=provenance["fps"],
         rate=provenance["rate"],
+        anchor=provenance["anchor"],
     )
     return result
 
@@ -1851,8 +1862,15 @@ def trajectory(
     fps: float | None = None,
     features: IPAFeatures | None = None,
     rate: float = 1.0,
+    anchor: str = _DEFAULT_ANCHOR,
 ) -> Trajectory:
-    """Score and sample a word or timed Form without projecting a view."""
+    """Score and sample a word or timed Form without projecting a view.
+
+    Acoustic segmentation does not time articulatory targets; ``"center"`` is
+    the default because a target plausibly holds mid-segment, while ``"onset"``
+    captures the stop-consonant intuition. Per-class phasing belongs in the
+    gesture model, not in this render-side clock warp.
+    """
     from .features import IPAFeatures
     from .form import Form
 
@@ -1879,6 +1897,14 @@ def trajectory(
 
     timings = tuple(unit.timing for unit in segment_units)
     measured = isinstance(form_or_word, Form) and any(t is not None for t in timings)
+    anchor_given = anchor is not _DEFAULT_ANCHOR
+    if anchor_given and anchor not in _ANCHORS:
+        raise ValueError("anchor must be 'center' or 'onset'")
+    if not measured and anchor_given:
+        raise ValueError("anchor is only valid for a timed Form")
+    resolved_anchor: str | None = None
+    if measured:
+        resolved_anchor = "center" if not anchor_given else str(anchor)
     if measured:
         if fps is None:
             raise ValueError("a timed Form requires fps")
@@ -1908,7 +1934,8 @@ def trajectory(
         def warped(stamp: float) -> float:
             for index, span in enumerate(spans):
                 if stamp <= span.end or index == len(spans) - 1:
-                    return 1.0 + index + (stamp - span.start) / span.duration
+                    base = 0.5 if resolved_anchor == "center" else 1.0
+                    return base + index + (stamp - span.start) / span.duration
             raise AssertionError("unreachable timing warp")
 
         ordinals = (0.0, *(warped(stamp) for stamp in stamps_list))
@@ -1937,4 +1964,5 @@ def trajectory(
         stamps=stamps,
         fps=fps if measured else None,
         rate=rate,
+        anchor=resolved_anchor if measured else None,
     )
