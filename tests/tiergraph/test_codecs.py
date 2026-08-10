@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from ipakit import Form, IPAFeatures
 from ipakit._codecs import (
+    DeliverySelectionError,
     RenderLane,
     RenderProfile,
     apply_signature,
@@ -113,6 +114,29 @@ def test_one_analysis_projects_into_all_three_notations_without_base_mutation() 
     assert rendered.segmental_signature == "ˈyou # .were # .enˈgaged ‖"
     assert rendered.orthographic_delivery == "YOU were enGAGED"
     assert graph.to_data() == before
+
+
+def test_delivery_refuses_unselected_mutually_exclusive_alternatives() -> None:
+    graph, _ = _delivery_graph(("primary", "none", "none", "primary"))
+    relations = tuple(r for r in graph.relations if r.name != "selects")
+    graph = type(graph)(graph.declarations, graph.clock, relations)
+    candidate = next(r.targets[0] for r in relations if r.name == "alternatives")
+    with pytest.raises(
+        DeliverySelectionError,
+        match=rf"delivery alternatives require a selection; candidates are \['{candidate}'\]",
+    ):
+        render_delivery(graph)
+
+
+@pytest.mark.parametrize("selected", [object(), "stray", "/clock/0/analysis/0"])
+def test_delivery_refuses_selection_that_is_not_a_candidate(selected: object) -> None:
+    graph, _ = _delivery_graph(("primary", "none", "none", "primary"))
+    candidate = next(r.targets[0] for r in graph.relations if r.name == "alternatives")
+    with pytest.raises(DeliverySelectionError) as caught:
+        render_delivery(graph, selected=selected)
+    assert str(caught.value).endswith(
+        f"is not a candidate; candidates are {[candidate]!r}"
+    )
 
 
 def test_signature_round_trip_and_edit_provenance() -> None:

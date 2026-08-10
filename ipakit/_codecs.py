@@ -167,6 +167,10 @@ class DeliveryRenderings:
     orthographic_delivery: str
 
 
+class DeliverySelectionError(ValueError):
+    """Rendering cannot resolve exactly one declared delivery candidate."""
+
+
 def _event_table(graph: Graph) -> dict[str, tuple[int, str, Event]]:
     return {
         f"/clock/{tick}/{group.tier}/{index}": (tick, group.tier, event)
@@ -176,18 +180,32 @@ def _event_table(graph: Graph) -> dict[str, tuple[int, str, Event]]:
     }
 
 
-def _selected_delivery(graph: Graph, selected: str | None) -> str | None:
+def _selected_delivery(graph: Graph, selected: object | None) -> str | None:
+    alternatives = [r for r in graph.relations if r.name == "alternatives"]
+    candidates = tuple(
+        target for relation in alternatives for target in relation.targets
+    )
     if selected is not None:
+        if not isinstance(selected, str) or selected not in candidates:
+            raise DeliverySelectionError(
+                f"delivery selection {selected!r} is not a candidate; candidates are {list(candidates)!r}"
+            )
         return selected
     selections = [r.targets[0] for r in graph.relations if r.name == "selects"]
     if len(selections) > 1:
-        raise ValueError("delivery graph has more than one selection")
-    return selections[0] if selections else None
+        raise DeliverySelectionError("delivery graph has more than one selection")
+    if selections:
+        return selections[0]
+    if candidates:
+        raise DeliverySelectionError(
+            f"delivery alternatives require a selection; candidates are {list(candidates)!r}"
+        )
+    return None
 
 
 def render_delivery(
     graph: Graph,
-    selected: str | None = None,
+    selected: object | None = None,
     profile: DeliveryProfile = DEFAULT_DELIVERY_PROFILE,
     *,
     boundary_glyphs: Mapping[str, str] | None = None,
