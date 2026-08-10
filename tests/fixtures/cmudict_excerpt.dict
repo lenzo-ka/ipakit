@@ -1,0 +1,106 @@
+;;; CMUdict excerpt: cmusphinx/cmudict cmudict.dict, lines 122270-122370.
+;;; Copyright (C) 1993-2015 Carnegie Mellon University. All rights reserved.
+;;; Distributed under CMUdict's BSD-style license; see LICENSE.
+# Comments and the doctored ZZZ phone below exercise the ingest grammar.
+tollefson T AA1 L IH0 F S AH0 N
+toller T OW1 L ER0
+tolles T OW1 L Z
+tolleson T AA1 L IH0 S AH0 N
+tollett T AA1 L IH0 T
+tolley T AA1 L IY0
+tolling T OW1 L IH0 NG
+tollison T AA1 L IH0 S AH0 N
+tolliver T OW1 L IH0 V ER0
+tolls T OW1 L Z
+tolly T OW1 L IY0
+tolman T AA1 L M AH0 N
+tolsma T OW1 L S M AH0
+tolson T OW1 L S AH0 N
+tolstoy T OW1 L S T OY2
+tolstoy's T OW1 L S T OY2 Z
+toluene T AO1 L UW0 IY2 N
+tom T AA1 M
+tom's T AA1 M Z
+toma T OW1 M AH0
+tomahawk T AA1 M AH0 HH AO2 K
+tomahawks T AA1 M AH0 HH AO2 K S
+tomaino T OW0 M AA0 IY1 N OW0
+tomako T OW0 M AA1 K OW0
+tomako's T OW0 M AA1 K OW0 Z
+toman T OW1 M AH0 N
+tomanek T AA1 M AH0 N IH0 K
+tomaro T OW0 M AA1 R OW0
+tomas T OW0 M AA1 S
+tomasek T AH0 M AA1 S EH0 K
+tomaselli T OW0 M AA0 S EH1 L IY0
+tomasello T OW0 M AA0 S EH1 L OW0
+tomasetti T OW0 M AA0 S EH1 T IY0
+tomasi T OW0 M AA1 S IY0
+tomasic T AH0 M AA1 S IH0 K
+tomasik T AH0 M AA1 S IH0 K
+tomasina T AO2 M AH0 S IY1 N AH0
+tomasine T OW0 M AA0 S IY1 N IY0
+tomasini T OW0 M AA0 S IY1 N IY0
+tomasino T OW0 M AA0 S IY1 N OW0
+tomasko T AH0 M AA1 S K OW0
+tomaso T OW0 M AA1 S OW0
+tomassetti T OW0 M AA0 S EH1 T IY0
+tomassi T OW0 M AA1 S IY0
+tomasso T OW0 M AA1 S OW0
+tomasulo T OW0 M AA0 S UW1 L OW0
+tomaszewski T AH0 M AH0 SH EH1 F S K IY0
+tomatino T AA2 M AH0 T IY1 N OW0
+tomatino's T AA2 M AH0 T IY1 N OW0 Z
+tomato T AH0 M EY1 T OW2
+tomato(2) T AH0 M AA1 T OW2
+tomatoe T AH0 M EY1 T OW0
+tomatoe(2) T AH0 M AA1 T OW0
+tomatoes T AH0 M EY1 T OW0 Z
+tomatoes(2) T AH0 M AA1 T OW0 Z
+tomatos T AH0 M EY1 T OW2 Z
+tomatos(2) T AH0 M AA1 T OW2 Z
+tomayko T AH0 M AY1 K OW0
+tomb T UW1 M
+tomberlin T AA1 M B ER0 L IH0 N
+tomblike T UW1 M L AY2 K
+tomblin T AA1 M B L IH0 N
+tomboy T AA1 M B OY2
+tombs T UW1 M Z
+tombstone T UW1 M S T OW2 N
+tombstones T UW1 M S T OW2 N Z
+tomcat T AA1 M K AE2 T
+tomczak T AA1 M CH AE0 K
+tomczyk T AA1 M CH IH0 K
+tome T OW1 M
+tomei T AA1 M AY0
+tomek T OW1 M EH0 K
+tomeo T OW1 M IY0 OW0
+tomer T OW1 M ER0
+tomerlin T AA1 M ER0 L IH0 N
+tomes T OW1 M Z
+tomey T OW1 M IY0
+tomich T AA1 M IH0 K
+tomiichi T OW2 M IY0 IY1 CH IY0
+tomilson T AA1 M AH0 L S AH0 N
+tomita T OW0 M IY1 T AH0
+tomkiewicz T AA1 M K AH0 V IH0 CH
+tomkin T AA1 M K IH0 N
+tomkins T AA1 M K IH0 N Z
+tomkinson T AA1 M K IH0 N S AH0 N
+tomko T AA1 M K OW0
+tomlin T AA1 M L IH0 N
+tomlinson T AA1 M L IH0 N S AH0 N
+tommie T AA1 M IY0
+tommy T AA1 M IY0
+tommy's T AA1 M IY0 Z
+tommy-lee T AA1 M IY0 L IY1
+tomographic T OW0 M OW0 G R AE1 F IH0 K
+tomography T OW0 M OW1 G R AE0 F IY2
+tomorrow T AH0 M AA1 R OW2
+tomorrow(2) T UW0 M AA1 R OW2
+tomorrow's T AH0 M AA1 R OW2 Z
+tomorrow's(2) T UW0 M AA1 R OW2 Z
+tomorrows T AH0 M AA1 R OW2 Z
+tomorrows(2) T UW0 M AA1 R OW2 Z
+tompane T AA1 M P EY2 N
+unmappable T AH0 M ZZZ OW1 # doctored refusal fixture, not upstream
