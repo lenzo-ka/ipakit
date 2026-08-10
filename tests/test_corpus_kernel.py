@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import ipakit
+import pytest
+from ipakit import _corpus
+from ipakit.form import Form
+
+
+def _form(text: str) -> Form:
+    return ipakit.read(text)
+
+
+def test_round_trip_and_canonical_entry_bytes(tmp_path: Path):
+    corpus = _corpus.create(tmp_path / "speech")
+    original = _form("ˈkæt")
+    corpus.add("utt-001", {"text": "cat", "n": 1}, {"utt": original})
+    before = (tmp_path / "speech" / "entries" / "utt-001.json").read_bytes()
+
+    reopened = _corpus.open(tmp_path / "speech")
+    assert reopened.read("utt-001").forms["utt"] == original
+    assert before == (tmp_path / "speech" / "entries" / "utt-001.json").read_bytes()
+    assert before.endswith(b"\n")
+    assert b'"features"' in before
+
+
+def test_order_and_bytes_do_not_depend_on_add_order(tmp_path: Path):
+    first = _corpus.create(tmp_path / "first")
+    second = _corpus.create(tmp_path / "second")
+    entries = {
+        "b": ({"z": 2, "a": 1}, {"target": _form("b")}),
+        "a": ({"text": "a"}, {"source": _form("a")}),
+    }
+    for entry_id in ("b", "a"):
+        first.add(entry_id, *entries[entry_id])
+    for entry_id in ("a", "b"):
+        second.add(entry_id, *entries[entry_id])
+
+    assert list(first.ids()) == list(second.ids()) == ["a", "b"]
+    for entry_id in entries:
+        assert (tmp_path / "first" / "entries" / f"{entry_id}.json").read_bytes() == (
+            tmp_path / "second" / "entries" / f"{entry_id}.json"
+        ).read_bytes()
+
+
+def test_ids_do_not_read_or_restore_entries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    corpus = _corpus.create(tmp_path / "corpus")
+    corpus.add("one", {}, {"utt": _form("a")})
+
+    def forbidden(*args: object, **kwargs: object) -> Form:
+        raise AssertionError("ID iteration restored a form")
+
+    monkeypatch.setattr(Form, "from_dict", forbidden)
+    assert list(corpus.ids()) == ["one"]
+
+
+def test_assets_absence_orphans_missing_and_cascade(tmp_path: Path):
+    root = tmp_path / "corpus"
+    corpus = _corpus.create(root)
+    corpus.add("one", {}, {"utt": _form("a")})
+    corpus.add("two", {}, {"utt": _form("b")})
+    (root / "wav").mkdir()
+    (root / "wav" / "one.wav").write_bytes(b"RIFF")
+    (root / "wav" / "orphan.wav").write_bytes(b"RIFF")
+    (root / "textgrid").mkdir()
+    (root / "textgrid" / "one.TextGrid").write_text("", encoding="utf-8")
+
+    assert corpus.asset("one", "wav") == root / "wav" / "one.wav"
+    assert corpus.asset("two", "wav") is None
+    assert corpus.asset_kinds() == ("textgrid", "wav")
+    codes = [finding.code for finding in _corpus.validate(root).findings]
+    assert "orphan_asset" in codes
+    assert "missing_asset" in codes
+
+    corpus.remove("one")
+    assert not (root / "wav" / "one.wav").exists()
+    assert not (root / "textgrid" / "one.TextGrid").exists()
+
+
+def test_distinct_tamper_findings(tmp_path: Path):
+    root = tmp_path / "corpus"
+    corpus = _corpus.create(root)
+    corpus.add("good", {}, {"utt": _form("a")})
+    original = json.loads((root / "entries" / "good.json").read_text())
+
+    bad_version = dict(original)
+    bad_version["id"] = "versioned"
+    bad_version["forms"] = dict(original["forms"])
+    bad_version["forms"]["utt"] = dict(original["forms"]["utt"])
+    bad_version["forms"]["utt"]["v"] = 999
+    (root / "entries" / "versioned.json").write_text(json.dumps(bad_version))
+
+    mismatch = dict(original)
+    mismatch["id"] = "shared"
+    (root / "entries" / "mismatch.json").write_text(json.dumps(mismatch))
+    duplicate = dict(original)
+    duplicate["id"] = "shared"
+    (root / "entries" / "duplicate.json").write_text(json.dumps(duplicate))
+    invalid = dict(original)
+    invalid["id"] = "../bad"
+    (root / "entries" / "invalid.json").write_text(json.dumps(invalid))
+
+    findings = _corpus.validate(root).findings
+    codes = {finding.code for finding in findings}
+    assert {
+        "form_version",
+        "duplicate_id",
+        "id_filename_mismatch",
+        "invalid_id",
+    } <= codes
+
+
+def test_add_rejects_invalid_and_duplicate_ids(tmp_path: Path):
+    corpus = _corpus.create(tmp_path / "corpus")
+    with pytest.raises(_corpus.CorpusError, match="invalid entry id"):
+        corpus.add("../escape", {}, {})
+    corpus.add("same", {}, {})
+    with pytest.raises(_corpus.CorpusError, match="duplicate entry id"):
+        corpus.add("same", {}, {})
+
+
+def test_create_and_open_layout_contract(tmp_path: Path):
+    occupied = tmp_path / "occupied"
+    occupied.mkdir()
+    (occupied / "file").touch()
+    with pytest.raises(_corpus.CorpusError, match="not empty"):
+        _corpus.create(occupied)
+    with pytest.raises(_corpus.CorpusError, match="invalid corpus layout"):
+        _corpus.open(tmp_path)
+
+    root = tmp_path / "version"
+    _corpus.create(root)
+    (root / "corpus.json").write_text('{"type":"ipakit.corpus","v":999}\n')
+    with pytest.raises(_corpus.CorpusError, match="unsupported corpus version"):
+        _corpus.open(root)
