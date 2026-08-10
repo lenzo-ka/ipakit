@@ -953,11 +953,26 @@ def _graph_from_compatibility(
 ) -> Any:
     """Build constructed/edited forms from units once, without lexical scanning."""
     from ._ipa_graph import BOUNDARY_TIER, SEGMENT_TIER, ZERO_TIER, declarations
+    from ._tiergraph import Declarations, TierDeclaration
     from ._tiergraph import Timing as GraphTiming
     from ._tiergraph_builder import GraphBuilder
 
     inventory = _default(None)
     declared = declarations(inventory)
+    known = {tier.name for tier in declared.tiers}
+    extras = tuple(
+        dict.fromkeys(span.tier for span in intervals if span.tier not in known)
+    )
+    if extras:
+        permitted = frozenset(
+            {"compatibility-interval", "compatibility-unit", "compatibility-index"}
+        )
+        declared = Declarations(
+            tuple(TierDeclaration(name, permitted) for name in extras) + declared.tiers,
+            declared.features,
+            declared.relations,
+            declared.closed,
+        )
     builder = GraphBuilder(declared)
     allowed = {tier.name: tier.features for tier in declared.tiers}
     for index, unit in enumerate(units):

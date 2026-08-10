@@ -122,3 +122,20 @@ def test_rebuilt_form_round_trip_retains_timed_duplicate_intervals() -> None:
 
     assert rebuilt.intervals == intervals
     assert Form.from_dict(rebuilt.to_dict(), FEATURES) == rebuilt
+
+
+def test_constructed_form_accepts_a_tier_declared_by_a_custom_inventory(
+    tmp_path,
+) -> None:
+    source = FEATURES.xml_path.read_text(encoding="utf-8")
+    anchor = '<value name="morph" short="mph" href="Morpheme"/>'
+    path = tmp_path / "ipa.xml"
+    path.write_text(
+        source.replace(anchor, f'{anchor}\n      <value name="gesture" short="gst"/>'),
+        encoding="utf-8",
+    )
+    extended = ipakit.IPAFeatures(xml_path=path)
+    parsed = Form.parse("ata", extended)
+    interval = Interval("gesture", 1, 3, extended)
+
+    assert Form.of(parsed.units, (interval,)).intervals == (interval,)
