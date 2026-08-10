@@ -158,8 +158,7 @@ def _checked_price(value: float, phone: str, label: str) -> float:
     v = float(value)
     if not math.isfinite(v) or v < 0.0:
         raise ValueError(
-            f"{label} must be a non-negative finite price; "
-            f"got {value!r} for {phone!r}"
+            f"{label} must be a non-negative finite price; got {value!r} for {phone!r}"
         )
     return v
 
@@ -1127,10 +1126,18 @@ class DistanceMixin(IPAFeaturesBase):
         result = self.word_distance(
             ipa1, ipa2, weighted=weighted, return_alignment=True, strict=strict
         )
-        return [
-            {**step.to_data(), "cost": round(step.cost, 4)}
-            for step in (result.alignment.steps if result.alignment else ())
-        ]
+        explained = []
+        for step in result.alignment.steps if result.alignment else ():
+            # ``AlignmentStep.cost`` is the price paid by the edit DP.  The
+            # public explanation predates priced substitutions and reports
+            # the segment metric itself; keep those two currencies distinct.
+            metric_cost = (
+                self.segment_distance(step.left, step.right)
+                if step.op == "sub" and step.left is not None and step.right is not None
+                else step.cost
+            )
+            explained.append({**step.to_data(), "cost": round(metric_cost, 4)})
+        return explained
 
     def nearest_pronunciation(
         self,
