@@ -232,10 +232,10 @@ class TokenizeCommand(Command):
 
 
 class ToJsonCommand(Command):
-    """Parse IPA into the complete, versioned internal representation.
+    """Parse IPA into the lean, versioned internal representation.
 
-    The JSON carries structured segments, resolved feature/prosody views,
-    boundaries, zeros, tier intervals, optional timing, and exact spelling.
+    Pass ``--self-contained`` to include resolved feature/prosody views and
+    provenance for readers that do not carry the IPA inventory.
 
     Examples:
         ipakit convert to-json "#kæt.dɒɡ#"
@@ -252,10 +252,17 @@ class ToJsonCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
         parser.add_argument("ipa", help="IPA string to parse")
         add_convert_strict_arg(parser)
+        parser.add_argument(
+            "--self-contained",
+            action="store_true",
+            help="embed resolved segment views",
+        )
 
     def run(self) -> int:
         self.output_json(
-            self.ipa.read(self.args.ipa, strict=self.args.strict).to_dict()
+            self.ipa.read(self.args.ipa, strict=self.args.strict).to_dict(
+                self_contained=self.args.self_contained
+            )
         )
         return 0
 

@@ -131,12 +131,14 @@ class TestAFormIsImmutable:
         assert boundary.features["level"] == "syllable"
 
     def test_a_variant_unit_must_be_constructed(self) -> None:
-        # The supported way to write one: build a new Unit. The copy handed
-        # to `replace` is the caller's, and writing it after the fact must
-        # not reach the unit either.
+        # The supported way to write one: build a new Unit whose structured
+        # segment carries the change. Its resolved view follows lazily.
         unit = Form.parse("a")[0]
-        mine = {**unit.prosody, "stress": "primary"}
-        variant = dataclasses.replace(unit, prosody=mine)
-        mine["stress"] = "secondary"
+        assert unit.segment is not None
+        variant = dataclasses.replace(
+            unit,
+            text="ˈa",
+            segment=dataclasses.replace(unit.segment, prosody=("ˈ",)),
+        )
         assert variant.prosody == {"stress": "primary"}
         assert unit.prosody == {}

@@ -737,7 +737,21 @@ class TestRepresentationCommands:
         assert err == ""
         representation = json.loads(out)
         assert representation["type"] == "ipakit.form"
-        assert representation["v"] == 1
+        assert representation["v"] == 2
+        segment = next(unit for unit in representation["units"] if unit["segment"])
+        assert "features" not in segment
+
+        rc, out, err = run(
+            monkeypatch,
+            capsys,
+            "convert",
+            "to-json",
+            "a",
+            "--self-contained",
+        )
+        assert rc == 0
+        assert err == ""
+        assert "features" in json.loads(out)["units"][0]
         assert representation["spelling"] == "kæt.ˈ.dɒɡ"
         assert [
             unit["segment"]["prosody"]

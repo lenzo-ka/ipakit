@@ -125,7 +125,7 @@ import warnings
 
 with warnings.catch_warnings(record=True) as caught:
     warnings.simplefilter("always")
-    units("aːˑ")
+    units("aːˑ")[0].prosody
 
 str(caught[0].message)
 # "'aːˑ': two marks state 'length' ('long' then 'half-long'); 'length' is single-valued, so 'half-long' is a contradiction and is not recorded"

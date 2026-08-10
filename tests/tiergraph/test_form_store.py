@@ -47,25 +47,55 @@ def test_compatibility_projection_is_memoized_across_form_surface(
     assert max(constructions.values()) <= 1
 
 
-def test_constructed_form_builds_graph_and_replace_keeps_public_coordinates() -> None:
+def test_segment_views_resolve_once_and_cache_is_not_identity(
+    monkeypatch,
+) -> None:
+    calls = 0
+    original = form_module._resolve_unit_views
+
+    def counted(segment, inventory):
+        nonlocal calls
+        calls += 1
+        return original(segment, inventory)
+
+    monkeypatch.setattr(form_module, "_resolve_unit_views", counted)
+    form = Form.parse("a", FEATURES)
+    unit = form.units[0]
+    peer = Form.parse("a", FEATURES).units[0]
+    lean = form.to_json()
+
+    assert calls == 0
+    assert unit == peer
+    hash(unit)
+    repr(unit)
+    assert calls == 0
+    assert unit.features["class"] == "phone"
+    assert unit.prosody == {}
+    assert unit.provenance == ()
+    assert calls == 1
+    assert unit == peer
+    assert form.to_json() == lean
+
+
+def test_constructed_form_defers_graph_and_replace_keeps_public_coordinates() -> None:
     parsed = Form.parse("a..b", FEATURES)
     interval = Interval("mora", 0, 2, FEATURES)
     held = Form.of(parsed.units, (interval,))
 
     replaced = dataclasses.replace(held, intervals=())
 
+    assert "units" not in replaced.__dict__
+    assert "_tiergraph_graph" not in replaced.__dict__
     assert held.units == parsed.units
     assert held.intervals == (interval,)
     assert replaced.units == held.units
     assert replaced.intervals == ()
-    assert "units" not in replaced.__dict__
-    assert "_tiergraph_graph" in replaced.__dict__
 
 
 def test_interval_between_repeated_dots_uses_exact_refined_endpoint() -> None:
     parsed = Form.parse("a..b", FEATURES)
     held = Form.of(parsed.units, (Interval("mora", 0, 2, FEATURES),))
-    graph = held.__dict__["_tiergraph_graph"]
+    graph = held._graph
     mora = next(
         event
         for node in graph.clock

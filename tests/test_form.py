@@ -99,6 +99,8 @@ class TestFormSerialization:
         form = Form.parse("kˌæn.tˈiːn", FEATURES)
         assert Form.from_dict(form.to_dict(), FEATURES) == form
         assert Form.from_json(form.to_json(), FEATURES).to_dict() == form.to_dict()
+        assert Form.from_dict(form.to_dict(self_contained=True), FEATURES) == form
+        assert Form.from_json(form.to_json(self_contained=True), FEATURES) == form
 
     def test_unknown_version_is_refused(self):
         with pytest.raises(ValueError, match="unsupported Form JSON version"):
@@ -116,7 +118,7 @@ class TestFormSerialization:
             )
 
     def test_serialized_derived_views_cannot_disagree(self):
-        representation = Form.parse("ˈa", FEATURES).to_dict()
+        representation = Form.parse("ˈa", FEATURES).to_dict(self_contained=True)
         representation["units"][0]["prosody"]["stress"] = "secondary"
         with pytest.raises(ValueError, match="views disagree with segment"):
             Form.from_dict(representation, FEATURES)
