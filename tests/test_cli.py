@@ -112,6 +112,11 @@ class TestConvert:
         assert rc == 1
         assert "Cannot convert" in err
 
+    def test_strict_names_all_unconvertible_symbols(self, monkeypatch, capsys):
+        rc, _, err = run(monkeypatch, capsys, "convert", "to-cmu", "k4@t", "--strict")
+        assert rc == 1
+        assert "unknown symbols ['4', '@']" in err
+
     def test_strict_clean_input_succeeds(self, monkeypatch, capsys):
         rc, out, _ = run(monkeypatch, capsys, "convert", "to-cmu", "kæt", "--strict")
         assert rc == 0
@@ -775,6 +780,96 @@ class TestRepresentationCommands:
         monkeypatch.setattr("sys.stdin", io.StringIO(ipakit.read("kæt").to_json()))
         rc, out, err = run(monkeypatch, capsys, "convert", "from-json", "-")
         assert (rc, out, err) == (0, "kæt\n", "")
+
+
+class TestAttestedJapaneseAdaptationCommands:
+    def test_katakana_renders_an_attested_loanword_adaptation(
+        self, monkeypatch, capsys
+    ):
+        assert run(monkeypatch, capsys, "convert", "to-katakana", "hɑt") == (
+            0,
+            "ホット\n",
+            "",
+        )
+
+    def test_morae_are_read_from_the_projected_graph(self, monkeypatch, capsys):
+        rc, out, err = run(monkeypatch, capsys, "rules", "morae", "stɹa͜ɪk", "-j")
+        assert rc == 0
+        assert err == ""
+        assert json.loads(out) == {
+            "source": "stɹa͜ɪk",
+            "output": "sutoɾaiku",
+            "morae": ["su", "to", "ɾa", "i", "ku"],
+        }
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            ("convert", "to-katakana", "kæt"),
+            ("rules", "morae", "kæt"),
+        ],
+    )
+    def test_unmapped_input_is_refused_not_approximated(
+        self, monkeypatch, capsys, argv
+    ):
+        rc, out, err = run(monkeypatch, capsys, *argv)
+        assert rc == 1
+        assert out == ""
+        assert "no attested Japanese loanword adaptation" in err
+        assert "not approximated" in err
+
+
+class TestCapabilityInventoryContract:
+    def test_every_row_has_exactly_one_contract_state(self):
+        text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
+        rows = [line for line in text.splitlines() if line.startswith("|")][2:]
+        assert rows
+        for row in rows:
+            states = sum(
+                marker in row
+                for marker in ("**CLI-reachable:**", "**Library-only by decision:**")
+            )
+            assert states == 1, row
+
+    def test_every_intentional_flat_export_is_inventoried(self):
+        """Keep a newly exported symbol from silently escaping the table."""
+        source = (ROOT / "ipakit" / "__init__.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        exported = set()
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                if not node.name.startswith("_"):
+                    exported.add(node.name)
+            elif isinstance(node, ast.ImportFrom):
+                for item in node.names:
+                    name = item.asname or item.name
+                    if not name.startswith("_"):
+                        exported.add(name)
+        # Typing/future implementation imports are not the package's public API.
+        exported -= {"annotations", "Iterable", "Sequence", "Path", "Any"}
+        contract = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
+        missing = sorted(name for name in exported if f"`{name}`" not in contract)
+        assert (
+            not missing
+        ), f"flat exports missing from CLI capability contract: {missing}"
+
+    def test_new_routes_are_named_by_top_level_and_group_help(
+        self, monkeypatch, capsys
+    ):
+        with pytest.raises(SystemExit):
+            run(monkeypatch, capsys, "--help")
+        top = capsys.readouterr().out
+        assert "to-json" in top and "to-katakana" in top and "morae" in top
+
+        with pytest.raises(SystemExit):
+            run(monkeypatch, capsys, "convert", "help")
+        convert = capsys.readouterr().out
+        assert "to-json" in convert and "from-json" in convert
+        assert "to-katakana" in convert
+
+        with pytest.raises(SystemExit):
+            run(monkeypatch, capsys, "rules", "help")
+        assert "morae" in capsys.readouterr().out
 
 
 class TestListingTheShippedRuleSets:
