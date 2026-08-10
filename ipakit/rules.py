@@ -2209,11 +2209,12 @@ class Rule:
     ) -> Invertibility:
         """Classify this rule against a declared underlying inventory.
 
-        Clause 1 excludes every length change. Clause 2 asks whether an
-        underlying inventory member can have the rule's output shape in a
-        satisfiable environment while failing the target, and therefore be
-        left untouched. The witness is returned as ``culprit`` and named in
-        the teaching diagnostic.
+        Clause 1 excludes every length change. Clause 2 asks whether the
+        induced map on inventory members in a satisfiable environment is
+        injective. An output-shaped member may be left unchanged either by
+        escaping the target or by matching it at a fixed point. The witness
+        is returned as ``culprit`` and both colliding inputs are named in the
+        teaching diagnostic.
         """
         features = _default(features)
         if self.inserts or self.deletes:
@@ -2229,17 +2230,25 @@ class Rule:
                 1,
                 "clause 1 fails: the replacement is not exactly one unit, so the rule is not length-preserving",
             )
-        culprit = _confusable_output(self, phoneset, features)
-        if culprit is not None:
+        collision = _output_collision(self, phoneset, features)
+        if collision is not None:
+            shape, culprit, moved = collision
+            detail = (
+                f"underlying {culprit!r} escapes the target in this environment "
+                f"and is left unchanged, colliding with moved {moved!r}"
+                if shape == "escape"
+                else f"underlying {culprit!r} is an absorption fixed point in "
+                f"this environment and collides with moved {moved!r}"
+            )
             return Invertibility(
                 False,
                 2,
-                f"clause 2 fails: underlying {culprit!r} is output-shaped in this environment and is left unchanged",
+                f"clause 2 fails ({shape}): {detail}",
                 culprit,
             )
         return Invertibility(
             True,
-            reason="passes clause 1 (one unit on each side) and clause 2 (no output-shaped inventory member is left unchanged)",
+            reason="passes clause 1 (one unit on each side) and clause 2 (the induced inventory map has no escape or absorption collision)",
         )
 
     def recognize(
@@ -3470,10 +3479,10 @@ def _keep_cheapest(carried: dict[str, _Branch], key: str, branch: _Branch) -> No
         carried[key] = branch
 
 
-def _confusable_output(
+def _output_collision(
     rule: Rule, phoneset: Phoneset, features: IPAFeatures
-) -> str | None:
-    """Return the first declared B-shaped phone the rule leaves alone.
+) -> tuple[str, str, str] | None:
+    """Return the first non-injective output as (shape, fixed, moved).
 
     This is a small constraint search, not a corpus sample. Inventory members
     supply the segment terms; boundary and tier terms constrain positions and
@@ -3506,34 +3515,47 @@ def _confusable_output(
             if pattern.matches(unit, features, probe):
                 yield from environments(at + 1, probe, chosen + (unit,))
 
-    def left_alone(output: Unit, chosen: tuple[Unit | None, ...]) -> bool:
+    def unchanged_shape(output: Unit, chosen: tuple[Unit | None, ...]) -> str | None:
         probe: dict[str, str] = {}
-        if not target.matches(output, features, probe):
-            return True
+        matches_target = target.matches(output, features, probe)
         for pattern, unit in zip(patterns, chosen, strict=True):
             if unit is None:
                 continue
             if not pattern.matches(unit, features, probe):
-                return True
-        return False
+                return None
+        if not matches_target:
+            return "escape"
+        fixed = rule.action.edit(
+            Site(0, 1, bindings=_bound(probe)),
+            (output,),
+            features,
+            rule=rule.name,
+            named=target.prosodic_keys,
+        )
+        return "absorption" if fixed is None else None
 
-    for culprit, output_unit in parsed:
-        for _, input_unit in parsed:
-            target_bindings: dict[str, str] = {}
-            if not target.matches(input_unit, features, target_bindings):
+    by_output = {unit.text: (phone, unit) for phone, unit in parsed}
+    for moved, input_unit in parsed:
+        target_bindings: dict[str, str] = {}
+        if not target.matches(input_unit, features, target_bindings):
+            continue
+        for bindings, chosen in environments(0, target_bindings):
+            edit = rule.action.edit(
+                Site(0, 1, bindings=_bound(bindings)),
+                (input_unit,),
+                features,
+                rule=rule.name,
+                named=target.prosodic_keys,
+            )
+            if edit is None:
                 continue
-            for bindings, chosen in environments(0, target_bindings):
-                edit = rule.action.edit(
-                    Site(0, 1, bindings=_bound(bindings)),
-                    (input_unit,),
-                    features,
-                    rule=rule.name,
-                    named=target.prosodic_keys,
-                )
-                if edit is None or edit.after != output_unit.text:
-                    continue
-                if left_alone(output_unit, chosen):
-                    return culprit
+            output = by_output.get(edit.after)
+            if output is None:
+                continue
+            culprit, output_unit = output
+            shape = unchanged_shape(output_unit, chosen)
+            if shape is not None:
+                return shape, culprit, moved
     return None
 
 

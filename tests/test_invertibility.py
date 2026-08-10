@@ -12,37 +12,58 @@ def inventory(*phones: str) -> Phoneset:
     return Phoneset.from_list(list(phones), "test")
 
 
-def test_polarity_flip_passes_both_clauses():
+def test_pin_exchange_has_no_absorption_fixed_point():
     found = rules.parse("[voiced=α] -> [voiced=-α]", FEATURES).invertibility(
         inventory("t", "d"), FEATURES
     )
     assert found.invertible
     assert "clause 1" in found.reason and "clause 2" in found.reason
+    assert "no escape or absorption collision" in found.reason
 
 
-def test_final_devoicing_names_the_confusable_segment():
+def test_pin_clause_2_escape_names_the_confusable_segment():
     found = rules.parse("d -> t / _ #", FEATURES).invertibility(
         inventory("d", "t"), FEATURES
     )
     assert not found.invertible
     assert found.clause == 2
     assert found.culprit == "t"
-    assert "underlying 't'" in found.reason
+    assert "(escape)" in found.reason
+    assert "underlying 't'" in found.reason and "moved 'd'" in found.reason
 
 
-def test_velar_nasal_verdict_is_relative_to_the_inventory():
+def test_pin_shipped_final_devoicing_is_absorption():
+    german = rules.shipped("german-final-devoicing", FEATURES)
+    found = german.invertibility(inventory("d", "t"), FEATURES)
+    assert not found.invertible and found.lost_at == 1
+    assert found.rules[0].culprit == "t"
+    assert "(absorption)" in found.rules[0].reason
+    assert (
+        "fixed point" in found.rules[0].reason and "moved 'd'" in found.rules[0].reason
+    )
+    assert str(found) == (
+        "german-final-devoicing: 1 rule(s)\n"
+        "  1  not invertible: clause 2 fails (absorption): underlying 't' is an "
+        "absorption fixed point in this environment and collides with moved 'd'\n"
+        "set: invertibility is lost at rule 1, because clause 2 fails "
+        "(absorption): underlying 't' is an absorption fixed point in this "
+        "environment and collides with moved 'd'; regime: capped candidate enumeration"
+    )
+
+
+def test_pin_velar_nasal_verdict_is_relative_to_the_inventory():
     rule = rules.parse("n -> ŋ / _ k", FEATURES)
     assert rule.invertibility(inventory("n", "k"), FEATURES).invertible
     found = rule.invertibility(inventory("n", "ŋ", "k"), FEATURES)
     assert not found.invertible and found.culprit == "ŋ"
 
 
-def test_deletion_fails_length_preservation():
+def test_pin_deletion_fails_length_preservation():
     found = rules.parse("n -> ∅", FEATURES).invertibility(inventory("n"), FEATURES)
     assert not found.invertible and found.clause == 1
 
 
-def test_invertible_corpus_check_takes_no_capped_enumeration(monkeypatch):
+def test_fixture_invertible_corpus_check_takes_no_capped_enumeration(monkeypatch):
     grammar = rules.RuleSet.parse("[voiced=α] -> [voiced=-α]", FEATURES)
 
     def forbidden(*args, **kwargs):
