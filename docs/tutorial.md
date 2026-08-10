@@ -622,8 +622,8 @@ japanese = shipped("japanese-moraic")
 hot_derivation = japanese.derive("hɑt")
 hot_form = hot_derivation.to_form()
 hot_derivation.result  # 'hotːo'
-[interval.features["value"] for interval in hot_form.intervals if interval.tier == "mora"]
-# []
+[event.features["value"] for node in hot_form._graph.clock for group in node.groups if group.tier == "mora" for event in group.events]
+# ['ho', 't', 'to']
 
 from ipakit._katakana_codec import render as render_katakana
 

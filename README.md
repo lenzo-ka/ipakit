@@ -12,7 +12,7 @@ It is for anyone who needs to compute over speech sounds rather than just store 
 `Form` is the sole public stored representation: text, features, boundaries, tiers, rewrite layers, alignments, and rendering views are projections around one validated graph. See [the canonical representation](docs/representation.md).
 
 - **Zero runtime dependencies** — all phonetic data ships as XML in the package.
-- **Declarative** — features, natural classes, tie behavior, rendering codecs, and vocal-tract geometry are read from declarations rather than inferred by the graph kernel.
+- **Declarative** — features, natural classes, tie behavior, codec transcription-tier selections, and vocal-tract geometry are read from declarations rather than inferred by the graph kernel.
 - **Typed** (`py.typed`, mypy-strict clean).
 - **Both a library and a CLI** (`ipakit`), covering the same ground.
 - **Draws the tract** — `ipakit.tract_svg.figure("t")` is a mid-sagittal SVG of that
