@@ -1,77 +1,57 @@
 # The canonical representation
 
-IPA text is an input and output boundary. Inside ipakit, the widest reading is
-`Form`: an immutable sequence of `Unit` occurrences plus unspelled tier
-`Interval`s. Parse once with `read`, carry that value, and take a named
-projection only where it is needed.
+`Form` is the sole public stored representation. IPA text, CMU tokens, JSON, rendering, rewriting, alignment, gestures, and compatibility coordinates are projections around one validated tier graph; the kernel modules remain package-internal.
+
+## Public construction and navigation
 
 ```python
 import ipakit
 
-form = ipakit.read("#kæt.ˈ.dɒɡ#", strict=True)
-form.to_ipa()                         # '#kæt.ˈ.dɒɡ#'
-[s.to_ipa() for s in form.segments]   # ['k', 'æ', 't', 'ˈd', 'ɒ', 'ɡ']
+builder = ipakit.FormBuilder()
+utterance = builder.begin("utterance")
+phrase = builder.begin("phrase")
+segments = builder.append_ipa("kæt")
+builder.end(phrase)
+builder.end(utterance)
+builder.contain(phrase, segments)
+builder.contain(utterance, (phrase,))
+builder.add_root(utterance)
+form = builder.build()
+
+assert isinstance(form, ipakit.Form)
+assert form.to_ipa() == "kæt"
+assert form.direct_children(form.roots[0]) == ("/clock/0/phrase/0",)
+assert form.leaves(form.roots[0]) == ("/clock/0/segment/0", "/clock/1/segment/0", "/clock/2/segment/0")
 ```
 
-The inventory-bound spelling is `IPAFeatures.read`. The top-level `ipakit.read`
-uses the shipped inventory. Rules, distance, converters, transcription search,
-and animation consume this representation rather than choosing attachment or
-extracting features independently.
+Builder handles are opaque edit-time identities, while navigation returns canonical paths. After `build()`, use `roots`, `direct_children`, `descendants`, `leaves`, `parents`, and `ancestors` on `Form`; never retain or compare a handle to a path.
 
-## JSON
+## Tier-graph envelope
 
-`Form.to_json()` is the lossless lean interchange format. `Form.from_json()`
-and `ipakit.read_json()` restore it without reparsing its IPA spelling.
+The canonical graph envelope is plain JSON with `type: "tiergraph"` and version `v: 1`; readers require that exact version. `model` references the declaration contract by name and version or fingerprint. Bundled declarations need no embedded copy, and declaration snapshots are deferred. `tiers` fixes tier order, `relations` contains canonical default-omitting relation declarations, `roots` names traversal or delivery roots, `clock` contains the structural axis and its final boundary, and `links` contains ordered source/relation/target triples.
 
-```python
-encoded = form.to_json()
-restored = ipakit.read_json(encoded)
-restored == form                       # True
+This CMU envelope is emitted by the landed serializer, not transcribed from an illustrative schema:
+
+```json
+{"type":"tiergraph","v":1,"model":{"name":"cmudict","version":"base-1"},"tiers":["phone"],"relations":{},"roots":[],"clock":[{"gaps":[{}],"phone":[{"features":{"phone":"AH","stress":"primary"}}]},{"gaps":[{}]}],"links":[]}
 ```
 
-The top-level object declares `"type": "ipakit.form"` and the current numeric
-`"v"`. Readers require that version. Each unit carries:
+One input phone produces two clock entries: its start and the mandatory final boundary. Every clock entry has `gaps`; non-consuming written occurrences refine one tick to additional stable gaps. Events appear under their tier at their start tick. Omitted `duration` means one structural span, explicit zero means a point, and `span: {"start": ..., "end": ...}` preserves refined endpoints. Optional physical timing is `timing: {"start": ..., "duration": ...}` and does not order structure.
 
-- its local text;
-- its structured `Segment`, or `null` for a boundary or zero;
-- optional timing.
+Internal references are canonical JSON Pointers such as `/clock/0/phone/0`; paths are document-revision-local. An application that needs durable cross-revision identity stores a declared label feature and resolves it anew after rebuilding. Arbitrary extension features participate normally and serialize in lexical key order.
 
-That lean default omits resolved segmental features, prosody, and per-mark
-provenance for segment units. They are derived from the structured segment and
-the inventory on first access, then memoized. Boundary and zero units have no
-segment decomposition, so their declared features remain inline.
+Declaration fingerprints are SHA-256 over the declaration provider's canonical, compact, key-sorted JSON identity. The PanPhon profile pins `{"domain":[-1,0,1],"features":[...],"provider":"panphon"}`; feature sequence is declaration order and object keys are sorted. The envelope carries the resulting `sha256:` value as the model version.
 
-`form.to_json(self_contained=True)` (and the corresponding `to_dict` option)
-embeds `features`, `prosody`, and `provenance` on segment units. This shape is
-for a backend that does not carry the inventory. When these views are present,
-restoration checks them against the embedded segment; a document cannot say two
-different things about one unit. Lean documents perform that derivation lazily.
+Only edges of the same relation declaration marked `acyclic` participate in one cycle check. A cycle formed by combining two separately acyclic relation types is allowed unless a future declaration explicitly gives that union a shared constraint.
 
-Tier intervals carry their declared tier, half-open unit endpoints, and optional
-timing. Exact source spelling is retained separately only where unit-local text
-cannot reproduce its order, such as stress written across a separator.
+## IPA values and compatibility JSON
 
-From the command line:
+Structured IPA segment events carry exact spelling and a versioned `ipa-segment` value containing constituents, approaches, modifiers, junctures, and prosody. The lean IPA mode derives resolved features and provenance from that source value; a self-contained snapshot is opt-in and restoration validates it against the structured source. CMU and Pinyin facts are already their profiles' authoritative values and are serialized directly.
 
-```shell
-$ ipakit convert to-json "#kæt.ˈ.dɒɡ#" --strict
-$ ipakit convert to-json "kæt" --self-contained
-$ ipakit convert to-json "kæt" | ipakit convert from-json -
-```
+`Form.to_json()` and `ipakit.read_json()` retain the current `ipakit.form` version 2 compatibility projection for callers using unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Compatibility projection is explicit: graph paths remain authoritative internally, while every old unit and interval endpoint round-trips through the graph-backed store.
 
-## Optional time, structural time
+## Rendering and deferred mechanisms
 
-Timing belongs to an occurrence, not a `Segment` identity: two occurrences of
-the same phone can have different durations. A `Unit` or tier `Interval` may
-therefore carry `Timing(start, duration)` in seconds. Zero duration states a
-point target; the half-open endpoint is derived as `start + duration`.
+A renderer selects transcription tiers through its explicit codec profile; it does not guess from graph roots. Mutually exclusive delivery roots use `alternatives`; rendering requires either one persisted `selects` relation or one ephemeral selection argument, and the ephemeral choice does not mutate the graph. Multiple unrelated roots may coexist for traversal.
 
-Timing is optional. With no explicit endpoints, the ordered units and tier spans
-state only their partial order on the animation's base clock. The representation
-does not invent seconds, equal durations, interpolation, or a policy for moving
-time through a rewrite. Explicit timings supplied by a future aligner constrain
-that same clock; they do not change the untimed representation's meaning.
-
-Overlapping spans are allowed. Coarticulation, simultaneous gestures, and tiers
-that cross one another require that freedom. Deciding how a ballistic movement
-approaches a target is animation policy, not a fact smuggled into serialization.
+Compatibility projections remain available for `units`, `intervals`, segment and boundary reads, rule sites and edits, pairwise `Alignment`, and rewrite traces. Capability negotiation, recognizer invocation, and rewrite-rule induction are intentionally deferred; version stamps identify the current contract and do not negotiate it.
