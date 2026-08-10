@@ -2,6 +2,9 @@
 
 The wire layer stays separate from the kernel so model lookup and profile value
 construction cannot weaken the graph's construction-time validation laws.
+Relation declarations omit fields equal to their dataclass defaults; restoration
+compares this canonical default-omitting shape rather than preserving redundant
+default fields from illustrative wire examples.
 """
 
 from __future__ import annotations
@@ -16,7 +19,6 @@ from ._tiergraph import (
     Declarations,
     Event,
     EventGroup,
-    FrozenValue,
     Graph,
     GraphValidationError,
     JsonValue,
@@ -122,7 +124,7 @@ class IPAValues:
             "value": cast(JsonValue, value.to_dict()),
             "features": ordinary,
             "prosody": prosody,
-            "provenance": _thaw(cast(FrozenValue, provenance)),
+            "provenance": _thaw(provenance),
         }
         self._validated_features(result)
         _add_extent_and_timing(result, event)
@@ -336,8 +338,8 @@ def _restore_node(
 def _add_extent_and_timing(result: dict[str, JsonValue], event: Event) -> None:
     if event.span is not None:
         result["span"] = {"start": event.span.start, "end": event.span.end}
-    elif event.duration is not None:
-        result["duration"] = event.duration
+    elif event.structural_duration != 1:
+        result["duration"] = event.structural_duration
     if event.timing is not None:
         result["timing"] = {
             "start": event.timing.start,
@@ -368,7 +370,7 @@ def _event(features: Mapping[str, object], data: Mapping[str, JsonValue]) -> Eve
         if not _number(start) or not _number(physical_duration):
             raise GraphValidationError("malformed physical timing")
         timing = Timing(float(start), float(physical_duration))
-    return Event(cast(Mapping[str, FrozenValue], features), duration, span, timing)
+    return Event(features, duration, span, timing)
 
 
 def _restore_link(raw: JsonValue) -> Relation:

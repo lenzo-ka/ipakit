@@ -18,15 +18,7 @@ from typing import TypeAlias, cast
 JsonValue: TypeAlias = (
     None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 )
-FrozenValue: TypeAlias = (
-    None
-    | bool
-    | int
-    | float
-    | str
-    | tuple["FrozenValue", ...]
-    | Mapping[str, "FrozenValue"]
-)
+FrozenValue: TypeAlias = object
 
 _NODE_STRUCTURAL_KEYS = frozenset({"gaps"})
 
@@ -142,6 +134,8 @@ class Event:
     timing: Timing | None = None
 
     def __post_init__(self) -> None:
+        if self.duration == 1:
+            object.__setattr__(self, "duration", None)
         object.__setattr__(
             self,
             "features",
@@ -353,6 +347,8 @@ class Graph:
         for root in self.roots:
             if self.resolve(root).kind is not EndpointKind.EVENT:
                 raise GraphValidationError("root must resolve to an event")
+        if len(self.relations) != len(set(self.relations)):
+            raise GraphValidationError("duplicate relation")
         for relation in self.relations:
             self._validate_relation(relation)
         self._validate_choices()
@@ -560,8 +556,8 @@ def _node_data(node: ClockNode) -> JsonValue:
             }
             if event.span is not None:
                 value["span"] = {"start": event.span.start, "end": event.span.end}
-            elif event.duration is not None:
-                value["duration"] = event.duration
+            elif event.structural_duration != 1:
+                value["duration"] = event.structural_duration
             if event.timing is not None:
                 value["timing"] = {
                     "start": event.timing.start,
@@ -681,7 +677,13 @@ def _escape(value: str) -> str:
     return value.replace("~", "~0").replace("/", "~1")
 
 
-def _freeze(value: JsonValue) -> FrozenValue:
+def _freeze(value: object) -> FrozenValue:
+    """Freeze JSON containers while preserving profile-owned scalar values.
+
+    Profiles may store immutable domain objects such as ``Segment``.  Their
+    value codecs remain authoritative about whether those opaque values have a
+    valid wire representation.
+    """
     if isinstance(value, list):
         return tuple(_freeze(item) for item in value)
     if isinstance(value, dict):
@@ -694,4 +696,4 @@ def _thaw(value: FrozenValue) -> JsonValue:
         return [_thaw(item) for item in value]
     if isinstance(value, Mapping):
         return {name: _thaw(value[name]) for name in sorted(value)}
-    return value
+    return cast(JsonValue, value)

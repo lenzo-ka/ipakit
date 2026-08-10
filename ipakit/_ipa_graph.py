@@ -25,7 +25,7 @@ ZERO_TIER = "zero"
 BOUNDARY_TIER = "boundary"
 PROSODY_TIER = "prosody"
 _PROFILE_FEATURES = frozenset(
-    {"value", "spelling", "symbol", "provenance", "input", "phantom"}
+    {"value", "spelling", "symbol", "provenance", "input", "phantom", "class"}
 )
 
 
@@ -83,7 +83,7 @@ def declarations(inventory: IPAFeatures) -> Declarations:
     )
     tiers = (
         *(TierDeclaration(name, common) for name in hierarchy_tiers),
-        TierDeclaration(SEGMENT_TIER, common | inventory_names),
+        TierDeclaration(SEGMENT_TIER, common | inventory_names | frozenset({"class"})),
         TierDeclaration(ZERO_TIER, common | frozenset({"symbol"})),
         TierDeclaration(BOUNDARY_TIER, common | structural | frozenset({"symbol"})),
         TierDeclaration(PROSODY_TIER, common | prosodic | frozenset({"symbol"})),
