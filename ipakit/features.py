@@ -54,7 +54,8 @@ from .segment import (
 from .validation import ValidationMixin
 
 if TYPE_CHECKING:
-    from .form import Form
+    from ._tiergraph import Declarations
+    from .form import Form, _FormConstants
 
 #: What a resolved query term carries: one value, or a set of them.
 _T = TypeVar("_T")
@@ -3681,6 +3682,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # -------------------------------------------------------------------------
     # Derived properties
     # -------------------------------------------------------------------------
+
+    @functools.cached_property
+    def _graph_declarations(self) -> Declarations:
+        """Immutable tier-graph declarations derived once per inventory."""
+        from ._ipa_graph import _derive_declarations
+
+        return _derive_declarations(self)
+
+    @functools.cached_property
+    def _form_constants(self) -> _FormConstants:
+        """Immutable form vocabulary derived once per inventory."""
+        from .form import _derive_form_constants
+
+        return _derive_form_constants(self)
+
+    @functools.cached_property
+    def _prosody_declarations(self) -> Mapping[str, Mapping[str, str]]:
+        """Immutable per-mark prosody declarations for this inventory."""
+        from .form import _derive_prosody_declarations
+
+        return _derive_prosody_declarations(self)
 
     @property
     def feature_order(self) -> list[str]:

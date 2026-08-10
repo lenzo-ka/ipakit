@@ -83,6 +83,7 @@ _METADATA = frozenset({"class", "href", "xsampa"})
 _JSON_VERSION = 2
 _JSON_TYPE = "ipakit.form"
 _VIEW_ABSENT = object()
+_EMPTY_MAPPING: Mapping[str, str] = MappingProxyType({})
 
 
 class FormProjectionError(ValueError):
@@ -500,6 +501,50 @@ class Node:
         return f"Node({self.level}, {len(self.children)} children, {self.to_ipa()!r})"
 
 
+@dataclass(frozen=True)
+class _FormConstants:
+    tier_names: tuple[str, ...]
+    levels: tuple[str, ...]
+    edge_level: str
+    boundary_marks: Mapping[str, Mapping[str, str]]
+    zeros: Mapping[str, Mapping[str, str]]
+
+
+def _derive_form_constants(features: IPAFeatures) -> _FormConstants:
+    """Derive immutable vocabulary shared by every parse of an inventory."""
+    declared_tier = features.features.get("tier")
+    level_order = features.features["level"].values
+    spelled = {
+        level
+        for sep in features.separators.values()
+        if (level := (sep.features or {}).get("level")) in level_order
+    }
+    edge = (
+        max(spelled, key=level_order.index)
+        if spelled
+        else level_order[-1]  # pragma: no cover - no separator declares a level
+    )
+    structural = set(features.features_by_mode.get("structural", ())) - {"tie"}
+    marks: dict[str, Mapping[str, str]] = {}
+    for symbol, declared in features.diacritics.items():
+        bundle = getattr(declared, "features", None) or {}
+        if any(key in structural for key in bundle):
+            marks[symbol] = MappingProxyType(
+                {key: value for key, value in bundle.items() if key not in _METADATA}
+            )
+    nulls = {
+        symbol: MappingProxyType(dict(declared.features or {}))
+        for symbol, declared in features.zeros.items()
+    }
+    return _FormConstants(
+        tuple(declared_tier.values) if declared_tier is not None else (),
+        tuple(reversed(level_order)),
+        edge,
+        MappingProxyType(marks),
+        MappingProxyType(nulls),
+    )
+
+
 def tier_names(features: IPAFeatures | None = None) -> tuple[str, ...]:
     """The tiers an :class:`Interval` may be declared on, read off the data.
 
@@ -512,8 +557,7 @@ def tier_names(features: IPAFeatures | None = None) -> tuple[str, ...]:
     module.
     """
     features = _default(features)
-    declared = features.features.get("tier")
-    return tuple(declared.values) if declared is not None else ()
+    return features._form_constants.tier_names
 
 
 @dataclass(frozen=True)
@@ -582,7 +626,7 @@ def levels(features: IPAFeatures | None = None) -> tuple[str, ...]:
     extends the tree without a change to this module.
     """
     features = _default(features)
-    return tuple(reversed(features.features["level"].values))
+    return features._form_constants.levels
 
 
 def edge_level(features: IPAFeatures | None = None) -> str:
@@ -611,18 +655,10 @@ def edge_level(features: IPAFeatures | None = None) -> str:
     ``level`` and nothing named ``level`` answers with a ``tier``.
     """
     features = _default(features)
-    order = features.features["level"].values
-    spelled = {
-        level
-        for sep in features.separators.values()
-        if (level := (sep.features or {}).get("level")) in order
-    }
-    if not spelled:  # pragma: no cover - no separator declares a level
-        return order[-1]
-    return max(spelled, key=order.index)
+    return features._form_constants.edge_level
 
 
-def boundary_marks(features: IPAFeatures) -> dict[str, dict[str, str]]:
+def boundary_marks(features: IPAFeatures) -> Mapping[str, Mapping[str, str]]:
     """Declared marks that stand *between* units rather than modify one.
 
     The prosodic break ``|``, the major break ``‖`` and the linking mark
@@ -633,16 +669,10 @@ def boundary_marks(features: IPAFeatures) -> dict[str, dict[str, str]]:
     ``tie``, because a tie *joins* two units rather than standing between
     them.
     """
-    structural = set(features.features_by_mode.get("structural", ())) - {"tie"}
-    out: dict[str, dict[str, str]] = {}
-    for symbol, declared in features.diacritics.items():
-        bundle = getattr(declared, "features", None) or {}
-        if any(key in structural for key in bundle):
-            out[symbol] = {k: v for k, v in bundle.items() if k not in _METADATA}
-    return out
+    return features._form_constants.boundary_marks
 
 
-def zeros(features: IPAFeatures) -> dict[str, dict[str, str]]:
+def zeros(features: IPAFeatures) -> Mapping[str, Mapping[str, str]]:
     """Declared symbols that hold a position open without filling it.
 
     Today ``∅``. A zero carries no phonetic features at all, which is
@@ -657,10 +687,7 @@ def zeros(features: IPAFeatures) -> dict[str, dict[str, str]]:
     classes and dropped the rest; two readers of one file is the shape
     this repo treats as a defect waiting to happen, and it is now one.
     """
-    return {
-        symbol: dict(declared.features or {})
-        for symbol, declared in features.zeros.items()
-    }
+    return features._form_constants.zeros
 
 
 def _segmental(bundle: dict[str, str], features: IPAFeatures) -> dict[str, str]:
@@ -676,7 +703,7 @@ def _segmental(bundle: dict[str, str], features: IPAFeatures) -> dict[str, str]:
     return {k: v for k, v in bundle.items() if k not in prosodic}
 
 
-def declared_prosody(glyph: str, features: IPAFeatures) -> dict[str, str]:
+def declared_prosody(glyph: str, features: IPAFeatures) -> Mapping[str, str]:
     """What one mark says about prosody: ``ˈ`` is ``{'stress': 'primary'}``.
 
     The single read of a mark's prosodic declaration. Everything that
@@ -691,10 +718,26 @@ def declared_prosody(glyph: str, features: IPAFeatures) -> dict[str, str]:
     glyphs. No shipped mark mixes the two modes, so the filter costs
     nothing on the resolving path.
     """
-    declared = features.diacritics.get(glyph)
-    bundle = getattr(declared, "features", None) or {}
+    return features._prosody_declarations.get(glyph, _EMPTY_MAPPING)
+
+
+def _derive_prosody_declarations(
+    features: IPAFeatures,
+) -> Mapping[str, Mapping[str, str]]:
+    """Build the immutable mark-to-prosody table for one inventory."""
     prosodic = features.features_by_mode.get("prosodic", ())
-    return {k: v for k, v in bundle.items() if k not in _METADATA and k in prosodic}
+    return MappingProxyType(
+        {
+            glyph: MappingProxyType(
+                {
+                    key: value
+                    for key, value in (declared.features or {}).items()
+                    if key not in _METADATA and key in prosodic
+                }
+            )
+            for glyph, declared in features.diacritics.items()
+        }
+    )
 
 
 def _asserted_prosody(seg: Segment, features: IPAFeatures) -> dict[str, str]:

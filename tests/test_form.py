@@ -49,6 +49,16 @@ def _phones() -> list[str]:
     return self_spelling_phones()
 
 
+def test_inventory_form_constants_are_cached_and_immutable() -> None:
+    marks = boundary_marks(FEATURES)
+    assert boundary_marks(FEATURES) is marks
+    assert levels(FEATURES) is levels(FEATURES)
+    with pytest.raises(TypeError):
+        marks["new"] = {}  # type: ignore[index]
+    with pytest.raises(TypeError):
+        marks["|"]["level"] = "word"  # type: ignore[index]
+
+
 class TestAFormCarriesEverythingItWasWrittenWith:
     def test_it_round_trips_every_phone(self):
         phones = _phones()
