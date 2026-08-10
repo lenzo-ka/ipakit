@@ -4,9 +4,9 @@ Organized into subcommands:
     ipakit features <phone>     Get features for an IPA phone
     ipakit describe <phone>     Human-readable phone description
     ipakit notebook             Write the tutorial notebook here, to run
-    ipakit convert ...          Convert IPA/CMU/X-SAMPA/TIMIT/Kirshenbaum
+    ipakit convert ...          Convert notation, serialize Forms, render katakana
     ipakit query ...            Query phones by features
-    ipakit rules ...            Apply/trace context-sensitive rewrite rules
+    ipakit rules ...            Rewrite rules and derived morae
     ipakit distance ...         Calculate phonetic distances
     ipakit hierarchy ...        Generate phone hierarchies
     ipakit analysis ...         Analyze phones (describe, natural-class, minimal-pairs)
@@ -81,10 +81,13 @@ Examples:
   ipakit describe p                    # "voiceless bilabial plosive"
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
+  ipakit convert to-json "kæt"          # Versioned graph-backed Form JSON
+  ipakit convert to-katakana "hɑt"      # Attested loanword adaptation: ホット
   ipakit query match plosive bilabial  # Find: b p ɓ ʘ
   ipakit query match +voi plo bil      # Voiced bilabial plosives: b ɓ
   ipakit rules apply -s american-english pˈɪn   # broad to narrow: pʰˈɪ̃n
   ipakit rules trace -s american-english bˈʌtɚ  # which rule fired, and where
+  ipakit rules morae "hɑt"              # Attested adaptation morae: ho t to
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Raw feature distance: ~0.04

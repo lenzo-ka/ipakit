@@ -1,4 +1,4 @@
-"""Convert commands - format conversions between IPA, CMU, and X-SAMPA."""
+"""Convert commands - notation conversion and lossless form serialization."""
 
 from __future__ import annotations
 
@@ -297,6 +297,50 @@ class FromJsonCommand(Command):
         return 0
 
 
+class ToKatakanaCommand(Command):
+    """Render an attested Japanese loanword adaptation in katakana.
+
+    This is a small, fixture-backed gairaigo codec, not a Japanese-accent
+    simulator.  Input must exactly match one of the attested IPA source forms;
+    an unmapped form is refused rather than approximated.
+
+    Examples:
+        ipakit convert to-katakana "hɑt"       # ホット
+        ipakit convert to-katakana "stɹa͜ɪk"   # ストライク
+    """
+
+    name = "to-katakana"
+    aliases = []
+    help = "Render an attested Japanese loanword adaptation (no approximation)"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.add_argument("ipa", help="Attested source IPA form")
+
+    def run(self) -> int:
+        from .._katakana_codec import render
+        from .._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
+
+        fixtures = japanese_moraic_fixtures()
+        name = next(
+            (
+                key
+                for key, fixture in fixtures.items()
+                if fixture.source == self.args.ipa
+            ),
+            None,
+        )
+        if name is None:
+            return self.error(
+                f"no attested Japanese loanword adaptation for {self.args.ipa!r}; "
+                "input is not approximated"
+            )
+        self.print(render(japanese_moraic_fixture(name, self.ipa)._graph))
+        return 0
+
+
 class AddTiesCommand(Command):
     """Add tie bars between phones in a multi-phone segment.
 
@@ -486,6 +530,9 @@ class ConvertGroup(CommandGroup):
         from-timit     TIMIT → IPA
         to-kirshenbaum IPA → Kirshenbaum ASCII-IPA
         from-kirshenbaum Kirshenbaum → IPA
+        to-json       IPA → versioned Form JSON
+        from-json     versioned Form JSON → IPA
+        to-katakana   Attested Japanese loanword adaptation → katakana
         normalize      Canonicalize IPA (tie bars, ligatures)
         tokenize       Split IPA into segments
         add-ties       Create affricates/diphthongs with tie bars
@@ -493,7 +540,7 @@ class ConvertGroup(CommandGroup):
 
     name = "convert"
     aliases = ["c"]
-    help = "Convert between IPA, CMU, X-SAMPA, TIMIT, Kirshenbaum"
+    help = "Convert notation, serialize forms, and render attested adaptations"
     commands = [
         ToCmuCommand,
         ToIpaCommand,
@@ -507,5 +554,6 @@ class ConvertGroup(CommandGroup):
         TokenizeCommand,
         ToJsonCommand,
         FromJsonCommand,
+        ToKatakanaCommand,
         AddTiesCommand,
     ]

@@ -552,7 +552,7 @@ class VariantsCommand(RuleCommand):
 
         for form, result in found:
             self.print(
-                f"{form}: {plural(len(result), 'variant')}" f"{truncation_note(result)}"
+                f"{form}: {plural(len(result), 'variant')}{truncation_note(result)}"
             )
             for variant in result:
                 self.print(f"  {variant.form}")
@@ -700,6 +700,64 @@ class UnitsCommand(RuleCommand):
         return 0
 
 
+class MoraeCommand(Command):
+    """Show the morae derived for an attested Japanese loanword adaptation.
+
+    The view uses the same rewrite/graph bridge as ``convert to-katakana``.
+    It is fixture-backed evidence about attested gairaigo patterns, not a
+    general Japanese-accent simulator; unmapped input is refused.
+
+    Examples:
+        ipakit rules morae "hɑt"          # ho t to
+        ipakit rules morae "stɹa͜ɪk" -j   # structured source/output/morae
+    """
+
+    name = "morae"
+    aliases = []
+    help = "Show morae for an attested Japanese loanword adaptation"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.add_argument("ipa", help="Attested source IPA form")
+        add_format_arg(parser)
+
+    def run(self) -> int:
+        from .._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
+
+        fixtures = japanese_moraic_fixtures()
+        found = next(
+            (
+                (name, fixture)
+                for name, fixture in fixtures.items()
+                if fixture.source == self.args.ipa
+            ),
+            None,
+        )
+        if found is None:
+            return self.error(
+                f"no attested Japanese loanword adaptation for {self.args.ipa!r}; "
+                "input is not approximated"
+            )
+        name, fixture = found
+        form = japanese_moraic_fixture(name, self.ipa)
+        morae = tuple(
+            str(event.features["value"])
+            for node in form._graph.clock
+            for group in node.groups
+            if group.tier == "mora"
+            for event in group.events
+        )
+        if self.format == "json":
+            self.output_json(
+                {"source": fixture.source, "output": fixture.output, "morae": morae}
+            )
+        else:
+            self.print(" ".join(morae))
+        return 0
+
+
 class ListCommand(Command):
     """List the shipped rule sets, or the rules in one.
 
@@ -787,6 +845,7 @@ class RulesGroup(CommandGroup):
         trace      Show which rule fired where, and what it changed
         recognize  Where an environment holds, with no rewriting
         units      Split a form the way rules see it (boundaries kept)
+        morae      Show morae for an attested Japanese loanword adaptation
         list       The shipped rule sets, or the rules in one
 
     Rules come from exactly one of -r NOTATION (repeatable and ordered),
@@ -809,6 +868,7 @@ class RulesGroup(CommandGroup):
         ipakit rules apply -r 't -> ʔ / _ #' kæt           # kæʔ
         ipakit rules recognize -r 't -> ʔ / _ #' kæt       # the site, no rewrite
         ipakit rules units bˈʌ.tɚ                          # b ˈʌ . t ɚ
+        ipakit rules morae hɑt                             # ho t to
 
     See docs/rules.md for the notation and docs/calculus.md for the
     calculus over the set that '~>' opens.
@@ -816,12 +876,13 @@ class RulesGroup(CommandGroup):
 
     name = "rules"
     aliases = ["r"]
-    help = "Rewrite rules (apply, variants, trace, recognize, units, list)"
+    help = "Rewrite rules (apply, variants, trace, recognize, units, morae, list)"
     commands = [
         ApplyCommand,
         VariantsCommand,
         TraceCommand,
         RecognizeCommand,
         UnitsCommand,
+        MoraeCommand,
         ListCommand,
     ]
