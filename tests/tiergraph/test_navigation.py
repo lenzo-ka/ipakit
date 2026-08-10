@@ -189,3 +189,48 @@ def test_parent_and_ancestor_navigation_preserves_every_dag_route() -> None:
         (by_label["s"],),
         (by_label["w"], by_label["p"], by_label["u"]),
     )
+    assert expanded_leaves(graph, by_label["w"]) == (by_label["shared"],)
+
+
+def test_declared_child_sequence_never_resorts_by_clock() -> None:
+    builder = GraphBuilder(declarations())
+    phrase = builder.begin("phrase", {"label": "phrase"})
+    clock_first = builder.append_input_atom("segment", {"label": "A"})
+    clock_last = builder.append_input_atom("segment", {"label": "Z"})
+    builder.end(phrase)
+    builder.contain(phrase, (clock_last, clock_first), relation="includes")
+    graph = builder.build()
+    refs = {
+        graph.resolve(ref).event.features["label"]: ref
+        for ref in graph.event_references()
+    }
+    declared = (refs["Z"], refs["A"])
+
+    assert direct_children(graph, refs["phrase"]) == declared
+    assert expanded_leaves(graph, refs["phrase"]) == declared
+    assert lexical_projection(graph, refs["phrase"], lexical_tier="segment") == declared
+    assert expand_phrase(graph, refs["phrase"]) == declared
+
+
+def test_shared_child_is_emitted_once_in_downward_walks() -> None:
+    builder = GraphBuilder(declarations())
+    phrase = builder.begin("phrase", {"label": "phrase"})
+    first = builder.begin("word", {"label": "first"})
+    builder.end(first)
+    second = builder.begin("syllable", {"label": "second"})
+    shared = builder.append_input_atom("segment", {"label": "shared"})
+    builder.end(second)
+    builder.end(phrase)
+    builder.contain(phrase, (first, second), relation="includes")
+    builder.contain(first, (shared,), relation="includes")
+    builder.contain(second, (shared,), relation="includes")
+    graph = builder.build()
+    refs = {
+        graph.resolve(ref).event.features["label"]: ref
+        for ref in graph.event_references()
+    }
+
+    assert expanded_leaves(graph, refs["phrase"]) == (refs["shared"],)
+    assert descendants_on_tier(graph, refs["phrase"], tier="segment") == (
+        refs["shared"],
+    )
