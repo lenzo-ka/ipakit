@@ -906,11 +906,12 @@ class _CompatibilityProjection:
     def intervals(self) -> tuple[Interval, ...]:
         from ._tiergraph_builder import _pointer_position
 
-        out = []
+        indexed = []
         for node in self.graph.clock:
             for group in node.groups:
                 for event in group.events:
-                    if event.features.get("compatibility-interval") is not True:
+                    index = event.features.get("compatibility-interval")
+                    if not isinstance(index, int):
                         continue
                     if event.span is None:
                         raise ValueError("compatibility interval has no exact span")
@@ -932,8 +933,11 @@ class _CompatibilityProjection:
                         self.coordinates.to_legacy(_pointer_position(event.span.end)),
                     )
                     object.__setattr__(interval, "timing", timing)
-                    out.append(interval)
-        return tuple(out)
+                    indexed.append((index, interval))
+        indexed.sort(key=lambda item: item[0])
+        if [index for index, _ in indexed] != list(range(len(indexed))):
+            raise ValueError("graph compatibility interval order is not contiguous")
+        return tuple(interval for _, interval in indexed)
 
 
 def _graph_from_compatibility(
@@ -1028,7 +1032,7 @@ def _graph_from_compatibility(
                 timing=timing,
             )
     coordinates = builder.compatibility_coordinates()
-    for span in intervals:
+    for index, span in enumerate(intervals):
         timing = (
             GraphTiming(span.timing.start, span.timing.duration)
             if span.timing is not None
@@ -1038,7 +1042,7 @@ def _graph_from_compatibility(
             span.tier,
             coordinates.to_graph(span.start),
             coordinates.to_graph(span.end),
-            {"compatibility-interval": True},
+            {"compatibility-interval": index},
             timing=timing,
         )
     return builder.build()

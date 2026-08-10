@@ -49,3 +49,13 @@ def test_interval_between_repeated_dots_uses_exact_refined_endpoint() -> None:
     assert mora.span.start == "/clock/0"
     assert mora.span.end == "/clock/1/gaps/1"
     assert held.intervals[0] == Interval("mora", 0, 2, FEATURES)
+
+
+def test_interval_projection_retains_caller_order_across_tiers() -> None:
+    parsed = Form.parse("abcd", FEATURES)
+    intervals = (
+        Interval("mora", 0, 2, FEATURES),
+        Interval("syllable", 1, 4, FEATURES),
+    )
+
+    assert Form.of(parsed.units, intervals).intervals == intervals
