@@ -840,6 +840,7 @@ class TestABoundaryPatternMatchesItsLevelOrStronger:
         same coin, ``[-word]`` was satisfied by the absence of the key and
         so matched every segment there is.
         """
-        for spec in ("a -> o / _ [level=phrase]", "a -> o / _ [-word]"):
-            with pytest.raises(R.RuleError, match="is structural"):
-                ipakit.rewrite("a|b", spec)
+        with pytest.raises(R.RuleError, match="is structural"):
+            ipakit.rewrite("a|b", "a -> o / _ [level=phrase]")
+        with pytest.raises(R.RuleError, match="'-word' is ambiguous"):
+            ipakit.rewrite("a|b", "a -> o / _ [-word]")
