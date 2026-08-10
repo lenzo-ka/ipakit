@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .._corpus_query import _normalize_wild_query
 from ..constants import MAX_EXAMPLE_PHONES
 from ..models import Feature
 from .base import (
@@ -81,7 +82,7 @@ class FindFormsCommand(Command):
         interpreted = (
             self.args.dsl
             if self.args.exact
-            else getattr(self.ipa, "from_" + "wild")(self.args.dsl)
+            else _normalize_wild_query(self.args.dsl, self.ipa)
         )
         print(f"query read as: {interpreted}", file=sys.stderr)
         corpus.parse_query(interpreted, self.ipa)

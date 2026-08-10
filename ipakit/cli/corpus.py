@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .. import corpus, rules
+from .._corpus_query import _normalize_wild_query
 from .base import Command, CommandGroup
 
 
@@ -119,7 +120,7 @@ class Query(Command):
         interpreted = (
             self.args.dsl
             if self.args.exact
-            else getattr(self.ipa, "from_" + "wild")(self.args.dsl)
+            else _normalize_wild_query(self.args.dsl, self.ipa)
         )
         print(f"query read as: {interpreted}", file=sys.stderr)
         corpus.parse_query(interpreted, self.ipa)

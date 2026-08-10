@@ -39,6 +39,27 @@ class BudgetRefusal:
 DerivationAnswer = Derivation | ExhaustiveRefusal | BudgetRefusal
 
 
+def _normalize_wild_query(spec: str, inventory: IPAFeatures) -> str:
+    """Import IPA spellings without rewriting feature-group vocabulary."""
+    out: list[str] = []
+    buffer = ""
+    depth = 0
+    for char in spec:
+        if char in rules._GROUPS:
+            if depth == 0:
+                out.append(inventory.from_wild(buffer))
+                buffer = ""
+            depth += 1
+        buffer += char
+        if char in rules._CLOSERS:
+            depth -= 1
+            if depth == 0:
+                out.append(buffer)
+                buffer = ""
+    out.append(inventory.from_wild(buffer) if depth == 0 else buffer)
+    return "".join(out)
+
+
 class QueryParseError(rules.RuleError):
     """A query token could not be parsed, with its source position."""
 
@@ -80,7 +101,7 @@ def _parse_query(
     """
     inventory = _default(features)
     if wild:
-        spec = inventory.from_wild(spec)
+        spec = _normalize_wild_query(spec, inventory)
     target_text, slash, environment = spec.partition("/")
     target_text = target_text.strip()
     if not target_text:

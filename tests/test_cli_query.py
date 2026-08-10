@@ -40,6 +40,19 @@ def test_exact_takes_the_literal_codepoints():
     assert "spells nothing" in result.stderr
 
 
+def test_wild_echo_normalizes_literals_only():
+    result = invoke("query", "g{+voiced}", "ɡ")
+    assert result.returncode == 0
+    assert result.stderr == "query read as: ɡ{+voiced}\n"
+
+
+def test_wild_feature_error_preserves_the_users_spelling():
+    result = invoke("query", "[+high]", "ki")
+    assert result.returncode == 1
+    assert "'high'" in result.stderr
+    assert "'hiɡh'" not in result.stderr
+
+
 @pytest.mark.parametrize(
     "args",
     [

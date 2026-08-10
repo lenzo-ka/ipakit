@@ -60,6 +60,20 @@ def test_braces_are_a_conjunction_and_a_literal_is_exact():
     assert corpus.parse_query("ˈa").target.brace_base is False
 
 
+def test_wild_normalization_skips_feature_bundles():
+    wild = corpus.parse_query("[channel=grooved]", wild=True)
+    exact = corpus.parse_query("[channel=grooved]")
+    assert wild == exact
+    assert [match.text for match in corpus.find("sa", wild)] == ["s"]
+
+
+def test_wild_normalization_changes_literals_but_not_brace_constraints():
+    assert corpus.parse_query("g", wild=True) == corpus.parse_query("ɡ")
+    assert corpus.parse_query("g{+voiced}", wild=True) == corpus.parse_query(
+        "ɡ{+voiced}"
+    )
+
+
 def test_bindings_paths_and_offsets_are_complete():
     bound = next(corpus.find("n", "n{place=α}"))
     assert bound.bindings == (("α", "alveolar"),)
