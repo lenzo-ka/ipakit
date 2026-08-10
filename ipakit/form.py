@@ -1392,7 +1392,7 @@ class Form:
         out: list[Unit] = []
         graph_declarations = declarations(features)
         builder = GraphBuilder(graph_declarations)
-        graph_features = {tier.name: tier.features for tier in graph_declarations.tiers}
+        graph_features = graph_declarations._tier_by_name
         marks = boundary_marks(features)
         nulls = features.zeros
         edge = edge_level(features)
@@ -1417,7 +1417,7 @@ class Form:
                         {
                             key: value
                             for key, value in segment_features.items()
-                            if key in graph_features[SEGMENT_TIER]
+                            if key in graph_features[SEGMENT_TIER].features
                         },
                     ),
                 )
@@ -1457,7 +1457,7 @@ class Form:
                         {
                             key: value
                             for key, value in boundary_features.items()
-                            if key in graph_features[BOUNDARY_TIER]
+                            if key in graph_features[BOUNDARY_TIER].features
                         },
                     ),
                     refines_tick=treatment.refines_tick,
@@ -1480,7 +1480,7 @@ class Form:
                         {
                             key: value
                             for key, value in boundary_features.items()
-                            if key in graph_features[BOUNDARY_TIER]
+                            if key in graph_features[BOUNDARY_TIER].features
                         },
                     ),
                     refines_tick=treatment.refines_tick,

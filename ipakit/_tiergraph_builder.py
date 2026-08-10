@@ -325,10 +325,7 @@ class GraphBuilder:
 
     def scan_order(self, tier: str | None = None) -> tuple[EventHandle, ...]:
         """Expose the same total event order that build projects to arrays."""
-        tier_order = {
-            declaration.name: index
-            for index, declaration in enumerate(self.declarations.tiers)
-        }
+        tier_order = self.declarations._tier_order
         events = (item for item in self._events if tier is None or item.tier == tier)
         return tuple(
             item.handle
@@ -353,10 +350,7 @@ class GraphBuilder:
         gap_counts = {
             tick: len(handles) + 1 for tick, handles in self._refiners.items()
         }
-        tier_order = {
-            declaration.name: index
-            for index, declaration in enumerate(self.declarations.tiers)
-        }
+        tier_order = self.declarations._tier_order
         ordered = sorted(
             self._events,
             key=lambda item: (item.start.tick, tier_order[item.tier], item.lane),
