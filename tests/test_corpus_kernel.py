@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import ipakit
+import ipakit.form as form_module
 import pytest
 from ipakit import _corpus
 from ipakit.form import Form
@@ -38,6 +39,38 @@ def test_same_form_has_identical_entry_bytes(tmp_path: Path):
     assert (tmp_path / "first" / "entries" / "same.json").read_bytes() == (
         tmp_path / "second" / "entries" / "same.json"
     ).read_bytes()
+
+
+def test_self_contained_views_survive_changed_ambient_inventory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    corpus = _corpus.create(tmp_path / "corpus")
+    original = _form("ˈkæt.dɒɡ")
+    stored_views = tuple(
+        (dict(unit.features), dict(unit.prosody), unit.provenance)
+        for unit in original.units
+    )
+    corpus.add("word", {}, {"utt": original})
+
+    monkeypatch.setattr(
+        form_module,
+        "_resolve_unit_views",
+        lambda segment, inventory: (
+            {"revised": True},
+            {"stress": "revised"},
+            (("revised", segment.to_ipa(), "inventory"),),
+        ),
+    )
+    restored = _corpus.open(tmp_path / "corpus").read("word").forms["utt"]
+
+    assert restored == original
+    assert (
+        tuple(
+            (dict(unit.features), dict(unit.prosody), unit.provenance)
+            for unit in restored.units
+        )
+        == stored_views
+    )
 
 
 def test_order_and_bytes_do_not_depend_on_add_order(tmp_path: Path):

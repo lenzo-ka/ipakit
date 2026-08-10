@@ -1767,13 +1767,6 @@ class Form:
                 dict(raw.get("prosody", {})),
                 tuple(tuple(item) for item in raw.get("provenance", ())),
             )
-            if segment is not None and has_views:
-                expected = _resolve_unit_views(segment, inventory)
-                derived = (dict(expected[0]), dict(expected[1]), expected[2])
-                if supplied != derived:
-                    raise ValueError(
-                        f"serialized views disagree with segment {segment.to_ipa()!r}"
-                    )
             view_arguments: dict[str, Any] = (
                 {
                     "features": supplied[0],
