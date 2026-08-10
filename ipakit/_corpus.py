@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -202,6 +202,15 @@ class Corpus:
 
     def read(self, entry_id: str) -> Entry:
         """Restore one entry and all its named forms."""
+        return self.read_roles(entry_id)
+
+    def read_roles(self, entry_id: str, roles: Iterable[str] | None = None) -> Entry:
+        """Restore one entry, optionally restoring only selected form roles.
+
+        The entry document is still read once, but unselected form wires are
+        left untouched.  Collection operations use this to avoid constructing
+        forms they cannot inspect.
+        """
         _check_id(entry_id)
         path = self._entry_path(entry_id)
         if not path.is_file():
@@ -228,6 +237,7 @@ class Corpus:
             raise CorpusError(f"entry {entry_id!r} metadata must be a JSON object")
         if not isinstance(raw_forms, dict):
             raise CorpusError(f"entry {entry_id!r} forms must be a JSON object")
+        selected = None if roles is None else frozenset(roles)
         restored: dict[str, Form] = {}
         for role, representation in raw_forms.items():
             if not isinstance(role, str) or not role:
@@ -238,6 +248,8 @@ class Corpus:
                 raise CorpusError(
                     f"entry {entry_id!r} form {role!r} must be a JSON object"
                 )
+            if selected is not None and role not in selected:
+                continue
             try:
                 restored[role] = Form.from_dict(representation)
             except (KeyError, TypeError, ValueError) as exc:
