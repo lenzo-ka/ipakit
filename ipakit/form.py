@@ -80,8 +80,32 @@ if TYPE_CHECKING:  # pragma: no cover
 
 #: Keys on a declaration that name a symbol rather than describe a sound.
 _METADATA = frozenset({"class", "href", "xsampa"})
-_JSON_VERSION = 1
+_JSON_VERSION = 2
 _JSON_TYPE = "ipakit.form"
+_VIEW_ABSENT = object()
+
+
+class _DerivedMapping(Mapping[str, str]):
+    """An immutable resolved view that ``replace`` can recognize as pass-through."""
+
+    def __init__(self, value: Mapping[str, str]) -> None:
+        self._value = MappingProxyType(dict(value))
+
+    def __getitem__(self, key: str) -> str:
+        return self._value[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._value)
+
+    def __len__(self) -> int:
+        return len(self._value)
+
+
+class _DerivedProvenance(tuple[tuple[str, str, str], ...]):
+    """A resolved provenance tuple tagged as lazy pass-through."""
+
+    def __new__(cls, value: Sequence[tuple[str, str, str]]) -> _DerivedProvenance:
+        return tuple.__new__(cls, value)
 
 
 def _default(features: IPAFeatures | None) -> IPAFeatures:
@@ -124,7 +148,7 @@ class Timing:
         return self.start + self.duration
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Unit:
     """One position in a form: a segment, or a boundary between segments.
 
@@ -132,6 +156,13 @@ class Unit:
     string as a character. It carries no phonetic features, only the
     declared separator attributes (``level=word``, ``level=syllable``),
     and it is never the target of a feature change.
+
+    Segment views are derived together on first access in a lax parse; a
+    strict parse resolves them during parsing so full validation and its
+    diagnostics happen before the form is returned. An explicitly supplied
+    ``features``, ``prosody``, or ``provenance`` value is already resolved and
+    is never replaced by inventory derivation; derivation fills only absent
+    views.
 
     :attr:`features` and :attr:`prosody` are read-only. ``frozen`` stops a
     *field* being rebound and says nothing about the mapping a field points
@@ -143,18 +174,123 @@ class Unit:
 
     text: str
     segment: Segment | None = None
-    features: Mapping[str, str] = field(default_factory=dict)
-    prosody: Mapping[str, str] = field(default_factory=dict)
+    features: Mapping[str, str] = field(
+        default=cast(Mapping[str, str], _VIEW_ABSENT), compare=False
+    )
+    prosody: Mapping[str, str] = field(
+        default=cast(Mapping[str, str], _VIEW_ABSENT), compare=False
+    )
     #: ``(glyph, feature, value)`` per prosodic mark, resolved when the
     #: unit was built so each attribute can name the mark that declared it.
-    provenance: tuple[tuple[str, str, str], ...] = ()
+    provenance: tuple[tuple[str, str, str], ...] = field(
+        default=cast(tuple[tuple[str, str, str], ...], _VIEW_ABSENT), compare=False
+    )
     timing: Timing | None = None
+    _inventory: IPAFeatures | None = field(
+        default=None, compare=False, hash=False, repr=False
+    )
+    _views_resolved: bool = field(
+        default=False, init=False, compare=False, hash=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         # Wrapped here rather than at each construction site, so a site
         # added later cannot forget and hand back a writable one.
-        object.__setattr__(self, "features", MappingProxyType(dict(self.features)))
-        object.__setattr__(self, "prosody", MappingProxyType(dict(self.prosody)))
+        namespace = object.__getattribute__(self, "__dict__")
+        segment_view = (
+            namespace["segment"] is not None and namespace["_inventory"] is not None
+        )
+        features_absent = namespace["features"] is _VIEW_ABSENT or isinstance(
+            namespace["features"], _DerivedMapping
+        )
+        prosody_absent = namespace["prosody"] is _VIEW_ABSENT or isinstance(
+            namespace["prosody"], _DerivedMapping
+        )
+        provenance_absent = namespace["provenance"] is _VIEW_ABSENT or isinstance(
+            namespace["provenance"], _DerivedProvenance
+        )
+        features = (
+            MappingProxyType({})
+            if features_absent
+            else MappingProxyType(dict(namespace["features"]))
+        )
+        prosody = (
+            MappingProxyType({})
+            if prosody_absent
+            else MappingProxyType(dict(namespace["prosody"]))
+        )
+        provenance = () if provenance_absent else tuple(namespace["provenance"])
+        object.__setattr__(self, "features", features)
+        object.__setattr__(self, "prosody", prosody)
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "_views_pending",
+            frozenset(
+                name
+                for name, absent in (
+                    ("features", features_absent),
+                    ("prosody", prosody_absent),
+                    ("provenance", provenance_absent),
+                )
+                if segment_view and absent
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_views_resolved",
+            not segment_view or not object.__getattribute__(self, "_views_pending"),
+        )
+
+    def __getattribute__(self, name: str) -> Any:
+        if name in {"features", "prosody", "provenance"}:
+            namespace = object.__getattribute__(self, "__dict__")
+            inventory = namespace.get("_inventory")
+            pending = namespace.get("_views_pending", ())
+            if (
+                namespace.get("segment") is not None
+                and inventory is not None
+                and pending
+            ):
+                resolved = _resolve_unit_views(namespace["segment"], inventory)
+                if "features" in pending:
+                    object.__setattr__(self, "features", _DerivedMapping(resolved[0]))
+                if "prosody" in pending:
+                    object.__setattr__(self, "prosody", _DerivedMapping(resolved[1]))
+                if "provenance" in pending:
+                    object.__setattr__(
+                        self, "provenance", _DerivedProvenance(resolved[2])
+                    )
+                object.__setattr__(self, "_views_pending", frozenset())
+                object.__setattr__(self, "_views_resolved", True)
+                return object.__getattribute__(self, name)
+        return object.__getattribute__(self, name)
+
+    def _identity(self) -> tuple[Any, ...]:
+        namespace = object.__getattribute__(self, "__dict__")
+        segment = namespace["segment"]
+        declared = (
+            (
+                (),
+                (),
+                (),
+            )
+            if segment is not None
+            else (
+                tuple(namespace["features"].items()),
+                tuple(namespace["prosody"].items()),
+                namespace["provenance"],
+            )
+        )
+        return (namespace["text"], segment, declared, namespace["timing"])
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Unit):
+            return NotImplemented
+        return self._identity() == other._identity()
+
+    def __hash__(self) -> int:
+        return hash(self._identity())
 
     @property
     def is_zero(self) -> bool:
@@ -215,12 +351,17 @@ class Unit:
         return self.text
 
     def __repr__(self) -> str:
-        # As :class:`Boundary`: the bundles are shown, not the wrapper
-        # that makes them read-only.
+        namespace = object.__getattribute__(self, "__dict__")
+        if self.segment is not None:
+            return (
+                f"Unit(text={self.text!r}, segment={self.segment!r}, "
+                f"timing={self.timing!r})"
+            )
         return (
-            f"Unit(text={self.text!r}, segment={self.segment!r}, "
-            f"features={dict(self.features)!r}, prosody={dict(self.prosody)!r}, "
-            f"provenance={self.provenance!r}, timing={self.timing!r})"
+            f"Unit(text={self.text!r}, segment=None, "
+            f"features={dict(namespace['features'])!r}, "
+            f"prosody={dict(namespace['prosody'])!r}, "
+            f"provenance={namespace['provenance']!r}, timing={self.timing!r})"
         )
 
 
@@ -822,21 +963,29 @@ def with_prosody(
     return out
 
 
-def _unit_for(seg: Segment, features: IPAFeatures) -> Unit:
-    # Provenance is resolved here, against the inventory the caller named,
-    # rather than re-resolved later against the default one -- otherwise
-    # one Form could give two answers for the same glyph.
+def _resolve_unit_views(
+    seg: Segment, features: IPAFeatures
+) -> tuple[Mapping[str, str], Mapping[str, str], tuple[tuple[str, str, str], ...]]:
+    """Resolve all occurrence views together for one memoized first access."""
     provenance: list[tuple[str, str, str]] = [
         (glyph, key, value)
         for glyph in seg.prosody
         for key, value in declared_prosody(glyph, features).items()
     ]
+    return (
+        MappingProxyType(_segmental(seg.scalar(), features)),
+        MappingProxyType(_prosodic_features(seg, features)),
+        tuple(provenance),
+    )
+
+
+def _unit_for(seg: Segment, features: IPAFeatures) -> Unit:
+    # Keep the declaring inventory with the structured value. The resolved
+    # occurrence views are computed together on their first access.
     return Unit(
         text=seg.to_ipa(),
         segment=seg,
-        features=_segmental(seg.scalar(), features),
-        prosody=_prosodic_features(seg, features),
-        provenance=tuple(provenance),
+        _inventory=features,
     )
 
 
@@ -903,7 +1052,11 @@ class _CompatibilityProjection:
                 if event.timing is not None
                 else None
             )
-            out.append(dataclasses.replace(unit, timing=timing))
+            out.append(
+                unit
+                if timing == unit.timing
+                else dataclasses.replace(unit, timing=timing)
+            )
         self._units = tuple(out)
         return self._units
 
@@ -1056,7 +1209,7 @@ def _graph_from_compatibility(
     return builder.build()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Form:
     """A transcription carrying everything it was written with.
 
@@ -1094,11 +1247,8 @@ class Form:
                 raise ValueError(
                     f"{span!r} runs past the {len(held_units)} units of the form"
                 )
-        object.__setattr__(
-            self,
-            "_tiergraph_graph",
-            _graph_from_compatibility(held_units, held_intervals),
-        )
+        object.__setattr__(self, "_compatibility_units", held_units)
+        object.__setattr__(self, "_compatibility_intervals", held_intervals)
         # These names stay dataclass fields so the constructor,
         # dataclasses.fields/replace, equality, and hash behavior retain their
         # public coordinates.  The instance values are deliberately removed:
@@ -1110,13 +1260,47 @@ class Form:
         if name in {"units", "intervals"}:
             namespace = object.__getattribute__(self, "__dict__")
             graph = namespace.get("_tiergraph_graph")
-            if graph is not None:
-                projection = namespace.get("_compatibility_projection")
-                if projection is None:
-                    projection = _CompatibilityProjection(graph)
-                    object.__setattr__(self, "_compatibility_projection", projection)
-                return projection.units if name == "units" else projection.intervals
+            if graph is None:
+                graph = _graph_from_compatibility(
+                    namespace["_compatibility_units"],
+                    namespace["_compatibility_intervals"],
+                )
+                object.__setattr__(self, "_tiergraph_graph", graph)
+            projection = namespace.get("_compatibility_projection")
+            if projection is None:
+                projection = _CompatibilityProjection(graph)
+                object.__setattr__(self, "_compatibility_projection", projection)
+            return projection.units if name == "units" else projection.intervals
         return object.__getattribute__(self, name)
+
+    def _identity(self) -> tuple[Any, ...]:
+        namespace = object.__getattribute__(self, "__dict__")
+        held_units = namespace.get("_compatibility_units")
+        held_intervals = namespace.get("_compatibility_intervals")
+        return (
+            held_units if held_units is not None else self.units,
+            held_intervals if held_intervals is not None else self.intervals,
+            namespace.get("spelling"),
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Form):
+            return NotImplemented
+        return self._identity() == other._identity()
+
+    def __hash__(self) -> int:
+        return hash(self._identity())
+
+    @property
+    def _graph(self) -> Any:
+        """The validated authoritative graph, materialized on demand."""
+        namespace = object.__getattribute__(self, "__dict__")
+        graph = namespace.get("_tiergraph_graph")
+        if graph is None:
+            # Taking either projection performs construction and validation.
+            _ = self.units
+            graph = namespace["_tiergraph_graph"]
+        return graph
 
     @classmethod
     def _from_graph(cls, graph: Any, spelling: str | None = None) -> Form:
@@ -1134,7 +1318,12 @@ class Form:
         features: IPAFeatures,
         strict: bool = False,
     ) -> Form:
-        """Build from the inventory's single canonical token scan."""
+        """Build from the inventory's single canonical token scan.
+
+        Strict construction resolves segment views eagerly, so resolution
+        diagnostics fire here. Lax construction leaves them until first view
+        access; spelling-only operations do not trigger them.
+        """
         from ._ipa_graph import (
             BOUNDARY_TIER,
             CLOCK_TREATMENTS,
@@ -1156,16 +1345,15 @@ class Form:
         for token, segment in aligned:
             if segment is not None:
                 unit = _unit_for(segment, features)
+                if strict:
+                    _ = unit.prosody
                 out.append(unit)
                 segment_features = {
                     "value": segment,
                     "spelling": token,
-                    "provenance": unit.provenance,
                     "input": True,
-                    "compatibility-unit": dataclasses.replace(unit, timing=None),
+                    "compatibility-unit": unit,
                     "compatibility-index": len(out) - 1,
-                    **unit.features,
-                    **unit.prosody,
                 }
                 builder.append_input_atom(
                     SEGMENT_TIER,
@@ -1273,6 +1461,10 @@ class Form:
     ) -> Form:
         """Read a transcription without projecting anything away.
 
+        ``strict=True`` resolves every segment view eagerly, so resolution
+        diagnostics fire during parsing. Lax parsing defers them until the
+        first view access; :meth:`to_ipa` alone does not trigger them.
+
         No interval is derived from the separators. The dot is optional
         notation, so reading one as a syllable interval would state a claim
         the transcription never made -- and a transcription that *does*
@@ -1298,37 +1490,41 @@ class Form:
         """
         return self.spelling if self.spelling is not None else spell(self.units)
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize the complete internal representation.
+    def to_dict(self, self_contained: bool = False) -> dict[str, Any]:
+        """Serialize the versioned representation.
 
-        Unlike :meth:`to_ipa`, this includes unspelled tier intervals and
-        the already-resolved feature, prosody, and provenance views.  A
-        segment is embedded using :meth:`Segment.to_dict`, so there is one
-        schema for a segment whether it travels alone or inside a form.
+        The default is lean: structured segments carry no redundant resolved
+        views. ``self_contained=True`` embeds those views for readers without
+        the declaring inventory. Boundaries and zeros always carry their
+        declared features because they have no segment to derive them from.
         """
+
+        def encode_unit(unit: Unit) -> dict[str, Any]:
+            encoded: dict[str, Any] = {
+                "text": unit.text,
+                "segment": (
+                    unit.segment.to_dict() if unit.segment is not None else None
+                ),
+                "timing": (
+                    {"start": unit.timing.start, "duration": unit.timing.duration}
+                    if unit.timing is not None
+                    else None
+                ),
+            }
+            if unit.segment is None or self_contained:
+                encoded.update(
+                    {
+                        "features": dict(unit.features),
+                        "prosody": dict(unit.prosody),
+                        "provenance": [list(item) for item in unit.provenance],
+                    }
+                )
+            return encoded
+
         return {
             "type": _JSON_TYPE,
             "v": _JSON_VERSION,
-            "units": [
-                {
-                    "text": unit.text,
-                    "segment": (
-                        unit.segment.to_dict() if unit.segment is not None else None
-                    ),
-                    "features": dict(unit.features),
-                    "prosody": dict(unit.prosody),
-                    "provenance": [list(item) for item in unit.provenance],
-                    "timing": (
-                        {
-                            "start": unit.timing.start,
-                            "duration": unit.timing.duration,
-                        }
-                        if unit.timing is not None
-                        else None
-                    ),
-                }
-                for unit in self.units
-            ],
+            "units": [encode_unit(unit) for unit in self.units],
             "intervals": [
                 {
                     "tier": span.tier,
@@ -1348,15 +1544,21 @@ class Form:
             "spelling": self.spelling,
         }
 
-    def to_json(self) -> str:
+    def to_json(self, self_contained: bool = False) -> str:
         """Return the complete, versioned representation as JSON."""
-        return json.dumps(self.to_dict(), ensure_ascii=False)
+        return json.dumps(
+            self.to_dict(self_contained=self_contained), ensure_ascii=False
+        )
 
     @classmethod
     def from_dict(
         cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
     ) -> Form:
-        """Restore a form without reparsing its IPA surface spelling."""
+        """Restore a form without reparsing its IPA surface spelling.
+
+        A lean document derives all its views coherently from this restoring
+        inventory. Use the self-contained mode to pin views across inventories.
+        """
         if obj.get("type") != _JSON_TYPE:
             raise ValueError(f"unsupported representation type: {obj.get('type')!r}")
         if obj.get("v") != _JSON_VERSION:
@@ -1373,34 +1575,39 @@ class Form:
                 if segment_data is not None
                 else None
             )
+            has_views = any(key in raw for key in ("features", "prosody", "provenance"))
+            supplied = (
+                dict(raw.get("features", {})),
+                dict(raw.get("prosody", {})),
+                tuple(tuple(item) for item in raw.get("provenance", ())),
+            )
+            if segment is not None and has_views:
+                expected = _resolve_unit_views(segment, inventory)
+                derived = (dict(expected[0]), dict(expected[1]), expected[2])
+                if supplied != derived:
+                    raise ValueError(
+                        f"serialized views disagree with segment {segment.to_ipa()!r}"
+                    )
+            view_arguments: dict[str, Any] = (
+                {
+                    "features": supplied[0],
+                    "prosody": supplied[1],
+                    "provenance": supplied[2],
+                }
+                if segment is None or has_views
+                else {}
+            )
             unit = Unit(
                 text=raw["text"],
                 segment=segment,
-                features=raw.get("features", {}),
-                prosody=raw.get("prosody", {}),
-                provenance=tuple(tuple(item) for item in raw.get("provenance", ())),
                 timing=(
                     Timing(timing_data["start"], timing_data["duration"])
                     if timing_data is not None
                     else None
                 ),
+                _inventory=inventory if segment is not None else None,
+                **view_arguments,
             )
-            if segment is not None:
-                expected = _unit_for(segment, inventory)
-                held = (
-                    dict(unit.features),
-                    dict(unit.prosody),
-                    unit.provenance,
-                )
-                derived = (
-                    dict(expected.features),
-                    dict(expected.prosody),
-                    expected.provenance,
-                )
-                if held != derived:
-                    raise ValueError(
-                        f"serialized views disagree with segment {segment.to_ipa()!r}"
-                    )
             restored.append(unit)
         intervals = tuple(
             Interval(
@@ -1423,7 +1630,11 @@ class Form:
 
     @classmethod
     def from_json(cls, data: str, features: IPAFeatures | None = None) -> Form:
-        """Restore :meth:`to_json` output without a lossy IPA round trip."""
+        """Restore :meth:`to_json` output without a lossy IPA round trip.
+
+        A lean document derives all its views coherently from this restoring
+        inventory. Self-contained JSON pins those views across inventories.
+        """
         return cls.from_dict(json.loads(data), features)
 
     # -- projections, each named for what it drops -------------------------

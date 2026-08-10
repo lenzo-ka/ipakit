@@ -20,8 +20,8 @@ extracting features independently.
 
 ## JSON
 
-`Form.to_json()` is the lossless interchange format. `Form.from_json()` and
-`ipakit.read_json()` restore it without reparsing its IPA spelling.
+`Form.to_json()` is the lossless lean interchange format. `Form.from_json()`
+and `ipakit.read_json()` restore it without reparsing its IPA spelling.
 
 ```python
 encoded = form.to_json()
@@ -29,26 +29,33 @@ restored = ipakit.read_json(encoded)
 restored == form                       # True
 ```
 
-The top-level object declares `"type": "ipakit.form"` and a numeric `"v"`.
-Each unit carries:
+The top-level object declares `"type": "ipakit.form"` and the current numeric
+`"v"`. Readers require that version. Each unit carries:
 
 - its local text;
 - its structured `Segment`, or `null` for a boundary or zero;
-- resolved segmental features and prosody;
-- per-mark provenance;
 - optional timing.
+
+That lean default omits resolved segmental features, prosody, and per-mark
+provenance for segment units. They are derived from the structured segment and
+the inventory on first access, then memoized. Boundary and zero units have no
+segment decomposition, so their declared features remain inline.
+
+`form.to_json(self_contained=True)` (and the corresponding `to_dict` option)
+embeds `features`, `prosody`, and `provenance` on segment units. This shape is
+for a backend that does not carry the inventory. When these views are present,
+restoration checks them against the embedded segment; a document cannot say two
+different things about one unit. Lean documents perform that derivation lazily.
 
 Tier intervals carry their declared tier, half-open unit endpoints, and optional
 timing. Exact source spelling is retained separately only where unit-local text
-cannot reproduce its order, such as stress written across a separator. Derived
-feature, prosody, and provenance views are checked against the embedded segment
-when JSON is restored; a representation cannot say two different things about
-one unit.
+cannot reproduce its order, such as stress written across a separator.
 
 From the command line:
 
 ```shell
 $ ipakit convert to-json "#kæt.ˈ.dɒɡ#" --strict
+$ ipakit convert to-json "kæt" --self-contained
 $ ipakit convert to-json "kæt" | ipakit convert from-json -
 ```
 

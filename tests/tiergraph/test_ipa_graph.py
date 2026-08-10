@@ -43,7 +43,7 @@ def test_structured_segment_fixture_restores_without_tokenizing(
     unit = Form.from_dict(
         {
             "type": "ipakit.form",
-            "v": 1,
+            "v": 2,
             "units": [
                 {
                     "text": fixture["spelling"],
@@ -67,7 +67,7 @@ def test_structured_segment_fixture_restores_without_tokenizing(
 @pytest.mark.parametrize("view", ["features", "prosody", "provenance"])
 def test_structured_segment_cached_views_must_agree(view: str) -> None:
     inventory = IPAFeatures()
-    form = Form.parse("ⁿd͡ʒʷː", inventory).to_dict()
+    form = Form.parse("ⁿd͡ʒʷː", inventory).to_dict(self_contained=True)
     if view == "provenance":
         form["units"][0][view] = []
     else:

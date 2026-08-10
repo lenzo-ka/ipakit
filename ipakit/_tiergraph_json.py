@@ -157,7 +157,7 @@ class IPAValues:
             raise GraphValidationError("malformed structured segment event")
         form_data = {
             "type": "ipakit.form",
-            "v": 1,
+            "v": 2,
             "units": [
                 {
                     "text": spelling,
