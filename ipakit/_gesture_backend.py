@@ -7,7 +7,7 @@ from typing import Literal
 
 from ._gesture_graph import GESTURE_TIER, TARGET_TIER
 from ._ipa_graph import SEGMENT_TIER
-from ._tiergraph import Event, Graph, Timing
+from ._tiergraph import Event, Graph, Timing, _escape
 from .features import IPAFeatures
 from .segment import Segment
 from .tract import Head, TractPoint, constrictions, head
@@ -75,7 +75,7 @@ def _tier_events(graph: Graph, tier: str) -> list[tuple[str, Event]]:
         group = next((item for item in node.groups if item.tier == tier), None)
         if group is not None:
             result.extend(
-                (f"/clock/{tick}/{tier}/{index}", event)
+                (f"/clock/{tick}/{_escape(tier)}/{index}", event)
                 for index, event in enumerate(group.events)
             )
     return result

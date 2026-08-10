@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._tiergraph import Event, Graph
+from ._tiergraph import Event, Graph, _escape
 
 ValueRenderer = Callable[[Event], str]
 
@@ -123,7 +123,7 @@ def render_pinyin(
             spelling = str(
                 event.features.get("spelling", event.features.get("value", ""))
             )
-            level = tones.get(f"/clock/{tick}/{syllable_tier}/{index}")
+            level = tones.get(f"/clock/{tick}/{_escape(syllable_tier)}/{index}")
             if level is None or level == 5:
                 out.append(spelling)
                 continue
@@ -173,7 +173,7 @@ class DeliverySelectionError(ValueError):
 
 def _event_table(graph: Graph) -> dict[str, tuple[int, str, Event]]:
     return {
-        f"/clock/{tick}/{group.tier}/{index}": (tick, group.tier, event)
+        f"/clock/{tick}/{_escape(group.tier)}/{index}": (tick, group.tier, event)
         for tick, node in enumerate(graph.clock)
         for group in node.groups
         for index, event in enumerate(group.events)
