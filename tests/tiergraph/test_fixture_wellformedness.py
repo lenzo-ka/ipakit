@@ -37,7 +37,9 @@ def test_index_names_every_fixture_once() -> None:
     names = _load("index.json")["fixtures"]
     assert len(names) == len(set(names))
     assert set(names) == {path.name for path in FIXTURES.glob("*.json")} - {
-        "index.json"
+        "index.json",
+        # A captured graph oracle, not an executable Lane A kernel fixture.
+        "hot_bridge_projection.json",
     }
 
 

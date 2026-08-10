@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import math
 import unicodedata
-from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from ._base import IPAFeaturesBase
 from .constants import METADATA_ATTRS
@@ -16,8 +16,110 @@ if TYPE_CHECKING:
     from .features import IPAFeatures
     from .rules import RuleSet
 
-# One alignment step pairs a token from each word; None marks an insertion/deletion.
-Alignment = list[tuple[str | None, str | None]]
+
+@dataclass(frozen=True)
+class AlignmentStep:
+    """One ordered operation in a pairwise comparison.
+
+    Event references are optional because the long-standing string APIs align
+    tokens, while graph-aware callers can name the canonical events those
+    tokens came from.  ``terms`` is deliberately plain data so an alignment
+    can cross a JSON/API boundary without importing the metric implementation.
+    """
+
+    op: str
+    left: str | None
+    right: str | None
+    cost: float
+    terms: tuple[Mapping[str, object], ...] = ()
+    left_event: str | None = None
+    right_event: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.op not in {"match", "sub", "insert", "delete"}:
+            raise ValueError(f"unknown alignment operation: {self.op!r}")
+
+    @property
+    def pair(self) -> tuple[str | None, str | None]:
+        return self.left, self.right
+
+    def to_data(self) -> dict[str, object]:
+        data: dict[str, object] = {
+            "op": self.op,
+            "a": self.left,
+            "b": self.right,
+            "cost": self.cost,
+            "terms": [dict(term) for term in self.terms],
+        }
+        if self.left_event is not None:
+            data["left_event"] = self.left_event
+        if self.right_event is not None:
+            data["right_event"] = self.right_event
+        return data
+
+
+@dataclass(frozen=True)
+class Alignment(Sequence[tuple[str | None, str | None]]):
+    """Canonical pairwise alignment, distinct from rewrite provenance.
+
+    Iteration and indexing retain the historical pair surface, so existing
+    callers that wrote ``for left, right in result.alignment`` keep working.
+    Rich operation data lives in :attr:`steps`.
+    """
+
+    steps: tuple[AlignmentStep, ...]
+    edit_cost: float = 0.0
+    similarity: float = 1.0
+    coverage: float = 1.0
+    costs: str = ""
+
+    def __len__(self) -> int:
+        return len(self.steps)
+
+    @overload
+    def __getitem__(self, index: int) -> tuple[str | None, str | None]: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[tuple[str | None, str | None]]: ...
+
+    def __getitem__(
+        self, index: int | slice
+    ) -> tuple[str | None, str | None] | list[tuple[str | None, str | None]]:
+        if isinstance(index, slice):
+            return [step.pair for step in self.steps[index]]
+        return self.steps[index].pair
+
+    def __iter__(self) -> Iterator[tuple[str | None, str | None]]:
+        return (step.pair for step in self.steps)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Alignment):
+            return (
+                self.steps,
+                self.edit_cost,
+                self.similarity,
+                self.coverage,
+                self.costs,
+            ) == (
+                other.steps,
+                other.edit_cost,
+                other.similarity,
+                other.coverage,
+                other.costs,
+            )
+        if isinstance(other, list):
+            return list(self) == other
+        return NotImplemented
+
+    def to_data(self) -> dict[str, object]:
+        return {
+            "steps": [step.to_data() for step in self.steps],
+            "edit_cost": self.edit_cost,
+            "similarity": self.similarity,
+            "coverage": self.coverage,
+            "costs": self.costs,
+        }
+
 
 #: What one insertion or one deletion costs: a flat price for every phone,
 #: or a price read per phone.
@@ -56,8 +158,7 @@ def _checked_price(value: float, phone: str, label: str) -> float:
     v = float(value)
     if not math.isfinite(v) or v < 0.0:
         raise ValueError(
-            f"{label} must be a non-negative finite price; "
-            f"got {value!r} for {phone!r}"
+            f"{label} must be a non-negative finite price; got {value!r} for {phone!r}"
         )
     return v
 
@@ -408,13 +509,22 @@ def _word_result(
         _prices(insert_cost, tokens2, "insert_cost")
     )
     similarity = 1.0 - edit_cost / denom if denom else 1.0
-    return WordDistanceResult(
+    result = WordDistanceResult(
         edit_cost=edit_cost,
         similarity=similarity,
         coverage=(min(n, m) / max(n, m)) if max(n, m) else 1.0,
         costs=costs_identity(insert_cost, delete_cost),
-        alignment=alignment,
+        alignment=None,
     )
+    if alignment is not None:
+        result.alignment = replace(
+            alignment,
+            edit_cost=edit_cost,
+            similarity=similarity,
+            coverage=result.coverage,
+            costs=result.costs,
+        )
+    return result
 
 
 def _empty_pair_result(
@@ -434,7 +544,11 @@ def _empty_pair_result(
         similarity=1.0,
         coverage=1.0,
         costs=costs_identity(insert_cost, delete_cost),
-        alignment=[] if return_alignment else None,
+        alignment=(
+            Alignment((), 0.0, 1.0, 1.0, costs_identity(insert_cost, delete_cost))
+            if return_alignment
+            else None
+        ),
     )
 
 
@@ -615,6 +729,7 @@ class DistanceMixin(IPAFeaturesBase):
         insert_cost: PhoneCost = 1.0,
         delete_cost: PhoneCost = 1.0,
         return_alignment: bool = False,
+        term_fn: Callable[[str, str], tuple[Mapping[str, object], ...]] | None = None,
     ) -> tuple[float, Alignment | None]:
         """Weighted-Levenshtein DP shared by word_distance and DistanceModel.
 
@@ -648,7 +763,7 @@ class DistanceMixin(IPAFeaturesBase):
 
         alignment: Alignment | None = None
         if return_alignment:
-            alignment = []
+            aligned_steps: list[AlignmentStep] = []
             i, j = n, m
             while i > 0 or j > 0:
                 if (
@@ -657,17 +772,36 @@ class DistanceMixin(IPAFeaturesBase):
                     and dp[i][j]
                     == dp[i - 1][j - 1] + sub_cost(tokens1[i - 1], tokens2[j - 1])
                 ):
-                    alignment.append((tokens1[i - 1], tokens2[j - 1]))
+                    left, right = tokens1[i - 1], tokens2[j - 1]
+                    step_cost = sub_cost(left, right)
+                    aligned_steps.append(
+                        AlignmentStep(
+                            "match" if left == right else "sub",
+                            left,
+                            right,
+                            step_cost,
+                            (
+                                ()
+                                if left == right or term_fn is None
+                                else term_fn(left, right)
+                            ),
+                        )
+                    )
                     i -= 1
                     j -= 1
                     continue
                 if i > 0 and dp[i][j] == dp[i - 1][j] + dels[i - 1]:
-                    alignment.append((tokens1[i - 1], None))
+                    aligned_steps.append(
+                        AlignmentStep("delete", tokens1[i - 1], None, dels[i - 1])
+                    )
                     i -= 1
                 elif j > 0:
-                    alignment.append((None, tokens2[j - 1]))
+                    aligned_steps.append(
+                        AlignmentStep("insert", None, tokens2[j - 1], ins[j - 1])
+                    )
                     j -= 1
-            alignment.reverse()
+            aligned_steps.reverse()
+            alignment = Alignment(tuple(aligned_steps))
 
         return dp[n][m], alignment
 
@@ -796,6 +930,17 @@ class DistanceMixin(IPAFeaturesBase):
                 _cost_cache[key] = cached
             return cached
 
+        def term_fn(t1: str, t2: str) -> tuple[Mapping[str, object], ...]:
+            if not weighted or t1 == t2:
+                return ()
+            from .metric import segment_terms
+
+            s1, s2 = self.segment(t1), self.segment(t2)  # type: ignore[attr-defined]
+            return tuple(
+                {"label": label, "a": a, "b": b, "cost": round(cost, 4)}
+                for label, a, b, cost in segment_terms(self, s1, s2)  # type: ignore[arg-type]
+            )
+
         if n == 0 and m == 0:
             return _empty_pair_result(return_alignment, insert_cost, delete_cost)
 
@@ -803,7 +948,13 @@ class DistanceMixin(IPAFeaturesBase):
             return self._fit_result(tokens1, tokens2, cost_fn, insert_cost, delete_cost)
 
         distance, alignment = self._align(
-            tokens1, tokens2, cost_fn, insert_cost, delete_cost, return_alignment
+            tokens1,
+            tokens2,
+            cost_fn,
+            insert_cost,
+            delete_cost,
+            return_alignment,
+            term_fn,
         )
         return _word_result(
             tokens1, tokens2, distance, alignment, insert_cost, delete_cost
@@ -972,44 +1123,21 @@ class DistanceMixin(IPAFeaturesBase):
         tract coordinates, and every prosodic rider (stress, tone, length). The
         mean of the position costs over ``max(len)`` is the word distance.
         """
-        from .metric import GAP_COST, segment_metric, segment_terms
-
         result = self.word_distance(
             ipa1, ipa2, weighted=weighted, return_alignment=True, strict=strict
         )
-        steps: list[dict[str, object]] = []
-        for a, b in result.alignment or []:
-            if a is not None and b is not None:
-                sa, sb = self.segment(a), self.segment(b)  # type: ignore[attr-defined]
-                cost = segment_metric(self, sa, sb) if a != b else 0.0  # type: ignore[arg-type]
-                terms = (
-                    []
-                    if a == b
-                    else [
-                        {"label": lbl, "a": va, "b": vb, "cost": round(c, 4)}
-                        for lbl, va, vb, c in segment_terms(self, sa, sb)  # type: ignore[arg-type]
-                    ]
-                )
-                steps.append(
-                    {
-                        "op": "match" if a == b else "sub",
-                        "a": a,
-                        "b": b,
-                        "cost": round(cost, 4),
-                        "terms": terms,
-                    }
-                )
-            else:
-                steps.append(
-                    {
-                        "op": "insert" if a is None else "delete",
-                        "a": a,
-                        "b": b,
-                        "cost": round(GAP_COST, 4),
-                        "terms": [],
-                    }
-                )
-        return steps
+        explained = []
+        for step in result.alignment.steps if result.alignment else ():
+            # ``AlignmentStep.cost`` is the price paid by the edit DP.  The
+            # public explanation predates priced substitutions and reports
+            # the segment metric itself; keep those two currencies distinct.
+            metric_cost = (
+                self.segment_distance(step.left, step.right)
+                if step.op == "sub" and step.left is not None and step.right is not None
+                else step.cost
+            )
+            explained.append({**step.to_data(), "cost": round(metric_cost, 4)})
+        return explained
 
     def nearest_pronunciation(
         self,

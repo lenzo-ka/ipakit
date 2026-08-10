@@ -47,6 +47,12 @@ from .constants import (
     SUPPLEMENTS_DIR,
 )
 from .distance import (
+    Alignment as Alignment,
+)
+from .distance import (
+    AlignmentStep as AlignmentStep,
+)
+from .distance import (
     CostSchedule,
     PhoneCost,
     PronunciationMatch,
@@ -67,6 +73,9 @@ from .form import (
     levels,
     tier_names,
     units,
+)
+from .form import (
+    FormProjectionError as FormProjectionError,
 )
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
@@ -1210,6 +1219,8 @@ __all__ = [
     "Phoneset",
     "CostSchedule",
     "PhoneCost",
+    "Alignment",
+    "AlignmentStep",
     "WordDistanceResult",
     "ScoringParameters",
     "PronunciationMatch",
@@ -1281,6 +1292,7 @@ __all__ = [
     "Attribute",
     "Boundary",
     "Form",
+    "FormProjectionError",
     "Interval",
     "Node",
     "Timing",

@@ -2058,6 +2058,9 @@ class Rule:
     #: :meth:`apply` below is the mechanism and applies every edit it
     #: finds, optional or not.
     optional: bool = False
+    #: Ordered graph tiers recognition scans.  The legacy Form engine reads
+    #: the compatibility sequence; the bridge uses this explicit selection.
+    source_tiers: tuple[str, ...] = ("segment",)
 
     @property
     def target(self) -> Pattern | None:
@@ -3042,6 +3045,23 @@ class Derivation:
         if not self.fired:
             lines.append("  (no rule fired)")
         return "\n".join(lines)
+
+    def to_form(
+        self,
+        features: IPAFeatures | None = None,
+        *,
+        source_tiers: Sequence[str] = ("broad",),
+        target_tiers: Sequence[str] = ("narrow", "allophonic"),
+    ) -> Form:
+        """Project this trace into the tier graph without re-deriving it."""
+        from ._rewrite_graph import project_derivation
+
+        return project_derivation(
+            self,
+            _default(features),
+            source_tiers=source_tiers,
+            target_tiers=target_tiers,
+        )
 
     def __str__(self) -> str:
         return self.result

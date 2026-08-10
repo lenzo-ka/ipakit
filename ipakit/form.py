@@ -85,6 +85,10 @@ _JSON_TYPE = "ipakit.form"
 _VIEW_ABSENT = object()
 
 
+class FormProjectionError(ValueError):
+    """A stored graph cannot reproduce Form's compatibility coordinates."""
+
+
 class _DerivedMapping(Mapping[str, str]):
     """An immutable resolved view that ``replace`` can recognize as pass-through."""
 
@@ -1022,7 +1026,9 @@ class _CompatibilityProjection:
                         indexed.append((index, unit, event))
         indexed.sort(key=lambda item: item[0])
         if [index for index, _, _ in indexed] != list(range(len(indexed))):
-            raise ValueError("graph compatibility unit order is not contiguous")
+            raise FormProjectionError(
+                "graph compatibility unit order is not contiguous"
+            )
         self._indexed = tuple(indexed)
         self._units: tuple[Unit, ...] | None = None
         self._intervals: tuple[Interval, ...] | None = None
@@ -1039,7 +1045,9 @@ class _CompatibilityProjection:
         # not merely interval endpoints that happen to exist on this form.
         for index in range(len(indexed) + 1):
             if self.coordinates.to_legacy(self.coordinates.to_graph(index)) != index:
-                raise ValueError("graph compatibility coordinates are not lossless")
+                raise FormProjectionError(
+                    "graph compatibility coordinates are not lossless"
+                )
 
     @property
     def units(self) -> tuple[Unit, ...]:
@@ -1074,7 +1082,9 @@ class _CompatibilityProjection:
                     if not isinstance(index, int):
                         continue
                     if event.span is None:
-                        raise ValueError("compatibility interval has no exact span")
+                        raise FormProjectionError(
+                            "compatibility interval has no exact span"
+                        )
                     timing = (
                         Timing(event.timing.start, event.timing.duration)
                         if event.timing is not None
@@ -1096,7 +1106,9 @@ class _CompatibilityProjection:
                     indexed.append((index, interval))
         indexed.sort(key=lambda item: item[0])
         if [index for index, _ in indexed] != list(range(len(indexed))):
-            raise ValueError("graph compatibility interval order is not contiguous")
+            raise FormProjectionError(
+                "graph compatibility interval order is not contiguous"
+            )
         self._intervals = tuple(interval for _, interval in indexed)
         return self._intervals
 
