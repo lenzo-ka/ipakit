@@ -43,9 +43,13 @@ class TestContextCompilerVariables:
         assert len(tuple(query.sites(agreeing.units, FEATURES))) == 1
         assert tuple(query.sites(disagreeing.units, FEATURES)) == ()
 
-    def test_one_variable_still_cannot_name_two_features(self):
+    @pytest.mark.parametrize(
+        "spec",
+        ["a / [place=α] _ [voiced=α]", "[place=α manner=α]"],
+    )
+    def test_one_variable_still_cannot_name_two_features(self, spec: str):
         with pytest.raises(rules.RuleError, match="on two features"):
-            Q.context("a / [place=α] _ [voiced=α]", FEATURES)
+            Q.context(spec, FEATURES)
 
 
 @pytest.mark.parametrize("target", ["∅", "[zero]", "0", "Ø"])

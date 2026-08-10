@@ -63,6 +63,7 @@ def context(spec: str, features: IPAFeatures | None = None) -> Query:
         )
     if target.names_tier:
         raise rules.RuleError("a structural query target must name a unit")
+    _check_query_variables(spec, (target,))
     if not slash:
         return Query(target)
     if environment.count("_") != 1:
