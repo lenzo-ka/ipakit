@@ -182,8 +182,8 @@ def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:
         ),
         (
             "duplicate",
-            lambda atoms: atoms[1].set("spelling", atoms[0].attrib["spelling"]),
-            r"atom 2 spelling 'p' duplicates atom 1",
+            lambda atoms: atoms[1].set("output", atoms[0].attrib["spelling"]),
+            r"atom 2 output 'p' duplicates atom 1",
         ),
         (
             "non-IPA",
