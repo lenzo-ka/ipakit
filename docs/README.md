@@ -34,6 +34,7 @@ using it.
 
 | | |
 | --- | --- |
+| [house-style.md](house-style.md) | **Writing sound for computation.** Why ties name units, stress sits on nuclei, spaces remain word boundaries, unclaimed intervals stay open, wild input announces its reading, and the expression grammar speaks to both regex and phonological traditions. |
 | [ties.md](ties.md) | **The unit model.** Tie bars, diacritics, what a `Segment` is made of, and why prosodic features live on the unit rather than in the feature bag. The foundation the other documents assume. |
 | [representation.md](representation.md) | **The canonical representation.** `Form` as the sole public graph-backed value, public construction and navigation, the tier-graph envelope, compatibility JSON, codecs, and deferred mechanisms. |
 | [form.md](form.md) | **Compatibility projections of the whole transcription.** `units`, `segments`, `phones`, boundaries, attributes, intervals, and the derived tier tree: what each view retains and drops from graph-backed `Form`. |
@@ -78,6 +79,7 @@ The documents in `design/` are dated historical design records. They preserve th
 
 Derived artifacts are **regenerated, never hand-edited**: `docs/figures/*.svg`
 (`make figures`), `docs/tutorial.md` (`make tutorial`),
+`docs/house-style-exhibits.md` (`make house-style`),
 `ipakit/notebooks/ipakit-tutorial.ipynb` (`make notebook`), `ipakit/data/confusion.json`
 and the X-SAMPA table. `make check` runs every gate a release runs, and validates each of
 those derivations still produces what is checked in.
