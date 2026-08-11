@@ -900,7 +900,8 @@ used in a derivation:
 corpus_path = Path(tempfile.mkdtemp()) / "speech"
 speech = ipa.corpus.create(corpus_path)
 speech.add("one", {}, {"broad": ipa.read("an")})
-# Entry(id='one', meta={}, forms={'broad': Form('an', 2 units)})
+# Entry(id='one', meta={}, forms={'broad': Form('an', 2 units)},
+# provenance={})
 [(m.fileid, m.role, m.text) for m in ipa.corpus.query(speech, "[nasal] / [vowel] _ #", role="broad")]
 # [('one', 'broad', 'n')]
 query = ipa.parse_query("n / _ [place=α]")
