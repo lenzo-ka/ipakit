@@ -12,13 +12,14 @@ from ._tiergraph import (
     TierDeclaration,
 )
 from ._tiergraph_builder import GraphBuilder
+from .bridges.pinyin import PINYIN
 
 
 @dataclass(frozen=True)
 class PinyinDialect:
     """Declared spellings accepted at the Pinyin input boundary."""
 
-    input_encodings: tuple[tuple[str, str], ...] = (("u:", "ü"), ("v", "ü"))
+    input_encodings: tuple[tuple[str, str], ...] = PINYIN.inputs
 
 
 BASE_PINYIN = PinyinDialect()
@@ -105,58 +106,8 @@ def build(
 
 
 def tone_index(spelling: str) -> int:
-    marks = {
-        "a": "āáǎà",
-        "e": "ēéěè",
-        "i": "īíǐì",
-        "o": "ōóǒò",
-        "u": "ūúǔù",
-        "ü": "ǖǘǚǜ",
-    }
-    lowered = spelling.lower()
-    for vowel in "ae":
-        if vowel in lowered:
-            return lowered.index(vowel)
-    if "ou" in lowered:
-        return lowered.index("o")
-    # In iu/ui the mark belongs to the second written vowel, not the last-vowel
-    # shortcut's accidental choice among the whole vowel alphabet.
-    if "iu" in lowered or "ui" in lowered:
-        pair = max(lowered.rfind("iu"), lowered.rfind("ui"))
-        return pair + 1
-    return max(lowered.rfind(v) for v in marks)
+    return PINYIN.tone_index(spelling)
 
 
 def render(graph: Graph) -> str:
-    marks = {
-        "a": "āáǎà",
-        "e": "ēéěè",
-        "i": "īíǐì",
-        "o": "ōóǒò",
-        "u": "ūúǔù",
-        "ü": "ǖǘǚǜ",
-    }
-    syllable = next(
-        event
-        for node in graph.clock
-        for group in node.groups
-        if group.tier == "syllable"
-        for event in group.events
-    )
-    tone = next(
-        event
-        for node in graph.clock
-        for group in node.groups
-        if group.tier == "tone"
-        for event in group.events
-    )
-    spelling = str(syllable.features["spelling"])
-    raw_level = tone.features["value"]
-    if not isinstance(raw_level, int):
-        raise ValueError("Pinyin tone value must be an integer")
-    level = raw_level
-    if level == 5:
-        return spelling
-    index = tone_index(spelling)
-    vowel = spelling[index].lower()
-    return spelling[:index] + marks[vowel][level - 1] + spelling[index + 1 :]
+    return PINYIN.render(graph)

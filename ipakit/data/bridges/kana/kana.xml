@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vocabulary name="kana" version="1" provenance="ipakit attested gairaigo fixtures" tier="mora" source-style="segmented">
+  <round-trip>
+    <external-to-house fidelity="lossless" />
+    <house-to-external fidelity="lossy-with-report"><drop name="forms outside the attested gairaigo inventory" /></house-to-external>
+  </round-trip>
+  <atom spelling="pe" output="ペ" /><atom spelling="ho" output="ホ" />
+  <atom spelling="to" output="ト" /><atom spelling="be" output="ベ" />
+  <atom spelling="do" output="ド" /><atom spelling="t͡ɕi" output="チ" />
+  <atom spelling="zu" output="ズ" /><atom spelling="bi" output="ビ" />
+  <atom spelling="ɾu" output="ル" /><atom spelling="su" output="ス" />
+  <atom spelling="ɾa" output="ラ" /><atom spelling="ɾi" output="リ" />
+  <atom spelling="i" output="イ" /><atom spelling="ku" output="ク" />
+  <atom spelling="ɾo" output="ロ" /><atom spelling="ma" output="マ" />
+</vocabulary>
