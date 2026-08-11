@@ -54,6 +54,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .. import corpus as corpus_api
+from ..experiment import Experiment
 from ..form import Unit, spell, units
 from ..models import Phoneset
 from ..rules import (
@@ -383,6 +385,47 @@ class ApplyCommand(RuleCommand):
         else:
             for row in results:
                 self.print(row["derived"])
+        return 0
+
+
+class DerivesCommand(RuleCommand):
+    """Run a reproducible rule-set experiment over corpus role pairs."""
+
+    name = "derives"
+    aliases: list[str] = []
+    help = "Classify derivability over a corpus or named split"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        add_rules_args(parser)
+        parser.add_argument("--corpus", "-C", type=Path, required=True)
+        parser.add_argument("--source", required=True)
+        parser.add_argument("--target", required=True)
+        parser.add_argument("--split")
+        parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+        parser.add_argument("--report", type=Path, required=True)
+
+    def run(self) -> int:
+        try:
+            ruleset = self.resolve_rules()
+            stored = corpus_api.open(self.args.corpus)
+            report = Experiment(
+                ruleset,
+                stored,
+                self.args.source,
+                self.args.target,
+                split=self.args.split,
+                limit=self.args.limit,
+            ).run(self.ipa)
+            report.write(self.args.report)
+        except (RuleError, corpus_api.CorpusError, KeyError, ValueError) as exc:
+            return self.error(str(exc))
+        counts = report.counts
+        self.print(
+            f"coverage\t{report.coverage['derived']}/{report.coverage['total']}\t"
+            + "\t".join(f"{name}={count}" for name, count in counts.items())
+        )
+        self.print(f"report\t{self.args.report}")
         return 0
 
 
@@ -932,6 +975,7 @@ class RulesGroup(CommandGroup):
     help = "Rewrite rules (apply, variants, trace, recognize, units, morae, list, invertibility)"
     commands = [
         ApplyCommand,
+        DerivesCommand,
         VariantsCommand,
         TraceCommand,
         RecognizeCommand,
