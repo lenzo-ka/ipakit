@@ -18,6 +18,7 @@ from ipakit.form import Form
 
 FIXTURE = Path(__file__).parent / "fixtures" / "mfa_english_us_v3_1_0.dict"
 ESPEAK_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_en_1_52_0.txt"
+ESPEAK_CMN_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_cmn_1_52_0.txt"
 
 
 def test_mfa_inventory_is_pinned_and_parses_under_base_ipa() -> None:
@@ -208,10 +209,45 @@ def test_espeak_en_round_trip_classification_names_unimplemented_mapper() -> Non
 
 
 def test_espeak_refuses_undeclared_language_and_native_residue() -> None:
-    with pytest.raises(ValueError, match="no declared eSpeak NG vocabulary for 'fr'"):
-        EspeakBridge("fr")
+    with pytest.raises(
+        ValueError, match="no declared eSpeak NG vocabulary for 'zz-absent'"
+    ):
+        EspeakBridge("zz-absent")
     with pytest.raises(VocabularyResidueError, match=r"span \[1:2\]: '\$'"):
         ESPEAK_EN.read("h$")
+
+
+def test_every_generated_espeak_declaration_loads() -> None:
+    """Sweep the generated set so no language can ship as unloadable XML."""
+    declarations = sorted(
+        (Path(__file__).parent.parent / "ipakit/data/bridges/espeak").glob("*.xml")
+    )
+    assert len(declarations) == 129
+    assert all(EspeakBridge(path.stem).atoms for path in declarations)
+
+
+def test_espeak_declared_refusal_names_mnemonic_and_position() -> None:
+    bridge = EspeakBridge("fr")
+    refused = bridge.refusals[0]
+    with pytest.raises(
+        VocabularyResidueError,
+        match=rf"mnemonic {refused.spelling!r} at span \[1:{1 + len(refused.spelling)}\]",
+    ):
+        bridge.read("p" + refused.spelling)
+
+
+def test_espeak_tone_fixture_reaches_declared_positioned_refusal() -> None:
+    """A real Mandarin line exercises a tone the house does not declare."""
+    sample = next(
+        line
+        for line in ESPEAK_CMN_FIXTURE.read_text().splitlines()
+        if not line.startswith("#")
+    )
+    with pytest.raises(
+        VocabularyResidueError,
+        match=r"mnemonic '35' at span \[2:4\]: control-or-virtual",
+    ):
+        EspeakBridge("cmn").read(sample)
 
 
 def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:
