@@ -106,10 +106,100 @@ class TestBoundedSpans:
         ]
 
 
+class TestGeneralQuantifiers:
+    @pytest.mark.parametrize(
+        ("spelling", "widths"),
+        [
+            ("(t)?", [0, 1]),
+            ("(t)+", [1, 2, 3]),
+            ("(t){2}", [2]),
+            ("(t){2,}", [2, 3]),
+            ("(t){,2}", [0, 1, 2]),
+            ("(t){1,2}", [1, 2]),
+        ],
+    )
+    def test_each_form_enumerates_exactly_its_widths(self, spelling, widths):
+        query = corpus_query.parse_query(f"a / {spelling} _", FEATURES)
+        sites = query.sites(FEATURES.read("ttta").units, FEATURES)
+        assert [
+            sum(index is not None for index in site.left) for site in sites
+        ] == widths
+
+    def test_question_synonym_preserves_its_source_bytes(self):
+        bare = corpus_query.parse_query("a / (t) _", FEATURES)
+        marked = corpus_query.parse_query("a / (t)? _", FEATURES)
+        assert marked.left[0].source == "(t)?"
+        assert corpus_query.query_rule(marked, "e", FEATURES).source == (
+            "a -> e / (t)? _"
+        )
+        assert marked.sites(FEATURES.read("ta").units, FEATURES) == bare.sites(
+            FEATURES.read("ta").units, FEATURES
+        )
+
+    def test_feature_constraints_compose_inside_a_quantified_group(self):
+        assert ipakit.rewrite("t̬t̬a", "a -> e / # (t{voiced=+})+ _") == "t̬t̬e"
+        assert ipakit.rewrite("tta", "a -> e / # (t{voiced=+})+ _") == "tta"
+
+    def test_a_quantified_span_shares_one_agreement_binding(self):
+        agreeing = corpus_query.parse_query(
+            "a / # ([place=α]){2,} _ [place=α]", FEATURES
+        )
+        assert len(agreeing.sites(FEATURES.read("ppap").units, FEATURES)) == 1
+        assert agreeing.sites(FEATURES.read("ptap").units, FEATURES) == []
+
+    @pytest.mark.parametrize("bad", ["(t){}", "(t){,}", "(t){3,2}"])
+    def test_malformed_bounds_are_positioned_refusals(self, bad):
+        with pytest.raises(rules.RuleError, match=r"position 0|minimum|empty"):
+            rules.parse(f"{bad} -> d", FEATURES)
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(f"{bad} / a _", FEATURES)
+        assert caught.value.position == 0
+
+    @pytest.mark.parametrize("bad", ["t+", "a{2}"])
+    def test_bare_quantifiers_name_the_parentheses_requirement(self, bad):
+        with pytest.raises(rules.RuleError, match="quantifiers require parentheses"):
+            rules.parse(f"{bad} -> d", FEATURES)
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(f"{bad} / a _", FEATURES)
+        assert caught.value.position == 0
+        assert "quantifiers require parentheses" in str(caught.value)
+
+    @pytest.mark.parametrize(
+        "target", ["(t)?", "(t)+", "(t){2}", "(t){2,}", "(t){,2}", "(t){1,2}"]
+    )
+    def test_every_quantified_target_is_positioned_and_refused(self, target):
+        with pytest.raises(rules.RuleError, match="target.*position 0"):
+            rules.parse(f"{target} -> d", FEATURES)
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(f"{target} / a _", FEATURES)
+        assert caught.value.position == 0
+
+    def test_an_impossible_minimum_is_loud_at_match_time(self):
+        query = corpus_query.parse_query("a / (t){5} _", FEATURES)
+        with pytest.raises(rules.RuleError, match="requires at least 5.*length 4"):
+            query.sites(FEATURES.read("ttta").units, FEATURES)
+
+    @pytest.mark.parametrize("spec", ["(?future) -> d", "a -> d / t (?future) _"])
+    def test_rules_reserve_question_group_prefix_at_its_position(self, spec):
+        position = spec.index("(?")
+        with pytest.raises(rules.RuleError, match=rf"position {position}.*reserved"):
+            rules.parse(spec, FEATURES)
+
+    @pytest.mark.parametrize("spec", ["(?future) / a _", "a / t (?future) _"])
+    def test_queries_reserve_question_group_prefix_at_its_position(self, spec):
+        position = spec.index("(?")
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(spec, FEATURES)
+        assert caught.value.position == position
+        assert "reserved for extension" in str(caught.value)
+
+
 @pytest.mark.parametrize("null", ["∅", "[zero]", "0", "Ø"])
 def test_rules_and_queries_refuse_null_environments(null: str):
     message = "environment names what stands there"
-    with pytest.raises(rules.RuleError, match=message):
+    with pytest.raises(rules.RuleError, match=rf"position \d+.*{message}"):
         rules.parse(f"a -> b / {null} _ #", FEATURES)
-    with pytest.raises(rules.RuleError, match=message):
+    with pytest.raises(corpus_query.QueryParseError) as caught:
         corpus_query.context(f"a / {null} _ #", FEATURES)
+    assert caught.value.position == f"a / {null} _ #".index(null)
+    assert message in str(caught.value)
