@@ -145,7 +145,7 @@ close as any pair gets" and the numbers spread out:
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
 # 0.9962464810760088
-ipa.confusability("f", "a")  # 0.35439474507350643
+ipa.confusability("f", "a")  # 0.27119174225836723
 ```
 
 ```console
