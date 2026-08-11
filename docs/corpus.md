@@ -13,6 +13,8 @@ a{stress=primary}
 a{+nasalized}
 t{release=no-audible}
 n{place=α}
+a / c (d) _ e
+[vowel] / # ([-vowel])* _
 ```
 
 The first three mean “an intervocalic nasal”, “word-final `t`”, and “a close
@@ -25,6 +27,34 @@ not exact-spelling equivalents: for example, `a{stress=primary}` also matches
 `ˈã`, while the literal `ˈa` does not. `n{place=α}` additionally exposes the
 captured place value in `Match.bindings`.
 
+An environment element wrapped as `(X)` is optional: it contributes either
+zero or one matching unit. The wrapper accepts one literal, bundle,
+brace-constrained element, or `*`; nested optionality and an optional query or
+rule target are refused. Every consistent width is a recognition site. Thus
+`t / (a) a _` has two sites at the `t` in `aat`, one with the first `a`
+absent from the reading and one with it present. A rewrite still edits that
+one target once, following the engine's existing simultaneous,
+non-overlapping-target discipline.
+
+`(X)*` is the bounded-span form: zero or more consecutive units matching `X`,
+with the maximum read from the form's length. For example,
+`[vowel] / # ([-vowel])* _` finds the `a` in both `a` and `stra`. Parentheses
+make the repeated element explicit. This avoids colliding with bare `*`, which
+already means exactly one arbitrary segment: `(*)*` is therefore the
+unambiguous spelling of zero or more arbitrary segments, while `*` retains its
+old one-unit meaning.
+
+Agreement variables inside either variable-width form bind only when at least
+one unit is present. A rule may not use a variable in its change when the
+variable binds only in an optional or repeated element, because its zero-width
+reading supplies no value. Queries may expose the binding on present readings
+and no binding on absent ones.
+
+Null spellings are not context elements. `∅`, `[zero]`, `0`, and `Ø` are all
+refused in an environment: an environment names what stands there, and nothing
+stands at a deletion site. Use `(X)` when the intended context unit may be
+absent.
+
 ```python
 import tempfile
 import ipakit
@@ -33,6 +63,13 @@ c = ipakit.corpus.create(tempfile.mkdtemp())
 c.add("one", {}, {"broad": ipakit.read("an")})
 matches = list(ipakit.corpus.query(c, "[nasal] / [vowel] _ #", role="broad"))
 [(m.fileid, m.text) for m in matches]  # [("one", "n")]
+
+optional = ipakit.corpus.parse_query("t / (a) a _")
+[site.left for site in optional.sites(ipakit.read("aat").units, ipakit.load_ipa_features())]
+# [(1, None), (1, 0)]
+
+span = ipakit.corpus.parse_query("a / # ([-vowel])* _")
+len(span.sites(ipakit.read("stra").units, ipakit.load_ipa_features()))  # 1
 
 grammar = ipakit.rules.RuleSet.parse("n -> m / _ [place=bilabial]")
 answer = ipakit.corpus.derives(grammar, "anp", "amp")
