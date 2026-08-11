@@ -395,7 +395,7 @@ The notation is a labeled bracket, which is how prosodic constituency has been w
 
 The labels come from `<feature name="tier">`, so a language declaring a fourth tier writes it with no code change; the brackets are notation and are spelled in `rules.py`. Angle brackets because the other two pairs mean something else — `[...]` is a feature query over a unit's bundle, `(...)` marks a context item optional — and neither is a claim about structure.
 
-This also leaves the reserved `(?` namespace reserved. The angle alone is not
+This also leaves the `(?` namespace untouched. The angle alone is not
 an atom: it must label a declared tier, so `<syllable` and `syllable>` cannot
 be mistaken for an X-SAMPA phone even though X-SAMPA uses angle brackets in
 some multi-character modifiers. Curly braces could not do this job: `{` and
@@ -451,11 +451,12 @@ glyph, or make an interval edge pretend that a glyph was written.
 American English aspiration is the honest process: a voiceless stop is
 aspirated at the start of a stressed syllable. Its short statement and its
 written-boundary expansion can be put beside one another without changing the
-process (here `declaration` supplies the onset-and-vowel syllabification used
-for the small form):
+process. The shipped Spanish constraint declaration supplies the neutral
+onset-and-vowel syllabification for this small structural demonstration; it
+does not turn aspiration into a Spanish rule:
 
 ```python
-made = ipa.syllabifier(declaration)("ata")
+made = ipa.syllabifier("spanish")("ata")
 made.spelled()                                      # ('a', 'ta')
 
 short = ipa.rules.parse("t -> tʰ / <syllable _")
