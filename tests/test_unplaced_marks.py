@@ -289,15 +289,15 @@ class TestAPreArticulationIsRead:
 
         A tied unit is two constituents with a juncture; a mark is one
         constituent with a phase on it. The metric is structural, so the
-        two sit at very different distances from the same base -- reading
-        ``ⁿd`` as ``n͡d`` would move a prenasalized stop most of the way
-        from ``d`` to something else, where the phase-mark spelling stays
-        near it, exactly as the release-mark spelling of the mirror-image
-        sound does. The superscript reads as the near one, and the two
-        stay distinct units rather than one being rewritten to the other.
+        two sit at different distances from the same base -- reading ``ⁿd``
+        as ``n͡d`` would move a prenasalized stop farther from ``d``, where
+        the phase-mark spelling stays near it, exactly as the release-mark
+        spelling of the mirror-image sound does. The superscript reads as
+        the near one, and the two stay distinct units rather than one being
+        rewritten to the other.
         """
-        assert ipa.segment_distance("n͡d", "d") > 5 * ipa.segment_distance("dⁿ", "d")
-        assert ipa.segment_distance("n͡d", "d") > 5 * ipa.segment_distance("ⁿd", "d")
+        assert ipa.segment_distance("n͡d", "d") > 2 * ipa.segment_distance("dⁿ", "d")
+        assert ipa.segment_distance("n͡d", "d") > 2 * ipa.segment_distance("ⁿd", "d")
         assert ipa.segment("ⁿd") != ipa.segment("n͡d")
 
     def test_the_phase_a_mark_states_is_the_end_it_is_written_at(

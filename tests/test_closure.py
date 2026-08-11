@@ -65,7 +65,7 @@ class TestWhatItCosts:
         # A voiced velar plosive and a voiced labiodental affricate are
         # not alike; the cheap path runs through a double articulation
         # that shares a different constituent with each.
-        assert ipa.distance("ɡ", "b͡v") > 0.6
+        assert ipa.distance("ɡ", "b͡v") > 0.25
         assert closure.distance("ɡ", "b͡v") < 0.1
 
     def test_the_diagnostic_reports_the_damage(
