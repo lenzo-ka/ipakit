@@ -203,8 +203,8 @@ Kinds are the enum `DisagreementKind`, never strings in memory:
 | Kind | Claim |
 | --- | --- |
 | `FEATURE` | aligned units differ in named declared metric terms |
-| `STRUCTURE` | insertion/deletion, tied versus untied material, or a tier interval on one side only |
-| `TIMING` | aligned or unmatched carried units have different timing claims |
+| `STRUCTURE` | insertion/deletion, a substitution involving tied material (the metric compares tied composites as one segmental term, so their internal features are not itemized), or a tier interval on one side only |
+| `TIMING` | aligned or unmatched carried units have different timing claims; always unpriced, since the metric declares no timing term — the structural row carries any step cost |
 
 Tier-only structure has cost `0.0` because the segment metric declares no tier
 price. The same rule applies to timing: the object reports the claim and reads

@@ -154,6 +154,9 @@ def _pair(
             lt = left_units[lp].timing if lp is not None else None
             rt = right_units[rp].timing if rp is not None else None
             if lt != rt:
+                # The structural row above already carries this step's cost;
+                # the metric declares no timing term, so the timing claim is
+                # reported unpriced rather than double-surfacing the step.
                 disagreements.append(
                     DisagreementPosition(
                         DisagreementKind.TIMING,
@@ -161,7 +164,7 @@ def _pair(
                         rp,
                         _timing(lt),
                         _timing(rt),
-                        step.cost,
+                        0.0,
                         claim="unit timing",
                     )
                 )
