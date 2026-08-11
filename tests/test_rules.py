@@ -104,7 +104,7 @@ class TestAFormNoRuleReachesSpellsBackOutUnchanged:
             form = f"#{phone}.{phone}#"
             assert empty.apply(form, FEATURES) == form
             checked += 1
-        assert checked >= 30, f"sweep covered only {checked} nuclei"
+        assert_swept(checked, _phones())
 
 
 class TestStressIsNotPartOfAPhonesIdentity:
@@ -121,7 +121,9 @@ class TestStressIsNotPartOfAPhonesIdentity:
                 continue  # the mark did not land on this unit
             assert R._pattern(phone, FEATURES).matches(items[0], FEATURES), marked
             checked += 1
-        assert checked >= 30, f"sweep covered only {checked} nuclei"
+        # A leading mark binds only a nucleus, so the sweep covers exactly the
+        # syllabic inventory; a count drift means the binding rule changed.
+        assert checked == 39, f"sweep covered {checked} nuclei, expected 39"
 
     def test_prosody_is_still_askable(self):
         stressed = R.units("kˈæt", FEATURES)[1]
