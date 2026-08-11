@@ -28,7 +28,7 @@ The rest of the measured budget located that constant. Applicable diacritics ave
 
 The flat charge set `d(t͡ʃ, ʃ) = 0.6667`, `d(t͡ʃ, i) = 0.7553`, and `d(t͡ʃ, t͡s) = 0.0030`. Thus `t͡ʃ` was nearer the close front vowel `i` than it was proportionate to its own fricative release `ʃ`: the first distance was only 13% greater, while the distance to another affricate was 222 times smaller than the distance to `ʃ`.
 
-Over the shipped 139-phone matrix, negative eigenvalues carried 8.7% of the eigenvalue mass. The leading positive axis carried 60.3% of positive variance and correlated `+0.977` with whether a unit was composite. Of 2,164 triangle violations, 94.8% used a composite intermediate; `ɡ͡b` was the intermediate in 1,292. The two branch conventions supplied that hub: `d(ɡ, ɡ͡b) = 0.034` and `d(ɡ͡b, b͡v) = 0.032`, while `d(ɡ, b͡v) = 0.689`.
+Over the shipped 139-phone matrix, negative eigenvalues carried 8.7% of the eigenvalue mass. With silence excluded (138 phones), the leading positive axis carried 60.3% of positive variance and correlated `+0.977` with whether a unit was composite. Of 2,164 triangle violations, 94.8% used a composite intermediate; `ɡ͡b` was the intermediate in 1,292. The two branch conventions supplied that hub: `d(ɡ, ɡ͡b) = 0.034` and `d(ɡ͡b, b͡v) = 0.032`, while `d(ɡ, b͡v) = 0.689`.
 
 The remaining phonetic contrasts among phased composites occupied a band `0.117` wide with standard deviation `0.032`, against `0.093` across atomic-phone contrasts. The flat structural terms compressed those graded differences into the upper part of the range.
 

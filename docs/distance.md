@@ -197,17 +197,17 @@ d(b͡v, ɡ͡b) + d(ɡ͡b, ɡ)  an order of magnitude closer
 
 This is structural rather than accidental. `ɡ͡b` is a double articulation that shares one constituent with `b͡v` and a *different* one with `ɡ`, so it sits near both, while `b͡v` and `ɡ` are compared as a phased unit against an atom and carry unmatched material. A composite can be close to two things that are far from each other, because closeness is being measured against different parts of it.
 
-The full 139-phone geometry was measured at the flat-gap diagnosis, before the nearest-part repair: negative eigenvalues carried **8.7%** of total eigenvalue mass; the leading axis carried **60.3%** of positive variance and correlated **0.977** with compositeness; and **94.8%** of triangle violations routed through a composite hub. These are the concrete cost of treating the dissimilarity as Euclidean or metric, rather than only a warning that the inequality can fail. They are checked values, kept together so none can drift independently:
+The pre-repair geometry was measured at the flat-gap diagnosis. Over the full 139-phone matrix, negative eigenvalues carried **8.7%** of total eigenvalue mass and **94.8%** of triangle violations routed through a composite hub; with silence excluded (138 phones), the leading axis carried **60.3%** of positive variance and correlated **0.977** with compositeness. These are the concrete cost of treating the dissimilarity as Euclidean or metric, rather than only a warning that the inequality can fail. They are checked values, kept together so none can drift independently:
 
 ```python
 diagnosed_geometry = {
-    "negative eigenvalue mass": "8.7%",
-    "leading positive variance": "60.3%",
-    "leading-axis/compositeness correlation": 0.977,
-    "violations through composite hubs": "94.8%",
+    "negative eigenvalue mass (139 phones)": "8.7%",
+    "violations through composite hubs (139 phones)": "94.8%",
+    "leading positive variance (silence excluded)": "60.3%",
+    "leading-axis/compositeness correlation (silence excluded)": 0.977,
 }
 diagnosed_geometry
-# {'negative eigenvalue mass': '8.7%', 'leading positive variance': '60.3%', 'leading-axis/compositeness correlation': 0.977, 'violations through composite hubs': '94.8%'}
+# {'negative eigenvalue mass (139 phones)': '8.7%', 'violations through composite hubs (139 phones)': '94.8%', 'leading positive variance (silence excluded)': '60.3%', 'leading-axis/compositeness correlation (silence excluded)': 0.977}
 ```
 
 ### If you need a metric
