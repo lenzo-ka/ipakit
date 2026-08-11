@@ -514,6 +514,9 @@ class Pattern:
     #: declares a zero transparent to its own context without deciding
     #: the question for every rule. See :func:`_optional`.
     optional: bool = False
+    #: Written ``(X)*`` in a context: zero or more consecutive units
+    #: matching X.  Recognition bounds the count by the form's length.
+    repeated: bool = False
 
     @property
     def names_boundary(self) -> bool:
@@ -1028,7 +1031,7 @@ def _check_opposite(source: str, key: str, features: IPAFeatures) -> None:
 
 
 def _optional(text: str, features: IPAFeatures) -> Pattern:
-    """``(∅)``: a context item the scan may pass by.
+    """``(X)``: a context item the scan may take or pass by.
 
     Transparency, chosen per rule and per place rather than globally.
     Whether a zero should block a context **depends on what the zero is
@@ -1048,22 +1051,54 @@ def _optional(text: str, features: IPAFeatures) -> Pattern:
     place it wants it, with the parenthesis generative phonology already
     uses for an optional element.
 
-    Deliberately not general. ``(t)`` and ``([vowel])`` are refused
-    rather than quietly meaning something: an optional *boundary* item
-    would have to answer to the boundary-run rule and the virtual edge
-    (:func:`_anchors`), and that is a separate question from this one.
-    The limit is pinned by a test, so it changes deliberately.
+    One element is optional.  Parentheses inside it are refused rather
+    than assigned a precedence: nested variable width has no additional
+    reading that cannot be written flat, and is much easier to mistype.
     """
-    inner = _pattern(text[1:-1], features)
-    if inner.literal is None or inner.literal not in features.zeros:
+    inside = text[1:-1].strip()
+    if inside.startswith("(") or inside.endswith(")"):
         raise RuleError(
-            f"{text!r} marks {text[1:-1].strip()!r} optional, and only a "
-            "declared zero may be optional today -- a zero is the one item "
-            "whose transparency depends on what it is being used for. "
-            f"Write '({''.join(sorted(features.zeros))})', or name the item "
-            "without the parentheses to require it."
+            f"{text!r} nests optionality. Nested optionality is refused; "
+            "wrap exactly one pattern element, and write adjacent optional "
+            "elements separately when both may be absent."
+        )
+    inner = _pattern(inside, features)
+    if inner.optional or inner.repeated:
+        raise RuleError(
+            f"{text!r} nests variable-width elements. Nested optionality is "
+            "refused; wrap exactly one fixed-width pattern element."
+        )
+    if inner.names_tier:
+        raise RuleError(
+            f"{text!r} marks a tier edge optional. Optionality wraps one "
+            "unit pattern; a tier edge is a position, not a unit."
         )
     return dataclasses.replace(inner, source=text, optional=True)
+
+
+def _repeated(text: str, features: IPAFeatures) -> Pattern:
+    """``(X)*``: zero or more consecutive context units matching X."""
+    inside = text[1:-2].strip()
+    if not inside:
+        raise RuleError(f"{text!r} is an empty bounded span")
+    if inside.startswith("(") or inside.endswith(")"):
+        raise RuleError(
+            f"{text!r} nests variable-width elements. Nested optionality is "
+            "refused; repeat exactly one fixed-width pattern element."
+        )
+    inner = _pattern(inside, features)
+    if inner.optional or inner.repeated:
+        raise RuleError(
+            f"{text!r} nests variable-width elements. Nested optionality is "
+            "refused; repeat exactly one fixed-width pattern element."
+        )
+    if inner.names_boundary or inner.names_tier:
+        raise RuleError(
+            f"{text!r} repeats a boundary or tier edge. A bounded span names "
+            "zero or more units of a class; boundaries and tier edges are "
+            "positions, not members of such a span."
+        )
+    return dataclasses.replace(inner, source=text, repeated=True)
 
 
 def _tier_spelling(text: str) -> tuple[str, str] | None:
@@ -1212,6 +1247,8 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
             seg_agreements={**base.seg_agreements, **constraint.seg_agreements},
             pro_agreements={**base.pro_agreements, **constraint.pro_agreements},
         )
+    if text.startswith("(") and text.endswith(")*"):
+        return _repeated(text, features)
     if text.startswith("(") and text.endswith(")"):
         if not text[1:-1].strip():
             raise RuleError(f"{text!r} is an empty optional item")
@@ -1641,6 +1678,54 @@ class Query:
     left: tuple[Pattern, ...] = ()
     right: tuple[Pattern, ...] = ()
 
+    @staticmethod
+    def _widths(
+        patterns: Sequence[Pattern], limit: int
+    ) -> Iterator[tuple[tuple[Pattern, ...], tuple[int, ...]]]:
+        """Every fixed-width reading and its consumption per source item."""
+        choices = [
+            (
+                range(limit + 1)
+                if pattern.repeated
+                else (0, 1) if pattern.optional else (1,)
+            )
+            for pattern in patterns
+        ]
+        for counts in itertools.product(*choices):
+            expanded: list[Pattern] = []
+            for pattern, count in zip(patterns, counts, strict=True):
+                fixed = dataclasses.replace(pattern, optional=False, repeated=False)
+                expanded.extend(fixed for _ in range(count))
+            yield tuple(expanded), tuple(counts)
+
+    def _side_readings(
+        self,
+        items: Sequence[Unit],
+        anchor: int,
+        patterns: Sequence[Pattern],
+        step: int,
+        features: IPAFeatures,
+        bindings: dict[str, str],
+        intervals: Sequence[Interval],
+    ) -> Iterator[tuple[tuple[int | None, ...], dict[str, str]]]:
+        """All consistent widths of one context side."""
+        for expanded, counts in self._widths(patterns, len(items)):
+            probe = dict(bindings)
+            matched = self._side(
+                items, anchor, expanded, step, features, probe, intervals
+            )
+            if matched is None:
+                continue
+            restored: list[int | None] = []
+            at = 0
+            for count in counts:
+                if count == 0:
+                    restored.append(None)
+                else:
+                    restored.extend(matched[at : at + count])
+                    at += count
+            yield tuple(restored), probe
+
     def _side(
         self,
         items: Sequence[Unit],
@@ -1806,18 +1891,22 @@ class Query:
                 # An insertion sits between units, so it is anchored on
                 # the gap: left context ends at index-1, right begins at
                 # index.
-                left = self._side(
+                for left, left_bindings in self._side_readings(
                     items, index, self.left, -1, features, bindings, intervals
-                )
-                right = self._side(
-                    items, index - 1, self.right, +1, features, bindings, intervals
-                )
-                if (
-                    left is not None
-                    and right is not None
-                    and _anchors(items, index, limit, left)
                 ):
-                    found.append(Site(index, index, left, right, _bound(bindings)))
+                    for right, complete in self._side_readings(
+                        items,
+                        index - 1,
+                        self.right,
+                        +1,
+                        features,
+                        left_bindings,
+                        intervals,
+                    ):
+                        if _anchors(items, index, limit, left):
+                            found.append(
+                                Site(index, index, left, right, _bound(complete))
+                            )
                 index += 1
                 continue
             if index >= limit:
@@ -1835,19 +1924,24 @@ class Query:
             end = _target_end(items, index, self.target, features)
             # Context reads outward from the site, so the right of it
             # begins past the whole run and not past its first mark.
-            left = self._side(
+            readings = []
+            for left, left_bindings in self._side_readings(
                 items, index, self.left, -1, features, bindings, intervals
-            )
-            right = self._side(
-                items, end - 1, self.right, +1, features, bindings, intervals
-            )
-            if left is None or right is None:
+            ):
+                for right, complete in self._side_readings(
+                    items, end - 1, self.right, +1, features, left_bindings, intervals
+                ):
+                    readings.append((left, right, complete))
+            if not readings:
                 # Past the run, not past its first mark. Resuming inside it
                 # would offer the rest of the same boundary as a second
                 # candidate, which is the thing `_target_end` is for.
                 index = end
                 continue
-            found.append(Site(index, end, left, right, _bound(bindings)))
+            found.extend(
+                Site(index, end, left, right, _bound(complete))
+                for left, right, complete in readings
+            )
             index = end
         return found
 
@@ -2278,9 +2372,14 @@ class Rule:
         # it could not otherwise know, not the action reaching backwards.
         named = self.query.target.prosodic_keys if self.query.target else frozenset()
         out = []
+        seen: set[tuple[int, int, str, str]] = set()
         for site in self.query.sites(items, features, spans):
             edit = self.action.edit(site, items, features, rule=self.name, named=named)
-            if edit is not None:
+            if (
+                edit is not None
+                and (key := (edit.start, edit.end, edit.before, edit.after)) not in seen
+            ):
+                seen.add(key)
                 out.append(edit)
         return out
 
@@ -2577,6 +2676,11 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
             "rule rewrites: there is nothing to rewrite where it is absent. "
             "Optionality is for context items."
         )
+    if target is not None and target.repeated:
+        raise RuleError(
+            f"{source!r} marks its target repeated, and a rule cannot rewrite "
+            "a span it has not counted. Repetition is for context items."
+        )
     if target is None and isinstance(becomes, str) and becomes in features.zeros:
         raise RuleError(
             f"{source!r} inserts a zero. A zero records that a position had "
@@ -2593,9 +2697,27 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
                 f"{source!r} has a context but no '_' marking where the target sits"
             )
         before, _, after = context.partition("_")
+        context_items = (*_items(before), *_items(after))
+        if any(item.strip() in NULL for item in context_items):
+            raise RuleError(
+                f"{source!r} names a null in its environment. An environment "
+                "names what stands there, and nothing stands at a deletion "
+                "site; if zero-width context was meant, spell it with an "
+                "optional element '(X)'."
+            )
         # Innermost first, so both sides read outward from the target.
         left = tuple(reversed([_pattern(i, features) for i in _items(before)]))
         right = tuple(_pattern(i, features) for i in _items(after))
+        for spelling, patterns in ((before, left), (after, right)):
+            if any(item.strip() in NULL for item in _items(spelling)) or any(
+                pattern.literal in features.zeros for pattern in patterns
+            ):
+                raise RuleError(
+                    f"{source!r} names a null in its environment. An environment "
+                    "names what stands there, and nothing stands at a deletion "
+                    "site; if zero-width context was meant, spell it with an "
+                    "optional element '(X)'."
+                )
 
     _check_variables(source, target, left, right, becomes)
 
@@ -2644,6 +2766,7 @@ def _check_variables(
     features_of: dict[str, str] = {}
     counted: dict[str, int] = {}
     bound: set[str] = set()
+    necessarily_bound: set[str] = set()
 
     def record(key: str, variable: Agreement, binds: bool) -> None:
         counted[variable.name] = counted.get(variable.name, 0) + 1
@@ -2662,6 +2785,8 @@ def _check_variables(
     for pattern in query:
         for key, variable in pattern.agreements.items():
             record(key, variable, binds=True)
+            if not pattern.optional and not pattern.repeated:
+                necessarily_bound.add(variable.name)
     if isinstance(becomes, dict):
         for key, value in becomes.items():
             if isinstance(value, Agreement):
@@ -2675,6 +2800,25 @@ def _check_variables(
             "variable takes its value from what the rule MATCHED, so it has "
             "to appear in the target or the context: "
             f"'n -> [place={unbound[0]}] / _ [place={unbound[0]}]'."
+        )
+    maybe_unbound = (
+        sorted(
+            value.name
+            for value in becomes.values()
+            if isinstance(becomes, dict)
+            and isinstance(value, Agreement)
+            and value.name not in necessarily_bound
+        )
+        if isinstance(becomes, dict)
+        else []
+    )
+    if maybe_unbound:
+        raise RuleError(
+            f"{source!r} writes the variable(s) {', '.join(maybe_unbound)}, "
+            "but they bind only inside an optional or repeated context "
+            "element. That element may be absent, and an absent binding "
+            "cannot feed a rewrite; bind each variable in a required target "
+            "or context element too."
         )
     lonely = sorted(name for name, count in counted.items() if count < 2)
     if lonely:
@@ -3098,7 +3242,7 @@ def _items(text: str) -> list[str]:
     out: list[str] = []
     buffer = ""
     depth = 0
-    for char in text:
+    for offset, char in enumerate(text):
         if char in _GROUPS:
             if depth == 0 and buffer.strip():
                 out.append(buffer.strip())
@@ -3114,7 +3258,11 @@ def _items(text: str) -> list[str]:
             buffer = ""
             continue
         buffer += char
-        if depth == 0 and char in _CLOSERS:
+        if (
+            depth == 0
+            and char in _CLOSERS
+            and not (char == ")" and text[offset + 1 : offset + 2] == "*")
+        ):
             out.append(buffer.strip())
             buffer = ""
     if depth:
@@ -3506,7 +3654,12 @@ def _output_collision(
             yield bindings, chosen
             return
         pattern = patterns[at]
-        if pattern.names_boundary or pattern.names_tier or pattern.optional:
+        if (
+            pattern.names_boundary
+            or pattern.names_tier
+            or pattern.optional
+            or pattern.repeated
+        ):
             yield from environments(at + 1, dict(bindings), chosen + (None,))
         if pattern.names_boundary or pattern.names_tier:
             return

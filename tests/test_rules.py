@@ -1004,7 +1004,7 @@ class TestABoundaryRunIsOneBoundary:
     #: shape every other context here misses: each of the others ends at
     #: the edge, and matching the virtual edge disqualified whatever came
     #: next without asking whether it was optional. So the sweep agreed
-    #: with itself while ``t -> d / _ # (∅)`` fired on ``at#`` and not on
+    #: with itself while ``t -> d / _ # (z)`` fired on ``at#`` and not on
     #: ``at``. An optional item is the only item that can stand there and
     #: still hold of a form with nothing written at its end, which is why
     #: it is the one that shows this.
@@ -1017,8 +1017,8 @@ class TestABoundaryRunIsOneBoundary:
             f"{mark} _",
             f"{mark} _ {mark}",
             f"_ {mark} {mark}",
-            f"_ {mark} (∅)",
-            f"(∅) {mark} _",
+            f"_ {mark} (z)",
+            f"(z) {mark} _",
         )
     ) + (
         "_ %",
@@ -1066,8 +1066,8 @@ class TestABoundaryRunIsOneBoundary:
             # And one shape per mark with an item past the edge, on each
             # side, or the sweep goes back to testing only contexts that
             # stop at the boundary.
-            assert f"_ {mark} (∅)" in self.CONTEXTS
-            assert f"(∅) {mark} _" in self.CONTEXTS
+            assert f"_ {mark} (z)" in self.CONTEXTS
+            assert f"(z) {mark} _" in self.CONTEXTS
         # Exact, not a floor: 51 rules x 8 forms x 18 decorations. A floor
         # cannot tell that a rule kind or a mark left the sweep. The
         # literal moves if a tier is declared; the derived total is the
@@ -1161,21 +1161,21 @@ class TestABoundaryRunIsOneBoundary:
         :class:`~ipakit.rules.Site` contract already says.
         """
         assert ipakit.rewrite("at", "t -> d / _ #") == "ad"
-        assert ipakit.rewrite("at", "t -> d / _ # (∅)") == "ad"
-        assert ipakit.rewrite("at#", "t -> d / _ # (∅)") == "ad#"
+        assert ipakit.rewrite("at", "t -> d / _ # (z)") == "ad"
+        assert ipakit.rewrite("at#", "t -> d / _ # (z)") == "ad#"
         # The mirror: the optional item outside a leading edge.
-        assert ipakit.rewrite("ta", "t -> d / (∅) # _") == "da"
-        assert ipakit.rewrite("#ta", "t -> d / (∅) # _") == "#da"
+        assert ipakit.rewrite("ta", "t -> d / (z) # _") == "da"
+        assert ipakit.rewrite("#ta", "t -> d / (z) # _") == "#da"
         # One entry per context item, with None where nothing licensed it,
         # so the record stays alignable with the notation.
-        (site,) = ipakit.rule("t -> d / _ # (∅)").recognize("at")
+        (site,) = ipakit.rule("t -> d / _ # (z)").recognize("at")
         assert site.right == (None, None)
         # The run rule is not what was relaxed: an item past the edge that
         # is *not* optional still fails, and a second boundary past it
         # fails whether or not the mark was typed.
         assert ipakit.rewrite("at", "t -> d / _ # [vowel]") == "at"
         for form in ("at", "at#"):
-            assert ipakit.rewrite(form, "t -> d / _ # (∅) #") == form
+            assert ipakit.rewrite(form, "t -> d / _ # (z) #") == form
 
     def test_paragoge_still_fires_beside_a_form_final_mark(self):
         """The hazard this fix has twice been broken by.

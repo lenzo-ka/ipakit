@@ -113,6 +113,17 @@ def _parse_query(
             "recognizable patterns"
         )
     target = rules._pattern(target_text, inventory)
+    if target.optional:
+        raise rules.RuleError(
+            f"{spec!r} marks its target optional, and a target is what the "
+            "query recognizes: there is no target where it is absent. "
+            "Optionality is for context items."
+        )
+    if target.repeated:
+        raise rules.RuleError(
+            f"{spec!r} marks its target repeated, and a query cannot recognize "
+            "a span it has not counted. Repetition is for context items."
+        )
     if target.literal in inventory.zeros:
         raise rules.RuleError(
             f"{spec!r} has a zero target; insertion sites are not "
@@ -134,10 +145,25 @@ def _parse_query(
             f"{spec!r} must contain exactly one '_' marking the target site"
         )
     before, after = environment.split("_")
+    context_items = (*rules._items(before), *rules._items(after))
+    if any(item.strip() in rules.NULL for item in context_items):
+        raise rules.RuleError(
+            f"{spec!r} names a null in its environment. An environment names "
+            "what stands there, and nothing stands at a deletion site; if "
+            "zero-width context was meant, spell it with an optional element "
+            "'(X)'."
+        )
     left = tuple(
         reversed([rules._pattern(item, inventory) for item in rules._items(before)])
     )
     right = tuple(rules._pattern(item, inventory) for item in rules._items(after))
+    if any(pattern.literal in inventory.zeros for pattern in (*left, *right)):
+        raise rules.RuleError(
+            f"{spec!r} names a null in its environment. An environment names "
+            "what stands there, and nothing stands at a deletion site; if "
+            "zero-width context was meant, spell it with an optional element "
+            "'(X)'."
+        )
     _check_query_variables(spec, (target, *left, *right))
     return Query(target, left, right)
 
@@ -292,14 +318,19 @@ def find(
         parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
     )
     paths = _unit_paths(parsed)
+    seen: set[tuple[tuple[str, ...], str, tuple[tuple[str, str], ...]]] = set()
     for site in compiled.sites(parsed.units, inventory, parsed.intervals):
         span_paths = tuple(paths[index] for index in range(site.start, site.end))
-        yield Match(
+        match = Match(
             span_paths,
             "".join(unit.text for unit in parsed.units[site.start : site.end]),
             site.bindings,
             tuple(unit.text for unit in parsed.units[: site.start]),
         )
+        key = (match.paths, match.text, match.bindings)
+        if key not in seen:
+            seen.add(key)
+            yield match
 
 
 def query(

@@ -377,8 +377,8 @@ class TestTheNotationRefusesWhatItDoesNotOffer:
             R.parse(f"t -> d / {TIER_OPEN}mora{TIER_CLOSE} _", FEATURES)
 
     def test_a_tier_term_may_not_be_marked_optional(self) -> None:
-        """``(∅)`` is for a declared zero, and a position is not a zero."""
-        with pytest.raises(RuleError, match="only a declared zero"):
+        """Optionality wraps a unit, and a position is not a unit."""
+        with pytest.raises(RuleError, match="position, not a unit"):
             R.parse(f"t -> d / ({TIER_OPEN}mora) _", FEATURES)
 
     def test_a_bare_angle_bracket_is_still_an_unregistered_symbol(self) -> None:

@@ -509,17 +509,8 @@ class TestEmittingAZero:
         assert ipakit.rewrite("kæt", "∅ -> ə / _ #") == "kætə"
 
 
-class TestTransparencyIsSelectable:
-    """Whether a zero blocks a context is the rule's decision.
-
-    It depends on what the zero is being used for: a latent consonant's
-    zero should not stop a rule about the vowels either side, and a zero
-    standing for an empty mora is a position that counts. So the default
-    is unchanged -- a zero is a position and blocks -- and a rule that
-    wants to reach across one says so where it wants it, with the
-    parenthesis generative phonology already uses for an optional
-    element.
-    """
+class TestAZeroIsNotAnEnvironment:
+    """A deletion site has no unit for an environment to name."""
 
     def test_a_zero_blocks_by_default(self) -> None:
         # Asked with `keep_zeros`, because the answer is about what the
@@ -528,39 +519,14 @@ class TestTransparencyIsSelectable:
         assert ipakit.rewrite("leʃ", "e -> a / _ ʃ", keep_zeros=True) == "laʃ"
         assert ipakit.rewrite("le∅ʃ", "e -> a / _ ʃ", keep_zeros=True) == "le∅ʃ"
 
-    def test_an_optional_zero_is_stepped_over(self) -> None:
-        spec = "e -> a / _ (∅) ʃ"
-        assert ipakit.rewrite("le∅ʃ", spec, keep_zeros=True) == "la∅ʃ"
-        assert ipakit.rewrite("leʃ", spec, keep_zeros=True) == "laʃ"
+    @pytest.mark.parametrize("null", ["∅", "[zero]", "0", "Ø"])
+    def test_every_null_spelling_is_refused_in_context(self, null: str) -> None:
+        with pytest.raises(RuleError, match="nothing stands at a deletion site"):
+            ipakit.rule(f"e -> a / _ {null} ʃ")
 
-    def test_naming_it_without_the_parentheses_requires_it(self) -> None:
-        # The third reading, and the one that was already available: the
-        # rule that wants the zero to be there names it.
-        spec = "e -> a / _ [zero] ʃ"
-        assert ipakit.rewrite("le∅ʃ", spec, keep_zeros=True) == "la∅ʃ"
-        assert ipakit.rewrite("leʃ", spec, keep_zeros=True) == "leʃ"
-
-    def test_it_holds_on_either_side_of_the_target(self) -> None:
-        assert ipakit.rewrite("ʃ∅e", "e -> a / ʃ (∅) _", keep_zeros=True) == "ʃ∅a"
-        assert ipakit.rewrite("ʃe", "e -> a / ʃ (∅) _", keep_zeros=True) == "ʃa"
-
-    def test_an_absent_optional_item_licenses_no_unit(self) -> None:
-        rule = ipakit.rule("e -> a / _ (∅) ʃ")
-        (present,) = rule.recognize("le∅ʃ")
-        (absent,) = rule.recognize("leʃ")
-        assert present.right == (2, 3)
-        assert absent.right == (None, 2), "one entry per item, whether or not it took"
-
-    def test_only_a_zero_may_be_optional_today(self) -> None:
-        # A pinned escape: optionality is not general, because an
-        # optional boundary would have to answer to the boundary-run
-        # rule and the virtual edge. If this starts passing, the limit
-        # has moved and this test is where to say so.
-        for spec in ("t -> x / _ (t)", "t -> x / _ ([vowel])", "t -> x / _ (#)"):
-            with pytest.raises(RuleError):
-                ipakit.rule(spec)
-        with pytest.raises(RuleError):
-            ipakit.rule("(∅) -> t")
+    def test_wrapping_a_null_does_not_hide_it(self) -> None:
+        with pytest.raises(RuleError, match="nothing stands at a deletion site"):
+            ipakit.rule("e -> a / _ (∅) ʃ")
 
     def test_no_shipped_rule_has_an_optional_item(self) -> None:
         # Optionality is new notation, so nothing shipped can be reading
