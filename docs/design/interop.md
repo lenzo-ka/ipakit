@@ -564,7 +564,7 @@ Assessed on shipped demand — does a rule set, a doc example, the metric, or a 
 
 ### The frame this audience actually competes in
 
-Outside the scope of interop but load-bearing for what to build next, and measured rather than asserted: ipakit's rewrite engine is a grapheme-to-phoneme engine, and the thing it has that letter-to-sound rule systems in the synthesis lineage do not is the **derivation trace**.
+Outside the scope of interop but load-bearing for what to build next, and measured rather than asserted: ipakit's rewrite engine is a phone-to-phone rewrite calculus over declared vocabularies, and the thing it has that letter-to-sound rule systems in the synthesis lineage do not is the **derivation trace**.
 
 ```
 >>> print(ipakit.derive("bʌtər", "american-english").trace())
