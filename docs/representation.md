@@ -1,6 +1,14 @@
 # The canonical representation
 
-`Form` is the sole public stored representation. IPA text, CMU tokens, JSON, rendering, rewriting, alignment, gestures, and compatibility coordinates are projections around one validated tier graph; the kernel modules remain package-internal.
+`Form` is the sole public stored representation. IPA text, CMU tokens, JSON, rendering, rewriting, alignment, and gestures are projections around one validated tier graph; the kernel modules remain package-internal.
+
+## One data structure, two views
+
+The graph is the store: `Form` owns one validated graph-backed representation. The linear view—units, intervals, and the segmental spine—is computed from that store and is the computation surface read by rules, distance, and syllabification. The tiergraph format is the portable artifact, a serialization of the store rather than a third representation.
+
+Engines read tier claims through declared predicates over the linear view; they never walk the graph. A rule context may test a tier interval, but graph traversal remains the store's concern. The [language-relative syllabifier](syllabification.md) is the first tier producer, and the rules engine's tier-reading context is the consumer surface.
+
+Tiers, their names, each language's inventory, and any phasing declared over them are language-relative; the feature space and `distance` are universal. [The ratified design record](design/tiers.md#7-what-is-deliberately-not-made-relative) owns the boundary and its metric rationale.
 
 ## Public construction and navigation
 
@@ -30,7 +38,7 @@ Builder handles are opaque edit-time identities, while navigation returns canoni
 
 The canonical graph envelope is plain JSON with `type: "tiergraph"` and version `v: 1`; readers require that exact version. `model` references the declaration contract by name and version or fingerprint. Bundled declarations need no embedded copy, and declaration snapshots are deferred. `tiers` fixes tier order, `relations` contains canonical default-omitting relation declarations, `roots` names traversal or delivery roots, `clock` contains the structural axis and its final boundary, and `links` contains ordered source/relation/target triples.
 
-This CMU envelope is emitted by the landed serializer, not transcribed from an illustrative schema:
+The serializer emits this CMU envelope:
 
 ```json
 {"type":"tiergraph","v":1,"model":{"name":"cmudict","version":"base-1"},"tiers":["phone"],"relations":{},"roots":[],"clock":[{"gaps":[{}],"phone":[{"features":{"phone":"AH","stress":"primary"}}]},{"gaps":[{}]}],"links":[]}
@@ -44,14 +52,14 @@ Declaration fingerprints are SHA-256 over the declaration provider's canonical, 
 
 Only edges of the same relation declaration marked `acyclic` participate in one cycle check. A cycle formed by combining two separately acyclic relation types is allowed unless a future declaration explicitly gives that union a shared constraint.
 
-## IPA values and compatibility JSON
+## IPA values and linear JSON
 
 Structured IPA segment events carry exact spelling and a versioned `ipa-segment` value containing constituents, approaches, modifiers, junctures, and prosody. The lean IPA mode derives resolved features and provenance from that source value; a self-contained snapshot is opt-in and restoration validates it against the structured source. CMU and Pinyin facts are already their profiles' authoritative values and are serialized directly.
 
-`Form.to_json()` and `ipakit.read_json()` retain the current `ipakit.form` version 2 compatibility projection for callers using unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Compatibility projection is explicit: graph paths remain authoritative internally, while every old unit and interval endpoint round-trips through the graph-backed store.
+`Form.to_json()` and `ipakit.read_json()` expose the `ipakit.form` version 2 linear projection in unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Graph paths are authoritative in the store, and every projected unit and interval endpoint round-trips through it.
 
 ## Rendering and deferred mechanisms
 
 A renderer selects transcription tiers through its explicit codec profile; it does not guess from graph roots. Mutually exclusive delivery roots use `alternatives`; rendering requires either one persisted `selects` relation or one ephemeral selection argument, and the ephemeral choice does not mutate the graph. Multiple unrelated roots may coexist for traversal.
 
-Compatibility projections remain available for `units`, `intervals`, segment and boundary reads, rule sites and edits, pairwise `Alignment`, and rewrite traces. Capability negotiation, recognizer invocation, and rewrite-rule induction are intentionally deferred; version stamps identify the current contract and do not negotiate it.
+The linear view supplies `units`, `intervals`, segment and boundary reads, rule sites and edits, pairwise `Alignment`, and rewrite traces. Capability negotiation, recognizer invocation, and rewrite-rule induction are intentionally deferred; version stamps identify the contract and do not negotiate it.
