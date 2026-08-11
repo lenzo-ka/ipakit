@@ -187,7 +187,7 @@
       <contour name="upper-teeth" carrier="skull" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.261" y="0.625"/><point x="0.50" y="0.61"/><point x="0.739" y="0.625"/><point x="0.70" y="0.66"/><point x="0.30" y="0.66"/></contour>
       <contour name="lower-teeth" carrier="mandible" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.242" y="0.665"/><point x="0.50" y="0.685"/><point x="0.758" y="0.665"/><point x="0.70" y="0.64"/><point x="0.30" y="0.64"/></contour>
       <contour name="tongue" carrier="mandible" arc="0.32" provenance="head tongue basis"><point x="0.28" y="0.70"/><point x="0.50" y="0.680"/><point x="0.72" y="0.70"/><point x="0.66" y="0.73"/><point x="0.34" y="0.73"/></contour>
-      <contour name="chin" carrier="mandible" arc="0.90" provenance="Farkas et al. 1984 menton below lower vermilion"><point x="0.243" y="0.62"/><point x="0.32" y="0.775"/><point x="0.50" y="0.790"/><point x="0.68" y="0.775"/><point x="0.757" y="0.62"/></contour>
+      <contour name="chin" carrier="mandible" arc="0.90" provenance="proportional fit informed by Farkas et al. 1984 vermilion figures; menton depth hand-placed"><point x="0.243" y="0.62"/><point x="0.32" y="0.775"/><point x="0.50" y="0.790"/><point x="0.68" y="0.775"/><point x="0.757" y="0.62"/></contour>
       <contour name="eyes" carrier="skull" arc="1.0" provenance="static furniture"><point x="0.25" y="0.32"/><point x="0.38" y="0.32"/><point x="0.62" y="0.32"/><point x="0.75" y="0.32"/></contour>
     </frontal>
   </head>
@@ -299,7 +299,7 @@
       <contour name="upper-teeth" carrier="skull" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.261" y="0.625"/><point x="0.50" y="0.61"/><point x="0.739" y="0.625"/><point x="0.70" y="0.66"/><point x="0.30" y="0.66"/></contour>
       <contour name="lower-teeth" carrier="mandible" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.242" y="0.665"/><point x="0.50" y="0.685"/><point x="0.758" y="0.665"/><point x="0.70" y="0.64"/><point x="0.30" y="0.64"/></contour>
       <contour name="tongue" carrier="mandible" arc="0.32" provenance="head tongue basis"><point x="0.28" y="0.70"/><point x="0.50" y="0.680"/><point x="0.72" y="0.70"/><point x="0.66" y="0.73"/><point x="0.34" y="0.73"/></contour>
-      <contour name="chin" carrier="mandible" arc="0.90" provenance="Farkas et al. 1984 menton below lower vermilion"><point x="0.243" y="0.62"/><point x="0.32" y="0.775"/><point x="0.50" y="0.790"/><point x="0.68" y="0.775"/><point x="0.757" y="0.62"/></contour>
+      <contour name="chin" carrier="mandible" arc="0.90" provenance="proportional fit informed by Farkas et al. 1984 vermilion figures; menton depth hand-placed"><point x="0.243" y="0.62"/><point x="0.32" y="0.775"/><point x="0.50" y="0.790"/><point x="0.68" y="0.775"/><point x="0.757" y="0.62"/></contour>
       <contour name="eyes" carrier="skull" arc="1.0" provenance="static furniture"><point x="0.25" y="0.32"/><point x="0.38" y="0.32"/><point x="0.62" y="0.32"/><point x="0.75" y="0.32"/></contour>
     </frontal>
   </head>
@@ -396,7 +396,7 @@
       <contour name="upper-teeth" carrier="skull" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.261" y="0.625"/><point x="0.50" y="0.61"/><point x="0.739" y="0.625"/><point x="0.70" y="0.66"/><point x="0.30" y="0.66"/></contour>
       <contour name="lower-teeth" carrier="mandible" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.242" y="0.665"/><point x="0.50" y="0.685"/><point x="0.758" y="0.665"/><point x="0.70" y="0.64"/><point x="0.30" y="0.64"/></contour>
       <contour name="tongue" carrier="mandible" arc="0.32" provenance="head tongue basis"><point x="0.28" y="0.70"/><point x="0.50" y="0.680"/><point x="0.72" y="0.70"/><point x="0.66" y="0.73"/><point x="0.34" y="0.73"/></contour>
-      <contour name="chin" carrier="mandible" arc="0.90" provenance="Farkas et al. 1984 menton below lower vermilion"><point x="0.243" y="0.62"/><point x="0.32" y="0.775"/><point x="0.50" y="0.790"/><point x="0.68" y="0.775"/><point x="0.757" y="0.62"/></contour>
+      <contour name="chin" carrier="mandible" arc="0.90" provenance="proportional fit informed by Farkas et al. 1984 vermilion figures; menton depth hand-placed"><point x="0.243" y="0.62"/><point x="0.32" y="0.775"/><point x="0.50" y="0.790"/><point x="0.68" y="0.775"/><point x="0.757" y="0.62"/></contour>
       <contour name="eyes" carrier="skull" arc="1.0" provenance="static furniture"><point x="0.25" y="0.32"/><point x="0.38" y="0.32"/><point x="0.62" y="0.32"/><point x="0.75" y="0.32"/></contour>
     </frontal>
   </head>

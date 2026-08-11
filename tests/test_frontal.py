@@ -180,7 +180,8 @@ def test_chin_is_declared_shallow_and_mandible_carried() -> None:
         assert name == "chin" and carrier == "mandible"
         assert len(points) >= 5
         assert points[0] == (0.243, 0.62) and points[-1] == (0.757, 0.62)
-        assert points[2][1] - min(points[1][1], points[3][1]) <= 0.02
+        rise = points[2][1] - min(points[1][1], points[3][1])
+        assert 0.0 < rise <= 0.02
 
 
 def test_frontal_css_vocabulary_is_scoped() -> None:
