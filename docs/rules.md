@@ -395,6 +395,13 @@ The notation is a labeled bracket, which is how prosodic constituency has been w
 
 The labels come from `<feature name="tier">`, so a language declaring a fourth tier writes it with no code change; the brackets are notation and are spelled in `rules.py`. Angle brackets because the other two pairs mean something else — `[...]` is a feature query over a unit's bundle, `(...)` marks a context item optional — and neither is a claim about structure.
 
+This also leaves the reserved `(?` namespace reserved. The angle alone is not
+an atom: it must label a declared tier, so `<syllable` and `syllable>` cannot
+be mistaken for an X-SAMPA phone even though X-SAMPA uses angle brackets in
+some multi-character modifiers. Curly braces could not do this job: `{` and
+`}` are X-SAMPA vowel spellings and, after an atom, already constrain that
+atom's features in this language.
+
 ### A tier term claims a position, not a unit
 
 Every other context item takes a unit. A tier term takes none: it says something about the **gap** the cursor is at, so `<syllable _` reads "the target begins a syllable" rather than "something precedes the target".
@@ -432,6 +439,40 @@ rule.recognize(dotted)                         # []
 
 Nothing is invented, here or in `form.py`: a form that asserts no interval is not given one, so a rule conditioned on a tier does not fire there — the same answer a margin-conditioned rule gives on an undotted word.
 
+That is why `.` and the interval-edge term are deliberately not unified. A
+dot is a stated boundary **unit**, is preserved in the output, and is stepped
+over by an ordinary context; `<syllable` is a zero-width predicate over a
+stated interval and consumes nothing. One may be present without the other.
+Using the same spelling for both would make a rule invent an interval from a
+glyph, or make an interval edge pretend that a glyph was written.
+
+### Produce the tier, then read it
+
+American English aspiration is the honest process: a voiceless stop is
+aspirated at the start of a stressed syllable. Its short statement and its
+written-boundary expansion can be put beside one another without changing the
+process (here `declaration` supplies the onset-and-vowel syllabification used
+for the small form):
+
+```python
+made = ipa.syllabifier(declaration)("ata")
+made.spelled()                                      # ('a', 'ta')
+
+short = ipa.rules.parse("t -> tʰ / <syllable _")
+short.rewrite(made.form)[0].to_ipa()                # 'atʰa'
+
+long = ipa.rules.parse("t -> tʰ / . _")
+long.rewrite(ipa.Form.parse(made.marks()))[0].to_ipa()  # 'a.tʰa'
+```
+
+The syllabifier is the producer: it writes `[0, 1)` and `[1, 3)` on the
+`syllable` tier. The short rule reads that claim directly, so it needs no dot
+and leaves none behind. The long form materializes the same margin as `.`,
+then uses the older boundary-unit context. After boundary marks are projected
+away the two outputs are the same segmental form. The ordering is semantic,
+not presentation: **syllabify, then apply**. Applying the short rule to the
+bare string `ata` finds no claimed margin and changes nothing.
+
 ### The center is closed, and the refusal is at parse time
 
 A tier term in the target or on the right of the arrow is refused when the rule is read, not answered when it is applied. A refusal at match time would be site-dependent: fine on one form and quietly nothing on the next.
@@ -461,6 +502,19 @@ ipa.ruleset("p -> ∅ / # _\nt -> tʰ / <syllable _").derive(held).result
 ```
 
 `Rule.rewrite` is the single-rule form of it: a `Form` in, a `Form` out, spans rebased. `Rule.apply` still answers with a unit sequence, which carries no tier — that is a projection of `rewrite` rather than a gap, and the two are one implementation.
+
+The cascade pin expands a vowel *inside* the first stated syllable before it
+reads the next margin:
+
+```python
+rules = ipa.ruleset("a -> ai / # _\nt -> tʰ / <syllable _")
+rules.derive(made.form).result                      # 'aitʰa'
+```
+
+The first interval moves from `[0, 1)` to `[0, 2)` and the second from
+`[1, 3)` to `[2, 4)`. Rule two therefore sees the carried start at position
+2. It does not resyllabify the rewritten string and it does not retain the
+stale position 1; both answers would be a second claim about the structure.
 
 **The policy is one sentence: an interval may lose material to an edit and may never gain material from outside itself.** It is the only reading available where a rule may read a tier and may not write one, because an edit says what happened to the *units* and says nothing about the tier. Three consequences, and each is a case with a test:
 
