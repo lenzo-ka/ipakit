@@ -33,6 +33,7 @@ class Atom:
     output: str
     exemplar: str | None = None
     notes: str | None = None
+    kind: str = "unit"
 
 
 @dataclass(frozen=True)
@@ -126,41 +127,64 @@ class VocabularyBridge(Bridge):
             mapper.attrib.get("boundary-drop") if mapper is not None else None
         )
         atoms_list: list[Atom] = []
-        positions: dict[str, int] = {}
+        output_positions: dict[str, int] = {}
         for position, item in enumerate(root.findall("atom"), start=1):
             spelling = item.attrib.get("spelling")
             if not spelling:
                 raise ValueError(
                     f"{self.name} vocabulary atom {position} has no spelling"
                 )
-            if spelling in positions:
-                raise ValueError(
-                    f"{self.name} vocabulary atom {position} spelling {spelling!r} "
-                    f"duplicates atom {positions[spelling]}"
-                )
+            kind = item.attrib.get("kind", "unit")
+            probe = spelling + "a" if kind == "prefix" else spelling
             try:
-                Form.parse(spelling, strict=True)
+                Form.parse(probe, strict=True)
             except ValueError as error:
+                qualification = (
+                    "a house IPA prefix" if kind == "prefix" else "house IPA"
+                )
                 raise ValueError(
                     f"{self.name} vocabulary atom {position} spelling "
-                    f"{spelling!r} is not house IPA: {error}"
+                    f"{spelling!r} is not {qualification}: {error}"
                 ) from error
-            positions[spelling] = position
+            output = item.attrib.get("output", spelling)
+            if not output:
+                raise ValueError(
+                    f"{self.name} vocabulary atom {position} has empty output"
+                )
+            if output in output_positions:
+                raise ValueError(
+                    f"{self.name} vocabulary atom {position} output {output!r} "
+                    f"duplicates atom {output_positions[output]}"
+                )
+            output_positions[output] = position
             atoms_list.append(
                 Atom(
                     spelling,
-                    item.attrib.get("output", spelling),
+                    output,
                     item.attrib.get("exemplar"),
                     item.attrib.get("notes"),
+                    kind,
                 )
             )
         atoms = tuple(atoms_list)
         if not atoms:
             raise ValueError(f"{self.name} vocabulary declares no atoms")
         self.atoms = atoms
-        self._by_spelling = {atom.spelling: atom for atom in atoms}
+        self._by_output = {atom.output: atom for atom in atoms}
+        seen_spellings: dict[str, Atom | None] = {}
+        for atom in atoms:
+            if atom.kind != "unit":
+                continue
+            seen_spellings[atom.spelling] = (
+                None if atom.spelling in seen_spellings else atom
+            )
+        self._by_spelling = {
+            spelling: atom
+            for spelling, atom in seen_spellings.items()
+            if atom is not None
+        }
         self._ordered = tuple(
-            sorted(atoms, key=lambda atom: len(atom.spelling), reverse=True)
+            sorted(atoms, key=lambda atom: len(atom.output), reverse=True)
         )
         self._unit_patterns = tuple(
             sorted(
@@ -173,6 +197,7 @@ class VocabularyBridge(Bridge):
                         atom,
                     )
                     for atom in atoms
+                    if atom.kind == "unit"
                 ),
                 key=lambda item: len(item[0]),
                 reverse=True,
@@ -220,7 +245,7 @@ class VocabularyBridge(Bridge):
         if not isinstance(text, str):
             out = []
             for index, token in enumerate(text):
-                atom = self._by_spelling.get(token)
+                atom = self._by_output.get(token)
                 if atom is None:
                     raise VocabularyResidueError(
                         f"{self.name} vocabulary has no atom for token {index}: {token!r}"
@@ -237,14 +262,14 @@ class VocabularyBridge(Bridge):
                 (
                     candidate
                     for candidate in self._ordered
-                    if text.startswith(candidate.spelling, position)
+                    if text.startswith(candidate.output, position)
                 ),
                 None,
             )
             if atom is None:
                 end = position + 1
                 while end < len(text) and not any(
-                    text.startswith(candidate.spelling, end)
+                    text.startswith(candidate.output, end)
                     for candidate in self._ordered
                 ):
                     end += 1
@@ -253,7 +278,7 @@ class VocabularyBridge(Bridge):
                     f"[{position}:{end}]: {text[position:end]!r}"
                 )
             out.append(atom)
-            position += len(atom.spelling)
+            position += len(atom.output)
         return tuple(out)
 
     def read(self, text: str | Sequence[str]) -> Form:
@@ -290,8 +315,8 @@ class VocabularyBridge(Bridge):
         )
         graph = dataclasses.replace(form._graph, declarations=declared)
         builder, handles = _copy_builder(graph)
-        unit_handles = [
-            handles[ref]
+        units = [
+            (ref, handles[ref])
             for ref in sorted(
                 handles,
                 key=lambda ref: (
@@ -301,24 +326,38 @@ class VocabularyBridge(Bridge):
             )
             if isinstance(form._graph.at(ref).features.get("compatibility-index"), int)
         ]
-        offset = 0
+        cursor = 0
+        prefixes: list[Atom] = []
         for atom in atoms:
+            if atom.kind == "prefix":
+                prefixes.append(atom)
+                continue
             width = len(Form.parse(atom.spelling, strict=True).units)
+            grouped_spelling = (
+                "".join(prefix.spelling for prefix in prefixes) + atom.spelling
+            )
+            grouped_output = "".join(prefix.output for prefix in prefixes) + atom.output
+            owned = units[cursor : cursor + width]
+            start = int(owned[0][0].split("/")[2])
+            last_ref = owned[-1][0]
+            last_tick = int(last_ref.split("/")[2])
+            duration = (
+                last_tick - start + (form._graph.at(last_ref).structural_duration or 0)
+            )
             parent = builder.add_event(
                 self.tier,
-                offset,
+                start,
                 {
-                    "atom": atom.spelling,
-                    "output": atom.output,
+                    "atom": grouped_spelling,
+                    "output": grouped_output,
                     **({"exemplar": atom.exemplar} if atom.exemplar else {}),
                     **({"notes": atom.notes} if atom.notes else {}),
                 },
-                duration=width,
+                duration=duration,
             )
-            builder.contain(
-                parent, unit_handles[offset : offset + width], relation="groups"
-            )
-            offset += width
+            builder.contain(parent, (handle for _, handle in owned), relation="groups")
+            cursor += width
+            prefixes.clear()
         return Form._from_graph(builder.build(), spelling=ipa)
 
     def emit(
