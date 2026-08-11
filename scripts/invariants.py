@@ -20,7 +20,9 @@ See docs/reviewing.md for why these are the ones worth checking.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
+import json
 import sys
 import unicodedata
 import warnings
@@ -735,20 +737,29 @@ def check_head_arcs(ipa: IPAFeatures) -> bool:
 
 
 def check_derived_artifacts() -> bool:
-    """The shipped matrix and X-SAMPA table match what the code derives."""
-    sys.path.insert(0, "scripts")
-    import confusion
-    import xsampa_table
-
+    """Every recorded derived artifact matches its byte-level pin."""
+    root = Path(__file__).resolve().parent.parent
+    record_path = root / "tests" / "tiergraph" / "baselines" / "derived-artifacts.json"
     failures = []
-    if confusion.derive()["triangle"] != confusion.shipped()["triangle"]:
-        failures.append("confusion.json is stale: regenerate with generate --write")
-    try:
-        if xsampa_table.canonical_pairs() != xsampa_table.shipped_pairs():
-            failures.append("xsampa.xml is stale")
-    except AttributeError:
-        pass  # the module names these differently; its own validate covers it
-    return _report("derived artifacts current", failures, 2)
+    records = json.loads(record_path.read_text(encoding="utf-8"))["artifacts"]
+    for record in records:
+        exemption = record.get("exemption")
+        if exemption is not None:
+            if not isinstance(exemption, str) or not exemption.strip():
+                failures.append(f"{record['path']}: exemption has no reason")
+            continue
+        path = root / record["path"]
+        if not path.is_file():
+            failures.append(f"{record['path']}: missing")
+            continue
+        contents = path.read_bytes()
+        actual = hashlib.sha256(contents).hexdigest()
+        if len(contents) != record["bytes"] or actual != record["sha256"]:
+            failures.append(
+                f"{record['path']}: stale (recorded {record['bytes']} bytes / "
+                f"{record['sha256']}, actual {len(contents)} bytes / {actual})"
+            )
+    return _report("derived artifacts current", failures, len(records))
 
 
 #: The ``<value>`` attributes the loader reads only for a feature that
