@@ -14,6 +14,7 @@ from ipakit.constants import DATA_DIR
 from ipakit.metric import (
     SECONDARY_WEIGHT,
     _metric_bundle,
+    _nearest_part_cost,
     bundle_distance,
     metric_fingerprint,
     segment_metric,
@@ -81,6 +82,74 @@ class TestOrderSemantics:
         # component.
         assert D(ipa, "t͡ʃ", "t͡s") < D(ipa, "t͡ʃ", "ʃ")
         assert D(ipa, "q͡χ", "t͡ʃ") < D(ipa, "q͡χ", "χ")
+
+
+class TestMaterialBudget:
+    def test_composites_are_nearer_their_own_atomic_constituents(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """No unrelated atomic phone without a shared manner beats a part."""
+        checked = 0
+        atomic = {
+            symbol: ipa.segment(symbol)
+            for symbol in ipa.phones
+            if len(ipa.segment(symbol).constituents) == 1
+        }
+        for symbol in ipa.phones:
+            composite = ipa.segment(symbol)
+            if len(composite.constituents) < 2:
+                continue
+            bases = {part.base for part in composite.constituents}
+            manners = {
+                part.bundle(ipa, with_defaults=True).get("manner")
+                for part in composite.constituents
+            }
+            for base in bases:
+                own = D(ipa, symbol, base)
+                for other, segment in atomic.items():
+                    manner = (
+                        segment.constituents[0]
+                        .bundle(ipa, with_defaults=True)
+                        .get("manner")
+                    )
+                    if other in bases or manner in manners:
+                        continue
+                    checked += 1
+                    assert own < D(ipa, symbol, other), (symbol, base, other)
+        assert checked > 3000, f"budget sweep checked only {checked} comparisons"
+
+    def test_an_unmatched_part_never_exceeds_a_real_comparison(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The orphan price is bounded by comparisons actually available."""
+        checked = 0
+        for symbol in ipa.phones:
+            segment = ipa.segment(symbol)
+            if len(segment.constituents) < 2:
+                continue
+            parts = tuple(ipa.segment(part.base) for part in segment.constituents)
+            for part in parts:
+                available = [segment_metric(ipa, part, other) for other in parts]
+                charged = _nearest_part_cost(ipa, part, parts)
+                checked += 1
+                assert charged <= max(available), (symbol, part, charged, available)
+        assert checked > 30, f"budget sweep checked only {checked} parts"
+
+    def test_expected_gap_geometry(self, ipa: IPAFeatures) -> None:
+        assert D(ipa, "t͡s", "t") == pytest.approx(0.2629, abs=0.00005)
+        assert D(ipa, "t͡ʃ", "ʃ") == pytest.approx(0.2652, abs=0.00005)
+        assert D(ipa, "t͡ʃ", "ʃ") < D(ipa, "t͡ʃ", "i")
+        assert D(ipa, "t͡ʃ", "t͡s") == pytest.approx(0.0030, abs=0.00005)
+
+    def test_fusion_floor_is_explicitly_deferred(self, ipa: IPAFeatures) -> None:
+        """Pin the live inversion without mixing its movers into this fix.
+
+        A fusion has no arity floor, so adding the articulator in /ɡ͡b/ is
+        cheaper than adding aspiration to /t/. Whether a derived floor exists
+        is a separate measurement; changing it here would make neither mover
+        class independently explainable.
+        """
+        assert D(ipa, "ɡ", "ɡ͡b") < D(ipa, "t", "tʰ")
 
 
 class TestSecondaryArticulation:
