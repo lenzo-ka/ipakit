@@ -50,6 +50,7 @@ from .features import FeaturesCommand
 from .hierarchy import HierarchyGroup
 from .info import InfoGroup
 from .notebook import NotebookCommand
+from .phoible import PhoibleGroup
 from .policy import report
 from .query import QueryGroup
 from .rules import RulesGroup
@@ -66,6 +67,7 @@ GROUPS = [
     AnalysisGroup,
     AnalyzeGroup,
     InfoGroup,
+    PhoibleGroup,
     TractGroup,
 ]
 

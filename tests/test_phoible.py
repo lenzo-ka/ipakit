@@ -10,6 +10,8 @@ from ipakit.bridges.phoible import (
 )
 from ipakit.models import Phoneset
 
+from .test_cli import run
+
 FIXTURE = Path(__file__).parent / "fixtures" / "phoible"
 
 
@@ -59,3 +61,39 @@ def test_fixture_audit_counts_rows_inventories_and_reasons() -> None:
     assert (audit.inventories, audit.accepted_inventories) == (2, 1)
     assert audit.refused_inventories == 1
     assert audit.refusal_reasons[0][1] == 1
+
+
+def test_cli_language_shows_spread_with_sources_and_keys(monkeypatch, capsys) -> None:
+    status, out, _ = run(
+        monkeypatch, capsys, "phoible", "language", "eng", "--phoible", str(FIXTURE)
+    )
+    assert status == 0
+    assert "160\tstan1293\tspa\tOConner1973\tEnglish" in out
+    assert "2175\tstan1293\tuz\teng_ladefoged1989\tEnglish (American)" in out
+
+
+def test_cli_inventory_is_a_phoneset_file_and_refusals_exit_three(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    output = tmp_path / "english.txt"
+    status, _, error = run(
+        monkeypatch,
+        capsys,
+        "phoible",
+        "inventory",
+        "160",
+        "--phoible",
+        str(FIXTURE),
+        "-o",
+        str(output),
+    )
+    assert status == 3
+    assert Phoneset.from_file(output).phones == ["b"]
+    assert "PHOIBLE row 3 Phoneme 'k͈'" in error
+
+
+def test_cli_without_mount_exits_cleanly(monkeypatch, capsys) -> None:
+    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
+    status, _, error = run(monkeypatch, capsys, "phoible", "language", "eng")
+    assert status == 1
+    assert "PHOIBLE data is unavailable" in error
