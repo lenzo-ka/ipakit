@@ -49,6 +49,13 @@ def test_segmented_source_emits_its_declared_separator_by_default() -> None:
     assert MFA.emit(form, separator="") == "aj"
 
 
+def test_read_accepts_the_default_emission_and_keeps_segmentation() -> None:
+    form = MFA.read_tokens(("a", "j"))
+    assert MFA.emit(MFA.read(MFA.emit(form))) == "a j"
+    assert MFA.emit(MFA.read("m aj s")) == "m aj s"
+    assert MFA.emit(MFA.read("aj")) == "aj"
+
+
 def test_dictionary_fixture_round_trips_byte_exact() -> None:
     lines = [
         line for line in FIXTURE.read_text().splitlines() if not line.startswith("#")

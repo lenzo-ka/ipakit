@@ -109,7 +109,11 @@ class VocabularyBridge(Bridge):
         )
 
     def tokenize(self, text: str | Sequence[str]) -> tuple[Atom, ...]:
-        """Resolve text by longest match, or a sequence as segmented atoms."""
+        """Resolve text by longest match, or a sequence as segmented atoms.
+
+        The declared separator is skipped wherever it occurs, so the
+        vocabulary reads its own default emission.
+        """
 
         if not isinstance(text, str):
             out = []
@@ -124,6 +128,9 @@ class VocabularyBridge(Bridge):
         out = []
         position = 0
         while position < len(text):
+            if self.separator and text.startswith(self.separator, position):
+                position += len(self.separator)
+                continue
             atom = next(
                 (
                     candidate
