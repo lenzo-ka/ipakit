@@ -16,73 +16,26 @@
   <refusal spelling="||" reason="control-or-virtual" />
   <refusal spelling="_" reason="control-or-virtual" />
   <refusal spelling="_!" reason="control-or-virtual" />
-  <refusal spelling="_|" reason="control-or-virtual" />
   <refusal spelling="_:" reason="control-or-virtual" />
   <refusal spelling="_::" reason="control-or-virtual" />
   <refusal spelling="_;_" reason="control-or-virtual" />
   <refusal spelling="_^_" reason="control-or-virtual" />
   <refusal spelling="_X1" reason="control-or-virtual" />
-  <refusal spelling=":" reason="control-or-virtual" />
+  <refusal spelling=":" reason="outside-house-ipa" />
   <refusal spelling="-" reason="control-or-virtual" />
-  <refusal spelling="m-" reason="outside-house-ipa" />
-  <refusal spelling="n-" reason="outside-house-ipa" />
-  <refusal spelling="N-" reason="outside-house-ipa" />
-  <refusal spelling="#X1" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#@  virtual" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#a  virtual" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#e  virtual" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#i  virtual" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#o  virtual" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#u  virtual" reason="no-declared-ipa-spelling" />
-  <refusal spelling="r-" reason="outside-house-ipa" />
-  <refusal spelling="l-" reason="outside-house-ipa" />
-  <refusal spelling="r/" reason="no-declared-ipa-spelling" />
-  <refusal spelling="l/" reason="no-declared-ipa-spelling" />
-  <refusal spelling="l/2" reason="no-declared-ipa-spelling" />
-  <refusal spelling="l/3" reason="no-declared-ipa-spelling" />
-  <refusal spelling="L/" reason="no-declared-ipa-spelling" />
-  <refusal spelling=";" reason="conditional-null" />
-  <refusal spelling="d[" reason="no-declared-ipa-spelling" />
-  <refusal spelling="Q^" reason="no-declared-ipa-spelling" />
-  <refusal spelling="t[" reason="no-declared-ipa-spelling" />
-  <refusal spelling="@2" reason="no-declared-ipa-spelling" />
-  <refusal spelling="@3" reason="no-declared-ipa-spelling" />
-  <refusal spelling="i:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="e:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="E:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="&amp;:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="a:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="o:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="O:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="u:" reason="no-declared-ipa-spelling" />
-  <refusal spelling="i~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="I~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="e~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="E~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="a~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="V~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="O~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="o~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="U~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="u~" reason="no-declared-ipa-spelling" />
-  <refusal spelling="aI" reason="no-declared-ipa-spelling" />
-  <refusal spelling="aU" reason="no-declared-ipa-spelling" />
-  <refusal spelling="p#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="b#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="t#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="d#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="t.#" reason="outside-house-ipa" />
-  <refusal spelling="d.#" reason="outside-house-ipa" />
-  <refusal spelling="c#" reason="outside-house-ipa" />
-  <refusal spelling="J#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="k#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="g#" reason="no-declared-ipa-spelling" />
-  <refusal spelling="#X2" reason="no-declared-ipa-spelling" />
-  <refusal spelling="tS#" reason="no-declared-ipa-spelling" />
+  <refusal spelling="#@" reason="control-or-virtual" />
+  <refusal spelling="#a" reason="control-or-virtual" />
+  <refusal spelling="#e" reason="control-or-virtual" />
+  <refusal spelling="#i" reason="control-or-virtual" />
+  <refusal spelling="#o" reason="control-or-virtual" />
+  <refusal spelling="#u" reason="control-or-virtual" />
+  <refusal spelling=";" reason="outside-house-ipa" />
+  <refusal spelling="Q^" reason="outside-house-ipa" />
   <refusal spelling="~" reason="control-or-virtual" />
   <atom spelling="ˈ" output="'" kind="prefix" />
   <atom spelling="ˌ" output="," kind="prefix" />
   <atom spelling=" " output=" " />
+  <atom spelling="#" output="_|" />
   <atom spelling="ʔ" output="?" />
   <atom spelling="ə" output="@" />
   <atom spelling="ə" output="@-" />
@@ -91,15 +44,26 @@
   <atom spelling="i" output="i" />
   <atom spelling="o" output="o" />
   <atom spelling="u" output="u" />
+  <atom spelling="m̩" output="m-" />
+  <atom spelling="n̩" output="n-" />
+  <atom spelling="ŋ̩" output="N-" />
+  <atom spelling="ʰχ" output="#X1" />
+  <atom spelling="r̩" output="r-" />
+  <atom spelling="l̩" output="l-" />
   <atom spelling="ɾ" output="r" />
+  <atom spelling="r" output="r/" />
   <atom spelling="r" output="R" />
   <atom spelling="r" output="R2" />
   <atom spelling="r" output="R3" />
   <atom spelling="ʀ" output='r"' />
   <atom spelling="l" output="l" />
+  <atom spelling="l" output="l/" />
+  <atom spelling="l" output="l/2" />
+  <atom spelling="l" output="l/3" />
   <atom spelling="ʎ" output="l^" />
   <atom spelling="ɭ" output="l." />
-  <atom spelling="ʟ" output="L" />
+  <atom spelling="ɫ" output="L/" />
+  <atom spelling="ɫ" output="L" />
   <atom spelling="w" output="w" />
   <atom spelling="j" output="j" />
   <atom spelling="m" output="m" />
@@ -109,15 +73,16 @@
   <atom spelling="ŋ" output="N" />
   <atom spelling="ɾ" output="**" />
   <atom spelling="ɾ" output="*" />
-  <atom spelling="ɻ" output="r." />
+  <atom spelling="r." output="r." />
   <atom spelling="b" output="b" />
   <atom spelling="d" output="d" />
-  <atom spelling="d͡ʒ" output="dZ" />
+  <atom spelling="d̪" output="d[" />
+  <atom spelling="dʒ" output="dZ" />
   <atom spelling="dʑ" output="dZ;" />
   <atom spelling="ɟ" output="J" />
   <atom spelling="ɡ" output="g" />
   <atom spelling="β" output="B" />
-  <atom spelling="v" output="v" />
+  <atom spelling="ʋ" output="v" />
   <atom spelling="ʋ" output="v#" />
   <atom spelling="ð" output="D" />
   <atom spelling="z" output="z" />
@@ -130,7 +95,8 @@
   <atom spelling="ʁ" output='Q"' />
   <atom spelling="p" output="p" />
   <atom spelling="t" output="t" />
-  <atom spelling="t͡ʃ" output="tS" />
+  <atom spelling="t̪" output="t[" />
+  <atom spelling="tʃ" output="tS" />
   <atom spelling="tɕ" output="tS;" />
   <atom spelling="c" output="c" />
   <atom spelling="k" output="k" />
@@ -148,12 +114,78 @@
   <atom spelling="χ" output="X" />
   <atom spelling="h" output="h" />
   <atom spelling="ʌ" output="V" />
+  <atom spelling="ə" output="@2" />
+  <atom spelling="ə" output="@3" />
+  <atom spelling="iː" output="i:" />
   <atom spelling="ɪ" output="I" />
+  <atom spelling="eː" output="e:" />
+  <atom spelling="ɛː" output="E:" />
   <atom spelling="ɛ" output="E" />
+  <atom spelling="æː" output="&amp;:" />
+  <atom spelling="aː" output="a:" />
+  <atom spelling="oː" output="o:" />
+  <atom spelling="ɔː" output="O:" />
   <atom spelling="ɔ" output="O" />
   <atom spelling="ʊ" output="U" />
-  <atom spelling="ħ" output="H" />
+  <atom spelling="uː" output="u:" />
+  <atom spelling="ĩ" output="i~" />
+  <atom spelling="ɪ̃" output="I~" />
+  <atom spelling="ẽ" output="e~" />
+  <atom spelling="ɛ̃" output="E~" />
+  <atom spelling="ã" output="a~" />
+  <atom spelling="ʌ̃" output="V~" />
+  <atom spelling="ɔ̃" output="O~" />
+  <atom spelling="õ" output="o~" />
+  <atom spelling="ʊ̃" output="U~" />
+  <atom spelling="ũ" output="u~" />
+  <atom spelling="aɪ" output="aI" />
+  <atom spelling="aʊ" output="aU" />
+  <atom spelling="h" output="H" />
+  <atom spelling="pʰ" output="p#" />
+  <atom spelling="bʰ" output="b#" />
+  <atom spelling="tʰ" output="t#" />
+  <atom spelling="dʰ" output="d#" />
   <atom spelling="ʈ" output="t." />
+  <atom spelling="ʈʰ" output="t.#" />
   <atom spelling="ɖ" output="d." />
+  <atom spelling="ɖʰ" output="d.#" />
+  <atom spelling="cʰ" output="c#" />
+  <atom spelling="ɟʰ" output="J#" />
+  <atom spelling="kʰ" output="k#" />
+  <atom spelling="ɡʰ" output="g#" />
+  <atom spelling="ʰχ" output="#X2" />
   <atom spelling="æ" output="&amp;" />
+  <atom spelling="tʃʰ" output="tS#" />
+  <atom spelling="əː" output="@:" />
+  <atom spelling="əː" output="@-:" />
+  <atom spelling="m̩ː" output="m-:" />
+  <atom spelling="n̩ː" output="n-:" />
+  <atom spelling="ŋ̩ː" output="N-:" />
+  <atom spelling="r̩ː" output="r-:" />
+  <atom spelling="l̩ː" output="l-:" />
+  <atom spelling="ʌː" output="V:" />
+  <atom spelling="əː" output="@2:" />
+  <atom spelling="əː" output="@3:" />
+  <atom spelling="iːː" output="i::" />
+  <atom spelling="ɪː" output="I:" />
+  <atom spelling="eːː" output="e::" />
+  <atom spelling="ɛːː" output="E::" />
+  <atom spelling="æːː" output="&amp;::" />
+  <atom spelling="aːː" output="a::" />
+  <atom spelling="oːː" output="o::" />
+  <atom spelling="ɔːː" output="O::" />
+  <atom spelling="ʊː" output="U:" />
+  <atom spelling="uːː" output="u::" />
+  <atom spelling="ĩː" output="i~:" />
+  <atom spelling="ɪ̃ː" output="I~:" />
+  <atom spelling="ẽː" output="e~:" />
+  <atom spelling="ɛ̃ː" output="E~:" />
+  <atom spelling="ãː" output="a~:" />
+  <atom spelling="ʌ̃ː" output="V~:" />
+  <atom spelling="ɔ̃ː" output="O~:" />
+  <atom spelling="õː" output="o~:" />
+  <atom spelling="ʊ̃ː" output="U~:" />
+  <atom spelling="ũː" output="u~:" />
+  <atom spelling="aɪː" output="aI:" />
+  <atom spelling="aʊː" output="aU:" />
 </vocabulary>
