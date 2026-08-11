@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vocabulary name="mfa" version="english_mfa-v3.1.0" provenance="Montreal Forced Aligner English MFA acoustic model v3.1.0 (CC BY 4.0)" tier="mfa" source-style="segmented">
+  <round-trip>
+    <external-to-house fidelity="lossless" />
+    <house-to-external fidelity="lossy-with-report">
+      <drop name="ties and simultaneity absent from MFA spellings" />
+      <drop name="narrow detail outside the MFA English inventory" />
+      <drop name="house unit boundaries collapsed by MFA atom grouping" />
+    </house-to-external>
+  </round-trip>
+  <atom spelling="p" exemplar="crip" /><atom spelling="pʷ" /><atom spelling="pʰ" exemplar="pampa" /><atom spelling="pʲ" />
+  <atom spelling="kp" /><atom spelling="b" exemplar="buys" /><atom spelling="bʲ" /><atom spelling="ɡb" />
+  <atom spelling="f" exemplar="frown" /><atom spelling="fʷ" /><atom spelling="fʲ" /><atom spelling="v" exemplar="vonda" /><atom spelling="vʷ" /><atom spelling="vʲ" />
+  <atom spelling="θ" exemplar="third" /><atom spelling="t̪" exemplar="thick" /><atom spelling="ð" exemplar="thou" /><atom spelling="d̪" exemplar="there" />
+  <atom spelling="t" exemplar="gut" /><atom spelling="tʷ" /><atom spelling="tʰ" exemplar="tuple" /><atom spelling="tʲ" />
+  <atom spelling="ʈ" /><atom spelling="ʈʲ" /><atom spelling="ʈʷ" /><atom spelling="ʔ" exemplar="error" />
+  <atom spelling="d" exemplar="drama" /><atom spelling="dʲ" /><atom spelling="ɖ" /><atom spelling="ɖʲ" />
+  <atom spelling="ɾ" exemplar="dad" /><atom spelling="ɾʲ" /><atom spelling="tʃ" exemplar="chip" notes="MFA sequential affricate spelling" /><atom spelling="dʒ" exemplar="jules" />
+  <atom spelling="ʃ" exemplar="shape" /><atom spelling="ʒ" exemplar="usual" /><atom spelling="s" exemplar="slot" /><atom spelling="z" exemplar="noisy" /><atom spelling="ɹ" exemplar="tree" />
+  <atom spelling="m" exemplar="mates" /><atom spelling="mʲ" /><atom spelling="m̩" exemplar="'em" /><atom spelling="ɱ" />
+  <atom spelling="n" exemplar="shin" /><atom spelling="n̩" exemplar="taken" /><atom spelling="ɲ" exemplar="sonya" /><atom spelling="ɾ̃" exemplar="many" /><atom spelling="ŋ" exemplar="sang" />
+  <atom spelling="l" /><atom spelling="ɫ" /><atom spelling="ɫ̩" /><atom spelling="ʎ" />
+  <atom spelling="ɟ" exemplar="mcgee" /><atom spelling="ɟʷ" /><atom spelling="ɡ" exemplar="rig" /><atom spelling="ɡʷ" />
+  <atom spelling="c" exemplar="skin" /><atom spelling="cʷ" exemplar="quick" /><atom spelling="cʰ" exemplar="cute" />
+  <atom spelling="k" exemplar="mink" /><atom spelling="kʷ" exemplar="quart" /><atom spelling="kʰ" exemplar="cone" /><atom spelling="ç" exemplar="hugh" /><atom spelling="h" exemplar="habit" />
+  <atom spelling="ɐ" /><atom spelling="ə" /><atom spelling="ɜː" /><atom spelling="ɜ" /><atom spelling="ɝ" /><atom spelling="ɚ" notes="MFA rhotic-vowel unit" />
+  <atom spelling="ʊ" /><atom spelling="ɪ" /><atom spelling="ɑ" /><atom spelling="ɑː" /><atom spelling="ɒ" /><atom spelling="ɒː" /><atom spelling="ɔ" />
+  <atom spelling="aː" /><atom spelling="a" /><atom spelling="æ" /><atom spelling="aj" exemplar="mice" notes="groups house a and j" /><atom spelling="aw" />
+  <atom spelling="i" /><atom spelling="iː" /><atom spelling="j" exemplar="yorke" /><atom spelling="ɛː" /><atom spelling="ɛ" />
+  <atom spelling="e" /><atom spelling="eː" /><atom spelling="ej" /><atom spelling="ʉ" /><atom spelling="ʉː" /><atom spelling="uː" /><atom spelling="u" />
+  <atom spelling="w" exemplar="will" /><atom spelling="ʋ" /><atom spelling="ɔj" /><atom spelling="ow" /><atom spelling="əw" /><atom spelling="o" /><atom spelling="oː" />
+</vocabulary>
