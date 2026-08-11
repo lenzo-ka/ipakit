@@ -59,7 +59,10 @@ class PhoibleInventory:
 
     ``Phoneset`` currently carries only names and strings, so allophones and
     marginality remain on ``entries``.  ``refusals`` is the deliberate seam:
-    no PHOIBLE spelling is repaired or silently dropped.
+    every PHOIBLE spelling is either read under the house's declared
+    canonicalization (Unicode normalization and the aliases ``ipa.xml``
+    declares) or refused with its position — never repaired ad hoc or
+    silently dropped.
     """
 
     provenance: PhoibleProvenance
@@ -193,8 +196,10 @@ class PhoibleBridge(ProviderBridge):
 
     @staticmethod
     def _house_segment(
-        ipa: IPAFeatures, value: str, row: int, field: str
+        ipa: IPAFeatures, value: str | None, row: int, field: str
     ) -> tuple[str | None, PhoibleRefusal | None]:
+        if value is None:
+            return None, PhoibleRefusal(row, field, "", "row is missing this column")
         try:
             canonical = ipa.from_wild(value)
             with warnings.catch_warnings(record=True) as caught:

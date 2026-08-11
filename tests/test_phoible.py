@@ -55,6 +55,26 @@ def test_false_marginal_is_carried_on_bridge_record() -> None:
     assert inventory.entries[0].marginal is False
 
 
+def test_truncated_row_is_a_positioned_refusal(tmp_path) -> None:
+    root = tmp_path / "phoible"
+    for relative in (
+        "data/phoible.csv",
+        "mappings/InventoryID-LanguageCodes.csv",
+        "mappings/InventoryID-Bibtex.csv",
+        "README.md",
+    ):
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((FIXTURE / relative).read_text())
+    data = root / "data" / "phoible.csv"
+    data.write_text(data.read_text() + "160,stan1293,eng,English,NA,9999\n")
+    inventory = PhoibleBridge(root).inventory("160")
+    truncated = [item for item in inventory.refusals if "missing" in item.reason]
+    assert len(truncated) == 1
+    assert truncated[0].field == "Phoneme"
+    assert PhoibleBridge(root).audit() is not None
+
+
 def test_fixture_audit_counts_rows_inventories_and_reasons() -> None:
     audit = PhoibleBridge(FIXTURE).audit()
     assert (audit.rows, audit.accepted_rows, audit.refused_rows) == (3, 2, 1)
