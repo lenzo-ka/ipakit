@@ -269,8 +269,8 @@ class TestTheCanonicalRead:
                 assert parsed.to_ipa() == text
                 assert [segment.to_ipa() for segment in parsed.segments] == [
                     "a",
-                    "ˈt",
-                    "a",
+                    "t",
+                    "ˈa",
                 ]
 
     def test_nonlocal_spelling_survives_json(self):
@@ -278,9 +278,8 @@ class TestTheCanonicalRead:
         restored = Form.from_json(parsed.to_json(), FEATURES)
         assert restored == parsed
         assert restored.to_ipa() == "kæt.ˈ.dɒɡ"
-        assert [segment.to_ipa() for segment in restored.segments] == list("kæt") + [
-            "ˈd",
-            "ɒ",
+        assert [segment.to_ipa() for segment in restored.segments] == list("kætd") + [
+            "ˈɒ",
             "ɡ",
         ]
 

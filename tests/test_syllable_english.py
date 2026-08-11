@@ -28,6 +28,16 @@ def test_stress_is_a_nucleus_and_an_unknown_margin_is_not_absorbed() -> None:
     assert result.unsyllabified == ((0, 1),)
 
 
+def test_leading_and_house_stress_find_the_same_nucleus() -> None:
+    built = ipakit.syllabifier("english", strictness="strict")
+    leading = built("ˈbaʊt")
+    house = built("bˈaʊt")
+    assert leading.spelled() == house.spelled() == ("bˈa", "ʊt")
+    leading_nucleus = next(u for u in leading.form.units if "stress" in u.prosody)
+    house_nucleus = next(u for u in house.form.units if "stress" in u.prosody)
+    assert leading_nucleus.text.encode() == house_nucleus.text.encode() == "ˈa".encode()
+
+
 def test_every_harvested_cluster_retains_evidence_and_a_decision() -> None:
     declaration = ipakit.language("english")
     harvested = [onset for onset in declaration.onsets if onset.harvested_count]

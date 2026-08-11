@@ -3268,16 +3268,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Parse IPA text into structured :class:`Segment` units.
 
         Same segmentation as :meth:`tokenize`. Stress marks attach to
-        the following unit's prosody -- wherever they stand, not only at
-        the start of the string -- while the other prosodic marks
+        the first following syllabic unit's prosody -- wherever they stand,
+        not only at the start of the string -- while the other prosodic marks
         (length, tone, contour) attach to the unit they follow, which is
         the side each is written on. Structural marks (ties become
         junctures; breaks/linking live between units) never appear in a
         unit's prosody.
 
         A unit bears one stress level, so of several marks standing
-        before one unit only the nearest binds: the others are superseded
-        and reported. A stress mark with no unit after it binds nothing
+        before one nucleus only the nearest binds: the others are superseded
+        and reported. A stress mark with no syllabic unit after it binds nothing
         and is reported the same way -- like an unbound tie, and for the
         same reason: dropping it silently would make the result shorter
         than the input while still looking well formed.
@@ -3311,7 +3311,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def _units_from_parsed(
         self, parsed: Sequence[tuple[str, list[str]]], strict: bool
     ) -> list[tuple[str, Segment | None]]:
-        """Attach one scan while retaining its structural token positions."""
+        """Attach one scan while retaining its structural token positions.
+
+        A stress mark binds the first following syllabic unit -- a vowel or
+        a consonant marked syllabic -- while its token stays at the position
+        where it was written.  Non-syllabic units and structural tokens are
+        transparent to that binding.  If the scan reaches its end without a
+        following syllabic unit, the mark is unbound: lax reading warns and
+        drops its semantic claim, and ``strict=True`` raises.
+        """
         result: list[tuple[str, Segment | None]] = []
         pending_stress: list[str] = []
         superseded: list[str] = []
@@ -3336,11 +3344,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # unit. Building from them is the point of this path: feeding
             # ``token`` back through ``_segment_from_token`` would perform a
             # second tokenization once for every segment in the form.
-            seg = self._segment_from_parsed(base, diacritics, tuple(pending_stress))
+            seg = self._segment_from_parsed(base, diacritics)
             # A token that carries no unit has nothing to take the stress,
-            # so the mark stays pending for the unit that does.
+            # so the mark stays pending for the syllabic unit that does.
             if seg is not None:
-                pending_stress = []
+                if pending_stress and self.is_nucleus(seg.scalar()):
+                    seg = self._segment_from_parsed(
+                        base, diacritics, tuple(pending_stress)
+                    )
+                    pending_stress = []
                 result.append((token, seg))
             elif not self.is_structural_token(token):
                 unplaced.append(token)
@@ -3373,7 +3385,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             (
                 unbound,
                 "unbound stress mark(s)",
-                "a stress mark binds the unit that follows it",
+                "a stress mark binds the first syllabic unit that follows it",
             ),
             (
                 unplaced,
@@ -3448,10 +3460,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Join structured units back into one IPA string.
 
         The inverse of :meth:`segments`: ``to_ipa(segments(s)) == s`` for
-        house-canonical input, stress marks included -- a mark binds the
-        unit that follows it and re-emits in front of that same unit, so
-        both ``ˈkæt`` and the nucleus-stressed ``kˈæt`` come back as
-        written. A join guarantees no more than its parts do, and each
+        house-canonical input, stress marks included. A syllable-leading
+        spelling such as ``ˈkæt`` binds the nucleus and therefore projects
+        through segments as ``kˈæt``; :class:`~ipakit.form.Form` retains
+        the independent written position and round-trips ``ˈkæt`` exactly.
+        A join guarantees no more than its parts do, and each
         unit emits through :meth:`Segment.to_ipa`, which is lossy on the
         enumerable set of legacy alias spellings (docs/ties.md) -- so the
         join is too: ``segments("ʧa")`` rejoins as ``"t͡ʃa"``, the
