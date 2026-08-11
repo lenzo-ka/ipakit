@@ -13,7 +13,11 @@ _PATH = Path(__file__).parent.parent / "data" / "bridges" / "pinyin" / "pinyin.x
 
 
 class PinyinBridge(VocabularyBridge):
+    """The declared Hanyu Pinyin inputs, vowels, and tone-mark renderer."""
+
     def __init__(self) -> None:
+        """Load the shipped Hanyu Pinyin declaration."""
+
         super().__init__(_PATH)
         root = ET.parse(_PATH).getroot()
         self.inputs = tuple(
@@ -24,11 +28,15 @@ class PinyinBridge(VocabularyBridge):
         }
 
     def decode_input(self, value: str) -> str:
+        """Replace each declared keyboard spelling with its Pinyin spelling."""
+
         for source, target in self.inputs:
             value = value.replace(source, target)
         return value
 
     def tone_index(self, spelling: str) -> int:
+        """Return the vowel position that Pinyin's tone-placement rules select."""
+
         lowered = spelling.lower()
         for vowel in "ae":
             if vowel in lowered:
@@ -42,6 +50,8 @@ class PinyinBridge(VocabularyBridge):
     def render(
         self, graph: Graph, syllable_tier: str = "syllable", tone_tier: str = "tone"
     ) -> str:
+        """Render syllable events with their associated tone marks."""
+
         tones: dict[str, int] = {}
         for relation in graph.relations:
             if relation.name != "associates-with" or len(relation.sources) != 1:

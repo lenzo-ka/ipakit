@@ -18,9 +18,13 @@ class KanaBridge(VocabularyBridge):
     """
 
     def __init__(self) -> None:
+        """Load the shipped attested gairaigo vocabulary declaration."""
+
         super().__init__(_PATH)
 
     def render(self, graph: Graph) -> str:
+        """Render the graph's mora tier as attested katakana glyphs."""
+
         outputs = {atom.spelling: atom.output for atom in self.atoms}
 
         def glyph(event: Event) -> str:

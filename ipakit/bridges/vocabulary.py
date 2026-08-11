@@ -26,6 +26,8 @@ class VocabularyResidueError(ValueError):
 
 @dataclass(frozen=True)
 class Atom:
+    """One declared external spelling and the value emitted for its group."""
+
     spelling: str
     output: str
     exemplar: str | None = None
@@ -45,6 +47,8 @@ class VocabularyBridge(Bridge):
     """Longest-match tokenizer and structural renderer for one declaration."""
 
     def __init__(self, declaration: Path):
+        """Load and check the vocabulary declaration at ``declaration``."""
+
         root = ET.parse(declaration).getroot()
         if root.tag != "vocabulary":
             raise ValueError(f"{declaration} is not a vocabulary declaration")
@@ -65,17 +69,39 @@ class VocabularyBridge(Bridge):
         )
         self.tier = root.attrib.get("tier", "vocabulary")
         self.source_style = root.attrib.get("source-style", "text")
-        atoms = tuple(
-            Atom(
-                item.attrib["spelling"],
-                item.attrib.get("output", item.attrib["spelling"]),
-                item.attrib.get("exemplar"),
-                item.attrib.get("notes"),
+        self.separator = root.attrib.get("separator", "")
+        atoms_list: list[Atom] = []
+        positions: dict[str, int] = {}
+        for position, item in enumerate(root.findall("atom"), start=1):
+            spelling = item.attrib.get("spelling")
+            if not spelling:
+                raise ValueError(
+                    f"{self.name} vocabulary atom {position} has no spelling"
+                )
+            if spelling in positions:
+                raise ValueError(
+                    f"{self.name} vocabulary atom {position} spelling {spelling!r} "
+                    f"duplicates atom {positions[spelling]}"
+                )
+            try:
+                Form.parse(spelling, strict=True)
+            except ValueError as error:
+                raise ValueError(
+                    f"{self.name} vocabulary atom {position} spelling "
+                    f"{spelling!r} is not house IPA: {error}"
+                ) from error
+            positions[spelling] = position
+            atoms_list.append(
+                Atom(
+                    spelling,
+                    item.attrib.get("output", spelling),
+                    item.attrib.get("exemplar"),
+                    item.attrib.get("notes"),
+                )
             )
-            for item in root.findall("atom")
-        )
-        if not atoms or len({atom.spelling for atom in atoms}) != len(atoms):
-            raise ValueError("vocabulary atom spellings must be nonempty and unique")
+        atoms = tuple(atoms_list)
+        if not atoms:
+            raise ValueError(f"{self.name} vocabulary declares no atoms")
         self.atoms = atoms
         self._by_spelling = {atom.spelling: atom for atom in atoms}
         self._ordered = tuple(
@@ -83,6 +109,8 @@ class VocabularyBridge(Bridge):
         )
 
     def tokenize(self, text: str | Sequence[str]) -> tuple[Atom, ...]:
+        """Resolve text by longest match, or a sequence as segmented atoms."""
+
         if not isinstance(text, str):
             out = []
             for index, token in enumerate(text):
@@ -120,6 +148,8 @@ class VocabularyBridge(Bridge):
         return tuple(out)
 
     def read(self, text: str | Sequence[str]) -> Form:
+        """Read external atoms into house IPA with their grouping tier intact."""
+
         atoms = self.tokenize(text)
         ipa = "".join(atom.spelling for atom in atoms)
         form = Form.parse(ipa, strict=True)
@@ -182,7 +212,15 @@ class VocabularyBridge(Bridge):
             offset += width
         return Form._from_graph(builder.build(), spelling=ipa)
 
-    def emit(self, form: Form, *, separator: str = "") -> str:
+    def emit(self, form: Form, *, separator: str | None = None) -> str:
+        """Emit grouped atoms, using the declared separator unless overridden.
+
+        Pass ``separator=""`` explicitly to concatenate atom outputs without
+        preserving their segmentation.
+        """
+
+        if separator is None:
+            separator = self.separator
         profile = RenderProfile((RenderLane(self.tier, "output"),))
         rendered = render_graph(form._graph, profile)
         if not separator:

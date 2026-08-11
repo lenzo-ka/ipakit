@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<vocabulary name="mfa" version="english_mfa-v3.1.0" provenance="Montreal Forced Aligner English MFA acoustic model v3.1.0 (CC BY 4.0)" tier="mfa" source-style="segmented">
+<vocabulary name="mfa" version="english_mfa-v3.1.0" provenance="Montreal Forced Aligner English MFA acoustic model v3.1.0 (CC BY 4.0)" tier="mfa" source-style="segmented" separator=" ">
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report">
-      <drop name="ties and simultaneity absent from MFA spellings" />
-      <drop name="narrow detail outside the MFA English inventory" />
-      <drop name="house unit boundaries collapsed by MFA atom grouping" />
+      <drop name="declared future mapper loss: ties and simultaneity absent from MFA spellings" />
+      <drop name="declared future mapper loss: narrow detail outside the MFA English inventory" />
+      <drop name="declared future mapper loss: house unit boundaries collapsed by MFA atom grouping" />
     </house-to-external>
   </round-trip>
   <atom spelling="p" exemplar="crip" /><atom spelling="pʷ" /><atom spelling="pʰ" exemplar="pampa" /><atom spelling="pʲ" />

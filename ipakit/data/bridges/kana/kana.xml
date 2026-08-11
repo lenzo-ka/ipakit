@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<vocabulary name="kana" version="1" provenance="ipakit attested gairaigo fixtures" tier="mora" source-style="segmented">
+<vocabulary name="kana" version="1" provenance="ipakit attested gairaigo fixtures" tier="mora" source-style="segmented" separator=" ">
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report"><drop name="forms outside the attested gairaigo inventory" /></house-to-external>

@@ -13,13 +13,19 @@ _PATH = Path(__file__).parent.parent / "data" / "bridges" / "mfa" / "mfa.xml"
 
 @dataclass(frozen=True)
 class MFADictionaryEntry:
+    """A word, its grouped MFA form, and the dictionary's word separator."""
+
     word: str
     form: Form
     separator: str = "\t"
 
 
 class MFABridge(VocabularyBridge):
+    """The declared English MFA v3.1.0 vocabulary and dictionary syntax."""
+
     def __init__(self) -> None:
+        """Load the shipped English MFA vocabulary declaration."""
+
         super().__init__(_PATH)
 
     def read_tokens(self, labels: list[str] | tuple[str, ...]) -> Form:
@@ -40,6 +46,8 @@ class MFABridge(VocabularyBridge):
         return MFADictionaryEntry(word, self.read(pronunciation.split()), separator)
 
     def emit_dictionary_line(self, entry: MFADictionaryEntry) -> str:
+        """Emit one entry in MFA's word-plus-segmented-phones syntax."""
+
         return entry.word + entry.separator + self.emit(entry.form, separator=" ")
 
 

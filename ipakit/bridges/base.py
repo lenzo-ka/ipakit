@@ -16,6 +16,8 @@ class Fidelity(StrEnum):
 
 @dataclass(frozen=True)
 class RoundTripLeg:
+    """A declared fidelity classification for one direction of a bridge."""
+
     direction: str
     fidelity: Fidelity
     drops: tuple[str, ...] = ()
@@ -24,6 +26,8 @@ class RoundTripLeg:
 
 @dataclass(frozen=True)
 class RoundTripReport:
+    """The declared classifications of both directions through a bridge."""
+
     external_to_house: RoundTripLeg
     house_to_external: RoundTripLeg
 
