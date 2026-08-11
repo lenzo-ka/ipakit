@@ -156,12 +156,18 @@ class VocabularyBridge(Bridge):
                     f"{self.name} vocabulary atom {position} has no spelling"
                 )
             kind = item.attrib.get("kind", "unit")
-            probe = spelling + "a" if kind == "prefix" else spelling
+            probe = (
+                spelling + "a"
+                if kind == "prefix"
+                else "a" + spelling if kind == "mark" else spelling
+            )
             try:
                 Form.parse(probe, strict=True)
             except ValueError as error:
                 qualification = (
-                    "a house IPA prefix" if kind == "prefix" else "house IPA"
+                    "a house IPA prefix"
+                    if kind == "prefix"
+                    else "a trailing house IPA mark" if kind == "mark" else "house IPA"
                 )
                 raise ValueError(
                     f"{self.name} vocabulary atom {position} spelling "
@@ -369,9 +375,23 @@ class VocabularyBridge(Bridge):
         ]
         cursor = 0
         prefixes: list[Atom] = []
+        prior_group = None
         for atom in atoms:
             if atom.kind == "prefix":
                 prefixes.append(atom)
+                continue
+            if atom.kind == "mark":
+                if prior_group is None:
+                    raise VocabularyResidueError(
+                        f"{self.name} vocabulary trailing mark {atom.output!r} "
+                        "has no preceding unit"
+                    )
+                event = builder._pending(prior_group)
+                event.features = {
+                    **event.features,
+                    "atom": str(event.features["atom"]) + atom.spelling,
+                    "output": str(event.features["output"]) + atom.output,
+                }
                 continue
             width = len(Form.parse(atom.spelling, strict=True).units)
             grouped_spelling = (
@@ -397,6 +417,7 @@ class VocabularyBridge(Bridge):
                 duration=duration,
             )
             builder.contain(parent, (handle for _, handle in owned), relation="groups")
+            prior_group = parent
             cursor += width
             prefixes.clear()
         return Form._from_graph(builder.build(), spelling=ipa)
