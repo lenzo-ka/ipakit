@@ -134,10 +134,25 @@ def _parse_query(
             f"{spec!r} must contain exactly one '_' marking the target site"
         )
     before, after = environment.split("_")
+    context_items = (*rules._items(before), *rules._items(after))
+    if any(item.strip() in rules.NULL for item in context_items):
+        raise rules.RuleError(
+            f"{spec!r} names a null in its environment. An environment names "
+            "what stands there, and nothing stands at a deletion site; if "
+            "zero-width context was meant, spell it with an optional element "
+            "'(X)'."
+        )
     left = tuple(
         reversed([rules._pattern(item, inventory) for item in rules._items(before)])
     )
     right = tuple(rules._pattern(item, inventory) for item in rules._items(after))
+    if any(pattern.literal in inventory.zeros for pattern in (*left, *right)):
+        raise rules.RuleError(
+            f"{spec!r} names a null in its environment. An environment names "
+            "what stands there, and nothing stands at a deletion site; if "
+            "zero-width context was meant, spell it with an optional element "
+            "'(X)'."
+        )
     _check_query_variables(spec, (target, *left, *right))
     return Query(target, left, right)
 
