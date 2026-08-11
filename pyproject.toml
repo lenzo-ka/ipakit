@@ -86,10 +86,10 @@ ipakit = [
     "data/bridges/*.rng",
     "data/rules/*.rules",
     "data/*.json",
-    # Not under data/: everything there is read by the library to compute an
-    # answer, and each document has a grammar beside it stating its shape. The
-    # notebook is read by nothing -- it is handed to a student, copied out of
-    # the install by `ipakit notebook` -- so it travels in a place of its own.
+    "data/attested/*.json",
+    # Attested data are read by validation rather than by the runtime. The
+    # notebook is also read by nothing -- it is handed to a student, copied
+    # out of the install by `ipakit notebook` -- so it travels separately.
     "notebooks/*.ipynb",
     "py.typed",
 ]
