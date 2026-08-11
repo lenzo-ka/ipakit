@@ -27,7 +27,9 @@ len(form.units), len(form.to_ipa())
 The tie makes `t͡ʃ` one unit, and the nasal mark stays on its `a`. Unicode needs
 more than one character to spell each of them; the representation already
 knows where the segments are. This is the [house-style convention for tied
-units](house-style.md#ties-are-units).
+units](house-style.md#ties-are-units). `read` also canonicalizes the Unicode
+itself (decomposed form), so a precomposed `ã` typed at the keyboard comes
+back as `a` plus its combining mark — the same segments, spelled one way.
 
 ## 2. Ask questions
 
