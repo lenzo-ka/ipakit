@@ -70,6 +70,9 @@ class Feature:
     # "median" means the articulator closes toward the tract axis rather than
     # toward a wall; `offset` models the one-sided case. Rendering geometry.
     apertures: dict[str, str] = field(default_factory=dict)
+    # View-neutral lip controls declared per feature value.  Kept beside the
+    # other rendering coordinates and never consulted by the metric.
+    lip_dofs: dict[str, dict[str, float]] = field(default_factory=dict)
     # Contribution mode a mark stating this feature makes (docs/ties.md),
     # declared in the data. None means the mode vocabulary's default.
     mode: str | None = None

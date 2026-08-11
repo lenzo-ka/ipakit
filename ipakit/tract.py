@@ -866,6 +866,20 @@ class Posture:
     glottal: float | None
     secondary: tuple[Mark, ...]
     unmodelled: tuple[Mark, ...]
+    aperture_width: float = 1.0
+    protrusion: float = 0.0
+
+
+def _lip_posture(features: IPAFeatures, bundle: dict[str, str]) -> tuple[float, float]:
+    """Read the declared transverse width and protrusion controls."""
+    feature = features.features.get("rounded")
+    value = bundle.get("rounded")
+    dofs = (
+        feature.lip_dofs.get(value, {})
+        if feature is not None and value is not None
+        else {}
+    )
+    return dofs.get("width", 1.0), dofs.get("protrusion", 0.0)
 
 
 def landmarks(features: IPAFeatures) -> Landmarks:
@@ -1175,7 +1189,11 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
             name in read or name in glottal or name in features.secondary_places
         ):
             continue
-        if (name, value) in ported or feat.mode == "structural":
+        if (
+            (name, value) in ported
+            or feat.mode == "structural"
+            or value in feat.lip_dofs
+        ):
             continue
         if name in approximated:
             kind = "approximate"
@@ -1467,6 +1485,7 @@ def posture(
     h = head_shape if head_shape is not None else head()
     bundle = features.get_features(phone)
     stated = features.get_features(phone, with_defaults=False)
+    aperture_width, protrusion = _lip_posture(features, bundle)
     return Posture(
         reading=tract_point(features, bundle),
         rest=h.rest.point if h.rest is not None else None,
@@ -1475,6 +1494,8 @@ def posture(
         glottal=glottal_aperture(features, bundle),
         secondary=secondary_marks(features, bundle),
         unmodelled=unmodelled(features, stated),
+        aperture_width=aperture_width,
+        protrusion=protrusion,
     )
 
 
@@ -1650,6 +1671,10 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     )
 
     velic = sum(weights[i] * u.velic for i, u in enumerate(units)) / total
+    aperture_width = (
+        sum(weights[i] * u.aperture_width for i, u in enumerate(units)) / total
+    )
+    protrusion = sum(weights[i] * u.protrusion for i, u in enumerate(units)) / total
     glottal = (
         sum(
             weights[i] * (GLOTTAL_REST if u.glottal is None else u.glottal)
@@ -1666,6 +1691,8 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         glottal=glottal,
         secondary=dominant.secondary,
         unmodelled=dominant.unmodelled,
+        aperture_width=aperture_width,
+        protrusion=protrusion,
     )
 
 
@@ -1683,6 +1710,8 @@ def _track_parameters() -> tuple[str, ...]:
         "glottal",
         "secondary",
         "unmodelled",
+        "aperture_width",
+        "protrusion",
     )
 
 
@@ -1712,6 +1741,8 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "secondary": [_mark_data(mark) for mark in value.secondary],
         "unmodelled": [_mark_data(mark) for mark in value.unmodelled],
         "velic": value.velic,
+        "aperture_width": value.aperture_width,
+        "protrusion": value.protrusion,
     }
 
 
@@ -1756,6 +1787,8 @@ def _posture_from_data(value: Any) -> Posture:
         glottal=value["glottal"],
         secondary=tuple(_mark_from_data(mark) for mark in value["secondary"]),
         unmodelled=tuple(_mark_from_data(mark) for mark in value["unmodelled"]),
+        aperture_width=value["aperture_width"],
+        protrusion=value["protrusion"],
     )
 
 

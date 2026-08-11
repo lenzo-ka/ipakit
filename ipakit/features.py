@@ -305,6 +305,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 coordinates: dict[str, dict[str, float]] = {}
                 articulators: dict[str, str] = {}
                 value_apertures: dict[str, str] = {}
+                lip_dofs: dict[str, dict[str, float]] = {}
                 # Read out of every <value>, typed or not: a typed feature
                 # takes its value *set* from the type, but it may still say
                 # how its values read and what classes they belong to.
@@ -318,6 +319,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         labels[val_name] = label
                     if (sign := v.get("move")) is not None:
                         moves[val_name] = sign
+                    lip = {
+                        attr.replace("lip-", ""): float(raw)
+                        for attr in ("lip-width", "lip-protrusion")
+                        if (raw := v.get(attr)) is not None
+                    }
+                    if lip:
+                        lip_dofs[val_name] = lip
                     for cls in (v.get("natural-class") or "").split():
                         classes.setdefault(cls, set()).add(val_name)
                 if feat_type in self.types:
@@ -398,6 +406,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     coordinates = {v: dict(c) for v, c in source.coordinates.items()}
                     articulators = dict(source.articulators)
                     value_apertures = dict(source.apertures)
+                    lip_dofs = {v: dict(x) for v, x in source.lip_dofs.items()}
                     classes = {k: set(v) for k, v in source.value_classes.items()}
                 # Use feature default, or fall back to type default
                 default = feat_elem.get("default") or self._type_defaults.get(feat_type)
@@ -420,6 +429,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     coordinates=coordinates,
                     articulators=articulators,
                     apertures=value_apertures,
+                    lip_dofs=lip_dofs,
                     mode=mode,
                     place=feat_elem.get("place"),
                     constriction=feat_elem.get("constriction"),
