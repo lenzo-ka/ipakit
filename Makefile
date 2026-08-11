@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial notebook house-style lint check
+.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style lint check
 
 ## figures: redraw the mid-sagittal tract figures in docs/
 figures:
@@ -37,6 +37,10 @@ figures-clean:
 # same reason it is pinned for invariants.py -- `check` compares bytes.
 tutorial:
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py build markdown
+
+## tutorial-basics: regenerate the executable newcomer tutorial
+tutorial-basics:
+	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py build basics
 
 ## notebook: regenerate the tutorial notebook that ships in the package
 # The same source and the same parse as `tutorial`, emitted as cells with no
