@@ -249,9 +249,3 @@ def test_checked_in_timed_two_pane_player_is_current() -> None:
     assert (FIGURES / "two-pane-timed.html").read_text(
         encoding="utf-8"
     ) == animate_two_pane(timed) + "\n"
-
-
-def test_checked_in_kat_two_pane_player_is_current() -> None:
-    assert (FIGURES / "two-pane-kat.html").read_text(
-        encoding="utf-8"
-    ) == animate_two_pane("kat", frames_per_unit=4) + "\n"

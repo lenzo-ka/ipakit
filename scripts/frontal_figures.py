@@ -36,9 +36,6 @@ def main() -> int:
     (FIGURES / "two-pane-timed.html").write_text(
         animate_two_pane(timed) + "\n", encoding="utf-8"
     )
-    (FIGURES / "two-pane-kat.html").write_text(
-        animate_two_pane("kat", frames_per_unit=4) + "\n", encoding="utf-8"
-    )
     return 0
 
 
