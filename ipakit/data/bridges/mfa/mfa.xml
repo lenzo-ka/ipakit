@@ -3,11 +3,14 @@
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report">
-      <drop name="declared future mapper loss: ties and simultaneity absent from MFA spellings" />
-      <drop name="declared future mapper loss: narrow detail outside the MFA English inventory" />
-      <drop name="declared future mapper loss: house unit boundaries collapsed by MFA atom grouping" />
+      <drop name="ties and simultaneity absent from MFA spellings" />
+      <drop name="narrow detail outside the MFA English inventory" />
+      <drop name="house unit boundaries collapsed by MFA atom grouping" />
     </house-to-external>
   </round-trip>
+  <mapper tie-drop="ties and simultaneity absent from MFA spellings" boundary-drop="house unit boundaries collapsed by MFA atom grouping">
+    <reduction source="n̪" target="n" drop="narrow detail outside the MFA English inventory" />
+  </mapper>
   <atom spelling="p" exemplar="crip" /><atom spelling="pʷ" /><atom spelling="pʰ" exemplar="pampa" /><atom spelling="pʲ" />
   <atom spelling="kp" /><atom spelling="b" exemplar="buys" /><atom spelling="bʲ" /><atom spelling="ɡb" />
   <atom spelling="f" exemplar="frown" /><atom spelling="fʷ" /><atom spelling="fʲ" /><atom spelling="v" exemplar="vonda" /><atom spelling="vʷ" /><atom spelling="vʲ" />

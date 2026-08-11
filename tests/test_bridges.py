@@ -1,8 +1,14 @@
+import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-from ipakit.bridges import Fidelity, VocabularyBridge, VocabularyResidueError
+from ipakit.bridges import (
+    Fidelity,
+    ProjectionDrop,
+    VocabularyBridge,
+    VocabularyResidueError,
+)
 from ipakit.bridges.kana import KANA
 from ipakit.bridges.mfa import MFA
 from ipakit.bridges.pinyin import PINYIN
@@ -71,10 +77,66 @@ def test_mfa_round_trip_classification_names_house_drops() -> None:
     ours = MFA.round_trip.house_to_external
     assert ours.fidelity is Fidelity.LOSSY_WITH_REPORT
     assert ours.drops == (
-        "declared future mapper loss: ties and simultaneity absent from MFA spellings",
-        "declared future mapper loss: narrow detail outside the MFA English inventory",
-        "declared future mapper loss: house unit boundaries collapsed by MFA atom grouping",
+        "ties and simultaneity absent from MFA spellings",
+        "narrow detail outside the MFA English inventory",
+        "house unit boundaries collapsed by MFA atom grouping",
     )
+
+
+@pytest.mark.parametrize(
+    ("house", "emitted", "name", "span"),
+    [
+        (
+            "t͡ʃ",
+            "tʃ",
+            "ties and simultaneity absent from MFA spellings",
+            (0, 1),
+        ),
+        (
+            "n̪",
+            "n",
+            "narrow detail outside the MFA English inventory",
+            (0, 1),
+        ),
+        (
+            "aj",
+            "aj",
+            "house unit boundaries collapsed by MFA atom grouping",
+            (0, 2),
+        ),
+    ],
+)
+def test_mfa_mapper_exercises_each_declared_drop(
+    house: str, emitted: str, name: str, span: tuple[int, int]
+) -> None:
+    mapped = MFA.map_to_mfa(Form.parse(house, strict=True))
+    assert MFA.emit(mapped) == emitted
+    assert mapped.form.to_ipa() == house
+    assert mapped.report.drops == (ProjectionDrop(name, span, house, emitted),)
+
+
+def test_mfa_mapper_no_drop_form_has_empty_serializable_report() -> None:
+    mapped = MFA.map_to_mfa(Form.parse("pat", strict=True))
+    assert MFA.emit(mapped) == "p a t"
+    assert mapped.report.drops == ()
+    encoded = json.loads(mapped.to_json())
+    assert encoded["report"] == {"drops": []}
+    assert [unit["text"] for unit in encoded["form"]["units"]] == ["p", "a", "t"]
+
+
+@pytest.mark.parametrize(
+    ("house", "message"),
+    [
+        ("n̥", r"span \[0:1\]: 'n̥'"),
+        ("x", r"span \[0:1\]: 'x'"),
+        ("", r"span \[0:0\]: ''"),
+    ],
+)
+def test_mfa_mapper_refuses_undeclared_or_empty_residue_positioned(
+    house: str, message: str
+) -> None:
+    with pytest.raises(VocabularyResidueError, match=message):
+        MFA.map_to_mfa(Form.parse(house, strict=True))
 
 
 def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:
