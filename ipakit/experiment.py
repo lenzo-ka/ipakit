@@ -131,6 +131,58 @@ class ExperimentReport:
     def write(self, path: str | Path) -> None:
         Path(path).write_text(self.to_json(), encoding="utf-8")
 
+    @classmethod
+    def from_dict(cls, document: dict[str, Any]) -> ExperimentReport:
+        """Restore a report document, refusing another type or version."""
+        if document.get("type") != "ipakit.experiment.report":
+            raise ValueError("not an ipakit experiment report")
+        if document.get("v") != REPORT_VERSION:
+            raise ValueError(
+                f"unsupported experiment report version {document.get('v')!r}"
+            )
+        try:
+            rows = tuple(
+                Residue(
+                    row["entry_id"],
+                    row["classification"],
+                    row["source"],
+                    row["target"],
+                    row.get("reason"),
+                )
+                for row in document["entries"]
+            )
+            if any(
+                row.classification
+                not in (
+                    "derivable",
+                    "provably_underivable",
+                    "cap_truncated",
+                    "ill_formed_input",
+                )
+                for row in rows
+            ):
+                raise ValueError("unknown experiment classification")
+            return cls(
+                document["provenance"],
+                document["source_role"],
+                document["target_role"],
+                document["limit"],
+                rows,
+            )
+        except (KeyError, TypeError) as exc:
+            raise ValueError("malformed experiment report") from exc
+
+    @classmethod
+    def from_json(cls, text: str) -> ExperimentReport:
+        value = json.loads(text)
+        if not isinstance(value, dict):
+            raise ValueError("experiment report must be a JSON object")
+        return cls.from_dict(value)
+
+    @classmethod
+    def read(cls, path: str | Path) -> ExperimentReport:
+        return cls.from_json(Path(path).read_text(encoding="utf-8"))
+
 
 @dataclass(frozen=True)
 class Experiment:

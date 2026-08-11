@@ -43,6 +43,7 @@ def test_experiment_classifies_serializes_and_compares(tmp_path: Path):
     assert document["provenance"]["rule_set"]["name"] == "assimilation"
     assert document["provenance"]["corpus"].startswith("sha256:")
     assert document["entries"][1]["source"] == "ant"
+    assert ipakit.ExperimentReport.from_json(report.to_json()) == report
 
     identity = ipakit.RuleSet.parse("", name="identity")
     other = ipakit.Experiment(
