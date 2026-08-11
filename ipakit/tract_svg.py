@@ -323,7 +323,7 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
             }:
                 x = 0.5 + (x - 0.5) * width
             if carrier == "mandible":
-                y += gap * 0.55
+                y += gap * (0.15 if name == "tongue" else 0.55)
             if name in {"upper-lip", "lower-lip"}:
                 y += (y - 0.62) * p.protrusion * 0.18
             points.append((x, y))

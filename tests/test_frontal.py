@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -14,6 +16,8 @@ from ipakit.tract_svg import (
     frontal_figure,
     frontal_svg,
 )
+
+from tests.test_tract_figures import _differing, _pixels
 
 FIGURES = Path(__file__).resolve().parent.parent / "docs" / "figures"
 
@@ -60,6 +64,27 @@ def test_open_vowel_exposes_carried_interior(ipa: IPAFeatures) -> None:
     assert "f-aperture" in svg
     assert "f-tongue" in svg
     assert "f-upper-teeth" in svg
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@pytest.mark.parametrize(
+    ("phone", "layer", "minimum"),
+    [
+        ("m", "tongue", 0),
+        ("a", "tongue", 100),
+        ("m", "upper-teeth", 0),
+        ("a", "upper-teeth", 100),
+    ],
+)
+def test_frontal_occlusion_by_changed_pixels(
+    phone: str, layer: str, minimum: int, tmp_path: Path
+) -> None:
+    svg = frontal_figure(phone)
+    without = re.sub(rf'<path\b[^>]*class="f-{re.escape(layer)}"[^>]*/>', "", svg)
+    width, before = _pixels(svg, tmp_path / "with.svg", width=760)
+    _, after = _pixels(without, tmp_path / "without.svg", width=760)
+    changed = len(_differing(width, before, after))
+    assert changed == 0 if minimum == 0 else changed >= minimum
 
 
 def test_frontal_css_vocabulary_is_scoped() -> None:
