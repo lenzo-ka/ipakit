@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<syllabification language="spanish" version="1" mode="constraints" provenance="Spanish margins derived without an attestation list: any single consonant and an obstruent followed by a tap, trill, or lateral are licit onsets; tied vowel sequences are one nucleus and untied vowels are separate nuclei.">
+  <nucleus span="[vowel]" />
+  <onset span="[-vowel]" />
+  <onset span="[obstruent] [manner=tap]" />
+  <onset span="[obstruent] [manner=trill]" />
+  <onset span="[obstruent] [channel=lateral]" />
+</syllabification>

@@ -1352,6 +1352,9 @@ LIBRARY_ONLY = {
     # of the shipped supplements have anything to say there.
     "available_supplements": "the CLI reads the shipped inventory only",
     "supplement_path": "the CLI reads the shipped inventory only",
+    "languages": "returns the declarations available to Python callers",
+    "syllabifier": "constructs a reusable Form-to-Intervals callable",
+    "syllabify": "returns structured intervals and conflict objects",
     # Reference URLs are for programs and documents; 'describe' already
     # prints the human-facing account of a phone.
     "wiki": "returns a URL for programs; 'describe' speaks to people",

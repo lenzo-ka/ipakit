@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start><ref name="language" /></start>
+  <define name="language">
+    <element name="syllabification">
+      <attribute name="language"><text /></attribute>
+      <attribute name="version"><data type="positiveInteger" /></attribute>
+      <attribute name="mode"><choice><value>constraints</value><value>enumerated</value><value>moraic</value></choice></attribute>
+      <attribute name="provenance"><text /></attribute>
+      <oneOrMore>
+        <choice>
+          <element name="nucleus"><attribute name="span"><text /></attribute><empty /></element>
+          <element name="onset"><attribute name="span"><text /></attribute><empty /></element>
+          <element name="coda"><attribute name="span"><text /></attribute><empty /></element>
+          <element name="mora"><attribute name="span"><text /></attribute><empty /></element>
+          <element name="inventory"><attribute name="source"><text /></attribute><empty /></element>
+          <element name="syllable"><attribute name="ipa"><text /></attribute><optional><attribute name="spelling"><text /></attribute></optional><empty /></element>
+        </choice>
+      </oneOrMore>
+    </element>
+  </define>
+</grammar>

@@ -13,6 +13,7 @@
       <zeroOrMore><choice><ref name="input" /><ref name="tone" /></choice></zeroOrMore>
       <zeroOrMore><ref name="refusal" /></zeroOrMore>
       <oneOrMore><ref name="atom" /></oneOrMore>
+      <zeroOrMore><ref name="syllable" /></zeroOrMore>
     </element>
   </start>
 
@@ -81,6 +82,13 @@
       <optional><attribute name="kind"><choice><value>unit</value><value>prefix</value><value>mark</value></choice></attribute></optional>
       <optional><attribute name="exemplar"><text /></attribute></optional>
       <optional><attribute name="notes"><text /></attribute></optional>
+    </element>
+  </define>
+
+  <define name="syllable">
+    <element name="syllable">
+      <attribute name="spelling"><text /></attribute>
+      <attribute name="ipa"><text /></attribute>
     </element>
   </define>
 </grammar>

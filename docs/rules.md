@@ -759,6 +759,8 @@ ipa.rewrite("ətˈæk",  asp)   # 'ətˈæk'    -- margin unspecified, so no cla
 
 This is deliberate. The alternative — treating absence as "one syllable" — invents structure the transcription never asserted.
 
+When a language has made the missing claims, the [syllabifier mechanism](syllabification.md) derives primary intervals and reports conflicts with written marks rather than making a margin-conditioned rewrite guess.
+
 ## From a shell
 
 `ipakit rules` is the notation above with no Python around it. Rules come from exactly one of `-r NOTATION` (repeatable, and repeats are an *ordered* cascade), `-s NAME` (a shipped set) or `--file FILE`. Forms are positional, or one per line on stdin when none are given.
