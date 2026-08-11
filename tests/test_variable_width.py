@@ -165,6 +165,29 @@ class TestGeneralQuantifiers:
         assert "quantifiers require parentheses" in str(caught.value)
 
     @pytest.mark.parametrize(
+        "bad", ["(t)**", "(t)?*", "(t)+*", "(t){2}*", "(t){1,2}*", "(t)*{2}"]
+    )
+    def test_stacked_quantifiers_are_positioned_refusals(self, bad):
+        with pytest.raises(rules.RuleError, match="stacks a quantifier at position"):
+            rules.parse(f"a -> d / _ {bad}", FEATURES)
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(f"a / _ {bad}", FEATURES)
+        assert "stacks a quantifier" in str(caught.value)
+
+    @pytest.mark.parametrize("bad", ["[voiced=+]*", "t{voiced=+}*"])
+    def test_adjacent_quantifiers_on_bare_elements_are_refused(self, bad):
+        with pytest.raises(rules.RuleError, match="quantifiers require parentheses"):
+            rules.parse(f"a -> d / _ {bad}", FEATURES)
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(f"a / _ {bad}", FEATURES)
+        assert "quantifiers require parentheses" in str(caught.value)
+
+    def test_whitespace_separates_a_group_from_a_wildcard_deliberately(self):
+        rule = rules.parse("a -> e / (t) * _", FEATURES)
+        assert rule is not None
+        assert corpus_query.parse_query("a / (t) * _", FEATURES) is not None
+
+    @pytest.mark.parametrize(
         "target", ["(t)?", "(t)+", "(t){2}", "(t){2,}", "(t){,2}", "(t){1,2}"]
     )
     def test_every_quantified_target_is_positioned_and_refused(self, target):

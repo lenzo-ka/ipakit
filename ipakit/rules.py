@@ -3346,7 +3346,18 @@ def _items(text: str) -> list[str]:
     out: list[str] = []
     buffer = ""
     depth = 0
+    guard = -1
     for offset, char in enumerate(text):
+        if offset == guard and char in "*+?{":
+            if out and out[-1].startswith("("):
+                raise RuleError(
+                    f"{text!r} stacks a quantifier at position {offset}; "
+                    f"a group takes one quantifier"
+                )
+            raise RuleError(
+                f"{text!r} applies a quantifier to a bare element at position "
+                f"{offset}; quantifiers require parentheses"
+            )
         if char in _GROUPS:
             if (
                 depth == 0
@@ -3374,9 +3385,11 @@ def _items(text: str) -> list[str]:
         ):
             out.append(buffer.strip())
             buffer = ""
+            guard = offset + 1
         elif depth == 0 and char in "*+?" and buffer.startswith("("):
             out.append(buffer.strip())
             buffer = ""
+            guard = offset + 1
     if depth:
         raise RuleError(f"unbalanced grouping in {text!r}")
     if buffer.strip():
