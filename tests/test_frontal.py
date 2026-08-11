@@ -61,6 +61,16 @@ def test_shut_mouth_leaks_no_interior(ipa: IPAFeatures) -> None:
     assert "f-upper-teeth" not in svg
 
 
+def test_declared_rest_seals_untimed_animation_bookends(ipa: IPAFeatures) -> None:
+    h = head()
+    marks = landmarks(ipa)
+    track = trajectory("kat", head=h, frames_per_unit=4)
+    for frame in (track.frames[0], track.frames[-1]):
+        geometry = build_frontal_geometry(h, marks, frame)
+        assert geometry["closed"]
+        assert "f-aperture" not in frontal_svg(geometry)
+
+
 def test_open_vowel_exposes_carried_interior(ipa: IPAFeatures) -> None:
     h = head()
     svg = frontal_svg(build_frontal_geometry(h, landmarks(ipa), posture(ipa, "a", h)))
@@ -146,6 +156,33 @@ def test_frontal_occlusion_by_changed_pixels(
     assert changed == 0 if minimum == 0 else changed >= minimum
 
 
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_apical_closure_lifts_visible_tongue_between_teeth(
+    tmp_path: Path,
+) -> None:
+    def visible_tongue(phone: str) -> list[tuple[int, int]]:
+        svg = frontal_figure(phone)
+        without = re.sub(r'<path\b[^>]*class="f-tongue"[^>]*/>', "", svg)
+        width, before = _pixels(svg, tmp_path / f"{phone}-with.svg", width=760)
+        _, after = _pixels(without, tmp_path / f"{phone}-without.svg", width=760)
+        return _differing(width, before, after)
+
+    tip, low = visible_tongue("t"), visible_tongue("a")
+    assert len(tip) >= 100
+    assert len(low) >= 100
+    assert max(y for _, y in tip) < min(y for _, y in low)
+
+
+def test_chin_is_declared_shallow_and_mandible_carried() -> None:
+    for head_name in heads():
+        h = head(head_name)
+        name, carrier, _arc, points = next(c for c in h.frontal if c[0] == "chin")
+        assert name == "chin" and carrier == "mandible"
+        assert len(points) >= 5
+        assert points[0] == (0.243, 0.62) and points[-1] == (0.757, 0.62)
+        assert points[2][1] - min(points[1][1], points[3][1]) <= 0.02
+
+
 def test_frontal_css_vocabulary_is_scoped() -> None:
     svg = frontal_figure("a")
     classes = [
@@ -160,16 +197,35 @@ def test_frontal_css_vocabulary_is_scoped() -> None:
 def test_two_pane_page_is_one_self_contained_trajectory() -> None:
     page = animate_two_pane("kat", frames_per_unit=2)
     assert page.count('id="scrub"') == 1
-    assert page.count(".f-face{") == 1
+    assert ".f-face{" not in page and "f-eyes" not in page
     assert "http://" not in page and "https://" not in page
     assert "Mid-sagittal tract section" in page
     assert "Frontal tract view" in page
+
+
+def test_timed_player_adds_marked_rest_ramps_without_touching_track() -> None:
+    builder = FormBuilder()
+    handles = builder.append_ipa("a")
+    builder.attach_timing(handles[0], 0.1, 0.4)
+    track = trajectory(builder.build(), head=head(), fps=20)
+    encoded = track.to_track()
+    page = animate_two_pane(track)
+    assert track.to_track() == encoded
+    assert page.count('data-phase="lead-in"') == 4
+    assert page.count('data-phase="lead-out"') == 4
+    starts = [match.start() for match in re.finditer(r'<div class="frame', page)]
+    first = page[starts[0] : starts[1]]
+    lead = page[starts[0] : starts[4]]
+    assert "f-aperture" not in first
+    assert "f-aperture" in lead
 
 
 @pytest.mark.parametrize(
     ("filename", "phone"),
     [
         ("frontal-reference.svg", None),
+        ("frontal-rest.svg", "␣"),
+        ("frontal-t.svg", "t"),
         ("frontal-a.svg", "a"),
         ("frontal-i.svg", "i"),
         ("frontal-m.svg", "m"),
@@ -193,3 +249,9 @@ def test_checked_in_timed_two_pane_player_is_current() -> None:
     assert (FIGURES / "two-pane-timed.html").read_text(
         encoding="utf-8"
     ) == animate_two_pane(timed) + "\n"
+
+
+def test_checked_in_kat_two_pane_player_is_current() -> None:
+    assert (FIGURES / "two-pane-kat.html").read_text(
+        encoding="utf-8"
+    ) == animate_two_pane("kat", frames_per_unit=4) + "\n"
