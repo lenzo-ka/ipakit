@@ -307,11 +307,13 @@ def _cut_positions(word: str) -> list[int]:
     So the unit boundaries are the cut positions, by construction.
     """
     units = R.units(word, FEATURES)
-    assert "".join(u.text for u in units) == word, word
+    assert (
+        "".join(u.spelling if u.spelling is not None else u.text for u in units) == word
+    ), word
     offsets: list[int] = []
     at = 0
     for unit in units:
-        at += len(unit.text)
+        at += len(unit.spelling if unit.spelling is not None else unit.text)
         if 0 < at < len(word):
             offsets.append(at)
     return offsets

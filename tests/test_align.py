@@ -29,7 +29,7 @@ def _recorded_form() -> Form:
 
 def test_recorded_alignment_maps_through_cmu_and_uses_decoder_frame_rate() -> None:
     form = _recorded_form()
-    assert form.to_ipa() == "hɛlo͜ʊwɚld"
+    assert form.to_ipa() == "hɛlo͜ʊ#wɚld"
     assert [unit.timing for unit in form.units[:3]] == [
         Timing(0.0, 0.07),
         Timing(0.07, 0.07),
@@ -39,7 +39,7 @@ def test_recorded_alignment_maps_through_cmu_and_uses_decoder_frame_rate() -> No
         (span.tier, span.start, span.end, span.timing) for span in form.intervals
     ] == [
         ("word", 0, 4, Timing(0.0, 0.33)),
-        ("word", 4, 8, Timing(0.33, 0.4)),
+        ("word", 5, 9, Timing(0.33, 0.4)),
     ]
 
 
@@ -94,7 +94,7 @@ def test_live_alignment_is_ordered_mapped_and_inside_audio() -> None:
     ]
     assert words == ["hello", "world"]
     timings = [unit.timing for unit in form.units]
-    assert all(timing is not None for timing in timings)
+    assert sum(timing is None for timing in timings) == 1
     held = [timing for timing in timings if timing is not None]
     assert all(
         a.start + a.duration <= b.start + 1e-12

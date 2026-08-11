@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from ._tiergraph import (
     Declarations,
     FeatureDeclaration,
@@ -10,6 +12,22 @@ from ._tiergraph import (
     TierDeclaration,
 )
 from ._tiergraph_builder import GraphBuilder
+
+
+@dataclass(frozen=True)
+class PinyinDialect:
+    """Declared spellings accepted at the Pinyin input boundary."""
+
+    input_encodings: tuple[tuple[str, str], ...] = (("u:", "ü"), ("v", "ü"))
+
+
+BASE_PINYIN = PinyinDialect()
+
+
+def _decode_input(value: str, dialect: PinyinDialect) -> str:
+    for source, target in dialect.input_encodings:
+        value = value.replace(source, target)
+    return value
 
 
 def declarations() -> Declarations:
@@ -52,7 +70,11 @@ def build(
     *,
     ipa: object | None = None,
     referenced: bool = False,
+    dialect: PinyinDialect = BASE_PINYIN,
 ) -> Graph:
+    spelling = _decode_input(spelling, dialect)
+    onset = _decode_input(onset, dialect)
+    rhyme = _decode_input(rhyme, dialect)
     builder = GraphBuilder(declarations())
     syllable = builder.append_input_atom(
         "syllable",

@@ -16,6 +16,7 @@ from typing import Any
 from . import _corpus
 from ._cmu_graph import BASE_CMUDICT, POCKETSPHINX, CMUDialect
 from ._cmu_graph import read as read_cmu
+from ._tiergraph_builder import PositionHandle
 from .features import IPAFeatures
 from .form import Form, FormBuilder
 from .mapper import CMUMapper
@@ -73,7 +74,17 @@ def _form_from_alignment(
     mapper = CMUMapper()
     previous_end = 0
     word_index = 0
+    lexical_words = []
     for raw_word in words:
+        phones = raw_word.get("phones")
+        if isinstance(phones, Sequence) and not isinstance(phones, (str, bytes)):
+            normalized = [_phone_token(str(item["phone"]), profile) for item in phones]
+            bases = {token.rstrip("0123456789") for token in normalized}
+            if bases and bases <= profile.silence:
+                continue
+        lexical_words.append(raw_word)
+
+    for raw_word in lexical_words:
         label = str(raw_word["word"])
         start = int(raw_word["start"])
         duration = int(raw_word["duration"])
@@ -93,8 +104,15 @@ def _form_from_alignment(
         if not normalized:
             raise ValueError(f"alignment word {label!r} has no phones")
 
+        # Wordhood is both a lexical interval and the same untimed boundary
+        # unit a house transcription writes. It makes no acoustic-span claim.
+        if word_index:
+            builder.append_ipa("#", strict=True)
+
         word = builder.begin(
-            "word", {"spelling": label, "compatibility-interval": word_index}
+            "word",
+            {"spelling": label, "compatibility-interval": word_index},
+            start=(PositionHandle(builder.current_tick, 1) if word_index else None),
         )
         children = []
         phone_end = start
@@ -112,7 +130,10 @@ def _form_from_alignment(
             )
             children.append(handle)
             phone_end = phone_start + phone_duration
-        builder.end(word)
+        if word_index + 1 < len(lexical_words):
+            builder.end(word, PositionHandle(builder.current_tick, 0))
+        else:
+            builder.end(word)
         builder.contain(word, children)
         builder.attach_timing(word, start / frame_rate, duration / frame_rate)
         word_index += 1

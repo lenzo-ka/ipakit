@@ -3190,7 +3190,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # Structured segments (docs/ties.md; design spec)
     # -------------------------------------------------------------------------
 
-    def read(self, text: str | Form, strict: bool = False) -> Form:
+    def read(
+        self,
+        text: str | Form,
+        strict: bool = False,
+        *,
+        segmented: bool = False,
+        wild: bool = False,
+    ) -> Form:
         """Parse an IPA transcription into its canonical structured form.
 
         This is the lossless ingestion boundary.  Computation should carry
@@ -3203,9 +3210,43 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if isinstance(text, Form):
             return text
 
-        return Form.from_parsed(
-            text, self._parse_all(text, strict=strict), self, strict
-        )
+        if segmented:
+            words: list[str] = []
+            for line in text.splitlines():
+                inline: list[str] = []
+                for part in line.split("#"):
+                    tokens = part.split()
+                    if wild:
+                        tokens = [self.from_wild(token) for token in tokens]
+                    for token in tokens:
+                        try:
+                            parsed = self._parse_all(token, strict=True)
+                            form = Form.from_parsed(token, parsed, self, True)
+                        except ValueError as exc:
+                            raise ValueError(
+                                f"segmented token {token!r} is not house IPA: {exc}"
+                            ) from exc
+                        if not form.units or any(
+                            unit.segment is None for unit in form.units
+                        ):
+                            raise ValueError(
+                                f"segmented token {token!r} is not house IPA"
+                            )
+                    inline.append("".join(tokens))
+                words.extend(inline)
+            text = "#".join(words)
+        elif wild:
+            text = self.from_wild(text)
+
+        parsed = self._parse_all(text, strict=strict)
+        collapsed: list[tuple[str, list[str]]] = []
+        for token, marks in parsed:
+            if token.isspace() and collapsed and collapsed[-1][0].isspace():
+                previous, previous_marks = collapsed[-1]
+                collapsed[-1] = (previous + token, previous_marks + marks)
+            else:
+                collapsed.append((token, marks))
+        return Form.from_parsed(text, collapsed, self, strict)
 
     def read_json(self, data: str) -> Form:
         """Restore a canonical representation serialized by ``Form.to_json``."""

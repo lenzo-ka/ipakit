@@ -156,9 +156,15 @@ def load_ipa_features(
     return IPAFeatures(xml_path, supplements=supplements)
 
 
-def read(ipa_string: str, strict: bool = False) -> Form:
+def read(
+    ipa_string: str,
+    strict: bool = False,
+    *,
+    segmented: bool = False,
+    wild: bool = False,
+) -> Form:
     """Parse IPA once into the canonical, lossless internal representation."""
-    return _get_ipa().read(ipa_string, strict=strict)
+    return _get_ipa().read(ipa_string, strict=strict, segmented=segmented, wild=wild)
 
 
 def read_json(data: str) -> Form:

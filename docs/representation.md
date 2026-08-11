@@ -24,7 +24,7 @@ assert form.direct_children(form.roots[0]) == ("/clock/0/phrase/0",)
 assert form.leaves(form.roots[0]) == ("/clock/0/segment/0", "/clock/1/segment/0", "/clock/2/segment/0")
 ```
 
-Builder handles are opaque edit-time identities, while navigation returns canonical paths. After `build()`, use `roots`, `direct_children`, `descendants`, `leaves`, `parents`, and `ancestors` on `Form`; never retain or compare a handle to a path.
+Builder handles are opaque edit-time identities, while navigation returns canonical paths. After `build()`, use `roots`, `at`, `direct_children`, `descendants`, `leaves`, `parents`, and `ancestors` on `Form`; never retain or compare a handle to a path. `at(path)` dereferences the same canonical paths returned by navigation and recorded by matches.
 
 ## Tier-graph envelope
 

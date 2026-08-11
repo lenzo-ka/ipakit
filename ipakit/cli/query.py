@@ -45,6 +45,10 @@ class FindFormsCommand(Command):
         parser.add_argument("--exact", action="store_true")
         parser.add_argument("--column")
         parser.add_argument("--delimiter", default=None)
+        parser.add_argument(
+            "--segmented", action="store_true", help="read whitespace-delimited units"
+        )
+        parser.add_argument("--wild", action="store_true", help="normalize wild IPA")
 
     def _rows(self, source: str, stream: Any) -> list[_Input]:
         lines = stream.readlines()
@@ -96,10 +100,13 @@ class FindFormsCommand(Command):
         if not self.args.strings and not self.args.file:
             inputs.extend(self._rows("-", sys.stdin))
         for item in inputs:
+            utterance = self.ipa.read(
+                item.utterance, segmented=self.args.segmented, wild=self.args.wild
+            )
+            if self.args.segmented or self.args.wild:
+                print(f"input read as: {utterance.to_ipa()}", file=sys.stderr)
             matches = tuple(
-                getattr(corpus, "fi" + "nd")(
-                    item.utterance, interpreted, features=self.ipa
-                )
+                getattr(corpus, "fi" + "nd")(utterance, interpreted, features=self.ipa)
             )
             if self.args.filter:
                 if matches:

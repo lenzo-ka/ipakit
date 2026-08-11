@@ -110,12 +110,12 @@ class FormBuilder:
         tier: str,
         features: Mapping[str, Any] | None = None,
         *,
-        start: int | None = None,
+        start: Any | None = None,
     ) -> Any:
         """Begin an event whose structural extent ends with :meth:`end`."""
         return self._builder.begin(tier, features or {}, start=start)
 
-    def end(self, handle: Any, end: int | None = None) -> None:
+    def end(self, handle: Any, end: Any | None = None) -> None:
         """Close an event opened by :meth:`begin`."""
         self._builder.end(handle, end)
 
@@ -291,6 +291,8 @@ class Unit:
         default=cast(tuple[tuple[str, str, str], ...], _VIEW_ABSENT), compare=False
     )
     timing: Timing | None = None
+    #: Exact source glyph for a semantically canonicalized unit.
+    spelling: str | None = field(default=None, compare=False)
     _inventory: IPAFeatures | None = field(
         default=None, compare=False, hash=False, repr=False
     )
@@ -1149,7 +1151,7 @@ def units(
 
 def spell(items: Sequence[Unit]) -> str:
     """Join units back into one IPA string."""
-    return "".join(u.text for u in items)
+    return "".join(u.spelling if u.spelling is not None else u.text for u in items)
 
 
 class _CompatibilityProjection:
@@ -1439,7 +1441,6 @@ class Form:
         return (
             held_units if held_units is not None else self.units,
             held_intervals if held_intervals is not None else self.intervals,
-            namespace.get("spelling"),
         )
 
     def __eq__(self, other: object) -> bool:
@@ -1493,6 +1494,10 @@ class Form:
     def ancestors(self, child: str) -> tuple[str, ...]:
         """Return every reachable containment ancestor once."""
         return cast(tuple[str, ...], self._graph.ancestors(child))
+
+    def at(self, path: str) -> Any:
+        """Return the graph element named by a canonical match path."""
+        return self._graph.at(path)
 
     @classmethod
     def from_parsed(
@@ -1615,12 +1620,19 @@ class Form:
                     refines_tick=treatment.refines_tick,
                 )
             elif token.isspace():
-                out.append(Unit(text=token, features={"level": edge}))
+                declared = features.separators["#"]
+                out.append(
+                    Unit(
+                        text="#",
+                        spelling=token,
+                        features=dict(declared.features or {}),
+                    )
+                )
                 treatment = CLOCK_TREATMENTS[OccurrenceKind.BOUNDARY]
                 builder.append_input_occurrence(
                     BOUNDARY_TIER,
                     {
-                        "symbol": token,
+                        "symbol": "#",
                         "spelling": token,
                         "input": True,
                         "level": edge,
@@ -1642,6 +1654,9 @@ class Form:
         text: str,
         features: IPAFeatures | None = None,
         strict: bool = False,
+        *,
+        segmented: bool = False,
+        wild: bool = False,
     ) -> Form:
         """Read a transcription without projecting anything away.
 
@@ -1654,7 +1669,9 @@ class Form:
         the transcription never made -- and a transcription that *does*
         state its tiers hands them in with :meth:`of`.
         """
-        return _default(features).read(text, strict=strict)
+        return _default(features).read(
+            text, strict=strict, segmented=segmented, wild=wild
+        )
 
     @classmethod
     def of(cls, items: Sequence[Unit], intervals: Sequence[Interval] = ()) -> Form:
@@ -1701,6 +1718,8 @@ class Form:
                     else None
                 ),
             }
+            if unit.spelling is not None:
+                encoded["spelling"] = unit.spelling
             if unit.segment is None or self_contained:
                 encoded.update(
                     {
@@ -1782,6 +1801,7 @@ class Form:
             )
             unit = Unit(
                 text=raw["text"],
+                spelling=raw.get("spelling"),
                 segment=segment,
                 timing=(
                     Timing(timing_data["start"], timing_data["duration"])
@@ -1951,7 +1971,7 @@ class Form:
             if unit.is_boundary:
                 out.append(
                     Boundary(
-                        text=unit.text,
+                        text=unit.spelling if unit.spelling is not None else unit.text,
                         level=unit.level or "word",
                         at=seen,
                         features=dict(unit.features),
@@ -2018,7 +2038,13 @@ class Form:
         for index in range(len(segments) + 1):
             for boundary in placed.get(index, ()):
                 declared = dict(boundary.features) or {"level": boundary.level}
-                out.append(Unit(text=boundary.text, features=declared))
+                out.append(
+                    Unit(
+                        text="#" if boundary.text.isspace() else boundary.text,
+                        spelling=boundary.text if boundary.text.isspace() else None,
+                        features=declared,
+                    )
+                )
             if index < len(segments):
                 out.append(_unit_for(segments[index], features))
         return cls(units=tuple(out), intervals=tuple(intervals))

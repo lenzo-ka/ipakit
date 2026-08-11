@@ -11,3 +11,7 @@ It is a 16 kHz mono 16-bit PCM recording. `hello-world.json` records the
 PocketSphinx 5.1.1 default en-us model's second-pass alignment of that file;
 starts and durations are decoder frames and the recorded frame rate is read
 from the decoder configuration.
+
+Conversion deliberately places an untimed `#` boundary between the two word
+intervals. The recorded decoder rows are unchanged; their IPA projection is
+now `hɛlo͜ʊ#wɚld` instead of the former boundaryless `hɛlo͜ʊwɚld`.
