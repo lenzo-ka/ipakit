@@ -17,6 +17,7 @@ from ipakit.tract_svg import (
     build_frontal_geometry,
     frontal_figure,
     frontal_svg,
+    standalone_frontal_svg,
 )
 
 from tests.test_tract_figures import _differing, _pixels
@@ -97,7 +98,7 @@ def test_open_a_has_no_face_pixels_inside_the_lip_parting_line(
     g = build_frontal_geometry(h, landmarks(ipa), posture(ipa, "a", h))
     to = _frontal_scaler(*_frontal_extent(g))
     polygon = [to(*point) for point in g["aperture"]]
-    width, rows = _pixels(frontal_svg(g), tmp_path / "a.svg", width=760)
+    width, rows = _pixels(standalone_frontal_svg(g), tmp_path / "a.svg", width=760)
     assert width == 760
     face = bytes.fromhex("d9b29aff")
 
