@@ -175,7 +175,15 @@ def test_the_wheel_carries_each_grammar_beside_its_data(built_wheel):
     assert documents, "no XML data in the wheel to check"
     assert grammars, "no grammars in the wheel; `data/*.rng` is not shipping"
 
-    orphaned = sorted(d for d in documents if d.rsplit("/", 1)[0] not in grammars)
+    orphaned = sorted(
+        d
+        for d in documents
+        if not any(
+            d.rsplit("/", 1)[0] == directory
+            or d.rsplit("/", 1)[0].startswith(directory + "/")
+            for directory in grammars
+        )
+    )
     assert not orphaned, (
         f"these documents shipped without a grammar beside them, so an "
         f"installed copy cannot say what shape it is in: {orphaned}"

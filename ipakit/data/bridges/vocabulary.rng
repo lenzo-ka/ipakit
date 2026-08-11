@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start><element name="vocabulary"><zeroOrMore><choice><attribute><anyName /><text /></attribute><text /><ref name="node" /></choice></zeroOrMore></element></start>
+  <define name="node">
+    <element><anyName /><zeroOrMore><choice><attribute><anyName /><text /></attribute><text /><ref name="node" /></choice></zeroOrMore></element>
+  </define>
+</grammar>
