@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An English syllabifier with evidence-bearing onset strata, strictness selection, and a regenerable CMUdict harvest, curation-loop history, and ipa-dict cross-check.
 - A declared `Form → Intervals` syllabifier mechanism with Japanese moraic, Pinyin-backed Mandarin, and constraint-derived Spanish worked languages.
 - Prosodic tiers bear graded distance: stress, tone and length ride on the unit they attach to and add one ordinal term to the metric (primary vs secondary stress is half a step), read metric-only so stored features and round-trips are unchanged and no-rider phones score as before; the stress feature is now the 3-level ordinal `none < secondary < primary`. `explain_word_distance` traces a comparison position by position with the per-term breakdown, on the module and CLI (`distance word --explain`). `confusion.json`'s fingerprint moves; its triangle does not (#190).
 - `sequence_distance` / `sequence_similarity`: score two pre-tokenized phone sequences (token lists) as given, without re-tokenizing; on `IPAFeatures` and `DistanceModel`. `mode="local"` is a semi-global fit for a target embedded in a longer sequence. `rank_sequences` / `rank_pronunciations` rank candidates n-best; `nearest_pronunciation` is the top-1 and gains `mode`. CLI: `distance seq`, and `distance nearest -n/--local` (#167 follow-on).

@@ -1,0 +1,3095 @@
+{
+  "artifact": "ipakit English syllable curation report",
+  "corpus": {
+    "forms": 135166,
+    "ingest_refusals": null
+  },
+  "cross_check": {
+    "agreements": 35977,
+    "disagreement_buckets": {
+      "genuine_boundary_difference": {
+        "count": 1511,
+        "examples": [
+          {
+            "cmudict": "ˈɑɹ.dvˌɑɹk",
+            "ipa_dict": "ˈɑɹd.vˌɑɹk",
+            "word": "aardvark"
+          },
+          {
+            "cmudict": "ˈɑɹ.dvˌɑɹks",
+            "ipa_dict": "ˈɑɹd.vˌɑɹks",
+            "word": "aardvarks"
+          },
+          {
+            "cmudict": "ˌæ.bə.twˈɑɹ",
+            "ipa_dict": "ˌæ.bət.wˈɑɹ",
+            "word": "abattoir"
+          },
+          {
+            "cmudict": "ə.bjˈuz",
+            "ipa_dict": "əb.jˈus | əb.jˈuz",
+            "word": "abuse"
+          },
+          {
+            "cmudict": "ə.bjˈuzd",
+            "ipa_dict": "əb.jˈuzd",
+            "word": "abused"
+          }
+        ]
+      },
+      "other": {
+        "count": 69473,
+        "examples": [
+          {
+            "cmudict": "tˈɪl",
+            "ipa_dict": "tˈɪɫ",
+            "word": "'til"
+          },
+          {
+            "cmudict": "twˈʌz",
+            "ipa_dict": "twˈəz",
+            "word": "'twas"
+          },
+          {
+            "cmudict": "tɹˌɪ.pə.lˈe͜ɪ",
+            "ipa_dict": "tɹˌɪ.pə.ɫˈe.ɪ",
+            "word": "aaa"
+          },
+          {
+            "cmudict": "ˈɑ.bɚɡ",
+            "ipa_dict": "ˈɑ.bɝɡ",
+            "word": "aaberg"
+          },
+          {
+            "cmudict": "ˈɑ.kə.nɚ",
+            "ipa_dict": "ˈɑ.kə.nɝ",
+            "word": "aachener"
+          }
+        ]
+      },
+      "stress_seat": {
+        "count": 0,
+        "examples": []
+      },
+      "untied_diphthong_nucleation": {
+        "count": 18966,
+        "examples": [
+          {
+            "cmudict": "bˈa͜ʊt",
+            "ipa_dict": "bˈa.ʊt",
+            "word": "'bout"
+          },
+          {
+            "cmudict": "fɹˈɪ.sko͜ʊ",
+            "ipa_dict": "fɹˈɪ.sko.ʊ",
+            "word": "'frisco"
+          },
+          {
+            "cmudict": "kˈe͜ɪ",
+            "ipa_dict": "kˈe.ɪ",
+            "word": "'kay"
+          },
+          {
+            "cmudict": "ɹˈa͜ʊnd",
+            "ipa_dict": "ɹˈa.ʊnd",
+            "word": "'round"
+          },
+          {
+            "cmudict": "ˈe͜ɪ",
+            "ipa_dict": "ˈe.ɪ | ə",
+            "word": "a"
+          }
+        ]
+      }
+    },
+    "disagreements": 89950,
+    "normalizations": {
+      "registered_diphthong_tying": {
+        "applied_to_forms": 0,
+        "operation": "not applied: normalize() treats whitespace as asserted unit grouping and is not a word-level diphthong detector"
+      },
+      "stress_to_nucleus": {
+        "applied_to_forms": 128670,
+        "operation": "IPAFeatures.normalize_stress_to_nucleus"
+      }
+    },
+    "notes": [
+      "ipa-dict syllable-initial stress was re-seated on the following nucleus for this comparison only; stored bridge forms are unchanged.",
+      "Whether read() should globally seat standard leading-stress IPA on the following nucleus is an engine question recorded here and left outside this lane.",
+      "Registered-diphthong tying remains the normalize tie-report follow-up; diagnostic tying is used only to identify the untied-diphthong bucket."
+    ],
+    "refusals": 0,
+    "shared_words": 125927,
+    "source": {
+      "path": "ipakit-en_US.txt",
+      "sha256": "2af6f154a5c363275f052d1f85acedef38ed185ca9745aa4314be77f6b70de67",
+      "version": "43c3570eb3553bdd19fccd2bd0091534889af023"
+    }
+  },
+  "curation_queue": {
+    "entries": [
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "blouin"
+        ],
+        "onset": "b l w",
+        "stratum": "marginal"
+      },
+      {
+        "count": 3,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "brouillard",
+          "brouillet",
+          "brouillette"
+        ],
+        "onset": "b ɹ w",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "dhondt"
+        ],
+        "onset": "d h",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "dmitri"
+        ],
+        "onset": "d m",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "dniester"
+        ],
+        "onset": "d n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 3,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "dvoracek",
+          "dvorak",
+          "dvorsky"
+        ],
+        "onset": "d v",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "dziak",
+          "dzik"
+        ],
+        "onset": "d z",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "drouillard",
+          "drouin"
+        ],
+        "onset": "d ɹ w",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "jfet"
+        ],
+        "onset": "d͡ʒ f",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "phnom"
+        ],
+        "onset": "f n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "refuse an initialism spelling as transcription noise",
+        "exemplars": [
+          "fs",
+          "fsi"
+        ],
+        "onset": "f s",
+        "stratum": null
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "fthenakis"
+        ],
+        "onset": "f θ",
+        "stratum": "marginal"
+      },
+      {
+        "count": 4,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "hm",
+          "hmm",
+          "hmmm",
+          "hmong"
+        ],
+        "onset": "h m",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "hnat"
+        ],
+        "onset": "h n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "yuen"
+        ],
+        "onset": "j w",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "khmer"
+        ],
+        "onset": "k m",
+        "stratum": "marginal"
+      },
+      {
+        "count": 14,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "kenesset",
+          "knesset",
+          "knin",
+          "knudsen's",
+          "knudsen"
+        ],
+        "onset": "k n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 9,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "kvale",
+          "kvam",
+          "kvamme",
+          "kvant",
+          "kvasnicka"
+        ],
+        "onset": "k v",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "l'heureux"
+        ],
+        "onset": "l h j",
+        "stratum": "marginal"
+      },
+      {
+        "count": 10,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "leeuwen",
+          "lian's",
+          "lian",
+          "liang",
+          "lieu"
+        ],
+        "onset": "l j",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "refuse an initialism spelling as transcription noise",
+        "exemplars": [
+          "lxi"
+        ],
+        "onset": "l k s",
+        "stratum": null
+      },
+      {
+        "count": 5,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "louisette",
+          "lueh",
+          "luigi's",
+          "luo",
+          "lwin"
+        ],
+        "onset": "l w",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "m'bow",
+          "mbeki"
+        ],
+        "onset": "m b",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "mhoon"
+        ],
+        "onset": "m h",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "mnookin"
+        ],
+        "onset": "m n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "n'dour"
+        ],
+        "onset": "n d",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "n'djamena"
+        ],
+        "onset": "n d j",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "pshaw",
+          "pshew"
+        ],
+        "onset": "p ʃ",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "sbarro"
+        ],
+        "onset": "s b",
+        "stratum": "native"
+      },
+      {
+        "count": 14,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "sfernice",
+          "sferra",
+          "sferrazza",
+          "sffed",
+          "sforza"
+        ],
+        "onset": "s f",
+        "stratum": "native"
+      },
+      {
+        "count": 2,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "shead",
+          "shouse"
+        ],
+        "onset": "s h",
+        "stratum": "native"
+      },
+      {
+        "count": 732,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "scab",
+          "scabbard",
+          "scabs",
+          "scaccia",
+          "scad"
+        ],
+        "onset": "s k",
+        "stratum": "native"
+      },
+      {
+        "count": 9,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "schuylkill",
+          "skew",
+          "skewed",
+          "skewer",
+          "skewered"
+        ],
+        "onset": "s k j",
+        "stratum": "native"
+      },
+      {
+        "count": 5,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "sclafani",
+          "scleroderma",
+          "sclerosis",
+          "sklar",
+          "sklenar"
+        ],
+        "onset": "s k l",
+        "stratum": "native"
+      },
+      {
+        "count": 85,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "squabble",
+          "squabbled",
+          "squabbles",
+          "squabbling",
+          "squad's"
+        ],
+        "onset": "s k w",
+        "stratum": "native"
+      },
+      {
+        "count": 153,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "scrabble",
+          "scragg",
+          "scraggle",
+          "scraggly",
+          "scram"
+        ],
+        "onset": "s k ɹ",
+        "stratum": "native"
+      },
+      {
+        "count": 248,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "smaby",
+          "smack",
+          "smacked",
+          "smacking",
+          "smacks"
+        ],
+        "onset": "s m",
+        "stratum": "native"
+      },
+      {
+        "count": 244,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "snabel",
+          "snack",
+          "snackbar",
+          "snacked",
+          "snacking"
+        ],
+        "onset": "s n",
+        "stratum": "native"
+      },
+      {
+        "count": 749,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "spa",
+          "space-time",
+          "space",
+          "spaceball",
+          "spaceballs"
+        ],
+        "onset": "s p",
+        "stratum": "native"
+      },
+      {
+        "count": 6,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "spew",
+          "spewed",
+          "spewing",
+          "spews",
+          "spurious"
+        ],
+        "onset": "s p j",
+        "stratum": "native"
+      },
+      {
+        "count": 40,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "splain",
+          "splaine",
+          "splash",
+          "splashed",
+          "splashes"
+        ],
+        "onset": "s p l",
+        "stratum": "native"
+      },
+      {
+        "count": 121,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "spracklen",
+          "spradley",
+          "spradlin",
+          "spradling",
+          "spragg"
+        ],
+        "onset": "s p ɹ",
+        "stratum": "native"
+      },
+      {
+        "count": 1900,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "sta",
+          "staab",
+          "staack",
+          "staal",
+          "staar's"
+        ],
+        "onset": "s t",
+        "stratum": "native"
+      },
+      {
+        "count": 3,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "steuben",
+          "stuart's",
+          "stuart"
+        ],
+        "onset": "s t j",
+        "stratum": "native"
+      },
+      {
+        "count": 461,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "st",
+          "stracener",
+          "strachan",
+          "strack",
+          "stracke"
+        ],
+        "onset": "s t ɹ",
+        "stratum": "native"
+      },
+      {
+        "count": 21,
+        "decision": "retain the English s-cluster sonority exception",
+        "exemplars": [
+          "svec",
+          "svehla",
+          "svelte",
+          "sven",
+          "svendsen"
+        ],
+        "onset": "s v",
+        "stratum": "native"
+      },
+      {
+        "count": 27,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "csaszar",
+          "tsai's",
+          "tsai",
+          "tsakos",
+          "tsang"
+        ],
+        "onset": "t s",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "tvedt",
+          "tveit"
+        ],
+        "onset": "t v",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "wnek",
+          "wnuk"
+        ],
+        "onset": "w n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 4,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "zbig",
+          "zbigniew",
+          "zbikowski",
+          "zbinden"
+        ],
+        "onset": "z b",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "zdrojewski"
+        ],
+        "onset": "z d ɹ",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "zmijewski"
+        ],
+        "onset": "z m",
+        "stratum": "marginal"
+      },
+      {
+        "count": 2,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "zvornik",
+          "zwolinski"
+        ],
+        "onset": "z v",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "gdansk"
+        ],
+        "onset": "ɡ d",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "ryutaro"
+        ],
+        "onset": "ɹ j",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "rouillard"
+        ],
+        "onset": "ɹ w",
+        "stratum": "marginal"
+      },
+      {
+        "count": 66,
+        "decision": "retain the productive Yiddish/German borrowing pattern",
+        "exemplars": [
+          "schmader",
+          "schmahl",
+          "schmal",
+          "schmale",
+          "schmall"
+        ],
+        "onset": "ʃ m",
+        "stratum": "borrowing"
+      },
+      {
+        "count": 57,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "schnabel",
+          "schnack",
+          "schnackenberg",
+          "schnake",
+          "schnakenberg"
+        ],
+        "onset": "ʃ n",
+        "stratum": "marginal"
+      },
+      {
+        "count": 6,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "schtick",
+          "shtick",
+          "shtyrov",
+          "stadtlander",
+          "stadtmiller"
+        ],
+        "onset": "ʃ t",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "retain attested proper-name, clipping, or loan evidence",
+        "exemplars": [
+          "szwed"
+        ],
+        "onset": "ʃ v",
+        "stratum": "marginal"
+      },
+      {
+        "count": 1,
+        "decision": "refuse an initialism spelling as transcription noise",
+        "exemplars": [
+          "ths"
+        ],
+        "onset": "θ s",
+        "stratum": null
+      }
+    ],
+    "refusals": [
+      {
+        "count": 2,
+        "exemplars": [
+          "fs",
+          "fsi"
+        ],
+        "onset": "f s",
+        "reason": "refuse an initialism spelling as transcription noise"
+      },
+      {
+        "count": 1,
+        "exemplars": [
+          "lxi"
+        ],
+        "onset": "l k s",
+        "reason": "refuse an initialism spelling as transcription noise"
+      },
+      {
+        "count": 1,
+        "exemplars": [
+          "ths"
+        ],
+        "onset": "θ s",
+        "reason": "refuse an initialism spelling as transcription noise"
+      }
+    ],
+    "resolution_by_stratum": {
+      "borrowing": 1,
+      "marginal": 39,
+      "native": 18
+    },
+    "size": 61
+  },
+  "generated": "2026-08-11",
+  "generator": "scripts/syllable_curation.py",
+  "grid": {
+    "constraint_illegal_attested": 61,
+    "constraint_legal_attested": 89,
+    "constraint_legal_unattested": 1
+  },
+  "iterations": [
+    {
+      "admitted_strata": [],
+      "decision": "constraint baseline",
+      "forms_changed": 0,
+      "inventory_delta": 67,
+      "iteration": 0
+    },
+    {
+      "admitted_strata": [
+        "native"
+      ],
+      "decision": "admit native exceptions",
+      "forms_changed": 14304,
+      "inventory_delta": 18,
+      "iteration": 1
+    },
+    {
+      "admitted_strata": [
+        "borrowing",
+        "native"
+      ],
+      "decision": "admit borrowings",
+      "forms_changed": 166,
+      "inventory_delta": 1,
+      "iteration": 2
+    },
+    {
+      "admitted_strata": [
+        "borrowing",
+        "marginal",
+        "native"
+      ],
+      "decision": "admit marginal evidence",
+      "forms_changed": 7661,
+      "inventory_delta": 39,
+      "iteration": 3
+    }
+  ],
+  "onsets": [
+    {
+      "constraint_legal": true,
+      "count": 7294,
+      "exemplars": [
+        "'bout",
+        "b'gosh",
+        "b'nai",
+        "b's",
+        "b-j's"
+      ],
+      "onset": "b",
+      "sonority_ranks": [
+        0
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 149,
+      "exemplars": [
+        "beautician",
+        "beauties",
+        "beautiful",
+        "beautifullest",
+        "beautifully"
+      ],
+      "onset": "b j",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 704,
+      "exemplars": [
+        "blab",
+        "blabbed",
+        "blabber",
+        "blabbers",
+        "blachly"
+      ],
+      "onset": "b l",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "blouin"
+      ],
+      "onset": "b l w",
+      "sonority_ranks": [
+        0,
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 25,
+      "exemplars": [
+        "bois",
+        "boisclair",
+        "boisseau",
+        "boissonneault",
+        "boisvert"
+      ],
+      "onset": "b w",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1604,
+      "exemplars": [
+        "b'rith",
+        "bra",
+        "braaksma",
+        "braasch",
+        "braaten"
+      ],
+      "onset": "b ɹ",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 3,
+      "exemplars": [
+        "brouillard",
+        "brouillet",
+        "brouillette"
+      ],
+      "onset": "b ɹ w",
+      "sonority_ranks": [
+        0,
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 7224,
+      "exemplars": [
+        "d'affaires",
+        "d'agostino's",
+        "d'agostino",
+        "d'alene's",
+        "d'alene"
+      ],
+      "onset": "d",
+      "sonority_ranks": [
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "dhondt"
+      ],
+      "onset": "d h",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 26,
+      "exemplars": [
+        "dudes",
+        "due",
+        "duet",
+        "duets",
+        "duey"
+      ],
+      "onset": "d j",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "dmitri"
+      ],
+      "onset": "d m",
+      "sonority_ranks": [
+        0,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "dniester"
+      ],
+      "onset": "d n",
+      "sonority_ranks": [
+        0,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 3,
+      "exemplars": [
+        "dvoracek",
+        "dvorak",
+        "dvorsky"
+      ],
+      "onset": "d v",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 44,
+      "exemplars": [
+        "duan",
+        "duane",
+        "duarte's",
+        "duarte",
+        "duena"
+      ],
+      "onset": "d w",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "dziak",
+        "dzik"
+      ],
+      "onset": "d z",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 482,
+      "exemplars": [
+        "dr.",
+        "dr",
+        "drab",
+        "drabbed",
+        "drabble"
+      ],
+      "onset": "d ɹ",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "drouillard",
+        "drouin"
+      ],
+      "onset": "d ɹ w",
+      "sonority_ranks": [
+        0,
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 2176,
+      "exemplars": [
+        "djakarta's",
+        "djakarta",
+        "djibouti",
+        "djukanovic",
+        "djurdjevic"
+      ],
+      "onset": "d͡ʒ",
+      "sonority_ranks": [
+        1
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "jfet"
+      ],
+      "onset": "d͡ʒ f",
+      "sonority_ranks": [
+        1,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3,
+      "exemplars": [
+        "gianni",
+        "giap",
+        "jiangsu"
+      ],
+      "onset": "d͡ʒ j",
+      "sonority_ranks": [
+        1,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3,
+      "exemplars": [
+        "juang",
+        "juedes",
+        "jwan"
+      ],
+      "onset": "d͡ʒ w",
+      "sonority_ranks": [
+        1,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3955,
+      "exemplars": [
+        "faal's",
+        "faal",
+        "faas",
+        "fab",
+        "fabbri"
+      ],
+      "onset": "f",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 107,
+      "exemplars": [
+        "feud",
+        "feudal",
+        "feudalism",
+        "feudalistic",
+        "feuded"
+      ],
+      "onset": "f j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 651,
+      "exemplars": [
+        "flab",
+        "flabbergast",
+        "flabbergasted",
+        "flabby",
+        "flaccid"
+      ],
+      "onset": "f l",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "phnom"
+      ],
+      "onset": "f n",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "fs",
+        "fsi"
+      ],
+      "onset": "f s",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 5,
+      "exemplars": [
+        "fuente",
+        "fuentes",
+        "fuentez",
+        "fuerst",
+        "fuerth"
+      ],
+      "onset": "f w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 916,
+      "exemplars": [
+        "'frisco",
+        "for",
+        "fraas",
+        "frable",
+        "fracas"
+      ],
+      "onset": "f ɹ",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "fthenakis"
+      ],
+      "onset": "f θ",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 6183,
+      "exemplars": [
+        "chaim",
+        "chanukah",
+        "chutzpah",
+        "geraldi",
+        "geraldo"
+      ],
+      "onset": "h",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 163,
+      "exemplars": [
+        "heublein",
+        "heuer's",
+        "heuer",
+        "heuman",
+        "heumann"
+      ],
+      "onset": "h j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 6,
+      "exemplars": [
+        "hlad",
+        "hladik",
+        "hladky",
+        "hlavac",
+        "hlavacek"
+      ],
+      "onset": "h l",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 4,
+      "exemplars": [
+        "hm",
+        "hmm",
+        "hmmm",
+        "hmong"
+      ],
+      "onset": "h m",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "hnat"
+      ],
+      "onset": "h n",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 367,
+      "exemplars": [
+        "hua",
+        "huachuca",
+        "huadong",
+        "huairou",
+        "huallaga"
+      ],
+      "onset": "h w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 13,
+      "exemplars": [
+        "hrabak",
+        "hrawi",
+        "hreha",
+        "hren",
+        "hribar"
+      ],
+      "onset": "h ɹ",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1385,
+      "exemplars": [
+        "acomb",
+        "euan",
+        "eubank",
+        "eubanks",
+        "eucalypti"
+      ],
+      "onset": "j",
+      "sonority_ranks": [
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "yuen"
+      ],
+      "onset": "j w",
+      "sonority_ranks": [
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 9861,
+      "exemplars": [
+        "'cause",
+        "'course",
+        "'kay",
+        "c'mon",
+        "ca"
+      ],
+      "onset": "k",
+      "sonority_ranks": [
+        0
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 192,
+      "exemplars": [
+        "'cuse",
+        "chiara",
+        "coupon",
+        "couponing",
+        "couponite"
+      ],
+      "onset": "k j",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 999,
+      "exemplars": [
+        "chlamydia",
+        "chlebowski",
+        "chloe's",
+        "chloe",
+        "chlorate"
+      ],
+      "onset": "k l",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "khmer"
+      ],
+      "onset": "k m",
+      "sonority_ranks": [
+        0,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 14,
+      "exemplars": [
+        "kenesset",
+        "knesset",
+        "knin",
+        "knudsen's",
+        "knudsen"
+      ],
+      "onset": "k n",
+      "sonority_ranks": [
+        0,
+        3
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "ksiazek"
+      ],
+      "onset": "k s j",
+      "sonority_ranks": [
+        0,
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 9,
+      "exemplars": [
+        "kvale",
+        "kvam",
+        "kvamme",
+        "kvant",
+        "kvasnicka"
+      ],
+      "onset": "k v",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 471,
+      "exemplars": [
+        "choir",
+        "choirs",
+        "chua",
+        "coif",
+        "cooperate"
+      ],
+      "onset": "k w",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1515,
+      "exemplars": [
+        "chrest",
+        "chrestman",
+        "chretien",
+        "chriptosporidium",
+        "chris'"
+      ],
+      "onset": "k ɹ",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 5495,
+      "exemplars": [
+        "l'alma",
+        "l'amour",
+        "l'eggs",
+        "l'enfant",
+        "l'espalier"
+      ],
+      "onset": "l",
+      "sonority_ranks": [
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "l'heureux"
+      ],
+      "onset": "l h j",
+      "sonority_ranks": [
+        6,
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 10,
+      "exemplars": [
+        "leeuwen",
+        "lian's",
+        "lian",
+        "liang",
+        "lieu"
+      ],
+      "onset": "l j",
+      "sonority_ranks": [
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "lxi"
+      ],
+      "onset": "l k s",
+      "sonority_ranks": [
+        6,
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 5,
+      "exemplars": [
+        "louisette",
+        "lueh",
+        "luigi's",
+        "luo",
+        "lwin"
+      ],
+      "onset": "l w",
+      "sonority_ranks": [
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 9394,
+      "exemplars": [
+        "hmong",
+        "ma'am",
+        "ma",
+        "maack",
+        "maaco"
+      ],
+      "onset": "m",
+      "sonority_ranks": [
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "m'bow",
+        "mbeki"
+      ],
+      "onset": "m b",
+      "sonority_ranks": [
+        3,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "mhoon"
+      ],
+      "onset": "m h",
+      "sonority_ranks": [
+        3,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 142,
+      "exemplars": [
+        "meuse",
+        "meuth",
+        "mew",
+        "mewas",
+        "mewborn"
+      ],
+      "onset": "m j",
+      "sonority_ranks": [
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 5,
+      "exemplars": [
+        "mladenic",
+        "mladic's",
+        "mladic",
+        "mlecko",
+        "mlotok"
+      ],
+      "onset": "m l",
+      "sonority_ranks": [
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "mnookin"
+      ],
+      "onset": "m n",
+      "sonority_ranks": [
+        3,
+        3
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 4,
+      "exemplars": [
+        "moi",
+        "muoio",
+        "muolo",
+        "mwanza"
+      ],
+      "onset": "m w",
+      "sonority_ranks": [
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 11,
+      "exemplars": [
+        "mraz",
+        "mrazek",
+        "mrazik",
+        "mroczek",
+        "mroczka"
+      ],
+      "onset": "m ɹ",
+      "sonority_ranks": [
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3412,
+      "exemplars": [
+        "gnagey",
+        "gnaizda",
+        "gnann",
+        "gnarl",
+        "gnarle"
+      ],
+      "onset": "n",
+      "sonority_ranks": [
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "n'dour"
+      ],
+      "onset": "n d",
+      "sonority_ranks": [
+        3,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "n'djamena"
+      ],
+      "onset": "n d j",
+      "sonority_ranks": [
+        3,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 17,
+      "exemplars": [
+        "knew",
+        "neural",
+        "neuropathy",
+        "neuroscience",
+        "neuroscientist"
+      ],
+      "onset": "n j",
+      "sonority_ranks": [
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 4,
+      "exemplars": [
+        "nuevo",
+        "nuexco",
+        "nuova",
+        "nuovo"
+      ],
+      "onset": "n w",
+      "sonority_ranks": [
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 5447,
+      "exemplars": [
+        "lb",
+        "lbs",
+        "p's",
+        "p.'s",
+        "p."
+      ],
+      "onset": "p",
+      "sonority_ranks": [
+        0
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 83,
+      "exemplars": [
+        "peugeot",
+        "peugh",
+        "pew",
+        "pewabic",
+        "pewitt"
+      ],
+      "onset": "p j",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 528,
+      "exemplars": [
+        "pla",
+        "placard",
+        "placards",
+        "placate",
+        "placating"
+      ],
+      "onset": "p l",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 11,
+      "exemplars": [
+        "poirot",
+        "poitier",
+        "puebla",
+        "pueblo",
+        "puentes"
+      ],
+      "onset": "p w",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1797,
+      "exemplars": [
+        "prab",
+        "pracht",
+        "practicable",
+        "practical",
+        "practicality"
+      ],
+      "onset": "p ɹ",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "pshaw",
+        "pshew"
+      ],
+      "onset": "p ʃ",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 6983,
+      "exemplars": [
+        "c'est",
+        "c's",
+        "c-code",
+        "c-codes",
+        "c-span's"
+      ],
+      "onset": "s",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "sbarro"
+      ],
+      "onset": "s b",
+      "sonority_ranks": [
+        2,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 14,
+      "exemplars": [
+        "sfernice",
+        "sferra",
+        "sferrazza",
+        "sffed",
+        "sforza"
+      ],
+      "onset": "s f",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "shead",
+        "shouse"
+      ],
+      "onset": "s h",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3,
+      "exemplars": [
+        "siang",
+        "suleski",
+        "sulewski"
+      ],
+      "onset": "s j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 732,
+      "exemplars": [
+        "scab",
+        "scabbard",
+        "scabs",
+        "scaccia",
+        "scad"
+      ],
+      "onset": "s k",
+      "sonority_ranks": [
+        2,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 9,
+      "exemplars": [
+        "schuylkill",
+        "skew",
+        "skewed",
+        "skewer",
+        "skewered"
+      ],
+      "onset": "s k j",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 5,
+      "exemplars": [
+        "sclafani",
+        "scleroderma",
+        "sclerosis",
+        "sklar",
+        "sklenar"
+      ],
+      "onset": "s k l",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 85,
+      "exemplars": [
+        "squabble",
+        "squabbled",
+        "squabbles",
+        "squabbling",
+        "squad's"
+      ],
+      "onset": "s k w",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 153,
+      "exemplars": [
+        "scrabble",
+        "scragg",
+        "scraggle",
+        "scraggly",
+        "scram"
+      ],
+      "onset": "s k ɹ",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 408,
+      "exemplars": [
+        "slab",
+        "slabaugh",
+        "slabs",
+        "slaby",
+        "slack"
+      ],
+      "onset": "s l",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 248,
+      "exemplars": [
+        "smaby",
+        "smack",
+        "smacked",
+        "smacking",
+        "smacks"
+      ],
+      "onset": "s m",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "smrekar"
+      ],
+      "onset": "s m ɹ",
+      "sonority_ranks": [
+        2,
+        3,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 244,
+      "exemplars": [
+        "snabel",
+        "snack",
+        "snackbar",
+        "snacked",
+        "snacking"
+      ],
+      "onset": "s n",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 749,
+      "exemplars": [
+        "spa",
+        "space-time",
+        "space",
+        "spaceball",
+        "spaceballs"
+      ],
+      "onset": "s p",
+      "sonority_ranks": [
+        2,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 6,
+      "exemplars": [
+        "spew",
+        "spewed",
+        "spewing",
+        "spews",
+        "spurious"
+      ],
+      "onset": "s p j",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 40,
+      "exemplars": [
+        "splain",
+        "splaine",
+        "splash",
+        "splashed",
+        "splashes"
+      ],
+      "onset": "s p l",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 121,
+      "exemplars": [
+        "spracklen",
+        "spradley",
+        "spradlin",
+        "spradling",
+        "spragg"
+      ],
+      "onset": "s p ɹ",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1900,
+      "exemplars": [
+        "sta",
+        "staab",
+        "staack",
+        "staal",
+        "staar's"
+      ],
+      "onset": "s t",
+      "sonority_ranks": [
+        2,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 3,
+      "exemplars": [
+        "steuben",
+        "stuart's",
+        "stuart"
+      ],
+      "onset": "s t j",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 461,
+      "exemplars": [
+        "st",
+        "stracener",
+        "strachan",
+        "strack",
+        "stracke"
+      ],
+      "onset": "s t ɹ",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 21,
+      "exemplars": [
+        "svec",
+        "svehla",
+        "svelte",
+        "sven",
+        "svendsen"
+      ],
+      "onset": "s v",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 384,
+      "exemplars": [
+        "soiree",
+        "suard",
+        "suarez",
+        "suasion",
+        "suave"
+      ],
+      "onset": "s w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 12,
+      "exemplars": [
+        "srebrenica's",
+        "srebrenica",
+        "sremac",
+        "sri-lanka",
+        "sri"
+      ],
+      "onset": "s ɹ",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3580,
+      "exemplars": [
+        "'til",
+        "'tis",
+        "ptacek",
+        "ptak",
+        "ptolemaic"
+      ],
+      "onset": "t",
+      "sonority_ranks": [
+        0
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 20,
+      "exemplars": [
+        "tian",
+        "tien-fu",
+        "tien",
+        "tienanmen",
+        "tube"
+      ],
+      "onset": "t j",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 2,
+      "exemplars": [
+        "tlateloco",
+        "tlingit"
+      ],
+      "onset": "t l",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 27,
+      "exemplars": [
+        "csaszar",
+        "tsai's",
+        "tsai",
+        "tsakos",
+        "tsang"
+      ],
+      "onset": "t s",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "tsiang"
+      ],
+      "onset": "t s j",
+      "sonority_ranks": [
+        0,
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "tvedt",
+        "tveit"
+      ],
+      "onset": "t v",
+      "sonority_ranks": [
+        0,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 123,
+      "exemplars": [
+        "'twas",
+        "trois",
+        "tuolumne",
+        "tuomi",
+        "twaddell"
+      ],
+      "onset": "t w",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1199,
+      "exemplars": [
+        "aaa",
+        "traber",
+        "trabert",
+        "trabucco",
+        "trabue"
+      ],
+      "onset": "t ɹ",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1271,
+      "exemplars": [
+        "ceaucescu",
+        "ceausescu's",
+        "ceausescu",
+        "cebula",
+        "cebulski"
+      ],
+      "onset": "t͡ʃ",
+      "sonority_ranks": [
+        1
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 2,
+      "exemplars": [
+        "cheung",
+        "chuse"
+      ],
+      "onset": "t͡ʃ j",
+      "sonority_ranks": [
+        1,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "chlebowski"
+      ],
+      "onset": "t͡ʃ l",
+      "sonority_ranks": [
+        1,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "chuang"
+      ],
+      "onset": "t͡ʃ w",
+      "sonority_ranks": [
+        1,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 4,
+      "exemplars": [
+        "chriboniko's",
+        "chriboniko"
+      ],
+      "onset": "t͡ʃ ɹ",
+      "sonority_ranks": [
+        1,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 2394,
+      "exemplars": [
+        "v's",
+        "v.'s",
+        "v.",
+        "v.a.",
+        "v"
+      ],
+      "onset": "v",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 17,
+      "exemplars": [
+        "veuve",
+        "vietcong",
+        "view",
+        "viewed",
+        "viewer's"
+      ],
+      "onset": "v j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 17,
+      "exemplars": [
+        "vlach",
+        "vlachos",
+        "vlad's",
+        "vlad",
+        "vladeck"
+      ],
+      "onset": "v l",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3,
+      "exemplars": [
+        "voila",
+        "voir",
+        "voisey"
+      ],
+      "onset": "v w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 14,
+      "exemplars": [
+        "vrabel",
+        "vradenburg",
+        "vrain",
+        "vrana",
+        "vranesevic"
+      ],
+      "onset": "v ɹ",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3870,
+      "exemplars": [
+        "huachuca",
+        "huallaga",
+        "huerta",
+        "joachim's",
+        "joachim"
+      ],
+      "onset": "w",
+      "sonority_ranks": [
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "wnek",
+        "wnuk"
+      ],
+      "onset": "w n",
+      "sonority_ranks": [
+        6,
+        3
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 926,
+      "exemplars": [
+        "csar",
+        "czar's",
+        "czar",
+        "czarist",
+        "czars"
+      ],
+      "onset": "z",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 4,
+      "exemplars": [
+        "zbig",
+        "zbigniew",
+        "zbikowski",
+        "zbinden"
+      ],
+      "onset": "z b",
+      "sonority_ranks": [
+        2,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "zdrojewski"
+      ],
+      "onset": "z d ɹ",
+      "sonority_ranks": [
+        2,
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3,
+      "exemplars": [
+        "xian",
+        "zyuganov's",
+        "zyuganov"
+      ],
+      "onset": "z j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 11,
+      "exemplars": [
+        "zlata's",
+        "zlata",
+        "zlin",
+        "zlobin",
+        "zlogar"
+      ],
+      "onset": "z l",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "zmijewski"
+      ],
+      "onset": "z m",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 2,
+      "exemplars": [
+        "zvornik",
+        "zwolinski"
+      ],
+      "onset": "z v",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 17,
+      "exemplars": [
+        "zwack",
+        "zwahlen",
+        "zwart",
+        "zweber",
+        "zweibel"
+      ],
+      "onset": "z w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 71,
+      "exemplars": [
+        "than",
+        "thao",
+        "that'd",
+        "that'll",
+        "that's"
+      ],
+      "onset": "ð",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "theus"
+      ],
+      "onset": "ð j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 3199,
+      "exemplars": [
+        "'gain",
+        "ga",
+        "gaal",
+        "gaar",
+        "gaarder"
+      ],
+      "onset": "ɡ",
+      "sonority_ranks": [
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "gdansk"
+      ],
+      "onset": "ɡ d",
+      "sonority_ranks": [
+        0,
+        0
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 31,
+      "exemplars": [
+        "gewgaw",
+        "ghulam",
+        "guba's",
+        "guber",
+        "gubler"
+      ],
+      "onset": "ɡ j",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 393,
+      "exemplars": [
+        "glaab",
+        "glab",
+        "glace",
+        "glacial",
+        "glaciate"
+      ],
+      "onset": "ɡ l",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 86,
+      "exemplars": [
+        "gouin",
+        "guacamole",
+        "guadalajara",
+        "guadalcanal",
+        "guadalupe"
+      ],
+      "onset": "ɡ w",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1285,
+      "exemplars": [
+        "ghrist",
+        "grab",
+        "grabau",
+        "grabbe",
+        "grabbed"
+      ],
+      "onset": "ɡ ɹ",
+      "sonority_ranks": [
+        0,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 7484,
+      "exemplars": [
+        "'round",
+        "hrabak",
+        "hreha",
+        "hren",
+        "hribar"
+      ],
+      "onset": "ɹ",
+      "sonority_ranks": [
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "ryutaro"
+      ],
+      "onset": "ɹ j",
+      "sonority_ranks": [
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "rouillard"
+      ],
+      "onset": "ɹ w",
+      "sonority_ranks": [
+        6,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 2022,
+      "exemplars": [
+        "chablis",
+        "chabot",
+        "chachere",
+        "chacin",
+        "chadbourne"
+      ],
+      "onset": "ʃ",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 2,
+      "exemplars": [
+        "hsiung's",
+        "schewe"
+      ],
+      "onset": "ʃ j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 81,
+      "exemplars": [
+        "schlabach",
+        "schlachter",
+        "schlack",
+        "schlafer",
+        "schlafly"
+      ],
+      "onset": "ʃ l",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 66,
+      "exemplars": [
+        "schmader",
+        "schmahl",
+        "schmal",
+        "schmale",
+        "schmall"
+      ],
+      "onset": "ʃ m",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 57,
+      "exemplars": [
+        "schnabel",
+        "schnack",
+        "schnackenberg",
+        "schnake",
+        "schnakenberg"
+      ],
+      "onset": "ʃ n",
+      "sonority_ranks": [
+        2,
+        3
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 6,
+      "exemplars": [
+        "schtick",
+        "shtick",
+        "shtyrov",
+        "stadtlander",
+        "stadtmiller"
+      ],
+      "onset": "ʃ t",
+      "sonority_ranks": [
+        2,
+        0
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "szwed"
+      ],
+      "onset": "ʃ v",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 101,
+      "exemplars": [
+        "chouinard",
+        "schwa",
+        "schwab's",
+        "schwab",
+        "schwabe"
+      ],
+      "onset": "ʃ w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 167,
+      "exemplars": [
+        "schrack",
+        "schrade",
+        "schrader",
+        "schraeder",
+        "schrag"
+      ],
+      "onset": "ʃ ɹ",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 94,
+      "exemplars": [
+        "gelette",
+        "gelineau",
+        "gendarme",
+        "gendreau",
+        "genereux"
+      ],
+      "onset": "ʒ",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 5,
+      "exemplars": [
+        "joie",
+        "jouret's",
+        "jouret",
+        "xuan",
+        "xudong"
+      ],
+      "onset": "ʒ w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 530,
+      "exemplars": [
+        "thabo",
+        "thach",
+        "thacher",
+        "thacker",
+        "thackeray"
+      ],
+      "onset": "θ",
+      "sonority_ranks": [
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 1,
+      "exemplars": [
+        "thewlis"
+      ],
+      "onset": "θ j",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": false,
+      "count": 1,
+      "exemplars": [
+        "ths"
+      ],
+      "onset": "θ s",
+      "sonority_ranks": [
+        2,
+        2
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 6,
+      "exemplars": [
+        "thwart",
+        "thwarted",
+        "thwarting",
+        "thwarts",
+        "thweatt"
+      ],
+      "onset": "θ w",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    },
+    {
+      "constraint_legal": true,
+      "count": 114,
+      "exemplars": [
+        "thraco-illyrian",
+        "thrailkill",
+        "thrall",
+        "thrash",
+        "thrashed"
+      ],
+      "onset": "θ ɹ",
+      "sonority_ranks": [
+        2,
+        6
+      ]
+    }
+  ],
+  "source": {
+    "corpus": "ipakit-cmudict-corpus",
+    "path": "cmudict.dict",
+    "sha256": "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22",
+    "version": "74790861f652b15e4ac49015a90074ad62a27690"
+  }
+}

@@ -10,7 +10,25 @@
       <oneOrMore>
         <choice>
           <element name="nucleus"><attribute name="span"><text /></attribute><empty /></element>
-          <element name="onset"><attribute name="span"><text /></attribute><empty /></element>
+          <element name="onset">
+            <attribute name="span"><text /></attribute>
+            <choice>
+              <group>
+                <attribute name="stratum"><choice><value>native</value><value>borrowing</value><value>marginal</value></choice></attribute>
+                <attribute name="harvested-count"><data type="nonNegativeInteger" /></attribute>
+                <attribute name="curation-provenance"><data type="token"><param name="minLength">1</param></data></attribute>
+                <optional><attribute name="exemplar"><text /></attribute></optional>
+                <optional><attribute name="decision"><text /></attribute></optional>
+              </group>
+              <group>
+                <optional><attribute name="harvested-count"><data type="nonNegativeInteger" /></attribute></optional>
+                <optional><attribute name="exemplar"><text /></attribute></optional>
+                <optional><attribute name="decision"><text /></attribute></optional>
+                <optional><attribute name="curation-provenance"><text /></attribute></optional>
+              </group>
+            </choice>
+            <empty />
+          </element>
           <element name="coda"><attribute name="span"><text /></attribute><empty /></element>
           <element name="mora"><attribute name="span"><text /></attribute><empty /></element>
           <element name="inventory"><attribute name="source"><text /></attribute><empty /></element>
