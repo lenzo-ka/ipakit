@@ -821,6 +821,7 @@ BORROWED = frozenset(
         "coordinates",
         "articulators",
         "apertures",
+        "lip_dofs",
         "value_classes",
     }
 )

@@ -974,23 +974,34 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
         """The remainder, named rather than left as a round number.
 
         A diphthong is a movement between two postures and the figure draws
-        one; length and stress are not in a bundle at all. Both are limits
-        of what a single sagittal section can be, not of this layer.
+        one; length and stress are not in a bundle at all. Roundedness is now
+        carried by the posture but deliberately projected away by this view.
         """
         ipa = IPAFeatures()
         groups: dict[str, list[str]] = {}
         for phone in sorted(ipa.phones):
             groups.setdefault(_section("adult-male", phone), []).append(phone)
         collapsed = [g for g in groups.values() if len(g) > 1]
-        assert len(groups) == 131, (
+        assert len(groups) == 123, (
             f"{len(groups)} distinct figures for {len(ipa.phones)} phones; "
             f"{len(collapsed)} groups share one"
         )
         ties = ipa.tie_bars
         for group in collapsed:
-            assert any(
-                any(tie in unit for tie in ties) for unit in group
-            ), f"{group} share a drawing and none of them is a diphthong"
+            tied = any(any(tie in unit for tie in ties) for unit in group)
+            without_rounding = {
+                tuple(
+                    sorted(
+                        (k, v)
+                        for k, v in ipa.get_features(unit).items()
+                        if k not in METADATA_ATTRS and k != "rounded"
+                    )
+                )
+                for unit in group
+            }
+            assert (
+                tied or len(without_rounding) == 1
+            ), f"{group} share a drawing but differ beyond roundedness"
 
     def test_what_the_rule_sets_emit_draws_one_picture_per_bundle(self) -> None:
         """The emitted-units claim ``docs/tract-figures.md`` makes.
@@ -1022,7 +1033,11 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
         def bundle(unit: str) -> tuple[tuple[str, str], ...]:
             stated = ipa.get_features(unit)
             return tuple(
-                sorted((k, v) for k, v in stated.items() if k not in METADATA_ATTRS)
+                sorted(
+                    (k, v)
+                    for k, v in stated.items()
+                    if k not in METADATA_ATTRS and k != "rounded"
+                )
             )
 
         pictures: dict[str, list[str]] = {}
