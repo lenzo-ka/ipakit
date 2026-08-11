@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  English phoneme-table vocabulary from eSpeak NG 1.52.0, tag commit
+  4870adfa25b1a32b4361592f1be8a40337c58d6c. The English table inherits
+  consonants and controls from base1 and declares its vowels in ph_english.
+  Native mnemonics follow eSpeak NG's Kirshenbaum-derived notation; mappings
+  not present in ipakit's Kirshenbaum table cite the tagged English source.
+
+  This declaration is scoped to en. Other language tables may inherit,
+  replace, or add phonemes and therefore receive separate declarations.
+-->
+<vocabulary name="espeak-en" version="espeak-ng-1.52.0" provenance="eSpeak NG 1.52.0 phsource/phonemes and phsource/ph_english (GPL-3.0-or-later)" tier="espeak-en" source-style="text">
+  <round-trip>
+    <external-to-house fidelity="lossless" />
+    <house-to-external fidelity="lossy-with-report">
+      <drop name="the house-to-eSpeak leg awaits a mapper; emit requires an existing espeak-en grouping tier" />
+      <drop name="future mapper loss: ties and simultaneity outside eSpeak English native mnemonics" />
+      <drop name="future mapper loss: narrow detail outside the eSpeak NG 1.52.0 English phoneme table" />
+    </house-to-external>
+  </round-trip>
+
+  <!-- Controls and the word boundary printed by `espeak-ng -q -v en -x`. -->
+  <atom spelling="ˈ" output="'" kind="prefix" notes="primary-stress control from phsource/phonemes" />
+  <atom spelling="ˌ" output="," kind="prefix" notes="secondary-stress control from phsource/phonemes" />
+  <atom spelling=" " output=" " notes="word boundary printed as ASCII space by -x" />
+
+  <!-- Base1 English consonants; spellings follow phonemaps/kirshenbaum.xml. -->
+  <atom spelling="p" output="p" /><atom spelling="b" output="b" />
+  <atom spelling="t" output="t" /><atom spelling="d" output="d" />
+  <atom spelling="k" output="k" /><atom spelling="ɡ" output="g" />
+  <atom spelling="f" output="f" /><atom spelling="v" output="v" />
+  <atom spelling="θ" output="T" /><atom spelling="ð" output="D" />
+  <atom spelling="s" output="s" /><atom spelling="z" output="z" />
+  <atom spelling="ʃ" output="S" /><atom spelling="ʒ" output="Z" />
+  <atom spelling="h" output="h" /><atom spelling="m" output="m" />
+  <atom spelling="n" output="n" /><atom spelling="ŋ" output="N" />
+  <atom spelling="l" output="l" /><atom spelling="ɹ" output="r" />
+  <atom spelling="j" output="j" /><atom spelling="w" output="w" />
+  <atom spelling="t͡ʃ" output="tS" /><atom spelling="d͡ʒ" output="dZ" />
+  <atom spelling="ʔ" output="?" />
+
+  <!-- English-table vowels and compounds, including distinctions which
+       converge in IPA but remain distinct on the espeak-en grouping tier. -->
+  <atom spelling="ə" output="@" /><atom spelling="ə" output="3" notes="ph_english LETTER vowel" />
+  <atom spelling="əl" output="@L" notes="ph_english syllabic-l compound" />
+  <atom spelling="a" output="a" /><atom spelling="ɐ" output="a#" notes="ph_english open schwa" />
+  <atom spelling="a" output="aa" notes="ph_english BATH vowel" />
+  <atom spelling="ɛ" output="E" /><atom spelling="ɪ" output="I" />
+  <atom spelling="ɪ" output="I2" notes="ph_english unstressed RABBIT vowel" />
+  <atom spelling="i" output="i" /><atom spelling="ɒ" output="0" />
+  <atom spelling="ʌ" output="V" /><atom spelling="ʊ" output="U" />
+  <atom spelling="ɑː" output="A:" /><atom spelling="ɑː" output="A@" notes="ph_english START vowel" />
+  <atom spelling="ɜː" output="3:" /><atom spelling="iː" output="i:" />
+  <atom spelling="ɔː" output="O:" /><atom spelling="ɔ" output="O" />
+  <atom spelling="ɔː" output="O@" notes="ph_english NORTH vowel" />
+  <atom spelling="ɔː" output="o@" notes="ph_english FORCE vowel" />
+  <atom spelling="uː" output="u:" />
+  <atom spelling="aʊ" output="aU" /><atom spelling="əʊ" output="oU" />
+  <atom spelling="aɪ" output="aI" /><atom spelling="eɪ" output="eI" />
+  <atom spelling="ɔɪ" output="OI" /><atom spelling="eə" output="e@" />
+  <atom spelling="iə" output="i@" /><atom spelling="iə" output="i@3" notes="ph_english NEAR vowel" />
+  <atom spelling="ʊə" output="U@" /><atom spelling="aɪə" output="aI@" notes="ph_english triphthong" />
+  <atom spelling="əɹ" output="IR" notes="ph_english Scottish accent support" />
+  <atom spelling="ʌɹ" output="VR" notes="ph_english Scottish accent support" />
+  <atom spelling="oː" output="o:" notes="ph_english accent support" />
+  <atom spelling="ɑ̃" output="A~" notes="ph_english nasal vowel" />
+  <atom spelling="ɔ̃" output="O~" notes="ph_english nasal vowel" />
+  <atom spelling="eː" output="e:" notes="ph_english accent support" />
+  <atom spelling="ə" output="@#" notes="ph_english fronted schwa test phoneme" />
+</vocabulary>

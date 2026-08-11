@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 from ipakit.bridges import (
+    ESPEAK_EN,
+    EspeakBridge,
     Fidelity,
     ProjectionDrop,
     VocabularyBridge,
@@ -15,6 +17,7 @@ from ipakit.bridges.pinyin import PINYIN
 from ipakit.form import Form
 
 FIXTURE = Path(__file__).parent / "fixtures" / "mfa_english_us_v3_1_0.dict"
+ESPEAK_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_en_1_52_0.txt"
 
 
 def test_mfa_inventory_is_pinned_and_parses_under_base_ipa() -> None:
@@ -164,6 +167,51 @@ def test_mfa_mapper_refuses_undeclared_or_empty_residue_positioned(
 ) -> None:
     with pytest.raises(VocabularyResidueError, match=message):
         MFA.map_to_mfa(Form.parse(house, strict=True))
+
+
+def test_espeak_en_inventory_is_language_scoped_and_pinned() -> None:
+    assert ESPEAK_EN.language == "en"
+    assert ESPEAK_EN.name == "espeak-en"
+    assert ESPEAK_EN.version == "espeak-ng-1.52.0"
+    assert ESPEAK_EN.source_style == "text"
+    assert ESPEAK_EN.separator == ""
+    assert len(ESPEAK_EN.atoms) == 67
+
+
+def test_espeak_native_text_fixture_round_trips_byte_exact() -> None:
+    samples = [
+        line
+        for line in ESPEAK_FIXTURE.read_text().splitlines()
+        if not line.startswith("#")
+    ]
+    assert len(samples) == 3
+    assert [ESPEAK_EN.emit(ESPEAK_EN.read(sample)) for sample in samples] == samples
+    assert ESPEAK_EN.read(samples[0]).to_ipa() == "həlˈəʊ wˈɜːld"
+
+
+def test_espeak_external_distinctions_survive_on_the_grouping_tier() -> None:
+    form = ESPEAK_EN.read("@3I2")
+    assert form.to_ipa() == "əəɪ"
+    assert ESPEAK_EN.emit(form) == "@3I2"
+
+
+def test_espeak_en_round_trip_classification_names_unimplemented_mapper() -> None:
+    assert ESPEAK_EN.round_trip.external_to_house.fidelity is Fidelity.LOSSLESS
+    ours = ESPEAK_EN.round_trip.house_to_external
+    assert ours.fidelity is Fidelity.LOSSY_WITH_REPORT
+    assert ours.drops[0] == (
+        "the house-to-eSpeak leg awaits a mapper; emit requires an existing "
+        "espeak-en grouping tier"
+    )
+    with pytest.raises(ValueError, match="undeclared tiers: \\['espeak-en'\\]"):
+        ESPEAK_EN.emit(Form.parse("həloʊ", strict=True))
+
+
+def test_espeak_refuses_undeclared_language_and_native_residue() -> None:
+    with pytest.raises(ValueError, match="no declared eSpeak NG vocabulary for 'fr'"):
+        EspeakBridge("fr")
+    with pytest.raises(VocabularyResidueError, match=r"span \[1:2\]: '\$'"):
+        ESPEAK_EN.read("h$")
 
 
 def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:

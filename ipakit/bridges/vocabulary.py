@@ -185,6 +185,7 @@ class VocabularyBridge(Bridge):
                         atom,
                     )
                     for atom in atoms
+                    if atom.kind == "unit"
                 ),
                 key=lambda item: len(item[0]),
                 reverse=True,

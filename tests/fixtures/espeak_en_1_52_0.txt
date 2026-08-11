@@ -1,0 +1,7 @@
+# eSpeak NG 1.52.0: `espeak-ng -q -v en -x` on each phrase below.
+# hello world
+h@l'oU w'3:ld
+# testing bridges
+t'EstIN br'IdZI2z
+# phonemes and speech
+f'oUni:mz and sp'i:tS
