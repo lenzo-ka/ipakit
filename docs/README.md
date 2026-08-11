@@ -1,5 +1,13 @@
 # ipakit documentation
 
+ipakit has four parts: the declaration-driven tier graph in
+[representation.md](representation.md), first-class collections and structural
+search in [corpus.md](corpus.md), recognition and rewriting in
+[rules.md](rules.md), and the measured articulatory model introduced in
+[tract-anatomy.md](tract-anatomy.md). Together they let symbolic accounts of
+speech be computed over, compared, and carried between external systems while
+recording conversion losses and source disagreements.
+
 Start with the [tutorial](tutorial.md). Everything else here is reference or design, and
 assumes you already know why you are reading it.
 
