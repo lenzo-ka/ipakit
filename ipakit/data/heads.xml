@@ -172,6 +172,24 @@
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
     <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
+    <frontal>
+      <!-- Proportions: Z-Anatomy 5.2.0 (CC BY-SA 4.0), derived from BodyParts3D
+           (CC BY-SA 2.1 Japan), measured in ipakit-assets/proportions.md:
+           upper/lower arch 0.4785/0.5156 bizygomatic; mouth 1.0291 IPD.
+           Vermilion: Farkas et al., Anthropometric proportions in the upper
+           lip-lower lip-chin area, Am J Orthod 86 (1984) 52–60, male
+           8.0/9.3 mm at 54.5 mm mouth width. The atlas has no vermilion.
+           Shape lives on Head, the renderer projects and strokes. -->
+      <contour name="face" carrier="skull" arc="1.0" provenance="Z-Anatomy + BodyParts3D proportions"><point x="0.50" y="0.03"/><point x="0.94" y="0.32"/><point x="0.82" y="0.94"/><point x="0.50" y="1.00"/><point x="0.18" y="0.94"/><point x="0.06" y="0.32"/></contour>
+      <contour name="nose" carrier="skull" arc="0.04" provenance="hand-placed light touch"><point x="0.42" y="0.49"/><point x="0.50" y="0.45"/><point x="0.58" y="0.49"/><point x="0.55" y="0.53"/><point x="0.45" y="0.53"/></contour>
+      <contour name="upper-lip" carrier="skull" arc="0.00" provenance="Farkas et al. 1984"><point x="0.243" y="0.62"/><point x="0.40" y="0.585"/><point x="0.50" y="0.605"/><point x="0.60" y="0.585"/><point x="0.757" y="0.62"/><point x="0.50" y="0.648"/></contour>
+      <contour name="lower-lip" carrier="mandible" arc="0.00" provenance="Farkas et al. 1984"><point x="0.243" y="0.62"/><point x="0.50" y="0.648"/><point x="0.757" y="0.62"/><point x="0.61" y="0.69"/><point x="0.39" y="0.69"/></contour>
+      <contour name="upper-teeth" carrier="skull" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.261" y="0.625"/><point x="0.50" y="0.61"/><point x="0.739" y="0.625"/><point x="0.70" y="0.66"/><point x="0.30" y="0.66"/></contour>
+      <contour name="lower-teeth" carrier="mandible" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.242" y="0.665"/><point x="0.50" y="0.685"/><point x="0.758" y="0.665"/><point x="0.70" y="0.64"/><point x="0.30" y="0.64"/></contour>
+      <contour name="tongue" carrier="mandible" arc="0.32" provenance="head tongue basis"><point x="0.28" y="0.69"/><point x="0.50" y="0.64"/><point x="0.72" y="0.69"/><point x="0.66" y="0.75"/><point x="0.34" y="0.75"/></contour>
+      <contour name="chin" carrier="mandible" arc="0.90" provenance="hand-placed mask"><point x="0.28" y="0.72"/><point x="0.50" y="0.91"/><point x="0.72" y="0.72"/></contour>
+      <contour name="eyes" carrier="skull" arc="1.0" provenance="static furniture"><point x="0.25" y="0.32"/><point x="0.38" y="0.32"/><point x="0.62" y="0.32"/><point x="0.75" y="0.32"/></contour>
+    </frontal>
   </head>
 
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
@@ -269,6 +287,21 @@
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
     <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
+    <frontal>
+      <!-- Z-Anatomy/BodyParts3D dental and mouth proportions as above.
+           Vermilion: Farkas et al., Am J Orthod 86 (1984) 52–60,
+           female 8.7/9.4 mm at 50.2 mm mouth width; atlas has no vermilion.
+           Shape lives on Head, the renderer projects and strokes. -->
+      <contour name="face" carrier="skull" arc="1.0" provenance="Z-Anatomy + BodyParts3D proportions"><point x="0.50" y="0.03"/><point x="0.94" y="0.32"/><point x="0.82" y="0.94"/><point x="0.50" y="1.00"/><point x="0.18" y="0.94"/><point x="0.06" y="0.32"/></contour>
+      <contour name="nose" carrier="skull" arc="0.04" provenance="hand-placed light touch"><point x="0.42" y="0.49"/><point x="0.50" y="0.45"/><point x="0.58" y="0.49"/><point x="0.55" y="0.53"/><point x="0.45" y="0.53"/></contour>
+      <contour name="upper-lip" carrier="skull" arc="0.00" provenance="Farkas et al. 1984"><point x="0.243" y="0.62"/><point x="0.40" y="0.585"/><point x="0.50" y="0.605"/><point x="0.60" y="0.585"/><point x="0.757" y="0.62"/><point x="0.50" y="0.648"/></contour>
+      <contour name="lower-lip" carrier="mandible" arc="0.00" provenance="Farkas et al. 1984"><point x="0.243" y="0.62"/><point x="0.50" y="0.648"/><point x="0.757" y="0.62"/><point x="0.61" y="0.69"/><point x="0.39" y="0.69"/></contour>
+      <contour name="upper-teeth" carrier="skull" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.261" y="0.625"/><point x="0.50" y="0.61"/><point x="0.739" y="0.625"/><point x="0.70" y="0.66"/><point x="0.30" y="0.66"/></contour>
+      <contour name="lower-teeth" carrier="mandible" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.242" y="0.665"/><point x="0.50" y="0.685"/><point x="0.758" y="0.665"/><point x="0.70" y="0.64"/><point x="0.30" y="0.64"/></contour>
+      <contour name="tongue" carrier="mandible" arc="0.32" provenance="head tongue basis"><point x="0.28" y="0.69"/><point x="0.50" y="0.64"/><point x="0.72" y="0.69"/><point x="0.66" y="0.75"/><point x="0.34" y="0.75"/></contour>
+      <contour name="chin" carrier="mandible" arc="0.90" provenance="hand-placed mask"><point x="0.28" y="0.72"/><point x="0.50" y="0.91"/><point x="0.72" y="0.72"/></contour>
+      <contour name="eyes" carrier="skull" arc="1.0" provenance="static furniture"><point x="0.25" y="0.32"/><point x="0.38" y="0.32"/><point x="0.62" y="0.32"/><point x="0.75" y="0.32"/></contour>
+    </frontal>
   </head>
 
   <!-- The child head is untouched: XRMB's speakers are young adults (median
@@ -350,6 +383,22 @@
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
     <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
+    <frontal>
+      <!-- Z-Anatomy/BodyParts3D dental and mouth proportions as above.
+           Child lip ratio: Farkas, Anthropometry of the Head and Face,
+           2nd ed. (1994), age 4–5 norms (upper/lower vermilion 110.6%);
+           the atlas has no vermilion. Shape lives on Head, the renderer
+           projects and strokes. -->
+      <contour name="face" carrier="skull" arc="1.0" provenance="Z-Anatomy + BodyParts3D proportions"><point x="0.50" y="0.03"/><point x="0.94" y="0.32"/><point x="0.82" y="0.94"/><point x="0.50" y="1.00"/><point x="0.18" y="0.94"/><point x="0.06" y="0.32"/></contour>
+      <contour name="nose" carrier="skull" arc="0.04" provenance="hand-placed light touch"><point x="0.42" y="0.49"/><point x="0.50" y="0.45"/><point x="0.58" y="0.49"/><point x="0.55" y="0.53"/><point x="0.45" y="0.53"/></contour>
+      <contour name="upper-lip" carrier="skull" arc="0.00" provenance="Farkas 1994"><point x="0.243" y="0.62"/><point x="0.40" y="0.585"/><point x="0.50" y="0.605"/><point x="0.60" y="0.585"/><point x="0.757" y="0.62"/><point x="0.50" y="0.648"/></contour>
+      <contour name="lower-lip" carrier="mandible" arc="0.00" provenance="Farkas 1994"><point x="0.243" y="0.62"/><point x="0.50" y="0.648"/><point x="0.757" y="0.62"/><point x="0.61" y="0.69"/><point x="0.39" y="0.69"/></contour>
+      <contour name="upper-teeth" carrier="skull" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.261" y="0.625"/><point x="0.50" y="0.61"/><point x="0.739" y="0.625"/><point x="0.70" y="0.66"/><point x="0.30" y="0.66"/></contour>
+      <contour name="lower-teeth" carrier="mandible" arc="0.08" provenance="Z-Anatomy + BodyParts3D"><point x="0.242" y="0.665"/><point x="0.50" y="0.685"/><point x="0.758" y="0.665"/><point x="0.70" y="0.64"/><point x="0.30" y="0.64"/></contour>
+      <contour name="tongue" carrier="mandible" arc="0.32" provenance="head tongue basis"><point x="0.28" y="0.69"/><point x="0.50" y="0.64"/><point x="0.72" y="0.69"/><point x="0.66" y="0.75"/><point x="0.34" y="0.75"/></contour>
+      <contour name="chin" carrier="mandible" arc="0.90" provenance="hand-placed mask"><point x="0.28" y="0.72"/><point x="0.50" y="0.91"/><point x="0.72" y="0.72"/></contour>
+      <contour name="eyes" carrier="skull" arc="1.0" provenance="static furniture"><point x="0.25" y="0.32"/><point x="0.38" y="0.32"/><point x="0.62" y="0.32"/><point x="0.75" y="0.32"/></contour>
+    </frontal>
   </head>
 
 </heads>

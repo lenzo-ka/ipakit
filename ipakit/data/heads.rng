@@ -59,6 +59,7 @@
             <ref name="teeth"/>
             <ref name="carriage"/>
             <ref name="tongue"/>
+            <ref name="frontal"/>
           </interleave>
         </element>
       </oneOrMore>
@@ -182,6 +183,27 @@
       <attribute name="falloff"><ref name="normalized"/></attribute>
       <attribute name="taper"><ref name="normalized"/></attribute>
       <attribute name="provenance"><text/></attribute>
+    </element>
+  </define>
+
+  <define name="frontal">
+    <!-- Face-on shape remains on Head. Arc is the declared painter depth;
+         carrier says whether jaw drop moves the contour. -->
+    <element name="frontal">
+      <oneOrMore>
+        <element name="contour">
+          <attribute name="name"><text/></attribute>
+          <attribute name="carrier"><text/></attribute>
+          <attribute name="arc"><ref name="normalized"/></attribute>
+          <attribute name="provenance"><text/></attribute>
+          <oneOrMore>
+            <element name="point">
+              <attribute name="x"><ref name="normalized"/></attribute>
+              <attribute name="y"><ref name="normalized"/></attribute>
+            </element>
+          </oneOrMore>
+        </element>
+      </oneOrMore>
     </element>
   </define>
 

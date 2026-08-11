@@ -235,6 +235,9 @@ class Head:
     teeth: tuple[tuple[str, float, float, str], ...] = ()
     carriage: tuple[tuple[float, float], ...] = ()
     tongue_span: tuple[float, float, float, float] | None = None
+    # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
+    # the renderer only poses, projects and strokes it.
+    frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
 
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
@@ -775,6 +778,23 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 float(tongue_elem.get("falloff", 0.3)),
                 float(tongue_elem.get("taper", 0.0)),
             )
+        frontal_elem = elem.find("frontal")
+        frontal: tuple[
+            tuple[str, str, float, tuple[tuple[float, float], ...]], ...
+        ] = ()
+        if frontal_elem is not None:
+            frontal = tuple(
+                (
+                    contour.get("name", ""),
+                    contour.get("carrier", "skull"),
+                    float(contour.get("arc", 0.0)),
+                    tuple(
+                        (float(pt.get("x", 0.0)), float(pt.get("y", 0.0)))
+                        for pt in contour.findall("point")
+                    ),
+                )
+                for contour in frontal_elem.findall("contour")
+            )
         length = elem.get("length-cm")
         rest_elem = elem.find("rest")
         rest = None
@@ -799,6 +819,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             teeth=teeth,
             carriage=carriage,
             tongue_span=tongue_span,
+            frontal=frontal,
         )
     return heads, default
 
