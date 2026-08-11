@@ -81,9 +81,9 @@ The difference is the point: the moraic declaration reports residue, the enumera
 
 ## 7. Metric firewall
 
-The 139-phone upper triangle contains 9,591 pairs; this lane moved 0, the stored fingerprint still equals the derived fingerprint, and `confusion.json` remains byte-unchanged at SHA-256 `aecabe393e38b23dd23f6dbb44b11226bb34a7839f103f709890de432f7827bb`.
+The 139-phone upper triangle contains 9,591 pairs; this lane moved 0, the stored fingerprint still equals the derived fingerprint, and `confusion.json` remains byte-unchanged at SHA-256 `f490f57876f92f9275eb9916c7ac199fad230e3463d665135059b93b53e9ef61`.
 
-The live control changed the declared plosive offset from `1.00` to `0.99` in a temporary inventory, made the same instrument report 3,251 movers, and then vanished with the temporary file.
+The live control changed the declared plosive offset from `1.00` to `0.99` in a temporary inventory, made the same instrument report 4,325 movers, and then vanished with the temporary file.
 
 Sonority never entered these three derivations or the metric.
 
