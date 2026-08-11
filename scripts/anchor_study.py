@@ -45,6 +45,7 @@ SYNC_SPEAKERS = 5
 SYNC_TOLERANCE_S = 0.050
 SYNC_MIN_TOKENS = 6
 WINDOW_PAD_S = 0.060
+NON_INFORMATIVE = frozenset({"alveolar-fricative", "vowel"})
 
 # PocketSphinx's English model is the closed inventory producing these IPA
 # symbols. Classes are articulatory event classes, split by manner where the
@@ -295,6 +296,7 @@ def sync_gate(
         except (OSError, ValueError) as exc:
             errors.append(f"{speaker_path.name}/tp{task}: {exc}")
             continue
+        previous_burst = None
         for unit in form.units:
             timing = unit.timing
             symbol = unit.text
@@ -307,7 +309,13 @@ def sync_gate(
             )
             release = _release_time(_observable(held, class_name, outline))
             if burst is not None and release is not None:
+                # Forced alignment can split one stop into adjacent units whose
+                # overlapping searches select the same acoustic burst. Count
+                # that physical release once.
+                if burst == previous_burst:
+                    continue
                 differences.append(release - burst)
+                previous_burst = burst
     if len(differences) < SYNC_MIN_TOKENS:
         errors.append(
             f"sync gate found {len(differences)} usable stop releases; need {SYNC_MIN_TOKENS}"
@@ -382,6 +390,52 @@ def _summary(tokens: Sequence[Token]) -> tuple[float, float, float, float]:
     )
 
 
+def _null_summary(tokens: Sequence[Token]) -> tuple[float, float, float, float]:
+    """Analytic mixture for one uniform pick in each token's padded window."""
+    bounds = [
+        (-WINDOW_PAD_S / token.duration, 1 + WINDOW_PAD_S / token.duration)
+        for token in tokens
+    ]
+
+    def cdf(value: float) -> float:
+        return sum(
+            min(1.0, max(0.0, (value - low) / (high - low))) for low, high in bounds
+        ) / len(bounds)
+
+    def quantile(q: float) -> float:
+        low = min(pair[0] for pair in bounds)
+        high = max(pair[1] for pair in bounds)
+        for _ in range(64):
+            middle = (low + high) / 2
+            if cdf(middle) < q:
+                low = middle
+            else:
+                high = middle
+        return (low + high) / 2
+
+    in_segment = sum(1 / (high - low) for low, high in bounds) / len(bounds)
+    return quantile(0.5), quantile(0.25), quantile(0.75), in_segment
+
+
+def _null_table(groups: Iterable[tuple[str, Sequence[Token]]]) -> list[str]:
+    lines = [
+        "| class | n | observed in segment | chance | observed IQR | null IQR | assessment |",
+        "|---|---:|---:|---:|---:|---:|---|",
+    ]
+    for name, tokens in groups:
+        if not tokens:
+            continue
+        _, q1, q3, _ = _summary(tokens)
+        _, null_q1, null_q3, chance = _null_summary(tokens)
+        observed = sum(0 <= token.fraction <= 1 for token in tokens) / len(tokens)
+        assessment = "NON-INFORMATIVE" if name in NON_INFORMATIVE else "informative"
+        lines.append(
+            f"| {name} | {len(tokens)} | {observed:.1%} | {chance:.1%} | "
+            f"{q3 - q1:.3f} | {null_q3 - null_q1:.3f} | **{assessment}** |"
+        )
+    return lines
+
+
 def _table(groups: Iterable[tuple[str, Sequence[Token]]]) -> list[str]:
     lines = [
         "| group | n | median | Q1 | Q3 | before onset |",
@@ -406,12 +460,7 @@ def render_report(
     by_class: dict[str, list[Token]] = defaultdict(list)
     for token in tokens:
         by_class[token.class_name].append(token)
-    recommendations = {}
-    for name, held in by_class.items():
-        median = _summary(held)[0]
-        recommendations[name] = (
-            "onset" if abs(median) <= abs(median - 0.5) else "center"
-        )
+    signed_median = statistics.median(differences)
     lines = [
         "# XRMB anchor study",
         "",
@@ -419,7 +468,7 @@ def render_report(
         "",
         "## Sync gate",
         "",
-        f"{len(differences)} clear stop releases across the first {SYNC_SPEAKERS} speakers; median absolute waveform-burst to pellet-release difference **{statistics.median(abs(value) for value in differences):.3f} s** and 75th percentile **{_quantile([abs(value) for value in differences], 0.75):.3f} s** (gate: 75th percentile <= {SYNC_TOLERANCE_S:.3f} s).",
+        f"{len(differences)} deduplicated clear stop releases across the first {SYNC_SPEAKERS} speakers; median signed pellet-release minus waveform-burst difference **{signed_median:+.3f} s** (range **{min(differences):+.3f} to {max(differences):+.3f} s**). Median absolute difference **{statistics.median(abs(value) for value in differences):.3f} s** and 75th percentile **{_quantile([abs(value) for value in differences], 0.75):.3f} s** (gate: 75th percentile <= {SYNC_TOLERANCE_S:.3f} s). The signed values expose systematic clock offset separately from detector scatter; the absolute values enforce the gate.",
         "",
         "## Headline distributions",
         "",
@@ -429,7 +478,21 @@ def render_report(
         lines.append(
             f"- **{name}:** median {median:.3f} of the acoustic segment (IQR {q1:.3f}-{q3:.3f}); {before:.1%} of targets precede acoustic onset."
         )
-    lines += ["", *_table(sorted(by_class.items())), "", "## By speaker", ""]
+    lines += [
+        "",
+        *_table(sorted(by_class.items())),
+        "",
+        "## Uniform-window null comparison",
+        "",
+        "The null chooses a time uniformly from each token's acoustic segment plus the same 60 ms pad on either side. Its median is 0.500 by symmetry. In-segment chance and the pooled null IQR are computed analytically from the observed token durations; IQR is the dispersion measure in both columns.",
+        "",
+        *_null_table(sorted(by_class.items())),
+        "",
+        "Vowel and alveolar-fricative are **NON-INFORMATIVE** on the current detectors and are excluded from recommendations: neither is separable from this null, and the vowel detector is more dispersed than it.",
+        "",
+        "## By speaker",
+        "",
+    ]
     speaker_groups = defaultdict(list)
     for token in tokens:
         speaker_groups[(token.speaker, token.class_name)].append(token)
@@ -454,14 +517,13 @@ def render_report(
             )
         )
     lines += _table(duration_groups)
-    lines += ["", "## Recommended defaults", ""]
-    for name, anchor in sorted(recommendations.items()):
-        lines.append(f"- `{name}`: **`{anchor}`**")
-    unique = set(recommendations.values())
-    verdict = "one global anchor" if len(unique) == 1 else "per-class anchors"
     lines += [
         "",
-        f"The observed medians support **{verdict}** among the tested `center`/`onset` choices. These binary recommendations select whichever candidate is closer to the measured median; the distributions, not that discretization, are the primary result.",
+        "The duration split shows rate drift: target fractions change between short and long segments, so the normalized anchor is not perfectly rate-invariant.",
+        "",
+        "## Recommendation",
+        "",
+        "Center-anchoring is supported for bilabial stops, and to a lesser degree the nasals; support is weak for alveolar stops; vowels and alveolar fricatives are UNMEASURED with these detectors. There is no evidence here for one global anchor. The sampler's center default remains reasonable as a default—supported where measurable and uncontradicted elsewhere—but this study does not justify class-specific recommendations for the NON-INFORMATIVE detectors.",
         "",
         "## Alignment refusals",
         "",
@@ -476,6 +538,8 @@ def render_report(
         "Targets use kinematics alone inside a 60 ms padded acoustic window: UL-LL distance minima for bilabials, T1-to-`PAL.DAT` clearance minima for alveolars, and T3/T4 speed minima for vowels. Local outer 0.1% observable samples are discarded under the same quantile rationale as `scripts/articulatory.py`; missing sentinels are never interpolated. Anchor fraction is exactly `(t_event - t_onset) / duration`.",
         "",
         "This grounds target timing for the measured XRMB English reading tasks and these pellet observables. It does not ground unmeasured places, other languages, spontaneous speech, causal accounts of anticipation, or the acoustic aligner's phone boundaries.",
+        "",
+        "Detector repair is a separate future lane: vowel event detection needs a formant-domain or richer-kinematic approach, and the ±60 ms pad swamps short segments. The same limitation applies to treating the current alveolar-fricative result as a target measurement.",
         "",
         "Prompts are task 2 (citation words) and task 7 (sentences), transcribed in `tests/fixtures/xrmb_anchor_prompts.json` from Westbury, Turner & Dembowski (1994), *X-Ray Microbeam Speech Production Database User's Handbook*, Appendix A, pp. 84-85. Handbook PDF: <https://www.ling.uni-potsdam.de/~gafos/fhs_atelier/ubdbman.pdf> (accessed 2026-08-10). Oral-motor tasks were excluded.",
         "",

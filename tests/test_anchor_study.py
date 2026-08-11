@@ -71,3 +71,15 @@ def test_classification_covers_declared_observables() -> None:
     assert module._classify("n") == "alveolar-nasal"
     assert module._classify("ɛ") == "vowel"
     assert module._classify("k") is None
+
+
+def test_uniform_window_null_is_analytic_and_centered() -> None:
+    module = _module()
+    tokens = [
+        module.Token("JW00", "002", "p", "bilabial-stop", 1.0, 0.12, 1.06),
+        module.Token("JW00", "002", "p", "bilabial-stop", 2.0, 0.12, 2.06),
+    ]
+    median, q1, q3, in_segment = module._null_summary(tokens)
+    assert median == pytest.approx(0.5)
+    assert (q1, q3) == pytest.approx((0.0, 1.0))
+    assert in_segment == pytest.approx(0.5)
