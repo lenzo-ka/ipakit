@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from ipakit import Form, Language, syllabifier
+from ipakit.rules import RuleSet, parse
 from ipakit.syllable import read_language
 
 
@@ -142,3 +143,41 @@ def test_unlabeled_declarations_are_admitted_at_every_strictness(
 def test_unknown_strictness_is_refused() -> None:
     with pytest.raises(ValueError, match="strictness"):
         syllabifier("spanish", strictness="unknown")
+
+
+def test_a_rule_reads_the_syllable_tier_the_producer_wrote(tmp_path: Path) -> None:
+    declaration = _declared(
+        tmp_path,
+        """
+<syllabification language="test" version="1" mode="constraints" provenance="test">
+  <nucleus span="[vowel]" /><onset span="[-vowel]" />
+</syllabification>""",
+    )
+    stated = syllabifier(declaration)("ata")
+
+    short = parse("t -> tʰ / <syllable _").rewrite(stated.form)[0]
+    long = parse("t -> tʰ / . _").rewrite(Form.parse(stated.marks()))[0]
+
+    assert stated.form.to_ipa() == "ata"
+    assert stated.marks() == "a.ta"
+    assert short.to_ipa() == "atʰa"
+    assert long.to_ipa() == "a.tʰa"
+    assert long.without_boundaries().to_ipa() == short.to_ipa()
+
+
+def test_an_internal_expansion_carries_the_margin_to_the_next_rule(
+    tmp_path: Path,
+) -> None:
+    declaration = _declared(
+        tmp_path,
+        """
+<syllabification language="test" version="1" mode="constraints" provenance="test">
+  <nucleus span="[vowel]" /><onset span="[-vowel]" />
+</syllabification>""",
+    )
+    stated = syllabifier(declaration)("ata").form
+
+    derived = RuleSet.parse("a -> ai / # _\nt -> tʰ / <syllable _").derive(stated)
+
+    assert derived.result == "aitʰa"
+    assert [(span.start, span.end) for span in derived.intervals] == [(0, 2), (2, 4)]
