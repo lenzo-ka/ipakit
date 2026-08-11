@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 import re
+import shutil
+from pathlib import Path
 
 from ipakit.features import IPAFeatures
 from ipakit.tract import head, landmarks, posture, trajectory
@@ -15,6 +17,8 @@ from ipakit.tract_svg import (
     frontal_svg,
     section_svg,
 )
+
+from tests.test_tract_figures import _differing, _pixels
 
 
 def _offset(frame, articulator: str) -> float:
@@ -63,6 +67,17 @@ def test_sagittal_upper_lip_is_a_painted_named_body() -> None:
     svg = figure("a")
     assert svg.count("upper-lip") == 1
     assert re.search(r'<path[^>]+class="lip upper-lip"', svg)
+
+
+def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
+    if shutil.which("rsvg-convert") is None:
+        return
+    svg = figure("a")
+    without, removed = re.subn(r'<path[^>]+class="lip upper-lip"/>', "", svg, count=1)
+    assert removed == 1
+    width, painted = _pixels(svg, tmp_path / "upper-lip.svg", width=760)
+    _, absent = _pixels(without, tmp_path / "without-upper-lip.svg", width=760)
+    assert len(_differing(width, painted, absent)) > 20
 
 
 def test_every_kaet_frame_keeps_root_anchor_and_stops_at_tip() -> None:
