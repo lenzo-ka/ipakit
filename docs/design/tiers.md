@@ -199,7 +199,7 @@ def delta(rule):
 sum(1 for name in available() for r in shipped(name, F).rules if delta(r))
 # 27
 {name: sum(1 for r in shipped(name, F).rules if delta(r)) for name in available()}
-# {'american-english': 0, 'experiment-demo': 0, 'french-liaison': 12, 'german-final-devoicing': 0, 'japanese-moraic': 11, 'spanish-accented-english': 4}
+# {'american-english': 0, 'french-liaison': 12, 'german-final-devoicing': 0, 'japanese-moraic': 11, 'spanish-accented-english': 4}
 ```
 
 **Read the block, not the sentence, and the block is pinned elsewhere.** `Rule.becomes` is a `str`, a feature change, or `None` — never a sequence — so six of the twenty-seven are invisible to any count that takes the right-hand side for a unit instead of tokenizing it: `ŋ -> ŋɡ`, the three Japanese untying rules `a͜ɪ -> ai`, `a͜ʊ -> au` and `ɔ͜ɪ -> oi`, and the two Spanish r-colored decompositions `ɚ -> eɹ` and `ɝ -> eɹ` each write two units over one. A sentence cannot catch that, so `tests/test_rule_sets.py` carries the count — the totals above, the six literals by name, and a cross-check that the delta reckoned from a rule's notation equals the delta measured on the `Edit` it actually produces, over every edit the shipped corpora provoke. Nothing sweeps the `python` blocks under `docs/design/` the way `scripts/docexamples.py` sweeps the ones in `docs/*.md`, which is why the test and not the fence is the guard.

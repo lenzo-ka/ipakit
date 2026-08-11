@@ -1,2 +1,0 @@
-# A deliberately small corpus-experiment grammar: homorganic nasal place.
-n -> m / _ [place=bilabial] ; nasal place assimilation

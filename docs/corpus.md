@@ -101,7 +101,7 @@ manifest. Later entries do not join it. `Corpus.split(name)` refuses if any
 member has disappeared, so a cited split cannot quietly change meaning.
 
 ```python no-run
-grammar = ipakit.shipped("experiment-demo")
+grammar = ipakit.shipped("german-final-devoicing")
 experiment = ipakit.Experiment(
     grammar, c, "broad", "narrow", split="test", limit=256
 )
@@ -123,7 +123,7 @@ The command-line door prints the paper-table summary and writes the complete
 re-runnable document:
 
 ```sh
-$ ipakit rules derives -s experiment-demo -C ./corpus \
+$ ipakit rules derives -s german-final-devoicing -C ./corpus \
     --source cited --target observed --split test --report report.json
 coverage        24/25   derivable=24    provably_underivable=1  cap_truncated=0 ill_formed_input=0
 report  report.json

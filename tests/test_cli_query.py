@@ -206,8 +206,8 @@ def test_rules_derives_writes_full_report_and_prints_summary(tmp_path: Path):
     result = invoke(
         "rules",
         "derives",
-        "-s",
-        "experiment-demo",
+        "-r",
+        "n -> m / _ [place=bilabial]",
         "--corpus",
         location,
         "--source",

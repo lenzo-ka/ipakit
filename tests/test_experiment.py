@@ -72,7 +72,7 @@ def test_cmudict_slice_executed_demonstration(tmp_path: Path):
         mapper=ipakit.CMUMapper(),
     )
     assert ingested.added == 101
-    grammar = ipakit.shipped("experiment-demo")
+    grammar = ipakit.shipped("german-final-devoicing")
     chosen = tuple(list(corpus.ids())[:25])
     for entry_id in chosen:
         source = corpus.read(entry_id).forms["cited"]
