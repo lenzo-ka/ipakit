@@ -2676,6 +2676,11 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
             "rule rewrites: there is nothing to rewrite where it is absent. "
             "Optionality is for context items."
         )
+    if target is not None and target.repeated:
+        raise RuleError(
+            f"{source!r} marks its target repeated, and a rule cannot rewrite "
+            "a span it has not counted. Repetition is for context items."
+        )
     if target is None and isinstance(becomes, str) and becomes in features.zeros:
         raise RuleError(
             f"{source!r} inserts a zero. A zero records that a position had "
