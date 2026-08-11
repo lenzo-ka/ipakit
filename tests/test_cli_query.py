@@ -220,3 +220,74 @@ def test_rules_derives_writes_full_report_and_prints_summary(tmp_path: Path):
     assert result.returncode == 0
     assert result.stdout.startswith("coverage\t1/2\tderivable=1")
     assert json.loads(report.read_text())["type"] == "ipakit.experiment.report"
+
+
+def test_rules_derives_refuses_a_role_absent_from_the_corpus(tmp_path: Path):
+    location = tmp_path / "speech"
+    report = tmp_path / "report.json"
+    corpus = ipakit.corpus.create(location)
+    corpus.add("one", {}, {"broad": ipakit.read("anp")})
+    corpus.add("two", {}, {"narrow": ipakit.read("amp")})
+
+    result = invoke(
+        "rules",
+        "derives",
+        "-r",
+        "n -> m / _ [place=bilabial]",
+        "--corpus",
+        location,
+        "--source",
+        "NOPE",
+        "--target",
+        "narrow",
+        "--report",
+        report,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert "source role 'NOPE' appears on zero entries of corpus" in result.stderr
+    assert "roles present on readable entries: 'broad', 'narrow'" in result.stderr
+    assert not report.exists()
+
+
+@pytest.mark.parametrize("corruption", ["invalid_json", "wrong_type", "forms_list"])
+def test_rules_derives_classifies_entry_envelope_corruption_and_writes_report(
+    tmp_path: Path, corruption: str
+):
+    location = tmp_path / "speech"
+    report = tmp_path / "report.json"
+    corpus = ipakit.corpus.create(location)
+    forms = {"broad": ipakit.read("anp"), "narrow": ipakit.read("amp")}
+    corpus.add("good", {}, forms)
+    corpus.add("corrupt", {}, forms)
+    path = location / "entries" / "corrupt.json"
+    if corruption == "invalid_json":
+        path.write_text("not json", encoding="utf-8")
+    else:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        if corruption == "wrong_type":
+            document["type"] = "not-an-entry"
+        else:
+            document["forms"] = []
+        path.write_text(json.dumps(document), encoding="utf-8")
+
+    result = invoke(
+        "rules",
+        "derives",
+        "-r",
+        "n -> m / _ [place=bilabial]",
+        "--corpus",
+        location,
+        "--source",
+        "broad",
+        "--target",
+        "narrow",
+        "--report",
+        report,
+    )
+
+    assert result.returncode == 0
+    document = json.loads(report.read_text(encoding="utf-8"))
+    corrupt = next(row for row in document["entries"] if row["entry_id"] == "corrupt")
+    assert corrupt["classification"] == "ill_formed_input"

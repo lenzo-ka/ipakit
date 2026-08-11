@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from ._corpus import Corpus
+from ._corpus import Corpus, CorpusError
 from ._corpus_query import BudgetRefusal, ExhaustiveRefusal, derives
 from ._tiergraph_json import identity_fingerprint
 from .features import IPAFeatures
@@ -186,7 +186,11 @@ class ExperimentReport:
 
 @dataclass(frozen=True)
 class Experiment:
-    """A rule set posed against named roles in a corpus or durable split."""
+    """A rule set posed against named roles in a corpus or durable split.
+
+    A role absent from every selected entry is an operator error and is refused;
+    a role absent from only some entries remains per-entry ``ill_formed_input``.
+    """
 
     ruleset: RuleSet
     corpus: Corpus
@@ -202,6 +206,28 @@ class Experiment:
             if self.split is not None
             else tuple(self.corpus.ids())
         )
+        readable_roles: set[str] = set()
+        unreadable = 0
+        for entry_id in ids:
+            try:
+                readable_roles.update(self.corpus.roles(entry_id))
+            except CorpusError:
+                unreadable += 1
+        roles = sorted(readable_roles)
+        location = f"split {self.split!r}" if self.split is not None else "corpus"
+        for position, role in (
+            ("source", self.source_role),
+            ("target", self.target_role),
+        ):
+            if role not in roles:
+                present = ", ".join(repr(name) for name in roles) or "none"
+                unreadable_note = (
+                    f"; {unreadable} entries unreadable" if unreadable else ""
+                )
+                raise ValueError(
+                    f"{position} role {role!r} appears on zero entries of {location}; "
+                    f"roles present on readable entries: {present}{unreadable_note}"
+                )
         rows: list[Residue] = []
         for entry_id in ids:
             try:

@@ -122,6 +122,9 @@ grammar's fit to independently observed data. A report contains every entry id a
 the four-way classification, roles, cap, split, declaration fingerprint, and
 content-addressed rule-set and corpus identities. `first.compare(second)`
 returns the entries that moved class and refuses reports over different data.
+An experiment refuses a source or target role absent from every entry in its
+corpus or split; absence on only some entries remains per-entry
+`ill_formed_input`, because partial coverage is data rather than operator error.
 
 The command-line door prints the paper-table summary and writes the complete
 re-runnable document:
