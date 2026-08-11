@@ -37,6 +37,14 @@ class Atom:
 
 
 @dataclass(frozen=True)
+class Refusal:
+    """One external spelling deliberately excluded from the house."""
+
+    spelling: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class ProjectionDrop:
     """One declared loss at a half-open span of house units."""
 
@@ -127,6 +135,19 @@ class VocabularyBridge(Bridge):
             mapper.attrib.get("boundary-drop") if mapper is not None else None
         )
         atoms_list: list[Atom] = []
+        refusals_list: list[Refusal] = []
+        for position, item in enumerate(root.findall("refusal"), start=1):
+            spelling = item.attrib.get("spelling")
+            reason = item.attrib.get("reason")
+            if not spelling:
+                raise ValueError(
+                    f"{self.name} vocabulary refusal {position} has no spelling"
+                )
+            if not reason:
+                raise ValueError(
+                    f"{self.name} vocabulary refusal {position} has no reason"
+                )
+            refusals_list.append(Refusal(spelling, reason))
         output_positions: dict[str, int] = {}
         for position, item in enumerate(root.findall("atom"), start=1):
             spelling = item.attrib.get("spelling")
@@ -170,6 +191,7 @@ class VocabularyBridge(Bridge):
         if not atoms:
             raise ValueError(f"{self.name} vocabulary declares no atoms")
         self.atoms = atoms
+        self.refusals = tuple(refusals_list)
         self._by_output = {atom.output: atom for atom in atoms}
         seen_spellings: dict[str, Atom | None] = {}
         for atom in atoms:
@@ -185,6 +207,16 @@ class VocabularyBridge(Bridge):
         }
         self._ordered = tuple(
             sorted(atoms, key=lambda atom: len(atom.output), reverse=True)
+        )
+        self._tokens = tuple(
+            sorted(
+                (
+                    *((atom.output, atom) for atom in atoms),
+                    *((item.spelling, item) for item in self.refusals),
+                ),
+                key=lambda item: len(item[0]),
+                reverse=True,
+            )
         )
         self._unit_patterns = tuple(
             sorted(
@@ -258,15 +290,15 @@ class VocabularyBridge(Bridge):
             if self.separator and text.startswith(self.separator, position):
                 position += len(self.separator)
                 continue
-            atom = next(
+            match = next(
                 (
                     candidate
-                    for candidate in self._ordered
-                    if text.startswith(candidate.output, position)
+                    for spelling, candidate in self._tokens
+                    if text.startswith(spelling, position)
                 ),
                 None,
             )
-            if atom is None:
+            if match is None:
                 end = position + 1
                 while end < len(text) and not any(
                     text.startswith(candidate.output, end)
@@ -277,6 +309,15 @@ class VocabularyBridge(Bridge):
                     f"{self.name} vocabulary has unvocabularied residue at span "
                     f"[{position}:{end}]: {text[position:end]!r}"
                 )
+            if isinstance(match, Refusal):
+                end = position + len(match.spelling)
+                raise VocabularyResidueError(
+                    f"{self.name} vocabulary refuses eSpeak mnemonic "
+                    f"{match.spelling!r} at span [{position}:{end}]: {match.reason}"
+                )
+            if not isinstance(match, Atom):  # narrows the heterogeneous token table
+                raise AssertionError("unreachable vocabulary token kind")
+            atom = match
             out.append(atom)
             position += len(atom.output)
         return tuple(out)

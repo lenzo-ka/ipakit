@@ -11,6 +11,7 @@
       <ref name="round-trip" />
       <optional><ref name="mapper" /></optional>
       <zeroOrMore><choice><ref name="input" /><ref name="tone" /></choice></zeroOrMore>
+      <zeroOrMore><ref name="refusal" /></zeroOrMore>
       <oneOrMore><ref name="atom" /></oneOrMore>
     </element>
   </start>
@@ -19,6 +20,13 @@
     <element name="round-trip">
       <element name="external-to-house"><ref name="leg" /></element>
       <element name="house-to-external"><ref name="leg" /></element>
+    </element>
+  </define>
+
+  <define name="refusal">
+    <element name="refusal">
+      <attribute name="spelling"><text /></attribute>
+      <attribute name="reason"><text /></attribute>
     </element>
   </define>
 
