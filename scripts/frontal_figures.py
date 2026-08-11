@@ -16,6 +16,8 @@ from ipakit.tract_svg import animate_two_pane, frontal_figure  # noqa: E402
 FIGURES = Path(__file__).resolve().parent.parent / "docs" / "figures"
 PHONES: tuple[tuple[str, str | None], ...] = (
     ("frontal-reference.svg", None),
+    ("frontal-rest.svg", "␣"),
+    ("frontal-t.svg", "t"),
     ("frontal-a.svg", "a"),
     ("frontal-i.svg", "i"),
     ("frontal-m.svg", "m"),
@@ -33,6 +35,9 @@ def main() -> int:
     timed = replace(trajectory(builder.build(), head=head(), fps=5), frames_per_unit=1)
     (FIGURES / "two-pane-timed.html").write_text(
         animate_two_pane(timed) + "\n", encoding="utf-8"
+    )
+    (FIGURES / "two-pane-kat.html").write_text(
+        animate_two_pane("kat", frames_per_unit=4) + "\n", encoding="utf-8"
     )
     return 0
 
