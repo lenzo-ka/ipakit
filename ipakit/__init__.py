@@ -116,6 +116,16 @@ from .rules import (
     shipped,
 )
 from .segment import Constituent, Kind, Segment, Sense
+from .syllable import (
+    Conflict,
+    Language,
+    Syllabification,
+    Syllabifier,
+    language,
+    languages,
+    syllabifier,
+    syllabify,
+)
 
 # X-SAMPA string conversion lives in ipakit.xsampa, the single source of truth
 # for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
@@ -1239,6 +1249,10 @@ __all__ = [
     "ScoringParameters",
     "PronunciationMatch",
     "SequenceMatch",
+    "Conflict",
+    "Language",
+    "Syllabification",
+    "Syllabifier",
     # Constants
     "DATA_DIR",
     "DEFAULT_CMU_MAP",
@@ -1306,6 +1320,10 @@ __all__ = [
     "rank_sequences",
     "xsampa_to_ipa",
     "parse_query",
+    "language",
+    "languages",
+    "syllabifier",
+    "syllabify",
     # Form representation
     "Attribute",
     "Boundary",
