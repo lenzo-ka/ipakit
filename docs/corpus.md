@@ -114,7 +114,11 @@ report.write("experiment-report.json")
 ```
 
 Those values are executed over a 25-entry slice built by the CMUdict ingester
-in `tests/test_experiment.py`. A report contains every entry id and both forms,
+in `tests/test_experiment.py`. The slice's target forms are the grammar's own
+output over its source forms, with one entry overwritten to an unrelated form,
+so the 24/25 measures the classifier's discrimination — the constructed mismatch
+lands in `provably_underivable`, everything else in `derivable` — not the
+grammar's fit to independently observed data. A report contains every entry id and both forms,
 the four-way classification, roles, cap, split, declaration fingerprint, and
 content-addressed rule-set and corpus identities. `first.compare(second)`
 returns the entries that moved class and refuses reports over different data.
@@ -169,5 +173,6 @@ A full-scale measurement is intentionally not a test. The dated, generated
 kernel at 100, 500, 1,000, and 5,000 entries; regenerate it with
 `PYTHONHASHSEED=0 python scripts/corpus_scaling.py --counts ... --output ...`.
 On its recorded arm64 macOS/Python 3.12.12 run, 5,000 entries occupy 10.34 MB;
-put/get/full-scan query take 0.95/0.90/2.82 seconds. This curve is a run report,
-not a performance threshold.
+put/get/full-scan query take 0.95/0.90/2.82 seconds. The full-scan query is
+linear in entry count, so that environment projects to roughly 76 seconds over
+the complete CMUdict. This curve is a run report, not a performance threshold.
