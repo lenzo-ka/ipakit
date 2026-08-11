@@ -115,6 +115,33 @@ def test_mfa_mapper_exercises_each_declared_drop(
     assert mapped.report.drops == (ProjectionDrop(name, span, house, emitted),)
 
 
+def test_mfa_mapper_refuses_word_boundaries_positioned() -> None:
+    for house, message in [
+        ("#pat", r"span \[0:1\]: '#'"),
+        ("paj#", r"span \[3:4\]: '#'"),
+        ("a b", r"span \[1:2\]: '#'"),
+    ]:
+        with pytest.raises(VocabularyResidueError, match=message):
+            MFA.map_to_mfa(Form.parse(house, strict=True))
+
+
+def test_mfa_mapper_reports_the_same_drop_once_per_site() -> None:
+    mapped = MFA.map_to_mfa(Form.parse("ajaj", strict=True))
+    assert MFA.emit(mapped) == "aj aj"
+    name = "house unit boundaries collapsed by MFA atom grouping"
+    assert mapped.report.drops == (
+        ProjectionDrop(name, (0, 2), "aj", "aj"),
+        ProjectionDrop(name, (2, 4), "aj", "aj"),
+    )
+
+
+def test_mfa_mapper_reports_untied_affricate_as_boundary_collapse() -> None:
+    mapped = MFA.map_to_mfa(Form.parse("tʃa", strict=True))
+    assert MFA.emit(mapped) == "tʃ a"
+    name = "house unit boundaries collapsed by MFA atom grouping"
+    assert mapped.report.drops == (ProjectionDrop(name, (0, 2), "tʃ", "tʃ"),)
+
+
 def test_mfa_mapper_no_drop_form_has_empty_serializable_report() -> None:
     mapped = MFA.map_to_mfa(Form.parse("pat", strict=True))
     assert MFA.emit(mapped) == "p a t"
