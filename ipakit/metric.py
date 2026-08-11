@@ -38,10 +38,23 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .features import IPAFeatures
 
-# Ordered-alignment gap cost (design spec section 11).
+# Word-alignment gap cost (design spec section 11). Segment composition does
+# not use a flat gap: ``MATERIAL_BUDGET`` declares its derived comparison.
 GAP_COST = 1.0
 # Secondary-articulation place weight.
 SECONDARY_WEIGHT = 0.5
+
+#: The mass budget for material in one segment. These are policies, not fitted
+#: weights: every graded price is derived from the feature/value declarations
+#: through ``segment_metric``. The tuple is also fingerprinted, so a saved
+#: matrix names the convention under which its numbers were derived.
+MATERIAL_BUDGET = (
+    ("atomic feature", "one value-distance term", "graded"),
+    ("unmatched constituent", "nearest-part distance plus one mass term", "graded"),
+    ("juncture", "one binding-sense term", "categorical"),
+    ("secondary articulation", "shared at SECONDARY_WEIGHT", "graded"),
+    ("prosodic rider", "one value-distance term per tier", "graded"),
+)
 
 # The secondary articulations, and the place each constricts at, come from
 # the data (IPAFeatures.secondary_places): a feature declares
@@ -454,6 +467,19 @@ def _fold_prosody(seg_d: float, weight: int, pt: float, pc: int) -> float:
     return (seg_d * weight + pt) / (weight + pc)
 
 
+def _nearest_part_cost(
+    features: IPAFeatures, part: Segment, present: tuple[Segment, ...]
+) -> float:
+    """Charge material by its nearest real comparison on the other side.
+
+    This is the one extra-material convention for both composition paths:
+    unordered reduction calls it for every source part, while ordered
+    alignment calls it only for a part left unmatched by a candidate
+    matching. ``present`` is nonempty because every segment has a part.
+    """
+    return min(segment_metric(features, part, other) for other in present)
+
+
 def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
     """The structural distance ``D`` (design spec section 7), plus the unit's
     prosodic riders. In [0, 1] and symmetric.
@@ -468,6 +494,16 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
     pt, pc = _prosodic_terms(
         features, _segment_prosodic(features, x), _segment_prosodic(features, y)
     )
+    x_silence = any(
+        part.bundle(features, with_defaults=True).get("manner") == "silence"
+        for part in x.constituents
+    )
+    y_silence = any(
+        part.bundle(features, with_defaults=True).get("manner") == "silence"
+        for part in y.constituents
+    )
+    if x_silence != y_silence:
+        return 1.0
     if len(x.constituents) == 1 and len(y.constituents) == 1:
         bt, bc = _bundle_terms(features, x.constituents[0], y.constituents[0])
         return (bt + pt) / (bc + pc) if (bc + pc) else 0.0
@@ -478,9 +514,9 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
     if not ordered:
 
         def direction(src: tuple[Segment, ...], dst: tuple[Segment, ...]) -> float:
-            return sum(
-                min(segment_metric(features, s, d) for d in dst) for s in src
-            ) / len(src)
+            return sum(_nearest_part_cost(features, part, dst) for part in src) / len(
+                src
+            )
 
         seg_d = max(direction(px, py), direction(py, px))
         return _fold_prosody(seg_d, max(len(px), len(py)), pt, pc)
@@ -488,8 +524,22 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
     jx, jy = _part_junctures(x), _part_junctures(y)
     best = 1.0
     for matching in _monotone_matchings(len(px), len(py)):
+        if len(matching) != min(len(px), len(py)):
+            # Every part on the shorter side makes a real pair. Once gaps are
+            # graded, dropping material on both sides would manufacture an
+            # indirect shortcut (including between two equal-arity units).
+            continue
         matched = dict(matching)
         pair_cost = sum(segment_metric(features, px[i], py[j]) for i, j in matching)
+        unmatched_cost = sum(
+            _nearest_part_cost(features, px[i], py)
+            for i in range(len(px))
+            if i not in matched
+        ) + sum(
+            _nearest_part_cost(features, py[j], px)
+            for j in range(len(py))
+            if j not in matched.values()
+        )
         gaps = (len(px) - len(matching)) + (len(py) - len(matching))
         juncture_terms = 0
         juncture_cost = 0.0
@@ -505,10 +555,13 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
         unaligned = (len(jx) - len(aligned_j)) + (len(jy) - len(aligned_j))
         juncture_terms += unaligned
         juncture_cost += unaligned
-        denom = len(matching) + gaps + juncture_terms
+        # A real pair is one comparison term. A gap carries that comparison
+        # plus the unmatched part's own material term: the declared budget
+        # distinguishes an orphan's mass from the value used to price it.
+        denom = len(matching) + 2 * gaps + juncture_terms
         if denom == 0:
             continue
-        value = (pair_cost + GAP_COST * gaps + juncture_cost) / denom
+        value = (pair_cost + unmatched_cost + juncture_cost) / denom
         best = min(best, value)
     return _fold_prosody(best, max(len(px), len(py)), pt, pc)
 
@@ -587,6 +640,9 @@ FINGERPRINT_BYTES = 8
 
 def _fingerprint_lines(features: IPAFeatures, phones: tuple[str, ...]) -> Iterator[str]:
     """Everything a distance between two of ``phones`` can depend on, as text."""
+    for material, mass, shape in MATERIAL_BUDGET:
+        yield f"mass-budget\t{material}\t{mass}\t{shape}"
+    yield f"SECONDARY_WEIGHT\t{SECONDARY_WEIGHT!r}"
     for phone in phones:
         with warnings.catch_warnings():
             # A phone this inventory cannot read is a difference, not an

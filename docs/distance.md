@@ -16,7 +16,7 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 | Weighting | None; every dimension contributes equally at maximal difference |
 | Word alignment | a gap costs `GAP_COST`, a substitution costs `(delete + insert) ×` the pair's dissimilarity, and `similarity` is normalized by the null alignment's cost |
 | Length asymmetry | reported as `WordDistanceResult.coverage`, never folded into the score |
-| Parameters | `GAP_COST = 1.0`, `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` |
+| Parameters | Word gaps use `GAP_COST = 1.0`; segment material uses the declared `MATERIAL_BUDGET`; secondary place sharing uses `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` |
 | Regenerate after changes | `python scripts/confusion.py generate --write` |
 
 If you need perceptual confusability — which sounds listeners actually mistake for each other — this metric is a reasonable structural prior, not a substitute for confusion data. See [Implications](#implications-for-users).
@@ -79,15 +79,20 @@ Distance is computed over a segment's derived structure, never over a flattened 
 
 **Atomic against atomic** — compare the two feature bundles directly (§5).
 
-**Otherwise** — align the top-level children of the derived grouping and take one flat mean over matched pairs, gaps, and juncture terms:
+**Otherwise** — compare the top-level children of the derived grouping. Both composition paths use one convention for extra material: **charge an unmatched part its distance to the nearest part present on the other side**. The ordered path chooses a monotone alignment; the unordered path takes the larger directional best-match mean. Both call the same nearest-part function, so the convention cannot drift between them.
+
+For an ordered alignment:
 
 ```
 D = min over alignments of
-      ( Σ matched D(child_i, child_j) + γ · gaps + Σ juncture terms )
-    / ( matched + gaps + juncture terms )
+      ( Σ matched D(child_i, child_j)
+        + Σ nearest D(unmatched child, present child)
+        + Σ juncture terms )
+    / ( matched comparisons + unmatched comparisons
+        + unmatched material + juncture terms )
 ```
 
-with `γ = 1.0`. An atomic segment is lifted to a one-part sequence, which defines every atomic-against-composite comparison.
+An atomic segment is lifted to a one-part sequence, which defines every atomic-against-composite comparison. Every part on the shorter side makes a real pair; permitting an alignment to discard material on both sides would manufacture an indirect shortcut once gaps are graded. Silence remains maximally distant from speech material.
 
 **Alignment mode follows the unit's phase structure** (`Segment.phased`), not what the unit is called:
 
@@ -99,6 +104,26 @@ An n-ary fusion aligns its phase blocks in order and matches unordered within th
 The flat projection asks the same question of the same structure, so a pair scored at 0 here is a pair `describe` reads alike. An over-tie's order is phase order, and a fusion with one phase has none; [docs/ties.md](ties.md) is what the projection does with the disagreement that leaves it.
 
 **Junctures contribute one term each.** A juncture on one side aligns with one on the other when both flanking pairs are matched; aligned junctures score 0 when their senses agree and 1 when they do not, and unaligned junctures score 1. So `d(u͡i, u͜i) = 1/3` exactly: the same constituents in the same order, one juncture-sense mismatch over three terms.
+
+### The declared mass budget
+
+The budget names each kind of material and derives its price from declarations already in the feature model. No entry is fitted.
+
+| material | mass | shape | measured example |
+|---|---|---|---|
+| atomic feature | one declared `value_distance` term | graded | average atomic contrast `0.195`; maximum `0.460` |
+| diacritic | the feature terms it contributes | graded, sub-additive | applicable-mark mean `0.038`; maximum `0.144` |
+| aspiration | its declared release comparison | graded | `d(t,tʰ) = 0.048` |
+| dentalization | its declared place comparison | graded | `d(t,t̪) = 0.005` |
+| labialization | its secondary-place comparison | graded | `d(t,tʷ) = 0.002` |
+| second articulator, fusion | nearest-part sharing at `SECONDARY_WEIGHT` | graded | `d(ɡ,ɡ͡b) = 0.034 = d(ɡ,b)/2` |
+| unmatched phased constituent | nearest-part comparison plus one material term | graded | `d(t,t͡s) = 0.263`; `d(e,e͜ɪ) = 0.255` |
+| juncture | one binding-sense term | categorical | agreement `0`, disagreement or unaligned `1` |
+| prosodic rider | one declared `value_distance` term per tier | graded | one term on the unit clock |
+
+The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md). [design/mass-budget.md](design/mass-budget.md) is the dated record of the divergence, its measured geometry, and the repair.
+
+One budget question remains explicitly deferred. A fusion has no arity floor, so adding the whole second articulator in `ɡ͡b` (`0.034`) is cheaper than adding aspiration to `t` (`0.048`). A floor may be defensible, but it must be measured separately; changing fusion arity in this repair would make neither mover class independently explainable. The test suite pins the live inversion so this limit stays visible.
 
 **Prosodic tiers ride on the unit clock.** Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit — unlike a break, which sits *between* units and is transparent to distance. Each rider adds one graded term to the unit it rides on, read via the ordinal `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one) at the same weight as a segmental feature. It is read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before. A tone *contour*, a sequence value like `mid>high`, is a trajectory rather than a point on the scale, so it stays out until a sequence comparison exists (`d(a, a᷅) = 0`).
 
@@ -170,7 +195,33 @@ d(b͡v, ɡ)              far apart
 d(b͡v, ɡ͡b) + d(ɡ͡b, ɡ)  an order of magnitude closer
 ```
 
-This is structural rather than accidental. `ɡ͡b` is a double articulation that shares one constituent with `b͡v` and a *different* one with `ɡ`, so it sits near both, while `b͡v` and `ɡ` are compared as a phased unit against an atom and pay the gap cost. A composite can be close to two things that are far from each other, because closeness is being measured against different parts of it.
+This is structural rather than accidental. `ɡ͡b` is a double articulation that shares one constituent with `b͡v` and a *different* one with `ɡ`, so it sits near both, while `b͡v` and `ɡ` are compared as a phased unit against an atom and carry unmatched material. A composite can be close to two things that are far from each other, because closeness is being measured against different parts of it.
+
+The pre-repair geometry was measured at the flat-gap diagnosis. Over the full 139-phone matrix, negative eigenvalues carried **8.7%** of total eigenvalue mass and **94.8%** of triangle violations routed through a composite hub; with silence excluded (138 phones), the leading axis carried **60.3%** of positive variance and correlated **0.977** with compositeness. These are the concrete cost of treating the dissimilarity as Euclidean or metric, rather than only a warning that the inequality can fail. They are checked values, kept together so none can drift independently:
+
+```python
+diagnosed_geometry = {
+    "negative eigenvalue mass (139 phones)": "8.7%",
+    "violations through composite hubs (139 phones)": "94.8%",
+    "leading positive variance (silence excluded)": "60.3%",
+    "leading-axis/compositeness correlation (silence excluded)": 0.977,
+}
+diagnosed_geometry
+# {'negative eigenvalue mass (139 phones)': '8.7%', 'violations through composite hubs (139 phones)': '94.8%', 'leading positive variance (silence excluded)': '60.3%', 'leading-axis/compositeness correlation (silence excluded)': 0.977}
+```
+
+The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.063`, from `0.977`); it correlates `0.922` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.273` against `0.321` from composites to atomics, no longer a constant, and the leading positive axis carries `43.4%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `13.1%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
+
+```python
+repaired_geometry = {
+    "negative eigenvalue mass (silence excluded)": "13.1%",
+    "leading positive variance (silence excluded)": "43.4%",
+    "leading-axis/compositeness correlation (silence excluded)": 0.063,
+    "leading-axis/vowelhood correlation (silence excluded)": 0.922,
+}
+repaired_geometry
+# {'negative eigenvalue mass (silence excluded)': '13.1%', 'leading positive variance (silence excluded)': '43.4%', 'leading-axis/compositeness correlation (silence excluded)': 0.063, 'leading-axis/vowelhood correlation (silence excluded)': 0.922}
+```
 
 ### If you need a metric
 
