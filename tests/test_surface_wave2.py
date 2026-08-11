@@ -45,6 +45,23 @@ def test_segmented_style_is_explicit_and_token_preserving():
         ipakit.read("k Q t", segmented=True)
 
 
+def test_segmented_multi_unit_tokens_still_split_into_units():
+    kat = ipakit.read("kat", segmented=True)
+    ts = ipakit.read("ts", segmented=True)
+
+    assert [unit.text for unit in kat.units] == ["k", "a", "t"]
+    assert kat == ipakit.read("kat")
+    assert len(ts.units) == 2
+    assert ts != ipakit.read("t͡s")
+
+
+def test_segmented_edge_whitespace_does_not_create_boundaries():
+    assert ipakit.read(" k æ t ", segmented=True) == ipakit.read(
+        "k æ t", segmented=True
+    )
+    assert ipakit.read(" kat ") == ipakit.read("#kat#")
+
+
 def test_form_at_dereferences_match_paths_and_names_bad_path():
     form = ipakit.read("kat#dɒɡ")
     match = next(corpus_api.find(form, "t / _ #"))
