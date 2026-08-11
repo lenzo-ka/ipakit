@@ -5,7 +5,7 @@ This is the entry surface for the dated design records. It quotes their verdict 
 
 An open entry is a verdict that says to build or adopt. A refusal says so explicitly. Settled includes superseded findings and verdicts that record an answer without either instruction. A mixed verdict appears in both sections.
 
-## Settled (36)
+## Settled (37)
 
 | design record | recorded state |
 | --- | --- |
@@ -34,6 +34,7 @@ An open entry is a verdict that says to build or adopt. A refusal says so explic
 | [tract-validation — 6. Reported, not fixed](design/tract-validation.md#6-reported-not-fixed) | Superseded by [#125](https://github.com/lenzo-ka/ipakit/issues/125), and closed. The sentence was replaced rather than corrected: §6 now states the correspondence as unbuilt work and computes the half of it a reader can check, in a `python` block `scripts/docexamples.py` executes, so a geometric claim there stands only where something checks it. This entry stops quoting the old wording — the words it recommended changing are gone, and a quotation of them would read as a citation and would not be one. |
 | [tract-validation — 7. What it would take to get a number](design/tract-validation.md#7-what-it-would-take-to-get-a-number) | Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), and answered. Wood was obtained, and a second measured set with it — Yang & Kasuya's three Japanese speakers, area functions printed as numbers. Both were read by band inclusion, the instrument this section asks for below, and the answer is that no agreement figure over vowels is available at all: one symbol's measured location moves up to 0.284 of tract length between sources, more than the declared span it would have to resolve. See [vowel-constriction.md](design/vowel-constriction.md). |
 | [vowel-chart-geometry — 5. Band inclusion, on the same 35 bands](design/vowel-chart-geometry.md#5-band-inclusion-on-the-same-35-bands) | Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and the baseline column corrected — in the direction that strengthens the verdict below. |
+| [vowel-constriction — 3. Wood against Story's bands](design/vowel-constriction.md#3-wood-against-storys-bands) | Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and reversed: Wood names `ʌ` in a family, in the *upper* pharynx, and this figure was the wrong place to look. |
 | [vowel-constriction — The rhotics: the thickest evidence, and the worst case for a coordinate](design/vowel-constriction.md#the-rhotics-the-thickest-evidence-and-the-worst-case-for-a-coordinate) | Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and reproduced on a tabulated area function rather than at one remove. |
 | [vowel-constriction — 8. Where the four locations would sit](design/vowel-constriction.md#8-where-the-four-locations-would-sit) | Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), and adopted as written. |
 | [vowel-constriction — 8. Where the four locations would sit](design/vowel-constriction.md#8-where-the-four-locations-would-sit) | Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and reproduced on a fourth source without changing its answer. |

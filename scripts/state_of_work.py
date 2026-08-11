@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DESIGN = ROOT / "docs" / "design"
 OUTPUT = ROOT / "docs" / "state-of-the-work.md"
 
-VERDICT = re.compile(r"^\*\*(Verdict(?: on [^:*]+|, first pass)?[^*]*)\*\*")
-SUPERSEDED = re.compile(r"^\*\*(Superseded[^*]*)\*\*")
+VERDICT = re.compile(r"^\*\*(Verdict(?: on [^:*]+|, first pass)?.*?)\*\*")
+SUPERSEDED = re.compile(r"^\*\*(Superseded.*?)\*\*")
 OPEN_WORDS = re.compile(
     r"^Verdict[^:]*:\s*(?:ADOPT|BUILD)|\bdefensible small adopt\b|"
     r"\bworth building\b",
