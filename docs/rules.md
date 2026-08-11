@@ -515,7 +515,7 @@ because an environment names what stands there and nothing stands at a
 deletion site:
 
 ```python
-ipa.rule("e -> a / _ ∅ ʃ")  # RuleError: 'e -> a / _ ∅ ʃ' names a null in its environment. An environment names what stands there, and nothing stands at a deletion site; if zero-width context was meant, spell it with an optional element '(X)'.
+ipa.rule("e -> a / _ ∅ ʃ")  # RuleError: 'e -> a / _ ∅ ʃ' names a null at position 11 in its environment. An environment names what stands there, and nothing stands at a deletion site; if zero-width context was meant, spell it with an optional element '(X)'.
 ```
 
 Parentheses make one unit pattern a variable-width environment item. The
