@@ -3,6 +3,14 @@
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 from .espeak import ESPEAK_EN, EspeakBridge
 from .generator import GeneratorDoor
+from .ipa_dict import (
+    IPADictEntry,
+    IPADictPronunciation,
+    IPADictProvenance,
+    IPADictReader,
+    IPADictReadReport,
+    IPADictRefusal,
+)
 from .notation import NotationBridge
 from .phoible import (
     PHOIBLE_ENV,
@@ -32,6 +40,12 @@ __all__ = [
     "EspeakBridge",
     "Fidelity",
     "GeneratorDoor",
+    "IPADictEntry",
+    "IPADictPronunciation",
+    "IPADictProvenance",
+    "IPADictReader",
+    "IPADictReadReport",
+    "IPADictRefusal",
     "NotationBridge",
     "PHOIBLE_ENV",
     "PhoibleAudit",

@@ -1,0 +1,7 @@
+# Excerpt from open-dict-data/ipa-dict data/en_US.txt (community compiled).
+# Upstream project and data are MIT licensed; fixture kept under that license.
+hello	/həˈloʊ/, /hɛˈloʊ/
+good	/ɡʊd/
+keyboard	/'ki:bɔrd/
+half-read	/kæt/, /Q/
+not-delimited	kæt
