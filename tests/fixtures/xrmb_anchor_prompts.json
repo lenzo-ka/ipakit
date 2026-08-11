@@ -1,0 +1,18 @@
+{
+  "provenance": {
+    "source": "John R. Westbury, with Greg Turner and Jim Dembowski (1994), X-Ray Microbeam Speech Production Database User's Handbook, version 1.0, Appendix A, pp. 84-85 (PDF pages 87-88)",
+    "url": "https://www.ling.uni-potsdam.de/~gafos/fhs_atelier/ubdbman.pdf",
+    "accessed": "2026-08-10",
+    "note": "Only the citation-word and sentence tasks used by scripts/anchor_study.py are transcribed. Instructions and oral-motor tasks are intentionally omitted. Punctuation is removed because the text is passed to a forced aligner."
+  },
+  "tasks": {
+    "002": {
+      "type": "citation-words",
+      "prompt": "nothing this street even special children ship"
+    },
+    "007": {
+      "type": "sentences",
+      "prompt": "she is about two or three when can we go home hispanic costumes are quite colorful"
+    }
+  }
+}
