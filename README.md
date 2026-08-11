@@ -5,19 +5,47 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/ipakit.svg)](https://pypi.org/project/ipakit/)
 [![License: BSD 2-Clause](https://img.shields.io/badge/License-BSD_2--Clause-blue.svg)](LICENSE)
 
-A pure-Python IPA (International Phonetic Alphabet) phonetic toolkit: phonetic features, distances, natural classes, allophonic rewrite rules, and conversion between IPA and CMU ARPABET, X-SAMPA, Kirshenbaum, and TIMIT notations.
+ipakit is a framework for computing over structured symbolic phonetic
+representations, and for reconciling the systems that describe speech. IPA is
+its first vocabulary, not the limit of its representation.
 
-It is for anyone who needs to compute over speech sounds rather than just store them — building a lexicon or a G2P front end, scoring pronunciations, picking minimal pairs, searching an inventory by feature, or taking a broad transcription to a narrow one.
+At the center is a timed, structured tier graph whose vocabulary and relations
+come from declarations. IPA text, machine notations, feature databases,
+dictionary pronunciations, aligner output, rewrite layers, and rendering views
+meet there without being mistaken for one another. Each bridge states what it
+can preserve in each direction, carries provenance forward, and keeps competing
+accounts as data. If two sources give a word different forms, the disagreement
+remains available to query; conversion does not get to settle it quietly.
 
-`Form` is the sole public stored representation: text, features, boundaries, tiers, rewrite layers, alignments, and rendering views are projections around one validated graph. See [the canonical representation](docs/representation.md).
+One grammar does the recognizing and the rewriting. A query is a rule without
+the arrow, so the engine that answers “where does this match?” is the engine
+that decides “what does this become?” Agreement variables, optional elements,
+and bounded spans belong to that grammar rather than to separate search and
+rewrite dialects.
 
-- **Zero runtime dependencies** — all phonetic data ships as XML in the package.
-- **Declarative** — features, natural classes, tie behavior, codec transcription-tier selections, and vocal-tract geometry are read from declarations rather than inferred by the graph kernel.
-- **Typed** (`py.typed`, mypy-strict clean).
-- **Both a library and a CLI** (`ipakit`), covering the same ground.
-- **Draws the tract** — `ipakit.tract_svg.figure("t")` is a mid-sagittal SVG of that
-  phone's posture, and a `Segment` renders as one in a notebook. See
-  [docs/tract-figures.md](docs/tract-figures.md).
+Rules also have a calculus. Derivations retain enough evidence to replay;
+optional rules enumerate their variants under an explicit cap; `derives()`
+returns a witness, an exhaustive refusal, or a refusal qualified by work left
+unexplored. Invertibility is not a restriction on what may be written. It is a
+classification of each rule against the inventory the caller declares.
+
+The symbolic representation bottoms out in articulation. The tract geometry
+that drives figures and animation has been measured against instrumental data,
+with the instrument's blind spots left visible. The symbols check the geometry,
+and the measurements check the symbolic claims; neither is a decorative view
+of the other.
+
+Corpora make collections part of the same computation. They store cited and
+derived forms, expose structural queries at the shell, and test rule systems
+against paired forms. That is also the substrate on which rule induction can
+run without reducing a corpus to a bag of strings; the inducer itself remains a
+separate concern.
+
+The package has no runtime dependencies; its phonetic data and geometry ship as
+declarations. It is typed, and the Python API and `ipakit` command expose the
+same model. See [the canonical representation](docs/representation.md),
+[corpus queries](docs/corpus.md), [rewrite rules](docs/rules.md), and the
+[articulatory model](docs/tract-anatomy.md).
 
 **New here? Start with the [tutorial](docs/tutorial.md)** — it is organized by task and shows the command line and the Python API side by side for each one. Every value on that page is produced by executing the call beside it.
 
