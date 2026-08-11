@@ -134,7 +134,7 @@ class IPADictReader:
         entries: list[IPADictEntry] = []
         refusals: list[IPADictRefusal] = []
         try:
-            stream = self.path.open(encoding="utf-8")
+            stream = self.path.open(encoding="utf-8-sig")
         except OSError as exc:
             raise ValueError(
                 f"cannot open ipa-dict language file {self.path}: {exc}"
@@ -174,6 +174,8 @@ class IPADictReader:
         written = _variants(field)
         pronunciations: list[IPADictPronunciation] = []
         for variant_number, source in enumerate(written, 1):
+            if not source.strip():
+                raise ValueError(f"variant {variant_number} is empty")
             try:
                 form = self.features.read(source, strict=True, wild=True)
             except ValueError as exc:

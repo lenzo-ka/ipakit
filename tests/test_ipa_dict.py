@@ -47,3 +47,22 @@ def test_environment_accepts_checkout_shape_and_missing_file_is_loud(
     assert reader is not None
     with pytest.raises(ValueError, match="is not a file"):
         reader.read()
+
+
+def test_leading_bom_is_stripped_not_absorbed(tmp_path: Path) -> None:
+    target = tmp_path / "xx.txt"
+    target.write_text("﻿hello\t/həˈloʊ/\n", encoding="utf-8")
+    report = IPADictReader(target).read()
+    assert [entry.word for entry in report.entries] == ["hello"]
+    assert report.refusals == ()
+
+
+def test_whitespace_only_variants_are_refused_like_empty_ones(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "xx.txt"
+    target.write_text("a\t/ /\nb\t/ /\nc\t//\n", encoding="utf-8")
+    report = IPADictReader(target).read()
+    assert report.entries == ()
+    assert [refusal.line_number for refusal in report.refusals] == [1, 2, 3]
+    assert all("is empty" in refusal.reason for refusal in report.refusals)
