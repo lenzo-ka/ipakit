@@ -51,6 +51,17 @@ def test_structure_timing_and_tier_claims_are_typed_without_adjudication() -> No
     assert spread.inputs[0].form is left  # retained, not replaced by a winner
 
 
+def test_tied_material_stays_structure_but_carries_itemized_terms() -> None:
+    spread = ipakit.DisagreementSpread.compare(
+        retained("one", "a͜ɪ"), retained("two", "a")
+    )
+    difference = spread.disagreements[0]
+    assert difference.kind is ipakit.DisagreementKind.STRUCTURE
+    assert "segmental" not in difference.terms
+    assert any("unmatched part" in label for label in difference.terms)
+    assert any("juncture" in label for label in difference.terms)
+
+
 def test_json_is_canonical_complete_and_round_trips() -> None:
     spread = ipakit.DisagreementSpread.compare(
         retained("a", "kat"), retained("b", "kæt")

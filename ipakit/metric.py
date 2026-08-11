@@ -480,7 +480,22 @@ def _nearest_part_cost(
     return min(segment_metric(features, part, other) for other in present)
 
 
-def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
+def _nearest_part(
+    features: IPAFeatures, part: Segment, present: tuple[Segment, ...]
+) -> tuple[int, float]:
+    """The selected opposite part and its cost, with metric tie-breaking."""
+    choices = tuple(segment_metric(features, part, other) for other in present)
+    cost = min(choices)
+    return choices.index(cost), cost
+
+
+def segment_metric(
+    features: IPAFeatures,
+    x: Segment,
+    y: Segment,
+    *,
+    _rows: list[tuple[str, str | None, str | None, float]] | None = None,
+) -> float:
     """The structural distance ``D`` (design spec section 7), plus the unit's
     prosodic riders. In [0, 1] and symmetric.
 
@@ -503,9 +518,14 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
         for part in y.constituents
     )
     if x_silence != y_silence:
+        if _rows is not None:
+            _rows.append(("silence", x.to_ipa(), y.to_ipa(), 1.0))
         return 1.0
     if len(x.constituents) == 1 and len(y.constituents) == 1:
         bt, bc = _bundle_terms(features, x.constituents[0], y.constituents[0])
+        if _rows is not None:
+            _rows.extend(_atomic_rows(features, x, y))
+            _rows.extend(_prosodic_rows(features, x, y))
         return (bt + pt) / (bc + pc) if (bc + pc) else 0.0
 
     ordered = x.phased or y.phased
@@ -513,16 +533,36 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
 
     if not ordered:
 
-        def direction(src: tuple[Segment, ...], dst: tuple[Segment, ...]) -> float:
-            return sum(_nearest_part_cost(features, part, dst) for part in src) / len(
-                src
-            )
+        def direction(
+            src: tuple[Segment, ...], dst: tuple[Segment, ...]
+        ) -> tuple[float, list[tuple[int, int, float]]]:
+            selected = [
+                (i, *_nearest_part(features, part, dst)) for i, part in enumerate(src)
+            ]
+            return sum(cost for _, _, cost in selected) / len(src), selected
 
-        seg_d = max(direction(px, py), direction(py, px))
+        dx, x_selected = direction(px, py)
+        dy, y_selected = direction(py, px)
+        seg_d = max(dx, dy)
+        if _rows is not None:
+            src, dst, selected, side = (
+                (px, py, x_selected, "a") if dx >= dy else (py, px, y_selected, "b")
+            )
+            for i, j, cost in selected:
+                _rows.append(
+                    (
+                        f"part {side}[{i}] nearest opposite[{j}]",
+                        src[i].to_ipa(),
+                        dst[j].to_ipa(),
+                        cost,
+                    )
+                )
+            _rows.extend(_prosodic_rows(features, x, y))
         return _fold_prosody(seg_d, max(len(px), len(py)), pt, pc)
 
     jx, jy = _part_junctures(x), _part_junctures(y)
     best = 1.0
+    best_rows: list[tuple[str, str | None, str | None, float]] = []
     for matching in _monotone_matchings(len(px), len(py)):
         if len(matching) != min(len(px), len(py)):
             # Every part on the shorter side makes a real pair. Once gaps are
@@ -562,55 +602,125 @@ def segment_metric(features: IPAFeatures, x: Segment, y: Segment) -> float:
         if denom == 0:
             continue
         value = (pair_cost + unmatched_cost + juncture_cost) / denom
-        best = min(best, value)
+        chosen = value < best
+        if chosen:
+            best = value
+        if _rows is not None and (chosen or not best_rows):
+            candidate: list[tuple[str, str | None, str | None, float]] = []
+            for i, j in matching:
+                nested = (
+                    " (nested composite)"
+                    if len(px[i].constituents) > 1 or len(py[j].constituents) > 1
+                    else ""
+                )
+                candidate.append(
+                    (
+                        f"matched part a[{i}]~b[{j}]{nested}",
+                        px[i].to_ipa(),
+                        py[j].to_ipa(),
+                        segment_metric(features, px[i], py[j]),
+                    )
+                )
+            for side, parts, opposite, used in (
+                ("a", px, py, set(matched)),
+                ("b", py, px, set(matched.values())),
+            ):
+                for i, part in enumerate(parts):
+                    if i in used:
+                        continue
+                    j, cost = _nearest_part(features, part, opposite)
+                    candidate.append(
+                        (
+                            f"unmatched part {side}[{i}] nearest opposite[{j}]",
+                            part.to_ipa(),
+                            opposite[j].to_ipa(),
+                            cost,
+                        )
+                    )
+                    candidate.append(
+                        (
+                            f"unmatched part {side}[{i}] material",
+                            part.to_ipa(),
+                            None,
+                            0.0,
+                        )
+                    )
+            for i, j in sorted(aligned_j):
+                candidate.append(
+                    (
+                        f"juncture a[{i}]~b[{j}]",
+                        jx[i].value,
+                        jy[j].value,
+                        0.0 if jx[i] is jy[j] else 1.0,
+                    )
+                )
+            aligned_x = {i for i, _ in aligned_j}
+            aligned_y = {j for _, j in aligned_j}
+            for side, junctures, aligned_set in (
+                ("a", jx, aligned_x),
+                ("b", jy, aligned_y),
+            ):
+                for i, sense in enumerate(junctures):
+                    if i not in aligned_set:
+                        candidate.append(
+                            (f"unaligned juncture {side}[{i}]", sense.value, None, 1.0)
+                        )
+            best_rows = candidate
+    if _rows is not None:
+        _rows.extend(best_rows)
+        _rows.extend(_prosodic_rows(features, x, y))
     return _fold_prosody(best, max(len(px), len(py)), pt, pc)
 
 
-def segment_terms(
+def _atomic_rows(
     features: IPAFeatures, x: Segment, y: Segment
 ) -> list[tuple[str, str | None, str | None, float]]:
-    """The per-term breakdown behind :func:`segment_metric`, for tracing.
-
-    One ``(label, value_x, value_y, cost)`` row per term the metric summed --
-    each comparable feature, the tract coordinates, and each prosodic rider --
-    so a caller can see *why* two units scored as they did. The mean of the
-    costs is the segment distance (single-constituent units); for a
-    multi-constituent unit the segmental part is reported as one aggregate row
-    beside its prosodic riders. Ordering follows the metric, not display.
-    """
+    """Named rows for the atomic bundle path."""
     rows: list[tuple[str, str | None, str | None, float]] = []
-    if len(x.constituents) == 1 and len(y.constituents) == 1:
-        f1, p1 = _metric_bundle(features, x.constituents[0])
-        f2, p2 = _metric_bundle(features, y.constituents[0])
-        for key in sorted(set(f1) | set(f2)):
-            feat = features.features.get(key)
-            v1, v2 = f1.get(key), f2.get(key)
-            cost = (
-                feat.value_distance(v1, v2)
-                if feat is not None
-                else (0.0 if v1 == v2 else 1.0)
-            )
-            rows.append((key, v1, v2, cost))
-        if p1 or p2:
-            rows.append(
-                ("place", None, None, _weighted_place_distance(features, p1, p2))
-            )
-        b1 = x.constituents[0].bundle(features, with_defaults=True)
-        b2 = y.constituents[0].bundle(features, with_defaults=True)
-        x1, x2 = _tract_x(features, b1), _tract_x(features, b2)
-        if not (isinstance(x1, _Unlocalized) or isinstance(x2, _Unlocalized)) and (
-            x1 is not None or x2 is not None
-        ):
-            cost = _arc_distance(x1, x2) if (x1 is not None and x2 is not None) else 1.0
-            rows.append(("tract-x", None, None, cost))
-        y1, y2 = _sagittal(features, b1)[1], _sagittal(features, b2)[1]
-        if y1 is not None or y2 is not None:
-            cost = abs(y1 - y2) if (y1 is not None and y2 is not None) else 1.0
-            rows.append(("tract-y", None, None, cost))
-    else:
-        rows.append(
-            ("segmental", x.to_ipa(), y.to_ipa(), segment_metric(features, x, y))
+    f1, p1 = _metric_bundle(features, x.constituents[0])
+    f2, p2 = _metric_bundle(features, y.constituents[0])
+    for key in sorted(set(f1) | set(f2)):
+        feat = features.features.get(key)
+        v1, v2 = f1.get(key), f2.get(key)
+        cost = (
+            feat.value_distance(v1, v2)
+            if feat is not None
+            else (0.0 if v1 == v2 else 1.0)
         )
+        rows.append((key, v1, v2, cost))
+    if p1 or p2:
+        rows.append(("place", None, None, _weighted_place_distance(features, p1, p2)))
+    b1 = x.constituents[0].bundle(features, with_defaults=True)
+    b2 = y.constituents[0].bundle(features, with_defaults=True)
+    x1, x2 = _tract_x(features, b1), _tract_x(features, b2)
+    if not (isinstance(x1, _Unlocalized) or isinstance(x2, _Unlocalized)) and (
+        x1 is not None or x2 is not None
+    ):
+        rows.append(
+            (
+                "tract-x",
+                None,
+                None,
+                _arc_distance(x1, x2) if (x1 is not None and x2 is not None) else 1.0,
+            )
+        )
+    y1, y2 = _sagittal(features, b1)[1], _sagittal(features, b2)[1]
+    if y1 is not None or y2 is not None:
+        rows.append(
+            (
+                "tract-y",
+                None,
+                None,
+                abs(y1 - y2) if (y1 is not None and y2 is not None) else 1.0,
+            )
+        )
+    return rows
+
+
+def _prosodic_rows(
+    features: IPAFeatures, x: Segment, y: Segment
+) -> list[tuple[str, str | None, str | None, float]]:
+    rows: list[tuple[str, str | None, str | None, float]] = []
     # prosodic riders
     xp, yp = _segment_prosodic(features, x), _segment_prosodic(features, y)
     for key in sorted(set(xp) | set(yp)):
@@ -628,6 +738,32 @@ def segment_terms(
             )
             v1, v2 = v1 or anchor_v, v2 or anchor_v
         rows.append((f"{key} (prosodic)", v1, v2, cost))
+    return rows
+
+
+def segment_terms(
+    features: IPAFeatures, x: Segment, y: Segment
+) -> list[tuple[str, str | None, str | None, float]]:
+    """The flat, non-overlapping term breakdown behind ``segment_metric``.
+
+    Atomic pairs expose their named bundle terms. Composite pairs expose the
+    selected outer comparisons, unmatched-material charges, and junctures;
+    matched parts remain one row because the metric weights their own distance
+    as one outer term. Consequently ``sum(cost) / len(rows)`` reconstructs the
+    metric without counting a parent aggregate beside children.
+    """
+    rows: list[tuple[str, str | None, str | None, float]] = []
+    distance = segment_metric(features, x, y, _rows=rows)
+    if rows and sum(row[3] for row in rows) / len(rows) != distance:
+        # The metric deliberately groups its three ordered subtotals before
+        # adding them. Preserve that last-bit result in a flat report: absorb
+        # only the binary-addition residue into the first non-categorical row.
+        # (Rendered costs round to four decimals, so this is never a phonetic
+        # charge; it is solely what makes the public reconstruction exact.)
+        index = next((i for i, row in enumerate(rows) if "juncture" not in row[0]), 0)
+        others = sum(row[3] for i, row in enumerate(rows) if i != index)
+        label, a, b, _ = rows[index]
+        rows[index] = (label, a, b, distance * len(rows) - others)
     return rows
 
 
