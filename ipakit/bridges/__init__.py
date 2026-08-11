@@ -2,6 +2,14 @@
 
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 from .generator import GeneratorDoor
+from .ipa_dict import (
+    IPADictEntry,
+    IPADictPronunciation,
+    IPADictProvenance,
+    IPADictReader,
+    IPADictReadReport,
+    IPADictRefusal,
+)
 from .notation import NotationBridge
 from .provider import ProviderBridge
 from .vocabulary import (
@@ -18,6 +26,12 @@ __all__ = [
     "Bridge",
     "Fidelity",
     "GeneratorDoor",
+    "IPADictEntry",
+    "IPADictPronunciation",
+    "IPADictProvenance",
+    "IPADictReader",
+    "IPADictReadReport",
+    "IPADictRefusal",
     "NotationBridge",
     "ProviderBridge",
     "ProjectionDrop",
