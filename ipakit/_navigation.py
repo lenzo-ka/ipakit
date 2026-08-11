@@ -18,7 +18,12 @@ def expanded_leaves(graph: Graph, parent: str) -> tuple[str, ...]:
 
 
 def descendants_on_tier(graph: Graph, parent: str, *, tier: str) -> tuple[str, ...]:
-    """Return reachable descendants on ``tier`` in containment walk order."""
+    """Return reachable descendants on ``tier`` in containment walk order.
+
+    The walk is stable depth-first declaration order and visits a canonical
+    child path once: when the same child is reachable through repeated
+    containment routes, its first occurrence fixes its place in the result.
+    """
     return graph.descendants(parent, tier)
 
 
