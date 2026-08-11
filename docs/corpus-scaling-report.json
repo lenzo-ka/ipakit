@@ -1,0 +1,41 @@
+{
+  "generated": "2026-08-11",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "python": "3.12.12",
+  "rows": [
+    {
+      "bytes": 206731,
+      "entries": 100,
+      "get_seconds": 0.006958,
+      "matches": 100,
+      "put_seconds": 0.010855,
+      "query_seconds": 0.022773
+    },
+    {
+      "bytes": 1033531,
+      "entries": 500,
+      "get_seconds": 0.085966,
+      "matches": 500,
+      "put_seconds": 0.094482,
+      "query_seconds": 0.273681
+    },
+    {
+      "bytes": 2067031,
+      "entries": 1000,
+      "get_seconds": 0.155237,
+      "matches": 1000,
+      "put_seconds": 0.272915,
+      "query_seconds": 0.495887
+    },
+    {
+      "bytes": 10335031,
+      "entries": 5000,
+      "get_seconds": 0.895497,
+      "matches": 5000,
+      "put_seconds": 0.950232,
+      "query_seconds": 2.821207
+    }
+  ],
+  "type": "ipakit.corpus.scaling-report",
+  "v": 1
+}

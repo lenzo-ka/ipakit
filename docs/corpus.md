@@ -87,6 +87,48 @@ answer = ipakit.corpus.derives(grammar, "anp", "amp")
 isinstance(answer, ipakit.Derivation)  # True
 ```
 
+## Provenance, splits, and experiments
+
+`Corpus.put_form` optionally records a typed `FormProvenance`: a producer name
+and version or content fingerprint, plus the declaration fingerprint under
+which it ran. `Entry.provenance` reports records by role; old entries honestly
+report an empty mapping. A corpus created with `declaration_identity=...`
+stores the same SHA-256-over-canonical-JSON fingerprint discipline used by the
+tiergraph envelope.
+
+`Corpus.put_split(name, ids)` stores an explicit ordered membership list in the
+manifest. Later entries do not join it. `Corpus.split(name)` refuses if any
+member has disappeared, so a cited split cannot quietly change meaning.
+
+```python no-run
+grammar = ipakit.shipped("experiment-demo")
+experiment = ipakit.Experiment(
+    grammar, c, "broad", "narrow", split="test", limit=256
+)
+report = experiment.run()
+report.coverage                         # {'derived': 24, 'total': 25, 'ratio': 0.96}
+report.counts
+# {'derivable': 24, 'provably_underivable': 1,
+#  'cap_truncated': 0, 'ill_formed_input': 0}
+report.write("experiment-report.json")
+```
+
+Those values are executed over a 25-entry slice built by the CMUdict ingester
+in `tests/test_experiment.py`. A report contains every entry id and both forms,
+the four-way classification, roles, cap, split, declaration fingerprint, and
+content-addressed rule-set and corpus identities. `first.compare(second)`
+returns the entries that moved class and refuses reports over different data.
+
+The command-line door prints the paper-table summary and writes the complete
+re-runnable document:
+
+```sh
+$ ipakit rules derives -s experiment-demo -C ./corpus \
+    --source cited --target observed --split test --report report.json
+coverage        24/25   derivable=24    provably_underivable=1  cap_truncated=0 ill_formed_input=0
+report  report.json
+```
+
 Library parsing is exact unless `wild=True` is requested. The CLI defaults to
 wild IPA (`g`, `:`, and `'` are normalized) and prints `query read as: ...` to
 stderr once; `--exact` keeps literal codepoints.
@@ -122,7 +164,10 @@ Refusals are written to stderr, one tab-separated record per source line; a
 summary is written to stdout. Any refusal gives status 1. Corpus query defaults
 to the `cited` role, and `--role` selects another role explicitly.
 
-A full-scale measurement is intentionally not a test. Run it against a local
-upstream checkout with, for example, `/usr/bin/time -p ipakit corpus
-ingest-cmudict ./cmu-corpus /path/to/cmudict.dict`; the measured wall time and
-resulting corpus size belong in the run report, not in this committed guide.
+A full-scale measurement is intentionally not a test. The dated, generated
+[`corpus-scaling-report.json`](corpus-scaling-report.json) measures the storage
+kernel at 100, 500, 1,000, and 5,000 entries; regenerate it with
+`PYTHONHASHSEED=0 python scripts/corpus_scaling.py --counts ... --output ...`.
+On its recorded arm64 macOS/Python 3.12.12 run, 5,000 entries occupy 10.34 MB;
+put/get/full-scan query take 0.95/0.90/2.82 seconds. This curve is a run report,
+not a performance threshold.

@@ -713,7 +713,7 @@ Sets can ship as data. `ipakit/data/rules/*.rules` are loaded by name:
 
 ```python
 from ipakit import rules
-rules.available()                       # ['american-english', 'french-liaison', 'german-final-devoicing', 'japanese-moraic', 'spanish-accented-english']
+rules.available()                       # ['american-english', 'experiment-demo', 'french-liaison', 'german-final-devoicing', 'japanese-moraic', 'spanish-accented-english']
 rs = rules.shipped("american-english")
 rs.apply("pˈɪn")                        # 'pʰˈɪ̃n'
 ```
