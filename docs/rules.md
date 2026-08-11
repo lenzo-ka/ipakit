@@ -518,17 +518,30 @@ deletion site:
 ipa.rule("e -> a / _ ∅ ʃ")  # RuleError: 'e -> a / _ ∅ ʃ' names a null in its environment. An environment names what stands there, and nothing stands at a deletion site; if zero-width context was meant, spell it with an optional element '(X)'.
 ```
 
-Optionality instead wraps the unit that may or may not stand there. It is
-general over literals, bundles, brace constraints, and `*`:
+Parentheses make one unit pattern a variable-width environment item. The
+postfix forms are:
+
+| Form | Units consumed |
+| --- | --- |
+| `(X)` or `(X)?` | zero or one |
+| `(X)*` | zero or more |
+| `(X)+` | one or more |
+| `(X){n}` | exactly `n` |
+| `(X){n,}` | at least `n` |
+| `(X){,m}` | at most `m` |
+| `(X){n,m}` | from `n` through `m`, inclusive |
+
+`(X)?` preserves that spelling when a parsed query is serialized; it has the
+same readings as `(X)`. Every open upper bound is capped by the form's length.
+The wrapper is general over literals, bundles, brace constraints, and `*`:
 
 ```python
 ipa.rewrite("cdae", "a -> b / c (d) _ e")  # 'cdbe'
 ipa.rewrite("cae",  "a -> b / c (d) _ e")  # 'cbe'
 ```
 
-`(X)*` extends the same grammar to a bounded span. Its upper bound is the
-form's length, and parentheses keep it distinct from bare `*`, which still
-means exactly one arbitrary segment:
+Parentheses keep these forms distinct from bare `*`, which still means exactly
+one arbitrary segment:
 
 ```python
 ipa.rewrite("stra", "a -> [stress=primary] / # ([-vowel])* _")  # 'strˈa'

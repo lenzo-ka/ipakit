@@ -27,22 +27,33 @@ not exact-spelling equivalents: for example, `a{stress=primary}` also matches
 `ˈã`, while the literal `ˈa` does not. `n{place=α}` additionally exposes the
 captured place value in `Match.bindings`.
 
-An environment element wrapped as `(X)` is optional: it contributes either
-zero or one matching unit. The wrapper accepts one literal, bundle,
-brace-constrained element, or `*`; nested optionality and an optional query or
-rule target are refused. Every consistent width is a recognition site. Thus
+An environment element wrapped in parentheses has these width readings:
+
+| Form | Units consumed |
+| --- | --- |
+| `(X)` or `(X)?` | zero or one |
+| `(X)*` | zero or more |
+| `(X)+` | one or more |
+| `(X){n}` | exactly `n` |
+| `(X){n,}` | at least `n` |
+| `(X){,m}` | at most `m` |
+| `(X){n,m}` | from `n` through `m`, inclusive |
+
+`(X)?` keeps its spelling when serialized and has the same readings as `(X)`.
+An open maximum is capped by the form's length. The wrapper accepts one
+literal, bundle, brace-constrained element, or `*`; nested variable-width
+items and every quantified query or rule target are refused. Every consistent
+width is a recognition site. Thus
 `t / (a) a _` has two sites at the `t` in `aat`, one with the first `a`
 absent from the reading and one with it present. A rewrite still edits that
 one target once, following the engine's existing simultaneous,
 non-overlapping-target discipline.
 
-`(X)*` is the bounded-span form: zero or more consecutive units matching `X`,
-with the maximum read from the form's length. For example,
+For example,
 `[vowel] / # ([-vowel])* _` finds the `a` in both `a` and `stra`. Parentheses
-make the repeated element explicit. This avoids colliding with bare `*`, which
-already means exactly one arbitrary segment: `(*)*` is therefore the
-unambiguous spelling of zero or more arbitrary segments, while `*` retains its
-old one-unit meaning.
+make the repeated element explicit and avoid colliding with bare `*`, which
+already means exactly one arbitrary segment. `(*)*` is therefore zero or more
+arbitrary segments, while `*` retains its old one-unit meaning.
 
 Agreement variables inside either variable-width form bind only when at least
 one unit is present. A rule may not use a variable in its change when the
