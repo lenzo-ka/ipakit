@@ -53,6 +53,23 @@ def test_report_totals_and_iterations_are_self_consistent() -> None:
     assert report["cross_check"]["shared_words"] == (
         report["cross_check"]["agreements"] + report["cross_check"]["disagreements"]
     )
+    cross_check = report["cross_check"]
+    assert (
+        cross_check["normalizations"]["stress_to_nucleus"]["applied_to_forms"] == 128670
+    )
+    assert (
+        cross_check["normalizations"]["registered_diphthong_tying"]["applied_to_forms"]
+        == 0
+    )
+    assert {
+        name: bucket["count"]
+        for name, bucket in cross_check["disagreement_buckets"].items()
+    } == {
+        "stress_seat": 0,
+        "untied_diphthong_nucleation": 18966,
+        "genuine_boundary_difference": 1511,
+        "other": 69473,
+    }
 
 
 def test_fixture_regeneration_is_attributed_and_records_refusals(

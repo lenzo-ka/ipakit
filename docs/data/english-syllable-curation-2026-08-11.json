@@ -5,59 +5,118 @@
     "ingest_refusals": null
   },
   "cross_check": {
-    "agreements": 2379,
-    "disagreements": 123548,
-    "examples": [
-      {
-        "cmudict": "bˈa͜ʊt",
-        "ipa_dict": "ˈb.a.ʊt",
-        "word": "'bout"
+    "agreements": 35977,
+    "disagreement_buckets": {
+      "genuine_boundary_difference": {
+        "count": 1511,
+        "examples": [
+          {
+            "cmudict": "ˈɑɹ.dvˌɑɹk",
+            "ipa_dict": "ˈɑɹd.vˌɑɹk",
+            "word": "aardvark"
+          },
+          {
+            "cmudict": "ˈɑɹ.dvˌɑɹks",
+            "ipa_dict": "ˈɑɹd.vˌɑɹks",
+            "word": "aardvarks"
+          },
+          {
+            "cmudict": "ˌæ.bə.twˈɑɹ",
+            "ipa_dict": "ˌæ.bət.wˈɑɹ",
+            "word": "abattoir"
+          },
+          {
+            "cmudict": "ə.bjˈuz",
+            "ipa_dict": "əb.jˈus | əb.jˈuz",
+            "word": "abuse"
+          },
+          {
+            "cmudict": "ə.bjˈuzd",
+            "ipa_dict": "əb.jˈuzd",
+            "word": "abused"
+          }
+        ]
       },
-      {
-        "cmudict": "kˈɔɹs",
-        "ipa_dict": "ˈk.ɔɹs",
-        "word": "'course"
+      "other": {
+        "count": 69473,
+        "examples": [
+          {
+            "cmudict": "tˈɪl",
+            "ipa_dict": "tˈɪɫ",
+            "word": "'til"
+          },
+          {
+            "cmudict": "twˈʌz",
+            "ipa_dict": "twˈəz",
+            "word": "'twas"
+          },
+          {
+            "cmudict": "tɹˌɪ.pə.lˈe͜ɪ",
+            "ipa_dict": "tɹˌɪ.pə.ɫˈe.ɪ",
+            "word": "aaa"
+          },
+          {
+            "cmudict": "ˈɑ.bɚɡ",
+            "ipa_dict": "ˈɑ.bɝɡ",
+            "word": "aaberg"
+          },
+          {
+            "cmudict": "ˈɑ.kə.nɚ",
+            "ipa_dict": "ˈɑ.kə.nɝ",
+            "word": "aachener"
+          }
+        ]
       },
-      {
-        "cmudict": "kjˈuz",
-        "ipa_dict": "ˈk.juz",
-        "word": "'cuse"
+      "stress_seat": {
+        "count": 0,
+        "examples": []
       },
-      {
-        "cmudict": "fɹˈɪ.sko͜ʊ",
-        "ipa_dict": "ˈf.ɹɪ.sko.ʊ",
-        "word": "'frisco"
-      },
-      {
-        "cmudict": "ɡˈɛn",
-        "ipa_dict": "ˈɡ.ɛn",
-        "word": "'gain"
-      },
-      {
-        "cmudict": "kˈe͜ɪ",
-        "ipa_dict": "ˈk.e.ɪ",
-        "word": "'kay"
-      },
-      {
-        "cmudict": "ɹˈa͜ʊnd",
-        "ipa_dict": "ˈɹ.a.ʊnd",
-        "word": "'round"
-      },
-      {
-        "cmudict": "tˈɪl",
-        "ipa_dict": "ˈt.ɪɫ",
-        "word": "'til"
-      },
-      {
-        "cmudict": "tˈɪz",
-        "ipa_dict": "ˈt.ɪz",
-        "word": "'tis"
-      },
-      {
-        "cmudict": "twˈʌz",
-        "ipa_dict": "ˈt.wəz",
-        "word": "'twas"
+      "untied_diphthong_nucleation": {
+        "count": 18966,
+        "examples": [
+          {
+            "cmudict": "bˈa͜ʊt",
+            "ipa_dict": "bˈa.ʊt",
+            "word": "'bout"
+          },
+          {
+            "cmudict": "fɹˈɪ.sko͜ʊ",
+            "ipa_dict": "fɹˈɪ.sko.ʊ",
+            "word": "'frisco"
+          },
+          {
+            "cmudict": "kˈe͜ɪ",
+            "ipa_dict": "kˈe.ɪ",
+            "word": "'kay"
+          },
+          {
+            "cmudict": "ɹˈa͜ʊnd",
+            "ipa_dict": "ɹˈa.ʊnd",
+            "word": "'round"
+          },
+          {
+            "cmudict": "ˈe͜ɪ",
+            "ipa_dict": "ˈe.ɪ | ə",
+            "word": "a"
+          }
+        ]
       }
+    },
+    "disagreements": 89950,
+    "normalizations": {
+      "registered_diphthong_tying": {
+        "applied_to_forms": 0,
+        "operation": "not applied: normalize() treats whitespace as asserted unit grouping and is not a word-level diphthong detector"
+      },
+      "stress_to_nucleus": {
+        "applied_to_forms": 128670,
+        "operation": "IPAFeatures.normalize_stress_to_nucleus"
+      }
+    },
+    "notes": [
+      "ipa-dict syllable-initial stress was re-seated on the following nucleus for this comparison only; stored bridge forms are unchanged.",
+      "Whether read() should globally seat standard leading-stress IPA on the following nucleus is an engine question recorded here and left outside this lane.",
+      "Registered-diphthong tying remains the normalize tie-report follow-up; diagnostic tying is used only to identify the untied-diphthong bucket."
     ],
     "refusals": 0,
     "shared_words": 125927,

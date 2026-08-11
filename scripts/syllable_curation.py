@@ -10,10 +10,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -26,6 +28,7 @@ import ipakit
 from ipakit.bridges.ipa_dict import IPADictReader
 from ipakit.corpus import Corpus
 from ipakit.form import Form, Unit
+from ipakit.mapper import CMUMapper
 from ipakit.syllable import Language, syllabifier
 
 
@@ -227,38 +230,99 @@ def iterations(corpus: Corpus, language: Language) -> list[dict[str, Any]]:
 
 
 def cross_check(
-    corpus: Corpus,
+    corpus: Corpus | Mapping[str, Form | str],
     language: Language,
     ipa_dict: Path | None,
     source_version: str | None,
 ) -> dict[str, Any]:
     if ipa_dict is None:
         return {"status": "not run", "reason": "no ipa-dict en_US source supplied"}
-    read = IPADictReader(ipa_dict, language="en_US").read()
-    cmu = {str(entry.meta.get("word")): entry.forms["cited"] for entry in corpus}
+    reader = IPADictReader(ipa_dict, language="en_US")
+    cmu = (
+        {str(entry.meta.get("word")): entry.forms["cited"] for entry in corpus}
+        if isinstance(corpus, Corpus)
+        else corpus
+    )
     built = syllabifier(language)
+    features = ipakit.IPAFeatures()
     agreement = disagreement = shared = 0
-    examples: list[dict[str, str]] = []
-    for entry in read.entries:
-        if entry.word not in cmu:
-            continue
-        shared += 1
-        left = built(cmu[entry.word]).spelled()
-        alternatives = [built(pron.form).spelled() for pron in entry.pronunciations]
-        if left in alternatives:
-            agreement += 1
-        else:
-            disagreement += 1
-            if len(examples) < 10:
-                examples.append(
-                    {
-                        "word": entry.word,
-                        "cmudict": ".".join(left),
-                        "ipa_dict": " | ".join(
-                            ".".join(value) for value in alternatives
-                        ),
-                    }
+    stress_normalized = 0
+    refusals = 0
+    buckets: dict[str, dict[str, Any]] = {
+        name: {"count": 0, "examples": []}
+        for name in (
+            "stress_seat",
+            "untied_diphthong_nucleation",
+            "genuine_boundary_difference",
+            "other",
+        )
+    }
+    with ipa_dict.open(encoding="utf-8-sig") as source:
+        for line_number, raw in enumerate(source, 1):
+            line = raw.rstrip("\r\n")
+            if not line or line.startswith("#"):
+                continue
+            try:
+                word, field = line.split("\t", 1)
+                written = [part.strip() for part in field.split(",")]
+                if any(
+                    len(value) < 2
+                    or not value.startswith("/")
+                    or not value.endswith("/")
+                    for value in written
+                ):
+                    raise ValueError("invalid ipa-dict pronunciation field")
+                raw_forms = [value[1:-1] for value in written]
+                normalized = [
+                    features.normalize_stress_to_nucleus(value) for value in raw_forms
+                ]
+                touched = sum(
+                    before != after
+                    for before, after in zip(raw_forms, normalized, strict=True)
                 )
+                normalized_line = (
+                    word + "\t" + ", ".join(f"/{value}/" for value in normalized)
+                )
+                entry = reader.read_line(normalized_line, line_number=line_number)
+            except (UnicodeError, ValueError):
+                refusals += 1
+                continue
+            if entry.word not in cmu:
+                continue
+            shared += 1
+            stress_normalized += touched
+            left = built(cmu[entry.word]).spelled()
+            normalized_forms = [pron.form for pron in entry.pronunciations]
+            alternatives = [built(form).spelled() for form in normalized_forms]
+            if left in alternatives:
+                agreement += 1
+            else:
+                disagreement += 1
+                tied = [
+                    built(_tie_registered_diphthongs(form, features)).spelled()
+                    for form in normalized_forms
+                ]
+                if left in tied:
+                    bucket = "untied_diphthong_nucleation"
+                elif any(
+                    _without_breaks(left) == _without_breaks(value)
+                    for value in alternatives
+                ):
+                    bucket = "genuine_boundary_difference"
+                else:
+                    bucket = "other"
+                row = buckets[bucket]
+                row["count"] += 1
+                if len(row["examples"]) < 5:
+                    row["examples"].append(
+                        {
+                            "word": entry.word,
+                            "cmudict": ".".join(left),
+                            "ipa_dict": " | ".join(
+                                ".".join(value) for value in alternatives
+                            ),
+                        }
+                    )
     return {
         "source": {
             **_source_identity(ipa_dict),
@@ -267,9 +331,57 @@ def cross_check(
         "shared_words": shared,
         "agreements": agreement,
         "disagreements": disagreement,
-        "examples": examples,
-        "refusals": len(read.refusals),
+        "normalizations": {
+            "stress_to_nucleus": {
+                "applied_to_forms": stress_normalized,
+                "operation": "IPAFeatures.normalize_stress_to_nucleus",
+            },
+            "registered_diphthong_tying": {
+                "applied_to_forms": 0,
+                "operation": "not applied: normalize() treats whitespace as asserted unit grouping and is not a word-level diphthong detector",
+            },
+        },
+        "disagreement_buckets": buckets,
+        "notes": [
+            "ipa-dict syllable-initial stress was re-seated on the following nucleus for this comparison only; stored bridge forms are unchanged.",
+            "Whether read() should globally seat standard leading-stress IPA on the following nucleus is an engine question recorded here and left outside this lane.",
+            "Registered-diphthong tying remains the normalize tie-report follow-up; diagnostic tying is used only to identify the untied-diphthong bucket.",
+        ],
+        "refusals": refusals,
     }
+
+
+def _without_breaks(syllables: tuple[str, ...]) -> str:
+    return "".join(syllables).replace(".", "")
+
+
+def _tie_registered_diphthongs(form: Form, features: ipakit.IPAFeatures) -> Form:
+    """Tie only adjacent nuclei whose under-tied spelling is registered.
+
+    This is a diagnostic counterfactual for bucketing, not a normalization
+    applied to the compared ipa-dict form.
+    """
+    output: list[str] = []
+    units = form.units
+    index = 0
+    while index < len(units):
+        unit = units[index]
+        if index + 1 < len(units):
+            following = units[index + 1]
+            candidate = unit.core + features.seq_tie + following.core
+            if (
+                unit.segment is not None
+                and following.segment is not None
+                and features.is_nucleus(unit.features)
+                and features.is_nucleus(following.features)
+                and candidate in features.phones
+            ):
+                output.append(unit.text + features.seq_tie + following.text)
+                index += 2
+                continue
+        output.append(unit.text)
+        index += 1
+    return features.read("".join(output), strict=True)
 
 
 def _source_identity(path: Path) -> dict[str, Any]:
@@ -277,27 +389,100 @@ def _source_identity(path: Path) -> dict[str, Any]:
     return {"path": path.name, "sha256": digest}
 
 
+def _cmudict_forms(path: Path) -> dict[str, str]:
+    """Read the final ID-ordered pronunciation per CMUdict headword."""
+    mapper = CMUMapper()
+    selected: dict[str, tuple[str, str]] = {}
+    with path.open(encoding="utf-8") as source:
+        for raw in source:
+            content = raw.split("#", 1)[0].strip()
+            if not content or content.startswith(";;;"):
+                continue
+            spelling, *phones = content.split()
+            match = re.fullmatch(
+                r"(?P<word>\S+?)(?:\((?P<variant>[1-9][0-9]*)\))?", spelling
+            )
+            if match is None or not phones:
+                continue
+            word = match.group("word").lower()
+            variant = int(match.group("variant") or "1")
+            entry_id = word if variant == 1 else f"{word}.{variant}"
+            try:
+                transcription = mapper.cmu_to_ipa(phones, strict=True)
+            except ValueError:
+                continue
+            if word not in selected or entry_id > selected[word][0]:
+                selected[word] = (entry_id, transcription)
+    return {word: transcription for word, (_, transcription) in selected.items()}
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    reused = (
+        json.loads(args.reuse_measurements.read_text(encoding="utf-8"))
+        if args.reuse_measurements
+        else None
+    )
     with tempfile.TemporaryDirectory(prefix="ipakit-syllables-") as temporary:
-        if args.corpus:
-            corpus = ipakit.corpus.open(args.corpus)
+        if reused and args.cmudict:
+            corpus = None
+            comparison_source: Corpus | Mapping[str, Form | str] = _cmudict_forms(
+                args.cmudict
+            )
             ingest = None
+            evidence = tuple(
+                Evidence(
+                    item["onset"],
+                    item["count"],
+                    tuple(item["exemplars"]),
+                    item["constraint_legal"],
+                    tuple(item["sonority_ranks"]),
+                )
+                for item in reused["onsets"]
+            )
+        elif args.corpus:
+            corpus = ipakit.corpus.open(args.corpus)
+            comparison_source = corpus
+            ingest = None
+            evidence = harvest(corpus)
         else:
             corpus = ipakit.corpus.create(Path(temporary) / "corpus")
+            comparison_source = corpus
             ingest = ipakit.corpus.ingest_cmudict(corpus, args.cmudict)
-        evidence = harvest(corpus)
+            evidence = harvest(corpus)
         source = (
             {
+                "corpus": args.source_name,
                 **_source_identity(args.cmudict),
                 **({"version": args.source_version} if args.source_version else {}),
             }
-            if args.cmudict
-            else {
-                "corpus": args.corpus.name,
-                **({"path": args.source_name} if args.source_name else {}),
-                **({"sha256": args.source_sha256} if args.source_sha256 else {}),
-                **({"version": args.source_version} if args.source_version else {}),
-            }
+            if reused and args.cmudict and args.source_name
+            else (
+                reused["source"]
+                if reused
+                else (
+                    {
+                        **_source_identity(args.cmudict),
+                        **(
+                            {"version": args.source_version}
+                            if args.source_version
+                            else {}
+                        ),
+                    }
+                    if args.cmudict
+                    else {
+                        "corpus": args.corpus.name,
+                        **({"path": args.source_name} if args.source_name else {}),
+                        **(
+                            {"sha256": args.source_sha256} if args.source_sha256 else {}
+                        ),
+                        **(
+                            {"version": args.source_version}
+                            if args.source_version
+                            else {}
+                        ),
+                    }
+                )
+            )
         )
         provenance = (
             "Generated by scripts/syllable_curation.py from CMUdict "
@@ -313,19 +498,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             for stratum, _ in (classify_exception(item.onset),)
             if stratum is not None
         )
-        reused = (
-            json.loads(args.reuse_measurements.read_text(encoding="utf-8"))
-            if args.reuse_measurements
-            else None
-        )
         report = {
             "artifact": "ipakit English syllable curation report",
             "generated": args.date,
             "generator": "scripts/syllable_curation.py",
             "source": source,
             "corpus": {
-                "forms": len(corpus),
-                "ingest_refusals": len(ingest.refusals) if ingest else None,
+                "forms": reused["corpus"]["forms"] if corpus is None else len(corpus),
+                "ingest_refusals": (
+                    reused["corpus"]["ingest_refusals"]
+                    if corpus is None
+                    else len(ingest.refusals) if ingest else None
+                ),
             },
             "grid": {
                 "constraint_legal_attested": sum(item.legal for item in evidence),
@@ -370,11 +554,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     ),
                 ],
             },
-            "iterations": iterations(corpus, language),
+            "iterations": (
+                reused["iterations"] if reused else iterations(corpus, language)
+            ),
             "cross_check": (
-                reused["cross_check"]
-                if reused
-                else cross_check(corpus, language, args.ipa_dict, args.ipa_dict_version)
+                cross_check(
+                    comparison_source,
+                    language,
+                    args.ipa_dict,
+                    args.ipa_dict_version,
+                )
+                if args.ipa_dict or not reused
+                else reused["cross_check"]
             ),
             "onsets": [
                 {
@@ -413,7 +604,7 @@ def parser() -> argparse.ArgumentParser:
     built.add_argument(
         "--reuse-measurements",
         type=Path,
-        help="reuse iteration and cross-check sections from a completed run",
+        help="reuse iterations and, unless --ipa-dict is supplied, cross-checks",
     )
     return built
 

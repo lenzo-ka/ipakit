@@ -101,9 +101,9 @@ strict("ŋtˈɑ").spelled(), strict("ŋtˈɑ").unsyllabified
 
 The stressed `/ɑ/` is a nucleus in both demonstrations, and the final control shows the same no-absorption property as the other languages: the unlicensed initial `/ŋ/` is reported rather than folded into the following syllable.
 
-The ipa-dict en_US cross-check used commit `43c3570eb3553bdd19fccd2bd0091534889af023`: all 125,927 entries were shared, with 2,379 agreements and 123,548 disagreements.
+The ipa-dict en_US cross-check used commit `43c3570eb3553bdd19fccd2bd0091534889af023`: all 125,927 entries were shared.  The comparison re-seated syllable-initial stress on the following nucleus in 128,670 pronunciation forms, without changing the bridge's stored forms.  After that explicit normalization, 35,977 words agree and 89,950 disagree.  `normalize()` is not a word-level diphthong detector—its whitespace groups assert whole units—so no diphthong tying was applied; that remains the normalize tie-report follow-up.
 
-The disagreement count is intentionally visible: ipa-dict frequently writes stress before an onset and uses untied vowel sequences, while the house reading attaches stress to the following unit and CMUdict conversion binds ARPABET diphthongs, so this comparison measures transcription conventions as well as onset decisions.
+The residual disagreements are separated by cause.  Stress-seat contributes 0 after normalization.  Untied-diphthong nucleation contributes 18,966: for example *'bout* is `bˈa͜ʊt` against `bˈa.ʊt`, and diagnostic tying of the registered vowel pair removes the difference.  Genuine boundary differences contribute 1,511: *aardvark* is `ˈɑɹ.dvˌɑɹk` against `ˈɑɹd.vˌɑɹk` with otherwise identical forms.  The other 69,473 retain a segmental, prosodic, or unclassified transcription difference; examples include *'til* (`tˈɪl` against `tˈɪɫ`) and *'twas* (`twˈʌz` against `twˈəz`).  Thus the boundary bucket, rather than the old convention-dominated total, is the syllabification evidence exposed by this cross-check.
 
 ## 7. Disagreement is the evidence
 
