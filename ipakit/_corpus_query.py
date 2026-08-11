@@ -16,6 +16,7 @@ from . import rules
 from ._corpus import Corpus
 from .features import IPAFeatures
 from .form import Form, _default
+from .models import Phoneset
 from .rules import DEFAULT_LIMIT, Derivation, Query, RuleSet
 
 
@@ -326,12 +327,23 @@ def derives(
     target: str | Form,
     *,
     features: IPAFeatures | None = None,
+    phoneset: Phoneset | None = None,
     limit: int = DEFAULT_LIMIT,
 ) -> DerivationAnswer:
-    """Return a witness, exhaustive refusal, or cap-qualified refusal."""
+    """Return a witness, exhaustive refusal, or cap-qualified refusal.
+
+    An all-invertible obligatory cascade takes the single deterministic
+    path. A set that has lost invertibility (or contains optional choices)
+    uses the existing capped candidate enumeration. ``phoneset`` declares
+    the underlying inventory for that classification. Omitting it preserves
+    the historical deterministic path for an obligatory cascade.
+    """
     inventory = _default(features)
     wanted = target.to_ipa() if isinstance(target, Form) else target
-    if not ruleset.optional:
+    deterministic = not ruleset.optional and (
+        phoneset is None or ruleset.invertibility(phoneset, inventory).invertible
+    )
+    if deterministic:
         derivation = ruleset.derive(source, inventory)
         return (
             derivation

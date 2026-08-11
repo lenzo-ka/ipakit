@@ -49,11 +49,13 @@ every rule written before this is byte-identical.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..form import Unit, spell, units
+from ..models import Phoneset
 from ..rules import (
     DEFAULT_LIMIT,
     Edit,
@@ -836,6 +838,56 @@ class ListCommand(Command):
         return 0
 
 
+class InvertibilityCommand(RuleCommand):
+    """Classify each rule against a declared inventory.
+
+    The bundled IPA declaration is the default inventory. ``--phoneset``
+    narrows the underlying inventory to one phone per line, which is what
+    makes a rule such as ``n -> ŋ / _ k`` language-relative.
+    """
+
+    name = "invertibility"
+    aliases = ["invertible"]
+    help = "Report rule and ruleset invertibility against an inventory"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        add_rules_args(parser)
+        parser.add_argument(
+            "--phoneset",
+            type=Path,
+            metavar="FILE",
+            help="Underlying inventory, one IPA phone per line (default: bundled IPA)",
+        )
+        add_format_arg(parser)
+
+    def run(self) -> int:
+        try:
+            ruleset = self.resolve_rules()
+            phoneset = (
+                Phoneset.from_file(self.args.phoneset)
+                if self.args.phoneset
+                else Phoneset.from_list(list(self.ipa.phones), name="bundled-ipa")
+            )
+            report = ruleset.invertibility(phoneset, self.ipa)
+        except (OSError, RuleError) as exc:
+            return self.error(str(exc))
+        if self.format == "json":
+            self.output_json(
+                {
+                    "name": report.ruleset,
+                    "invertible": report.invertible,
+                    "lost_at": report.lost_at,
+                    "regime": report.regime,
+                    "rules": [dataclasses.asdict(item) for item in report.rules],
+                }
+            )
+        else:
+            self.print(str(report))
+        return 0
+
+
 class RulesGroup(CommandGroup):
     """Context-sensitive rewrite rules over IPA forms (A -> B / C _ D).
 
@@ -847,6 +899,7 @@ class RulesGroup(CommandGroup):
         units      Split a form the way rules see it (boundaries kept)
         morae      Show morae for an attested Japanese loanword adaptation
         list       The shipped rule sets, or the rules in one
+        invertibility  Classify rules against a declared inventory
 
     Rules come from exactly one of -r NOTATION (repeatable and ordered),
     -s NAME (a shipped set) or --file FILE. Forms are positional, or one
@@ -876,7 +929,7 @@ class RulesGroup(CommandGroup):
 
     name = "rules"
     aliases = ["r"]
-    help = "Rewrite rules (apply, variants, trace, recognize, units, morae, list)"
+    help = "Rewrite rules (apply, variants, trace, recognize, units, morae, list, invertibility)"
     commands = [
         ApplyCommand,
         VariantsCommand,
@@ -885,4 +938,5 @@ class RulesGroup(CommandGroup):
         UnitsCommand,
         MoraeCommand,
         ListCommand,
+        InvertibilityCommand,
     ]
