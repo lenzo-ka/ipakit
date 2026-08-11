@@ -442,9 +442,11 @@ def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone
                 target = line.split(None, 1)[1].split()[0]
                 if "/" in target:
                     table_name, target_mnemonic = target.split("/", 1)
-                    if table_name in done:
-                        body.extend(compiled_body(table_name, target_mnemonic, seen))
-                        continue
+                else:
+                    table_name, target_mnemonic = name, target
+                if table_name in done and target_mnemonic in done[table_name]:
+                    body.extend(compiled_body(table_name, target_mnemonic, seen))
+                    continue
             body.append(line)
         return tuple(body)
 

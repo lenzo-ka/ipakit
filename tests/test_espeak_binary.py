@@ -34,6 +34,7 @@ def _output(language: str, mode: str, word: str) -> str:
         pytest.param("kk", "ға", id="kazakh-imported-uvular-r"),
         pytest.param("hr", "r", id="croatian-imported-trill"),
         pytest.param("it", "gli", id="italian-imported-palatal-lateral"),
+        pytest.param("gd", "ruadh", id="gaelic-unqualified-same-table-import"),
         pytest.param("el", "γεια", id="greek-script"),
         pytest.param("sw", "habari", id="swahili-rhotic"),
     ],

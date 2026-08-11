@@ -52,7 +52,7 @@
   <atom spelling="l̩" output="l-" />
   <atom spelling="ɹ" output="r" />
   <atom spelling="r" output="r/" />
-  <atom spelling="ʀ" output="R" />
+  <atom spelling="r" output="R" />
   <atom spelling="r" output="R2" />
   <atom spelling="r" output="R3" />
   <atom spelling="ʀ" output='r"' />
