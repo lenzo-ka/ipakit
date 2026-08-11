@@ -171,6 +171,18 @@ class VocabularyBridge(Bridge):
             raise ValueError(f"{self.name} vocabulary declares no atoms")
         self.atoms = atoms
         self._by_output = {atom.output: atom for atom in atoms}
+        seen_spellings: dict[str, Atom | None] = {}
+        for atom in atoms:
+            if atom.kind != "unit":
+                continue
+            seen_spellings[atom.spelling] = (
+                None if atom.spelling in seen_spellings else atom
+            )
+        self._by_spelling = {
+            spelling: atom
+            for spelling, atom in seen_spellings.items()
+            if atom is not None
+        }
         self._ordered = tuple(
             sorted(atoms, key=lambda atom: len(atom.output), reverse=True)
         )
