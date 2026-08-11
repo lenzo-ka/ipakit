@@ -4,7 +4,14 @@ from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 from .generator import GeneratorDoor
 from .notation import NotationBridge
 from .provider import ProviderBridge
-from .vocabulary import Atom, VocabularyBridge, VocabularyResidueError
+from .vocabulary import (
+    Atom,
+    ProjectionDrop,
+    ProjectionReport,
+    VocabularyBridge,
+    VocabularyProjection,
+    VocabularyResidueError,
+)
 
 __all__ = [
     "Atom",
@@ -13,8 +20,11 @@ __all__ = [
     "GeneratorDoor",
     "NotationBridge",
     "ProviderBridge",
+    "ProjectionDrop",
+    "ProjectionReport",
     "RoundTripLeg",
     "RoundTripReport",
     "VocabularyBridge",
+    "VocabularyProjection",
     "VocabularyResidueError",
 ]

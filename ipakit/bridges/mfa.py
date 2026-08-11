@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..form import Form
-from .vocabulary import VocabularyBridge
+from .vocabulary import VocabularyBridge, VocabularyProjection
 
 _PATH = Path(__file__).parent.parent / "data" / "bridges" / "mfa" / "mfa.xml"
 
@@ -31,6 +31,10 @@ class MFABridge(VocabularyBridge):
     def read_tokens(self, labels: list[str] | tuple[str, ...]) -> Form:
         """Read an aligned label sequence as an explicitly segmented stream."""
         return self.read(labels)
+
+    def map_to_mfa(self, form: Form) -> VocabularyProjection:
+        """Project an arbitrary reachable house form into English MFA atoms."""
+        return self.map(form)
 
     def read_dictionary_line(self, line: str) -> MFADictionaryEntry:
         """Read the plain MFA word-tab-segmented-phones dictionary form."""

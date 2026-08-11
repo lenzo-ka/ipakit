@@ -9,6 +9,7 @@
       <optional><attribute name="source-style"><choice><value>text</value><value>segmented</value></choice></attribute></optional>
       <optional><attribute name="separator"><text /></attribute></optional>
       <ref name="round-trip" />
+      <optional><ref name="mapper" /></optional>
       <zeroOrMore><choice><ref name="input" /><ref name="tone" /></choice></zeroOrMore>
       <oneOrMore><ref name="atom" /></oneOrMore>
     </element>
@@ -18,6 +19,20 @@
     <element name="round-trip">
       <element name="external-to-house"><ref name="leg" /></element>
       <element name="house-to-external"><ref name="leg" /></element>
+    </element>
+  </define>
+
+  <define name="mapper">
+    <element name="mapper">
+      <optional><attribute name="tie-drop"><text /></attribute></optional>
+      <optional><attribute name="boundary-drop"><text /></attribute></optional>
+      <zeroOrMore>
+        <element name="reduction">
+          <attribute name="source"><text /></attribute>
+          <attribute name="target"><text /></attribute>
+          <attribute name="drop"><text /></attribute>
+        </element>
+      </zeroOrMore>
     </element>
   </define>
 
