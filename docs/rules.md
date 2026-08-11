@@ -49,7 +49,8 @@ A `Site` records *which* neighbors licensed it, not merely that some did, so a t
 | `[key=-α]` | the *opposite* value; binary features only |
 | `[key=∅]` | in a change: clear that prosodic value |
 | `[zero]` | a structural zero — a position with no content |
-| `(∅)` | in a context: a zero that may or may not be there |
+| `(X)` | in a context: zero or one unit matching `X` |
+| `(X)*` | in a context: zero or more units matching `X` |
 | a bare glyph | that literal phone, with any prosody it wears |
 
 The name separator is `;` and **not** `|`, because `|` is a declared prosodic break and therefore a legal context item. Using `|` for both meant `t -> ʔ / _ |` silently became an unconditional rule.
@@ -500,9 +501,7 @@ ipa.rule("[zero] -> [voiced=+]")          # RuleError: a zero is a position with
 ipa.rule("∅ -> [zero] / a _ b")           # RuleError: an insertion had none to lose, so there is nothing here for it to record
 ```
 
-### Transparency is the rule's decision
-
-Whether a zero blocks a context depends on what the zero is being **used for**. A latent consonant's zero marks where a segment could surface, and a rule about the vowels either side has no business seeing it. A zero standing for an empty mora is a position that counts, and a rule reaching across it would be wrong. Neither reading can be the library's, so the rule states which it wants — per rule, and per place.
+### A null is not an environment
 
 A zero is opaque by default: it is a position, and positions block.
 
@@ -511,30 +510,30 @@ ipa.rewrite("leʃ",  "e -> a / _ ʃ", keep_zeros=True)      # 'laʃ'
 ipa.rewrite("le∅ʃ", "e -> a / _ ʃ", keep_zeros=True)      # 'le∅ʃ'  -- the zero is in the way
 ```
 
-Naming it requires it, which is the ordinary reading of any context item:
+It cannot be named in an environment. All four null spellings are refused,
+because an environment names what stands there and nothing stands at a
+deletion site:
 
 ```python
-ipa.rewrite("le∅ʃ", "e -> a / _ [zero] ʃ", keep_zeros=True)  # 'la∅ʃ'
-ipa.rewrite("leʃ",  "e -> a / _ [zero] ʃ", keep_zeros=True)  # 'leʃ'   -- no zero, no match
+ipa.rule("e -> a / _ ∅ ʃ")  # RuleError: 'e -> a / _ ∅ ʃ' names a null in its environment. An environment names what stands there, and nothing stands at a deletion site; if zero-width context was meant, spell it with an optional element '(X)'.
 ```
 
-Parenthesising it makes it **optional** — matched if it is there, stepped over if it is not — which is transparency written where it applies:
+Optionality instead wraps the unit that may or may not stand there. It is
+general over literals, bundles, brace constraints, and `*`:
 
 ```python
-ipa.rewrite("le∅ʃ", "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'la∅ʃ'
-ipa.rewrite("leʃ",  "e -> a / _ (∅) ʃ", keep_zeros=True)  # 'laʃ'   -- one rule, one answer
+ipa.rewrite("cdae", "a -> b / c (d) _ e")  # 'cdbe'
+ipa.rewrite("cae",  "a -> b / c (d) _ e")  # 'cbe'
 ```
 
-An optional item may also stand **past** the virtual edge, where there is nothing at all for it to take. The form's own edge and a written `#` are the same boundary, so the same rule has to hold of both:
+`(X)*` extends the same grammar to a bounded span. Its upper bound is the
+form's length, and parentheses keep it distinct from bare `*`, which still
+means exactly one arbitrary segment:
 
 ```python
-ipa.rewrite("at",  "t -> d / _ # (∅)")   # 'ad'
-ipa.rewrite("at#", "t -> d / _ # (∅)")   # 'ad#'  -- typing the mark changes nothing
+ipa.rewrite("stra", "a -> [stress=primary] / # ([-vowel])* _")  # 'strˈa'
 ```
 
-The syllable dot is the precedent for "the rule decides", and its shape does not fit here. The dot is *optional notation*, so transparent-by-default is the only safe reading of it, and naming it is the only override it needs. A zero is a claim the transcription makes, so its default is the opposite, and "step over unless named" offers no way to say so. The parenthesis is generative phonology's own mark for an optional element, and it says the thing directly.
-
-**Only a zero may be optional today.** `(t)`, `([vowel])` and `(#)` are refused rather than quietly meaning something: an optional *boundary* would have to answer to the boundary-run rule and the virtual edge, which is a separate question. A `Site` records `None` for an optional item nothing matched, the same as for the virtual edge past the end of a form — one entry per context item either way.
 
 ### The surface carries no zero
 
@@ -838,7 +837,7 @@ Recorded so they are not discovered the hard way:
 - **A prosodic mark is not a position**, so `∅ -> ˈ`, `ˈ -> ∅` and a bare `ˈ` in a context are refused rather than expressible. Prosody rides on a unit, and `[stress=primary]` / `[stress=∅]` on the unit is how it is written (above).
 - **A prosodic composition that collides with a registered symbol declines.** `t` plus the rising-contour caron recomposes to `ť`, which is a different phone, so `t -> [contour=rising]` does not fire. The set is whatever the inventory makes it, because the check is a read-back rather than a list, and `tests/test_rules.py` sweeps every phone against every prosodic value and names each pair that declines.
 - **There is no notation for a phrase boundary by level.** `#` and `.` name a level; `|` and `‖` are matched as the literal marks they are. A bracketed `[level=phrase]` never matches, because a query is compared against a segment's feature bundle and a boundary has none.
-- **Optionality is not general.** `(∅)` marks a zero optional in a context; `(t)`, `([vowel])` and `(#)` are refused. An optional boundary item would have to answer to the boundary-run rule and the virtual edge past the end of a form, and that is a separate question from the one a zero raises. Parentheses in a rule's *name* are untouched, since the name is past the `;` and never reaches the context splitter.
+- **Variable width is recognition sugar only.** `(X)` and `(X)*` are refused in a rule target, nested variable-width elements are refused, and a change cannot use a variable bound only inside one. An absent element cannot supply a rewrite value. Parentheses in a rule's *name* are untouched, since the name is past the `;` and never reaches the context splitter.
 - **An agreement variable stands for a feature value, not for a segment.** `[place=α]` is expressible; "a copy of whatever consonant stood there" is not, so the shipped French set still writes one liaison rule per latent consonant. A variable also ranges over one feature, is refused where nothing binds it or where it occurs once, and `-α` is legal only for a binary feature (above). Every one of those is a parse-time refusal rather than a rule that fires at some sites and not others.
 - **The surface rewrite is applied per call**, like the cap, so splitting one cascade into two calls applies it twice and a zero written by the first half is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and naming the intermediate as a derivation rather than a pronunciation is what it says.
 - **An insertion has no unit to modify.** A bracketed right-hand side changes the unit the rule matched, so `∅ -> [manner=plosive]` is refused: there is no match to change, and a query describes a class rather than naming a segment to place. Spell the unit — `∅ -> t`, or `∅ -> ˈa` where the prosody matters. This is the parse-time member of a family whose other two are just below; what a rule *cannot* be told at parse is whether a change it can express will be spellable at a given site, and that one declines per site.
