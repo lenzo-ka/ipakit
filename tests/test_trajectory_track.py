@@ -14,8 +14,8 @@ from ipakit.tract_svg import animate
 LEGACY_ANIMATION_SHA256 = {
     # Geometry is unchanged. These pins move once because roundedness is now
     # carried by the vector rather than printed in the unmodelled strip.
-    "sũn": "3880d85b82e7d7f6838f2e86246da6a65882e3889b1799a89a57ca0e6dd1ed74",
-    "ˈkæt": "4fc7849b42e66a8a69a07ca97730c3617c80d39434703966ae2c6e3abb5268e3",
+    "sũn": "49190a72125c2818c752f2408cd7ea465b2824b43b5733a1b98331a1f5d54466",
+    "ˈkæt": "0310d9bbd9d56ee9fdfff9cc9b06dddebd044dbb754b5e984c8b06ea7ff69f3a",
 }
 
 

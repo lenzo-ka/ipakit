@@ -130,8 +130,11 @@
     </feature>
 
     <feature name="height" axis="+y" short="hgt" desc="Vertical tongue position for vowels" href="Vowel#Height">
-      <value name="open" offset="0.05" short="opn" alias="low" href="Open_vowel"/>
-      <value name="near-open" offset="0.10" short="nop" href="Near-open_vowel"/>
+      <!-- Open and near-open vowels spread beyond neutral. These controls
+           belong on height, not binary `unrounded`: /æ a/ spread while /i/
+           is neutral. Rounded open vowels compose this factor with rounding. -->
+      <value name="open" offset="0.05" short="opn" alias="low" href="Open_vowel" lip-width="1.18"/>
+      <value name="near-open" offset="0.10" short="nop" href="Near-open_vowel" lip-width="1.14"/>
       <value name="open-mid" offset="0.16" short="opm" href="Open-mid_vowel"/>
       <value name="mid" offset="0.22" short="mid" href="Mid_vowel"/>
       <value name="close-mid" offset="0.28" short="clm" href="Close-mid_vowel"/>

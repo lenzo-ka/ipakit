@@ -92,14 +92,17 @@ def test_velar_and_alveolar_do_not_share_an_arc() -> None:
     assert velar - alveolar > 0.2
 
 
-def test_only_one_articulator_is_active_in_a_single_place_word() -> None:
-    # /a/ lowers the tongue root and /t/ raises the tip. The transition may
-    # overlap those two real gestures, but no phantom articulator appears.
+def test_only_the_word_articulators_are_active_in_a_single_place_word() -> None:
+    # /a/ lowers the tongue root and /t/ raises the tip. Both named controls
+    # remain present as implied whole-body targets instead of dropping to
+    # global rest between them; no third articulator appears.
     for t in (0.0, 0.5, 1.0, 1.5, 2.0):
         cons = blend(score(IPA, "ata"), t).constrictions
         assert {c.articulator for c in cons} <= {"tongue-root", "tongue-tip"}
-    assert blend(score(IPA, "ata"), 0.0).constrictions[0].articulator == "tongue-root"
-    assert blend(score(IPA, "ata"), 1.0).constrictions[0].articulator == "tongue-tip"
+    assert {c.articulator for c in blend(score(IPA, "ata"), 0.0).constrictions} == {
+        "tongue-root",
+        "tongue-tip",
+    }
 
 
 def test_two_stops_blend_per_articulator_in_opposite_directions() -> None:
@@ -165,11 +168,11 @@ def test_blend_rejects_empty_and_nonpositive_falloff() -> None:
         blend(score(IPA, "at"), 0.5, falloff=0.0)
 
 
-def test_distant_gaussian_tails_do_not_emit_ghost_controls() -> None:
-    # A Gaussian never reaches mathematical zero. Its remote tail is not a
-    # physical gesture: at /t/'s center in /kat/, the /k/ dorsum must be gone,
-    # and conversely at /k/. Such ghosts used to flash at animation bookends
-    # and changed the tongue front clamp.
+def test_distant_units_keep_only_implied_whole_body_controls() -> None:
+    # These are no longer Gaussian-tail ghosts: each unit supplies the
+    # position its posture implies for every tongue articulator used by the
+    # word, so the body moves target-to-target instead of via global rest.
     units = score(IPA, "kat")
-    assert {c.articulator for c in blend(units, 2.0).constrictions} == {"tongue-tip"}
-    assert {c.articulator for c in blend(units, 0.0).constrictions} == {"tongue-dorsum"}
+    expected = {"tongue-dorsum", "tongue-root", "tongue-tip"}
+    assert {c.articulator for c in blend(units, 2.0).constrictions} == expected
+    assert {c.articulator for c in blend(units, 0.0).constrictions} == expected

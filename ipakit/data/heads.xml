@@ -171,7 +171,7 @@
          the boundary: in front are the teeth and lips, behind is the
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
-    <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
+    <tongue from="0.08" tip="0.13" to="0.80" falloff="0.30" taper="0.07" provenance="tip at declared alveolar tongue-tip landmark; body span follows Pink Trombone (Neil Thapen 2017, MIT)"/>
     <frontal>
       <!-- Proportions: Z-Anatomy 5.2.0 (CC BY-SA 4.0), derived from BodyParts3D
            (CC BY-SA 2.1 Japan), measured in ipakit-assets/proportions.md:
@@ -286,7 +286,7 @@
          the boundary: in front are the teeth and lips, behind is the
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
-    <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
+    <tongue from="0.08" tip="0.13" to="0.80" falloff="0.30" taper="0.07" provenance="tip at declared alveolar tongue-tip landmark; body span follows Pink Trombone (Neil Thapen 2017, MIT)"/>
     <frontal>
       <!-- Z-Anatomy/BodyParts3D dental and mouth proportions as above.
            Vermilion: Farkas et al., Am J Orthod 86 (1984) 52–60,
@@ -382,7 +382,7 @@
          the boundary: in front are the teeth and lips, behind is the
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
-    <tongue from="0.08" to="0.80" falloff="0.30" taper="0.07" provenance="hand-placed"/>
+    <tongue from="0.08" tip="0.13" to="0.80" falloff="0.30" taper="0.07" provenance="tip at declared alveolar tongue-tip landmark; body span follows Pink Trombone (Neil Thapen 2017, MIT)"/>
     <frontal>
       <!-- Z-Anatomy/BodyParts3D dental and mouth proportions as above.
            Child lip ratio: Farkas, Anthropometry of the Head and Face,
