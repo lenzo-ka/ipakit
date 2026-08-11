@@ -198,6 +198,10 @@
               <optional><attribute name="articulator"><text/></attribute></optional>
               <optional><attribute name="natural-class"><text/></attribute></optional>
               <optional><attribute name="aperture"><text/></attribute></optional>
+              <!-- View-neutral lip controls. Width is the transverse
+                   aperture and protrusion the forward displacement. -->
+              <optional><attribute name="lip-width"><ref name="normalized"/></attribute></optional>
+              <optional><attribute name="lip-protrusion"><ref name="normalized"/></attribute></optional>
               <optional><attribute name="move"><text/></attribute></optional>
             </element>
           </zeroOrMore>

@@ -295,6 +295,143 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
     return current
 
 
+def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
+    """Pose Head's face-on contours from the same view-neutral posture.
+
+    Occlusion remains a read: every contour and every posture coordinate is
+    retained here. :func:`frontal_svg` alone clips and paints them.
+    ``marks`` is part of the projection contract (and supplies declared arc
+    vocabulary); no phone or symbol reaches this path.
+    """
+    del marks  # declared inventory geometry, reserved for frontal labels
+    pose = _pose(p)
+    close = head.jaw_close(TractPoint(pose[0], pose[1])) if pose else 0.0
+    if pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995:
+        close = 1.0
+    gap = max(0.0, 0.115 * (1.0 - close))
+    width = p.aperture_width
+    mouth = head.frontal_mouth(gap * 0.55, width, p.protrusion)
+    contours: list[dict[str, Any]] = []
+    for name, carrier, arc, declared in head.frontal:
+        if name in {"upper-lip", "lower-lip"} and name in mouth:
+            contours.append(
+                {"name": name, "carrier": carrier, "arc": arc, "points": mouth[name]}
+            )
+            continue
+        points = []
+        for x, y in declared:
+            if name in {
+                "upper-lip",
+                "lower-lip",
+                "upper-teeth",
+                "lower-teeth",
+                "tongue",
+            }:
+                x = 0.5 + (x - 0.5) * width
+            if carrier == "mandible":
+                y += gap * (0.15 if name == "tongue" else 0.55)
+            points.append((x, y))
+        contours.append(
+            {"name": name, "carrier": carrier, "arc": arc, "points": points}
+        )
+    return {
+        "contours": contours,
+        "aperture": mouth.get("aperture", ()),
+        "upper_edge": mouth.get("upper_edge", ()),
+        "lower_edge": mouth.get("lower_edge", ()),
+        "closed": gap <= 0.001,
+    }
+
+
+def _frontal_extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
+    """Face-on extent; deliberately knows no sagittal geometry keys."""
+    points = [
+        point
+        for src in sets
+        for contour in src["contours"]
+        for point in contour["points"]
+    ]
+    return (
+        min(x for x, _ in points),
+        max(x for x, _ in points),
+        min(y for _, y in points),
+        max(y for _, y in points),
+    )
+
+
+def _frontal_scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
+    """Scale face-chart coordinates, whose y axis runs forehead to chin."""
+    sx = (WIDTH - 2 * PAD) / (x1 - x0) if x1 > x0 else 1.0
+    sy = (SECTION_HEIGHT - 2 * PAD) / (y1 - y0) if y1 > y0 else 1.0
+    scale = min(sx, sy)
+    ox = PAD + ((WIDTH - 2 * PAD) - (x1 - x0) * scale) / 2
+    oy = PAD + ((SECTION_HEIGHT - 2 * PAD) - (y1 - y0) * scale) / 2
+
+    def to(px: float, py: float) -> Point:
+        return (ox + (px - x0) * scale, oy + (py - y0) * scale)
+
+    return to
+
+
+FRONTAL_STYLE = """
+.f-face{fill:#d9b29a;stroke:#302825;stroke-width:2}.f-nose,.f-chin{fill:none;stroke:#8b6758;stroke-width:2}
+.f-upper-lip,.f-lower-lip{fill:#a84f59;stroke:#71343c;stroke-width:2}.f-aperture{fill:#24191a}
+.f-upper-teeth,.f-lower-teeth{fill:#f4efe3;stroke:#9c9487;stroke-width:1.5}.f-tongue{fill:#bd6970;stroke:#7b4148;stroke-width:1.5}
+.f-eyes{fill:none;stroke:#302825;stroke-width:4;stroke-linecap:round}.f-label{font:11px ui-monospace,monospace;fill:#8b817d}
+"""
+
+
+def frontal_svg(
+    geometry: dict[str, Any],
+    extent: tuple[float, float, float, float] | None = None,
+) -> str:
+    """Project and stroke one frontal geometry with arc-ordered occlusion."""
+    to = _frontal_scaler(*(extent if extent is not None else _frontal_extent(geometry)))
+    aperture = [to(*point) for point in geometry["aperture"]]
+    aperture_path = _path(aperture, True)
+    parts = [
+        f'<defs><clipPath id="f-mouth"><path d="{aperture_path}"/></clipPath></defs>'
+    ]
+    by_name = {c["name"]: c for c in geometry["contours"]}
+    face = by_name.get("face")
+    if face:
+        parts.append(
+            f'<path d="{_path([to(*p) for p in face["points"]], True)}" class="f-face"/>'
+        )
+    if not geometry["closed"]:
+        parts.append(f'<path d="{aperture_path}" class="f-aperture"/>')
+        interiors = [
+            c
+            for c in geometry["contours"]
+            if c["name"] in {"tongue", "upper-teeth", "lower-teeth"}
+        ]
+        for contour in sorted(interiors, key=lambda c: c["arc"], reverse=True):
+            parts.append(
+                f'<path d="{_path([to(*p) for p in contour["points"]], True)}" class="f-{contour["name"]}" clip-path="url(#f-mouth)"/>'
+            )
+    for name in ("chin", "nose", "eyes", "upper-lip", "lower-lip"):
+        contour = by_name.get(name)
+        if contour:
+            points = [to(*p) for p in contour["points"]]
+            if name == "eyes" and len(points) == 4:
+                parts.extend(
+                    f'<path d="{_path(points[i : i + 2])}" class="f-eyes"/>'
+                    for i in (0, 2)
+                )
+            else:
+                parts.append(
+                    f'<path d="{_path(points, name in {"nose", "upper-lip", "lower-lip"})}" class="f-{name}"/>'
+                )
+    return f'<svg viewBox="0 0 {WIDTH} {SECTION_HEIGHT}" role="img" aria-label="Frontal tract view">{"".join(parts)}</svg>'
+
+
+def standalone_frontal_svg(geometry: dict[str, Any]) -> str:
+    svg = frontal_svg(geometry)
+    return svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1).replace(
+        ">", f"><style>{FRONTAL_STYLE}</style>", 1
+    )
+
+
 def drawing(
     name: str, phone: str | None, features: IPAFeatures | None = None
 ) -> dict[str, Any]:
@@ -428,6 +565,19 @@ def figure(
     """
     name = head_name if head_name is not None else head().name
     return render(drawing(name, phone, features), caption=caption)
+
+
+def frontal_figure(
+    phone: str | None = None,
+    head_name: str | None = None,
+    features: IPAFeatures | None = None,
+) -> str:
+    """One posture through the face-on projection."""
+    ipa = features or IPAFeatures()
+    h = head(head_name)
+    return standalone_frontal_svg(
+        build_frontal_geometry(h, landmarks(ipa), posture(ipa, phone, h))
+    )
 
 
 def _extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
@@ -1608,6 +1758,7 @@ padding:10px;overflow-x:auto}
 .stage .frame{display:none}
 .stage .frame.on{display:block}
 .stage .frame svg{display:block;width:100%;height:auto;min-width:520px}
+.twopane{display:grid;grid-template-columns:1fr 1fr;gap:10px}.twopane svg{min-width:0!important}
 .controls{display:flex;gap:14px;align-items:center;margin-top:14px;
 font:400 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim)}
 .controls button{font:inherit;color:var(--text);background:transparent;
@@ -1754,6 +1905,63 @@ def animate(
         frames = [frames[0]] * hold + frames + [frames[-1]] * hold
     ms = max(1, round(track.display_interval * 1000 / track.rate))
     return _player_page(label, name, frames, stills, ms)
+
+
+def animate_two_pane(
+    word: str | Trajectory,
+    head_name: str | None = None,
+    features: IPAFeatures | None = None,
+    frames_per_unit: int = FRAMES_PER_UNIT,
+) -> str:
+    """Sagittal and frontal projections of one Trajectory under one scrubber."""
+    ipa = features or IPAFeatures()
+    name = (
+        word.head_name
+        if isinstance(word, Trajectory) and head_name is None
+        else (head_name or head().name)
+    )
+    h = head(name)
+    marks = landmarks(ipa)
+    track = (
+        word
+        if isinstance(word, Trajectory)
+        else build_trajectory(
+            word, head=h, frames_per_unit=frames_per_unit, features=ipa
+        )
+    )
+    if track.head_name != h.name:
+        raise ValueError(
+            f"trajectory was built for head {track.head_name!r}, not {h.name!r}"
+        )
+    side_stills = [build_geometry(h, marks, p) for p in track.postures]
+    side_frames = [build_geometry(h, marks, p) for p in track.frames]
+    front_stills = [build_frontal_geometry(h, marks, p) for p in track.postures]
+    front_frames = [build_frontal_geometry(h, marks, p) for p in track.frames]
+    side_extent = _extent(*side_stills, *side_frames)
+    front_extent = _frontal_extent(*front_stills, *front_frames)
+
+    def pair(s: str, f: str) -> str:
+        return f'<div class="twopane"><div>{s}</div><div>{f}</div></div>'
+
+    stills = [
+        pair(
+            section_svg(s, None, p.velic, _pose(p), extent=side_extent),
+            frontal_svg(f, front_extent),
+        )
+        for s, f, p in zip(side_stills, front_stills, track.postures, strict=True)
+    ]
+    frames = [
+        pair(_frame_svg(s, p, side_extent), frontal_svg(f, front_extent))
+        for s, f, p in zip(side_frames, front_frames, track.frames, strict=True)
+    ]
+    if h.rest is not None:
+        hold = track.frames_per_unit
+        frames = [frames[0]] * hold + frames + [frames[-1]] * hold
+    ms = max(1, round(track.display_interval * 1000 / track.rate))
+    page = _player_page(track.source, name, frames, stills, ms)
+    return page.replace(_literal_style(), _literal_style() + FRONTAL_STYLE, 1).replace(
+        "Mid-sagittal tract, animated", "One trajectory, sagittal + frontal"
+    )
 
 
 def cmd_draw(args: argparse.Namespace) -> int:  # noqa: C901

@@ -235,6 +235,53 @@ class Head:
     teeth: tuple[tuple[str, float, float, str], ...] = ()
     carriage: tuple[tuple[float, float], ...] = ()
     tongue_span: tuple[float, float, float, float] | None = None
+    # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
+    # the renderer only poses, projects and strokes it.
+    frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
+
+    def frontal_mouth(
+        self, aperture_height: float, aperture_width: float, protrusion: float
+    ) -> dict[str, tuple[tuple[float, float], ...]]:
+        """Pose the frontal lips and the opening from one parting line.
+
+        The declared lip contours contain their outer vermilion edges and the
+        closed parting line.  Opening the jaw separates that line into upper
+        and lower curves with common corners; those very tuples then bound the
+        aperture and close the two lip bodies.  A renderer therefore cannot
+        leave face between a lip and the opening or give either a different
+        mouth corner.
+        """
+        declared = {name: points for name, _, _, points in self.frontal}
+        upper = declared.get("upper-lip")
+        lower = declared.get("lower-lip")
+        if upper is None or lower is None or len(upper) < 6 or len(lower) < 5:
+            return {}
+
+        def pose(point: tuple[float, float]) -> tuple[float, float]:
+            x, y = point
+            x = 0.5 + (x - 0.5) * aperture_width
+            y += (y - 0.62) * protrusion * 0.18
+            return (x, y)
+
+        upper_outer = tuple(pose(point) for point in upper[:5])
+        left, right = upper_outer[0], upper_outer[-1]
+        upper_mid = pose(upper[5])
+        upper_edge = (left, upper_mid, right)
+        # The lower lip rides on the mandible.  Its outer and inner edges move
+        # together while their corners remain anchored to the shared seam.
+        lower_mid = (upper_mid[0], upper_mid[1] + aperture_height)
+        lower_edge = (left, lower_mid, right)
+        lower_outer = tuple(
+            (point[0], point[1] + aperture_height)
+            for point in (pose(lower[3]), pose(lower[4]))
+        )
+        return {
+            "upper_edge": upper_edge,
+            "lower_edge": lower_edge,
+            "aperture": upper_edge + tuple(reversed(lower_edge)),
+            "upper-lip": upper_outer + tuple(reversed(upper_edge)),
+            "lower-lip": lower_edge + lower_outer,
+        }
 
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
@@ -775,6 +822,23 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 float(tongue_elem.get("falloff", 0.3)),
                 float(tongue_elem.get("taper", 0.0)),
             )
+        frontal_elem = elem.find("frontal")
+        frontal: tuple[
+            tuple[str, str, float, tuple[tuple[float, float], ...]], ...
+        ] = ()
+        if frontal_elem is not None:
+            frontal = tuple(
+                (
+                    contour.get("name", ""),
+                    contour.get("carrier", "skull"),
+                    float(contour.get("arc", 0.0)),
+                    tuple(
+                        (float(pt.get("x", 0.0)), float(pt.get("y", 0.0)))
+                        for pt in contour.findall("point")
+                    ),
+                )
+                for contour in frontal_elem.findall("contour")
+            )
         length = elem.get("length-cm")
         rest_elem = elem.find("rest")
         rest = None
@@ -799,6 +863,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             teeth=teeth,
             carriage=carriage,
             tongue_span=tongue_span,
+            frontal=frontal,
         )
     return heads, default
 
@@ -866,6 +931,20 @@ class Posture:
     glottal: float | None
     secondary: tuple[Mark, ...]
     unmodelled: tuple[Mark, ...]
+    aperture_width: float = 1.0
+    protrusion: float = 0.0
+
+
+def _lip_posture(features: IPAFeatures, bundle: dict[str, str]) -> tuple[float, float]:
+    """Read the declared transverse width and protrusion controls."""
+    feature = features.features.get("rounded")
+    value = bundle.get("rounded")
+    dofs = (
+        feature.lip_dofs.get(value, {})
+        if feature is not None and value is not None
+        else {}
+    )
+    return dofs.get("width", 1.0), dofs.get("protrusion", 0.0)
 
 
 def landmarks(features: IPAFeatures) -> Landmarks:
@@ -1175,7 +1254,11 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
             name in read or name in glottal or name in features.secondary_places
         ):
             continue
-        if (name, value) in ported or feat.mode == "structural":
+        if (
+            (name, value) in ported
+            or feat.mode == "structural"
+            or value in feat.lip_dofs
+        ):
             continue
         if name in approximated:
             kind = "approximate"
@@ -1467,6 +1550,7 @@ def posture(
     h = head_shape if head_shape is not None else head()
     bundle = features.get_features(phone)
     stated = features.get_features(phone, with_defaults=False)
+    aperture_width, protrusion = _lip_posture(features, bundle)
     return Posture(
         reading=tract_point(features, bundle),
         rest=h.rest.point if h.rest is not None else None,
@@ -1475,6 +1559,8 @@ def posture(
         glottal=glottal_aperture(features, bundle),
         secondary=secondary_marks(features, bundle),
         unmodelled=unmodelled(features, stated),
+        aperture_width=aperture_width,
+        protrusion=protrusion,
     )
 
 
@@ -1650,6 +1736,10 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     )
 
     velic = sum(weights[i] * u.velic for i, u in enumerate(units)) / total
+    aperture_width = (
+        sum(weights[i] * u.aperture_width for i, u in enumerate(units)) / total
+    )
+    protrusion = sum(weights[i] * u.protrusion for i, u in enumerate(units)) / total
     glottal = (
         sum(
             weights[i] * (GLOTTAL_REST if u.glottal is None else u.glottal)
@@ -1666,6 +1756,8 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         glottal=glottal,
         secondary=dominant.secondary,
         unmodelled=dominant.unmodelled,
+        aperture_width=aperture_width,
+        protrusion=protrusion,
     )
 
 
@@ -1683,6 +1775,8 @@ def _track_parameters() -> tuple[str, ...]:
         "glottal",
         "secondary",
         "unmodelled",
+        "aperture_width",
+        "protrusion",
     )
 
 
@@ -1712,6 +1806,8 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "secondary": [_mark_data(mark) for mark in value.secondary],
         "unmodelled": [_mark_data(mark) for mark in value.unmodelled],
         "velic": value.velic,
+        "aperture_width": value.aperture_width,
+        "protrusion": value.protrusion,
     }
 
 
@@ -1756,6 +1852,8 @@ def _posture_from_data(value: Any) -> Posture:
         glottal=value["glottal"],
         secondary=tuple(_mark_from_data(mark) for mark in value["secondary"]),
         unmodelled=tuple(_mark_from_data(mark) for mark in value["unmodelled"]),
+        aperture_width=value["aperture_width"],
+        protrusion=value["protrusion"],
     )
 
 

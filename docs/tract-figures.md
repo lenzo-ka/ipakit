@@ -92,7 +92,7 @@ The answer is an annotation layer rather than a posture that pretends. Voicing i
 |---|---|---|
 | dashed circle | `axis="+z"` — the axis a mid-sagittal section projects away, which the feature's own `desc` says | `channel`: lateral, sibilant |
 | chevron | `mode="release"` — a phase of the segment rather than a posture of it | `release`: aspirated, unreleased, lateral-released |
-| square | not in the model at all | `airstream`, `retroflex`, `rounded`, `syllabic`, `tongue-root`, … |
+| square | not in the model at all | `airstream`, `retroflex`, `syllabic`, `tongue-root`, … |
 | square | `offscale` — a value its own feature declares to hold no position on its axis | `manner`: silence |
 | square | a postural feature *this* bundle's posture did not read: one arc and one offset are on offer, and a bundle stating two postures loses one | `height` and `backness` beside a consonantal manner; `place` beside `manner="vowel"`; `backness` beside a stated `constriction-location` |
 | tilde | a coordinate the posture *did* draw, read off a feature that states something else | `backness` supplying the `arc` of a vowel that states no `constriction-location` |
@@ -105,9 +105,9 @@ The tilde is the one chip that does not mean "missing", and it is the answer to 
 - **Grooving and laterality in the channel itself.** The chip says the contrast exists and names it; the shape of the channel is not in this plane and no mark here invents one. A coronal inset would be the faithful answer — see [tract-anatomy.md](tract-anatomy.md) §11.
 - **Length, stress and tone.** These belong to the *unit* and never enter a feature bundle at all ([ties.md](ties.md)), so `aː` and `a` state the same features and draw the same picture. That is a fact about where prosody lives, not about the drawing.
 
-With the layer in place, **the drawing separates exactly what the feature bundle separates** — over the registered inventory and over the units the shipped rule sets emit alike. What still shares a picture is named rather than rounded off: a group that shares a picture is a group that states the same features, which is a diphthong against its own first element — a diphthong is a movement between two postures and a figure draws one — or a length or stress contrast, which belongs to the unit and never enters the bundle at all.
+With the layer in place, **the drawing separates exactly what the sagittal projection consumes** — over the registered inventory and over the units the shipped rule sets emit alike. Roundedness is now carried numerically by every posture, but aperture width is transverse and protrusion does not change this schematic section, so the sagittal projection deliberately ignores both while the frontal projection consumes them. What else still shares a picture is named rather than rounded off: a diphthong against its first element is movement where a figure draws one posture, while length and stress belong to the unit and never enter the bundle.
 
-`tests/test_tract_figures.py` asserts that in both directions: no two units stating different features share a drawing, and every group that does share one states one bundle. The counts live in those assertions, where they are derived from the inventory and the rule-set corpora each run, rather than in this paragraph, where a corpus that grows would leave them behind.
+`tests/test_tract_figures.py` asserts that in both directions after masking the declared frontal-only `rounded` coordinate: no two units differing on a sagittally consumed feature share a drawing, and every group that does share one states one sagittal bundle. The counts live in those assertions, where they are derived from the inventory and the rule-set corpora each run, rather than in this paragraph, where a corpus that grows would leave them behind.
 
 ## Closure, and where it is made
 

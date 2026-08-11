@@ -26,6 +26,7 @@ figures:
 		$(PYTHON) scripts/tract_svg.py draw --head $(HEAD) --phone "$$sym" \
 			-o $(FIGDIR)/tract-$$stem.svg; \
 	done
+	@$(PYTHON) scripts/frontal_figures.py
 
 figures-clean:
 	@rm -f $(FIGDIR)/tract-*.svg

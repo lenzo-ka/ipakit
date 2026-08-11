@@ -12,8 +12,10 @@ from ipakit.tract import head, trajectory, trajectory_from_track
 from ipakit.tract_svg import animate
 
 LEGACY_ANIMATION_SHA256 = {
-    "sũn": "a3908e6698eb12bc2a3abbfefcb30bc291cac6aeab3fe5530341192e17906bb1",
-    "ˈkæt": "ac707f1dd2e9dc85e234cd42f75a1ccf321167ae96c53ee62b409dda889637e9",
+    # Geometry is unchanged. These pins move once because roundedness is now
+    # carried by the vector rather than printed in the unmodelled strip.
+    "sũn": "3880d85b82e7d7f6838f2e86246da6a65882e3889b1799a89a57ca0e6dd1ed74",
+    "ˈkæt": "4fc7849b42e66a8a69a07ca97730c3617c80d39434703966ae2c6e3abb5268e3",
 }
 
 

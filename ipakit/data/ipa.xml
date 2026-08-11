@@ -203,8 +203,10 @@
       <value name="-" label="voiceless"/>
     </feature>
     <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness">
-      <value name="+" label="rounded"/>
-      <value name="-" label="unrounded"/>
+      <!-- Width and protrusion are normalized lip DOF, not tract-x/y
+           coordinates.  They pose every projection from the same state. -->
+      <value name="+" label="rounded" lip-width="0.58" lip-protrusion="1.0"/>
+      <value name="-" label="unrounded" lip-width="1.0" lip-protrusion="0.0"/>
     </feature>
     <feature name="channel" axis="+z" short="chn" default="flat" applies="consonant" desc="Where the airflow channel sits in cross-section: the mid-sagittal plane projects this axis away, so it has no contour, only an ordering" href="Sibilant">
       <value name="lateral" short="lat" label="lateral" bare="+" href="Lateral_consonant"/>  <!-- out: airflow at the sides, midline occluded -->
