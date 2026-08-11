@@ -1280,7 +1280,11 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
         if (
             (name, value) in ported
             or feat.mode == "structural"
-            or value in feat.lip_dofs
+            # A pure lip feature is carried by the lip geometry. A feature
+            # that also owns a tract coordinate is only partly carried: if
+            # this reading dropped that coordinate, it still needs an
+            # annotation saying so (height="open" is also a width control).
+            or (value in feat.lip_dofs and not feat.coordinates)
         ):
             continue
         if name in approximated:
