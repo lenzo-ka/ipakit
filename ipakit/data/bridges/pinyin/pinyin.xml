@@ -10,4 +10,20 @@
   <tone vowel="u" marks="ūúǔù" /><tone vowel="ü" marks="ǖǘǚǜ" />
   <atom spelling="a" /><atom spelling="e" /><atom spelling="i" />
   <atom spelling="o" /><atom spelling="u" /><atom spelling="ü" />
+  <!-- The IPA members below are the strict phonetic syllabary used by the
+       Mandarin worked syllabifier. Tone is absent because it rides the
+       syllable and does not change membership. Additions belong here, at the
+       Pinyin declaration boundary, rather than in Python. -->
+  <syllable spelling="ma" ipa="ma" /><syllable spelling="ba" ipa="pa" />
+  <syllable spelling="pa" ipa="pʰa" /><syllable spelling="fa" ipa="fa" />
+  <syllable spelling="da" ipa="ta" /><syllable spelling="ta" ipa="tʰa" />
+  <syllable spelling="na" ipa="na" /><syllable spelling="la" ipa="la" />
+  <syllable spelling="sa" ipa="sa" /><syllable spelling="sha" ipa="ʂa" />
+  <syllable spelling="a" ipa="a" /><syllable spelling="e" ipa="ɤ" />
+  <syllable spelling="mi" ipa="mi" /><syllable spelling="ni" ipa="ni" />
+  <syllable spelling="li" ipa="li" /><syllable spelling="shi" ipa="ʂɻ̩" />
+  <syllable spelling="wu" ipa="u" /><syllable spelling="yu" ipa="y" />
+  <syllable spelling="men" ipa="mən" /><syllable spelling="ren" ipa="ɻən" />
+  <syllable spelling="hao" ipa="xau" /><syllable spelling="shui" ipa="ʂuei" />
+  <syllable spelling="zhong" ipa="ʈ͡ʂʊŋ" /><syllable spelling="guo" ipa="kuɔ" />
 </vocabulary>

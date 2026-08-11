@@ -12,6 +12,7 @@
           <element name="nucleus"><attribute name="span"><text /></attribute><empty /></element>
           <element name="onset"><attribute name="span"><text /></attribute><empty /></element>
           <element name="mora"><attribute name="span"><text /></attribute><empty /></element>
+          <element name="inventory"><attribute name="source"><text /></attribute><empty /></element>
           <element name="syllable"><attribute name="ipa"><text /></attribute><optional><attribute name="spelling"><text /></attribute></optional><empty /></element>
         </choice>
       </oneOrMore>

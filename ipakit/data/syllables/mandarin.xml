@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<syllabification language="mandarin" version="1" mode="enumerated" provenance="Strict membership in the Hanyu Pinyin syllabary declared by ipakit/data/bridges/pinyin/pinyin.xml; tone rides a member and is not part of its identity.">
+  <inventory source="../bridges/pinyin/pinyin.xml" />
+</syllabification>

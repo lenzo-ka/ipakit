@@ -148,6 +148,11 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
     groups: dict[str, list[Span]] = {"nucleus": [], "onset": [], "mora": []}
     for kind in groups:
         groups[kind] = [_terms(e.attrib["span"], features) for e in root.findall(kind)]
+    declared_syllables = list(root.findall("syllable"))
+    inventory = root.find("inventory")
+    if inventory is not None:
+        source = (path.parent / inventory.attrib["source"]).resolve()
+        declared_syllables.extend(ET.parse(source).getroot().findall("syllable"))
     return Language(
         root.attrib["language"],
         root.attrib["mode"],
@@ -155,7 +160,7 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
         tuple(groups["nucleus"]),
         tuple(groups["onset"]),
         tuple(groups["mora"]),
-        frozenset(e.attrib["ipa"] for e in root.findall("syllable")),
+        frozenset(e.attrib["ipa"] for e in declared_syllables),
     )
 
 
@@ -265,7 +270,7 @@ class Syllabifier:
         while at < stop:
             matches = []
             for end in range(at + 1, stop + 1):
-                text = "".join(u.text for u in units[at:end] if u.segment is not None)
+                text = "".join(u.core for u in units[at:end] if u.segment is not None)
                 if text in self.language.syllables:
                     matches.append(end)
             if not matches:
