@@ -8,18 +8,21 @@ search in [corpus.md](corpus.md), recognition and rewriting in
 speech be computed over, compared, and carried between external systems while
 recording conversion losses and source disagreements.
 
-Start with the [tutorial](tutorial.md). Everything else here is reference or design, and
-assumes you already know why you are reading it.
+Start with [basic use of ipakit](tutorial-basics.md), then use the task-based
+[tutorial](tutorial.md) when you want a wider tour. Everything else here is reference or
+design, and assumes you already know why you are reading it.
 
 ## Start here
 
 | | |
 | --- | --- |
+| [tutorial-basics.md](tutorial-basics.md) | **Basic use.** Read one form, query its segments and classes, inspect declarations, apply a rule, and meet word boundaries. A short Python-first introduction whose values are executed by the documentation build. |
 | [tutorial.md](tutorial.md) | **Getting things done.** Organized by task — name a sound, compare two, search the inventory, convert notations, split a transcription, apply allophonic rules, write your own. Shows the CLI and the API side by side for each. Every value on the page is produced by running the call beside it. |
 
-The tutorial is a **derived artifact**: the prose lives in `tutorial.src.md`, and
-`make tutorial` regenerates the page by executing every example. `make check` fails if a
-single byte differs, so the page cannot drift away from what the library does.
+The tutorials are **derived artifacts**: their prose lives in `tutorial-basics.src.md`
+and `tutorial.src.md`; `make tutorial-basics` and `make tutorial` regenerate the pages
+by executing every example. `make check` fails if a single byte differs, so the pages
+cannot drift away from what the library does.
 
 `ipakit notebook` writes the same material out as a Jupyter notebook, with the answers
 left out for you to produce. `make notebook` renders it from `tutorial.src.md` into
