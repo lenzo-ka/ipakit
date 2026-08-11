@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from collections.abc import Callable
@@ -60,6 +61,7 @@ from .tract import (
     Posture,
     TractPoint,
     Trajectory,
+    blend,
     head,
     heads,
     landmarks,
@@ -306,6 +308,20 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
     del marks  # declared inventory geometry, reserved for frontal labels
     pose = _pose(p)
     close = head.jaw_close(TractPoint(pose[0], pose[1])) if pose else 0.0
+    # Rest declares closed lips, independently of the neutral tongue-body
+    # point that locates the sagittal tract interior.  Ease that frontal seam
+    # shut as a blend approaches home; changing the view-neutral posture here
+    # would also move the sagittal drawing.
+    if (
+        pose is not None
+        and p.rest is not None
+        and p.rest.arc is not None
+        and p.rest.offset is not None
+    ):
+        distance = math.hypot(pose[0] - p.rest.arc, pose[1] - p.rest.offset)
+        close = max(close, max(0.0, 1.0 - distance / 0.20))
+        if distance <= 0.025:
+            close = 1.0
     if pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995:
         close = 1.0
     gap = max(0.0, 0.115 * (1.0 - close))
@@ -319,7 +335,7 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
             )
             continue
         points = []
-        for x, y in declared:
+        for index, (x, y) in enumerate(declared):
             if name in {
                 "upper-lip",
                 "lower-lip",
@@ -329,7 +345,28 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
             }:
                 x = 0.5 + (x - 0.5) * width
             if carrier == "mandible":
-                y += gap * (0.15 if name == "tongue" else 0.55)
+                carry = 0.15 if name == "tongue" else 0.55
+                # The lower-face contour begins at the shared mouth corners;
+                # its inner menton points ride with the mandible while those
+                # soft-tissue endpoints remain sewn to the lip seam.
+                if name == "chin" and index in {0, len(declared) - 1}:
+                    carry = 0.0
+                y += gap * carry
+            if name == "tongue":
+                rest_offset = (
+                    p.rest.offset
+                    if p.rest is not None and p.rest.offset is not None
+                    else 0.0
+                )
+                apical = max(
+                    (
+                        (q.offset or 0.0) - rest_offset
+                        for q in p.constrictions
+                        if q.articulator in {"tongue-tip", "tongue-blade"}
+                    ),
+                    default=0.0,
+                )
+                y -= 0.025 * max(0.0, apical)
             points.append((x, y))
         contours.append(
             {"name": name, "carrier": carrier, "arc": arc, "points": points}
@@ -344,11 +381,13 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
 
 
 def _frontal_extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
-    """Face-on extent; deliberately knows no sagittal geometry keys."""
+    """Mouth-first extent; deliberately knows no sagittal geometry keys."""
+    visible = {"nose", "upper-lip", "lower-lip", "chin"}
     points = [
         point
         for src in sets
         for contour in src["contours"]
+        if contour["name"] in visible
         for point in contour["points"]
     ]
     return (
@@ -374,10 +413,10 @@ def _frontal_scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
 
 
 FRONTAL_STYLE = """
-.f-face{fill:#d9b29a;stroke:#302825;stroke-width:2}.f-nose,.f-chin{fill:none;stroke:#8b6758;stroke-width:2}
+.f-nose,.f-chin{fill:none;stroke:#8b6758;stroke-width:2}
 .f-upper-lip,.f-lower-lip{fill:#a84f59;stroke:#71343c;stroke-width:2}.f-aperture{fill:#24191a}
 .f-upper-teeth,.f-lower-teeth{fill:#f4efe3;stroke:#9c9487;stroke-width:1.5}.f-tongue{fill:#bd6970;stroke:#7b4148;stroke-width:1.5}
-.f-eyes{fill:none;stroke:#302825;stroke-width:4;stroke-linecap:round}.f-label{font:11px ui-monospace,monospace;fill:#8b817d}
+.f-label{font:11px ui-monospace,monospace;fill:#8b817d}
 """
 
 
@@ -393,11 +432,6 @@ def frontal_svg(
         f'<defs><clipPath id="f-mouth"><path d="{aperture_path}"/></clipPath></defs>'
     ]
     by_name = {c["name"]: c for c in geometry["contours"]}
-    face = by_name.get("face")
-    if face:
-        parts.append(
-            f'<path d="{_path([to(*p) for p in face["points"]], True)}" class="f-face"/>'
-        )
     if not geometry["closed"]:
         parts.append(f'<path d="{aperture_path}" class="f-aperture"/>')
         interiors = [
@@ -409,7 +443,7 @@ def frontal_svg(
             parts.append(
                 f'<path d="{_path([to(*p) for p in contour["points"]], True)}" class="f-{contour["name"]}" clip-path="url(#f-mouth)"/>'
             )
-    for name in ("chin", "nose", "eyes", "upper-lip", "lower-lip"):
+    for name in ("chin", "nose", "upper-lip", "lower-lip"):
         contour = by_name.get(name)
         if contour:
             points = [to(*p) for p in contour["points"]]
@@ -1768,6 +1802,10 @@ border:1px solid var(--edge);border-radius:3px;padding:6px 14px;cursor:pointer}
 .controls .count{font-variant-numeric:tabular-nums;min-width:72px;text-align:right}
 """
 
+# Player preparation belongs outside the measured trajectory.  The track's
+# stamps continue to cover exactly its acoustic window.
+TIMED_PLAYER_REST_RAMP_SECONDS = 0.20
+
 
 def _player_page(
     word: str,
@@ -1775,6 +1813,7 @@ def _player_page(
     frames: list[str],
     stills: list[str],
     ms_per_frame: int,
+    phases: list[str | None] | None = None,
 ) -> str:
     """One self-contained page: a filmstrip of the units, and a player.
 
@@ -1790,9 +1829,17 @@ def _player_page(
         f'<div class="cell">{svg}<div class="num">{i + 1}</div></div>'
         for i, svg in enumerate(stills)
     )
+    frame_phases = phases if phases is not None else [None] * len(frames)
+    if len(frame_phases) != len(frames):
+        raise ValueError("one player phase is required per frame")
+
+    def player_frame(i: int, svg: str, phase: str | None) -> str:
+        phase_attr = f' data-phase="{phase}"' if phase else ""
+        return f'<div class="frame{" on" if i == 0 else ""}"{phase_attr}>{svg}</div>'
+
     stage = "".join(
-        f'<div class="frame{" on" if i == 0 else ""}">{svg}</div>'
-        for i, svg in enumerate(frames)
+        player_frame(i, svg, phase)
+        for i, (svg, phase) in enumerate(zip(frames, frame_phases, strict=True))
     )
     last = max(len(frames) - 1, 0)
     script = (
@@ -1933,10 +1980,24 @@ def animate_two_pane(
         raise ValueError(
             f"trajectory was built for head {track.head_name!r}, not {h.name!r}"
         )
+    player_postures = list(track.frames)
+    phases: list[str | None] = [None] * len(player_postures)
+    if track.fps is not None and h.rest is not None:
+        rest_pose = track.play_units[0]
+        count = max(1, round(TIMED_PLAYER_REST_RAMP_SECONDS * track.fps))
+        lead_in = [rest_pose] + [
+            blend((rest_pose, track.frames[0]), k / count) for k in range(1, count)
+        ]
+        lead_out = [
+            blend((track.frames[-1], rest_pose), k / count) for k in range(1, count)
+        ] + [rest_pose]
+        player_postures = lead_in + player_postures + lead_out
+        phases = ["lead-in"] * len(lead_in) + phases + ["lead-out"] * len(lead_out)
+
     side_stills = [build_geometry(h, marks, p) for p in track.postures]
-    side_frames = [build_geometry(h, marks, p) for p in track.frames]
+    side_frames = [build_geometry(h, marks, p) for p in player_postures]
     front_stills = [build_frontal_geometry(h, marks, p) for p in track.postures]
-    front_frames = [build_frontal_geometry(h, marks, p) for p in track.frames]
+    front_frames = [build_frontal_geometry(h, marks, p) for p in player_postures]
     side_extent = _extent(*side_stills, *side_frames)
     front_extent = _frontal_extent(*front_stills, *front_frames)
 
@@ -1952,13 +2013,14 @@ def animate_two_pane(
     ]
     frames = [
         pair(_frame_svg(s, p, side_extent), frontal_svg(f, front_extent))
-        for s, f, p in zip(side_frames, front_frames, track.frames, strict=True)
+        for s, f, p in zip(side_frames, front_frames, player_postures, strict=True)
     ]
-    if h.rest is not None:
+    if h.rest is not None and track.fps is None:
         hold = track.frames_per_unit
         frames = [frames[0]] * hold + frames + [frames[-1]] * hold
+        phases = [phases[0]] * hold + phases + [phases[-1]] * hold
     ms = max(1, round(track.display_interval * 1000 / track.rate))
-    page = _player_page(track.source, name, frames, stills, ms)
+    page = _player_page(track.source, name, frames, stills, ms, phases)
     return page.replace(_literal_style(), _literal_style() + FRONTAL_STYLE, 1).replace(
         "Mid-sagittal tract, animated", "One trajectory, sagittal + frontal"
     )
