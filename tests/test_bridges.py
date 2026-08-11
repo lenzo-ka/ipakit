@@ -18,6 +18,7 @@ from ipakit.form import Form
 
 FIXTURE = Path(__file__).parent / "fixtures" / "mfa_english_us_v3_1_0.dict"
 ESPEAK_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_en_1_52_0.txt"
+ESPEAK_CMN_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_cmn_1_52_0.txt"
 
 
 def test_mfa_inventory_is_pinned_and_parses_under_base_ipa() -> None:
@@ -189,6 +190,54 @@ def test_espeak_native_text_fixture_round_trips_byte_exact() -> None:
     assert ESPEAK_EN.read(samples[0]).to_ipa() == "həlˈəʊ wˈɜːld"
 
 
+def test_espeak_fr_reads_pinned_binary_bonjour_mnemonics() -> None:
+    # eSpeak NG 1.52.0: ``espeak-ng -v fr -x -q bonjour``.
+    assert EspeakBridge("fr").read("bO~Z'ur").to_ipa() == "bɔ̃ʒˈuʁ"
+
+
+def test_espeak_de_reads_pinned_binary_hallo_mnemonics() -> None:
+    # eSpeak NG 1.52.0: ``espeak-ng -v de -x -q hallo``.
+    assert EspeakBridge("de").read("h'alo:").to_ipa() == "hˈaloː"
+
+
+def test_espeak_cmn_reads_declared_chao_tones_and_word_pause() -> None:
+    # eSpeak NG 1.52.0: ``-v cmn -x``.  Tone digits are derived from the
+    # phsource Tone directives as Chao digits; the binary's ``--ipa`` uses
+    # its default character table for them and is therefore not an oracle.
+    bridge = EspeakBridge("cmn")
+    assert bridge.read("m'A35_|").to_ipa() == "mˈɑ˧˥#"
+    native = "m'A55_| m'A35_| m'A21_| m'A51_|"
+    assert bridge.read(native).to_ipa() == "mˈɑ˥˥# mˈɑ˧˥# mˈɑ˨˩# mˈɑ˥˩#"
+    assert bridge.emit(bridge.read(native)) == native
+
+
+def test_espeak_imported_ipa_and_cantonese_tone_categories() -> None:
+    assert EspeakBridge("hi").read("H'Vva:").to_ipa() == "hˈʌʋaː"
+    assert EspeakBridge("ml").read("m'ar@m").to_ipa() == "mˈɐɾəm"
+    assert EspeakBridge("kk").read("G").to_ipa() == "ʀ"
+    assert EspeakBridge("hr").read("R").to_ipa() == "r"
+    assert EspeakBridge("it").read("l^'I").to_ipa() == "ʎˈɪ"
+    for language, mnemonic in (("pt", "r-"), ("ko", "tS;-"), ("ru", "n_")):
+        assert EspeakBridge(language).read(mnemonic).to_ipa()
+
+    bridge = EspeakBridge("yue")
+    tones = [bridge.read(f"s'i{number}_|").to_ipa()[-3] for number in (1, 4, 5)]
+    levels = dict(zip("˩˨˧˦˥", range(5), strict=True))
+    # Quantizer band boundaries are judgment calls; source-relative ordering
+    # and contour direction are not.
+    assert levels[tones[0]] > levels[tones[1]]
+    assert (
+        levels[bridge.read("s'i4_|").to_ipa()[-3]]
+        > levels[bridge.read("s'i4_|").to_ipa()[-2]]
+    )
+    assert (
+        levels[bridge.read("s'i5_|").to_ipa()[-3]]
+        < levels[bridge.read("s'i5_|").to_ipa()[-2]]
+    )
+    # eSpeak NG 1.52.0: ``espeak-ng -v yue -x -q 事`` -> ``s'i6_|``.
+    assert bridge.emit(bridge.read("s'i6_|")) == "s'i6_|"
+
+
 def test_espeak_external_distinctions_survive_on_the_grouping_tier() -> None:
     form = ESPEAK_EN.read("@3I2")
     assert form.to_ipa() == "əəɪ"
@@ -208,10 +257,44 @@ def test_espeak_en_round_trip_classification_names_unimplemented_mapper() -> Non
 
 
 def test_espeak_refuses_undeclared_language_and_native_residue() -> None:
-    with pytest.raises(ValueError, match="no declared eSpeak NG vocabulary for 'fr'"):
-        EspeakBridge("fr")
+    with pytest.raises(
+        ValueError, match="no declared eSpeak NG vocabulary for 'zz-absent'"
+    ):
+        EspeakBridge("zz-absent")
     with pytest.raises(VocabularyResidueError, match=r"span \[1:2\]: '\$'"):
         ESPEAK_EN.read("h$")
+
+
+def test_every_generated_espeak_declaration_loads() -> None:
+    """Sweep the generated set so no language can ship as unloadable XML."""
+    declarations = sorted(
+        (Path(__file__).parent.parent / "ipakit/data/bridges/espeak").glob("*.xml")
+    )
+    assert len(declarations) == 129
+    assert all(EspeakBridge(path.stem).atoms for path in declarations)
+
+
+def test_espeak_declared_refusal_names_mnemonic_and_position() -> None:
+    bridge = EspeakBridge("fr")
+    refused = bridge.refusals[0]
+    with pytest.raises(
+        VocabularyResidueError,
+        match=rf"mnemonic {refused.spelling!r} at span \[1:{1 + len(refused.spelling)}\]",
+    ):
+        bridge.read("p" + refused.spelling)
+
+
+def test_espeak_tone_fixture_reads_and_round_trips_byte_exact() -> None:
+    """A pinned real Mandarin line exercises Chao tone and word boundary."""
+    sample = next(
+        line
+        for line in ESPEAK_CMN_FIXTURE.read_text().splitlines()
+        if not line.startswith("#")
+    )
+    bridge = EspeakBridge("cmn")
+    form = bridge.read(sample)
+    assert form.to_ipa() == "ni˧˥χˈɑu˨˩˦#"
+    assert bridge.emit(form) == sample
 
 
 def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:

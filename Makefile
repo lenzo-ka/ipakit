@@ -14,7 +14,24 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style lint check
+.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style espeak-vocabularies espeak-vocabularies-check lint check
+
+ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
+
+## espeak-vocabularies: regenerate every language-scoped eSpeak declaration
+espeak-vocabularies:
+	@if test ! -d "$(ESPEAK_NG)/.git"; then \
+		echo "espeak-vocabularies: pinned checkout absent; nothing regenerated"; \
+	else \
+		$(PYTHON) scripts/espeak_vocabularies.py generate --source "$(ESPEAK_NG)"; \
+	fi
+
+espeak-vocabularies-check:
+	@if test ! -d "$(ESPEAK_NG)/.git"; then \
+		echo "espeak-vocabularies: pinned checkout absent; generated-data check skipped"; \
+	else \
+		$(PYTHON) scripts/espeak_vocabularies.py check --source "$(ESPEAK_NG)"; \
+	fi
 
 ## figures: redraw the mid-sagittal tract figures in docs/
 figures:
@@ -84,6 +101,7 @@ check: lint
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
 	@$(PYTHON) scripts/house_style.py check
+	@$(MAKE) --no-print-directory espeak-vocabularies-check
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py
 	@$(PYTHON) scripts/docquotes.py
