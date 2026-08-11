@@ -36,6 +36,11 @@ class Span:
 
     source: str
     terms: tuple[Pattern, ...]
+    stratum: str | None = None
+    harvested_count: int | None = None
+    exemplar: str | None = None
+    decision: str | None = None
+    curation_provenance: str | None = None
 
     def matches(self, units: Sequence[Unit], features: IPAFeatures) -> bool:
         if len(units) != len(self.terms):
@@ -112,7 +117,9 @@ class Syllabification:
         return len(self.syllables)
 
 
-def _terms(source: str, features: IPAFeatures) -> Span:
+def _terms(
+    source: str, features: IPAFeatures, metadata: dict[str, str] | None = None
+) -> Span:
     # Spaces delimit unit patterns in the landed rule notation; brackets
     # contain no spaces in shipped declarations.
     tokens = re.findall(r"\[[^]]+\]|\([^)]*\)|\S+", source)
@@ -130,7 +137,17 @@ def _terms(source: str, features: IPAFeatures) -> Span:
     lone = sorted(name for name, count in variables.items() if count == 1)
     if lone:
         raise RuleError(f"{source!r} uses agreement variable(s) {' '.join(lone)} once")
-    return Span(source, terms)
+    metadata = metadata or {}
+    count = metadata.get("harvested-count")
+    return Span(
+        source,
+        terms,
+        stratum=metadata.get("stratum"),
+        harvested_count=int(count) if count is not None else None,
+        exemplar=metadata.get("exemplar"),
+        decision=metadata.get("decision"),
+        curation_provenance=metadata.get("curation-provenance"),
+    )
 
 
 def read_language(path: str | Path, features: IPAFeatures | None = None) -> Language:
@@ -148,7 +165,9 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
     root = ET.parse(path).getroot()
     groups: dict[str, list[Span]] = {"nucleus": [], "onset": [], "coda": [], "mora": []}
     for kind in groups:
-        groups[kind] = [_terms(e.attrib["span"], features) for e in root.findall(kind)]
+        groups[kind] = [
+            _terms(e.attrib["span"], features, e.attrib) for e in root.findall(kind)
+        ]
     declared_syllables = list(root.findall("syllable"))
     inventory = root.find("inventory")
     if inventory is not None:
@@ -435,14 +454,38 @@ class Syllabifier:
 
 
 def syllabifier(
-    name: str | Language, features: IPAFeatures | None = None
+    name: str | Language,
+    features: IPAFeatures | None = None,
+    *,
+    strictness: str | None = None,
 ) -> Syllabifier:
     features = _default(features)
     if not {"syllable", "mora"} <= set(tier_names(features)):
         raise ValueError("the inventory must declare syllable and mora tiers")
-    return Syllabifier(
-        language(name, features) if isinstance(name, str) else name, features
+    declaration = language(name, features) if isinstance(name, str) else name
+    admitted = {
+        None: frozenset({"native", "borrowing", "marginal"}),
+        "strict": frozenset({"native"}),
+        "permissive": frozenset({"native", "borrowing", "marginal"}),
+    }
+    if strictness not in admitted:
+        raise ValueError("strictness must be 'strict', 'permissive', or None")
+    strata = admitted[strictness]
+    declaration = Language(
+        declaration.name,
+        declaration.mode,
+        declaration.provenance,
+        declaration.nuclei,
+        tuple(
+            onset
+            for onset in declaration.onsets
+            if onset.stratum is None or onset.stratum in strata
+        ),
+        declaration.morae,
+        declaration.syllables,
+        declaration.codas,
     )
+    return Syllabifier(declaration, features)
 
 
 def syllabify(

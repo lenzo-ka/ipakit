@@ -87,3 +87,58 @@ def test_a_lone_agreement_variable_is_refused(tmp_path: Path) -> None:
   <nucleus span="[vowel]" /><onset span="[voiced=α]" />
 </syllabification>""",
         )
+
+
+def test_onset_metadata_is_preserved_and_strictness_filters_it(tmp_path: Path) -> None:
+    declaration = _declared(
+        tmp_path,
+        """
+<syllabification language="test" version="1" mode="constraints" provenance="test">
+  <nucleus span="[vowel]" />
+  <onset span="[-vowel]" />
+  <onset span="ʃ m" stratum="borrowing" harvested-count="3"
+    exemplar="schmaltz" decision="retain loan stratum"
+    curation-provenance="fixture harvest iteration 2" />
+</syllabification>""",
+    )
+    curated = declaration.onsets[1]
+    assert (
+        curated.stratum,
+        curated.harvested_count,
+        curated.exemplar,
+        curated.decision,
+        curated.curation_provenance,
+    ) == (
+        "borrowing",
+        3,
+        "schmaltz",
+        "retain loan stratum",
+        "fixture harvest iteration 2",
+    )
+    assert syllabifier(declaration, strictness="strict")("ʃmɑlʦ").unsyllabified == (
+        (0, 1),
+    )
+    assert (
+        syllabifier(declaration, strictness="permissive")("ʃmɑlʦ").unsyllabified == ()
+    )
+
+
+def test_unlabeled_declarations_are_admitted_at_every_strictness(
+    tmp_path: Path,
+) -> None:
+    declaration = _declared(
+        tmp_path,
+        """
+<syllabification language="test" version="1" mode="constraints" provenance="test">
+  <nucleus span="[vowel]" /><onset span="s t" />
+</syllabification>""",
+    )
+    assert syllabifier(declaration, strictness="strict")("sta").spelled() == ("sta",)
+    assert syllabifier(declaration, strictness="permissive")("sta").spelled() == (
+        "sta",
+    )
+
+
+def test_unknown_strictness_is_refused() -> None:
+    with pytest.raises(ValueError, match="strictness"):
+        syllabifier("spanish", strictness="unknown")
