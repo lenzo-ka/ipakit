@@ -67,7 +67,12 @@ class QueryParseError(rules.RuleError):
     def __init__(self, source: str, message: str, token: str | None = None):
         quoted = re.search(r"'([^']+)'", message)
         offending = token or (quoted.group(1) if quoted else _offending_token(source))
-        position = source.find(offending) if offending else 0
+        stated = re.search(r"at position (\d+)", message)
+        position = (
+            int(stated.group(1))
+            if stated is not None
+            else source.find(offending) if offending else 0
+        )
         self.position = max(position, 0)
         self.expected = message
         self.token = offending
@@ -103,6 +108,12 @@ def _parse_query(
     inventory = _default(features)
     if wild:
         spec = _normalize_wild_query(spec, inventory)
+    reserved_at = spec.find("(?")
+    if reserved_at >= 0:
+        raise rules.RuleError(
+            f"{spec!r} uses '(?' at position {reserved_at}; that group prefix "
+            "is reserved for extension"
+        )
     target_text, slash, environment = spec.partition("/")
     target_text = target_text.strip()
     if not target_text:
@@ -115,13 +126,13 @@ def _parse_query(
     target = rules._pattern(target_text, inventory)
     if target.optional:
         raise rules.RuleError(
-            f"{spec!r} marks its target optional, and a target is what the "
+            f"{spec!r} marks its target optional at position 0, and a target is what the "
             "query recognizes: there is no target where it is absent. "
             "Optionality is for context items."
         )
     if target.repeated:
         raise rules.RuleError(
-            f"{spec!r} marks its target repeated, and a query cannot recognize "
+            f"{spec!r} marks its target repeated at position 0, and a query cannot recognize "
             "a span it has not counted. Repetition is for context items."
         )
     if target.literal in inventory.zeros:
@@ -147,8 +158,12 @@ def _parse_query(
     before, after = environment.split("_")
     context_items = (*rules._items(before), *rules._items(after))
     if any(item.strip() in rules.NULL for item in context_items):
+        null = next(
+            item.strip() for item in context_items if item.strip() in rules.NULL
+        )
         raise rules.RuleError(
-            f"{spec!r} names a null in its environment. An environment names "
+            f"{spec!r} names a null at position {spec.find(null, spec.find('/'))} "
+            "in its environment. An environment names "
             "what stands there, and nothing stands at a deletion site; if "
             "zero-width context was meant, spell it with an optional element "
             "'(X)'."
@@ -158,8 +173,14 @@ def _parse_query(
     )
     right = tuple(rules._pattern(item, inventory) for item in rules._items(after))
     if any(pattern.literal in inventory.zeros for pattern in (*left, *right)):
+        null = next(
+            pattern.source
+            for pattern in (*left, *right)
+            if pattern.literal in inventory.zeros
+        )
         raise rules.RuleError(
-            f"{spec!r} names a null in its environment. An environment names "
+            f"{spec!r} names a null at position {spec.find(null, spec.find('/'))} "
+            "in its environment. An environment names "
             "what stands there, and nothing stands at a deletion site; if "
             "zero-width context was meant, spell it with an optional element "
             "'(X)'."

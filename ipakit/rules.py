@@ -276,6 +276,7 @@ from __future__ import annotations
 import dataclasses
 import heapq
 import itertools
+import re
 import unicodedata
 import warnings
 from collections.abc import Iterator, Sequence
@@ -517,6 +518,10 @@ class Pattern:
     #: Written ``(X)*`` in a context: zero or more consecutive units
     #: matching X.  Recognition bounds the count by the form's length.
     repeated: bool = False
+    #: Inclusive bounds written by a parenthesized postfix quantifier.
+    #: ``None`` means that the form length supplies the upper bound.
+    repeat_min: int = 1
+    repeat_max: int | None = 1
 
     @property
     def names_boundary(self) -> bool:
@@ -1030,7 +1035,7 @@ def _check_opposite(source: str, key: str, features: IPAFeatures) -> None:
     )
 
 
-def _optional(text: str, features: IPAFeatures) -> Pattern:
+def _optional(text: str, features: IPAFeatures, *, explicit: bool = False) -> Pattern:
     """``(X)``: a context item the scan may take or pass by.
 
     Transparency, chosen per rule and per place rather than globally.
@@ -1055,7 +1060,12 @@ def _optional(text: str, features: IPAFeatures) -> Pattern:
     than assigned a precedence: nested variable width has no additional
     reading that cannot be written flat, and is much easier to mistype.
     """
-    inside = text[1:-1].strip()
+    inside = text[1 : -2 if explicit else -1].strip()
+    if inside.startswith("?"):
+        raise RuleError(
+            f"{text!r} uses '(?' at position 0; that group prefix is reserved "
+            "for extension"
+        )
     if inside.startswith("(") or inside.endswith(")"):
         raise RuleError(
             f"{text!r} nests optionality. Nested optionality is refused; "
@@ -1073,12 +1083,16 @@ def _optional(text: str, features: IPAFeatures) -> Pattern:
             f"{text!r} marks a tier edge optional. Optionality wraps one "
             "unit pattern; a tier edge is a position, not a unit."
         )
-    return dataclasses.replace(inner, source=text, optional=True)
+    return dataclasses.replace(
+        inner, source=text, optional=True, repeat_min=0, repeat_max=1
+    )
 
 
-def _repeated(text: str, features: IPAFeatures) -> Pattern:
-    """``(X)*``: zero or more consecutive context units matching X."""
-    inside = text[1:-2].strip()
+def _quantified(
+    text: str, features: IPAFeatures, minimum: int, maximum: int | None
+) -> Pattern:
+    """A parenthesized context span with inclusive consumption bounds."""
+    inside = text[1 : text.rfind(")")].strip()
     if not inside:
         raise RuleError(f"{text!r} is an empty bounded span")
     if inside.startswith("(") or inside.endswith(")"):
@@ -1098,7 +1112,13 @@ def _repeated(text: str, features: IPAFeatures) -> Pattern:
             "zero or more units of a class; boundaries and tier edges are "
             "positions, not members of such a span."
         )
-    return dataclasses.replace(inner, source=text, repeated=True)
+    return dataclasses.replace(
+        inner,
+        source=text,
+        repeated=True,
+        repeat_min=minimum,
+        repeat_max=maximum,
+    )
 
 
 def _tier_spelling(text: str) -> tuple[str, str] | None:
@@ -1193,6 +1213,57 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
     text = source.strip()
     if not text:
         raise RuleError("empty pattern")
+    if text.startswith("(?"):
+        raise RuleError(
+            f"{text!r} uses '(?' at position 0; that group prefix is reserved "
+            "for extension"
+        )
+    quantified = re.fullmatch(r"\((.*)\)(\*|\+|\?|\{[^{}]*\})", text, re.DOTALL)
+    if quantified is not None:
+        suffix = quantified.group(2)
+        if suffix == "?":
+            return _optional(text, features, explicit=True)
+        bounds: tuple[int, int | None]
+        if suffix == "*":
+            bounds = (0, None)
+        elif suffix == "+":
+            bounds = (1, None)
+        else:
+            body = suffix[1:-1]
+            if not body:
+                raise RuleError(
+                    f"{text!r} has an empty counted quantifier at position 0"
+                )
+            if body == ",":
+                raise RuleError(f"{text!r} has an empty counted range at position 0")
+            match = re.fullmatch(r"(\d+)?(?:,(\d+)?)?", body)
+            if match is None:
+                raise RuleError(
+                    f"{text!r} has a malformed counted quantifier at position 0; write "
+                    "'{n}', '{n,}', '{,m}', or '{n,m}'"
+                )
+            first, second = match.groups()
+            if "," not in body:
+                assert first is not None
+                bounds = (int(first), int(first))
+            else:
+                minimum = int(first) if first is not None else 0
+                maximum = int(second) if second is not None else None
+                if maximum is not None and minimum > maximum:
+                    raise RuleError(
+                        f"{text!r} at position 0 has minimum {minimum} greater than maximum "
+                        f"{maximum}"
+                    )
+                bounds = (minimum, maximum)
+        return _quantified(text, features, *bounds)
+    bare_count = re.fullmatch(r".+\{\s*\d+(?:\s*,\s*\d*)?\s*\}", text)
+    if not text.startswith("(") and (
+        (len(text) > 1 and text[-1] in "*+?") or bare_count is not None
+    ):
+        raise RuleError(
+            f"{text!r} applies a quantifier to a bare element at position 0; quantifiers "
+            "require parentheses, as in '(X)+' or '(X){2}'"
+        )
     # Postfix braces are a conjunction with the element they follow.  They
     # deliberately reuse the bracket-bundle parser below: braces introduce
     # no second feature language, they only make it possible to tighten a
@@ -1247,8 +1318,6 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
             seg_agreements={**base.seg_agreements, **constraint.seg_agreements},
             pro_agreements={**base.pro_agreements, **constraint.pro_agreements},
         )
-    if text.startswith("(") and text.endswith(")*"):
-        return _repeated(text, features)
     if text.startswith("(") and text.endswith(")"):
         if not text[1:-1].strip():
             raise RuleError(f"{text!r} is an empty optional item")
@@ -1685,12 +1754,32 @@ class Query:
         """Every fixed-width reading and its consumption per source item."""
         choices = [
             (
-                range(limit + 1)
+                range(
+                    pattern.repeat_min,
+                    min(
+                        limit,
+                        limit if pattern.repeat_max is None else pattern.repeat_max,
+                    )
+                    + 1,
+                )
                 if pattern.repeated
                 else (0, 1) if pattern.optional else (1,)
             )
             for pattern in patterns
         ]
+        impossible = next(
+            (
+                pattern
+                for pattern in patterns
+                if pattern.repeated and pattern.repeat_min > limit
+            ),
+            None,
+        )
+        if impossible is not None:
+            raise RuleError(
+                f"{impossible.source!r} requires at least {impossible.repeat_min} "
+                f"units, but this form has length {limit}"
+            )
         for counts in itertools.product(*choices):
             expanded: list[Pattern] = []
             for pattern, count in zip(patterns, counts, strict=True):
@@ -2605,6 +2694,12 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     source = text.strip()
     if not source:
         raise RuleError("empty rule")
+    reserved_at = source.find("(?")
+    if reserved_at >= 0:
+        raise RuleError(
+            f"{source!r} uses '(?' at position {reserved_at}; that group "
+            "prefix is reserved for extension"
+        )
 
     # ';' not '|': '|' is a declared prosodic break, so a context naming
     # it ('t -> ʔ / _ |') was silently swallowed as the name separator and
@@ -2672,13 +2767,13 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
         _check_inserted_change(source, becomes)
     if target is not None and target.optional:
         raise RuleError(
-            f"{source!r} marks its target optional, and a target is what the "
+            f"{source!r} marks its target optional at position 0, and a target is what the "
             "rule rewrites: there is nothing to rewrite where it is absent. "
             "Optionality is for context items."
         )
     if target is not None and target.repeated:
         raise RuleError(
-            f"{source!r} marks its target repeated, and a rule cannot rewrite "
+            f"{source!r} marks its target repeated at position 0, and a rule cannot rewrite "
             "a span it has not counted. Repetition is for context items."
         )
     if target is None and isinstance(becomes, str) and becomes in features.zeros:
@@ -2699,8 +2794,10 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
         before, _, after = context.partition("_")
         context_items = (*_items(before), *_items(after))
         if any(item.strip() in NULL for item in context_items):
+            null = next(item.strip() for item in context_items if item.strip() in NULL)
             raise RuleError(
-                f"{source!r} names a null in its environment. An environment "
+                f"{source!r} names a null at position {source.find(null, source.find('/'))} "
+                "in its environment. An environment "
                 "names what stands there, and nothing stands at a deletion "
                 "site; if zero-width context was meant, spell it with an "
                 "optional element '(X)'."
@@ -2712,8 +2809,15 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
             if any(item.strip() in NULL for item in _items(spelling)) or any(
                 pattern.literal in features.zeros for pattern in patterns
             ):
+                null = next(
+                    pattern.source
+                    for pattern in patterns
+                    if pattern.literal in features.zeros
+                )
                 raise RuleError(
-                    f"{source!r} names a null in its environment. An environment "
+                    f"{source!r} names a null at position "
+                    f"{source.find(null, source.find('/'))} in its environment. "
+                    "An environment "
                     "names what stands there, and nothing stands at a deletion "
                     "site; if zero-width context was meant, spell it with an "
                     "optional element '(X)'."
@@ -3242,9 +3346,24 @@ def _items(text: str) -> list[str]:
     out: list[str] = []
     buffer = ""
     depth = 0
+    guard = -1
     for offset, char in enumerate(text):
+        if offset == guard and char in "*+?{":
+            if out and out[-1].startswith("("):
+                raise RuleError(
+                    f"{text!r} stacks a quantifier at position {offset}; "
+                    f"a group takes one quantifier"
+                )
+            raise RuleError(
+                f"{text!r} applies a quantifier to a bare element at position "
+                f"{offset}; quantifiers require parentheses"
+            )
         if char in _GROUPS:
-            if depth == 0 and buffer.strip():
+            if (
+                depth == 0
+                and buffer.strip()
+                and not (char == "{" and buffer.rstrip().endswith(")"))
+            ):
                 out.append(buffer.strip())
                 buffer = ""
             depth += 1
@@ -3258,13 +3377,19 @@ def _items(text: str) -> list[str]:
             buffer = ""
             continue
         buffer += char
+        suffix = text[offset + 1 : offset + 2]
         if (
             depth == 0
             and char in _CLOSERS
-            and not (char == ")" and text[offset + 1 : offset + 2] == "*")
+            and not (char == ")" and suffix in {"*", "+", "?", "{"})
         ):
             out.append(buffer.strip())
             buffer = ""
+            guard = offset + 1
+        elif depth == 0 and char in "*+?" and buffer.startswith("("):
+            out.append(buffer.strip())
+            buffer = ""
+            guard = offset + 1
     if depth:
         raise RuleError(f"unbalanced grouping in {text!r}")
     if buffer.strip():
