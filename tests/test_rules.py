@@ -104,7 +104,7 @@ class TestAFormNoRuleReachesSpellsBackOutUnchanged:
             form = f"#{phone}.{phone}#"
             assert empty.apply(form, FEATURES) == form
             checked += 1
-        assert_swept(checked, _phones())
+        assert checked >= 30, f"sweep covered only {checked} nuclei"
 
 
 class TestStressIsNotPartOfAPhonesIdentity:
@@ -121,7 +121,7 @@ class TestStressIsNotPartOfAPhonesIdentity:
                 continue  # the mark did not land on this unit
             assert R._pattern(phone, FEATURES).matches(items[0], FEATURES), marked
             checked += 1
-        assert_swept(checked, _phones())
+        assert checked >= 30, f"sweep covered only {checked} nuclei"
 
     def test_prosody_is_still_askable(self):
         stressed = R.units("kˈæt", FEATURES)[1]
@@ -1745,8 +1745,19 @@ class TestAssigningThenClearingProsodyReturnsTheSpelling:
         assert checked + len(declined) == len(phones) * len(pairs)
         assert checked > 2000, f"sweep covered only {checked}"
         assert bad == [], f"{len(bad)} of {checked} did not round trip: {bad[:3]}"
-        # Pinned, so the escape stays known in either direction.
-        assert declined == ["t contour=rising"], f"declined set moved: {declined}"
+        # Stress can be written only on nuclei; every non-nucleus therefore
+        # declines both levels, in addition to the established contour miss.
+        non_nuclei = {
+            phone
+            for phone in phones
+            if not FEATURES.is_nucleus(FEATURES.get_features(phone))
+        }
+        expected_declined = {"t contour=rising"} | {
+            f"{phone} stress={level}"
+            for phone in non_nuclei
+            for level in ("primary", "secondary")
+        }
+        assert set(declined) == expected_declined, f"declined set moved: {declined}"
 
 
 def _prosody_of(form: str) -> dict[str, str]:

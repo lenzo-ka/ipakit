@@ -762,7 +762,7 @@ class TestRepresentationCommands:
             unit["segment"]["prosody"]
             for unit in representation["units"]
             if unit["segment"] is not None
-        ] == [[], [], [], ["ˈ"], [], []]
+        ] == [[], [], [], [], ["ˈ"], []]
         assert all("timing" in unit for unit in representation["units"])
 
     def test_json_round_trip_through_cli(self, monkeypatch, capsys):

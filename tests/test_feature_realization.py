@@ -196,7 +196,7 @@ class TestRespellNeverSubstitutesADifferentUnit:
 
     def test_prosody_is_carried_across(self, ipa: IPAFeatures) -> None:
         assert ipa.respell("tː", voiced="+") == "dː"
-        assert ipa.respell("ˈtː", voiced="+") == "ˈdː"
+        assert ipa.respell("ˈaː", rounded="+") == "ˈɶː"
         assert ipa.respell("t͡sː", voiced="+") == "d͡zː"
 
     def test_a_prosodic_change_is_refused_rather_than_swallowed(

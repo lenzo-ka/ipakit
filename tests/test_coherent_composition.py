@@ -373,7 +373,7 @@ class TestAskingForWhatIsAlreadyTrueIsANoOp:
     def test_the_shipped_english_set_spells_hidden_once(self):
         from ipakit.rules import shipped
 
-        assert shipped("american-english").apply("ˈhɪdn̩") == "ˈhɪdⁿn̩"
+        assert shipped("american-english").apply("ˈhɪdn̩") == "hˈɪdⁿn̩"
         assert ipakit.validate_ipa("ˈhɪdⁿn̩") == []
 
     def test_german_still_devoices_what_is_voiced(self):

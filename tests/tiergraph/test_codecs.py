@@ -26,7 +26,7 @@ def test_exact_and_canonical_spelling_are_distinct_contracts() -> None:
     form = Form.parse("kæt.ˈ.dɒɡ")
     assert form.to_ipa() == "kæt.ˈ.dɒɡ"
     assert form.to_ipa("exact") == "kæt.ˈ.dɒɡ"
-    assert form.to_ipa("canonical") == "kæt..ˈdɒɡ"
+    assert form.to_ipa("canonical") == "kæt..dˈɒɡ"
 
 
 def test_renderer_only_emits_codec_declared_tiers() -> None:

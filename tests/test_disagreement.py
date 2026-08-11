@@ -83,8 +83,8 @@ def test_three_forms_are_independent_pairwise_comparisons() -> None:
 
 def test_checked_cmudict_ipa_dict_convention_control() -> None:
     measured = report()
-    assert measured["raw"] == {"feature": 5, "structure": 6, "timing": 0}
-    assert measured["convention_removed"] == {"feature": 4, "structure": 6, "timing": 0}
+    assert measured["raw"] == {"feature": 1, "structure": 6, "timing": 0}
+    assert measured["convention_removed"] == {"feature": 0, "structure": 6, "timing": 0}
     assert measured["substantive_after_normalization"] == {
         "feature": 1,
         "structure": 0,

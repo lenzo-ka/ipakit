@@ -138,7 +138,7 @@ class TestStressAttachmentHasOneReadAcrossBoundaries:
     def test_the_segmental_layer_binds_it(self, ipa: IPAFeatures) -> None:
         stressed = [s for s in ipa.segments("kæt.ˈ.dɒɡ") if s.prosody]
         assert [(s.constituents[0].base, s.prosody) for s in stressed] == [
-            ("d", ("ˈ",))
+            ("ɒ", ("ˈ",))
         ]
 
     def test_the_validator_agrees_it_binds(self, ipa: IPAFeatures) -> None:
@@ -149,7 +149,7 @@ class TestStressAttachmentHasOneReadAcrossBoundaries:
         parsed = Form.parse(form)
         stressed = [segment for segment in parsed.segments if segment.prosody]
         assert [(s.constituents[0].base, s.prosody) for s in stressed] == [
-            ("d", ("ˈ",))
+            ("ɒ", ("ˈ",))
         ]
         assert parsed.to_ipa() == form
 

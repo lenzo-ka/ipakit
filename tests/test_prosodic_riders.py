@@ -42,7 +42,7 @@ class TestStressIsRead:
 
     def test_the_mark_rides_on_its_unit_in_the_alignment(self, ipa):
         r = ipa.word_distance("ˈkɛt", "ˌkɛt", return_alignment=True)
-        assert ("ˈk", "ˌk") in r.alignment
+        assert ("ˈɛ", "ˌɛ") in r.alignment
 
 
 class TestToneAndLengthAlsoRide:
@@ -67,8 +67,8 @@ class TestItIsMetricOnlyAndContained:
     def test_the_stored_features_are_untouched(self, ipa):
         # The rider is read for the metric; it does not enter the unit's
         # feature bundle, so a form still spells back unchanged.
-        assert ipa.to_ipa(ipa.segments("ˈkɛt")) == "ˈkɛt"
-        assert "stress" not in ipa.get_features("ˈk")
+        assert ipa.read("ˈkɛt").to_ipa() == "ˈkɛt"
+        assert "stress" not in ipa.get_features("ˈɛ")
 
     def test_the_confusion_triangle_is_unmoved(self, ipa):
         # No shipped phone carries a rider, so the phone matrix is identical
@@ -82,7 +82,7 @@ class TestExplainTrace:
     def test_it_traces_each_position_with_the_prosodic_term(self, ipa):
         steps = ipa.explain_word_distance("ˈkɛt", "ˌkɛt")
         sub = next(s for s in steps if s["op"] == "sub")
-        assert sub["a"] == "ˈk" and sub["b"] == "ˌk"
+        assert sub["a"] == "ˈɛ" and sub["b"] == "ˌɛ"
         stress = next(t for t in sub["terms"] if t["label"].startswith("stress"))
         assert stress["a"] == "primary" and stress["b"] == "secondary"
         assert stress["cost"] == 0.5
