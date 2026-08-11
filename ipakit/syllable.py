@@ -194,9 +194,14 @@ class Syllabifier:
     def __call__(self, form: Form | str) -> Syllabification:
         if isinstance(form, str):
             form = Form.parse(form, self.features)
-        honored, empty = self._derive(form.units, True)
-        free, _ = self._derive(form.units, False)
-        intervals = [*honored, *self._morae(form.units, honored)]
+        if self.language.mode == "moraic":
+            honored, morae, empty = self._derive_moraic(form.units, True)
+            free, _, _ = self._derive_moraic(form.units, False)
+            intervals = [*honored, *morae]
+        else:
+            honored, empty = self._derive(form.units, True)
+            free, _ = self._derive(form.units, False)
+            intervals = honored
         return Syllabification(
             Form.of(form.units, [*form.intervals, *intervals]),
             self._conflicts(form.units, honored, free),
@@ -234,6 +239,95 @@ class Syllabifier:
                     empty.append((start, stop))
             start = stop + 1
         return out, empty
+
+    def _derive_moraic(
+        self, units: Sequence[Unit], honor: bool
+    ) -> tuple[list[Interval], list[Interval], list[tuple[int, int]]]:
+        syllables: list[Interval] = []
+        morae: list[Interval] = []
+        empty: list[tuple[int, int]] = []
+        start = 0
+        for stop in [*self._delimiters(units, honor), len(units)]:
+            if start < stop:
+                grouped, tiled, residue = self._moraic_region(units, start, stop)
+                syllables.extend(grouped)
+                morae.extend(tiled)
+                empty.extend(residue)
+            start = stop + 1
+        return syllables, morae, empty
+
+    def _moraic_region(
+        self, units: Sequence[Unit], start: int, stop: int
+    ) -> tuple[list[Interval], list[Interval], list[tuple[int, int]]]:
+        """Tile a region with morae, then group those morae into syllables."""
+        entries: list[tuple[Interval, bool]] = []
+        residue: list[tuple[int, int]] = []
+        at = start
+        have_nucleus = False
+        while at < stop:
+            unit = units[at]
+            if unit.segment is None:
+                at += 1
+                have_nucleus = False
+                continue
+            candidates: list[tuple[int, bool]] = []
+            for span in self.language.morae:
+                end = at + len(span.terms)
+                if end <= stop and span.matches(units[at:end], self.features):
+                    bears_nucleus = any(self._is_nucleus(u) for u in units[at:end])
+                    candidates.append((end, bears_nucleus))
+            weights = [candidate for candidate in candidates if not candidate[1]]
+            nuclei = [candidate for candidate in candidates if candidate[1]]
+            choices = weights if have_nucleus and weights else nuclei
+            if not choices:
+                residue.append((at, at + 1))
+                at += 1
+                have_nucleus = False
+                continue
+            end, bears_nucleus = max(choices, key=lambda candidate: candidate[0])
+            entries.append((Interval("mora", at, end, self.features), bears_nucleus))
+            if bears_nucleus:
+                nucleus = next(i for i in range(at, end) if self._is_nucleus(units[i]))
+                if units[nucleus].prosody.get("length") == "long":
+                    entries.append(
+                        (Interval("mora", nucleus, nucleus + 1, self.features), False)
+                    )
+            have_nucleus = True
+            at = end
+
+        syllables: list[Interval] = []
+        opened: int | None = None
+        closed: int | None = None
+        pending_geminate = False
+        for mora, bears_nucleus in entries:
+            if bears_nucleus:
+                if pending_geminate:
+                    closed = mora.end
+                    pending_geminate = False
+                else:
+                    if opened is not None and closed is not None:
+                        syllables.append(
+                            Interval("syllable", opened, closed, self.features)
+                        )
+                    opened = mora.start
+                    closed = mora.end
+            elif (
+                mora.end == mora.start + 1
+                and units[mora.start].prosody.get("length") == "long"
+                and not self._is_nucleus(units[mora.start])
+            ):
+                if opened is not None and closed is not None:
+                    syllables.append(
+                        Interval("syllable", opened, closed, self.features)
+                    )
+                opened = mora.start
+                closed = mora.end
+                pending_geminate = True
+            elif opened is not None:
+                closed = max(closed or mora.end, mora.end)
+        if opened is not None and closed is not None:
+            syllables.append(Interval("syllable", opened, closed, self.features))
+        return syllables, [mora for mora, _ in entries], residue
 
     def _within(self, units: Sequence[Unit], start: int, stop: int) -> list[Interval]:
         if self.language.mode == "enumerated":
@@ -278,54 +372,6 @@ class Syllabifier:
             end = max(matches)
             out.append(Interval("syllable", at, end, self.features))
             at = end
-        return out
-
-    def _morae(
-        self, units: Sequence[Unit], syllables: Sequence[Interval]
-    ) -> list[Interval]:
-        if self.language.mode != "moraic":
-            return []
-        out: list[Interval] = []
-        for syllable in syllables:
-            covered: set[int] = set()
-            nuclei = [
-                i
-                for i in range(syllable.start, syllable.end)
-                if self._is_nucleus(units[i])
-            ]
-            for nucleus in nuclei:
-                candidates: list[tuple[int, int]] = []
-                for span in self.language.morae:
-                    opened = nucleus + 1 - len(span.terms)
-                    if opened >= syllable.start and span.matches(
-                        units[opened : nucleus + 1], self.features
-                    ):
-                        candidates.append((opened, nucleus + 1))
-                if candidates:
-                    opened, closed = min(candidates)
-                    out.append(Interval("mora", opened, closed, self.features))
-                    covered.update(range(opened, closed))
-                    if units[nucleus].prosody.get("length") == "long":
-                        out.append(
-                            Interval("mora", nucleus, nucleus + 1, self.features)
-                        )
-            for i in range(syllable.start, syllable.end):
-                unit = units[i]
-                if unit.segment is None:
-                    continue
-                matching = [
-                    m
-                    for m in self.language.morae
-                    if len(m.terms) == 1 and m.matches((unit,), self.features)
-                ]
-                if matching and (
-                    i not in covered
-                    or (
-                        unit.prosody.get("length") == "long"
-                        and not self._is_nucleus(unit)
-                    )
-                ):
-                    out.append(Interval("mora", i, i + 1, self.features))
         return out
 
     def _conflicts(

@@ -34,5 +34,5 @@ def test_hash_does_not_allow_cross_word_resyllabification() -> None:
 
 
 def test_japanese_and_spanish_disagree_on_the_same_form() -> None:
-    assert ipakit.syllabify("atɾa", "japanese").spelled() == ("at", "ɾa")
+    assert ipakit.syllabify("atɾa", "japanese").spelled() == ("a", "ɾa")
     assert ipakit.syllabify("atɾa", "spanish").spelled() == ("a", "tɾa")

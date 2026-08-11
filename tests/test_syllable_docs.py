@@ -35,7 +35,8 @@ def test_three_languages_disagree_on_one_form() -> None:
         for language in ("japanese", "mandarin", "spanish")
     }
     assert answers == {
-        "japanese": ("at", "ɾa"),
+        "japanese": ("a", "ɾa"),
         "mandarin": (),
         "spanish": ("a", "tɾa"),
     }
+    assert ipakit.syllabify("atɾa", "japanese").unsyllabified == ((1, 2),)

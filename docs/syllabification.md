@@ -22,12 +22,15 @@ No boundary is rebuilt or replaced, so a dot beside a richer carrier keeps the c
 
 The Japanese declaration restates the analysis in `japanese-moraic.rules`: `(C)(j)V`, an independent nasal mora, a geminate's first half, a second mora for a long vowel, and one unit for a tied diphthong.
 
+The syllable tier is grouped over the mora tier: a moraic syllable is a concatenation of morae, and material no declared mora licenses is reported rather than absorbed into a syllable.
+
 ```python
 import ipakit
 
 ja = ipakit.syllabifier("japanese")
 ja("pen").spelled(), len(ja("pen").morae)       # (("pen",), 2)
 ja("hotːo").spelled(), len(ja("hotːo").morae)   # (("ho", "tːo"), 3)
+ja("atɾa").spelled(), ja("atɾa").unsyllabified  # (("a", "ɾa"), ((1, 2),))
 ```
 
 The checked demonstration has 4 forms, 6 syllables, 9 morae, and 0 conflicts.
@@ -67,11 +70,11 @@ One IPA string produces three honest answers:
 
 | Language | `/atɾa/` |
 |---|---|
-| Japanese | `at.ɾa` |
+| Japanese | `a.ɾa`; `t` is reported as unlicensed residue |
 | Mandarin | no member; unsyllabified |
 | Spanish | `a.tɾa` |
 
-The difference is the point: one constructor bends to a moraic declaration, an enumeration, and derivable margins without hiding any of them in Python.
+The difference is the point: the moraic declaration reports residue, the enumeration refuses the form wholesale, and the derived margins syllabify it freely. Three analyses produce three different honest behaviors without hiding any of them in Python.
 
 ## 7. Metric firewall
 
