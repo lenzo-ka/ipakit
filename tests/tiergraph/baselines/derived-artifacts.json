@@ -11,14 +11,14 @@
       "sha256": "5ee7e6d1da708826b474995cf82d829ca3c44002356b90cc38a2a90c61170f5c"
     },
     {
-      "bytes": 38087,
+      "bytes": 38079,
       "path": "docs/tutorial.md",
-      "sha256": "2b4ffeb12e2f244044105a91dcd4b3beece89ca1882590fa1afd9fea9a14b808"
+      "sha256": "c879e64d00c8a123ac313a864f3db644e7081d2e8fb8cc3af8c6239ab623901a"
     },
     {
-      "bytes": 48822,
+      "bytes": 48812,
       "path": "ipakit/notebooks/ipakit-tutorial.ipynb",
-      "sha256": "6b78d0e8ee1ef129577f9251db9fbccac3574d71f4e51ff69a5bdbcc47aa2f33"
+      "sha256": "545b66109f852a3941a22413dd1ad9d41adf1e1e8e1731e5e498e63974dbd334"
     },
     {
       "bytes": 43089,
