@@ -3,6 +3,17 @@
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 from .generator import GeneratorDoor
 from .notation import NotationBridge
+from .phoible import (
+    PHOIBLE_ENV,
+    PhoibleAudit,
+    PhoibleBridge,
+    PhoibleDataUnavailable,
+    PhoibleEntry,
+    PhoibleInventory,
+    PhoibleProvenance,
+    PhoibleRefusal,
+    PhoibleSpread,
+)
 from .provider import ProviderBridge
 from .vocabulary import (
     Atom,
@@ -19,6 +30,15 @@ __all__ = [
     "Fidelity",
     "GeneratorDoor",
     "NotationBridge",
+    "PHOIBLE_ENV",
+    "PhoibleAudit",
+    "PhoibleBridge",
+    "PhoibleDataUnavailable",
+    "PhoibleEntry",
+    "PhoibleInventory",
+    "PhoibleProvenance",
+    "PhoibleRefusal",
+    "PhoibleSpread",
     "ProviderBridge",
     "ProjectionDrop",
     "ProjectionReport",

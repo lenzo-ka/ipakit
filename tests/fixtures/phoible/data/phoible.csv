@@ -1,0 +1,4 @@
+InventoryID,Glottocode,ISO6393,LanguageName,SpecificDialect,GlyphID,Phoneme,Allophones,Marginal,SegmentClass,Source
+160,stan1293,eng,English,NA,0062,b,b p,NA,consonant,spa
+160,stan1293,eng,English,NA,006B+0348,k͈,k͈,NA,consonant,spa
+2175,stan1293,eng,English (American),NA,0061,a,a ɑ,FALSE,vowel,ph
