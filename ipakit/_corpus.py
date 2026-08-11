@@ -12,7 +12,7 @@ import os
 import re
 import tempfile
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +38,23 @@ class Entry:
     id: str
     meta: Mapping[str, Any]
     forms: Mapping[str, Form]
+    provenance: Mapping[str, FormProvenance] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Producer:
+    """Stable identity of the process that produced a stored role."""
+
+    name: str
+    version: str
+
+
+@dataclass(frozen=True)
+class FormProvenance:
+    """Producer and declaration contract for one stored form role."""
+
+    producer: Producer
+    declaration_fingerprint: str
 
 
 @dataclass(frozen=True)
@@ -118,6 +135,13 @@ def _entry_bytes(document: Mapping[str, Any]) -> bytes:
                 sort_keys=True,
                 separators=(",", ":"),
             ),
+            "provenance": json.dumps(
+                document.get("provenance", {}),
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
             "type": json.dumps(document["type"], ensure_ascii=False),
             "v": json.dumps(document["v"]),
         }
@@ -147,6 +171,66 @@ class Corpus:
     def __init__(self, location: Path):
         self._location = location
         self._entries = location / "entries"
+
+    @property
+    def declaration_fingerprint(self) -> str | None:
+        value = _load_object(self._location / "corpus.json", "corpus manifest").get(
+            "declaration_fingerprint"
+        )
+        return value if isinstance(value, str) else None
+
+    def put_split(self, name: str, entry_ids: Iterable[str]) -> tuple[str, ...]:
+        """Atomically define a named, explicit subset of current entry IDs."""
+        if not isinstance(name, str) or not name or len(name) > 128:
+            raise CorpusError(
+                "split names must be non-empty strings of at most 128 characters"
+            )
+        members = tuple(dict.fromkeys(_check_id(item) for item in entry_ids))
+        missing = sorted(set(members) - set(self.ids()))
+        if missing:
+            raise CorpusError(f"split {name!r} names missing entries: {missing}")
+        manifest = _load_object(self._location / "corpus.json", "corpus manifest")
+        splits = manifest.setdefault("splits", {})
+        if not isinstance(splits, dict):
+            raise CorpusError("corpus splits must be a JSON object")
+        splits[name] = list(members)
+        self._write_manifest(manifest)
+        return members
+
+    def split(self, name: str) -> tuple[str, ...]:
+        """Read a named split, refusing stale membership."""
+        manifest = _load_object(self._location / "corpus.json", "corpus manifest")
+        splits = manifest.get("splits", {})
+        if not isinstance(splits, dict) or name not in splits:
+            raise KeyError(name)
+        raw = splits[name]
+        if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+            raise CorpusError(f"split {name!r} must contain entry ids")
+        members = tuple(_check_id(item) for item in raw)
+        missing = sorted(set(members) - set(self.ids()))
+        if missing:
+            raise CorpusError(f"split {name!r} names missing entries: {missing}")
+        return members
+
+    def fingerprint(self) -> str:
+        """Content identity of the manifest and canonical entry documents."""
+        from ._tiergraph_json import identity_fingerprint
+
+        manifest = _load_object(self._location / "corpus.json", "corpus manifest")
+        entries = [
+            _load_object(self._entry_path(entry_id), "entry") for entry_id in self.ids()
+        ]
+        return identity_fingerprint({"manifest": manifest, "entries": entries})
+
+    def _write_manifest(self, manifest: Mapping[str, Any]) -> None:
+        descriptor, temporary = tempfile.mkstemp(dir=self._location, prefix=".corpus-")
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(_json_bytes(manifest))
+            os.replace(temporary, self._location / "corpus.json")
+        except BaseException:
+            Path(temporary).unlink(missing_ok=True)
+            raise
 
     def ids(self) -> Iterator[str]:
         """Yield IDs in lexical order without opening any entry document."""
@@ -186,6 +270,7 @@ class Corpus:
             "id": entry_id,
             "meta": dict(meta),
             "forms": encoded_forms,
+            "provenance": {},
         }
         data = _entry_bytes(document)
         path = self._entry_path(entry_id)
@@ -205,7 +290,13 @@ class Corpus:
         """Restore one entry and all its named forms."""
         return self.read_roles(entry_id)
 
-    def put_form(self, entry_id: str, role: str, form: Form) -> Entry:
+    def put_form(
+        self,
+        entry_id: str,
+        role: str,
+        form: Form,
+        provenance: FormProvenance | None = None,
+    ) -> Entry:
         """Atomically add or replace one form role on an existing entry."""
         _check_id(entry_id)
         if not isinstance(role, str) or not role:
@@ -222,6 +313,21 @@ class Corpus:
         raw_forms = document["forms"]
         assert isinstance(raw_forms, dict)
         raw_forms[role] = form.to_dict(self_contained=True)
+        raw_provenance = document.setdefault("provenance", {})
+        if not isinstance(raw_provenance, dict):
+            raise CorpusError(f"entry {entry_id!r} provenance must be a JSON object")
+        if provenance is None:
+            raw_provenance.pop(role, None)
+        else:
+            if not isinstance(provenance, FormProvenance):
+                raise CorpusError("form provenance must be a FormProvenance")
+            raw_provenance[role] = {
+                "producer": {
+                    "name": provenance.producer.name,
+                    "version": provenance.producer.version,
+                },
+                "declaration_fingerprint": provenance.declaration_fingerprint,
+            }
         data = _entry_bytes(document)
         descriptor, temporary = tempfile.mkstemp(dir=self._entries, prefix=".entry-")
         try:
@@ -231,7 +337,14 @@ class Corpus:
         except BaseException:
             Path(temporary).unlink(missing_ok=True)
             raise
-        return Entry(entry_id, current.meta, {**current.forms, role: form})
+        next_provenance = dict(current.provenance)
+        if provenance is None:
+            next_provenance.pop(role, None)
+        else:
+            next_provenance[role] = provenance
+        return Entry(
+            entry_id, current.meta, {**current.forms, role: form}, next_provenance
+        )
 
     def read_roles(self, entry_id: str, roles: Iterable[str] | None = None) -> Entry:
         """Restore one entry, optionally restoring only selected form roles.
@@ -262,12 +375,16 @@ class Corpus:
         _check_id(stored_id)
         metadata = raw.get("meta")
         raw_forms = raw.get("forms")
+        raw_provenance = raw.get("provenance", {})
         if not isinstance(metadata, dict):
             raise CorpusError(f"entry {entry_id!r} metadata must be a JSON object")
         if not isinstance(raw_forms, dict):
             raise CorpusError(f"entry {entry_id!r} forms must be a JSON object")
+        if not isinstance(raw_provenance, dict):
+            raise CorpusError(f"entry {entry_id!r} provenance must be a JSON object")
         selected = None if roles is None else frozenset(roles)
         restored: dict[str, Form] = {}
+        provenance: dict[str, FormProvenance] = {}
         for role, representation in raw_forms.items():
             if not isinstance(role, str) or not role:
                 raise CorpusError(
@@ -285,7 +402,19 @@ class Corpus:
                 raise CorpusError(
                     f"entry {entry_id!r} form {role!r} cannot be restored: {exc}"
                 ) from exc
-        return Entry(entry_id, metadata, restored)
+            record = raw_provenance.get(role)
+            if record is not None:
+                try:
+                    producer = record["producer"]
+                    provenance[role] = FormProvenance(
+                        Producer(producer["name"], producer["version"]),
+                        record["declaration_fingerprint"],
+                    )
+                except (KeyError, TypeError) as exc:
+                    raise CorpusError(
+                        f"entry {entry_id!r} form {role!r} has malformed provenance"
+                    ) from exc
+        return Entry(entry_id, metadata, restored, provenance)
 
     def remove(self, entry_id: str) -> None:
         """Remove an entry and its conventional asset in every kind directory."""
@@ -322,7 +451,9 @@ class Corpus:
         return self._location / kind / f"{entry_id}.{extension}"
 
 
-def create(location: str | os.PathLike[str]) -> Corpus:
+def create(
+    location: str | os.PathLike[str], *, declaration_identity: object | None = None
+) -> Corpus:
     """Create a directory corpus in an absent or empty location."""
     root = Path(location)
     if root.exists():
@@ -338,6 +469,10 @@ def create(location: str | os.PathLike[str]) -> Corpus:
         root.mkdir(parents=True)
     (root / "entries").mkdir()
     manifest = {"type": _CORPUS_TYPE, "v": CORPUS_VERSION}
+    if declaration_identity is not None:
+        from ._tiergraph_json import identity_fingerprint
+
+        manifest["declaration_fingerprint"] = identity_fingerprint(declaration_identity)
     (root / "corpus.json").write_bytes(_json_bytes(manifest))
     return Corpus(root)
 
@@ -505,6 +640,8 @@ __all__ = [
     "CorpusError",
     "Entry",
     "Finding",
+    "FormProvenance",
+    "Producer",
     "ValidationReport",
     "create",
     "open",

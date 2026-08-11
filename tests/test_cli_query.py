@@ -1,10 +1,12 @@
 """Binary-level gates for the form and directory-corpus CLI doors."""
 
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+import ipakit
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -184,3 +186,37 @@ def test_ingest_cmudict_reports_refusal_and_default_cited_query(tmp_path: Path):
     )
     assert derived.returncode == 0
     assert derived.stdout.endswith("\n")
+
+
+def test_rules_derives_writes_full_report_and_prints_summary(tmp_path: Path):
+    location = tmp_path / "speech"
+    report = tmp_path / "report.json"
+    assert invoke("corpus", "init", location).returncode == 0
+    assert (
+        invoke("corpus", "add", "one", "anp", "-r", "broad", "-C", location).returncode
+        == 0
+    )
+    assert (
+        invoke("corpus", "add", "two", "amp", "-r", "narrow", "-C", location).returncode
+        == 0
+    )
+    # Add replaces neither entry nor role, so make the pair through the API.
+    stored = ipakit.corpus.open(location)
+    stored.put_form("one", "narrow", ipakit.read("amp"))
+    result = invoke(
+        "rules",
+        "derives",
+        "-r",
+        "n -> m / _ [place=bilabial]",
+        "--corpus",
+        location,
+        "--source",
+        "broad",
+        "--target",
+        "narrow",
+        "--report",
+        report,
+    )
+    assert result.returncode == 0
+    assert result.stdout.startswith("coverage\t1/2\tderivable=1")
+    assert json.loads(report.read_text())["type"] == "ipakit.experiment.report"

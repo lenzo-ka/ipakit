@@ -62,6 +62,10 @@ from .distance import (
     WordDistanceResult,
 )
 from .distance_model import DistanceModel
+from .experiment import Experiment as Experiment
+from .experiment import ExperimentReport as ExperimentReport
+from .experiment import Movement as Movement
+from .experiment import Residue as Residue
 from .features import IPAFeatures, _Query, available_supplements, supplement_path
 from .form import (
     Attribute,
@@ -1330,6 +1334,10 @@ __all__ = [
     "Unit",
     "Corpus",
     "CorpusMatch",
+    "Experiment",
+    "ExperimentReport",
+    "Movement",
+    "Residue",
     "Match",
     "available",
     "rebase",
