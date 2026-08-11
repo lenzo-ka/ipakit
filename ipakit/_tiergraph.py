@@ -274,6 +274,17 @@ class Graph:
             return f"/clock/{resolved.tick}"
         return pointer
 
+    def at(self, pointer: str) -> ClockNode | Event:
+        """Dereference a canonical clock or event path."""
+        try:
+            resolved = self.resolve(pointer)
+        except GraphValidationError as exc:
+            raise GraphValidationError(f"{pointer!r}: {exc}") from exc
+        if resolved.kind is EndpointKind.EVENT:
+            assert resolved.event is not None
+            return resolved.event
+        return self.clock[resolved.tick]
+
     def position(self, pointer: str, *, span_endpoint: bool = False) -> Position:
         resolved = self.resolve(pointer)
         if resolved.kind is EndpointKind.EVENT:
