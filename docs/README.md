@@ -44,7 +44,8 @@ using it.
 | [tone.md](tone.md) | **Pitch.** A contour is a *sequence of tone levels* rather than a value, so the diacritic and tone-letter spellings of one contour read as one thing; what a bare caron does not say; and where the IPA chart's tone-letter equivalents disagree with its own level column. |
 | [rules.md](rules.md) | **The rewrite notation.** `A -> B / C _ D` in full: feature queries, boundaries and tiers, insertion and deletion, the trace, and the known limits — which are a queue, not a disclaimer. |
 | [calculus.md](calculus.md) | **Form to *set* of forms.** What the optional arrow `A ~> B` opens: optionality per site, the closure and the identity, whether composition is associative and where the cap stops it, whether the set is finite, and how a truncation is reported. What the algebra cannot express is said near the top rather than in a footnote. |
-| [distance.md](distance.md) | **What the metric claims.** How the distance is computed, its two real limits, and — stated plainly — that it does **not** satisfy the triangle inequality, with the uses that rules out. |
+| [similarity.md](similarity.md) | **Why similarity has this shape.** The standing justification for the scoring commitments, their structural and external validation, and their stated costs beside neighboring approaches. |
+| [distance.md](distance.md) | **How distance is computed.** The operational mechanics, parameters, checked values, and — stated plainly — the failure of triangle inequality, with the uses that rules out. |
 | [supplements.md](supplements.md) | **Extending the inventory.** Registering a sound `ipa.xml` does not: what that buys that composition already gives you and what it does not, what a supplemental file may declare, how it merges, what it does to `to_phone`'s choice of winner and to the reference distribution, and how to carry your own derived matrix. |
 
 ## Reference — the articulatory model

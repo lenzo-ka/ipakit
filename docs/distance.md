@@ -1,6 +1,6 @@
 # Phonetic distance in ipakit
 
-How `distance`, `segment_distance`, `word_distance`, and the shipped confusion matrix compute their numbers: the representation they read, the comparison they perform, and what the results do and do not mean.
+How `distance`, `segment_distance`, `word_distance`, and the shipped confusion matrix compute their numbers: the representation they read, the comparison they perform, and what the results do and do not mean. [similarity.md](similarity.md) is the standing justification for these commitments and the record of what does and does not validate them.
 
 ## Quick reference
 
