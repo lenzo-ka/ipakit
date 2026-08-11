@@ -47,11 +47,11 @@
 
   <!-- Char classes define XML sections (plural) and child elements (singular = remove 's') -->
   <classes>
-    <class name="phones"/>
-    <class name="diacritics"/>
-    <class name="suprasegmentals"/>
-    <class name="separators"/>
-    <class name="zeros"/>
+    <class name="phones" desc="segments declared as inventory atoms" href="International_Phonetic_Alphabet"/>
+    <class name="diacritics" desc="marks that contribute to a host unit" href="Diacritic"/>
+    <class name="suprasegmentals" desc="prosodic and structural marks" href="Suprasegmental"/>
+    <class name="separators" desc="written boundaries that carry no segment" href="Boundary_(linguistics)"/>
+    <class name="zeros" desc="positions that carry no segment" href="Zero_(linguistics)"/>
   </classes>
 
   <!-- A diacritic's contribution mode is read off the features it declares
@@ -814,8 +814,8 @@
     <suprasegmental name="̄" tone="mid" href="Tone_(linguistics)"/>
     <suprasegmental name="̀" tone="low" href="Tone_(linguistics)"/>
     <suprasegmental name="̂" contour="falling" href="Contour_tone"/>
-    <suprasegmental name="͡" tie="simultaneous" href="Tie_(typography)"/>  <!-- over-tie: fuses constituents into one timing slot -->
-    <suprasegmental name="͜" tie="sequential" href="Tie_(typography)"/>  <!-- under-tie: binds a sequence into one unit -->
+    <suprasegmental name="͡" tie="simultaneous" desc="fuses constituents into one timing slot" href="Tie_(typography)"/>
+    <suprasegmental name="͜" tie="sequential" desc="binds a sequence into one unit" href="Tie_(typography)"/>
     <!-- The eight IPA tone diacritics. The caron and the circumflex state a
          DIRECTION and no levels: 'ǎ' is a rise, but nothing says between
          which levels, so nothing here invents a sequence for it and its
@@ -851,7 +851,7 @@
          it, together with the syllable dot, so a word-final rule written
          with '%' also fired at an interior dot and the optional dot changed
          which rules fired. -->
-    <suprasegmental name="‿" linking="+" level="word" href="Tie_(typography)"/>
+    <suprasegmental name="‿" linking="+" level="word" desc="absence of a pause, not absence of a boundary" href="Tie_(typography)"/>
     <suprasegmental name="↗" global="rise" href="Intonation_(linguistics)"/>
     <suprasegmental name="↘" global="fall" href="Intonation_(linguistics)"/>
     <suprasegmental name="ꜛ" step="up" href="Upstep"/>
@@ -871,16 +871,16 @@
          phrase break weaker than a space, which is the opposite of how it
          is read. If foot structure is ever wanted it is a separate value
          below 'syllable', not a re-reading of these two. -->
-    <suprasegmental name="|" break="minor" level="phrase" href="Prosodic_unit"/>
-    <suprasegmental name="‖" break="major" level="utterance" href="Prosodic_unit"/>
+    <suprasegmental name="|" break="minor" level="phrase" desc="a minor prosodic break" href="Prosodic_unit"/>
+    <suprasegmental name="‖" break="major" level="utterance" desc="a major prosodic break" href="Prosodic_unit"/>
   </suprasegmentals>
 
   <separators>
-    <separator name="." level="syllable" href="Syllable"/>
+    <separator name="." level="syllable" desc="a syllable boundary" href="Syllable"/>
     <!-- Not on the chart (see <notations>): the IPA marks groups with '|'
          and '‖' and has no word mark. '#' is the generative-phonology
          boundary, kept because a rule has to name a word edge. -->
-    <separator name="#" level="word" href="Word"/>
+    <separator name="#" level="word" desc="a word boundary in rule notation" href="Word"/>
   </separators>
 
   <!-- A structural zero: a position a transcription keeps open with no
@@ -919,7 +919,7 @@
        Borrowed from set theory, and so listed in <notations> as an
        extension along with '␣' and '#'. -->
   <zeros>
-    <zero name="∅" href="Zero_(linguistics)"/>
+    <zero name="∅" desc="a position with no segment" href="Zero_(linguistics)"/>
   </zeros>
 
   <!-- General references for the IPA system -->

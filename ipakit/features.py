@@ -686,7 +686,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         features = {
             k: self._value_aliases.get(k, {}).get(v, v)
             for k, v in elem.attrib.items()
-            if k not in ("name", "alias")
+            if k not in ("name", "alias", "desc")
         }
         features["class"] = element_type
         phone = Phone(symbol=symbol, features=MappingProxyType(features))
