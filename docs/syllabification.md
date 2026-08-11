@@ -67,7 +67,45 @@ es("stan").spelled(), es("stan").unsyllabified  # (("tan",), ((0, 1),))
 
 The checked demonstration has 5 forms, 12 syllables, and 1 conflict; the conflicting `at.ɾa` is honored while the report records Spanish's freely derived `a.tɾa`.
 
-## 6. Disagreement is the evidence
+## 6. English: the curation loop is the declaration
+
+English uses the same constraints mechanism, but its clusters come from data rather than a universal onset table.
+
+`scripts/syllable_curation.py` reads a corpus produced by `ingest_cmudict`, harvests every word-initial consonant sequence with its frequency and exemplars, derives the sonority model from the declared `manner` constriction coordinates and `obstruent` class, and writes both `english.xml` and the dated report in `docs/data/`; both outputs say not to edit them by hand.
+
+The full 2026-08-11 run used CMUdict commit `74790861f652b15e4ac49015a90074ad62a27690`, accepted 135,166 forms with no ingest refusals, and produced this attestation grid:
+
+| Constraint classification | Attested | Unattested declared gap |
+|---|---:|---:|
+| legal | 89 | 1 singleton constraint |
+| illegal, requiring curation | 61 | — |
+
+The queue resolved to 18 native exceptions, 1 borrowing, 39 marginal entries, and 3 explicit transcription-noise refusals.
+
+The four recorded iterations are the constraint baseline, native exceptions, borrowings, and marginal evidence; their inventory deltas and changed-form counts are recorded in the generated report rather than summarized from memory.
+
+Strictness names admitted labeled strata: `strict` admits `native`, `permissive` admits `native+borrowing+marginal`, and the default admits all three; an unlabeled onset is core and is admitted at every strictness, so the three declarations from phase 1 behave exactly as before.
+
+`/ʃm/` is the canonical exhibit: CMUdict supplies 66 word-initial tokens, led by *schmader*, and curation retains the productive Yiddish/German pattern as a borrowing.
+
+```python
+strict = ipakit.syllabifier("english", strictness="strict")
+permissive = ipakit.syllabifier("english", strictness="permissive")
+strict("ʃmˈɑlts").spelled(), strict("ʃmˈɑlts").unsyllabified
+# (("mˈɑlts",), ((0, 1),))
+permissive("ʃmˈɑlts").spelled(), permissive("ʃmˈɑlts").unsyllabified
+# (("ʃmˈɑlts",), ())
+strict("ŋtˈɑ").spelled(), strict("ŋtˈɑ").unsyllabified
+# (("tˈɑ",), ((0, 1),))
+```
+
+The stressed `/ɑ/` is a nucleus in both demonstrations, and the final control shows the same no-absorption property as the other languages: the unlicensed initial `/ŋ/` is reported rather than folded into the following syllable.
+
+The ipa-dict en_US cross-check used commit `43c3570eb3553bdd19fccd2bd0091534889af023`: all 125,927 entries were shared, with 2,379 agreements and 123,548 disagreements.
+
+The disagreement count is intentionally visible: ipa-dict frequently writes stress before an onset and uses untied vowel sequences, while the house reading attaches stress to the following unit and CMUdict conversion binds ARPABET diphthongs, so this comparison measures transcription conventions as well as onset decisions.
+
+## 7. Disagreement is the evidence
 
 One IPA string produces three honest answers:
 
@@ -79,7 +117,7 @@ One IPA string produces three honest answers:
 
 The difference is the point: the moraic declaration reports residue, the enumeration refuses the form wholesale, and the constraints declaration syllabifies exactly what its derived margins license, reporting edge residue such as the `s` of `stan`. Three analyses produce three different honest behaviors without hiding any of them in Python.
 
-## 7. Metric firewall
+## 8. Metric firewall
 
 The 139-phone upper triangle contains 9,591 pairs; this lane moved 0, the stored fingerprint still equals the derived fingerprint, and `confusion.json` remains byte-unchanged at SHA-256 `f490f57876f92f9275eb9916c7ac199fad230e3463d665135059b93b53e9ef61`.
 
@@ -87,6 +125,6 @@ The live control changed the declared plosive offset from `1.00` to `0.99` in a 
 
 Sonority never entered these three derivations or the metric.
 
-## 8. Limits
+## 9. Limits
 
-English, lexicon harvesting, curation deltas, strata, and their inspection loop are phase 2 and are not present here.
+The English declaration is a claim about the pinned CMUdict version, not a universal English inventory; rerunning the generator on another lexicon version is expected to reopen its curation queue.
