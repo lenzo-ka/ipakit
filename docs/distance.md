@@ -121,7 +121,7 @@ The budget names each kind of material and derives its price from declarations a
 | juncture | one binding-sense term | categorical | agreement `0`, disagreement or unaligned `1` |
 | prosodic rider | one declared `value_distance` term per tier | graded | one term on the unit clock |
 
-The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md).
+The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md). [design/mass-budget.md](design/mass-budget.md) is the dated record of the divergence, its measured geometry, and the repair.
 
 One budget question remains explicitly deferred. A fusion has no arity floor, so adding the whole second articulator in `ɡ͡b` (`0.034`) is cheaper than adding aspiration to `t` (`0.048`). A floor may be defensible, but it must be measured separately; changing fusion arity in this repair would make neither mover class independently explainable. The test suite pins the live inversion so this limit stays visible.
 
