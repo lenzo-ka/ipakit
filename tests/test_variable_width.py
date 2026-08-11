@@ -41,6 +41,20 @@ class TestOptionalElements:
         with pytest.raises(rules.RuleError, match="target.*optional"):
             rules.parse(f"{target} -> d", FEATURES)
 
+    @pytest.mark.parametrize("target", ["(t)*", "([vowel])*", "(*)*"])
+    def test_repeated_target_is_refused(self, target: str):
+        with pytest.raises(rules.RuleError, match="target.*repeated"):
+            rules.parse(f"{target} -> d", FEATURES)
+
+    @pytest.mark.parametrize("target", ["(t)", "(t)*"])
+    def test_variable_width_query_target_is_refused_at_its_position(self, target: str):
+        with pytest.raises(corpus_query.QueryParseError) as caught:
+            corpus_query.parse_query(f"{target} / a _", FEATURES)
+        assert caught.value.position == 0
+        assert f"target {'optional' if target == '(t)' else 'repeated'}" in str(
+            caught.value
+        )
+
     def test_nested_optionality_is_refused_by_name(self):
         with pytest.raises(rules.RuleError, match="Nested optionality is refused"):
             rules.parse("t -> d / _ ((a))", FEATURES)
@@ -80,6 +94,16 @@ class TestBoundedSpans:
     def test_nested_variable_width_is_refused(self):
         with pytest.raises(rules.RuleError, match="Nested optionality is refused"):
             rules.parse("t -> d / _ ((a)*)", FEATURES)
+
+    def test_identical_match_records_from_span_widths_are_deduplicated(self):
+        assert len(list(corpus_query.find("stra", "a / ([-vowel])* _"))) == 1
+
+    def test_span_widths_with_distinct_bindings_remain_distinct(self):
+        matches = list(corpus_query.find("ppa", "a / ([place=α])* _"))
+        assert [match.bindings for match in matches] == [
+            (),
+            (("α", "bilabial"),),
+        ]
 
 
 @pytest.mark.parametrize("null", ["∅", "[zero]", "0", "Ø"])
