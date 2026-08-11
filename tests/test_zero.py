@@ -95,9 +95,9 @@ class TestAnUnroutedClassIsRefused:
 
     def _with_class(self, tmp_path: Path, block: str) -> Path:
         text = DEFAULT_IPA_FEATS.read_text(encoding="utf-8")
-        anchor = '<class name="zeros"/>'
+        anchor = "</classes>"
         assert text.count(anchor) == 1, "the class list moved; fix this test"
-        text = text.replace(anchor, anchor + '<class name="widgets"/>')
+        text = text.replace(anchor, '<class name="widgets"/>' + anchor, 1)
         text = text.replace("<zeros>", block + "<zeros>", 1)
         path = tmp_path / "ipa.xml"
         path.write_text(text, encoding="utf-8")

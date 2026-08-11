@@ -113,6 +113,8 @@
       <oneOrMore>
         <element name="class">
           <attribute name="name"><text/></attribute>
+          <optional><attribute name="desc"><text/></attribute></optional>
+          <optional><attribute name="href"><text/></attribute></optional>
         </element>
       </oneOrMore>
     </element>
@@ -330,6 +332,7 @@
          silent about the inventory. -->
     <attribute name="name"><text/></attribute>
     <optional><attribute name="alias"><text/></attribute></optional>
+    <optional><attribute name="desc"><text/></attribute></optional>
     <optional><attribute name="href"><text/></attribute></optional>
     <zeroOrMore>
       <attribute>
@@ -337,6 +340,7 @@
           <except>
             <name>name</name>
             <name>alias</name>
+            <name>desc</name>
             <name>href</name>
           </except>
         </anyName>
