@@ -76,6 +76,8 @@ from typing import Any, NamedTuple
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "docs" / "tutorial.src.md"
 TARGET = ROOT / "docs" / "tutorial.md"
+BASICS_SOURCE = ROOT / "docs" / "tutorial-basics.src.md"
+BASICS_TARGET = ROOT / "docs" / "tutorial-basics.md"
 #: The notebook ships inside the package, not under ``docs/``: it is the
 #: rendering a student is meant to leave with, and only what the wheel
 #: carries reaches somebody who has no checkout.
@@ -93,7 +95,7 @@ WIDTH = 78
 #: Placed under the first heading of each rendering, naming the ``make``
 #: target that rewrites it.
 BANNER = (
-    "<!-- Generated from tutorial.src.md by scripts/tutorial.py. "
+    "<!-- Generated from {source} by scripts/tutorial.py. "
     "Do not edit: run `make {target}`. -->"
 )
 
@@ -322,12 +324,12 @@ def strip_front_matter(source: str) -> str:
     return source[end:].lstrip("\n")
 
 
-def generate() -> str:
+def generate(source: Path = SOURCE, target: str = "tutorial") -> str:
     """The page: every runnable block executed, its output embedded."""
     env: dict = {}
     out: list[str] = []
     inserted_banner = False
-    for block in parse(SOURCE.read_text(encoding="utf-8")):
+    for block in parse(source.read_text(encoding="utf-8")):
         if block.kind == "console-run":
             out.extend(render_console(block.lines))
         elif block.kind == "python-run":
@@ -337,7 +339,7 @@ def generate() -> str:
                 out.append(line)
                 if not inserted_banner and line.startswith("# "):
                     out.append("")
-                    out.append(BANNER.format(target="tutorial"))
+                    out.append(BANNER.format(source=source.name, target=target))
                     inserted_banner = True
     text = "\n".join(out)
     return text.rstrip("\n") + "\n"
@@ -440,7 +442,7 @@ def notebook() -> str:
                 if line.startswith("# "):
                     lines[position + 1 : position + 1] = [
                         "",
-                        BANNER.format(target="notebook"),
+                        BANNER.format(source=SOURCE.name, target="notebook"),
                     ]
                     inserted_banner = True
                     break
@@ -464,7 +466,12 @@ def notebook() -> str:
 #: What each rendering is called, where it goes, what writes it, and the
 #: ``make`` target that rewrites it when it goes stale.
 ARTIFACTS: dict[str, tuple[Path, Callable[[], str], str]] = {
-    "markdown": (TARGET, generate, "tutorial"),
+    "markdown": (TARGET, lambda: generate(SOURCE, "tutorial"), "tutorial"),
+    "basics": (
+        BASICS_TARGET,
+        lambda: generate(BASICS_SOURCE, "tutorial-basics"),
+        "tutorial-basics",
+    ),
     "notebook": (NOTEBOOK, notebook, "notebook"),
 }
 
@@ -479,6 +486,7 @@ def build(name: str) -> int:
 
 def check(name: str) -> int:
     path, render, target = ARTIFACTS[name]
+    source = BASICS_SOURCE if name == "basics" else SOURCE
     where = path.relative_to(ROOT).as_posix()
     fresh = render()
     if not path.exists():
@@ -498,7 +506,7 @@ def check(name: str) -> int:
     print("\n".join(diff), file=sys.stderr)
     print(
         f"\ntutorial: the regenerated {where} differs from the one checked in.\n"
-        "Either the library changed what it prints, or docs/tutorial.src.md is\n"
+        f"Either the library changed what it prints, or {source.relative_to(ROOT)} is\n"
         "stale. Read the diff and decide which -- a changed value here is a\n"
         f"behavior change, not a formatting nit -- then run `make {target}`.",
         file=sys.stderr,
@@ -518,8 +526,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not SOURCE.exists():
-        print(f"tutorial: no source at {SOURCE}", file=sys.stderr)
+    missing = [source for source in (SOURCE, BASICS_SOURCE) if not source.exists()]
+    if missing:
+        print(f"tutorial: no source at {missing[0]}", file=sys.stderr)
         return 1
 
     names = list(ARTIFACTS) if args.target == "all" else [args.target]
