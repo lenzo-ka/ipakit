@@ -1352,6 +1352,11 @@ LIBRARY_ONLY = {
     # of the shipped supplements have anything to say there.
     "available_supplements": "the CLI reads the shipped inventory only",
     "supplement_path": "the CLI reads the shipped inventory only",
+    # Reference URLs are for programs and documents; 'describe' already
+    # prints the human-facing account of a phone.
+    "wiki": "returns a URL for programs; 'describe' speaks to people",
+    "wiki_ref": "returns a URL or None over reference names",
+    "wiki_refs": "returns the whole name-to-URL mapping",
     # Reads with no command yet. Not defended -- recorded, so the absence
     # is a known gap rather than an unnoticed one.
     "find": "no command runs a feature query over a transcription",
