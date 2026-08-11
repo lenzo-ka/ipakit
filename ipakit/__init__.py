@@ -47,6 +47,14 @@ from .constants import (
     SUPPLEMENTS_DIR,
 )
 from .corpus import Corpus, CorpusMatch, Match, parse_query
+from .disagreement import (
+    AgreementPosition,
+    DisagreementKind,
+    DisagreementPosition,
+    DisagreementSpread,
+    FormComparison,
+    ProvenancedForm,
+)
 from .distance import (
     Alignment as Alignment,
 )
@@ -1253,6 +1261,12 @@ __all__ = [
     "Language",
     "Syllabification",
     "Syllabifier",
+    "AgreementPosition",
+    "DisagreementKind",
+    "DisagreementPosition",
+    "DisagreementSpread",
+    "FormComparison",
+    "ProvenancedForm",
     # Constants
     "DATA_DIR",
     "DEFAULT_CMU_MAP",
