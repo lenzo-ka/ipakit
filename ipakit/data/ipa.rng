@@ -200,9 +200,10 @@
               <optional><attribute name="articulator"><text/></attribute></optional>
               <optional><attribute name="natural-class"><text/></attribute></optional>
               <optional><attribute name="aperture"><text/></attribute></optional>
-              <!-- View-neutral lip controls. Width is the transverse
-                   aperture and protrusion the forward displacement. -->
-              <optional><attribute name="lip-width"><ref name="normalized"/></attribute></optional>
+              <!-- View-neutral lip controls. Width is a positive scale of
+                   the neutral transverse aperture, so spreading may exceed
+                   1; protrusion is a normalized forward displacement. -->
+              <optional><attribute name="lip-width"><ref name="positive"/></attribute></optional>
               <optional><attribute name="lip-protrusion"><ref name="normalized"/></attribute></optional>
               <optional><attribute name="move"><text/></attribute></optional>
             </element>
@@ -359,6 +360,12 @@
     <data type="decimal">
       <param name="minInclusive">0</param>
       <param name="maxInclusive">1</param>
+    </data>
+  </define>
+
+  <define name="positive">
+    <data type="decimal">
+      <param name="minExclusive">0</param>
     </data>
   </define>
 

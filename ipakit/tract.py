@@ -235,6 +235,7 @@ class Head:
     teeth: tuple[tuple[str, float, float, str], ...] = ()
     carriage: tuple[tuple[float, float], ...] = ()
     tongue_span: tuple[float, float, float, float] | None = None
+    tongue_tip_arc: float = 0.13
     # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
     # the renderer only poses, projects and strokes it.
     frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
@@ -815,6 +816,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             )
         tongue_elem = elem.find("tongue")
         tongue_span: tuple[float, float, float, float] | None = None
+        tongue_tip_arc = 0.13
         if tongue_elem is not None:
             tongue_span = (
                 float(tongue_elem.get("from", 0.0)),
@@ -822,6 +824,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 float(tongue_elem.get("falloff", 0.3)),
                 float(tongue_elem.get("taper", 0.0)),
             )
+            tongue_tip_arc = float(tongue_elem.get("tip", 0.13))
         frontal_elem = elem.find("frontal")
         frontal: tuple[
             tuple[str, str, float, tuple[tuple[float, float], ...]], ...
@@ -863,6 +866,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             teeth=teeth,
             carriage=carriage,
             tongue_span=tongue_span,
+            tongue_tip_arc=tongue_tip_arc,
             frontal=frontal,
         )
     return heads, default
@@ -933,18 +937,37 @@ class Posture:
     unmodelled: tuple[Mark, ...]
     aperture_width: float = 1.0
     protrusion: float = 0.0
+    implied: tuple[TractPoint, ...] = ()
+    rest_weight: float = 0.0
 
 
 def _lip_posture(features: IPAFeatures, bundle: dict[str, str]) -> tuple[float, float]:
-    """Read the declared transverse width and protrusion controls."""
-    feature = features.features.get("rounded")
-    value = bundle.get("rounded")
-    dofs = (
-        feature.lip_dofs.get(value, {})
-        if feature is not None and value is not None
-        else {}
-    )
-    return dofs.get("width", 1.0), dofs.get("protrusion", 0.0)
+    """Read and compose declared transverse width and protrusion controls."""
+    width, protrusion = 1.0, 0.0
+    for name, feature in features.features.items():
+        value = bundle.get(name)
+        dofs = feature.lip_dofs.get(value, {}) if value is not None else {}
+        width *= dofs.get("width", 1.0)
+        protrusion += dofs.get("protrusion", 0.0)
+    return width, min(1.0, protrusion)
+
+
+def _implied_positions(
+    features: IPAFeatures, h: Head, controls: tuple[TractPoint, ...]
+) -> tuple[TractPoint, ...]:
+    """Where one tongue posture carries every declared tongue articulator."""
+    tongue = tuple(q for q in controls if (q.articulator or "").startswith("tongue-"))
+    if not tongue:
+        return ()
+    out = []
+    for name, arc in landmarks(features).articulators.items():
+        if not name.startswith("tongue-"):
+            continue
+        values = [h.tongue_offset(arc, q) for q in tongue]
+        placed = [value for value in values if value is not None]
+        if placed:
+            out.append(TractPoint(arc, max(placed), name))
+    return tuple(out)
 
 
 def landmarks(features: IPAFeatures) -> Landmarks:
@@ -1257,7 +1280,11 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
         if (
             (name, value) in ported
             or feat.mode == "structural"
-            or value in feat.lip_dofs
+            # A pure lip feature is carried by the lip geometry. A feature
+            # that also owns a tract coordinate is only partly carried: if
+            # this reading dropped that coordinate, it still needs an
+            # annotation saying so (height="open" is also a width control).
+            or (value in feat.lip_dofs and not feat.coordinates)
         ):
             continue
         if name in approximated:
@@ -1551,16 +1578,18 @@ def posture(
     bundle = features.get_features(phone)
     stated = features.get_features(phone, with_defaults=False)
     aperture_width, protrusion = _lip_posture(features, bundle)
+    controls = constrictions(features, bundle)
     return Posture(
         reading=tract_point(features, bundle),
         rest=h.rest.point if h.rest is not None else None,
-        constrictions=constrictions(features, bundle),
+        constrictions=controls,
         velic=velic_aperture(features, bundle),
         glottal=glottal_aperture(features, bundle),
         secondary=secondary_marks(features, bundle),
         unmodelled=unmodelled(features, stated),
         aperture_width=aperture_width,
         protrusion=protrusion,
+        implied=_implied_positions(features, h, controls),
     )
 
 
@@ -1604,10 +1633,13 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     to within that leak.
 
     Every articulator any unit constricts is collected. A unit closes the
-    articulators it names (its ``constrictions``) and leaves the rest at the
-    head's resting offset -- the tongue at the floor, not constricting. Each
-    articulator's degree at ``t`` is the dominance-weighted mean of those
-    per-unit targets, taken at the articulator's OWN arc (itself the
+    articulators it names (its ``constrictions``); for one it does not name,
+    it votes for the position its own whole-body posture implies there. Thus
+    /k/ releases its dorsum toward the dorsum position carried by /a/, not
+    toward global rest in the middle of a word. Global rest is a target only
+    for explicit padded rest postures at the word edges. Each articulator's
+    degree at ``t`` is the dominance-weighted mean of those per-unit targets,
+    taken at the articulator's OWN arc (itself the
     dominance-weighted mean of the arcs the constricting units place it at, so
     a place shared by two units settles between them and never leaves the
     articulator). An articulator whose blended degree remains imperceptibly
@@ -1679,34 +1711,22 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
                 if name in closed
             ]
         )
-        # Degree is dominance *activation* away from rest, not a mean that counts
-        # every non-constricting unit as a vote for rest. Each constricting
-        # unit lifts the degree toward its own target by its dominance weight,
-        # so at a unit's own moment (weight 1) its closure is reached in full --
-        # a stop reads as closed, not as a near-closure ring -- while away from
-        # it the lift decays and the articulator relaxes to rest. Overlapping
-        # closures on one articulator sum, capped at full closure.
-        # A Gaussian is positive at every finite distance.  Treating that
-        # mathematical tail as an active gesture emitted near-rest controls
-        # from segments several units away.  Besides drawing a flash at a
-        # rest bookend, a ghost tongue-tip changes the surface's anterior
-        # clamp.  Below this activation the gesture is geometrically absent.
-        active = [
-            i
-            for i, closed in enumerate(per_unit)
-            if name in closed and weights[i] >= 1e-6
-        ]
-        lift = sum(
-            weights[i] * ((per_unit[i][name].offset or 0.0) - rest_offset)
-            for i in active
-        )
-        offset = max(0.0, min(1.0, rest_offset + lift))
-        # Below-rest vowel gestures are real too (for example /a/'s lowered
-        # tongue root). Keep either direction, while discarding the tiny
-        # remote tail which has no visible or articulatory meaning.
-        if arc is None or abs(offset - rest_offset) < 0.02:
+        targets = []
+        for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
+            target_point = closed.get(name)
+            if target_point is None:
+                target_point = next(
+                    (p for p in u.implied if p.articulator == name), None
+                )
+            target = rest_offset if target_point is None else target_point.offset
+            if target is not None:
+                targets.append((weights[i], target))
+        offset = weighted(targets)
+        if arc is None or offset is None:
             continue
-        blended.append(TractPoint(arc=arc, offset=offset, articulator=name))
+        blended.append(
+            TractPoint(arc=arc, offset=max(0.0, min(1.0, offset)), articulator=name)
+        )
     blended.sort(key=lambda q: q.arc or 0.0)
 
     reading_arc = weighted(
@@ -1740,6 +1760,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         sum(weights[i] * u.aperture_width for i, u in enumerate(units)) / total
     )
     protrusion = sum(weights[i] * u.protrusion for i, u in enumerate(units)) / total
+    rest_weight = sum(weights[i] * u.rest_weight for i, u in enumerate(units)) / total
     glottal = (
         sum(
             weights[i] * (GLOTTAL_REST if u.glottal is None else u.glottal)
@@ -1758,6 +1779,8 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         unmodelled=dominant.unmodelled,
         aperture_width=aperture_width,
         protrusion=protrusion,
+        implied=dominant.implied,
+        rest_weight=rest_weight,
     )
 
 
@@ -1777,6 +1800,8 @@ def _track_parameters() -> tuple[str, ...]:
         "unmodelled",
         "aperture_width",
         "protrusion",
+        "implied",
+        "rest_weight",
     )
 
 
@@ -1808,6 +1833,8 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "velic": value.velic,
         "aperture_width": value.aperture_width,
         "protrusion": value.protrusion,
+        "implied": [_point_data(point) for point in value.implied],
+        "rest_weight": value.rest_weight,
     }
 
 
@@ -1854,6 +1881,8 @@ def _posture_from_data(value: Any) -> Posture:
         unmodelled=tuple(_mark_from_data(mark) for mark in value["unmodelled"]),
         aperture_width=value["aperture_width"],
         protrusion=value["protrusion"],
+        implied=tuple(_required_point_from_data(p) for p in value.get("implied", [])),
+        rest_weight=value.get("rest_weight", 0.0),
     )
 
 
@@ -1988,14 +2017,24 @@ def trajectory(
     form = ipa.read(form_or_word)
     segment_units = tuple(unit for unit in form.units if unit.segment is not None)
     texts = tuple(unit.segment.to_ipa() for unit in segment_units if unit.segment)
-    word_postures = tuple(posture(ipa, text) for text in texts)
+    word_postures = tuple(posture(ipa, text, head_shape) for text in texts)
     if not word_postures:
         raise ValueError(f"nothing to animate: {form_or_word!r} scored to no units")
 
     rest_point = head_shape.rest.point if head_shape.rest is not None else None
     play_units = word_postures
     if rest_point is not None:
-        rest_pose = Posture(rest_point, rest_point, (), 0.0, GLOTTAL_REST, (), ())
+        declared = head_shape.rest
+        rest_pose = Posture(
+            rest_point,
+            rest_point,
+            (),
+            1.0 if declared is not None and declared.velum == "lowered" else 0.0,
+            GLOTTAL_REST,
+            (),
+            (),
+            rest_weight=1.0,
+        )
         play_units = (rest_pose, *word_postures, rest_pose)
 
     timings = tuple(unit.timing for unit in segment_units)
@@ -2060,7 +2099,14 @@ def trajectory(
             ordinals = tuple(k / frames_per_unit for k in range(steps + 1))
         interval = 0.420 / frames_per_unit
         stamps = tuple(index * interval for index in range(len(ordinals)))
-    frames = tuple(blend(play_units, ordinal) for ordinal in ordinals)
+    frames_list = [blend(play_units, ordinal) for ordinal in ordinals]
+    # Gaussian neighbours intentionally coarticulate unit centers, but the
+    # synthetic word-edge rests are boundary conditions, not speech targets:
+    # the first and last samples are the declared home posture exactly.
+    if not measured and rest_point is not None:
+        frames_list[0] = play_units[0]
+        frames_list[-1] = play_units[-1]
+    frames = tuple(frames_list)
     return Trajectory(
         source=form_or_word if isinstance(form_or_word, str) else form.to_ipa(),
         head_name=head_shape.name,

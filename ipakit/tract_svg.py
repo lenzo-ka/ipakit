@@ -133,7 +133,7 @@ def tongue_surface(
     # constriction leaves the tip at rest in front of it, so it does not bound
     # the body.) Clamped to the sample grid, one step of slack so the tip's own
     # cell is drawn, which keeps every surface arc a row arc.
-    tip = min(
+    active_tip = min(
         (
             c.arc
             for c in controls
@@ -143,7 +143,15 @@ def tongue_surface(
         ),
         default=None,
     )
-    front = tip - 1.0 / SAMPLES if tip is not None else None
+    # The body always ends at the head's declared tip landmark. A tip gesture
+    # may retract that bound, but a dorsal gesture may never extrapolate the
+    # surface forward past it.
+    tip = (
+        max(h.tongue_tip_arc, active_tip)
+        if active_tip is not None
+        else h.tongue_tip_arc
+    )
+    front = tip - 1.0 / SAMPLES
     out: list[tuple[float, float, float]] = []
     for i in range(SAMPLES + 1):
         arc = i / SAMPLES
@@ -152,6 +160,13 @@ def tongue_surface(
         point = h.tongue_point(arc, control, close)
         if point is None:
             continue
+        # The posterior tongue/floor seam is load-bearing anatomy. Controls
+        # may deform the body above it but may not lift this endpoint free of
+        # the jaw-carried floor anchor.
+        if h.tongue_span is not None and math.isclose(arc, h.tongue_span[1]):
+            floor = h.project(TractPoint(arc=arc, offset=0.0))
+            if floor is not None:
+                point = h.carried(floor, arc, close)
         out.append((arc, point[0], point[1]))
     return out
 
@@ -248,10 +263,17 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
     close = 0.0
     if pose is not None:
         close = head.jaw_close(TractPoint(arc=pose[0], offset=pose[1]))
+    if head.rest is not None and head.rest.jaw == "closed":
+        close = max(close, p.rest_weight)
     current = geometry(head.name, close)
     current["landmarks"] = marks
     current["lips_closed_now"] = bool(
-        pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995
+        (pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995)
+        or (
+            head.rest is not None
+            and head.rest.lips == "closed"
+            and p.rest_weight >= 0.995
+        )
     )
     # A reading is present for every phone and absent only for the reference
     # drawing, so it stands in for "this is a phone": the closures, the marks
@@ -275,6 +297,8 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             for t in current["teeth"]
         ]
         points = list(p.constrictions)
+        if not points and p.rest_weight > 0.0 and p.rest is not None:
+            points = [p.rest]
         current["tongue"] = tongue_surface(head.name, points, close)
         current["extra"] = [
             (q.arc, q.offset, q.articulator or "")
@@ -308,6 +332,8 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
     del marks  # declared inventory geometry, reserved for frontal labels
     pose = _pose(p)
     close = head.jaw_close(TractPoint(pose[0], pose[1])) if pose else 0.0
+    if head.rest is not None and head.rest.jaw == "closed":
+        close = max(close, p.rest_weight)
     # Rest declares closed lips, independently of the neutral tongue-body
     # point that locates the sagittal tract interior.  Ease that frontal seam
     # shut as a blend approaches home; changing the view-neutral posture here
@@ -715,8 +741,7 @@ def _lips(
     """
     # A bilabial closes the lips; so does rest, which the head declares.
     bilabial = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
-    at_rest = posture is not None and posture[2] == "at rest"
-    closed = bilabial or (at_rest and src.get("rest_lips") == "closed")
+    closed = bilabial or bool(src.get("lips_closed_now"))
     pair = src.get("lips_closed" if closed else "lips_open")
     if not pair:
         return ""
@@ -727,12 +752,13 @@ def _lips(
     for i, body in enumerate(bodies):
         pts = [to(*q) for q in body]
         shut = closed and i == 1
+        part = "upper-lip" if i == 0 else "lower-lip"
         parts.append(
             f'<path d="M{pts[0][0]:.1f},{pts[0][1]:.1f} '
             f"L{pts[1][0]:.1f},{pts[1][1]:.1f} "
             f"Q{pts[2][0]:.1f},{pts[2][1]:.1f} {pts[3][0]:.1f},{pts[3][1]:.1f} "
             f'L{pts[4][0]:.1f},{pts[4][1]:.1f}" '
-            f'class="lip{" shut" if shut else ""}"/>'
+            f'class="lip {part}{" shut" if shut else ""}"/>'
         )
     # When a lip is the articulator the label above already names it, with its
     # state; a generic "lips" beside it says the same thing twice.

@@ -182,6 +182,7 @@
       <attribute name="to"><ref name="normalized"/></attribute>
       <attribute name="falloff"><ref name="normalized"/></attribute>
       <attribute name="taper"><ref name="normalized"/></attribute>
+      <attribute name="tip"><ref name="normalized"/></attribute>
       <attribute name="provenance"><text/></attribute>
     </element>
   </define>
