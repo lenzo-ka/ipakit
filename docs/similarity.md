@@ -68,9 +68,25 @@ This structural consistency is necessary: a construction artifact should not bec
 
 ## 4. External validation
 
-Perceptual confusion data are the direct external test. The lineage begins with Miller and Nicely's controlled consonant-confusion matrices ([Miller & Nicely 1955](https://doi.org/10.1121/1.1907526)); a validation study would specify speakers, listening conditions, transcription inventory, and treatment of asymmetric confusions before comparing ranks. That study has not been run for ipakit.
+Perceptual confusion data are the direct external test. The first run uses Miller and Nicely's controlled consonant-confusion matrices ([Miller & Nicely 1955](https://doi.org/10.1121/1.1907526)). Five female talkers/listeners heard sixteen consonants before the study's /a/ (the vowel of *father*) in flat noise at S/N −18, −12, −6, 0, +6, and +12 dB over 200–6500 cps. The attested table in `ipakit/data/attested/miller_nicely_1955.json` is Arabie and Carroll's aggregate of those conditions: their lower-triangle symmetric misclassification probabilities, mapped to house IPA. No cell is smoothed, imputed, or dropped. The diagonal is excluded from ranking by construction; every unordered off-diagonal pair is retained.
 
-The mass-budget repair makes one comparison immediately falsifiable: `t͡ʃ`–`ʃ` is the first pair to test, because the old flat gap obscured their shared fricative material and the repair gives that material its identity. A perceptual result need not equal a structural distance numerically. It can test whether the repair improves the ordering under a declared experimental condition.
+The hypothesis direction was stated before comparison: **more confusable ⇒ nearer**. Confusability descending and `segment_distance` ascending give the checked result below; ties receive average ranks.
+
+```python
+from scripts.perceptual_validation import measurements
+
+validation = measurements()
+{
+    "consonants": 16,
+    "unordered pairs": len(validation["pairs"]),
+    "Spearman rho": round(validation["rho"], 6),
+}
+# {'consonants': 16, 'unordered pairs': 120, 'Spearman rho': 0.687092}
+```
+
+The positive rank association follows the hypothesized direction under these conditions. It validates ordering only at the strength this one matrix supports; it does not fit the metric, establish numeric calibration, or license a claim beyond Miller and Nicely's inventory and listening conditions. The executable [perceptual-validation exhibits](perceptual-validation-exhibits.md) carry the five most-confused pairs and five least-confused pairs with their distances and nonzero `explain` itemizations. They also carry every pair at the five-place rank-disagreement cutoffs, including ties: both where the metric puts a perceptually confusable pair farther away and where perception separates a metrically near pair.
+
+The mass-budget repair makes one comparison immediately falsifiable: `t͡ʃ`–`ʃ` is the first pair to test, because the old flat gap obscured their shared fricative material and the repair gives that material its identity. Miller and Nicely's inventory contains no affricates, so this named first-pair test is not testable here and remains queued for a lineage successor with different conditions, such as Wang and Bilger (1973). A perceptual result need not equal a structural distance numerically. It can test whether the repair improves the ordering under a declared experimental condition.
 
 Existing cross-tool evidence is narrower. [The interoperability assessment](design/interop.md) compared ipakit with PanPhon's three distance functions over their shared, successfully segmented phones. It found moderate rank agreement, with systematic divergence around affricates and other representation choices:
 
@@ -100,6 +116,6 @@ These are different commitments with different costs. The comparisons above do n
 
 The fusion branch has no arity floor. Adding a second articulator can cost less than adding a smaller diacritic because the former receives the declared secondary share of a graded comparison. A floor is deferred and pinned; it needs its own derivation and measurement rather than a constant chosen to repair one example.
 
-External validation against perceptual confusion data is queued and unrun. The `t͡ʃ`–`ʃ` comparison is the first stated test, not a claimed result.
+External validation has begun with the Miller–Nicely ordering run above. One dataset is a hypothesis test, not a fit; a successor under different conditions remains queued. The inventory has no affricates, so the `t͡ʃ`–`ʃ` comparison remains the first stated affricate test, not a claimed result, for a lineage successor such as Wang and Bilger (1973).
 
 Prosodic riders remain one value-distance term per tier by design. That convention prevents the same rider from acquiring more mass merely because its host exposes more segmental terms. It remains a declared modeling choice to revisit only with evidence about the tier, not by changing the denominator locally.
