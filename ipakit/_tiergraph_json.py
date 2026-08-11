@@ -9,6 +9,7 @@ default fields from illustrative wire examples.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
@@ -32,6 +33,18 @@ from ._tiergraph import (
 _TYPE = "tiergraph"
 _VERSION = 1
 _EVENT_KEYS = {"features", "duration", "span", "timing"}
+
+
+def identity_fingerprint(identity: object) -> str:
+    """Fingerprint a declaration provider's canonical JSON identity."""
+    payload = json.dumps(
+        identity,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class ValueCodec(Protocol):

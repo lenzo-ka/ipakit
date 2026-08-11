@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass
 
 from ._tiergraph import Declarations, FeatureDeclaration, Graph, TierDeclaration
 from ._tiergraph_builder import GraphBuilder
-from ._tiergraph_json import Model
+from ._tiergraph_json import Model, identity_fingerprint
 
 
 @dataclass(frozen=True)
@@ -46,12 +44,9 @@ def declaration(names: tuple[str, ...]) -> Declarations:
 
 
 def fingerprint(names: tuple[str, ...]) -> str:
-    payload = json.dumps(
-        {"provider": "panphon", "features": names, "domain": [-1, 0, 1]},
-        separators=(",", ":"),
-        sort_keys=True,
+    return identity_fingerprint(
+        {"provider": "panphon", "features": names, "domain": [-1, 0, 1]}
     )
-    return "sha256:" + hashlib.sha256(payload.encode()).hexdigest()
 
 
 def model(names: tuple[str, ...]) -> Model:

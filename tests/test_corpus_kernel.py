@@ -7,6 +7,7 @@ import ipakit
 import ipakit.form as form_module
 import pytest
 from ipakit import _corpus
+from ipakit._tiergraph_json import identity_fingerprint
 from ipakit.form import Form
 
 
@@ -56,6 +57,39 @@ def test_put_form_preserves_entry_and_replaces_only_named_role(tmp_path: Path):
     restored = _corpus.open(tmp_path / "corpus").read("word")
     assert restored.meta == {"text": "cat"}
     assert restored.forms == {"source": source, "aligned": second}
+
+
+def test_role_provenance_and_corpus_declaration_identity_are_additive(tmp_path: Path):
+    identity = {"provider": "test", "features": ["phone"]}
+    corpus = _corpus.create(tmp_path / "corpus", declaration_identity=identity)
+    corpus.add("word", {}, {"source": _form("a")})
+    provenance = _corpus.FormProvenance(
+        _corpus.Producer("aligner", "sha256:abc"), identity_fingerprint(identity)
+    )
+    corpus.put_form("word", "aligned", _form("b"), provenance)
+
+    reopened = _corpus.open(tmp_path / "corpus")
+    assert reopened.declaration_fingerprint == identity_fingerprint(identity)
+    assert reopened.read("word").provenance == {"aligned": provenance}
+
+    legacy = json.loads((tmp_path / "corpus" / "entries" / "word.json").read_text())
+    legacy.pop("provenance")
+    (tmp_path / "corpus" / "entries" / "word.json").write_text(json.dumps(legacy))
+    assert _corpus.open(tmp_path / "corpus").read("word").provenance == {}
+
+
+def test_named_split_is_explicit_durable_and_refuses_stale_ids(tmp_path: Path):
+    root = tmp_path / "corpus"
+    corpus = _corpus.create(root)
+    corpus.add("one", {}, {})
+    corpus.add("two", {}, {})
+    assert corpus.put_split("test", ["two"]) == ("two",)
+    corpus.add("three", {}, {})
+    assert _corpus.open(root).split("test") == ("two",)
+
+    corpus.remove("two")
+    with pytest.raises(_corpus.CorpusError, match="missing entries"):
+        corpus.split("test")
 
 
 def test_self_contained_views_survive_changed_ambient_inventory(
