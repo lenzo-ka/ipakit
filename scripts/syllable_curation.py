@@ -513,7 +513,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             },
             "grid": {
                 "constraint_legal_attested": sum(item.legal for item in evidence),
-                "constraint_legal_unattested": 1,
+                # A gap is a declared onset span carrying no harvest evidence:
+                # its members are admitted by constraint, not by attestation.
+                "constraint_legal_unattested": sum(
+                    1
+                    for element in root.iter("onset")
+                    if "harvested-count" not in element.attrib
+                ),
                 "constraint_illegal_attested": len(queue),
             },
             "curation_queue": {
