@@ -14,6 +14,7 @@ from ipakit.tract import head, trajectory  # noqa: E402
 from ipakit.tract_svg import animate_two_pane, frontal_figure  # noqa: E402
 
 FIGURES = Path(__file__).resolve().parent.parent / "docs" / "figures"
+TALKING_HEADS = Path(__file__).resolve().parent.parent / "talking-heads"
 PHONES: tuple[tuple[str, str | None], ...] = (
     ("frontal-reference.svg", None),
     ("frontal-rest.svg", "␣"),
@@ -35,6 +36,10 @@ def main() -> int:
     timed = replace(trajectory(builder.build(), head=head(), fps=5), frames_per_unit=1)
     (FIGURES / "two-pane-timed.html").write_text(
         animate_two_pane(timed) + "\n", encoding="utf-8"
+    )
+    TALKING_HEADS.mkdir(exist_ok=True)
+    (TALKING_HEADS / "kaet-two-pane.html").write_text(
+        animate_two_pane("kæt", frames_per_unit=12) + "\n", encoding="utf-8"
     )
     return 0
 
