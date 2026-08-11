@@ -210,6 +210,19 @@ diagnosed_geometry
 # {'negative eigenvalue mass (139 phones)': '8.7%', 'violations through composite hubs (139 phones)': '94.8%', 'leading positive variance (silence excluded)': '60.3%', 'leading-axis/compositeness correlation (silence excluded)': 0.977}
 ```
 
+The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.063`, from `0.977`); it correlates `0.922` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.273` against `0.321` from composites to atomics, no longer a constant, and the leading positive axis carries `43.4%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `13.1%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
+
+```python
+repaired_geometry = {
+    "negative eigenvalue mass (silence excluded)": "13.1%",
+    "leading positive variance (silence excluded)": "43.4%",
+    "leading-axis/compositeness correlation (silence excluded)": 0.063,
+    "leading-axis/vowelhood correlation (silence excluded)": 0.922,
+}
+repaired_geometry
+# {'negative eigenvalue mass (silence excluded)': '13.1%', 'leading positive variance (silence excluded)': '43.4%', 'leading-axis/compositeness correlation (silence excluded)': 0.063, 'leading-axis/vowelhood correlation (silence excluded)': 0.922}
+```
+
 ### If you need a metric
 
 `ipakit.closure.MetricClosure` is the shortest-path closure over an inventory — the largest metric that is nowhere greater than the distance it is built from. It satisfies the inequality by construction:
