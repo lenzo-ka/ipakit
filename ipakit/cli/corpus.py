@@ -35,6 +35,10 @@ class Add(Command):
         parser.add_argument("fileid")
         parser.add_argument("text", nargs="?")
         parser.add_argument("--role", "-r", required=True)
+        parser.add_argument(
+            "--segmented", action="store_true", help="read whitespace-delimited units"
+        )
+        parser.add_argument("--wild", action="store_true", help="normalize wild IPA")
         _location(parser)
 
     def run(self) -> int:
@@ -44,7 +48,13 @@ class Add(Command):
             else sys.stdin.read().rstrip("\r\n")
         )
         corpus.open(self.args.corpus).add(
-            self.args.fileid, {}, {self.args.role: self.ipa.read(text)}
+            self.args.fileid,
+            {},
+            {
+                self.args.role: self.ipa.read(
+                    text, segmented=self.args.segmented, wild=self.args.wild
+                )
+            },
         )
         return 0
 

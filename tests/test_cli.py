@@ -1347,7 +1347,6 @@ LIBRARY_ONLY = {
     "is_valid_ipa": "'analysis validate' prints the issues, not the boolean",
     "is_pure_ipa": "the yes/no over extensions_in; neither is on the CLI",
     "extensions_in": "no CLI surface for the IPA-chart/extension split",
-    "segmented": "'convert tokenize' prints the same units",
     # Supplements are a Python-level facility by design: the command line
     # reads the shipped inventory only, so neither the names nor the paths
     # of the shipped supplements have anything to say there.

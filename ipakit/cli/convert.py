@@ -253,6 +253,10 @@ class ToJsonCommand(Command):
         parser.add_argument("ipa", help="IPA string to parse")
         add_convert_strict_arg(parser)
         parser.add_argument(
+            "--segmented", action="store_true", help="read whitespace-delimited units"
+        )
+        parser.add_argument("--wild", action="store_true", help="normalize wild IPA")
+        parser.add_argument(
             "--self-contained",
             action="store_true",
             help="embed resolved segment views",
@@ -260,9 +264,12 @@ class ToJsonCommand(Command):
 
     def run(self) -> int:
         self.output_json(
-            self.ipa.read(self.args.ipa, strict=self.args.strict).to_dict(
-                self_contained=self.args.self_contained
-            )
+            self.ipa.read(
+                self.args.ipa,
+                strict=self.args.strict,
+                segmented=self.args.segmented,
+                wild=self.args.wild,
+            ).to_dict(self_contained=self.args.self_contained)
         )
         return 0
 

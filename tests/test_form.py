@@ -764,7 +764,7 @@ class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
         of "an edge" would disagree.
         """
         for inventory in (FEATURES, extended):
-            (space,) = [u for u in units("a b", inventory) if u.text == " "]
+            (space,) = [u for u in units("a b", inventory) if u.spelling == " "]
             assert space.level == edge_level(inventory)
 
     def test_the_rule_engine_ranks_it_from_the_same_declaration(self, extended):
