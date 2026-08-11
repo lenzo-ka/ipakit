@@ -239,6 +239,50 @@ class Head:
     # the renderer only poses, projects and strokes it.
     frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
 
+    def frontal_mouth(
+        self, aperture_height: float, aperture_width: float, protrusion: float
+    ) -> dict[str, tuple[tuple[float, float], ...]]:
+        """Pose the frontal lips and the opening from one parting line.
+
+        The declared lip contours contain their outer vermilion edges and the
+        closed parting line.  Opening the jaw separates that line into upper
+        and lower curves with common corners; those very tuples then bound the
+        aperture and close the two lip bodies.  A renderer therefore cannot
+        leave face between a lip and the opening or give either a different
+        mouth corner.
+        """
+        declared = {name: points for name, _, _, points in self.frontal}
+        upper = declared.get("upper-lip")
+        lower = declared.get("lower-lip")
+        if upper is None or lower is None or len(upper) < 6 or len(lower) < 5:
+            return {}
+
+        def pose(point: tuple[float, float]) -> tuple[float, float]:
+            x, y = point
+            x = 0.5 + (x - 0.5) * aperture_width
+            y += (y - 0.62) * protrusion * 0.18
+            return (x, y)
+
+        upper_outer = tuple(pose(point) for point in upper[:5])
+        left, right = upper_outer[0], upper_outer[-1]
+        upper_mid = pose(upper[5])
+        upper_edge = (left, upper_mid, right)
+        # The lower lip rides on the mandible.  Its outer and inner edges move
+        # together while their corners remain anchored to the shared seam.
+        lower_mid = (upper_mid[0], upper_mid[1] + aperture_height)
+        lower_edge = (left, lower_mid, right)
+        lower_outer = tuple(
+            (point[0], point[1] + aperture_height)
+            for point in (pose(lower[3]), pose(lower[4]))
+        )
+        return {
+            "upper_edge": upper_edge,
+            "lower_edge": lower_edge,
+            "aperture": upper_edge + tuple(reversed(lower_edge)),
+            "upper-lip": upper_outer + tuple(reversed(upper_edge)),
+            "lower-lip": lower_edge + lower_outer,
+        }
+
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
         """Unit tangent at each midline vertex, averaged across the joint.

@@ -310,8 +310,14 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
         close = 1.0
     gap = max(0.0, 0.115 * (1.0 - close))
     width = p.aperture_width
+    mouth = head.frontal_mouth(gap * 0.55, width, p.protrusion)
     contours: list[dict[str, Any]] = []
     for name, carrier, arc, declared in head.frontal:
+        if name in {"upper-lip", "lower-lip"} and name in mouth:
+            contours.append(
+                {"name": name, "carrier": carrier, "arc": arc, "points": mouth[name]}
+            )
+            continue
         points = []
         for x, y in declared:
             if name in {
@@ -324,20 +330,15 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
                 x = 0.5 + (x - 0.5) * width
             if carrier == "mandible":
                 y += gap * (0.15 if name == "tongue" else 0.55)
-            if name in {"upper-lip", "lower-lip"}:
-                y += (y - 0.62) * p.protrusion * 0.18
             points.append((x, y))
         contours.append(
             {"name": name, "carrier": carrier, "arc": arc, "points": points}
         )
     return {
         "contours": contours,
-        "aperture": {
-            "cx": 0.5,
-            "cy": 0.636 + gap / 2,
-            "rx": 0.257 * width,
-            "ry": gap / 2,
-        },
+        "aperture": mouth.get("aperture", ()),
+        "upper_edge": mouth.get("upper_edge", ()),
+        "lower_edge": mouth.get("lower_edge", ()),
         "closed": gap <= 0.001,
     }
 
@@ -386,13 +387,10 @@ def frontal_svg(
 ) -> str:
     """Project and stroke one frontal geometry with arc-ordered occlusion."""
     to = _frontal_scaler(*(extent if extent is not None else _frontal_extent(geometry)))
-    aperture = geometry["aperture"]
-    cx, cy = to(aperture["cx"], aperture["cy"])
-    ex, _ = to(aperture["cx"] + aperture["rx"], aperture["cy"])
-    _, ey = to(aperture["cx"], aperture["cy"] + aperture["ry"])
-    rx, ry = abs(ex - cx), abs(ey - cy)
+    aperture = [to(*point) for point in geometry["aperture"]]
+    aperture_path = _path(aperture, True)
     parts = [
-        f'<defs><clipPath id="f-mouth"><ellipse cx="{cx:.2f}" cy="{cy:.2f}" rx="{rx:.2f}" ry="{ry:.2f}"/></clipPath></defs>'
+        f'<defs><clipPath id="f-mouth"><path d="{aperture_path}"/></clipPath></defs>'
     ]
     by_name = {c["name"]: c for c in geometry["contours"]}
     face = by_name.get("face")
@@ -401,9 +399,7 @@ def frontal_svg(
             f'<path d="{_path([to(*p) for p in face["points"]], True)}" class="f-face"/>'
         )
     if not geometry["closed"]:
-        parts.append(
-            f'<ellipse cx="{cx:.2f}" cy="{cy:.2f}" rx="{rx:.2f}" ry="{ry:.2f}" class="f-aperture"/>'
-        )
+        parts.append(f'<path d="{aperture_path}" class="f-aperture"/>')
         interiors = [
             c
             for c in geometry["contours"]

@@ -11,6 +11,8 @@ from ipakit.features import IPAFeatures
 from ipakit.form import FormBuilder
 from ipakit.tract import head, heads, landmarks, posture, trajectory
 from ipakit.tract_svg import (
+    _frontal_extent,
+    _frontal_scaler,
     animate_two_pane,
     build_frontal_geometry,
     frontal_figure,
@@ -64,6 +66,62 @@ def test_open_vowel_exposes_carried_interior(ipa: IPAFeatures) -> None:
     assert "f-aperture" in svg
     assert "f-tongue" in svg
     assert "f-upper-teeth" in svg
+
+
+@pytest.mark.parametrize("phone", ["m", "i", "a", "u"])
+def test_lips_and_aperture_share_the_parting_curves(
+    phone: str, ipa: IPAFeatures
+) -> None:
+    """Closed, mid, open and rounded mouths have one exact boundary."""
+    h = head()
+    g = build_frontal_geometry(h, landmarks(ipa), posture(ipa, phone, h))
+    by_name = {contour["name"]: contour for contour in g["contours"]}
+    upper, lower = g["upper_edge"], g["lower_edge"]
+
+    assert g["aperture"][:3] == upper
+    assert tuple(reversed(g["aperture"][3:])) == lower
+    assert tuple(reversed(by_name["upper-lip"]["points"][-3:])) == upper
+    assert by_name["lower-lip"]["points"][:3] == lower
+    # These are not independently recomputed equal coordinates: all three
+    # bodies retain the Head curve's actual corner and edge point objects.
+    assert all(g["aperture"][i] is upper[i] for i in range(3))
+    assert all(by_name["lower-lip"]["points"][i] is lower[i] for i in range(3))
+    assert upper[0] is lower[0] and upper[-1] is lower[-1]
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_open_a_has_no_face_pixels_inside_the_lip_parting_line(
+    ipa: IPAFeatures, tmp_path: Path
+) -> None:
+    h = head()
+    g = build_frontal_geometry(h, landmarks(ipa), posture(ipa, "a", h))
+    to = _frontal_scaler(*_frontal_extent(g))
+    polygon = [to(*point) for point in g["aperture"]]
+    width, rows = _pixels(frontal_svg(g), tmp_path / "a.svg", width=760)
+    assert width == 760
+    face = bytes.fromhex("d9b29aff")
+
+    def inside(px: float, py: float) -> bool:
+        hit = False
+        prior = polygon[-1]
+        for point in polygon:
+            (x0, y0), (x1, y1) = prior, point
+            if (y0 > py) != (y1 > py):
+                cross = (x1 - x0) * (py - y0) / (y1 - y0) + x0
+                if px < cross:
+                    hit = not hit
+            prior = point
+        return hit
+
+    xmin, xmax = int(min(x for x, _ in polygon)), int(max(x for x, _ in polygon))
+    ymin, ymax = int(min(y for _, y in polygon)), int(max(y for _, y in polygon))
+    skin = [
+        (x, y)
+        for y in range(ymin, ymax + 1)
+        for x in range(xmin, xmax + 1)
+        if inside(x + 0.5, y + 0.5) and rows[y][x * 4 : x * 4 + 4] == face
+    ]
+    assert not skin
 
 
 @pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
