@@ -36,3 +36,6 @@ recursive-include scripts *.py
 # that should hold for a reader who unpacked the sdist too.
 recursive-include docs *.md
 recursive-include docs *.svg
+
+# Bridge declarations and the grammars stating their shape.
+recursive-include ipakit/data/bridges *.xml *.rng

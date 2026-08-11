@@ -80,6 +80,8 @@ ipakit = [
     "data/phonemaps/*.rng",
     "data/supplements/*.xml",
     "data/supplements/*.rng",
+    "data/bridges/*/*.xml",
+    "data/bridges/*.rng",
     "data/rules/*.rules",
     "data/*.json",
     # Not under data/: everything there is read by the library to compute an

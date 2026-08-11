@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vocabulary name="pinyin" version="1" provenance="Hanyu Pinyin orthographic convention" tier="syllable" source-style="text">
+  <round-trip>
+    <external-to-house fidelity="lossless-with-declared-tricks"><trick name="input spelling memory" /></external-to-house>
+    <house-to-external fidelity="lossy-with-report"><drop name="phonetic detail not represented by Pinyin" /></house-to-external>
+  </round-trip>
+  <input source="u:" target="ü" /><input source="v" target="ü" />
+  <tone vowel="a" marks="āáǎà" /><tone vowel="e" marks="ēéěè" />
+  <tone vowel="i" marks="īíǐì" /><tone vowel="o" marks="ōóǒò" />
+  <tone vowel="u" marks="ūúǔù" /><tone vowel="ü" marks="ǖǘǚǜ" />
+  <atom spelling="a" /><atom spelling="e" /><atom spelling="i" />
+  <atom spelling="o" /><atom spelling="u" /><atom spelling="ü" />
+</vocabulary>

@@ -11,7 +11,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._pinyin_graph import tone_index
 from ._tiergraph import Event, Graph, _escape
 
 ValueRenderer = Callable[[Event], str]
@@ -95,49 +94,9 @@ def render_pinyin(
 ) -> str:
     """Place syllable-hosted tone on the nucleus selected by Pinyin spelling."""
 
-    # Orthographic placement belongs to this codec, not to IPA's inventory;
-    # keep its language-specific spelling table local to the renderer.
-    tone_marks = {
-        "a": "āáǎà",
-        "e": "ēéěè",
-        "i": "īíǐì",
-        "o": "ōóǒò",
-        "u": "ūúǔù",
-        "ü": "ǖǘǚǜ",
-    }
+    from .bridges.pinyin import PINYIN
 
-    tones: dict[str, int] = {}
-    for relation in graph.relations:
-        if relation.name != "associates-with" or len(relation.sources) != 1:
-            continue
-        source = graph.resolve(relation.sources[0])
-        if source.tier == tone_tier and source.event is not None:
-            level = source.event.features.get("value")
-            if isinstance(level, int):
-                tones.update({target: level for target in relation.targets})
-    out: list[str] = []
-    for tick, node in enumerate(graph.clock):
-        group = next((item for item in node.groups if item.tier == syllable_tier), None)
-        if group is None:
-            continue
-        for index, event in enumerate(group.events):
-            spelling = str(
-                event.features.get("spelling", event.features.get("value", ""))
-            )
-            level = tones.get(f"/clock/{tick}/{_escape(syllable_tier)}/{index}")
-            if level is None or level == 5:
-                out.append(spelling)
-                continue
-            position = tone_index(spelling)
-            if position < 0 or not 1 <= level <= 4:
-                raise ValueError(f"tone {level!r} cannot be placed on {spelling!r}")
-            vowel = spelling[position].lower()
-            out.append(
-                spelling[:position]
-                + tone_marks[vowel][level - 1]
-                + spelling[position + 1 :]
-            )
-    return "".join(out)
+    return PINYIN.render(graph, syllable_tier, tone_tier)
 
 
 @dataclass(frozen=True)
