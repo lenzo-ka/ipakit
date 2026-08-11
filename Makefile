@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style espeak-vocabularies espeak-vocabularies-check lint check
+.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style state-of-work espeak-vocabularies espeak-vocabularies-check lint check
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 
@@ -69,6 +69,10 @@ notebook:
 house-style:
 	@$(PYTHON) scripts/house_style.py generate --write
 
+## state-of-work: regenerate the index of design verdicts and superseded findings
+state-of-work:
+	@$(PYTHON) scripts/state_of_work.py generate --write
+
 ## lint: the style gates; needs the `lint` extra (ruff / black / mypy)
 lint:
 	@$(PYTHON) -m ruff check .
@@ -101,6 +105,7 @@ check: lint
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
 	@$(PYTHON) scripts/house_style.py check
+	@$(PYTHON) scripts/state_of_work.py check
 	@$(MAKE) --no-print-directory espeak-vocabularies-check
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py

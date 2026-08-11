@@ -67,6 +67,7 @@ using it.
 
 | | |
 | --- | --- |
+| [state-of-the-work.md](state-of-the-work.md) | **What is settled, open and refused.** A generated index over the dated design records, with every entry pointing back to the verdict or superseded finding that supplies it. |
 | [reviewing.md](reviewing.md) | **Read this before changing anything.** How defects in this library have actually been found — every one a silent wrong answer under a green suite. Measure rather than predict; sweep rather than sample; make two things equal by construction. |
 | [releasing.md](releasing.md) | The release checklist. |
 
@@ -83,6 +84,7 @@ The documents in `design/` are dated historical design records. They preserve th
 Derived artifacts are **regenerated, never hand-edited**: `docs/figures/*.svg`
 (`make figures`), `docs/tutorial.md` (`make tutorial`),
 `docs/house-style-exhibits.md` (`make house-style`),
+`docs/state-of-the-work.md` (`make state-of-work`),
 `ipakit/notebooks/ipakit-tutorial.ipynb` (`make notebook`), `ipakit/data/confusion.json`
 and the X-SAMPA table. `make check` runs every gate a release runs, and validates each of
 those derivations still produces what is checked in.
