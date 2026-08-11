@@ -176,3 +176,50 @@ On its recorded arm64 macOS/Python 3.12.12 run, 5,000 entries occupy 10.34 MB;
 put/get/full-scan query take 0.95/0.90/2.82 seconds. The full-scan query is
 linear in entry count, so that environment projects to roughly 76 seconds over
 the complete CMUdict. This curve is a run report, not a performance threshold.
+
+## Retained-form disagreement spreads
+
+`DisagreementSpread` generalizes the PHOIBLE doculect-spread law from
+inventories to forms. Its inputs are two or more `ProvenancedForm` values for
+one entry. Empty identities and bare, anonymous `Form` objects are refused.
+One input is the designated reference (index 0 unless stated otherwise), and
+every other input is aligned independently against it with the landed
+`Alignment` machinery. Pairwise reference alignment is deliberate: it keeps
+each source claim independent and does not invent a multi-way gap policy that
+could amount to adjudication.
+
+```python
+spread = ipakit.DisagreementSpread.compare(
+    ipakit.ProvenancedForm("cmudict:cat", ipakit.read("kæt")),
+    ipakit.ProvenancedForm("ipa-dict/en_US:cat", ipakit.read("kɛt")),
+)
+spread.comparisons[0].agreements       # k and t positions
+spread.disagreements[0].terms          # named metric terms, including height
+spread.disagreements[0].cost           # the AlignmentStep price
+```
+
+Kinds are the enum `DisagreementKind`, never strings in memory:
+
+| Kind | Claim |
+| --- | --- |
+| `FEATURE` | aligned units differ in named declared metric terms |
+| `STRUCTURE` | insertion/deletion, tied versus untied material, or a tier interval on one side only |
+| `TIMING` | aligned or unmatched carried units have different timing claims |
+
+Tier-only structure has cost `0.0` because the segment metric declares no tier
+price. The same rule applies to timing: the object reports the claim and reads
+the aligned position's price; it never invents a weight. All other costs and
+feature names come directly from `AlignmentStep`. The object selects no
+winner, averages no forms, and cannot emit a merged transcription. Its
+canonical, sorted-key JSON embeds every provenance identity and self-contained
+form and round-trips byte-identically.
+
+The checked CMUdict ∥ ipa-dict en_US demonstration is
+`scripts/disagreement_demo.py`. Four shared-word rows first produce 5 feature
+and 6 structure disagreements. Its explicit recorded transform mirrors the
+English normalization shape: move leading stress from the consonant to the
+nucleus and tie adjacent vowel units. This removes 4 feature and all 6
+structure disagreements attributable to those conventions, leaving 1 feature
+disagreement and no structure or timing disagreement as substantive. These
+values are executed in `tests/test_disagreement.py`; normalization is confined
+to the demonstration and never hidden in the comparison object.

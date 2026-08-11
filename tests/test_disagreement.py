@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import ipakit
 import pytest
+from scripts.disagreement_demo import report
 
 
 def retained(identity: str, text: str) -> ipakit.ProvenancedForm:
@@ -67,3 +68,14 @@ def test_three_forms_are_independent_pairwise_comparisons() -> None:
     )
     assert [pair.source for pair in spread.comparisons] == [0, 2]
     assert spread.reference == 1
+
+
+def test_checked_cmudict_ipa_dict_convention_control() -> None:
+    measured = report()
+    assert measured["raw"] == {"feature": 5, "structure": 6, "timing": 0}
+    assert measured["convention_removed"] == {"feature": 4, "structure": 6, "timing": 0}
+    assert measured["substantive_after_normalization"] == {
+        "feature": 1,
+        "structure": 0,
+        "timing": 0,
+    }
