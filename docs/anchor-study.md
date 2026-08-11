@@ -4,7 +4,7 @@
 
 ## Sync gate
 
-26 clear stop releases across the first 5 speakers; median absolute waveform-burst to pellet-release difference **0.035 s** and 75th percentile **0.042 s** (gate: 75th percentile <= 0.050 s).
+22 deduplicated clear stop releases across the first 5 speakers; median signed pellet-release minus waveform-burst difference **-0.013 s** (range **-0.062 to +0.082 s**). Median absolute difference **0.034 s** and 75th percentile **0.041 s** (gate: 75th percentile <= 0.050 s). The signed values expose systematic clock offset separately from detector scatter; the absolute values enforce the gate.
 
 ## Headline distributions
 
@@ -23,6 +23,21 @@
 | bilabial-nasal | 90 | 0.645 | 0.501 | 1.030 | 1.1% |
 | bilabial-stop | 181 | 0.379 | 0.310 | 0.473 | 1.1% |
 | vowel | 1473 | 0.605 | -0.212 | 1.268 | 30.9% |
+
+## Uniform-window null comparison
+
+The null chooses a time uniformly from each token's acoustic segment plus the same 60 ms pad on either side. Its median is 0.500 by symmetry. In-segment chance and the pooled null IQR are computed analytically from the observed token durations; IQR is the dispersion measure in both columns.
+
+| class | n | observed in segment | chance | observed IQR | null IQR | assessment |
+|---|---:|---:|---:|---:|---:|---|
+| alveolar-fricative | 308 | 58.4% | 49.6% | 0.810 | 1.009 | **NON-INFORMATIVE** |
+| alveolar-nasal | 268 | 78.0% | 43.3% | 0.358 | 1.154 | **informative** |
+| alveolar-stop | 311 | 63.7% | 38.0% | 0.785 | 1.314 | **informative** |
+| bilabial-nasal | 90 | 72.2% | 43.7% | 0.529 | 1.144 | **informative** |
+| bilabial-stop | 181 | 94.5% | 42.7% | 0.163 | 1.171 | **informative** |
+| vowel | 1473 | 36.3% | 42.3% | 1.480 | 1.182 | **NON-INFORMATIVE** |
+
+Vowel and alveolar-fricative are **NON-INFORMATIVE** on the current detectors and are excluded from recommendations: neither is separable from this null, and the vowel detector is more dispersed than it.
 
 ## By speaker
 
@@ -331,16 +346,11 @@
 | vowel / short (< 0.090 s) | 696 | 0.548 | -0.591 | 1.654 | 42.0% |
 | vowel / long (>= 0.090 s) | 777 | 0.616 | 0.137 | 1.004 | 21.0% |
 
-## Recommended defaults
+The duration split shows rate drift: target fractions change between short and long segments, so the normalized anchor is not perfectly rate-invariant.
 
-- `alveolar-fricative`: **`center`**
-- `alveolar-nasal`: **`center`**
-- `alveolar-stop`: **`center`**
-- `bilabial-nasal`: **`center`**
-- `bilabial-stop`: **`center`**
-- `vowel`: **`center`**
+## Recommendation
 
-The observed medians support **one global anchor** among the tested `center`/`onset` choices. These binary recommendations select whichever candidate is closer to the measured median; the distributions, not that discretization, are the primary result.
+Center-anchoring is supported for bilabial stops, and to a lesser degree the nasals; support is weak for alveolar stops; vowels and alveolar fricatives are UNMEASURED with these detectors. There is no evidence here for one global anchor. The sampler's center default remains reasonable as a default—supported where measurable and uncontradicted elsewhere—but this study does not justify class-specific recommendations for the NON-INFORMATIVE detectors.
 
 ## Alignment refusals
 
@@ -357,6 +367,8 @@ Aligned task files: **91**. Refused or missing task files: **5**. Refusals are l
 Targets use kinematics alone inside a 60 ms padded acoustic window: UL-LL distance minima for bilabials, T1-to-`PAL.DAT` clearance minima for alveolars, and T3/T4 speed minima for vowels. Local outer 0.1% observable samples are discarded under the same quantile rationale as `scripts/articulatory.py`; missing sentinels are never interpolated. Anchor fraction is exactly `(t_event - t_onset) / duration`.
 
 This grounds target timing for the measured XRMB English reading tasks and these pellet observables. It does not ground unmeasured places, other languages, spontaneous speech, causal accounts of anticipation, or the acoustic aligner's phone boundaries.
+
+Detector repair is a separate future lane: vowel event detection needs a formant-domain or richer-kinematic approach, and the ±60 ms pad swamps short segments. The same limitation applies to treating the current alveolar-fricative result as a target measurement.
 
 Prompts are task 2 (citation words) and task 7 (sentences), transcribed in `tests/fixtures/xrmb_anchor_prompts.json` from Westbury, Turner & Dembowski (1994), *X-Ray Microbeam Speech Production Database User's Handbook*, Appendix A, pp. 84-85. Handbook PDF: <https://www.ling.uni-potsdam.de/~gafos/fhs_atelier/ubdbman.pdf> (accessed 2026-08-10). Oral-motor tasks were excluded.
 
