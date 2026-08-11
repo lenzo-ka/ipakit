@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<syllabification language="japanese" version="1" mode="moraic" provenance="The moraic analysis in ipakit/data/rules/japanese-moraic.rules: (C)(j)V, moraic nasal, geminate first half, and a second mora for vowel length; a tied diphthong remains one unit.">
+  <nucleus span="[vowel]" />
+  <onset span="[-vowel]" />
+  <onset span="[-vowel] [manner=approximant place=palatal]" />
+  <mora span="[vowel]" />
+  <mora span="[-vowel] [vowel]" />
+  <mora span="[-vowel] [manner=approximant place=palatal] [vowel]" />
+  <mora span="[manner=nasal]" />
+  <mora span="[-vowel length=long]" />
+</syllabification>

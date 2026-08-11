@@ -282,17 +282,45 @@ class Syllabifier:
             return []
         out: list[Interval] = []
         for syllable in syllables:
+            covered: set[int] = set()
+            nuclei = [
+                i
+                for i in range(syllable.start, syllable.end)
+                if self._is_nucleus(units[i])
+            ]
+            for nucleus in nuclei:
+                candidates: list[tuple[int, int]] = []
+                for span in self.language.morae:
+                    opened = nucleus + 1 - len(span.terms)
+                    if opened >= syllable.start and span.matches(
+                        units[opened : nucleus + 1], self.features
+                    ):
+                        candidates.append((opened, nucleus + 1))
+                if candidates:
+                    opened, closed = min(candidates)
+                    out.append(Interval("mora", opened, closed, self.features))
+                    covered.update(range(opened, closed))
+                    if units[nucleus].prosody.get("length") == "long":
+                        out.append(
+                            Interval("mora", nucleus, nucleus + 1, self.features)
+                        )
             for i in range(syllable.start, syllable.end):
                 unit = units[i]
                 if unit.segment is None:
                     continue
                 matching = [
-                    m for m in self.language.morae if m.matches((unit,), self.features)
+                    m
+                    for m in self.language.morae
+                    if len(m.terms) == 1 and m.matches((unit,), self.features)
                 ]
-                if matching:
+                if matching and (
+                    i not in covered
+                    or (
+                        unit.prosody.get("length") == "long"
+                        and not self._is_nucleus(unit)
+                    )
+                ):
                     out.append(Interval("mora", i, i + 1, self.features))
-                    if unit.prosody.get("length") == "long":
-                        out.append(Interval("mora", i, i + 1, self.features))
         return out
 
     def _conflicts(
