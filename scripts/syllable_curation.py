@@ -273,12 +273,9 @@ def cross_check(
                 ):
                     raise ValueError("invalid ipa-dict pronunciation field")
                 raw_forms = [value[1:-1] for value in written]
-                normalized = [
-                    features.normalize_stress_to_nucleus(value) for value in raw_forms
-                ]
+                normalized = raw_forms
                 touched = sum(
-                    before != after
-                    for before, after in zip(raw_forms, normalized, strict=True)
+                    _read_reseats_stress(value, features) for value in raw_forms
                 )
                 normalized_line = (
                     word + "\t" + ", ".join(f"/{value}/" for value in normalized)
@@ -333,22 +330,44 @@ def cross_check(
         "disagreements": disagreement,
         "normalizations": {
             "stress_to_nucleus": {
-                "applied_to_forms": stress_normalized,
-                "operation": "IPAFeatures.normalize_stress_to_nucleus",
+                "applied_to_forms": 0,
+                "operation": "not applied: read() seats leading stress on the following nucleus",
             },
             "registered_diphthong_tying": {
                 "applied_to_forms": 0,
                 "operation": "not applied: normalize() treats whitespace as asserted unit grouping and is not a word-level diphthong detector",
             },
         },
+        "read_stress_seating": {"changed_forms": stress_normalized},
         "disagreement_buckets": buckets,
         "notes": [
-            "ipa-dict syllable-initial stress was re-seated on the following nucleus for this comparison only; stored bridge forms are unchanged.",
-            "Whether read() should globally seat standard leading-stress IPA on the following nucleus is an engine question recorded here and left outside this lane.",
+            "ipa-dict syllable-initial stress is seated on the following nucleus by the ordinary read path; no comparison-only stress normalization is applied.",
             "Registered-diphthong tying remains the normalize tie-report follow-up; diagnostic tying is used only to identify the untied-diphthong bucket.",
         ],
         "refusals": refusals,
     }
+
+
+def _read_reseats_stress(value: str, features: ipakit.IPAFeatures) -> bool:
+    """Whether nucleus binding differs from the old next-unit binding."""
+    parsed = features._parse_all(value, strict=False)
+    for index, (base, diacritics) in enumerate(parsed):
+        token = base + "".join(diacritics)
+        if not token or not all(char in features.stress_markers for char in token):
+            continue
+        following = [
+            segment
+            for next_base, next_diacritics in parsed[index + 1 :]
+            if (segment := features._segment_from_parsed(next_base, next_diacritics))
+            is not None
+        ]
+        if (
+            following
+            and not features.is_nucleus(following[0].scalar())
+            and any(features.is_nucleus(segment.scalar()) for segment in following)
+        ):
+            return True
+    return False
 
 
 def _without_breaks(syllables: tuple[str, ...]) -> str:

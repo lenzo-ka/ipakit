@@ -20,7 +20,6 @@ positions rather than another named case.
 
 from __future__ import annotations
 
-import unicodedata
 import warnings
 
 import pytest
@@ -73,79 +72,35 @@ class TestStressRoundTrip:
         assert ipa.normalize_stress_to_syllable(nucleus, keep_syllables=True) == src
 
 
-class TestStressBindsTheUnitThatFollowsIt:
-    """The mark binds rightward, in every position, not only initially."""
+class TestStressBindsTheFollowingNucleus:
+    """Written position is spelling; the first following nucleus is scope."""
 
     @pytest.mark.parametrize(
         "text,index,mark",
         [
-            ("ˈkæt", 0, "ˈ"),  # initial, onto an onset consonant
+            ("ˈkæt", 1, "ˈ"),
             ("ˈæt", 0, "ˈ"),  # initial, onto a bare nucleus
             ("kˈæt", 1, "ˈ"),  # medial -- the house nucleus spelling
-            ("hˈɛloʊ", 1, "ˈ"),  # medial, what normalize_stress_to_nucleus emits
-            ("abaˈba", 3, "ˈ"),  # medial, deep in the string
-            ("ˈt͡ʃe͜ɪnd͡ʒ", 0, "ˈ"),  # initial, onto a tie chain
+            ("abaˈba", 4, "ˈ"),
+            ("ˈt͡ʃe͜ɪnd͡ʒ", 1, "ˈ"),
             ("t͡ʃˈe͜ɪnd͡ʒ", 1, "ˈ"),  # before a tie chain
             ("t̪ˈa", 1, "ˈ"),  # after a diacritic-bearing base
-            ("aˈt̪a", 1, "ˈ"),  # before a diacritic-bearing base
-            ("ˌkæt", 0, "ˌ"),  # secondary, initial
+            ("aˈt̪a", 2, "ˈ"),
+            ("ˌkæt", 1, "ˌ"),
             ("kˌæt", 1, "ˌ"),  # secondary, medial
-            ("aˌt͡ʃa", 1, "ˌ"),  # secondary, before a tie chain
+            ("aˌt͡ʃa", 2, "ˌ"),
+            ("ˈn̩", 0, "ˈ"),  # a syllabic consonant is a nucleus
         ],
     )
-    def test_the_mark_lands_on_the_next_unit(
+    def test_the_mark_lands_on_the_first_following_nucleus(
         self, ipa: IPAFeatures, text: str, index: int, mark: str
     ) -> None:
-        segs = ipa.segments(text, strict=True)
-        carriers = [i for i, s in enumerate(segs) if mark in s.prosody]
-        assert carriers == [index], [s.to_ipa() for s in segs]
-        # And the join puts it back where it was written.
-        assert ipa.to_ipa(segs) == text
-
-    # Words that round-trip with no stress in them, so inserting a mark at
-    # a boundary is the only difference the assertions can see.
-    WORDS = [
-        "kæt",
-        "hɛloʊ",
-        "t͡ʃe͜ɪnd͡ʒ",
-        "ɪntəneɪʃənəl",
-        "t̪at̪a",
-        "aeːo",
-        "wɔtɚ",
-        "pʃɑ",
-        "ka˥ta",
-        "sɪstəmætɪk",
-        "ɡɹæmpəs",
-        "fəʊnɛtɪk",
-    ]
-
-    def test_every_boundary_in_every_word(self, ipa: IPAFeatures) -> None:
-        """A mark inserted at each unit boundary binds the unit after it.
-
-        The sweep the named cases above are a readable sample of: the
-        defect was positional, so the guard has to be too.
-        """
-        checked = 0
-        for word in self.WORDS:
-            units = ipa.segments(word, strict=True)
-            spellings = [u.to_ipa() for u in units]
-            assert "".join(spellings) == word, word
-            for mark in ("ˈ", "ˌ"):
-                for k in range(len(units)):
-                    text = unicodedata.normalize(
-                        "NFC", "".join(spellings[:k]) + mark + "".join(spellings[k:])
-                    )
-                    segs = ipa.segments(text, strict=True)
-                    assert [s.to_ipa() for s in segs] == [
-                        mark + sp if i == k else sp for i, sp in enumerate(spellings)
-                    ], text
-                    assert [s.prosody for s in segs] == [
-                        (mark,) + u.prosody if i == k else u.prosody
-                        for i, u in enumerate(units)
-                    ], text
-                    assert ipa.to_ipa(segs) == text, text
-                    checked += 1
-        assert checked > 100, "sweep did not run"
+        form = ipa.read(text, strict=True)
+        carriers = [
+            i for i, unit in enumerate(form.units) if mark in unit.segment.prosody
+        ]
+        assert carriers == [index], [unit.text for unit in form.units]
+        assert form.to_ipa() == text
 
     def test_both_marks_in_one_word(self, ipa: IPAFeatures) -> None:
         # The reported case. Primary stress belongs to the "neɪ" syllable;
@@ -156,14 +111,17 @@ class TestStressBindsTheUnitThatFollowsIt:
         segs = ipa.segments(word, strict=True)
         spelled = [s.to_ipa() for s in segs]
         assert spelled[0] == "ˌɪ"
-        assert spelled[4] == "ˈn"
+        assert spelled[4] == "n"
+        assert spelled[5] == "ˈe"
         assert [s.prosody for s in segs].count(("ˈ",)) == 1
-        assert ipa.to_ipa(segs) == word
+        assert ipa.read(word, strict=True).to_ipa() == word
 
-    def test_the_two_marks_do_not_pile_onto_one_unit(self, ipa: IPAFeatures) -> None:
-        segs = ipa.segments("ˌaˈb", strict=True)
-        assert [s.prosody for s in segs] == [("ˌ",), ("ˈ",)]
-        assert ipa.to_ipa(segs) == "ˌaˈb"
+    def test_a_nearer_mark_supersedes_before_the_nucleus(
+        self, ipa: IPAFeatures
+    ) -> None:
+        with pytest.warns(UserWarning, match="superseded"):
+            segs = ipa.segments("ˌbˈa")
+        assert [s.prosody for s in segs] == [(), ("ˈ",)]
 
 
 class TestOnlyStressBindsRightward:
@@ -214,6 +172,16 @@ class TestAStressMarkThatReachesNoUnit:
         with pytest.warns(UserWarning, match="unbound"):
             segs = ipa.segments("aˈ")
         assert [s.prosody for s in segs] == [()]
+
+    def test_a_leading_mark_with_no_nucleus_binds_nothing(
+        self, ipa: IPAFeatures
+    ) -> None:
+        with pytest.warns(UserWarning, match="unbound"):
+            form = ipa.read("ˈpst")
+        assert [s.prosody for s in form.segments] == [(), (), ()]
+        assert form.to_ipa() == "ˈpst"
+        with pytest.raises(ValueError, match="unbound stress"):
+            ipa.read("ˈpst", strict=True)
 
     @pytest.mark.parametrize("text", ["ˌˈa", "ˈˌa", "aˈ"])
     def test_strict_raises_instead(self, ipa: IPAFeatures, text: str) -> None:
@@ -307,7 +275,7 @@ class TestTheNormalizersAndTheBindingAgree:
     def test_the_normalizers_still_round_trip(self, ipa: IPAFeatures, src: str) -> None:
         nucleus = ipa.normalize_stress_to_nucleus(src)
         assert ipa.normalize_stress_to_syllable(nucleus) == src
-        # And each spelling survives segments -> to_ipa as written.
-        assert ipa.to_ipa(ipa.segments(src, strict=True)) == src
+        # Form retains the written position independently of the carrier.
+        assert ipa.read(src, strict=True).to_ipa() == src
         stripped = ipa.strip_syllable_breaks(nucleus)
         assert ipa.to_ipa(ipa.segments(stripped, strict=True)) == stripped

@@ -264,7 +264,7 @@ class TestUnknownSymbolsAreNotSilent:
 
     def test_round_trip_holds_or_fails_loudly(self) -> None:
         # Holds for house-style input...
-        for text in ["kæt", "t͡ʃe͜ɪnd͡ʒ", "ˈɡuːd"]:
+        for text in ["kæt", "t͡ʃe͜ɪnd͡ʒ", "ɡˈuːd"]:
             assert ipakit.to_ipa(ipakit.segments(text, strict=True)) == text
         # ...and where it cannot hold, strict says so rather than
         # returning a shorter, well-formed-looking string.

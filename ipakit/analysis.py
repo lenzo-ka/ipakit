@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS
@@ -777,17 +779,23 @@ class AnalysisMixin(IPAFeaturesBase):
         nothing. The two answers are the two :meth:`IPAFeatures.segments`
         reports -- nothing follows it, or a nearer mark takes the
         binding -- so the validator and the parser name the same two
-        mistakes. Separators and whitespace are transparent: they carry
-        no unit, so a stress mark still binds across them.
+        mistakes. Separators, whitespace, and non-syllabic units are
+        transparent. The inventory's form scan decides whether the mark
+        reaches a nucleus, so validation cannot drift from reading.
         """
         if ipa[i] not in self.stress_markers:
             return None
-        j = i + 1
-        while j < len(ipa) and (ipa[j].isspace() or ipa[j] in self.separators):
-            j += 1
-        if j >= len(ipa):
-            return "unbound"
-        return "superseded" if ipa[j] in self.stress_markers else None
+        try:
+            features = cast(Any, self)
+            parsed = features._parse_all(ipa[i:], strict=False)
+            features._units_from_parsed(parsed, strict=True)
+        except ValueError as exc:
+            message = str(exc)
+            if "superseded stress" in message:
+                return "superseded"
+            if "unbound stress" in message:
+                return "unbound"
+        return None
 
     def is_valid_ipa(self, ipa: str) -> bool:
         """Check if an IPA string is valid (no errors).

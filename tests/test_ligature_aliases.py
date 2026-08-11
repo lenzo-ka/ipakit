@@ -419,14 +419,14 @@ class TestARuleReadsAnAliasAsItsCanonical:
     def test_prosody_written_on_an_alias_is_still_a_constraint(
         self, ipa: IPAFeatures
     ) -> None:
-        """``ˈʦ`` is "that phone, stressed" -- and only the stressed one."""
+        """``ʦː`` is "that phone, long" -- and only the long one."""
         for text, canonical in self._literals(ipa):
-            form = "aˈ" + canonical + "a"
-            assert ipakit.rewrite(form, f"ˈ{text} -> k") == ipakit.rewrite(
-                form, f"ˈ{canonical} -> k"
+            form = "a" + canonical + "ːa"
+            assert ipakit.rewrite(form, f"{text}ː -> k") == ipakit.rewrite(
+                form, f"{canonical}ː -> k"
             )
             unstressed = "a" + canonical + "a"
-            assert ipakit.rewrite(unstressed, f"ˈ{text} -> k") == unstressed
+            assert ipakit.rewrite(unstressed, f"{text}ː -> k") == unstressed
 
     def test_the_literal_is_the_unit_it_reads_as(self, ipa: IPAFeatures) -> None:
         """The predicate, over the canonical corpus and every alias.

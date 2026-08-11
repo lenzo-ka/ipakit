@@ -81,7 +81,7 @@ CORPUS: dict[str, tuple[str, ...]] = {
         "kˈæt",
         "klˈin",
         "fˈʊl",
-        "ˈbʌ.tn",
+        "bˈʌ.tn",
         "pə.tˈe͜ɪ.to͜ʊ",
         "bˈɑ.tl",
         "hˈæn.dbˌæɡ",
@@ -90,11 +90,11 @@ CORPUS: dict[str, tuple[str, ...]] = {
         "kˈɪln",
         "snˈɑɹl",
         "pɹˈɪzm",
-        "ˈmʌni",
-        "ˈsʌmɚ",
+        "mˈʌni",
+        "sˈʌmɚ",
         "təmˈe͜ɪto͜ʊ",
-        "ˈfa͜ɪnl",
-        "ˈt͡ʃænl",
+        "fˈa͜ɪnl",
+        "t͡ʃˈænl",
         "pˈɑɹti",
         "lˈɪtl",
         "ˈæpl",
@@ -395,7 +395,7 @@ class TestAmericanEnglishDerivesTheseForms:
             ("kˈæt", "kʰˈæt̚", "cat"),
             ("klˈin", "kl̥ˈĩn", "clean"),
             ("fˈʊl", "fˈʊɫ", "full"),
-            ("ˈbʌ.tn", "ˈbʌ.tⁿn̩", "button"),
+            ("ˈbʌ.tn", "bˈʌ.tⁿn̩", "button"),
             ("pə.tˈe͜ɪ.to͜ʊ", "pə.tʰˈe͜ɪ.ɾo͜ʊ", "potato"),
             ("hˈæn.dbˌæɡ", "hˈæ̃n.dbˌæɡ", "handbag"),
             ("ˈɪnpʊt", "ˈɪ̃mpʊt̚", "input: nasal assimilation, labial"),
@@ -425,8 +425,8 @@ class TestAmericanEnglishDerivesTheseForms:
             ("kˈɪln", "kʰˈɪɫn", "kiln"),
             ("snˈɑɹl", "snˈɑɹl", "snarl: the lateral is not a nucleus either"),
             ("pɹˈɪzm", "pɹ̥ˈɪzm̩", "prism: behind an obstruent, so it is"),
-            ("ˈfa͜ɪnl", "ˈfa͜ɪnl̩", "final: an /l/ behind a nasal is"),
-            ("ˈt͡ʃænl", "ˈt͡ʃæ̃nl̩", "channel"),
+            ("ˈfa͜ɪnl", "fˈa͜ɪnl̩", "final: an /l/ behind a nasal is"),
+            ("ˈt͡ʃænl", "t͡ʃˈæ̃nl̩", "channel"),
         ],
     )
     def test_a_sonorant_is_syllabic_only_where_it_carries_a_syllable(
@@ -443,8 +443,8 @@ class TestAmericanEnglishDerivesTheseForms:
     @pytest.mark.parametrize(
         "source,expected,gloss",
         [
-            ("ˈmʌni", "ˈmʌni", "money: the nasal is the next onset"),
-            ("ˈsʌmɚ", "ˈsʌmɚ", "summer"),
+            ("ˈmʌni", "mˈʌni", "money: the nasal is the next onset"),
+            ("ˈsʌmɚ", "sˈʌmɚ", "summer"),
             ("təmˈe͜ɪto͜ʊ", "təmˈe͜ɪɾo͜ʊ", "tomato"),
             ("pˈɪn", "pʰˈɪ̃n", "pin: a coda nasal, so nasalized"),
             ("kˈæmp", "kʰˈæ̃mp̚", "camp: a coda nasal before a consonant"),
@@ -461,7 +461,7 @@ class TestAmericanEnglishDerivesTheseForms:
             ("lˈɪtl", "lˈɪɾl̩", "little"),
             ("pˈɑɹti", "pʰˈɑɹɾi", "party: flapped after a coda rhotic"),
             ("wˈɔtɚ", "wˈɔɾɚ", "water: and after the vocalic spelling"),
-            ("ˈbʌ.tn", "ˈbʌ.tⁿn̩", "button: a syllabic NASAL does not flap"),
+            ("ˈbʌ.tn", "bˈʌ.tⁿn̩", "button: a syllabic NASAL does not flap"),
             ("ˈæpl", "ˈæpˡl̩", "apple: lateral release, not a flap"),
         ],
     )
@@ -589,8 +589,8 @@ class TestAmericanEnglishDerivesTheseForms:
         assert rule_set.apply("pə.tˈe͜ɪ.to͜ʊ") == "pə.tʰˈe͜ɪ.ɾo͜ʊ"
         # ... and the tie is still load-bearing for nasalization, which is
         # why the file does not tell anybody to stop writing them.
-        assert rule_set.apply("ˈkaɪn") == "ˈkaɪ̃n"
-        assert rule_set.apply("ˈka͜ɪn") == "ˈka͜ɪn"
+        assert rule_set.apply("ˈkaɪn") == "kʰˈaɪ̃n"
+        assert rule_set.apply("ˈka͜ɪn") == "kʰˈa͜ɪn"
         assert untie, "the inventory declares no tie bars"
 
     def test_the_lateral_release_rule_is_not_bled_by_the_syllabic_rule(self):

@@ -28,6 +28,16 @@ def test_stress_is_a_nucleus_and_an_unknown_margin_is_not_absorbed() -> None:
     assert result.unsyllabified == ((0, 1),)
 
 
+def test_leading_and_house_stress_find_the_same_nucleus() -> None:
+    built = ipakit.syllabifier("english", strictness="strict")
+    leading = built("ˈbaʊt")
+    house = built("bˈaʊt")
+    assert leading.spelled() == house.spelled() == ("bˈa", "ʊt")
+    leading_nucleus = next(u for u in leading.form.units if "stress" in u.prosody)
+    house_nucleus = next(u for u in house.form.units if "stress" in u.prosody)
+    assert leading_nucleus.text.encode() == house_nucleus.text.encode() == "ˈa".encode()
+
+
 def test_every_harvested_cluster_retains_evidence_and_a_decision() -> None:
     declaration = ipakit.language("english")
     harvested = [onset for onset in declaration.onsets if onset.harvested_count]
@@ -54,9 +64,8 @@ def test_report_totals_and_iterations_are_self_consistent() -> None:
         report["cross_check"]["agreements"] + report["cross_check"]["disagreements"]
     )
     cross_check = report["cross_check"]
-    assert (
-        cross_check["normalizations"]["stress_to_nucleus"]["applied_to_forms"] == 128670
-    )
+    assert cross_check["read_stress_seating"]["changed_forms"] == 126451
+    assert cross_check["normalizations"]["stress_to_nucleus"]["applied_to_forms"] == 0
     assert (
         cross_check["normalizations"]["registered_diphthong_tying"]["applied_to_forms"]
         == 0
@@ -66,9 +75,9 @@ def test_report_totals_and_iterations_are_self_consistent() -> None:
         for name, bucket in cross_check["disagreement_buckets"].items()
     } == {
         "stress_seat": 0,
-        "untied_diphthong_nucleation": 18966,
-        "genuine_boundary_difference": 1511,
-        "other": 69473,
+        "untied_diphthong_nucleation": 19843,
+        "genuine_boundary_difference": 0,
+        "other": 68596,
     }
 
 

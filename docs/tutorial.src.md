@@ -444,16 +444,16 @@ derivation.result
 [step.rule for step in derivation.steps if step.fired]
 ```
 
-**Stress must be marked on the nucleus**, not at the syllable boundary, or the rules that
-condition on a stressed vowel will not fire. This is the single most likely reason a rule
-set appears to do nothing:
+Stress is carried by the nucleus. Both standard syllable-leading notation and the house
+nucleus-leading spelling give rules the same stressed-vowel reading:
 
 ```python-run
-ipa.rewrite("ˈpɪn", english)           # stress at the boundary: no aspiration
+ipa.rewrite("ˈpɪn", english)           # leading stress seats on the nucleus: aspirated
 ipa.rewrite("pˈɪn", english)           # stress on the nucleus: aspirated
 ```
 
-The library will move it for you, and `from_cmu` already produces the right convention:
+The explicit normalizer remains available for output conversion, and `from_cmu` already
+produces the house convention:
 
 ```python-run
 features = ipa.load_ipa_features()

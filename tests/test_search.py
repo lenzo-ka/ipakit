@@ -96,7 +96,7 @@ class TestToIpaInvertsSegments:
         "ã",
         "aː",
         "t̪",
-        "ˈkæt",
+        "kˈæt",
     ]
 
     @pytest.mark.parametrize("text", HOUSE_CANONICAL)
@@ -141,11 +141,11 @@ class TestToIpaIsNoStrongerThanItsParts:
         # This used to assert kˈæt -> ˈkæt, which reads as a harmless
         # respelling only because a monosyllable's onset is in the
         # stressed syllable. The mark was binding leftward, so in a
-        # longer word it changed syllable. It binds the unit that
-        # follows it and re-emits in front of that unit, so both
-        # spellings come back as written.
+        # longer word it changed syllable. Segment projection now emits
+        # the mark on the nucleus; Form retains the independent spelling.
         assert ipa.to_ipa(ipa.segments("kˈæt")) == "kˈæt"
-        assert ipa.to_ipa(ipa.segments("ˈkæt")) == "ˈkæt"
+        assert ipa.to_ipa(ipa.segments("ˈkæt")) == "kˈæt"
+        assert ipa.read("ˈkæt").to_ipa() == "ˈkæt"
 
 
 class TestFeatureValuesBridgesTheLevels:
