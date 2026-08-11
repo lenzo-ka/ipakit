@@ -1,9 +1,9 @@
 {
   "artifacts": [
     {
-      "bytes": 172100,
+      "bytes": 174120,
       "path": "ipakit/data/confusion.json",
-      "sha256": "aecabe393e38b23dd23f6dbb44b11226bb34a7839f103f709890de432f7827bb"
+      "sha256": "f490f57876f92f9275eb9916c7ac199fad230e3463d665135059b93b53e9ef61"
     },
     {
       "bytes": 5876,

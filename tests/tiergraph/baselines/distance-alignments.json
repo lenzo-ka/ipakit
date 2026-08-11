@@ -507,13 +507,13 @@
         {
           "a": "a͜ɪ",
           "b": "a",
-          "cost": 0.6667,
+          "cost": 0.2759,
           "op": "sub",
           "terms": [
             {
               "a": "a͜ɪ",
               "b": "a",
-              "cost": 0.6667,
+              "cost": 0.2759,
               "label": "segmental"
             }
           ]
@@ -543,7 +543,7 @@
       "id": "mixed",
       "left": "stɹa͜ɪk",
       "right": "sutoɾaiku",
-      "segment_distance": 0.5869086099086099,
+      "segment_distance": 0.5440636924803592,
       "word_distance": {
         "alignment": [
           [
@@ -585,10 +585,10 @@
         ],
         "costs": "insert=1.0 delete=1.0",
         "coverage": 0.5555555555555556,
-        "edit_cost": 5.4,
-        "similarity": 0.6142857142857143
+        "edit_cost": 4.618495670995671,
+        "similarity": 0.6701074520717378
       },
-      "word_similarity": 0.6142857142857143
+      "word_similarity": 0.6701074520717378
     },
     {
       "explain_word_distance": [
