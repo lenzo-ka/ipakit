@@ -53,6 +53,8 @@ The checked demonstration has 3 valid forms, 5 syllables, and 0 conflicts; the r
 
 Spanish declares any single consonant and obstruent-plus-liquid clusters as onsets, so onset maximization derives the inventory from constraints alone; no attestation list was needed.
 
+Those same constraints validate margins at word edges as well as between nuclei. Thus `stan` becomes `tan`, with the initial `s` reported as unsyllabified: word-initial `/st/` is the classic Spanish impossibility that motivates epenthesis. A language that declares coda spans gets the symmetric validation at its right edge; declaring no codas, as Spanish currently does, leaves codas unconstrained.
+
 Untied vowel units are separate nuclei and tied vowel sequences remain one unit, leaving diphthong versus hiatus where the transcription and nucleus machinery put it.
 
 ```python
@@ -60,6 +62,7 @@ es = ipakit.syllabifier("spanish")
 es("poeta").spelled()           # ("po", "e", "ta")
 es("los‿otɾos").spelled()       # ("lo", "s‿o", "tɾos")
 es("los‿otɾos").marks()         # "lo.s‿o.tɾos"
+es("stan").spelled(), es("stan").unsyllabified  # (("tan",), ((0, 1),))
 ```
 
 The checked demonstration has 5 forms, 12 syllables, and 1 conflict; the conflicting `at.ɾa` is honored while the report records Spanish's freely derived `a.tɾa`.
@@ -72,9 +75,9 @@ One IPA string produces three honest answers:
 |---|---|
 | Japanese | `a.ɾa`; `t` is reported as unlicensed residue |
 | Mandarin | no member; unsyllabified |
-| Spanish | `a.tɾa` |
+| Spanish | `a.tɾa`; margins validated medially and at word edges |
 
-The difference is the point: the moraic declaration reports residue, the enumeration refuses the form wholesale, and the derived margins syllabify it freely. Three analyses produce three different honest behaviors without hiding any of them in Python.
+The difference is the point: the moraic declaration reports residue, the enumeration refuses the form wholesale, and the constraints declaration syllabifies exactly what its derived margins license, reporting edge residue such as the `s` of `stan`. Three analyses produce three different honest behaviors without hiding any of them in Python.
 
 ## 7. Metric firewall
 

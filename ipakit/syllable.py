@@ -58,6 +58,7 @@ class Language:
     onsets: tuple[Span, ...] = ()
     morae: tuple[Span, ...] = ()
     syllables: frozenset[str] = frozenset()
+    codas: tuple[Span, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -145,7 +146,7 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
     except ImportError:  # pragma: no cover - lxml is a project dependency
         pass
     root = ET.parse(path).getroot()
-    groups: dict[str, list[Span]] = {"nucleus": [], "onset": [], "mora": []}
+    groups: dict[str, list[Span]] = {"nucleus": [], "onset": [], "coda": [], "mora": []}
     for kind in groups:
         groups[kind] = [_terms(e.attrib["span"], features) for e in root.findall(kind)]
     declared_syllables = list(root.findall("syllable"))
@@ -154,13 +155,14 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
         source = (path.parent / inventory.attrib["source"]).resolve()
         declared_syllables.extend(ET.parse(source).getroot().findall("syllable"))
     return Language(
-        root.attrib["language"],
-        root.attrib["mode"],
-        root.attrib["provenance"],
-        tuple(groups["nucleus"]),
-        tuple(groups["onset"]),
-        tuple(groups["mora"]),
-        frozenset(e.attrib["ipa"] for e in declared_syllables),
+        name=root.attrib["language"],
+        mode=root.attrib["mode"],
+        provenance=root.attrib["provenance"],
+        nuclei=tuple(groups["nucleus"]),
+        onsets=tuple(groups["onset"]),
+        codas=tuple(groups["coda"]),
+        morae=tuple(groups["mora"]),
+        syllables=frozenset(e.attrib["ipa"] for e in declared_syllables),
     )
 
 
@@ -233,9 +235,14 @@ class Syllabifier:
         start = 0
         for stop in [*self._delimiters(units, honor), len(units)]:
             if start < stop:
-                spans = self._within(units, start, stop)
+                spans, residue = self._within(units, start, stop)
                 out.extend(spans)
-                if not spans and any(u.segment is not None for u in units[start:stop]):
+                empty.extend(residue)
+                if (
+                    not spans
+                    and not residue
+                    and any(u.segment is not None for u in units[start:stop])
+                ):
                     empty.append((start, stop))
             start = stop + 1
         return out, empty
@@ -329,21 +336,59 @@ class Syllabifier:
             syllables.append(Interval("syllable", opened, closed, self.features))
         return syllables, [mora for mora, _ in entries], residue
 
-    def _within(self, units: Sequence[Unit], start: int, stop: int) -> list[Interval]:
+    def _within(
+        self, units: Sequence[Unit], start: int, stop: int
+    ) -> tuple[list[Interval], list[tuple[int, int]]]:
         if self.language.mode == "enumerated":
-            return self._enumerate(units, start, stop)
+            return self._enumerate(units, start, stop), []
         nuclei = [i for i in range(start, stop) if self._is_nucleus(units[i])]
         if not nuclei:
-            return []
+            return [], []
+        first = self._initial_edge(units, start, nuclei[0])
+        last = self._final_edge(units, nuclei[-1], stop)
         edges = [
-            start,
+            first,
             *(self._cut(units, a, b) for a, b in zip(nuclei, nuclei[1:], strict=False)),
-            stop,
+            last,
         ]
-        return [
-            Interval("syllable", a, b, self.features)
-            for a, b in zip(edges, edges[1:], strict=False)
+        residue = [
+            (i, i + 1)
+            for i in (*range(start, first), *range(last, stop))
+            if units[i].segment is not None
         ]
+        return (
+            [
+                Interval("syllable", a, b, self.features)
+                for a, b in zip(edges, edges[1:], strict=False)
+            ],
+            residue,
+        )
+
+    def _initial_edge(self, units: Sequence[Unit], start: int, nucleus: int) -> int:
+        """Locate the first licensed onset suffix at a region's left edge."""
+        if not any(u.segment is not None for u in units[start:nucleus]):
+            return start
+        for edge in range(start, nucleus):
+            candidate = tuple(u for u in units[edge:nucleus] if u.segment is not None)
+            if any(
+                span.matches(candidate, self.features) for span in self.language.onsets
+            ):
+                return edge
+        return nucleus
+
+    def _final_edge(self, units: Sequence[Unit], nucleus: int, stop: int) -> int:
+        """Locate the longest licensed coda prefix at a region's right edge."""
+        if not self.language.codas:
+            return stop
+        for edge in range(stop, nucleus, -1):
+            candidate = tuple(
+                u for u in units[nucleus + 1 : edge] if u.segment is not None
+            )
+            if candidate and any(
+                span.matches(candidate, self.features) for span in self.language.codas
+            ):
+                return edge
+        return nucleus + 1
 
     def _cut(self, units: Sequence[Unit], left: int, right: int) -> int:
         # First match is maximal onset. A failed longer span locates the edge

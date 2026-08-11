@@ -32,7 +32,8 @@ def test_stated_marks_are_honored_and_conflicts_reported() -> None:
     declaration = Language("test", "constraints", "test", nuclei=(), onsets=())
     # Stress is independently sufficient to establish each nucleus.
     result = syllabifier(declaration)("ˈa.bˈa")
-    assert result.spelled() == ("ˈa", "bˈa")
+    assert result.spelled() == ("ˈa", "ˈa")
+    assert result.unsyllabified == ((2, 3),)
     assert len(result.conflicts) == 1
     assert result.form.to_ipa() == "ˈa.bˈa"
 
@@ -48,6 +49,20 @@ def test_word_edges_hold_and_linking_edges_are_crossable(tmp_path: Path) -> None
     built = syllabifier(declaration)
     assert built("at#a").spelled() == ("at", "a")
     assert built("at‿a").spelled() == ("a", "t‿a")
+
+
+def test_declared_codas_validate_the_word_final_margin(tmp_path: Path) -> None:
+    declaration = _declared(
+        tmp_path,
+        """
+<syllabification language="test" version="1" mode="constraints" provenance="test">
+  <nucleus span="[vowel]" /><onset span="[-vowel]" />
+  <coda span="[-vowel]" />
+</syllabification>""",
+    )
+    result = syllabifier(declaration)("ants")
+    assert result.spelled() == ("an",)
+    assert result.unsyllabified == ((2, 3), (3, 4))
 
 
 def test_a_richer_boundary_carrier_round_trips(tmp_path: Path) -> None:
