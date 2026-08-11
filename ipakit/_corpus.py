@@ -216,11 +216,23 @@ class Corpus:
         """Content identity of the manifest and canonical entry documents."""
         from ._tiergraph_json import identity_fingerprint
 
-        manifest = _load_object(self._location / "corpus.json", "corpus manifest")
-        entries = [
-            _load_object(self._entry_path(entry_id), "entry") for entry_id in self.ids()
-        ]
-        return identity_fingerprint({"manifest": manifest, "entries": entries})
+        manifest_path = self._location / "corpus.json"
+        entry_paths = [self._entry_path(entry_id) for entry_id in self.ids()]
+        try:
+            manifest = _load_object(manifest_path, "corpus manifest")
+            entries = [_load_object(path, "entry") for path in entry_paths]
+            value: Any = {"manifest": manifest, "entries": entries}
+        except CorpusError:
+            # A report over damaged input still needs a stable identity.  Keep
+            # the established semantic fingerprint for readable corpora and
+            # fall back to exact stored bytes only when JSON cannot be read.
+            value = {
+                "manifest_bytes": manifest_path.read_bytes().hex(),
+                "entry_bytes": [
+                    [path.name, path.read_bytes().hex()] for path in entry_paths
+                ],
+            }
+        return identity_fingerprint(value)
 
     def _write_manifest(self, manifest: Mapping[str, Any]) -> None:
         descriptor, temporary = tempfile.mkstemp(dir=self._location, prefix=".corpus-")
@@ -289,6 +301,38 @@ class Corpus:
     def read(self, entry_id: str) -> Entry:
         """Restore one entry and all its named forms."""
         return self.read_roles(entry_id)
+
+    def roles(self, entry_id: str) -> tuple[str, ...]:
+        """Return stored form role names without restoring their form wires."""
+        _check_id(entry_id)
+        path = self._entry_path(entry_id)
+        if not path.is_file():
+            raise KeyError(entry_id)
+        raw = _load_object(path, "entry")
+        if raw.get("type") != _ENTRY_TYPE:
+            raise CorpusError(
+                f"entry {entry_id!r} has unsupported type {raw.get('type')!r}"
+            )
+        if raw.get("v") != ENTRY_VERSION:
+            raise CorpusError(
+                f"entry {entry_id!r} has unsupported version {raw.get('v')!r}; "
+                f"current version is {ENTRY_VERSION}"
+            )
+        stored_id = raw.get("id")
+        if stored_id != entry_id:
+            raise CorpusError(
+                f"entry id/filename mismatch: file {path.name!r} contains {stored_id!r}"
+            )
+        _check_id(stored_id)
+        raw_forms = raw.get("forms")
+        if not isinstance(raw_forms, dict):
+            raise CorpusError(f"entry {entry_id!r} forms must be a JSON object")
+        for role in raw_forms:
+            if not isinstance(role, str) or not role:
+                raise CorpusError(
+                    f"entry {entry_id!r} has an invalid form role {role!r}"
+                )
+        return tuple(raw_forms)
 
     def put_form(
         self,
@@ -390,12 +434,12 @@ class Corpus:
                 raise CorpusError(
                     f"entry {entry_id!r} has an invalid form role {role!r}"
                 )
+            if selected is not None and role not in selected:
+                continue
             if not isinstance(representation, dict):
                 raise CorpusError(
                     f"entry {entry_id!r} form {role!r} must be a JSON object"
                 )
-            if selected is not None and role not in selected:
-                continue
             try:
                 restored[role] = Form.from_dict(representation)
             except (KeyError, TypeError, ValueError) as exc:

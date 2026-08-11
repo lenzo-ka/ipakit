@@ -63,6 +63,80 @@ def test_experiment_refuses_a_stale_split(tmp_path: Path):
         ).run()
 
 
+@pytest.mark.parametrize("position, missing", [("source", "wide"), ("target", "fine")])
+def test_experiment_refuses_a_role_absent_from_the_whole_split(
+    tmp_path: Path, position: str, missing: str
+):
+    corpus = _corpus(tmp_path)
+    roles = (missing, "narrow") if position == "source" else ("broad", missing)
+
+    with pytest.raises(ValueError) as caught:
+        ipakit.Experiment(ipakit.RuleSet(()), corpus, *roles, split="held-out").run()
+
+    message = str(caught.value)
+    assert f"{position} role {missing!r} appears on zero entries" in message
+    assert "split 'held-out'" in message
+    assert "roles present on readable entries: 'broad', 'narrow'" in message
+
+
+def test_experiment_role_refusal_reports_unreadable_entries(tmp_path: Path):
+    corpus = _corpus(tmp_path)
+    path = tmp_path / "corpus" / "entries" / "missing.json"
+    path.write_text("not json", encoding="utf-8")
+
+    with pytest.raises(ValueError) as caught:
+        ipakit.Experiment(
+            ipakit.RuleSet(()), corpus, "wide", "narrow", split="held-out"
+        ).run()
+
+    message = str(caught.value)
+    assert "roles present on readable entries: 'broad', 'narrow'" in message
+    assert "1 entries unreadable" in message
+
+
+def test_experiment_keeps_partial_role_coverage_as_entry_data(tmp_path: Path):
+    corpus = _corpus(tmp_path)
+    report = ipakit.Experiment(
+        ipakit.RuleSet(()), corpus, "broad", "narrow", split="held-out"
+    ).run()
+
+    missing = next(row for row in report.entries if row.entry_id == "missing")
+    assert missing.classification == "ill_formed_input"
+    assert missing.reason == "missing role 'narrow'"
+
+
+def test_experiment_classifies_a_malformed_selected_form_per_entry(tmp_path: Path):
+    corpus = _corpus(tmp_path)
+    path = tmp_path / "corpus" / "entries" / "yes.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["forms"]["broad"] = {}
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    report = ipakit.Experiment(
+        ipakit.RuleSet(()), corpus, "broad", "narrow", split="held-out"
+    ).run()
+
+    malformed = next(row for row in report.entries if row.entry_id == "yes")
+    assert malformed.classification == "ill_formed_input"
+
+
+def test_experiment_ignores_a_malformed_unrelated_form(tmp_path: Path):
+    corpus = _corpus(tmp_path)
+    path = tmp_path / "corpus" / "entries" / "yes.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["forms"]["unrelated"] = "not a form wire"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    report = ipakit.Experiment(
+        ipakit.RuleSet(()), corpus, "broad", "narrow", split="held-out"
+    ).run()
+
+    unaffected = next(row for row in report.entries if row.entry_id == "yes")
+    assert unaffected.classification == "provably_underivable"
+    assert unaffected.source == "anp"
+    assert unaffected.target == "amp"
+
+
 def test_cmudict_slice_executed_demonstration(tmp_path: Path):
     """The documented corpus experiment numbers are executed, not copied."""
     corpus = ipakit.corpus.create(tmp_path / "cmu")
