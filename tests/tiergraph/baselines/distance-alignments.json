@@ -511,10 +511,28 @@
           "op": "sub",
           "terms": [
             {
-              "a": "a͜ɪ",
+              "a": "a",
               "b": "a",
-              "cost": 0.2759,
-              "label": "segmental"
+              "cost": 0.0,
+              "label": "matched part a[0]~b[0]"
+            },
+            {
+              "a": "ɪ",
+              "b": "a",
+              "cost": 0.1037,
+              "label": "unmatched part a[1] nearest opposite[0]"
+            },
+            {
+              "a": "ɪ",
+              "b": null,
+              "cost": 0.0,
+              "label": "unmatched part a[1] material"
+            },
+            {
+              "a": "seq",
+              "b": null,
+              "cost": 1.0,
+              "label": "unaligned juncture a[0]"
             }
           ]
         },

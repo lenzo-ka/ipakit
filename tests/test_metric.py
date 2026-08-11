@@ -18,6 +18,7 @@ from ipakit.metric import (
     bundle_distance,
     metric_fingerprint,
     segment_metric,
+    segment_terms,
 )
 
 
@@ -52,6 +53,11 @@ class TestExactPins:
         # Same constituents, different timing claim: one juncture mismatch
         # over three terms.
         assert D(ipa, "u͡i", "u͜i") == pytest.approx(1 / 3, abs=1e-12)
+        assert segment_terms(ipa, ipa.segment("u͡i"), ipa.segment("u͜i")) == [
+            ("matched part a[0]~b[0]", "u", "u", 0.0),
+            ("matched part a[1]~b[1]", "i", "i", 0.0),
+            ("juncture a[0]~b[0]", "fuse", "seq", 1.0),
+        ]
 
     def test_identity_is_zero(self, ipa: IPAFeatures) -> None:
         for s in ["a", "t͡s", "u͜i", "t͡s͜a", "ŋ͡m͡ɡ͡b"]:
@@ -85,6 +91,24 @@ class TestOrderSemantics:
 
 
 class TestMaterialBudget:
+    def test_every_shipped_composite_pair_reconstructs_exactly(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Flat report rows are exactly the outer metric terms, once each."""
+        checked = 0
+        phones = list(ipa.phones)
+        for i, left in enumerate(phones):
+            for right in phones[i:]:
+                x, y = ipa.segment(left), ipa.segment(right)
+                if len(x.constituents) == 1 and len(y.constituents) == 1:
+                    continue
+                rows = segment_terms(ipa, x, y)
+                reconstructed = sum(row[3] for row in rows) / len(rows)
+                assert reconstructed == segment_metric(ipa, x, y), (left, right)
+                assert all(row[0] != "segmental" for row in rows)
+                checked += 1
+        assert checked == 2944
+
     def test_composites_are_nearer_their_own_atomic_constituents(
         self, ipa: IPAFeatures
     ) -> None:

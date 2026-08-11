@@ -105,6 +105,8 @@ The flat projection asks the same question of the same structure, so a pair scor
 
 **Junctures contribute one term each.** A juncture on one side aligns with one on the other when both flanking pairs are matched; aligned junctures score 0 when their senses agree and 1 when they do not, and unaligned junctures score 1. So `d(u͡i, u͜i) = 1/3` exactly: the same constituents in the same order, one juncture-sense mismatch over three terms.
 
+`explain_word_distance` exposes that arithmetic directly. Composite substitutions use flat qualified rows for matched parts, unmatched-part nearest comparisons and material, and junctures; they do not also include a parent `segmental` aggregate. A matched part remains one outer row even when its own atomic comparison can be explained one level down. Thus summing the row costs and dividing by their count never double-counts a parent beside its children. For `u͡i` / `u͜i`, the shipped rows are `matched part a[0]~b[0]: u/u = 0`, `matched part a[1]~b[1]: i/i = 0`, and `juncture a[0]~b[0]: fuse/seq = 1`, reconstructing `1/3`.
+
 ### The declared mass budget
 
 The budget names each kind of material and derives its price from declarations already in the feature model. No entry is fitted.
