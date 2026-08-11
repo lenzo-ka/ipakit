@@ -80,6 +80,8 @@ ipakit = [
     "data/phonemaps/*.rng",
     "data/supplements/*.xml",
     "data/supplements/*.rng",
+    "data/syllables/*.xml",
+    "data/syllables/*.rng",
     "data/bridges/*/*.xml",
     "data/bridges/*.rng",
     "data/rules/*.rules",
