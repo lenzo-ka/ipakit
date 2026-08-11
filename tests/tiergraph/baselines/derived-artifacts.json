@@ -11,14 +11,14 @@
       "sha256": "5ee7e6d1da708826b474995cf82d829ca3c44002356b90cc38a2a90c61170f5c"
     },
     {
-      "bytes": 38070,
+      "bytes": 38087,
       "path": "docs/tutorial.md",
-      "sha256": "49e2516bd9ea0d5c6786cecca93238fd0ef2c51071d67ff058b40adcb8939609"
+      "sha256": "2b4ffeb12e2f244044105a91dcd4b3beece89ca1882590fa1afd9fea9a14b808"
     },
     {
-      "bytes": 41600,
+      "bytes": 48822,
       "path": "ipakit/notebooks/ipakit-tutorial.ipynb",
-      "sha256": "f28b48f3055f5df0a312e1080894703d4270c05860d97b5897c27c43d99147bb"
+      "sha256": "6b78d0e8ee1ef129577f9251db9fbccac3574d71f4e51ff69a5bdbcc47aa2f33"
     },
     {
       "bytes": 43564,
@@ -81,9 +81,9 @@
       "sha256": "1bec9f66e578bf5ad4635638154db2549f624b72c429d921ccd668a9da5e07e8"
     },
     {
-      "bytes": 43717,
+      "bytes": 43560,
       "path": "docs/figures/tract-u.svg",
-      "sha256": "dbff80d220bb5463499ad21dcf4e1f1c8a416821e3c134cdfc250ce83a6a9ea0"
+      "sha256": "9ae631db34df0ee94fc0c2d9e489450a2f8aac7619655b7e8a9c8552dc237167"
     }
   ],
   "format": 1,
