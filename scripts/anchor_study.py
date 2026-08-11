@@ -464,11 +464,11 @@ def render_report(
     lines = [
         "# XRMB anchor study",
         "",
-        "**Verdict: the audio-pellet sync gate passed. The table below is the generated result; its per-class recommendations are evidence for the timed sampler and do not estimate a universal phonological alignment rule.**",
+        "**Verdict: the audio-pellet sync gate passed. The tables below are the generated result; their evidential weight is class-dependent — vowel and alveolar-fricative targets are UNMEASURED with these detectors (see the uniform-window null comparison) — and nothing here estimates a universal phonological alignment rule.**",
         "",
         "## Sync gate",
         "",
-        f"{len(differences)} deduplicated clear stop releases across the first {SYNC_SPEAKERS} speakers; median signed pellet-release minus waveform-burst difference **{signed_median:+.3f} s** (range **{min(differences):+.3f} to {max(differences):+.3f} s**). Median absolute difference **{statistics.median(abs(value) for value in differences):.3f} s** and 75th percentile **{_quantile([abs(value) for value in differences], 0.75):.3f} s** (gate: 75th percentile <= {SYNC_TOLERANCE_S:.3f} s). The signed values expose systematic clock offset separately from detector scatter; the absolute values enforce the gate.",
+        f"{len(differences)} deduplicated clear stop releases across the first {SYNC_SPEAKERS} speakers; median signed pellet-release minus waveform-burst difference **{signed_median:+.3f} s** (range **{min(differences):+.3f} to {max(differences):+.3f} s**). Median absolute difference **{statistics.median(abs(value) for value in differences):.3f} s** and 75th percentile **{_quantile([abs(value) for value in differences], 0.75):.3f} s** (gate: 75th percentile <= {SYNC_TOLERANCE_S:.3f} s). The signed values expose systematic offset (clock or detector bias) separately from random scatter; the absolute values enforce the gate.",
         "",
         "## Headline distributions",
         "",

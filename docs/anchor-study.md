@@ -1,10 +1,10 @@
 # XRMB anchor study
 
-**Verdict: the audio-pellet sync gate passed. The table below is the generated result; its per-class recommendations are evidence for the timed sampler and do not estimate a universal phonological alignment rule.**
+**Verdict: the audio-pellet sync gate passed. The tables below are the generated result; their evidential weight is class-dependent — vowel and alveolar-fricative targets are UNMEASURED with these detectors (see the uniform-window null comparison) — and nothing here estimates a universal phonological alignment rule.**
 
 ## Sync gate
 
-22 deduplicated clear stop releases across the first 5 speakers; median signed pellet-release minus waveform-burst difference **-0.013 s** (range **-0.062 to +0.082 s**). Median absolute difference **0.034 s** and 75th percentile **0.041 s** (gate: 75th percentile <= 0.050 s). The signed values expose systematic clock offset separately from detector scatter; the absolute values enforce the gate.
+22 deduplicated clear stop releases across the first 5 speakers; median signed pellet-release minus waveform-burst difference **-0.013 s** (range **-0.062 to +0.082 s**). Median absolute difference **0.034 s** and 75th percentile **0.041 s** (gate: 75th percentile <= 0.050 s). The signed values expose systematic offset (clock or detector bias) separately from random scatter; the absolute values enforce the gate.
 
 ## Headline distributions
 
