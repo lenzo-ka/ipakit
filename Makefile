@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial notebook lint check
+.PHONY: figures figures-clean tutorial notebook house-style lint check
 
 ## figures: redraw the mid-sagittal tract figures in docs/
 figures:
@@ -43,6 +43,10 @@ tutorial:
 # results in them. Nothing runs, so there is no seed to pin.
 notebook:
 	@$(PYTHON) scripts/tutorial.py build notebook
+
+## house-style: regenerate the declaration exhibits in the conventions page
+house-style:
+	@$(PYTHON) scripts/house_style.py generate --write
 
 ## lint: the style gates; needs the `lint` extra (ruff / black / mypy)
 lint:
@@ -75,6 +79,7 @@ check: lint
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
 	@$(PYTHON) scripts/confusion.py validate
 	@$(PYTHON) scripts/xsampa_table.py validate
+	@$(PYTHON) scripts/house_style.py check
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py
 	@$(PYTHON) scripts/docquotes.py
