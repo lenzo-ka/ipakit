@@ -569,6 +569,24 @@ def _mutations(
                 "RELAXNG_ERR_NOELEM",
             ),
         ]
+    if document.name == "mfa.xml":
+        return [
+            (
+                "atom with no spelling",
+                lambda r: _first(r, "atom").attrib.pop("spelling"),
+                "RELAXNG_ERR_ATTRVALID",
+            ),
+            (
+                "an unknown atom attribute",
+                lambda r: _first(r, "atom").set("guess", "p"),
+                "RELAXNG_ERR_INVALIDATTR",
+            ),
+            (
+                "an unknown vocabulary element",
+                lambda r: ET.SubElement(r, "passthrough"),
+                "RELAXNG_ERR_EXTRACONTENT",
+            ),
+        ]
     return [
         (
             "map with no ipa side",
@@ -624,6 +642,7 @@ def _negatives() -> Iterator[Any]:
         DATA / "heads.xml",
         DATA / "phonemaps" / "cmu.xml",
         SUPPLEMENT_XML,
+        DATA / "bridges" / "mfa" / "mfa.xml",
     ):
         grammar = _grammars_for(document)[0]
         for label, mutate, code in _mutations(document):

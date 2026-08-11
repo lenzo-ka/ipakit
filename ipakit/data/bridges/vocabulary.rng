@@ -1,7 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <grammar xmlns="http://relaxng.org/ns/structure/1.0">
-  <start><element name="vocabulary"><zeroOrMore><choice><attribute><anyName /><text /></attribute><text /><ref name="node" /></choice></zeroOrMore></element></start>
-  <define name="node">
-    <element><anyName /><zeroOrMore><choice><attribute><anyName /><text /></attribute><text /><ref name="node" /></choice></zeroOrMore></element>
+  <start>
+    <element name="vocabulary">
+      <attribute name="name"><text /></attribute>
+      <attribute name="version"><text /></attribute>
+      <attribute name="provenance"><text /></attribute>
+      <optional><attribute name="tier"><text /></attribute></optional>
+      <optional><attribute name="source-style"><choice><value>text</value><value>segmented</value></choice></attribute></optional>
+      <optional><attribute name="separator"><text /></attribute></optional>
+      <ref name="round-trip" />
+      <zeroOrMore><choice><ref name="input" /><ref name="tone" /></choice></zeroOrMore>
+      <oneOrMore><ref name="atom" /></oneOrMore>
+    </element>
+  </start>
+
+  <define name="round-trip">
+    <element name="round-trip">
+      <element name="external-to-house"><ref name="leg" /></element>
+      <element name="house-to-external"><ref name="leg" /></element>
+    </element>
+  </define>
+
+  <define name="leg">
+    <attribute name="fidelity">
+      <choice>
+        <value>lossless</value>
+        <value>lossless-with-declared-tricks</value>
+        <value>lossy-with-report</value>
+      </choice>
+    </attribute>
+    <zeroOrMore>
+      <choice>
+        <element name="drop"><attribute name="name"><text /></attribute></element>
+        <element name="trick"><attribute name="name"><text /></attribute></element>
+      </choice>
+    </zeroOrMore>
+  </define>
+
+  <define name="input">
+    <element name="input">
+      <attribute name="source"><text /></attribute>
+      <attribute name="target"><text /></attribute>
+    </element>
+  </define>
+
+  <define name="tone">
+    <element name="tone">
+      <attribute name="vowel"><text /></attribute>
+      <attribute name="marks"><text /></attribute>
+    </element>
+  </define>
+
+  <define name="atom">
+    <element name="atom">
+      <attribute name="spelling"><text /></attribute>
+      <optional><attribute name="output"><text /></attribute></optional>
+      <optional><attribute name="exemplar"><text /></attribute></optional>
+      <optional><attribute name="notes"><text /></attribute></optional>
+    </element>
   </define>
 </grammar>
