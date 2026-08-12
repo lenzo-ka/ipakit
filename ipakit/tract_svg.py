@@ -285,9 +285,7 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             }
             for t in current["teeth"]
         ]
-        points = list(p.constrictions)
-        if not points and p.rest_weight > 0.0 and p.rest is not None:
-            points = [p.rest]
+        points = list(p.tongue_controls)
         current["tongue"] = tongue_surface(head.name, points, close)
         current["extra"] = [
             (q.arc, q.offset, q.articulator or "")
@@ -443,7 +441,7 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
                 y += gap * carry
             points.append((x, y))
         if name == "tongue":
-            points = list(frontal_tongue(tuple(points), list(p.constrictions)))
+            points = list(frontal_tongue(tuple(points), list(p.tongue_controls)))
         contours.append(
             {"name": name, "carrier": carrier, "arc": arc, "points": points}
         )

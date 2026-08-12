@@ -320,31 +320,17 @@
         {
           "at": 1,
           "features": {
+            "class": "separator",
+            "href": "Word",
             "level": "word"
           },
           "level": "word",
-          "text": " "
-        },
-        {
-          "at": 1,
-          "features": {
-            "level": "word"
-          },
-          "level": "word",
-          "text": "\t"
-        },
-        {
-          "at": 1,
-          "features": {
-            "level": "word"
-          },
-          "level": "word",
-          "text": " "
+          "text": " \t "
         }
       ],
       "id": "whitespace",
       "intervals": [],
-      "json": "{\"type\": \"ipakit.form\", \"v\": 2, \"units\": [{\"text\": \"a\", \"segment\": {\"type\": \"ipa-segment\", \"v\": 3, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"timing\": null}, {\"text\": \" \", \"segment\": null, \"timing\": null, \"features\": {\"level\": \"word\"}, \"prosody\": {}, \"provenance\": []}, {\"text\": \"\\t\", \"segment\": null, \"timing\": null, \"features\": {\"level\": \"word\"}, \"prosody\": {}, \"provenance\": []}, {\"text\": \" \", \"segment\": null, \"timing\": null, \"features\": {\"level\": \"word\"}, \"prosody\": {}, \"provenance\": []}, {\"text\": \"b\", \"segment\": {\"type\": \"ipa-segment\", \"v\": 3, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"timing\": null}], \"intervals\": [], \"spelling\": null}",
+      "json": "{\"type\": \"ipakit.form\", \"v\": 2, \"units\": [{\"text\": \"a\", \"segment\": {\"type\": \"ipa-segment\", \"v\": 3, \"constituents\": [{\"base\": \"a\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"timing\": null}, {\"text\": \"#\", \"segment\": null, \"timing\": null, \"spelling\": \" \\t \", \"features\": {\"level\": \"word\", \"href\": \"Word\", \"class\": \"separator\"}, \"prosody\": {}, \"provenance\": []}, {\"text\": \"b\", \"segment\": {\"type\": \"ipa-segment\", \"v\": 3, \"constituents\": [{\"base\": \"b\", \"modifiers\": [], \"approach\": []}], \"junctures\": [], \"prosody\": []}, \"timing\": null}], \"intervals\": [], \"spelling\": null}",
       "spelling": "a \t b",
       "to_ipa": "a \t b",
       "units": [
@@ -383,37 +369,17 @@
           "text": "a"
         },
         {
-          "core": " ",
+          "core": "#",
           "features": {
+            "class": "separator",
+            "href": "Word",
             "level": "word"
           },
           "index": 1,
-          "kind": "whitespace",
+          "kind": "boundary",
           "prosody": {},
           "provenance": [],
-          "text": " "
-        },
-        {
-          "core": "\t",
-          "features": {
-            "level": "word"
-          },
-          "index": 2,
-          "kind": "whitespace",
-          "prosody": {},
-          "provenance": [],
-          "text": "\t"
-        },
-        {
-          "core": " ",
-          "features": {
-            "level": "word"
-          },
-          "index": 3,
-          "kind": "whitespace",
-          "prosody": {},
-          "provenance": [],
-          "text": " "
+          "text": "#"
         },
         {
           "core": "b",
@@ -441,7 +407,7 @@
             "velarized": "-",
             "voiced": "+"
           },
-          "index": 4,
+          "index": 2,
           "kind": "segment",
           "prosody": {},
           "provenance": [],

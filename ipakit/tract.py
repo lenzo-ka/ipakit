@@ -47,7 +47,7 @@ import json
 import math
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -188,6 +188,11 @@ class RestPosture:
         return TractPoint(
             arc=self.tip_arc, offset=self.tip_offset, articulator="tongue-tip"
         )
+
+    @property
+    def tongue_controls(self) -> tuple[TractPoint, ...]:
+        """The declared controls that draw the tongue at home."""
+        return (self.tip,)
 
 
 @dataclass(frozen=True)
@@ -949,6 +954,26 @@ class Posture:
     protrusion: float = 0.0
     implied: tuple[TractPoint, ...] = ()
     rest_weight: float = 0.0
+    tongue_controls: tuple[TractPoint, ...] = ()
+
+
+def _resting_posture(h: Head) -> Posture:
+    """Build the one declared home posture used by figures and trajectories."""
+    declared = h.rest
+    if declared is None:
+        raise ValueError(f"head {h.name!r} declares no resting posture")
+    point = declared.point
+    return Posture(
+        reading=point,
+        rest=point,
+        constrictions=(),
+        velic=1.0 if declared.velum == "lowered" else 0.0,
+        glottal=GLOTTAL_REST,
+        secondary=(),
+        unmodelled=(),
+        rest_weight=1.0,
+        tongue_controls=declared.tongue_controls,
+    )
 
 
 def _lip_posture(features: IPAFeatures, bundle: dict[str, str]) -> tuple[float, float]:
@@ -1589,8 +1614,23 @@ def posture(
     stated = features.get_features(phone, with_defaults=False)
     aperture_width, protrusion = _lip_posture(features, bundle)
     controls = constrictions(features, bundle)
+    reading = tract_point(features, bundle)
+    if (
+        not reading.placed
+        and not any(control.placed for control in controls)
+        and h.rest
+    ):
+        return replace(
+            _resting_posture(h),
+            velic=velic_aperture(features, bundle),
+            glottal=glottal_aperture(features, bundle),
+            secondary=secondary_marks(features, bundle),
+            unmodelled=unmodelled(features, stated),
+            aperture_width=aperture_width,
+            protrusion=protrusion,
+        )
     return Posture(
-        reading=tract_point(features, bundle),
+        reading=reading,
         rest=h.rest.point if h.rest is not None else None,
         constrictions=controls,
         velic=velic_aperture(features, bundle),
@@ -1600,6 +1640,7 @@ def posture(
         aperture_width=aperture_width,
         protrusion=protrusion,
         implied=_implied_positions(features, h, controls),
+        tongue_controls=controls,
     )
 
 
@@ -1702,7 +1743,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     per_unit: list[dict[str, TractPoint]] = []
     for u in units:
         closed: dict[str, TractPoint] = {}
-        for q in u.constrictions:
+        for q in u.tongue_controls:
             if q.articulator is None or q.arc is None or q.offset is None:
                 continue
             prior = closed.get(q.articulator)
@@ -1791,10 +1832,11 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         protrusion=protrusion,
         implied=dominant.implied,
         rest_weight=rest_weight,
+        tongue_controls=tuple(blended),
     )
 
 
-TRACK_VERSION = 1
+TRACK_VERSION = 2
 TRACK_TYPE = "ipakit.trajectory"
 
 
@@ -1812,6 +1854,7 @@ def _track_parameters() -> tuple[str, ...]:
         "protrusion",
         "implied",
         "rest_weight",
+        "tongue_controls",
     )
 
 
@@ -1845,6 +1888,7 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "protrusion": value.protrusion,
         "implied": [_point_data(point) for point in value.implied],
         "rest_weight": value.rest_weight,
+        "tongue_controls": [_point_data(point) for point in value.tongue_controls],
     }
 
 
@@ -1893,6 +1937,9 @@ def _posture_from_data(value: Any) -> Posture:
         protrusion=value["protrusion"],
         implied=tuple(_required_point_from_data(p) for p in value.get("implied", [])),
         rest_weight=value.get("rest_weight", 0.0),
+        tongue_controls=tuple(
+            _required_point_from_data(p) for p in value.get("tongue_controls", [])
+        ),
     )
 
 
@@ -2034,18 +2081,7 @@ def trajectory(
     rest_point = head_shape.rest.point if head_shape.rest is not None else None
     play_units = word_postures
     if rest_point is not None:
-        declared = head_shape.rest
-        assert declared is not None
-        rest_pose = Posture(
-            rest_point,
-            rest_point,
-            (declared.tip,),
-            1.0 if declared is not None and declared.velum == "lowered" else 0.0,
-            GLOTTAL_REST,
-            (),
-            (),
-            rest_weight=1.0,
-        )
+        rest_pose = _resting_posture(head_shape)
         play_units = (rest_pose, *word_postures, rest_pose)
 
     timings = tuple(unit.timing for unit in segment_units)

@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 from ipakit.features import IPAFeatures
-from ipakit.tract import head, landmarks, posture, trajectory
+from ipakit.tract import constrictions, head, landmarks, posture, trajectory
 from ipakit.tract_svg import (
     SAMPLES,
     _pose,
@@ -120,6 +120,29 @@ def test_closed_rest_seats_declared_tip_at_declared_ridge() -> None:
         assert h.rest.tip_arc - 1.0 / SAMPLES <= front[0] <= h.rest.tip_arc
         row = min(geometry["rows"], key=lambda item: abs(item["arc"] - front[0]))
         assert math.hypot(front[1] - row["wall"][0], front[2] - row["wall"][1]) < 1e-4
+
+
+def test_static_and_animated_rest_draw_the_same_declared_tongue() -> None:
+    ipa, h = IPAFeatures(), head()
+    static = posture(ipa, "␣", h)
+    animated = trajectory("kæt", head=h, frames_per_unit=12, features=ipa).frames[0]
+    assert static.tongue_controls == animated.tongue_controls
+    assert (
+        build_geometry(h, landmarks(ipa), static)["tongue"]
+        == build_geometry(h, landmarks(ipa), animated)["tongue"]
+    )
+    assert static.tongue_controls
+    assert 'class="tongue"' in figure("␣")
+
+
+def test_silence_keeps_rest_controls_out_of_phonetic_constrictions() -> None:
+    ipa, h = IPAFeatures(), head()
+    assert h.rest is not None
+    silence = posture(ipa, "␣", h)
+    bundle = ipa.get_features("␣")
+    assert silence.constrictions == ()
+    assert not any(point.placed for point in constrictions(ipa, bundle))
+    assert silence.tongue_controls == h.rest.tongue_controls
 
 
 def test_k_target_is_legible_without_a_new_plateau() -> None:
