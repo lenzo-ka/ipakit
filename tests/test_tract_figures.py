@@ -49,6 +49,7 @@ from ipakit.tract import (
     head,
     heads,
     landmarks,
+    posture,
     secondary_marks,
     tract_point,
     tract_reading,
@@ -228,6 +229,62 @@ def test_the_tongue_stays_inside_the_tract(head_name: str) -> None:
 #: has to separate is a constriction the figure does not carry at all, which
 #: leaves the surface at rest -- two orders further down.
 SAMPLING_SLACK = 1e-3
+
+
+@pytest.mark.parametrize("phone", ["k", "a", "i", "u", "ʃ"])
+def test_unbounded_tongue_surface_reaches_declared_attachment(phone: str) -> None:
+    """Without an active tip gesture, the declared anterior taper is drawn."""
+    current = tract_svg.drawing(head().name, phone)["geometry"]
+    surface = current["tongue"]
+    span_front = head().tongue_span[0]
+    assert surface[0][0] >= span_front
+    assert surface[0][0] - span_front < 1.0 / tract_svg.SAMPLES
+
+
+def test_dental_tip_reaches_its_forward_declared_arc() -> None:
+    """A tip target anterior to the tip landmark remains reachable."""
+    ipa, h = IPAFeatures(), head()
+    target = next(
+        point
+        for point in posture(ipa, "θ", h).constrictions
+        if point.articulator == "tongue-tip"
+    )
+    surface = tract_svg.drawing(h.name, "θ")["geometry"]["tongue"]
+    assert target.arc is not None
+    assert target.arc <= surface[0][0] < target.arc + 1.0 / tract_svg.SAMPLES
+
+
+def test_tip_closure_guards_against_a_forward_scallop() -> None:
+    """The top surface starts at an active tip instead of continuing before it."""
+    ipa, h = IPAFeatures(), head()
+    target = next(
+        point
+        for point in posture(ipa, "t", h).constrictions
+        if point.articulator == "tongue-tip"
+    )
+    surface = tract_svg.drawing(h.name, "t")["geometry"]["tongue"]
+    assert target.arc is not None
+    assert target.arc - 1.0 / tract_svg.SAMPLES <= surface[0][0] <= target.arc + 1e-12
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_dental_tip_paints_the_declared_target_region(tmp_path: Path) -> None:
+    """The dental target is occupied by tongue pixels, not white space."""
+    svg = _section(head().name, "θ")
+    marker = re.search(
+        r'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="5" class="constriction', svg
+    )
+    assert marker is not None
+    without = re.sub(r'<path d="[^"]*" class="tongue(?:body)?"/>', "", svg)
+    width, painted = _pixels(svg, tmp_path / "theta.svg", width=760)
+    _, absent = _pixels(without, tmp_path / "theta-without-tongue.svg", width=760)
+    cx, cy = float(marker.group(1)), float(marker.group(2))
+    near_target = [
+        (x, y)
+        for x, y in _differing(width, painted, absent)
+        if math.hypot(x - cx, y - cy) <= 18.0
+    ]
+    assert len(near_target) >= 10
 
 
 def _along(

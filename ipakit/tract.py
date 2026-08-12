@@ -173,6 +173,8 @@ class RestPosture:
 
     arc: float
     offset: float
+    tip_arc: float
+    tip_offset: float
     lips: str = "closed"
     jaw: str = "closed"
     velum: str = "lowered"
@@ -180,6 +182,12 @@ class RestPosture:
     @property
     def point(self) -> TractPoint:
         return TractPoint(arc=self.arc, offset=self.offset)
+
+    @property
+    def tip(self) -> TractPoint:
+        return TractPoint(
+            arc=self.tip_arc, offset=self.tip_offset, articulator="tongue-tip"
+        )
 
 
 @dataclass(frozen=True)
@@ -849,6 +857,8 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             rest = RestPosture(
                 arc=float(rest_elem.get("arc", 0.0)),
                 offset=float(rest_elem.get("offset", 0.0)),
+                tip_arc=float(rest_elem.get("tip-arc", 0.0)),
+                tip_offset=float(rest_elem.get("tip-offset", 0.0)),
                 lips=rest_elem.get("lips", "closed"),
                 jaw=rest_elem.get("jaw", "closed"),
                 velum=rest_elem.get("velum", "lowered"),
@@ -2025,10 +2035,11 @@ def trajectory(
     play_units = word_postures
     if rest_point is not None:
         declared = head_shape.rest
+        assert declared is not None
         rest_pose = Posture(
             rest_point,
             rest_point,
-            (),
+            (declared.tip,),
             1.0 if declared is not None and declared.velum == "lowered" else 0.0,
             GLOTTAL_REST,
             (),

@@ -76,7 +76,7 @@
 <heads default="adult-male">
 
   <head name="adult-male" desc="Adult male mid-sagittal tract" length-cm="17.5">
-    <rest arc="0.38" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
+    <rest arc="0.38" offset="0.18" tip-arc="0.11" tip-offset="1.0" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
       <point arc="0.00" x="0.06" y="0.62" diameter="0.16" provenance="extrapolated"/>       <!-- extrapolated: the lip aperture; PAL.DAT does not reach the lips -->
       <point arc="0.11" x="0.1954" y="0.6538" diameter="0.098" provenance="measured"/>  <!-- measured: the palate outline's front edge, the alveolar ridge -->
@@ -193,7 +193,7 @@
   </head>
 
   <head name="adult-female" desc="Adult female mid-sagittal tract" length-cm="15.0">
-    <rest arc="0.37" offset="0.18" lips="closed" jaw="closed" velum="lowered"/>
+    <rest arc="0.37" offset="0.18" tip-arc="0.11" tip-offset="1.0" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
       <point arc="0.00" x="0.07" y="0.62" diameter="0.15" provenance="extrapolated"/>       <!-- extrapolated: the lip aperture; PAL.DAT does not reach the lips -->
       <point arc="0.11" x="0.1969" y="0.6538" diameter="0.099" provenance="measured"/>  <!-- measured: the palate outline's front edge, the alveolar ridge -->
@@ -308,7 +308,7 @@
        age 21, range 18-37), so the measured shape says nothing about a
        child's tract, which is not a scaling of an adult's. -->
   <head name="child" desc="Child (approx. 5 years) mid-sagittal tract" length-cm="10.5">
-    <rest arc="0.35" offset="0.20" lips="closed" jaw="closed" velum="lowered"/>
+    <rest arc="0.35" offset="0.20" tip-arc="0.13" tip-offset="1.0" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
       <point arc="0.00" x="0.09" y="0.60" diameter="0.13" provenance="hand-placed"/>
       <point arc="0.13" x="0.22" y="0.64" diameter="0.14" provenance="hand-placed"/>
