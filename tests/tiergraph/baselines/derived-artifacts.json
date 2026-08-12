@@ -84,6 +84,11 @@
       "bytes": 43610,
       "path": "docs/figures/tract-u.svg",
       "sha256": "0a6f9c4bfa81025a8c5f8175db9766285f4feaa332c57e2019d308b3687760c1"
+    },
+    {
+      "bytes": 46321,
+      "path": "docs/figures/perhaps-i-am-a-bad-man.dot",
+      "sha256": "b0630734c11c27fe5c1455c8a12ded80677105466c9f48430e056dc1daafa4a7"
     }
   ],
   "format": 1,

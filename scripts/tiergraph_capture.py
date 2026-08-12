@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT))
 import ipakit  # noqa: E402
 from ipakit import Form, Interval  # noqa: E402
 from ipakit import rules as rules_api  # noqa: E402
+from tiergraph_example import build_example  # noqa: E402
 
 
 def _ensure_hash_seed() -> None:
@@ -488,6 +489,10 @@ def capture_distances(_: argparse.Namespace) -> None:
 
 
 def capture_artifacts(_: argparse.Namespace) -> None:
+    tiergraph_path = ROOT / "docs" / "figures" / "perhaps-i-am-a-bad-man.dot"
+    derived_tiergraph = build_example().to_dot().encode()
+    if derived_tiergraph != tiergraph_path.read_bytes():
+        raise SystemExit("fresh tiergraph DOT differs byte-for-byte from shipped")
     derived_confusion = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "confusion.py"), "generate"],
         cwd=ROOT,
@@ -508,6 +513,7 @@ def capture_artifacts(_: argparse.Namespace) -> None:
         ROOT / "docs" / "tutorial.md",
         ROOT / "ipakit" / "notebooks" / "ipakit-tutorial.ipynb",
         *sorted((ROOT / "docs" / "figures").glob("tract-*.svg")),
+        tiergraph_path,
     ]
     records = [
         {

@@ -63,3 +63,33 @@ Structured IPA segment events carry exact spelling and a versioned `ipa-segment`
 A renderer selects transcription tiers through its explicit codec profile; it does not guess from graph roots. Mutually exclusive delivery roots use `alternatives`; rendering requires either one persisted `selects` relation or one ephemeral selection argument, and the ephemeral choice does not mutate the graph. Multiple unrelated roots may coexist for traversal.
 
 The linear view supplies `units`, `intervals`, segment and boundary reads, rule sites and edits, pairwise `Alignment`, and rewrite traces. Capability negotiation, recognizer invocation, and rewrite-rule induction are intentionally deferred; version stamps identify the contract and do not negotiate it.
+## Draw the tier graph
+
+Every `Form` can render its complete graph as Graphviz DOT:
+
+```python
+dot = form.to_dot()
+```
+
+The command-line equivalent reads either IPA or an existing Form JSON document:
+
+```text
+$ ipakit tiergraph "kæt" -o kæt.dot
+$ ipakit tiergraph --from-json form.json -o form.dot
+```
+
+The clock is the visible top row. Its arrows and labels put all coarse ticks and
+refined gaps in ascending order; dotted edges anchor events to their starting
+positions and dashed `extent` edges end at their half-open structural endpoints.
+Tier rows follow declaration order. Event order within a row is clock index and
+event index, while declared relations are labelled edges. Those rules are also
+the emission rules, so the output does not depend on dictionary, set, or hash
+iteration order.
+
+The worked [“perhaps I am a bad man” DOT figure](figures/perhaps-i-am-a-bad-man.dot)
+is one utterance containing one phrase containing six words. Its word
+pronunciations come from CMUdict phone entries through `CMUMapper`. The determiner
+*a* uses CMUdict's unstressed `AH0`, realized as `ə`; no stress feature is present.
+The figure does not claim a `derived-from` relation because ipakit did not compute
+that reduction—it depicts the attested reduced realization only. Regenerate the
+figure with `python scripts/tiergraph_example.py`.

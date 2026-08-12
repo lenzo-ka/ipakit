@@ -13,6 +13,7 @@ Organized into subcommands:
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
     ipakit tract ...            Draw the mid-sagittal tract figure
+    ipakit tiergraph ...        Render a form's tier graph as Graphviz DOT
 
 Note the two similarly-named groups: `analysis` analyzes phones, while
 `analyze` (alias `data`) inspects and validates the underlying data files.
@@ -54,6 +55,7 @@ from .phoible import PhoibleGroup
 from .policy import report
 from .query import QueryGroup
 from .rules import RulesGroup
+from .tiergraph import TiergraphCommand
 from .tract import TractGroup
 
 # All command groups for help lookup
@@ -100,6 +102,7 @@ Examples:
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
   ipakit tract draw t -o t.svg         # Mid-sagittal figure for 't'
+  ipakit tiergraph "kæt" -o kæt.dot    # Complete ordered tier graph
   ipakit tract heads                   # Head shapes a figure can be drawn on
   ipakit notebook                      # The tutorial, as cells you run
 
@@ -120,7 +123,12 @@ Exit status (uniform across every subcommand):
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Register standalone commands (not in groups)
-    for cmd_cls in [FeaturesCommand, DescribeCommand, NotebookCommand]:
+    for cmd_cls in [
+        FeaturesCommand,
+        DescribeCommand,
+        NotebookCommand,
+        TiergraphCommand,
+    ]:
         cmd_parser = subparsers.add_parser(
             cmd_cls.name,
             aliases=cmd_cls.aliases,
