@@ -41,6 +41,13 @@ def test_declared_rest_is_exactly_closed_and_velically_lowered() -> None:
         assert "lower-lip shut" in section_svg(side, None, frame.velic, _pose(frame))
 
 
+def test_static_silence_and_animation_bookends_share_declared_velic_rest() -> None:
+    ipa, h = IPAFeatures(), head("adult-male")
+    silence = posture(ipa, "␣", h)
+    track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
+    assert silence.velic == track.frames[0].velic == track.frames[-1].velic == 1.0
+
+
 def test_k_to_ash_has_no_global_rest_trough() -> None:
     track = trajectory("kæt", head=head(), frames_per_unit=12)
     # Ordinals 1 and 2 are /k/ and /æ/. The dorsum must remain between those

@@ -31,6 +31,7 @@ import sys
 import warnings
 import xml.etree.ElementTree as ET
 import zlib
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -1206,6 +1207,114 @@ def _differing(
         for x in range(width)
         if a[x * 4 : x * 4 + 4] != b[x * 4 : x * 4 + 4]
     ]
+
+
+def _only_layer(svg: str, layer: str, *, unmask: bool = False) -> str:
+    """Keep one painted SVG layer and any definitions it depends on."""
+    root = ET.fromstring(svg)
+    painted = {"path", "line", "circle", "rect", "text"}
+    for parent in root.iter():
+        if parent.tag.rsplit("}", 1)[-1] in {"defs", "mask"}:
+            continue
+        for child in list(parent):
+            tag = child.tag.rsplit("}", 1)[-1]
+            classes = child.attrib.get("class", "").split()
+            if tag in painted and (layer not in classes or tag != "path"):
+                parent.remove(child)
+    if unmask:
+        for child in root.iter():
+            if layer in child.attrib.get("class", "").split():
+                child.attrib.pop("mask", None)
+    return ET.tostring(root, encoding="unicode")
+
+
+@pytest.mark.parametrize(("nasal", "oral"), [("m", "b"), ("n", "d")])
+def test_nasality_changes_painted_velum_pixels(
+    nasal: str, oral: str, tmp_path: Path
+) -> None:
+    if shutil.which("rsvg-convert") is None:  # pragma: no cover
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    width, nasal_rows = _pixels(
+        _only_layer(tract_svg.figure(nasal), "velum"), tmp_path / f"{nasal}.svg"
+    )
+    _, oral_rows = _pixels(
+        _only_layer(tract_svg.figure(oral), "velum"), tmp_path / f"{oral}.svg"
+    )
+    assert _differing(width, nasal_rows, oral_rows)
+
+
+def test_drawn_velum_moves_monotonically_with_velic() -> None:
+    ipa, h, marks = IPAFeatures(), head(), landmarks(IPAFeatures())
+    base = posture(ipa, "m", h)
+    tips = []
+    for aperture in (0.0, 0.25, 0.5, 0.75, 1.0):
+        geometry = tract_svg.build_geometry(h, marks, replace(base, velic=aperture))
+        svg = tract_svg.section_svg(geometry, None, aperture, tract_svg._pose(base))
+        path = re.search(r'<path d="([^"]+)" class="velum"', svg)
+        assert path is not None
+        tips.append(_pts(path.group(1))[2])
+    sealed = tips[0]
+    distances = [math.hypot(x - sealed[0], y - sealed[1]) for x, y in tips]
+    assert distances == sorted(distances)
+    assert distances[-1] > 20
+    assert all(
+        math.isclose(distance, distances[-1] * aperture, abs_tol=0.2)
+        for distance, aperture in zip(
+            distances, (0.0, 0.25, 0.5, 0.75, 1.0), strict=True
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("aperture", "state"), [(0.0, "sealed"), (0.5, "part-open"), (1.0, "open")]
+)
+def test_velum_annotation_tracks_model(aperture: float, state: str) -> None:
+    ipa, h = IPAFeatures(), head()
+    base = posture(ipa, "m", h)
+    geometry = tract_svg.build_geometry(
+        h, landmarks(ipa), replace(base, velic=aperture)
+    )
+    svg = tract_svg.section_svg(geometry, None, aperture, tract_svg._pose(base))
+    assert f"port {state}" in svg
+
+
+def test_velum_and_tongue_masks_never_interpenetrate(tmp_path: Path) -> None:
+    if shutil.which("rsvg-convert") is None:  # pragma: no cover
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    ipa = IPAFeatures()
+    checked: dict[tuple[str, str], str] = {}
+    for phone in sorted(ipa.phones):
+        svg = tract_svg.figure(phone)
+        velum = re.search(r'<path d="([^"]+)" class="velum"', svg)
+        tongue = re.search(r'<path d="([^"]+)" class="tonguebody"', svg)
+        if velum is not None and tongue is not None:
+            checked.setdefault((velum.group(1), tongue.group(1)), phone)
+    collisions = []
+    for index, (_paths, phone) in enumerate(checked.items()):
+        svg = tract_svg.figure(phone)
+        width, velum_rows = _pixels(
+            _only_layer(svg, "velum"), tmp_path / f"velum-{index}.svg", width=760
+        )
+        _, tongue_rows = _pixels(
+            _only_layer(svg, "tonguebody"), tmp_path / f"tongue-{index}.svg", width=760
+        )
+        velum_pixels = {
+            (x, y)
+            for y, row in enumerate(velum_rows)
+            for x in range(width)
+            if row[x * 4 + 3]
+        }
+        tongue_pixels = {
+            (x, y)
+            for y, row in enumerate(tongue_rows)
+            for x in range(width)
+            if row[x * 4 + 3]
+        }
+        overlap = len(velum_pixels & tongue_pixels)
+        if overlap:
+            collisions.append((phone, overlap))
+    assert len(checked) > 50, f"only {len(checked)} distinct postures checked"
+    assert not collisions, f"velum intersects tongue: {collisions[:6]}"
 
 
 @pytest.mark.parametrize("layer", sorted(LAYERS), ids=sorted(LAYERS))

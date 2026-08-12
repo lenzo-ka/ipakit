@@ -29,10 +29,10 @@ TRACK_PARAMETERS_BY_VERSION = {
 }
 
 LEGACY_ANIMATION_SHA256 = {
-    # Closure-gated tongue fronts and a mandible-carried attachment both move
-    # every animated frame; track round trips must retain that byte-for-byte.
-    "sũn": "add7aeb8aec6d893ab9dea62c2458c3ae35a9d0f914f430513fee955192dd0dc",
-    "ˈkæt": "03878d1d7c41b5a8c19b109b6a1b8eabb445c6620726a0687a3c8077e5d9a9b0",
+    # The tongue-carried velum occlusion changes with every posture; track
+    # round trips must retain the complete rendered result byte-for-byte.
+    "sũn": "870123dbd3aef66af94138253af352f2a18a23ff1bc1a342e88974cefe18db7a",
+    "ˈkæt": "18a055c7a8676fe61f5f9c5e7ebadf926110960f7e048b3733f89599025e840b",
 }
 
 

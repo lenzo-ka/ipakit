@@ -1678,7 +1678,6 @@ def posture(
     ):
         return replace(
             _resting_posture(h),
-            velic=velic_aperture(features, bundle),
             glottal=glottal_aperture(features, bundle),
             secondary=secondary_marks(features, bundle),
             unmodelled=unmodelled(features, stated),

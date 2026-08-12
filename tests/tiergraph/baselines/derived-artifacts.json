@@ -21,39 +21,39 @@
       "sha256": "545b66109f852a3941a22413dd1ad9d41adf1e1e8e1731e5e498e63974dbd334"
     },
     {
-      "bytes": 43890,
+      "bytes": 49397,
       "path": "docs/figures/tract-a.svg",
-      "sha256": "13356c16384207f2edcb7112b9d02f766952da5eca9e15d98d082de704c943a7"
+      "sha256": "aac3ec345e1a29d121634f5e160f5a08feb6ee331e8b56194f3ac7136a13d92c"
     },
     {
-      "bytes": 43061,
+      "bytes": 48568,
       "path": "docs/figures/tract-eng.svg",
-      "sha256": "a5a6f35c4941434cd91d20778ebcfda3eb1ffeaba34d7103c7b0cc0bc8dfdbca"
+      "sha256": "8099ab14c21b437854843fb65bc7e6a586b00f08cdb2029ac84a4518bb31adde"
     },
     {
-      "bytes": 43803,
+      "bytes": 49310,
       "path": "docs/figures/tract-esh.svg",
-      "sha256": "cb98352d05b8a145bb1e9c63bb129c73858b993bedec9c9e5e1509863b57a41a"
+      "sha256": "1f2ea46401335cf062d13df037dfd23ae714d1ecf33338b423367a93c76ea2bd"
     },
     {
-      "bytes": 43891,
+      "bytes": 49398,
       "path": "docs/figures/tract-i.svg",
-      "sha256": "fe63023c91877f6d4360e52c8af5d2afb700e6c94240cf64b14ebdad609ce83a"
+      "sha256": "498865cb1dc2e7f6f4254ff72936e2527fd1ddbfd6591bc6f80e3ba3fbbbfed9"
     },
     {
-      "bytes": 43515,
+      "bytes": 49022,
       "path": "docs/figures/tract-k.svg",
-      "sha256": "a9e4bb96bf8d13c826d4093c2964f578a86114ac09f8d6efb7872eaa2f59ddc1"
+      "sha256": "d3ea519d845ddbf42730a131caa546370166ce64563fe70059b342e81db200be"
     },
     {
-      "bytes": 42770,
+      "bytes": 48277,
       "path": "docs/figures/tract-m.svg",
-      "sha256": "5622e977043eaeb45f4b33b84327b2f37d2c802e7a287909298ddddf5357e294"
+      "sha256": "7ed9412d6e24649f4bbd2f858d4c70cb21ea6fe2f3f9dc68d1fc000bf814605e"
     },
     {
-      "bytes": 42523,
+      "bytes": 47670,
       "path": "docs/figures/tract-n.svg",
-      "sha256": "7d3b3c4bda259316c45753ba700f8c34ef42ce250b878121a6fd830df8d35f03"
+      "sha256": "89483dad54f94df02f6b33de6b11cfa09201cc46e8351462ce75bc3cef85b31f"
     },
     {
       "bytes": 39080,
@@ -61,29 +61,29 @@
       "sha256": "5b5e8045e626523eea6941159d889f6602cae0a885b078d0f1ba1e1d535c6e28"
     },
     {
-      "bytes": 43246,
+      "bytes": 48393,
       "path": "docs/figures/tract-s.svg",
-      "sha256": "d8cbd7348545df636e5fb1115833e29f5884114af9ec7c90ae25cc8f61517c04"
+      "sha256": "42fbc188f5eaae99e1985a2ea51f333194aa736eff762bb77d9016911708cfba"
     },
     {
-      "bytes": 44634,
+      "bytes": 49593,
       "path": "docs/figures/tract-silence.svg",
-      "sha256": "12a442e2ad96b893b0d0b07463fa67dc3fca2025be18a760a5bab0174153d2c5"
+      "sha256": "5abc349ee0c9bbe60db3de0a17ab350ac354f66919585735adc4302c3eba3236"
     },
     {
-      "bytes": 42978,
+      "bytes": 48125,
       "path": "docs/figures/tract-t.svg",
-      "sha256": "8f177510f82426a6f1a7c2627a562ac3bfaa7d9c081635fd2b8f6dc4a9559541"
+      "sha256": "026899273f6758fcb3195be192add972aa53df141fd6ef0659bcb36feaacfe8d"
     },
     {
-      "bytes": 43515,
+      "bytes": 49022,
       "path": "docs/figures/tract-theta.svg",
-      "sha256": "49e121c4c8cecf8a1bbb122fd007a9bd836f8203dffeba145d3e531412167498"
+      "sha256": "e90137e63757557ed3b7f5f09e93984debd90ed232bee965150a63b47a93ac5d"
     },
     {
-      "bytes": 43886,
+      "bytes": 49393,
       "path": "docs/figures/tract-u.svg",
-      "sha256": "fd0c0e16202f116cf1f35f3eaf87b439eba220757cef5ac65e02cddd8957d844"
+      "sha256": "a3bf5c15a2832c079c0f07321f7ad59be0f20e7c2430db04b7628fd2ec0c4b0d"
     },
     {
       "bytes": 46321,
