@@ -10,7 +10,6 @@ from pathlib import Path
 from ipakit.features import IPAFeatures
 from ipakit.tract import constrictions, head, landmarks, posture, trajectory
 from ipakit.tract_svg import (
-    SAMPLES,
     _pose,
     build_frontal_geometry,
     build_geometry,
@@ -81,25 +80,23 @@ def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
     assert len(_differing(width, painted, absent)) > 20
 
 
-def test_every_kaet_frame_keeps_root_anchor_and_respects_active_tip() -> None:
+def test_every_kaet_frame_keeps_declared_front_until_a_tip_closure() -> None:
     ipa, h = IPAFeatures(), head()
     marks = landmarks(ipa)
     track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
-    tolerance = 1.0 / 240
+    assert h.rest is not None
+    closure_threshold = (h.rest.offset + 1.0) / 2.0
     for frame in track.frames:
         geometry = build_geometry(h, marks, frame)
         surface = geometry["tongue"]
         assert surface
-        active_tip = min(
-            (
-                q.arc
-                for q in frame.tongue_controls
-                if q.articulator == "tongue-tip" and q.arc is not None
-            ),
-            default=None,
+        tip = next(
+            (q for q in frame.constrictions if q.articulator == "tongue-tip"),
+            None,
         )
-        expected = h.tongue_span[0] if active_tip is None else active_tip
-        assert surface[0][0] >= expected - tolerance - 1e-12
+        assert h.tongue_span is not None
+        if tip is None or tip.offset is None or tip.offset < closure_threshold:
+            assert surface[0][0] == h.tongue_span[0]
         # The posterior taper is the sewn floor/root anchor in the same live
         # jaw-carried geometry; it must coincide in every frame.
         root = surface[-1]
@@ -126,11 +123,24 @@ def test_closed_rest_seats_declared_tip_at_declared_ridge() -> None:
         for frame in (track.frames[0], track.frames[-1]):
             geometry = build_geometry(h, landmarks(ipa), frame)
             front = geometry["tongue"][0]
-            assert h.rest.tip_arc - 1.0 / SAMPLES <= front[0] <= h.rest.tip_arc
-            row = min(geometry["rows"], key=lambda item: abs(item["arc"] - front[0]))
-            assert (
-                math.hypot(front[1] - row["wall"][0], front[2] - row["wall"][1]) < 1e-4
+            assert front[0] == h.tongue_span[0]
+            tip = min(
+                geometry["tongue"], key=lambda item: abs(item[0] - h.rest.tip_arc)
             )
+            row = min(geometry["rows"], key=lambda item: abs(item["arc"] - tip[0]))
+            assert math.hypot(tip[1] - row["wall"][0], tip[2] - row["wall"][1]) < 1e-4
+
+
+def test_kaet_tongue_front_uses_an_exact_edge_and_a_constant_point_count() -> None:
+    ipa, h = IPAFeatures(), head("adult-male")
+    track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
+    fronts, counts = [], []
+    for frame in track.frames:
+        surface = build_geometry(h, landmarks(ipa), frame)["tongue"]
+        fronts.append(surface[0][0])
+        counts.append(len(surface))
+    assert max(abs(b - a) for a, b in zip(fronts, fronts[1:], strict=False)) <= 0.017
+    assert len(set(counts)) == 1
 
 
 def test_k_onset_opening_frames_have_no_phantom_tip_closure() -> None:

@@ -118,6 +118,7 @@ def tongue_surface(
     name: str,
     control: TractPoint | list[TractPoint],
     close: float = 0.0,
+    closures: tuple[TractPoint, ...] = (),
 ) -> list[tuple[float, float, float]]:
     """The tongue surface for one control, asked of the model at each arc.
 
@@ -126,39 +127,66 @@ def tongue_surface(
     """
     h = head(name)
     controls = [control] if isinstance(control, TractPoint) else list(control)
-    # A tongue-tip gesture bounds the body's front so its raised cosine cannot
-    # scallop forward into the sublingual space. Without one, sample from the
-    # declared anterior attachment: the frontmost active control's cosine stands
-    # there, falling to the resting taper only where no control reaches. Keep one
-    # sample of slack so the tip's own cell is drawn and every surface arc is a
-    # row arc.
-    active_tip = min(
-        (
-            c.arc
+    # Only a real apical constriction bounds the body's front.  The threshold is
+    # the midpoint between the head's declared neutral tongue offset and its
+    # declared wall (offset 1): below it the tip is closer to rest than closure
+    # and the declared anterior attachment remains tongue.  In particular, a
+    # drawing-only resting tip control is not a phonetic closure.
+    rest_offset = h.rest.offset if h.rest is not None else 0.0
+    closure_threshold = (rest_offset + 1.0) / 2.0
+    tip_closures = [
+        c
+        for c in closures
+        if c.articulator == "tongue-tip"
+        and c.arc is not None
+        and c.offset is not None
+        and c.offset >= closure_threshold
+    ]
+    active_tip = min(tip_closures, key=lambda c: c.arc or 0.0, default=None)
+    front = None
+    if active_tip is not None:
+        assert active_tip.arc is not None and active_tip.offset is not None
+        # A static target has the same tip in the deformation controls and the
+        # phonetic closures, so it bites at its declared arc (including /s/).
+        # During a blend the two differ: ease the edge from the attachment as
+        # the closure rises from the declared threshold to the wall.  Thus the
+        # semantic guard does not itself introduce an animation step.
+        at_target = any(
+            c.articulator == "tongue-tip"
+            and c.arc == active_tip.arc
+            and c.offset == active_tip.offset
             for c in controls
-            if c.articulator == "tongue-tip"
-            and c.arc is not None
-            and c.offset is not None
-        ),
-        default=None,
-    )
-    front = active_tip - 1.0 / SAMPLES if active_tip is not None else None
+        )
+        strength = (
+            1.0
+            if at_target
+            else (active_tip.offset - closure_threshold) / (1.0 - closure_threshold)
+        )
+        assert h.tongue_span is not None
+        front = h.tongue_span[0] + strength * (active_tip.arc - h.tongue_span[0])
     out: list[tuple[float, float, float]] = []
-    for i in range(SAMPLES + 1):
-        arc = i / SAMPLES
-        if front is not None and arc < front:
-            continue
-        point = h.tongue_point(arc, control, close)
+    if h.tongue_span is None:
+        return out
+    low, high, _, _ = h.tongue_span
+    arcs = [low]
+    arcs.extend(i / SAMPLES for i in range(SAMPLES + 1) if low < i / SAMPLES < high)
+    arcs.append(high)
+    for arc in arcs:
+        # Preserve the sample count while clamped, but project every leading
+        # sample onto the exact moving edge.  This retains grid alignment in the
+        # body without snapping the visible front to whichever cell contains it.
+        sample_arc = max(arc, front) if front is not None else arc
+        point = h.tongue_point(sample_arc, control, close)
         if point is None:
             continue
         # The posterior tongue/floor seam is load-bearing anatomy. Controls
         # may deform the body above it but may not lift this endpoint free of
         # the jaw-carried floor anchor.
-        if h.tongue_span is not None and math.isclose(arc, h.tongue_span[1]):
-            floor = h.project(TractPoint(arc=arc, offset=0.0))
+        if h.tongue_span is not None and math.isclose(sample_arc, h.tongue_span[1]):
+            floor = h.project(TractPoint(arc=sample_arc, offset=0.0))
             if floor is not None:
-                point = h.carried(floor, arc, close)
-        out.append((arc, point[0], point[1]))
+                point = h.carried(floor, sample_arc, close)
+        out.append((sample_arc, point[0], point[1]))
     return out
 
 
@@ -288,7 +316,9 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             for t in current["teeth"]
         ]
         points = list(p.tongue_controls)
-        current["tongue"] = tongue_surface(head.name, points, close)
+        current["tongue"] = tongue_surface(
+            head.name, points, close, closures=p.constrictions
+        )
         current["extra"] = [
             (q.arc, q.offset, q.articulator or "")
             for q in points[1:]
