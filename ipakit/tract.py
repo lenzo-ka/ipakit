@@ -1736,49 +1736,61 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
             return None
         return sum(w * v for w, v in values) / denom
 
-    # Each unit's per-articulator target: the offset it constricts that
-    # articulator to (max where a unit closes one twice, as a click does),
-    # keyed by name so a place travels only between a unit's own closures.
-    names: list[str] = []
-    per_unit: list[dict[str, TractPoint]] = []
-    for u in units:
-        closed: dict[str, TractPoint] = {}
-        for q in u.tongue_controls:
-            if q.articulator is None or q.arc is None or q.offset is None:
-                continue
-            prior = closed.get(q.articulator)
-            if prior is None or (prior.offset or 0.0) < q.offset:
-                closed[q.articulator] = q
-            if q.articulator not in names:
-                names.append(q.articulator)
-        per_unit.append(closed)
+    def blended_controls(
+        controls_by_unit: Sequence[tuple[TractPoint, ...]],
+    ) -> tuple[TractPoint, ...]:
+        """Blend one control field without borrowing another field's points."""
+        # Each unit's per-articulator target: the offset it constricts that
+        # articulator to (max where a unit closes one twice, as a click does),
+        # keyed by name so a place travels only between a unit's own closures.
+        names: list[str] = []
+        per_unit: list[dict[str, TractPoint]] = []
+        for controls in controls_by_unit:
+            closed: dict[str, TractPoint] = {}
+            for q in controls:
+                if q.articulator is None or q.arc is None or q.offset is None:
+                    continue
+                prior = closed.get(q.articulator)
+                if prior is None or (prior.offset or 0.0) < q.offset:
+                    closed[q.articulator] = q
+                if q.articulator not in names:
+                    names.append(q.articulator)
+            per_unit.append(closed)
 
-    blended: list[TractPoint] = []
-    for name in names:
-        arc = weighted(
-            [
-                (weights[i], closed[name].arc)  # type: ignore[misc]
-                for i, closed in enumerate(per_unit)
-                if name in closed
-            ]
-        )
-        targets = []
-        for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
-            target_point = closed.get(name)
-            if target_point is None:
-                target_point = next(
-                    (p for p in u.implied if p.articulator == name), None
+        blended: list[TractPoint] = []
+        for name in names:
+            arc = weighted(
+                [
+                    (weights[i], closed[name].arc)  # type: ignore[misc]
+                    for i, closed in enumerate(per_unit)
+                    if name in closed
+                ]
+            )
+            targets = []
+            for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
+                target_point = closed.get(name)
+                if target_point is None:
+                    target_point = next(
+                        (p for p in u.implied if p.articulator == name), None
+                    )
+                target = rest_offset if target_point is None else target_point.offset
+                if target is not None:
+                    targets.append((weights[i], target))
+            offset = weighted(targets)
+            if arc is None or offset is None:
+                continue
+            blended.append(
+                TractPoint(
+                    arc=arc,
+                    offset=max(0.0, min(1.0, offset)),
+                    articulator=name,
                 )
-            target = rest_offset if target_point is None else target_point.offset
-            if target is not None:
-                targets.append((weights[i], target))
-        offset = weighted(targets)
-        if arc is None or offset is None:
-            continue
-        blended.append(
-            TractPoint(arc=arc, offset=max(0.0, min(1.0, offset)), articulator=name)
-        )
-    blended.sort(key=lambda q: q.arc or 0.0)
+            )
+        blended.sort(key=lambda q: q.arc or 0.0)
+        return tuple(blended)
+
+    blended_constrictions = blended_controls(tuple(u.constrictions for u in units))
+    blended_tongue_controls = blended_controls(tuple(u.tongue_controls for u in units))
 
     reading_arc = weighted(
         [
@@ -1823,7 +1835,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     return Posture(
         reading=reading,
         rest=dominant.rest,
-        constrictions=tuple(blended),
+        constrictions=blended_constrictions,
         velic=velic,
         glottal=glottal,
         secondary=dominant.secondary,
@@ -1832,7 +1844,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         protrusion=protrusion,
         implied=dominant.implied,
         rest_weight=rest_weight,
-        tongue_controls=tuple(blended),
+        tongue_controls=blended_tongue_controls,
     )
 
 
@@ -1938,7 +1950,7 @@ def _posture_from_data(value: Any) -> Posture:
         implied=tuple(_required_point_from_data(p) for p in value.get("implied", [])),
         rest_weight=value.get("rest_weight", 0.0),
         tongue_controls=tuple(
-            _required_point_from_data(p) for p in value.get("tongue_controls", [])
+            _required_point_from_data(p) for p in value["tongue_controls"]
         ),
     )
 

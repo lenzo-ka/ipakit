@@ -93,7 +93,7 @@ def test_every_kaet_frame_keeps_root_anchor_and_respects_active_tip() -> None:
         active_tip = min(
             (
                 q.arc
-                for q in frame.constrictions
+                for q in frame.tongue_controls
                 if q.articulator == "tongue-tip" and q.arc is not None
             ),
             default=None,
@@ -109,17 +109,47 @@ def test_every_kaet_frame_keeps_root_anchor_and_respects_active_tip() -> None:
 
 
 def test_closed_rest_seats_declared_tip_at_declared_ridge() -> None:
-    ipa, h = IPAFeatures(), head()
-    assert h.rest is not None
-    ridge = next(point for point in h.midline if point.provenance == "measured")
-    assert h.rest.tip_arc == ridge.arc
-    track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
-    for frame in (track.frames[0], track.frames[-1]):
-        geometry = build_geometry(h, landmarks(ipa), frame)
-        front = geometry["tongue"][0]
-        assert h.rest.tip_arc - 1.0 / SAMPLES <= front[0] <= h.rest.tip_arc
-        row = min(geometry["rows"], key=lambda item: abs(item["arc"] - front[0]))
-        assert math.hypot(front[1] - row["wall"][0], front[2] - row["wall"][1]) < 1e-4
+    ipa = IPAFeatures()
+    for name in ("adult-male", "adult-female", "child"):
+        h = head(name)
+        assert h.rest is not None
+        # The adults use their measured palate front/alveolar-ridge point.
+        # The child has no measurements: its rest tip uses its frontmost
+        # declared palate landmark, which is hand-placed at arc 0.13.
+        declared_front = h.midline[1]
+        assert h.rest.tip_arc == declared_front.arc
+        if name == "child":
+            assert declared_front.provenance == "hand-placed"
+        else:
+            assert declared_front.provenance == "measured"
+        track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
+        for frame in (track.frames[0], track.frames[-1]):
+            geometry = build_geometry(h, landmarks(ipa), frame)
+            front = geometry["tongue"][0]
+            assert h.rest.tip_arc - 1.0 / SAMPLES <= front[0] <= h.rest.tip_arc
+            row = min(geometry["rows"], key=lambda item: abs(item["arc"] - front[0]))
+            assert (
+                math.hypot(front[1] - row["wall"][0], front[2] - row["wall"][1]) < 1e-4
+            )
+
+
+def test_k_onset_opening_frames_have_no_phantom_tip_closure() -> None:
+    track = trajectory("kæt", head="adult-male", frames_per_unit=12)
+    opening = [
+        frame
+        for ordinal, frame in zip(track.ordinals, track.frames, strict=True)
+        if ordinal <= 1.0
+    ]
+    assert opening
+    tips = [
+        point
+        for frame in opening
+        for point in frame.constrictions
+        if point.articulator == "tongue-tip"
+    ]
+    # The later /t/ may contribute its open, implied tip target this early; the
+    # resting drawing tip must not turn that phonetic field into a closure.
+    assert all(point.offset is not None and point.offset < 0.2 for point in tips)
 
 
 def test_static_and_animated_rest_draw_the_same_declared_tongue() -> None:

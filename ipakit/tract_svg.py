@@ -127,9 +127,11 @@ def tongue_surface(
     h = head(name)
     controls = [control] if isinstance(control, TractPoint) else list(control)
     # A tongue-tip gesture bounds the body's front so its raised cosine cannot
-    # scallop forward into the sublingual space. Without one, the resting taper
-    # stands all the way to the declared anterior attachment. Keep one sample
-    # of slack so the tip's own cell is drawn and every surface arc is a row arc.
+    # scallop forward into the sublingual space. Without one, sample from the
+    # declared anterior attachment: the frontmost active control's cosine stands
+    # there, falling to the resting taper only where no control reaches. Keep one
+    # sample of slack so the tip's own cell is drawn and every surface arc is a
+    # row arc.
     active_tip = min(
         (
             c.arc

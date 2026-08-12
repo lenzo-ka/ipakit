@@ -153,3 +153,10 @@ def test_track_missing_key_uses_codec_refusal() -> None:
     del document["provenance"]["source"]
     with pytest.raises(ValueError, match="missing required key 'source'"):
         trajectory_from_track(json.dumps(document))
+
+
+def test_track_posture_requires_tongue_controls() -> None:
+    document = json.loads(trajectory("kat", head=head()).to_track())
+    del document["frames"][0]["posture"]["tongue_controls"]
+    with pytest.raises(ValueError, match="missing required key 'tongue_controls'"):
+        trajectory_from_track(json.dumps(document))
