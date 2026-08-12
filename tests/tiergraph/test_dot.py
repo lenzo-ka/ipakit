@@ -40,7 +40,7 @@ def test_dot_is_byte_identical_in_process_and_across_hash_seeds() -> None:
         "sys.stdout.write(build_example().to_dot())"
     )
     outputs = []
-    for seed in ("1", "8675309"):
+    for seed in ("0", "12345", "999"):
         outputs.append(
             subprocess.run(
                 [sys.executable, "-c", program],
@@ -50,7 +50,7 @@ def test_dot_is_byte_identical_in_process_and_across_hash_seeds() -> None:
                 capture_output=True,
             ).stdout
         )
-    assert outputs == [form.to_dot().encode(), form.to_dot().encode()]
+    assert outputs == [form.to_dot().encode()] * 3
 
 
 def test_every_event_is_defined_once_and_every_relation_is_labelled() -> None:
@@ -99,6 +99,16 @@ def test_tier_rows_are_exactly_the_tiers_with_events_in_declaration_order() -> N
         form.to_dot(include_empty_tiers=True),
         re.M,
     ) == [tier.name for tier in graph.declarations.tiers]
+
+
+def test_clock_and_populated_tier_rows_are_ordered_vertically() -> None:
+    dot = _example().to_dot()
+    labels = re.findall(r"^    (tier_label_\S+) \[shape=plaintext", dot, re.M)
+    ordering = re.findall(
+        r"^  (\S+) -> (tier_label_\S+) \[style=invis, weight=100\];$", dot, re.M
+    )
+
+    assert ordering == list(zip(["clock_0", *labels[:-1]], labels, strict=True))
 
 
 def test_clock_spine_is_strictly_ascending() -> None:

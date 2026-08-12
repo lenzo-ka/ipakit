@@ -52,6 +52,7 @@ def dumps(graph: Graph, *, include_empty_tiers: bool = False) -> str:
         lines.append(f"    {left} -> {right} [weight=100];")
     lines.extend(("  }", ""))
 
+    tier_labels: list[str] = []
     for tier in graph.declarations.tiers:
         references: list[str] = []
         for tick, clock_node in enumerate(graph.clock):
@@ -70,11 +71,12 @@ def dumps(graph: Graph, *, include_empty_tiers: bool = False) -> str:
                 )
         if not references and not include_empty_tiers:
             continue
+        tier_label = f"tier_label_{_identifier(tier.name)}"
+        tier_labels.append(tier_label)
         lines.append(f"  subgraph tier_{_identifier(tier.name)} {{")
         lines.append("    rank=same;")
         lines.append(
-            f"    tier_label_{_identifier(tier.name)} "
-            f'[shape=plaintext, label="{_quote(tier.name)}"];'
+            f'    {tier_label} [shape=plaintext, label="{_quote(tier.name)}"];'
         )
         for reference in references:
             event = graph.resolve(reference).event
@@ -88,6 +90,12 @@ def dumps(graph: Graph, *, include_empty_tiers: bool = False) -> str:
                 f"    {_event_id(left)} -> {_event_id(right)} [style=invis, weight=20];"
             )
         lines.extend(("  }", ""))
+
+    lines.append("  // Keep the clock and tier rows in declaration order.")
+    row_anchors = [positions[0], *tier_labels]
+    for upper, lower in zip(row_anchors, row_anchors[1:], strict=False):
+        lines.append(f"  {upper} -> {lower} [style=invis, weight=100];")
+    lines.append("")
 
     lines.append("  // Anchor every event and show its half-open structural extent.")
     for reference in _ordered_event_references(graph):

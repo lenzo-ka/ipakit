@@ -128,6 +128,13 @@ digraph tiergraph {
     event__2f_clock_2f_10_2f_boundary_2f_0 -> event__2f_clock_2f_13_2f_boundary_2f_0 [style=invis, weight=20];
   }
 
+  // Keep the clock and tier rows in declaration order.
+  clock_0 -> tier_label_word [style=invis, weight=100];
+  tier_label_word -> tier_label_phrase [style=invis, weight=100];
+  tier_label_phrase -> tier_label_utterance [style=invis, weight=100];
+  tier_label_utterance -> tier_label_segment [style=invis, weight=100];
+  tier_label_segment -> tier_label_boundary [style=invis, weight=100];
+
   // Anchor every event and show its half-open structural extent.
   clock_0 -> event__2f_clock_2f_0_2f_word_2f_0 [style=dotted, arrowhead=none];
   event__2f_clock_2f_0_2f_word_2f_0 -> clock_6_gap_0 [style=dashed, label="extent", constraint=false];
