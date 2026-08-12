@@ -103,8 +103,13 @@ markers = [
 # can't silently rot; ELLIPSIS lets examples elide volatile output (floats).
 testpaths = ["ipakit", "tests"]
 doctest_optionflags = ["ELLIPSIS"]
-# Don't run slow tests by default
-addopts = "-m 'not slow' --doctest-modules"
+# Don't run slow tests by default.
+# The worker cap lives here as well as in the Makefile so it also binds a bare
+# `pytest` run: xdist's 'auto' takes every core, and several agents run this
+# suite in parallel worktrees, so an uncapped ad-hoc run oversubscribes the
+# box for everyone. `make check` passes its own -n, and -n on the command line
+# overrides this, so a deliberate `pytest -n auto` is still one word away.
+addopts = "-m 'not slow' --doctest-modules -n 3"
 
 # ipakit/notebooks/ is out of both style gates. Its one file is a rendering of
 # docs/tutorial.src.md, compared byte for byte against a fresh render by

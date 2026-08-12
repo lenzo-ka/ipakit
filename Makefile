@@ -84,11 +84,24 @@ lint:
 	@$(PYTHON) -m mypy
 
 ## PYTEST_WORKERS: how many processes the suite runs in.
-# 'auto' is one per core. Set it to 0 to run serially -- useful when a failure
-# needs a readable traceback, or on a machine already under load, since xdist
-# takes the cores it is given whatever else is running.
-PYTEST_WORKERS ?= auto
-PYTEST_N = $(if $(filter 0,$(PYTEST_WORKERS)),,-n $(PYTEST_WORKERS))
+# A share of the cores rather than all of them, because this checkout is
+# usually being worked by more than one agent and each of them runs this same
+# suite. xdist's 'auto' is one worker per core, which is right for the only
+# job on the box and wrong for any other number: two 'auto' suites on twelve
+# cores is twenty-four runnable processes, and the box has been seen at a load
+# average of 81. Niceness does not help there -- every competitor is equally
+# nice, so they simply thrash each other. A quarter of the cores lets four
+# suites run without oversubscribing, which is the number of lanes this
+# program actually keeps in flight.
+#
+# Set PYTEST_WORKERS=auto for a deliberate solo run when you want the wall
+# clock and know nothing else is running, or 0 to run serially -- useful when
+# a failure needs a readable traceback.
+CORES := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+PYTEST_WORKERS ?= $(shell expr $(CORES) / 4 \| 1)
+# '-n 0' rather than an empty flag: the cap also lives in pyproject's addopts,
+# so serial mode has to override it explicitly instead of falling through.
+PYTEST_N = $(if $(filter 0,$(PYTEST_WORKERS)),-n 0,-n $(PYTEST_WORKERS))
 
 ## NICE: what the suite is run under.
 # The default yields the CPU, because this checkout is often worked on by
@@ -102,16 +115,19 @@ NICE ?= nice -n 19
 ## check: the gates a release runs
 # lint is a prerequisite rather than a recipe line so it fails in seconds,
 # before the suite spends a minute earning the same verdict.
+# Every step yields, not just the suite: the checks after it walk the corpus
+# and re-render the tutorial, which is minutes of CPU that used to run at
+# normal priority while the niced suite it followed had been polite.
 check: lint
 	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/consolidation_parity.py check
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/invariants.py
-	@$(PYTHON) scripts/confusion.py validate
-	@$(PYTHON) scripts/xsampa_table.py validate
-	@$(PYTHON) scripts/house_style.py check
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/perceptual_validation.py check
-	@$(PYTHON) scripts/state_of_work.py check
+	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/consolidation_parity.py check
+	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/invariants.py
+	@$(NICE) $(PYTHON) scripts/confusion.py validate
+	@$(NICE) $(PYTHON) scripts/xsampa_table.py validate
+	@$(NICE) $(PYTHON) scripts/house_style.py check
+	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/perceptual_validation.py check
+	@$(NICE) $(PYTHON) scripts/state_of_work.py check
 	@$(MAKE) --no-print-directory espeak-vocabularies-check
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/tutorial.py check all
-	@PYTHONHASHSEED=0 $(PYTHON) scripts/docexamples.py
-	@$(PYTHON) scripts/docquotes.py
+	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/tutorial.py check all
+	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/docexamples.py
+	@$(NICE) $(PYTHON) scripts/docquotes.py
