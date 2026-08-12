@@ -269,6 +269,14 @@ def test_tip_closure_guards_against_a_forward_scallop(phone: str) -> None:
     assert target.arc - 1.0 / tract_svg.SAMPLES <= surface[0][0] <= target.arc + 1e-12
 
 
+def test_lateral_keeps_the_declared_anterior_attachment() -> None:
+    """The model's half-height /l/ is deliberately not closure-clamped."""
+    h = head()
+    assert h.tongue_span is not None
+    surface = tract_svg.drawing(h.name, "l")["geometry"]["tongue"]
+    assert surface[0][0] == 0.0800 == h.tongue_span[0]
+
+
 @pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
 def test_dental_tip_paints_the_declared_target_region(tmp_path: Path) -> None:
     """The dental target is occupied by tongue pixels, not white space."""

@@ -127,13 +127,14 @@ def tongue_surface(
     """
     h = head(name)
     controls = [control] if isinstance(control, TractPoint) else list(control)
-    # Only a real apical constriction bounds the body's front.  The threshold is
-    # the midpoint between the head's declared neutral tongue offset and its
-    # declared wall (offset 1): below it the tip is closer to rest than closure
-    # and the declared anterior attachment remains tongue.  In particular, a
-    # drawing-only resting tip control is not a phonetic closure.
-    rest_offset = h.rest.offset if h.rest is not None else 0.0
-    closure_threshold = (rest_offset + 1.0) / 2.0
+    # Only a declared apical closure bounds the body's front. The inventory's
+    # tongue-tip offsets jump from 0.50 to 0.70, so every threshold strictly
+    # between them separates the same classes; heads.xml states 0.60 rather
+    # than presenting that convenient separator as a measurement. In
+    # particular /l, ɫ, ɭ, ɹ/ use 0.50 and keep the declared anterior
+    # attachment. Although phonetic /l/ has central tip contact, this model
+    # draws its tip at half height and therefore treats it as a non-closure.
+    closure_threshold = h.tongue_closure_threshold
     tip_closures = [
         c
         for c in closures
@@ -172,10 +173,12 @@ def tongue_surface(
     arcs.extend(i / SAMPLES for i in range(SAMPLES + 1) if low < i / SAMPLES < high)
     arcs.append(high)
     for arc in arcs:
-        # Preserve the sample count while clamped, but project every leading
-        # sample onto the exact moving edge.  This retains grid alignment in the
-        # body without snapping the visible front to whichever cell contains it.
+        # Clamp leading grid samples to the exact moving-edge point, then emit
+        # that coincident run once. The remaining body retains grid alignment
+        # without snapping the visible front to whichever cell contains it.
         sample_arc = max(arc, front) if front is not None else arc
+        if out and math.isclose(sample_arc, out[-1][0]):
+            continue
         point = h.tongue_point(sample_arc, control, close)
         if point is None:
             continue

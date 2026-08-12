@@ -249,6 +249,7 @@ class Head:
     carriage: tuple[tuple[float, float], ...] = ()
     tongue_span: tuple[float, float, float, float] | None = None
     tongue_tip_arc: float = 0.13
+    tongue_closure_threshold: float = 0.60
     # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
     # the renderer only poses, projects and strokes it.
     frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
@@ -830,6 +831,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
         tongue_elem = elem.find("tongue")
         tongue_span: tuple[float, float, float, float] | None = None
         tongue_tip_arc = 0.13
+        tongue_closure_threshold = 0.60
         if tongue_elem is not None:
             tongue_span = (
                 float(tongue_elem.get("from", 0.0)),
@@ -838,6 +840,9 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 float(tongue_elem.get("taper", 0.0)),
             )
             tongue_tip_arc = float(tongue_elem.get("tip", 0.13))
+            declared_threshold = tongue_elem.get("closure-threshold")
+            assert declared_threshold is not None
+            tongue_closure_threshold = float(declared_threshold)
         frontal_elem = elem.find("frontal")
         frontal: tuple[
             tuple[str, str, float, tuple[tuple[float, float], ...]], ...
@@ -882,6 +887,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             carriage=carriage,
             tongue_span=tongue_span,
             tongue_tip_arc=tongue_tip_arc,
+            tongue_closure_threshold=tongue_closure_threshold,
             frontal=frontal,
         )
     return heads, default

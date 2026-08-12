@@ -51,9 +51,9 @@
       "sha256": "1ea5092cb0e187ab03281071501def651bd56b8f393f45e549ed2c47725f01a0"
     },
     {
-      "bytes": 42607,
+      "bytes": 42247,
       "path": "docs/figures/tract-n.svg",
-      "sha256": "3dfaa18af79039c05509a6af75b63744a85ac5dbd61bc2537c55e594d0835aa3"
+      "sha256": "2473c8a36600b6e72a3774d9c9da4bec312e3cd50c63852993db885568dbf1a4"
     },
     {
       "bytes": 38804,
@@ -61,9 +61,9 @@
       "sha256": "d613132f2dc79e71e5f4d61e154b3b90a34b7d2c5e796a8265b9eb6863c203e5"
     },
     {
-      "bytes": 43330,
+      "bytes": 42970,
       "path": "docs/figures/tract-s.svg",
-      "sha256": "3950ed58059ccc6fda9708181967cf5b49c49d0e65d4cd7a1a1e27719ffcd2a7"
+      "sha256": "af016fb2868144fa184d0b007277002a74c4b17befc6ecf3183b1345c55430e9"
     },
     {
       "bytes": 44358,
@@ -71,9 +71,9 @@
       "sha256": "24065088096dc362c074ec0aaba1ef3635176741532d130ec38306adf864eb42"
     },
     {
-      "bytes": 43062,
+      "bytes": 42702,
       "path": "docs/figures/tract-t.svg",
-      "sha256": "8a0889a4bb7c962fc9cfae9eb8a7c7c7640990a588efa6ed2bfecac66ed1c43d"
+      "sha256": "0bdec47c1f2719d6a5dfddc306abd1f69322bcddc22eb44ba220f4e271eb047c"
     },
     {
       "bytes": 43239,

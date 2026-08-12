@@ -14,8 +14,8 @@ from ipakit.tract_svg import animate
 LEGACY_ANIMATION_SHA256 = {
     # Closure-gated, interpolated tongue fronts survive track round trips
     # byte-for-byte; a resting drawing control no longer truncates the body.
-    "sũn": "e830d2aa7c98059109149095363cb934c41d396b4fe6c41cdd8ae285a1ed7f32",
-    "ˈkæt": "6e45655e9599f4ff85b741e50318da9d0742bdb674a4a85fbfe2a7b1af25bedf",
+    "sũn": "b4f40fdb2514cf67513c2257f3129ac955ec7097097929c8d1c6b9b281b62a2a",
+    "ˈkæt": "bfed6b10cc47b372c897eb5fd299f0b58ace4f44a114092f6a30a0874cf0c887",
 }
 
 
