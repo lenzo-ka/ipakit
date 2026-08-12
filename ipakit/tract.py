@@ -246,10 +246,14 @@ class Head:
     port_arc: float | None = None
     velum_thickness: float = 0.018
     teeth: tuple[tuple[str, float, float, str], ...] = ()
+    hinge: tuple[float, float] | None = None
+    jaw_rotation: float = 0.0
+    hinge_provenance: str | None = None
     carriage: tuple[tuple[float, float], ...] = ()
     tongue_span: tuple[float, float, float, float] | None = None
     tongue_tip_arc: float = 0.13
     tongue_closure_threshold: float = 0.60
+    tongue_attachment_arc: float = 0.08
     # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
     # the renderer only poses, projects and strokes it.
     frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
@@ -545,7 +549,14 @@ class Head:
         wall = self.project(TractPoint(arc=arc, offset=1.0))
         if floor is None or wall is None:
             return None
-        floor = self.carried(floor, arc, close)
+        # The anterior endpoint is sewn to the mandible, not merely tissue
+        # whose motion is statistically associated with it.  It therefore
+        # takes the full rigid transform; the rest of the surface grades by
+        # the declared carriage membership.
+        if math.isclose(arc, self.tongue_attachment_arc, abs_tol=1e-12):
+            floor = self.rotate_jaw(floor, close)
+        else:
+            floor = self.carried(floor, arc, close)
         return (
             floor[0] + (wall[0] - floor[0]) * offset,
             floor[1] + (wall[1] - floor[1]) * offset,
@@ -597,7 +608,7 @@ class Head:
     def carried(
         self, point: tuple[float, float], arc: float, close: float
     ) -> tuple[float, float]:
-        """Move a point the way the jaw carries it, for a given closure.
+        """Blend a point between its fixed and jaw-rigid positions.
 
         The mandible constricts nothing but carries the lower lip, the lower
         teeth and the tongue's anterior attachment, by the measured fraction
@@ -606,16 +617,27 @@ class Head:
         somewhere between their open positions rather than the lower one
         traveling the whole way alone.
         """
-        share = self.jaw_carriage(arc) * close
-        if share <= 0.0:
+        membership = self.jaw_carriage(arc)
+        if membership <= 0.0 or close <= 0.0:
             return point
-        roof = self.project(TractPoint(arc=arc, offset=1.0))
-        floor = self.project(TractPoint(arc=arc, offset=0.0))
-        if roof is None or floor is None:
-            return point
+        moved = self.rotate_jaw(point, close)
         return (
-            point[0] + (roof[0] - floor[0]) * share,
-            point[1] + (roof[1] - floor[1]) * share,
+            point[0] + (moved[0] - point[0]) * membership,
+            point[1] + (moved[1] - point[1]) * membership,
+        )
+
+    def rotate_jaw(
+        self, point: tuple[float, float], close: float
+    ) -> tuple[float, float]:
+        """Rigidly rotate a mandibular point about the declared condyle."""
+        if self.hinge is None or close <= 0.0:
+            return point
+        angle = math.radians(self.jaw_rotation * min(1.0, close))
+        cosine, sine = math.cos(angle), math.sin(angle)
+        dx, dy = point[0] - self.hinge[0], point[1] - self.hinge[1]
+        return (
+            self.hinge[0] + dx * cosine - dy * sine,
+            self.hinge[1] + dx * sine + dy * cosine,
         )
 
     def lips(
@@ -821,6 +843,17 @@ def _load_heads() -> tuple[dict[str, Head], str]:
                 )
                 for pt in teeth_elem.findall("point")
             )
+        hinge_elem = elem.find("hinge")
+        hinge = None
+        jaw_rotation = 0.0
+        hinge_provenance = None
+        if hinge_elem is not None:
+            hinge = (
+                float(hinge_elem.get("x", 0.0)),
+                float(hinge_elem.get("y", 0.0)),
+            )
+            jaw_rotation = float(hinge_elem.get("rotation", 0.0))
+            hinge_provenance = hinge_elem.get("provenance")
         carriage_elem = elem.find("carriage")
         carriage: tuple[tuple[float, float], ...] = ()
         if carriage_elem is not None:
@@ -832,6 +865,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
         tongue_span: tuple[float, float, float, float] | None = None
         tongue_tip_arc = 0.13
         tongue_closure_threshold = 0.60
+        tongue_attachment_arc = 0.08
         if tongue_elem is not None:
             tongue_span = (
                 float(tongue_elem.get("from", 0.0)),
@@ -843,6 +877,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             declared_threshold = tongue_elem.get("closure-threshold")
             assert declared_threshold is not None
             tongue_closure_threshold = float(declared_threshold)
+            tongue_attachment_arc = float(tongue_elem.get("attachment", 0.08))
         frontal_elem = elem.find("frontal")
         frontal: tuple[
             tuple[str, str, float, tuple[tuple[float, float], ...]], ...
@@ -884,10 +919,14 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             port_arc=port_arc,
             velum_thickness=velum_thickness,
             teeth=teeth,
+            hinge=hinge,
+            jaw_rotation=jaw_rotation,
+            hinge_provenance=hinge_provenance,
             carriage=carriage,
             tongue_span=tongue_span,
             tongue_tip_arc=tongue_tip_arc,
             tongue_closure_threshold=tongue_closure_threshold,
+            tongue_attachment_arc=tongue_attachment_arc,
             frontal=frontal,
         )
     return heads, default

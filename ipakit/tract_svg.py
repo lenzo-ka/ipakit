@@ -233,6 +233,7 @@ def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
         "port_arc": h.port_arc,
         "velum_thickness": h.velum_thickness,
         "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
+        "hinge": h.hinge,
         "lips_open": h.lips(close=close),
         "lips_body": h.lip_body(close=close),
         "lips_shut": h.lip_body(closed=True, close=close),
@@ -308,7 +309,7 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
                     dict(
                         zip(
                             ("x", "y"),
-                            head.carried((t["x"], t["y"]), 0.045, close),
+                            head.rotate_jaw((t["x"], t["y"]), close),
                             strict=True,
                         )
                     )
@@ -1533,6 +1534,12 @@ def section_svg(
             + '" class="sweep trace"/>'
         )
     parts.append(_wall_with_port(current, to, aperture))
+    if current.get("hinge") is not None:
+        hx, hy = to(*current["hinge"])
+        parts.append(
+            f'<circle cx="{hx:.1f}" cy="{hy:.1f}" r="6.0" class="jawhinge"/>'
+            f'<circle cx="{hx:.1f}" cy="{hy:.1f}" r="1.8" class="jawhinge-pin"/>'
+        )
     parts.append('<path d="' + _trace(current, to, "rest") + '" class="restline"/>')
     parts.append('<path d="' + _trace(current, to, "open") + '" class="openline"/>')
     taken: list[tuple[float, ...]] = []
@@ -1681,6 +1688,8 @@ color:var(--dim);padding:10px 4px 2px}
 .openline{fill:none;stroke:var(--trace);stroke-width:1;opacity:.55}
 .restline{fill:none;stroke:var(--trace);stroke-width:1;
 stroke-dasharray:3 4;opacity:.75}
+.jawhinge{fill:none;stroke:var(--signal);stroke-width:1.8}
+.jawhinge-pin{fill:var(--signal)}
 .lead{stroke-width:1;opacity:.5}
 .lead.place{stroke:var(--trace)}
 .lead.place.fric{stroke:var(--signal)}
