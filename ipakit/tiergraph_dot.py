@@ -21,8 +21,13 @@ if TYPE_CHECKING:
     from .form import Form
 
 
-def dumps(graph: Graph) -> str:
-    """Return byte-stable DOT for ``graph``, including its complete clock."""
+def dumps(graph: Graph, *, include_empty_tiers: bool = False) -> str:
+    """Return byte-stable DOT for ``graph``, including its complete clock.
+
+    By default, tier rows answer "which tiers does this graph use?" and omit
+    declared tiers with no events. Set ``include_empty_tiers`` to answer "which
+    tiers does this model permit?" by drawing every declared tier.
+    """
     if not isinstance(graph, Graph):
         raise TypeError("graph must be an ipakit tier graph")
     lines = [
@@ -49,12 +54,6 @@ def dumps(graph: Graph) -> str:
 
     for tier in graph.declarations.tiers:
         references: list[str] = []
-        lines.append(f"  subgraph tier_{_identifier(tier.name)} {{")
-        lines.append("    rank=same;")
-        lines.append(
-            f"    tier_label_{_identifier(tier.name)} "
-            f'[shape=plaintext, label="{_quote(tier.name)}"];'
-        )
         for tick, clock_node in enumerate(graph.clock):
             group = next(
                 (
@@ -64,15 +63,26 @@ def dumps(graph: Graph) -> str:
                 ),
                 None,
             )
-            if group is None:
-                continue
-            for index, event in enumerate(group.events):
-                reference = f"/clock/{tick}/{_pointer_escape(tier.name)}/{index}"
-                references.append(reference)
-                label = _event_label(tier.name, event.features)
-                lines.append(
-                    f'    {_event_id(reference)} [shape=box, label="{_quote(label)}"];'
+            if group is not None:
+                references.extend(
+                    f"/clock/{tick}/{_pointer_escape(tier.name)}/{index}"
+                    for index in range(len(group.events))
                 )
+        if not references and not include_empty_tiers:
+            continue
+        lines.append(f"  subgraph tier_{_identifier(tier.name)} {{")
+        lines.append("    rank=same;")
+        lines.append(
+            f"    tier_label_{_identifier(tier.name)} "
+            f'[shape=plaintext, label="{_quote(tier.name)}"];'
+        )
+        for reference in references:
+            event = graph.resolve(reference).event
+            assert event is not None
+            label = _event_label(tier.name, event.features)
+            lines.append(
+                f'    {_event_id(reference)} [shape=box, label="{_quote(label)}"];'
+            )
         for left, right in zip(references, references[1:], strict=False):
             lines.append(
                 f"    {_event_id(left)} -> {_event_id(right)} [style=invis, weight=20];"
@@ -114,13 +124,17 @@ def dumps(graph: Graph) -> str:
     return "\n".join(lines) + "\n"
 
 
-def to_dot(form: Form) -> str:
-    """Return DOT for a public :class:`~ipakit.Form`."""
+def to_dot(form: Form, *, include_empty_tiers: bool = False) -> str:
+    """Return DOT for a public :class:`~ipakit.Form`.
+
+    By default, rows show which tiers the form uses. Set
+    ``include_empty_tiers`` to show which tiers its model permits.
+    """
     from .form import Form
 
     if not isinstance(form, Form):
         raise TypeError("form must be an ipakit.Form")
-    return dumps(form._graph)
+    return dumps(form._graph, include_empty_tiers=include_empty_tiers)
 
 
 def _ordered_event_references(graph: Graph) -> tuple[str, ...]:

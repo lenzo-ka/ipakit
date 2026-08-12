@@ -1759,11 +1759,15 @@ class Form:
             self.to_dict(self_contained=self_contained), ensure_ascii=False
         )
 
-    def to_dot(self) -> str:
-        """Render the complete tier graph as deterministic Graphviz DOT."""
+    def to_dot(self, *, include_empty_tiers: bool = False) -> str:
+        """Render the used tiers as deterministic Graphviz DOT.
+
+        By default, rows answer which tiers this form uses. Set
+        ``include_empty_tiers`` to show every tier its model permits.
+        """
         from .tiergraph_dot import to_dot
 
-        return to_dot(self)
+        return to_dot(self, include_empty_tiers=include_empty_tiers)
 
     @classmethod
     def from_dict(

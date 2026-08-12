@@ -50,11 +50,6 @@ digraph tiergraph {
     clock_15 -> clock_16 [weight=100];
   }
 
-  subgraph tier_syllable {
-    rank=same;
-    tier_label_syllable [shape=plaintext, label="syllable"];
-  }
-
   subgraph tier_word {
     rank=same;
     tier_label_word [shape=plaintext, label="word"];
@@ -81,21 +76,6 @@ digraph tiergraph {
     rank=same;
     tier_label_utterance [shape=plaintext, label="utterance"];
     event__2f_clock_2f_0_2f_utterance_2f_0 [shape=box, label="perhaps I am a bad man"];
-  }
-
-  subgraph tier_mora {
-    rank=same;
-    tier_label_mora [shape=plaintext, label="mora"];
-  }
-
-  subgraph tier_morph {
-    rank=same;
-    tier_label_morph [shape=plaintext, label="morph"];
-  }
-
-  subgraph tier_foot {
-    rank=same;
-    tier_label_foot [shape=plaintext, label="foot"];
   }
 
   subgraph tier_segment {
@@ -134,11 +114,6 @@ digraph tiergraph {
     event__2f_clock_2f_14_2f_segment_2f_0 -> event__2f_clock_2f_15_2f_segment_2f_0 [style=invis, weight=20];
   }
 
-  subgraph tier_zero {
-    rank=same;
-    tier_label_zero [shape=plaintext, label="zero"];
-  }
-
   subgraph tier_boundary {
     rank=same;
     tier_label_boundary [shape=plaintext, label="boundary"];
@@ -151,21 +126,6 @@ digraph tiergraph {
     event__2f_clock_2f_7_2f_boundary_2f_0 -> event__2f_clock_2f_9_2f_boundary_2f_0 [style=invis, weight=20];
     event__2f_clock_2f_9_2f_boundary_2f_0 -> event__2f_clock_2f_10_2f_boundary_2f_0 [style=invis, weight=20];
     event__2f_clock_2f_10_2f_boundary_2f_0 -> event__2f_clock_2f_13_2f_boundary_2f_0 [style=invis, weight=20];
-  }
-
-  subgraph tier_prosody {
-    rank=same;
-    tier_label_prosody [shape=plaintext, label="prosody"];
-  }
-
-  subgraph tier_delivery {
-    rank=same;
-    tier_label_delivery [shape=plaintext, label="delivery"];
-  }
-
-  subgraph tier_analysis {
-    rank=same;
-    tier_label_analysis [shape=plaintext, label="analysis"];
   }
 
   // Anchor every event and show its half-open structural extent.

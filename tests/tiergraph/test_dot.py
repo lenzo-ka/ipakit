@@ -80,6 +80,27 @@ def test_every_event_is_defined_once_and_every_relation_is_labelled() -> None:
         assert dot.count(f'label="{relation.name}"') >= 1
 
 
+def test_tier_rows_are_exactly_the_tiers_with_events_in_declaration_order() -> None:
+    form = _example()
+    graph = form._graph
+    event_tiers = {
+        group.tier
+        for clock_node in graph.clock
+        for group in clock_node.groups
+        if group.events
+    }
+    expected = [
+        tier.name for tier in graph.declarations.tiers if tier.name in event_tiers
+    ]
+
+    assert re.findall(r"^  subgraph tier_([^ ]+) \{$", form.to_dot(), re.M) == expected
+    assert re.findall(
+        r"^  subgraph tier_([^ ]+) \{$",
+        form.to_dot(include_empty_tiers=True),
+        re.M,
+    ) == [tier.name for tier in graph.declarations.tiers]
+
+
 def test_clock_spine_is_strictly_ascending() -> None:
     dot = _example().to_dot()
     spine = dot.split("// The clock spine is the total order.", 1)[1].split("  }", 1)[0]
