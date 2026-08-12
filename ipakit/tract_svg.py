@@ -126,13 +126,12 @@ def tongue_surface(
     """
     h = head(name)
     controls = [control] if isinstance(control, TractPoint) else list(control)
-    # The tongue ends at its tip: a raised tongue-tip constriction is the
-    # frontmost point of the body, so the surface stops there -- forward of the
-    # tip is the sublingual space, its underside, not its top. Without a tip
-    # constriction the resting tip stands at the span's front. (A dorsum or root
-    # constriction leaves the tip at rest in front of it, so it does not bound
-    # the body.) Clamped to the sample grid, one step of slack so the tip's own
-    # cell is drawn, which keeps every surface arc a row arc.
+    # A tongue-tip gesture bounds the body's front so its raised cosine cannot
+    # scallop forward into the sublingual space. Without one, sample from the
+    # declared anterior attachment: the frontmost active control's cosine stands
+    # there, falling to the resting taper only where no control reaches. Keep one
+    # sample of slack so the tip's own cell is drawn and every surface arc is a
+    # row arc.
     active_tip = min(
         (
             c.arc
@@ -143,15 +142,7 @@ def tongue_surface(
         ),
         default=None,
     )
-    # The body always ends at the head's declared tip landmark. A tip gesture
-    # may retract that bound, but a dorsal gesture may never extrapolate the
-    # surface forward past it.
-    tip = (
-        max(h.tongue_tip_arc, active_tip)
-        if active_tip is not None
-        else h.tongue_tip_arc
-    )
-    front = tip - 1.0 / SAMPLES
+    front = active_tip - 1.0 / SAMPLES if active_tip is not None else None
     out: list[tuple[float, float, float]] = []
     for i in range(SAMPLES + 1):
         arc = i / SAMPLES
@@ -296,9 +287,7 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             }
             for t in current["teeth"]
         ]
-        points = list(p.constrictions)
-        if not points and p.rest_weight > 0.0 and p.rest is not None:
-            points = [p.rest]
+        points = list(p.tongue_controls)
         current["tongue"] = tongue_surface(head.name, points, close)
         current["extra"] = [
             (q.arc, q.offset, q.articulator or "")
@@ -325,9 +314,11 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
     """Pose Head's face-on contours from the same view-neutral posture.
 
     The tongue is a frontal silhouette of the same surface the sagittal view
-    samples through :meth:`Head.tongue_offset`.  At each lateral ordinate the
-    declared tongue planform exposes an arc band: its tip is nearest the
-    aperture and its declared root is deepest at the midline.  The highest
+    samples through :meth:`Head.tongue_offset`. Its near edge is
+    ``tongue_span[0]``, the same declared anterior body attachment where the
+    unbounded sagittal surface begins. At each lateral ordinate the declared
+    tongue planform exposes an arc band: that attachment is nearest the
+    aperture and its declared root is deepest at the midline. The highest
     surface in that band is the visible upper edge (the union of structures
     intersecting that sightline).  Offset already means floor-to-roof
     fraction, so it maps directly between the declared lower and upper mouth
@@ -390,7 +381,7 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
             return declared
         top = declared[:3]
         left, centre, right = top
-        tip = head.tongue_tip_arc
+        front = head.tongue_span[0]
         root = head.tongue_span[1]
         # Density sets the lateral endpoints and the depth band exactly, and
         # the centre and closure height only to within the sampling of the
@@ -408,10 +399,10 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
             # planform: the available depth is the chord sqrt(1-u^2) at
             # normalized lateral position u.  Thus the band comes entirely
             # from the declared tip, root and frontal width, not a tuned lift.
-            deepest = tip + (root - tip) * math.sqrt(max(0.0, 1.0 - lateral**2))
+            deepest = front + (root - front) * math.sqrt(max(0.0, 1.0 - lateral**2))
             offsets: list[float] = []
             for step in range(SAMPLES + 1):
-                arc = tip + (deepest - tip) * step / SAMPLES
+                arc = front + (deepest - front) * step / SAMPLES
                 offsets.extend(
                     value
                     for control in controls
@@ -452,7 +443,7 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
                 y += gap * carry
             points.append((x, y))
         if name == "tongue":
-            points = list(frontal_tongue(tuple(points), list(p.constrictions)))
+            points = list(frontal_tongue(tuple(points), list(p.tongue_controls)))
         contours.append(
             {"name": name, "carrier": carrier, "arc": arc, "points": points}
         )

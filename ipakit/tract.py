@@ -47,7 +47,7 @@ import json
 import math
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -173,6 +173,8 @@ class RestPosture:
 
     arc: float
     offset: float
+    tip_arc: float
+    tip_offset: float
     lips: str = "closed"
     jaw: str = "closed"
     velum: str = "lowered"
@@ -180,6 +182,17 @@ class RestPosture:
     @property
     def point(self) -> TractPoint:
         return TractPoint(arc=self.arc, offset=self.offset)
+
+    @property
+    def tip(self) -> TractPoint:
+        return TractPoint(
+            arc=self.tip_arc, offset=self.tip_offset, articulator="tongue-tip"
+        )
+
+    @property
+    def tongue_controls(self) -> tuple[TractPoint, ...]:
+        """The declared controls that draw the tongue at home."""
+        return (self.tip,)
 
 
 @dataclass(frozen=True)
@@ -849,6 +862,8 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             rest = RestPosture(
                 arc=float(rest_elem.get("arc", 0.0)),
                 offset=float(rest_elem.get("offset", 0.0)),
+                tip_arc=float(rest_elem.get("tip-arc", 0.0)),
+                tip_offset=float(rest_elem.get("tip-offset", 0.0)),
                 lips=rest_elem.get("lips", "closed"),
                 jaw=rest_elem.get("jaw", "closed"),
                 velum=rest_elem.get("velum", "lowered"),
@@ -939,6 +954,26 @@ class Posture:
     protrusion: float = 0.0
     implied: tuple[TractPoint, ...] = ()
     rest_weight: float = 0.0
+    tongue_controls: tuple[TractPoint, ...] = ()
+
+
+def _resting_posture(h: Head) -> Posture:
+    """Build the one declared home posture used by figures and trajectories."""
+    declared = h.rest
+    if declared is None:
+        raise ValueError(f"head {h.name!r} declares no resting posture")
+    point = declared.point
+    return Posture(
+        reading=point,
+        rest=point,
+        constrictions=(),
+        velic=1.0 if declared.velum == "lowered" else 0.0,
+        glottal=GLOTTAL_REST,
+        secondary=(),
+        unmodelled=(),
+        rest_weight=1.0,
+        tongue_controls=declared.tongue_controls,
+    )
 
 
 def _lip_posture(features: IPAFeatures, bundle: dict[str, str]) -> tuple[float, float]:
@@ -1579,8 +1614,23 @@ def posture(
     stated = features.get_features(phone, with_defaults=False)
     aperture_width, protrusion = _lip_posture(features, bundle)
     controls = constrictions(features, bundle)
+    reading = tract_point(features, bundle)
+    if (
+        not reading.placed
+        and not any(control.placed for control in controls)
+        and h.rest
+    ):
+        return replace(
+            _resting_posture(h),
+            velic=velic_aperture(features, bundle),
+            glottal=glottal_aperture(features, bundle),
+            secondary=secondary_marks(features, bundle),
+            unmodelled=unmodelled(features, stated),
+            aperture_width=aperture_width,
+            protrusion=protrusion,
+        )
     return Posture(
-        reading=tract_point(features, bundle),
+        reading=reading,
         rest=h.rest.point if h.rest is not None else None,
         constrictions=controls,
         velic=velic_aperture(features, bundle),
@@ -1590,6 +1640,7 @@ def posture(
         aperture_width=aperture_width,
         protrusion=protrusion,
         implied=_implied_positions(features, h, controls),
+        tongue_controls=controls,
     )
 
 
@@ -1685,49 +1736,61 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
             return None
         return sum(w * v for w, v in values) / denom
 
-    # Each unit's per-articulator target: the offset it constricts that
-    # articulator to (max where a unit closes one twice, as a click does),
-    # keyed by name so a place travels only between a unit's own closures.
-    names: list[str] = []
-    per_unit: list[dict[str, TractPoint]] = []
-    for u in units:
-        closed: dict[str, TractPoint] = {}
-        for q in u.constrictions:
-            if q.articulator is None or q.arc is None or q.offset is None:
-                continue
-            prior = closed.get(q.articulator)
-            if prior is None or (prior.offset or 0.0) < q.offset:
-                closed[q.articulator] = q
-            if q.articulator not in names:
-                names.append(q.articulator)
-        per_unit.append(closed)
+    def blended_controls(
+        controls_by_unit: Sequence[tuple[TractPoint, ...]],
+    ) -> tuple[TractPoint, ...]:
+        """Blend one control field without borrowing another field's points."""
+        # Each unit's per-articulator target: the offset it constricts that
+        # articulator to (max where a unit closes one twice, as a click does),
+        # keyed by name so a place travels only between a unit's own closures.
+        names: list[str] = []
+        per_unit: list[dict[str, TractPoint]] = []
+        for controls in controls_by_unit:
+            closed: dict[str, TractPoint] = {}
+            for q in controls:
+                if q.articulator is None or q.arc is None or q.offset is None:
+                    continue
+                prior = closed.get(q.articulator)
+                if prior is None or (prior.offset or 0.0) < q.offset:
+                    closed[q.articulator] = q
+                if q.articulator not in names:
+                    names.append(q.articulator)
+            per_unit.append(closed)
 
-    blended: list[TractPoint] = []
-    for name in names:
-        arc = weighted(
-            [
-                (weights[i], closed[name].arc)  # type: ignore[misc]
-                for i, closed in enumerate(per_unit)
-                if name in closed
-            ]
-        )
-        targets = []
-        for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
-            target_point = closed.get(name)
-            if target_point is None:
-                target_point = next(
-                    (p for p in u.implied if p.articulator == name), None
+        blended: list[TractPoint] = []
+        for name in names:
+            arc = weighted(
+                [
+                    (weights[i], closed[name].arc)  # type: ignore[misc]
+                    for i, closed in enumerate(per_unit)
+                    if name in closed
+                ]
+            )
+            targets = []
+            for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
+                target_point = closed.get(name)
+                if target_point is None:
+                    target_point = next(
+                        (p for p in u.implied if p.articulator == name), None
+                    )
+                target = rest_offset if target_point is None else target_point.offset
+                if target is not None:
+                    targets.append((weights[i], target))
+            offset = weighted(targets)
+            if arc is None or offset is None:
+                continue
+            blended.append(
+                TractPoint(
+                    arc=arc,
+                    offset=max(0.0, min(1.0, offset)),
+                    articulator=name,
                 )
-            target = rest_offset if target_point is None else target_point.offset
-            if target is not None:
-                targets.append((weights[i], target))
-        offset = weighted(targets)
-        if arc is None or offset is None:
-            continue
-        blended.append(
-            TractPoint(arc=arc, offset=max(0.0, min(1.0, offset)), articulator=name)
-        )
-    blended.sort(key=lambda q: q.arc or 0.0)
+            )
+        blended.sort(key=lambda q: q.arc or 0.0)
+        return tuple(blended)
+
+    blended_constrictions = blended_controls(tuple(u.constrictions for u in units))
+    blended_tongue_controls = blended_controls(tuple(u.tongue_controls for u in units))
 
     reading_arc = weighted(
         [
@@ -1772,7 +1835,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     return Posture(
         reading=reading,
         rest=dominant.rest,
-        constrictions=tuple(blended),
+        constrictions=blended_constrictions,
         velic=velic,
         glottal=glottal,
         secondary=dominant.secondary,
@@ -1781,10 +1844,11 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         protrusion=protrusion,
         implied=dominant.implied,
         rest_weight=rest_weight,
+        tongue_controls=blended_tongue_controls,
     )
 
 
-TRACK_VERSION = 1
+TRACK_VERSION = 2
 TRACK_TYPE = "ipakit.trajectory"
 
 
@@ -1802,6 +1866,7 @@ def _track_parameters() -> tuple[str, ...]:
         "protrusion",
         "implied",
         "rest_weight",
+        "tongue_controls",
     )
 
 
@@ -1835,6 +1900,7 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "protrusion": value.protrusion,
         "implied": [_point_data(point) for point in value.implied],
         "rest_weight": value.rest_weight,
+        "tongue_controls": [_point_data(point) for point in value.tongue_controls],
     }
 
 
@@ -1883,6 +1949,9 @@ def _posture_from_data(value: Any) -> Posture:
         protrusion=value["protrusion"],
         implied=tuple(_required_point_from_data(p) for p in value.get("implied", [])),
         rest_weight=value.get("rest_weight", 0.0),
+        tongue_controls=tuple(
+            _required_point_from_data(p) for p in value["tongue_controls"]
+        ),
     )
 
 
@@ -2024,17 +2093,7 @@ def trajectory(
     rest_point = head_shape.rest.point if head_shape.rest is not None else None
     play_units = word_postures
     if rest_point is not None:
-        declared = head_shape.rest
-        rest_pose = Posture(
-            rest_point,
-            rest_point,
-            (),
-            1.0 if declared is not None and declared.velum == "lowered" else 0.0,
-            GLOTTAL_REST,
-            (),
-            (),
-            rest_weight=1.0,
-        )
+        rest_pose = _resting_posture(head_shape)
         play_units = (rest_pose, *word_postures, rest_pose)
 
     timings = tuple(unit.timing for unit in segment_units)

@@ -75,10 +75,13 @@
   <define name="rest">
     <!-- Where the articulators sit when not speaking. Rendering geometry:
          an utterance starts and ends here, and silence has to be drawn
-         somewhere even though it is featurally null. -->
+         somewhere even though it is featurally null. The mid-body arc and
+         offset shape the body; tip-arc and tip-offset seat its anterior end. -->
     <element name="rest">
       <attribute name="arc"><ref name="normalized"/></attribute>
       <attribute name="offset"><ref name="normalized"/></attribute>
+      <attribute name="tip-arc"><ref name="normalized"/></attribute>
+      <attribute name="tip-offset"><ref name="normalized"/></attribute>
       <attribute name="lips"><text/></attribute>
       <attribute name="jaw"><text/></attribute>
       <attribute name="velum"><text/></attribute>
