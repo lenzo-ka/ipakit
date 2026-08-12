@@ -8,8 +8,25 @@ import math
 
 import pytest
 from ipakit.form import FormBuilder
-from ipakit.tract import head, trajectory, trajectory_from_track
+from ipakit.tract import TRACK_VERSION, head, trajectory, trajectory_from_track
 from ipakit.tract_svg import animate
+
+TRACK_PARAMETERS_BY_VERSION = {
+    2: (
+        "reading",
+        "rest",
+        "constrictions",
+        "velic",
+        "glottal",
+        "secondary",
+        "unmodelled",
+        "aperture_width",
+        "protrusion",
+        "implied",
+        "rest_weight",
+        "tongue_controls",
+    ),
+}
 
 LEGACY_ANIMATION_SHA256 = {
     # Closure-gated, interpolated tongue fronts survive track round trips
@@ -17,6 +34,30 @@ LEGACY_ANIMATION_SHA256 = {
     "sũn": "b4f40fdb2514cf67513c2257f3129ac955ec7097097929c8d1c6b9b281b62a2a",
     "ˈkæt": "bfed6b10cc47b372c897eb5fd299f0b58ace4f44a114092f6a30a0874cf0c887",
 }
+
+
+def test_track_parameters_belong_to_the_current_wire_version() -> None:
+    """Make every serialized parameter change move the track version.
+
+    The table records each parameter list against the stamp that identifies
+    it: changing the live list under an existing stamp fails, while a new
+    stamp has to gain its own entry.  A bare snapshot of today's list would
+    not provide that coupling because it could be refreshed without moving
+    the version.
+    """
+    document = json.loads(trajectory("kat", head=head()).to_track())
+
+    assert document["v"] == TRACK_VERSION
+    assert tuple(document["parameters"]) == TRACK_PARAMETERS_BY_VERSION[TRACK_VERSION]
+
+
+@pytest.mark.parametrize("other_version", [None, 1, 3, "2"])
+def test_track_reader_refuses_every_other_version(other_version: object) -> None:
+    document = json.loads(trajectory("kat", head=head()).to_track())
+    document["v"] = other_version
+
+    with pytest.raises(ValueError, match="unsupported track version"):
+        trajectory_from_track(json.dumps(document))
 
 
 @pytest.mark.parametrize("word", ["sũn", "ˈkæt"])
