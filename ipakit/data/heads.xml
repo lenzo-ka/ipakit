@@ -152,7 +152,7 @@
          rigid-body-clean X-Ray Microbeam speakers. See
          docs/articulatory-data.md. The gradient is the anatomy — the tongue
          is anchored anteriorly, so carrying decays from the lips backward. -->
-    <hinge x="0.700" y="0.780" rotation="-6.551" provenance="provisional AABB proxy, not a measured condyle: posterior max_y 0.008995 m and superior max_z 1.528196 m of the pre-extracted Z-Anatomy Skeletal system;Head;Mandible bounds in ipakit-assets/mesh_audit.tsv, projected into this schematic head; closure rotation derives from declared lower-to-upper incisal angular alignment"/>
+    <hinge x="0.661336" y="0.976414" rotation="-6.124" provenance="Articular disc of temporomandibular joint vertex centroid (146 vertices) at world (x = ±0.043999, y = −0.005954, z = 1.575413) m in ipakit-passive.blend, Z-Anatomy 5.2.0 (CC BY-SA 4.0), derived from BodyParts3D (CC BY-SA 2.1 Japan); left and right are exactly symmetric in x, so x cancels and the midsagittal hinge is (y = −0.005954, z = 1.575413) m; projected on the ipakit-assets/proportions.md basis of bizygomatic width 0.124650 m, with the same measured mouth-corner landmark as origin: its bilateral bounding-box-center mean is (y = −0.0809105, z = 1.530986) m and is aligned to this head's arc-0 lip midline; the resulting adult-model offsets are scaled by this head's declared 17.5/17.5 tract-length proportion; this is one anatomical model, not a population mean; closure rotation derives from declared lower-to-upper incisal angular alignment"/>
     <carriage provenance="measured">
       <point arc="0.00" jaw="0.660"/>
       <point arc="0.13" jaw="0.280"/>
@@ -271,7 +271,7 @@
          rigid-body-clean X-Ray Microbeam speakers. See
          docs/articulatory-data.md. The gradient is the anatomy — the tongue
          is anchored anteriorly, so carrying decays from the lips backward. -->
-    <hinge x="0.660" y="0.770" rotation="-6.854" provenance="provisional AABB proxy, not a measured condyle: posterior max_y 0.008995 m and superior max_z 1.528196 m of the pre-extracted Z-Anatomy Skeletal system;Head;Mandible bounds in ipakit-assets/mesh_audit.tsv, projected into this schematic head; closure rotation derives from declared lower-to-upper incisal angular alignment"/>
+    <hinge x="0.585431" y="0.925498" rotation="-7.097" provenance="Articular disc of temporomandibular joint vertex centroid (146 vertices) at world (x = ±0.043999, y = −0.005954, z = 1.575413) m in ipakit-passive.blend, Z-Anatomy 5.2.0 (CC BY-SA 4.0), derived from BodyParts3D (CC BY-SA 2.1 Japan); left and right are exactly symmetric in x, so x cancels and the midsagittal hinge is (y = −0.005954, z = 1.575413) m; projected on the ipakit-assets/proportions.md basis of bizygomatic width 0.124650 m, with the same measured mouth-corner landmark as origin: its bilateral bounding-box-center mean is (y = −0.0809105, z = 1.530986) m and is aligned to this head's arc-0 lip midline; the resulting adult-model offsets are scaled by this head's declared 15.0/17.5 tract-length proportion; this is one anatomical model, not a population mean; closure rotation derives from declared lower-to-upper incisal angular alignment"/>
     <carriage provenance="measured">
       <point arc="0.00" jaw="0.660"/>
       <point arc="0.13" jaw="0.280"/>
@@ -368,7 +368,7 @@
          rigid-body-clean X-Ray Microbeam speakers. See
          docs/articulatory-data.md. The gradient is the anatomy — the tongue
          is anchored anteriorly, so carrying decays from the lips backward. -->
-    <hinge x="0.620" y="0.750" rotation="-7.862" provenance="provisional AABB proxy, not a measured condyle: posterior max_y 0.008995 m and superior max_z 1.528196 m of the pre-extracted Z-Anatomy Skeletal system;Head;Mandible bounds in ipakit-assets/mesh_audit.tsv, projected into this schematic head; closure rotation derives from declared lower-to-upper incisal angular alignment"/>
+    <hinge x="0.450801" y="0.813848" rotation="-11.889" provenance="Articular disc of temporomandibular joint vertex centroid (146 vertices) at world (x = ±0.043999, y = −0.005954, z = 1.575413) m in ipakit-passive.blend, Z-Anatomy 5.2.0 (CC BY-SA 4.0), derived from BodyParts3D (CC BY-SA 2.1 Japan); left and right are exactly symmetric in x, so x cancels and the midsagittal hinge is (y = −0.005954, z = 1.575413) m; projected on the ipakit-assets/proportions.md basis of bizygomatic width 0.124650 m, with the same measured mouth-corner landmark as origin: its bilateral bounding-box-center mean is (y = −0.0809105, z = 1.530986) m and is aligned to this head's arc-0 lip midline; the child has no hinge measurement, so the adult-model offsets are scaled by its declared 10.5/17.5 tract-length proportion; this is a derivation from one adult anatomical model, not a child measurement or a population mean; closure rotation derives from declared lower-to-upper incisal angular alignment"/>
     <carriage provenance="measured">
       <point arc="0.00" jaw="0.660"/>
       <point arc="0.13" jaw="0.280"/>

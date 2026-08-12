@@ -14,8 +14,8 @@ from ipakit.tract_svg import animate
 LEGACY_ANIMATION_SHA256 = {
     # Closure-gated tongue fronts and a mandible-carried attachment both move
     # every animated frame; track round trips must retain that byte-for-byte.
-    "sũn": "629876101c429e36fe06eb33e29daea82917712ad6ff605fb292bc63cfca944b",
-    "ˈkæt": "9148c5657cc7e0f12ad9f65a54e6bc4b4da4862f98a2273628139e114d830bb2",
+    "sũn": "add7aeb8aec6d893ab9dea62c2458c3ae35a9d0f914f430513fee955192dd0dc",
+    "ˈkæt": "03878d1d7c41b5a8c19b109b6a1b8eabb445c6620726a0687a3c8077e5d9a9b0",
 }
 
 

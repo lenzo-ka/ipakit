@@ -46,7 +46,7 @@ def test_rigidity_pin_rejects_graded_attachment_membership() -> None:
         0.42615384615384616
     )
     assert _attachment_to_tooth_spread(graded, graded=True) == pytest.approx(
-        4.291e-4, abs=5e-8
+        2.5551e-3, abs=5e-8
     )
 
 
@@ -65,9 +65,10 @@ def test_hinge_and_tongue_attachment_are_declared_and_drawn() -> None:
     for shape in heads().values():
         assert shape.hinge is not None
         assert shape.hinge_provenance is not None
-        assert (
-            "provisional AABB proxy, not a measured condyle" in shape.hinge_provenance
-        )
+        assert "Articular disc of temporomandibular joint" in shape.hinge_provenance
+        assert "left and right are exactly symmetric in x" in shape.hinge_provenance
+        assert "bizygomatic width 0.124650 m" in shape.hinge_provenance
+        assert "population mean" in shape.hinge_provenance
         assert shape.tongue_attachment_arc == pytest.approx(0.08)
         assert shape.tongue_attachment_carrier == "mandible"
     shape = head("adult-male")
