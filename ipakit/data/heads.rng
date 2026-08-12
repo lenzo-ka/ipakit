@@ -57,6 +57,7 @@
             <ref name="nasal"/>
             <ref name="velum"/>
             <ref name="teeth"/>
+            <ref name="hinge"/>
             <ref name="carriage"/>
             <ref name="tongue"/>
             <ref name="frontal"/>
@@ -175,12 +176,31 @@
     </element>
   </define>
 
+  <define name="hinge">
+    <!-- Fixed temporomandibular pivot in the head's sagittal coordinates.
+         `rotation` is the signed angle, in degrees, from the fully open
+         declaration to full jaw closure. -->
+    <element name="hinge">
+      <attribute name="x"><ref name="normalized"/></attribute>
+      <attribute name="y"><ref name="normalized"/></attribute>
+      <attribute name="rotation"><data type="decimal"/></attribute>
+      <attribute name="provenance"><text/></attribute>
+    </element>
+  </define>
+
   <define name="tongue">
     <!-- One body: `from` and `to` bound the arc range its surface spans,
          `falloff` is the half-width of the raised cosine in arc, and
          `taper` is how far from each end the surface descends to the
          floor. All four are arc distances, so all four are normalized. -->
     <element name="tongue">
+      <!-- The anterior endpoint is a separately named mandibular attachment,
+           rather than an implication of the carriage profile. -->
+      <attribute name="attachment"><ref name="normalized"/></attribute>
+      <!-- The rigid body carrying that attachment. Genioglossus originates
+           on the mandible, so this declaration overrides soft-tissue
+           carriage membership at the endpoint. -->
+      <attribute name="carrier"><text/></attribute>
       <attribute name="from"><ref name="normalized"/></attribute>
       <attribute name="to"><ref name="normalized"/></attribute>
       <attribute name="falloff"><ref name="normalized"/></attribute>

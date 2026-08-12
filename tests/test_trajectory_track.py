@@ -12,10 +12,10 @@ from ipakit.tract import head, trajectory, trajectory_from_track
 from ipakit.tract_svg import animate
 
 LEGACY_ANIMATION_SHA256 = {
-    # Closure-gated, interpolated tongue fronts survive track round trips
-    # byte-for-byte; a resting drawing control no longer truncates the body.
-    "sũn": "b4f40fdb2514cf67513c2257f3129ac955ec7097097929c8d1c6b9b281b62a2a",
-    "ˈkæt": "bfed6b10cc47b372c897eb5fd299f0b58ace4f44a114092f6a30a0874cf0c887",
+    # Closure-gated tongue fronts and a mandible-carried attachment both move
+    # every animated frame; track round trips must retain that byte-for-byte.
+    "sũn": "add7aeb8aec6d893ab9dea62c2458c3ae35a9d0f914f430513fee955192dd0dc",
+    "ˈkæt": "03878d1d7c41b5a8c19b109b6a1b8eabb445c6620726a0687a3c8077e5d9a9b0",
 }
 
 
