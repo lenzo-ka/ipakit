@@ -53,7 +53,7 @@ def test_dot_is_byte_identical_in_process_and_across_hash_seeds() -> None:
     assert outputs == [form.to_dot().encode()] * 3
 
 
-def test_every_event_is_defined_once_and_every_relation_is_labelled() -> None:
+def test_every_event_is_defined_once_triggered_and_every_relation_is_exact() -> None:
     declared = Declarations(
         (TierDeclaration("first"), TierDeclaration("second")),
         (),
@@ -72,12 +72,30 @@ def test_every_event_is_defined_once_and_every_relation_is_labelled() -> None:
         ),
     )
     dot = ipakit.tiergraph_dot.dumps(graph)
-    assert dot.count("[shape=box, label=") == len(graph.event_references())
+    assert dot.count("[shape=box, group=") == len(graph.event_references())
     for reference in graph.event_references():
         identifier = ipakit.tiergraph_dot._event_id(reference)
         assert dot.count(f"{identifier} [shape=box") == 1
+        assert (
+            len(
+                re.findall(
+                    rf"^  clock_\S+ -> {re.escape(identifier)} "
+                    r'\[color="#2f6f9f", penwidth=1\.35',
+                    dot,
+                    re.M,
+                )
+            )
+            == 1
+        )
     for relation in graph.relations:
-        assert dot.count(f'label="{relation.name}"') >= 1
+        for source in relation.sources:
+            for target in relation.targets:
+                edge = (
+                    f"{ipakit.tiergraph_dot._endpoint_id(graph, source)} -> "
+                    f"{ipakit.tiergraph_dot._endpoint_id(graph, target)} "
+                    f'[label="{relation.name}"'
+                )
+                assert dot.count(edge) == 1
 
 
 def test_tier_rows_are_exactly_the_tiers_with_events_in_declaration_order() -> None:
@@ -105,10 +123,68 @@ def test_clock_and_populated_tier_rows_are_ordered_vertically() -> None:
     dot = _example().to_dot()
     labels = re.findall(r"^    (tier_label_\S+) \[shape=plaintext", dot, re.M)
     ordering = re.findall(
-        r"^  (\S+) -> (tier_label_\S+) \[style=invis, weight=100\];$", dot, re.M
+        r'^  (\S+) -> (tier_label_\S+) \[dir=none, color="#333333", '
+        r"penwidth=2\.4, weight=100\];$",
+        dot,
+        re.M,
     )
 
-    assert ordering == list(zip(["clock_0", *labels[:-1]], labels, strict=True))
+    assert ordering == list(
+        zip(["score_start_clock", *labels[:-1]], labels, strict=True)
+    )
+
+
+def test_successive_events_in_each_tier_have_visible_quiet_links() -> None:
+    form = _example()
+    dot = form.to_dot()
+    for tier in form._graph.declarations.tiers:
+        references = [
+            reference
+            for reference in form._graph.event_references()
+            if form._graph.resolve(reference).tier == tier.name
+        ]
+        for left, right in zip(references, references[1:], strict=False):
+            edge = (
+                f"{ipakit.tiergraph_dot._event_id(left)} -> "
+                f"{ipakit.tiergraph_dot._event_id(right)} "
+                '[color="#888888", penwidth=0.8, arrowsize=0.55, constraint=false];'
+            )
+            assert dot.count(edge) == 1
+
+
+def test_rendered_lanes_are_distinct_and_events_align_with_trigger_ticks() -> None:
+    if shutil.which("dot") is None:
+        pytest.skip("graphviz dot is not installed")
+    plain = subprocess.run(
+        ["dot", "-Tplain", FIGURE], check=True, text=True, capture_output=True
+    ).stdout
+    nodes = {
+        fields[1]: (float(fields[2]), float(fields[3]))
+        for line in plain.splitlines()
+        if line.startswith("node ")
+        for fields in (line.split(),)
+    }
+    labels = [
+        "score_start_clock",
+        *re.findall(
+            r"^    (tier_label_\S+) \[shape=plaintext", _example().to_dot(), re.M
+        ),
+    ]
+    lane_y = [nodes[label][1] for label in labels]
+    assert all(upper > lower for upper, lower in zip(lane_y, lane_y[1:], strict=False))
+    for reference in _example()._graph.event_references():
+        start_id, _ = ipakit.tiergraph_dot._event_position_ids(
+            _example()._graph, reference
+        )
+        assert nodes[ipakit.tiergraph_dot._event_id(reference)][0] == pytest.approx(
+            nodes[start_id][0], abs=0.0001
+        )
+
+
+def test_blank_spelling_falls_back_to_a_visible_event_label() -> None:
+    assert (
+        ipakit.tiergraph_dot._event_label("boundary", {"spelling": " "}) == "boundary"
+    )
 
 
 def test_clock_spine_is_strictly_ascending() -> None:
