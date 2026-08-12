@@ -3,63 +3,51 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 import pytest
 from ipakit.features import IPAFeatures
-from ipakit.tract import TractPoint, head, heads, landmarks, posture
+from ipakit.tract import Head, TractPoint, head, heads, landmarks, posture
 from ipakit.tract_svg import build_geometry, figure
 
 TOLERANCE = 1e-12
 
 
-def _mandibular_landmarks(close: float) -> dict[str, tuple[float, float]]:
+def _attachment_to_tooth_spread(shape: Head, *, graded: bool = False) -> float:
+    """Measure rendered attachment rigidity while holding tongue pose fixed."""
+    control = TractPoint(arc=0.50, offset=0.55, articulator="tongue-body")
+    tooth_arc = 0.045
+    tooth = shape.project(TractPoint(arc=tooth_arc, offset=0.0))
+    assert tooth is not None
+    distances = []
+    for step in range(101):
+        close = step / 100
+        if graded:
+            attachment = shape.tongue_point(shape.tongue_attachment_arc, control, close)
+            assert attachment is not None
+            moved_tooth = shape.carried(tooth, tooth_arc, close)
+        else:
+            attachment = shape.tongue_point(shape.tongue_attachment_arc, control, close)
+            assert attachment is not None
+            moved_tooth = shape.rotate_jaw(tooth, close)
+        distances.append(math.dist(moved_tooth, attachment))
+    return max(distances) - min(distances)
+
+
+def test_attachment_is_rigid_with_mandible_across_closure_sweep() -> None:
+    assert _attachment_to_tooth_spread(head("adult-male")) <= TOLERANCE
+
+
+def test_rigidity_pin_rejects_graded_attachment_membership() -> None:
+    """Revert full carriage in memory and prove the rigidity pin fails."""
     shape = head("adult-male")
-    points = {
-        name: (x, y) for name, x, y, carrier in shape.teeth if carrier == "mandible"
-    }
-    attachment = shape.project(TractPoint(shape.tongue_attachment_arc, 0.0))
-    assert attachment is not None
-    points["tongue-attachment"] = attachment
-    return {name: shape.rotate_jaw(point, close) for name, point in points.items()}
-
-
-def test_mandibular_distances_are_invariant_across_the_full_rotation() -> None:
-    baseline = _mandibular_landmarks(0.0)
-    for close in (0.25, 0.5, 0.75, 1.0):
-        moved = _mandibular_landmarks(close)
-        for left, a in baseline.items():
-            for right, b in baseline.items():
-                assert math.dist(moved[left], moved[right]) == pytest.approx(
-                    math.dist(a, b), abs=TOLERANCE
-                )
-
-
-def test_legacy_per_arc_lift_breaks_tooth_to_attachment_rigidity() -> None:
-    """Keep the old mechanism as the discriminating negative control."""
-    shape = head("adult-male")
-    attachment = shape.project(TractPoint(shape.tongue_attachment_arc, 0.0))
-    assert attachment is not None
-    tooth = next(
-        (x, y)
-        for name, x, y, carrier in shape.teeth
-        if name == "lower-arch" and carrier == "mandible"
+    graded = replace(shape, tongue_attachment_carrier="soft-tissue")
+    assert shape.jaw_carriage(shape.tongue_attachment_arc) == pytest.approx(
+        0.42615384615384616
     )
-
-    def legacy(point: tuple[float, float], arc: float) -> tuple[float, float]:
-        roof = shape.project(TractPoint(arc, 1.0))
-        floor = shape.project(TractPoint(arc, 0.0))
-        assert roof is not None and floor is not None
-        share = shape.jaw_carriage(arc)
-        return (
-            point[0] + (roof[0] - floor[0]) * share,
-            point[1] + (roof[1] - floor[1]) * share,
-        )
-
-    open_distance = math.dist(tooth, attachment)
-    legacy_closed = math.dist(legacy(tooth, 0.045), legacy(attachment, 0.08))
-    assert open_distance == pytest.approx(0.039293652, abs=5e-10)
-    assert legacy_closed == pytest.approx(0.031374227, abs=5e-10)
-    assert abs(legacy_closed - open_distance) > 0.007
+    assert _attachment_to_tooth_spread(graded, graded=True) == pytest.approx(
+        4.291e-4, abs=5e-8
+    )
 
 
 def test_fixed_points_do_not_move_and_membership_still_grades() -> None:
@@ -81,6 +69,7 @@ def test_hinge_and_tongue_attachment_are_declared_and_drawn() -> None:
             "provisional AABB proxy, not a measured condyle" in shape.hinge_provenance
         )
         assert shape.tongue_attachment_arc == pytest.approx(0.08)
+        assert shape.tongue_attachment_carrier == "mandible"
     shape = head("adult-male")
     ipa = IPAFeatures()
     geometry = build_geometry(shape, landmarks(ipa), posture(ipa, "a", shape))

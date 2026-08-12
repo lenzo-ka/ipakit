@@ -254,6 +254,7 @@ class Head:
     tongue_tip_arc: float = 0.13
     tongue_closure_threshold: float = 0.60
     tongue_attachment_arc: float = 0.08
+    tongue_attachment_carrier: str = "skull"
     # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
     # the renderer only poses, projects and strokes it.
     frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
@@ -549,14 +550,15 @@ class Head:
         wall = self.project(TractPoint(arc=arc, offset=1.0))
         if floor is None or wall is None:
             return None
-        # The anterior endpoint is sewn to the mandible, not merely tissue
-        # whose motion is statistically associated with it.  It therefore
-        # takes the full rigid transform; the rest of the surface grades by
-        # the declared carriage membership.
-        if math.isclose(arc, self.tongue_attachment_arc, abs_tol=1e-12):
-            floor = self.rotate_jaw(floor, close)
-        else:
-            floor = self.carried(floor, arc, close)
+        # The named anterior endpoint has its rigid body declared separately
+        # from the carriage profile. Genioglossus originates on the mandible,
+        # while the tongue tissue behind that bony attachment remains graded.
+        carrier = (
+            self.tongue_attachment_carrier
+            if math.isclose(arc, self.tongue_attachment_arc, abs_tol=1e-12)
+            else None
+        )
+        floor = self.carried(floor, arc, close, carrier=carrier)
         return (
             floor[0] + (wall[0] - floor[0]) * offset,
             floor[1] + (wall[1] - floor[1]) * offset,
@@ -606,17 +608,23 @@ class Head:
         return max(0.0, min(1.0, control.offset * share))
 
     def carried(
-        self, point: tuple[float, float], arc: float, close: float
+        self,
+        point: tuple[float, float],
+        arc: float,
+        close: float,
+        carrier: str | None = None,
     ) -> tuple[float, float]:
-        """Blend a point between its fixed and jaw-rigid positions.
+        """Pose a declared rigid point or blend genuine soft tissue.
 
-        The mandible constricts nothing but carries the lower lip, the lower
-        teeth and the tongue's anterior attachment, by the measured fraction
-        in `jaw_carriage`. Closing the jaw lifts them toward the palate in
-        that proportion, which is why a bilabial closure is the lips meeting
-        somewhere between their open positions rather than the lower one
-        traveling the whole way alone.
+        A named mandibular structure takes the full rigid transform. With no
+        rigid-body declaration, the measured `jaw_carriage` membership grades
+        soft tissue such as the lower lip and tongue body. A skull-carried
+        point is fixed.
         """
+        if carrier == "mandible":
+            return self.rotate_jaw(point, close)
+        if carrier == "skull":
+            return point
         membership = self.jaw_carriage(arc)
         if membership <= 0.0 or close <= 0.0:
             return point
@@ -866,6 +874,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
         tongue_tip_arc = 0.13
         tongue_closure_threshold = 0.60
         tongue_attachment_arc = 0.08
+        tongue_attachment_carrier = "skull"
         if tongue_elem is not None:
             tongue_span = (
                 float(tongue_elem.get("from", 0.0)),
@@ -878,6 +887,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             assert declared_threshold is not None
             tongue_closure_threshold = float(declared_threshold)
             tongue_attachment_arc = float(tongue_elem.get("attachment", 0.08))
+            tongue_attachment_carrier = tongue_elem.get("carrier", "skull")
         frontal_elem = elem.find("frontal")
         frontal: tuple[
             tuple[str, str, float, tuple[tuple[float, float], ...]], ...
@@ -927,6 +937,7 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             tongue_tip_arc=tongue_tip_arc,
             tongue_closure_threshold=tongue_closure_threshold,
             tongue_attachment_arc=tongue_attachment_arc,
+            tongue_attachment_carrier=tongue_attachment_carrier,
             frontal=frontal,
         )
     return heads, default

@@ -197,6 +197,10 @@
       <!-- The anterior endpoint is a separately named mandibular attachment,
            rather than an implication of the carriage profile. -->
       <attribute name="attachment"><ref name="normalized"/></attribute>
+      <!-- The rigid body carrying that attachment. Genioglossus originates
+           on the mandible, so this declaration overrides soft-tissue
+           carriage membership at the endpoint. -->
+      <attribute name="carrier"><text/></attribute>
       <attribute name="from"><ref name="normalized"/></attribute>
       <attribute name="to"><ref name="normalized"/></attribute>
       <attribute name="falloff"><ref name="normalized"/></attribute>
