@@ -43,6 +43,7 @@ from ipakit.models import Feature
 from ipakit.tract import (
     GLOTTAL_AXIS,
     Head,
+    TractPoint,
     constrictions,
     glottal_aperture,
     glottal_scale,
@@ -254,17 +255,26 @@ def test_dental_tip_reaches_its_forward_declared_arc() -> None:
     assert target.arc <= surface[0][0] < target.arc + 1.0 / tract_svg.SAMPLES
 
 
-def test_tip_closure_guards_against_a_forward_scallop() -> None:
+@pytest.mark.parametrize("phone", ["t", "s"])
+def test_tip_closure_guards_against_a_forward_scallop(phone: str) -> None:
     """The top surface starts at an active tip instead of continuing before it."""
     ipa, h = IPAFeatures(), head()
     target = next(
         point
-        for point in posture(ipa, "t", h).constrictions
+        for point in posture(ipa, phone, h).constrictions
         if point.articulator == "tongue-tip"
     )
-    surface = tract_svg.drawing(h.name, "t")["geometry"]["tongue"]
+    surface = tract_svg.drawing(h.name, phone)["geometry"]["tongue"]
     assert target.arc is not None
     assert target.arc - 1.0 / tract_svg.SAMPLES <= surface[0][0] <= target.arc + 1e-12
+
+
+def test_lateral_keeps_the_declared_anterior_attachment() -> None:
+    """The model's half-height /l/ is deliberately not closure-clamped."""
+    h = head()
+    assert h.tongue_span is not None
+    surface = tract_svg.drawing(h.name, "l")["geometry"]["tongue"]
+    assert surface[0][0] == 0.0800 == h.tongue_span[0]
 
 
 @pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
@@ -325,7 +335,13 @@ def test_an_articulator_reaches_its_target(head_name: str) -> None:
                 continue  # outside the span the tongue bounds, e.g. the lips
             counts[phone] = counts.get(phone, 0) + 1
             near = min(surface, key=lambda s: abs(s[0] - point.arc))
-            row = rows[round(near[0], 6)]
+            row = rows.get(round(near[0], 6))
+            if row is None:
+                # A clamped tip is an interpolated edge, not a sample-grid row.
+                floor = head(head_name).project(TractPoint(near[0], 0.0))
+                wall = head(head_name).project(TractPoint(near[0], 1.0))
+                assert floor is not None and wall is not None
+                row = {"open": floor, "wall": wall}
             reached = _along(row["open"], row["wall"], (near[1], near[2]))
             if reached < point.offset - SAMPLING_SLACK:
                 short.append(

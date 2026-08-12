@@ -8,9 +8,9 @@ import shutil
 from pathlib import Path
 
 from ipakit.features import IPAFeatures
+from ipakit.form import FormBuilder
 from ipakit.tract import constrictions, head, landmarks, posture, trajectory
 from ipakit.tract_svg import (
-    SAMPLES,
     _pose,
     build_frontal_geometry,
     build_geometry,
@@ -81,31 +81,35 @@ def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
     assert len(_differing(width, painted, absent)) > 20
 
 
-def test_every_kaet_frame_keeps_root_anchor_and_respects_active_tip() -> None:
+def test_every_kaet_frame_keeps_declared_front_until_a_tip_closure() -> None:
     ipa, h = IPAFeatures(), head()
     marks = landmarks(ipa)
     track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
-    tolerance = 1.0 / 240
+    closure_threshold = h.tongue_closure_threshold
     for frame in track.frames:
         geometry = build_geometry(h, marks, frame)
         surface = geometry["tongue"]
         assert surface
-        active_tip = min(
-            (
-                q.arc
-                for q in frame.tongue_controls
-                if q.articulator == "tongue-tip" and q.arc is not None
-            ),
-            default=None,
+        tip = next(
+            (q for q in frame.constrictions if q.articulator == "tongue-tip"),
+            None,
         )
-        expected = h.tongue_span[0] if active_tip is None else active_tip
-        assert surface[0][0] >= expected - tolerance - 1e-12
+        assert h.tongue_span is not None
+        if tip is None or tip.offset is None or tip.offset < closure_threshold:
+            assert surface[0][0] == h.tongue_span[0]
         # The posterior taper is the sewn floor/root anchor in the same live
         # jaw-carried geometry; it must coincide in every frame.
         root = surface[-1]
         floor = min(geometry["rows"], key=lambda row: abs(row["arc"] - root[0]))["open"]
         assert abs(root[1] - floor[0]) <= 1e-9
         assert abs(root[2] - floor[1]) <= 1e-9
+
+
+def test_every_head_declares_the_tip_closure_separator() -> None:
+    assert {
+        name: head(name).tongue_closure_threshold
+        for name in ("adult-male", "adult-female", "child")
+    } == {"adult-male": 0.60, "adult-female": 0.60, "child": 0.60}
 
 
 def test_closed_rest_seats_declared_tip_at_declared_ridge() -> None:
@@ -126,11 +130,57 @@ def test_closed_rest_seats_declared_tip_at_declared_ridge() -> None:
         for frame in (track.frames[0], track.frames[-1]):
             geometry = build_geometry(h, landmarks(ipa), frame)
             front = geometry["tongue"][0]
-            assert h.rest.tip_arc - 1.0 / SAMPLES <= front[0] <= h.rest.tip_arc
-            row = min(geometry["rows"], key=lambda item: abs(item["arc"] - front[0]))
-            assert (
-                math.hypot(front[1] - row["wall"][0], front[2] - row["wall"][1]) < 1e-4
+            assert front[0] == h.tongue_span[0]
+            tip = min(
+                geometry["tongue"], key=lambda item: abs(item[0] - h.rest.tip_arc)
             )
+            row = min(geometry["rows"], key=lambda item: abs(item["arc"] - tip[0]))
+            assert math.hypot(tip[1] - row["wall"][0], tip[2] - row["wall"][1]) < 1e-4
+
+
+def _front_steps(track, h) -> list[float]:
+    marks = landmarks(IPAFeatures())
+    fronts = []
+    for frame in track.frames:
+        surface = build_geometry(h, marks, frame)["tongue"]
+        fronts.append(surface[0][0])
+    return [abs(b - a) for a, b in zip(fronts, fronts[1:], strict=False)]
+
+
+def test_kaet_tongue_front_step_shrinks_with_frame_spacing() -> None:
+    """Rate refinement, not a fitted absolute bound, characterizes continuity."""
+    h = head("adult-male")
+    rates = (1, 4, 8, 12, 24)
+    steps = [
+        max(_front_steps(trajectory("kæt", head=h, frames_per_unit=rate), h))
+        for rate in rates
+    ]
+    assert all(
+        finer < coarser for coarser, finer in zip(steps, steps[1:], strict=False)
+    )
+    assert all(step <= 0.21 / rate for rate, step in zip(rates, steps, strict=True))
+
+
+def test_timed_tongue_front_step_shrinks_with_frame_spacing() -> None:
+    builder = FormBuilder()
+    handles = builder.append_ipa("kat")
+    for handle, start in zip(handles, (0.0, 0.42, 0.84), strict=True):
+        builder.attach_timing(handle, start, 0.42)
+    form, h = builder.build(), head("adult-male")
+    rates = (20, 30, 60)
+    steps = [max(_front_steps(trajectory(form, head=h, fps=rate), h)) for rate in rates]
+    assert all(
+        finer < coarser for coarser, finer in zip(steps, steps[1:], strict=False)
+    )
+    assert all(step <= 1.0 / rate for rate, step in zip(rates, steps, strict=True))
+
+
+def test_tip_closure_emits_the_coincident_front_once() -> None:
+    h = head("adult-male")
+    surface = build_geometry(
+        h, landmarks(IPAFeatures()), posture(IPAFeatures(), "t", h)
+    )["tongue"]
+    assert all(a[0] < b[0] for a, b in zip(surface, surface[1:], strict=False))
 
 
 def test_k_onset_opening_frames_have_no_phantom_tip_closure() -> None:
