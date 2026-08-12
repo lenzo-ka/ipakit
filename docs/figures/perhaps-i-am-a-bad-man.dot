@@ -1,0 +1,255 @@
+digraph tiergraph {
+  graph [rankdir=TB];
+  node [fontname="Helvetica"];
+  edge [fontname="Helvetica", fontsize=9];
+
+  // The clock spine is the total order.
+  { rank=same;
+    clock_0 [shape=circle, width=0.34, fixedsize=true, label="0"];
+    clock_1 [shape=circle, width=0.34, fixedsize=true, label="1"];
+    clock_2 [shape=circle, width=0.34, fixedsize=true, label="2"];
+    clock_3 [shape=circle, width=0.34, fixedsize=true, label="3"];
+    clock_4 [shape=circle, width=0.34, fixedsize=true, label="4"];
+    clock_5 [shape=circle, width=0.34, fixedsize=true, label="5"];
+    clock_6_gap_0 [shape=circle, width=0.34, fixedsize=true, label="6.0"];
+    clock_6_gap_1 [shape=circle, width=0.34, fixedsize=true, label="6.1"];
+    clock_7_gap_0 [shape=circle, width=0.34, fixedsize=true, label="7.0"];
+    clock_7_gap_1 [shape=circle, width=0.34, fixedsize=true, label="7.1"];
+    clock_8 [shape=circle, width=0.34, fixedsize=true, label="8"];
+    clock_9_gap_0 [shape=circle, width=0.34, fixedsize=true, label="9.0"];
+    clock_9_gap_1 [shape=circle, width=0.34, fixedsize=true, label="9.1"];
+    clock_10_gap_0 [shape=circle, width=0.34, fixedsize=true, label="10.0"];
+    clock_10_gap_1 [shape=circle, width=0.34, fixedsize=true, label="10.1"];
+    clock_11 [shape=circle, width=0.34, fixedsize=true, label="11"];
+    clock_12 [shape=circle, width=0.34, fixedsize=true, label="12"];
+    clock_13_gap_0 [shape=circle, width=0.34, fixedsize=true, label="13.0"];
+    clock_13_gap_1 [shape=circle, width=0.34, fixedsize=true, label="13.1"];
+    clock_14 [shape=circle, width=0.34, fixedsize=true, label="14"];
+    clock_15 [shape=circle, width=0.34, fixedsize=true, label="15"];
+    clock_16 [shape=circle, width=0.34, fixedsize=true, label="16"];
+    clock_0 -> clock_1 [weight=100];
+    clock_1 -> clock_2 [weight=100];
+    clock_2 -> clock_3 [weight=100];
+    clock_3 -> clock_4 [weight=100];
+    clock_4 -> clock_5 [weight=100];
+    clock_5 -> clock_6_gap_0 [weight=100];
+    clock_6_gap_0 -> clock_6_gap_1 [weight=100];
+    clock_6_gap_1 -> clock_7_gap_0 [weight=100];
+    clock_7_gap_0 -> clock_7_gap_1 [weight=100];
+    clock_7_gap_1 -> clock_8 [weight=100];
+    clock_8 -> clock_9_gap_0 [weight=100];
+    clock_9_gap_0 -> clock_9_gap_1 [weight=100];
+    clock_9_gap_1 -> clock_10_gap_0 [weight=100];
+    clock_10_gap_0 -> clock_10_gap_1 [weight=100];
+    clock_10_gap_1 -> clock_11 [weight=100];
+    clock_11 -> clock_12 [weight=100];
+    clock_12 -> clock_13_gap_0 [weight=100];
+    clock_13_gap_0 -> clock_13_gap_1 [weight=100];
+    clock_13_gap_1 -> clock_14 [weight=100];
+    clock_14 -> clock_15 [weight=100];
+    clock_15 -> clock_16 [weight=100];
+  }
+
+  subgraph tier_syllable {
+    rank=same;
+    tier_label_syllable [shape=plaintext, label="syllable"];
+  }
+
+  subgraph tier_word {
+    rank=same;
+    tier_label_word [shape=plaintext, label="word"];
+    event__2f_clock_2f_0_2f_word_2f_0 [shape=box, label="perhaps"];
+    event__2f_clock_2f_6_2f_word_2f_0 [shape=box, label="I"];
+    event__2f_clock_2f_7_2f_word_2f_0 [shape=box, label="am"];
+    event__2f_clock_2f_9_2f_word_2f_0 [shape=box, label="a"];
+    event__2f_clock_2f_10_2f_word_2f_0 [shape=box, label="bad"];
+    event__2f_clock_2f_13_2f_word_2f_0 [shape=box, label="man"];
+    event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_6_2f_word_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_6_2f_word_2f_0 -> event__2f_clock_2f_7_2f_word_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_7_2f_word_2f_0 -> event__2f_clock_2f_9_2f_word_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_9_2f_word_2f_0 -> event__2f_clock_2f_10_2f_word_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_10_2f_word_2f_0 -> event__2f_clock_2f_13_2f_word_2f_0 [style=invis, weight=20];
+  }
+
+  subgraph tier_phrase {
+    rank=same;
+    tier_label_phrase [shape=plaintext, label="phrase"];
+    event__2f_clock_2f_0_2f_phrase_2f_0 [shape=box, label="perhaps I am a bad man"];
+  }
+
+  subgraph tier_utterance {
+    rank=same;
+    tier_label_utterance [shape=plaintext, label="utterance"];
+    event__2f_clock_2f_0_2f_utterance_2f_0 [shape=box, label="perhaps I am a bad man"];
+  }
+
+  subgraph tier_mora {
+    rank=same;
+    tier_label_mora [shape=plaintext, label="mora"];
+  }
+
+  subgraph tier_morph {
+    rank=same;
+    tier_label_morph [shape=plaintext, label="morph"];
+  }
+
+  subgraph tier_foot {
+    rank=same;
+    tier_label_foot [shape=plaintext, label="foot"];
+  }
+
+  subgraph tier_segment {
+    rank=same;
+    tier_label_segment [shape=plaintext, label="segment"];
+    event__2f_clock_2f_0_2f_segment_2f_0 [shape=box, label="p"];
+    event__2f_clock_2f_1_2f_segment_2f_0 [shape=box, label="ɚ"];
+    event__2f_clock_2f_2_2f_segment_2f_0 [shape=box, label="h"];
+    event__2f_clock_2f_3_2f_segment_2f_0 [shape=box, label="æ"];
+    event__2f_clock_2f_4_2f_segment_2f_0 [shape=box, label="p"];
+    event__2f_clock_2f_5_2f_segment_2f_0 [shape=box, label="s"];
+    event__2f_clock_2f_6_2f_segment_2f_0 [shape=box, label="a͜ɪ"];
+    event__2f_clock_2f_7_2f_segment_2f_0 [shape=box, label="æ"];
+    event__2f_clock_2f_8_2f_segment_2f_0 [shape=box, label="m"];
+    event__2f_clock_2f_9_2f_segment_2f_0 [shape=box, label="ə"];
+    event__2f_clock_2f_10_2f_segment_2f_0 [shape=box, label="b"];
+    event__2f_clock_2f_11_2f_segment_2f_0 [shape=box, label="æ"];
+    event__2f_clock_2f_12_2f_segment_2f_0 [shape=box, label="d"];
+    event__2f_clock_2f_13_2f_segment_2f_0 [shape=box, label="m"];
+    event__2f_clock_2f_14_2f_segment_2f_0 [shape=box, label="æ"];
+    event__2f_clock_2f_15_2f_segment_2f_0 [shape=box, label="n"];
+    event__2f_clock_2f_0_2f_segment_2f_0 -> event__2f_clock_2f_1_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_1_2f_segment_2f_0 -> event__2f_clock_2f_2_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_2_2f_segment_2f_0 -> event__2f_clock_2f_3_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_3_2f_segment_2f_0 -> event__2f_clock_2f_4_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_4_2f_segment_2f_0 -> event__2f_clock_2f_5_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_5_2f_segment_2f_0 -> event__2f_clock_2f_6_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_6_2f_segment_2f_0 -> event__2f_clock_2f_7_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_7_2f_segment_2f_0 -> event__2f_clock_2f_8_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_8_2f_segment_2f_0 -> event__2f_clock_2f_9_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_9_2f_segment_2f_0 -> event__2f_clock_2f_10_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_10_2f_segment_2f_0 -> event__2f_clock_2f_11_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_11_2f_segment_2f_0 -> event__2f_clock_2f_12_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_12_2f_segment_2f_0 -> event__2f_clock_2f_13_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_13_2f_segment_2f_0 -> event__2f_clock_2f_14_2f_segment_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_14_2f_segment_2f_0 -> event__2f_clock_2f_15_2f_segment_2f_0 [style=invis, weight=20];
+  }
+
+  subgraph tier_zero {
+    rank=same;
+    tier_label_zero [shape=plaintext, label="zero"];
+  }
+
+  subgraph tier_boundary {
+    rank=same;
+    tier_label_boundary [shape=plaintext, label="boundary"];
+    event__2f_clock_2f_6_2f_boundary_2f_0 [shape=box, label=" "];
+    event__2f_clock_2f_7_2f_boundary_2f_0 [shape=box, label=" "];
+    event__2f_clock_2f_9_2f_boundary_2f_0 [shape=box, label=" "];
+    event__2f_clock_2f_10_2f_boundary_2f_0 [shape=box, label=" "];
+    event__2f_clock_2f_13_2f_boundary_2f_0 [shape=box, label=" "];
+    event__2f_clock_2f_6_2f_boundary_2f_0 -> event__2f_clock_2f_7_2f_boundary_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_7_2f_boundary_2f_0 -> event__2f_clock_2f_9_2f_boundary_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_9_2f_boundary_2f_0 -> event__2f_clock_2f_10_2f_boundary_2f_0 [style=invis, weight=20];
+    event__2f_clock_2f_10_2f_boundary_2f_0 -> event__2f_clock_2f_13_2f_boundary_2f_0 [style=invis, weight=20];
+  }
+
+  subgraph tier_prosody {
+    rank=same;
+    tier_label_prosody [shape=plaintext, label="prosody"];
+  }
+
+  subgraph tier_delivery {
+    rank=same;
+    tier_label_delivery [shape=plaintext, label="delivery"];
+  }
+
+  subgraph tier_analysis {
+    rank=same;
+    tier_label_analysis [shape=plaintext, label="analysis"];
+  }
+
+  // Anchor every event and show its half-open structural extent.
+  clock_0 -> event__2f_clock_2f_0_2f_word_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_0_2f_word_2f_0 -> clock_6_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_0 -> event__2f_clock_2f_0_2f_phrase_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> clock_16 [style=dashed, label="extent", constraint=false];
+  clock_0 -> event__2f_clock_2f_0_2f_utterance_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_0_2f_utterance_2f_0 -> clock_16 [style=dashed, label="extent", constraint=false];
+  clock_0 -> event__2f_clock_2f_0_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_0_2f_segment_2f_0 -> clock_1 [style=dashed, label="extent", constraint=false];
+  clock_1 -> event__2f_clock_2f_1_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_1_2f_segment_2f_0 -> clock_2 [style=dashed, label="extent", constraint=false];
+  clock_2 -> event__2f_clock_2f_2_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_2_2f_segment_2f_0 -> clock_3 [style=dashed, label="extent", constraint=false];
+  clock_3 -> event__2f_clock_2f_3_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_3_2f_segment_2f_0 -> clock_4 [style=dashed, label="extent", constraint=false];
+  clock_4 -> event__2f_clock_2f_4_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_4_2f_segment_2f_0 -> clock_5 [style=dashed, label="extent", constraint=false];
+  clock_5 -> event__2f_clock_2f_5_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_5_2f_segment_2f_0 -> clock_6_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_6_gap_0 -> event__2f_clock_2f_6_2f_word_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_6_2f_word_2f_0 -> clock_7_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_6_gap_0 -> event__2f_clock_2f_6_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_6_2f_segment_2f_0 -> clock_7_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_6_gap_0 -> event__2f_clock_2f_6_2f_boundary_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_6_2f_boundary_2f_0 -> clock_6_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_7_gap_0 -> event__2f_clock_2f_7_2f_word_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_7_2f_word_2f_0 -> clock_9_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_7_gap_0 -> event__2f_clock_2f_7_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_7_2f_segment_2f_0 -> clock_8 [style=dashed, label="extent", constraint=false];
+  clock_7_gap_0 -> event__2f_clock_2f_7_2f_boundary_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_7_2f_boundary_2f_0 -> clock_7_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_8 -> event__2f_clock_2f_8_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_8_2f_segment_2f_0 -> clock_9_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_9_gap_0 -> event__2f_clock_2f_9_2f_word_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_9_2f_word_2f_0 -> clock_10_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_9_gap_0 -> event__2f_clock_2f_9_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_9_2f_segment_2f_0 -> clock_10_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_9_gap_0 -> event__2f_clock_2f_9_2f_boundary_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_9_2f_boundary_2f_0 -> clock_9_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_10_gap_0 -> event__2f_clock_2f_10_2f_word_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_10_2f_word_2f_0 -> clock_13_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_10_gap_0 -> event__2f_clock_2f_10_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_10_2f_segment_2f_0 -> clock_11 [style=dashed, label="extent", constraint=false];
+  clock_10_gap_0 -> event__2f_clock_2f_10_2f_boundary_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_10_2f_boundary_2f_0 -> clock_10_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_11 -> event__2f_clock_2f_11_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_11_2f_segment_2f_0 -> clock_12 [style=dashed, label="extent", constraint=false];
+  clock_12 -> event__2f_clock_2f_12_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_12_2f_segment_2f_0 -> clock_13_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_13_gap_0 -> event__2f_clock_2f_13_2f_word_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_13_2f_word_2f_0 -> clock_16 [style=dashed, label="extent", constraint=false];
+  clock_13_gap_0 -> event__2f_clock_2f_13_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_13_2f_segment_2f_0 -> clock_14 [style=dashed, label="extent", constraint=false];
+  clock_13_gap_0 -> event__2f_clock_2f_13_2f_boundary_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_13_2f_boundary_2f_0 -> clock_13_gap_0 [style=dashed, label="extent", constraint=false];
+  clock_14 -> event__2f_clock_2f_14_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_14_2f_segment_2f_0 -> clock_15 [style=dashed, label="extent", constraint=false];
+  clock_15 -> event__2f_clock_2f_15_2f_segment_2f_0 [style=dotted, arrowhead=none];
+  event__2f_clock_2f_15_2f_segment_2f_0 -> clock_16 [style=dashed, label="extent", constraint=false];
+
+  // Declared relations.
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> event__2f_clock_2f_0_2f_word_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> event__2f_clock_2f_6_2f_word_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> event__2f_clock_2f_7_2f_word_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> event__2f_clock_2f_9_2f_word_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> event__2f_clock_2f_10_2f_word_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_phrase_2f_0 -> event__2f_clock_2f_13_2f_word_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_utterance_2f_0 -> event__2f_clock_2f_0_2f_phrase_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_0_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_1_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_2_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_3_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_4_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_0_2f_word_2f_0 -> event__2f_clock_2f_5_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_10_2f_word_2f_0 -> event__2f_clock_2f_10_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_10_2f_word_2f_0 -> event__2f_clock_2f_11_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_10_2f_word_2f_0 -> event__2f_clock_2f_12_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_13_2f_word_2f_0 -> event__2f_clock_2f_13_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_13_2f_word_2f_0 -> event__2f_clock_2f_14_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_13_2f_word_2f_0 -> event__2f_clock_2f_15_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_6_2f_word_2f_0 -> event__2f_clock_2f_6_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_7_2f_word_2f_0 -> event__2f_clock_2f_7_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_7_2f_word_2f_0 -> event__2f_clock_2f_8_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+  event__2f_clock_2f_9_2f_word_2f_0 -> event__2f_clock_2f_9_2f_segment_2f_0 [label="contains", color="#5555aa", constraint=false];
+}

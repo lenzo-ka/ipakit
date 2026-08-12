@@ -1759,6 +1759,12 @@ class Form:
             self.to_dict(self_contained=self_contained), ensure_ascii=False
         )
 
+    def to_dot(self) -> str:
+        """Render the complete tier graph as deterministic Graphviz DOT."""
+        from .tiergraph_dot import to_dot
+
+        return to_dot(self)
+
     @classmethod
     def from_dict(
         cls, obj: Mapping[str, Any], features: IPAFeatures | None = None

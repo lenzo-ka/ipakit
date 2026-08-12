@@ -134,6 +134,7 @@ from .syllable import (
     syllabifier,
     syllabify,
 )
+from .tiergraph_dot import to_dot as to_dot
 
 # X-SAMPA string conversion lives in ipakit.xsampa, the single source of truth
 # for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
