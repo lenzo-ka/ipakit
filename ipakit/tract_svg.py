@@ -324,6 +324,25 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
 def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
     """Pose Head's face-on contours from the same view-neutral posture.
 
+    The tongue is a frontal silhouette of the same surface the sagittal view
+    samples through :meth:`Head.tongue_offset`.  At each lateral ordinate the
+    declared tongue planform exposes an arc band: its tip is nearest the
+    aperture and its declared root is deepest at the midline.  The highest
+    surface in that band is the visible upper edge (the union of structures
+    intersecting that sightline).  Offset already means floor-to-roof
+    fraction, so it maps directly between the declared lower and upper mouth
+    curves; there is no view-specific lift.  Teeth are nearer still and the
+    existing arc-ordered paint pass occludes the resulting tongue honestly.
+
+    What this buys is the dorsum: the central band reaches the declared root
+    arc, so a dorsal gesture raises the visible edge instead of leaving the
+    tip to speak for the whole body.  That is the load-bearing property.  How
+    the band narrows away from the midline is not: at the lateral extremes the
+    teeth occlude the difference, and a rectangular or linear taper renders
+    the same figure.  The chord below is the sightline depth of an ellipsoidal
+    body, chosen because it degrades to the tip at the corners without a
+    discontinuity -- not because the declared tongue fixes that curve.
+
     Occlusion remains a read: every contour and every posture coordinate is
     retained here. :func:`frontal_svg` alone clips and paints them.
     ``marks`` is part of the projection contract (and supplies declared arc
@@ -353,6 +372,59 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
     gap = max(0.0, 0.115 * (1.0 - close))
     width = p.aperture_width
     mouth = head.frontal_mouth(gap * 0.55, width, p.protrusion)
+
+    def edge_y(edge: tuple[Point, ...], x: float) -> float:
+        """Piecewise-linear ordinate on a declared mouth parting curve."""
+        for left, right in zip(edge, edge[1:], strict=False):
+            if left[0] <= x <= right[0]:
+                span = right[0] - left[0]
+                t = (x - left[0]) / span if span else 0.0
+                return left[1] + (right[1] - left[1]) * t
+        return min(edge, key=lambda point: abs(point[0] - x))[1]
+
+    def frontal_tongue(
+        declared: tuple[Point, ...], controls: list[TractPoint]
+    ) -> tuple[Point, ...]:
+        """Project the declared tongue planform and sagittal surface."""
+        if not controls or head.tongue_span is None or len(declared) < 4:
+            return declared
+        top = declared[:3]
+        left, centre, right = top
+        tip = head.tongue_tip_arc
+        root = head.tongue_span[1]
+        # Density sets the lateral endpoints and the depth band exactly, and
+        # the centre and closure height only to within the sampling of the
+        # raised cosine: a coarse grid can step over the constriction peak.
+        # Measured, the drift is sub-pixel at figure scale (centre ~7e-5 from
+        # SAMPLES 30 to 960, closure height ~4e-3 from samples 6 to 240), far
+        # inside the reach pin's tolerance.
+        samples = 24
+        upper: list[Point] = []
+        for index in range(samples + 1):
+            x = left[0] + (right[0] - left[0]) * index / samples
+            half = max(centre[0] - left[0], right[0] - centre[0]) or 1.0
+            lateral = min(1.0, abs(x - centre[0]) / half)
+            # A sagittal tongue span projected face-on has an elliptical
+            # planform: the available depth is the chord sqrt(1-u^2) at
+            # normalized lateral position u.  Thus the band comes entirely
+            # from the declared tip, root and frontal width, not a tuned lift.
+            deepest = tip + (root - tip) * math.sqrt(max(0.0, 1.0 - lateral**2))
+            offsets: list[float] = []
+            for step in range(SAMPLES + 1):
+                arc = tip + (deepest - tip) * step / SAMPLES
+                offsets.extend(
+                    value
+                    for control in controls
+                    if (value := head.tongue_offset(arc, control)) is not None
+                )
+            offset = min(1.0, max(offsets, default=0.0))
+            roof = edge_y(mouth["upper_edge"], x)
+            floor = edge_y(mouth["lower_edge"], x)
+            upper.append((x, floor + (roof - floor) * offset))
+        # The declared posterior points remain the tongue/floor closure; only
+        # the visible upper edge is derived from the live tongue surface.
+        return tuple(upper) + tuple(declared[3:])
+
     contours: list[dict[str, Any]] = []
     for name, carrier, arc, declared in head.frontal:
         if name in {"upper-lip", "lower-lip"} and name in mouth:
@@ -378,22 +450,9 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
                 if name == "chin" and index in {0, len(declared) - 1}:
                     carry = 0.0
                 y += gap * carry
-            if name == "tongue":
-                rest_offset = (
-                    p.rest.offset
-                    if p.rest is not None and p.rest.offset is not None
-                    else 0.0
-                )
-                apical = max(
-                    (
-                        (q.offset or 0.0) - rest_offset
-                        for q in p.constrictions
-                        if q.articulator in {"tongue-tip", "tongue-blade"}
-                    ),
-                    default=0.0,
-                )
-                y -= 0.025 * max(0.0, apical)
             points.append((x, y))
+        if name == "tongue":
+            points = list(frontal_tongue(tuple(points), list(p.constrictions)))
         contours.append(
             {"name": name, "carrier": carrier, "arc": arc, "points": points}
         )

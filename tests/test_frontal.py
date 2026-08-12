@@ -11,6 +11,7 @@ from ipakit.features import IPAFeatures
 from ipakit.form import FormBuilder
 from ipakit.tract import head, heads, landmarks, posture, trajectory
 from ipakit.tract_svg import (
+    Point,
     _frontal_extent,
     _frontal_scaler,
     animate_two_pane,
@@ -157,20 +158,106 @@ def test_frontal_occlusion_by_changed_pixels(
 
 
 @pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
-def test_apical_closure_lifts_visible_tongue_between_teeth(
-    tmp_path: Path,
+def test_kaet_frontal_tongue_occludes_cavity_and_reaches_velar_target(
+    ipa: IPAFeatures, tmp_path: Path
 ) -> None:
-    def visible_tongue(phone: str) -> list[tuple[int, int]]:
-        svg = frontal_figure(phone)
-        without = re.sub(r'<path\b[^>]*class="f-tongue"[^>]*/>', "", svg)
-        width, before = _pixels(svg, tmp_path / f"{phone}-with.svg", width=760)
-        _, after = _pixels(without, tmp_path / f"{phone}-without.svg", width=760)
-        return _differing(width, before, after)
+    h, marks = head(), landmarks(ipa)
+    track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
 
-    tip, low = visible_tongue("t"), visible_tongue("a")
-    assert len(tip) >= 100
-    assert len(low) >= 100
-    assert max(y for _, y in tip) < min(y for _, y in low)
+    def at(ordinal: float):
+        index = min(
+            range(len(track.frames)), key=lambda i: abs(track.ordinals[i] - ordinal)
+        )
+        return build_frontal_geometry(h, marks, track.frames[index])
+
+    def dark_cavity(name: str, geometry) -> int:
+        _width, rows = _pixels(
+            standalone_frontal_svg(geometry), tmp_path / f"{name}.svg", width=800
+        )
+        cavity = bytes.fromhex("24191aff")
+        return sum(
+            row[x : x + 4] == cavity for row in rows for x in range(0, len(row), 4)
+        )
+
+    velar, open_vowel, apical = at(1.0), at(2.0), at(3.0)
+    k_dark = dark_cavity("k", velar)
+    ash_dark = dark_cavity("ash", open_vowel)
+    t_dark = dark_cavity("t", apical)
+    # No cavity survives a closure.  The 16-pixel allowance covers librsvg
+    # antialiasing where clipped strokes meet the curved parting boundary; the
+    # two pixels actually left at /t/ are the two mouth corners.  This catches
+    # a tongue that fails to occlude, but it cannot on its own certify that
+    # the tongue *reached* the parting curve: the visible aperture band is far
+    # narrower than the band the tongue crosses, so the teeth mask a partial
+    # under-reach.  test_closure_reaches_the_parting_curve pins the reach.
+    assert t_dark <= 16
+    assert ash_dark >= 5_000
+    assert k_dark + 5_000 < ash_dark
+
+    approach = [
+        build_frontal_geometry(h, marks, frame)
+        for ordinal, frame in zip(track.ordinals, track.frames, strict=True)
+        if 0.5 <= ordinal <= 1.0
+    ]
+    centre_edges = [
+        min(
+            next(c for c in geometry["contours"] if c["name"] == "tongue")["points"],
+            key=lambda point: abs(point[0] - 0.5),
+        )[1]
+        for geometry in approach
+    ]
+    # Face coordinates increase downward: strict decrease is a strict rise.
+    assert all(
+        after < before
+        for before, after in zip(centre_edges, centre_edges[1:], strict=False)
+    )
+
+
+def test_closure_reaches_the_parting_curve(ipa: IPAFeatures) -> None:
+    """A closure seats the visible tongue on the roof, an open vowel does not.
+
+    Counting cavity pixels cannot tell reaching from nearly reaching, because
+    the teeth occlude most of the band the tongue crosses: a tongue stopping a
+    third of the way short still leaves the same two corner pixels.  Reach is
+    a geometric claim, so it is measured on the geometry -- how far the visible
+    centre edge sits below the declared parting curve, as a fraction of the
+    local floor-to-roof band, which is the same fraction ``offset`` means.
+    """
+    h, marks = head(), landmarks(ipa)
+    track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
+
+    def centre_reach(ordinal: float) -> float:
+        index = min(
+            range(len(track.frames)), key=lambda i: abs(track.ordinals[i] - ordinal)
+        )
+        geometry = build_frontal_geometry(h, marks, track.frames[index])
+        points = next(c for c in geometry["contours"] if c["name"] == "tongue")[
+            "points"
+        ]
+        upper, lower = geometry["upper_edge"], geometry["lower_edge"]
+        centre = (upper[0][0] + upper[-1][0]) / 2.0
+
+        def edge_y(edge: tuple[Point, ...], x: float) -> float:
+            for left, right in zip(edge, edge[1:], strict=False):
+                if left[0] <= x <= right[0]:
+                    span = right[0] - left[0]
+                    t = (x - left[0]) / span if span else 0.0
+                    return left[1] + (right[1] - left[1]) * t
+            return min(edge, key=lambda point: abs(point[0] - x))[1]
+
+        x, y = min(points, key=lambda point: abs(point[0] - centre))
+        roof, floor = edge_y(upper, x), edge_y(lower, x)
+        return (y - roof) / (floor - roof)
+
+    # Measured: 0.030 at /t/ and 0.029 at /k/, a residue of sampling the raised
+    # cosine on a finite grid and under a pixel at figure scale.  A tenth of
+    # the band is a wide berth over that and still bites well before an
+    # under-reach becomes visible -- a third of the band renders identically.
+    assert centre_reach(3.0) <= 0.10, "apical closure does not reach the roof"
+    assert centre_reach(1.0) <= 0.10, "velar closure does not reach the roof"
+    # The other direction: an open vowel must keep the tongue off the roof, so
+    # the pin cannot be satisfied by a mouth that is simply always full.
+    assert centre_reach(2.0) >= 0.50, "open vowel seats the tongue on the roof"
 
 
 def test_chin_is_declared_shallow_and_mandible_carried() -> None:
