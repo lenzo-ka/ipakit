@@ -110,6 +110,9 @@ EXCLUDE: dict[str, str] = {
 # so the generator can treat every *other* ICU passthrough as a bug. Conversion
 # drops these (or raises, with `strict=True`); README documents them.
 UNMAPPABLE: dict[str, str] = {
+    # Prominence belongs to the IPA spelling profile. X-SAMPA is a separate
+    # encoding and is never mixed with that prefix notation.
+    "^": "unit prominence: house IPA notation is outside X-SAMPA",
     # X-SAMPA (1995) predates the IPA's 2005 adoption of the labiodental flap.
     # Wells' chart marks the cell as having no symbol and none has been agreed
     # since; `4_d` or `v\_r` would be invention, and would collide with the
@@ -149,6 +152,8 @@ def canonical_pairs() -> dict[str, str]:
 
     table: dict[str, str] = {}
     for sym in sorted(inventory):
+        if sym in UNMAPPABLE:
+            continue
         if sym in OVERRIDES:
             table[sym] = OVERRIDES[sym]
             continue

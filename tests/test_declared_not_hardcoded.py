@@ -67,7 +67,14 @@ class TestTheDataSaysWhatThePythonUsedTo:
         # feature bag, which is what that mode says. It sat in the additive
         # default while only separators declared a level and no diacritic
         # did, so nothing showed it was misfiled.
-        assert by_mode["structural"] == {"tie", "linking", "break", "level", "tier"}
+        assert by_mode["structural"] == {
+            "tie",
+            "linking",
+            "break",
+            "level",
+            "tier",
+            "prominence",
+        }
         assert by_mode["prosodic"] == {
             "stress",
             "length",

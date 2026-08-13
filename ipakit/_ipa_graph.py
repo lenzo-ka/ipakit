@@ -103,6 +103,9 @@ def _derive_declarations(inventory: IPAFeatures) -> Declarations:
             "compatibility-interval",
         }
     )
+    unit_structural = frozenset(
+        name for name in structural if inventory.features[name].centre is not None
+    )
     declared_tier = inventory.features.get("tier")
     hierarchy_tiers = tuple(
         dict.fromkeys(
@@ -114,7 +117,7 @@ def _derive_declarations(inventory: IPAFeatures) -> Declarations:
         )
     )
     tiers = (
-        *(TierDeclaration(name, common) for name in hierarchy_tiers),
+        *(TierDeclaration(name, common | unit_structural) for name in hierarchy_tiers),
         TierDeclaration(SEGMENT_TIER, common | inventory_names | frozenset({"class"})),
         TierDeclaration(ZERO_TIER, common | frozenset({"symbol"})),
         TierDeclaration(BOUNDARY_TIER, common | structural | frozenset({"symbol"})),

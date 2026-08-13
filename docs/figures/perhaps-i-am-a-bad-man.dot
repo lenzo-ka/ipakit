@@ -62,7 +62,7 @@ digraph tiergraph {
     guide_word_5 [shape=point, width=0.01, label="", group="time_5", style=invis];
     event__2f_clock_2f_6_2f_word_2f_0 [shape=box, group="time_6", label="I"];
     guide_word_7 [shape=point, width=0.01, label="", group="time_7", style=invis];
-    event__2f_clock_2f_7_2f_word_2f_0 [shape=box, group="time_8", label="am"];
+    event__2f_clock_2f_7_2f_word_2f_0 [shape=box, group="time_8", label="am\nprominence: emphatic"];
     guide_word_9 [shape=point, width=0.01, label="", group="time_9", style=invis];
     guide_word_10 [shape=point, width=0.01, label="", group="time_10", style=invis];
     event__2f_clock_2f_9_2f_word_2f_0 [shape=box, group="time_11", label="a"];

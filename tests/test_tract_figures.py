@@ -1693,7 +1693,7 @@ class TestWhatDrawsItselfInANotebook:
                         break
                 else:
                     barren.append(mark)
-        assert len(barren) <= 7, f"{len(barren)} marks compose with nothing: {barren}"
+        assert len(barren) <= 8, f"{len(barren)} marks compose with nothing: {barren}"
         corpus.assert_swept(len(units), phones)
         assert len(units) > 190, f"only {len(units)} units: the sample lost the marks"
         for unit in units:

@@ -34,6 +34,12 @@ assert form.leaves(form.roots[0]) == ("/clock/0/segment/0", "/clock/1/segment/0"
 
 Builder handles are opaque edit-time identities, while navigation returns canonical paths. After `build()`, use `roots`, `at`, `direct_children`, `descendants`, `leaves`, `parents`, and `ancestors` on `Form`; never retain or compare a handle to a path. `at(path)` dereferences the same canonical paths returned by navigation and recorded by matches.
 
+`ipakit.read()` populates a unit tier only where the transcription asserts a
+feature on that unit. In particular, its `word` tier currently contains only
+words with asserted prominence; it is not an inventory of the words in the
+input. Consumers that need every word must not infer them from the presence of
+word-tier events.
+
 ## Tier-graph envelope
 
 The canonical graph envelope is plain JSON with `type: "tiergraph"` and version `v: 1`; readers require that exact version. `model` references the declaration contract by name and version or fingerprint. Bundled declarations need no embedded copy, and declaration snapshots are deferred. `tiers` fixes tier order, `relations` contains canonical default-omitting relation declarations, `roots` names traversal or delivery roots, `clock` contains the structural axis and its final boundary, and `links` contains ordered source/relation/target triples.

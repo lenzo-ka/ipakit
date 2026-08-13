@@ -203,7 +203,11 @@ def _event_label(tier: str, features: Mapping[str, Any]) -> str:
     for name in ("spelling", "symbol", "value"):
         value = features.get(name)
         if isinstance(value, (str, int, float)) and str(value).strip():
-            return str(value)
+            label = str(value)
+            prominence = features.get("prominence")
+            if isinstance(prominence, str):
+                label += f"\nprominence: {prominence}"
+            return label
     return tier
 
 

@@ -31,7 +31,10 @@ def build_example() -> ipakit.Form:
     phrase = builder.begin("phrase", {"spelling": "perhaps I am a bad man"})
     words = []
     for index, (spelling, phones) in enumerate(CMUDICT_WORDS):
-        word = builder.begin("word", {"spelling": spelling})
+        word_features = {"spelling": spelling}
+        if spelling == "am":
+            word_features["prominence"] = "emphatic"
+        word = builder.begin("word", word_features)
         segments = builder.append_ipa(
             mapper.cmu_to_ipa(phones, strict=True), strict=True
         )
