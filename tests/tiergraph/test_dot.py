@@ -223,6 +223,9 @@ def test_example_is_one_phrase_and_a_is_reduced_without_stress() -> None:
         "bad",
         "man",
     ]
+    am_word = graph.resolve(words[2]).event
+    assert am_word is not None and am_word.features["prominence"] == "emphatic"
+    assert 'label="am\\nprominence: emphatic"' in _example().to_dot()
     a_word = words[3]
     segments = graph.direct_children(a_word, "segment")
     assert len(segments) == 1

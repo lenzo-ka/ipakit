@@ -170,8 +170,8 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # six names a tone that is not one of the five levels.
         # 67 before the four phase marks declared their approach as well as
         # their release: one further pair each, at the other phase.
-        assert len(pairs) == 71, f"{len(pairs)} declared pairs, not 71"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 9869
+        assert len(pairs) == 72, f"{len(pairs)} declared pairs, not 72"
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10008
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (
@@ -413,7 +413,7 @@ class TestWhatCannotBeComposedIsSaidOutLoud:
         # case added here, which is the whole point of reading the mode.
         # 24 before the six contour diacritics declared their level
         # sequences, which are prosodic and so outside the bag too.
-        assert len(outside) == 30, f"{len(outside)} pairs outside the bag"
+        assert len(outside) == 31, f"{len(outside)} pairs outside the bag"
         # The one segmental request the inventory cannot spell cleanly. If
         # a mark for it is ever added, this fails and should.
         assert dead == outside | {"place=bilabial"}, sorted(dead ^ outside)

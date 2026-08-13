@@ -22,6 +22,9 @@ class Feature:
     name: str
     values: list[str]  # Ordered - defines dimensional scale for ordinal
     default: str | None = None
+    # The unmarked interior of an ordinal unit scale. Unlike ``default``,
+    # this is not filled into segment feature bundles.
+    centre: str | None = None
     type: str = "ordinal"  # declared value-set type (from XML); see is_ordinal
     desc: str | None = None  # Brief description
     # Combining values are spelled as their ordered components joined by

@@ -17,6 +17,7 @@ from ._convert import (
     convert_greedy,
     convert_structured_ipa,
     ipa_features,
+    report_unconvertible,
     resolve_aliases,
 )
 from .constants import PHONEMAPS_DIR
@@ -69,6 +70,11 @@ def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     """
     _, ipa2xs = _maps()
     ipa = resolve_aliases(ipa)
+    prominence = ipa_features().prominence_markers
+    lost = [character for character in ipa if character in prominence]
+    if lost:
+        report_unconvertible(lost, "IPA -> X-SAMPA", strict=strict, stacklevel=3)
+        ipa = "".join(character for character in ipa if character not in prominence)
     if ipa in ipa2xs:
         return ipa2xs[ipa]
     return "".join(

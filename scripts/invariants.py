@@ -849,6 +849,7 @@ BORROWED = frozenset(
 NOT_BORROWED = {
     "name": "the borrower's own name",
     "default": "what the borrower reports unstated, which the source does not decide",
+    "centre": "the borrower's unmarked ordinal centre",
     "type": "the borrower's comparison discipline",
     "desc": "the borrower's own description",
     "axis": "the borrower's own axis, though a borrower will usually share it",

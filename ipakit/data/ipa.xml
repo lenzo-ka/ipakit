@@ -397,6 +397,19 @@
       <value name="major" short="maj"/>
     </feature>
 
+    <!-- Unit features use the same ordinal house style as separator
+         features: weakest first, with the order read rather than restated.
+         Prominence differs from break in having a centre. `norm` is the
+         unspecified centre and therefore has no mark; `reduced` reserves
+         the downward side of the ladder without choosing its spelling.
+         Repeating the upward mark walks the declared values above norm. -->
+    <feature name="prominence" short="prm" mode="structural" centre="norm" desc="Asserted prominence of a unit" href="Prosodic_unit">
+      <value name="reduced" short="red"/>
+      <value name="norm" short="nrm"/>
+      <value name="emphatic" short="emp"/>
+      <value name="strong" short="str"/>
+    </feature>
+
     <feature name="step" short="stp" mode="prosodic" desc="Register shift" href="Downstep">
       <value name="down" short="dn"/>
       <value name="up" short="up"/>
@@ -859,6 +872,11 @@
     <suprasegmental name="↘" global="fall" href="Intonation_(linguistics)"/>
     <suprasegmental name="ꜛ" step="up" href="Upstep"/>
     <suprasegmental name="ꜜ" step="down" href="Downstep"/>
+    <!-- A prefix unit mark. One copy selects the first declared value above
+         prominence's centre; repetition walks upward through that ordinal
+         declaration. Its segment position is spelling; Form raises it to
+         the following word event. -->
+    <suprasegmental name="^" prominence="emphatic" desc="raise the following unit's prominence" href="Prosodic_unit"/>
     <!-- The two break marks are boundaries at a level, not merely marks of
          a strength, so each declares the tier it terminates. break= is the
          strength; level= is what splits a node and what '#' reaches.

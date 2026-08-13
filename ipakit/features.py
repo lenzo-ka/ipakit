@@ -421,6 +421,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     name=name,
                     values=values,
                     default=default,
+                    centre=feat_elem.get("centre"),
                     type=feat_type,
                     desc=desc,
                     value_aliases=dict(self._value_aliases.get(name, {})),
@@ -450,6 +451,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             set(self.features["manner"].values) if "manner" in self.features else set()
         )
         for name, feat in self.features.items():
+            if feat.centre is not None and feat.centre not in feat.values_set:
+                raise ValueError(
+                    f"feature {name!r} declares centre={feat.centre!r}, which "
+                    "is not one of its declared values"
+                )
             for token in feat.applies:
                 if (
                     manner_values
@@ -3311,6 +3317,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def _units_from_parsed(
         self, parsed: Sequence[tuple[str, list[str]]], strict: bool
     ) -> list[tuple[str, Segment | None]]:
+        """Project the shared prefix-raising pass to its historical pairs."""
+        return [
+            (token, segment)
+            for token, segment, _ in self._raised_units_from_parsed(parsed, strict)
+        ]
+
+    def _raised_units_from_parsed(
+        self, parsed: Sequence[tuple[str, list[str]]], strict: bool
+    ) -> list[tuple[str, Segment | None, dict[str, str]]]:
         """Attach one scan while retaining its structural token positions.
 
         A stress mark binds the first following syllabic unit -- a vowel or
@@ -3320,14 +3335,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         following syllabic unit, the mark is unbound: lax reading warns and
         drops its semantic claim, and ``strict=True`` raises.
         """
-        result: list[tuple[str, Segment | None]] = []
+        result: list[tuple[str, Segment | None, dict[str, str]]] = []
         pending_stress: list[str] = []
+        pending_prominence: list[str] = []
         superseded: list[str] = []
         unplaced: list[str] = []
         for base, diacritics in parsed:
             token = unicodedata.normalize("NFC", base + "".join(diacritics))
             if token and all(ch in self.stress_markers for ch in token):
-                result.append((token, None))
+                result.append((token, None, {}))
                 pending_stress.extend(token)
                 # Stress is a single-valued feature of a syllable, so a
                 # unit cannot carry two of these. The nearest mark binds:
@@ -3337,8 +3353,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     superseded.extend(pending_stress[:-1])
                     pending_stress = pending_stress[-1:]
                 continue
+            if token and all(ch in self.prominence_markers for ch in token):
+                result.append((token, None, {}))
+                pending_prominence.extend(token)
+                try:
+                    self.raised_prominence(pending_prominence)
+                except ValueError:
+                    if strict:
+                        raise
+                    warnings.warn(
+                        f"dropped {len(pending_prominence)} unregistered symbol(s) "
+                        f"{sorted(set(pending_prominence))} while parsing IPA: "
+                        "repetition names no declared prominence level. "
+                        "Pass strict=True to raise instead.",
+                        stacklevel=3,
+                    )
+                    pending_prominence = []
+                continue
             if token.isspace() or token in self.carries_no_segment:
-                result.append((token, None))
+                result.append((token, None, {}))
                 continue
             # ``base`` and ``diacritics`` are already the canonical scan's
             # unit. Building from them is the point of this path: feeding
@@ -3348,18 +3381,39 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # A token that carries no unit has nothing to take the stress,
             # so the mark stays pending for the syllabic unit that does.
             if seg is not None:
+                raised: dict[str, str] = {}
                 if pending_stress and self.is_nucleus(seg.scalar()):
                     seg = self._segment_from_parsed(
                         base, diacritics, tuple(pending_stress)
                     )
                     pending_stress = []
-                result.append((token, seg))
+                if pending_prominence:
+                    # The same forward carry has found the first position of
+                    # its unit. Form projects this binding onto the containing
+                    # word event; it never enters the segment's feature bag.
+                    raised["prominence"] = self.raised_prominence(pending_prominence)
+                    pending_prominence = []
+                result.append((token, seg, raised))
             elif not self.is_structural_token(token):
                 unplaced.append(token)
-                result.append((token, None))
+                result.append((token, None, {}))
             else:
-                result.append((token, None))
+                result.append((token, None, {}))
         self._report_unplaced(superseded, pending_stress, unplaced, strict)
+        if pending_prominence:
+            what = "unbound prominence mark(s)"
+            detail = "a prominence mark raises to the first following unit"
+            if strict:
+                raise ValueError(
+                    f"Cannot parse IPA segment: {len(pending_prominence)} {what} "
+                    f"{sorted(set(pending_prominence))} reach no unit: {detail}."
+                )
+            warnings.warn(
+                f"dropped {len(pending_prominence)} {what} "
+                f"{sorted(set(pending_prominence))} while parsing IPA: {detail}. "
+                "Pass strict=True to raise instead.",
+                stacklevel=3,
+            )
         return result
 
     def _report_unplaced(
@@ -3887,6 +3941,34 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def stress_to_marker(self) -> dict[int, str]:
         """Stress level -> marker char (inverse of stress_markers)."""
         return {level: sym for sym, level in self.stress_markers.items()}
+
+    @functools.cached_property
+    def prominence_markers(self) -> frozenset[str]:
+        """Prefix marks whose repetition raises a unit above its default.
+
+        Both the feature and its glyphs are derived from the inventory.  The
+        ordinal declaration supplies the level count; no Python table restates
+        ``^`` or the names of the rungs.
+        """
+        return frozenset(
+            symbol
+            for symbol, mark in self.diacritics.items()
+            if "prominence" in mark.features
+        )
+
+    def raised_prominence(self, marks: Sequence[str]) -> str:
+        """Read a repeated upward mark against prominence's centred ladder."""
+        feature = self.features["prominence"]
+        if feature.centre is None:
+            raise ValueError("prominence requires a declared centre")
+        index = feature.values.index(feature.centre) + len(marks)
+        if not marks or len(set(marks)) != 1 or index >= len(feature.values):
+            glyphs = sorted(set(marks))
+            raise ValueError(
+                f"Cannot parse IPA segment: {len(marks)} unregistered symbol(s) "
+                f"{glyphs}: repetition names no declared prominence level."
+            )
+        return feature.values[index]
 
     @functools.cached_property
     def syllable_break(self) -> str:

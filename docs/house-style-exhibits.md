@@ -59,7 +59,7 @@ marks that contribute to a host unit ([declared basis](https://en.wikipedia.org/
 
 prosodic and structural marks ([declared basis](https://en.wikipedia.org/wiki/Suprasegmental)).
 
-`ˈ` `ˌ` `ː` `ˑ` `̆` `˥` `˦` `˧` `˨` `˩` `́` `̌` `̄` `̀` `̂` `͡` `͜` `᷄` `᷅` `᷆` `᷇` `᷈` `᷉` `‿` `↗` `↘` `ꜛ` `ꜜ` `|` `‖`
+`ˈ` `ˌ` `ː` `ˑ` `̆` `˥` `˦` `˧` `˨` `˩` `́` `̌` `̄` `̀` `̂` `͡` `͜` `᷄` `᷅` `᷆` `᷇` `᷈` `᷉` `‿` `↗` `↘` `ꜛ` `ꜜ` `^` `|` `‖`
 
 ### separators
 

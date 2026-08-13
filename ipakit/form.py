@@ -626,7 +626,11 @@ def _derive_form_constants(features: IPAFeatures) -> _FormConstants:
         if spelled
         else level_order[-1]  # pragma: no cover - no separator declares a level
     )
-    structural = set(features.features_by_mode.get("structural", ())) - {"tie"}
+    structural = {
+        name
+        for name in features.features_by_mode.get("structural", ())
+        if name != "tie" and features.features[name].centre is None
+    }
     marks: dict[str, Mapping[str, str]] = {}
     for symbol, declared in features.diacritics.items():
         bundle = getattr(declared, "features", None) or {}
@@ -1530,9 +1534,28 @@ class Form:
         marks = boundary_marks(features)
         nulls = features.zeros
         edge = edge_level(features)
-        aligned = features._units_from_parsed(parsed, strict)
-        for token, segment in aligned:
+        aligned = features._raised_units_from_parsed(parsed, strict)
+        word_parts: list[tuple[Any, str, int]] = []
+        words: list[tuple[int, int, list[Any], str, str | None]] = []
+        word_prominence: str | None = None
+
+        def finish_word() -> None:
+            nonlocal word_parts, word_prominence
+            if not word_parts:
+                return
+            handles = [handle for handle, _, _ in word_parts]
+            spelling = "".join(text for _, text, _ in word_parts)
+            start = word_parts[0][2]
+            end = word_parts[-1][2] + 1
+            words.append((start, end, handles, spelling, word_prominence))
+            word_parts = []
+            word_prominence = None
+
+        for token, segment, raised in aligned:
             if segment is not None:
+                if not word_parts:
+                    word_prominence = raised.get("prominence")
+                segment_tick = builder.current_tick
                 unit = _unit_for(segment, features)
                 if strict:
                     _ = unit.prosody
@@ -1544,7 +1567,7 @@ class Form:
                     "compatibility-unit": unit,
                     "compatibility-index": len(out) - 1,
                 }
-                builder.append_input_atom(
+                handle = builder.append_input_atom(
                     SEGMENT_TIER,
                     cast(
                         Any,
@@ -1555,10 +1578,13 @@ class Form:
                         },
                     ),
                 )
+                word_parts.append((handle, token, segment_tick))
             elif token and all(ch in features.stress_markers for ch in token):
                 # Prefix attributes occupy no independent structural slot;
                 # their spelling remains in ``spelling`` and their semantic
                 # value rides on the segment they resolved to.
+                continue
+            elif token and all(ch in features.prominence_markers for ch in token):
                 continue
             elif token in nulls:
                 out.append(Unit(text=token, features=dict(nulls[token].features or {})))
@@ -1596,6 +1622,12 @@ class Form:
                     ),
                     refines_tick=treatment.refines_tick,
                 )
+                level = (declared.features or {}).get("level")
+                if level in features.features["level"].values:
+                    if features.features["level"].values.index(
+                        level
+                    ) >= features.features["level"].values.index("word"):
+                        finish_word()
             elif token in marks:
                 out.append(Unit(text=token, features=dict(marks[token])))
                 treatment = CLOCK_TREATMENTS[OccurrenceKind.BOUNDARY]
@@ -1619,7 +1651,14 @@ class Form:
                     ),
                     refines_tick=treatment.refines_tick,
                 )
+                level = marks[token].get("level")
+                if level in features.features["level"].values:
+                    if features.features["level"].values.index(
+                        level
+                    ) >= features.features["level"].values.index("word"):
+                        finish_word()
             elif token.isspace():
+                finish_word()
                 declared = features.separators["#"]
                 out.append(
                     Unit(
@@ -1641,6 +1680,16 @@ class Form:
                     },
                     refines_tick=treatment.refines_tick,
                 )
+
+        finish_word()
+        for start, end, children, spelling, prominence in words:
+            if prominence is None:
+                continue
+            facts: dict[str, Any] = {"spelling": spelling}
+            if prominence is not None:
+                facts["prominence"] = prominence
+            word = builder.add_event("word", start, facts, duration=end - start)
+            builder.contain(word, children)
 
         local = spell(out)
         scanned = "".join(base + "".join(diacritics) for base, diacritics in parsed)
