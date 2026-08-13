@@ -46,6 +46,7 @@ change here cannot move a distance. ``scripts/sweep.py diff`` is the check.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -804,7 +805,7 @@ def _trace(src: dict[str, Any], to: Scaler, key: str) -> str:
     return _path(pts)
 
 
-CHAR_W = 6.6  # advance of the 10.5px monospace label face, rounded up:
+CHAR_W = 6.72  # advance of the 10.5px monospace label face, rounded up:
 # reserving less than the text occupies lets labels collide
 LINE_H = 12.0
 LIP_INSET = 0.014  # arc taken off the front, so the boundary meets the lips
@@ -1059,7 +1060,38 @@ def _caption(caption: dict[str, Any] | None) -> str:
     return "".join(parts)
 
 
-def _tongue(src: dict[str, Any], to: Scaler) -> str:
+def _tongue_body(src: dict[str, Any], to: Scaler) -> str | None:
+    """Return the closed tongue body used both to paint and to occlude."""
+    surface = src.get("tongue") or []
+    if len(surface) < 2:
+        return None
+    top = [to(x, y) for _, x, y in surface]
+    lo, hi = surface[0][0], surface[-1][0]
+    floor = [to(*row["open"]) for row in src["rows"] if lo <= row["arc"] <= hi]
+    if not floor:
+        return _path(top)
+    floor_rev = list(reversed(floor))
+    tx, ty = top[0]
+    fx, fy = floor_rev[-1]
+    dx, dy = tx - fx, ty - fy
+    face = (dx * dx + dy * dy) ** 0.5 or 1.0
+    # Curl the tip. Dropping straight from the tip to the floor draws a flat
+    # front face; a quadratic from the front-most floor point up to the tip,
+    # bulged out perpendicular to that face, rounds the front into a tip.
+    # Keep the bulge modest and clamp its control no further forward than the
+    # tip, so the curl cannot loop past the contact and double the translucent
+    # fill into a darker lobe.
+    px, py = -dy / face, dx / face
+    if px > 0:
+        px, py = -px, -py
+    mx, my = (tx + fx) / 2, (ty + fy) / 2
+    cx, cy = mx + px * face * 0.32, my + py * face * 0.32
+    cx = max(cx, min(tx, fx))
+    seg = " L".join(f"{x:.2f},{y:.2f}" for x, y in top + floor_rev)
+    return f"M{seg} Q{cx:.2f},{cy:.2f} {tx:.2f},{ty:.2f} Z"
+
+
+def _tongue(src: dict[str, Any], to: Scaler, mask_attr: str = "") -> str:
     """The tongue as a body, not a line.
 
     Its upper surface is what constricts, but drawn alone it reads as an arc
@@ -1068,37 +1100,30 @@ def _tongue(src: dict[str, Any], to: Scaler) -> str:
     closing the surface back along that over the same span gives the body.
     """
     surface = src.get("tongue") or []
-    if len(surface) < 2:
+    body = _tongue_body(src, to)
+    if body is None:
         return ""
     top = [to(x, y) for _, x, y in surface]
-    lo, hi = surface[0][0], surface[-1][0]
-    floor = [to(*row["open"]) for row in src["rows"] if lo <= row["arc"] <= hi]
-    if floor:
-        # Curl the tip. Dropping straight from the tip to the floor draws a flat
-        # front face; a quadratic from the front-most floor point up to the tip,
-        # bulged out perpendicular to that face, rounds the front into a tip.
-        floor_rev = list(reversed(floor))
-        tx, ty = top[0]
-        fx, fy = floor_rev[-1]
-        dx, dy = tx - fx, ty - fy
-        face = (dx * dx + dy * dy) ** 0.5 or 1.0
-        # Perpendicular to the front face, turned to point away from the body,
-        # so the front rounds into a tip. Kept modest and the control clamped to
-        # sit no further forward than the tip, so the curl does not loop past the
-        # contact and double the semi-transparent fill (a darker lobe).
-        px, py = -dy / face, dx / face
-        if px > 0:
-            px, py = -px, -py
-        mx, my = (tx + fx) / 2, (ty + fy) / 2
-        cx, cy = mx + px * face * 0.32, my + py * face * 0.32
-        cx = max(cx, min(tx, fx))
-        seg = " L".join(f"{x:.2f},{y:.2f}" for x, y in top + floor_rev)
-        body = f"M{seg} Q{cx:.2f},{cy:.2f} {tx:.2f},{ty:.2f} Z"
-    else:
-        body = _path(top)
     return (
-        f'<path d="{body}" class="tonguebody"/><path d="{_path(top)}" class="tongue"/>'
+        f'<path d="{body}" class="tonguebody"{mask_attr}/>'
+        f'<path d="{_path(top)}" class="tongue"{mask_attr}/>'
     )
+
+
+def _tongue_occlusion(velum: str) -> tuple[str, str]:
+    """Clip the tongue at the velum: the roof wins where the bodies meet."""
+    mask_id = "tongue-clear-" + hashlib.sha256(velum.encode()).hexdigest()[:12]
+    definition = (
+        f'<defs><mask id="{mask_id}" maskUnits="userSpaceOnUse" '
+        f'x="0" y="0" width="{WIDTH}" height="{SECTION_HEIGHT}">'
+        f'<rect x="0" y="0" width="{WIDTH}" height="{SECTION_HEIGHT}" fill="white"/>'
+        # The tongue outline is 2 px wide. Three clears that outline plus its
+        # antialias band, rather than leaving a one-pixel overlap at contact.
+        f'<path d="{velum}" fill="black" stroke="black" stroke-width="3" '
+        'shape-rendering="crispEdges"/>'
+        "</mask></defs>"
+    )
+    return definition, f' mask="url(#{mask_id})"'
 
 
 def _constriction(
@@ -1384,11 +1409,11 @@ def _nasal(
     to: Scaler,
     aperture: float,
     taken: list[tuple[float, ...]],
-) -> str:
+) -> tuple[str, str]:
     """The nasal branch, and the velum at the aperture this bundle asks for."""
     rows = src.get("nasal") or []
     if not rows:
-        return ""
+        return "", ""
     upper = [to(*r["wall"]) for r in rows]
     lower = [to(*r["low"]) for r in rows]
     # The nasopharynx and the oropharynx are continuous; the port is only
@@ -1439,12 +1464,12 @@ def _nasal(
         )
     declared_port = src.get("port_arc")
     if declared_port is None:
-        return "".join(parts)
+        return "".join(parts), ""
     port_arc = float(declared_port)
     hinge = _at(src, max(port_arc - 0.08, 0.0), "wall")
     lowered_to = _at(src, port_arc, "open")
     if hinge is None or lowered_to is None:
-        return "".join(parts)
+        return "".join(parts), ""
     hx, hy = to(*hinge)
     sealed = to(*rows[-1]["mid"])
     lowered = to(*lowered_to)
@@ -1464,11 +1489,14 @@ def _nasal(
     edge = to(declared_thickness, 0.0)
     thickness = max(2.0, abs(edge[0] - origin[0]))
     half = thickness / 2
-    parts.append(
-        f'<path d="M{hx:.1f},{hy - half:.1f} Q{hx:.1f},{ty - half:.1f} '
+    velum = (
+        f"M{hx:.1f},{hy - half:.1f} Q{hx:.1f},{ty - half:.1f} "
         f"{tx:.1f},{ty - half:.1f} L{tx:.1f},{ty + half:.1f} "
-        f'Q{hx:.1f},{ty + half:.1f} {hx:.1f},{hy + half:.1f} Z" class="velum"/>'
+        f"Q{hx:.1f},{ty + half:.1f} {hx:.1f},{hy + half:.1f} Z"
     )
+    tongue_mask, tongue_mask_attr = _tongue_occlusion(velum)
+    parts.insert(0, tongue_mask)
+    parts.append(f'<path d="{velum}" class="velum"/>')
     for text, vx, vy, depth in _place_labels(
         [(f"velum\nport {state}", (tx, ty))], 14, 13, taken
     ):
@@ -1477,7 +1505,7 @@ def _nasal(
             f'y2="{vy + depth:.1f}" class="lead art"/>'
             + _text(vx, vy + depth + 10, "lbl velum", text)
         )
-    return "".join(parts)
+    return "".join(parts), tongue_mask_attr
 
 
 def section_svg(
@@ -1555,8 +1583,9 @@ def section_svg(
     # placed, so the two cannot collide however the head is proportioned.
     strip = _strip([dict(m) for m in current.get("marks") or []], taken)
     parts.append(_annotate(current, to, taken, active, posed))
-    parts.append(_nasal(current, to, aperture, taken))
-    parts.append(_tongue(current, to))
+    nasal, tongue_mask_attr = _nasal(current, to, aperture, taken)
+    parts.append(nasal)
+    parts.append(_tongue(current, to, tongue_mask_attr))
     if mark:
         # The target knob marks a phone's primary constriction in a still. In an
         # animation frame the primary reading interpolates -- it slides from one
