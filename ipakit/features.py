@@ -197,6 +197,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         )  # (feature, value) -> short
         self._type_defaults: dict[str, str | None] = {}
         self._load()
+        self._validate_prominence_contract()
         self._load_lookalikes()
         # Registered symbols whose NFC form differs from NFD (e.g. ä, ç, ť),
         # mapped from their NFD decomposition back to the registered form.
@@ -216,6 +217,53 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if self.supplements:
             self._index_nfd()
             self._invalidate_derived_reads()
+
+    def _validate_prominence_contract(self) -> None:
+        """Refuse inventory drift from the one unit-raising mechanism.
+
+        Prefix raising is deliberately not a generic interpretation of every
+        centred structural feature: the reader, word-event projection and
+        renderers implement the literally named ``prominence`` feature.  Make
+        that coupling a load-time contract instead of letting a declaration
+        rename turn the notation into an unregistered character.
+        """
+        feature = self.features.get("prominence")
+        if feature is None:
+            raise ValueError(
+                "the prefix unit-raising mechanism requires a declared "
+                "'prominence' feature; the declaration is missing or renamed"
+            )
+        if feature.centre is None:
+            raise ValueError(
+                "the prefix unit-raising mechanism requires feature "
+                "'prominence' to declare a centre"
+            )
+        centre = feature.values.index(feature.centre)
+        if centre + 1 >= len(feature.values):
+            raise ValueError(
+                "the prefix unit-raising mechanism requires feature "
+                "'prominence' to declare a value above its centre"
+            )
+        expected = feature.values[centre + 1]
+        markers = {
+            symbol: mark.features.get("prominence")
+            for symbol, mark in self.diacritics.items()
+            if "prominence" in mark.features
+        }
+        if not markers:
+            raise ValueError(
+                "the prefix unit-raising mechanism requires a suprasegmental "
+                "that declares feature 'prominence'"
+            )
+        wrong = {
+            symbol: value for symbol, value in markers.items() if value != expected
+        }
+        if wrong:
+            raise ValueError(
+                "the prefix unit-raising mechanism requires each prominence "
+                f"mark to name the first value above the centre, {expected!r}; "
+                f"got {wrong}"
+            )
 
     def _index_nfd(self) -> None:
         """Map each registered symbol's NFD form back to the registered one.
@@ -3338,6 +3386,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         result: list[tuple[str, Segment | None, dict[str, str]]] = []
         pending_stress: list[str] = []
         pending_prominence: list[str] = []
+        word_has_unit = False
         superseded: list[str] = []
         unplaced: list[str] = []
         for base, diacritics in parsed:
@@ -3372,6 +3421,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 continue
             if token.isspace() or token in self.carries_no_segment:
                 result.append((token, None, {}))
+                if token.isspace() or self._ends_word(token):
+                    word_has_unit = False
                 continue
             # ``base`` and ``diacritics`` are already the canonical scan's
             # unit. Building from them is the point of this path: feeding
@@ -3388,17 +3439,26 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     )
                     pending_stress = []
                 if pending_prominence:
-                    # The same forward carry has found the first position of
-                    # its unit. Form projects this binding onto the containing
-                    # word event; it never enters the segment's feature bag.
-                    raised["prominence"] = self.raised_prominence(pending_prominence)
+                    if word_has_unit:
+                        self._report_misplaced_prominence(pending_prominence, strict)
+                    else:
+                        # The same forward carry has found the first position
+                        # of its unit. Form projects this binding onto the
+                        # containing word event; it never enters the segment's
+                        # feature bag.
+                        raised["prominence"] = self.raised_prominence(
+                            pending_prominence
+                        )
                     pending_prominence = []
                 result.append((token, seg, raised))
+                word_has_unit = True
             elif not self.is_structural_token(token):
                 unplaced.append(token)
                 result.append((token, None, {}))
             else:
                 result.append((token, None, {}))
+                if self._ends_word(token):
+                    word_has_unit = False
         self._report_unplaced(superseded, pending_stress, unplaced, strict)
         if pending_prominence:
             what = "unbound prominence mark(s)"
@@ -3415,6 +3475,31 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 stacklevel=3,
             )
         return result
+
+    def _ends_word(self, token: str) -> bool:
+        """Return whether a declared structural token reaches the word tier."""
+        declared = self.separators.get(token) or self.diacritics.get(token)
+        if declared is None:
+            return False
+        level = (declared.features or {}).get("level")
+        levels = self.features["level"].values
+        return level in levels and levels.index(level) >= levels.index("word")
+
+    @staticmethod
+    def _report_misplaced_prominence(marks: list[str], strict: bool) -> None:
+        """Report a prefix unit claim written after its word has begun."""
+        what = "misplaced prominence mark(s)"
+        detail = "a prominence mark must precede the first segment of its word"
+        glyphs = sorted(set(marks))
+        if strict:
+            raise ValueError(
+                f"Cannot parse IPA segment: {len(marks)} {what} {glyphs}: {detail}."
+            )
+        warnings.warn(
+            f"dropped {len(marks)} {what} {glyphs} while parsing IPA: {detail}. "
+            "Pass strict=True to raise instead.",
+            stacklevel=3,
+        )
 
     def _report_unplaced(
         self,

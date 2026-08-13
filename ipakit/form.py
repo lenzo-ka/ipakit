@@ -1516,6 +1516,11 @@ class Form:
         Strict construction resolves segment views eagerly, so resolution
         diagnostics fire here. Lax construction leaves them until first view
         access; spelling-only operations do not trigger them.
+
+        The unit tiers built by this string-reading path contain only units on
+        which a unit feature was asserted. In particular, the ``word`` tier is
+        not an inventory of the words in the transcription: today it contains
+        only words carrying asserted prominence.
         """
         from ._ipa_graph import (
             BOUNDARY_TIER,
