@@ -286,7 +286,7 @@ def test_dental_tip_paints_the_declared_target_region(tmp_path: Path) -> None:
         r'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="5" class="constriction', svg
     )
     assert marker is not None
-    without = re.sub(r'<path d="[^"]*" class="tongue(?:body)?"/>', "", svg)
+    without = re.sub(r'<path d="[^"]*" class="tongue(?:body)?"[^>]*/>', "", svg)
     width, painted = _pixels(svg, tmp_path / "theta.svg", width=760)
     _, absent = _pixels(without, tmp_path / "theta-without-tongue.svg", width=760)
     cx, cy = float(marker.group(1)), float(marker.group(2))
@@ -1315,6 +1315,43 @@ def test_velum_and_tongue_masks_never_interpenetrate(tmp_path: Path) -> None:
             collisions.append((phone, overlap))
     assert len(checked) > 50, f"only {len(checked)} distinct postures checked"
     assert not collisions, f"velum intersects tongue: {collisions[:6]}"
+
+
+VELUM_SURVIVAL = 0.90
+
+
+def test_every_velum_survives_contact_with_the_tongue(tmp_path: Path) -> None:
+    """Clipping contact must not erase the roof that the tongue meets.
+
+    The intended direction leaves the velum at 100% of its unmasked area.
+    Ninety percent leaves ten points of rasterizer headroom while separating
+    the wrong direction decisively: its velar postures retain only 11--32%.
+    """
+    if shutil.which("rsvg-convert") is None:  # pragma: no cover
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    ipa = IPAFeatures()
+    failures = []
+    for index, phone in enumerate(sorted(ipa.phones)):
+        svg = tract_svg.figure(phone)
+        if 'class="velum"' not in svg:
+            continue
+        _, painted_rows = _pixels(
+            _only_layer(svg, "velum"),
+            tmp_path / f"velum-painted-{index}.svg",
+            width=760,
+        )
+        _, whole_rows = _pixels(
+            _only_layer(svg, "velum", unmask=True),
+            tmp_path / f"velum-whole-{index}.svg",
+            width=760,
+        )
+        painted = sum(
+            row[x] != 0 for row in painted_rows for x in range(3, len(row), 4)
+        )
+        whole = sum(row[x] != 0 for row in whole_rows for x in range(3, len(row), 4))
+        if whole and painted / whole < VELUM_SURVIVAL:
+            failures.append((phone, painted, whole, painted / whole))
+    assert not failures, f"velum erased at contact: {failures[:6]}"
 
 
 @pytest.mark.parametrize("layer", sorted(LAYERS), ids=sorted(LAYERS))

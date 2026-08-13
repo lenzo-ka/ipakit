@@ -29,10 +29,10 @@ TRACK_PARAMETERS_BY_VERSION = {
 }
 
 LEGACY_ANIMATION_SHA256 = {
-    # The tongue-carried velum occlusion changes with every posture; track
+    # The velum-carried tongue occlusion changes with every posture; track
     # round trips must retain the complete rendered result byte-for-byte.
-    "sũn": "870123dbd3aef66af94138253af352f2a18a23ff1bc1a342e88974cefe18db7a",
-    "ˈkæt": "18a055c7a8676fe61f5f9c5e7ebadf926110960f7e048b3733f89599025e840b",
+    "sũn": "4b0e6e09c880cc706fc2cf068c7ea8ee222a8f10421efe01ab3a3a280847e529",
+    "ˈkæt": "846fddb6b9e66b6cd4e7ced6d1ff83bf9b4ab66ba66958555d88c417da386566",
 }
 
 
