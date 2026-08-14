@@ -12,13 +12,12 @@ authors = [
     {name = "Kevin Lenzo"}
 ]
 license = "BSD-2-Clause"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Human Machine Interfaces",
@@ -26,7 +25,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
-dependencies = []
+dependencies = [
+    # tiergraph is unpublished during the containment migration.  This lane is
+    # intentionally tied to the adjacent source checkout instead of vendoring it.
+    "tiergraph @ file:///Users/lenzo/dev/lenzo/tiergraph",
+]
 
 [project.optional-dependencies]
 # Split so each CI job installs only what it needs:
@@ -135,7 +138,7 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_unused_configs = true
 files = ["ipakit"]
@@ -152,5 +155,12 @@ follow_imports = "skip"
 # Optional C extension without a py.typed marker; align.py keeps the import
 # function-local and tests its runtime boundary with and without the extra.
 module = "pocketsphinx.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# The unpublished tiergraph dependency is supplied from its adjacent working
+# tree.  Isolated pre-commit environments do not install that checkout.
+module = "tiergraph"
 ignore_missing_imports = true
 follow_imports = "skip"

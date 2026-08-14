@@ -75,6 +75,7 @@ from .constants import ZERO_CLASS
 from .segment import state_mark_value
 
 if TYPE_CHECKING:  # pragma: no cover
+    from ._containment_projection import ContainmentProjection
     from .features import IPAFeatures
     from .segment import Segment
 
@@ -1479,25 +1480,37 @@ class Form:
         """Canonical paths of the graph's declared traversal roots."""
         return cast(tuple[str, ...], self._graph.roots)
 
+    @property
+    def _containment(self) -> ContainmentProjection:
+        """The cached read-only tiergraph containment projection."""
+        namespace = object.__getattribute__(self, "__dict__")
+        projection = namespace.get("_tiergraph_containment")
+        if projection is None:
+            from ._containment_projection import ContainmentProjection
+
+            projection = ContainmentProjection.build(self._graph)
+            object.__setattr__(self, "_tiergraph_containment", projection)
+        return cast("ContainmentProjection", projection)
+
     def direct_children(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
         """Return the declared ordered children of ``parent``."""
-        return cast(tuple[str, ...], self._graph.direct_children(parent, tier))
+        return self._containment.direct_children(parent, tier)
 
     def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
         """Walk containment routes once each, optionally filtering by tier."""
-        return cast(tuple[str, ...], self._graph.descendants(parent, tier))
+        return self._containment.descendants(parent, tier)
 
     def leaves(self, parent: str) -> tuple[str, ...]:
         """Return expanded containment leaves in declared order."""
-        return cast(tuple[str, ...], self._graph.leaves(parent))
+        return self._containment.leaves(parent)
 
     def parents(self, child: str) -> tuple[str, ...]:
         """Return every direct containment parent of ``child``."""
-        return cast(tuple[str, ...], self._graph.parents(child))
+        return self._containment.parents(child)
 
     def ancestors(self, child: str) -> tuple[str, ...]:
         """Return every reachable containment ancestor once."""
-        return cast(tuple[str, ...], self._graph.ancestors(child))
+        return self._containment.ancestors(child)
 
     def at(self, path: str) -> Any:
         """Return the graph element named by a canonical match path."""

@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+from ._containment_projection import ContainmentProjection
 from ._tiergraph import Graph
+
+
+def _project(graph: Graph) -> ContainmentProjection:
+    return ContainmentProjection.build(graph)
 
 
 def direct_children(
     graph: Graph, parent: str, *, tier: str | None = None
 ) -> tuple[str, ...]:
     """Return immediate children in their declared sequence order."""
-    return graph.direct_children(parent, tier)
+    return _project(graph).direct_children(parent, tier)
 
 
 def expanded_leaves(graph: Graph, parent: str) -> tuple[str, ...]:
     """Recursively replace containers with their ordered leaf contents."""
-    return graph.leaves(parent)
+    return _project(graph).leaves(parent)
 
 
 def descendants_on_tier(graph: Graph, parent: str, *, tier: str) -> tuple[str, ...]:
@@ -24,12 +29,12 @@ def descendants_on_tier(graph: Graph, parent: str, *, tier: str) -> tuple[str, .
     child path once: when the same child is reachable through repeated
     containment routes, its first occurrence fixes its place in the result.
     """
-    return graph.descendants(parent, tier)
+    return _project(graph).descendants(parent, tier)
 
 
 def parents(graph: Graph, child: str) -> tuple[str, ...]:
     """Return immediate containers in canonical relation order."""
-    return graph.parents(child)
+    return _project(graph).parents(child)
 
 
 def ancestor_routes(graph: Graph, child: str) -> tuple[tuple[str, ...], ...]:
