@@ -65,8 +65,12 @@ class TestWhatItCosts:
         # A voiced velar plosive and a voiced labiodental affricate are
         # not alike; the cheap path runs through a double articulation
         # that shares a different constituent with each.
-        assert ipa.distance("ɡ", "b͡v") > 0.25
-        assert closure.distance("ɡ", "b͡v") < 0.1
+        direct = ipa.distance("ɡ", "b͡v")
+        assert direct > 0.25
+        # The arity charge makes the old 0.1 pin stale, but the diagnosed
+        # geometry remains: the composite bridge cuts the direct cost by more
+        # than half. State that consequence rather than another tuned cutoff.
+        assert closure.distance("ɡ", "b͡v") < direct / 2
 
     def test_the_diagnostic_reports_the_damage(
         self, ipa: IPAFeatures, closure: MetricClosure

@@ -762,6 +762,25 @@ def check_derived_artifacts() -> bool:
     return _report("derived artifacts current", failures, len(records))
 
 
+def check_fusion_arity(ipa: IPAFeatures) -> bool:
+    """Invariant 5: a second articulator costs at least a release phase.
+
+    The two sides are intentionally read through the public metric. In
+    particular, this check does not import or recompute the arity derivation;
+    otherwise it would merely restate the implementation and could not catch a
+    missing or weakened charge.
+    """
+    articulator = ipa.distance("ɡ", "ɡ͡b")
+    release = ipa.distance("t", "tʰ")
+    failures = []
+    if articulator < release:
+        failures.append(
+            f"second articulator costs {articulator:.6f}, below release phase "
+            f"{release:.6f}"
+        )
+    return _report("a second articulator costs at least a release phase", failures, 1)
+
+
 #: The ``<value>`` attributes the loader reads only for a feature that
 #: takes its values from ``<value>`` elements. A typed feature takes its
 #: value *set* from its ``<type>``, so these are never looked at on one.
@@ -1034,6 +1053,7 @@ def main(argv: list[str] | None = None) -> int:
         check_borrowed_vocabulary_is_total(ipa),
         check_borrowed_vocabulary(ipa),
         check_no_symbol_states_an_inapplicable_feature(ipa),
+        check_fusion_arity(ipa),
         check_derived_artifacts(),
     ]
     ok = all(results)

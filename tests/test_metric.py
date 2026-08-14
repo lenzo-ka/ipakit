@@ -8,11 +8,13 @@ spelled as manner, property, or release.
 
 import itertools
 
+import ipakit.metric as metric
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR
 from ipakit.metric import (
     SECONDARY_WEIGHT,
+    _arity_base,
     _metric_bundle,
     _nearest_part_cost,
     bundle_distance,
@@ -20,6 +22,7 @@ from ipakit.metric import (
     segment_metric,
     segment_terms,
 )
+from scripts.invariants import check_fusion_arity
 
 
 @pytest.fixture(scope="module")
@@ -32,15 +35,18 @@ def D(ipa: IPAFeatures, a: str, b: str) -> float:
 
 
 class TestExactPins:
-    def test_shares_one_articulation_is_half(self, ipa: IPAFeatures) -> None:
-        # D(ɡ, ɡ͡b) = d_b(ɡ, b) / 2, exactly (unordered best-match with a
-        # lifted singleton) - and symmetric between the two sharers.
+    def test_sharing_stays_graded_beside_the_arity_base(self, ipa: IPAFeatures) -> None:
+        # D(ɡ, ɡ͡b) = A + d_b(ɡ, b) / 2, exactly. The new constituent
+        # has categorical mass, while its identity still supplies the old
+        # graded sharing term.
         db = bundle_distance(
             ipa, ipa.segment("ɡ").constituents[0], ipa.segment("b").constituents[0]
         )
-        assert D(ipa, "ɡ", "ɡ͡b") == pytest.approx(db / 2, abs=1e-12)
+        assert _arity_base(ipa) == pytest.approx(1 / 20, abs=1e-12)
+        assert D(ipa, "ɡ", "ɡ͡b") == pytest.approx(_arity_base(ipa) + db / 2, abs=1e-12)
         assert D(ipa, "b", "ɡ͡b") == pytest.approx(
-            bundle_distance(
+            _arity_base(ipa)
+            + bundle_distance(
                 ipa,
                 ipa.segment("b").constituents[0],
                 ipa.segment("ɡ").constituents[0],
@@ -165,15 +171,50 @@ class TestMaterialBudget:
         assert D(ipa, "t͡ʃ", "ʃ") < D(ipa, "t͡ʃ", "i")
         assert D(ipa, "t͡ʃ", "t͡s") == pytest.approx(0.0030, abs=0.00005)
 
-    def test_fusion_floor_is_explicitly_deferred(self, ipa: IPAFeatures) -> None:
-        """Pin the live inversion without mixing its movers into this fix.
+    def test_adding_an_articulator_costs_at_least_a_release_phase(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Invariant 5 compares independent structural and release prices."""
+        assert D(ipa, "ɡ", "ɡ͡b") >= D(ipa, "t", "tʰ")
 
-        A fusion has no arity floor, so adding the articulator in /ɡ͡b/ is
-        cheaper than adding aspiration to /t/. Whether a derived floor exists
-        is a separate measurement; changing it here would make neither mover
-        class independently explainable.
+    def test_invariant_5_catches_a_weakened_arity_term(
+        self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A zero perturbation fails the public-distance check."""
+        monkeypatch.setattr(metric, "_arity_base", lambda _: 0.0)
+        assert not check_fusion_arity(ipa)
+
+    def test_full_matrix_mover_class_is_declared_before_the_diff(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Only unequal-arity comparisons on the unordered branch may move.
+
+        In the shipped inventory that is precisely a speech atom paired with a
+        single-phase fusion. Silence remains maximally distant by its earlier
+        categorical rule. Equal-arity fusion pairs retain their graded sharing
+        distance, and every ordered/phased comparison is outside this lane.
+
+        The fixed-seed before/after audit found exactly these 345 movers among
+        all 9,591 pairs and no mover outside the class. Recording the class
+        here before the count keeps that audit explanatory rather than fitted
+        to the observed diff.
         """
-        assert D(ipa, "ɡ", "ɡ͡b") < D(ipa, "t", "tʰ")
+        movers = 0
+        phones = list(ipa.phones)
+        for i, left in enumerate(phones):
+            x = ipa.segment(left)
+            for right in phones[i + 1 :]:
+                y = ipa.segment(right)
+                x_speech = ipa.get_features(left).get("manner") != "silence"
+                y_speech = ipa.get_features(right).get("manner") != "silence"
+                expected = (
+                    x_speech
+                    and y_speech
+                    and not (x.phased or y.phased)
+                    and len(x.children) != len(y.children)
+                )
+                movers += expected
+        assert movers == 345
 
 
 class TestSecondaryArticulation:

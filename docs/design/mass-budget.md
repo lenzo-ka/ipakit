@@ -54,7 +54,7 @@ round(ipa.distance("t͡ʃ", "i"), 4)       # 0.3846
 round(ipa.distance("t͡ʃ", "t͡s"), 4)     # 0.003
 round(ipa.distance("e͜ɪ", "e"), 4)       # 0.2549
 round(ipa.distance("ɡ", "b͡v"), 4)       # 0.2897
-round(ipa.distance("ɡ", "ɡ͡b"), 4)       # 0.0338
+round(ipa.distance("ɡ", "ɡ͡b"), 4)       # 0.0838
 round(ipa.distance("t", "tʰ"), 4)        # 0.0476
 ```
 

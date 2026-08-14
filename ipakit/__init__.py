@@ -481,7 +481,7 @@ def confusability(phone1: str, phone2: str) -> float:
 
     Examples:
         >>> round(ipakit.confusability("p", "b"), 3)
-        0.959
+        0.961
         >>> ipakit.confusability("p", "p")
         1.0
     """

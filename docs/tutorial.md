@@ -123,7 +123,7 @@ $ ipakit distance pair p a
 ```python
 ipa.nearest_phones("p", n=5)
 # [('t', 0.0195), ('ɸ', 0.02666666666666666), ('f', 0.029666666666666664),
-# ('ȶ', 0.033499999999999995), ('k͡p', 0.03375)]
+# ('ȶ', 0.033499999999999995), ('θ', 0.04116666666666666)]
 ```
 
 ```console
@@ -134,7 +134,7 @@ p (voiceless bilabial plosive)
   ɸ  0.027  voiceless bilabial fricative
   f  0.030  voiceless labiodental fricative
   ȶ  0.033  voiceless alveolo-palatal plosive
-  k͡p  0.034  voiceless labial-velar plosive
+  θ  0.041  voiceless dental fricative
 ```
 
 Raw distances are hard to interpret on their own, because the range that actually occurs
@@ -145,7 +145,7 @@ close as any pair gets" and the numbers spread out:
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
 # 0.9962464810760088
-ipa.confusability("f", "a")  # 0.27119174225836723
+ipa.confusability("f", "a")  # 0.27598790532791156
 ```
 
 ```console
@@ -159,7 +159,7 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9833333333333333
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.9864108713029577
+# 0.9870364577902895
 ```
 
 > **These are two numbers for one English phrase**, and the CLI gives the second.
@@ -171,7 +171,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9864  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9870  [reference: ipa, 139 phones]
 ```
 
 A word comparison also reports `coverage`, the shorter token count over the longer. It
@@ -289,8 +289,8 @@ and says which feature:
 ```python
 ipa.minimal_pairs("p")[:5]
 # [('t', 'place', 'alveolar'), ('ɸ', 'manner', 'fricative'), ('f', 'manner',
-# 'fricative'), ('ȶ', 'place', 'alveolo-palatal'), ('k͡p', 'place',
-# 'bilabial^velar')]
+# 'fricative'), ('ȶ', 'place', 'alveolo-palatal'), ('θ', 'manner',
+# 'fricative')]
 ```
 
 ## 4. Converting between notations
@@ -979,8 +979,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.confusability("tʰ", "t"), 4)  # 0.9637
-round(ipa.confusability("tʰ", "t"), 4)  # 0.9624
+round(model.confusability("tʰ", "t"), 4)  # 0.9655
+round(ipa.confusability("tʰ", "t"), 4)  # 0.9642
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the
