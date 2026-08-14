@@ -494,11 +494,14 @@ def _arity_base(features: IPAFeatures) -> float:
     """The normalized mass of one added constituent in an unordered fusion.
 
     Arity is one categorical structural fact, so it carries the mass of one
-    ordinary atomic comparison term. The normalizer is derived from the
-    inventory's own atomic bundles: the smallest complete speech-atom budget
-    (20 terms in the shipped declaration), excluding off-scale non-speech and
-    marked atoms that add optional terms. Thus the base is ``1 / 20`` and
-    changes if the declared atomic feature budget changes.
+    ordinary atomic comparison term. The base is ``1 / min(term counts)`` over
+    the inventory's one-constituent atoms after off-scale non-speech atoms are
+    excluded. That filter is load-bearing: silence has one term, so retaining
+    it would set the base to ``1 / 1`` instead of the shipped speech minimum
+    ``1 / 20``. Marked speech atoms remain in the population; their optional
+    terms give them 21 or more terms, so they do not attain the minimum. The
+    base changes if the declared atomic feature budget or off-scale boundary
+    changes.
 
     This derivation deliberately reads neither ``release`` nor the cost of any
     release-marked pair. The ordering between an added articulator and a

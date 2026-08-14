@@ -174,8 +174,28 @@ class TestMaterialBudget:
     def test_adding_an_articulator_costs_at_least_a_release_phase(
         self, ipa: IPAFeatures
     ) -> None:
-        """Invariant 5 compares independent structural and release prices."""
-        assert D(ipa, "ɡ", "ɡ͡b") >= D(ipa, "t", "tʰ")
+        """Every unordered one-to-two pair clears the independent release price."""
+        release = ipa.distance("t", "tʰ")
+        checked = 0
+        for left, right in itertools.combinations(ipa.phones, 2):
+            x, y = ipa.segment(left), ipa.segment(right)
+            x_speech = ipa.get_features(left).get("manner") != "silence"
+            y_speech = ipa.get_features(right).get("manner") != "silence"
+            if (
+                not x_speech
+                or not y_speech
+                or x.phased
+                or y.phased
+                or {len(x.constituents), len(y.constituents)}
+                != {
+                    1,
+                    2,
+                }
+            ):
+                continue
+            checked += 1
+            assert ipa.distance(left, right) >= release, (left, right)
+        assert checked == 345
 
     def test_invariant_5_catches_a_weakened_arity_term(
         self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
@@ -185,7 +205,7 @@ class TestMaterialBudget:
         assert not check_fusion_arity(ipa)
 
     def test_full_matrix_mover_class_is_declared_before_the_diff(
-        self, ipa: IPAFeatures
+        self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Only unequal-arity comparisons on the unordered branch may move.
 
@@ -194,27 +214,37 @@ class TestMaterialBudget:
         categorical rule. Equal-arity fusion pairs retain their graded sharing
         distance, and every ordered/phased comparison is outside this lane.
 
-        The fixed-seed before/after audit found exactly these 345 movers among
-        all 9,591 pairs and no mover outside the class. Recording the class
-        here before the count keeps that audit explanatory rather than fitted
-        to the observed diff.
+        The audit computes both matrices and requires their diff to equal that
+        declared class, so either a missed member or any movement outside it is
+        a failure rather than a count-preserving substitution.
         """
-        movers = 0
         phones = list(ipa.phones)
+        pairs = list(itertools.combinations(phones, 2))
+        active = {pair: ipa.distance(*pair) for pair in pairs}
+        monkeypatch.setattr(metric, "_arity_base", lambda _: 0.0)
+        uncharged = {pair: ipa.distance(*pair) for pair in pairs}
+        expected = set()
         for i, left in enumerate(phones):
             x = ipa.segment(left)
             for right in phones[i + 1 :]:
                 y = ipa.segment(right)
                 x_speech = ipa.get_features(left).get("manner") != "silence"
                 y_speech = ipa.get_features(right).get("manner") != "silence"
-                expected = (
+                is_expected = (
                     x_speech
                     and y_speech
                     and not (x.phased or y.phased)
                     and len(x.children) != len(y.children)
                 )
-                movers += expected
-        assert movers == 345
+                if is_expected:
+                    expected.add((left, right))
+        movers = {
+            pair
+            for pair in pairs
+            if active[pair] != pytest.approx(uncharged[pair], abs=1e-12)
+        }
+        assert movers == expected
+        assert len(movers) == 345
 
 
 class TestSecondaryArticulation:

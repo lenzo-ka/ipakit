@@ -763,22 +763,47 @@ def check_derived_artifacts() -> bool:
 
 
 def check_fusion_arity(ipa: IPAFeatures) -> bool:
-    """Invariant 5: a second articulator costs at least a release phase.
+    """Invariant 5: every added articulator costs at least a release phase.
 
     The two sides are intentionally read through the public metric. In
     particular, this check does not import or recompute the arity derivation;
     otherwise it would merely restate the implementation and could not catch a
     missing or weakened charge.
     """
-    articulator = ipa.distance("ɡ", "ɡ͡b")
     release = ipa.distance("t", "tʰ")
     failures = []
-    if articulator < release:
-        failures.append(
-            f"second articulator costs {articulator:.6f}, below release phase "
-            f"{release:.6f}"
-        )
-    return _report("a second articulator costs at least a release phase", failures, 1)
+    checked = 0
+    phones = list(ipa.phones)
+    for i, left in enumerate(phones):
+        x = ipa.segment(left)
+        for right in phones[i + 1 :]:
+            y = ipa.segment(right)
+            x_speech = ipa.get_features(left).get("manner") != "silence"
+            y_speech = ipa.get_features(right).get("manner") != "silence"
+            if (
+                not x_speech
+                or not y_speech
+                or x.phased
+                or y.phased
+                or {len(x.constituents), len(y.constituents)}
+                != {
+                    1,
+                    2,
+                }
+            ):
+                continue
+            checked += 1
+            articulator = ipa.distance(left, right)
+            if articulator < release:
+                failures.append(
+                    f"{left!r} / {right!r}: added articulator costs "
+                    f"{articulator:.6f}, below release phase {release:.6f}"
+                )
+    if not checked:
+        failures.append("no unordered one-to-two constituent pair checked")
+    return _report(
+        "every added articulator costs at least a release phase", failures, checked
+    )
 
 
 #: The ``<value>`` attributes the loader reads only for a feature that
