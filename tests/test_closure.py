@@ -62,11 +62,17 @@ class TestWhatItCosts:
     def test_the_largest_shortcuts_join_unlike_segments(
         self, ipa: IPAFeatures, closure: MetricClosure
     ) -> None:
+        """The diagnosed bridge stays at its measured, still-defective cost.
+
+        A decrease would restore the cheaper composite bridge; an increase
+        would mean the shipped closure geometry moved beyond the arity repair.
+        """
         # A voiced velar plosive and a voiced labiodental affricate are
         # not alike; the cheap path runs through a double articulation
         # that shares a different constituent with each.
-        assert ipa.distance("ɡ", "b͡v") > 0.25
-        assert closure.distance("ɡ", "b͡v") < 0.1
+        direct = ipa.distance("ɡ", "b͡v")
+        assert direct > 0.25
+        assert closure.distance("ɡ", "b͡v") == pytest.approx(0.1161, abs=0.00005)
 
     def test_the_diagnostic_reports_the_damage(
         self, ipa: IPAFeatures, closure: MetricClosure

@@ -762,6 +762,50 @@ def check_derived_artifacts() -> bool:
     return _report("derived artifacts current", failures, len(records))
 
 
+def check_fusion_arity(ipa: IPAFeatures) -> bool:
+    """Invariant 5: every added articulator costs at least a release phase.
+
+    The two sides are intentionally read through the public metric. In
+    particular, this check does not import or recompute the arity derivation;
+    otherwise it would merely restate the implementation and could not catch a
+    missing or weakened charge.
+    """
+    release = ipa.distance("t", "tʰ")
+    failures = []
+    checked = 0
+    phones = list(ipa.phones)
+    for i, left in enumerate(phones):
+        x = ipa.segment(left)
+        for right in phones[i + 1 :]:
+            y = ipa.segment(right)
+            x_speech = ipa.get_features(left).get("manner") != "silence"
+            y_speech = ipa.get_features(right).get("manner") != "silence"
+            if (
+                not x_speech
+                or not y_speech
+                or x.phased
+                or y.phased
+                or {len(x.constituents), len(y.constituents)}
+                != {
+                    1,
+                    2,
+                }
+            ):
+                continue
+            checked += 1
+            articulator = ipa.distance(left, right)
+            if articulator < release:
+                failures.append(
+                    f"{left!r} / {right!r}: added articulator costs "
+                    f"{articulator:.6f}, below release phase {release:.6f}"
+                )
+    if not checked:
+        failures.append("no unordered one-to-two constituent pair checked")
+    return _report(
+        "every added articulator costs at least a release phase", failures, checked
+    )
+
+
 #: The ``<value>`` attributes the loader reads only for a feature that
 #: takes its values from ``<value>`` elements. A typed feature takes its
 #: value *set* from its ``<type>``, so these are never looked at on one.
@@ -1034,6 +1078,7 @@ def main(argv: list[str] | None = None) -> int:
         check_borrowed_vocabulary_is_total(ipa),
         check_borrowed_vocabulary(ipa),
         check_no_symbol_states_an_inapplicable_feature(ipa),
+        check_fusion_arity(ipa),
         check_derived_artifacts(),
     ]
     ok = all(results)

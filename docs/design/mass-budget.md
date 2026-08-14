@@ -54,7 +54,7 @@ round(ipa.distance("t͡ʃ", "i"), 4)       # 0.3846
 round(ipa.distance("t͡ʃ", "t͡s"), 4)     # 0.003
 round(ipa.distance("e͜ɪ", "e"), 4)       # 0.2549
 round(ipa.distance("ɡ", "b͡v"), 4)       # 0.2897
-round(ipa.distance("ɡ", "ɡ͡b"), 4)       # 0.0338
+round(ipa.distance("ɡ", "ɡ͡b"), 4)       # 0.0838
 round(ipa.distance("t", "tʰ"), 4)        # 0.0476
 ```
 
@@ -74,7 +74,11 @@ The spectrum was then remeasured with the instrument that produced §3's figures
 
 ## 7. Open measurements
 
-The fusion branch still has no arity floor. A whole second articulator in `ɡ͡b` costs `0.0338`, less than aspiration on `t` at `0.0476`. This is real, deferred, and pinned in the suite. Whether a floor can be derived, and what declaration would support it, remains a separate measurement.
+The fusion branch now charges the absolute constituent-count difference at `arity_base = 1 / 20 = 0.05`, derived from the smallest complete speech-atom term count. The graded sharing term remains additive, so a whole second articulator in `ɡ͡b` costs `0.0838`, above aspiration on `t` at `0.0476`. The invariant checks that ordering over every unordered one-to-two constituent pair in the shipped inventory.
+
+The residual triangle violation is not an arity-magnitude problem: `d(ɡ, b͡v) = 0.2897` still exceeds `d(ɡ, ɡ͡b) + d(ɡ͡b, b͡v) = 0.1161`. Closing that gap through arity alone would require `arity_base` of about `0.224`, roughly four and a half times the derived value, and would still add nothing to the equal-arity `ɡ͡b`–`b͡v` leg. The follow-up is the sharing rule that seats a composite beside a constituent at `d(sharers) / 2`, not a larger arity base.
+
+Charging only the arity difference is also a latent limitation: two equal-arity fusions pay no structural charge. The shipped inventory cannot exhibit a wrong ordering because it has at most two constituents and its three double articulations are phonetically close. The limitation would surface with equal high-arity units that share no constituent, or with three-articulator units; that inventory extension is the follow-up measurement.
 
 External validation against perceptual confusion data remains the empirical question. The repair makes a concrete prediction: `t͡ʃ`–`ʃ` now lands at `0.2652`, and that pair is the first comparison to hold against such data.
 

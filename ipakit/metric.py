@@ -9,9 +9,8 @@ articulations enter as weighted place components. All values lie in
 
 Key properties, pinned by tests:
 
-- ``D(ɡ, ɡ͡b) = d_b(ɡ, b) / 2`` — sharing one articulation is half the
-  distance of the unshared one (unordered best-match with a lifted
-  singleton).
+- ``D(ɡ, ɡ͡b) = A + d_b(ɡ, b) / 2`` — adding an articulator costs
+  one derived arity term ``A`` while the sharing term remains graded.
 - ``D(u͡i, u͜i) = 1/3`` — same constituents, different timing claim: one
   juncture-sense mismatch over three terms.
 - ``place(t, tʲ) = δ/3 < place(tʲ, c) = 2δ/3 < place(t, c) = δ`` — a
@@ -50,6 +49,7 @@ SECONDARY_WEIGHT = 0.5
 #: matrix names the convention under which its numbers were derived.
 MATERIAL_BUDGET = (
     ("atomic feature", "one value-distance term", "graded"),
+    ("fusion arity", "one atomic-term mass per added constituent", "derived"),
     ("unmatched constituent", "nearest-part distance plus one mass term", "graded"),
     ("juncture", "one binding-sense term", "categorical"),
     ("secondary articulation", "shared at SECONDARY_WEIGHT", "graded"),
@@ -489,6 +489,42 @@ def _nearest_part(
     return choices.index(cost), cost
 
 
+@functools.cache
+def _arity_base(features: IPAFeatures) -> float:
+    """The normalized mass of one added constituent in an unordered fusion.
+
+    Arity is one categorical structural fact, so it carries the mass of one
+    ordinary atomic comparison term. The base is ``1 / min(term counts)`` over
+    the inventory's one-constituent atoms after off-scale non-speech atoms are
+    excluded. That filter is load-bearing: silence has one term, so retaining
+    it would set the base to ``1 / 1`` instead of the shipped speech minimum
+    ``1 / 20``. Marked speech atoms remain in the population; their optional
+    terms give them 21 or more terms, so they do not attain the minimum. The
+    base changes if the declared atomic feature budget or off-scale boundary
+    changes.
+
+    This derivation deliberately reads neither ``release`` nor the cost of any
+    release-marked pair. The ordering between an added articulator and a
+    release phase is consequently a falsifiable result, not a restatement of
+    the arity definition.
+    """
+    manner = features.features.get("manner")
+    counts = []
+    for symbol in features.phones:
+        segment = features.segment(symbol)
+        if len(segment.constituents) != 1:
+            continue
+        bundle = segment.constituents[0].bundle(features, with_defaults=True)
+        if manner is not None and bundle.get("manner") in manner.offscale:
+            continue
+        counts.append(
+            _bundle_terms(features, segment.constituents[0], segment.constituents[0])[1]
+        )
+    if not counts:  # pragma: no cover - a valid IPA inventory has speech atoms
+        raise ValueError("fusion arity needs at least one declared atomic speech unit")
+    return 1.0 / min(counts)
+
+
 def segment_metric(
     features: IPAFeatures,
     x: Segment,
@@ -543,7 +579,18 @@ def segment_metric(
 
         dx, x_selected = direction(px, py)
         dy, y_selected = direction(py, px)
-        seg_d = max(dx, dy)
+        arity = abs(len(px) - len(py))
+        arity_cost = arity * _arity_base(features)
+        selected_costs = x_selected if dx >= dy else y_selected
+        # Sum in the same form the trace exposes. Besides keeping exact
+        # reconstruction, this states the additive law directly: every row's
+        # graded share remains, and their common arity share adds ``A`` after
+        # the mean rather than replacing or flooring it.
+        seg_d = min(
+            1.0,
+            sum(cost + arity_cost for _, _, cost in selected_costs)
+            / len(selected_costs),
+        )
         if _rows is not None:
             src, dst, selected, side = (
                 (px, py, x_selected, "a") if dx >= dy else (py, px, y_selected, "b")
@@ -551,10 +598,11 @@ def segment_metric(
             for i, j, cost in selected:
                 _rows.append(
                     (
-                        f"part {side}[{i}] nearest opposite[{j}]",
+                        f"part {side}[{i}] nearest opposite[{j}]"
+                        + (" + arity share" if arity else ""),
                         src[i].to_ipa(),
                         dst[j].to_ipa(),
-                        cost,
+                        min(1.0, cost + arity_cost),
                     )
                 )
             _rows.extend(_prosodic_rows(features, x, y))
