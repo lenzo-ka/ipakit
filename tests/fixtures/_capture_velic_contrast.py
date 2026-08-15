@@ -26,22 +26,30 @@ from tests.test_tract_figures import (  # noqa: E402
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "velic_contrast.json"
 
-with tempfile.TemporaryDirectory() as directory:
-    temp = Path(directory)
-    pins = {}
-    for nasal, oral in (("m", "b"), ("n", "d"), ("ŋ", "k")):
-        width, nasal_rows = _pixels(
-            _only_layer(tract_svg.figure(nasal), "velum"), temp / f"{nasal}.svg"
-        )
-        _, oral_rows = _pixels(
-            _only_layer(tract_svg.figure(oral), "velum"), temp / f"{oral}.svg"
-        )
-        pins[f"{nasal}-{oral}"] = round(
-            _pixel_hausdorff(
-                _alpha_pixels(width, nasal_rows), _alpha_pixels(width, oral_rows)
-            ),
-            2,
-        )
 
-OUT.write_text(json.dumps(pins, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-print(f"wrote {OUT}: {pins}")
+def main() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        temp = Path(directory)
+        pins = {}
+        for nasal, oral in (("m", "b"), ("n", "d"), ("ŋ", "k")):
+            width, nasal_rows = _pixels(
+                _only_layer(tract_svg.figure(nasal), "velum"), temp / f"{nasal}.svg"
+            )
+            _, oral_rows = _pixels(
+                _only_layer(tract_svg.figure(oral), "velum"), temp / f"{oral}.svg"
+            )
+            pins[f"{nasal}-{oral}"] = round(
+                _pixel_hausdorff(
+                    _alpha_pixels(width, nasal_rows), _alpha_pixels(width, oral_rows)
+                ),
+                2,
+            )
+
+    OUT.write_text(
+        json.dumps(pins, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"wrote {OUT}: {pins}")
+
+
+if __name__ == "__main__":
+    main()
