@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Ordered old/tiergraph containment differential over a named corpus.
+"""Ordered old/tiergraph containment differential over a named sample.
 
-The corpus includes every checked-in profile sample plus adversarial structural
-fixtures.  Agreement is therefore a corpus-bounded result, not a claim that no
-possible graph changes answer.  The one known difference is declared below so
-the oracle measures it without disguising it as agreement.
+The constructible population is derived from the builder and graph validator;
+fixture reach is reported separately. Agreement is bounded by the named sample,
+and structural classes outside that reach remain explicitly untested.
 """
 
 from __future__ import annotations
@@ -43,39 +42,34 @@ class Coverage:
     fixtures: int
     events: int
     comparisons: int
-    changes: int
 
 
-@dataclass(frozen=True)
-class KnownChange:
-    fixture: str
-    label: str
-    operation: str
-    old_labels: tuple[str, ...]
-    new_labels: tuple[str, ...]
+# This is a class enumeration, not an instance enumeration. Arity and depth are
+# unbounded, so the population is finitely described rather than finite-sized.
+STRUCTURAL_POPULATION = (
+    "zero, one, or multiple named containment declarations",
+    "declared source and target arity ranges, including admitted empty sides",
+    "event or boundary endpoints, homogeneous or heterogeneous tier restrictions",
+    "source-unique incidence with arbitrary ordered targets and repeated targets",
+    "finite acyclic depth per relation, including isolated nodes and branching",
+    "shared targets and diamonds; multiple relations whose union may be cyclic",
+)
 
+FIXTURE_REACH = (
+    "event-only singleton sources with nonempty unary and polyadic targets",
+    "homogeneous and heterogeneous incidence",
+    "declared forward and reverse target order, plus repeated targets",
+    "isolated, shallow, deep, branching, and diamond-shaped graphs",
+    "multiple independently acyclic relations, including a cyclic union",
+)
 
-# Found by adversarial review after the migration, not predicted before it.
-# One relation may name the same child twice: the old kernel preserves that in
-# direct_children, but parents uses membership and returns its parent once.
-# The projection preserves each incidence in both directions, making the two
-# reads coherent.  A route starts with parents, so it changes for the same
-# reason.  Ancestors remains de-duplicated by both implementations.
-KNOWN_CHANGES = (
-    KnownChange(
-        "fixture:duplicate-child",
-        "leaf",
-        "parents",
-        ("root",),
-        ("root", "root"),
-    ),
-    KnownChange(
-        "fixture:duplicate-child",
-        "leaf",
-        "routes",
-        ("root",),
-        ("root", "root"),
-    ),
+UNTESTED_CLASSES = (
+    "multi-source containment instances",
+    "admitted empty source or target sides",
+    "boundary-endpoint containment",
+    "the full range of declared arity bounds and target permutations",
+    "sharing patterns beyond the named diamond and unbounded-depth families",
+    "the same source participating in more than one containment relation",
 )
 
 
@@ -192,7 +186,7 @@ def _labels(graph: Graph, refs: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def verify() -> Coverage:
-    fixture_count = event_count = comparison_count = change_count = 0
+    fixture_count = event_count = comparison_count = 0
     for name, old in corpus():
         fixture_count += 1
         projected = ContainmentProjection.build(old)
@@ -211,19 +205,9 @@ def verify() -> Coverage:
             for operation, expected, actual in observations:
                 comparison_count += 1
                 if actual != expected:
-                    label = _label(old, ref)
-                    if operation == "routes":
-                        old_labels = tuple(_label(old, route[0]) for route in expected)
-                        new_labels = tuple(_label(old, route[0]) for route in actual)
-                    else:
-                        old_labels = _labels(old, expected)
-                        new_labels = _labels(old, actual)
-                    change = KnownChange(name, label, operation, old_labels, new_labels)
-                    if change not in KNOWN_CHANGES:
-                        raise AssertionError(
-                            f"{name} {ref} {operation}: {actual!r} != {expected!r}"
-                        )
-                    change_count += 1
+                    raise AssertionError(
+                        f"{name} {ref} {operation}: {actual!r} != {expected!r}"
+                    )
             for tier in tiers:
                 for operation, expected, actual in (
                     (
@@ -243,12 +227,7 @@ def verify() -> Coverage:
                             f"{name} {ref} {operation} {tier}: "
                             f"{actual!r} != {expected!r}"
                         )
-    if change_count != len(KNOWN_CHANGES):
-        raise AssertionError(
-            f"known containment changes exercised {change_count} times; "
-            f"expected {len(KNOWN_CHANGES)}"
-        )
-    return Coverage(fixture_count, event_count, comparison_count, change_count)
+    return Coverage(fixture_count, event_count, comparison_count)
 
 
 if __name__ == "__main__":
@@ -259,6 +238,8 @@ if __name__ == "__main__":
     print(
         f"containment oracle: {coverage.events} events over "
         f"{coverage.fixtures} fixtures; {coverage.comparisons} ordered comparisons; "
-        f"{coverage.changes} attributed changes; corpus-bounded; "
-        f"PYTHONHASHSEED={seed}"
+        f"no answer differences; fixture-sample-bounded; PYTHONHASHSEED={seed}"
     )
+    print("constructible/admitted classes: " + "; ".join(STRUCTURAL_POPULATION))
+    print("fixture classes reached: " + "; ".join(FIXTURE_REACH))
+    print("untested classes: " + "; ".join(UNTESTED_CLASSES))

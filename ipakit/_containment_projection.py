@@ -24,19 +24,19 @@ def _name(local_name: str) -> tg.QualifiedName:
 
 @dataclass(frozen=True)
 class ContainmentProjection:
-    """Lossless event-identity and containment view of one completed graph."""
+    """Lossless event-identity and ordered-containment view of one graph."""
 
     source: Graph
     graph: tg.Graph
     old_to_new: dict[str, tg.ItemRef]
     new_to_old: dict[tg.ItemRef, str]
     tier_names: dict[str, tg.QualifiedName]
-    downward_names: dict[str, tg.QualifiedName]
-    upward_names: dict[str, tg.QualifiedName]
+    containment_names: dict[str, tg.QualifiedName]
+    parent_order: dict[tuple[str, str], int]
 
     @classmethod
     def build(cls, source: Graph) -> ContainmentProjection:
-        """Project every event and every navigation-visible containment edge.
+        """Project event identity and original polyadic containment incidence.
 
         Projection or identity validation failure is a hard runtime error by
         design.  Falling back to the old kernel would make navigation answers
@@ -78,58 +78,48 @@ class ContainmentProjection:
             for declaration in source.declarations.relations
             if declaration.containment
         )
-        downward_names = {
-            declaration.name: _name(f"contains-down-{index}")
+        containment_names = {
+            declaration.name: _name(f"contains-{index}")
             for index, declaration in enumerate(containment)
         }
-        upward_names = {
-            declaration.name: _name(f"contains-up-{index}")
-            for index, declaration in enumerate(containment)
-        }
+        item_side = tg.RelationSideDeclaration((tg.RelationEndpointKind.ITEM,))
         declarations: tuple[
-            tg.SimpleRelationDeclaration | tg.BipartiteRelationDeclaration, ...
+            tg.SimpleRelationDeclaration | tg.PolyadicRelationDeclaration, ...
         ] = (
             *memberships,
             *(
-                tg.BipartiteRelationDeclaration(
-                    name, _EVENT_TYPE, _EVENT_TYPE, acyclic=True
+                tg.PolyadicRelationDeclaration(
+                    name,
+                    item_side,
+                    item_side,
+                    unique_sources=True,
+                    acyclic=True,
                 )
-                for name in (*downward_names.values(), *upward_names.values())
+                for name in containment_names.values()
             ),
         )
-
-        downward: list[tg.RelationInstance] = []
-        upward: list[tg.RelationInstance] = []
-        for relation in source.relations:
-            declaration = source.declarations.relation(relation.name)
-            if declaration is None or not declaration.containment:
-                continue
-            # The old downward API admits only a singleton source tuple, while
-            # its upward API returns every source of any matching relation.
-            if len(relation.sources) == 1:
-                downward.extend(
-                    tg.RelationInstance(
-                        downward_names[relation.name],
-                        old_to_new[relation.sources[0]],
-                        old_to_new[target],
-                    )
-                    for target in relation.targets
-                )
-            upward.extend(
-                tg.RelationInstance(
-                    upward_names[relation.name],
-                    old_to_new[target],
-                    old_to_new[parent],
-                )
-                for target in relation.targets
-                for parent in relation.sources
+        relations = tuple(
+            tg.PolyadicRelationInstance(
+                containment_names[relation.name],
+                tuple(old_to_new[source_ref] for source_ref in relation.sources),
+                tuple(old_to_new[target] for target in relation.targets),
             )
+            for relation in source.relations
+            if relation.name in containment_names
+        )
+        parent_order = {
+            (target, source_ref): rank
+            for rank, relation in enumerate(source.relations)
+            if relation.name in containment_names
+            for target in relation.targets
+            for source_ref in relation.sources
+        }
 
         projected = tg.Graph(
             (tg.NamespaceDeclaration(_PREFIX, _NAMESPACE),),
             tiers,
             declarations,
-            tuple((*downward, *upward)),
+            polyadic_relations=relations,
         )
         result = cls(
             source,
@@ -137,8 +127,8 @@ class ContainmentProjection:
             old_to_new,
             new_to_old,
             tier_names,
-            downward_names,
-            upward_names,
+            containment_names,
+            parent_order,
         )
         result._verify_identity(refs)
         return result
@@ -157,39 +147,26 @@ class ContainmentProjection:
                     "tiergraph durable identity does not resolve losslessly"
                 )
 
-    def _selection(self, reference: str) -> tg.NodeSet:
-        item = self.old_to_new[reference]
-        return tg.NodeSet(self.graph, (tg.Node(tg.NodeKind.ITEM, item),))
-
-    def _step(
-        self, reference: str, relations: tuple[tg.QualifiedName, ...]
-    ) -> set[tg.ItemRef]:
-        walked = tuple(
-            tg.Walk(
-                self._selection(reference), relation, tg.WalkDirection.FORWARD, 1
-            ).evaluate()
-            for relation in relations
+    def traversals(self) -> tuple[tg.OrderedContainment, ...]:
+        """Return validated ordered traversals in declaration order."""
+        return tuple(
+            tg.OrderedContainment(self.graph, name)
+            for name in self.containment_names.values()
         )
-        return {
-            node.reference
-            for result in walked
-            for node in result.nodes.nodes
-            if node.kind is tg.NodeKind.ITEM and isinstance(node.reference, tg.ItemRef)
-        }
+
+    def _old_reference(self, node: tg.Node) -> str:
+        if not isinstance(node.reference, tg.ItemRef):
+            raise ValueError("ordered containment returned a non-item node")
+        return self.new_to_old[node.reference]
 
     def direct_children(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
-        if parent not in self.old_to_new:
+        item = self.old_to_new.get(parent)
+        if item is None:
             return ()
-        names = tuple(self.downward_names.values())
-        admitted = self._step(parent, names)
-        origin = self.old_to_new[parent]
         children = tuple(
-            self.new_to_old[relation.right]
-            for relation in self.graph.relations
-            if relation.declaration in names
-            and relation.left == origin
-            and isinstance(relation.right, tg.ItemRef)
-            and relation.right in admitted
+            self._old_reference(node)
+            for traversal in self.traversals()
+            for node in traversal.direct_children(item).nodes
         )
         if tier is None:
             return children
@@ -218,32 +195,35 @@ class ContainmentProjection:
     def leaves(self, parent: str) -> tuple[str, ...]:
         if parent not in self.old_to_new:
             return (parent,)
+        result: list[str] = []
         visited: set[str] = set()
-
-        def walk(item: str) -> tuple[str, ...]:
+        pending = [parent]
+        while pending:
+            item = pending.pop()
             if item in visited:
-                return ()
+                continue
             visited.add(item)
             children = self.direct_children(item)
-            if not children:
-                return (item,)
-            return tuple(leaf for child in children for leaf in walk(child))
-
-        return walk(parent)
+            if children:
+                pending.extend(reversed(children))
+            else:
+                result.append(item)
+        return tuple(result)
 
     def parents(self, child: str) -> tuple[str, ...]:
-        if child not in self.old_to_new:
+        item = self.old_to_new.get(child)
+        if item is None:
             return ()
-        names = tuple(self.upward_names.values())
-        admitted = self._step(child, names)
-        origin = self.old_to_new[child]
+        parents = {
+            self._old_reference(node)
+            for traversal in self.traversals()
+            for node in traversal.parents(item).nodes
+        }
         return tuple(
-            self.new_to_old[relation.right]
-            for relation in self.graph.relations
-            if relation.declaration in names
-            and relation.left == origin
-            and isinstance(relation.right, tg.ItemRef)
-            and relation.right in admitted
+            sorted(
+                parents,
+                key=lambda parent: self.parent_order.get((child, parent), -1),
+            )
         )
 
     def ancestors(self, child: str) -> tuple[str, ...]:
