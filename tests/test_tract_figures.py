@@ -257,6 +257,78 @@ def test_dental_tip_reaches_its_forward_declared_arc() -> None:
     assert target.arc <= surface[0][0] < target.arc + 1.0 / tract_svg.SAMPLES
 
 
+@pytest.mark.parametrize("phone", ["ʜ", "ʢ", "ʡ"])
+def test_epiglottal_phones_pose_the_leaf_and_couple_the_tongue_root(phone: str) -> None:
+    """The epiglottal closure belongs to its leaf, with a bounded root assist."""
+    ipa, h = IPAFeatures(), head()
+    p = posture(ipa, phone, h)
+    current = tract_svg.build_geometry(h, landmarks(ipa, h.name), p)
+
+    assert p.reading is not None and p.reading.articulator == "epiglottis"
+    assert p.epiglottal == pytest.approx(p.reading.offset)
+    assert current["epiglottis"]["aperture"] < h.epiglottis(p.epiglottal / 2).aperture
+    assert any(q.articulator == "tongue-root" for q in p.tongue_controls)
+    assert current["tongue"][-1][0] == pytest.approx(h.tongue_span[1])
+
+
+def test_epiglottal_tongue_assist_is_bounded_by_declared_coupling() -> None:
+    """The leaf never enters tongue controls through its primary reading."""
+    ipa, original = IPAFeatures(), head()
+    zero = replace(original, epiglottis_tongue_coupling=0.0)
+    capped = replace(original, epiglottis_tongue_coupling=0.45)
+    at_zero = posture(ipa, "ʡ", zero)
+    at_cap = posture(ipa, "ʡ", capped)
+
+    assert at_zero.tongue_controls == zero.rest.tongue_controls
+    assert len(at_cap.tongue_controls) == len(capped.rest.tongue_controls) + 1
+    assist = at_cap.tongue_controls[-1]
+    assert assist.articulator == "tongue-root"
+    assert assist.offset == pytest.approx(
+        capped.rest.offset
+        + (1.0 - capped.rest.offset)
+        * at_cap.epiglottal
+        * capped.epiglottis_tongue_coupling
+    )
+    zero_geometry = tract_svg.build_geometry(zero, landmarks(ipa, zero.name), at_zero)
+    cap_geometry = tract_svg.build_geometry(capped, landmarks(ipa, capped.name), at_cap)
+    assert zero_geometry["tongue"] != cap_geometry["tongue"]
+    assert zero_geometry["epiglottis"] == cap_geometry["epiglottis"]
+
+
+def test_non_epiglottal_postures_leave_the_leaf_byte_identical_at_rest() -> None:
+    """Unrelated gestures do not leak into the epiglottis pose."""
+    ipa, h = IPAFeatures(), head()
+    bodies = []
+    for phone in ("t", "k", "a", "ʕ", "␣"):
+        p = posture(ipa, phone, h)
+        current = tract_svg.build_geometry(h, landmarks(ipa, h.name), p)
+        assert p.epiglottal == 0.0
+        bodies.append(current["epiglottis"]["body"])
+    assert all(body == bodies[0] for body in bodies[1:])
+
+
+def test_epiglottal_degree_scales_the_modeled_aperture() -> None:
+    """Open, approximant and closure degrees monotonically close the gap."""
+    h = head()
+    apertures = [h.epiglottis(degree).aperture for degree in (0.0, 0.5, 1.0)]
+    assert apertures[0] > apertures[1] > apertures[2]
+    assert apertures[2] == pytest.approx(0.0)
+
+
+def test_epiglottal_aperture_matches_generated_pixel_pins() -> None:
+    """Inventory epiglottals pin their displayed tip-to-target gap."""
+    from tests.fixtures._capture_epiglottal_constriction import capture
+
+    pinned = json.loads(
+        (
+            Path(__file__).parent / "fixtures" / "epiglottal_constriction.json"
+        ).read_text()
+    )
+    assert capture() == pinned
+    assert pinned["open"] > pinned["ʜ"] == pinned["ʢ"] > pinned["ʡ"]
+    assert pinned["ʡ"] == pytest.approx(0.0)
+
+
 @pytest.mark.parametrize("phone", ["t", "s"])
 def test_tip_closure_guards_against_a_forward_scallop(phone: str) -> None:
     """The top surface starts at an active tip instead of continuing before it."""

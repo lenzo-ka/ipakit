@@ -226,6 +226,19 @@ class VelumShape:
         return math.dist(self.tip, self.wall)
 
 
+@dataclass(frozen=True)
+class EpiglottisShape:
+    """One posed epiglottal leaf, fixed at its laryngeal attachment."""
+
+    body: tuple[tuple[float, float], ...]
+    tip: tuple[float, float]
+    target: tuple[float, float]
+
+    @property
+    def aperture(self) -> float:
+        return math.dist(self.tip, self.target)
+
+
 def _pchip_slopes(ts: list[float], ys: list[float]) -> list[float]:
     """Fritsch-Carlson monotone-cubic tangents at each control point.
 
@@ -279,9 +292,63 @@ class Head:
     tongue_closure_threshold: float = 0.60
     tongue_attachment_arc: float = 0.08
     tongue_attachment_carrier: str = "skull"
+    epiglottis_attachment_arc: float | None = None
+    epiglottis_rest_arc: float | None = None
+    epiglottis_target_arc: float | None = None
+    epiglottis_rest_offset: float = 0.0
+    epiglottis_thickness: float = 0.018
+    epiglottis_tongue_coupling: float = 0.0
     # Frontal contours: (name, carrier, arc, points). Shape stays on Head;
     # the renderer only poses, projects and strokes it.
     frontal: tuple[tuple[str, str, float, tuple[tuple[float, float], ...]], ...] = ()
+
+    def epiglottis(self, degree: float, samples: int = 20) -> EpiglottisShape | None:
+        """Pose the leaf from its laryngeal root toward the posterior wall."""
+        if (
+            self.epiglottis_attachment_arc is None
+            or self.epiglottis_rest_arc is None
+            or self.epiglottis_target_arc is None
+        ):
+            return None
+        amount = min(1.0, max(0.0, degree))
+        root = self.project(TractPoint(self.epiglottis_attachment_arc, 0.0))
+        rest = self.project(
+            TractPoint(self.epiglottis_rest_arc, self.epiglottis_rest_offset)
+        )
+        target = self.project(TractPoint(self.epiglottis_target_arc, 1.0))
+        if root is None or rest is None or target is None:
+            return None
+        tip = (
+            rest[0] + (target[0] - rest[0]) * amount,
+            rest[1] + (target[1] - rest[1]) * amount,
+        )
+        dx, dy = tip[0] - root[0], tip[1] - root[1]
+        norm = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / norm, dx / norm
+        # Schematic, not an anatomical measurement: a 0.65-thickness bow
+        # keeps the otherwise straight leaf legible at rest without moving
+        # either its declared laryngeal attachment or constriction target.
+        bend = self.epiglottis_thickness * 0.65
+        centre, half_width = [], []
+        for i in range(samples + 1):
+            t = i / samples
+            bow = math.sin(math.pi * t)
+            centre.append(
+                (
+                    root[0] + dx * t + nx * bend * bow,
+                    root[1] + dy * t + ny * bend * bow,
+                )
+            )
+            half_width.append(self.epiglottis_thickness * 0.5 * bow)
+        left = tuple(
+            (p[0] + nx * width, p[1] + ny * width)
+            for p, width in zip(centre, half_width, strict=True)
+        )
+        right = tuple(
+            (p[0] - nx * width, p[1] - ny * width)
+            for p, width in reversed(list(zip(centre, half_width, strict=True)))
+        )
+        return EpiglottisShape(body=left + right, tip=tip, target=target)
 
     def frontal_mouth(
         self, aperture_height: float, aperture_width: float, protrusion: float
@@ -997,6 +1064,22 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             tongue_closure_threshold = float(declared_threshold)
             tongue_attachment_arc = float(tongue_elem.get("attachment", 0.08))
             tongue_attachment_carrier = tongue_elem.get("carrier", "skull")
+        epiglottis_elem = elem.find("epiglottis")
+        epiglottis_attachment_arc = None
+        epiglottis_rest_arc = None
+        epiglottis_target_arc = None
+        epiglottis_rest_offset = 0.0
+        epiglottis_thickness = 0.018
+        epiglottis_tongue_coupling = 0.0
+        if epiglottis_elem is not None:
+            epiglottis_attachment_arc = float(epiglottis_elem.get("attachment", 0.95))
+            epiglottis_rest_arc = float(epiglottis_elem.get("rest-arc", 0.80))
+            epiglottis_target_arc = float(epiglottis_elem.get("target-arc", 0.87))
+            epiglottis_rest_offset = float(epiglottis_elem.get("rest-offset", 0.0))
+            epiglottis_thickness = float(epiglottis_elem.get("thickness", 0.018))
+            epiglottis_tongue_coupling = float(
+                epiglottis_elem.get("tongue-coupling", 0.0)
+            )
         frontal_elem = elem.find("frontal")
         frontal: tuple[
             tuple[str, str, float, tuple[tuple[float, float], ...]], ...
@@ -1049,6 +1132,12 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             tongue_closure_threshold=tongue_closure_threshold,
             tongue_attachment_arc=tongue_attachment_arc,
             tongue_attachment_carrier=tongue_attachment_carrier,
+            epiglottis_attachment_arc=epiglottis_attachment_arc,
+            epiglottis_rest_arc=epiglottis_rest_arc,
+            epiglottis_target_arc=epiglottis_target_arc,
+            epiglottis_rest_offset=epiglottis_rest_offset,
+            epiglottis_thickness=epiglottis_thickness,
+            epiglottis_tongue_coupling=epiglottis_tongue_coupling,
             frontal=frontal,
         )
     return heads, default
@@ -1122,6 +1211,7 @@ class Posture:
     implied: tuple[TractPoint, ...] = ()
     rest_weight: float = 0.0
     tongue_controls: tuple[TractPoint, ...] = ()
+    epiglottal: float = 0.0
 
 
 def _resting_posture(h: Head) -> Posture:
@@ -1786,6 +1876,11 @@ def posture(
     aperture_width, protrusion = _lip_posture(features, bundle)
     controls = constrictions(features, bundle)
     reading = tract_point(features, bundle)
+    epiglottal = (
+        reading.offset
+        if reading.articulator == "epiglottis" and reading.offset is not None
+        else 0.0
+    )
     # The inventory names the canonical velar location; each head projects
     # that target at its own declared resting edge. Preserve the inventory
     # coordinate for distance, but pose dorsal closures at the local anchor.
@@ -1815,6 +1910,25 @@ def posture(
             aperture_width=aperture_width,
             protrusion=protrusion,
         )
+    # A constriction deforms only the organ that makes it.  In particular an
+    # epiglottal point must not reach the tongue through this general list:
+    # its explicitly capped tongue-root assist below is the sole coupling.
+    tongue_controls = tuple(
+        point for point in controls if (point.articulator or "").startswith("tongue-")
+    )
+    if not tongue_controls and h.rest is not None:
+        tongue_controls = h.rest.tongue_controls
+    if epiglottal > 0.0 and h.epiglottis_tongue_coupling > 0.0 and h.rest is not None:
+        tongue_root_arc = landmarks(features, h.name).articulators.get("tongue-root")
+        assert tongue_root_arc is not None
+        tongue_controls += (
+            TractPoint(
+                arc=tongue_root_arc,
+                offset=h.rest.offset
+                + (1.0 - h.rest.offset) * epiglottal * h.epiglottis_tongue_coupling,
+                articulator="tongue-root",
+            ),
+        )
     return Posture(
         reading=reading,
         rest=h.rest.point if h.rest is not None else None,
@@ -1826,7 +1940,8 @@ def posture(
         aperture_width=aperture_width,
         protrusion=protrusion,
         implied=_implied_positions(features, h, controls),
-        tongue_controls=controls,
+        tongue_controls=tongue_controls,
+        epiglottal=epiglottal,
     )
 
 
@@ -2010,6 +2125,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     )
     protrusion = sum(weights[i] * u.protrusion for i, u in enumerate(units)) / total
     rest_weight = sum(weights[i] * u.rest_weight for i, u in enumerate(units)) / total
+    epiglottal = sum(weights[i] * u.epiglottal for i, u in enumerate(units)) / total
     glottal = (
         sum(
             weights[i] * (GLOTTAL_REST if u.glottal is None else u.glottal)
@@ -2031,10 +2147,11 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         implied=dominant.implied,
         rest_weight=rest_weight,
         tongue_controls=blended_tongue_controls,
+        epiglottal=epiglottal,
     )
 
 
-TRACK_VERSION = 2
+TRACK_VERSION = 3
 TRACK_TYPE = "ipakit.trajectory"
 
 
@@ -2053,6 +2170,7 @@ def _track_parameters() -> tuple[str, ...]:
         "implied",
         "rest_weight",
         "tongue_controls",
+        "epiglottal",
     )
 
 
@@ -2087,6 +2205,7 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "implied": [_point_data(point) for point in value.implied],
         "rest_weight": value.rest_weight,
         "tongue_controls": [_point_data(point) for point in value.tongue_controls],
+        "epiglottal": value.epiglottal,
     }
 
 
@@ -2138,6 +2257,7 @@ def _posture_from_data(value: Any) -> Posture:
         tongue_controls=tuple(
             _required_point_from_data(p) for p in value["tongue_controls"]
         ),
+        epiglottal=value.get("epiglottal", 0.0),
     )
 
 

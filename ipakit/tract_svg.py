@@ -300,6 +300,14 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             "wall": velum.wall,
             "aperture": velum.aperture,
         }
+    epiglottis = head.epiglottis(p.epiglottal)
+    if epiglottis is not None:
+        current["epiglottis"] = {
+            "body": epiglottis.body,
+            "tip": epiglottis.tip,
+            "target": epiglottis.target,
+            "aperture": epiglottis.aperture,
+        }
     current["landmarks"] = marks
     current["lips_closed_now"] = bool(
         (pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995)
@@ -1119,6 +1127,15 @@ def _tongue(src: dict[str, Any], to: Scaler) -> str:
     )
 
 
+def _epiglottis(src: dict[str, Any], to: Scaler) -> str:
+    """Paint the already-posed head-owned epiglottal leaf."""
+    shape = src.get("epiglottis")
+    if not shape:
+        return ""
+    points = [to(*point) for point in shape["body"]]
+    return f'<path d="{_path(points, True)}" class="epiglottis"/>'
+
+
 def _constriction(
     src: dict[str, Any],
     to: Scaler,
@@ -1562,6 +1579,7 @@ def section_svg(
     parts.append(_annotate(current, to, taken, active, posed))
     parts.append(_nasal(current, to, aperture, taken))
     parts.append(_tongue(current, to))
+    parts.append(_epiglottis(current, to))
     if mark:
         # The target knob marks a phone's primary constriction in a still. In an
         # animation frame the primary reading interpolates -- it slides from one
@@ -1742,6 +1760,8 @@ stroke-linecap:round}
 .tonguebody{fill:var(--tongueFill);stroke:none}
 .tongue{fill:none;stroke:var(--signal);stroke-width:2;stroke-linejoin:round;
 stroke-linecap:round;opacity:.9}
+.epiglottis{fill:var(--tongueFill);stroke:var(--signal);stroke-width:2;
+stroke-linejoin:round;opacity:.9}
 .reach{stroke:var(--signal);stroke-width:1;stroke-dasharray:2 3;opacity:.8}
 .constriction{fill:none;stroke:var(--signal);stroke-width:1.5}
 .constriction.shut{fill:var(--signal)}
