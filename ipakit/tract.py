@@ -1162,7 +1162,7 @@ def _implied_positions(
     if not tongue:
         return ()
     out = []
-    for name, arc in landmarks(features).articulators.items():
+    for name, arc in landmarks(features, h.name).articulators.items():
         if not name.startswith("tongue-"):
             continue
         values = [h.tongue_offset(arc, q) for q in tongue]

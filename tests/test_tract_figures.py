@@ -1259,6 +1259,18 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
 ) -> None:
     """A head's anatomy owns its flap, closure, and dorsal landmark."""
     old_ipa = IPAFeatures()
+    route_bytes = {
+        name: {
+            "drawing": tract_svg.render(tract_svg.drawing(name, None, old_ipa)),
+            "figure": tract_svg.figure(None, name, old_ipa),
+            "animate": tract_svg.animate("aŋ", name, old_ipa, frames_per_unit=2),
+            "animate_two_pane": tract_svg.animate_two_pane(
+                "aŋ", name, old_ipa, frames_per_unit=2
+            ),
+            "frontal_figure": tract_svg.frontal_figure("ŋ", name, old_ipa),
+        }
+        for name in heads()
+    }
     old = {
         name: (
             shape.velum_lowered_arc,
@@ -1284,6 +1296,11 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     moved_heads = heads()
     moved = moved_heads["child"]
     moved_pose = posture(moved_ipa, "ŋ", moved)
+    moved_implied = next(
+        point
+        for point in posture(moved_ipa, "a", moved).implied
+        if point.articulator == "tongue-dorsum"
+    )
     moved_dorsum = tract_svg.drawing("child", None, moved_ipa)["geometry"][
         "landmarks"
     ].articulators["tongue-dorsum"]
@@ -1296,6 +1313,8 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
         pytest.approx(old_arc + 0.01),
         pytest.approx(old_arc + 0.01),
     )
+    assert moved_implied.arc == pytest.approx(old_arc + 0.01)
+    assert moved_implied.offset == pytest.approx(0.1983610701)
     for name in ("adult-male", "adult-female"):
         shape = moved_heads[name]
         assert (
@@ -1309,27 +1328,26 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
     assert velum is not None and dorsum == pytest.approx(velum.tip)
 
-    # Every public renderer which resolves landmark geometry must select the
-    # same head as its posture. Keep this as a call-site-class regression: a
-    # newly added rendering route cannot silently fall back to canonical arcs.
-    resolved_for: list[str | None] = []
-    real_landmarks = tract_module.landmarks
-
-    def recording_landmarks(
-        features: IPAFeatures, head_name: str | None = None
-    ) -> tract_module.Landmarks:
-        resolved_for.append(head_name)
-        marks = real_landmarks(features, head_name)
-        assert marks.articulators["tongue-dorsum"] == pytest.approx(old_arc + 0.01)
-        return marks
-
-    monkeypatch.setattr(tract_svg, "landmarks", recording_landmarks)
-    tract_svg.drawing("child", None, moved_ipa)
-    tract_svg.figure(None, "child", moved_ipa)
-    tract_svg.animate("ŋ", "child", moved_ipa, frames_per_unit=1)
-    tract_svg.animate_two_pane("ŋ", "child", moved_ipa, frames_per_unit=1)
-    tract_svg.frontal_figure(None, "child", moved_ipa)
-    assert resolved_for == ["child"] * 5
+    moved_route_bytes = {
+        name: {
+            "drawing": tract_svg.render(tract_svg.drawing(name, None, moved_ipa)),
+            "figure": tract_svg.figure(None, name, moved_ipa),
+            "animate": tract_svg.animate("aŋ", name, moved_ipa, frames_per_unit=2),
+            "animate_two_pane": tract_svg.animate_two_pane(
+                "aŋ", name, moved_ipa, frames_per_unit=2
+            ),
+            "frontal_figure": tract_svg.frontal_figure("ŋ", name, moved_ipa),
+        }
+        for name in moved_heads
+    }
+    changed = {
+        route
+        for route in route_bytes["child"]
+        if moved_route_bytes["child"][route] != route_bytes["child"][route]
+    }
+    assert changed == set(route_bytes["child"])
+    for name in ("adult-male", "adult-female"):
+        assert moved_route_bytes[name] == route_bytes[name]
     tract_module._load_heads.cache_clear()
 
 
