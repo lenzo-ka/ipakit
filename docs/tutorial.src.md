@@ -27,7 +27,7 @@ It is organized by what you want to do, not by module. Each section shows **the 
 line and the Python API side by side** for the same task, because most people arrive
 wanting one and later need the other.
 
-ipakit depends on tiergraph; installing ipakit installs its published dependencies:
+ipakit depends on tiergraph, installed from its pinned Git source; installing ipakit resolves it automatically:
 
 ```bash
 pip install ipakit
