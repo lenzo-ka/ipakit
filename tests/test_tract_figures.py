@@ -1258,6 +1258,7 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A head's anatomy owns its flap, closure, and dorsal landmark."""
+    original_anatomy_file = anatomy.ANATOMY_FILE
     old_ipa = IPAFeatures()
     route_bytes = {
         name: {
@@ -1328,6 +1329,30 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
     assert velum is not None and dorsum == pytest.approx(velum.tip)
 
+    # Hold the moved Head constant and remove only its landmark override. This
+    # isolates each route's landmark resolution from the child's other geometry.
+    with monkeypatch.context() as canonical_landmarks:
+        canonical_landmarks.setattr(anatomy, "ANATOMY_FILE", original_anatomy_file)
+        child_without_override = {
+            "drawing": tract_svg.render(tract_svg.drawing("child", None, moved_ipa)),
+            "figure": tract_svg.figure(None, "child", moved_ipa),
+            "animate": tract_svg.animate("aŋ", "child", moved_ipa, frames_per_unit=2),
+            "animate_two_pane": tract_svg.animate_two_pane(
+                "aŋ", "child", moved_ipa, frames_per_unit=2
+            ),
+            "frontal_figure": tract_svg.frontal_figure("ŋ", "child", moved_ipa),
+        }
+
+    resolved_for: list[str | None] = []
+    real_landmarks = tract_svg.landmarks
+
+    def recording_landmarks(
+        features: IPAFeatures, head_name: str | None = None
+    ) -> tract_module.Landmarks:
+        resolved_for.append(head_name)
+        return real_landmarks(features, head_name)
+
+    monkeypatch.setattr(tract_svg, "landmarks", recording_landmarks)
     moved_route_bytes = {
         name: {
             "drawing": tract_svg.render(tract_svg.drawing(name, None, moved_ipa)),
@@ -1340,12 +1365,13 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
         }
         for name in moved_heads
     }
+    assert resolved_for == [name for name in moved_heads for _ in range(5)]
     changed = {
         route
-        for route in route_bytes["child"]
-        if moved_route_bytes["child"][route] != route_bytes["child"][route]
+        for route in child_without_override
+        if moved_route_bytes["child"][route] != child_without_override[route]
     }
-    assert changed == set(route_bytes["child"])
+    assert changed == set(child_without_override)
     for name in ("adult-male", "adult-female"):
         assert moved_route_bytes[name] == route_bytes[name]
     tract_module._load_heads.cache_clear()
