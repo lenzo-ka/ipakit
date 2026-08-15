@@ -35,6 +35,7 @@
            file that names no default cannot answer the question every
            caller who does not care about anatomy is asking. -->
       <attribute name="default"><text/></attribute>
+      <ref name="landmarks"/>
       <oneOrMore>
         <element name="head">
           <attribute name="name"><text/></attribute>
@@ -66,6 +67,24 @@
       </oneOrMore>
     </element>
   </start>
+
+  <define name="landmarks">
+    <element name="landmarks">
+      <oneOrMore>
+        <element name="landmark">
+          <attribute name="name"><text/></attribute>
+          <attribute name="arc"><ref name="normalized"/></attribute>
+          <attribute name="provenance"><text/></attribute>
+          <zeroOrMore>
+            <element name="head">
+              <attribute name="name"><text/></attribute>
+              <attribute name="arc"><ref name="normalized"/></attribute>
+            </element>
+          </zeroOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
 
   <!-- All seven parts are required. `ipakit/tract.py` defaults each of them,
        which is what makes an incomplete head draw rather than raise, and
@@ -122,11 +141,13 @@
   </define>
 
   <define name="velum">
-    <!-- Soft-palate flap thickness in normalized head coordinates. Its
-         moving centerline is derived from the port and oral wall, while the
-         head owns the tissue extent. -->
+    <!-- Soft-palate body in normalized head coordinates. The hinge is the
+         hard-palate junction and lowered-arc is the velar boundary target;
+         its free edge moves between there and the posterior port wall. -->
     <element name="velum">
       <attribute name="thickness"><ref name="normalized"/></attribute>
+      <attribute name="hinge-arc"><ref name="normalized"/></attribute>
+      <attribute name="lowered-landmark"><text/></attribute>
       <attribute name="provenance"><text/></attribute>
     </element>
   </define>

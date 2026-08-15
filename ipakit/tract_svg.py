@@ -46,7 +46,6 @@ change here cannot move a distance. ``scripts/sweep.py diff`` is the check.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import re
@@ -232,7 +231,8 @@ def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
         "rows": sample(h, close=close),
         "nasal": [n for n in nasal if None not in n.values()],
         "port_arc": h.port_arc,
-        "velum_thickness": h.velum_thickness,
+        "velum_hinge_arc": h.velum_hinge_arc,
+        "velum_lowered_arc": h.velum_lowered_arc,
         "teeth": [{"name": n, "x": x, "y": y, "carrier": c} for n, x, y, c in h.teeth],
         "hinge": h.hinge,
         "lips_open": h.lips(close=close),
@@ -290,6 +290,15 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
     if head.rest is not None and head.rest.jaw == "closed":
         close = max(close, p.rest_weight)
     current = geometry(head.name, close)
+    velum = head.velum(p.velic)
+    if velum is not None:
+        current["velum"] = {
+            "body": velum.body,
+            "oral": velum.oral,
+            "tip": velum.tip,
+            "wall": velum.wall,
+            "aperture": velum.aperture,
+        }
     current["landmarks"] = marks
     current["lips_closed_now"] = bool(
         (pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995)
@@ -594,8 +603,8 @@ def drawing(
     # once module-level, resolved against the package data at import, so a
     # caller's own ``features`` moved the posture and left the folds, the
     # places and the articulators speaking for a different inventory.
-    marks = landmarks(ipa)
     h = head(name)
+    marks = landmarks(ipa, h.name)
     p = posture(ipa, phone, h)
     current = build_geometry(h, marks, p)
     caption: dict[str, Any] | None = None
@@ -721,7 +730,7 @@ def frontal_figure(
     ipa = features or IPAFeatures()
     h = head(head_name)
     return standalone_frontal_svg(
-        build_frontal_geometry(h, landmarks(ipa), posture(ipa, phone, h))
+        build_frontal_geometry(h, landmarks(ipa, h.name), posture(ipa, phone, h))
     )
 
 
@@ -809,7 +818,6 @@ CHAR_W = 6.72  # advance of the 10.5px monospace label face, rounded up:
 # reserving less than the text occupies lets labels collide
 LINE_H = 12.0
 LIP_INSET = 0.014  # arc taken off the front, so the boundary meets the lips
-PORT_SPAN = 0.055  # arc either side of the port at a fully lowered velum
 
 
 def _lips(
@@ -1091,7 +1099,7 @@ def _tongue_body(src: dict[str, Any], to: Scaler) -> str | None:
     return f"M{seg} Q{cx:.2f},{cy:.2f} {tx:.2f},{ty:.2f} Z"
 
 
-def _tongue(src: dict[str, Any], to: Scaler, mask_attr: str = "") -> str:
+def _tongue(src: dict[str, Any], to: Scaler) -> str:
     """The tongue as a body, not a line.
 
     Its upper surface is what constricts, but drawn alone it reads as an arc
@@ -1105,25 +1113,9 @@ def _tongue(src: dict[str, Any], to: Scaler, mask_attr: str = "") -> str:
         return ""
     top = [to(x, y) for _, x, y in surface]
     return (
-        f'<path d="{body}" class="tonguebody"{mask_attr}/>'
-        f'<path d="{_path(top)}" class="tongue"{mask_attr}/>'
+        f'<path d="{body}" class="tonguebody"/>'
+        f'<path d="{_path(top)}" class="tongue"/>'
     )
-
-
-def _tongue_occlusion(velum: str) -> tuple[str, str]:
-    """Clip the tongue at the velum: the roof wins where the bodies meet."""
-    mask_id = "tongue-clear-" + hashlib.sha256(velum.encode()).hexdigest()[:12]
-    definition = (
-        f'<defs><mask id="{mask_id}" maskUnits="userSpaceOnUse" '
-        f'x="0" y="0" width="{WIDTH}" height="{SECTION_HEIGHT}">'
-        f'<rect x="0" y="0" width="{WIDTH}" height="{SECTION_HEIGHT}" fill="white"/>'
-        # The tongue outline is 2 px wide. Three clears that outline plus its
-        # antialias band, rather than leaving a one-pixel overlap at contact.
-        f'<path d="{velum}" fill="black" stroke="black" stroke-width="3" '
-        'shape-rendering="crispEdges"/>'
-        "</mask></defs>"
-    )
-    return definition, f' mask="url(#{mask_id})"'
 
 
 def _constriction(
@@ -1195,9 +1187,14 @@ def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
     if declared is None:
         return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
     port = float(declared)
-    half = PORT_SPAN * aperture
-    before = [to(*r["wall"]) for r in rows if r["arc"] <= port - half]
-    after = [to(*r["wall"]) for r in rows if r["arc"] >= port + half]
+    hinge = src.get("velum_hinge_arc")
+    if hinge is None:
+        return f'<path d="{_path([to(*r["wall"]) for r in rows])}" class="wall"/>'
+    # The moving velum replaces this exact part of the oral boundary. Its
+    # declared hinge, rather than a renderer span, says where the fixed palate
+    # ends; the posterior port says where the pharyngeal wall resumes.
+    before = [to(*r["wall"]) for r in rows if r["arc"] <= float(hinge)]
+    after = [to(*r["wall"]) for r in rows if r["arc"] >= port]
     # The roof meets the lip whether or not the velum has broken it further
     # back; this branch used to skip the seam and leave the front adrift.
     if seam is not None and before:
@@ -1409,11 +1406,11 @@ def _nasal(
     to: Scaler,
     aperture: float,
     taken: list[tuple[float, ...]],
-) -> tuple[str, str]:
+) -> str:
     """The nasal branch, and the velum at the aperture this bundle asks for."""
     rows = src.get("nasal") or []
     if not rows:
-        return "", ""
+        return ""
     upper = [to(*r["wall"]) for r in rows]
     lower = [to(*r["low"]) for r in rows]
     # The nasopharynx and the oropharynx are continuous; the port is only
@@ -1462,41 +1459,20 @@ def _nasal(
             f'<text x="{nx:.1f}" y="{ny + depth + 10:.1f}" class="lbl nasal" '
             f'text-anchor="middle">{label.replace("-", " ")}</text>'
         )
-    declared_port = src.get("port_arc")
-    if declared_port is None:
-        return "".join(parts), ""
-    port_arc = float(declared_port)
-    hinge = _at(src, max(port_arc - 0.08, 0.0), "wall")
-    lowered_to = _at(src, port_arc, "open")
-    if hinge is None or lowered_to is None:
-        return "".join(parts), ""
-    hx, hy = to(*hinge)
-    sealed = to(*rows[-1]["mid"])
-    lowered = to(*lowered_to)
-    tx = sealed[0] + (lowered[0] - sealed[0]) * aperture
-    ty = sealed[1] + (lowered[1] - sealed[1]) * aperture
+    posed = src.get("velum")
+    if not posed:
+        return "".join(parts)
+    body = [to(*point) for point in posed["body"]]
+    tx, ty = to(*posed["tip"])
     if aperture <= 0.01:
         state = "sealed"
     elif aperture >= 0.99:
         state = "open"
     else:
         state = "part-open"
-    # The soft palate is a flap, not a centerline.  Its thickness is declared
-    # by the head model; the renderer only turns that extent into a closed
-    # quadratic body around the same hinge and tip trajectory.
-    declared_thickness = float(src.get("velum_thickness", 0.018))
-    origin = to(0.0, 0.0)
-    edge = to(declared_thickness, 0.0)
-    thickness = max(2.0, abs(edge[0] - origin[0]))
-    half = thickness / 2
-    velum = (
-        f"M{hx:.1f},{hy - half:.1f} Q{hx:.1f},{ty - half:.1f} "
-        f"{tx:.1f},{ty - half:.1f} L{tx:.1f},{ty + half:.1f} "
-        f"Q{hx:.1f},{ty + half:.1f} {hx:.1f},{hy + half:.1f} Z"
-    )
-    tongue_mask, tongue_mask_attr = _tongue_occlusion(velum)
-    parts.insert(0, tongue_mask)
-    parts.append(f'<path d="{velum}" class="velum"/>')
+    # Shape and thickness are already posed by Head; this layer only paints
+    # the supplied polygon.
+    parts.append(f'<path d="{_path(body, close=True)}" class="velum"/>')
     for text, vx, vy, depth in _place_labels(
         [(f"velum\nport {state}", (tx, ty))], 14, 13, taken
     ):
@@ -1505,7 +1481,7 @@ def _nasal(
             f'y2="{vy + depth:.1f}" class="lead art"/>'
             + _text(vx, vy + depth + 10, "lbl velum", text)
         )
-    return "".join(parts), tongue_mask_attr
+    return "".join(parts)
 
 
 def section_svg(
@@ -1583,9 +1559,8 @@ def section_svg(
     # placed, so the two cannot collide however the head is proportioned.
     strip = _strip([dict(m) for m in current.get("marks") or []], taken)
     parts.append(_annotate(current, to, taken, active, posed))
-    nasal, tongue_mask_attr = _nasal(current, to, aperture, taken)
-    parts.append(nasal)
-    parts.append(_tongue(current, to, tongue_mask_attr))
+    parts.append(_nasal(current, to, aperture, taken))
+    parts.append(_tongue(current, to))
     if mark:
         # The target knob marks a phone's primary constriction in a still. In an
         # animation frame the primary reading interpolates -- it slides from one
@@ -2063,7 +2038,7 @@ def animate(
         else head_name if head_name is not None else head().name
     )
     h = head(name)
-    marks = landmarks(ipa)
+    marks = landmarks(ipa, h.name)
     track = (
         word
         if isinstance(word, Trajectory)
@@ -2115,7 +2090,7 @@ def animate_two_pane(
         else (head_name or head().name)
     )
     h = head(name)
-    marks = landmarks(ipa)
+    marks = landmarks(ipa, h.name)
     track = (
         word
         if isinstance(word, Trajectory)

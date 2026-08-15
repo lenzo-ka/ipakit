@@ -51,6 +51,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .anatomy import landmark_arc
 from .constants import PHONEMAPS_DIR
 from .models import Feature
 
@@ -204,6 +205,27 @@ class MidlinePoint:
     provenance: str = "hand-placed"
 
 
+@dataclass(frozen=True)
+class VelumShape:
+    """One posed soft-palate body and the port it leaves at the wall."""
+
+    oral: tuple[tuple[float, float], ...]
+    nasal: tuple[tuple[float, float], ...]
+    wall: tuple[float, float]
+
+    @property
+    def tip(self) -> tuple[float, float]:
+        return self.oral[-1]
+
+    @property
+    def body(self) -> tuple[tuple[float, float], ...]:
+        return self.oral + tuple(reversed(self.nasal))
+
+    @property
+    def aperture(self) -> float:
+        return math.dist(self.tip, self.wall)
+
+
 def _pchip_slopes(ts: list[float], ys: list[float]) -> list[float]:
     """Fritsch-Carlson monotone-cubic tangents at each control point.
 
@@ -245,6 +267,8 @@ class Head:
     nasal: tuple[MidlinePoint, ...] = ()
     port_arc: float | None = None
     velum_thickness: float = 0.018
+    velum_hinge_arc: float | None = None
+    velum_lowered_arc: float | None = None
     teeth: tuple[tuple[str, float, float, str], ...] = ()
     hinge: tuple[float, float] | None = None
     jaw_rotation: float = 0.0
@@ -302,6 +326,74 @@ class Head:
             "upper-lip": upper_outer + tuple(reversed(upper_edge)),
             "lower-lip": lower_edge + lower_outer,
         }
+
+    def velum(self, aperture: float, samples: int = 24) -> VelumShape | None:
+        """Pose the soft palate between its oral boundary and the port wall.
+
+        Lowered, its oral face continues the wall from the hard-palate hinge
+        to the velar target. A raised dorsum consequently rests on the flap
+        because both use the same boundary, without one being clipped against
+        the other. Raised, the free edge reaches the posterior wall. Tissue
+        thickness grows only into the nasal side, so contact is not overlap.
+        """
+        if (
+            self.velum_hinge_arc is None
+            or self.velum_lowered_arc is None
+            or not self.nasal
+        ):
+            return None
+        amount = min(1.0, max(0.0, aperture))
+        hinge_arc = self.velum_hinge_arc
+        edge_arc = self.velum_lowered_arc
+        wall = self.project_nasal(1.0, 0.0)
+        if wall is None:
+            return None
+        lowered = []
+        for i in range(samples + 1):
+            arc = hinge_arc + (edge_arc - hinge_arc) * i / samples
+            point = self.project(TractPoint(arc=arc, offset=1.0))
+            if point is None:
+                return None
+            lowered.append(point)
+        # Follow the oral wall to the port. A straight hinge-to-port chord
+        # cuts through oral space and therefore through a raised dorsum.
+        port_arc = self.port_arc if self.port_arc is not None else edge_arc
+        raised = []
+        for i in range(samples + 1):
+            arc = hinge_arc + (port_arc - hinge_arc) * i / samples
+            point = self.project(TractPoint(arc=arc, offset=1.0))
+            if point is None:
+                return None
+            raised.append(point)
+        raised[-1] = wall
+        oral = tuple(
+            (
+                high[0] + (low[0] - high[0]) * amount,
+                high[1] + (low[1] - high[1]) * amount,
+            )
+            for high, low in zip(raised, lowered, strict=True)
+        )
+        nasal = []
+        for i, point in enumerate(oral):
+            arc = hinge_arc + (edge_arc - hinge_arc) * i / samples
+            floor = self.project(TractPoint(arc=arc, offset=0.0))
+            outer = self.project(TractPoint(arc=arc, offset=1.0))
+            if floor is None or outer is None:
+                return None
+            # The tract's own floor-to-wall direction is the outward (nasal)
+            # side of the oral boundary. This remains the tissue side as the
+            # flap raises; deriving it from the boundary prevents a normal
+            # chosen by screen orientation from growing into the tongue.
+            dx, dy = outer[0] - floor[0], outer[1] - floor[1]
+            norm = math.hypot(dx, dy) or 1.0
+            nx, ny = dx / norm, dy / norm
+            nasal.append(
+                (
+                    point[0] + nx * self.velum_thickness,
+                    point[1] + ny * self.velum_thickness,
+                )
+            )
+        return VelumShape(oral=oral, nasal=tuple(nasal), wall=wall)
 
     @staticmethod
     def _tangents_of(pts: Sequence[MidlinePoint]) -> list[tuple[float, float]]:
@@ -839,6 +931,23 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             if velum_elem is not None
             else 0.018
         )
+        raw_hinge_arc = velum_elem.get("hinge-arc") if velum_elem is not None else None
+        velum_hinge_arc = float(raw_hinge_arc) if raw_hinge_arc else None
+        raw_lowered_arc = (
+            velum_elem.get("lowered-arc") if velum_elem is not None else None
+        )
+        lowered_landmark = (
+            velum_elem.get("lowered-landmark") if velum_elem is not None else None
+        )
+        if raw_lowered_arc and lowered_landmark:
+            raise ValueError(
+                f"head {name!r} declares both lowered-arc and lowered-landmark"
+            )
+        velum_lowered_arc = (
+            float(raw_lowered_arc)
+            if raw_lowered_arc
+            else landmark_arc(lowered_landmark, name) if lowered_landmark else None
+        )
         teeth_elem = elem.find("teeth")
         teeth: tuple[tuple[str, float, float, str], ...] = ()
         if teeth_elem is not None:
@@ -928,6 +1037,8 @@ def _load_heads() -> tuple[dict[str, Head], str]:
             nasal=nasal_points,
             port_arc=port_arc,
             velum_thickness=velum_thickness,
+            velum_hinge_arc=velum_hinge_arc,
+            velum_lowered_arc=velum_lowered_arc,
             teeth=teeth,
             hinge=hinge,
             jaw_rotation=jaw_rotation,
@@ -1051,7 +1162,7 @@ def _implied_positions(
     if not tongue:
         return ()
     out = []
-    for name, arc in landmarks(features).articulators.items():
+    for name, arc in landmarks(features, h.name).articulators.items():
         if not name.startswith("tongue-"):
             continue
         values = [h.tongue_offset(arc, q) for q in tongue]
@@ -1061,15 +1172,19 @@ def _implied_positions(
     return tuple(out)
 
 
-def landmarks(features: IPAFeatures) -> Landmarks:
-    """Read the drawable landmarks out of the declared data."""
+def landmarks(features: IPAFeatures, head_name: str | None = None) -> Landmarks:
+    """Read declared drawable landmarks, localized for ``head_name``."""
 
     def arcs(name: str) -> dict[str, float]:
         feature = features.features.get(name)
         if feature is None:
             return {}
         return {
-            value: coords["arc"]
+            value: (
+                landmark_arc(anchor, head_name)
+                if (anchor := features._arc_landmarks.get((name, value)))
+                else coords["arc"]
+            )
             for value, coords in feature.coordinates.items()
             if coords.get("arc") is not None
         }
@@ -1671,6 +1786,22 @@ def posture(
     aperture_width, protrusion = _lip_posture(features, bundle)
     controls = constrictions(features, bundle)
     reading = tract_point(features, bundle)
+    # The inventory names the canonical velar location; each head projects
+    # that target at its own declared resting edge. Preserve the inventory
+    # coordinate for distance, but pose dorsal closures at the local anchor.
+    named_places = set(str(bundle.get("place") or "").split(Feature.COMBINER))
+    has_velar = "velar" in named_places or bundle.get("airstream") == "velaric"
+    if has_velar:
+        canonical = landmark_arc("velum-rest")
+        local = landmark_arc("velum-rest", h.name)
+
+        def localize(point: TractPoint) -> TractPoint:
+            if point.arc is not None and abs(point.arc - canonical) < 1e-12:
+                return TractPoint(local, point.offset, point.articulator)
+            return point
+
+        reading = localize(reading)
+        controls = tuple(localize(point) for point in controls)
     if (
         not reading.placed
         and not any(control.placed for control in controls)

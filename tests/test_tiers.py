@@ -67,10 +67,13 @@ class TestTheTierVocabularyIsDeclaredAndNominal:
     def test_the_same_comparison_sees_a_perturbation(self, tmp_path: Path) -> None:
         """The control. Moving an arc phones actually read must move pairs."""
         text = SHIPPED.read_text()
-        assert 'name="velar" arc="0.45"' in text
+        assert 'name="velar" arc-landmark="velum-rest"' in text
         moved_file = tmp_path / "perturbed.xml"
         moved_file.write_text(
-            text.replace('name="velar" arc="0.45"', 'name="velar" arc="0.60"')
+            text.replace(
+                'name="velar" arc-landmark="velum-rest"',
+                'name="velar" arc="0.60"',
+            )
         )
         shipped = IPAFeatures(xml_path=SHIPPED)
         perturbed = IPAFeatures(xml_path=moved_file)
@@ -178,9 +181,12 @@ class TestDeclaringATierDoesNotInvalidateASavedMatrix:
         from ipakit.metric import metric_fingerprint
 
         text = SHIPPED.read_text()
-        assert 'name="velar" arc="0.45"' in text
+        assert 'name="velar" arc-landmark="velum-rest"' in text
         moved = _load(
-            text.replace('name="velar" arc="0.45"', 'name="velar" arc="0.60"'),
+            text.replace(
+                'name="velar" arc-landmark="velum-rest"',
+                'name="velar" arc="0.60"',
+            ),
             tmp_path / "moved.xml",
         )
         phones = tuple(ipa.phones)

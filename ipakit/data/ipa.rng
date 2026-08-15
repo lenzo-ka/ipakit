@@ -188,6 +188,7 @@
                    are normalized: arc runs 0 at the lips to 1 at the
                    glottis, offset 0 at the midline to 1 at the wall. -->
               <optional><attribute name="arc"><ref name="normalized"/></attribute></optional>
+              <optional><attribute name="arc-landmark"><text/></attribute></optional>
               <optional><attribute name="offset"><ref name="normalized"/></attribute></optional>
               <!-- A value that holds no position on the continuum at all:
                    silence is not a degree of constriction. -->

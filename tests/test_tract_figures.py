@@ -37,7 +37,8 @@ from typing import Any
 
 import ipakit
 import pytest
-from ipakit import tract_svg
+from ipakit import anatomy, tract_svg
+from ipakit import tract as tract_module
 from ipakit.constants import METADATA_ATTRS
 from ipakit.features import IPAFeatures
 from ipakit.models import Feature
@@ -1197,6 +1198,232 @@ def _pixels(svg: str, path: Path, width: int = 1520) -> tuple[int, list[bytes]]:
     return w, rows
 
 
+def _alpha_pixels(
+    width: int, rows: list[bytes], threshold: int = 0
+) -> set[tuple[int, int]]:
+    return {
+        (x, y)
+        for y, row in enumerate(rows)
+        for x in range(width)
+        if row[x * 4 + 3] > threshold
+    }
+
+
+def _pixel_hausdorff(one: set[tuple[int, int]], other: set[tuple[int, int]]) -> float:
+    def directed(source: set[tuple[int, int]], target: set[tuple[int, int]]) -> float:
+        return max(
+            min(math.dist(point, candidate) for candidate in target) for point in source
+        )
+
+    return max(directed(one, other), directed(other, one))
+
+
+VELIC_PIN_PATH = Path(__file__).resolve().parent / "fixtures" / "velic_contrast.json"
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_velic_contrast_matches_generated_pixel_pins(tmp_path: Path) -> None:
+    """Every place keeps the same wall gap, measured in rendered pixels."""
+    pins = json.loads(VELIC_PIN_PATH.read_text(encoding="utf-8"))
+    measured = {}
+    for nasal, oral in (("m", "b"), ("n", "d"), ("ŋ", "k")):
+        width, nasal_rows = _pixels(
+            _only_layer(tract_svg.figure(nasal), "velum"), tmp_path / f"{nasal}.svg"
+        )
+        _, oral_rows = _pixels(
+            _only_layer(tract_svg.figure(oral), "velum"), tmp_path / f"{oral}.svg"
+        )
+        measured[f"{nasal}-{oral}"] = round(
+            _pixel_hausdorff(
+                _alpha_pixels(width, nasal_rows), _alpha_pixels(width, oral_rows)
+            ),
+            2,
+        )
+    assert measured == pins
+    assert len(set(measured.values())) == 1, measured
+
+
+def test_lowered_velum_is_the_dorsums_declared_boundary() -> None:
+    """A velar closure and the lowered flap meet without an endpoint clamp."""
+    ipa, shape = IPAFeatures(), head()
+    p = posture(ipa, "ŋ", shape)
+    velum = shape.velum(1.0)
+    assert velum is not None and shape.velum_lowered_arc is not None
+    dorsum = shape.tongue_point(shape.velum_lowered_arc, p.constrictions)
+    assert dorsum is not None
+    assert dorsum == pytest.approx(velum.tip)
+
+
+def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A head's anatomy owns its flap, closure, and dorsal landmark."""
+    original_anatomy_file = anatomy.ANATOMY_FILE
+    old_ipa = IPAFeatures()
+    route_bytes = {
+        name: {
+            "drawing": tract_svg.render(tract_svg.drawing(name, None, old_ipa)),
+            "figure": tract_svg.figure(None, name, old_ipa),
+            "animate": tract_svg.animate("aŋ", name, old_ipa, frames_per_unit=2),
+            "animate_two_pane": tract_svg.animate_two_pane(
+                "aŋ", name, old_ipa, frames_per_unit=2
+            ),
+            "frontal_figure": tract_svg.frontal_figure("ŋ", name, old_ipa),
+        }
+        for name in heads()
+    }
+    old = {
+        name: (
+            shape.velum_lowered_arc,
+            posture(old_ipa, "ŋ", shape).constrictions[-1].arc,
+            tract_svg.drawing(name, None, old_ipa)["geometry"][
+                "landmarks"
+            ].articulators["tongue-dorsum"],
+        )
+        for name, shape in heads().items()
+    }
+    old_arc = old["child"][0]
+
+    tree = ET.parse(anatomy.ANATOMY_FILE)
+    landmark = tree.getroot().find("landmarks/landmark[@name='velum-rest']")
+    assert landmark is not None and old_arc is not None
+    ET.SubElement(landmark, "head", name="child", arc=str(old_arc + 0.01))
+    moved_path = tmp_path / "tract-anatomy.xml"
+    tree.write(moved_path, encoding="utf-8", xml_declaration=True)
+    monkeypatch.setattr(anatomy, "ANATOMY_FILE", moved_path)
+
+    tract_module._load_heads.cache_clear()
+    moved_ipa = IPAFeatures()
+    moved_heads = heads()
+    moved = moved_heads["child"]
+    moved_pose = posture(moved_ipa, "ŋ", moved)
+    moved_implied = next(
+        point
+        for point in posture(moved_ipa, "a", moved).implied
+        if point.articulator == "tongue-dorsum"
+    )
+    moved_dorsum = tract_svg.drawing("child", None, moved_ipa)["geometry"][
+        "landmarks"
+    ].articulators["tongue-dorsum"]
+    assert (
+        moved.velum_lowered_arc,
+        moved_pose.constrictions[-1].arc,
+        moved_dorsum,
+    ) == (
+        pytest.approx(old_arc + 0.01),
+        pytest.approx(old_arc + 0.01),
+        pytest.approx(old_arc + 0.01),
+    )
+    assert moved_implied.arc == pytest.approx(old_arc + 0.01)
+    assert moved_implied.offset == pytest.approx(0.1983610701)
+    for name in ("adult-male", "adult-female"):
+        shape = moved_heads[name]
+        assert (
+            shape.velum_lowered_arc,
+            posture(moved_ipa, "ŋ", shape).constrictions[-1].arc,
+            tract_svg.drawing(name, None, moved_ipa)["geometry"][
+                "landmarks"
+            ].articulators["tongue-dorsum"],
+        ) == old[name]
+    velum = moved.velum(1.0)
+    dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
+    assert velum is not None and dorsum == pytest.approx(velum.tip)
+
+    # Hold the moved Head constant and remove only its landmark override. This
+    # isolates each route's landmark resolution from the child's other geometry.
+    with monkeypatch.context() as canonical_landmarks:
+        canonical_landmarks.setattr(anatomy, "ANATOMY_FILE", original_anatomy_file)
+        child_without_override = {
+            "drawing": tract_svg.render(tract_svg.drawing("child", None, moved_ipa)),
+            "figure": tract_svg.figure(None, "child", moved_ipa),
+            "animate": tract_svg.animate("aŋ", "child", moved_ipa, frames_per_unit=2),
+            "animate_two_pane": tract_svg.animate_two_pane(
+                "aŋ", "child", moved_ipa, frames_per_unit=2
+            ),
+            "frontal_figure": tract_svg.frontal_figure("ŋ", "child", moved_ipa),
+        }
+
+    resolved_for: list[str | None] = []
+    real_landmarks = tract_svg.landmarks
+
+    def recording_landmarks(
+        features: IPAFeatures, head_name: str | None = None
+    ) -> tract_module.Landmarks:
+        resolved_for.append(head_name)
+        return real_landmarks(features, head_name)
+
+    monkeypatch.setattr(tract_svg, "landmarks", recording_landmarks)
+    moved_route_bytes = {
+        name: {
+            "drawing": tract_svg.render(tract_svg.drawing(name, None, moved_ipa)),
+            "figure": tract_svg.figure(None, name, moved_ipa),
+            "animate": tract_svg.animate("aŋ", name, moved_ipa, frames_per_unit=2),
+            "animate_two_pane": tract_svg.animate_two_pane(
+                "aŋ", name, moved_ipa, frames_per_unit=2
+            ),
+            "frontal_figure": tract_svg.frontal_figure("ŋ", name, moved_ipa),
+        }
+        for name in moved_heads
+    }
+    assert resolved_for == [name for name in moved_heads for _ in range(5)]
+    changed = {
+        route
+        for route in child_without_override
+        if moved_route_bytes["child"][route] != child_without_override[route]
+    }
+    assert changed == set(child_without_override)
+    for name in ("adult-male", "adult-female"):
+        assert moved_route_bytes[name] == route_bytes[name]
+    tract_module._load_heads.cache_clear()
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@pytest.mark.parametrize("head_name", sorted(heads()))
+@pytest.mark.parametrize("phone", ["ŋ", "k", "ɡ", "k͡p", "ǃ"])
+def test_velum_and_dorsum_filled_interiors_do_not_overlap(
+    tmp_path: Path, head_name: str, phone: str
+) -> None:
+    """Lowered and sealed contacts are boundaries, never penetration."""
+    svg = tract_svg.figure(phone, head_name=head_name)
+    stem = f"{head_name}-{ord(phone[0])}"
+    width, velum_rows = _pixels(
+        _only_layer(svg, "velum", fill_only=True), tmp_path / f"{stem}-velum.svg"
+    )
+    _, tongue_rows = _pixels(
+        _only_layer(svg, "tonguebody", fill_only=True), tmp_path / f"{stem}-tongue.svg"
+    )
+    overlap = _alpha_pixels(width, velum_rows, 127) & _alpha_pixels(
+        width, tongue_rows, 20
+    )
+    assert not overlap, (head_name, phone, len(overlap))
+
+    tongue = ET.fromstring(_only_layer(svg, "tonguebody", fill_only=True))
+    tonguebody = next(
+        node
+        for node in tongue.iter()
+        if "tonguebody" in node.attrib.get("class", "").split()
+    )
+    tonguebody.set("transform", "translate(0,-0.2)")
+    _, translated_rows = _pixels(
+        ET.tostring(tongue, encoding="unicode"), tmp_path / f"{stem}-translated.svg"
+    )
+    translated_overlap = _alpha_pixels(width, velum_rows, 127) & _alpha_pixels(
+        width, translated_rows, 20
+    )
+    assert translated_overlap, (head_name, phone)
+
+
+def test_nasal_floor_truncation_still_varies_every_pair() -> None:
+    """The independent 0.18 * aperture nasal-branch cue remains intact."""
+    for nasal, oral in (("m", "b"), ("n", "d"), ("ŋ", "k")):
+        nasal_svg, oral_svg = tract_svg.figure(nasal), tract_svg.figure(oral)
+        pattern = r'<path d="([^"]+)" class="nasalside"/>'
+        nasal_sides = re.findall(pattern, nasal_svg)
+        oral_sides = re.findall(pattern, oral_svg)
+        assert len(nasal_sides) == len(oral_sides) == 2
+        assert nasal_sides[1] != oral_sides[1]
+
+
 def _differing(
     width: int, one: list[bytes], other: list[bytes]
 ) -> list[tuple[int, int]]:
@@ -1209,7 +1436,9 @@ def _differing(
     ]
 
 
-def _only_layer(svg: str, layer: str, *, unmask: bool = False) -> str:
+def _only_layer(
+    svg: str, layer: str, *, fill_only: bool = False, unmask: bool = False
+) -> str:
     """Keep one painted SVG layer and any definitions it depends on."""
     root = ET.fromstring(svg)
     painted = {"path", "line", "circle", "rect", "text"}
@@ -1225,6 +1454,13 @@ def _only_layer(svg: str, layer: str, *, unmask: bool = False) -> str:
         for child in root.iter():
             if layer in child.attrib.get("class", "").split():
                 child.attrib.pop("mask", None)
+    if fill_only:
+        style = next(
+            (node for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "style"),
+            None,
+        )
+        if style is not None and style.text:
+            style.text += f".{layer}{{stroke:none}}"
     return ET.tostring(root, encoding="unicode")
 
 
@@ -1252,7 +1488,10 @@ def test_drawn_velum_moves_monotonically_with_velic() -> None:
         svg = tract_svg.section_svg(geometry, None, aperture, tract_svg._pose(base))
         path = re.search(r'<path d="([^"]+)" class="velum"', svg)
         assert path is not None
-        tips.append(_pts(path.group(1))[2])
+        points = _pts(path.group(1))
+        # Head.velum supplies oral points followed by the reversed nasal
+        # surface, so the free edge is the last point of the first half.
+        tips.append(points[len(points) // 2 - 1])
     sealed = tips[0]
     distances = [math.hypot(x - sealed[0], y - sealed[1]) for x, y in tips]
     assert distances == sorted(distances)
@@ -1278,7 +1517,15 @@ def test_velum_annotation_tracks_model(aperture: float, state: str) -> None:
     assert f"port {state}" in svg
 
 
-def test_velum_and_tongue_masks_never_interpenetrate(tmp_path: Path) -> None:
+def test_velum_and_tongue_never_interpenetrate(tmp_path: Path) -> None:
+    """Filled interiors never penetrate under geometric contact.
+
+    This deliberately excludes strokes and low-alpha antialiasing: contact is
+    established by geometry now, so the independently painted boundary
+    strokes legitimately share pixels. Thresholds 127 for the velum and 20
+    for the tongue retain the interior-overlap guard without calling rendered
+    contact itself penetration.
+    """
     if shutil.which("rsvg-convert") is None:  # pragma: no cover
         pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     ipa = IPAFeatures()
@@ -1293,23 +1540,17 @@ def test_velum_and_tongue_masks_never_interpenetrate(tmp_path: Path) -> None:
     for index, (_paths, phone) in enumerate(checked.items()):
         svg = tract_svg.figure(phone)
         width, velum_rows = _pixels(
-            _only_layer(svg, "velum"), tmp_path / f"velum-{index}.svg", width=760
+            _only_layer(svg, "velum", fill_only=True),
+            tmp_path / f"velum-{index}.svg",
+            width=760,
         )
         _, tongue_rows = _pixels(
-            _only_layer(svg, "tonguebody"), tmp_path / f"tongue-{index}.svg", width=760
+            _only_layer(svg, "tonguebody", fill_only=True),
+            tmp_path / f"tongue-{index}.svg",
+            width=760,
         )
-        velum_pixels = {
-            (x, y)
-            for y, row in enumerate(velum_rows)
-            for x in range(width)
-            if row[x * 4 + 3]
-        }
-        tongue_pixels = {
-            (x, y)
-            for y, row in enumerate(tongue_rows)
-            for x in range(width)
-            if row[x * 4 + 3]
-        }
+        velum_pixels = _alpha_pixels(width, velum_rows, 127)
+        tongue_pixels = _alpha_pixels(width, tongue_rows, 20)
         overlap = len(velum_pixels & tongue_pixels)
         if overlap:
             collisions.append((phone, overlap))
@@ -1321,11 +1562,10 @@ VELUM_SURVIVAL = 0.90
 
 
 def test_every_velum_survives_contact_with_the_tongue(tmp_path: Path) -> None:
-    """Clipping contact must not erase the roof that the tongue meets.
+    """Geometric contact must not erase the roof that the tongue meets.
 
-    The intended direction leaves the velum at 100% of its unmasked area.
-    Ninety percent leaves ten points of rasterizer headroom while separating
-    the wrong direction decisively: its velar postures retain only 11--32%.
+    The model-owned velum leaves 100% of its area painted. Ninety percent
+    leaves ten points of rasterizer headroom for contact antialiasing.
     """
     if shutil.which("rsvg-convert") is None:  # pragma: no cover
         pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")

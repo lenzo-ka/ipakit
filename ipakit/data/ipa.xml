@@ -121,7 +121,7 @@
       <value name="alveolo-palatal" arc="0.24" articulator="tongue-blade" short="apl" href="Alveolo-palatal_consonant"/>
       <value name="palatal" arc="0.32" articulator="tongue-front" short="pal" href="Palatal_consonant"/>
       <value name="bilabial^palatal" short="lpl" alias="labial-palatal" href="Labial%E2%80%93palatal_approximant"/>
-      <value name="velar" arc="0.45" articulator="tongue-dorsum" short="vel" href="Velar_consonant"/>
+      <value name="velar" arc-landmark="velum-rest" articulator="tongue-dorsum" short="vel" href="Velar_consonant"/>
       <value name="bilabial^velar" short="lbv" alias="labial-velar" href="Labial%E2%80%93velar_consonant"/>
       <value name="uvular" arc="0.56" articulator="tongue-dorsum" short="uvu" href="Uvular_consonant"/>
       <value name="pharyngeal" arc="0.74" articulator="tongue-root" short="pha" href="Pharyngeal_consonant"/>
@@ -257,7 +257,7 @@
       <value name="tongue-tip" arc="0.13" short="ttp" alias="apical" label="apical" href="Apical_consonant"/>
       <value name="tongue-blade" arc="0.19" short="tbl" alias="laminal" label="laminal" href="Laminal_consonant"/>
       <value name="tongue-front" arc="0.32" short="tfr" href="Palatal_consonant"/>
-      <value name="tongue-dorsum" arc="0.45" short="tdo" href="Dorsal_consonant"/>
+      <value name="tongue-dorsum" arc-landmark="velum-rest" short="tdo" href="Dorsal_consonant"/>
       <value name="tongue-root" arc="0.74" short="trt" href="Radical_consonant"/>
       <value name="epiglottis" arc="0.87" short="epg" href="Epiglottal_consonant"/>
       <value name="vocal-folds" arc="1.00" short="vfd" aperture="median" href="Glottal_consonant"/>
