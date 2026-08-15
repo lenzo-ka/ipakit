@@ -26,6 +26,27 @@ make check
 
 `make check` is the gate. It runs the style tools (`ruff`, `black --check`, `mypy --strict`), the test suite, the invariants, both data validators, the tutorial regeneration check, and the check on values quoted in the documentation. `.github/workflows/ci.yml` runs the suite across Python 3.12 and 3.13, and the style tools and the derived-artifact guards on 3.12.
 
+Every invocation must declare the full tiergraph revision it means to test:
+
+```bash
+TIERGRAPH_COMMIT=$(git -C /path/to/tiergraph rev-parse HEAD) make check
+```
+
+The value belongs in the invoking job's environment, not in this tree, because
+tiergraph is unpublished and different jobs may provide it from different
+locations. The gate reads the paths Python actually imported, requires ipakit
+to resolve inside this checkout, and requires tiergraph to resolve to a clean
+Git working tree at exactly `TIERGRAPH_COMMIT`. It prints those paths, commits,
+and dirty states before the gate and again immediately after pytest's count.
+Thus a retry is a new measurement: it must declare and prove its subject again,
+and a dependency move during that run fails expected-versus-actual.
+
+This is run-time proof, not isolation. Isolation is not yet practical while
+tiergraph has no published artifact. The proof makes a fresh run honest and
+catches movement during it; it cannot invalidate or rewrite a green report
+that was already emitted before somebody later changed the sibling checkout.
+A command that dies before producing output has supplied no passing result.
+
 Run `make check` **before** you start as well as after. If it is already red on a clean tree, that is a finding in itself — please open an issue rather than working around it.
 
 tiergraph is a runtime dependency. Until it is published, install or otherwise expose a tiergraph checkout before installing ipakit. The `dev` extra pulls a bundled ICU only so `scripts/xsampa_table.py` can re-derive the X-SAMPA table; `ipakit` itself never imports ICU.

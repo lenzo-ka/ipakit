@@ -14,7 +14,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check lint check
+.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check lint check gate-subject
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 
@@ -118,8 +118,12 @@ NICE ?= nice -n 19
 # Every step yields, not just the suite: the checks after it walk the corpus
 # and re-render the tutorial, which is minutes of CPU that used to run at
 # normal priority while the niced suite it followed had been polite.
-check: lint
+gate-subject:
+	@$(PYTHON) -m scripts.gate_subject
+
+check: gate-subject lint
 	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
+	@$(PYTHON) -m scripts.gate_subject
 	@for seed in 0 1 42; do \
 		PYTHONHASHSEED=$$seed $(NICE) $(PYTHON) scripts/containment_oracle.py || { \
 			status=$$?; echo "containment oracle failed for PYTHONHASHSEED=$$seed" >&2; exit $$status; \
@@ -136,3 +140,4 @@ check: lint
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/docexamples.py
 	@$(NICE) $(PYTHON) scripts/docquotes.py
+	@$(PYTHON) -m scripts.gate_subject
