@@ -730,7 +730,7 @@ def frontal_figure(
     ipa = features or IPAFeatures()
     h = head(head_name)
     return standalone_frontal_svg(
-        build_frontal_geometry(h, landmarks(ipa), posture(ipa, phone, h))
+        build_frontal_geometry(h, landmarks(ipa, h.name), posture(ipa, phone, h))
     )
 
 
@@ -2090,7 +2090,7 @@ def animate_two_pane(
         else (head_name or head().name)
     )
     h = head(name)
-    marks = landmarks(ipa)
+    marks = landmarks(ipa, h.name)
     track = (
         word
         if isinstance(word, Trajectory)

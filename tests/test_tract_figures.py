@@ -1308,6 +1308,28 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     velum = moved.velum(1.0)
     dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
     assert velum is not None and dorsum == pytest.approx(velum.tip)
+
+    # Every public renderer which resolves landmark geometry must select the
+    # same head as its posture. Keep this as a call-site-class regression: a
+    # newly added rendering route cannot silently fall back to canonical arcs.
+    resolved_for: list[str | None] = []
+    real_landmarks = tract_module.landmarks
+
+    def recording_landmarks(
+        features: IPAFeatures, head_name: str | None = None
+    ) -> tract_module.Landmarks:
+        resolved_for.append(head_name)
+        marks = real_landmarks(features, head_name)
+        assert marks.articulators["tongue-dorsum"] == pytest.approx(old_arc + 0.01)
+        return marks
+
+    monkeypatch.setattr(tract_svg, "landmarks", recording_landmarks)
+    tract_svg.drawing("child", None, moved_ipa)
+    tract_svg.figure(None, "child", moved_ipa)
+    tract_svg.animate("ŋ", "child", moved_ipa, frames_per_unit=1)
+    tract_svg.animate_two_pane("ŋ", "child", moved_ipa, frames_per_unit=1)
+    tract_svg.frontal_figure(None, "child", moved_ipa)
+    assert resolved_for == ["child"] * 5
     tract_module._load_heads.cache_clear()
 
 
@@ -1452,6 +1474,14 @@ def test_velum_annotation_tracks_model(aperture: float, state: str) -> None:
 
 
 def test_velum_and_tongue_never_interpenetrate(tmp_path: Path) -> None:
+    """Filled interiors never penetrate under geometric contact.
+
+    This deliberately excludes strokes and low-alpha antialiasing: contact is
+    established by geometry now, so the independently painted boundary
+    strokes legitimately share pixels. Thresholds 127 for the velum and 20
+    for the tongue retain the interior-overlap guard without calling rendered
+    contact itself penetration.
+    """
     if shutil.which("rsvg-convert") is None:  # pragma: no cover
         pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     ipa = IPAFeatures()
