@@ -447,7 +447,7 @@ The manual is candid about why this persists, §16.1:
 > I would love to make OTSoft open source, so anyone who wanted to could add to its capacities. Unfortunately, the wonderful programming language that I employed to write it (ca. 1994), namely Visual Basic, was cruelly abolished by Microsoft long ago.
 > Many people over the years have offered to convert OTSoft into an extant programming language; all have been defeated by the size of the task (thousands of lines of code).
 
-That is a project stating its own limit accurately, and it is the strongest available argument for the constraint ipakit already works under: a pure-Python package with no runtime dependencies has no port to be defeated by.
+That is a project stating its own limit accurately, and it is the strongest available argument for minimizing ipakit's pure-Python dependency surface: portable dependencies have no native port to be defeated by.
 
 Two supporting observations, both about reading maintenance signals correctly. Praat's Optimality Theory *code* is alive (a release dated 2026-06-30, grammar-module commits in late 2025) while its OT *tutorial* dates from 2007 — **stale documentation is not evidence of abandoned software**, and the inference should not be made in either direction without checking both. And OT-Help 2.0 cannot be installed as documented: its required linear-programming library returns 403 from the only host that ever served it, the vendor domain is dead, and no archived copy exists. That is documentary rather than runtime evidence — no JRE was available to attempt a run.
 

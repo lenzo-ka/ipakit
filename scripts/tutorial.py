@@ -350,8 +350,8 @@ def generate(source: Path = SOURCE, target: str = "tutorial") -> str:
 # --------------------------------------------------------------------------
 
 #: ``.ipynb`` is JSON, so writing one is ``json.dump`` on a dict and needs
-#: neither ``nbformat`` nor Jupyter -- which is the point: ipakit declares
-#: no runtime dependencies, and obtaining the notebook must not add one.
+#: neither ``nbformat`` nor Jupyter -- obtaining the notebook must not add a
+#: dependency beyond ipakit's runtime requirements.
 #: Format 4.4 rather than 4.5 because 4.5 requires a per-cell ``id``, and
 #: an identifier invented by the generator is a byte in the file that says
 #: nothing about the tutorial.

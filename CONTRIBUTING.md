@@ -24,11 +24,11 @@ pip install pre-commit && pre-commit install    # optional; runs the style tools
 make check
 ```
 
-`make check` is the gate. It runs the style tools (`ruff`, `black --check`, `mypy --strict`), the test suite, the invariants, both data validators, the tutorial regeneration check, and the check on values quoted in the documentation. `.github/workflows/ci.yml` runs the suite across Python 3.11, 3.12 and 3.13, and the style tools and the derived-artifact guards on 3.12.
+`make check` is the gate. It runs the style tools (`ruff`, `black --check`, `mypy --strict`), the test suite, the invariants, both data validators, the tutorial regeneration check, and the check on values quoted in the documentation. `.github/workflows/ci.yml` runs the suite across Python 3.12 and 3.13, and the style tools and the derived-artifact guards on 3.12.
 
 Run `make check` **before** you start as well as after. If it is already red on a clean tree, that is a finding in itself — please open an issue rather than working around it.
 
-There are no runtime dependencies. The `dev` extra pulls a bundled ICU only so `scripts/xsampa_table.py` can re-derive the X-SAMPA table; `ipakit` itself never imports it.
+tiergraph is a runtime dependency. Until it is published, install or otherwise expose a tiergraph checkout before installing ipakit. The `dev` extra pulls a bundled ICU only so `scripts/xsampa_table.py` can re-derive the X-SAMPA table; `ipakit` itself never imports ICU.
 
 ## The method, in the two commands you will actually run
 

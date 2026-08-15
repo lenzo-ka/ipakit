@@ -1,5 +1,7 @@
 # Changelog
 
+- Require Python 3.12 and tiergraph as the containment substrate.
+
 - Corpus roles can record typed producer/declaration provenance, corpora carry declaration fingerprints and explicit durable splits, and `Experiment`/`ipakit rules derives` classify and serialize batch derivability with reproducible identities and report comparison. A CMUdict-slice demonstration and dated storage scaling report exercise the full lane.
 
 All notable changes to this project are documented here.

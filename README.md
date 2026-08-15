@@ -39,8 +39,8 @@ derived forms, expose structural queries at the shell, and test rule systems
 against paired forms. That is also the substrate on which rule induction can
 run; the inducer itself remains a separate concern.
 
-The package has no runtime dependencies; its phonetic data and geometry ship as
-declarations. It is typed, and the Python API and `ipakit` command expose the
+The package uses tiergraph for graph navigation; its phonetic data and geometry
+ship as declarations. It is typed, and the Python API and `ipakit` command expose the
 same model. See [the canonical representation](docs/representation.md),
 [corpus queries](docs/corpus.md), [rewrite rules](docs/rules.md), and the
 [articulatory model](docs/tract-anatomy.md).
@@ -279,7 +279,7 @@ pytest                    # unit tests + docstring examples
 ```
 
 CI (`.github/workflows/ci.yml`) mirrors these on every push/PR across Python
-3.11–3.13, and validates the committed derived artifacts (the IPA ↔ X-SAMPA
+3.12–3.13, and validates the committed derived artifacts (the IPA ↔ X-SAMPA
 table and the phone-distance matrix) against their generators in `scripts/`.
 
 ## License

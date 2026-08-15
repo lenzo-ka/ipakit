@@ -27,7 +27,7 @@ It is organized by what you want to do, not by module. Each section shows **the 
 line and the Python API side by side** for the same task, because most people arrive
 wanting one and later need the other.
 
-ipakit has **no runtime dependencies**, so installing it is the whole setup:
+ipakit depends on tiergraph; installing ipakit installs its published dependencies:
 
 ```bash
 pip install ipakit

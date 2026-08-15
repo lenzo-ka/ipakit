@@ -79,8 +79,8 @@ class TestItIsWhatTheGeneratorWrites:
 class TestItIsAWellFormedNotebook:
     """Valid ``.ipynb`` JSON, asked of the file rather than of nbformat.
 
-    ipakit declares no runtime dependencies and the generator writes the
-    JSON by hand, so the shape is checked by hand too -- a suite that
+    The generator writes the JSON by hand, so the shape is checked by hand
+    too -- a suite that
     imported ``nbformat`` to check this would be asserting that a
     dev-only package agrees with itself.
     """

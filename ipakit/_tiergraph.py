@@ -13,12 +13,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
-from typing import TypeAlias, cast
+from typing import cast
 
-JsonValue: TypeAlias = (
-    None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
-)
-FrozenValue: TypeAlias = object
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[
+    str, JsonValue
+]
+type FrozenValue = object
 
 _NODE_STRUCTURAL_KEYS = frozenset({"gaps"})
 

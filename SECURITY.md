@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The latest released version is the one that receives fixes. ipakit supports Python 3.11, 3.12 and 3.13, and has **zero runtime dependencies** — all phonetic data ships as XML inside the package — so it carries no third-party supply chain of its own at run time.
+The latest released version is the one that receives fixes. ipakit supports Python 3.12 and 3.13. Its phonetic data ships as XML inside the package, and tiergraph is its runtime dependency.
 
 ## Reporting a vulnerability
 

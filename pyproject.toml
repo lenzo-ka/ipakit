@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ipakit"
 dynamic = ["version"]
-description = "Zero-dependency IPA toolkit: phonetic features, distance, tokenization, rules, and conversions"
+description = "IPA toolkit: phonetic features, distance, tokenization, rules, and conversions"
 readme = "README.md"
 authors = [
     {name = "Kevin Lenzo"}
@@ -26,9 +26,7 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    # tiergraph is unpublished during the containment migration.  This lane is
-    # intentionally tied to the adjacent source checkout instead of vendoring it.
-    "tiergraph @ file:///Users/lenzo/dev/lenzo/tiergraph",
+    "tiergraph",
 ]
 
 [project.optional-dependencies]
@@ -123,12 +121,12 @@ addopts = "-m 'not slow' --doctest-modules -n 3"
 
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py312"]
 extend-exclude = "ipakit/notebooks/"
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py312"
 src = ["ipakit", "tests"]
 extend-exclude = ["ipakit/notebooks/"]
 
@@ -163,4 +161,3 @@ follow_imports = "skip"
 # tree.  Isolated pre-commit environments do not install that checkout.
 module = "tiergraph"
 ignore_missing_imports = true
-follow_imports = "skip"
