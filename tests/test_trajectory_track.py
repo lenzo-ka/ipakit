@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from pathlib import Path
 
 import pytest
 from ipakit.form import FormBuilder
@@ -28,12 +29,9 @@ TRACK_PARAMETERS_BY_VERSION = {
     ),
 }
 
-LEGACY_ANIMATION_SHA256 = {
-    # The velum-carried tongue occlusion changes with every posture; track
-    # round trips must retain the complete rendered result byte-for-byte.
-    "sũn": "4b0e6e09c880cc706fc2cf068c7ea8ee222a8f10421efe01ab3a3a280847e529",
-    "ˈkæt": "846fddb6b9e66b6cd4e7ced6d1ff83bf9b4ab66ba66958555d88c417da386566",
-}
+ANIMATION_SHA256 = json.loads(
+    (Path(__file__).parent / "fixtures" / "animation_sha256.json").read_text()
+)
 
 
 def test_track_parameters_belong_to_the_current_wire_version() -> None:
@@ -67,10 +65,7 @@ def test_track_round_trip_and_render_identity(word: str) -> None:
     assert loaded == live
     assert loaded.to_track() == live.to_track()
     assert animate(loaded) == animate(word)
-    assert (
-        hashlib.sha256(animate(word).encode()).hexdigest()
-        == LEGACY_ANIMATION_SHA256[word]
-    )
+    assert hashlib.sha256(animate(word).encode()).hexdigest() == ANIMATION_SHA256[word]
 
 
 def _timed_form(*spans: tuple[float, float]):

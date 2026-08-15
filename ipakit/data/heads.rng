@@ -122,11 +122,13 @@
   </define>
 
   <define name="velum">
-    <!-- Soft-palate flap thickness in normalized head coordinates. Its
-         moving centerline is derived from the port and oral wall, while the
-         head owns the tissue extent. -->
+    <!-- Soft-palate body in normalized head coordinates. The hinge is the
+         hard-palate junction and lowered-arc is the velar boundary target;
+         its free edge moves between there and the posterior port wall. -->
     <element name="velum">
       <attribute name="thickness"><ref name="normalized"/></attribute>
+      <attribute name="hinge-arc"><ref name="normalized"/></attribute>
+      <attribute name="lowered-arc"><ref name="normalized"/></attribute>
       <attribute name="provenance"><text/></attribute>
     </element>
   </define>

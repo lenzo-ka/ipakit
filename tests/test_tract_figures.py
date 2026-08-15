@@ -1197,6 +1197,114 @@ def _pixels(svg: str, path: Path, width: int = 1520) -> tuple[int, list[bytes]]:
     return w, rows
 
 
+def _only_layer(svg: str, layer: str, *, fill_only: bool = False) -> str:
+    """Keep one path layer; optionally remove its contact stroke."""
+    root = ET.fromstring(svg)
+    painted = {"path", "line", "circle", "rect", "text"}
+    for parent in root.iter():
+        if parent.tag.rsplit("}", 1)[-1] in {"defs", "mask"}:
+            continue
+        for child in list(parent):
+            tag = child.tag.rsplit("}", 1)[-1]
+            classes = child.attrib.get("class", "").split()
+            if tag in painted and (tag != "path" or layer not in classes):
+                parent.remove(child)
+    if fill_only:
+        style = next(
+            (node for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "style"),
+            None,
+        )
+        if style is not None and style.text:
+            style.text += f".{layer}{{stroke:none}}"
+    return ET.tostring(root, encoding="unicode")
+
+
+def _alpha_pixels(
+    width: int, rows: list[bytes], threshold: int = 0
+) -> set[tuple[int, int]]:
+    return {
+        (x, y)
+        for y, row in enumerate(rows)
+        for x in range(width)
+        if row[x * 4 + 3] > threshold
+    }
+
+
+def _pixel_hausdorff(one: set[tuple[int, int]], other: set[tuple[int, int]]) -> float:
+    def directed(source: set[tuple[int, int]], target: set[tuple[int, int]]) -> float:
+        return max(
+            min(math.dist(point, candidate) for candidate in target) for point in source
+        )
+
+    return max(directed(one, other), directed(other, one))
+
+
+VELIC_PIN_PATH = Path(__file__).resolve().parent / "fixtures" / "velic_contrast.json"
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_velic_contrast_matches_generated_pixel_pins(tmp_path: Path) -> None:
+    """Every place keeps the same wall gap, measured in rendered pixels."""
+    pins = json.loads(VELIC_PIN_PATH.read_text(encoding="utf-8"))
+    measured = {}
+    for nasal, oral in (("m", "b"), ("n", "d"), ("ŋ", "k")):
+        width, nasal_rows = _pixels(
+            _only_layer(tract_svg.figure(nasal), "velum"), tmp_path / f"{nasal}.svg"
+        )
+        _, oral_rows = _pixels(
+            _only_layer(tract_svg.figure(oral), "velum"), tmp_path / f"{oral}.svg"
+        )
+        measured[f"{nasal}-{oral}"] = round(
+            _pixel_hausdorff(
+                _alpha_pixels(width, nasal_rows), _alpha_pixels(width, oral_rows)
+            ),
+            2,
+        )
+    assert measured == pins
+    assert len(set(measured.values())) == 1, measured
+
+
+def test_lowered_velum_is_the_dorsums_declared_boundary() -> None:
+    """A velar closure and the lowered flap meet without an endpoint clamp."""
+    ipa, shape = IPAFeatures(), head()
+    p = posture(ipa, "ŋ", shape)
+    velum = shape.velum(1.0)
+    assert velum is not None and shape.velum_lowered_arc is not None
+    dorsum = shape.tongue_point(shape.velum_lowered_arc, p.constrictions)
+    assert dorsum is not None
+    assert dorsum == pytest.approx(velum.tip)
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_velum_and_dorsum_filled_interiors_do_not_overlap(tmp_path: Path) -> None:
+    """The mask is not needed to separate the two solids at contact."""
+    svg = tract_svg.figure("ŋ")
+    width, velum_rows = _pixels(
+        _only_layer(svg, "velum", fill_only=True), tmp_path / "velum-fill.svg"
+    )
+    _, tongue_rows = _pixels(
+        _only_layer(svg, "tonguebody", fill_only=True), tmp_path / "tongue-fill.svg"
+    )
+    # The velum is opaque, while tonguebody's intended alpha is 0.16 (41/255).
+    # Half of each intended fill excludes only shared antialias boundary
+    # pixels, so this counts intersecting interiors rather than contact.
+    overlap = _alpha_pixels(width, velum_rows, 127) & _alpha_pixels(
+        width, tongue_rows, 20
+    )
+    assert not overlap
+
+
+def test_nasal_floor_truncation_still_varies_every_pair() -> None:
+    """The independent 0.18 * aperture nasal-branch cue remains intact."""
+    for nasal, oral in (("m", "b"), ("n", "d"), ("ŋ", "k")):
+        nasal_svg, oral_svg = tract_svg.figure(nasal), tract_svg.figure(oral)
+        pattern = r'<path d="([^"]+)" class="nasalside"/>'
+        nasal_sides = re.findall(pattern, nasal_svg)
+        oral_sides = re.findall(pattern, oral_svg)
+        assert len(nasal_sides) == len(oral_sides) == 2
+        assert nasal_sides[1] != oral_sides[1]
+
+
 def _differing(
     width: int, one: list[bytes], other: list[bytes]
 ) -> list[tuple[int, int]]:
