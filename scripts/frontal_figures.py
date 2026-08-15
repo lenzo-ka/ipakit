@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerate the checked-in D1 frontal reference figures."""
+"""Regenerate D1 frontal figures.
+
+Outputs under ``docs/figures/`` are checked in for review. Outputs under
+``talking-heads/`` are on-demand working artifacts excluded from pinning by
+design; that owner working area is not part of the repository's figure set.
+"""
 
 from __future__ import annotations
 
@@ -38,6 +43,7 @@ def main() -> int:
         animate_two_pane(timed) + "\n", encoding="utf-8"
     )
     TALKING_HEADS.mkdir(exist_ok=True)
+    # This owner working-area output is on demand and deliberately unpinned.
     (TALKING_HEADS / "kaet-two-pane.html").write_text(
         animate_two_pane("kæt", frames_per_unit=12) + "\n", encoding="utf-8"
     )

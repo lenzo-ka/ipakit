@@ -2166,6 +2166,42 @@ class Trajectory:
     rate: float = 1.0
     anchor: str | None = None
 
+    @property
+    def unit_extents(self) -> tuple[tuple[float, float], ...]:
+        """Ordinal spans in which each spoken unit has maximal influence.
+
+        The extents use the same unit centers as :func:`blend`.  A boundary
+        halfway between adjacent centers belongs to both units; callers that
+        sample that exact ordinal should therefore present both as active.
+        Synthetic resting postures, when present, bound the first and last
+        spoken extents but are not returned as transcript units.
+        """
+        offset = (len(self.play_units) - len(self.units)) // 2
+        return tuple(
+            (offset + index - 0.5, offset + index + 0.5)
+            for index in range(len(self.units))
+        )
+
+    def dominant_unit_indices(self, ordinal: float) -> tuple[int, ...]:
+        """Indices of spoken units dominant at ``ordinal`` on the blend clock.
+
+        Exact transition midpoints return both neighbouring units.  During a
+        synthetic rest's dominant interval no spoken-unit index is returned.
+        """
+        distances = tuple(abs(ordinal - index) for index in range(len(self.play_units)))
+        nearest = min(distances)
+        dominant_play_units = tuple(
+            index
+            for index, distance in enumerate(distances)
+            if math.isclose(distance, nearest, rel_tol=0.0, abs_tol=1e-12)
+        )
+        offset = (len(self.play_units) - len(self.units)) // 2
+        return tuple(
+            index - offset
+            for index in dominant_play_units
+            if offset <= index < offset + len(self.units)
+        )
+
     def to_track(self) -> str:
         """Serialize this trajectory as canonical, path-free JSON."""
         document = {

@@ -1,6 +1,8 @@
-# Regeneratable artifacts. Everything here is derived from the data and
-# checked in, so a reader gets the figures without running anything and a
-# reviewer sees a change to them in the diff.
+# Regeneratable artifacts. Everything under docs/figures is derived from the
+# data and checked in, so a reader gets the figures without running anything
+# and a reviewer sees a change to them in the diff. frontal_figures.py also
+# writes on-demand working artifacts under talking-heads/; those are excluded
+# from pinning by design and are not part of this checked-in claim.
 
 PYTHON ?= python
 FIGDIR := docs/figures

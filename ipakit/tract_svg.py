@@ -46,6 +46,7 @@ change here cannot move a distance. ``scripts/sweep.py diff`` is the check.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import math
 import re
@@ -1922,11 +1923,35 @@ border:1px solid var(--edge);border-radius:3px;padding:6px 14px;cursor:pointer}
 .controls button:hover{border-color:var(--dim)}
 .controls input[type=range]{flex:1;accent-color:var(--signal)}
 .controls .count{font-variant-numeric:tabular-nums;min-width:72px;text-align:right}
+.transcript{display:flex;align-items:baseline;justify-content:center;gap:14px;
+margin-top:12px;font:400 18px ui-monospace,SFMono-Regular,Menlo,monospace}
+.transcript .display-label{color:var(--dim);font:600 14px ui-sans-serif,system-ui,sans-serif}
+.transcript .ipa{display:flex;gap:3px;align-items:baseline}
+.transcript .unit{display:inline-block;min-width:1.15em;padding:3px 5px;text-align:center;
+border-bottom:2px solid transparent;border-radius:3px;color:var(--dim)}
+.transcript .unit.active{color:var(--text);background:var(--panel);
+border-bottom-color:var(--signal)}
 """
 
 # Player preparation belongs outside the measured trajectory.  The track's
 # stamps continue to cover exactly its acoustic window.
 TIMED_PLAYER_REST_RAMP_SECONDS = 0.20
+
+
+def _html_text(value: str, parameter: str) -> str:
+    """Escape preserved HTML text, refusing codepoints HTML would rewrite.
+
+    LF is the sole carried control: it permits an intentional multiline label
+    and HTML parsing preserves it verbatim. Other C0 controls, DEL, and C1
+    controls are not representable under that promise and are refused.
+    """
+    for character in value:
+        codepoint = ord(character)
+        if (codepoint < 0x20 and character != "\n") or 0x7F <= codepoint <= 0x9F:
+            raise ValueError(
+                f"{parameter} contains control character U+{codepoint:04X}"
+            )
+    return html.escape(value)
 
 
 def _player_page(
@@ -1936,6 +1961,10 @@ def _player_page(
     stills: list[str],
     ms_per_frame: int,
     phases: list[str | None] | None = None,
+    *,
+    units: tuple[str, ...] = (),
+    active_units: list[tuple[int, ...]] | None = None,
+    display_label: str | None = None,
 ) -> str:
     """One self-contained page: a filmstrip of the units, and a player.
 
@@ -1954,14 +1983,41 @@ def _player_page(
     frame_phases = phases if phases is not None else [None] * len(frames)
     if len(frame_phases) != len(frames):
         raise ValueError("one player phase is required per frame")
+    frame_active_units = (
+        active_units if active_units is not None else [()] * len(frames)
+    )
+    if len(frame_active_units) != len(frames):
+        raise ValueError("one active-unit set is required per frame")
 
-    def player_frame(i: int, svg: str, phase: str | None) -> str:
+    def player_frame(
+        i: int, svg: str, phase: str | None, active: tuple[int, ...]
+    ) -> str:
         phase_attr = f' data-phase="{phase}"' if phase else ""
-        return f'<div class="frame{" on" if i == 0 else ""}"{phase_attr}>{svg}</div>'
+        active_attr = " ".join(str(index) for index in active)
+        return (
+            f'<div class="frame{" on" if i == 0 else ""}"{phase_attr}'
+            f' data-active-units="{active_attr}">{svg}</div>'
+        )
 
     stage = "".join(
-        player_frame(i, svg, phase)
-        for i, (svg, phase) in enumerate(zip(frames, frame_phases, strict=True))
+        player_frame(i, svg, phase, active)
+        for i, (svg, phase, active) in enumerate(
+            zip(frames, frame_phases, frame_active_units, strict=True)
+        )
+    )
+    transcript_units = "".join(
+        f'<span class="unit" id="transcript-unit-{index}" data-unit="{index}">'
+        f"{html.escape(unit)}</span>"
+        for index, unit in enumerate(units)
+    )
+    label_html = (
+        f'<span class="display-label">{_html_text(display_label, "display_label")}</span>'
+        if display_label is not None
+        else ""
+    )
+    transcript = (
+        f'<div class="transcript" aria-label="IPA transcript">{label_html}'
+        f'<span class="ipa">{transcript_units}</span></div>'
     )
     last = max(len(frames) - 1, 0)
     script = (
@@ -1969,9 +2025,12 @@ def _player_page(
         "var f=s.querySelectorAll('.frame');var N=f.length;"
         "var r=document.getElementById('scrub');var b=document.getElementById('play');"
         "var c=document.getElementById('count');var i=0,t=null;"
+        "var u=document.querySelectorAll('.transcript .unit');"
         "var MS=__MS__;"
         "function show(k){f[i].classList.remove('on');i=((k%N)+N)%N;"
-        "f[i].classList.add('on');r.value=i;c.textContent=(i+1)+' / '+N;}"
+        "f[i].classList.add('on');r.value=i;c.textContent=(i+1)+' / '+N;"
+        "var a=f[i].dataset.activeUnits.split(' ');"
+        "u.forEach(function(x){x.classList.toggle('active',a.indexOf(x.dataset.unit)>=0);});}"
         "r.addEventListener('input',function(){stop();show(+r.value);});"
         "function start(){if(t)return;t=setInterval(function(){show(i+1);},MS);"
         "b.textContent='Pause';}"
@@ -2003,7 +2062,9 @@ head — the same drawing a single phone gets, with no symbol read per frame.</p
 <input id="scrub" type="range" min="0" max="{last}" value="0" step="1"
 aria-label="frame">
 <span class="count" id="count">1 / {len(frames)}</span>
-</div></section>
+</div>
+{transcript}
+</section>
 </div>
 <script>{script}</script></body></html>"""
 
@@ -2013,6 +2074,8 @@ def animate(
     head_name: str | None = None,
     features: IPAFeatures | None = None,
     frames_per_unit: int = FRAMES_PER_UNIT,
+    *,
+    display_label: str | None = None,
 ) -> str:
     """A word as a played trajectory, drawn frame by frame.
 
@@ -2029,7 +2092,13 @@ def animate(
 
     The result is one self-contained page -- a filmstrip of the units and a
     flipbook player with an inline scrubber and autoplay -- with no runtime
-    dependencies, readable in a browser without a rasterizer.
+    dependencies, readable in a browser without a rasterizer. The transcript
+    highlights the spoken unit with the greatest Gaussian dominance on the
+    trajectory's ordinal clock; at an exact transition midpoint both adjacent
+    units are active. ``display_label`` may add caller-supplied orthography,
+    but no orthographic label is inferred. Printable Unicode and LF are
+    carried verbatim through HTML parsing; other C0 controls (including tab
+    and CR), DEL, and C1 controls raise :class:`ValueError`.
     """
     ipa = features or IPAFeatures()
     name = (
@@ -2067,13 +2136,26 @@ def animate(
         _frame_svg(g, p, extent)
         for g, p in zip(frame_geoms, frame_postures, strict=True)
     ]
+    active_units = [track.dominant_unit_indices(t) for t in track.ordinals]
     # Hold the rest bookends a moment (one unit's worth of frames) at each end,
     # so the neutral start is unmistakable each time the flipbook loops.
     if rest_point is not None:
         hold = track.frames_per_unit
         frames = [frames[0]] * hold + frames + [frames[-1]] * hold
+        active_units = (
+            [active_units[0]] * hold + active_units + [active_units[-1]] * hold
+        )
     ms = max(1, round(track.display_interval * 1000 / track.rate))
-    return _player_page(label, name, frames, stills, ms)
+    return _player_page(
+        label,
+        name,
+        frames,
+        stills,
+        ms,
+        units=track.units,
+        active_units=active_units,
+        display_label=display_label,
+    )
 
 
 def animate_two_pane(
@@ -2081,8 +2163,19 @@ def animate_two_pane(
     head_name: str | None = None,
     features: IPAFeatures | None = None,
     frames_per_unit: int = FRAMES_PER_UNIT,
+    *,
+    display_label: str | None = None,
 ) -> str:
-    """Sagittal and frontal projections of one Trajectory under one scrubber."""
+    """Sagittal and frontal projections of one Trajectory under one scrubber.
+
+    The transcript uses that trajectory's ordinal clock and highlights the
+    maximally dominant spoken unit. At an exact midpoint both adjacent units
+    are active; synthetic rest ramps activate neither. ``display_label`` is
+    shown verbatim as caller-supplied display text and is never inferred.
+    Printable Unicode and LF are carried verbatim through HTML parsing; other
+    C0 controls (including tab and CR), DEL, and C1 controls raise
+    :class:`ValueError`.
+    """
     ipa = features or IPAFeatures()
     name = (
         word.head_name
@@ -2104,6 +2197,7 @@ def animate_two_pane(
         )
     player_postures = list(track.frames)
     phases: list[str | None] = [None] * len(player_postures)
+    active_units = [track.dominant_unit_indices(t) for t in track.ordinals]
     if track.fps is not None and h.rest is not None:
         rest_pose = track.play_units[0]
         count = max(1, round(TIMED_PLAYER_REST_RAMP_SECONDS * track.fps))
@@ -2115,6 +2209,7 @@ def animate_two_pane(
         ] + [rest_pose]
         player_postures = lead_in + player_postures + lead_out
         phases = ["lead-in"] * len(lead_in) + phases + ["lead-out"] * len(lead_out)
+        active_units = [()] * len(lead_in) + active_units + [()] * len(lead_out)
 
     side_stills = [build_geometry(h, marks, p) for p in track.postures]
     side_frames = [build_geometry(h, marks, p) for p in player_postures]
@@ -2141,8 +2236,21 @@ def animate_two_pane(
         hold = track.frames_per_unit
         frames = [frames[0]] * hold + frames + [frames[-1]] * hold
         phases = [phases[0]] * hold + phases + [phases[-1]] * hold
+        active_units = (
+            [active_units[0]] * hold + active_units + [active_units[-1]] * hold
+        )
     ms = max(1, round(track.display_interval * 1000 / track.rate))
-    page = _player_page(track.source, name, frames, stills, ms, phases)
+    page = _player_page(
+        track.source,
+        name,
+        frames,
+        stills,
+        ms,
+        phases,
+        units=track.units,
+        active_units=active_units,
+        display_label=display_label,
+    )
     return page.replace(_literal_style(), _literal_style() + FRONTAL_STYLE, 1).replace(
         "Mid-sagittal tract, animated", "One trajectory, sagittal + frontal"
     )
