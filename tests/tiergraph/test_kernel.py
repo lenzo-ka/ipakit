@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from ipakit import IPAFeatures
+from ipakit._containment_projection import ContainmentProjection
 from ipakit._ipa_graph import assign_signature
 from ipakit._ipa_graph import declarations as ipa_declarations
 from ipakit._tiergraph import (
@@ -347,11 +348,12 @@ def test_heterogeneous_containment_traversal_and_cycles() -> None:
         ),
         roots=(parent,),
     )
-    assert current.direct_children(parent) == (first, subgroup)
-    assert current.descendants(parent, "unit") == (first, second)
-    assert current.leaves(parent) == (first, second)
-    assert current.parents(second) == (subgroup,)
-    assert current.ancestors(second) == (subgroup, parent)
+    navigation = ContainmentProjection.build(current)
+    assert navigation.direct_children(parent) == (first, subgroup)
+    assert navigation.descendants(parent, "unit") == (first, second)
+    assert navigation.leaves(parent) == (first, second)
+    assert navigation.parents(second) == (subgroup,)
+    assert navigation.ancestors(second) == (subgroup, parent)
     with pytest.raises(GraphValidationError, match="cycle"):
         graph(
             node(top=(event(),), group=(event(),)),
@@ -385,8 +387,9 @@ def test_containment_traversal_uses_declared_property_across_relations() -> None
             Relation((middle,), "groups", (child,)),
         ),
     )
-    assert current.descendants(parent) == (middle, child)
-    assert current.parents(child) == (middle,)
+    navigation = ContainmentProjection.build(current)
+    assert navigation.descendants(parent) == (middle, child)
+    assert navigation.parents(child) == (middle,)
 
 
 def test_roots_must_resolve_to_events() -> None:
@@ -701,7 +704,9 @@ def test_lane_a_fixture_kernel_verdicts(case: dict[str, object]) -> None:
         )
         assert [
             current.resolve(ref).tier
-            for ref in current.direct_children("/clock/0/phrase/0")
+            for ref in ContainmentProjection.build(current).direct_children(
+                "/clock/0/phrase/0"
+            )
         ] == expected["direct_child_tiers"]
         return
     if "event" in case:

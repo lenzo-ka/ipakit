@@ -13,12 +13,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
-from typing import TypeAlias, cast
+from typing import cast
 
-JsonValue: TypeAlias = (
-    None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
-)
-FrozenValue: TypeAlias = object
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[
+    str, JsonValue
+]
+type FrozenValue = object
 
 _NODE_STRUCTURAL_KEYS = frozenset({"gaps"})
 
@@ -308,62 +308,6 @@ class Graph:
                     for index in range(len(group.events))
                 )
         return tuple(refs)
-
-    def direct_children(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
-        children = tuple(
-            target
-            for relation in self.relations
-            if self._is_containment(relation) and relation.sources == (parent,)
-            for target in relation.targets
-        )
-        if tier is None:
-            return children
-        return tuple(child for child in children if self.resolve(child).tier == tier)
-
-    def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
-        result: list[str] = []
-        pending = list(self.direct_children(parent))
-        visited = {parent}
-        while pending:
-            item = pending.pop(0)
-            if item not in visited:
-                visited.add(item)
-                if tier is None or self.resolve(item).tier == tier:
-                    result.append(item)
-                pending[0:0] = self.direct_children(item)
-        return tuple(result)
-
-    def leaves(self, parent: str) -> tuple[str, ...]:
-        visited: set[str] = set()
-
-        def walk(item: str) -> tuple[str, ...]:
-            if item in visited:
-                return ()
-            visited.add(item)
-            children = self.direct_children(item)
-            if not children:
-                return (item,)
-            return tuple(leaf for child in children for leaf in walk(child))
-
-        return walk(parent)
-
-    def parents(self, child: str) -> tuple[str, ...]:
-        return tuple(
-            source
-            for relation in self.relations
-            if self._is_containment(relation) and child in relation.targets
-            for source in relation.sources
-        )
-
-    def ancestors(self, child: str) -> tuple[str, ...]:
-        result: list[str] = []
-        pending = list(self.parents(child))
-        while pending:
-            item = pending.pop(0)
-            if item not in result:
-                result.append(item)
-                pending.extend(self.parents(item))
-        return tuple(result)
 
     def _is_containment(self, relation: Relation) -> bool:
         declaration = self.declarations.relation(relation.name)

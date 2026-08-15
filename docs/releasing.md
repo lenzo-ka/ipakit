@@ -94,7 +94,7 @@ job references it; the OIDC identity is scoped to it).
   `tar -tzf dist/*.tar.gz | grep -E '^[^/]+/[^/]+$'`.
 - **PEP 639 license**: `license = "BSD-2-Clause"` requires `setuptools>=77` (already the
   build-system floor). Don't lower it.
-- **CI must be green first**: `ci.yml` (lint / test 3.11–3.13 / ICU guards) runs
+- **CI must be green first**: `ci.yml` (lint / test 3.12–3.13 / ICU guards) runs
   on the push; only cut the release once it passes.
 - **Dev-only ICU**: the X-SAMPA table guard needs `icukit-pyicu` (`import icu`),
   pulled by `.[dev]`/`.[icu]` — never a runtime dependency.

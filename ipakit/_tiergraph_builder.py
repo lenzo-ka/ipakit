@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TypeAlias
 
 from ._tiergraph import (
     ClockNode,
@@ -42,7 +41,7 @@ class PositionHandle:
     gap: int | None = None
 
 
-Endpoint: TypeAlias = EventHandle | PositionHandle
+type Endpoint = EventHandle | PositionHandle
 
 
 @dataclass(frozen=True)
