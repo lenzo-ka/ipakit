@@ -271,6 +271,30 @@ def test_epiglottal_phones_pose_the_leaf_and_couple_the_tongue_root(phone: str) 
     assert current["tongue"][-1][0] == pytest.approx(h.tongue_span[1])
 
 
+def test_epiglottal_tongue_assist_is_bounded_by_declared_coupling() -> None:
+    """The leaf never enters tongue controls through its primary reading."""
+    ipa, original = IPAFeatures(), head()
+    zero = replace(original, epiglottis_tongue_coupling=0.0)
+    capped = replace(original, epiglottis_tongue_coupling=0.45)
+    at_zero = posture(ipa, "ʡ", zero)
+    at_cap = posture(ipa, "ʡ", capped)
+
+    assert at_zero.tongue_controls == zero.rest.tongue_controls
+    assert len(at_cap.tongue_controls) == len(capped.rest.tongue_controls) + 1
+    assist = at_cap.tongue_controls[-1]
+    assert assist.articulator == "tongue-root"
+    assert assist.offset == pytest.approx(
+        capped.rest.offset
+        + (1.0 - capped.rest.offset)
+        * at_cap.epiglottal
+        * capped.epiglottis_tongue_coupling
+    )
+    zero_geometry = tract_svg.build_geometry(zero, landmarks(ipa, zero.name), at_zero)
+    cap_geometry = tract_svg.build_geometry(capped, landmarks(ipa, capped.name), at_cap)
+    assert zero_geometry["tongue"] != cap_geometry["tongue"]
+    assert zero_geometry["epiglottis"] == cap_geometry["epiglottis"]
+
+
 def test_non_epiglottal_postures_leave_the_leaf_byte_identical_at_rest() -> None:
     """Unrelated gestures do not leak into the epiglottis pose."""
     ipa, h = IPAFeatures(), head()
@@ -291,9 +315,8 @@ def test_epiglottal_degree_scales_the_modeled_aperture() -> None:
     assert apertures[2] == pytest.approx(0.0)
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
 def test_epiglottal_aperture_matches_generated_pixel_pins() -> None:
-    """The leaf-to-wall gap scales in the raster users actually see."""
+    """Inventory epiglottals pin their displayed tip-to-target gap."""
     from tests.fixtures._capture_epiglottal_constriction import capture
 
     pinned = json.loads(
@@ -302,7 +325,8 @@ def test_epiglottal_aperture_matches_generated_pixel_pins() -> None:
         ).read_text()
     )
     assert capture() == pinned
-    assert pinned["open"] > pinned["approximant"] > pinned["closure"]
+    assert pinned["open"] > pinned["ʜ"] == pinned["ʢ"] > pinned["ʡ"]
+    assert pinned["ʡ"] == pytest.approx(0.0)
 
 
 @pytest.mark.parametrize("phone", ["t", "s"])

@@ -325,6 +325,9 @@ class Head:
         dx, dy = tip[0] - root[0], tip[1] - root[1]
         norm = math.hypot(dx, dy) or 1.0
         nx, ny = -dy / norm, dx / norm
+        # Schematic, not an anatomical measurement: a 0.65-thickness bow
+        # keeps the otherwise straight leaf legible at rest without moving
+        # either its declared laryngeal attachment or constriction target.
         bend = self.epiglottis_thickness * 0.65
         centre, half_width = [], []
         for i in range(samples + 1):
@@ -1907,11 +1910,18 @@ def posture(
             aperture_width=aperture_width,
             protrusion=protrusion,
         )
-    tongue_controls = controls
+    # A constriction deforms only the organ that makes it.  In particular an
+    # epiglottal point must not reach the tongue through this general list:
+    # its explicitly capped tongue-root assist below is the sole coupling.
+    tongue_controls = tuple(
+        point for point in controls if (point.articulator or "").startswith("tongue-")
+    )
+    if not tongue_controls and h.rest is not None:
+        tongue_controls = h.rest.tongue_controls
     if epiglottal > 0.0 and h.epiglottis_tongue_coupling > 0.0 and h.rest is not None:
         tongue_root_arc = landmarks(features, h.name).articulators.get("tongue-root")
         assert tongue_root_arc is not None
-        tongue_controls = controls + (
+        tongue_controls += (
             TractPoint(
                 arc=tongue_root_arc,
                 offset=h.rest.offset
