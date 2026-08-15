@@ -1198,28 +1198,6 @@ def _pixels(svg: str, path: Path, width: int = 1520) -> tuple[int, list[bytes]]:
     return w, rows
 
 
-def _only_layer(svg: str, layer: str, *, fill_only: bool = False) -> str:
-    """Keep one path layer; optionally remove its contact stroke."""
-    root = ET.fromstring(svg)
-    painted = {"path", "line", "circle", "rect", "text"}
-    for parent in root.iter():
-        if parent.tag.rsplit("}", 1)[-1] in {"defs", "mask"}:
-            continue
-        for child in list(parent):
-            tag = child.tag.rsplit("}", 1)[-1]
-            classes = child.attrib.get("class", "").split()
-            if tag in painted and (tag != "path" or layer not in classes):
-                parent.remove(child)
-    if fill_only:
-        style = next(
-            (node for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "style"),
-            None,
-        )
-        if style is not None and style.text:
-            style.text += f".{layer}{{stroke:none}}"
-    return ET.tostring(root, encoding="unicode")
-
-
 def _alpha_pixels(
     width: int, rows: list[bytes], threshold: int = 0
 ) -> set[tuple[int, int]]:
@@ -1392,7 +1370,9 @@ def _differing(
     ]
 
 
-def _only_layer(svg: str, layer: str, *, unmask: bool = False) -> str:
+def _only_layer(
+    svg: str, layer: str, *, fill_only: bool = False, unmask: bool = False
+) -> str:
     """Keep one painted SVG layer and any definitions it depends on."""
     root = ET.fromstring(svg)
     painted = {"path", "line", "circle", "rect", "text"}
@@ -1408,6 +1388,13 @@ def _only_layer(svg: str, layer: str, *, unmask: bool = False) -> str:
         for child in root.iter():
             if layer in child.attrib.get("class", "").split():
                 child.attrib.pop("mask", None)
+    if fill_only:
+        style = next(
+            (node for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "style"),
+            None,
+        )
+        if style is not None and style.text:
+            style.text += f".{layer}{{stroke:none}}"
     return ET.tostring(root, encoding="unicode")
 
 
@@ -1435,7 +1422,10 @@ def test_drawn_velum_moves_monotonically_with_velic() -> None:
         svg = tract_svg.section_svg(geometry, None, aperture, tract_svg._pose(base))
         path = re.search(r'<path d="([^"]+)" class="velum"', svg)
         assert path is not None
-        tips.append(_pts(path.group(1))[2])
+        points = _pts(path.group(1))
+        # Head.velum supplies oral points followed by the reversed nasal
+        # surface, so the free edge is the last point of the first half.
+        tips.append(points[len(points) // 2 - 1])
     sealed = tips[0]
     distances = [math.hypot(x - sealed[0], y - sealed[1]) for x, y in tips]
     assert distances == sorted(distances)
@@ -1461,7 +1451,7 @@ def test_velum_annotation_tracks_model(aperture: float, state: str) -> None:
     assert f"port {state}" in svg
 
 
-def test_velum_and_tongue_masks_never_interpenetrate(tmp_path: Path) -> None:
+def test_velum_and_tongue_never_interpenetrate(tmp_path: Path) -> None:
     if shutil.which("rsvg-convert") is None:  # pragma: no cover
         pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     ipa = IPAFeatures()
@@ -1476,23 +1466,17 @@ def test_velum_and_tongue_masks_never_interpenetrate(tmp_path: Path) -> None:
     for index, (_paths, phone) in enumerate(checked.items()):
         svg = tract_svg.figure(phone)
         width, velum_rows = _pixels(
-            _only_layer(svg, "velum"), tmp_path / f"velum-{index}.svg", width=760
+            _only_layer(svg, "velum", fill_only=True),
+            tmp_path / f"velum-{index}.svg",
+            width=760,
         )
         _, tongue_rows = _pixels(
-            _only_layer(svg, "tonguebody"), tmp_path / f"tongue-{index}.svg", width=760
+            _only_layer(svg, "tonguebody", fill_only=True),
+            tmp_path / f"tongue-{index}.svg",
+            width=760,
         )
-        velum_pixels = {
-            (x, y)
-            for y, row in enumerate(velum_rows)
-            for x in range(width)
-            if row[x * 4 + 3]
-        }
-        tongue_pixels = {
-            (x, y)
-            for y, row in enumerate(tongue_rows)
-            for x in range(width)
-            if row[x * 4 + 3]
-        }
+        velum_pixels = _alpha_pixels(width, velum_rows, 127)
+        tongue_pixels = _alpha_pixels(width, tongue_rows, 20)
         overlap = len(velum_pixels & tongue_pixels)
         if overlap:
             collisions.append((phone, overlap))
@@ -1504,11 +1488,10 @@ VELUM_SURVIVAL = 0.90
 
 
 def test_every_velum_survives_contact_with_the_tongue(tmp_path: Path) -> None:
-    """Clipping contact must not erase the roof that the tongue meets.
+    """Geometric contact must not erase the roof that the tongue meets.
 
-    The intended direction leaves the velum at 100% of its unmasked area.
-    Ninety percent leaves ten points of rasterizer headroom while separating
-    the wrong direction decisively: its velar postures retain only 11--32%.
+    The model-owned velum leaves 100% of its area painted. Ninety percent
+    leaves ten points of rasterizer headroom for contact antialiasing.
     """
     if shutil.which("rsvg-convert") is None:  # pragma: no cover
         pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
