@@ -79,9 +79,9 @@ UNDECLARED_VERTEX_ARCS = frozenset({0.11, 0.15, 0.17, 0.21, 0.40})
 #: in either direction.
 ARCLENGTH_GAPS = {
     ("adult-female", "midline"): 0.034624,
-    ("adult-female", "nasal"): 0.000049,
+    ("adult-female", "nasal"): 0.000041,
     ("adult-male", "midline"): 0.027431,
-    ("adult-male", "nasal"): 0.000040,
+    ("adult-male", "nasal"): 0.000050,
     ("child", "midline"): 0.061651,
     ("child", "nasal"): 0.063599,
 }

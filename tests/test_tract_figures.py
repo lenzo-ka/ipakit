@@ -1496,6 +1496,52 @@ def test_nasal_floor_truncation_still_varies_every_pair() -> None:
         assert nasal_sides[1] != oral_sides[1]
 
 
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_upper_lip_never_enters_nose_over_inventory(
+    head_name: str, tmp_path: Path
+) -> None:
+    """Filled nose and upper-lip interiors stay disjoint in every posture.
+
+    The nasal cavity is skull-fixed, so rasterize it once per head.  The lip
+    is posed for every registered phone; that sweep includes the open jaw of
+    vowels such as /a/ as well as closed and non-labial consonants.
+    """
+    if shutil.which("rsvg-convert") is None:  # pragma: no cover
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    reference = tract_svg.render(tract_svg.drawing(head_name, None))
+    width, nose_rows = _pixels(
+        _only_layer(reference, "nasalfill", fill_only=True),
+        tmp_path / f"{head_name}-nose.svg",
+    )
+    nose = _alpha_pixels(width, nose_rows)
+    collisions = []
+    for phone in IPAFeatures().phones:
+        svg = tract_svg.render(tract_svg.drawing(head_name, phone))
+        _, lip_rows = _pixels(
+            _only_layer(svg, "upper-lip", fill_only=True),
+            tmp_path / f"{head_name}-{ord(phone[0])}-upper-lip.svg",
+        )
+        overlap = nose & _alpha_pixels(width, lip_rows)
+        if overlap:
+            collisions.append((phone, len(overlap)))
+    assert not collisions, (head_name, collisions[:10])
+
+
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_nares_are_an_open_down_forward_end(head_name: str) -> None:
+    """The nasal side walls end apart; no stroked cap seals the naris."""
+    svg = _section(head_name, "m")
+    sides = re.findall(r'<path d="([^"]+)" class="nasalside"/>', svg)
+    assert len(sides) == 2
+    upper, lower = (_pts(side) for side in sides)
+    assert upper[0] != lower[0]
+    assert not any(side.rstrip().endswith("Z") for side in sides)
+    # In display coordinates the lower rim remains down and behind the upper
+    # rim, leaving the gap's outward normal down-forward (left).
+    assert lower[0][0] > upper[0][0]
+    assert lower[0][1] > upper[0][1]
+
+
 def _differing(
     width: int, one: list[bytes], other: list[bytes]
 ) -> list[tuple[int, int]]:
