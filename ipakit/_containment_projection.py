@@ -36,7 +36,12 @@ class ContainmentProjection:
 
     @classmethod
     def build(cls, source: Graph) -> ContainmentProjection:
-        """Project every event and every navigation-visible containment edge."""
+        """Project every event and every navigation-visible containment edge.
+
+        Projection or identity validation failure is a hard runtime error by
+        design.  Falling back to the old kernel would make navigation answers
+        depend silently on whether projection happened to succeed.
+        """
         refs = source.event_references()
         tier_names = {
             declaration.name: _name(f"tier-{index}")

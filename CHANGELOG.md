@@ -1,6 +1,16 @@
 # Changelog
 
-- Require Python 3.12 and tiergraph as the containment substrate.
+- Require Python 3.12 and tiergraph as the containment substrate. The ordered
+  differential reports unchanged navigation answers only over its named corpus
+  of checked-in profile samples and structural fixtures, not over every graph a
+  caller can construct. Adversarial review found one correction after the fact:
+  a containment relation that repeats one child already made old
+  `direct_children` repeat it, while old `parents` returned the parent once by
+  membership (and ancestor routes inherited that asymmetry). The projection
+  now preserves both incidences upward as well as downward; the corpus includes
+  this constructible shape and records the two changed ordered observations.
+  Projection/identity validation raises a hard runtime error deliberately;
+  there is no silent old-kernel fallback.
 
 - Corpus roles can record typed producer/declaration provenance, corpora carry declaration fingerprints and explicit durable splits, and `Experiment`/`ipakit rules derives` classify and serialize batch derivability with reproducible identities and report comparison. A CMUdict-slice demonstration and dated storage scaling report exercise the full lane.
 
