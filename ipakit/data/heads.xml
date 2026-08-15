@@ -185,6 +185,7 @@
          an articulatory measurement. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
     <tongue attachment="0.08" carrier="mandible" from="0.08" tip="0.13" to="0.80" falloff="0.30" taper="0.07" closure-threshold="0.60" provenance="anterior attachment declared on the mandible at arc 0.08; closure threshold separates the inventory's 0.50 and 0.70 tip-offset classes and is not a measurement; tip at declared alveolar tongue-tip landmark; body span follows Pink Trombone (Neil Thapen 2017, MIT)"/>
+    <epiglottis attachment="0.95" rest-arc="0.80" target-arc="0.87" rest-offset="0.08" thickness="0.022" tongue-coupling="0.45" provenance="schematic leaf rooted in the larynx with its free edge beside the tongue root; epiglottal articulation couples leaf adduction with tongue-root retraction"/>
     <frontal>
       <!-- Proportions: Z-Anatomy 5.2.0 (CC BY-SA 4.0), derived from BodyParts3D
            (CC BY-SA 2.1 Japan), measured in ipakit-assets/proportions.md:
@@ -301,6 +302,7 @@
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
     <tongue attachment="0.08" carrier="mandible" from="0.08" tip="0.13" to="0.80" falloff="0.30" taper="0.07" closure-threshold="0.60" provenance="anterior attachment declared on the mandible at arc 0.08; closure threshold separates the inventory's 0.50 and 0.70 tip-offset classes and is not a measurement; tip at declared alveolar tongue-tip landmark; body span follows Pink Trombone (Neil Thapen 2017, MIT)"/>
+    <epiglottis attachment="0.95" rest-arc="0.80" target-arc="0.87" rest-offset="0.08" thickness="0.020" tongue-coupling="0.45" provenance="schematic leaf rooted in the larynx with its free edge beside the tongue root; epiglottal articulation couples leaf adduction with tongue-root retraction"/>
     <frontal>
       <!-- Z-Anatomy/BodyParts3D dental and mouth proportions as above.
            Vermilion: Farkas et al., Am J Orthod 86 (1984) 52–60,
@@ -398,6 +400,7 @@
          pharyngeal wall. Hand-placed, following the shape Pink Trombone uses
          (Neil Thapen, 2017, MIT) rather than any measurement here. -->
     <tongue attachment="0.08" carrier="mandible" from="0.08" tip="0.13" to="0.80" falloff="0.30" taper="0.07" closure-threshold="0.60" provenance="anterior attachment declared on the mandible at arc 0.08; closure threshold separates the inventory's 0.50 and 0.70 tip-offset classes and is not a measurement; tip at declared alveolar tongue-tip landmark; body span follows Pink Trombone (Neil Thapen 2017, MIT)"/>
+    <epiglottis attachment="0.95" rest-arc="0.80" target-arc="0.87" rest-offset="0.08" thickness="0.018" tongue-coupling="0.45" provenance="schematic leaf rooted in the larynx with its free edge beside the tongue root; epiglottal articulation couples leaf adduction with tongue-root retraction"/>
     <frontal>
       <!-- Z-Anatomy/BodyParts3D dental and mouth proportions as above.
            Child lip ratio: Farkas, Anthropometry of the Head and Face,

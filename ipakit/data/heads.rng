@@ -61,6 +61,7 @@
             <ref name="hinge"/>
             <ref name="carriage"/>
             <ref name="tongue"/>
+            <ref name="epiglottis"/>
             <ref name="frontal"/>
           </interleave>
         </element>
@@ -228,6 +229,21 @@
       <attribute name="taper"><ref name="normalized"/></attribute>
       <attribute name="closure-threshold"><ref name="normalized"/></attribute>
       <attribute name="tip"><ref name="normalized"/></attribute>
+      <attribute name="provenance"><text/></attribute>
+    </element>
+  </define>
+
+  <define name="epiglottis">
+    <!-- The leaf is rooted in the larynx, with a free tip beside the tongue
+         root. It approaches the epiglottal wall target as its posture degree
+         rises; tongue-coupling is the simultaneous tongue-root contribution. -->
+    <element name="epiglottis">
+      <attribute name="attachment"><ref name="normalized"/></attribute>
+      <attribute name="rest-arc"><ref name="normalized"/></attribute>
+      <attribute name="target-arc"><ref name="normalized"/></attribute>
+      <attribute name="rest-offset"><ref name="normalized"/></attribute>
+      <attribute name="thickness"><ref name="normalized"/></attribute>
+      <attribute name="tongue-coupling"><ref name="normalized"/></attribute>
       <attribute name="provenance"><text/></attribute>
     </element>
   </define>

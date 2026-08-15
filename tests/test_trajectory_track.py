@@ -29,6 +29,21 @@ TRACK_PARAMETERS_BY_VERSION = {
         "rest_weight",
         "tongue_controls",
     ),
+    3: (
+        "reading",
+        "rest",
+        "constrictions",
+        "velic",
+        "glottal",
+        "secondary",
+        "unmodelled",
+        "aperture_width",
+        "protrusion",
+        "implied",
+        "rest_weight",
+        "tongue_controls",
+        "epiglottal",
+    ),
 }
 
 ANIMATION_SHA256 = json.loads(
@@ -51,7 +66,7 @@ def test_track_parameters_belong_to_the_current_wire_version() -> None:
     assert tuple(document["parameters"]) == TRACK_PARAMETERS_BY_VERSION[TRACK_VERSION]
 
 
-@pytest.mark.parametrize("other_version", [None, 1, 3, "2"])
+@pytest.mark.parametrize("other_version", [None, 1, 2, 4, "3"])
 def test_track_reader_refuses_every_other_version(other_version: object) -> None:
     document = json.loads(trajectory("kat", head=head()).to_track())
     document["v"] = other_version
