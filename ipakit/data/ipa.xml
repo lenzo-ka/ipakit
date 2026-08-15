@@ -257,7 +257,7 @@
       <value name="tongue-tip" arc="0.13" short="ttp" alias="apical" label="apical" href="Apical_consonant"/>
       <value name="tongue-blade" arc="0.19" short="tbl" alias="laminal" label="laminal" href="Laminal_consonant"/>
       <value name="tongue-front" arc="0.32" short="tfr" href="Palatal_consonant"/>
-      <value name="tongue-dorsum" arc="0.45" short="tdo" href="Dorsal_consonant"/>
+      <value name="tongue-dorsum" arc-landmark="velum-rest" short="tdo" href="Dorsal_consonant"/>
       <value name="tongue-root" arc="0.74" short="trt" href="Radical_consonant"/>
       <value name="epiglottis" arc="0.87" short="epg" href="Epiglottal_consonant"/>
       <value name="vocal-folds" arc="1.00" short="vfd" aperture="median" href="Glottal_consonant"/>

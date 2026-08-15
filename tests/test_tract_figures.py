@@ -1279,25 +1279,32 @@ def test_lowered_velum_is_the_dorsums_declared_boundary() -> None:
 def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Per-head anatomy owns the resting edge and its dorsal target."""
+    """Anatomy owns the flap, closure, and inventory dorsal landmark."""
     before = head("child")
-    old_pose = posture(IPAFeatures(), "ŋ", before)
+    old_ipa = IPAFeatures()
+    old_pose = posture(old_ipa, "ŋ", before)
+    old_dorsum = landmarks(old_ipa).articulators["tongue-dorsum"]
     old_arc = before.velum_lowered_arc
 
     tree = ET.parse(anatomy.ANATOMY_FILE)
     landmark = tree.getroot().find("landmarks/landmark[@name='velum-rest']")
     assert landmark is not None and old_arc is not None
-    ET.SubElement(landmark, "head", name="child", arc=str(old_arc + 0.01))
+    landmark.set("arc", str(old_arc + 0.01))
     moved_path = tmp_path / "tract-anatomy.xml"
     tree.write(moved_path, encoding="utf-8", xml_declaration=True)
     monkeypatch.setattr(anatomy, "ANATOMY_FILE", moved_path)
 
     tract_module._load_heads.cache_clear()
     moved = head("child")
-    moved_pose = posture(IPAFeatures(), "ŋ", moved)
+    moved_ipa = IPAFeatures()
+    moved_pose = posture(moved_ipa, "ŋ", moved)
+    moved_dorsum = landmarks(moved_ipa).articulators["tongue-dorsum"]
     assert moved.velum_lowered_arc == pytest.approx(old_arc + 0.01)
     assert old_pose.constrictions[-1].arc == pytest.approx(old_arc)
-    assert moved_pose.constrictions[-1].arc == pytest.approx(old_arc + 0.01)
+    assert old_dorsum == pytest.approx(old_arc)
+    assert moved_dorsum == pytest.approx(old_arc + 0.01)
+    assert moved_pose.constrictions[-1].arc == pytest.approx(moved_dorsum)
+    assert moved.velum_lowered_arc == pytest.approx(moved_dorsum)
     velum = moved.velum(1.0)
     dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
     assert velum is not None and dorsum == pytest.approx(velum.tip)
@@ -1319,12 +1326,25 @@ def test_velum_and_dorsum_filled_interiors_do_not_overlap(
     _, tongue_rows = _pixels(
         _only_layer(svg, "tonguebody", fill_only=True), tmp_path / f"{stem}-tongue.svg"
     )
-    # Keep the discriminating committed thresholds exactly: a 0.2px
-    # translation is enough to produce a qualifying overlap.
     overlap = _alpha_pixels(width, velum_rows, 127) & _alpha_pixels(
         width, tongue_rows, 20
     )
     assert not overlap, (head_name, phone, len(overlap))
+
+    tongue = ET.fromstring(_only_layer(svg, "tonguebody", fill_only=True))
+    tonguebody = next(
+        node
+        for node in tongue.iter()
+        if "tonguebody" in node.attrib.get("class", "").split()
+    )
+    tonguebody.set("transform", "translate(0,-0.2)")
+    _, translated_rows = _pixels(
+        ET.tostring(tongue, encoding="unicode"), tmp_path / f"{stem}-translated.svg"
+    )
+    translated_overlap = _alpha_pixels(width, velum_rows, 127) & _alpha_pixels(
+        width, translated_rows, 20
+    )
+    assert translated_overlap, (head_name, phone)
 
 
 def test_nasal_floor_truncation_still_varies_every_pair() -> None:
