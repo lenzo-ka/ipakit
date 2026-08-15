@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 
 import pytest
 from ipakit.form import FormBuilder
 from ipakit.tract import TRACK_VERSION, head, trajectory, trajectory_from_track
-from ipakit.tract_svg import animate
+from ipakit.tract_svg import animate, animate_two_pane
 
 TRACK_PARAMETERS_BY_VERSION = {
     2: (
@@ -66,6 +67,68 @@ def test_track_round_trip_and_render_identity(word: str) -> None:
     assert loaded.to_track() == live.to_track()
     assert animate(loaded) == animate(word)
     assert hashlib.sha256(animate(word).encode()).hexdigest() == ANIMATION_SHA256[word]
+
+
+def _transcript_units(page: str) -> list[str]:
+    return re.findall(r'<span class="unit"[^>]*>(.*?)</span>', page)
+
+
+def _active_units(page: str) -> list[tuple[int, ...]]:
+    return [
+        tuple(int(index) for index in value.split())
+        for value in re.findall(r'data-active-units="([^"]*)"', page)
+    ]
+
+
+@pytest.mark.parametrize("renderer", [animate, animate_two_pane])
+def test_transcript_has_exact_units_and_optional_display_label(renderer) -> None:
+    value = trajectory("ˈkæt", head=head(), frames_per_unit=2)
+    plain = renderer(value)
+    labelled = renderer(value, display_label="cat & kitten")
+
+    assert _transcript_units(plain) == list(value.units)
+    assert _transcript_units(labelled) == list(value.units)
+    assert 'class="display-label"' not in plain
+    assert '<span class="display-label">cat &amp; kitten</span>' in labelled
+    assert re.findall(r'<path\b[^>]*\bd="[^"]*"', plain) == re.findall(
+        r'<path\b[^>]*\bd="[^"]*"', labelled
+    )
+
+
+@pytest.mark.parametrize("renderer", [animate, animate_two_pane])
+def test_transcript_highlights_follow_trajectory_dominance(renderer) -> None:
+    value = trajectory("kat", head=head(), frames_per_unit=2)
+    hold = value.frames_per_unit
+    expected = (
+        [value.dominant_unit_indices(value.ordinals[0])] * hold
+        + [value.dominant_unit_indices(t) for t in value.ordinals]
+        + [value.dominant_unit_indices(value.ordinals[-1])] * hold
+    )
+
+    assert _active_units(renderer(value)) == expected
+    midpoint = value.ordinals.index(1.5)
+    assert value.dominant_unit_indices(value.ordinals[midpoint]) == (0, 1)
+    assert value.unit_extents == ((0.5, 1.5), (1.5, 2.5), (2.5, 3.5))
+
+
+def test_timed_two_pane_transcript_uses_sampled_ordinals_and_silent_ramps() -> None:
+    value = trajectory(
+        _timed_form((0.0, 0.2), (0.2, 0.4), (0.6, 0.2)),
+        head=head(),
+        fps=20,
+    )
+    ramp_frames = round(0.20 * value.fps)
+    rendered = _active_units(animate_two_pane(value))
+
+    assert rendered[:ramp_frames] == [()] * ramp_frames
+    assert rendered[-ramp_frames:] == [()] * ramp_frames
+    assert rendered[ramp_frames:-ramp_frames] == [
+        value.dominant_unit_indices(t) for t in value.ordinals
+    ]
+    boundary = next(
+        index for index, stamp in enumerate(value.stamps) if math.isclose(stamp, 0.2)
+    )
+    assert rendered[ramp_frames + boundary] == (0, 1)
 
 
 def _timed_form(*spans: tuple[float, float]):
