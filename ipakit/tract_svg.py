@@ -603,8 +603,8 @@ def drawing(
     # once module-level, resolved against the package data at import, so a
     # caller's own ``features`` moved the posture and left the folds, the
     # places and the articulators speaking for a different inventory.
-    marks = landmarks(ipa)
     h = head(name)
+    marks = landmarks(ipa, h.name)
     p = posture(ipa, phone, h)
     current = build_geometry(h, marks, p)
     caption: dict[str, Any] | None = None
@@ -2038,7 +2038,7 @@ def animate(
         else head_name if head_name is not None else head().name
     )
     h = head(name)
-    marks = landmarks(ipa)
+    marks = landmarks(ipa, h.name)
     track = (
         word
         if isinstance(word, Trajectory)

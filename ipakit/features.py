@@ -197,6 +197,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             {}
         )  # (feature, value) -> short
         self._type_defaults: dict[str, str | None] = {}
+        # (feature, value) -> named anatomical arc. Feature coordinates stay
+        # head-independent for comparison; renderers resolve this retained
+        # declaration against the head they project through.
+        self._arc_landmarks: dict[tuple[str, str], str] = {}
         self._load()
         self._validate_prominence_contract()
         self._load_lookalikes()
@@ -416,7 +420,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                                 # An explicit arc in a caller-supplied inventory
                                 # is a deliberate override; shipped data owns the
                                 # value solely through the named anatomy.
-                                coords.setdefault("arc", landmark_arc(anchor))
+                                if "arc" not in coords:
+                                    coords["arc"] = landmark_arc(anchor)
+                                    self._arc_landmarks[(name, val_name)] = anchor
                             if coords:
                                 coordinates[val_name] = coords
                             if (art := v.get("articulator")) is not None:
@@ -458,6 +464,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     self._value_aliases[name] = dict(source.value_aliases)
                     offscale = set(source.offscale)
                     coordinates = {v: dict(c) for v, c in source.coordinates.items()}
+                    for landmark_value in source.values:
+                        if anchor := self._arc_landmarks.get(
+                            (vocabulary, landmark_value)
+                        ):
+                            self._arc_landmarks[(name, landmark_value)] = anchor
                     articulators = dict(source.articulators)
                     value_apertures = dict(source.apertures)
                     lip_dofs = {v: dict(x) for v, x in source.lip_dofs.items()}

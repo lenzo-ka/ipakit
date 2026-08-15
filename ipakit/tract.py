@@ -1172,15 +1172,19 @@ def _implied_positions(
     return tuple(out)
 
 
-def landmarks(features: IPAFeatures) -> Landmarks:
-    """Read the drawable landmarks out of the declared data."""
+def landmarks(features: IPAFeatures, head_name: str | None = None) -> Landmarks:
+    """Read declared drawable landmarks, localized for ``head_name``."""
 
     def arcs(name: str) -> dict[str, float]:
         feature = features.features.get(name)
         if feature is None:
             return {}
         return {
-            value: coords["arc"]
+            value: (
+                landmark_arc(anchor, head_name)
+                if (anchor := features._arc_landmarks.get((name, value)))
+                else coords["arc"]
+            )
             for value, coords in feature.coordinates.items()
             if coords.get("arc") is not None
         }

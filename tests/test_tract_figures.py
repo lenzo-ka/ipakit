@@ -1279,32 +1279,54 @@ def test_lowered_velum_is_the_dorsums_declared_boundary() -> None:
 def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Anatomy owns the flap, closure, and inventory dorsal landmark."""
-    before = head("child")
+    """A head's anatomy owns its flap, closure, and dorsal landmark."""
     old_ipa = IPAFeatures()
-    old_pose = posture(old_ipa, "ŋ", before)
-    old_dorsum = landmarks(old_ipa).articulators["tongue-dorsum"]
-    old_arc = before.velum_lowered_arc
+    old = {
+        name: (
+            shape.velum_lowered_arc,
+            posture(old_ipa, "ŋ", shape).constrictions[-1].arc,
+            tract_svg.drawing(name, None, old_ipa)["geometry"][
+                "landmarks"
+            ].articulators["tongue-dorsum"],
+        )
+        for name, shape in heads().items()
+    }
+    old_arc = old["child"][0]
 
     tree = ET.parse(anatomy.ANATOMY_FILE)
     landmark = tree.getroot().find("landmarks/landmark[@name='velum-rest']")
     assert landmark is not None and old_arc is not None
-    landmark.set("arc", str(old_arc + 0.01))
+    ET.SubElement(landmark, "head", name="child", arc=str(old_arc + 0.01))
     moved_path = tmp_path / "tract-anatomy.xml"
     tree.write(moved_path, encoding="utf-8", xml_declaration=True)
     monkeypatch.setattr(anatomy, "ANATOMY_FILE", moved_path)
 
     tract_module._load_heads.cache_clear()
-    moved = head("child")
     moved_ipa = IPAFeatures()
+    moved_heads = heads()
+    moved = moved_heads["child"]
     moved_pose = posture(moved_ipa, "ŋ", moved)
-    moved_dorsum = landmarks(moved_ipa).articulators["tongue-dorsum"]
-    assert moved.velum_lowered_arc == pytest.approx(old_arc + 0.01)
-    assert old_pose.constrictions[-1].arc == pytest.approx(old_arc)
-    assert old_dorsum == pytest.approx(old_arc)
-    assert moved_dorsum == pytest.approx(old_arc + 0.01)
-    assert moved_pose.constrictions[-1].arc == pytest.approx(moved_dorsum)
-    assert moved.velum_lowered_arc == pytest.approx(moved_dorsum)
+    moved_dorsum = tract_svg.drawing("child", None, moved_ipa)["geometry"][
+        "landmarks"
+    ].articulators["tongue-dorsum"]
+    assert (
+        moved.velum_lowered_arc,
+        moved_pose.constrictions[-1].arc,
+        moved_dorsum,
+    ) == (
+        pytest.approx(old_arc + 0.01),
+        pytest.approx(old_arc + 0.01),
+        pytest.approx(old_arc + 0.01),
+    )
+    for name in ("adult-male", "adult-female"):
+        shape = moved_heads[name]
+        assert (
+            shape.velum_lowered_arc,
+            posture(moved_ipa, "ŋ", shape).constrictions[-1].arc,
+            tract_svg.drawing(name, None, moved_ipa)["geometry"][
+                "landmarks"
+            ].articulators["tongue-dorsum"],
+        ) == old[name]
     velum = moved.velum(1.0)
     dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
     assert velum is not None and dorsum == pytest.approx(velum.tip)
