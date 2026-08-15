@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,7 +22,7 @@ from ipakit._cmu_graph import read as read_cmu  # noqa: E402
 from ipakit._containment_projection import ContainmentProjection  # noqa: E402
 from ipakit._gesture_graph import project as project_gestures  # noqa: E402
 from ipakit._mora_graph import build as build_mora  # noqa: E402
-from ipakit._panphon_graph import build as build_panphon  # noqa: E402
+from ipakit._panphon_graph import declaration as panphon_declaration  # noqa: E402
 from ipakit._pinyin_graph import build as build_pinyin  # noqa: E402
 from ipakit._rewrite_graph import (  # noqa: E402
     japanese_moraic_fixture,
@@ -117,6 +118,7 @@ def _cross_relation_cycle_fixture() -> Graph:
     return builder.build()
 
 
+@lru_cache(maxsize=1)
 def corpus() -> tuple[tuple[str, Graph], ...]:
     """Build every named checked-in navigation fixture and profile sample."""
     inventory = IPAFeatures()
@@ -143,7 +145,10 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
     ]
     native = Form.parse("ata", inventory)._graph
     graphs.append(("profile:gesture", project_gestures(native, inventory)))
-    panphon, _ = build_panphon(("p", "a", "t"))
+    panphon_builder = GraphBuilder(panphon_declaration(()))
+    for spelling in ("p", "a", "t"):
+        panphon_builder.append_input_atom("segment", {"spelling": spelling})
+    panphon = panphon_builder.build()
     graphs.append(("profile:panphon", panphon))
     graphs.extend(
         (
