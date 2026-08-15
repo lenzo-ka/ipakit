@@ -121,7 +121,7 @@
       <value name="alveolo-palatal" arc="0.24" articulator="tongue-blade" short="apl" href="Alveolo-palatal_consonant"/>
       <value name="palatal" arc="0.32" articulator="tongue-front" short="pal" href="Palatal_consonant"/>
       <value name="bilabial^palatal" short="lpl" alias="labial-palatal" href="Labial%E2%80%93palatal_approximant"/>
-      <value name="velar" arc="0.45" articulator="tongue-dorsum" short="vel" href="Velar_consonant"/>
+      <value name="velar" arc-landmark="velum-rest" articulator="tongue-dorsum" short="vel" href="Velar_consonant"/>
       <value name="bilabial^velar" short="lbv" alias="labial-velar" href="Labial%E2%80%93velar_consonant"/>
       <value name="uvular" arc="0.56" articulator="tongue-dorsum" short="uvu" href="Uvular_consonant"/>
       <value name="pharyngeal" arc="0.74" articulator="tongue-root" short="pha" href="Pharyngeal_consonant"/>

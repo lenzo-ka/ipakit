@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 from ._convert import longest_match, require_convertible
 from .analysis import AnalysisMixin
+from .anatomy import landmark_arc
 from .constants import (
     DEFAULT_IPA_FEATS,
     DEFAULT_SHORT_NAME_LEN,
@@ -411,6 +412,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                                 for attr in ("arc", "offset")
                                 if (raw := v.get(attr)) is not None
                             }
+                            if anchor := v.get("arc-landmark"):
+                                # An explicit arc in a caller-supplied inventory
+                                # is a deliberate override; shipped data owns the
+                                # value solely through the named anatomy.
+                                coords.setdefault("arc", landmark_arc(anchor))
                             if coords:
                                 coordinates[val_name] = coords
                             if (art := v.get("articulator")) is not None:

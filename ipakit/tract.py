@@ -51,6 +51,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .anatomy import landmark_arc
 from .constants import PHONEMAPS_DIR
 from .models import Feature
 
@@ -354,16 +355,17 @@ class Head:
             if point is None:
                 return None
             lowered.append(point)
-        hinge = lowered[0]
-        # The raised contour is the direct boundary from its fixed hinge to
-        # the sealing wall: no fitted bend or renderer-owned control point.
-        raised = [
-            (
-                hinge[0] + (wall[0] - hinge[0]) * i / samples,
-                hinge[1] + (wall[1] - hinge[1]) * i / samples,
-            )
-            for i in range(samples + 1)
-        ]
+        # Follow the oral wall to the port. A straight hinge-to-port chord
+        # cuts through oral space and therefore through a raised dorsum.
+        port_arc = self.port_arc if self.port_arc is not None else edge_arc
+        raised = []
+        for i in range(samples + 1):
+            arc = hinge_arc + (port_arc - hinge_arc) * i / samples
+            point = self.project(TractPoint(arc=arc, offset=1.0))
+            if point is None:
+                return None
+            raised.append(point)
+        raised[-1] = wall
         oral = tuple(
             (
                 high[0] + (low[0] - high[0]) * amount,
@@ -934,7 +936,18 @@ def _load_heads() -> tuple[dict[str, Head], str]:
         raw_lowered_arc = (
             velum_elem.get("lowered-arc") if velum_elem is not None else None
         )
-        velum_lowered_arc = float(raw_lowered_arc) if raw_lowered_arc else None
+        lowered_landmark = (
+            velum_elem.get("lowered-landmark") if velum_elem is not None else None
+        )
+        if raw_lowered_arc and lowered_landmark:
+            raise ValueError(
+                f"head {name!r} declares both lowered-arc and lowered-landmark"
+            )
+        velum_lowered_arc = (
+            float(raw_lowered_arc)
+            if raw_lowered_arc
+            else landmark_arc(lowered_landmark, name) if lowered_landmark else None
+        )
         teeth_elem = elem.find("teeth")
         teeth: tuple[tuple[str, float, float, str], ...] = ()
         if teeth_elem is not None:
@@ -1769,6 +1782,22 @@ def posture(
     aperture_width, protrusion = _lip_posture(features, bundle)
     controls = constrictions(features, bundle)
     reading = tract_point(features, bundle)
+    # The inventory names the canonical velar location; each head projects
+    # that target at its own declared resting edge. Preserve the inventory
+    # coordinate for distance, but pose dorsal closures at the local anchor.
+    named_places = set(str(bundle.get("place") or "").split(Feature.COMBINER))
+    has_velar = "velar" in named_places or bundle.get("airstream") == "velaric"
+    if has_velar:
+        canonical = landmark_arc("velum-rest")
+        local = landmark_arc("velum-rest", h.name)
+
+        def localize(point: TractPoint) -> TractPoint:
+            if point.arc is not None and abs(point.arc - canonical) < 1e-12:
+                return TractPoint(local, point.offset, point.articulator)
+            return point
+
+        reading = localize(reading)
+        controls = tuple(localize(point) for point in controls)
     if (
         not reading.placed
         and not any(control.placed for control in controls)

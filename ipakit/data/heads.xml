@@ -75,6 +75,12 @@
      by side without one of them being mirrored. -->
 <heads default="adult-male">
 
+  <!-- Named anatomy shared with ipa.xml. The inventory's velar place and
+       each head's lowered velum reference this declaration. -->
+  <landmarks>
+    <landmark name="velum-rest" arc="0.45" provenance="hand-placed"/>
+  </landmarks>
+
   <head name="adult-male" desc="Adult male mid-sagittal tract" length-cm="17.5">
     <rest arc="0.38" offset="0.18" tip-arc="0.11" tip-offset="1.0" lips="closed" jaw="closed" velum="lowered"/>
     <midline>
@@ -127,7 +133,7 @@
     <!-- The lowered oral face continues the wall from the hard-palate edge to
          the velar target. A raised dorsum targets that same boundary, so it
          meets the flap without either solid being clipped. -->
-    <velum thickness="0.018" hinge-arc="0.40" lowered-arc="0.45" provenance="hand-placed"/>
+    <velum thickness="0.018" hinge-arc="0.40" lowered-landmark="velum-rest" provenance="hand-placed"/>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
          carries the lower teeth, the lower lip and the tongue's
@@ -246,7 +252,7 @@
       <point arc="0.9527" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
       <point arc="1.0000" x="0.5966" y="0.7456" diameter="0.006" provenance="hand-placed"/>
     </nasal>
-    <velum thickness="0.017" hinge-arc="0.40" lowered-arc="0.45" provenance="hand-placed"/>
+    <velum thickness="0.017" hinge-arc="0.40" lowered-landmark="velum-rest" provenance="hand-placed"/>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
          carries the lower teeth, the lower lip and the tongue's
@@ -343,7 +349,7 @@
       <point arc="0.93" x="0.5435" y="0.7748" diameter="0.016" provenance="hand-placed"/>
       <point arc="1.00" x="0.528" y="0.7575" diameter="0.005" provenance="hand-placed"/>
     </nasal>
-    <velum thickness="0.015" hinge-arc="0.40" lowered-arc="0.45" provenance="hand-placed"/>
+    <velum thickness="0.015" hinge-arc="0.40" lowered-landmark="velum-rest" provenance="hand-placed"/>
     <!-- Maxillary teeth are fixed to the skull. Mandibular teeth are
          carried by the jaw (docs/tract-anatomy.md 4.2: the mandible
          carries the lower teeth, the lower lip and the tongue's

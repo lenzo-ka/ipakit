@@ -37,7 +37,8 @@ from typing import Any
 
 import ipakit
 import pytest
-from ipakit import tract_svg
+from ipakit import anatomy, tract_svg
+from ipakit import tract as tract_module
 from ipakit.constants import METADATA_ATTRS
 from ipakit.features import IPAFeatures
 from ipakit.models import Feature
@@ -1275,23 +1276,55 @@ def test_lowered_velum_is_the_dorsums_declared_boundary() -> None:
     assert dorsum == pytest.approx(velum.tip)
 
 
+def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Per-head anatomy owns the resting edge and its dorsal target."""
+    before = head("child")
+    old_pose = posture(IPAFeatures(), "ŋ", before)
+    old_arc = before.velum_lowered_arc
+
+    tree = ET.parse(anatomy.ANATOMY_FILE)
+    landmark = tree.getroot().find("landmarks/landmark[@name='velum-rest']")
+    assert landmark is not None and old_arc is not None
+    ET.SubElement(landmark, "head", name="child", arc=str(old_arc + 0.01))
+    moved_path = tmp_path / "tract-anatomy.xml"
+    tree.write(moved_path, encoding="utf-8", xml_declaration=True)
+    monkeypatch.setattr(anatomy, "ANATOMY_FILE", moved_path)
+
+    tract_module._load_heads.cache_clear()
+    moved = head("child")
+    moved_pose = posture(IPAFeatures(), "ŋ", moved)
+    assert moved.velum_lowered_arc == pytest.approx(old_arc + 0.01)
+    assert old_pose.constrictions[-1].arc == pytest.approx(old_arc)
+    assert moved_pose.constrictions[-1].arc == pytest.approx(old_arc + 0.01)
+    velum = moved.velum(1.0)
+    dorsum = moved.tongue_point(moved.velum_lowered_arc, moved_pose.constrictions)
+    assert velum is not None and dorsum == pytest.approx(velum.tip)
+    tract_module._load_heads.cache_clear()
+
+
 @pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
-def test_velum_and_dorsum_filled_interiors_do_not_overlap(tmp_path: Path) -> None:
-    """The mask is not needed to separate the two solids at contact."""
-    svg = tract_svg.figure("ŋ")
+@pytest.mark.parametrize("head_name", sorted(heads()))
+@pytest.mark.parametrize("phone", ["ŋ", "k", "ɡ", "k͡p", "ǃ"])
+def test_velum_and_dorsum_filled_interiors_do_not_overlap(
+    tmp_path: Path, head_name: str, phone: str
+) -> None:
+    """Lowered and sealed contacts are boundaries, never penetration."""
+    svg = tract_svg.figure(phone, head_name=head_name)
+    stem = f"{head_name}-{ord(phone[0])}"
     width, velum_rows = _pixels(
-        _only_layer(svg, "velum", fill_only=True), tmp_path / "velum-fill.svg"
+        _only_layer(svg, "velum", fill_only=True), tmp_path / f"{stem}-velum.svg"
     )
     _, tongue_rows = _pixels(
-        _only_layer(svg, "tonguebody", fill_only=True), tmp_path / "tongue-fill.svg"
+        _only_layer(svg, "tonguebody", fill_only=True), tmp_path / f"{stem}-tongue.svg"
     )
-    # The velum is opaque, while tonguebody's intended alpha is 0.16 (41/255).
-    # Half of each intended fill excludes only shared antialias boundary
-    # pixels, so this counts intersecting interiors rather than contact.
+    # Keep the discriminating committed thresholds exactly: a 0.2px
+    # translation is enough to produce a qualifying overlap.
     overlap = _alpha_pixels(width, velum_rows, 127) & _alpha_pixels(
         width, tongue_rows, 20
     )
-    assert not overlap
+    assert not overlap, (head_name, phone, len(overlap))
 
 
 def test_nasal_floor_truncation_still_varies_every_pair() -> None:
