@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 import tiergraph as tg
 
-from ._tiergraph import Graph
+from ._tiergraph import EndpointKind, Graph
 
 _NAMESPACE = "https://ipakit.dev/tiergraph/containment-projection/v1"
 _PREFIX = "ipakit-containment"
@@ -27,9 +27,10 @@ def _name(local_name: str) -> tg.QualifiedName:
 class ContainmentProjection:
     """Single-source ordered containment view with lossless event identity.
 
-    Navigation answers are unchanged on every graph this projection accepts.
-    It accepts single-source containment instances and refuses multi-source
-    instances by name because joint-containment navigation is not defined.
+    Navigation is identical to the legacy implementation on every accepted
+    graph.  Accepted containment instances have exactly one event source and
+    only event targets (including a declared empty target side).  Source
+    cardinalities other than one and boundary endpoints are refused by name.
     """
 
     source: Graph
@@ -38,7 +39,8 @@ class ContainmentProjection:
     new_to_old: dict[tg.ItemRef, str]
     tier_names: dict[str, tg.QualifiedName]
     containment_names: dict[str, tg.QualifiedName]
-    parent_order: dict[tuple[str, str], int]
+    parent_order: dict[tuple[str, str, str], int]
+    traversal_order: tuple[str, ...]
 
     @classmethod
     def build(cls, source: Graph) -> ContainmentProjection:
@@ -91,11 +93,31 @@ class ContainmentProjection:
                     "containment projection refuses multi-source containment "
                     f"instance {index} ({relation.name!r})"
                 )
+            if relation.name in containment_names_set and any(
+                source.resolve(endpoint).kind is not EndpointKind.EVENT
+                for endpoint in (*relation.sources, *relation.targets)
+            ):
+                raise ValueError(
+                    "containment projection refuses boundary-endpoint containment "
+                    f"relation {relation.name!r}: tiergraph OrderedContainment "
+                    "supports item endpoints only"
+                )
         containment_names = {
             declaration.name: _name(f"contains-{index}")
             for index, declaration in enumerate(containment)
         }
-        item_side = tg.RelationSideDeclaration((tg.RelationEndpointKind.ITEM,))
+
+        def item_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
+            arity = getattr(declaration, f"{side}_arity")
+            tiers = getattr(declaration, f"{side}_tiers")
+            return tg.RelationSideDeclaration(
+                (tg.RelationEndpointKind.ITEM,),
+                None if tiers is None else tuple(tier_names[tier] for tier in tiers),
+                minimum=arity[0],
+                maximum=arity[1],
+                allow_empty=getattr(declaration, f"allow_empty_{side}"),
+            )
+
         declarations: tuple[
             tg.SimpleRelationDeclaration | tg.PolyadicRelationDeclaration, ...
         ] = (
@@ -103,12 +125,13 @@ class ContainmentProjection:
             *(
                 tg.PolyadicRelationDeclaration(
                     name,
-                    item_side,
-                    item_side,
+                    item_side(declaration, "source"),
+                    item_side(declaration, "target"),
                     unique_sources=True,
                     acyclic=True,
                 )
-                for name in containment_names.values()
+                for declaration in containment
+                for name in (containment_names[declaration.name],)
             ),
         )
         relations = tuple(
@@ -121,12 +144,28 @@ class ContainmentProjection:
             if relation.name in containment_names
         )
         parent_order = {
-            (target, source_ref): rank
+            (target, source_ref, relation.name): rank
             for rank, relation in enumerate(source.relations)
             if relation.name in containment_names
             for target in relation.targets
             for source_ref in relation.sources
         }
+        traversal_order = tuple(
+            dict.fromkeys(
+                relation.name
+                for relation in source.relations
+                if relation.name in containment_names
+            )
+        ) + tuple(
+            declaration.name
+            for declaration in containment
+            if declaration.name
+            not in {
+                relation.name
+                for relation in source.relations
+                if relation.name in containment_names
+            }
+        )
 
         projected = tg.Graph(
             (tg.NamespaceDeclaration(_PREFIX, _NAMESPACE),),
@@ -142,6 +181,7 @@ class ContainmentProjection:
             tier_names,
             containment_names,
             parent_order,
+            traversal_order,
         )
         result._verify_identity(refs)
         return result
@@ -161,10 +201,25 @@ class ContainmentProjection:
                 )
 
     def traversals(self) -> tuple[tg.OrderedContainment, ...]:
-        """Return validated ordered traversals in declaration order."""
+        """Return validated traversals in canonical relation-instance order."""
         return tuple(
-            tg.OrderedContainment(self.graph, name)
-            for name in dict.fromkeys(self.containment_names.values())
+            tg.OrderedContainment(self.graph, self.containment_names[name])
+            for name in self.traversal_order
+        )
+
+    def _traversals_for_parent(self, parent: str) -> tuple[tg.OrderedContainment, ...]:
+        active = tuple(
+            relation.name
+            for relation in self.source.relations
+            if relation.name in self.containment_names and relation.sources == (parent,)
+        )
+        order = (
+            *active,
+            *(name for name in self.traversal_order if name not in active),
+        )
+        return tuple(
+            tg.OrderedContainment(self.graph, self.containment_names[name])
+            for name in order
         )
 
     def _old_reference(self, node: tg.Node) -> str:
@@ -178,7 +233,7 @@ class ContainmentProjection:
             return ()
         children = tuple(
             self._old_reference(node)
-            for traversal in self.traversals()
+            for traversal in self._traversals_for_parent(parent)
             for node in traversal.direct_children(item).nodes
         )
         if tier is None:
@@ -191,12 +246,26 @@ class ContainmentProjection:
     def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
         if parent not in self.old_to_new:
             return ()
+        reachable: set[str] = set()
+        frontier = [parent]
+        while frontier:
+            origin = frontier.pop()
+            for traversal in self.traversals():
+                for node in traversal.descendants(self.old_to_new[origin]).nodes:
+                    descendant = self._old_reference(node)
+                    if descendant not in reachable and descendant != parent:
+                        reachable.add(descendant)
+                        frontier.append(descendant)
+
+        # OrderedContainment owns transitive reachability.  This consumer-side
+        # pass composes its per-relation answer into the legacy canonical
+        # cross-relation depth-first order and cycle de-duplication.
         result: list[str] = []
         pending = list(self.direct_children(parent))
         visited = {parent}
         while pending:
             item = pending.pop(0)
-            if item not in visited:
+            if item in reachable and item not in visited:
                 visited.add(item)
                 if tier is None or self.source.resolve(item).tier == tier:
                     result.append(item)
@@ -212,10 +281,18 @@ class ContainmentProjection:
             if item in visited:
                 return ()
             visited.add(item)
-            children = self.direct_children(item)
-            if not children:
+            per_relation = tuple(
+                tuple(
+                    self._old_reference(node)
+                    for node in traversal.leaves(self.old_to_new[item]).nodes
+                )
+                for traversal in self.traversals()
+            )
+            if all(leaves == (item,) for leaves in per_relation):
                 return (item,)
-            return tuple(leaf for child in children for leaf in walk(child))
+            return tuple(
+                leaf for child in self.direct_children(item) for leaf in walk(child)
+            )
 
         return walk(parent)
 
@@ -223,26 +300,42 @@ class ContainmentProjection:
         item = self.old_to_new.get(child)
         if item is None:
             return ()
-        parents = {
-            self._old_reference(node)
-            for traversal in self.traversals()
+        parents = [
+            (self._old_reference(node), relation_name)
+            for relation_name, traversal in zip(
+                self.traversal_order, self.traversals(), strict=True
+            )
             for node in traversal.parents(item).nodes
-        }
+        ]
         return tuple(
-            sorted(
+            parent
+            for parent, relation_name in sorted(
                 parents,
-                key=lambda parent: self.parent_order.get((child, parent), -1),
+                key=lambda pair: self.parent_order.get((child, pair[0], pair[1]), -1),
             )
         )
 
     def ancestors(self, child: str) -> tuple[str, ...]:
         if child not in self.old_to_new:
             return ()
+        reachable: set[str] = set()
+        frontier = [child]
+        while frontier:
+            origin = frontier.pop()
+            for traversal in self.traversals():
+                for node in traversal.ancestors(self.old_to_new[origin]).nodes:
+                    ancestor = self._old_reference(node)
+                    if ancestor not in reachable:
+                        reachable.add(ancestor)
+                        frontier.append(ancestor)
+
+        # Kernel inverse reachability is set-valued.  Parent incidence carries
+        # the relation identity needed to restore legacy breadth-first order.
         result: list[str] = []
         pending = list(self.parents(child))
         while pending:
             item = pending.pop(0)
-            if item not in result:
+            if item in reachable and item not in result:
                 result.append(item)
                 pending.extend(self.parents(item))
         return tuple(result)

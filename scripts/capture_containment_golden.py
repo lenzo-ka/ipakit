@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate pre-migration containment answers from the recorded commit."""
+"""Regenerate legacy-implementation containment answers at the recorded commit."""
 
 from __future__ import annotations
 
@@ -23,6 +23,49 @@ from scripts.containment_oracle import _routes, corpus
 from ipakit._tiergraph import Graph, RelationDeclaration
 from ipakit._tiergraph_builder import GraphBuilder
 
+def adversarial_fixture(kind):
+    relation_names = ("b", "a") if kind == "canonical-relation-order" else ("a", "b")
+    declarations = __import__("ipakit._tiergraph", fromlist=["Declarations"]).Declarations(
+        (__import__("ipakit._tiergraph", fromlist=["TierDeclaration"]).TierDeclaration("item", frozenset({"label"})),),
+        (__import__("ipakit._tiergraph", fromlist=["FeatureDeclaration"]).FeatureDeclaration("label"),),
+        tuple(RelationDeclaration(
+            name, containment=True, acyclic=True,
+            target_arity=(0, None) if kind == "empty-target" else (1, None),
+            allow_empty_target=kind == "empty-target",
+        ) for name in relation_names),
+    )
+    builder = GraphBuilder(declarations)
+    root = builder.append_input_atom("item", {"label": "root"})
+    first = builder.append_input_atom("item", {"label": "first"})
+    second = builder.append_input_atom("item", {"label": "second"})
+    if kind == "canonical-relation-order":
+        builder.contain(root, (second,), relation="b")
+        builder.contain(root, (first,), relation="a")
+    elif kind == "shared-parent-incidence":
+        builder.contain(root, (first,), relation="a")
+        builder.contain(root, (first,), relation="b")
+    else:
+        builder.contain(root, (), relation="a")
+    return builder.build()
+
+def boundary_fixture():
+    module = __import__("ipakit._tiergraph", fromlist=["Declarations"])
+    declarations = module.Declarations(
+        (module.TierDeclaration("item", frozenset({"label"})),),
+        (module.FeatureDeclaration("label"),),
+        (RelationDeclaration(
+            "boundary-owns", containment=True, acyclic=True,
+            target_kinds=frozenset({module.EndpointKind.COARSE_TICK}),
+        ),),
+    )
+    builder = GraphBuilder(declarations)
+    builder.append_input_atom("item", {"label": "root"})
+    base = builder.build()
+    return Graph(
+        base.declarations, base.clock,
+        (module.Relation(("/clock/0/item/0",), "boundary-owns", ("/clock/1",)),),
+    )
+
 def source_hash():
     functions = (RelationDeclaration.__post_init__, Graph._validate_relation,
                  Graph._validate_endpoints, Graph._validate_acyclic,
@@ -44,7 +87,13 @@ def structural_class(graph):
     }
 
 fixtures = {}
-for name, graph in corpus():
+rows = list(corpus())
+rows.extend((
+    ("fixture:canonical-relation-order", adversarial_fixture("canonical-relation-order")),
+    ("fixture:shared-parent-incidence", adversarial_fixture("shared-parent-incidence")),
+    ("fixture:empty-target", adversarial_fixture("empty-target")),
+))
+for name, graph in rows:
     tiers = tuple(d.name for d in graph.declarations.tiers)
     answers = {}
     for ref in graph.event_references():
@@ -66,11 +115,25 @@ for name, graph in corpus():
 artifact = {
     "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/capture_containment_golden.py generate",
     "source_commit": "SOURCE_COMMIT",
-    "accepted_domain": "The projection accepts single-source containment instances across multiple relations, refuses multi-source instances naming the offender, and preserves every navigation answer of the pre-adoption implementation.",
+    "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. Navigation is identical to the legacy implementation on every accepted graph.",
+    "refusals": {
+        "source_cardinality_other_than_one": "Refused by instance index and relation name because joint or empty-source containment navigation is not defined by OrderedContainment.",
+        "boundary_endpoint_relation": "Refused by relation name because tiergraph OrderedContainment is item-only; lift when tiergraph supports boundary containment traversal. No mainline ipakit profile or named fixture constructs this shape.",
+    },
+    "refused_constructions": {
+        "boundary-owns": {
+            "legacy_direct_children": boundary_fixture().direct_children("/clock/0/item/0"),
+            "projection": "refused by relation name",
+        },
+    },
+    "routing": {
+        "accepted_event_only_relations": "Delegated to tiergraph OrderedContainment; the consumer composes canonical order and per-relation inverse multiplicity across relations.",
+        "boundary_endpoint_relations": "Refused before projection; there is no kernel path until tiergraph supports boundary containment traversal.",
+    },
     "population": {
         "kind": "fixture-derived structural classes, derived and checked, with constructor/validator drift guard",
         "boundary": "the named fixtures in this artifact",
-        "outside_member_example": "a boundary-endpoint containment graph",
+        "outside_member_example": "boundary-owns: legacy direct_children(root) returns the coarse-tick boundary; projection refuses boundary-owns by name",
         "surface": {
             "relation_declaration_fields": [field.name for field in fields(RelationDeclaration)],
             "constructor_validator_sha256": source_hash(),

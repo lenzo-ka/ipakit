@@ -5,7 +5,10 @@ import pytest
 from ipakit._containment_projection import ContainmentProjection
 from ipakit._tiergraph import (
     Declarations,
+    EndpointKind,
     FeatureDeclaration,
+    Graph,
+    Relation,
     RelationDeclaration,
     TierDeclaration,
 )
@@ -92,6 +95,80 @@ def test_projection_preserves_independent_containment_relations() -> None:
         "/clock/1/item/0",
         "/clock/0/item/0",
     )
+
+
+def test_adversarial_constructions_match_legacy_oracle_answers() -> None:
+    graphs = dict(corpus())
+    ordered = ContainmentProjection.build(graphs["fixture:canonical-relation-order"])
+    repeated = ContainmentProjection.build(graphs["fixture:shared-parent-incidence"])
+    empty = ContainmentProjection.build(graphs["fixture:empty-target"])
+
+    root = "/clock/0/item/0"
+    first = "/clock/1/item/0"
+    second = "/clock/2/item/0"
+    assert ordered.direct_children(root) == (first, second)
+    assert repeated.parents(first) == (root, root)
+    assert empty.direct_children(root) == ()
+    assert empty.leaves(root) == (root,)
+
+
+def test_boundary_target_containment_is_refused_by_relation_name() -> None:
+    declarations = Declarations(
+        (TierDeclaration("item", frozenset({"label"})),),
+        (FeatureDeclaration("label"),),
+        (
+            RelationDeclaration(
+                "boundary-owns",
+                containment=True,
+                acyclic=True,
+                target_kinds=frozenset({EndpointKind.COARSE_TICK}),
+            ),
+        ),
+    )
+    builder = GraphBuilder(declarations)
+    builder.append_input_atom("item", {"label": "root"})
+    base = builder.build()
+    graph = Graph(
+        base.declarations,
+        base.clock,
+        (Relation(("/clock/0/item/0",), "boundary-owns", ("/clock/1",)),),
+    )
+
+    recorded = json.loads(containment_oracle.GOLDEN.read_text(encoding="utf-8"))
+    assert recorded["refused_constructions"]["boundary-owns"][
+        "legacy_direct_children"
+    ] == ["/clock/1"]
+    with pytest.raises(
+        ValueError,
+        match=(
+            "boundary-endpoint containment relation 'boundary-owns': "
+            "tiergraph OrderedContainment supports item endpoints only"
+        ),
+    ):
+        ContainmentProjection.build(graph)
+
+
+@pytest.mark.parametrize("operation", ("descendants", "leaves", "ancestors"))
+def test_reachability_operations_delegate_to_ordered_containment(
+    operation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    graph = dict(corpus())["fixture:diamond"]
+    projected = ContainmentProjection.build(graph)
+
+    class Sentinel(RuntimeError):
+        pass
+
+    def stop(*args: object, **kwargs: object) -> object:
+        raise Sentinel(operation)
+
+    monkeypatch.setattr(OrderedContainment, operation, stop)
+    reference = (
+        graph.event_references()[-1]
+        if operation == "ancestors"
+        else graph.event_references()[0]
+    )
+    with pytest.raises(Sentinel, match=operation):
+        getattr(projected, operation)(reference)
 
 
 def test_oracle_refuses_mutated_fixture_classification(

@@ -88,6 +88,37 @@ def _cross_relation_cycle_fixture() -> Graph:
     return builder.build()
 
 
+def _adversarial_fixture(kind: str) -> Graph:
+    relation_names = ("b", "a") if kind == "canonical-relation-order" else ("a", "b")
+    declarations = Declarations(
+        (TierDeclaration("item", frozenset({"label"})),),
+        (FeatureDeclaration("label"),),
+        tuple(
+            RelationDeclaration(
+                name,
+                containment=True,
+                acyclic=True,
+                target_arity=(0, None) if kind == "empty-target" else (1, None),
+                allow_empty_target=kind == "empty-target",
+            )
+            for name in relation_names
+        ),
+    )
+    builder = GraphBuilder(declarations)
+    root = builder.append_input_atom("item", {"label": "root"})
+    first = builder.append_input_atom("item", {"label": "first"})
+    second = builder.append_input_atom("item", {"label": "second"})
+    if kind == "canonical-relation-order":
+        builder.contain(root, (second,), relation="b")
+        builder.contain(root, (first,), relation="a")
+    elif kind == "shared-parent-incidence":
+        builder.contain(root, (first,), relation="a")
+        builder.contain(root, (first,), relation="b")
+    else:
+        builder.contain(root, (), relation="a")
+    return builder.build()
+
+
 @lru_cache(maxsize=1)
 def corpus() -> tuple[tuple[str, Graph], ...]:
     """Build every named checked-in navigation fixture and profile sample."""
@@ -108,6 +139,15 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
         ("fixture:diamond", _structural_fixture("diamond")),
         ("fixture:declared-reverse-order", _structural_fixture("reverse")),
         ("fixture:cross-relation-cycle", _cross_relation_cycle_fixture()),
+        (
+            "fixture:canonical-relation-order",
+            _adversarial_fixture("canonical-relation-order"),
+        ),
+        (
+            "fixture:shared-parent-incidence",
+            _adversarial_fixture("shared-parent-incidence"),
+        ),
+        ("fixture:empty-target", _adversarial_fixture("empty-target")),
         ("profile:ipa", hierarchy.build()._graph),
         ("profile:cmu", read_cmu(("K", "AE1", "T"))),
         ("profile:pinyin", build_pinyin("shui", "sh", "ui", 3)),

@@ -1,7 +1,102 @@
 {
   "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/capture_containment_golden.py generate",
-  "accepted_domain": "The projection accepts single-source containment instances across multiple relations, refuses multi-source instances naming the offender, and preserves every navigation answer of the pre-adoption implementation.",
+  "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. Navigation is identical to the legacy implementation on every accepted graph.",
   "fixtures": {
+    "fixture:canonical-relation-order": {
+      "answers": {
+        "/clock/0/item/0": {
+          "ancestors": [],
+          "descendants": [
+            "/clock/1/item/0",
+            "/clock/2/item/0"
+          ],
+          "descendants_by_tier": {
+            "item": [
+              "/clock/1/item/0",
+              "/clock/2/item/0"
+            ]
+          },
+          "direct": [
+            "/clock/1/item/0",
+            "/clock/2/item/0"
+          ],
+          "direct_by_tier": {
+            "item": [
+              "/clock/1/item/0",
+              "/clock/2/item/0"
+            ]
+          },
+          "leaves": [
+            "/clock/1/item/0",
+            "/clock/2/item/0"
+          ],
+          "parents": [],
+          "routes": []
+        },
+        "/clock/1/item/0": {
+          "ancestors": [
+            "/clock/0/item/0"
+          ],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/1/item/0"
+          ],
+          "parents": [
+            "/clock/0/item/0"
+          ],
+          "routes": [
+            [
+              "/clock/0/item/0"
+            ]
+          ]
+        },
+        "/clock/2/item/0": {
+          "ancestors": [
+            "/clock/0/item/0"
+          ],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/2/item/0"
+          ],
+          "parents": [
+            "/clock/0/item/0"
+          ],
+          "routes": [
+            [
+              "/clock/0/item/0"
+            ]
+          ]
+        }
+      },
+      "class": {
+        "containment_declarations": 2,
+        "repeated_target_incidence": false,
+        "shared_targets": false,
+        "source_arities": [
+          1
+        ],
+        "target_arities": [
+          1
+        ],
+        "target_tier_cardinalities": [
+          1
+        ]
+      }
+    },
     "fixture:cross-relation-cycle": {
       "answers": {
         "/clock/0/item/0": {
@@ -459,6 +554,72 @@
         ]
       }
     },
+    "fixture:empty-target": {
+      "answers": {
+        "/clock/0/item/0": {
+          "ancestors": [],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/0/item/0"
+          ],
+          "parents": [],
+          "routes": []
+        },
+        "/clock/1/item/0": {
+          "ancestors": [],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/1/item/0"
+          ],
+          "parents": [],
+          "routes": []
+        },
+        "/clock/2/item/0": {
+          "ancestors": [],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/2/item/0"
+          ],
+          "parents": [],
+          "routes": []
+        }
+      },
+      "class": {
+        "containment_declarations": 2,
+        "repeated_target_incidence": false,
+        "shared_targets": false,
+        "source_arities": [
+          1
+        ],
+        "target_arities": [
+          0
+        ],
+        "target_tier_cardinalities": [
+          0
+        ]
+      }
+    },
     "fixture:heterogeneous": {
       "answers": {
         "/clock/0/a/0": {
@@ -590,6 +751,94 @@
         ],
         "target_tier_cardinalities": [
           2
+        ]
+      }
+    },
+    "fixture:shared-parent-incidence": {
+      "answers": {
+        "/clock/0/item/0": {
+          "ancestors": [],
+          "descendants": [
+            "/clock/1/item/0"
+          ],
+          "descendants_by_tier": {
+            "item": [
+              "/clock/1/item/0"
+            ]
+          },
+          "direct": [
+            "/clock/1/item/0",
+            "/clock/1/item/0"
+          ],
+          "direct_by_tier": {
+            "item": [
+              "/clock/1/item/0",
+              "/clock/1/item/0"
+            ]
+          },
+          "leaves": [
+            "/clock/1/item/0"
+          ],
+          "parents": [],
+          "routes": []
+        },
+        "/clock/1/item/0": {
+          "ancestors": [
+            "/clock/0/item/0"
+          ],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/1/item/0"
+          ],
+          "parents": [
+            "/clock/0/item/0",
+            "/clock/0/item/0"
+          ],
+          "routes": [
+            [
+              "/clock/0/item/0"
+            ],
+            [
+              "/clock/0/item/0"
+            ]
+          ]
+        },
+        "/clock/2/item/0": {
+          "ancestors": [],
+          "descendants": [],
+          "descendants_by_tier": {
+            "item": []
+          },
+          "direct": [],
+          "direct_by_tier": {
+            "item": []
+          },
+          "leaves": [
+            "/clock/2/item/0"
+          ],
+          "parents": [],
+          "routes": []
+        }
+      },
+      "class": {
+        "containment_declarations": 2,
+        "repeated_target_incidence": false,
+        "shared_targets": true,
+        "source_arities": [
+          1
+        ],
+        "target_arities": [
+          1
+        ],
+        "target_tier_cardinalities": [
+          1
         ]
       }
     },
@@ -11251,7 +11500,7 @@
   "population": {
     "boundary": "the named fixtures in this artifact",
     "kind": "fixture-derived structural classes, derived and checked, with constructor/validator drift guard",
-    "outside_member_example": "a boundary-endpoint containment graph",
+    "outside_member_example": "boundary-owns: legacy direct_children(root) returns the coarse-tick boundary; projection refuses boundary-owns by name",
     "surface": {
       "constructor_validator_sha256": "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa",
       "relation_declaration_fields": [
@@ -11272,6 +11521,22 @@
         "member_of"
       ]
     }
+  },
+  "refusals": {
+    "boundary_endpoint_relation": "Refused by relation name because tiergraph OrderedContainment is item-only; lift when tiergraph supports boundary containment traversal. No mainline ipakit profile or named fixture constructs this shape.",
+    "source_cardinality_other_than_one": "Refused by instance index and relation name because joint or empty-source containment navigation is not defined by OrderedContainment."
+  },
+  "refused_constructions": {
+    "boundary-owns": {
+      "legacy_direct_children": [
+        "/clock/1"
+      ],
+      "projection": "refused by relation name"
+    }
+  },
+  "routing": {
+    "accepted_event_only_relations": "Delegated to tiergraph OrderedContainment; the consumer composes canonical order and per-relation inverse multiplicity across relations.",
+    "boundary_endpoint_relations": "Refused before projection; there is no kernel path until tiergraph supports boundary containment traversal."
   },
   "source_commit": "485f7a7c631001b58acfffc2884011081e0bcd19"
 }
