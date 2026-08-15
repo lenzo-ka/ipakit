@@ -9,6 +9,7 @@ from pathlib import Path
 
 import ipakit
 import pytest
+from ipakit._containment_projection import ContainmentProjection
 from ipakit._tiergraph import (
     ClockNode,
     Declarations,
@@ -210,11 +211,12 @@ def test_example_is_current_and_graphviz_parses_it(tmp_path: Path) -> None:
 
 def test_example_is_one_phrase_and_a_is_reduced_without_stress() -> None:
     graph = _example()._graph
+    containment = ContainmentProjection.build(graph)
     utterance = graph.roots[0]
     assert graph.resolve(utterance).tier == "utterance"
-    assert len(graph.direct_children(utterance, "phrase")) == 1
-    phrase = graph.direct_children(utterance, "phrase")[0]
-    words = graph.direct_children(phrase, "word")
+    assert len(containment.direct_children(utterance, "phrase")) == 1
+    phrase = containment.direct_children(utterance, "phrase")[0]
+    words = containment.direct_children(phrase, "word")
     assert [graph.resolve(word).event.features["spelling"] for word in words] == [
         "perhaps",
         "I",
@@ -227,7 +229,7 @@ def test_example_is_one_phrase_and_a_is_reduced_without_stress() -> None:
     assert am_word is not None and am_word.features["prominence"] == "emphatic"
     assert 'label="am\\nprominence: emphatic"' in _example().to_dot()
     a_word = words[3]
-    segments = graph.direct_children(a_word, "segment")
+    segments = containment.direct_children(a_word, "segment")
     assert len(segments) == 1
     event = graph.resolve(segments[0]).event
     assert event is not None and event.features["spelling"] == "ə"

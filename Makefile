@@ -125,6 +125,7 @@ check: gate-subject lint
 	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
 	@$(PYTHON) -m scripts.gate_subject
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/containment_oracle.py
+	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/capture_containment_golden.py check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/consolidation_parity.py check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/invariants.py
 	@$(NICE) $(PYTHON) scripts/confusion.py validate

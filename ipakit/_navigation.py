@@ -44,8 +44,10 @@ def ancestor_routes(graph: Graph, child: str) -> tuple[tuple[str, ...], ...]:
     A route contains the immediate parent first and its outermost ancestor last.
     """
 
+    projection = _project(graph)
+
     def routes_from(item: str, route: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
-        outer = graph.parents(item)
+        outer = projection.parents(item)
         if not outer:
             return (route,)
         return tuple(
@@ -57,7 +59,7 @@ def ancestor_routes(graph: Graph, child: str) -> tuple[tuple[str, ...], ...]:
 
     return tuple(
         route
-        for parent in graph.parents(child)
+        for parent in projection.parents(child)
         for route in routes_from(parent, (parent,))
     )
 

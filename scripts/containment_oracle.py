@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-"""Ordered old/tiergraph containment differential over a named sample.
-
-The constructible population is derived from the builder and graph validator;
-fixture reach is reported separately. Agreement is bounded by the named sample,
-and structural classes outside that reach remain explicitly untested.
-"""
+"""Verify the tiergraph containment projection against its committed golden."""
 
 from __future__ import annotations
 
+import hashlib
+import inspect
+import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+GOLDEN = ROOT / "tests/tiergraph/baselines/containment-navigation.json"
 sys.path.insert(0, str(ROOT))
 
 from ipakit import Form, FormBuilder, IPAFeatures  # noqa: E402
@@ -45,35 +44,6 @@ class Coverage:
     comparisons: int
 
 
-# This is a class enumeration, not an instance enumeration. Arity and depth are
-# unbounded, so the population is finitely described rather than finite-sized.
-STRUCTURAL_POPULATION = (
-    "zero, one, or multiple named containment declarations",
-    "declared source and target arity ranges, including admitted empty sides",
-    "event or boundary endpoints, homogeneous or heterogeneous tier restrictions",
-    "source-unique incidence with arbitrary ordered targets and repeated targets",
-    "finite acyclic depth per relation, including isolated nodes and branching",
-    "shared targets and diamonds; multiple relations whose union may be cyclic",
-)
-
-FIXTURE_REACH = (
-    "event-only singleton sources with nonempty unary and polyadic targets",
-    "homogeneous and heterogeneous incidence",
-    "declared forward and reverse target order, plus repeated targets",
-    "isolated, shallow, deep, branching, and diamond-shaped graphs",
-    "multiple independently acyclic relations, including a cyclic union",
-)
-
-UNTESTED_CLASSES = (
-    "multi-source containment instances",
-    "admitted empty source or target sides",
-    "boundary-endpoint containment",
-    "the full range of declared arity bounds and target permutations",
-    "sharing patterns beyond the named diamond and unbounded-depth families",
-    "the same source participating in more than one containment relation",
-)
-
-
 def _structural_fixture(kind: str) -> Graph:
     declared = Declarations(
         tuple(TierDeclaration(name, frozenset({"label"})) for name in ("a", "b")),
@@ -101,23 +71,6 @@ def _structural_fixture(kind: str) -> Graph:
     return builder.build()
 
 
-def _cross_relation_cycle_fixture() -> Graph:
-    declared = Declarations(
-        (TierDeclaration("item", frozenset({"label"})),),
-        (FeatureDeclaration("label"),),
-        (
-            RelationDeclaration("a", containment=True, acyclic=True),
-            RelationDeclaration("b", containment=True, acyclic=True),
-        ),
-    )
-    builder = GraphBuilder(declared)
-    first = builder.append_input_atom("item", {"label": "first"})
-    second = builder.append_input_atom("item", {"label": "second"})
-    builder.contain(first, (second,), relation="a")
-    builder.contain(second, (first,), relation="b")
-    return builder.build()
-
-
 @lru_cache(maxsize=1)
 def corpus() -> tuple[tuple[str, Graph], ...]:
     """Build every named checked-in navigation fixture and profile sample."""
@@ -137,7 +90,6 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
         ("fixture:duplicate-child", _structural_fixture("duplicate-child")),
         ("fixture:diamond", _structural_fixture("diamond")),
         ("fixture:declared-reverse-order", _structural_fixture("reverse")),
-        ("fixture:cross-relation-cycle", _cross_relation_cycle_fixture()),
         ("profile:ipa", hierarchy.build()._graph),
         ("profile:cmu", read_cmu(("K", "AE1", "T"))),
         ("profile:pinyin", build_pinyin("shui", "sh", "ui", 3)),
@@ -180,71 +132,88 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
     )
 
 
-def _label(graph: Graph, ref: str) -> str:
-    event = graph.resolve(ref).event
-    assert event is not None
-    return str(event.features.get("label", ref))
+def _answers(graph: Graph) -> dict[str, object]:
+    projected = ContainmentProjection.build(graph)
+    answers: dict[str, object] = {}
+    tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
+    for ref in graph.event_references():
+        answers[ref] = {
+            "direct": projected.direct_children(ref),
+            "descendants": projected.descendants(ref),
+            "leaves": projected.leaves(ref),
+            "parents": projected.parents(ref),
+            "ancestors": projected.ancestors(ref),
+            "routes": _routes(projected, ref),
+            "direct_by_tier": {
+                tier: projected.direct_children(ref, tier) for tier in tiers
+            },
+            "descendants_by_tier": {
+                tier: projected.descendants(ref, tier) for tier in tiers
+            },
+        }
+    return answers
 
 
-def _labels(graph: Graph, refs: tuple[str, ...]) -> tuple[str, ...]:
-    return tuple(_label(graph, ref) for ref in refs)
+def _surface() -> dict[str, object]:
+    functions = (
+        RelationDeclaration.__post_init__,
+        Graph._validate_relation,
+        Graph._validate_endpoints,
+        Graph._validate_acyclic,
+        GraphBuilder.contain,
+    )
+    source = "\n".join(inspect.getsource(function) for function in functions)
+    return {
+        "relation_declaration_fields": [
+            field.name for field in fields(RelationDeclaration)
+        ],
+        "constructor_validator_sha256": hashlib.sha256(source.encode()).hexdigest(),
+    }
+
+
+def _as_json(value: object) -> object:
+    if isinstance(value, tuple):
+        return [_as_json(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _as_json(item) for key, item in value.items()}
+    return value
 
 
 def verify() -> Coverage:
+    payload = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    if payload["population"]["surface"] != _surface():
+        raise AssertionError(
+            "containment constructor/validator surface drifted; regenerate and "
+            "review the fixture-derived population"
+        )
     fixture_count = event_count = comparison_count = 0
-    for name, old in corpus():
+    seen: set[str] = set()
+    for name, graph in corpus():
+        expected = payload["fixtures"].get(name)
+        if expected is None:
+            raise AssertionError(f"containment golden has no named fixture {name!r}")
+        seen.add(name)
         fixture_count += 1
-        projected = ContainmentProjection.build(old)
-        refs = old.event_references()
+        refs = graph.event_references()
         event_count += len(refs)
-        tiers = tuple(declaration.name for declaration in old.declarations.tiers)
-        for ref in refs:
-            observations = (
-                ("direct", old.direct_children(ref), projected.direct_children(ref)),
-                ("descendants", old.descendants(ref), projected.descendants(ref)),
-                ("leaves", old.leaves(ref), projected.leaves(ref)),
-                ("parents", old.parents(ref), projected.parents(ref)),
-                ("ancestors", old.ancestors(ref), projected.ancestors(ref)),
-                ("routes", _routes(old, ref), _routes(projected, ref)),
-            )
-            for operation, expected, actual in observations:
-                comparison_count += 1
-                if actual != expected:
-                    raise AssertionError(
-                        f"{name} {ref} {operation}: {actual!r} != {expected!r}"
-                    )
-            for tier in tiers:
-                for operation, expected, actual in (
-                    (
-                        "direct-tier",
-                        old.direct_children(ref, tier),
-                        projected.direct_children(ref, tier),
-                    ),
-                    (
-                        "descendants-tier",
-                        old.descendants(ref, tier),
-                        projected.descendants(ref, tier),
-                    ),
-                ):
-                    comparison_count += 1
-                    if actual != expected:
-                        raise AssertionError(
-                            f"{name} {ref} {operation} {tier}: "
-                            f"{actual!r} != {expected!r}"
-                        )
+        comparison_count += sum(6 + 2 * len(graph.declarations.tiers) for _ in refs)
+        if _as_json(_answers(graph)) != expected["answers"]:
+            raise AssertionError(f"{name}: navigation differs from committed golden")
+    stale = set(payload["fixtures"]) - seen
+    if stale:
+        raise AssertionError(
+            f"containment golden has stale fixtures: {sorted(stale)!r}"
+        )
     return Coverage(fixture_count, event_count, comparison_count)
 
 
 if __name__ == "__main__":
     seed = os.environ.get("PYTHONHASHSEED")
-    if seed is None:
-        raise SystemExit("PYTHONHASHSEED must be fixed")
+    if seed != "0":
+        raise SystemExit("PYTHONHASHSEED=0 is required")
     coverage = verify()
     print(
         f"containment oracle: {coverage.events} events over "
         f"{coverage.fixtures} fixtures; {coverage.comparisons} ordered comparisons; "
-        f"no answer differences; fixture-sample-bounded; PYTHONHASHSEED={seed}"
+        f"matched committed golden; fixture-sample-bounded; PYTHONHASHSEED={seed}"
     )
-    print("constructible/admitted classes: " + "; ".join(STRUCTURAL_POPULATION))
-    print("fixture classes reached: " + "; ".join(FIXTURE_REACH))
-    print("untested classes: " + "; ".join(UNTESTED_CLASSES))

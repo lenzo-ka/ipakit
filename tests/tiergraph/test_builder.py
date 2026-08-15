@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from ipakit._containment_projection import ContainmentProjection
 from ipakit._tiergraph import (
     Declarations,
     EndpointKind,
@@ -267,7 +268,7 @@ def test_builder_lane_order_is_independent_of_containment() -> None:
         "first",
         "later",
     ]
-    assert current.direct_children("/clock/1/top/0") == (
+    assert ContainmentProjection.build(current).direct_children("/clock/1/top/0") == (
         "/clock/1/derived/1",
         "/clock/1/derived/0",
     )

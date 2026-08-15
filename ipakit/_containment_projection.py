@@ -7,6 +7,7 @@ remain authoritative in the source graph.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import tiergraph as tg
@@ -24,7 +25,12 @@ def _name(local_name: str) -> tg.QualifiedName:
 
 @dataclass(frozen=True)
 class ContainmentProjection:
-    """Lossless event-identity and ordered-containment view of one graph."""
+    """Single-source ordered containment view with lossless event identity.
+
+    Navigation answers are unchanged on every graph this projection accepts.
+    It accepts single-source containment instances and refuses multi-source
+    instances by name because joint-containment navigation is not defined.
+    """
 
     source: Graph
     graph: tg.Graph
@@ -36,7 +42,7 @@ class ContainmentProjection:
 
     @classmethod
     def build(cls, source: Graph) -> ContainmentProjection:
-        """Project event identity and original polyadic containment incidence.
+        """Project event identity and single-source containment incidence.
 
         Projection or identity validation failure is a hard runtime error by
         design.  Falling back to the old kernel would make navigation answers
@@ -78,9 +84,16 @@ class ContainmentProjection:
             for declaration in source.declarations.relations
             if declaration.containment
         )
+        containment_names_set = {declaration.name for declaration in containment}
+        for index, relation in enumerate(source.relations):
+            if relation.name in containment_names_set and len(relation.sources) != 1:
+                raise ValueError(
+                    "containment projection refuses multi-source containment "
+                    f"instance {index} ({relation.name!r})"
+                )
+        containment_name = _name("contains")
         containment_names = {
-            declaration.name: _name(f"contains-{index}")
-            for index, declaration in enumerate(containment)
+            declaration.name: containment_name for declaration in containment
         }
         item_side = tg.RelationSideDeclaration((tg.RelationEndpointKind.ITEM,))
         declarations: tuple[
@@ -95,7 +108,7 @@ class ContainmentProjection:
                     unique_sources=True,
                     acyclic=True,
                 )
-                for name in containment_names.values()
+                for name in dict.fromkeys(containment_names.values())
             ),
         )
         relations = tuple(
@@ -151,7 +164,7 @@ class ContainmentProjection:
         """Return validated ordered traversals in declaration order."""
         return tuple(
             tg.OrderedContainment(self.graph, name)
-            for name in self.containment_names.values()
+            for name in dict.fromkeys(self.containment_names.values())
         )
 
     def _old_reference(self, node: tg.Node) -> str:
@@ -176,39 +189,37 @@ class ContainmentProjection:
         )
 
     def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
-        if parent not in self.old_to_new:
+        item = self.old_to_new.get(parent)
+        if item is None:
             return ()
-        result: list[str] = []
-        pending = list(self.direct_children(parent))
-        visited = {parent}
-        while pending:
-            item = pending.pop(0)
-            if item not in visited:
-                visited.add(item)
-                if tier is None or self.old_to_new[item].tier == self.tier_names.get(
-                    tier
-                ):
-                    result.append(item)
-                pending[0:0] = self.direct_children(item)
-        return tuple(result)
+        descendants = _ordered_unique(
+            self._old_reference(node)
+            for traversal in self.traversals()
+            for node in traversal.descendants(item).nodes
+        )
+        if tier is None:
+            return descendants
+        tier_name = self.tier_names.get(tier)
+        return tuple(
+            child for child in descendants if self.old_to_new[child].tier == tier_name
+        )
 
     def leaves(self, parent: str) -> tuple[str, ...]:
-        if parent not in self.old_to_new:
+        item = self.old_to_new.get(parent)
+        if item is None:
             return (parent,)
-        result: list[str] = []
-        visited: set[str] = set()
-        pending = [parent]
-        while pending:
-            item = pending.pop()
-            if item in visited:
-                continue
-            visited.add(item)
-            children = self.direct_children(item)
-            if children:
-                pending.extend(reversed(children))
-            else:
-                result.append(item)
-        return tuple(result)
+        active = tuple(
+            traversal
+            for traversal in self.traversals()
+            if traversal.direct_children(item).nodes
+        )
+        if not active:
+            return (parent,)
+        return _ordered_unique(
+            self._old_reference(node)
+            for traversal in active
+            for node in traversal.leaves(item).nodes
+        )
 
     def parents(self, child: str) -> tuple[str, ...]:
         item = self.old_to_new.get(child)
@@ -227,13 +238,30 @@ class ContainmentProjection:
         )
 
     def ancestors(self, child: str) -> tuple[str, ...]:
-        if child not in self.old_to_new:
+        item = self.old_to_new.get(child)
+        if item is None:
             return ()
-        result: list[str] = []
-        pending = list(self.parents(child))
-        while pending:
-            item = pending.pop(0)
-            if item not in result:
-                result.append(item)
-                pending.extend(self.parents(item))
-        return tuple(result)
+        traversals = self.traversals()
+        ancestors = _ordered_unique(
+            self._old_reference(node)
+            for traversal in traversals
+            for node in traversal.ancestors(item).nodes
+        )
+        ancestor_set = set(ancestors)
+
+        def outer_count(candidate: str) -> int:
+            reference = self.old_to_new[candidate]
+            return len(
+                ancestor_set
+                & {
+                    self._old_reference(node)
+                    for traversal in traversals
+                    for node in traversal.descendants(reference).nodes
+                }
+            )
+
+        return tuple(sorted(ancestors, key=outer_count))
+
+
+def _ordered_unique(values: Iterable[str]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(values))
