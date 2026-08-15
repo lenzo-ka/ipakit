@@ -1938,6 +1938,22 @@ border-bottom-color:var(--signal)}
 TIMED_PLAYER_REST_RAMP_SECONDS = 0.20
 
 
+def _html_text(value: str, parameter: str) -> str:
+    """Escape preserved HTML text, refusing codepoints HTML would rewrite.
+
+    LF is the sole carried control: it permits an intentional multiline label
+    and HTML parsing preserves it verbatim. Other C0 controls, DEL, and C1
+    controls are not representable under that promise and are refused.
+    """
+    for character in value:
+        codepoint = ord(character)
+        if (codepoint < 0x20 and character != "\n") or 0x7F <= codepoint <= 0x9F:
+            raise ValueError(
+                f"{parameter} contains control character U+{codepoint:04X}"
+            )
+    return html.escape(value)
+
+
 def _player_page(
     word: str,
     name: str,
@@ -1995,7 +2011,7 @@ def _player_page(
         for index, unit in enumerate(units)
     )
     label_html = (
-        f'<span class="display-label">{html.escape(display_label)}</span>'
+        f'<span class="display-label">{_html_text(display_label, "display_label")}</span>'
         if display_label is not None
         else ""
     )
@@ -2080,7 +2096,9 @@ def animate(
     highlights the spoken unit with the greatest Gaussian dominance on the
     trajectory's ordinal clock; at an exact transition midpoint both adjacent
     units are active. ``display_label`` may add caller-supplied orthography,
-    but no orthographic label is inferred.
+    but no orthographic label is inferred. Printable Unicode and LF are
+    carried verbatim through HTML parsing; other C0 controls (including tab
+    and CR), DEL, and C1 controls raise :class:`ValueError`.
     """
     ipa = features or IPAFeatures()
     name = (
@@ -2154,6 +2172,9 @@ def animate_two_pane(
     maximally dominant spoken unit. At an exact midpoint both adjacent units
     are active; synthetic rest ramps activate neither. ``display_label`` is
     shown verbatim as caller-supplied display text and is never inferred.
+    Printable Unicode and LF are carried verbatim through HTML parsing; other
+    C0 controls (including tab and CR), DEL, and C1 controls raise
+    :class:`ValueError`.
     """
     ipa = features or IPAFeatures()
     name = (

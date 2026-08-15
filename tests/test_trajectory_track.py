@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -80,6 +81,25 @@ def _active_units(page: str) -> list[tuple[int, ...]]:
     ]
 
 
+class _DisplayLabelParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.in_label = False
+        self.text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "span" and ("class", "display-label") in attrs:
+            self.in_label = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "span" and self.in_label:
+            self.in_label = False
+
+    def handle_data(self, data: str) -> None:
+        if self.in_label:
+            self.text.append(data)
+
+
 @pytest.mark.parametrize("renderer", [animate, animate_two_pane])
 def test_transcript_has_exact_units_and_optional_display_label(renderer) -> None:
     value = trajectory("ˈkæt", head=head(), frames_per_unit=2)
@@ -93,6 +113,39 @@ def test_transcript_has_exact_units_and_optional_display_label(renderer) -> None
     assert re.findall(r'<path\b[^>]*\bd="[^"]*"', plain) == re.findall(
         r'<path\b[^>]*\bd="[^"]*"', labelled
     )
+
+
+@pytest.mark.parametrize("renderer", [animate, animate_two_pane])
+def test_display_label_printable_text_and_lf_survive_html_parsing(renderer) -> None:
+    label = 'A <tag> & "quotes"\nnaïve ɪ̯'
+    parser = _DisplayLabelParser()
+
+    parser.feed(renderer("a", display_label=label))
+
+    assert "".join(parser.text) == label
+
+
+@pytest.mark.parametrize("renderer", [animate, animate_two_pane])
+@pytest.mark.parametrize(
+    ("label", "codepoint"),
+    [
+        ("A\x00B\rC", "0000"),
+        ("A\tB", "0009"),
+        ("A\rB", "000D"),
+        ("A\x1fB", "001F"),
+        ("A\x7fB", "007F"),
+        ("A\x80B", "0080"),
+        ("A\x9fB", "009F"),
+    ],
+)
+def test_display_label_refuses_controls_instead_of_rewriting(
+    renderer, label: str, codepoint: str
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match=rf"display_label contains control character U\+{codepoint}",
+    ):
+        renderer("a", display_label=label)
 
 
 @pytest.mark.parametrize("renderer", [animate, animate_two_pane])
