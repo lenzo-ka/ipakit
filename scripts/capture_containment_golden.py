@@ -45,8 +45,6 @@ def structural_class(graph):
 
 fixtures = {}
 for name, graph in corpus():
-    if name == "fixture:cross-relation-cycle":
-        continue
     tiers = tuple(d.name for d in graph.declarations.tiers)
     answers = {}
     for ref in graph.event_references():
@@ -68,9 +66,9 @@ for name, graph in corpus():
 artifact = {
     "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/capture_containment_golden.py generate",
     "source_commit": "SOURCE_COMMIT",
-    "accepted_domain": "Navigation answers are unchanged on every graph the projection accepts; the projection accepts single-source containment instances and refuses multi-source ones by name.",
+    "accepted_domain": "The projection accepts single-source containment instances across multiple relations, refuses multi-source instances naming the offender, and preserves every navigation answer of the pre-adoption implementation.",
     "population": {
-        "kind": "fixture-derived structural classes with constructor/validator drift guard",
+        "kind": "fixture-derived structural classes, derived and checked, with constructor/validator drift guard",
         "boundary": "the named fixtures in this artifact",
         "outside_member_example": "a boundary-endpoint containment graph",
         "surface": {

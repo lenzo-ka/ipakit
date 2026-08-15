@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 from ipakit._containment_projection import ContainmentProjection
 from ipakit._tiergraph import (
@@ -7,6 +10,7 @@ from ipakit._tiergraph import (
     TierDeclaration,
 )
 from ipakit._tiergraph_builder import GraphBuilder
+from scripts import containment_oracle
 from scripts.containment_oracle import corpus, verify
 
 from tiergraph import OrderedContainment, PolyadicRelationDeclaration
@@ -73,3 +77,36 @@ def test_projection_names_and_refuses_joint_containment_instance() -> None:
         match=r"multi-source containment instance 0 \('contains'\)",
     ):
         ContainmentProjection.build(graph)
+
+
+def test_projection_preserves_independent_containment_relations() -> None:
+    name, graph = next(
+        row for row in corpus() if row[0] == "fixture:cross-relation-cycle"
+    )
+    projected = ContainmentProjection.build(graph)
+
+    assert name == "fixture:cross-relation-cycle"
+    assert len(set(projected.containment_names.values())) == 2
+    assert projected.descendants("/clock/0/item/0") == ("/clock/1/item/0",)
+    assert projected.ancestors("/clock/0/item/0") == (
+        "/clock/1/item/0",
+        "/clock/0/item/0",
+    )
+
+
+def test_oracle_refuses_mutated_fixture_classification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = json.loads(containment_oracle.GOLDEN.read_text(encoding="utf-8"))
+    payload["fixtures"]["fixture:heterogeneous"]["class"][
+        "containment_declarations"
+    ] = 999
+    corrupted = tmp_path / "containment-navigation.json"
+    corrupted.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(containment_oracle, "GOLDEN", corrupted)
+
+    with pytest.raises(
+        AssertionError,
+        match="fixture:heterogeneous: structural class differs",
+    ):
+        containment_oracle.verify()

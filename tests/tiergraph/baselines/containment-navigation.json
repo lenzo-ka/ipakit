@@ -1,7 +1,79 @@
 {
   "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/capture_containment_golden.py generate",
-  "accepted_domain": "Navigation answers are unchanged on every graph the projection accepts; the projection accepts single-source containment instances and refuses multi-source ones by name.",
+  "accepted_domain": "The projection accepts single-source containment instances across multiple relations, refuses multi-source instances naming the offender, and preserves every navigation answer of the pre-adoption implementation.",
   "fixtures": {
+    "fixture:cross-relation-cycle": {
+      "answers": {
+        "/clock/0/item/0": {
+          "ancestors": [
+            "/clock/1/item/0",
+            "/clock/0/item/0"
+          ],
+          "descendants": [
+            "/clock/1/item/0"
+          ],
+          "descendants_by_tier": {
+            "item": [
+              "/clock/1/item/0"
+            ]
+          },
+          "direct": [
+            "/clock/1/item/0"
+          ],
+          "direct_by_tier": {
+            "item": [
+              "/clock/1/item/0"
+            ]
+          },
+          "leaves": [],
+          "parents": [
+            "/clock/1/item/0"
+          ],
+          "routes": []
+        },
+        "/clock/1/item/0": {
+          "ancestors": [
+            "/clock/0/item/0",
+            "/clock/1/item/0"
+          ],
+          "descendants": [
+            "/clock/0/item/0"
+          ],
+          "descendants_by_tier": {
+            "item": [
+              "/clock/0/item/0"
+            ]
+          },
+          "direct": [
+            "/clock/0/item/0"
+          ],
+          "direct_by_tier": {
+            "item": [
+              "/clock/0/item/0"
+            ]
+          },
+          "leaves": [],
+          "parents": [
+            "/clock/0/item/0"
+          ],
+          "routes": []
+        }
+      },
+      "class": {
+        "containment_declarations": 2,
+        "repeated_target_incidence": false,
+        "shared_targets": false,
+        "source_arities": [
+          1
+        ],
+        "target_arities": [
+          1
+        ],
+        "target_tier_cardinalities": [
+          1
+        ]
+      }
+    },
     "fixture:declared-reverse-order": {
       "answers": {
         "/clock/0/a/0": {
@@ -11178,7 +11250,7 @@
   },
   "population": {
     "boundary": "the named fixtures in this artifact",
-    "kind": "fixture-derived structural classes with constructor/validator drift guard",
+    "kind": "fixture-derived structural classes, derived and checked, with constructor/validator drift guard",
     "outside_member_example": "a boundary-endpoint containment graph",
     "surface": {
       "constructor_validator_sha256": "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa",

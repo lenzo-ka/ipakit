@@ -91,9 +91,9 @@ class ContainmentProjection:
                     "containment projection refuses multi-source containment "
                     f"instance {index} ({relation.name!r})"
                 )
-        containment_name = _name("contains")
         containment_names = {
-            declaration.name: containment_name for declaration in containment
+            declaration.name: _name(f"contains-{index}")
+            for index, declaration in enumerate(containment)
         }
         item_side = tg.RelationSideDeclaration((tg.RelationEndpointKind.ITEM,))
         declarations: tuple[
@@ -108,7 +108,7 @@ class ContainmentProjection:
                     unique_sources=True,
                     acyclic=True,
                 )
-                for name in dict.fromkeys(containment_names.values())
+                for name in containment_names.values()
             ),
         )
         relations = tuple(
@@ -189,37 +189,35 @@ class ContainmentProjection:
         )
 
     def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
-        item = self.old_to_new.get(parent)
-        if item is None:
+        if parent not in self.old_to_new:
             return ()
-        descendants = _ordered_unique(
-            self._old_reference(node)
-            for traversal in self.traversals()
-            for node in traversal.descendants(item).nodes
-        )
-        if tier is None:
-            return descendants
-        tier_name = self.tier_names.get(tier)
-        return tuple(
-            child for child in descendants if self.old_to_new[child].tier == tier_name
-        )
+        result: list[str] = []
+        pending = list(self.direct_children(parent))
+        visited = {parent}
+        while pending:
+            item = pending.pop(0)
+            if item not in visited:
+                visited.add(item)
+                if tier is None or self.source.resolve(item).tier == tier:
+                    result.append(item)
+                pending[0:0] = self.direct_children(item)
+        return tuple(result)
 
     def leaves(self, parent: str) -> tuple[str, ...]:
-        item = self.old_to_new.get(parent)
-        if item is None:
+        if parent not in self.old_to_new:
             return (parent,)
-        active = tuple(
-            traversal
-            for traversal in self.traversals()
-            if traversal.direct_children(item).nodes
-        )
-        if not active:
-            return (parent,)
-        return _ordered_unique(
-            self._old_reference(node)
-            for traversal in active
-            for node in traversal.leaves(item).nodes
-        )
+        visited: set[str] = set()
+
+        def walk(item: str) -> tuple[str, ...]:
+            if item in visited:
+                return ()
+            visited.add(item)
+            children = self.direct_children(item)
+            if not children:
+                return (item,)
+            return tuple(leaf for child in children for leaf in walk(child))
+
+        return walk(parent)
 
     def parents(self, child: str) -> tuple[str, ...]:
         item = self.old_to_new.get(child)
@@ -238,29 +236,16 @@ class ContainmentProjection:
         )
 
     def ancestors(self, child: str) -> tuple[str, ...]:
-        item = self.old_to_new.get(child)
-        if item is None:
+        if child not in self.old_to_new:
             return ()
-        traversals = self.traversals()
-        ancestors = _ordered_unique(
-            self._old_reference(node)
-            for traversal in traversals
-            for node in traversal.ancestors(item).nodes
-        )
-        ancestor_set = set(ancestors)
-
-        def outer_count(candidate: str) -> int:
-            reference = self.old_to_new[candidate]
-            return len(
-                ancestor_set
-                & {
-                    self._old_reference(node)
-                    for traversal in traversals
-                    for node in traversal.descendants(reference).nodes
-                }
-            )
-
-        return tuple(sorted(ancestors, key=outer_count))
+        result: list[str] = []
+        pending = list(self.parents(child))
+        while pending:
+            item = pending.pop(0)
+            if item not in result:
+                result.append(item)
+                pending.extend(self.parents(item))
+        return tuple(result)
 
 
 def _ordered_unique(values: Iterable[str]) -> tuple[str, ...]:

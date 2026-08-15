@@ -71,6 +71,23 @@ def _structural_fixture(kind: str) -> Graph:
     return builder.build()
 
 
+def _cross_relation_cycle_fixture() -> Graph:
+    declared = Declarations(
+        (TierDeclaration("item", frozenset({"label"})),),
+        (FeatureDeclaration("label"),),
+        (
+            RelationDeclaration("a", containment=True, acyclic=True),
+            RelationDeclaration("b", containment=True, acyclic=True),
+        ),
+    )
+    builder = GraphBuilder(declared)
+    first = builder.append_input_atom("item", {"label": "first"})
+    second = builder.append_input_atom("item", {"label": "second"})
+    builder.contain(first, (second,), relation="a")
+    builder.contain(second, (first,), relation="b")
+    return builder.build()
+
+
 @lru_cache(maxsize=1)
 def corpus() -> tuple[tuple[str, Graph], ...]:
     """Build every named checked-in navigation fixture and profile sample."""
@@ -90,6 +107,7 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
         ("fixture:duplicate-child", _structural_fixture("duplicate-child")),
         ("fixture:diamond", _structural_fixture("diamond")),
         ("fixture:declared-reverse-order", _structural_fixture("reverse")),
+        ("fixture:cross-relation-cycle", _cross_relation_cycle_fixture()),
         ("profile:ipa", hierarchy.build()._graph),
         ("profile:cmu", read_cmu(("K", "AE1", "T"))),
         ("profile:pinyin", build_pinyin("shui", "sh", "ui", 3)),
@@ -171,6 +189,34 @@ def _surface() -> dict[str, object]:
     }
 
 
+def _structural_class(graph: Graph) -> dict[str, object]:
+    containment = {
+        declaration.name
+        for declaration in graph.declarations.relations
+        if declaration.containment
+    }
+    relations = tuple(
+        relation for relation in graph.relations if relation.name in containment
+    )
+    targets = [target for relation in relations for target in relation.targets]
+    return {
+        "containment_declarations": len(containment),
+        "source_arities": sorted({len(relation.sources) for relation in relations}),
+        "target_arities": sorted({len(relation.targets) for relation in relations}),
+        "repeated_target_incidence": any(
+            len(relation.targets) != len(set(relation.targets))
+            for relation in relations
+        ),
+        "shared_targets": len(targets) != len(set(targets)),
+        "target_tier_cardinalities": sorted(
+            {
+                len({graph.resolve(target).tier for target in relation.targets})
+                for relation in relations
+            }
+        ),
+    }
+
+
 def _as_json(value: object) -> object:
     if isinstance(value, tuple):
         return [_as_json(item) for item in value]
@@ -197,6 +243,10 @@ def verify() -> Coverage:
         refs = graph.event_references()
         event_count += len(refs)
         comparison_count += sum(6 + 2 * len(graph.declarations.tiers) for _ in refs)
+        if _as_json(_structural_class(graph)) != expected["class"]:
+            raise AssertionError(
+                f"{name}: structural class differs from committed golden"
+            )
         if _as_json(_answers(graph)) != expected["answers"]:
             raise AssertionError(f"{name}: navigation differs from committed golden")
     stale = set(payload["fixtures"]) - seen
