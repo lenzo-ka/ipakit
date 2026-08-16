@@ -1496,6 +1496,83 @@ def test_nasal_floor_truncation_still_varies_every_pair() -> None:
         assert nasal_sides[1] != oral_sides[1]
 
 
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_upper_lip_never_enters_nose_over_inventory(
+    head_name: str, tmp_path: Path
+) -> None:
+    """Filled nose and upper-lip interiors stay disjoint in every posture.
+
+    The nasal cavity is skull-fixed, so rasterize it once per head.  The lip
+    is posed for every registered phone; that sweep includes the open jaw of
+    vowels such as /a/ as well as closed and non-labial consonants.
+    """
+    if shutil.which("rsvg-convert") is None:  # pragma: no cover
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    drawings = [
+        tract_svg.drawing(head_name, phone) for phone in (None, *IPAFeatures().phones)
+    ]
+    extent = tract_svg._extent(*(drawn["geometry"] for drawn in drawings))
+
+    def fixed_svg(drawn: dict[str, Any]) -> str:
+        svg = tract_svg.section_svg(
+            drawn["geometry"],
+            None,
+            drawn["aperture"],
+            drawn["posture"],
+            drawn["caption"],
+            drawn["active"],
+            extent=extent,
+        )
+        return svg.replace(
+            "<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1
+        ).replace(">", f"><style>{tract_svg._literal_style()}</style>", 1)
+
+    reference = fixed_svg(drawings[0])
+    width, nose_rows = _pixels(
+        _only_layer(reference, "nasalfill", fill_only=True),
+        tmp_path / f"{head_name}-nose.svg",
+    )
+    nose = _alpha_pixels(width, nose_rows)
+    collisions = []
+    for phone, drawn in zip(IPAFeatures().phones, drawings[1:], strict=True):
+        svg = fixed_svg(drawn)
+        _, lip_rows = _pixels(
+            _only_layer(svg, "upper-lip", fill_only=True),
+            tmp_path / f"{head_name}-{ord(phone[0])}-upper-lip.svg",
+        )
+        overlap = nose & _alpha_pixels(width, lip_rows)
+        if overlap:
+            collisions.append((phone, len(overlap)))
+    assert not collisions, (head_name, collisions[:10])
+
+
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_external_nose_tip_projects_past_upper_lip(head_name: str) -> None:
+    """The pronasale is anterior to the upper lip, not flattened behind it."""
+    svg = tract_svg.render(tract_svg.drawing(head_name, None))
+    nose = re.search(r'<path d="([^"]+)" class="nasalfill"/>', svg)
+    lip = re.search(r'<path d="([^"]+)" class="lip upper-lip"/>', svg)
+    assert nose is not None and lip is not None
+    nose_front = min(x for x, _ in _pts(nose.group(1)))
+    lip_front = min(x for x, _ in _pts(lip.group(1)))
+    assert nose_front < lip_front, (head_name, nose_front, lip_front)
+
+
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_nares_are_an_open_down_forward_end(head_name: str) -> None:
+    """The nasal side walls end apart; no stroked cap seals the naris."""
+    svg = _section(head_name, "m")
+    sides = re.findall(r'<path d="([^"]+)" class="nasalside"/>', svg)
+    assert len(sides) == 2
+    upper, lower = (_pts(side) for side in sides)
+    assert upper[0] != lower[0]
+    assert not any(side.rstrip().endswith("Z") for side in sides)
+    # In display coordinates the lower rim remains down and behind the upper
+    # rim, leaving the gap's outward normal down-forward (left).
+    assert lower[0][0] > upper[0][0]
+    assert lower[0][1] > upper[0][1]
+
+
 def _differing(
     width: int, one: list[bytes], other: list[bytes]
 ) -> list[tuple[int, int]]:

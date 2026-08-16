@@ -119,15 +119,15 @@
          oral tract at oral arc 0.50. A raised velum seals the port and
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
-      <point arc="0.0000" x="0.025" y="0.755" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: compact tip, clear of the upper lip -->
-      <point arc="0.0523" x="0.040" y="0.790" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
-      <point arc="0.1510" x="0.110" y="0.806" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, returning toward the face -->
-      <point arc="0.2610" x="0.19" y="0.804" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
-      <point arc="0.5148" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.6654" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
-      <point arc="0.7814" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
-      <point arc="0.8782" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.9514" x="0.6198" y="0.7804" diameter="0.02" provenance="hand-placed"/>
+      <point arc="0.0000" x="0.005" y="0.820" diameter="0.02" provenance="hand-placed"/>  <!-- schematic: pronasale projects anterior to the upper lip while retaining one lip-height of vertical clearance -->
+      <point arc="0.0358" x="0.020" y="0.842" diameter="0.022" provenance="hand-placed"/>   <!-- schematic: short rising vestibule preserves the down-forward opening -->
+      <point arc="0.1636" x="0.115" y="0.842" diameter="0.03" provenance="hand-placed"/>   <!-- schematic: dorsum returns toward the face behind the projecting tip -->
+      <point arc="0.2767" x="0.19" y="0.804" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
+      <point arc="0.5252" x="0.3385" y="0.9138" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.6725" x="0.4443" y="0.8855" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.7861" x="0.5197" y="0.8475" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.8807" x="0.5847" y="0.8205" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.9524" x="0.6198" y="0.7804" diameter="0.02" provenance="hand-placed"/>
       <point arc="1.0000" x="0.6266" y="0.7457" diameter="0.006" provenance="hand-placed"/>
     </nasal>
     <!-- The lowered oral face continues the wall from the hard-palate edge to
@@ -242,15 +242,15 @@
          oral tract at oral arc 0.50. A raised velum seals the port and
          decouples the branch entirely (docs/tract-anatomy.md 4.3). -->
     <nasal port="0.50">
-      <point arc="0.0000" x="0.025" y="0.750" diameter="0.02" provenance="hand-placed"/>  <!-- nostril: compact tip, clear of the upper lip -->
-      <point arc="0.0537" x="0.040" y="0.784" diameter="0.022" provenance="hand-placed"/>   <!-- vestibule, rising off the tip -->
-      <point arc="0.1554" x="0.108" y="0.802" diameter="0.03" provenance="hand-placed"/>   <!-- external-nose dorsum, returning toward the face -->
-      <point arc="0.2783" x="0.193" y="0.8" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
-      <point arc="0.5282" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
-      <point arc="0.6807" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
-      <point arc="0.7952" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
-      <point arc="0.8841" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
-      <point arc="0.9527" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
+      <point arc="0.0000" x="0.000" y="0.814" diameter="0.02" provenance="hand-placed"/>  <!-- schematic: pronasale projects anterior to the upper lip while retaining one lip-height of vertical clearance -->
+      <point arc="0.0975" x="0.065" y="0.836" diameter="0.022" provenance="hand-placed"/>   <!-- schematic: short rising vestibule preserves the down-forward opening -->
+      <point arc="0.1686" x="0.115" y="0.836" diameter="0.03" provenance="hand-placed"/>   <!-- schematic: dorsum returns toward the face behind the projecting tip -->
+      <point arc="0.2906" x="0.193" y="0.8" diameter="0.036" provenance="hand-placed"/>   <!-- meets the hard-palate front: the floor joins the alveolar roof -->
+      <point arc="0.5362" x="0.3312" y="0.9038" diameter="0.048" provenance="hand-placed"/>
+      <point arc="0.6861" x="0.4328" y="0.8754" diameter="0.046" provenance="hand-placed"/>
+      <point arc="0.7987" x="0.5023" y="0.8374" diameter="0.044" provenance="hand-placed"/>
+      <point arc="0.8860" x="0.5586" y="0.8127" diameter="0.041" provenance="hand-placed"/>
+      <point arc="0.9535" x="0.5908" y="0.7778" diameter="0.019" provenance="hand-placed"/>
       <point arc="1.0000" x="0.5966" y="0.7456" diameter="0.006" provenance="hand-placed"/>
     </nasal>
     <velum thickness="0.017" hinge-arc="0.40" lowered-landmark="velum-rest" provenance="hand-placed"/>
