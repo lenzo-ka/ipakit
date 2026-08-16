@@ -11,9 +11,9 @@ This file gates that trajectory API:
 
 * ``ipakit.tract.score(features, word) -> tuple[Posture, ...]`` -- one Posture
   per segment (via ``features.segments(word)``).
-* ``ipakit.tract.blend(units, t, falloff=...) -> Posture`` -- a dominance blend
-  at ordinal ``t`` in ``[0, N-1]``; a real Posture, each integer ``t=i``
-  dominated by unit ``i`` (coarticulated, not identical -- see ``CENTER_TOL``).
+* ``ipakit.tract.blend(units, t, falloff=...) -> Posture`` -- target-to-target
+  interpolation at ordinal ``t`` in ``[0, N-1]``; each integer ``t=i`` reaches
+  unit ``i`` exactly.
 * ``ipakit.tract_svg.animate(word, head_name=None, features=None,
   frames_per_unit=...) -> str`` -- a self-contained animated artifact whose
   frames are ``build_geometry(head, marks, blend(score, t))``.
@@ -75,13 +75,8 @@ SAME_ARTICULATOR_VOWELS = "ie"
 # transition this cut cannot yet model as two gestures. See ANIMATION_LIMITS.md.
 ARTICULATOR_CHANGE = "ai"
 
-# How far a coarticulated center may sit from its citation posture, per scalar.
-# The dominance blend is non-cardinal (chosen 2026-08-07): at t=i the owning
-# unit's weight is ~0.96 and each neighbor leaks ~0.018, so any one blendable
-# scalar moves at most a few hundredths -- undershoot/overlap, the point of
-# Cohen-Massaro. A center must still be *dominated by* its own unit; this bounds
-# how much it may be pulled, well below the gap between distinct units.
-CENTER_TOL = 0.06
+# Centers are cardinal targets; this admits floating-point arithmetic only.
+CENTER_TOL = 1e-12
 
 # Words the model surface must never grow a clock for. A blend takes an ordinal
 # t and a falloff; a Posture carries articulation, not seconds.
@@ -181,11 +176,7 @@ def test_one_posture_per_segment(word: str, ipa: IPAFeatures) -> None:
 def test_timeline_lands_each_center_on_its_unit(word: str, ipa: IPAFeatures) -> None:
     """The clock is ordinal: integer ``t=i`` is dominated by unit ``i``.
 
-    Not exact equality -- the dominance blend coarticulates (chosen behavior:
-    non-cardinal, so a center is slightly pulled toward its neighbors, which is
-    the undershoot/overlap Cohen-Massaro is for). The ordinal-clock guarantee is
-    weaker and truer: at every integer ``i`` the blend sits *nearer its own unit
-    than any other* and within ``CENTER_TOL`` of it, endpoints included. The
+    At every integer ``i`` the blend reaches its own declared target. The
     timeline spans ``[0, N-1]`` -- one unit per unit; the model counts units,
     never seconds.
     """
@@ -196,9 +187,7 @@ def test_timeline_lands_each_center_on_its_unit(word: str, ipa: IPAFeatures) -> 
         nearest = min(range(n), key=lambda j: _apart(b, units[j]))
         assert nearest == i, f"blend at t={i} sits nearer unit {nearest} than {i}"
         dev = _max_dev(b, units[i])
-        assert (
-            dev < CENTER_TOL
-        ), f"blend at t={i} is {dev:.3f} from unit {i} (>{CENTER_TOL})"
+        assert dev <= CENTER_TOL, f"blend at t={i} misses unit {i}: {dev:.3g}"
 
 
 @needs_api
@@ -250,20 +239,13 @@ def test_every_frame_is_pure_in_the_posture(word: str, ipa: IPAFeatures) -> None
 # 4. Blend sanity.
 # --------------------------------------------------------------------------
 @needs_api
-def test_centers_coarticulate_but_only_slightly(ipa: IPAFeatures) -> None:
-    """A medial center is pulled toward its neighbors -- really, and a little.
-
-    This pins the chosen non-cardinal behavior from both sides: the pull is
-    real (a segment in context is not its isolated citation posture, so the
-    deviation is nonzero) and bounded (within ``CENTER_TOL``). The static
-    ``figure()`` still draws the exact citation posture; only the animation
-    coarticulates.
-    """
+def test_centers_commit_to_their_declared_targets(ipa: IPAFeatures) -> None:
+    """A medial target is not diluted by its neighbours."""
     units = score(ipa, "kat")
     assert len(units) >= 3, "need a medial unit with neighbors on both sides"
     medial = blend(units, 1)
     dev = _max_dev(medial, units[1])
-    assert 0.0 < dev < CENTER_TOL, f"medial center deviates {dev:.4f} from its unit"
+    assert dev <= CENTER_TOL, f"medial center misses its target by {dev:.4g}"
 
 
 @needs_api

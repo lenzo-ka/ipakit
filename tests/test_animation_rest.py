@@ -7,6 +7,7 @@ import re
 import shutil
 from pathlib import Path
 
+import pytest
 from ipakit.features import IPAFeatures
 from ipakit.form import FormBuilder
 from ipakit.tract import constrictions, head, landmarks, posture, trajectory
@@ -19,7 +20,7 @@ from ipakit.tract_svg import (
     section_svg,
 )
 
-from tests.test_tract_figures import _differing, _pixels
+from tests.test_tract_figures import _alpha_pixels, _differing, _pixels
 
 
 def _offset(frame, articulator: str) -> float:
@@ -86,6 +87,63 @@ def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
     width, painted = _pixels(svg, tmp_path / "upper-lip.svg", width=760)
     _, absent = _pixels(without, tmp_path / "without-upper-lip.svg", width=760)
     assert len(_differing(width, painted, absent)) > 20
+
+
+def _raster_lip_gap(frame, tmp_path: Path, stem: str) -> int:
+    """Transparent pixels on the shortest 8-connected route between lips."""
+    h, marks = head(), landmarks(IPAFeatures())
+    rendered = section_svg(
+        build_geometry(h, marks, frame), None, frame.velic, _pose(frame)
+    )
+    paths = re.findall(
+        r'<path d="([^"]+)" class="lip (?:upper|lower)-lip(?: shut)?"/>', rendered
+    )
+    assert len(paths) == 2
+    pixels = []
+    for index, path in enumerate(paths):
+        isolated = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560">'
+            "<style>.lip{fill:#fff;stroke:#fff;stroke-width:1.4;"
+            "stroke-linejoin:round}</style>"
+            f'<path d="{path}" class="lip"/></svg>'
+        )
+        width, rows = _pixels(isolated, tmp_path / f"{stem}-{index}.svg", width=760)
+        pixels.append(_alpha_pixels(width, rows, threshold=127))
+    upper, lower = pixels
+    distance = min(
+        max(abs(ax - bx), abs(ay - by)) for ax, ay in upper for bx, by in lower
+    )
+    return max(0, distance - 1)
+
+
+@pytest.mark.parametrize("phone", ["b", "p", "m"])
+def test_timed_bilabial_reaches_continuous_raster_contact(
+    phone: str, tmp_path: Path
+) -> None:
+    """The timed target reaches the static contact, without a body swap."""
+    builder = FormBuilder()
+    handles = builder.append_ipa(f"a{phone}a")
+    for index, handle in enumerate(handles):
+        builder.attach_timing(handle, index * 0.4, 0.4)
+    track = trajectory(builder.build(), head=head(), fps=20)
+    span = [
+        (ordinal, frame)
+        for ordinal, frame in zip(track.ordinals, track.frames, strict=True)
+        if 1.5 <= ordinal <= 2.5
+    ]
+    gaps = [
+        _raster_lip_gap(frame, tmp_path, f"{phone}-{index}")
+        for index, (_, frame) in enumerate(span)
+    ]
+    center = next(index for index, (ordinal, _) in enumerate(span) if ordinal == 2.0)
+    static_contact = _raster_lip_gap(
+        posture(IPAFeatures(), phone, head()), tmp_path, f"{phone}-static"
+    )
+    assert span[center][1].reading == track.postures[1].reading
+    assert gaps[center] == static_contact
+    assert gaps[: center + 1] == sorted(gaps[: center + 1], reverse=True)
+    assert gaps[center:] == sorted(gaps[center:])
+    assert all(a - b <= 14 for a, b in zip(gaps, gaps[1:], strict=False))
 
 
 def test_every_kaet_frame_keeps_declared_front_until_a_tip_closure() -> None:
