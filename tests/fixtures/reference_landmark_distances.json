@@ -1,0 +1,20 @@
+{
+  "adult-female": {
+    "epiglottis": 0.89,
+    "nares": 22.52,
+    "nares-to-upper-lip": 34.85,
+    "velum": 0.57
+  },
+  "adult-male": {
+    "epiglottis": 0.2,
+    "nares": 19.8,
+    "nares-to-upper-lip": 20.06,
+    "velum": 0.4
+  },
+  "child": {
+    "epiglottis": 0.45,
+    "nares": 46.17,
+    "nares-to-upper-lip": 78.99,
+    "velum": 0.2
+  }
+}
