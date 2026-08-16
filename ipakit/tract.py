@@ -581,7 +581,7 @@ class Head:
         return rest + (control.offset - rest) * weight
 
     def lip_body(
-        self, closed: bool = False, close: float = 0.0
+        self, closed: bool | float = False, close: float = 0.0
     ) -> tuple[tuple[tuple[float, float], ...], ...] | None:
         """Each lip as a body: root, shoulders and free edge.
 
@@ -808,7 +808,7 @@ class Head:
         )
 
     def lips(
-        self, closed: bool = False, close: float = 0.0
+        self, closed: bool | float = False, close: float = 0.0
     ) -> tuple[tuple[float, float], tuple[float, float]] | None:
         """Upper and lower lip, as the tract's two boundaries at arc 0.
 
@@ -824,7 +824,8 @@ class Head:
         # own. Closing the jaw therefore moves the lower lip even for a phone
         # that is not a closure.
         lower = self.carried(lower, 0.0, close)
-        if not closed:
+        contact = max(0.0, min(1.0, float(closed)))
+        if contact == 0.0:
             return (upper, lower)
         # They meet at the occlusal line rather than at a fraction someone
         # chose: with the jaw shut the incisal edges are close to meeting, and
@@ -847,7 +848,16 @@ class Head:
             lower[0] + (upper[0] - lower[0]) * along,
             lower[1] + (upper[1] - lower[1]) * along,
         )
-        return (meet, meet)
+        return (
+            (
+                upper[0] + (meet[0] - upper[0]) * contact,
+                upper[1] + (meet[1] - upper[1]) * contact,
+            ),
+            (
+                lower[0] + (meet[0] - lower[0]) * contact,
+                lower[1] + (meet[1] - lower[1]) * contact,
+            ),
+        )
 
     def project_nasal(
         self, arc: float, offset: float = 0.0
@@ -1966,23 +1976,21 @@ def score(features: IPAFeatures, word: str) -> tuple[Posture, ...]:
 
 
 def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
-    """The interpolated posture at ordinal time ``t`` across ``units``.
+    """The target-to-target posture at ordinal time ``t`` across ``units``.
 
-    ``t`` runs 0..N-1 over N units, one integer per unit. The blend is by
-    dominance functions (Cohen & Massaro 1993), **per articulator**: each
+    ``t`` runs 0..N-1 over N units, one integer per unit. Interpolation is
+    **per articulator**: each
     articulator keeps its own fixed place and only its constriction *degree*
     is interpolated, so nothing slides a closure through the palate. Sliding
     one primary point from alveolar 0.13 to velar 0.45 would draw a tract no
     tongue makes -- a closure travelling across the hard palate -- which is
     exactly the trap this avoids.
 
-    The dominance of unit ``i`` at ``t`` is a peaked Gaussian,
-    ``w_i = exp(-((t - i) / falloff) ** 2)``: 1 at its own moment and falling
-    away on either side, so a smaller ``falloff`` makes each unit reign more
-    sharply over its own instant. At an integer ``t`` the owning unit's weight
-    is 1 and its neighbours' is ``exp(-(1/falloff)**2)`` -- with the default
-    ``falloff`` a couple of percent -- so ``blend(units, i)`` is unit ``i``
-    to within that leak.
+    Between two integer targets, smoothstep weights carry the posture directly
+    from one target to the next.  Integer moments are cardinal: the owning
+    unit is reached exactly.  ``falloff`` remains accepted for wire/API
+    compatibility, but no longer creates overlapping influence windows; rest
+    is consequently visited only when an explicit rest posture is a target.
 
     Every articulator any unit constricts is collected. A unit closes the
     articulators it names (its ``constrictions``); for one it does not name,
@@ -1990,14 +1998,14 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     /k/ releases its dorsum toward the dorsum position carried by /a/, not
     toward global rest in the middle of a word. Global rest is a target only
     for explicit padded rest postures at the word edges. Each articulator's
-    degree at ``t`` is the dominance-weighted mean of those per-unit targets,
+    degree at ``t`` is the target-weighted mean of those per-unit targets,
     taken at the articulator's OWN arc (itself the
-    dominance-weighted mean of the arcs the constricting units place it at, so
-    a place shared by two units settles between them and never leaves the
-    articulator). An articulator whose blended degree remains imperceptibly
+    target-weighted mean of the arcs the constricting units place it at, so
+    every cardinal target retains its declared place). An articulator whose
+    blended degree remains imperceptibly
     close to rest is not emitted; a below-rest gesture such as a lowered
     vowel root remains a real control. The survivors are the blended
-    ``constrictions``, each ``(fixed arc, blended offset, articulator)`` --
+    ``constrictions``, each ``(cardinal arc, blended offset, articulator)`` --
     which :func:`ipakit.tract_svg.build_geometry` renders as-is, because
     ``Head.tongue_point`` already takes the max over controls and so draws a
     hump per active articulator.
@@ -2006,7 +2014,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     :data:`GLOTTAL_REST` wherever a unit fixed none, so the mean never runs
     through ``None``; ``velic`` is already a float resting at 0 (sealed).
     ``reading`` -- the primary point the renderer derives jaw close from --
-    is the dominance-weighted mean of the units' readings; it drives no
+    is the target-weighted mean of the units' readings; it drives no
     tongue closure, so blending its arc is jaw motion, not a sliding
     constriction. The annotations (``secondary``, ``unmodelled``) and the
     silence ``rest`` follow the single dominant unit rather than
@@ -2017,7 +2025,14 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     if falloff <= 0.0:
         raise ValueError("falloff must be positive")
 
-    weights = [math.exp(-(((t - i) / falloff) ** 2)) for i in range(len(units))]
+    position = max(0.0, min(float(len(units) - 1), t))
+    left = min(int(math.floor(position)), len(units) - 1)
+    right = min(left + 1, len(units) - 1)
+    phase = position - left
+    phase = phase * phase * (3.0 - 2.0 * phase)
+    weights = [0.0] * len(units)
+    weights[left] = 1.0 - phase
+    weights[right] += phase
     total = sum(weights) or 1.0
     dominant = units[max(range(len(units)), key=lambda i: weights[i])]
 
@@ -2039,6 +2054,8 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
 
     def blended_controls(
         controls_by_unit: Sequence[tuple[TractPoint, ...]],
+        *,
+        cardinal_place: bool,
     ) -> tuple[TractPoint, ...]:
         """Blend one control field without borrowing another field's points."""
         # Each unit's per-articulator target: the offset it constricts that
@@ -2060,13 +2077,34 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
 
         blended: list[TractPoint] = []
         for name in names:
-            arc = weighted(
-                [
-                    (weights[i], closed[name].arc)  # type: ignore[misc]
-                    for i, closed in enumerate(per_unit)
-                    if name in closed
-                ]
+            # A place is cardinal just like its degree: at a unit target it
+            # must be that unit's declared place.  Weight only units that
+            # actually place this articulator.  A releasing neighbour has no
+            # competing place, so the gesture stays at the constricting
+            # unit's arc while its degree fades; two differently placed
+            # gestures move place only during their direct transition.
+            placed = [
+                (i, point.arc)
+                for i, closed in enumerate(per_unit)
+                if (point := closed.get(name)) is not None and point.arc is not None
+            ]
+            arc = (
+                weighted([(weights[i], value) for i, value in placed])
+                if cardinal_place
+                else (
+                    sum(value for _, value in placed) / len(placed) if placed else None
+                )
             )
+            if arc is None:
+                # At an exact target which merely releases this articulator,
+                # every placing unit has zero interpolation weight.  Retain
+                # the nearest gesture's place so its implied release shape is
+                # still represented at the endpoint.
+                nearest = min(
+                    ((abs(position - i), value) for i, value in placed),
+                    default=None,
+                )
+                arc = None if nearest is None else nearest[1]
             targets = []
             for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
                 target_point = closed.get(name)
@@ -2090,8 +2128,15 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         blended.sort(key=lambda q: q.arc or 0.0)
         return tuple(blended)
 
-    blended_constrictions = blended_controls(tuple(u.constrictions for u in units))
-    blended_tongue_controls = blended_controls(tuple(u.tongue_controls for u in units))
+    blended_constrictions = blended_controls(
+        tuple(u.constrictions for u in units), cardinal_place=True
+    )
+    # These are whole-surface sewing controls rather than phonetic
+    # constrictions.  Their fixed per-articulator place keeps the renderer's
+    # tongue-tip closure gate continuous under frame-rate refinement.
+    blended_tongue_controls = blended_controls(
+        tuple(u.tongue_controls for u in units), cardinal_place=False
+    )
 
     reading_arc = weighted(
         [
@@ -2467,15 +2512,27 @@ def trajectory(
                 raise ValueError(f"timing for unit {index} leaves a gap")
         start, end = spans[0].start, spans[-1].end
         count = math.ceil((end - start) * fps)
-        # Measured boundaries are semantic samples even when off the fps grid.
+        # Measured boundaries and target centers are semantic samples even
+        # when off the fps grid.  Center anchoring puts cardinal phone targets
+        # at those midpoints, so omitting them can make a valid low-fps track
+        # miss a closure entirely.
         candidates = (
             [start + k / fps for k in range(count)]
             + [span.start for span in spans[1:]]
+            + [span.start + span.duration / 2.0 for span in spans]
             + [end]
         )
         stamps_list: list[float] = []
         for candidate in sorted(candidates):
-            if stamps_list and math.isclose(candidate, stamps_list[-1]):
+            # These are clock samples, not values whose equality should grow
+            # with their absolute origin.  Relative tolerance can swallow a
+            # phone center at a large timestamp (and even a whole short
+            # phone), removing the semantic cardinal sample it was added to
+            # preserve.  A picosecond absolute tolerance only coalesces
+            # arithmetic noise and stays below a nanosecond phone's center.
+            if stamps_list and math.isclose(
+                candidate, stamps_list[-1], rel_tol=0.0, abs_tol=1e-12
+            ):
                 if candidate == end:
                     stamps_list[-1] = end
             else:
@@ -2501,8 +2558,7 @@ def trajectory(
         interval = 0.420 / frames_per_unit
         stamps = tuple(index * interval for index in range(len(ordinals)))
     frames_list = [blend(play_units, ordinal) for ordinal in ordinals]
-    # Gaussian neighbours intentionally coarticulate unit centers, but the
-    # synthetic word-edge rests are boundary conditions, not speech targets:
+    # Synthetic word-edge rests are boundary conditions as well as targets:
     # the first and last samples are the declared home posture exactly.
     if not measured and rest_point is not None:
         frames_list[0] = play_units[0]

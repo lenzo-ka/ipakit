@@ -7,6 +7,7 @@ import re
 import shutil
 from pathlib import Path
 
+import pytest
 from ipakit.features import IPAFeatures
 from ipakit.form import FormBuilder
 from ipakit.tract import constrictions, head, landmarks, posture, trajectory
@@ -19,7 +20,7 @@ from ipakit.tract_svg import (
     section_svg,
 )
 
-from tests.test_tract_figures import _differing, _pixels
+from tests.test_tract_figures import _alpha_pixels, _differing, _pixels
 
 
 def _offset(frame, articulator: str) -> float:
@@ -86,6 +87,146 @@ def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
     width, painted = _pixels(svg, tmp_path / "upper-lip.svg", width=760)
     _, absent = _pixels(without, tmp_path / "without-upper-lip.svg", width=760)
     assert len(_differing(width, painted, absent)) > 20
+
+
+def _raster_lip_gap(frame, tmp_path: Path, stem: str) -> int:
+    """Transparent pixels on the shortest 8-connected route between lips."""
+    h, marks = head(), landmarks(IPAFeatures())
+    rendered = section_svg(
+        build_geometry(h, marks, frame), None, frame.velic, _pose(frame)
+    )
+    paths = re.findall(
+        r'<path d="([^"]+)" class="lip (?:upper|lower)-lip(?: shut)?"/>', rendered
+    )
+    assert len(paths) == 2
+    pixels = []
+    for index, path in enumerate(paths):
+        isolated = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560">'
+            "<style>.lip{fill:#fff;stroke:#fff;stroke-width:1.4;"
+            "stroke-linejoin:round}</style>"
+            f'<path d="{path}" class="lip"/></svg>'
+        )
+        width, rows = _pixels(isolated, tmp_path / f"{stem}-{index}.svg", width=760)
+        pixels.append(_alpha_pixels(width, rows, threshold=127))
+    upper, lower = pixels
+    distance = min(
+        max(abs(ax - bx), abs(ay - by)) for ax, ay in upper for bx, by in lower
+    )
+    return max(0, distance - 1)
+
+
+@pytest.mark.parametrize("phone", ["b", "p", "m"])
+@pytest.mark.parametrize("fps", [3, 5, 12, 20])
+@pytest.mark.parametrize("duration", [0.15, 0.20, 0.30, 0.40])
+def test_timed_bilabial_reaches_continuous_raster_contact(
+    phone: str, fps: int, duration: float, tmp_path: Path
+) -> None:
+    """Even an off-grid timed target reaches contact, without a body swap."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    builder = FormBuilder()
+    handles = builder.append_ipa(f"a{phone}a")
+    for index, handle in enumerate(handles):
+        builder.attach_timing(handle, index * duration, duration)
+    track = trajectory(builder.build(), head=head(), fps=fps)
+    span = [
+        (ordinal, frame)
+        for ordinal, frame in zip(track.ordinals, track.frames, strict=True)
+        if 1.5 <= ordinal <= 2.5
+    ]
+    gaps = [
+        _raster_lip_gap(frame, tmp_path, f"{phone}-{index}")
+        for index, (_, frame) in enumerate(span)
+    ]
+    center = next(index for index, (ordinal, _) in enumerate(span) if ordinal == 2.0)
+    static_contact = _raster_lip_gap(
+        posture(IPAFeatures(), phone, head()), tmp_path, f"{phone}-static"
+    )
+    assert span[center][1].reading == track.postures[1].reading
+    assert gaps[center] == static_contact
+    assert gaps[: center + 1] == sorted(gaps[: center + 1], reverse=True)
+    assert gaps[center:] == sorted(gaps[center:])
+    if fps == 20 and duration == 0.40:
+        assert all(a - b <= 16 for a, b in zip(gaps, gaps[1:], strict=False))
+
+
+def test_timed_bilabial_center_survives_a_large_absolute_start(
+    tmp_path: Path,
+) -> None:
+    """Candidate deduplication cannot discard a target center by clock scale."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    builder = FormBuilder()
+    handles = builder.append_ipa("aba")
+    start = 1e9
+    duration = 0.20
+    for index, handle in enumerate(handles):
+        builder.attach_timing(handle, start + index * duration, duration)
+    track = trajectory(builder.build(), head=head(), fps=5)
+    center = min(range(len(track.ordinals)), key=lambda i: abs(track.ordinals[i] - 2.0))
+    assert track.stamps[center] == start + duration + duration / 2.0
+    assert _raster_lip_gap(track.frames[center], tmp_path, "large-start-b") == 6
+
+
+@pytest.mark.parametrize(
+    ("word", "bilabial_index"),
+    [
+        ("amfa", 1),
+        ("maf", 0),
+        ("fam", 2),
+        ("mɱ", 0),
+        ("ɱm", 1),
+        ("abva", 1),
+        ("avba", 2),
+    ],
+)
+def test_labiodental_context_cannot_move_bilabial_contact_place(
+    word: str, bilabial_index: int, tmp_path: Path
+) -> None:
+    """A distant or adjacent lower-lip place cannot dilute a bilabial target."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    ipa, h = IPAFeatures(), head()
+    frames_per_unit = 100
+    track = trajectory(word, head=h, frames_per_unit=frames_per_unit, features=ipa)
+    frame = track.frames[(bilabial_index + 1) * frames_per_unit]
+    static = track.postures[bilabial_index]
+    assert _raster_lip_gap(frame, tmp_path, f"{word}-bilabial") == _raster_lip_gap(
+        static, tmp_path, f"{word}-static"
+    )
+    lower = next(q for q in frame.constrictions if q.articulator == "lower-lip")
+    assert lower.arc == 0.0
+    centers = range(
+        frames_per_unit, len(track.frames) - frames_per_unit, frames_per_unit
+    )
+    neighborhoods = [
+        [
+            _raster_lip_gap(track.frames[index], tmp_path, f"{word}-curve-{index}")
+            for index in (center - 1, center, center + 1)
+        ]
+        for center in centers
+    ]
+    assert (
+        max(
+            abs(a - b)
+            for gaps in neighborhoods
+            for a, b in zip(gaps, gaps[1:], strict=False)
+        )
+        <= 3
+    )
+
+
+@pytest.mark.parametrize("phone", ["f", "v", "ɱ", "ʋ"])
+def test_labiodental_target_remains_apart_in_bilabial_context(
+    phone: str, tmp_path: Path
+) -> None:
+    """Fixing the bilabial target does not turn labiodentals into contact."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    ipa, h = IPAFeatures(), head()
+    frame = trajectory(f"m{phone}", head=h, frames_per_unit=8, features=ipa).frames[16]
+    assert _raster_lip_gap(frame, tmp_path, f"{phone}-context") > 50
 
 
 def test_every_kaet_frame_keeps_declared_front_until_a_tip_closure() -> None:

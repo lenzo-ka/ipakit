@@ -238,9 +238,7 @@ def geometry(name: str, close: float = 0.0) -> dict[str, Any]:
         "hinge": h.hinge,
         "lips_open": h.lips(close=close),
         "lips_body": h.lip_body(close=close),
-        "lips_shut": h.lip_body(closed=True, close=close),
-        "lips_closed_now": False,
-        "lips_closed": h.lips(closed=True, close=close),
+        "lip_contact": 0.0,
         "rest_arc": None if rest is None else rest.arc,
         "rest_offset": None if rest is None else rest.offset,
         "rest_lips": None if rest is None else rest.lips,
@@ -309,14 +307,27 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             "aperture": epiglottis.aperture,
         }
     current["landmarks"] = marks
-    current["lips_closed_now"] = bool(
-        (pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995)
-        or (
-            head.rest is not None
-            and head.rest.lips == "closed"
-            and p.rest_weight >= 0.995
-        )
-    )
+    lower_lip = next((q for q in p.constrictions if q.articulator == "lower-lip"), None)
+    # Lower-lip place is itself interpolated between the bilabial target at
+    # arc 0 and the labiodental target at arc .03.  Convert that continuous
+    # place back into the bilabial share of the gesture, and convert degree
+    # into activation above the head's declared open baseline.  The latter
+    # keeps place and degree consistent at an unplaced vowel target: its
+    # implied baseline degree contributes no contact whichever neighbouring
+    # gesture supplies the otherwise immaterial fallback place.
+    contact = 0.0
+    if lower_lip is not None and lower_lip.arc is not None:
+        bilabial_share = 1.0 - lower_lip.arc / 0.03
+        baseline = 0.0 if head.rest is None else float(head.rest.offset)
+        degree = float(lower_lip.offset or 0.0)
+        activation = (degree - baseline) / (1.0 - baseline)
+        contact = max(0.0, min(1.0, activation)) * max(0.0, min(1.0, bilabial_share))
+    if head.rest is not None and head.rest.lips == "closed":
+        contact = max(contact, p.rest_weight)
+    current["lip_contact"] = max(0.0, min(1.0, contact))
+    current["lips_closed_now"] = current["lip_contact"] >= 1.0 - 1e-12
+    current["lips_body"] = head.lip_body(current["lip_contact"], close=close)
+    current["lips_open"] = head.lips(current["lip_contact"], close=close)
     # A reading is present for every phone and absent only for the reference
     # drawing, so it stands in for "this is a phone": the closures, the marks
     # and the carried teeth belong to a phone and not to the reference.
@@ -804,8 +815,7 @@ def _lip_seam(src: dict[str, Any], to: Scaler, which: int) -> Point | None:
     through it, depending on the head. Starting it on the lip's own shoulder
     makes them meet by construction.
     """
-    closed = bool(src.get("lips_closed_now"))
-    bodies = src.get("lips_shut" if closed else "lips_body")
+    bodies = src.get("lips_body")
     if not bodies or which >= len(bodies):
         return None
     pts = [to(*q) for q in bodies[which]]
@@ -842,12 +852,12 @@ def _lips(
     says where both are, open or closed, so nothing is derived here.
     """
     # A bilabial closes the lips; so does rest, which the head declares.
-    bilabial = posture is not None and posture[0] <= 0.02 and posture[1] >= 0.995
-    closed = bilabial or bool(src.get("lips_closed_now"))
-    pair = src.get("lips_closed" if closed else "lips_open")
+    contact = float(src.get("lip_contact", 0.0))
+    closed = contact >= 1.0 - 1e-12
+    pair = src.get("lips_open")
     if not pair:
         return ""
-    bodies = src.get("lips_shut" if closed else "lips_body")
+    bodies = src.get("lips_body")
     if not bodies:
         return ""
     parts = []
