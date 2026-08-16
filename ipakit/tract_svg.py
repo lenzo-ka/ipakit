@@ -310,13 +310,18 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
     lower_lip = next((q for q in p.constrictions if q.articulator == "lower-lip"), None)
     # Lower-lip place is itself interpolated between the bilabial target at
     # arc 0 and the labiodental target at arc .03.  Convert that continuous
-    # place back into the bilabial share of the gesture: exact bilabial keeps
-    # its full degree, exact labiodental contributes none, and transitions do
-    # not snap the lips apart one instant after cardinal contact.
+    # place back into the bilabial share of the gesture, and convert degree
+    # into activation above the head's declared open baseline.  The latter
+    # keeps place and degree consistent at an unplaced vowel target: its
+    # implied baseline degree contributes no contact whichever neighbouring
+    # gesture supplies the otherwise immaterial fallback place.
     contact = 0.0
     if lower_lip is not None and lower_lip.arc is not None:
         bilabial_share = 1.0 - lower_lip.arc / 0.03
-        contact = float(lower_lip.offset or 0.0) * max(0.0, min(1.0, bilabial_share))
+        baseline = 0.0 if head.rest is None else float(head.rest.offset)
+        degree = float(lower_lip.offset or 0.0)
+        activation = (degree - baseline) / (1.0 - baseline)
+        contact = max(0.0, min(1.0, activation)) * max(0.0, min(1.0, bilabial_share))
     if head.rest is not None and head.rest.lips == "closed":
         contact = max(contact, p.rest_weight)
     current["lip_contact"] = max(0.0, min(1.0, contact))

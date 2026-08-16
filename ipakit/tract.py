@@ -2524,7 +2524,15 @@ def trajectory(
         )
         stamps_list: list[float] = []
         for candidate in sorted(candidates):
-            if stamps_list and math.isclose(candidate, stamps_list[-1]):
+            # These are clock samples, not values whose equality should grow
+            # with their absolute origin.  Relative tolerance can swallow a
+            # phone center at a large timestamp (and even a whole short
+            # phone), removing the semantic cardinal sample it was added to
+            # preserve.  A picosecond absolute tolerance only coalesces
+            # arithmetic noise and stays below a nanosecond phone's center.
+            if stamps_list and math.isclose(
+                candidate, stamps_list[-1], rel_tol=0.0, abs_tol=1e-12
+            ):
                 if candidate == end:
                     stamps_list[-1] = end
             else:
