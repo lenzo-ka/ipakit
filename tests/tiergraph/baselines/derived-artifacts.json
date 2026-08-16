@@ -21,69 +21,69 @@
       "sha256": "d5489da4631bc419bb4302a4a476527a7152e0bb945750a4f3b14c2ee03e23b4"
     },
     {
-      "bytes": 45430,
+      "bytes": 45435,
       "path": "docs/figures/tract-a.svg",
-      "sha256": "88d17b647efb094f4b5095a9b82d4aad5f763a3b8edf7b508c0f1ab7b61b9cdc"
+      "sha256": "90daa1ee0c1f84cd4d23f81037e49446507a292f5eabad5c12ee404b7fccf343"
     },
     {
-      "bytes": 44661,
+      "bytes": 44666,
       "path": "docs/figures/tract-eng.svg",
-      "sha256": "6948e0fd09539a74a60b272242189f573dd9cc2c5a59f101fd89c6cdcf165909"
+      "sha256": "673820829d8726f18385aa3987533cc8b5cd5d9d1d3ee28c66b94655e0cbdc3f"
     },
     {
-      "bytes": 45343,
+      "bytes": 45348,
       "path": "docs/figures/tract-esh.svg",
-      "sha256": "3817406df5314c54357134e46f0855f55b29dcd614c72b5bdc64a3154f373b24"
+      "sha256": "278db3f951fc1eaf035c3f404a85628abd04263b7d0ca70268c374d97fa52046"
+    },
+    {
+      "bytes": 45436,
+      "path": "docs/figures/tract-i.svg",
+      "sha256": "d390220221a256306a16957315de828dd70b6dc7ba06c84cf3c58b7d571912f0"
+    },
+    {
+      "bytes": 45060,
+      "path": "docs/figures/tract-k.svg",
+      "sha256": "df739a786edb18915bb580ac7381627a99df5ffc9fa91cb5dab8afe013f226d7"
+    },
+    {
+      "bytes": 44375,
+      "path": "docs/figures/tract-m.svg",
+      "sha256": "7493c998e447b74280f38241dcffa1eb600316a99c78c85afb2b162b5dee75a3"
+    },
+    {
+      "bytes": 44128,
+      "path": "docs/figures/tract-n.svg",
+      "sha256": "377df1e0bbea540435757744df05630145685bc8e6cb4367a1820c620ed70b76"
+    },
+    {
+      "bytes": 40625,
+      "path": "docs/figures/tract-reference.svg",
+      "sha256": "2faa62ad46e4c25ec85b1654bea1e428e82fdd78ca87d5c83dbec3cc14385534"
+    },
+    {
+      "bytes": 44791,
+      "path": "docs/figures/tract-s.svg",
+      "sha256": "28e69490ee352b06d8f4ec2e06326191c5d593a8b2cfdc95e16e7ea1d9910236"
+    },
+    {
+      "bytes": 45691,
+      "path": "docs/figures/tract-silence.svg",
+      "sha256": "91cda074b07f6a84805482db9ebc4e170dd715566afa8795cb2f7b0f27b7dd43"
+    },
+    {
+      "bytes": 44523,
+      "path": "docs/figures/tract-t.svg",
+      "sha256": "6a553c23e79bcf68f39e03b6a3473fa2ba86f19138f7cd10226246f11e70b87a"
+    },
+    {
+      "bytes": 45060,
+      "path": "docs/figures/tract-theta.svg",
+      "sha256": "d296f7f98bc5abe9bf4870477df0308996670b2e6415c65b27f33c4183cc1949"
     },
     {
       "bytes": 45431,
-      "path": "docs/figures/tract-i.svg",
-      "sha256": "0b9ad3414a19bccaeb6b260da04b1f724ee951d5e6be29ffda30b66d2c3c3ed7"
-    },
-    {
-      "bytes": 45055,
-      "path": "docs/figures/tract-k.svg",
-      "sha256": "f57765bfa54a373b33e45c0c98dc45fbe2f803d0998fd4d8ab5b616e3dce42d6"
-    },
-    {
-      "bytes": 44370,
-      "path": "docs/figures/tract-m.svg",
-      "sha256": "81f5031f1a2da49b4f859e761fd77c2165a67465b263f795fca1b98a5943300f"
-    },
-    {
-      "bytes": 44123,
-      "path": "docs/figures/tract-n.svg",
-      "sha256": "e45a8babfd5cd8244c82e7fe9e8c7da402e027ac5a2e2235ca920611be55095e"
-    },
-    {
-      "bytes": 40620,
-      "path": "docs/figures/tract-reference.svg",
-      "sha256": "279294dac1c28d0ca455d7bf52730b09d3c6f538da6038505798eae29d06d3a6"
-    },
-    {
-      "bytes": 44786,
-      "path": "docs/figures/tract-s.svg",
-      "sha256": "15f33992bfacae9f5d454468c1ad31b731fc1fc1b67afcd8c9c172b2c05eb886"
-    },
-    {
-      "bytes": 45686,
-      "path": "docs/figures/tract-silence.svg",
-      "sha256": "65483405e353aeb14c3223105c9d2c00cf3483001d14f820516d7a185e13504a"
-    },
-    {
-      "bytes": 44518,
-      "path": "docs/figures/tract-t.svg",
-      "sha256": "663cd41e8a652b621f5201d72204f55188744f26499ce3b29305c25094dbfab1"
-    },
-    {
-      "bytes": 45055,
-      "path": "docs/figures/tract-theta.svg",
-      "sha256": "6164e976d15833082f18c36d0f805e698b033d8bc55da6ffc73582dd947db6b6"
-    },
-    {
-      "bytes": 45426,
       "path": "docs/figures/tract-u.svg",
-      "sha256": "c4ce22f5518500d48a15ee69509a764693cc58aed04146890831c8186dd659e1"
+      "sha256": "b778f169d56efe81dcecfb1f66a94c14236f4102678ef2d33cc2990666ac08f2"
     },
     {
       "bytes": 46343,

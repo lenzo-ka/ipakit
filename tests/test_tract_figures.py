@@ -1508,15 +1508,34 @@ def test_upper_lip_never_enters_nose_over_inventory(
     """
     if shutil.which("rsvg-convert") is None:  # pragma: no cover
         pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
-    reference = tract_svg.render(tract_svg.drawing(head_name, None))
+    drawings = [
+        tract_svg.drawing(head_name, phone) for phone in (None, *IPAFeatures().phones)
+    ]
+    extent = tract_svg._extent(*(drawn["geometry"] for drawn in drawings))
+
+    def fixed_svg(drawn: dict[str, Any]) -> str:
+        svg = tract_svg.section_svg(
+            drawn["geometry"],
+            None,
+            drawn["aperture"],
+            drawn["posture"],
+            drawn["caption"],
+            drawn["active"],
+            extent=extent,
+        )
+        return svg.replace(
+            "<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1
+        ).replace(">", f"><style>{tract_svg._literal_style()}</style>", 1)
+
+    reference = fixed_svg(drawings[0])
     width, nose_rows = _pixels(
         _only_layer(reference, "nasalfill", fill_only=True),
         tmp_path / f"{head_name}-nose.svg",
     )
     nose = _alpha_pixels(width, nose_rows)
     collisions = []
-    for phone in IPAFeatures().phones:
-        svg = tract_svg.render(tract_svg.drawing(head_name, phone))
+    for phone, drawn in zip(IPAFeatures().phones, drawings[1:], strict=True):
+        svg = fixed_svg(drawn)
         _, lip_rows = _pixels(
             _only_layer(svg, "upper-lip", fill_only=True),
             tmp_path / f"{head_name}-{ord(phone[0])}-upper-lip.svg",
@@ -1525,6 +1544,18 @@ def test_upper_lip_never_enters_nose_over_inventory(
         if overlap:
             collisions.append((phone, len(overlap)))
     assert not collisions, (head_name, collisions[:10])
+
+
+@pytest.mark.parametrize("head_name", sorted(heads()))
+def test_external_nose_tip_projects_past_upper_lip(head_name: str) -> None:
+    """The pronasale is anterior to the upper lip, not flattened behind it."""
+    svg = tract_svg.render(tract_svg.drawing(head_name, None))
+    nose = re.search(r'<path d="([^"]+)" class="nasalfill"/>', svg)
+    lip = re.search(r'<path d="([^"]+)" class="lip upper-lip"/>', svg)
+    assert nose is not None and lip is not None
+    nose_front = min(x for x, _ in _pts(nose.group(1)))
+    lip_front = min(x for x, _ in _pts(lip.group(1)))
+    assert nose_front < lip_front, (head_name, nose_front, lip_front)
 
 
 @pytest.mark.parametrize("head_name", sorted(heads()))
