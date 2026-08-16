@@ -123,6 +123,8 @@ def test_timed_bilabial_reaches_continuous_raster_contact(
     phone: str, fps: int, duration: float, tmp_path: Path
 ) -> None:
     """Even an off-grid timed target reaches contact, without a body swap."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     builder = FormBuilder()
     handles = builder.append_ipa(f"a{phone}a")
     for index, handle in enumerate(handles):
@@ -153,6 +155,8 @@ def test_timed_bilabial_center_survives_a_large_absolute_start(
     tmp_path: Path,
 ) -> None:
     """Candidate deduplication cannot discard a target center by clock scale."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     builder = FormBuilder()
     handles = builder.append_ipa("aba")
     start = 1e9
@@ -181,6 +185,8 @@ def test_labiodental_context_cannot_move_bilabial_contact_place(
     word: str, bilabial_index: int, tmp_path: Path
 ) -> None:
     """A distant or adjacent lower-lip place cannot dilute a bilabial target."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     ipa, h = IPAFeatures(), head()
     frames_per_unit = 100
     track = trajectory(word, head=h, frames_per_unit=frames_per_unit, features=ipa)
@@ -216,6 +222,8 @@ def test_labiodental_target_remains_apart_in_bilabial_context(
     phone: str, tmp_path: Path
 ) -> None:
     """Fixing the bilabial target does not turn labiodentals into contact."""
+    if shutil.which("rsvg-convert") is None:
+        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
     ipa, h = IPAFeatures(), head()
     frame = trajectory(f"m{phone}", head=h, frames_per_unit=8, features=ipa).frames[16]
     assert _raster_lip_gap(frame, tmp_path, f"{phone}-context") > 50
