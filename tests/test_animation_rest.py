@@ -117,15 +117,17 @@ def _raster_lip_gap(frame, tmp_path: Path, stem: str) -> int:
 
 
 @pytest.mark.parametrize("phone", ["b", "p", "m"])
+@pytest.mark.parametrize("fps", [3, 5, 12, 20])
+@pytest.mark.parametrize("duration", [0.15, 0.20, 0.30, 0.40])
 def test_timed_bilabial_reaches_continuous_raster_contact(
-    phone: str, tmp_path: Path
+    phone: str, fps: int, duration: float, tmp_path: Path
 ) -> None:
-    """The timed target reaches the static contact, without a body swap."""
+    """Even an off-grid timed target reaches contact, without a body swap."""
     builder = FormBuilder()
     handles = builder.append_ipa(f"a{phone}a")
     for index, handle in enumerate(handles):
-        builder.attach_timing(handle, index * 0.4, 0.4)
-    track = trajectory(builder.build(), head=head(), fps=20)
+        builder.attach_timing(handle, index * duration, duration)
+    track = trajectory(builder.build(), head=head(), fps=fps)
     span = [
         (ordinal, frame)
         for ordinal, frame in zip(track.ordinals, track.frames, strict=True)
@@ -143,7 +145,42 @@ def test_timed_bilabial_reaches_continuous_raster_contact(
     assert gaps[center] == static_contact
     assert gaps[: center + 1] == sorted(gaps[: center + 1], reverse=True)
     assert gaps[center:] == sorted(gaps[center:])
-    assert all(a - b <= 14 for a, b in zip(gaps, gaps[1:], strict=False))
+    if fps == 20 and duration == 0.40:
+        assert all(a - b <= 14 for a, b in zip(gaps, gaps[1:], strict=False))
+
+
+@pytest.mark.parametrize(
+    ("word", "bilabial_index"),
+    [("amfa", 1), ("mɱ", 0), ("ɱm", 1), ("abva", 1), ("avba", 2)],
+)
+def test_labiodental_context_cannot_move_bilabial_contact_place(
+    word: str, bilabial_index: int, tmp_path: Path
+) -> None:
+    """A distant or adjacent lower-lip place cannot dilute a bilabial target."""
+    ipa, h = IPAFeatures(), head()
+    track = trajectory(word, head=h, frames_per_unit=8, features=ipa)
+    frame = track.frames[(bilabial_index + 1) * 8]
+    static = track.postures[bilabial_index]
+    assert _raster_lip_gap(frame, tmp_path, f"{word}-bilabial") == _raster_lip_gap(
+        static, tmp_path, f"{word}-static"
+    )
+    lower = next(q for q in frame.constrictions if q.articulator == "lower-lip")
+    assert lower.arc == 0.0
+    gaps = [
+        _raster_lip_gap(item, tmp_path, f"{word}-curve-{index}")
+        for index, item in enumerate(track.frames)
+    ]
+    assert max(abs(a - b) for a, b in zip(gaps, gaps[1:], strict=False)) <= 18
+
+
+@pytest.mark.parametrize("phone", ["f", "v", "ɱ", "ʋ"])
+def test_labiodental_target_remains_apart_in_bilabial_context(
+    phone: str, tmp_path: Path
+) -> None:
+    """Fixing the bilabial target does not turn labiodentals into contact."""
+    ipa, h = IPAFeatures(), head()
+    frame = trajectory(f"m{phone}", head=h, frames_per_unit=8, features=ipa).frames[16]
+    assert _raster_lip_gap(frame, tmp_path, f"{phone}-context") > 50
 
 
 def test_every_kaet_frame_keeps_declared_front_until_a_tip_closure() -> None:

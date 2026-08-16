@@ -2000,12 +2000,12 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     for explicit padded rest postures at the word edges. Each articulator's
     degree at ``t`` is the target-weighted mean of those per-unit targets,
     taken at the articulator's OWN arc (itself the
-    fixed mean of the arcs the constricting units place it at, so
-    a place shared by two units settles between them and never leaves the
-    articulator). An articulator whose blended degree remains imperceptibly
+    target-weighted mean of the arcs the constricting units place it at, so
+    every cardinal target retains its declared place). An articulator whose
+    blended degree remains imperceptibly
     close to rest is not emitted; a below-rest gesture such as a lowered
     vowel root remains a real control. The survivors are the blended
-    ``constrictions``, each ``(fixed arc, blended offset, articulator)`` --
+    ``constrictions``, each ``(cardinal arc, blended offset, articulator)`` --
     which :func:`ipakit.tract_svg.build_geometry` renders as-is, because
     ``Head.tongue_point`` already takes the max over controls and so draws a
     hump per active articulator.
@@ -2054,6 +2054,8 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
 
     def blended_controls(
         controls_by_unit: Sequence[tuple[TractPoint, ...]],
+        *,
+        cardinal_place: bool,
     ) -> tuple[TractPoint, ...]:
         """Blend one control field without borrowing another field's points."""
         # Each unit's per-articulator target: the offset it constricts that
@@ -2075,15 +2077,34 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
 
         blended: list[TractPoint] = []
         for name in names:
-            # Place belongs to the articulator, not to its momentary
-            # activation.  Keep it defined even at a cardinal target whose
-            # own posture merely implies this articulator's released shape.
-            arcs: list[float] = []
-            for closed in per_unit:
-                point = closed.get(name)
-                if point is not None and point.arc is not None:
-                    arcs.append(point.arc)
-            arc = sum(arcs) / len(arcs) if arcs else None
+            # A place is cardinal just like its degree: at a unit target it
+            # must be that unit's declared place.  Weight only units that
+            # actually place this articulator.  A releasing neighbour has no
+            # competing place, so the gesture stays at the constricting
+            # unit's arc while its degree fades; two differently placed
+            # gestures move place only during their direct transition.
+            placed = [
+                (i, point.arc)
+                for i, closed in enumerate(per_unit)
+                if (point := closed.get(name)) is not None and point.arc is not None
+            ]
+            arc = (
+                weighted([(weights[i], value) for i, value in placed])
+                if cardinal_place
+                else (
+                    sum(value for _, value in placed) / len(placed) if placed else None
+                )
+            )
+            if arc is None:
+                # At an exact target which merely releases this articulator,
+                # every placing unit has zero interpolation weight.  Retain
+                # the nearest gesture's place so its implied release shape is
+                # still represented at the endpoint.
+                nearest = min(
+                    ((abs(position - i), value) for i, value in placed),
+                    default=None,
+                )
+                arc = None if nearest is None else nearest[1]
             targets = []
             for i, (u, closed) in enumerate(zip(units, per_unit, strict=True)):
                 target_point = closed.get(name)
@@ -2107,8 +2128,15 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         blended.sort(key=lambda q: q.arc or 0.0)
         return tuple(blended)
 
-    blended_constrictions = blended_controls(tuple(u.constrictions for u in units))
-    blended_tongue_controls = blended_controls(tuple(u.tongue_controls for u in units))
+    blended_constrictions = blended_controls(
+        tuple(u.constrictions for u in units), cardinal_place=True
+    )
+    # These are whole-surface sewing controls rather than phonetic
+    # constrictions.  Their fixed per-articulator place keeps the renderer's
+    # tongue-tip closure gate continuous under frame-rate refinement.
+    blended_tongue_controls = blended_controls(
+        tuple(u.tongue_controls for u in units), cardinal_place=False
+    )
 
     reading_arc = weighted(
         [
@@ -2484,10 +2512,14 @@ def trajectory(
                 raise ValueError(f"timing for unit {index} leaves a gap")
         start, end = spans[0].start, spans[-1].end
         count = math.ceil((end - start) * fps)
-        # Measured boundaries are semantic samples even when off the fps grid.
+        # Measured boundaries and target centers are semantic samples even
+        # when off the fps grid.  Center anchoring puts cardinal phone targets
+        # at those midpoints, so omitting them can make a valid low-fps track
+        # miss a closure entirely.
         candidates = (
             [start + k / fps for k in range(count)]
             + [span.start for span in spans[1:]]
+            + [span.start + span.duration / 2.0 for span in spans]
             + [end]
         )
         stamps_list: list[float] = []

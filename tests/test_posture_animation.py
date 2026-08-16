@@ -249,6 +249,35 @@ def test_centers_commit_to_their_declared_targets(ipa: IPAFeatures) -> None:
 
 
 @needs_api
+def test_cardinal_targets_keep_every_declared_constriction_arc(
+    ipa: IPAFeatures,
+) -> None:
+    """Context never moves a phone's declared places at its target ordinal."""
+    postures = {phone: score(ipa, phone)[0] for phone in ipa.phones}
+    for phone, target in postures.items():
+        declared = {
+            point.articulator: point.arc
+            for point in target.constrictions
+            if point.articulator is not None
+        }
+        for context, neighbour in postures.items():
+            for ordinal, units in (
+                (0.0, (target, neighbour)),
+                (1.0, (neighbour, target)),
+            ):
+                actual = {
+                    point.articulator: point.arc
+                    for point in blend(units, ordinal).constrictions
+                    if point.articulator is not None
+                }
+                for articulator, arc in declared.items():
+                    assert actual[articulator] == pytest.approx(arc, abs=1e-12), (
+                        f"{phone!r} target moved {articulator} from {arc} "
+                        f"beside {context!r}"
+                    )
+
+
+@needs_api
 def test_same_articulator_vowels_move_monotonically(ipa: IPAFeatures) -> None:
     """Between two vowels on one articulator, the constriction moves one way.
 
