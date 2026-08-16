@@ -1291,6 +1291,98 @@ def _pixel_hausdorff(one: set[tuple[int, int]], other: set[tuple[int, int]]) -> 
 
 
 VELIC_PIN_PATH = Path(__file__).resolve().parent / "fixtures" / "velic_contrast.json"
+REFERENCE_LANDMARK_PIN_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "reference_landmark_distances.json"
+)
+
+
+def _label_anchor(svg: str, label: str, label_class: str) -> tuple[float, float]:
+    """Return the start of the leader attached to a named rendered label."""
+    root = ET.fromstring(svg)
+    children = list(root)
+    for index, child in enumerate(children):
+        if child.tag.rsplit("}", 1)[-1] != "text":
+            continue
+        if label_class not in child.attrib.get("class", "").split():
+            continue
+        if label not in " ".join("".join(child.itertext()).split()):
+            continue
+        x = float(child.attrib["x"])
+        for prior in reversed(children[:index]):
+            if prior.tag.rsplit("}", 1)[-1] != "line":
+                continue
+            if "lead" in prior.attrib.get("class", "").split() and float(
+                prior.attrib["x2"]
+            ) == pytest.approx(x):
+                return float(prior.attrib["x1"]), float(prior.attrib["y1"])
+    raise AssertionError(f"no leader for {label_class} label {label!r}")
+
+
+def _distance_from_anchor_to_pixels(
+    anchor: tuple[float, float],
+    svg: str,
+    layer: str,
+    path: Path,
+) -> float:
+    """Measure an SVG-space anchor against a separately rasterized layer."""
+    viewbox = tuple(
+        float(value)
+        for value in re.search(r'viewBox="([^"]+)"', svg).group(1).split()  # type: ignore[union-attr]
+    )
+    width, rows = _pixels(_only_layer(svg, layer), path)
+    height = len(rows)
+    point = (
+        (anchor[0] - viewbox[0]) * width / viewbox[2],
+        (anchor[1] - viewbox[1]) * height / viewbox[3],
+    )
+    painted = _alpha_pixels(width, rows)
+    assert painted, f"{layer} painted no pixels"
+    return min(math.dist(point, candidate) for candidate in painted)
+
+
+@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+def test_moved_reference_landmarks_stay_on_their_anatomy(tmp_path: Path) -> None:
+    """Moved sagittal contours retain their labels in every shipped head.
+
+    The leader start is the label's anatomical anchor.  Velum and epiglottis
+    anchors touch their filled bodies; the nares anchor sits midway in the
+    deliberately open nostril and is measured to its nearest painted rim.
+    Its separate upper-lip distance proves it remains in that opening rather
+    than following the nose into the overlap region cleared from the lip.
+    """
+    pins = json.loads(REFERENCE_LANDMARK_PIN_PATH.read_text(encoding="utf-8"))
+    measured = {}
+    labels = {
+        "velum": ("velum", "velum"),
+        "epiglottis": ("art", "epiglottis"),
+        "nares": ("nasal", "nasalside"),
+    }
+    for head_name in sorted(heads()):
+        svg = tract_svg.figure(None, head_name)
+        distances = {}
+        for label, (label_class, anatomy_layer) in labels.items():
+            anchor = _label_anchor(svg, label, label_class)
+            distances[label] = round(
+                _distance_from_anchor_to_pixels(
+                    anchor, svg, anatomy_layer, tmp_path / f"{head_name}-{label}.svg"
+                ),
+                2,
+            )
+            if label == "nares":
+                distances["nares-to-upper-lip"] = round(
+                    _distance_from_anchor_to_pixels(
+                        anchor,
+                        svg,
+                        "upper-lip",
+                        tmp_path / f"{head_name}-nares-upper-lip.svg",
+                    ),
+                    2,
+                )
+        measured[head_name] = distances
+    assert measured == pins
+    assert all(
+        values["nares"] < values["nares-to-upper-lip"] for values in measured.values()
+    ), measured
 
 
 @pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
