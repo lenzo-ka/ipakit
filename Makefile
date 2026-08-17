@@ -16,7 +16,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check lint check gate-subject
+.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check lint check gate-subject tiergraph-pin
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 
@@ -123,7 +123,10 @@ NICE ?= nice -n 19
 gate-subject:
 	@$(PYTHON) -m scripts.gate_subject
 
-check: gate-subject lint
+tiergraph-pin:
+	@$(PYTHON) -m scripts.tiergraph_pin
+
+check: tiergraph-pin gate-subject lint
 	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
 	@$(PYTHON) -m scripts.gate_subject
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/containment_oracle.py
