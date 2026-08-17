@@ -63,6 +63,7 @@ class _PendingEvent:
     features: Mapping[str, FrozenValue]
     timing: Timing | None
     lane: tuple[int, ...]
+    durable_id: str
     open: bool = False
 
 
@@ -151,6 +152,7 @@ class GraphBuilder:
         self._input_occurrences: list[LegacyOccurrence] = []
         self._input_tick = 0
         self._serial = 0
+        self._durable_ids: set[str] = set()
 
     @property
     def current_tick(self) -> int:
@@ -203,6 +205,7 @@ class GraphBuilder:
         duration: int = 1,
         end: PositionHandle | None = None,
         timing: Timing | None = None,
+        durable_id: str | None = None,
     ) -> EventHandle:
         """Record lane order before containment or pointer paths can exist."""
         if self.declarations.tier(tier) is None:
@@ -213,6 +216,15 @@ class GraphBuilder:
         if end is not None and duration != 1:
             raise ValueError("a refined span cannot also specify duration")
         handle = self._new_handle()
+        if durable_id is None:
+            candidate = f"ipakit-event-{self._serial - 1}"
+            while candidate in self._durable_ids:
+                candidate = f"ipakit-event-{self._serial}"
+                self._serial += 1
+            durable_id = candidate
+        if durable_id in self._durable_ids:
+            raise GraphValidationError("duplicate durable event id")
+        self._durable_ids.add(durable_id)
         self._events.append(
             _PendingEvent(
                 handle,
@@ -223,6 +235,7 @@ class GraphBuilder:
                 dict(features),
                 timing,
                 (0, self._serial),
+                durable_id,
             )
         )
         return handle
@@ -235,9 +248,17 @@ class GraphBuilder:
         features: Mapping[str, FrozenValue],
         *,
         timing: Timing | None = None,
+        durable_id: str | None = None,
     ) -> EventHandle:
         """Construct a half-open span whose endpoints may name refined gaps."""
-        return self.add_event(tier, start, features, end=end, timing=timing)
+        return self.add_event(
+            tier,
+            start,
+            features,
+            end=end,
+            timing=timing,
+            durable_id=durable_id,
+        )
 
     def begin(
         self,
@@ -401,7 +422,9 @@ class GraphBuilder:
                 self._resolve_position(item.start, gap_counts, span_endpoint=True),
                 self._resolve_position(item.end, gap_counts, span_endpoint=True),
             )
-        return Event(item.features, item.duration, span, item.timing)
+        return Event(
+            item.features, item.duration, span, item.timing, durable_id=item.durable_id
+        )
 
     def _resolve(
         self,
@@ -534,6 +557,7 @@ def _copy_builder(
                         event.features,
                         duration=event.structural_duration or 0,
                         timing=event.timing,
+                        durable_id=event.durable_id,
                     )
                 else:
                     handle = builder.add_span(
@@ -542,6 +566,7 @@ def _copy_builder(
                         _pointer_position(event.span.end),
                         event.features,
                         timing=event.timing,
+                        durable_id=event.durable_id,
                     )
                 handles[reference] = handle
     for relation in graph.relations:

@@ -1164,8 +1164,10 @@ class _CompatibilityProjection:
 
     def __init__(self, graph: Any) -> None:
         from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
+        from ._tiergraph_identity import DurableEventIdentity
 
         self.graph = graph
+        self.identity = DurableEventIdentity.build(graph)
         indexed: list[tuple[int, Unit, Any]] = []
         for node in graph.clock:
             for group in node.groups:
@@ -1298,7 +1300,10 @@ def _graph_from_compatibility(
         base = {
             "spelling": unit.text,
             "input": True,
-            "compatibility-unit": dataclasses.replace(unit, timing=None),
+            # Keep the caller's frozen Unit as the compatibility projection.
+            # Timing also lives structurally on the event, and the projection
+            # only replaces this object when that structural value differs.
+            "compatibility-unit": unit,
             "compatibility-index": index,
         }
         timing = (
@@ -1514,6 +1519,18 @@ class Form:
 
     def at(self, path: str) -> Any:
         """Return the graph element named by a canonical match path."""
+        try:
+            resolved = self._graph.resolve(path)
+        except ValueError:
+            # Preserve the public path-bearing diagnostic from Graph.at.
+            return self._graph.at(path)
+        if resolved.event is not None:
+            projection = self.__dict__.get("_compatibility_projection")
+            if projection is None:
+                projection = _CompatibilityProjection(self._graph)
+                object.__setattr__(self, "_compatibility_projection", projection)
+            durable = projection.identity.durable(path)
+            path = projection.identity.path(durable)
         return self._graph.at(path)
 
     @classmethod
