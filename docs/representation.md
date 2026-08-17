@@ -62,7 +62,7 @@ Only edges of the same relation declaration marked `acyclic` participate in one 
 
 Structured IPA segment events carry exact spelling and a versioned `ipa-segment` value containing constituents, approaches, modifiers, junctures, and prosody. The lean IPA mode derives resolved features and provenance from that source value; a self-contained snapshot is opt-in and restoration validates it against the structured source. CMU and Pinyin facts are already their profiles' authoritative values and are serialized directly.
 
-`Form.to_json()` and `ipakit.read_json()` expose the `ipakit.form` version 2 linear projection in unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Graph paths are authoritative in the store, and every projected unit and interval endpoint round-trips through it.
+`Form.to_json()` and `ipakit.read_json()` expose the `ipakit.form` version 2 linear projection in unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Tiergraph durable item IDs are authoritative for event identity; canonical `/clock/...` paths are the versioned ipakit coordinate projected from them. Every projected unit and interval endpoint round-trips through the compatibility adapter.
 
 ## Rendering and deferred mechanisms
 

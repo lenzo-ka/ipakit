@@ -8,6 +8,7 @@ root-reachability diagnostics belong to higher profile lanes.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -160,6 +161,7 @@ class Event:
     duration: int | None = None
     span: RefinedSpan | None = None
     timing: Timing | None = None
+    durable_id: str | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.duration == 1:
@@ -223,6 +225,7 @@ class Graph:
     roots: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        self._assign_durable_ids()
         object.__setattr__(
             self,
             "relations",
@@ -238,6 +241,34 @@ class Graph:
             ),
         )
         self.validate()
+
+    def _assign_durable_ids(self) -> None:
+        """Backfill old in-memory/wire events without making paths identity."""
+        used = {
+            event.durable_id
+            for node in self.clock
+            for group in node.groups
+            for event in group.events
+            if event.durable_id is not None
+        }
+        serial = 0
+        nodes = []
+        for node in self.clock:
+            groups = []
+            for group in node.groups:
+                events = []
+                for event in group.events:
+                    if event.durable_id is None:
+                        while f"ipakit-event-{serial}" in used:
+                            serial += 1
+                        durable_id = f"ipakit-event-{serial}"
+                        serial += 1
+                        used.add(durable_id)
+                        event = dataclasses.replace(event, durable_id=durable_id)
+                    events.append(event)
+                groups.append(EventGroup(group.tier, tuple(events)))
+            nodes.append(ClockNode(node.gap_count, tuple(groups)))
+        object.__setattr__(self, "clock", tuple(nodes))
 
     def resolve(self, pointer: str) -> ResolvedReference:
         parts = _pointer_parts(pointer)
@@ -318,6 +349,7 @@ class Graph:
             raise GraphValidationError("clock requires a final tick")
         tier_order = self.declarations._tier_order
         feature_names = self.declarations._feature_names
+        durable_ids: set[str] = set()
         for tick_index, node in enumerate(self.clock):
             if node.gap_count < 1:
                 raise GraphValidationError("noncanonical gap cardinality")
@@ -330,6 +362,10 @@ class Graph:
                 tier = self.declarations.tier(group.tier)
                 assert tier is not None
                 for event in group.events:
+                    assert event.durable_id is not None
+                    if event.durable_id in durable_ids:
+                        raise GraphValidationError("duplicate durable event id")
+                    durable_ids.add(event.durable_id)
                     unknown = set(event.features) - feature_names
                     if self.declarations.closed and unknown:
                         raise GraphValidationError("undeclared feature")
