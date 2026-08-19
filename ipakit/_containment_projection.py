@@ -207,7 +207,9 @@ class ContainmentProjection:
             for name in self.traversal_order
         )
 
-    def _traversals_for_parent(self, parent: str) -> tuple[tg.OrderedContainment, ...]:
+    def _traversals_for_parent(
+        self, parent: str
+    ) -> tuple[tuple[str, tg.OrderedContainment], ...]:
         active = tuple(
             relation.name
             for relation in self.source.relations
@@ -218,9 +220,21 @@ class ContainmentProjection:
             *(name for name in self.traversal_order if name not in active),
         )
         return tuple(
-            tg.OrderedContainment(self.graph, self.containment_names[name])
+            (name, tg.OrderedContainment(self.graph, self.containment_names[name]))
             for name in order
         )
+
+    def _admits(self, relation_name: str, tier_name: str | None, *, side: str) -> bool:
+        declaration = next(
+            declaration
+            for declaration in self.source.declarations.relations
+            if declaration.name == relation_name and declaration.containment
+        )
+        tiers = getattr(declaration, f"{side}_tiers")
+        # The legacy traversal returned an empty fiber for a non-admitted origin,
+        # so skipping it preserves that answer.  Admitted origins are unchanged,
+        # and Graph construction already rejects non-admitted stored endpoints.
+        return tiers is None or (tier_name is not None and tier_name in tiers)
 
     def _old_reference(self, node: tg.Node) -> str:
         if not isinstance(node.reference, tg.ItemRef):
@@ -233,7 +247,10 @@ class ContainmentProjection:
             return ()
         children = tuple(
             self._old_reference(node)
-            for traversal in self._traversals_for_parent(parent)
+            for relation_name, traversal in self._traversals_for_parent(parent)
+            if self._admits(
+                relation_name, self.source.resolve(parent).tier, side="source"
+            )
             for node in traversal.direct_children(item).nodes
         )
         if tier is None:
@@ -250,7 +267,13 @@ class ContainmentProjection:
         frontier = [parent]
         while frontier:
             origin = frontier.pop()
-            for traversal in self.traversals():
+            for relation_name, traversal in zip(
+                self.traversal_order, self.traversals(), strict=True
+            ):
+                if not self._admits(
+                    relation_name, self.source.resolve(origin).tier, side="source"
+                ):
+                    continue
                 for node in traversal.descendants(self.old_to_new[origin]).nodes:
                     descendant = self._old_reference(node)
                     if descendant not in reachable and descendant != parent:
@@ -286,7 +309,12 @@ class ContainmentProjection:
                     self._old_reference(node)
                     for node in traversal.leaves(self.old_to_new[item]).nodes
                 )
-                for traversal in self.traversals()
+                for relation_name, traversal in zip(
+                    self.traversal_order, self.traversals(), strict=True
+                )
+                if self._admits(
+                    relation_name, self.source.resolve(item).tier, side="source"
+                )
             )
             if all(leaves == (item,) for leaves in per_relation):
                 return (item,)
@@ -305,6 +333,9 @@ class ContainmentProjection:
             for relation_name, traversal in zip(
                 self.traversal_order, self.traversals(), strict=True
             )
+            if self._admits(
+                relation_name, self.source.resolve(child).tier, side="target"
+            )
             for node in traversal.parents(item).nodes
         ]
         return tuple(
@@ -322,7 +353,13 @@ class ContainmentProjection:
         frontier = [child]
         while frontier:
             origin = frontier.pop()
-            for traversal in self.traversals():
+            for relation_name, traversal in zip(
+                self.traversal_order, self.traversals(), strict=True
+            ):
+                if not self._admits(
+                    relation_name, self.source.resolve(origin).tier, side="target"
+                ):
+                    continue
                 for node in traversal.ancestors(self.old_to_new[origin]).nodes:
                     ancestor = self._old_reference(node)
                     if ancestor not in reachable:
