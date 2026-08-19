@@ -19,7 +19,17 @@ def test_piece1_oracle_matches_pre_cutover_bytes_and_contracts() -> None:
             "distinct_hash",
         )
     )
-    assert all(contracts["at_object_identity"].values())
+    assert [item["kind"] for item in contracts["at_mapping"]] == [
+        "Event",
+        "Event",
+        "Event",
+        "ClockNode",
+        "ClockNode",
+        "ClockNode",
+        "ClockNode",
+    ]
+    assert contracts["at_identity_matrix"][-1][-2]
+    assert all(contracts["at_repeat_identity"])
     assert contracts["root_spelling"] == "/clock/0/utterance/0"
     assert contracts["wire_type_version"] == ["ipakit.form", 2]
 
