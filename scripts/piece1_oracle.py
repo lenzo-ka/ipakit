@@ -19,6 +19,16 @@ sys.path.insert(0, str(ROOT))
 import ipakit  # noqa: E402
 from ipakit import Form, FormBuilder, Interval, Timing  # noqa: E402
 from ipakit._corpus_query import Match, _unit_paths  # noqa: E402
+from ipakit._tiergraph import (  # noqa: E402
+    Declarations,
+    EndpointKind,
+    FeatureDeclaration,
+    Graph,
+    Relation,
+    RelationDeclaration,
+    TierDeclaration,
+)
+from ipakit._tiergraph_builder import GraphBuilder  # noqa: E402
 
 
 class OracleMismatch(AssertionError):
@@ -44,7 +54,82 @@ def _hierarchy() -> tuple[Form, dict[str, bool]]:
     return builder.build(), handle_contract
 
 
-def capture() -> dict[str, Any]:
+def _refusal(action: Any) -> dict[str, str]:
+    """Capture the byte-bearing public diagnostic, including its exception type."""
+    try:
+        action()
+    except (TypeError, ValueError) as error:
+        message = str(error)
+        return {
+            "type": type(error).__name__,
+            "message": message,
+            "utf8_hex": message.encode("utf-8").hex(),
+        }
+    raise AssertionError("Piece-1 refusal fixture unexpectedly succeeded")
+
+
+def _containment_refusal(*, boundary: bool) -> None:
+    declarations = Declarations(
+        (TierDeclaration("item", frozenset({"label"})),),
+        (FeatureDeclaration("label"),),
+        (
+            RelationDeclaration(
+                "contains",
+                containment=True,
+                acyclic=True,
+                source_arity=(1, 1) if boundary else (2, 2),
+                target_kinds=(
+                    frozenset({EndpointKind.EVENT, EndpointKind.COARSE_TICK})
+                    if boundary
+                    else frozenset({EndpointKind.EVENT})
+                ),
+            ),
+        ),
+    )
+    builder = GraphBuilder(declarations)
+    first = builder.append_input_atom("item", {"label": "first"})
+    second = builder.append_input_atom("item", {"label": "second"})
+    third = builder.append_input_atom("item", {"label": "third"})
+    if not boundary:
+        builder.relate((first, second), "contains", (third,))
+        form = Form._from_graph(builder.build())
+    else:
+        base = builder.build()
+        form = Form._from_graph(
+            Graph(
+                base.declarations,
+                base.clock,
+                (Relation(("/clock/0/item/0",), "contains", ("/clock/1",)),),
+            )
+        )
+    form.direct_children("/clock/0/item/0")
+
+
+def _refusal_bytes(inventory: Any, hierarchy: Form, input_units: Any) -> dict[str, Any]:
+    refined = Form.parse("#a", inventory)
+    return {
+        "containment_multi_source": _refusal(
+            lambda: _containment_refusal(boundary=False)
+        ),
+        "containment_boundary_endpoint": _refusal(
+            lambda: _containment_refusal(boundary=True)
+        ),
+        "malformed_pointer": _refusal(lambda: hierarchy.at("/clock//segment/0")),
+        "dangling_resolution": _refusal(lambda: hierarchy.at("/clock/999/segment/0")),
+        "invalid_refined_gap": _refusal(lambda: refined.at("/clock/0/gaps/9")),
+        "invalid_interval": _refusal(lambda: Interval("syllable", -1, 0, inventory)),
+        "interval_past_form": _refusal(
+            lambda: Form.of(input_units, (Interval("syllable", 0, 99, inventory),))
+        ),
+    }
+
+
+def _resolved_kind(value: Any) -> str:
+    """Return the stable public graph kind used by the resolution contract."""
+    return type(value).__name__
+
+
+def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
     inventory = ipakit.load_ipa_features()
     parsed = Form.parse("#a..b#", inventory)
     input_units = parsed.units
@@ -57,7 +142,9 @@ def capture() -> dict[str, Any]:
     peer = Form.of(input_units, intervals)
     replacement = dataclasses.replace(held, intervals=())
     hierarchy, handles = _hierarchy()
+    refined = Form.parse("#a", inventory)
     root = hierarchy.roots[0]
+    child = "/clock/1/segment/0"
     paths = _unit_paths(hierarchy)
     match = Match(tuple(paths[index] for index in sorted(paths)), "k\u00e6t")
 
@@ -67,6 +154,27 @@ def capture() -> dict[str, Any]:
     self_contained = held.to_json(self_contained=True)
     hierarchy_dot = hierarchy.to_dot()
     held_dot = held.to_dot()
+    at_cases = (
+        ("utterance_event", hierarchy, "/clock/0/utterance/0"),
+        ("segment_event_1", hierarchy, "/clock/1/segment/0"),
+        ("segment_event_2", hierarchy, "/clock/2/segment/0"),
+        ("coarse_tick_0", hierarchy, "/clock/0"),
+        ("coarse_tick_1", hierarchy, "/clock/1"),
+        ("refined_coarse_tick_0", refined, "/clock/0"),
+        ("refined_gap_0", refined, "/clock/0/gaps/0"),
+    )
+    resolved = [form.at(path) for _, form, path in at_cases]
+    if at_mutation == "fugu_all_paths_one_object":
+        fixed_by_form = {
+            id(form): form._graph.at("/clock/0") for _, form, _ in at_cases
+        }
+        resolved = [fixed_by_form[id(form)] for _, form, _ in at_cases]
+    elif at_mutation == "wrong_type_per_path":
+        resolved = [
+            form._graph.at(f"/clock/{path.split('/')[2]}") for _, form, path in at_cases
+        ]
+    elif at_mutation is not None:
+        raise ValueError(f"unknown Form.at behavior mutation: {at_mutation}")
     return {
         "format": "ipakit-piece1-oracle-v1",
         "forms": {
@@ -103,16 +211,42 @@ def capture() -> dict[str, Any]:
             "roots": list(hierarchy.roots),
             "root_spelling": root,
             "children": list(hierarchy.direct_children(root)),
-            "at_object_identity": {
-                path: hierarchy.at(path) is hierarchy.at(path)
-                for path in (root, "/clock/1/segment/0", "/clock/1")
+            "navigation": {
+                "descendants": list(hierarchy.descendants(root)),
+                "leaves": list(hierarchy.leaves(root)),
+                "parents": list(hierarchy.parents(child)),
+                "ancestors": list(hierarchy.ancestors(child)),
             },
+            "at_mapping": [
+                {"label": label, "path": path, "kind": _resolved_kind(value)}
+                for (label, _, path), value in zip(at_cases, resolved, strict=True)
+            ],
+            "at_identity_matrix": [
+                [left is right for right in resolved] for left in resolved
+            ],
+            "at_repeat_identity": [
+                value is form.at(path)
+                for (_, form, path), value in zip(at_cases, resolved, strict=True)
+            ],
             "match_paths": list(match.paths),
             "unit_path_crosswalk": [[index, path] for index, path in paths.items()],
             "wire_type_version": [json.loads(lean)["type"], json.loads(lean)["v"]],
+            "refusal_bytes": _refusal_bytes(inventory, hierarchy, input_units),
         },
     }
 
+
+REFUSAL_NAMES = (
+    "containment_multi_source",
+    "containment_boundary_endpoint",
+    "malformed_pointer",
+    "dangling_resolution",
+    "invalid_refined_gap",
+    "invalid_interval",
+    "interval_past_form",
+)
+
+AT_BEHAVIOR_MUTATIONS = ("fugu_all_paths_one_object", "wrong_type_per_path")
 
 CONTRACT_MUTATIONS = (
     "memoized_units",
@@ -120,10 +254,12 @@ CONTRACT_MUTATIONS = (
     "dataclass_behavior",
     "builder_handles",
     "canonical_pointer",
-    "at_object_identity",
+    "navigation",
     "match_paths",
     "wire_bytes",
     "dot_identity",
+    *(f"refusal_bytes:{name}" for name in REFUSAL_NAMES),
+    *AT_BEHAVIOR_MUTATIONS,
 )
 
 
@@ -152,14 +288,19 @@ def mutate_contract(document: dict[str, Any], contract: str) -> None:
         contracts["builder_handles"]["distinct_handles"] = False
     elif contract == "canonical_pointer":
         contracts["root_spelling"] = "/clock/0/utterance/1"
-    elif contract == "at_object_identity":
-        contracts["at_object_identity"]["/clock/1/segment/0"] = False
+    elif contract == "navigation":
+        for values in contracts["navigation"].values():
+            values.clear()
     elif contract == "match_paths":
         contracts["match_paths"] = list(reversed(contracts["match_paths"]))
     elif contract == "wire_bytes":
         document["canonical_bytes"]["held_sha256"] = "0" * 64
     elif contract == "dot_identity":
         document["canonical_bytes"]["held_dot"] += "// mutated\n"
+    elif contract.startswith("refusal_bytes:"):
+        refusal = contracts["refusal_bytes"][contract.partition(":")[2]]
+        refusal["message"] += " (mutated)"
+        refusal["utf8_hex"] = refusal["message"].encode("utf-8").hex()
     else:
         raise ValueError(f"unknown Piece-1 contract: {contract}")
 
@@ -172,8 +313,9 @@ def encoded(document: dict[str, Any]) -> bytes:
 
 def check(*, mutation: str | None = None) -> None:
     expected = GOLDEN.read_bytes()
-    document = capture()
-    if mutation is not None:
+    at_mutation = mutation if mutation in AT_BEHAVIOR_MUTATIONS else None
+    document = capture(at_mutation=at_mutation)
+    if mutation is not None and at_mutation is None:
         document = copy.deepcopy(document)
         mutate_contract(document, mutation)
     actual = encoded(document)

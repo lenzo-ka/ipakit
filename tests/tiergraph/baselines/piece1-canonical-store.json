@@ -8,11 +8,117 @@
     "hierarchy_dot_sha256": "44b6d3e7cc973f8cf1433bfd1eb50e6f6f13e6b5586071af650b721885cb2410"
   },
   "contracts": {
-    "at_object_identity": {
-      "/clock/0/utterance/0": true,
-      "/clock/1": true,
-      "/clock/1/segment/0": true
-    },
+    "at_identity_matrix": [
+      [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      [
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      [
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ]
+    ],
+    "at_mapping": [
+      {
+        "kind": "Event",
+        "label": "utterance_event",
+        "path": "/clock/0/utterance/0"
+      },
+      {
+        "kind": "Event",
+        "label": "segment_event_1",
+        "path": "/clock/1/segment/0"
+      },
+      {
+        "kind": "Event",
+        "label": "segment_event_2",
+        "path": "/clock/2/segment/0"
+      },
+      {
+        "kind": "ClockNode",
+        "label": "coarse_tick_0",
+        "path": "/clock/0"
+      },
+      {
+        "kind": "ClockNode",
+        "label": "coarse_tick_1",
+        "path": "/clock/1"
+      },
+      {
+        "kind": "ClockNode",
+        "label": "refined_coarse_tick_0",
+        "path": "/clock/0"
+      },
+      {
+        "kind": "ClockNode",
+        "label": "refined_gap_0",
+        "path": "/clock/0/gaps/0"
+      }
+    ],
+    "at_repeat_identity": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
     "builder_handles": {
       "current_tick": true,
       "distinct_handles": true,
@@ -57,6 +163,61 @@
     "memoized_intervals_tuple": true,
     "memoized_unit_objects": true,
     "memoized_units_tuple": true,
+    "navigation": {
+      "ancestors": [
+        "/clock/0/utterance/0"
+      ],
+      "descendants": [
+        "/clock/0/segment/0",
+        "/clock/1/segment/0",
+        "/clock/2/segment/0"
+      ],
+      "leaves": [
+        "/clock/0/segment/0",
+        "/clock/1/segment/0",
+        "/clock/2/segment/0"
+      ],
+      "parents": [
+        "/clock/0/utterance/0"
+      ]
+    },
+    "refusal_bytes": {
+      "containment_boundary_endpoint": {
+        "message": "containment projection refuses boundary-endpoint containment relation 'contains': tiergraph OrderedContainment supports item endpoints only",
+        "type": "ValueError",
+        "utf8_hex": "636f6e7461696e6d656e742070726f6a656374696f6e207265667573657320626f756e646172792d656e64706f696e7420636f6e7461696e6d656e742072656c6174696f6e2027636f6e7461696e73273a20746965726772617068204f726465726564436f6e7461696e6d656e7420737570706f727473206974656d20656e64706f696e7473206f6e6c79"
+      },
+      "containment_multi_source": {
+        "message": "containment projection refuses multi-source containment instance 0 ('contains')",
+        "type": "ValueError",
+        "utf8_hex": "636f6e7461696e6d656e742070726f6a656374696f6e2072656675736573206d756c74692d736f7572636520636f6e7461696e6d656e7420696e7374616e63652030202827636f6e7461696e732729"
+      },
+      "dangling_resolution": {
+        "message": "'/clock/999/segment/0': dangling JSON Pointer reference",
+        "type": "GraphValidationError",
+        "utf8_hex": "272f636c6f636b2f3939392f7365676d656e742f30273a2064616e676c696e67204a534f4e20506f696e746572207265666572656e6365"
+      },
+      "interval_past_form": {
+        "message": "Interval('syllable', 0, 99) runs past the 6 units of the form",
+        "type": "ValueError",
+        "utf8_hex": "496e74657276616c282773796c6c61626c65272c20302c203939292072756e73207061737420746865203620756e697473206f662074686520666f726d"
+      },
+      "invalid_interval": {
+        "message": "interval starts before the form: -1",
+        "type": "ValueError",
+        "utf8_hex": "696e74657276616c20737461727473206265666f72652074686520666f726d3a202d31"
+      },
+      "invalid_refined_gap": {
+        "message": "'/clock/0/gaps/9': gap does not belong to named tick",
+        "type": "GraphValidationError",
+        "utf8_hex": "272f636c6f636b2f302f676170732f39273a2067617020646f6573206e6f742062656c6f6e6720746f206e616d6564207469636b"
+      },
+      "malformed_pointer": {
+        "message": "'/clock//segment/0': malformed JSON Pointer reference",
+        "type": "GraphValidationError",
+        "utf8_hex": "272f636c6f636b2f2f7365676d656e742f30273a206d616c666f726d6564204a534f4e20506f696e746572207265666572656e6365"
+      }
+    },
     "replace_intervals": 0,
     "root_spelling": "/clock/0/utterance/0",
     "roots": [
