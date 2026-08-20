@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ipakit._containment_projection import ContainmentProjection
 from ipakit._navigation import (
     ancestor_routes,
     descendants_on_tier,
@@ -16,7 +17,6 @@ from ipakit._navigation import (
 from ipakit._tiergraph import (
     Declarations,
     FeatureDeclaration,
-    Graph,
     RelationDeclaration,
     TierDeclaration,
 )
@@ -25,7 +25,7 @@ from ipakit._tiergraph_builder import EventHandle, GraphBuilder
 
 @dataclass(frozen=True)
 class Fixture:
-    graph: Graph
+    graph: ContainmentProjection
     refs: dict[str, str]
 
 
@@ -113,7 +113,7 @@ def phrase_fixture() -> Fixture:
             ("final_pause", "final-pause", "segment"),
         )
     }
-    return Fixture(graph, refs)
+    return Fixture(ContainmentProjection.build(graph), refs)
 
 
 def test_heterogeneous_phrase_projection_and_expansion() -> None:
@@ -183,13 +183,14 @@ def test_parent_and_ancestor_navigation_preserves_every_dag_route() -> None:
         graph.resolve(ref).event.features["label"]: ref
         for ref in graph.event_references()
     }
+    projection = ContainmentProjection.build(graph)
 
-    assert parents(graph, by_label["shared"]) == (by_label["s"], by_label["w"])
-    assert ancestor_routes(graph, by_label["shared"]) == (
+    assert parents(projection, by_label["shared"]) == (by_label["s"], by_label["w"])
+    assert ancestor_routes(projection, by_label["shared"]) == (
         (by_label["s"],),
         (by_label["w"], by_label["p"], by_label["u"]),
     )
-    assert expanded_leaves(graph, by_label["w"]) == (by_label["shared"],)
+    assert expanded_leaves(projection, by_label["w"]) == (by_label["shared"],)
 
 
 def test_declared_child_sequence_never_resorts_by_clock() -> None:
@@ -205,11 +206,15 @@ def test_declared_child_sequence_never_resorts_by_clock() -> None:
         for ref in graph.event_references()
     }
     declared = (refs["Z"], refs["A"])
+    projection = ContainmentProjection.build(graph)
 
-    assert direct_children(graph, refs["phrase"]) == declared
-    assert expanded_leaves(graph, refs["phrase"]) == declared
-    assert lexical_projection(graph, refs["phrase"], lexical_tier="segment") == declared
-    assert expand_phrase(graph, refs["phrase"]) == declared
+    assert direct_children(projection, refs["phrase"]) == declared
+    assert expanded_leaves(projection, refs["phrase"]) == declared
+    assert (
+        lexical_projection(projection, refs["phrase"], lexical_tier="segment")
+        == declared
+    )
+    assert expand_phrase(projection, refs["phrase"]) == declared
 
 
 def test_shared_child_is_emitted_once_in_downward_walks() -> None:
@@ -229,8 +234,9 @@ def test_shared_child_is_emitted_once_in_downward_walks() -> None:
         graph.resolve(ref).event.features["label"]: ref
         for ref in graph.event_references()
     }
+    projection = ContainmentProjection.build(graph)
 
-    assert expanded_leaves(graph, refs["phrase"]) == (refs["shared"],)
-    assert descendants_on_tier(graph, refs["phrase"], tier="segment") == (
+    assert expanded_leaves(projection, refs["phrase"]) == (refs["shared"],)
+    assert descendants_on_tier(projection, refs["phrase"], tier="segment") == (
         refs["shared"],
     )

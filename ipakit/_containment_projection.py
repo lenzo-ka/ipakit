@@ -12,7 +12,18 @@ from dataclasses import dataclass
 
 import tiergraph as tg
 
-from ._tiergraph import EndpointKind, Graph
+from ._tiergraph import (
+    ClockNode,
+    Declarations,
+    EndpointKind,
+    Graph,
+    GraphValidationError,
+    Position,
+    Relation,
+    ResolvedReference,
+    _escape,
+    _pointer_parts,
+)
 
 _NAMESPACE = "https://ipakit.dev/tiergraph/containment-projection/v1"
 _PREFIX = "ipakit-containment"
@@ -21,6 +32,97 @@ _EVENT_TYPE = tg.QualifiedName(_NAMESPACE, "event")
 
 def _name(local_name: str) -> tg.QualifiedName:
     return tg.QualifiedName(_NAMESPACE, local_name)
+
+
+@dataclass(frozen=True)
+class ContainmentProjectionInput:
+    """Scaffold-free facts needed to build the authoritative projection."""
+
+    refs: tuple[str, ...]
+    declarations: Declarations
+    relations: tuple[Relation, ...]
+    event_tiers: dict[str, str]
+    endpoint_kinds: dict[str, EndpointKind]
+    clock: tuple[ClockNode, ...]
+    roots: tuple[str, ...]
+
+    @classmethod
+    def capture(cls, source: Graph) -> ContainmentProjectionInput:
+        refs = source.event_references()
+        endpoints = {
+            ref
+            for relation in source.relations
+            for ref in (*relation.sources, *relation.targets)
+        }
+        resolved = {ref: source.resolve(ref) for ref in (*refs, *endpoints)}
+        event_tiers = {ref: resolved[ref].tier for ref in refs}
+        assert all(tier is not None for tier in event_tiers.values())
+        return cls(
+            refs,
+            source.declarations,
+            tuple(source.relations),
+            {ref: tier for ref, tier in event_tiers.items() if tier is not None},
+            {ref: resolved[ref].kind for ref in endpoints},
+            tuple(source.clock),
+            tuple(source.roots),
+        )
+
+    def resolve(self, pointer: str) -> ResolvedReference:
+        """Resolve against captured immutable presentation facts."""
+        parts = _pointer_parts(pointer)
+        if len(parts) < 2 or parts[0] != "clock" or not parts[1].isdigit():
+            raise GraphValidationError("malformed JSON Pointer reference")
+        tick = int(parts[1])
+        if tick >= len(self.clock):
+            raise GraphValidationError("dangling JSON Pointer reference")
+        node = self.clock[tick]
+        if len(parts) == 2:
+            return ResolvedReference(pointer, EndpointKind.COARSE_TICK, tick)
+        if len(parts) == 4 and parts[2] == "gaps" and parts[3].isdigit():
+            gap = int(parts[3])
+            if gap >= node.gap_count:
+                raise GraphValidationError("gap does not belong to named tick")
+            return ResolvedReference(pointer, EndpointKind.REFINED_GAP, tick, gap)
+        if len(parts) == 4 and parts[3].isdigit():
+            tier, index = parts[2], int(parts[3])
+            group = next(
+                (candidate for candidate in node.groups if candidate.tier == tier),
+                None,
+            )
+            if group is None or index >= len(group.events):
+                raise GraphValidationError("dangling JSON Pointer reference")
+            return ResolvedReference(
+                pointer,
+                EndpointKind.EVENT,
+                tick,
+                tier=tier,
+                event=group.events[index],
+            )
+        raise GraphValidationError("malformed JSON Pointer reference")
+
+    def position(self, pointer: str, *, span_endpoint: bool = False) -> Position:
+        """Resolve a captured clock position without retaining its scaffold."""
+        resolved = self.resolve(pointer)
+        if resolved.kind is EndpointKind.EVENT:
+            raise GraphValidationError("span endpoint must name a clock position")
+        refined = self.clock[resolved.tick].gap_count > 1
+        if span_endpoint and refined and resolved.kind is EndpointKind.COARSE_TICK:
+            raise GraphValidationError("refined span endpoint must name a gap")
+        if resolved.kind is EndpointKind.REFINED_GAP:
+            if not refined:
+                raise GraphValidationError("noncanonical placement")
+            assert resolved.gap is not None
+            return Position(resolved.tick, resolved.gap)
+        return Position(resolved.tick)
+
+    def event_references(self) -> tuple[str, ...]:
+        """Return captured events in canonical presentation order."""
+        return tuple(
+            f"/clock/{tick}/{_escape(group.tier)}/{index}"
+            for tick, node in enumerate(self.clock)
+            for group in node.groups
+            for index in range(len(group.events))
+        )
 
 
 @dataclass(frozen=True)
@@ -33,14 +135,18 @@ class ContainmentProjection:
     cardinalities other than one and boundary endpoints are refused by name.
     """
 
-    source: Graph
     graph: tg.Graph
     old_to_new: dict[str, tg.ItemRef]
     new_to_old: dict[tg.ItemRef, str]
     tier_names: dict[str, tg.QualifiedName]
     containment_names: dict[str, tg.QualifiedName]
+    relation_names: dict[str, tg.QualifiedName]
     parent_order: dict[tuple[str, str, str], int]
     traversal_order: tuple[str, ...]
+    event_tiers: dict[str, str]
+    admitted_sources: dict[str, frozenset[str] | None]
+    admitted_targets: dict[str, frozenset[str] | None]
+    active_by_parent: dict[str, tuple[str, ...]]
 
     @classmethod
     def build(cls, source: Graph) -> ContainmentProjection:
@@ -50,13 +156,20 @@ class ContainmentProjection:
         design.  Falling back to the old kernel would make navigation answers
         depend silently on whether projection happened to succeed.
         """
-        refs = source.event_references()
+        return cls.build_captured(ContainmentProjectionInput.capture(source))
+
+    @classmethod
+    def build_captured(
+        cls, source: ContainmentProjectionInput
+    ) -> ContainmentProjection:
+        """Build from facts captured while the build-only scaffold was resident."""
+        refs = source.refs
         tier_names = {
             declaration.name: _name(f"tier-{index}")
             for index, declaration in enumerate(source.declarations.tiers)
         }
         by_tier = {
-            tier: tuple(ref for ref in refs if source.resolve(ref).tier == tier)
+            tier: tuple(ref for ref in refs if source.event_tiers[ref] == tier)
             for tier in tier_names
         }
         old_to_new = {
@@ -94,7 +207,7 @@ class ContainmentProjection:
                     f"instance {index} ({relation.name!r})"
                 )
             if relation.name in containment_names_set and any(
-                source.resolve(endpoint).kind is not EndpointKind.EVENT
+                source.endpoint_kinds[endpoint] is not EndpointKind.EVENT
                 for endpoint in (*relation.sources, *relation.targets)
             ):
                 raise ValueError(
@@ -105,6 +218,12 @@ class ContainmentProjection:
         containment_names = {
             declaration.name: _name(f"contains-{index}")
             for index, declaration in enumerate(containment)
+        }
+        relation_names = {
+            declaration.name: containment_names.get(
+                declaration.name, _name(f"relation-{index}")
+            )
+            for index, declaration in enumerate(source.declarations.relations)
         }
 
         def item_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
@@ -133,6 +252,28 @@ class ContainmentProjection:
                 for declaration in containment
                 for name in (containment_names[declaration.name],)
             ),
+            *(
+                tg.PolyadicRelationDeclaration(
+                    relation_names[declaration.name],
+                    tg.RelationSideDeclaration(
+                        (tg.RelationEndpointKind.ITEM,),
+                        None,
+                        minimum=declaration.source_arity[0],
+                        maximum=declaration.source_arity[1],
+                        allow_empty=declaration.allow_empty_source,
+                    ),
+                    tg.RelationSideDeclaration(
+                        (tg.RelationEndpointKind.ITEM,),
+                        None,
+                        minimum=declaration.target_arity[0],
+                        maximum=declaration.target_arity[1],
+                        allow_empty=declaration.allow_empty_target,
+                    ),
+                    acyclic=declaration.acyclic,
+                )
+                for declaration in source.declarations.relations
+                if not declaration.containment
+            ),
         )
         relations = tuple(
             tg.PolyadicRelationInstance(
@@ -142,6 +283,17 @@ class ContainmentProjection:
             )
             for relation in source.relations
             if relation.name in containment_names
+        ) + tuple(
+            tg.PolyadicRelationInstance(
+                relation_names[relation.name],
+                tuple(old_to_new[item] for item in relation.sources),
+                tuple(old_to_new[item] for item in relation.targets),
+            )
+            for relation in source.relations
+            if relation.name not in containment_names
+            and all(
+                item in old_to_new for item in (*relation.sources, *relation.targets)
+            )
         )
         parent_order = {
             (target, source_ref, relation.name): rank
@@ -173,15 +325,44 @@ class ContainmentProjection:
             declarations,
             polyadic_relations=relations,
         )
+        event_tiers = dict(source.event_tiers)
+        admitted_sources = {
+            declaration.name: (
+                None
+                if declaration.source_tiers is None
+                else frozenset(declaration.source_tiers)
+            )
+            for declaration in containment
+        }
+        admitted_targets = {
+            declaration.name: (
+                None
+                if declaration.target_tiers is None
+                else frozenset(declaration.target_tiers)
+            )
+            for declaration in containment
+        }
+        active_by_parent = {
+            parent: tuple(
+                relation.name
+                for relation in source.relations
+                if relation.name in containment_names and relation.sources == (parent,)
+            )
+            for parent in refs
+        }
         result = cls(
-            source,
             projected,
             old_to_new,
             new_to_old,
             tier_names,
             containment_names,
+            relation_names,
             parent_order,
             traversal_order,
+            event_tiers,
+            admitted_sources,
+            admitted_targets,
+            active_by_parent,
         )
         result._verify_identity(refs)
         return result
@@ -210,11 +391,7 @@ class ContainmentProjection:
     def _traversals_for_parent(
         self, parent: str
     ) -> tuple[tuple[str, tg.OrderedContainment], ...]:
-        active = tuple(
-            relation.name
-            for relation in self.source.relations
-            if relation.name in self.containment_names and relation.sources == (parent,)
-        )
+        active = self.active_by_parent[parent]
         order = (
             *active,
             *(name for name in self.traversal_order if name not in active),
@@ -225,12 +402,11 @@ class ContainmentProjection:
         )
 
     def _admits(self, relation_name: str, tier_name: str | None, *, side: str) -> bool:
-        declaration = next(
-            declaration
-            for declaration in self.source.declarations.relations
-            if declaration.name == relation_name and declaration.containment
+        tiers = (
+            self.admitted_sources[relation_name]
+            if side == "source"
+            else self.admitted_targets[relation_name]
         )
-        tiers = getattr(declaration, f"{side}_tiers")
         # The legacy traversal returned an empty fiber for a non-admitted origin,
         # so skipping it preserves that answer.  Admitted origins are unchanged,
         # and Graph construction already rejects non-admitted stored endpoints.
@@ -248,9 +424,7 @@ class ContainmentProjection:
         children = tuple(
             self._old_reference(node)
             for relation_name, traversal in self._traversals_for_parent(parent)
-            if self._admits(
-                relation_name, self.source.resolve(parent).tier, side="source"
-            )
+            if self._admits(relation_name, self.event_tiers[parent], side="source")
             for node in traversal.direct_children(item).nodes
         )
         if tier is None:
@@ -271,7 +445,7 @@ class ContainmentProjection:
                 self.traversal_order, self.traversals(), strict=True
             ):
                 if not self._admits(
-                    relation_name, self.source.resolve(origin).tier, side="source"
+                    relation_name, self.event_tiers[origin], side="source"
                 ):
                     continue
                 for node in traversal.descendants(self.old_to_new[origin]).nodes:
@@ -290,7 +464,7 @@ class ContainmentProjection:
             item = pending.pop(0)
             if item in reachable and item not in visited:
                 visited.add(item)
-                if tier is None or self.source.resolve(item).tier == tier:
+                if tier is None or self.event_tiers[item] == tier:
                     result.append(item)
                 pending[0:0] = self.direct_children(item)
         return tuple(result)
@@ -312,9 +486,7 @@ class ContainmentProjection:
                 for relation_name, traversal in zip(
                     self.traversal_order, self.traversals(), strict=True
                 )
-                if self._admits(
-                    relation_name, self.source.resolve(item).tier, side="source"
-                )
+                if self._admits(relation_name, self.event_tiers[item], side="source")
             )
             if all(leaves == (item,) for leaves in per_relation):
                 return (item,)
@@ -333,9 +505,7 @@ class ContainmentProjection:
             for relation_name, traversal in zip(
                 self.traversal_order, self.traversals(), strict=True
             )
-            if self._admits(
-                relation_name, self.source.resolve(child).tier, side="target"
-            )
+            if self._admits(relation_name, self.event_tiers[child], side="target")
             for node in traversal.parents(item).nodes
         ]
         return tuple(
@@ -357,7 +527,7 @@ class ContainmentProjection:
                 self.traversal_order, self.traversals(), strict=True
             ):
                 if not self._admits(
-                    relation_name, self.source.resolve(origin).tier, side="target"
+                    relation_name, self.event_tiers[origin], side="target"
                 ):
                     continue
                 for node in traversal.ancestors(self.old_to_new[origin]).nodes:

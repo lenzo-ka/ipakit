@@ -16,7 +16,7 @@ refined positions look coincident, contradicting the graph's ordering model.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from ._tiergraph import EndpointKind, Graph
 
@@ -31,7 +31,10 @@ def dumps(graph: Graph, *, include_empty_tiers: bool = False) -> str:
     declared tiers with no events. Set ``include_empty_tiers`` to answer "which
     tiers does this model permit?" by drawing every declared tier.
     """
-    if not isinstance(graph, Graph):
+    if not isinstance(graph, Graph) and not all(
+        hasattr(graph, name)
+        for name in ("clock", "declarations", "relations", "resolve", "position")
+    ):
         raise TypeError("graph must be an ipakit tier graph")
     lines = [
         "digraph tiergraph {",
@@ -176,7 +179,11 @@ def to_dot(form: Form, *, include_empty_tiers: bool = False) -> str:
 
     if not isinstance(form, Form):
         raise TypeError("form must be an ipakit.Form")
-    return dumps(form._graph, include_empty_tiers=include_empty_tiers)
+    index = form.__dict__["_tiergraph_index"]
+    # Bind the cached phonetic presentation to the live authoritative corpus.
+    for path in index.containment_input.refs:
+        form._graph.resolve_item(__import__("tiergraph").DurableItemRef(path))
+    return cast(str, index.dot_with_empty_tiers if include_empty_tiers else index.dot)
 
 
 def _ordered_event_references(graph: Graph) -> tuple[str, ...]:

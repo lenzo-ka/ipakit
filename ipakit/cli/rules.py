@@ -789,7 +789,7 @@ class MoraeCommand(Command):
         form = japanese_moraic_fixture(name, self.ipa)
         morae = tuple(
             str(event.features["value"])
-            for node in form._graph.clock
+            for node in form.__dict__["_tiergraph_index"].clock
             for group in node.groups
             if group.tier == "mora"
             for event in group.events

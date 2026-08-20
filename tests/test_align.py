@@ -87,7 +87,7 @@ def test_live_alignment_is_ordered_mapped_and_inside_audio() -> None:
     assert form.to_ipa()
     words = [
         event.features["spelling"]
-        for node in form._graph.clock
+        for node in form.__dict__["_tiergraph_index"].clock
         for group in node.groups
         if group.tier == "word"
         for event in group.events

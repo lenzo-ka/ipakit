@@ -344,7 +344,7 @@ class ToKatakanaCommand(Command):
                 f"no attested Japanese loanword adaptation for {self.args.ipa!r}; "
                 "input is not approximated"
             )
-        self.print(render(japanese_moraic_fixture(name, self.ipa)._graph))
+        self.print(render(japanese_moraic_fixture(name, self.ipa)))
         return 0
 
 

@@ -40,16 +40,51 @@ class RenderProfile:
     lanes: tuple[RenderLane, ...]
 
 
-def render_graph(graph: Graph, profile: RenderProfile) -> str:
+def render_graph(form: Any, profile: RenderProfile) -> str:
     """Render only declared lanes, in input order where that order is retained."""
 
-    declared = {tier.name for tier in graph.declarations.tiers}
+    if isinstance(form, Graph):
+        return _render_scaffold(form, profile)
+    graph = form._graph
+    index = form.__dict__["_tiergraph_index"]
+    containment = form._containment
+    declared = set(containment.tier_names)
     unknown = [lane.tier for lane in profile.lanes if lane.tier not in declared]
     if unknown:
         raise ValueError(f"render profile names undeclared tiers: {unknown}")
     lane_by_tier = {lane.tier: lane for lane in profile.lanes}
     lane_order = {lane.tier: index for index, lane in enumerate(profile.lanes)}
     events: list[tuple[tuple[int, int, int], Event, RenderLane]] = []
+    fallback = 0
+    for path, event in index.event_items(containment, graph):
+        tier = containment.event_tiers[path]
+        lane = lane_by_tier.get(tier)
+        if lane is not None:
+            tick = int(path.split("/")[2])
+            compatibility_index = event.features.get("compatibility-index")
+            key = (
+                (
+                    int(compatibility_index)
+                    if isinstance(compatibility_index, int)
+                    else tick
+                ),
+                (0 if isinstance(compatibility_index, int) else lane_order[tier]),
+                fallback,
+            )
+            events.append((key, event, lane))
+            fallback += 1
+    return "".join(lane.render(event) for _, event, lane in sorted(events))
+
+
+def _render_scaffold(graph: Graph, profile: RenderProfile) -> str:
+    """Temporary non-Form codec bridge; construction callers retire by P9."""
+    declared = {tier.name for tier in graph.declarations.tiers}
+    unknown = [lane.tier for lane in profile.lanes if lane.tier not in declared]
+    if unknown:
+        raise ValueError(f"render profile names undeclared tiers: {unknown}")
+    lane_by_tier = {lane.tier: lane for lane in profile.lanes}
+    lane_order = {lane.tier: index for index, lane in enumerate(profile.lanes)}
+    events = []
     fallback = 0
     for tick, node in enumerate(graph.clock):
         for group in node.groups:

@@ -140,11 +140,11 @@ EXPECTED_KANA = {
 def test_katakana_is_rendered_only_from_derived_morae(name):
     inventory = IPAFeatures()
     form = japanese_moraic_fixture(name, inventory)
-    assert render_katakana(form._graph) == EXPECTED_KANA[name]
+    assert render_katakana(form) == EXPECTED_KANA[name]
     special = {"ッ", "ン", "ー"}
     segment_surface = "".join(
         str(event.features.get("spelling", ""))
-        for node in form._graph.clock
+        for node in form.__dict__["_tiergraph_index"].clock
         for group in node.groups
         if group.tier != "mora"
         for event in group.events

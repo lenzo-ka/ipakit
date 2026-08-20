@@ -165,13 +165,11 @@ def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
     )
     resolved = [form.at(path) for _, form, path in at_cases]
     if at_mutation == "fugu_all_paths_one_object":
-        fixed_by_form = {
-            id(form): form._graph.at("/clock/0") for _, form, _ in at_cases
-        }
+        fixed_by_form = {id(form): form.at("/clock/0") for _, form, _ in at_cases}
         resolved = [fixed_by_form[id(form)] for _, form, _ in at_cases]
     elif at_mutation == "wrong_type_per_path":
         resolved = [
-            form._graph.at(f"/clock/{path.split('/')[2]}") for _, form, path in at_cases
+            form.at(f"/clock/{path.split('/')[2]}") for _, form, path in at_cases
         ]
     elif at_mutation is not None:
         raise ValueError(f"unknown Form.at behavior mutation: {at_mutation}")

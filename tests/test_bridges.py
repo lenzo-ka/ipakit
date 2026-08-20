@@ -32,7 +32,7 @@ def test_mfa_atoms_are_grouping_tier_over_house_units() -> None:
     assert form.to_ipa() == "ajpʰtʃ"
     groups = [
         event
-        for node in form._graph.clock
+        for node in form.__dict__["_tiergraph_index"].clock
         for group in node.groups
         if group.tier == "mfa"
         for event in group.events
