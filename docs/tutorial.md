@@ -624,12 +624,12 @@ japanese = shipped("japanese-moraic")
 hot_derivation = japanese.derive("hɑt")
 hot_form = hot_derivation.to_form()
 hot_derivation.result  # 'hotːo'
-[event.features["value"] for node in hot_form._graph.clock for group in node.groups if group.tier == "mora" for event in group.events]
+[event.features["value"] for node in hot_form.__dict__["_tiergraph_index"].clock for group in node.groups if group.tier == "mora" for event in group.events]
 # ['ho', 't', 'to']
 
 from ipakit._katakana_codec import render as render_katakana
 
-render_katakana(hot_form._graph)  # 'ホット'
+render_katakana(hot_form)  # 'ホット'
 ```
 
 The leading underscore on the codec module marks this as a backend surface rather than a stable top-level convenience API. Keeping the example executable still checks the complete rules → derivation → graph → derived morae → katakana path; applications should treat the attested fixture vocabulary as the codec's declared domain.
@@ -871,9 +871,11 @@ The animation backend chooses the most specific complete description available: 
 from ipakit._gesture_backend import oral_tract_frames
 from ipakit._gesture_graph import project as project_gestures
 from ipakit._tiergraph import Timing
+from ipakit.form import _graph_from_compatibility
 
 gesture_inventory = ipa.IPAFeatures()
-segment_graph = Form.parse("at", gesture_inventory)._graph
+segment_form = Form.parse("at", gesture_inventory)
+segment_graph = _graph_from_compatibility(segment_form.units, ())
 gesture_graph = project_gestures(segment_graph, gesture_inventory)
 timed_graph = project_gestures(segment_graph, gesture_inventory, target_timing={"/clock/0/segment/0": (Timing(0.0, 0.1),), "/clock/1/segment/0": (Timing(0.1, 0.1),)})
 partial_graph = project_gestures(segment_graph, gesture_inventory, target_timing={"/clock/0/segment/0": (Timing(0.0, 0.1),)})
