@@ -7,8 +7,10 @@ remain authoritative in the source graph.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import cast
 
 import tiergraph as tg
 
@@ -16,6 +18,7 @@ from ._tiergraph import (
     ClockNode,
     Declarations,
     EndpointKind,
+    Event,
     Graph,
     GraphValidationError,
     Position,
@@ -29,9 +32,121 @@ _NAMESPACE = "https://ipakit.dev/tiergraph/containment-projection/v1"
 _PREFIX = "ipakit-containment"
 _EVENT_TYPE = tg.QualifiedName(_NAMESPACE, "event")
 
+_PAYLOAD_DECLARATIONS = (
+    ("text", tg.XsdType.STRING),
+    ("spelling", tg.XsdType.STRING),
+    ("input", tg.XsdType.BOOLEAN),
+    ("compatibility-index", tg.XsdType.INTEGER),
+    ("compatibility-interval", tg.XsdType.INTEGER),
+    ("timing-start", tg.XsdType.DOUBLE),
+    ("timing-duration", tg.XsdType.DOUBLE),
+    ("span-start", tg.XsdType.STRING),
+    ("span-end", tg.XsdType.STRING),
+    ("structural-duration", tg.XsdType.INTEGER),
+    ("segment-json", tg.XsdType.STRING),
+    ("symbol", tg.XsdType.STRING),
+    ("features-json", tg.XsdType.STRING),
+    ("prosody-json", tg.XsdType.STRING),
+    ("provenance-json", tg.XsdType.STRING),
+)
+
 
 def _name(local_name: str) -> tg.QualifiedName:
     return tg.QualifiedName(_NAMESPACE, local_name)
+
+
+def _json(value: object) -> str:
+    """Encode an ordered primitive payload without reordering mappings."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
+    """Lower one compatibility event to scalar tiergraph item attributes."""
+    unit = event.features.get("compatibility-unit")
+    interval = event.features.get("compatibility-interval")
+    if unit is not None:
+        from .form import Unit
+
+        if not isinstance(unit, Unit):
+            raise TypeError("compatibility-unit must be a Unit")
+        values: list[tuple[str, tg.XsdType, str]] = [
+            ("text", tg.XsdType.STRING, unit.text),
+        ]
+        if unit.spelling is not None:
+            values.append(("spelling", tg.XsdType.STRING, unit.spelling))
+        values.extend(
+            (
+                (
+                    "input",
+                    tg.XsdType.BOOLEAN,
+                    "true" if event.features["input"] is True else "false",
+                ),
+                (
+                    "compatibility-index",
+                    tg.XsdType.INTEGER,
+                    str(event.features["compatibility-index"]),
+                ),
+            )
+        )
+        if unit.segment is not None:
+            values.append(
+                (
+                    "segment-json",
+                    tg.XsdType.STRING,
+                    _json(
+                        {
+                            "constituents": [
+                                {
+                                    "base": constituent.base,
+                                    "modifiers": list(constituent.modifiers),
+                                    "approach": list(constituent.approach),
+                                }
+                                for constituent in unit.segment.constituents
+                            ],
+                            "junctures": list(unit.segment.junctures),
+                            "prosody": list(unit.segment.prosody),
+                        }
+                    ),
+                )
+            )
+        else:
+            values.extend(
+                (
+                    ("symbol", tg.XsdType.STRING, unit.text),
+                    ("features-json", tg.XsdType.STRING, _json(dict(unit.features))),
+                    ("prosody-json", tg.XsdType.STRING, _json(dict(unit.prosody))),
+                    (
+                        "provenance-json",
+                        tg.XsdType.STRING,
+                        _json(unit.provenance),
+                    ),
+                )
+            )
+    elif isinstance(interval, int):
+        values = [
+            ("compatibility-interval", tg.XsdType.INTEGER, str(interval)),
+        ]
+    else:
+        return ()
+    if event.timing is not None:
+        values.extend(
+            (
+                ("timing-start", tg.XsdType.DOUBLE, str(event.timing.start)),
+                ("timing-duration", tg.XsdType.DOUBLE, str(event.timing.duration)),
+            )
+        )
+    if event.span is not None:
+        values.extend(
+            (
+                ("span-start", tg.XsdType.STRING, event.span.start),
+                ("span-end", tg.XsdType.STRING, event.span.end),
+            )
+        )
+    else:
+        duration = event.structural_duration
+        assert duration is not None
+        values.append(("structural-duration", tg.XsdType.INTEGER, str(duration)))
+    return tuple(values)
 
 
 @dataclass(frozen=True)
@@ -42,6 +157,7 @@ class ContainmentProjectionInput:
     declarations: Declarations
     relations: tuple[Relation, ...]
     event_tiers: dict[str, str]
+    events: dict[str, Event]
     endpoint_kinds: dict[str, EndpointKind]
     clock: tuple[ClockNode, ...]
     roots: tuple[str, ...]
@@ -62,6 +178,11 @@ class ContainmentProjectionInput:
             source.declarations,
             tuple(source.relations),
             {ref: tier for ref, tier in event_tiers.items() if tier is not None},
+            {
+                ref: cast(Event, resolved[ref].event)
+                for ref in refs
+                if resolved[ref].event is not None
+            },
             {ref: resolved[ref].kind for ref in endpoints},
             tuple(source.clock),
             tuple(source.roots),
@@ -177,6 +298,7 @@ class ContainmentProjection:
         )
 
         refs = source.refs
+        payloads = {ref: _event_payload(source.events[ref]) for ref in refs}
         tier_names = {
             declaration.name: _name(f"tier-{index}")
             for index, declaration in enumerate(source.declarations.tiers)
@@ -197,7 +319,16 @@ class ContainmentProjection:
         tiers = tuple(
             tg.Tier(
                 tg.TierDeclaration(tier_names[tier], tier),
-                tuple(tg.Item(durable_id=ref) for ref in by_tier[tier]),
+                tuple(
+                    tg.Item(
+                        durable_id=ref,
+                        attributes=tuple(
+                            tg.AttributeValue(_name(name), value_type, lexical)
+                            for name, value_type, lexical in payloads[ref]
+                        ),
+                    )
+                    for ref in by_tier[tier]
+                ),
             )
             for tier in tier_names
         )
@@ -374,6 +505,14 @@ class ContainmentProjection:
                 tg.AttributeDeclaration(
                     gap_name, tg.AttributeDomain.POSITION, tg.XsdType.INTEGER
                 )
+            ),
+            *(
+                DeclareAttribute(
+                    tg.AttributeDeclaration(
+                        _name(name), tg.AttributeDomain.ITEM, value_type
+                    )
+                )
+                for name, value_type in _PAYLOAD_DECLARATIONS
             ),
             *(
                 AddItem(tier.declaration.name, item)
