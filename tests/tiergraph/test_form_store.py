@@ -3,15 +3,48 @@ from __future__ import annotations
 import ast
 import dataclasses
 import json
+from collections import Counter
 from pathlib import Path
 
 import ipakit
 import ipakit.form as form_module
 from ipakit import Form, Interval, Timing
+from ipakit._containment_projection import ContainmentProjectionInput
+from ipakit._tiergraph import EndpointKind
 
 import tiergraph as tg
 
 FEATURES = ipakit.load_ipa_features()
+
+
+def test_authoritative_graph_positions_biject_with_accepted_clock_positions() -> None:
+    form = Form.parse("#a..b#", FEATURES)
+    source: ContainmentProjectionInput = form.__dict__[
+        "_tiergraph_index"
+    ].containment_input
+    accepted = []
+    for tick, node in enumerate(source.clock):
+        coarse = source.resolve(f"/clock/{tick}")
+        assert coarse.kind is EndpointKind.COARSE_TICK
+        accepted.append((tick, 0))
+        for gap in range(node.gap_count):
+            refined = source.resolve(f"/clock/{tick}/gaps/{gap}")
+            assert refined.kind is EndpointKind.REFINED_GAP
+            accepted.append((tick, gap + 1))
+
+    emitted = []
+    for position in form._graph.position_values:
+        attributes = {
+            attribute.name.local_name: int(attribute.lexical)
+            for attribute in position.attributes
+        }
+        assert set(attributes) == {"tick", "gap"}
+        emitted.append((attributes["tick"], attributes["gap"]))
+
+    assert len(source.clock) > 1
+    assert any(node.gap_count > 1 for node in source.clock)
+    assert Counter(emitted) == Counter(accepted)
+    assert len(emitted) == len(set(emitted))
 
 
 def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
