@@ -141,6 +141,7 @@ class ContainmentProjection:
     tier_names: dict[str, tg.QualifiedName]
     containment_names: dict[str, tg.QualifiedName]
     relation_names: dict[str, tg.QualifiedName]
+    roots_name: tg.QualifiedName
     parent_order: dict[tuple[str, str, str], int]
     traversal_order: tuple[str, ...]
     event_tiers: dict[str, str]
@@ -235,6 +236,8 @@ class ContainmentProjection:
             )
             for index, declaration in enumerate(source.declarations.relations)
         }
+        roots_name = _name("roots")
+        root_tiers = _ordered_unique(source.event_tiers[root] for root in source.roots)
 
         def item_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
             arity = getattr(declaration, f"{side}_arity")
@@ -283,6 +286,24 @@ class ContainmentProjection:
                 )
                 for declaration in source.declarations.relations
                 if not declaration.containment
+            ),
+            tg.PolyadicRelationDeclaration(
+                roots_name,
+                tg.RelationSideDeclaration(
+                    (tg.RelationEndpointKind.ITEM,),
+                    minimum=0,
+                    maximum=0,
+                    allow_empty=True,
+                ),
+                tg.RelationSideDeclaration(
+                    (tg.RelationEndpointKind.ITEM,),
+                    tuple(tier_names[tier] for tier in root_tiers),
+                    minimum=0,
+                    allow_empty=True,
+                ),
+                # No distinct_targets: the legacy roots list did not forbid a
+                # repeated root, so requiring distinctness here would refuse a
+                # duplicate-root graph the old Form.roots returned verbatim.
             ),
         )
         relations = tuple(
@@ -339,6 +360,13 @@ class ContainmentProjection:
                 for item in tier.items
             ),
             *(Relate(relation) for relation in relations),
+            Relate(
+                tg.PolyadicRelationInstance(
+                    roots_name,
+                    (),
+                    tuple(old_to_new[root] for root in source.roots),
+                )
+            ),
         )
         projected = Program(opcodes).unroll().graph
         event_tiers = dict(source.event_tiers)
@@ -373,6 +401,7 @@ class ContainmentProjection:
             tier_names,
             containment_names,
             relation_names,
+            roots_name,
             parent_order,
             traversal_order,
             event_tiers,
