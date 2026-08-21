@@ -1606,15 +1606,25 @@ class Form:
         """Canonical paths of the graph's declared traversal roots."""
         from tiergraph import DurableItemRef
 
-        index = self.__dict__["_tiergraph_index"]
         graph = self._graph
-        for path in index.roots:
-            expected = self._containment.old_to_new[path]
+        containment = self._containment
+        instances = tuple(
+            relation
+            for relation in graph.polyadic_relations
+            if relation.declaration == containment.roots_name
+        )
+        if len(instances) != 1:
+            raise ValueError(
+                "authoritative graph must store exactly one roots instance"
+            )
+        roots = tuple(containment.new_to_old[target] for target in instances[0].targets)
+        for path in roots:
+            expected = containment.old_to_new[path]
             if graph.resolve_item(DurableItemRef(path)) != expected:
                 raise ValueError(
                     "authoritative durable identity changed root coordinate"
                 )
-        return cast(tuple[str, ...], index.roots)
+        return roots
 
     @property
     def _containment(self) -> ContainmentProjection:

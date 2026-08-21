@@ -26,7 +26,7 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    "tiergraph @ git+https://github.com/lenzo-ka/tiergraph@2bce3fe234e694af657336e45959e0f33ddef7fb",
+    "tiergraph @ git+https://github.com/lenzo-ka/tiergraph@eae3b5ffd10e5336a5c3741d803d43ba32014d57",
 ]
 
 [project.optional-dependencies]

@@ -34,6 +34,7 @@ def test_projection_retains_polyadic_incidence_for_ordered_containment() -> None
         declaration
         for declaration in declarations
         if isinstance(declaration, PolyadicRelationDeclaration)
+        and declaration.name in projected.containment_names.values()
     )
 
     assert len(containment) == 1
