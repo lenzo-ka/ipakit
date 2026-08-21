@@ -15,13 +15,11 @@ from ipakit._tiergraph_builder import GraphBuilder
 HERE = Path(__file__).parent
 
 
-def _events(graph, tier):
+def _events(form, tier):
     return [
-        (f"/clock/{tick}/{group.tier}/{index}", event)
-        for tick, node in enumerate(graph.clock)
-        for group in node.groups
-        if group.tier == tier
-        for index, event in enumerate(group.events)
+        (path, event)
+        for path, (_, event) in form.__dict__["_tiergraph_index"].events.items()
+        if form._containment.event_tiers[path] == tier
     ]
 
 
@@ -59,7 +57,7 @@ def test_one_step_projection_keeps_adjacent_edits_and_their_rule_provenance():
     form = project_derivation(derivation, inventory)
 
     assert form.to_ipa() == "so"
-    events = [event for _, event in _events(form._graph, "narrow")]
+    events = [event for _, event in _events(form, "narrow")]
     assert [
         (event.features["spelling"], event.features["rule"]) for event in events
     ] == [
@@ -79,7 +77,7 @@ def test_one_step_projection_keeps_same_start_edits():
     form = project_derivation(derivation, inventory)
 
     assert form.to_ipa() == "sda"
-    events = [event for _, event in _events(form._graph, "narrow")]
+    events = [event for _, event in _events(form, "narrow")]
     assert [
         (event.features["spelling"], event.features["rule"]) for event in events
     ] == [
@@ -94,16 +92,28 @@ def test_attested_japanese_adaptations_use_the_rewrite_bridge(name):
     inventory = ipakit.load_ipa_features()
     fixture = japanese_moraic_fixtures()[name]
     form = japanese_moraic_fixture(name, inventory)
-    graph = form._graph
     assert form.to_ipa() == fixture.output
     assert (
-        tuple(event.features["value"] for _, event in _events(graph, "mora"))
+        tuple(event.features["value"] for _, event in _events(form, "mora"))
         == fixture.morae
     )
-    assert all(event.structural_duration == 0 for _, event in _events(graph, "mora"))
-    assert any(relation.name == "rewrites-to" for relation in graph.relations)
+    assert all(event.structural_duration == 0 for _, event in _events(form, "mora"))
+    names = form._containment.relation_names
+    authoritative = {
+        relation.declaration for relation in form._graph.polyadic_relations
+    }
+    compatibility = {
+        link.name
+        for link in form.__dict__["_tiergraph_index"].containment_input.relations
+    }
+    assert names["rewrites-to"] in authoritative
     if len(fixture.output) > len(fixture.source):
-        assert any(relation.name == "inserts" for relation in graph.relations)
+        # ``inserts`` targets a clock position, not an event, so it rides the
+        # compatibility surface (which feeds ``to_dot``) but is absent from the
+        # authoritative polyadic graph.  Pin both facts so the divergence stays
+        # known rather than drifting into a silently dropped relation.
+        assert "inserts" in compatibility
+        assert names["inserts"] not in authoritative
 
 
 def test_phantoms_do_not_corrupt_the_compatibility_surface():
@@ -117,7 +127,9 @@ def test_phantoms_do_not_corrupt_the_compatibility_surface():
 def test_malformed_compatibility_graph_has_a_typed_failure():
     inventory = ipakit.load_ipa_features()
     source = inventory.read("p")
-    builder = GraphBuilder(source._graph.declarations)
+    from ipakit._ipa_graph import declarations
+
+    builder = GraphBuilder(declarations(inventory))
     unit = source.units[0]
     facts = {
         "value": unit.segment,
@@ -167,7 +179,7 @@ def test_distance_alignment_capture_is_the_live_oracle():
         )
 
 
-def _bridge_fixture_data(graph):
+def _bridge_fixture_data(form):
     """The complete topology plus stable, JSON-native bridge event facts."""
     return {
         "clock": [
@@ -195,19 +207,19 @@ def _bridge_fixture_data(graph):
                     for group in node.groups
                 ],
             }
-            for node in graph.clock
+            for node in form.__dict__["_tiergraph_index"].clock
         ],
-        "roots": list(graph.roots),
+        "roots": list(form.roots),
         "links": [
             [list(link.sources), link.name, list(link.targets)]
-            for link in graph.relations
+            for link in form.__dict__["_tiergraph_index"].containment_input.relations
         ],
     }
 
 
 def test_hot_bridge_projection_matches_serialized_fixture():
     inventory = ipakit.load_ipa_features()
-    live = _bridge_fixture_data(japanese_moraic_fixture("hot", inventory)._graph)
+    live = _bridge_fixture_data(japanese_moraic_fixture("hot", inventory))
     expected = json.loads(
         (HERE / "fixtures" / "hot_bridge_projection.json").read_text()
     )
@@ -220,10 +232,10 @@ def test_only_fired_steps_materialize_projection_events():
     derivation = ipakit.rules.shipped("japanese-moraic", inventory).derive(
         fixture.source, inventory
     )
-    graph = japanese_moraic_fixture("hot", inventory)._graph
+    form = japanese_moraic_fixture("hot", inventory)
     steps = {
         event.features["derivation-step"]
-        for _, event in _events(graph, "narrow") + _events(graph, "allophonic")
+        for _, event in _events(form, "narrow") + _events(form, "allophonic")
         if "derivation-step" in event.features
     }
     assert steps == set(range(len(derivation.fired)))

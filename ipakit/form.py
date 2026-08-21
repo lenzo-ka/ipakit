@@ -66,10 +66,10 @@ import dataclasses
 import json
 import math
 import warnings
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from .constants import ZERO_CLASS
 from .segment import state_mark_value
@@ -85,6 +85,7 @@ _JSON_VERSION = 2
 _JSON_TYPE = "ipakit.form"
 _VIEW_ABSENT = object()
 _EMPTY_MAPPING: Mapping[str, str] = MappingProxyType({})
+_T = TypeVar("_T")
 
 
 class FormProjectionError(ValueError):
@@ -144,9 +145,9 @@ class FormBuilder:
     def append_ipa(self, text: str, *, strict: bool = False) -> tuple[Any, ...]:
         """Scan IPA once and append its input occurrences to the shared clock."""
         parsed = self.features.read(text, strict=strict)
-        graph = parsed._graph
+        index_view = parsed.__dict__["_tiergraph_index"]
         by_index: dict[int, tuple[int, str, Any]] = {}
-        for tick, node in enumerate(graph.clock):
+        for tick, node in enumerate(index_view.clock):
             for group in node.groups:
                 for event in group.events:
                     index = event.features.get("compatibility-index")
@@ -162,7 +163,9 @@ class FormBuilder:
             else:
                 handles.append(
                     self._builder.append_input_occurrence(
-                        tier, values, refines_tick=graph.clock[tick].gap_count > 1
+                        tier,
+                        values,
+                        refines_tick=index_view.clock[tick].gap_count > 1,
                     )
                 )
             self._compatibility_unit_count += 1
@@ -1269,6 +1272,124 @@ class _CompatibilityProjection:
         return self._intervals
 
 
+@dataclass(frozen=True)
+class _FormGraphIndex:
+    """Non-authoritative spelling and public-object index for one tg.Graph."""
+
+    containment_input: Any
+
+    @classmethod
+    def build(cls, scaffold: Any) -> _FormGraphIndex:
+        from ._containment_projection import ContainmentProjectionInput
+
+        return cls(ContainmentProjectionInput.capture(scaffold))
+
+    def _memo(self, name: str, build: Callable[[], _T]) -> _T:
+        cached = self.__dict__.get(name, _VIEW_ABSENT)
+        if cached is _VIEW_ABSENT:
+            cached = build()
+            object.__setattr__(self, name, cached)
+        return cast(_T, cached)
+
+    @property
+    def roots(self) -> tuple[str, ...]:
+        return self._memo("_roots", lambda: tuple(self.containment_input.roots))
+
+    @property
+    def clock(self) -> tuple[Any, ...]:
+        return self._memo("_clock", lambda: tuple(self.containment_input.clock))
+
+    @property
+    def events(self) -> Mapping[str, tuple[None, Any]]:
+        def build() -> Mapping[str, tuple[None, Any]]:
+            events = {
+                path: (None, self.containment_input.resolve(path).event)
+                for path in self.containment_input.refs
+            }
+            return MappingProxyType(events)
+
+        return self._memo("_events", build)
+
+    @property
+    def compatibility(self) -> _CompatibilityProjection:
+        return self._memo(
+            "_compatibility",
+            lambda: _CompatibilityProjection(self.containment_input),
+        )
+
+    @property
+    def units(self) -> tuple[Unit, ...]:
+        return self._memo("_units", lambda: self.compatibility.units)
+
+    @property
+    def intervals(self) -> tuple[Interval, ...]:
+        return self._memo("_intervals", lambda: self.compatibility.intervals)
+
+    @property
+    def dot(self) -> str:
+        from .tiergraph_dot import dumps
+
+        return self._memo("_dot", lambda: dumps(self.containment_input))
+
+    @property
+    def dot_with_empty_tiers(self) -> str:
+        from .tiergraph_dot import dumps
+
+        return self._memo(
+            "_dot_with_empty_tiers",
+            lambda: dumps(self.containment_input, include_empty_tiers=True),
+        )
+
+    def at(self, containment: Any, graph: Any, path: str) -> Any:
+        """Parse ipakit spelling, but resolve event identity in ``graph``."""
+        from tiergraph import DurableItemRef
+
+        from ._tiergraph import GraphValidationError, _pointer_parts
+
+        try:
+            parts = _pointer_parts(path)
+            if len(parts) < 2 or parts[0] != "clock" or not parts[1].isdigit():
+                raise GraphValidationError("malformed JSON Pointer reference")
+            tick = int(parts[1])
+            if tick >= len(self.clock):
+                raise GraphValidationError("dangling JSON Pointer reference")
+            node = self.clock[tick]
+            if len(parts) == 2:
+                return node
+            if len(parts) == 4 and parts[2] == "gaps" and parts[3].isdigit():
+                gap = int(parts[3])
+                if gap >= node.gap_count:
+                    raise GraphValidationError("gap does not belong to named tick")
+                return node
+            if len(parts) == 4 and parts[3].isdigit():
+                resolved = self.containment_input.resolve(path)
+                event = resolved.event
+                if event is None:
+                    raise GraphValidationError("dangling JSON Pointer reference")
+                expected = containment.old_to_new[path]
+                item = graph.resolve_item(DurableItemRef(path))
+                if item != expected:
+                    raise ValueError(
+                        "authoritative durable identity changed coordinate"
+                    )
+                return event
+            raise GraphValidationError("malformed JSON Pointer reference")
+        except GraphValidationError as exc:
+            raise GraphValidationError(f"{path!r}: {exc}") from exc
+
+    def event_items(self, containment: Any, graph: Any) -> tuple[tuple[str, Any], ...]:
+        """Return public event values after authoritative identity resolution."""
+        from tiergraph import DurableItemRef
+
+        out = []
+        for path, (_, event) in self.events.items():
+            expected = containment.old_to_new[path]
+            if graph.resolve_item(DurableItemRef(path)) != expected:
+                raise ValueError("authoritative durable identity changed coordinate")
+            out.append((path, event))
+        return tuple(out)
+
+
 def _graph_from_compatibility(
     units: Sequence[Unit], intervals: Sequence[Interval]
 ) -> Any:
@@ -1420,6 +1541,7 @@ class Form:
                 )
         object.__setattr__(self, "_compatibility_units", held_units)
         object.__setattr__(self, "_compatibility_intervals", held_intervals)
+        self._install_scaffold(_graph_from_compatibility(held_units, held_intervals))
         # These names stay dataclass fields so the constructor,
         # dataclasses.fields/replace, equality, and hash behavior retain their
         # public coordinates.  The instance values are deliberately removed:
@@ -1430,18 +1552,8 @@ class Form:
     def __getattribute__(self, name: str) -> Any:
         if name in {"units", "intervals"}:
             namespace = object.__getattribute__(self, "__dict__")
-            graph = namespace.get("_tiergraph_graph")
-            if graph is None:
-                graph = _graph_from_compatibility(
-                    namespace["_compatibility_units"],
-                    namespace["_compatibility_intervals"],
-                )
-                object.__setattr__(self, "_tiergraph_graph", graph)
-            projection = namespace.get("_compatibility_projection")
-            if projection is None:
-                projection = _CompatibilityProjection(graph)
-                object.__setattr__(self, "_compatibility_projection", projection)
-            return projection.units if name == "units" else projection.intervals
+            index = namespace["_tiergraph_index"]
+            return index.units if name == "units" else index.intervals
         return object.__getattribute__(self, name)
 
     def _identity(self) -> tuple[Any, ...]:
@@ -1463,39 +1575,52 @@ class Form:
 
     @property
     def _graph(self) -> Any:
-        """The validated authoritative graph, materialized on demand."""
+        """The one validated authoritative tiergraph graph."""
         namespace = object.__getattribute__(self, "__dict__")
         graph = namespace.get("_tiergraph_graph")
         if graph is None:
-            # Taking either projection performs construction and validation.
-            _ = self.units
-            graph = namespace["_tiergraph_graph"]
+            from ._containment_projection import ContainmentProjection
+
+            index = namespace["_tiergraph_index"]
+            containment = ContainmentProjection.build_captured(index.containment_input)
+            graph = containment.graph
+            object.__setattr__(self, "_tiergraph_containment", containment)
+            object.__setattr__(self, "_tiergraph_graph", graph)
         return graph
+
+    def _install_scaffold(self, scaffold: Any) -> None:
+        """Promote a build-only ipakit graph and immediately drop it."""
+        index = _FormGraphIndex.build(scaffold)
+        object.__setattr__(self, "_tiergraph_index", index)
 
     @classmethod
     def _from_graph(cls, graph: Any, spelling: str | None = None) -> Form:
         """Adopt a validated parser graph without rebuilding or rescanning it."""
         form = cls.__new__(cls)
         object.__setattr__(form, "spelling", spelling)
-        object.__setattr__(form, "_tiergraph_graph", graph)
+        form._install_scaffold(graph)
         return form
 
     @property
     def roots(self) -> tuple[str, ...]:
         """Canonical paths of the graph's declared traversal roots."""
-        return cast(tuple[str, ...], self._graph.roots)
+        from tiergraph import DurableItemRef
+
+        index = self.__dict__["_tiergraph_index"]
+        graph = self._graph
+        for path in index.roots:
+            expected = self._containment.old_to_new[path]
+            if graph.resolve_item(DurableItemRef(path)) != expected:
+                raise ValueError(
+                    "authoritative durable identity changed root coordinate"
+                )
+        return cast(tuple[str, ...], index.roots)
 
     @property
     def _containment(self) -> ContainmentProjection:
         """The cached read-only tiergraph containment projection."""
-        namespace = object.__getattribute__(self, "__dict__")
-        projection = namespace.get("_tiergraph_containment")
-        if projection is None:
-            from ._containment_projection import ContainmentProjection
-
-            projection = ContainmentProjection.build(self._graph)
-            object.__setattr__(self, "_tiergraph_containment", projection)
-        return cast("ContainmentProjection", projection)
+        _ = self._graph
+        return cast("ContainmentProjection", self.__dict__["_tiergraph_containment"])
 
     def direct_children(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
         """Return the declared ordered children of ``parent``."""
@@ -1519,19 +1644,9 @@ class Form:
 
     def at(self, path: str) -> Any:
         """Return the graph element named by a canonical match path."""
-        try:
-            resolved = self._graph.resolve(path)
-        except ValueError:
-            # Preserve the public path-bearing diagnostic from Graph.at.
-            return self._graph.at(path)
-        if resolved.event is not None:
-            projection = self.__dict__.get("_compatibility_projection")
-            if projection is None:
-                projection = _CompatibilityProjection(self._graph)
-                object.__setattr__(self, "_compatibility_projection", projection)
-            durable = projection.identity.durable(path)
-            path = projection.identity.path(durable)
-        return self._graph.at(path)
+        return self.__dict__["_tiergraph_index"].at(
+            self._containment, self._graph, path
+        )
 
     @classmethod
     def from_parsed(
@@ -1778,7 +1893,7 @@ class Form:
         if mode == "canonical":
             from ._codecs import ipa_profile, render_graph
 
-            return render_graph(self._graph, ipa_profile(exact=False))
+            return render_graph(self, ipa_profile(exact=False))
         raise ValueError("IPA spelling mode must be 'exact' or 'canonical'")
 
     def to_dict(self, self_contained: bool = False) -> dict[str, Any]:
@@ -1789,6 +1904,8 @@ class Form:
         the declaring inventory. Boundaries and zeros always carry their
         declared features because they have no segment to derive them from.
         """
+
+        _ = self._graph
 
         def encode_unit(unit: Unit) -> dict[str, Any]:
             encoded: dict[str, Any] = {
@@ -1851,6 +1968,7 @@ class Form:
         """
         from .tiergraph_dot import to_dot
 
+        _ = self._graph
         return to_dot(self, include_empty_tiers=include_empty_tiers)
 
     @classmethod

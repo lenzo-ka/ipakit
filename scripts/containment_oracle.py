@@ -31,10 +31,12 @@ from ipakit._tiergraph import (  # noqa: E402
     Declarations,
     FeatureDeclaration,
     Graph,
+    Relation,
     RelationDeclaration,
     TierDeclaration,
 )
 from ipakit._tiergraph_builder import GraphBuilder  # noqa: E402
+from ipakit.form import _graph_from_compatibility  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -119,6 +121,42 @@ def _adversarial_fixture(kind: str) -> Graph:
     return builder.build()
 
 
+def _legacy_containment_sample(form: Form) -> Graph:
+    """Materialize only this legacy-oracle's build-scaffold fixture."""
+    index = form.__dict__["_tiergraph_index"]
+    projection = form._containment
+    feature_names = frozenset(
+        key for _, event in index.events.values() for key in event.features
+    )
+    tiers = tuple(
+        TierDeclaration(name, feature_names) for name in projection.tier_names
+    )
+    containment = tuple(
+        RelationDeclaration(name, acyclic=True, containment=True)
+        for name in projection.containment_names
+    )
+    by_name = {value: key for key, value in projection.containment_names.items()}
+    relations = tuple(
+        Relation(
+            tuple(projection.new_to_old[item] for item in relation.sources),
+            by_name[relation.declaration],
+            tuple(projection.new_to_old[item] for item in relation.targets),
+        )
+        for relation in form._graph.polyadic_relations
+        if relation.declaration in by_name
+    )
+    return Graph(
+        Declarations(
+            tiers,
+            tuple(FeatureDeclaration(name) for name in feature_names),
+            containment,
+        ),
+        index.clock,
+        relations,
+        form.roots,
+    )
+
+
 @lru_cache(maxsize=1)
 def corpus() -> tuple[tuple[str, Graph], ...]:
     """Build every named checked-in navigation fixture and profile sample."""
@@ -148,12 +186,13 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
             _adversarial_fixture("shared-parent-incidence"),
         ),
         ("fixture:empty-target", _adversarial_fixture("empty-target")),
-        ("profile:ipa", hierarchy.build()._graph),
+        ("profile:ipa", _legacy_containment_sample(hierarchy.build())),
         ("profile:cmu", read_cmu(("K", "AE1", "T"))),
         ("profile:pinyin", build_pinyin("shui", "sh", "ui", 3)),
         ("profile:mora", build_mora(("to", "o"), "high")),
     ]
-    native = Form.parse("ata", inventory)._graph
+    native_form = Form.parse("ata", inventory)
+    native = _graph_from_compatibility(native_form.units, native_form.intervals)
     graphs.append(("profile:gesture", project_gestures(native, inventory)))
     panphon_builder = GraphBuilder(panphon_declaration(()))
     for spelling in ("p", "a", "t"):
@@ -163,7 +202,7 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
     graphs.extend(
         (
             f"profile:japanese-rewrite:{name}",
-            japanese_moraic_fixture(name, inventory)._graph,
+            _legacy_containment_sample(japanese_moraic_fixture(name, inventory)),
         )
         for name in japanese_moraic_fixtures()
     )

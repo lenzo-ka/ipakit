@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import ast
 import dataclasses
+import json
+from pathlib import Path
 
 import ipakit
 import ipakit.form as form_module
 from ipakit import Form, Interval, Timing
+
+import tiergraph as tg
 
 FEATURES = ipakit.load_ipa_features()
 
@@ -14,9 +19,44 @@ def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
 
     assert "units" not in form.__dict__
     assert "intervals" not in form.__dict__
-    assert "_tiergraph_graph" in form.__dict__
+    assert "_tiergraph_graph" not in form.__dict__
     assert [unit.text for unit in form.units] == list("#a..b#")
+    assert "_tiergraph_graph" not in form.__dict__
+    form.to_dict()
+    assert isinstance(form.__dict__["_tiergraph_graph"], tg.Graph)
     assert form.intervals == ()
+
+
+def test_authoritative_graph_is_built_once_on_first_reader() -> None:
+    form = Form.parse("a", FEATURES)
+
+    assert "_tiergraph_graph" not in form.__dict__
+    first = form._graph
+    assert form._graph is first
+    assert form._containment.graph is first
+
+
+def test_form_graph_index_defers_every_public_projection(monkeypatch) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError("eager public projection")
+
+    monkeypatch.setattr(form_module._CompatibilityProjection, "__init__", forbidden)
+    monkeypatch.setattr("ipakit.tiergraph_dot.dumps", forbidden)
+
+    form = Form.parse("#a.b#", FEATURES)
+    index = form.__dict__["_tiergraph_index"]
+
+    assert index.__dict__ == {"containment_input": index.containment_input}
+    assert "_tiergraph_graph" not in form.__dict__
+
+
+def test_at_resolves_only_the_requested_public_event() -> None:
+    form = Form.parse("ab", FEATURES)
+    index = form.__dict__["_tiergraph_index"]
+    path = index.containment_input.refs[0]
+
+    assert form.at(path) is form.at(path)
+    assert "_events" not in index.__dict__
 
 
 def test_compatibility_projection_is_memoized_across_form_surface(
@@ -77,7 +117,9 @@ def test_segment_views_resolve_once_and_cache_is_not_identity(
     assert form.to_json() == lean
 
 
-def test_constructed_form_defers_graph_and_replace_keeps_public_coordinates() -> None:
+def test_constructed_form_builds_graph_once_and_replace_keeps_public_coordinates() -> (
+    None
+):
     parsed = Form.parse("a..b", FEATURES)
     interval = Interval("mora", 0, 2, FEATURES)
     held = Form.of(parsed.units, (interval,))
@@ -85,7 +127,7 @@ def test_constructed_form_defers_graph_and_replace_keeps_public_coordinates() ->
     replaced = dataclasses.replace(held, intervals=())
 
     assert "units" not in replaced.__dict__
-    assert "_tiergraph_graph" not in replaced.__dict__
+    assert isinstance(replaced._graph, tg.Graph)
     assert held.units == parsed.units
     assert held.intervals == (interval,)
     assert replaced.units == held.units
@@ -95,7 +137,7 @@ def test_constructed_form_defers_graph_and_replace_keeps_public_coordinates() ->
 def test_interval_between_repeated_dots_uses_exact_refined_endpoint() -> None:
     parsed = Form.parse("a..b", FEATURES)
     held = Form.of(parsed.units, (Interval("mora", 0, 2, FEATURES),))
-    graph = held._graph
+    graph = held.__dict__["_tiergraph_index"]
     mora = next(
         event
         for node in graph.clock
@@ -108,6 +150,79 @@ def test_interval_between_repeated_dots_uses_exact_refined_endpoint() -> None:
     assert mora.span.start == "/clock/0"
     assert mora.span.end == "/clock/1/gaps/1"
     assert held.intervals[0] == Interval("mora", 0, 2, FEATURES)
+
+
+def test_form_read_paths_use_only_the_authoritative_tiergraph_graph(
+    monkeypatch,
+) -> None:
+    from ipakit._tiergraph import Graph as ScaffoldGraph
+
+    form = Form.parse("#a.b#", FEATURES)
+    root_builder = form_module.FormBuilder(FEATURES)
+    parent = root_builder.add_event("word", {"spelling": "ab"}, start=0, duration=2)
+    children = root_builder.append_ipa("ab")
+    root_builder.contain(parent, children)
+    root_builder.add_root(parent)
+    hierarchy = root_builder.build()
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("build scaffold reached from a Form reader")
+
+    for name in ("resolve", "at", "event_references"):
+        monkeypatch.setattr(ScaffoldGraph, name, forbidden)
+
+    assert isinstance(form._graph, tg.Graph)
+    assert isinstance(hierarchy._graph, tg.Graph)
+    root = hierarchy.roots[0]
+    child = hierarchy.direct_children(root)[0]
+    assert hierarchy.at(root) is hierarchy.at(root)
+    assert hierarchy.direct_children(root)
+    assert hierarchy.descendants(root)
+    assert hierarchy.leaves(root)
+    assert hierarchy.parents(child)
+    assert hierarchy.ancestors(child)
+    assert json.loads(form.to_json())["type"] == "ipakit.form"
+    assert form.to_dot().startswith("digraph tiergraph")
+
+
+def test_form_fields_hold_no_ipakit_graph_and_projection_is_source_free() -> None:
+    from ipakit._tiergraph import Graph as ScaffoldGraph
+
+    form = Form.parse("a", FEATURES)
+    assert not any(isinstance(value, ScaffoldGraph) for value in form.__dict__.values())
+    containment = form._containment
+    assert not hasattr(containment, "source")
+    assert containment.graph is form._graph
+
+
+def test_per_query_graph_implementation_cannot_reappear() -> None:
+    root = Path(__file__).parents[2]
+    navigation = (root / "ipakit" / "_navigation.py").read_text(encoding="utf-8")
+    tree = ast.parse(navigation)
+    assert not any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "build"
+        for node in ast.walk(tree)
+    )
+    form = Form.parse("a", FEATURES)
+    assert form._containment is form._containment
+
+
+def test_scaffold_residency_is_evidenced_and_dated() -> None:
+    path = Path(__file__).parents[2] / "docs" / "design" / "residency-allowlist.json"
+    entries = json.loads(path.read_text(encoding="utf-8"))
+    scaffold = next(
+        item for item in entries if item["symbol"] == "ipakit._tiergraph.Graph"
+    )
+    assert scaffold == {
+        "symbol": "ipakit._tiergraph.Graph",
+        "owner": "IP-P1-STORE",
+        "reason": "scaffold",
+        "contract": "Construct byte-identical Forms before promotion to tiergraph.Graph",
+        "test_id": "tests/tiergraph/test_form_store.py::test_form_read_paths_use_only_the_authoritative_tiergraph_graph",
+        "removal": "P9",
+    }
 
 
 def test_interval_projection_retains_caller_order_across_tiers() -> None:

@@ -316,12 +316,11 @@ def _check_query_variables(source: str, patterns: Sequence[rules.Pattern]) -> No
 
 def _unit_paths(form: Form) -> dict[int, str]:
     paths: dict[int, str] = {}
-    for pointer in form._graph.event_references():
-        event = form._graph.resolve(pointer).event
-        assert event is not None
-        index = event.features.get("compatibility-index")
-        if isinstance(index, int):
-            paths[index] = pointer
+    graph_index = form.__dict__["_tiergraph_index"]
+    for pointer, (_, event) in graph_index.events.items():
+        unit_index = event.features.get("compatibility-index")
+        if isinstance(unit_index, int):
+            paths[unit_index] = pointer
     return paths
 
 

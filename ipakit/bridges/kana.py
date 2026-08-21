@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .._codecs import RenderLane, RenderProfile, render_graph
-from .._tiergraph import Event, Graph
+from .._tiergraph import Event
 from .vocabulary import VocabularyBridge
 
 _PATH = Path(__file__).parent.parent / "data" / "bridges" / "kana" / "kana.xml"
@@ -22,7 +22,7 @@ class KanaBridge(VocabularyBridge):
 
         super().__init__(_PATH)
 
-    def render(self, graph: Graph) -> str:
+    def render(self, form: object) -> str:
         """Render the graph's mora tier as attested katakana glyphs."""
 
         outputs = {atom.spelling: atom.output for atom in self.atoms}
@@ -43,7 +43,7 @@ class KanaBridge(VocabularyBridge):
                     f"no attested gairaigo mora spelling: {spelling!r}"
                 ) from error
 
-        return render_graph(graph, RenderProfile((RenderLane("mora", "value", glyph),)))
+        return render_graph(form, RenderProfile((RenderLane("mora", "value", glyph),)))
 
 
 KANA = KanaBridge()

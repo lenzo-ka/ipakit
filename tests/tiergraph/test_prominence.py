@@ -9,11 +9,10 @@ import pytest
 
 
 def _events(form: ipakit.Form, tier: str):
-    graph = form._graph
     return [
-        graph.resolve(reference).event
-        for reference in graph.event_references()
-        if graph.resolve(reference).tier == tier
+        event
+        for reference, (_, event) in form.__dict__["_tiergraph_index"].events.items()
+        if form._containment.event_tiers[reference] == tier
     ]
 
 

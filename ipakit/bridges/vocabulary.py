@@ -334,7 +334,10 @@ class VocabularyBridge(Bridge):
         atoms = self.tokenize(text)
         ipa = "".join(atom.spelling for atom in atoms)
         form = Form.parse(ipa, strict=True)
-        old = form._graph.declarations
+        from ..form import _graph_from_compatibility
+
+        source_graph = _graph_from_compatibility(form.units, form.intervals)
+        old = source_graph.declarations
         feature_names = {feature.name for feature in old.features}
         additions = tuple(
             FeatureDeclaration(name)
@@ -360,18 +363,18 @@ class VocabularyBridge(Bridge):
                 ),
             ),
         )
-        graph = dataclasses.replace(form._graph, declarations=declared)
+        graph = dataclasses.replace(source_graph, declarations=declared)
         builder, handles = _copy_builder(graph)
         units = [
             (ref, handles[ref])
             for ref in sorted(
                 handles,
                 key=lambda ref: (
-                    form._graph.at(ref).features.get("compatibility-index", 10**9),
+                    graph.at(ref).features.get("compatibility-index", 10**9),
                     ref,
                 ),
             )
-            if isinstance(form._graph.at(ref).features.get("compatibility-index"), int)
+            if isinstance(graph.at(ref).features.get("compatibility-index"), int)
         ]
         cursor = 0
         prefixes: list[Atom] = []
@@ -402,9 +405,7 @@ class VocabularyBridge(Bridge):
             start = int(owned[0][0].split("/")[2])
             last_ref = owned[-1][0]
             last_tick = int(last_ref.split("/")[2])
-            duration = (
-                last_tick - start + (form._graph.at(last_ref).structural_duration or 0)
-            )
+            duration = last_tick - start + (graph.at(last_ref).structural_duration or 0)
             parent = builder.add_event(
                 self.tier,
                 start,
@@ -436,11 +437,11 @@ class VocabularyBridge(Bridge):
         if separator is None:
             separator = self.separator
         profile = RenderProfile((RenderLane(self.tier, "output"),))
-        rendered = render_graph(form._graph, profile)
+        rendered = render_graph(form, profile)
         if not separator:
             return rendered
         values: list[str] = []
-        for node in form._graph.clock:
+        for node in form.__dict__["_tiergraph_index"].clock:
             for group in node.groups:
                 if group.tier == self.tier:
                     values.extend(
@@ -517,7 +518,10 @@ class VocabularyBridge(Bridge):
             matches.append((position, end, atom))
             position = end
 
-        old = form._graph.declarations
+        from ..form import _graph_from_compatibility
+
+        source_graph = _graph_from_compatibility(form.units, form.intervals)
+        old = source_graph.declarations
         feature_names = {feature.name for feature in old.features}
         additions = tuple(
             FeatureDeclaration(name)
@@ -553,18 +557,18 @@ class VocabularyBridge(Bridge):
                 )
             ),
         )
-        graph = dataclasses.replace(form._graph, declarations=declared)
+        graph = dataclasses.replace(source_graph, declarations=declared)
         builder, handles = _copy_builder(graph)
         unit_handles = [
             handles[ref]
             for ref in sorted(
                 handles,
                 key=lambda ref: (
-                    form._graph.at(ref).features.get("compatibility-index", 10**9),
+                    graph.at(ref).features.get("compatibility-index", 10**9),
                     ref,
                 ),
             )
-            if isinstance(form._graph.at(ref).features.get("compatibility-index"), int)
+            if isinstance(graph.at(ref).features.get("compatibility-index"), int)
         ]
         for start, end, atom in matches:
             parent = builder.add_event(

@@ -12,12 +12,14 @@ from ipakit._gesture_graph import (
 )
 from ipakit._tiergraph import Timing
 from ipakit._tiergraph_json import Model, dumps, loads
+from ipakit.form import _graph_from_compatibility
 from ipakit.tract import constrictions
 
 
 def _inventory_and_graph(text: str = "ata"):
     inventory = IPAFeatures()
-    return inventory, Form.parse(text, inventory)._graph
+    form = Form.parse(text, inventory)
+    return inventory, _graph_from_compatibility(form.units, form.intervals)
 
 
 def _timings(*values: tuple[float, float]):

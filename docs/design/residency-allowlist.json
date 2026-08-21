@@ -1,0 +1,10 @@
+[
+  {
+    "symbol": "ipakit._tiergraph.Graph",
+    "owner": "IP-P1-STORE",
+    "reason": "scaffold",
+    "contract": "Construct byte-identical Forms before promotion to tiergraph.Graph",
+    "test_id": "tests/tiergraph/test_form_store.py::test_form_read_paths_use_only_the_authoritative_tiergraph_graph",
+    "removal": "P9"
+  }
+]

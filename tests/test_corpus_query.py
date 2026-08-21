@@ -71,7 +71,7 @@ def test_feature_context_returns_exact_resolvable_graph_paths(tmp_path: Path):
     assert [entry_id for entry_id, _ in found] == ["tin"]
     restored = corpus.read("tin").forms["broad"]
     assert len(found[0][1]) == 1
-    assert restored._graph.resolve(found[0][1][0]).event is not None
+    assert restored.at(found[0][1][0]) is not None
 
 
 def test_empty_query_does_not_restore_an_unqueried_role(tmp_path: Path, monkeypatch):
