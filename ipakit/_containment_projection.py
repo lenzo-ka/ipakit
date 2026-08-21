@@ -166,6 +166,8 @@ class ContainmentProjection:
         """Build from facts captured while the build-only scaffold was resident."""
         from tiergraph.machine import (
             AddItem,
+            AttachValue,
+            DeclareAttribute,
             DeclareNamespace,
             DeclareRelation,
             DeclareTier,
@@ -237,6 +239,14 @@ class ContainmentProjection:
             for index, declaration in enumerate(source.declarations.relations)
         }
         roots_name = _name("roots")
+        clock_name = _name("clock")
+        tick_name = _name("tick")
+        gap_name = _name("gap")
+        clock_positions = tuple(
+            (tick, encoded_gap)
+            for tick, node in enumerate(source.clock)
+            for encoded_gap in range(node.gap_count + 1)
+        )
         root_tiers = _ordered_unique(source.event_tiers[root] for root in source.roots)
 
         def item_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
@@ -353,11 +363,42 @@ class ContainmentProjection:
         opcodes: tuple[Opcode, ...] = (
             DeclareNamespace(tg.NamespaceDeclaration(_PREFIX, _NAMESPACE)),
             *(DeclareTier(tier.declaration) for tier in tiers),
+            DeclareTier(tg.TierDeclaration(clock_name, "clock")),
             *(DeclareRelation(declaration) for declaration in declarations),
+            DeclareAttribute(
+                tg.AttributeDeclaration(
+                    tick_name, tg.AttributeDomain.POSITION, tg.XsdType.INTEGER
+                )
+            ),
+            DeclareAttribute(
+                tg.AttributeDeclaration(
+                    gap_name, tg.AttributeDomain.POSITION, tg.XsdType.INTEGER
+                )
+            ),
             *(
                 AddItem(tier.declaration.name, item)
                 for tier in tiers
                 for item in tier.items
+            ),
+            *(
+                AddItem(clock_name, tg.Item(durable_id=f"ipakit-clockcell-{index}"))
+                for index in range(max(0, len(clock_positions) - 1))
+            ),
+            *(
+                opcode
+                for boundary_index, (tick, gap) in enumerate(clock_positions)
+                for opcode in (
+                    AttachValue(
+                        tg.AttributeDomain.POSITION,
+                        tg.PositionRef(clock_name, boundary_index),
+                        tg.AttributeValue(tick_name, tg.XsdType.INTEGER, str(tick)),
+                    ),
+                    AttachValue(
+                        tg.AttributeDomain.POSITION,
+                        tg.PositionRef(clock_name, boundary_index),
+                        tg.AttributeValue(gap_name, tg.XsdType.INTEGER, str(gap)),
+                    ),
+                )
             ),
             *(Relate(relation) for relation in relations),
             Relate(
@@ -413,7 +454,11 @@ class ContainmentProjection:
         return result
 
     def _verify_identity(self, refs: tuple[str, ...]) -> None:
-        projected = self.graph.canonical_items()
+        projected = tuple(
+            item
+            for item in self.graph.canonical_items()
+            if item.tier in self.tier_names.values()
+        )
         if len(projected) != len(refs) or set(projected) != set(self.new_to_old):
             raise ValueError("containment projection event corpus is not bijective")
         for old, new in self.old_to_new.items():
