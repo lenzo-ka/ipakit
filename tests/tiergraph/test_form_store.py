@@ -11,10 +11,106 @@ import ipakit.form as form_module
 from ipakit import Form, Interval, Timing
 from ipakit._containment_projection import ContainmentProjectionInput
 from ipakit._tiergraph import EndpointKind
+from ipakit.form import Unit
+from ipakit.segment import Constituent, Segment, Sense
 
 import tiergraph as tg
 
 FEATURES = ipakit.load_ipa_features()
+
+
+def test_item_payload_round_trips_events_and_units_in_declared_order() -> None:
+    parsed = Form.parse("t͡s.∅ˈa", FEATURES)
+    timed = tuple(
+        dataclasses.replace(unit, timing=Timing(index / 10, 0.05 + index / 100))
+        for index, unit in enumerate(parsed.units)
+    )
+    form = Form.of(timed, (Interval("word", 0, len(timed), FEATURES),))
+    source = form.__dict__["_tiergraph_index"].containment_input
+    items = {
+        item.durable_id: item
+        for tier in form._graph.tiers
+        for item in tier.items
+        if item.durable_id in source.events
+    }
+
+    for ref, event in source.events.items():
+        attributes = {
+            attribute.name.local_name: attribute.lexical
+            for attribute in items[ref].attributes
+        }
+        if "compatibility-index" in attributes:
+            original = event.features["compatibility-unit"]
+            assert isinstance(original, Unit)
+            timing = (
+                None
+                if "timing-start" not in attributes
+                else Timing(
+                    float(attributes["timing-start"]),
+                    float(attributes["timing-duration"]),
+                )
+            )
+            if "segment-json" in attributes:
+                encoded = json.loads(attributes["segment-json"])
+                segment = Segment(
+                    tuple(
+                        Constituent(
+                            part["base"],
+                            tuple(part["modifiers"]),
+                            tuple(part["approach"]),
+                        )
+                        for part in encoded["constituents"]
+                    ),
+                    tuple(Sense(value) for value in encoded["junctures"]),
+                    tuple(encoded["prosody"]),
+                    _features=FEATURES,
+                )
+                rebuilt = Unit(
+                    attributes["text"],
+                    segment,
+                    timing=timing,
+                    spelling=attributes.get("spelling"),
+                    _inventory=FEATURES,
+                )
+            else:
+                rebuilt = Unit(
+                    attributes["symbol"],
+                    features=json.loads(attributes["features-json"]),
+                    prosody=json.loads(attributes["prosody-json"]),
+                    provenance=tuple(
+                        tuple(value)
+                        for value in json.loads(attributes["provenance-json"])
+                    ),
+                    timing=timing,
+                    spelling=attributes.get("spelling"),
+                )
+            assert attributes["input"] == (
+                "true" if event.features["input"] else "false"
+            )
+            assert (
+                int(attributes["compatibility-index"])
+                == event.features["compatibility-index"]
+            )
+            assert rebuilt == original
+            assert dict(rebuilt.features) == dict(original.features)
+            assert dict(rebuilt.prosody) == dict(original.prosody)
+            assert rebuilt.provenance == original.provenance
+            assert repr(rebuilt) == repr(original)
+        elif "compatibility-interval" in attributes:
+            assert (
+                int(attributes["compatibility-interval"])
+                == event.features["compatibility-interval"]
+            )
+        else:
+            assert attributes == {}
+
+        if event.span is not None:
+            assert (attributes["span-start"], attributes["span-end"]) == (
+                event.span.start,
+                event.span.end,
+            )
+        elif attributes:
+            assert int(attributes["structural-duration"]) == event.structural_duration
 
 
 def test_authoritative_graph_positions_biject_with_accepted_clock_positions() -> None:
