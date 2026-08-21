@@ -163,6 +163,16 @@ class ContainmentProjection:
         cls, source: ContainmentProjectionInput
     ) -> ContainmentProjection:
         """Build from facts captured while the build-only scaffold was resident."""
+        from tiergraph.machine import (
+            AddItem,
+            DeclareNamespace,
+            DeclareRelation,
+            DeclareTier,
+            Opcode,
+            Program,
+            Relate,
+        )
+
         refs = source.refs
         tier_names = {
             declaration.name: _name(f"tier-{index}")
@@ -319,12 +329,18 @@ class ContainmentProjection:
             }
         )
 
-        projected = tg.Graph(
-            (tg.NamespaceDeclaration(_PREFIX, _NAMESPACE),),
-            tiers,
-            declarations,
-            polyadic_relations=relations,
+        opcodes: tuple[Opcode, ...] = (
+            DeclareNamespace(tg.NamespaceDeclaration(_PREFIX, _NAMESPACE)),
+            *(DeclareTier(tier.declaration) for tier in tiers),
+            *(DeclareRelation(declaration) for declaration in declarations),
+            *(
+                AddItem(tier.declaration.name, item)
+                for tier in tiers
+                for item in tier.items
+            ),
+            *(Relate(relation) for relation in relations),
         )
+        projected = Program(opcodes).unroll().graph
         event_tiers = dict(source.event_tiers)
         admitted_sources = {
             declaration.name: (
