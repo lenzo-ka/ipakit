@@ -1272,6 +1272,20 @@ class _CompatibilityProjection:
         return self._intervals
 
 
+def _clock_bounds(position_values: Sequence[Any]) -> tuple[int, tuple[int, ...]]:
+    """Decode clock cardinality and refined-gap bounds from graph positions."""
+    encoded_gaps: dict[int, int] = {}
+    for position in position_values:
+        attributes = {
+            attribute.name.local_name: int(attribute.lexical)
+            for attribute in position.attributes
+        }
+        tick = attributes["tick"]
+        encoded_gaps[tick] = max(encoded_gaps.get(tick, 0), attributes["gap"])
+    tick_count = max(encoded_gaps, default=-1) + 1
+    return tick_count, tuple(encoded_gaps[tick] for tick in range(tick_count))
+
+
 @dataclass(frozen=True)
 class _FormGraphIndex:
     """Non-authoritative spelling and public-object index for one tg.Graph."""
@@ -1351,14 +1365,15 @@ class _FormGraphIndex:
             if len(parts) < 2 or parts[0] != "clock" or not parts[1].isdigit():
                 raise GraphValidationError("malformed JSON Pointer reference")
             tick = int(parts[1])
-            if tick >= len(self.clock):
+            tick_count, gap_counts = _clock_bounds(graph.position_values)
+            if tick >= tick_count:
                 raise GraphValidationError("dangling JSON Pointer reference")
             node = self.clock[tick]
             if len(parts) == 2:
                 return node
             if len(parts) == 4 and parts[2] == "gaps" and parts[3].isdigit():
                 gap = int(parts[3])
-                if gap >= node.gap_count:
+                if gap >= gap_counts[tick]:
                     raise GraphValidationError("gap does not belong to named tick")
                 return node
             if len(parts) == 4 and parts[3].isdigit():
