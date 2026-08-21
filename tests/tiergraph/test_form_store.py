@@ -47,6 +47,20 @@ def test_authoritative_graph_positions_biject_with_accepted_clock_positions() ->
     assert len(emitted) == len(set(emitted))
 
 
+def test_authoritative_graph_positions_reproduce_clock_bounds() -> None:
+    form = Form.parse("#a..b#", FEATURES)
+    source: ContainmentProjectionInput = form.__dict__[
+        "_tiergraph_index"
+    ].containment_input
+
+    tick_count, gap_counts = form_module._clock_bounds(form._graph.position_values)
+
+    assert len(source.clock) > 1
+    assert any(node.gap_count > 1 for node in source.clock)
+    assert tick_count == len(source.clock)
+    assert gap_counts == tuple(node.gap_count for node in source.clock)
+
+
 def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
     form = Form.parse("#a..b#", FEATURES)
 
