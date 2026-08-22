@@ -181,6 +181,7 @@
         "/clock/0/utterance/0"
       ]
     },
+    "reconstructed_unit_values": true,
     "refusal_bytes": {
       "containment_boundary_endpoint": {
         "message": "containment projection refuses boundary-endpoint containment relation 'contains': tiergraph OrderedContainment supports item endpoints only",
