@@ -157,6 +157,21 @@ def test_authoritative_graph_positions_reproduce_clock_bounds() -> None:
     assert gap_counts == tuple(node.gap_count for node in source.clock)
 
 
+def test_integer_timing_normalizes_to_float_so_units_round_trip() -> None:
+    assert Timing(1, 2).start == 1.0
+    assert isinstance(Timing(1, 2).start, float)
+    assert isinstance(Timing(1, 2).duration, float)
+
+    parsed = Form.parse("a", FEATURES)
+    timed = (dataclasses.replace(parsed.units[0], timing=Timing(1, 2)),)
+    form = Form.of(timed, ())
+
+    assert repr(form.units[0]) == repr(timed[0])
+    assert form.to_json(self_contained=True) == Form.of(timed, ()).to_json(
+        self_contained=True
+    )
+
+
 def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
     form = Form.parse("#a..b#", FEATURES)
 
@@ -164,7 +179,7 @@ def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
     assert "intervals" not in form.__dict__
     assert "_tiergraph_graph" not in form.__dict__
     assert [unit.text for unit in form.units] == list("#a..b#")
-    assert "_tiergraph_graph" not in form.__dict__
+    assert isinstance(form.__dict__["_tiergraph_graph"], tg.Graph)
     form.to_dict()
     assert isinstance(form.__dict__["_tiergraph_graph"], tg.Graph)
     assert form.intervals == ()
@@ -189,7 +204,10 @@ def test_form_graph_index_defers_every_public_projection(monkeypatch) -> None:
     form = Form.parse("#a.b#", FEATURES)
     index = form.__dict__["_tiergraph_index"]
 
-    assert index.__dict__ == {"containment_input": index.containment_input}
+    assert index.__dict__ == {
+        "containment_input": index.containment_input,
+        "inventory": index.inventory,
+    }
     assert "_tiergraph_graph" not in form.__dict__
 
 

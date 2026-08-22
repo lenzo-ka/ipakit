@@ -192,8 +192,12 @@ def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
         "contracts": {
             "memoized_units_tuple": held.units is units,
             "memoized_unit_objects": all(
-                projected is supplied
-                for projected, supplied in zip(units, input_units, strict=True)
+                unit is iterated
+                for unit, iterated in zip(held.units, tuple(held), strict=True)
+            ),
+            "reconstructed_unit_values": all(
+                unit == supplied and repr(unit) == repr(supplied)
+                for unit, supplied in zip(held.units, input_units, strict=True)
             ),
             "memoized_intervals_tuple": held.intervals is projected_intervals,
             "intervals": [
@@ -248,6 +252,7 @@ AT_BEHAVIOR_MUTATIONS = ("fugu_all_paths_one_object", "wrong_type_per_path")
 
 CONTRACT_MUTATIONS = (
     "memoized_units",
+    "reconstructed_unit_values",
     "intervals",
     "dataclass_behavior",
     "builder_handles",
@@ -267,6 +272,8 @@ def mutate_contract(document: dict[str, Any], contract: str) -> None:
     if contract == "memoized_units":
         contracts["memoized_units_tuple"] = False
         contracts["memoized_unit_objects"] = False
+    elif contract == "reconstructed_unit_values":
+        contracts["reconstructed_unit_values"] = False
     elif contract == "intervals":
         contracts["memoized_intervals_tuple"] = False
         contracts["intervals"][0][1] += 1

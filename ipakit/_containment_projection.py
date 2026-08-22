@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 import tiergraph as tg
 
@@ -65,7 +65,7 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
     unit = event.features.get("compatibility-unit")
     interval = event.features.get("compatibility-interval")
     if unit is not None:
-        from .form import Unit
+        from .form import Unit, _DerivedMapping, _DerivedProvenance
 
         if not isinstance(unit, Unit):
             raise TypeError("compatibility-unit must be a Unit")
@@ -109,6 +109,31 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
                     ),
                 )
             )
+            namespace = unit.__dict__
+            if not namespace.get("_views_pending") and not (
+                isinstance(namespace["features"], _DerivedMapping)
+                and isinstance(namespace["prosody"], _DerivedMapping)
+                and isinstance(namespace["provenance"], _DerivedProvenance)
+            ):
+                values.extend(
+                    (
+                        (
+                            "features-json",
+                            tg.XsdType.STRING,
+                            _json(dict(unit.features)),
+                        ),
+                        (
+                            "prosody-json",
+                            tg.XsdType.STRING,
+                            _json(dict(unit.prosody)),
+                        ),
+                        (
+                            "provenance-json",
+                            tg.XsdType.STRING,
+                            _json(unit.provenance),
+                        ),
+                    )
+                )
         else:
             values.extend(
                 (
@@ -147,6 +172,68 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
         assert duration is not None
         values.append(("structural-duration", tg.XsdType.INTEGER, str(duration)))
     return tuple(values)
+
+
+def _unit_from_item(item: tg.Item, inventory: Any) -> Any:
+    """Raise one compatibility Unit from its authoritative item payload."""
+    from .form import Timing, Unit
+    from .segment import Constituent, Segment, Sense
+
+    attributes = {
+        attribute.name.local_name: attribute.lexical for attribute in item.attributes
+    }
+    timing = (
+        Timing(
+            float(attributes["timing-start"]),
+            float(attributes["timing-duration"]),
+        )
+        if "timing-start" in attributes
+        else None
+    )
+    if "segment-json" in attributes:
+        encoded = json.loads(attributes["segment-json"])
+        segment = Segment(
+            tuple(
+                Constituent(
+                    part["base"],
+                    tuple(part["modifiers"]),
+                    tuple(part["approach"]),
+                )
+                for part in encoded["constituents"]
+            ),
+            tuple(Sense(value) for value in encoded["junctures"]),
+            tuple(encoded["prosody"]),
+            _features=inventory,
+        )
+        views = (
+            {
+                "features": json.loads(attributes["features-json"]),
+                "prosody": json.loads(attributes["prosody-json"]),
+                "provenance": tuple(
+                    tuple(value) for value in json.loads(attributes["provenance-json"])
+                ),
+            }
+            if "features-json" in attributes
+            else {}
+        )
+        return Unit(
+            attributes["text"],
+            segment,
+            timing=timing,
+            spelling=attributes.get("spelling"),
+            _inventory=inventory,
+            **views,
+        )
+    return Unit(
+        attributes["symbol"],
+        features=json.loads(attributes["features-json"]),
+        prosody=json.loads(attributes["prosody-json"]),
+        provenance=tuple(
+            tuple(value) for value in json.loads(attributes["provenance-json"])
+        ),
+        timing=timing,
+        spelling=attributes.get("spelling"),
+    )
 
 
 @dataclass(frozen=True)

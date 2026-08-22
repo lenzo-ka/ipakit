@@ -244,6 +244,8 @@ class Timing:
     duration: float
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "start", float(self.start))
+        object.__setattr__(self, "duration", float(self.duration))
         if not math.isfinite(self.start) or not math.isfinite(self.duration):
             raise ValueError("timing values must be finite")
         if self.start < 0:
@@ -1165,12 +1167,19 @@ def spell(items: Sequence[Unit]) -> str:
 class _CompatibilityProjection:
     """Map the graph's input-owned positions to the frozen public coordinates."""
 
-    def __init__(self, graph: Any) -> None:
+    def __init__(
+        self,
+        graph: Any,
+        authoritative_graph: Any | None = None,
+        inventory: IPAFeatures | None = None,
+    ) -> None:
         from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
         from ._tiergraph_identity import DurableEventIdentity
 
         self.graph = graph
         self.identity = DurableEventIdentity.build(graph)
+        self._authoritative_graph = authoritative_graph
+        self._inventory = inventory
         indexed: list[tuple[int, Unit, Any]] = []
         for node in graph.clock:
             for group in node.groups:
@@ -1204,23 +1213,46 @@ class _CompatibilityProjection:
                     "graph compatibility coordinates are not lossless"
                 )
 
+    def attach_authoritative(self, graph: Any, inventory: IPAFeatures) -> None:
+        """Supply the materialized store needed only by the units reader."""
+        self._authoritative_graph = graph
+        self._inventory = inventory
+
     @property
     def units(self) -> tuple[Unit, ...]:
         if self._units is not None:
             return self._units
-        out = []
-        for _, unit, event in self._indexed:
-            timing = (
-                Timing(event.timing.start, event.timing.duration)
-                if event.timing is not None
-                else None
+        from ._containment_projection import _unit_from_item
+
+        if self._authoritative_graph is None or self._inventory is None:
+            raise FormProjectionError("authoritative unit store is not materialized")
+        items = {
+            item.durable_id: item
+            for tier in self._authoritative_graph.tiers
+            for item in tier.items
+            if item.durable_id is not None
+        }
+        indexed = []
+        for ref, event in self.graph.events.items():
+            if not isinstance(event.features.get("compatibility-index"), int):
+                continue
+            item = items[ref]
+            attributes = {
+                attribute.name.local_name: attribute.lexical
+                for attribute in item.attributes
+            }
+            indexed.append(
+                (
+                    int(attributes["compatibility-index"]),
+                    _unit_from_item(item, self._inventory),
+                )
             )
-            out.append(
-                unit
-                if timing == unit.timing
-                else dataclasses.replace(unit, timing=timing)
+        indexed.sort(key=lambda value: value[0])
+        if [index for index, _ in indexed] != list(range(len(indexed))):
+            raise FormProjectionError(
+                "graph compatibility unit order is not contiguous"
             )
-        self._units = tuple(out)
+        self._units = tuple(unit for _, unit in indexed)
         return self._units
 
     @property
@@ -1291,12 +1323,13 @@ class _FormGraphIndex:
     """Non-authoritative spelling and public-object index for one tg.Graph."""
 
     containment_input: Any
+    inventory: IPAFeatures
 
     @classmethod
-    def build(cls, scaffold: Any) -> _FormGraphIndex:
+    def build(cls, scaffold: Any, inventory: IPAFeatures) -> _FormGraphIndex:
         from ._containment_projection import ContainmentProjectionInput
 
-        return cls(ContainmentProjectionInput.capture(scaffold))
+        return cls(ContainmentProjectionInput.capture(scaffold), inventory)
 
     def _memo(self, name: str, build: Callable[[], _T]) -> _T:
         cached = self.__dict__.get(name, _VIEW_ABSENT)
@@ -1331,9 +1364,13 @@ class _FormGraphIndex:
             lambda: _CompatibilityProjection(self.containment_input),
         )
 
-    @property
-    def units(self) -> tuple[Unit, ...]:
-        return self._memo("_units", lambda: self.compatibility.units)
+    def units(self, graph: Any) -> tuple[Unit, ...]:
+        def build() -> tuple[Unit, ...]:
+            projection = self.compatibility
+            projection.attach_authoritative(graph, self.inventory)
+            return projection.units
+
+        return self._memo("_units", build)
 
     @property
     def intervals(self) -> tuple[Interval, ...]:
@@ -1568,7 +1605,7 @@ class Form:
         if name in {"units", "intervals"}:
             namespace = object.__getattribute__(self, "__dict__")
             index = namespace["_tiergraph_index"]
-            return index.units if name == "units" else index.intervals
+            return index.units(self._graph) if name == "units" else index.intervals
         return object.__getattribute__(self, name)
 
     def _identity(self) -> tuple[Any, ...]:
@@ -1605,7 +1642,19 @@ class Form:
 
     def _install_scaffold(self, scaffold: Any) -> None:
         """Promote a build-only ipakit graph and immediately drop it."""
-        index = _FormGraphIndex.build(scaffold)
+        inventory = next(
+            (
+                unit.__dict__["_inventory"]
+                for node in scaffold.clock
+                for group in node.groups
+                for event in group.events
+                if isinstance((unit := event.features.get("compatibility-unit")), Unit)
+                and unit.segment is not None
+                and unit.__dict__.get("_inventory") is not None
+            ),
+            _default(None),
+        )
+        index = _FormGraphIndex.build(scaffold, inventory)
         object.__setattr__(self, "_tiergraph_index", index)
 
     @classmethod
