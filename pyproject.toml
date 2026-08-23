@@ -160,6 +160,7 @@ follow_imports = "skip"
 # Local development may expose tiergraph from an adjacent working tree. Fresh
 # and isolated installs resolve the pinned Git dependency declared above. The
 # submodule glob keeps isolated lint envs (mirrors-mypy) from failing on
-# tiergraph subpackages such as tiergraph.machine.
-module = ["tiergraph", "tiergraph.*"]
+# tiergraph subpackages such as tiergraph.machine, and the sibling
+# tiergraph_dot renderer.
+module = ["tiergraph", "tiergraph.*", "tiergraph_dot", "tiergraph_dot.*"]
 ignore_missing_imports = true
