@@ -35,6 +35,7 @@ _EVENT_TYPE = tg.QualifiedName(_NAMESPACE, "event")
 _PAYLOAD_DECLARATIONS = (
     ("text", tg.XsdType.STRING),
     ("spelling", tg.XsdType.STRING),
+    ("prominence", tg.XsdType.STRING),
     ("input", tg.XsdType.BOOLEAN),
     ("compatibility-index", tg.XsdType.INTEGER),
     ("compatibility-interval", tg.XsdType.INTEGER),
@@ -152,7 +153,11 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
             ("compatibility-interval", tg.XsdType.INTEGER, str(interval)),
         ]
     else:
-        return ()
+        values = []
+        for name in ("spelling", "prominence"):
+            value = event.features.get(name)
+            if isinstance(value, str):
+                values.append((name, tg.XsdType.STRING, value))
     if event.timing is not None:
         values.extend(
             (
