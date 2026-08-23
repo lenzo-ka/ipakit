@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from ._corpus import Corpus, CorpusError
 from ._corpus_query import BudgetRefusal, ExhaustiveRefusal, derives
-from ._tiergraph_json import identity_fingerprint
+from ._identity import identity_fingerprint
 from .features import IPAFeatures
 from .rules import DEFAULT_LIMIT, Derivation, RuleError, RuleSet
 

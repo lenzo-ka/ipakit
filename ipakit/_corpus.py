@@ -214,7 +214,7 @@ class Corpus:
 
     def fingerprint(self) -> str:
         """Content identity of the manifest and canonical entry documents."""
-        from ._tiergraph_json import identity_fingerprint
+        from ._identity import identity_fingerprint
 
         manifest_path = self._location / "corpus.json"
         entry_paths = [self._entry_path(entry_id) for entry_id in self.ids()]
@@ -514,7 +514,7 @@ def create(
     (root / "entries").mkdir()
     manifest = {"type": _CORPUS_TYPE, "v": CORPUS_VERSION}
     if declaration_identity is not None:
-        from ._tiergraph_json import identity_fingerprint
+        from ._identity import identity_fingerprint
 
         manifest["declaration_fingerprint"] = identity_fingerprint(declaration_identity)
     (root / "corpus.json").write_bytes(_json_bytes(manifest))
