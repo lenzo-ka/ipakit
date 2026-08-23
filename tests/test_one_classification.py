@@ -258,6 +258,7 @@ class TestAlignmentModeIsAskedOfTheStructure:
     for having a single place would have changed how it aligns, silently.
     """
 
+    @pytest.mark.slow
     def test_one_timing_slot_at_one_manner_reverses_for_free(
         self, ipa: IPAFeatures, fusions: list[tuple[str, Segment]]
     ) -> None:
@@ -294,6 +295,7 @@ class TestAlignmentModeIsAskedOfTheStructure:
         assert checked > MIN_FUSIONS and both > MIN_PER_KIND
 
 
+@pytest.mark.slow
 class TestBothReadsOfAFusionReadItsOrderAlike:
     """#155: the metric scored ``u͡i`` and ``i͡u`` at exactly 0 while the
     flat projection described them as two different vowels, because the

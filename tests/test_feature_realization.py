@@ -221,6 +221,7 @@ class TestRespellNeverSubstitutesADifferentUnit:
     #: swept unstrided, because that half is the inventory claim.
     PROSODY_STRIDE = 13
 
+    @pytest.mark.slow
     def test_it_holds_over_the_corpus(self, ipa: IPAFeatures) -> None:
         """Swept over every registered phone and a sample of the prosody
         the data declares, against every key the unit's own constituents

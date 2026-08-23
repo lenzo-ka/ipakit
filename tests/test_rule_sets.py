@@ -1881,6 +1881,7 @@ def _inverts(i: int, j: int, earlier: int, later: int) -> bool:
     )
 
 
+@pytest.mark.slow
 class TestHowMuchOrderingMattersAtAll:
     """The other half of the ordering claim: what is *not* load-bearing.
 

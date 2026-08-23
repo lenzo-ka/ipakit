@@ -138,6 +138,7 @@ class TestPercentile:
         assert m.distance("p", "ZZZ") == 1.0
         assert m.distance("p", "b") == pytest.approx(1.0 - m.confusability("p", "b"))
 
+    @pytest.mark.slow
     def test_monotone_in_raw_distance(self, ipa):
         phones = _core_phones(ipa)
         m = _model(ipa, phones)

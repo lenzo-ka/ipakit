@@ -343,6 +343,7 @@ class TestApplyAndRewriteAreOneOperation:
         assert tuple(out) == after.units and found == again
         assert after.intervals and after.intervals != held.intervals
 
+    @pytest.mark.slow
     def test_the_two_agree_on_every_form_in_the_corpus(self) -> None:
         """Swept rather than sampled, because "one implementation" is a
         property and a named case only shows it held once."""
@@ -419,6 +420,7 @@ class TestACascadeCarriesATier:
             checked += 1
         assert checked > 50, "sweep did not run"
 
+    @pytest.mark.slow
     def test_the_shipped_sets_derive_the_same_string_either_way(self) -> None:
         """A form carrying a tier must not change what the segmental rules
         do. No shipped rule names a tier, so the spelling is the spelling."""

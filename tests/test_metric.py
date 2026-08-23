@@ -204,6 +204,7 @@ class TestMaterialBudget:
         monkeypatch.setattr(metric, "_arity_base", lambda _: 0.0)
         assert not check_fusion_arity(ipa)
 
+    @pytest.mark.slow
     def test_full_matrix_mover_class_is_declared_before_the_diff(
         self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
     ) -> None:

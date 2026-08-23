@@ -342,6 +342,7 @@ class TestAskingForWhatIsAlreadyTrueIsANoOp:
         # composes the one to write, and only that one.
         assert FEATURES.compose_unit("ɪ̃", nasalized="+", release="aspirated") == "ɪ̃ʰ"
 
+    @pytest.mark.slow
     def test_it_holds_over_the_whole_corpus(self):
         """Every self-spelling unit x every value it already carries.
 

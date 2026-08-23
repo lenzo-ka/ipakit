@@ -235,6 +235,7 @@ class TestProsodicTermsAreAskedOfTheProsody:
         assert not set(segmental) & set(prosodic)
         assert len(names) > 20, "sweep did not run"
 
+    @pytest.mark.slow
     def test_it_holds_over_every_prosody_the_data_declares(
         self, ipa: IPAFeatures
     ) -> None:
