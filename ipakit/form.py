@@ -244,6 +244,8 @@ class Timing:
     duration: float
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "start", float(self.start))
+        object.__setattr__(self, "duration", float(self.duration))
         if not math.isfinite(self.start) or not math.isfinite(self.duration):
             raise ValueError("timing values must be finite")
         if self.start < 0:
@@ -1165,12 +1167,17 @@ def spell(items: Sequence[Unit]) -> str:
 class _CompatibilityProjection:
     """Map the graph's input-owned positions to the frozen public coordinates."""
 
-    def __init__(self, graph: Any) -> None:
+    def __init__(
+        self,
+        graph: Any,
+        inventory: IPAFeatures | None = None,
+    ) -> None:
         from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
         from ._tiergraph_identity import DurableEventIdentity
 
         self.graph = graph
         self.identity = DurableEventIdentity.build(graph)
+        self._inventory = inventory
         indexed: list[tuple[int, Unit, Any]] = []
         for node in graph.clock:
             for group in node.groups:
@@ -1208,18 +1215,19 @@ class _CompatibilityProjection:
     def units(self) -> tuple[Unit, ...]:
         if self._units is not None:
             return self._units
+        from ._containment_projection import _event_payload, _unit_from_attributes
+
+        if self._inventory is None:
+            raise FormProjectionError("compatibility unit inventory is not available")
+        # Reconstruct each Unit from its lowered attribute payload — the same
+        # encoding that is stored on the authoritative graph — without
+        # materializing that graph, so reads stay off the build path.
         out = []
-        for _, unit, event in self._indexed:
-            timing = (
-                Timing(event.timing.start, event.timing.duration)
-                if event.timing is not None
-                else None
-            )
-            out.append(
-                unit
-                if timing == unit.timing
-                else dataclasses.replace(unit, timing=timing)
-            )
+        for _index, _stored, event in self._indexed:
+            attributes = {
+                name: lexical for name, _type, lexical in _event_payload(event)
+            }
+            out.append(_unit_from_attributes(attributes, self._inventory))
         self._units = tuple(out)
         return self._units
 
@@ -1291,12 +1299,13 @@ class _FormGraphIndex:
     """Non-authoritative spelling and public-object index for one tg.Graph."""
 
     containment_input: Any
+    inventory: IPAFeatures
 
     @classmethod
-    def build(cls, scaffold: Any) -> _FormGraphIndex:
+    def build(cls, scaffold: Any, inventory: IPAFeatures) -> _FormGraphIndex:
         from ._containment_projection import ContainmentProjectionInput
 
-        return cls(ContainmentProjectionInput.capture(scaffold))
+        return cls(ContainmentProjectionInput.capture(scaffold), inventory)
 
     def _memo(self, name: str, build: Callable[[], _T]) -> _T:
         cached = self.__dict__.get(name, _VIEW_ABSENT)
@@ -1328,7 +1337,7 @@ class _FormGraphIndex:
     def compatibility(self) -> _CompatibilityProjection:
         return self._memo(
             "_compatibility",
-            lambda: _CompatibilityProjection(self.containment_input),
+            lambda: _CompatibilityProjection(self.containment_input, self.inventory),
         )
 
     @property
@@ -1605,7 +1614,19 @@ class Form:
 
     def _install_scaffold(self, scaffold: Any) -> None:
         """Promote a build-only ipakit graph and immediately drop it."""
-        index = _FormGraphIndex.build(scaffold)
+        inventory = next(
+            (
+                unit.__dict__["_inventory"]
+                for node in scaffold.clock
+                for group in node.groups
+                for event in group.events
+                if isinstance((unit := event.features.get("compatibility-unit")), Unit)
+                and unit.segment is not None
+                and unit.__dict__.get("_inventory") is not None
+            ),
+            _default(None),
+        )
+        index = _FormGraphIndex.build(scaffold, inventory)
         object.__setattr__(self, "_tiergraph_index", index)
 
     @classmethod

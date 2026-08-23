@@ -157,6 +157,21 @@ def test_authoritative_graph_positions_reproduce_clock_bounds() -> None:
     assert gap_counts == tuple(node.gap_count for node in source.clock)
 
 
+def test_integer_timing_normalizes_to_float_so_units_round_trip() -> None:
+    assert Timing(1, 2).start == 1.0
+    assert isinstance(Timing(1, 2).start, float)
+    assert isinstance(Timing(1, 2).duration, float)
+
+    parsed = Form.parse("a", FEATURES)
+    timed = (dataclasses.replace(parsed.units[0], timing=Timing(1, 2)),)
+    form = Form.of(timed, ())
+
+    assert repr(form.units[0]) == repr(timed[0])
+    assert form.to_json(self_contained=True) == Form.of(timed, ()).to_json(
+        self_contained=True
+    )
+
+
 def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
     form = Form.parse("#a..b#", FEATURES)
 
@@ -189,7 +204,10 @@ def test_form_graph_index_defers_every_public_projection(monkeypatch) -> None:
     form = Form.parse("#a.b#", FEATURES)
     index = form.__dict__["_tiergraph_index"]
 
-    assert index.__dict__ == {"containment_input": index.containment_input}
+    assert index.__dict__ == {
+        "containment_input": index.containment_input,
+        "inventory": index.inventory,
+    }
     assert "_tiergraph_graph" not in form.__dict__
 
 
@@ -208,10 +226,10 @@ def test_compatibility_projection_is_memoized_across_form_surface(
     constructions: dict[int, int] = {}
     original_init = form_module._CompatibilityProjection.__init__
 
-    def counted_init(self, graph) -> None:
+    def counted_init(self, graph, inventory=None) -> None:
         graph_id = id(graph)
         constructions[graph_id] = constructions.get(graph_id, 0) + 1
-        original_init(self, graph)
+        original_init(self, graph, inventory)
 
     monkeypatch.setattr(form_module._CompatibilityProjection, "__init__", counted_init)
     form = Form.parse("#a.b#", FEATURES)
