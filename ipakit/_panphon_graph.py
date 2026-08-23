@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
+
+from tiergraph.build import document
+from tiergraph.build import item as graph_item
+
+import tiergraph as tg
 
 from ._identity import identity_fingerprint
-from ._tiergraph import Declarations, FeatureDeclaration, Graph, TierDeclaration
-from ._tiergraph_builder import GraphBuilder
-from ._tiergraph_json import Model
+
+_NAMESPACE = "urn:ipakit:panphon"
 
 
 @dataclass(frozen=True)
@@ -36,11 +42,22 @@ def bundles(
     return names, tuple(result)
 
 
-def declaration(names: tuple[str, ...]) -> Declarations:
-    return Declarations(
-        (TierDeclaration("segment", frozenset(names) | frozenset({"spelling"})),),
-        tuple(FeatureDeclaration(n) for n in (*names, "spelling")),
-        (),
+def declaration(names: tuple[str, ...]) -> tuple[tg.AttributeDeclaration, ...]:
+    """Return native declarations for PanPhon spelling and feature facts."""
+    return (
+        tg.AttributeDeclaration(
+            tg.QualifiedName(_NAMESPACE, "spelling"),
+            tg.AttributeDomain.ITEM,
+            tg.XsdType.STRING,
+        ),
+        *(
+            tg.AttributeDeclaration(
+                tg.QualifiedName(_NAMESPACE, name),
+                tg.AttributeDomain.ITEM,
+                tg.XsdType.INTEGER,
+            )
+            for name in names
+        ),
     )
 
 
@@ -50,16 +67,29 @@ def fingerprint(names: tuple[str, ...]) -> str:
     )
 
 
-def model(names: tuple[str, ...]) -> Model:
-    return Model("panphon", fingerprint(names), declaration(names))
-
-
-def build(spellings: tuple[str, ...]) -> tuple[Graph, Model]:
+def build(spellings: tuple[str, ...]) -> tg.Graph:
+    """Build a native segment graph retaining every PanPhon feature column."""
     names, values = bundles(spellings)
-    builder = GraphBuilder(declaration(names))
-    for spelling, bundle in zip(spellings, values, strict=True):
-        builder.append_input_atom("segment", {"spelling": spelling, **bundle})
-    return builder.build(), model(names)
+    builder = document(_NAMESPACE, prefix="panphon")
+    for declared in declaration(names):
+        builder.attribute(
+            declared.name,
+            declared.value_type,
+            domain=declared.domain,
+        )
+    builder.tier(
+        "segment",
+        (
+            graph_item(
+                spelling=spelling,
+                attrs=cast(Mapping[str | tg.QualifiedName, object], bundle),
+            )
+            for spelling, bundle in zip(spellings, values, strict=True)
+        ),
+        item_type="segment",
+        membership="segment-members",
+    )
+    return builder.build()
 
 
 NATIVE_TO_PANPHON = DirectionalMapping(
