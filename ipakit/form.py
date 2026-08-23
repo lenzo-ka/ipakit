@@ -1308,6 +1308,86 @@ def _clock_bounds(position_values: Sequence[Any]) -> tuple[int, tuple[int, ...]]
 
 
 @dataclass(frozen=True)
+class _ClockPathProfile:
+    """Bind ipakit clock spellings to authoritative tiergraph references."""
+
+    text: str
+
+    def bind(self, path: Any, graph: Any) -> Any:
+        from tiergraph.path import PathOffender, PathRefusal, PathRefusalCode
+
+        from tiergraph import DurableItemRef, ItemBinding, PositionBinding, PositionRef
+
+        segments = path.segments
+
+        def refuse(code: Any) -> None:
+            raise PathRefusal(code, PathOffender(text=self.text, path=path))
+
+        if len(segments) < 2 or segments[0] != "clock" or not segments[1].isdigit():
+            refuse(PathRefusalCode.MALFORMED_POINTER)
+        tick = int(segments[1])
+        tick_count, gap_counts = _clock_bounds(graph.position_values)
+        clock_positions = tuple(
+            position
+            for position in graph.position_values
+            if any(
+                attribute.name.local_name == "tick" for attribute in position.attributes
+            )
+        )
+        clock_tier = next(
+            tier for tier in graph.tiers if tier.declaration.name.local_name == "clock"
+        )
+        if tick >= tick_count:
+            return PositionBinding(
+                PositionRef(
+                    clock_tier.declaration.name,
+                    len(clock_tier.items) + 1,
+                )
+            )
+        if len(segments) == 2:
+            gap = 0
+        elif len(segments) == 4 and segments[2] == "gaps" and segments[3].isdigit():
+            gap = int(segments[3])
+            if gap >= gap_counts[tick]:
+                refuse(PathRefusalCode.POSITION_NOT_IN_PARENT)
+        elif len(segments) == 4 and segments[3].isdigit():
+            return ItemBinding(DurableItemRef(self.text))
+        else:
+            refuse(PathRefusalCode.MALFORMED_POINTER)
+        for position in clock_positions:
+            attributes = {
+                attribute.name.local_name: int(attribute.lexical)
+                for attribute in position.attributes
+            }
+            if attributes == {"gap": gap, "tick": tick}:
+                return PositionBinding(position.reference)
+        refuse(PathRefusalCode.OUT_OF_RANGE)
+
+    def spell(self, binding: Any, graph: Any) -> Any:
+        """Refuse reverse projection, which Form.at never requests."""
+        from tiergraph.path import PathOffender, PathRefusal, PathRefusalCode
+
+        del binding, graph
+        raise PathRefusal(PathRefusalCode.UNSPELLABLE, PathOffender(text=self.text))
+
+    def alternatives(self, owner: Any, relation: Any, graph: Any) -> tuple[Any, ...]:
+        """Return no alternatives; this profile never binds that path kind."""
+        del owner, relation, graph
+        return ()
+
+
+_AT_REFUSAL_PHRASES = {
+    "malformed_pointer": "malformed JSON Pointer reference",
+    "out_of_range": "dangling JSON Pointer reference",
+    "unknown_form": "dangling JSON Pointer reference",
+    "unknown_tier": "dangling JSON Pointer reference",
+    "unknown_durable_item": "dangling JSON Pointer reference",
+    "unknown_durable_anchor": "dangling JSON Pointer reference",
+    "position_not_in_parent": "gap does not belong to named tick",
+}
+
+
+@dataclass(frozen=True)
 class _FormGraphIndex:
     """Non-authoritative spelling and public-object index for one tg.Graph."""
 
@@ -1339,8 +1419,8 @@ class _FormGraphIndex:
     def events(self) -> Mapping[str, tuple[None, Any]]:
         def build() -> Mapping[str, tuple[None, Any]]:
             events = {
-                path: (None, self.containment_input.resolve(path).event)
-                for path in self.containment_input.refs
+                path: (None, event)
+                for path, event in self.containment_input.events.items()
             }
             return MappingProxyType(events)
 
@@ -1378,41 +1458,30 @@ class _FormGraphIndex:
 
     def at(self, containment: Any, graph: Any, path: str) -> Any:
         """Parse ipakit spelling, but resolve event identity in ``graph``."""
-        from tiergraph import DurableItemRef
+        from tiergraph.path import PathRefusal
 
-        from ._tiergraph import GraphValidationError, _pointer_parts
+        from tiergraph import ResolvedItem, ResolvedPosition, resolve_path
+
+        from ._tiergraph import GraphValidationError
 
         try:
-            parts = _pointer_parts(path)
-            if len(parts) < 2 or parts[0] != "clock" or not parts[1].isdigit():
-                raise GraphValidationError("malformed JSON Pointer reference")
-            tick = int(parts[1])
-            tick_count, gap_counts = _clock_bounds(graph.position_values)
-            if tick >= tick_count:
-                raise GraphValidationError("dangling JSON Pointer reference")
-            node = self.clock[tick]
-            if len(parts) == 2:
-                return node
-            if len(parts) == 4 and parts[2] == "gaps" and parts[3].isdigit():
-                gap = int(parts[3])
-                if gap >= gap_counts[tick]:
-                    raise GraphValidationError("gap does not belong to named tick")
-                return node
-            if len(parts) == 4 and parts[3].isdigit():
-                resolved = self.containment_input.resolve(path)
-                event = resolved.event
-                if event is None:
-                    raise GraphValidationError("dangling JSON Pointer reference")
-                expected = containment.old_to_new[path]
-                item = graph.resolve_item(DurableItemRef(path))
-                if item != expected:
-                    raise ValueError(
-                        "authoritative durable identity changed coordinate"
-                    )
-                return event
-            raise GraphValidationError("malformed JSON Pointer reference")
-        except GraphValidationError as exc:
-            raise GraphValidationError(f"{path!r}: {exc}") from exc
+            resolved = resolve_path(graph, _ClockPathProfile(path), path)
+        except PathRefusal as exc:
+            phrase = _AT_REFUSAL_PHRASES.get(exc.code.value)
+            if phrase is None:
+                raise
+            raise GraphValidationError(f"{exc.offender.text!r}: {phrase}") from exc
+        if isinstance(resolved, ResolvedItem):
+            old = containment.new_to_old[resolved.current]
+            return self.containment_input.events[old]
+        assert isinstance(resolved, ResolvedPosition)
+        attributes = {
+            attribute.name.local_name: int(attribute.lexical)
+            for position in graph.position_values
+            if graph.resolve_position(position.reference) == resolved.current
+            for attribute in position.attributes
+        }
+        return self.containment_input.clock[attributes["tick"]]
 
     def event_items(self, containment: Any, graph: Any) -> tuple[tuple[str, Any], ...]:
         """Return public event values after authoritative identity resolution."""
