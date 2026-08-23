@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `interop` extra (`pyclts`, `panphon`), dev-only and read by `scripts/interop.py` alone.
 - `scripts/tutorial.py` and `scripts/docexamples.py` as `make check` gates.
 - `scripts/docquotes.py` as a `make check` gate: a sentence one document quotes out of another has to be in it.
-- `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, and the issue and pull-request templates.
+- `CONTRIBUTING.md`, `SECURITY.md`, and the issue and pull-request templates.
 - Structured segment API: `Segment`/`Constituent`/`Sense`/`Kind`, with `segment()`, `segments()` and `build_segment()` (#10).
 - `find(ipa, query)`, natural-class search over a transcription; `to_ipa(units)`; `feature_values(unit)` (#22).
 - `to_phone(bundle)` and `respell(phone, **changes)`: the feature level is writable, not only readable (#21).

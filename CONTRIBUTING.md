@@ -225,4 +225,4 @@ There is no CLA to sign. Contributions are accepted under the project's [BSD 2-C
 
 ## Conduct
 
-By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Disagreement about phonetics is expected and welcome; the standard is that you argue with the claim.
+Disagreement about phonetics is expected and welcome; the standard is that you argue with the claim.
