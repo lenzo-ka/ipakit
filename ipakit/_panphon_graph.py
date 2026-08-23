@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ._identity import identity_fingerprint
 from ._tiergraph import Declarations, FeatureDeclaration, Graph, TierDeclaration
 from ._tiergraph_builder import GraphBuilder
-from ._tiergraph_json import Model, identity_fingerprint
+from ._tiergraph_json import Model
 
 
 @dataclass(frozen=True)

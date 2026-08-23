@@ -7,7 +7,7 @@ import ipakit
 import ipakit.form as form_module
 import pytest
 from ipakit import _corpus
-from ipakit._tiergraph_json import identity_fingerprint
+from ipakit._identity import identity_fingerprint
 from ipakit.form import Form
 
 
