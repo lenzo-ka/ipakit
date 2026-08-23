@@ -1233,10 +1233,23 @@ class _CompatibilityProjection:
 
     @property
     def intervals(self) -> tuple[Interval, ...]:
-        from ._tiergraph_builder import PositionHandle, _pointer_position
-
         if self._intervals is not None:
             return self._intervals
+        from ._containment_projection import _event_payload
+
+        # Adjacent ticks share their boundary position, so a legacy coordinate
+        # is the intra-tick gap plus the running gap total of every earlier
+        # tick — the same mapping the builder's to_legacy computed.
+        gap_prefix = [0]
+        for node in self.graph.clock:
+            gap_prefix.append(gap_prefix[-1] + node.gap_count)
+
+        def coordinate(pointer: str) -> int:
+            parts = pointer.split("/")
+            tick = int(parts[2])
+            gap = int(parts[4]) if len(parts) == 5 else 0
+            return gap + gap_prefix[tick]
+
         indexed = []
         for tick, node in enumerate(self.graph.clock):
             for group in node.groups:
@@ -1244,31 +1257,31 @@ class _CompatibilityProjection:
                     index = event.features.get("compatibility-interval")
                     if not isinstance(index, int):
                         continue
-                    if event.span is None and event.structural_duration is None:
+                    attributes = {
+                        name: lexical for name, _type, lexical in _event_payload(event)
+                    }
+                    timing = (
+                        Timing(
+                            float(attributes["timing-start"]),
+                            float(attributes["timing-duration"]),
+                        )
+                        if "timing-start" in attributes
+                        else None
+                    )
+                    if "span-start" in attributes:
+                        start = coordinate(attributes["span-start"])
+                        end = coordinate(attributes["span-end"])
+                    elif "structural-duration" in attributes:
+                        start = gap_prefix[tick]
+                        end = gap_prefix[tick + int(attributes["structural-duration"])]
+                    else:
                         raise FormProjectionError(
                             "compatibility interval has no exact span"
                         )
-                    timing = (
-                        Timing(event.timing.start, event.timing.duration)
-                        if event.timing is not None
-                        else None
-                    )
                     interval = Interval.__new__(Interval)
                     object.__setattr__(interval, "tier", group.tier)
-                    start = (
-                        _pointer_position(event.span.start)
-                        if event.span is not None
-                        else PositionHandle(tick)
-                    )
-                    end = (
-                        _pointer_position(event.span.end)
-                        if event.span is not None
-                        else PositionHandle(tick + event.structural_duration)
-                    )
-                    object.__setattr__(
-                        interval, "start", self.coordinates.to_legacy(start)
-                    )
-                    object.__setattr__(interval, "end", self.coordinates.to_legacy(end))
+                    object.__setattr__(interval, "start", start)
+                    object.__setattr__(interval, "end", end)
                     object.__setattr__(interval, "timing", timing)
                     indexed.append((index, interval))
         indexed.sort(key=lambda item: item[0])
