@@ -16,8 +16,6 @@ from ipakit._cmu_graph import declarations as cmu_declarations  # noqa: E402
 from ipakit._cmu_graph import read as read_cmu  # noqa: E402
 from ipakit._mora_graph import build as build_mora  # noqa: E402
 from ipakit._mora_graph import declarations as mora_declarations  # noqa: E402
-from ipakit._panphon_graph import declaration as panphon_declaration  # noqa: E402
-from ipakit._panphon_graph import fingerprint as panphon_fingerprint  # noqa: E402
 from ipakit._pinyin_graph import build as build_pinyin  # noqa: E402
 from ipakit._tiergraph import (  # noqa: E402
     Declarations,
@@ -64,13 +62,6 @@ def corpus_bytes() -> bytes:
         referenced=True,
     )
     mora = build_mora(("to", "o"), "high")
-    panphon_names = ("syl", "son", "cons")
-    panphon_declarations = panphon_declaration(panphon_names)
-    panphon_builder = GraphBuilder(panphon_declarations)
-    panphon_builder.append_input_atom(
-        "segment", {"spelling": "p", "syl": -1, "son": -1, "cons": 1}
-    )
-    panphon = panphon_builder.build()
 
     escaped_tier = "custom~/tier"
     escaped_feature = "feature~/key"
@@ -99,10 +90,6 @@ def corpus_bytes() -> bytes:
         "cmu": _wire(cmu, Model("cmudict", "base-1", cmu_declarations())),
         "escaped": escaped_wire,
         "mora": _wire(mora, Model("moraic-gairaigo", "1", mora_declarations())),
-        "panphon": _wire(
-            panphon,
-            Model("panphon", panphon_fingerprint(panphon_names), panphon_declarations),
-        ),
         "parse": parsed_wire,
         "pinyin": json.dumps(
             pinyin.to_data(), ensure_ascii=False, separators=(",", ":")
