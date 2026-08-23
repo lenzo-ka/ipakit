@@ -21,7 +21,6 @@ from ipakit._pinyin_graph import build as build_pinyin
 from ipakit._pinyin_graph import render as render_pinyin
 from ipakit._pinyin_graph import tone_index
 from ipakit._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
-from ipakit._tiergraph import Graph
 
 import tiergraph
 
@@ -95,11 +94,15 @@ def test_pinyin_tone_is_syllable_hosted_but_codec_placed(plain, tone, marked, in
     assert tone_index(plain) == index
     assert render_pinyin(graph) == marked
     assert render_generic_pinyin(graph) == marked
-    relation = next(r for r in graph.relations if r.name == "associates-with")
-    assert relation.targets == ("/clock/0/syllable/0",)
-    restored = Graph.from_data(
-        graph.declarations, json.loads(json.dumps(graph.to_data()))
+    relation = next(
+        r
+        for r in graph.polyadic_relations
+        if r.declaration.local_name == "associates-with"
     )
+    assert tuple(str(target) for target in relation.targets) == (
+        "{urn:ipakit:pinyin}syllable[0]",
+    )
+    restored = tiergraph.wire.loads(tiergraph.wire.dumps(graph))
     assert restored == graph
 
 
@@ -113,7 +116,9 @@ def test_pinyin_referenced_phonetic_realization_is_optional():
     graph = build_pinyin(
         "ma", "m", "a", 1, ipa={"segments": ["m", "a"]}, referenced=True
     )
-    assert any(r.name == "realized-by" for r in graph.relations)
+    assert any(
+        r.declaration.local_name == "realized-by" for r in graph.polyadic_relations
+    )
 
 
 def test_tone_associates_with_multiple_morae_and_round_trips():

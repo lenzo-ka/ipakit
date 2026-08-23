@@ -11363,9 +11363,9 @@
     },
     "profile:pinyin": {
       "answers": {
-        "/clock/0/constituent/0": {
+        "{urn:ipakit:pinyin}constituent[0]": {
           "ancestors": [
-            "/clock/0/syllable/0"
+            "{urn:ipakit:pinyin}syllable[0]"
           ],
           "descendants": [],
           "descendants_by_tier": {
@@ -11382,20 +11382,20 @@
             "tone": []
           },
           "leaves": [
-            "/clock/0/constituent/0"
+            "{urn:ipakit:pinyin}constituent[0]"
           ],
           "parents": [
-            "/clock/0/syllable/0"
+            "{urn:ipakit:pinyin}syllable[0]"
           ],
           "routes": [
             [
-              "/clock/0/syllable/0"
+              "{urn:ipakit:pinyin}syllable[0]"
             ]
           ]
         },
-        "/clock/0/constituent/1": {
+        "{urn:ipakit:pinyin}constituent[1]": {
           "ancestors": [
-            "/clock/0/syllable/0"
+            "{urn:ipakit:pinyin}syllable[0]"
           ],
           "descendants": [],
           "descendants_by_tier": {
@@ -11412,53 +11412,53 @@
             "tone": []
           },
           "leaves": [
-            "/clock/0/constituent/1"
+            "{urn:ipakit:pinyin}constituent[1]"
           ],
           "parents": [
-            "/clock/0/syllable/0"
+            "{urn:ipakit:pinyin}syllable[0]"
           ],
           "routes": [
             [
-              "/clock/0/syllable/0"
+              "{urn:ipakit:pinyin}syllable[0]"
             ]
           ]
         },
-        "/clock/0/syllable/0": {
+        "{urn:ipakit:pinyin}syllable[0]": {
           "ancestors": [],
           "descendants": [
-            "/clock/0/constituent/0",
-            "/clock/0/constituent/1"
+            "{urn:ipakit:pinyin}constituent[0]",
+            "{urn:ipakit:pinyin}constituent[1]"
           ],
           "descendants_by_tier": {
             "constituent": [
-              "/clock/0/constituent/0",
-              "/clock/0/constituent/1"
+              "{urn:ipakit:pinyin}constituent[0]",
+              "{urn:ipakit:pinyin}constituent[1]"
             ],
             "phonetic": [],
             "syllable": [],
             "tone": []
           },
           "direct": [
-            "/clock/0/constituent/0",
-            "/clock/0/constituent/1"
+            "{urn:ipakit:pinyin}constituent[0]",
+            "{urn:ipakit:pinyin}constituent[1]"
           ],
           "direct_by_tier": {
             "constituent": [
-              "/clock/0/constituent/0",
-              "/clock/0/constituent/1"
+              "{urn:ipakit:pinyin}constituent[0]",
+              "{urn:ipakit:pinyin}constituent[1]"
             ],
             "phonetic": [],
             "syllable": [],
             "tone": []
           },
           "leaves": [
-            "/clock/0/constituent/0",
-            "/clock/0/constituent/1"
+            "{urn:ipakit:pinyin}constituent[0]",
+            "{urn:ipakit:pinyin}constituent[1]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/0/tone/0": {
+        "{urn:ipakit:pinyin}tone[0]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11475,7 +11475,7 @@
             "tone": []
           },
           "leaves": [
-            "/clock/0/tone/0"
+            "{urn:ipakit:pinyin}tone[0]"
           ],
           "parents": [],
           "routes": []

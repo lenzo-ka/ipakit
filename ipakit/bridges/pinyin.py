@@ -5,8 +5,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .._codecs import RenderLane, RenderProfile, render_graph
-from .._tiergraph import Event, Graph
+import tiergraph as tg
+
 from .vocabulary import VocabularyBridge
 
 _PATH = Path(__file__).parent.parent / "data" / "bridges" / "pinyin" / "pinyin.xml"
@@ -48,44 +48,66 @@ class PinyinBridge(VocabularyBridge):
         return max(lowered.rfind(vowel) for vowel in self.tones)
 
     def render(
-        self, graph: Graph, syllable_tier: str = "syllable", tone_tier: str = "tone"
+        self, graph: tg.Graph, syllable_tier: str = "syllable", tone_tier: str = "tone"
     ) -> str:
         """Render syllable events with their associated tone marks."""
 
-        tones: dict[str, int] = {}
-        for relation in graph.relations:
-            if relation.name != "associates-with" or len(relation.sources) != 1:
+        tones: dict[tg.ItemRef, int] = {}
+        for relation in graph.polyadic_relations:
+            if (
+                relation.declaration.local_name != "associates-with"
+                or len(relation.sources) != 1
+            ):
                 continue
-            source = graph.resolve(relation.sources[0])
-            if source.tier == tone_tier and source.event is not None:
-                level = source.event.features.get("value")
-                if isinstance(level, int):
-                    tones.update({target: level for target in relation.targets})
-
-        def syllable(event: Event) -> str:
-            spelling = str(
-                event.features.get("spelling", event.features.get("value", ""))
+            source = relation.sources[0]
+            if not isinstance(source, tg.ItemRef):
+                continue
+            if source.tier.local_name != tone_tier:
+                continue
+            source_tier = next(
+                tier for tier in graph.tiers if tier.declaration.name == source.tier
             )
-            # Compatibility indices identify the same event paths used by associations.
+            item = source_tier.items[source.index]
             level = next(
-                (tones.get(ref) for ref in tones if graph.resolve(ref).event is event),
+                (
+                    int(value.lexical)
+                    for value in item.attributes
+                    if value.name.local_name == "value"
+                ),
                 None,
             )
-            if level is None or level == 5:
-                return spelling
-            position = self.tone_index(spelling)
-            if position < 0 or not 1 <= level <= 4:
-                raise ValueError(f"tone {level!r} cannot be placed on {spelling!r}")
-            vowel = spelling[position].lower()
-            return (
-                spelling[:position]
-                + self.tones[vowel][level - 1]
-                + spelling[position + 1 :]
-            )
+            if level is not None:
+                tones.update(
+                    {
+                        target: level
+                        for target in relation.targets
+                        if isinstance(target, tg.ItemRef)
+                    }
+                )
 
-        return render_graph(
-            graph, RenderProfile((RenderLane(syllable_tier, "spelling", syllable),))
-        )
+        rendered = []
+        for tier in graph.tiers:
+            if tier.declaration.name.local_name != syllable_tier:
+                continue
+            for index, item in enumerate(tier.items):
+                attributes = {
+                    value.name.local_name: value.lexical for value in item.attributes
+                }
+                spelling = attributes.get("spelling", attributes.get("value", ""))
+                level = tones.get(tg.ItemRef(tier.declaration.name, index))
+                if level is None or level == 5:
+                    rendered.append(spelling)
+                    continue
+                position = self.tone_index(spelling)
+                if position < 0 or not 1 <= level <= 4:
+                    raise ValueError(f"tone {level!r} cannot be placed on {spelling!r}")
+                vowel = spelling[position].lower()
+                rendered.append(
+                    spelling[:position]
+                    + self.tones[vowel][level - 1]
+                    + spelling[position + 1 :]
+                )
+        return "".join(rendered)
 
 
 PINYIN = PinyinBridge()

@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
-from ._tiergraph import (
-    Declarations,
-    FeatureDeclaration,
-    Graph,
-    RelationDeclaration,
-    TierDeclaration,
-)
-from ._tiergraph_builder import GraphBuilder
+from tiergraph.build import document
+from tiergraph.build import item as graph_item
+
+import tiergraph as tg
+
 from .bridges.pinyin import PINYIN
 
 
@@ -23,6 +21,7 @@ class PinyinDialect:
 
 
 BASE_PINYIN = PinyinDialect()
+_NAMESPACE = "urn:ipakit:pinyin"
 
 
 def _decode_input(value: str, dialect: PinyinDialect) -> str:
@@ -31,35 +30,31 @@ def _decode_input(value: str, dialect: PinyinDialect) -> str:
     return value
 
 
-def declarations() -> Declarations:
-    names = ("spelling", "value", "role", "ipa")
-    return Declarations(
-        (
-            TierDeclaration("syllable", frozenset({"spelling", "ipa"})),
-            TierDeclaration("constituent", frozenset({"spelling", "role"})),
-            TierDeclaration("tone", frozenset({"value"})),
-            TierDeclaration("phonetic", frozenset({"ipa"})),
-        ),
-        tuple(FeatureDeclaration(n) for n in names),
-        (
-            RelationDeclaration(
-                "contains",
-                acyclic=True,
-                containment=True,
-                source_tiers=frozenset({"syllable"}),
-                target_tiers=frozenset({"constituent"}),
-            ),
-            RelationDeclaration(
-                "associates-with",
-                source_tiers=frozenset({"tone"}),
-                target_tiers=frozenset({"syllable"}),
-            ),
-            RelationDeclaration(
-                "realized-by",
-                source_tiers=frozenset({"syllable"}),
-                target_tiers=frozenset({"phonetic"}),
-            ),
-        ),
+def declarations() -> tuple[tg.AttributeDeclaration, ...]:
+    """Return native declarations for authoritative Pinyin item facts."""
+    return tuple(
+        tg.AttributeDeclaration(
+            tg.QualifiedName(_NAMESPACE, name),
+            tg.AttributeDomain.ITEM,
+            value_type,
+        )
+        for name, value_type in (
+            ("spelling", tg.XsdType.STRING),
+            ("value", tg.XsdType.INTEGER),
+            ("role", tg.XsdType.STRING),
+            ("ipa", tg.XsdType.STRING),
+        )
+    )
+
+
+def _relation_side(
+    tier: tg.QualifiedName, *, minimum: int = 1, maximum: int | None = 1
+) -> tg.RelationSideDeclaration:
+    return tg.RelationSideDeclaration(
+        (tg.RelationEndpointKind.ITEM,),
+        (tier,),
+        minimum=minimum,
+        maximum=maximum,
     )
 
 
@@ -72,36 +67,113 @@ def build(
     ipa: object | None = None,
     referenced: bool = False,
     dialect: PinyinDialect = BASE_PINYIN,
-) -> Graph:
+) -> tg.Graph:
+    """Build the native four-tier Pinyin graph and its declared relations."""
     spelling = _decode_input(spelling, dialect)
     onset = _decode_input(onset, dialect)
     rhyme = _decode_input(rhyme, dialect)
-    builder = GraphBuilder(declarations())
-    syllable = builder.append_input_atom(
+    builder = document(_NAMESPACE, prefix="pinyin")
+    for declaration in declarations():
+        builder.attribute(
+            declaration.name,
+            declaration.value_type,
+            domain=declaration.domain,
+        )
+
+    syllable = builder.tier(
         "syllable",
-        {
-            "spelling": spelling,
-            **({"ipa": ipa} if ipa is not None and not referenced else {}),
-        },
+        (
+            graph_item(
+                attrs={
+                    "spelling": spelling,
+                    **(
+                        {
+                            "ipa": json.dumps(
+                                ipa, ensure_ascii=False, separators=(",", ":")
+                            )
+                        }
+                        if ipa is not None and not referenced
+                        else {}
+                    ),
+                }
+            ),
+        ),
+        item_type="syllable",
+        membership="syllable-members",
     )
-    parts = []
-    if onset:
-        parts.append(
-            builder.add_event(
-                "constituent", 0, {"spelling": onset, "role": "onset"}, duration=0
+    constituent_values: tuple[tuple[str, str], ...] = (
+        ((onset, "onset"),) if onset else ()
+    )
+    constituent_values += ((rhyme, "rhyme-nucleus"),)
+    constituent = builder.tier(
+        "constituent",
+        (graph_item(spelling=value, role=role) for value, role in constituent_values),
+        item_type="constituent",
+        membership="constituent-members",
+    )
+    tone_tier = builder.tier(
+        "tone",
+        (graph_item(value=tone),),
+        item_type="tone",
+        membership="tone-members",
+    )
+    phonetic = builder.tier(
+        "phonetic",
+        (
+            (
+                graph_item(
+                    ipa=json.dumps(ipa, ensure_ascii=False, separators=(",", ":"))
+                ),
+            )
+            if ipa is not None and referenced
+            else ()
+        ),
+        item_type="phonetic",
+        membership="phonetic-members",
+    )
+
+    contains = builder.qname("contains")
+    associates = builder.qname("associates-with")
+    realized = builder.qname("realized-by")
+    builder.declare(
+        tg.PolyadicRelationDeclaration(
+            contains,
+            _relation_side(syllable.name),
+            _relation_side(constituent.name, maximum=None),
+            unique_sources=True,
+            acyclic=True,
+        )
+    )
+    builder.declare(
+        tg.PolyadicRelationDeclaration(
+            associates,
+            _relation_side(tone_tier.name),
+            _relation_side(syllable.name),
+        )
+    )
+    builder.declare(
+        tg.PolyadicRelationDeclaration(
+            realized,
+            _relation_side(syllable.name),
+            _relation_side(phonetic.name),
+        )
+    )
+    builder.relate(
+        tg.PolyadicRelationInstance(
+            contains,
+            (syllable.ref(0),),
+            tuple(constituent.ref(index) for index in range(len(constituent_values))),
+        )
+    )
+    builder.relate(
+        tg.PolyadicRelationInstance(associates, (tone_tier.ref(0),), (syllable.ref(0),))
+    )
+    if ipa is not None and referenced:
+        builder.relate(
+            tg.PolyadicRelationInstance(
+                realized, (syllable.ref(0),), (phonetic.ref(0),)
             )
         )
-    parts.append(
-        builder.add_event(
-            "constituent", 0, {"spelling": rhyme, "role": "rhyme-nucleus"}, duration=0
-        )
-    )
-    builder.contain(syllable, parts)
-    mark = builder.add_event("tone", 0, {"value": tone}, duration=0)
-    builder.relate((mark,), "associates-with", (syllable,))
-    if ipa is not None and referenced:
-        realization = builder.add_event("phonetic", 0, {"ipa": ipa}, duration=0)
-        builder.relate((syllable,), "realized-by", (realization,))
     return builder.build()
 
 
@@ -109,5 +181,5 @@ def tone_index(spelling: str) -> int:
     return PINYIN.tone_index(spelling)
 
 
-def render(graph: Graph) -> str:
+def render(graph: tg.Graph) -> str:
     return PINYIN.render(graph)

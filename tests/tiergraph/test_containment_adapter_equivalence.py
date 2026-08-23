@@ -66,6 +66,57 @@ def _embedded_mora_fixture() -> Graph:
     return builder.build()
 
 
+def _embedded_pinyin_fixture() -> Graph:
+    """Build the pre-migration Pinyin shape without the native builder."""
+    declarations = Declarations(
+        (
+            TierDeclaration("syllable", frozenset({"spelling", "ipa"})),
+            TierDeclaration("constituent", frozenset({"spelling", "role"})),
+            TierDeclaration("tone", frozenset({"value"})),
+            TierDeclaration("phonetic", frozenset({"ipa"})),
+        ),
+        tuple(
+            FeatureDeclaration(name) for name in ("spelling", "value", "role", "ipa")
+        ),
+        (
+            RelationDeclaration(
+                "contains",
+                acyclic=True,
+                containment=True,
+                source_tiers=frozenset({"syllable"}),
+                target_tiers=frozenset({"constituent"}),
+            ),
+            RelationDeclaration(
+                "associates-with",
+                source_tiers=frozenset({"tone"}),
+                target_tiers=frozenset({"syllable"}),
+            ),
+            RelationDeclaration(
+                "realized-by",
+                source_tiers=frozenset({"syllable"}),
+                target_tiers=frozenset({"phonetic"}),
+            ),
+        ),
+    )
+    builder = GraphBuilder(declarations)
+    syllable = builder.append_input_atom("syllable", {"spelling": "shui"})
+    parts = (
+        builder.add_event(
+            "constituent", 0, {"spelling": "sh", "role": "onset"}, duration=0
+        ),
+        builder.add_event(
+            "constituent",
+            0,
+            {"spelling": "ui", "role": "rhyme-nucleus"},
+            duration=0,
+        ),
+    )
+    builder.contain(syllable, parts)
+    mark = builder.add_event("tone", 0, {"value": 3}, duration=0)
+    builder.relate((mark,), "associates-with", (syllable,))
+    return builder.build()
+
+
 def _normalize(value: object, native_to_embedded: Mapping[str, str]) -> object:
     """Translate only complete native item references, preserving all structure."""
     if isinstance(value, str):
@@ -86,12 +137,13 @@ def _paths(
     name: str, graph: Graph | tiergraph.Graph
 ) -> tuple[Graph, tiergraph.Graph, dict[str, str]]:
     if isinstance(graph, tiergraph.Graph):
-        assert name in {"profile:cmu", "profile:mora"}
-        embedded = (
-            _embedded_cmu_fixture()
-            if name == "profile:cmu"
-            else _embedded_mora_fixture()
-        )
+        assert name in {"profile:cmu", "profile:mora", "profile:pinyin"}
+        fixtures = {
+            "profile:cmu": _embedded_cmu_fixture,
+            "profile:mora": _embedded_mora_fixture,
+            "profile:pinyin": _embedded_pinyin_fixture,
+        }
+        embedded = fixtures[name]()
         native = graph
         embedded_by_tier = {
             tier: tuple(
@@ -160,12 +212,21 @@ def test_native_adapter_equals_embedded_projection(
 
 
 def test_pinyin_polyadic_projection_is_admitted_and_equivalent() -> None:
-    embedded = next(graph for name, graph in corpus() if name == "profile:pinyin")
-    assert isinstance(embedded, Graph)
-    projection = ContainmentProjection.build(embedded)
-    adapter = _NativeContainment.build(projection.graph)
+    embedded = _embedded_pinyin_fixture()
+    native = next(graph for name, graph in corpus() if name == "profile:pinyin")
+    assert isinstance(native, tiergraph.Graph)
+    adapter = _NativeContainment.build(native)
+    embedded_by_tier = {
+        tier: tuple(
+            ref
+            for ref in embedded.event_references()
+            if embedded.resolve(ref).tier == tier
+        )
+        for tier in (declaration.name for declaration in embedded.declarations.tiers)
+    }
     native_to_embedded = {
-        str(native): old for native, old in projection.new_to_old.items()
+        str(ref): embedded_by_tier[ref.tier.local_name][ref.index]
+        for ref in native.canonical_items()
     }
 
     actual = {
@@ -179,7 +240,7 @@ def test_pinyin_polyadic_projection_is_admitted_and_equivalent() -> None:
             },
             native_to_embedded,
         )
-        for native in projection.new_to_old
+        for native in native.canonical_items()
     }
     expected = {
         ref: {

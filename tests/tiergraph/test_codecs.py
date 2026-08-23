@@ -11,15 +11,18 @@ from ipakit._codecs import (
     render_graph,
     render_pinyin,
 )
-from ipakit._gesture_backend import _tier_events
 from ipakit._ipa_graph import declarations, parse_signature, render_signature
+from ipakit._pinyin_graph import build as build_pinyin
 from ipakit._tiergraph import (
     Declarations,
     FeatureDeclaration,
-    RelationDeclaration,
     TierDeclaration,
 )
 from ipakit._tiergraph_builder import GraphBuilder
+from tiergraph.build import document
+from tiergraph.build import item as graph_item
+
+import tiergraph as tg
 
 
 def test_exact_and_canonical_spelling_are_distinct_contracts() -> None:
@@ -46,55 +49,40 @@ def test_renderer_only_emits_codec_declared_tiers() -> None:
 
 
 def test_pinyin_tone_surface_does_not_move_semantic_attachment() -> None:
-    declared = Declarations(
-        (
-            TierDeclaration("syllable", frozenset({"spelling"})),
-            TierDeclaration("tone", frozenset({"value"})),
-        ),
-        (FeatureDeclaration("spelling"), FeatureDeclaration("value")),
-        (
-            RelationDeclaration(
-                "associates-with",
-                source_tiers=frozenset({"tone"}),
-                target_tiers=frozenset({"syllable"}),
-            ),
-        ),
-    )
-    builder = GraphBuilder(declared)
-    syllable = builder.append_input_atom("syllable", {"spelling": "shui"})
-    tone = builder.add_event("tone", 0, {"value": 3}, duration=0)
-    builder.relate((tone,), "associates-with", (syllable,))
-    graph = builder.build()
+    graph = build_pinyin("shui", "sh", "ui", 3)
     assert render_pinyin(graph) == "shuǐ"
-    assert graph.relations[0].targets == ("/clock/0/syllable/0",)
-
-
-def test_pointer_formatters_use_the_kernel_escape() -> None:
-    tier = "a/b~c"
-    declared = Declarations(
-        (
-            TierDeclaration(tier, frozenset({"spelling"})),
-            TierDeclaration("tone", frozenset({"value"})),
-        ),
-        (FeatureDeclaration("spelling"), FeatureDeclaration("value")),
-        (
-            RelationDeclaration(
-                "associates-with",
-                source_tiers=frozenset({"tone"}),
-                target_tiers=frozenset({tier}),
-            ),
-        ),
+    association = next(
+        relation
+        for relation in graph.polyadic_relations
+        if relation.declaration.local_name == "associates-with"
     )
-    builder = GraphBuilder(declared)
-    syllable = builder.append_input_atom(tier, {"spelling": "ma"})
-    tone = builder.add_event("tone", 0, {"value": 1}, duration=0)
-    builder.relate((tone,), "associates-with", (syllable,))
-    graph = builder.build()
+    assert association.targets[0].tier.local_name == "syllable"
 
-    reference, event = _tier_events(graph, tier)[0]
-    assert reference == graph.event_references()[0] == "/clock/0/a~1b~0c/0"
-    assert graph.resolve(reference).event is event
-    assert render_pinyin(graph, syllable_tier=tier) == "mā"
+
+def test_pinyin_renderer_accepts_native_qualified_tier_names() -> None:
+    tier = "a/b~c"
+    builder = document("urn:test:pinyin", prefix="test")
+    builder.attribute("spelling", tg.XsdType.STRING)
+    builder.attribute("value", tg.XsdType.INTEGER)
+    syllables = builder.tier(
+        tier, (graph_item(spelling="ma"),), item_type=tier, membership="syllables"
+    )
+    tones = builder.tier(
+        "tone", (graph_item(value=1),), item_type="tone", membership="tones"
+    )
+    relation = builder.qname("associates-with")
+    item_side = (tg.RelationEndpointKind.ITEM,)
+    builder.declare(
+        tg.PolyadicRelationDeclaration(
+            relation,
+            tg.RelationSideDeclaration(item_side, (tones.name,), maximum=1),
+            tg.RelationSideDeclaration(item_side, (syllables.name,), maximum=1),
+        )
+    )
+    builder.relate(
+        tg.PolyadicRelationInstance(relation, (tones.ref(0),), (syllables.ref(0),))
+    )
+    assert render_pinyin(builder.build(), syllable_tier=tier) == "mā"
 
 
 def _delivery_graph(stress: tuple[str, ...]):
