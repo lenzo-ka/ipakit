@@ -464,6 +464,7 @@ class TestIdentityHolds:
     where named cases are exactly what nobody writes.
     """
 
+    @pytest.mark.slow
     def test_every_unit_is_at_zero_from_itself_through_every_entry_point(
         self, ipa: IPAFeatures
     ) -> None:

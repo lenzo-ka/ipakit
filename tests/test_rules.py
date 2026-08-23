@@ -1033,6 +1033,7 @@ class TestABoundaryRunIsOneBoundary:
     #: A run of one and of two, for every mark that can carry a form edge.
     RUNS = tuple(mark * n for mark in EDGE_MARKS for n in (1, 2))
 
+    @pytest.mark.slow
     def test_the_invariant_over_every_rule_kind_and_every_boundary(self):
         """The sweep. ``strip`` removes the run that was written and no
         more, which is what makes this sharp: an insertion that lands
@@ -1882,6 +1883,7 @@ class TestClearingProsodyReportsWhatItActuallyDid:
         assert written is not None
         assert _prosody_of(written.to_ipa()) == {}
 
+    @pytest.mark.slow
     def test_every_answered_clear_actually_cleared(self):
         """The sweep, over every tier every unit in the corpus reads.
 

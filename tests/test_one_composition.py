@@ -75,6 +75,7 @@ class TestTheSweep:
                 continue
             assert _phonetic(flat) == _phonetic(unit.scalar()), text
 
+    @pytest.mark.slow
     def test_compose_is_the_same_read_off_prosody(
         self, ipa: IPAFeatures, units: list[tuple[str, Segment]]
     ) -> None:

@@ -1589,6 +1589,7 @@ def test_nasal_floor_truncation_still_varies_every_pair() -> None:
 
 
 @pytest.mark.parametrize("head_name", sorted(heads()))
+@pytest.mark.slow
 def test_upper_lip_never_enters_nose_over_inventory(
     head_name: str, tmp_path: Path
 ) -> None:
@@ -1758,6 +1759,7 @@ def test_velum_annotation_tracks_model(aperture: float, state: str) -> None:
     assert f"port {state}" in svg
 
 
+@pytest.mark.slow
 def test_velum_and_tongue_never_interpenetrate(tmp_path: Path) -> None:
     """Filled interiors never penetrate under geometric contact.
 
@@ -1802,6 +1804,7 @@ def test_velum_and_tongue_never_interpenetrate(tmp_path: Path) -> None:
 VELUM_SURVIVAL = 0.90
 
 
+@pytest.mark.slow
 def test_every_velum_survives_contact_with_the_tongue(tmp_path: Path) -> None:
     """Geometric contact must not erase the roof that the tongue meets.
 

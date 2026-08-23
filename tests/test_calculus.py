@@ -396,6 +396,7 @@ class TestApplyingToAnOutputSetIsConcatenation:
     than an equivalent answer.
     """
 
+    @pytest.mark.slow
     def test_the_sweep(self) -> None:
         corpus = _forms("atəe", (1, 2, 3, 4))
         pairs = list(itertools.combinations_with_replacement(range(len(RULES)), 2))
@@ -425,6 +426,7 @@ class TestApplyingToAnOutputSetIsConcatenation:
 
 
 class TestConcatenationIsAssociative:
+    @pytest.mark.slow
     def test_three_rule_sets_agree_however_they_are_bracketed(self) -> None:
         corpus = _forms("ate", (2, 3))[:40]
         assert len(corpus) >= 30, "sweep did not run"
@@ -724,6 +726,7 @@ class TestACompleteAnswerHoldsEveryForm:
             )
         ]
 
+    @pytest.mark.slow
     def test_swept_a_complete_answer_is_missing_nothing(self) -> None:
         """Three tallies, and each of them has to be non-trivial.
 

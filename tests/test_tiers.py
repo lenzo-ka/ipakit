@@ -15,6 +15,7 @@ from ipakit import IPAFeatures
 SHIPPED = Path(__file__).resolve().parents[1] / "ipakit" / "data" / "ipa.xml"
 
 
+@pytest.mark.slow
 class TestTheTierVocabularyIsDeclaredAndNominal:
     def test_the_tier_names_are_declared_rather_than_written_in_python(
         self, ipa: IPAFeatures
