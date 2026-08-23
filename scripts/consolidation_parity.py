@@ -16,7 +16,6 @@ sys.path.insert(0, str(ROOT))
 from ipakit import FormBuilder, IPAFeatures  # noqa: E402
 from ipakit._cmu_graph import read as read_cmu  # noqa: E402
 from ipakit._mora_graph import build as build_mora  # noqa: E402
-from ipakit._mora_graph import declarations as mora_declarations  # noqa: E402
 from ipakit._pinyin_graph import build as build_pinyin  # noqa: E402
 from ipakit._tiergraph import (  # noqa: E402
     Declarations,
@@ -96,7 +95,7 @@ def corpus_bytes() -> bytes:
         "build": built_wire,
         "cmu": _wire(cmu),
         "escaped": escaped_wire,
-        "mora": _wire(mora, Model("moraic-gairaigo", "1", mora_declarations())),
+        "mora": _wire(mora),
         "parse": parsed_wire,
         "pinyin": json.dumps(
             pinyin.to_data(), ensure_ascii=False, separators=(",", ":")

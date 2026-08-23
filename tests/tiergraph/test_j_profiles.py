@@ -17,13 +17,11 @@ from ipakit._cmu_graph import (
 from ipakit._codecs import render_pinyin as render_generic_pinyin
 from ipakit._katakana_codec import render as render_katakana
 from ipakit._mora_graph import build as build_mora_tone
-from ipakit._mora_graph import declarations as mora_declarations
 from ipakit._pinyin_graph import build as build_pinyin
 from ipakit._pinyin_graph import render as render_pinyin
 from ipakit._pinyin_graph import tone_index
 from ipakit._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
 from ipakit._tiergraph import Graph
-from ipakit._tiergraph_json import Model, dumps, loads
 
 import tiergraph
 
@@ -120,11 +118,26 @@ def test_pinyin_referenced_phonetic_realization_is_optional():
 
 def test_tone_associates_with_multiple_morae_and_round_trips():
     graph = build_mora_tone(("to", "o"), "high")
-    model = Model("moraic-gairaigo", "1", mora_declarations())
-    restored = loads(dumps(graph, model), model)
+    assert isinstance(graph, tiergraph.Graph)
+    wire = tiergraph.wire.dumps(graph)
+    restored = tiergraph.wire.loads(wire)
     assert restored == graph
-    association = restored.relations[0]
-    assert association.targets == ("/clock/0/mora/0", "/clock/1/mora/0")
+    mora_tier, tone_tier = restored.tiers
+    assert [
+        next(attribute.lexical for attribute in item.attributes)
+        for item in mora_tier.items
+    ] == ["to", "o"]
+    assert next(attribute.lexical for attribute in tone_tier.items[0].attributes) == (
+        "high"
+    )
+    association = restored.polyadic_relations[0]
+    assert association.sources == (tiergraph.ItemRef(tone_tier.declaration.name, 0),)
+    assert association.targets == (
+        tiergraph.ItemRef(mora_tier.declaration.name, 0),
+        tiergraph.ItemRef(mora_tier.declaration.name, 1),
+    )
+    assert '"lexical": "to"' in wire and '"name": "mora:value"' in wire
+    assert '"lexical": "high"' in wire and '"name": "mora:tone"' in wire
 
 
 EXPECTED_KANA = {
