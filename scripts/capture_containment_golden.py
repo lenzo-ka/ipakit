@@ -168,17 +168,18 @@ def render() -> str:
             text=True,
         ).stdout
 
-    # Every embedded fixture remains the captured legacy oracle.  CMU is the
-    # pilot native subsystem, so replace exactly that slice with the current
-    # tiergraph traversal adapter's answer.
+    # Every embedded fixture remains the captured legacy oracle.  Replace only
+    # the migrated native subsystem slices with the current adapter's answers.
     from containment_oracle import _answers, _as_json, _structural_class, corpus
 
-    cmu = next(graph for name, graph in corpus() if name == "profile:cmu")
     payload = json.loads(rendered)
-    payload["fixtures"]["profile:cmu"] = {
-        "class": _as_json(_structural_class(cmu)),
-        "answers": _as_json(_answers(cmu)),
-    }
+    graphs = dict(corpus())
+    for name in ("profile:cmu", "profile:mora"):
+        graph = graphs[name]
+        payload["fixtures"][name] = {
+            "class": _as_json(_structural_class(graph)),
+            "answers": _as_json(_answers(graph)),
+        }
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 

@@ -2,39 +2,67 @@
 
 from __future__ import annotations
 
-from ._tiergraph import (
-    Declarations,
-    FeatureDeclaration,
-    Graph,
-    RelationDeclaration,
-    TierDeclaration,
-)
-from ._tiergraph_builder import GraphBuilder
+from tiergraph.build import document
+from tiergraph.build import item as graph_item
+
+import tiergraph as tg
+
+_NAMESPACE = "urn:ipakit:mora"
 
 
-def declarations() -> Declarations:
-    return Declarations(
-        (
-            TierDeclaration("mora", frozenset({"value"})),
-            TierDeclaration("tone", frozenset({"tone"})),
-        ),
-        (FeatureDeclaration("value"), FeatureDeclaration("tone")),
-        (
-            RelationDeclaration(
-                "associates-with",
-                source_tiers=frozenset({"tone"}),
-                target_tiers=frozenset({"mora"}),
-                target_arity=(1, None),
+def declarations() -> tuple[tg.AttributeDeclaration, ...]:
+    """Return the native declarations for authoritative mora item facts."""
+    return tuple(
+        tg.AttributeDeclaration(
+            tg.QualifiedName(_NAMESPACE, name),
+            tg.AttributeDomain.ITEM,
+            tg.XsdType.STRING,
+        )
+        for name in ("value", "tone")
+    )
+
+
+def build(morae: tuple[str, ...], tone: str) -> tg.Graph:
+    """Build a native mora graph with one tone-to-mora association."""
+    builder = document(_NAMESPACE, prefix="mora")
+    for declaration in declarations():
+        builder.attribute(
+            declaration.name,
+            declaration.value_type,
+            domain=declaration.domain,
+        )
+
+    mora_tier = builder.tier(
+        "mora",
+        (graph_item(value=value) for value in morae),
+        item_type="mora",
+        membership="mora-members",
+    )
+    tone_tier = builder.tier(
+        "tone",
+        (graph_item(tone=tone),),
+        item_type="tone",
+        membership="tone-members",
+    )
+
+    association = builder.qname("associates-with")
+    item_side = (tg.RelationEndpointKind.ITEM,)
+    builder.declare(
+        tg.PolyadicRelationDeclaration(
+            association,
+            tg.RelationSideDeclaration(
+                item_side, (tone_tier.name,), minimum=1, maximum=1
             ),
-        ),
+            tg.RelationSideDeclaration(
+                item_side, (mora_tier.name,), minimum=1, maximum=None
+            ),
+        )
     )
-
-
-def build(morae: tuple[str, ...], tone: str) -> Graph:
-    builder = GraphBuilder(declarations())
-    hosts = tuple(
-        builder.append_input_atom("mora", {"value": value}) for value in morae
+    builder.relate(
+        tg.PolyadicRelationInstance(
+            association,
+            (tone_tier.ref(0),),
+            tuple(mora_tier.ref(index) for index in range(len(morae))),
+        )
     )
-    tone_event = builder.add_event("tone", 0, {"tone": tone}, duration=0)
-    builder.relate((tone_event,), "associates-with", hosts)
     return builder.build()

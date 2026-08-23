@@ -10,6 +10,7 @@ from ipakit._tiergraph import (
     Declarations,
     FeatureDeclaration,
     Graph,
+    RelationDeclaration,
     TierDeclaration,
 )
 from ipakit._tiergraph_builder import GraphBuilder
@@ -39,6 +40,32 @@ def _embedded_cmu_fixture() -> Graph:
     return builder.build()
 
 
+def _embedded_mora_fixture() -> Graph:
+    """Build the pre-migration mora shape without calling the native builder."""
+    declarations = Declarations(
+        (
+            TierDeclaration("mora", frozenset({"value"})),
+            TierDeclaration("tone", frozenset({"tone"})),
+        ),
+        (FeatureDeclaration("value"), FeatureDeclaration("tone")),
+        (
+            RelationDeclaration(
+                "associates-with",
+                source_tiers=frozenset({"tone"}),
+                target_tiers=frozenset({"mora"}),
+                target_arity=(1, None),
+            ),
+        ),
+    )
+    builder = GraphBuilder(declarations)
+    hosts = tuple(
+        builder.append_input_atom("mora", {"value": value}) for value in ("to", "o")
+    )
+    tone = builder.add_event("tone", 0, {"tone": "high"}, duration=0)
+    builder.relate((tone,), "associates-with", hosts)
+    return builder.build()
+
+
 def _normalize(value: object, native_to_embedded: Mapping[str, str]) -> object:
     """Translate only complete native item references, preserving all structure."""
     if isinstance(value, str):
@@ -59,13 +86,28 @@ def _paths(
     name: str, graph: Graph | tiergraph.Graph
 ) -> tuple[Graph, tiergraph.Graph, dict[str, str]]:
     if isinstance(graph, tiergraph.Graph):
-        assert name == "profile:cmu"
-        embedded = _embedded_cmu_fixture()
+        assert name in {"profile:cmu", "profile:mora"}
+        embedded = (
+            _embedded_cmu_fixture()
+            if name == "profile:cmu"
+            else _embedded_mora_fixture()
+        )
         native = graph
-        native_refs = tuple(str(ref) for ref in native.canonical_items())
-        embedded_refs = embedded.event_references()
-        assert len(native_refs) == len(embedded_refs)
-        return embedded, native, dict(zip(native_refs, embedded_refs, strict=True))
+        embedded_by_tier = {
+            tier: tuple(
+                ref
+                for ref in embedded.event_references()
+                if embedded.resolve(ref).tier == tier
+            )
+            for tier in (
+                declaration.name for declaration in embedded.declarations.tiers
+            )
+        }
+        native_to_embedded = {
+            str(ref): embedded_by_tier[ref.tier.local_name][ref.index]
+            for ref in native.canonical_items()
+        }
+        return embedded, native, native_to_embedded
 
     embedded = graph
     projection = ContainmentProjection.build(embedded)

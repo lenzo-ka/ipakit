@@ -11237,7 +11237,7 @@
     },
     "profile:mora": {
       "answers": {
-        "/clock/0/mora/0": {
+        "{urn:ipakit:mora}mora[0]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11250,12 +11250,12 @@
             "tone": []
           },
           "leaves": [
-            "/clock/0/mora/0"
+            "{urn:ipakit:mora}mora[0]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/0/tone/0": {
+        "{urn:ipakit:mora}mora[1]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11268,12 +11268,12 @@
             "tone": []
           },
           "leaves": [
-            "/clock/0/tone/0"
+            "{urn:ipakit:mora}mora[1]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/1/mora/0": {
+        "{urn:ipakit:mora}tone[0]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11286,7 +11286,7 @@
             "tone": []
           },
           "leaves": [
-            "/clock/1/mora/0"
+            "{urn:ipakit:mora}tone[0]"
           ],
           "parents": [],
           "routes": []
