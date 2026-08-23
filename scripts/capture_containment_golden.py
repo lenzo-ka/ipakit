@@ -174,7 +174,7 @@ def render() -> str:
 
     payload = json.loads(rendered)
     graphs = dict(corpus())
-    for name in ("profile:cmu", "profile:mora"):
+    for name in ("profile:cmu", "profile:pinyin", "profile:mora"):
         graph = graphs[name]
         payload["fixtures"][name] = {
             "class": _as_json(_structural_class(graph)),

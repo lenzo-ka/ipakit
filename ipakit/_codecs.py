@@ -11,6 +11,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import tiergraph as tg
+
 from ._tiergraph import Event, Graph, _escape
 
 ValueRenderer = Callable[[Event], str]
@@ -125,7 +127,7 @@ def ipa_profile(*, exact: bool = False) -> RenderProfile:
 
 
 def render_pinyin(
-    graph: Graph, syllable_tier: str = "syllable", tone_tier: str = "tone"
+    graph: tg.Graph, syllable_tier: str = "syllable", tone_tier: str = "tone"
 ) -> str:
     """Place syllable-hosted tone on the nucleus selected by Pinyin spelling."""
 

@@ -97,14 +97,8 @@ def corpus_bytes() -> bytes:
         "escaped": escaped_wire,
         "mora": _wire(mora),
         "parse": parsed_wire,
-        "pinyin": json.dumps(
-            pinyin.to_data(), ensure_ascii=False, separators=(",", ":")
-        ),
+        "pinyin": _wire(pinyin),
     }
-    restored_pinyin = Graph.from_data(
-        pinyin.declarations, json.loads(payload["pinyin"])
-    )
-    assert restored_pinyin == pinyin
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
 
 
