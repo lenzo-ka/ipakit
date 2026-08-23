@@ -48,8 +48,8 @@ def test_cmu_family_capabilities_and_stress_projection_are_declared():
     assert graph.to_data() == before
     assert projection_losses(graph, POCKETSPHINX)[0].feature == "stress"
     stressless = read(("IY",), POCKETSPHINX)
-    event = stressless.resolve("/clock/0/phone/0").event
-    assert event is not None and "stress" not in event.features
+    item = stressless.tiers[0].items[0]
+    assert all(attribute.name.local_name != "stress" for attribute in item.attributes)
 
 
 def test_cmu_stress_digit_requires_a_declared_phone_policy():

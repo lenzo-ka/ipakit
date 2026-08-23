@@ -36,10 +36,11 @@ def test_declarations_are_referenced_and_fingerprinted_over_canonical_identity()
         == "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
     )
     graph = read_cmu(("AH1",))
-    model = Model("cmudict", "base-1", graph.declarations)
-    envelope = json.loads(dumps(graph, model))
-    assert envelope["model"] == {"name": "cmudict", "version": "base-1"}
-    assert "declarations" not in envelope["model"]
+    data = graph.to_data()
+    assert data["namespaces"] == [{"prefix": "cmu", "namespace": "https://ipakit/cmu"}]
+    assert [tier["declaration"]["name"]["local_name"] for tier in data["tiers"]] == [
+        "phone"
+    ]
 
 
 def test_feature_keys_are_lexical_including_inventory_extensions() -> None:
@@ -107,8 +108,11 @@ def test_ipa_resolved_views_are_opt_in_but_cmu_facts_are_authoritative() -> None
     assert "features" not in form.to_dict()["units"][0]
     assert "features" in form.to_dict(self_contained=True)["units"][0]
     cmu = read_cmu(("AH1",))
-    event = cmu.resolve("/clock/0/phone/0").event
-    assert event is not None and event.features["stress"] == "primary"
+    attributes = {
+        attribute.name.local_name: attribute.lexical
+        for attribute in cmu.tiers[0].items[0].attributes
+    }
+    assert attributes["stress"] == "primary"
 
 
 def test_rendering_selection_is_profile_explicit_and_choices_never_guess() -> None:

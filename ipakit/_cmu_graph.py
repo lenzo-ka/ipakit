@@ -8,10 +8,32 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from ._tiergraph import Declarations, FeatureDeclaration, Graph, TierDeclaration
-from ._tiergraph_builder import GraphBuilder
+from tiergraph.core import (
+    AttributeDeclaration,
+    AttributeDomain,
+    AttributeValue,
+    Graph,
+    ItemRef,
+    NamespaceDeclaration,
+    QualifiedName,
+    TierDeclaration,
+    XsdType,
+)
+from tiergraph.machine import (
+    AddItem,
+    AttachValue,
+    DeclareAttribute,
+    DeclareNamespace,
+    DeclareTier,
+    Opcode,
+    Program,
+)
 
 _MAP = Path(__file__).parent / "data" / "phonemaps" / "cmu.xml"
+_NAMESPACE = "https://ipakit/cmu"
+_PHONE_TIER = QualifiedName(_NAMESPACE, "phone")
+_PHONE_ATTRIBUTE = QualifiedName(_NAMESPACE, "phone")
+_STRESS_ATTRIBUTE = QualifiedName(_NAMESPACE, "stress")
 
 
 @dataclass(frozen=True)
@@ -78,53 +100,84 @@ IPA_PROJECTION_LOSSES = (
 )
 
 
-def declarations() -> Declarations:
-    features = (FeatureDeclaration("phone"), FeatureDeclaration("stress"))
-    return Declarations(
-        (TierDeclaration("phone", frozenset(f.name for f in features)),), features, ()
+def declarations() -> tuple[
+    NamespaceDeclaration,
+    TierDeclaration,
+    AttributeDeclaration,
+    AttributeDeclaration,
+]:
+    return (
+        NamespaceDeclaration("cmu", _NAMESPACE),
+        TierDeclaration(_PHONE_TIER, "phone"),
+        AttributeDeclaration(_PHONE_ATTRIBUTE, AttributeDomain.ITEM, XsdType.STRING),
+        AttributeDeclaration(_STRESS_ATTRIBUTE, AttributeDomain.ITEM, XsdType.STRING),
     )
 
 
 def read(tokens: Iterable[str], dialect: CMUDialect = BASE_CMUDICT) -> Graph:
-    """Construct through the canonical builder from already-tokenized phones."""
-    builder = GraphBuilder(declarations())
+    """Construct through the canonical machine from already-tokenized phones."""
+    namespace, tier, phone_attribute, stress_attribute = declarations()
+    opcodes: list[Opcode] = [
+        DeclareNamespace(namespace),
+        DeclareTier(tier),
+        DeclareAttribute(phone_attribute),
+        DeclareAttribute(stress_attribute),
+    ]
     stress_values = _stress_values()
-    for token in tokens:
+    for index, token in enumerate(tokens):
         digit = token[-1:] if token[-1:].isdigit() else ""
         phone = token[:-1] if digit else token
         if phone not in dialect.inventory and phone not in dialect.boundaries:
             raise ValueError(f"undeclared {dialect.name} phone: {token}")
-        facts: dict[str, str] = {"phone": phone}
+        stress: str | None = None
         if dialect.preserves_stress:
             policy = _STRESS_POLICY.get(phone, frozenset())
             if (policy or digit) and digit not in policy:
                 raise ValueError(f"invalid {dialect.name} stress: {token}")
             if digit:
-                facts["stress"] = stress_values[digit]
+                stress = stress_values[digit]
         elif digit:
             raise ValueError(f"stress is not accepted by {dialect.name}: {token}")
-        builder.append_input_atom("phone", facts)
-    return builder.build()
+        target = ItemRef(_PHONE_TIER, index)
+        opcodes.extend(
+            (
+                AddItem(_PHONE_TIER),
+                AttachValue(
+                    AttributeDomain.ITEM,
+                    target,
+                    AttributeValue(_PHONE_ATTRIBUTE, XsdType.STRING, phone),
+                ),
+            )
+        )
+        if stress is not None:
+            opcodes.append(
+                AttachValue(
+                    AttributeDomain.ITEM,
+                    target,
+                    AttributeValue(_STRESS_ATTRIBUTE, XsdType.STRING, stress),
+                )
+            )
+    return Program(tuple(opcodes)).unroll().graph
 
 
 def render(graph: Graph, dialect: CMUDialect = BASE_CMUDICT) -> tuple[str, ...]:
     reverse = {value: key for key, value in _stress_values().items()}
     result = []
-    for node in graph.clock:
-        for group in node.groups:
-            if group.tier != "phone":
-                continue
-            for event in group.events:
-                phone = str(event.features["phone"])
-                stress = event.features.get("stress")
-                result.append(
-                    phone
-                    + (
-                        reverse[str(stress)]
-                        if dialect.preserves_stress and stress is not None
-                        else ""
-                    )
+    for tier in graph.tiers:
+        if tier.declaration.name != _PHONE_TIER:
+            continue
+        for item in tier.items:
+            attributes = {value.name: value.lexical for value in item.attributes}
+            phone = attributes[_PHONE_ATTRIBUTE]
+            stress = attributes.get(_STRESS_ATTRIBUTE)
+            result.append(
+                phone
+                + (
+                    reverse[str(stress)]
+                    if dialect.preserves_stress and stress is not None
+                    else ""
                 )
+            )
     return tuple(result)
 
 
@@ -132,10 +185,10 @@ def projection_losses(graph: Graph, dialect: CMUDialect) -> tuple[ProjectionLoss
     if dialect.preserves_stress:
         return ()
     if any(
-        "stress" in event.features
-        for node in graph.clock
-        for group in node.groups
-        for event in group.events
+        value.name == _STRESS_ATTRIBUTE
+        for tier in graph.tiers
+        for item in tier.items
+        for value in item.attributes
     ):
         return (ProjectionLoss("stress", "target dialect has no stress notation"),)
     return ()
