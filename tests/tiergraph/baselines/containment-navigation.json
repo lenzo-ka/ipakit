@@ -844,7 +844,7 @@
     },
     "profile:cmu": {
       "answers": {
-        "/clock/0/phone/0": {
+        "{urn:ipakit:cmu}phone[0]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -855,12 +855,12 @@
             "phone": []
           },
           "leaves": [
-            "/clock/0/phone/0"
+            "{urn:ipakit:cmu}phone[0]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/1/phone/0": {
+        "{urn:ipakit:cmu}phone[1]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -871,12 +871,12 @@
             "phone": []
           },
           "leaves": [
-            "/clock/1/phone/0"
+            "{urn:ipakit:cmu}phone[1]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/2/phone/0": {
+        "{urn:ipakit:cmu}phone[2]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -887,7 +887,7 @@
             "phone": []
           },
           "leaves": [
-            "/clock/2/phone/0"
+            "{urn:ipakit:cmu}phone[2]"
           ],
           "parents": [],
           "routes": []
