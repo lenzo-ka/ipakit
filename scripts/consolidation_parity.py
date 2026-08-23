@@ -14,7 +14,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ipakit import FormBuilder, IPAFeatures  # noqa: E402
-from ipakit._cmu_graph import declarations as cmu_declarations  # noqa: E402
 from ipakit._cmu_graph import read as read_cmu  # noqa: E402
 from ipakit._mora_graph import build as build_mora  # noqa: E402
 from ipakit._mora_graph import declarations as mora_declarations  # noqa: E402
@@ -32,12 +31,13 @@ from ipakit._tiergraph_json import Model, dumps, loads  # noqa: E402
 DIGEST = ROOT / "scripts" / "consolidation_parity.sha256"
 
 
-def _wire(graph: Graph, model: Model) -> str:
+def _wire(graph: Graph | tiergraph.Graph, model: Model | None = None) -> str:
     if isinstance(graph, tiergraph.Graph):
         wire = tiergraph.wire.dumps(graph)
         assert tiergraph.wire.loads(wire) == graph
         assert tiergraph.wire.dumps(tiergraph.wire.loads(wire)) == wire
         return wire
+    assert model is not None
     wire = dumps(graph, model)
     assert dumps(loads(wire, model), model) == wire
     return wire
@@ -94,7 +94,7 @@ def corpus_bytes() -> bytes:
 
     payload = {
         "build": built_wire,
-        "cmu": _wire(cmu, Model("cmudict", "base-1", cmu_declarations())),
+        "cmu": _wire(cmu),
         "escaped": escaped_wire,
         "mora": _wire(mora, Model("moraic-gairaigo", "1", mora_declarations())),
         "parse": parsed_wire,

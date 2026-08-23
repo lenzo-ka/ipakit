@@ -231,15 +231,188 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
     )
 
 
+@dataclass(frozen=True)
+class _NativeContainment:
+    """Present tiergraph containment with the legacy oracle's combined semantics."""
+
+    graph: tiergraph.Graph
+    refs: dict[str, tiergraph.ItemRef]
+    traversals: tuple[tuple[object, tiergraph.OrderedContainment], ...]
+    parent_order: dict[tuple[str, str, object], int]
+
+    @classmethod
+    def build(cls, graph: tiergraph.Graph) -> _NativeContainment:
+        traversals = []
+        for declaration in graph.relation_declarations:
+            if not isinstance(declaration, tiergraph.PolyadicRelationDeclaration):
+                continue
+            try:
+                traversal = tiergraph.OrderedContainment(graph, declaration.name)
+            except ValueError:
+                continue
+            traversals.append((declaration.name, traversal))
+        active = tuple(
+            dict.fromkeys(
+                relation.declaration
+                for relation in graph.polyadic_relations
+                if any(name == relation.declaration for name, _ in traversals)
+            )
+        )
+        order = (*active, *(name for name, _ in traversals if name not in active))
+        by_name = dict(traversals)
+        refs = {str(ref): ref for ref in graph.canonical_items()}
+        parent_order = {
+            (str(target), str(source), relation.declaration): rank
+            for rank, relation in enumerate(graph.polyadic_relations)
+            if relation.declaration in by_name
+            for target in relation.targets
+            for source in relation.sources
+            if isinstance(target, tiergraph.ItemRef)
+            and isinstance(source, tiergraph.ItemRef)
+        }
+        return cls(
+            graph,
+            refs,
+            tuple((name, by_name[name]) for name in order),
+            parent_order,
+        )
+
+    @staticmethod
+    def _refs(nodes: object) -> tuple[str, ...]:
+        return tuple(
+            str(node.reference)
+            for node in nodes.nodes  # type: ignore[attr-defined]
+            if isinstance(node.reference, tiergraph.ItemRef)
+        )
+
+    def _for_parent(
+        self, parent: tiergraph.ItemRef
+    ) -> tuple[tuple[object, tiergraph.OrderedContainment], ...]:
+        active = tuple(
+            dict.fromkeys(
+                relation.declaration
+                for relation in self.graph.polyadic_relations
+                if parent in relation.sources
+                and any(name == relation.declaration for name, _ in self.traversals)
+            )
+        )
+        return tuple(
+            (*((name, dict(self.traversals)[name]) for name in active),)
+        ) + tuple(pair for pair in self.traversals if pair[0] not in active)
+
+    def _admits(
+        self, relation_name: object, item: tiergraph.ItemRef, *, side: str
+    ) -> bool:
+        declaration = next(
+            declaration
+            for declaration in self.graph.relation_declarations
+            if declaration.name == relation_name
+        )
+        assert isinstance(declaration, tiergraph.PolyadicRelationDeclaration)
+        admitted = (
+            declaration.sources.tiers if side == "source" else declaration.targets.tiers
+        )
+        # OrderedContainment rejects a non-admitted origin.  The embedded
+        # projection instead treats that relation's fiber as empty, including
+        # the distinction between unrestricted (None) and no admitted tiers
+        # (()).
+        return admitted is None or item.tier in admitted
+
+    def direct_children(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
+        ref = self.refs[parent]
+        children = tuple(
+            child
+            for name, traversal in self._for_parent(ref)
+            if self._admits(name, ref, side="source")
+            for child in self._refs(traversal.direct_children(ref))
+        )
+        if tier is None:
+            return children
+        return tuple(
+            child
+            for child in children
+            if self.graph.tiers[
+                next(
+                    index
+                    for index, value in enumerate(self.graph.tiers)
+                    if value.declaration.name == self.refs[child].tier
+                )
+            ].declaration.long_name
+            == tier
+        )
+
+    def descendants(self, parent: str, tier: str | None = None) -> tuple[str, ...]:
+        result = []
+        pending = list(self.direct_children(parent))
+        visited = {parent}
+        while pending:
+            child = pending.pop(0)
+            if child in visited:
+                continue
+            visited.add(child)
+            ref = self.refs[child]
+            tier_name = next(
+                value.declaration.long_name
+                for value in self.graph.tiers
+                if value.declaration.name == ref.tier
+            )
+            if tier is None or tier_name == tier:
+                result.append(child)
+            pending[0:0] = self.direct_children(child)
+        return tuple(result)
+
+    def leaves(self, parent: str) -> tuple[str, ...]:
+        visited: set[str] = set()
+
+        def walk(item: str) -> tuple[str, ...]:
+            if item in visited:
+                return ()
+            visited.add(item)
+            children = self.direct_children(item)
+            if not children:
+                return (item,)
+            return tuple(leaf for child in children for leaf in walk(child))
+
+        return walk(parent)
+
+    def parents(self, child: str) -> tuple[str, ...]:
+        ref = self.refs[child]
+        parents = [
+            (parent, name)
+            for name, traversal in self.traversals
+            if self._admits(name, ref, side="target")
+            for parent in self._refs(traversal.parents(ref))
+        ]
+        return tuple(
+            parent
+            for parent, name in sorted(
+                parents,
+                key=lambda pair: self.parent_order.get((child, pair[0], pair[1]), -1),
+            )
+        )
+
+    def ancestors(self, child: str) -> tuple[str, ...]:
+        result = []
+        pending = list(self.parents(child))
+        while pending:
+            parent = pending.pop(0)
+            if parent not in result:
+                result.append(parent)
+                pending.extend(self.parents(parent))
+        return tuple(result)
+
+
 def _answers(graph: Graph) -> dict[str, object]:
     if isinstance(graph, tiergraph.Graph):
-        raise NotImplementedError(
-            "native tg.Graph containment adapter lands in Phase 1 (cmu)"
-        )
-    projected = ContainmentProjection.build(graph)
+        projected = _NativeContainment.build(graph)
+        tiers = tuple(tier.declaration.long_name for tier in graph.tiers)
+        refs = tuple(str(ref) for ref in graph.canonical_items())
+    else:
+        projected = ContainmentProjection.build(graph)
+        tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
+        refs = graph.event_references()
     answers: dict[str, object] = {}
-    tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
-    for ref in graph.event_references():
+    for ref in refs:
         answers[ref] = {
             "direct": projected.direct_children(ref),
             "descendants": projected.descendants(ref),
@@ -276,31 +449,54 @@ def _surface() -> dict[str, object]:
 
 def _structural_class(graph: Graph) -> dict[str, object]:
     if isinstance(graph, tiergraph.Graph):
-        raise NotImplementedError(
-            "native tg.Graph containment adapter lands in Phase 1 (cmu)"
+        adapter = _NativeContainment.build(graph)
+        containment = {name for name, _ in adapter.traversals}
+        relations = tuple(
+            relation
+            for relation in graph.polyadic_relations
+            if relation.declaration in containment
         )
-    containment = {
-        declaration.name
-        for declaration in graph.declarations.relations
-        if declaration.containment
-    }
-    relations = tuple(
-        relation for relation in graph.relations if relation.name in containment
-    )
-    targets = [target for relation in relations for target in relation.targets]
+        relation_parts = tuple(
+            (relation.sources, relation.targets) for relation in relations
+        )
+
+        def tier(ref: object) -> object:
+            assert isinstance(ref, tiergraph.ItemRef)
+            return ref.tier
+
+    else:
+        containment = {
+            declaration.name
+            for declaration in graph.declarations.relations
+            if declaration.containment
+        }
+        relations = tuple(
+            relation for relation in graph.relations if relation.name in containment
+        )
+        relation_parts = tuple(
+            (relation.sources, relation.targets) for relation in relations
+        )
+
+        def tier(ref: object) -> object:
+            assert isinstance(ref, str)
+            return graph.resolve(ref).tier
+
+    targets = [
+        target for _, relation_targets in relation_parts for target in relation_targets
+    ]
     return {
         "containment_declarations": len(containment),
-        "source_arities": sorted({len(relation.sources) for relation in relations}),
-        "target_arities": sorted({len(relation.targets) for relation in relations}),
+        "source_arities": sorted({len(sources) for sources, _ in relation_parts}),
+        "target_arities": sorted({len(targets) for _, targets in relation_parts}),
         "repeated_target_incidence": any(
-            len(relation.targets) != len(set(relation.targets))
-            for relation in relations
+            len(relation_targets) != len(set(relation_targets))
+            for _, relation_targets in relation_parts
         ),
         "shared_targets": len(targets) != len(set(targets)),
         "target_tier_cardinalities": sorted(
             {
-                len({graph.resolve(target).tier for target in relation.targets})
-                for relation in relations
+                len({tier(target) for target in relation_targets})
+                for _, relation_targets in relation_parts
             }
         ),
     }
@@ -324,18 +520,23 @@ def verify() -> Coverage:
     fixture_count = event_count = comparison_count = 0
     seen: set[str] = set()
     for name, graph in corpus():
-        if isinstance(graph, tiergraph.Graph):
-            raise NotImplementedError(
-                "native tg.Graph containment adapter lands in Phase 1 (cmu)"
-            )
         expected = payload["fixtures"].get(name)
         if expected is None:
             raise AssertionError(f"containment golden has no named fixture {name!r}")
         seen.add(name)
         fixture_count += 1
-        refs = graph.event_references()
+        refs = (
+            graph.canonical_items()
+            if isinstance(graph, tiergraph.Graph)
+            else graph.event_references()
+        )
         event_count += len(refs)
-        comparison_count += sum(6 + 2 * len(graph.declarations.tiers) for _ in refs)
+        tier_count = (
+            len(graph.tiers)
+            if isinstance(graph, tiergraph.Graph)
+            else len(graph.declarations.tiers)
+        )
+        comparison_count += sum(6 + 2 * tier_count for _ in refs)
         if _as_json(_structural_class(graph)) != expected["class"]:
             raise AssertionError(
                 f"{name}: structural class differs from committed golden"

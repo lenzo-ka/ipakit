@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -166,7 +167,19 @@ def render() -> str:
             capture_output=True,
             text=True,
         ).stdout
-    return rendered
+
+    # Every embedded fixture remains the captured legacy oracle.  CMU is the
+    # pilot native subsystem, so replace exactly that slice with the current
+    # tiergraph traversal adapter's answer.
+    from containment_oracle import _answers, _as_json, _structural_class, corpus
+
+    cmu = next(graph for name, graph in corpus() if name == "profile:cmu")
+    payload = json.loads(rendered)
+    payload["fixtures"]["profile:cmu"] = {
+        "class": _as_json(_structural_class(cmu)),
+        "answers": _as_json(_answers(cmu)),
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
 def main() -> int:

@@ -8,8 +8,10 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from ._tiergraph import Declarations, FeatureDeclaration, Graph, TierDeclaration
-from ._tiergraph_builder import GraphBuilder
+from tiergraph.build import document
+from tiergraph.build import item as graph_item
+
+import tiergraph as tg
 
 _MAP = Path(__file__).parent / "data" / "phonemaps" / "cmu.xml"
 
@@ -78,64 +80,93 @@ IPA_PROJECTION_LOSSES = (
 )
 
 
-def declarations() -> Declarations:
-    features = (FeatureDeclaration("phone"), FeatureDeclaration("stress"))
-    return Declarations(
-        (TierDeclaration("phone", frozenset(f.name for f in features)),), features, ()
+_NAMESPACE = "urn:ipakit:cmu"
+
+
+def declarations() -> tuple[tg.AttributeDeclaration, ...]:
+    """Return the native declarations for authoritative CMU item facts."""
+    return tuple(
+        tg.AttributeDeclaration(
+            tg.QualifiedName(_NAMESPACE, name),
+            tg.AttributeDomain.ITEM,
+            tg.XsdType.STRING,
+        )
+        for name in ("phone", "stress")
     )
 
 
-def read(tokens: Iterable[str], dialect: CMUDialect = BASE_CMUDICT) -> Graph:
-    """Construct through the canonical builder from already-tokenized phones."""
-    builder = GraphBuilder(declarations())
+def read(tokens: Iterable[str], dialect: CMUDialect = BASE_CMUDICT) -> tg.Graph:
+    """Build a faithful native graph from already-tokenized phones."""
     stress_values = _stress_values()
+    items = []
     for token in tokens:
         digit = token[-1:] if token[-1:].isdigit() else ""
         phone = token[:-1] if digit else token
         if phone not in dialect.inventory and phone not in dialect.boundaries:
             raise ValueError(f"undeclared {dialect.name} phone: {token}")
-        facts: dict[str, str] = {"phone": phone}
+        stress: str | None = None
         if dialect.preserves_stress:
             policy = _STRESS_POLICY.get(phone, frozenset())
             if (policy or digit) and digit not in policy:
                 raise ValueError(f"invalid {dialect.name} stress: {token}")
             if digit:
-                facts["stress"] = stress_values[digit]
+                stress = stress_values[digit]
         elif digit:
             raise ValueError(f"stress is not accepted by {dialect.name}: {token}")
-        builder.append_input_atom("phone", facts)
+        items.append(
+            graph_item(phone=phone)
+            if stress is None
+            else graph_item(phone=phone, stress=stress)
+        )
+
+    builder = document(_NAMESPACE, prefix="cmu")
+    for declaration in declarations():
+        builder.attribute(
+            declaration.name,
+            declaration.value_type,
+            domain=declaration.domain,
+        )
+    builder.tier(
+        "phone",
+        items,
+        item_type="phone",
+        membership="phone-members",
+    )
     return builder.build()
 
 
-def render(graph: Graph, dialect: CMUDialect = BASE_CMUDICT) -> tuple[str, ...]:
+def render(graph: tg.Graph, dialect: CMUDialect = BASE_CMUDICT) -> tuple[str, ...]:
     reverse = {value: key for key, value in _stress_values().items()}
     result = []
-    for node in graph.clock:
-        for group in node.groups:
-            if group.tier != "phone":
-                continue
-            for event in group.events:
-                phone = str(event.features["phone"])
-                stress = event.features.get("stress")
-                result.append(
-                    phone
-                    + (
-                        reverse[str(stress)]
-                        if dialect.preserves_stress and stress is not None
-                        else ""
-                    )
+    for tier in graph.tiers:
+        if tier.declaration.name.local_name != "phone":
+            continue
+        for phone_item in tier.items:
+            attributes = {
+                value.name.local_name: value.lexical for value in phone_item.attributes
+            }
+            stress = attributes.get("stress")
+            result.append(
+                attributes["phone"]
+                + (
+                    reverse[stress]
+                    if dialect.preserves_stress and stress is not None
+                    else ""
                 )
+            )
     return tuple(result)
 
 
-def projection_losses(graph: Graph, dialect: CMUDialect) -> tuple[ProjectionLoss, ...]:
+def projection_losses(
+    graph: tg.Graph, dialect: CMUDialect
+) -> tuple[ProjectionLoss, ...]:
     if dialect.preserves_stress:
         return ()
     if any(
-        "stress" in event.features
-        for node in graph.clock
-        for group in node.groups
-        for event in group.events
+        value.name.local_name == "stress"
+        for tier in graph.tiers
+        for graph_item in tier.items
+        for value in graph_item.attributes
     ):
         return (ProjectionLoss("stress", "target dialect has no stress notation"),)
     return ()
