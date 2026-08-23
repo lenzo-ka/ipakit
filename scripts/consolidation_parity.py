@@ -8,6 +8,8 @@ import json
 import sys
 from pathlib import Path
 
+import tiergraph
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -31,6 +33,11 @@ DIGEST = ROOT / "scripts" / "consolidation_parity.sha256"
 
 
 def _wire(graph: Graph, model: Model) -> str:
+    if isinstance(graph, tiergraph.Graph):
+        wire = tiergraph.wire.dumps(graph)
+        assert tiergraph.wire.loads(wire) == graph
+        assert tiergraph.wire.dumps(tiergraph.wire.loads(wire)) == wire
+        return wire
     wire = dumps(graph, model)
     assert dumps(loads(wire, model), model) == wire
     return wire

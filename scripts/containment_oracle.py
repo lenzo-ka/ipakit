@@ -12,6 +12,8 @@ from dataclasses import dataclass, fields
 from functools import lru_cache
 from pathlib import Path
 
+import tiergraph
+
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN = ROOT / "tests/tiergraph/baselines/containment-navigation.json"
 sys.path.insert(0, str(ROOT))
@@ -230,6 +232,10 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
 
 
 def _answers(graph: Graph) -> dict[str, object]:
+    if isinstance(graph, tiergraph.Graph):
+        raise NotImplementedError(
+            "native tg.Graph containment adapter lands in Phase 1 (cmu)"
+        )
     projected = ContainmentProjection.build(graph)
     answers: dict[str, object] = {}
     tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
@@ -269,6 +275,10 @@ def _surface() -> dict[str, object]:
 
 
 def _structural_class(graph: Graph) -> dict[str, object]:
+    if isinstance(graph, tiergraph.Graph):
+        raise NotImplementedError(
+            "native tg.Graph containment adapter lands in Phase 1 (cmu)"
+        )
     containment = {
         declaration.name
         for declaration in graph.declarations.relations
@@ -314,6 +324,10 @@ def verify() -> Coverage:
     fixture_count = event_count = comparison_count = 0
     seen: set[str] = set()
     for name, graph in corpus():
+        if isinstance(graph, tiergraph.Graph):
+            raise NotImplementedError(
+                "native tg.Graph containment adapter lands in Phase 1 (cmu)"
+            )
         expected = payload["fixtures"].get(name)
         if expected is None:
             raise AssertionError(f"containment golden has no named fixture {name!r}")
