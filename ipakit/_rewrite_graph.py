@@ -373,13 +373,7 @@ def japanese_moraic_fixture(name: str, inventory: Any) -> Form:
             f"japanese-moraic {name}: {derivation.result!r} != {fixture.output!r}"
         )
     form = project_derivation(derivation, inventory)
-    derived = tuple(
-        event.features["value"]
-        for node in form.__dict__["_tiergraph_index"].clock
-        for group in node.groups
-        if group.tier == "mora"
-        for event in group.events
-    )
+    derived = tuple(event["value"] for event in form.tier_events("mora"))
     if derived != fixture.morae:
         raise AssertionError(
             f"japanese-moraic {name}: derived morae {derived!r} != {fixture.morae!r}"

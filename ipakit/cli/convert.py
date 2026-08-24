@@ -327,24 +327,13 @@ class ToKatakanaCommand(Command):
         parser.add_argument("ipa", help="Attested source IPA form")
 
     def run(self) -> int:
-        from .._katakana_codec import render
-        from .._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
+        from .. import to_katakana
 
-        fixtures = japanese_moraic_fixtures()
-        name = next(
-            (
-                key
-                for key, fixture in fixtures.items()
-                if fixture.source == self.args.ipa
-            ),
-            None,
-        )
-        if name is None:
-            return self.error(
-                f"no attested Japanese loanword adaptation for {self.args.ipa!r}; "
-                "input is not approximated"
-            )
-        self.print(render(japanese_moraic_fixture(name, self.ipa)))
+        try:
+            rendered = to_katakana(self.args.ipa)
+        except ValueError as error:
+            return self.error(str(error))
+        self.print(rendered)
         return 0
 
 

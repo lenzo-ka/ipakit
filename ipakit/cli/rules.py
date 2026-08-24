@@ -769,7 +769,8 @@ class MoraeCommand(Command):
         add_format_arg(parser)
 
     def run(self) -> int:
-        from .._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
+        from .. import morae as derived_morae
+        from .._rewrite_graph import japanese_moraic_fixtures
 
         fixtures = japanese_moraic_fixtures()
         found = next(
@@ -785,15 +786,13 @@ class MoraeCommand(Command):
                 f"no attested Japanese loanword adaptation for {self.args.ipa!r}; "
                 "input is not approximated"
             )
-        name, fixture = found
-        form = japanese_moraic_fixture(name, self.ipa)
-        morae = tuple(
-            str(event.features["value"])
-            for node in form.__dict__["_tiergraph_index"].clock
-            for group in node.groups
-            if group.tier == "mora"
-            for event in group.events
-        )
+        _, fixture = found
+        # The public function owns derivation and tier reading.  The fixture
+        # lookup above supplies only the source/output metadata for JSON.
+        try:
+            morae = derived_morae(self.args.ipa)
+        except ValueError as error:
+            return self.error(str(error))
         if self.format == "json":
             self.output_json(
                 {"source": fixture.source, "output": fixture.output, "morae": morae}

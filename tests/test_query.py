@@ -825,7 +825,12 @@ class TestEveryQueryEntryPointRefusesInOneVocabulary:
                 except (TypeError, ValueError):  # pragma: no cover - builtins
                     continue
                 asked = params.get("query")
-                if asked is None or asked.annotation not in ("_Query", _Query):
+                if asked is None or asked.annotation not in (
+                    "_Query",
+                    _Query,
+                    "FeatureQuery",
+                    ipakit.FeatureQuery,
+                ):
                     continue
                 if "ipa_string" in params or "ipa" in params:
                     found[prefix + name] = lambda q, f=member: f("ata", q)

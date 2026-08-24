@@ -1763,6 +1763,27 @@ class Form:
         """Walk containment routes once each, optionally filtering by tier."""
         return self._containment.descendants(parent, tier)
 
+    def tier_events(self, tier: str) -> tuple[Mapping[str, Any], ...]:
+        """Return immutable feature snapshots for events on ``tier``.
+
+        Events are returned in authoritative graph-clock order.  The snapshots
+        expose declared data such as ``value`` and ``spelling`` without
+        exposing the mutable implementation objects that store the graph.
+
+        >>> import ipakit
+        >>> from ipakit._rewrite_graph import japanese_moraic_fixture
+        >>> hot = japanese_moraic_fixture("hot", ipakit.IPAFeatures())
+        >>> tuple(event["value"] for event in hot.tier_events("mora"))
+        ('ho', 't', 'to')
+        """
+        return tuple(
+            MappingProxyType(dict(event.features))
+            for node in self.__dict__["_tiergraph_index"].clock
+            for group in node.groups
+            if group.tier == tier
+            for event in group.events
+        )
+
     def leaves(self, parent: str) -> tuple[str, ...]:
         """Return expanded containment leaves in declared order."""
         return self._containment.leaves(parent)
