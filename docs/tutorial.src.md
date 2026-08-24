@@ -51,12 +51,17 @@ from pathlib import Path
 For the reference material this page deliberately does not duplicate, see
 [docs/README.md](README.md) — in particular [distance.md](distance.md) for why the
 distance is not a metric, [ties.md](ties.md) for the tie model, [form.md](form.md) for
-the representation, and [rules.md](rules.md) for the full rule notation.
+the representation, and [rules.md](rules.md) for the full rule notation. The
+[glossary](glossary.md) introduces the linguistic terms used here.
 
 ## 1. What is this sound?
 
 The two basic reads are a **name** and a **feature bundle**. `describe` gives the name a
 phonetician would use; `features` gives the bundle the rest of the library computes over.
+A [distinctive feature](glossary.md#distinctive-feature--feature-bundle) is one
+contrastive dimension of a speech sound. On the IPA chart, the consonant rows largely
+encode manner, the columns encode place, and voicing supplies another dimension; a
+feature bundle is that decomposition written as data.
 
 ```console-run
 $ ipakit describe p
@@ -148,15 +153,15 @@ ipa.word_similarity("kæt", "kæd")      # raw weighted edit distance
 ipa.distance_model().word_distance("kæt", "kæd").similarity
 ```
 
-> **These are two numbers for one English phrase**, and the CLI gives the second.
-> `ipakit distance word` is inventory-relative — it is `distance_model().word_distance`,
-> not `word_similarity`. There is currently no CLI spelling of `word_similarity`, and no
-> top-level API spelling of what the CLI prints other than going through
-> `distance_model()`. Reach for `confusability`/`distance_model` when you want a number
-> comparable across pairs, and `word_similarity` when you want the raw edit cost.
+> **These are two numbers for one English phrase.** `ipakit distance word` prints the
+> inventory-relative `distance_model().word_distance` score by default; add `--raw` to
+> print `word_similarity`. Reach for `confusability`/`distance_model` when you want a
+> number comparable across pairs, and `word_similarity` or `distance word --raw` when
+> you want the raw edit cost.
 
 ```console-run
 $ ipakit distance word kæt kæd
+$ ipakit distance word --raw kæt kæd
 ```
 
 A word comparison also reports `coverage`, the shorter token count over the longer. It
@@ -421,17 +426,13 @@ $ ipakit rules trace -s american-english pˈɪn
 $ ipakit rules trace -s american-english bˈʌtɚ
 ```
 
-> **Loading a shipped set from Python is not where you would look for it.** The loader
-> is `ipakit.rules.shipped`, and it is *not* re-exported at the top level — neither
-> `ipakit.shipped` nor `ipakit.available` exists. Worse, `ipakit.ruleset("american-english")`
-> is a plausible guess that fails confusingly: `ruleset` parses its argument as rule
-> *text*, so it reports that `'american-english'` has no rewrite arrow.
+The top-level API follows the same path: `available()` lists the shipped names,
+`ruleset(name)` resolves one, and `shipped(name)` loads one explicitly.
 
 ```python-run
-from ipakit.rules import shipped, available
-
-available()
-english = shipped("american-english")
+ipa.available()
+english = ipa.ruleset("american-english")
+ipa.shipped("american-english").name
 len(english)
 ipa.rewrite("pˈɪn", english)
 ```
@@ -481,7 +482,7 @@ The other four sets each demonstrate a different operation. German final devoici
 whole grammar in one rule, conditioned on a coda rather than a word edge:
 
 ```python-run
-german = shipped("german-final-devoicing")
+german = ipa.shipped("german-final-devoicing")
 ipa.rewrite("taːɡ", german)
 ipa.rewrite("liːb.lɪç", german)        # devoices word-internally too
 ipa.rewrite("ʁaː.dəs", german)         # an onset, so it does not
@@ -490,7 +491,7 @@ ipa.rewrite("ʁaː.dəs", german)         # an onset, so it does not
 French liaison is the deletion example, conditioned across a word boundary:
 
 ```python-run
-french = shipped("french-liaison")
+french = ipa.shipped("french-liaison")
 ipa.rewrite("lez‿ami", french)         # the /z/ surfaces
 ipa.rewrite("lez‿ʃjɛ̃", french)         # and here it does not
 ipa.rewrite("lez", french)
@@ -499,8 +500,8 @@ ipa.rewrite("lez", french)
 The two loanword sets are the insertion examples:
 
 ```python-run
-ipa.rewrite("skul", shipped("spanish-accented-english"))
-ipa.rewrite("stap", shipped("spanish-accented-english"))
+ipa.rewrite("skul", ipa.shipped("spanish-accented-english"))
+ipa.rewrite("stap", ipa.shipped("spanish-accented-english"))
 ```
 
 ### English to katakana as attested loanword adaptation
@@ -508,11 +509,11 @@ ipa.rewrite("stap", shipped("spanish-accented-english"))
 The `japanese-moraic` rules model established gairaigo adaptations, not imitation of Japanese speech and not accent conversion. The rewrite bridge preserves the broad input, each fired derivation layer, and derived morae on one graph-backed `Form`; the katakana codec renders only those morae. This worked example uses the attested adaptation of English *hot* as ホット.
 
 ```python-run
-japanese = shipped("japanese-moraic")
+japanese = ipa.shipped("japanese-moraic")
 hot_derivation = japanese.derive("hɑt")
 hot_form = hot_derivation.to_form()
 hot_derivation.result
-[event.features["value"] for node in hot_form.__dict__["_tiergraph_index"].clock for group in node.groups if group.tier == "mora" for event in group.events]
+[event["value"] for event in hot_form.tier_events("mora")]
 
 from ipakit._katakana_codec import render as render_katakana
 

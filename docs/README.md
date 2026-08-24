@@ -16,6 +16,7 @@ design, and assumes you already know why you are reading it.
 
 | | |
 | --- | --- |
+| [glossary.md](glossary.md) | **Linguistics vocabulary.** Short definitions of the phonetics and phonology terms used throughout the documentation, with links to the guides that put each term to work. |
 | [tutorial-basics.md](tutorial-basics.md) | **Basic use.** Read one form, query its segments and classes, inspect declarations, apply a rule, and meet word boundaries. A short Python-first introduction whose values are executed by the documentation build. |
 | [tutorial.md](tutorial.md) | **Getting things done.** Organized by task — name a sound, compare two, search the inventory, convert notations, split a transcription, apply allophonic rules, write your own. Shows the CLI and the API side by side for each. Every value on the page is produced by running the call beside it. |
 
@@ -41,6 +42,8 @@ using it.
 | [ties.md](ties.md) | **The unit model.** Tie bars, diacritics, what a `Segment` is made of, and why prosodic features live on the unit rather than in the feature bag. The foundation the other documents assume. |
 | [representation.md](representation.md) | **The canonical representation.** The settled one-data-structure, two-view architecture; `Form` as the sole public graph-backed value; public construction and navigation; the tiergraph artifact; linear JSON; codecs; and deferred mechanisms. |
 | [form.md](form.md) | **Compatibility projections of the whole transcription.** `units`, `segments`, `phones`, boundaries, attributes, intervals, and the derived tier tree: what each view retains and drops from graph-backed `Form`. |
+| [syllabification.md](syllabification.md) | **Language-relative syllabification.** Declared constraints for English, Japanese, Mandarin, and Spanish; derived syllable and mora intervals; conflict reporting; and the command-line interface. |
+| [corpus.md](corpus.md) | **Collections and structural search.** Persistent named forms, the query DSL, Python and command-line workflows, validation, and explicit external-resource ingestion. |
 | [tone.md](tone.md) | **Pitch.** A contour is a *sequence of tone levels* rather than a value, so the diacritic and tone-letter spellings of one contour read as one thing; what a bare caron does not say; and where the IPA chart's tone-letter equivalents disagree with its own level column. |
 | [rules.md](rules.md) | **The rewrite notation.** `A -> B / C _ D` in full: feature queries, boundaries and tiers, insertion and deletion, the trace, and the known limits — which are a queue, not a disclaimer. |
 | [calculus.md](calculus.md) | **Form to *set* of forms.** What the optional arrow `A ~> B` opens: optionality per site, the closure and the identity, whether composition is associative and where the cap stops it, whether the set is finite, and how a truncation is reported. What the algebra cannot express is said near the top rather than in a footnote. |

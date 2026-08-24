@@ -191,7 +191,11 @@ def read(
     segmented: bool = False,
     wild: bool = False,
 ) -> Form:
-    """Parse IPA once into the canonical, lossless internal representation."""
+    """Parse IPA once into the canonical, lossless internal representation.
+
+    Set ``segmented=True`` when whitespace separates units rather than words.
+    Set ``wild=True`` to normalize common non-IPA spellings before parsing.
+    """
     return _get_ipa().read(ipa_string, strict=strict, segmented=segmented, wild=wild)
 
 
