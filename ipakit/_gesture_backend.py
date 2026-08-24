@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+import tiergraph
+
 from ._gesture_graph import GESTURE_TIER, TARGET_TIER
 from ._ipa_graph import SEGMENT_TIER
 from ._tiergraph import Event, Graph, Timing, _escape
@@ -27,7 +29,10 @@ class ArticulatoryFrame:
 
 
 def oral_tract_frames(
-    graph: Graph, inventory: IPAFeatures, *, head_shape: Head | None = None
+    graph: Graph | tiergraph.Graph,
+    inventory: IPAFeatures,
+    *,
+    head_shape: Head | None = None,
 ) -> tuple[ArticulatoryFrame, ...]:
     """Use complete timed targets, else gestures, else structural segments.
 
@@ -69,7 +74,41 @@ def oral_tract_frames(
     return tuple(frames)
 
 
-def _tier_events(graph: Graph, tier: str) -> list[tuple[str, Event]]:
+def _tier_events(graph: Graph | tiergraph.Graph, tier: str) -> list[tuple[str, Event]]:
+    if isinstance(graph, tiergraph.Graph):
+        native_events = []
+        for native_tier in graph.tiers:
+            if native_tier.declaration.long_name != tier:
+                continue
+            for index, item in enumerate(native_tier.items):
+                attributes = {
+                    value.name.local_name: value.lexical for value in item.attributes
+                }
+                timing = (
+                    Timing(
+                        float(attributes["timing-start"]),
+                        float(attributes["timing-duration"]),
+                    )
+                    if "timing-start" in attributes
+                    else None
+                )
+                features: dict[str, object] = {
+                    name: attributes[name]
+                    for name in ("kind", "articulator", "source-value")
+                    if name in attributes
+                }
+                features.update(
+                    {
+                        name: float(attributes[name])
+                        for name in ("arc", "offset")
+                        if name in attributes
+                    }
+                )
+                if "target-index" in attributes:
+                    features["target-index"] = int(attributes["target-index"])
+                reference = tiergraph.ItemRef(native_tier.declaration.name, index)
+                native_events.append((str(reference), Event(features, timing=timing)))
+        return native_events
     result: list[tuple[str, Event]] = []
     for tick, node in enumerate(graph.clock):
         group = next((item for item in node.groups if item.tier == tier), None)

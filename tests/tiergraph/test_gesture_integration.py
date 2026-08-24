@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 from ipakit import Form, IPAFeatures
-from ipakit._gesture_backend import oral_tract_frames
+from ipakit._gesture_backend import _tier_events, oral_tract_frames
 from ipakit._gesture_graph import (
     GESTURE_TIER,
     PROJECTS_TO,
     TARGET_TIER,
-    GestureValues,
     declarations,
     project,
 )
 from ipakit._tiergraph import Timing
-from ipakit._tiergraph_json import Model, dumps, loads
 from ipakit.form import _graph_from_compatibility
 from ipakit.tract import constrictions
+
+import tiergraph
 
 
 def _inventory_and_graph(text: str = "ata"):
@@ -44,9 +44,7 @@ def test_projection_reads_inventory_tract_vocabulary() -> None:
     inventory, graph = _inventory_and_graph("w")
     projected = project(graph, inventory)
     expected = constrictions(inventory, inventory.get_features("w"))
-    gestures = next(
-        group for group in projected.clock[0].groups if group.tier == GESTURE_TIER
-    ).events
+    gestures = tuple(event for _, event in _tier_events(projected, GESTURE_TIER))
 
     assert len(gestures) == len(expected) == 2
     assert tuple(event.features["arc"] for event in gestures) == tuple(
@@ -76,17 +74,12 @@ def test_timed_targets_follow_time_while_fallbacks_follow_structure() -> None:
         (0.50, 0.0),
         (0.90, 0.08),
     ]
-    assert [frame.source for frame in timed_frames] == [
-        f"/clock/2/{TARGET_TIER}/0",
-        f"/clock/1/{TARGET_TIER}/0",
-        f"/clock/0/{TARGET_TIER}/0",
-    ]
+    target_refs = [ref for ref, _ in _tier_events(timed, TARGET_TIER)]
+    assert [frame.source for frame in timed_frames] == target_refs[::-1]
     assert {frame.level for frame in gesture_frames} == {"gestures"}
     assert all(frame.timing is None for frame in gesture_frames)
     assert [frame.source for frame in gesture_frames] == [
-        f"/clock/0/{GESTURE_TIER}/0",
-        f"/clock/1/{GESTURE_TIER}/0",
-        f"/clock/2/{GESTURE_TIER}/0",
+        ref for ref, _ in _tier_events(gestures, GESTURE_TIER)
     ]
     assert {frame.level for frame in segment_frames} == {"segments"}
     assert all(frame.timing is None for frame in segment_frames)
@@ -111,7 +104,7 @@ def test_equal_start_targets_keep_numeric_graph_order_past_ten_ticks() -> None:
     frames = oral_tract_frames(timed, inventory)
 
     assert [frame.source for frame in frames] == [
-        f"/clock/{tick}/{TARGET_TIER}/0" for tick in range(12)
+        ref for ref, _ in _tier_events(timed, TARGET_TIER)
     ]
 
 
@@ -129,7 +122,7 @@ def test_partial_target_timing_falls_back_without_dropping_occurrences() -> None
     assert all(frame.timing is None for frame in frames)
 
 
-def test_occurrence_timing_overlap_point_targets_and_round_trip() -> None:
+def test_occurrence_timing_overlap_and_point_targets_are_native_facts() -> None:
     inventory, segments = _inventory_and_graph("aa")
     first_value = segments.clock[0].groups[0].events[0].features["value"]
     second_value = segments.clock[1].groups[0].events[0].features["value"]
@@ -141,24 +134,8 @@ def test_occurrence_timing_overlap_point_targets_and_round_trip() -> None:
         gesture_timing=_timings((0.0, 0.20), (0.10, 0.25)),
         target_timing=_timings((0.05, 0.0), (0.30, 0.0)),
     )
-    model = Model(
-        "ipakit-gesture", "1", declarations(inventory), GestureValues(inventory)
-    )
-    restored = loads(dumps(projected, model), model)
-    gesture_events = [
-        event
-        for node in restored.clock
-        for group in node.groups
-        if group.tier == GESTURE_TIER
-        for event in group.events
-    ]
-    target_events = [
-        event
-        for node in restored.clock
-        for group in node.groups
-        if group.tier == TARGET_TIER
-        for event in group.events
-    ]
+    gesture_events = [event for _, event in _tier_events(projected, GESTURE_TIER)]
+    target_events = [event for _, event in _tier_events(projected, TARGET_TIER)]
 
     assert [event.timing for event in gesture_events] == [
         Timing(0.0, 0.20),
@@ -168,7 +145,16 @@ def test_occurrence_timing_overlap_point_targets_and_round_trip() -> None:
         gesture_events[0].timing.start + gesture_events[0].timing.duration
         > gesture_events[1].timing.start
     )
-    assert [event.structural_duration for event in target_events] == [0, 0]
     assert [event.timing.duration for event in target_events] == [0.0, 0.0]
-    assert restored == projected
+    relation = next(
+        declaration
+        for declaration in projected.relation_declarations
+        if declaration.name.local_name == PROJECTS_TO
+        and any(
+            instance.declaration == declaration.name
+            for instance in projected.polyadic_relations
+        )
+    )
+    assert relation.sources.endpoint_kinds == (tiergraph.RelationEndpointKind.ITEM,)
+    assert relation.targets.endpoint_kinds == (tiergraph.RelationEndpointKind.ITEM,)
     assert not hasattr(first_value, "timing")

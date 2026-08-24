@@ -53,6 +53,12 @@ _PAYLOAD_DECLARATIONS = (
     ("features-json", tg.XsdType.STRING),
     ("prosody-json", tg.XsdType.STRING),
     ("provenance-json", tg.XsdType.STRING),
+    ("kind", tg.XsdType.STRING),
+    ("arc", tg.XsdType.DOUBLE),
+    ("offset", tg.XsdType.DOUBLE),
+    ("articulator", tg.XsdType.STRING),
+    ("source-value", tg.XsdType.STRING),
+    ("target-index", tg.XsdType.INTEGER),
 )
 
 
@@ -162,6 +168,17 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
             value = event.features.get(name)
             if isinstance(value, str):
                 values.append((name, tg.XsdType.STRING, value))
+        for name in ("kind", "articulator", "source-value"):
+            value = event.features.get(name)
+            if isinstance(value, str):
+                values.append((name, tg.XsdType.STRING, value))
+        for name in ("arc", "offset"):
+            value = event.features.get(name)
+            if isinstance(value, (int, float)):
+                values.append((name, tg.XsdType.DOUBLE, str(value)))
+        target_index = event.features.get("target-index")
+        if isinstance(target_index, int):
+            values.append(("target-index", tg.XsdType.INTEGER, str(target_index)))
     if event.timing is not None:
         values.extend(
             (
@@ -432,7 +449,10 @@ class ContainmentProjection:
 
     @classmethod
     def build_captured(
-        cls, source: ContainmentProjectionInput
+        cls,
+        source: ContainmentProjectionInput,
+        *,
+        preserved_relation_names: frozenset[str] = frozenset(),
     ) -> ContainmentProjection:
         """Build from facts captured while the build-only scaffold was resident."""
         from tiergraph.machine import (
@@ -525,6 +545,7 @@ class ContainmentProjection:
             declaration.name: (
                 _name(declaration.name)
                 if declaration.name in boundary_relation_names
+                or declaration.name in preserved_relation_names
                 else containment_names.get(declaration.name, _name(f"relation-{index}"))
             )
             for index, declaration in enumerate(source.declarations.relations)

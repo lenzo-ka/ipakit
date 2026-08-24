@@ -7,6 +7,8 @@ from collections.abc import Mapping
 import ipakit
 import pytest
 from ipakit._containment_projection import ContainmentProjection
+from ipakit._gesture_graph import GESTURE_TIER, PROJECTS_TO, TARGET_TIER
+from ipakit._gesture_graph import declarations as gesture_declarations
 from ipakit._rewrite_graph import japanese_moraic_fixture
 from ipakit._tiergraph import (
     Declarations,
@@ -16,6 +18,8 @@ from ipakit._tiergraph import (
     TierDeclaration,
 )
 from ipakit._tiergraph_builder import GraphBuilder
+from ipakit.form import _graph_from_compatibility
+from ipakit.tract import constrictions
 from scripts.containment_oracle import (
     _answers,
     _as_json,
@@ -132,6 +136,50 @@ def _embedded_panphon_fixture() -> Graph:
     return builder.build()
 
 
+def _embedded_gesture_fixture() -> Graph:
+    """Build the pre-migration gesture shape through embedded construction."""
+    inventory = ipakit.load_ipa_features()
+    form = ipakit.Form.parse("ata", inventory)
+    source = _graph_from_compatibility(form.units, form.intervals)
+    builder = GraphBuilder(gesture_declarations(inventory))
+    builder._input_tick = len(source.clock) - 1
+    for tick, node in enumerate(source.clock):
+        source_handles = {}
+        for group in node.groups:
+            for index, event in enumerate(group.events):
+                source_handles[(group.tier, index)] = builder.add_event(
+                    group.tier,
+                    tick,
+                    event.features,
+                    duration=event.structural_duration or 0,
+                    timing=event.timing,
+                )
+        segment_group = next(
+            (group for group in node.groups if group.tier == "segment"), None
+        )
+        if segment_group is None:
+            continue
+        segment = segment_group.events[0]
+        source_handle = source_handles[("segment", 0)]
+        value = segment.features["value"]
+        for target_index, point in enumerate(
+            constrictions(inventory, inventory.get_features(value.to_ipa()))
+        ):
+            facts = {
+                "kind": "constriction",
+                "arc": point.arc,
+                "offset": point.offset,
+                "articulator": point.articulator,
+                "source-value": value.to_ipa(),
+                "target-index": target_index,
+            }
+            gesture = builder.add_event(GESTURE_TIER, tick, facts, duration=1)
+            target = builder.add_event(TARGET_TIER, tick, facts, duration=0)
+            builder.relate((source_handle,), PROJECTS_TO, (gesture,))
+            builder.relate((gesture,), PROJECTS_TO, (target,))
+    return builder.build()
+
+
 def _embedded_rewrite_fixture(name: str) -> Graph:
     """Materialize the independent embedded reference, including ``inserts``."""
     form = japanese_moraic_fixture(name, ipakit.load_ipa_features())
@@ -166,12 +214,14 @@ def _paths(
     if isinstance(graph, tiergraph.Graph):
         assert name in {
             "profile:cmu",
+            "profile:gesture",
             "profile:mora",
             "profile:panphon",
             "profile:pinyin",
         } or name.startswith("profile:japanese-rewrite:")
         fixtures = {
             "profile:cmu": _embedded_cmu_fixture,
+            "profile:gesture": _embedded_gesture_fixture,
             "profile:mora": _embedded_mora_fixture,
             "profile:panphon": _embedded_panphon_fixture,
             "profile:pinyin": _embedded_pinyin_fixture,
