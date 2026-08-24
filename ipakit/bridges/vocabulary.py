@@ -8,11 +8,13 @@ import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .._codecs import RenderLane, RenderProfile, render_graph
 from .._tiergraph import (
     Declarations,
     FeatureDeclaration,
+    Graph,
     RelationDeclaration,
     TierDeclaration,
 )
@@ -336,7 +338,13 @@ class VocabularyBridge(Bridge):
         form = Form.parse(ipa, strict=True)
         from ..form import _graph_from_compatibility
 
-        source_graph = _graph_from_compatibility(form.units, form.intervals)
+        projection_input = _graph_from_compatibility(form.units, form.intervals)
+        source_graph: Any = Graph(
+            projection_input.declarations,
+            projection_input.clock,
+            projection_input.relations,
+            projection_input.roots,
+        )
         old = source_graph.declarations
         feature_names = {feature.name for feature in old.features}
         additions = tuple(
@@ -520,7 +528,13 @@ class VocabularyBridge(Bridge):
 
         from ..form import _graph_from_compatibility
 
-        source_graph = _graph_from_compatibility(form.units, form.intervals)
+        projection_input = _graph_from_compatibility(form.units, form.intervals)
+        source_graph: Any = Graph(
+            projection_input.declarations,
+            projection_input.clock,
+            projection_input.relations,
+            projection_input.roots,
+        )
         old = source_graph.declarations
         feature_names = {feature.name for feature in old.features}
         additions = tuple(
