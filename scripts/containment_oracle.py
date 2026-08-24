@@ -401,7 +401,7 @@ def _answers(graph: object) -> dict[str, object]:
         assert isinstance(graph, ContainmentProjectionInput)
         projected = ContainmentProjection.from_input(graph)
         tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
-        refs = graph.event_references()
+        refs = graph.refs
     answers: dict[str, object] = {}
     for ref in refs:
         answers[ref] = {
@@ -550,7 +550,7 @@ def verify() -> Coverage:
                 != "clock"
             )
             if isinstance(graph, tiergraph.Graph)
-            else graph.event_references()
+            else graph.refs
         )
         event_count += len(refs)
         tier_count = (
