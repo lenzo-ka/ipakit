@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-import dataclasses
 import json
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from .._codecs import RenderLane, RenderProfile, render_graph
 from .._tiergraph import (
     Declarations,
     FeatureDeclaration,
-    Graph,
     RelationDeclaration,
     TierDeclaration,
 )
-from .._tiergraph_builder import _copy_builder
+from .._tiergraph_builder import copy_fact_builder
 from ..form import Form
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 
@@ -336,16 +333,8 @@ class VocabularyBridge(Bridge):
         atoms = self.tokenize(text)
         ipa = "".join(atom.spelling for atom in atoms)
         form = Form.parse(ipa, strict=True)
-        from ..form import _graph_from_compatibility
-
-        projection_input = _graph_from_compatibility(form.units, form.intervals)
-        source_graph: Any = Graph(
-            projection_input.declarations,
-            projection_input.clock,
-            projection_input.relations,
-            projection_input.roots,
-        )
-        old = source_graph.declarations
+        projection_input = form.__dict__["_tiergraph_index"].containment_input
+        old = projection_input.declarations
         feature_names = {feature.name for feature in old.features}
         additions = tuple(
             FeatureDeclaration(name)
@@ -371,18 +360,21 @@ class VocabularyBridge(Bridge):
                 ),
             ),
         )
-        graph = dataclasses.replace(source_graph, declarations=declared)
-        builder, handles = _copy_builder(graph)
+        builder, handles = copy_fact_builder(projection_input, declared)
         units = [
             (ref, handles[ref])
             for ref in sorted(
                 handles,
                 key=lambda ref: (
-                    graph.at(ref).features.get("compatibility-index", 10**9),
+                    projection_input.events[ref].features.get(
+                        "compatibility-index", 10**9
+                    ),
                     ref,
                 ),
             )
-            if isinstance(graph.at(ref).features.get("compatibility-index"), int)
+            if isinstance(
+                projection_input.events[ref].features.get("compatibility-index"), int
+            )
         ]
         cursor = 0
         prefixes: list[Atom] = []
@@ -413,7 +405,11 @@ class VocabularyBridge(Bridge):
             start = int(owned[0][0].split("/")[2])
             last_ref = owned[-1][0]
             last_tick = int(last_ref.split("/")[2])
-            duration = last_tick - start + (graph.at(last_ref).structural_duration or 0)
+            duration = (
+                last_tick
+                - start
+                + (projection_input.events[last_ref].structural_duration or 0)
+            )
             parent = builder.add_event(
                 self.tier,
                 start,
@@ -429,7 +425,7 @@ class VocabularyBridge(Bridge):
             prior_group = parent
             cursor += width
             prefixes.clear()
-        return Form._from_graph(builder.build(), spelling=ipa)
+        return Form._from_projection_input(builder.build_input(), spelling=ipa)
 
     def emit(
         self, form: Form | VocabularyProjection, *, separator: str | None = None
@@ -449,12 +445,16 @@ class VocabularyBridge(Bridge):
         if not separator:
             return rendered
         values: list[str] = []
-        for node in form.__dict__["_tiergraph_index"].clock:
-            for group in node.groups:
-                if group.tier == self.tier:
-                    values.extend(
-                        str(event.features["output"]) for event in group.events
+        for tier in form._graph.tiers:
+            if tier.declaration.long_name == self.tier:
+                values.extend(
+                    next(
+                        value.lexical
+                        for value in item.attributes
+                        if value.name.local_name == "output"
                     )
+                    for item in tier.items
+                )
         return separator.join(values)
 
     def map(self, form: Form) -> VocabularyProjection:
@@ -526,16 +526,8 @@ class VocabularyBridge(Bridge):
             matches.append((position, end, atom))
             position = end
 
-        from ..form import _graph_from_compatibility
-
-        projection_input = _graph_from_compatibility(form.units, form.intervals)
-        source_graph: Any = Graph(
-            projection_input.declarations,
-            projection_input.clock,
-            projection_input.relations,
-            projection_input.roots,
-        )
-        old = source_graph.declarations
+        projection_input = form.__dict__["_tiergraph_index"].containment_input
+        old = projection_input.declarations
         feature_names = {feature.name for feature in old.features}
         additions = tuple(
             FeatureDeclaration(name)
@@ -571,18 +563,21 @@ class VocabularyBridge(Bridge):
                 )
             ),
         )
-        graph = dataclasses.replace(source_graph, declarations=declared)
-        builder, handles = _copy_builder(graph)
+        builder, handles = copy_fact_builder(projection_input, declared)
         unit_handles = [
             handles[ref]
             for ref in sorted(
                 handles,
                 key=lambda ref: (
-                    graph.at(ref).features.get("compatibility-index", 10**9),
+                    projection_input.events[ref].features.get(
+                        "compatibility-index", 10**9
+                    ),
                     ref,
                 ),
             )
-            if isinstance(graph.at(ref).features.get("compatibility-index"), int)
+            if isinstance(
+                projection_input.events[ref].features.get("compatibility-index"), int
+            )
         ]
         for start, end, atom in matches:
             parent = builder.add_event(
@@ -597,5 +592,7 @@ class VocabularyBridge(Bridge):
                 duration=end - start,
             )
             builder.contain(parent, unit_handles[start:end], relation="groups")
-        mapped = Form._from_graph(builder.build(), spelling=form.spelling)
+        mapped = Form._from_projection_input(
+            builder.build_input(), spelling=form.spelling
+        )
         return VocabularyProjection(mapped, ProjectionReport(tuple(drops)))

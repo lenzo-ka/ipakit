@@ -36,6 +36,10 @@ _PAYLOAD_DECLARATIONS = (
     ("text", tg.XsdType.STRING),
     ("spelling", tg.XsdType.STRING),
     ("prominence", tg.XsdType.STRING),
+    ("atom", tg.XsdType.STRING),
+    ("output", tg.XsdType.STRING),
+    ("exemplar", tg.XsdType.STRING),
+    ("notes", tg.XsdType.STRING),
     ("input", tg.XsdType.BOOLEAN),
     ("compatibility-index", tg.XsdType.INTEGER),
     ("compatibility-interval", tg.XsdType.INTEGER),
@@ -154,7 +158,7 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
         ]
     else:
         values = []
-        for name in ("spelling", "prominence"):
+        for name in ("spelling", "prominence", "atom", "output", "exemplar", "notes"):
             value = event.features.get(name)
             if isinstance(value, str):
                 values.append((name, tg.XsdType.STRING, value))
