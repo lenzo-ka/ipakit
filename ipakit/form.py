@@ -101,10 +101,10 @@ class FormBuilder:
 
     def __init__(self, features: IPAFeatures | None = None) -> None:
         from ._ipa_graph import declarations
-        from ._tiergraph_builder import GraphBuilder
+        from ._tiergraph_builder import FactBuilder
 
         self.features = _default(features)
-        self._builder = GraphBuilder(declarations(self.features))
+        self._builder = FactBuilder(declarations(self.features))
         self._compatibility_unit_count = 0
 
     def begin(
@@ -191,7 +191,7 @@ class FormBuilder:
 
     def build(self) -> Form:
         """Validate and return the immutable public representation."""
-        return Form._from_graph(self._builder.build())
+        return Form._from_projection_input(self._builder.build_input())
 
 
 class _DerivedMapping(Mapping[str, str]):
@@ -1169,23 +1169,25 @@ class _CompatibilityProjection:
 
     def __init__(
         self,
-        graph: Any,
+        projection_input: Any,
         inventory: IPAFeatures | None = None,
     ) -> None:
-        from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
-        from ._tiergraph_identity import DurableEventIdentity
+        from tiergraph import DurableItemRef
 
-        self.graph = graph
-        self.identity = DurableEventIdentity.build(graph)
+        from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
+
+        self.projection_input = projection_input
         self._inventory = inventory
-        indexed: list[tuple[int, Unit, Any]] = []
-        for node in graph.clock:
-            for group in node.groups:
-                for event in group.events:
-                    unit = event.features.get("compatibility-unit")
-                    index = event.features.get("compatibility-index")
-                    if isinstance(unit, Unit) and isinstance(index, int):
-                        indexed.append((index, unit, event))
+        from ._containment_projection import ContainmentProjection
+
+        graph = ContainmentProjection.build_captured(projection_input).graph
+        indexed: list[tuple[int, Unit, str]] = []
+        for path in projection_input.refs:
+            event = projection_input.events[path]
+            unit = event.features.get("compatibility-unit")
+            index = event.features.get("compatibility-index")
+            if isinstance(unit, Unit) and isinstance(index, int):
+                indexed.append((index, unit, path))
         indexed.sort(key=lambda item: item[0])
         if [index for index, _, _ in indexed] != list(range(len(indexed))):
             raise FormProjectionError(
@@ -1194,6 +1196,20 @@ class _CompatibilityProjection:
         self._indexed = tuple(indexed)
         self._units: tuple[Unit, ...] | None = None
         self._intervals: tuple[Interval, ...] | None = None
+        self._attributes = {
+            path: {
+                attribute.name.local_name: attribute.lexical
+                for attribute in next(
+                    tier
+                    for tier in graph.tiers
+                    if tier.declaration.name == resolved.tier
+                )
+                .items[resolved.index]
+                .attributes
+            }
+            for path in projection_input.refs
+            for resolved in (graph.resolve_item(DurableItemRef(path)),)
+        }
         self.coordinates = LegacyCoordinates(
             tuple(
                 LegacyOccurrence(
@@ -1215,19 +1231,14 @@ class _CompatibilityProjection:
     def units(self) -> tuple[Unit, ...]:
         if self._units is not None:
             return self._units
-        from ._containment_projection import _event_payload, _unit_from_attributes
+        from ._containment_projection import _unit_from_attributes
 
         if self._inventory is None:
             raise FormProjectionError("compatibility unit inventory is not available")
-        # Reconstruct each Unit from its lowered attribute payload — the same
-        # encoding that is stored on the authoritative graph — without
-        # materializing that graph, so reads stay off the build path.
-        out = []
-        for _index, _stored, event in self._indexed:
-            attributes = {
-                name: lexical for name, _type, lexical in _event_payload(event)
-            }
-            out.append(_unit_from_attributes(attributes, self._inventory))
+        out = [
+            _unit_from_attributes(self._attributes[path], self._inventory)
+            for _index, _stored, path in self._indexed
+        ]
         self._units = tuple(out)
         return self._units
 
@@ -1235,13 +1246,11 @@ class _CompatibilityProjection:
     def intervals(self) -> tuple[Interval, ...]:
         if self._intervals is not None:
             return self._intervals
-        from ._containment_projection import _event_payload
-
         # Adjacent ticks share their boundary position, so a legacy coordinate
         # is the intra-tick gap plus the running gap total of every earlier
         # tick — the same mapping the builder's to_legacy computed.
         gap_prefix = [0]
-        for node in self.graph.clock:
+        for node in self.projection_input.clock:
             gap_prefix.append(gap_prefix[-1] + node.gap_count)
 
         def coordinate(pointer: str) -> int:
@@ -1251,15 +1260,18 @@ class _CompatibilityProjection:
             return gap + gap_prefix[tick]
 
         indexed = []
-        for tick, node in enumerate(self.graph.clock):
+        for tick, node in enumerate(self.projection_input.clock):
             for group in node.groups:
                 for event in group.events:
                     index = event.features.get("compatibility-interval")
                     if not isinstance(index, int):
                         continue
-                    attributes = {
-                        name: lexical for name, _type, lexical in _event_payload(event)
-                    }
+                    path = next(
+                        path
+                        for path, candidate in self.projection_input.events.items()
+                        if candidate is event
+                    )
+                    attributes = self._attributes[path]
                     timing = (
                         Timing(
                             float(attributes["timing-start"]),
@@ -1398,7 +1410,8 @@ class _FormGraphIndex:
     def build(cls, scaffold: Any, inventory: IPAFeatures) -> _FormGraphIndex:
         from ._containment_projection import ContainmentProjectionInput
 
-        return cls(ContainmentProjectionInput.capture(scaffold), inventory)
+        projection_input = ContainmentProjectionInput.capture(scaffold)
+        return cls(projection_input, inventory)
 
     def _memo(self, name: str, build: Callable[[], _T]) -> _T:
         cached = self.__dict__.get(name, _VIEW_ABSENT)
@@ -1503,7 +1516,7 @@ def _graph_from_compatibility(
     from ._ipa_graph import BOUNDARY_TIER, SEGMENT_TIER, ZERO_TIER, declarations
     from ._tiergraph import Declarations, TierDeclaration
     from ._tiergraph import Timing as GraphTiming
-    from ._tiergraph_builder import GraphBuilder
+    from ._tiergraph_builder import FactBuilder
 
     inventory = _default(None)
     declared = declarations(inventory)
@@ -1521,7 +1534,7 @@ def _graph_from_compatibility(
             declared.relations,
             declared.closed,
         )
-    builder = GraphBuilder(declared)
+    builder = FactBuilder(declared)
     allowed = {tier.name: tier.features for tier in declared.tiers}
     for index, unit in enumerate(units):
         base = {
@@ -1604,7 +1617,7 @@ def _graph_from_compatibility(
             {"compatibility-interval": index},
             timing=timing,
         )
-    return builder.build()
+    return builder.build_input()
 
 
 @dataclass(frozen=True, eq=False)
@@ -1647,7 +1660,9 @@ class Form:
                 )
         object.__setattr__(self, "_compatibility_units", held_units)
         object.__setattr__(self, "_compatibility_intervals", held_intervals)
-        self._install_scaffold(_graph_from_compatibility(held_units, held_intervals))
+        self._install_projection_input(
+            _graph_from_compatibility(held_units, held_intervals)
+        )
         # These names stay dataclass fields so the constructor,
         # dataclasses.fields/replace, equality, and hash behavior retain their
         # public coordinates.  The instance values are deliberately removed:
@@ -1708,8 +1723,40 @@ class Form:
             ),
             _default(None),
         )
-        index = _FormGraphIndex.build(scaffold, inventory)
+        from ._containment_projection import ContainmentProjectionInput
+
+        self._install_projection_input(
+            ContainmentProjectionInput.capture(scaffold), inventory=inventory
+        )
+
+    def _install_projection_input(
+        self, projection_input: Any, *, inventory: IPAFeatures | None = None
+    ) -> None:
+        """Install native facts and their authoritative tiergraph graph."""
+        inventory = inventory or next(
+            (
+                unit.__dict__["_inventory"]
+                for node in projection_input.clock
+                for group in node.groups
+                for event in group.events
+                if isinstance((unit := event.features.get("compatibility-unit")), Unit)
+                and unit.segment is not None
+                and unit.__dict__.get("_inventory") is not None
+            ),
+            _default(None),
+        )
+        index = _FormGraphIndex(projection_input, inventory)
         object.__setattr__(self, "_tiergraph_index", index)
+
+    @classmethod
+    def _from_projection_input(
+        cls, projection_input: Any, spelling: str | None = None
+    ) -> Form:
+        """Adopt native facts and build the authoritative graph directly."""
+        form = cls.__new__(cls)
+        object.__setattr__(form, "spelling", spelling)
+        form._install_projection_input(projection_input)
+        return form
 
     @classmethod
     def _from_graph(cls, graph: Any, spelling: str | None = None) -> Form:
@@ -1803,11 +1850,11 @@ class Form:
             OccurrenceKind,
             declarations,
         )
-        from ._tiergraph_builder import GraphBuilder
+        from ._tiergraph_builder import FactBuilder
 
         out: list[Unit] = []
         graph_declarations = declarations(features)
-        builder = GraphBuilder(graph_declarations)
+        builder = FactBuilder(graph_declarations)
         graph_features = graph_declarations._tier_by_name
         marks = boundary_marks(features)
         nulls = features.zeros
@@ -1971,8 +2018,8 @@ class Form:
 
         local = spell(out)
         scanned = "".join(base + "".join(diacritics) for base, diacritics in parsed)
-        return cls._from_graph(
-            builder.build(), spelling=scanned if scanned != local else None
+        return cls._from_projection_input(
+            builder.build_input(), spelling=scanned if scanned != local else None
         )
 
     @classmethod

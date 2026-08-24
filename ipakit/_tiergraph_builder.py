@@ -139,8 +139,8 @@ class LegacyCoordinates:
             raise ValueError("graph position is not a legacy unit gap") from error
 
 
-class GraphBuilder:
-    """Build a validated immutable graph from stable intermediate handles."""
+class FactBuilder:
+    """Accumulate canonical graph facts from stable intermediate handles."""
 
     def __init__(self, declarations: Declarations) -> None:
         self.declarations = declarations
@@ -360,8 +360,10 @@ class GraphBuilder:
         """Expose only the lossless input units recorded by this builder."""
         return LegacyCoordinates(self._input_occurrences)
 
-    def build(self) -> Graph:
-        """Resolve all handles only after canonical event ordering is final."""
+    def _build_facts(
+        self,
+    ) -> tuple[tuple[ClockNode, ...], tuple[Relation, ...], tuple[str, ...]]:
+        """Resolve handles only after canonical event ordering is final."""
         unfinished = [item for item in self._events if item.open]
         if unfinished:
             raise GraphValidationError("unfinished open event")
@@ -401,19 +403,39 @@ class GraphBuilder:
                     )
             nodes.append(ClockNode(gap_counts.get(tick, 1), tuple(groups)))
         relations = tuple(
-            Relation(
-                tuple(
-                    self._resolve(item, paths, gap_counts) for item in relation.sources
+            sorted(
+                (
+                    Relation(
+                        tuple(
+                            self._resolve(item, paths, gap_counts)
+                            for item in relation.sources
+                        ),
+                        relation.name,
+                        tuple(
+                            self._resolve(item, paths, gap_counts)
+                            for item in relation.targets
+                        ),
+                    )
+                    for relation in self._relations
                 ),
-                relation.name,
-                tuple(
-                    self._resolve(item, paths, gap_counts) for item in relation.targets
+                key=lambda relation: (
+                    relation.sources,
+                    relation.name,
+                    relation.targets,
                 ),
             )
-            for relation in self._relations
         )
         roots = tuple(paths[self._validated_handle(item)] for item in self._roots)
-        return Graph(self.declarations, tuple(nodes), relations, roots)
+        return tuple(nodes), relations, roots
+
+    def build_input(self) -> object:
+        """Build scaffold-free facts for the authoritative tiergraph projection."""
+        from ._containment_projection import ContainmentProjectionInput
+
+        clock, relations, roots = self._build_facts()
+        return ContainmentProjectionInput.from_facts(
+            self.declarations, clock, relations, roots
+        )
 
     def _materialize(self, item: _PendingEvent, gap_counts: Mapping[int, int]) -> Event:
         span = None
@@ -473,6 +495,15 @@ class GraphBuilder:
     def _require_handle(self, handle: EventHandle) -> None:
         if handle._owner is not self._owner:
             raise ValueError("handle belongs to a different builder")
+
+
+class GraphBuilder(FactBuilder):
+    """Build the retained embedded graph for legacy, not-yet-migrated callers."""
+
+    def build(self) -> Graph:
+        """Materialize the embedded graph from the canonical accumulated facts."""
+        clock, relations, roots = self._build_facts()
+        return Graph(self.declarations, clock, relations, roots)
 
 
 def add_event_copy(
