@@ -1,6 +1,6 @@
 # Lane A baseline captures
 
-Regenerate every capture and its manifest from the repository root with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py all`, then authenticate the result with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify`.
+Regenerate the tiergraph captures and their manifest from the repository root with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py all`, then authenticate the result with `PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify`. Regenerate `containment-navigation.json` separately with `PYTHONHASHSEED=0 python scripts/containment_oracle.py generate`.
 
 Small captures are committed in this directory.
 
