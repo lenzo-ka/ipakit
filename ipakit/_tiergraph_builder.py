@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ._tiergraph import (
     ClockNode,
@@ -23,6 +24,9 @@ from ._tiergraph import (
     Timing,
     _escape,
 )
+
+if TYPE_CHECKING:
+    from ._containment_projection import ContainmentProjectionInput
 
 
 @dataclass(frozen=True)
@@ -504,6 +508,55 @@ class GraphBuilder(FactBuilder):
         """Materialize the embedded graph from the canonical accumulated facts."""
         clock, relations, roots = self._build_facts()
         return Graph(self.declarations, clock, relations, roots)
+
+
+def copy_fact_builder(
+    source: ContainmentProjectionInput, declarations: Declarations | None = None
+) -> tuple[FactBuilder, dict[str, EventHandle]]:
+    """Copy scaffold-free Form facts into a native-input builder."""
+    builder = FactBuilder(declarations or source.declarations)
+    builder._input_tick = len(source.clock) - 1
+    builder._refiners = {
+        tick: [
+            EventHandle(builder._owner, -index - 1)
+            for index in range(node.gap_count - 1)
+        ]
+        for tick, node in enumerate(source.clock)
+        if node.gap_count > 1
+    }
+    handles: dict[str, EventHandle] = {}
+    for reference in source.refs:
+        event = source.events[reference]
+        tier = source.event_tiers[reference]
+        tick = int(reference.split("/")[2])
+        if event.span is None:
+            handle = builder.add_event(
+                tier,
+                tick,
+                event.features,
+                duration=event.structural_duration or 0,
+                timing=event.timing,
+                durable_id=event.durable_id,
+            )
+        else:
+            handle = builder.add_span(
+                tier,
+                _pointer_position(event.span.start),
+                _pointer_position(event.span.end),
+                event.features,
+                timing=event.timing,
+                durable_id=event.durable_id,
+            )
+        handles[reference] = handle
+    for relation in source.relations:
+        builder.relate(
+            (_copied_endpoint(reference, handles) for reference in relation.sources),
+            relation.name,
+            (_copied_endpoint(reference, handles) for reference in relation.targets),
+        )
+    for root in source.roots:
+        builder.add_root(handles[root])
+    return builder, handles
 
 
 def add_event_copy(
