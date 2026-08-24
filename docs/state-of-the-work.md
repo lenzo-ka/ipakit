@@ -5,7 +5,7 @@ This is the entry surface for the dated design records. It quotes their verdict 
 
 An open entry is a verdict that says to build or adopt. A refusal says so explicitly. Settled includes superseded findings and verdicts that record an answer without either instruction. A mixed verdict appears in both sections.
 
-## Settled (37)
+## Settled (39)
 
 | design record | recorded state |
 | --- | --- |
@@ -23,6 +23,8 @@ An open entry is a verdict that says to build or adopt. A refusal says so explic
 | [interop — (f) An over-tied vowel pair reads as a different existing phone](design/interop.md#f-an-over-tied-vowel-pair-reads-as-a-different-existing-phone) | Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed ([#99](https://github.com/lenzo-ka/ipakit/issues/99)). `to_phone(features("u͡i"))` no longer answers with a phone that is no constituent of the input. |
 | [interop — (g) `to_cmu` and `segments` are two tokenizers that disagree](design/interop.md#g-to_cmu-and-segments-are-two-tokenizers-that-disagree) | Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed ([#97](https://github.com/lenzo-ka/ipakit/issues/97)). `to_cmu` reads the segments the tokenizer read rather than matching the table's own keys, so it answers `['N', 'AO1', 'IH0', 'NG']` here and the two agree. |
 | [interop — (h) `to_cmu` accepts one tie glyph per category and rejects the other](design/interop.md#h-to_cmu-accepts-one-tie-glyph-per-category-and-rejects-the-other) | Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed. Ligature aliases resolve where no caller can bypass it, so both tie glyphs are accepted in both categories and no row of the table below raises. |
+| [ip-p1-store-approach — IP-P1-STORE approach](design/ip-p1-store-approach.md#ip-p1-store-approach) | Superseded: this approach is implemented. `Form` builds one authoritative `tiergraph.Graph` natively and the embedded graph engine is deleted; this record is kept for the approach it set out. [representation.md](design/representation.md) describes the current representation. |
+| [piece1-canonical-store — Piece 1 canonical-store cutover checkpoint](design/piece1-canonical-store.md#piece-1-canonical-store-cutover-checkpoint) | Superseded: the embedded-store cutover this checkpoint planned is complete. The embedded engine is deleted and every Form builds its authoritative `tiergraph.Graph` natively; this record is kept for the plan and evidence it captured. [representation.md](design/representation.md) describes the current representation. |
 | [tiers — 6. The smallest thing that is real](design/tiers.md#6-the-smallest-thing-that-is-real) | Superseded by [#145](https://github.com/lenzo-ka/ipakit/issues/145), and closed. |
 | [tract-validation — 4. What survives the window](design/tract-validation.md#4-what-survives-the-window) | Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), and closed. |
 | [tract-validation — 4. What survives the window](design/tract-validation.md#4-what-survives-the-window) | Superseded again by [#175](https://github.com/lenzo-ka/ipakit/issues/175), on the last sentence only. |

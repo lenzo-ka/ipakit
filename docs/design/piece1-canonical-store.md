@@ -1,5 +1,7 @@
 # Piece 1 canonical-store cutover checkpoint
 
+**Superseded: the embedded-store cutover this checkpoint planned is complete. The embedded engine is deleted and every Form builds its authoritative `tiergraph.Graph` natively; this record is kept for the plan and evidence it captured. [representation.md](../representation.md) describes the current representation.**
+
 This checkpoint deliberately stops after the pre-change differential oracle and
 the durable event-to-item identity seam.  The complete embedded-store retarget is
 not a safe single increment at the pinned tiergraph surface: ipakit still needs
