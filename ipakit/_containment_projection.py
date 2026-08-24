@@ -8,10 +8,8 @@ construct the authoritative tiergraph graph.
 from __future__ import annotations
 
 import json
-from collections import OrderedDict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import Any
 
 import tiergraph as tg
@@ -31,12 +29,6 @@ from ._graph_facts import (
 _NAMESPACE = "https://ipakit.dev/tiergraph/containment-projection/v1"
 _PREFIX = "ipakit-containment"
 _EVENT_TYPE = tg.QualifiedName(_NAMESPACE, "event")
-_PROJECTION_CACHE_MAXSIZE = 1024
-_projection_cache: OrderedDict[tuple[object, ...], ContainmentProjection] = (
-    OrderedDict()
-)
-_projection_cache_hits = 0
-_projection_cache_misses = 0
 
 _PAYLOAD_DECLARATIONS = (
     ("text", tg.XsdType.STRING),
@@ -369,49 +361,6 @@ class ContainmentProjectionInput:
         raise GraphValidationError("malformed JSON Pointer reference")
 
 
-def _projection_signature(
-    source: ContainmentProjectionInput,
-    preserved_relation_names: frozenset[str],
-) -> tuple[object, ...]:
-    """Return the complete, inventory-independent input to graph lowering.
-
-    Event domain objects are reduced through the same scalar payload codec as
-    the builder. The remaining fields are immutable structural facts consumed
-    directly by ``_build_from_input``.
-    """
-    return (
-        source.refs,
-        tuple(
-            (ref, source.event_tiers[ref], _event_payload(source.events[ref]))
-            for ref in source.refs
-        ),
-        tuple(sorted(source.event_tiers.items())),
-        source.declarations,
-        source.relations,
-        tuple(sorted(source.endpoint_kinds.items())),
-        tuple(node.gap_count for node in source.clock),
-        source.roots,
-        preserved_relation_names,
-    )
-
-
-def _projection_cache_clear() -> None:
-    """Clear the bounded projection memo and its testable counters."""
-    global _projection_cache_hits, _projection_cache_misses
-    _projection_cache.clear()
-    _projection_cache_hits = _projection_cache_misses = 0
-
-
-def _projection_cache_info() -> tuple[int, int, int, int]:
-    """Return hits, misses, current size, and maximum size."""
-    return (
-        _projection_cache_hits,
-        _projection_cache_misses,
-        len(_projection_cache),
-        _PROJECTION_CACHE_MAXSIZE,
-    )
-
-
 @dataclass(frozen=True)
 class ContainmentProjection:
     """Single-source ordered containment view with lossless event identity.
@@ -423,18 +372,18 @@ class ContainmentProjection:
     """
 
     graph: tg.Graph
-    old_to_new: Mapping[str, tg.ItemRef]
-    new_to_old: Mapping[tg.ItemRef, str]
-    tier_names: Mapping[str, tg.QualifiedName]
-    containment_names: Mapping[str, tg.QualifiedName]
-    relation_names: Mapping[str, tg.QualifiedName]
+    old_to_new: dict[str, tg.ItemRef]
+    new_to_old: dict[tg.ItemRef, str]
+    tier_names: dict[str, tg.QualifiedName]
+    containment_names: dict[str, tg.QualifiedName]
+    relation_names: dict[str, tg.QualifiedName]
     roots_name: tg.QualifiedName
-    parent_order: Mapping[tuple[str, str, str], int]
+    parent_order: dict[tuple[str, str, str], int]
     traversal_order: tuple[str, ...]
-    event_tiers: Mapping[str, str]
-    admitted_sources: Mapping[str, frozenset[str] | None]
-    admitted_targets: Mapping[str, frozenset[str] | None]
-    active_by_parent: Mapping[str, tuple[str, ...]]
+    event_tiers: dict[str, str]
+    admitted_sources: dict[str, frozenset[str] | None]
+    admitted_targets: dict[str, frozenset[str] | None]
+    active_by_parent: dict[str, tuple[str, ...]]
 
     @classmethod
     def from_input(
@@ -444,31 +393,6 @@ class ContainmentProjection:
         preserved_relation_names: frozenset[str] = frozenset(),
     ) -> ContainmentProjection:
         """Build the authoritative native graph from scaffold-free facts."""
-        global _projection_cache_hits, _projection_cache_misses
-
-        key = _projection_signature(source, preserved_relation_names)
-        try:
-            cached = _projection_cache.pop(key)
-        except KeyError:
-            _projection_cache_misses += 1
-        else:
-            _projection_cache_hits += 1
-            _projection_cache[key] = cached
-            return cached
-
-        result = cls._build_from_input(source, preserved_relation_names)
-        _projection_cache[key] = result
-        if len(_projection_cache) > _PROJECTION_CACHE_MAXSIZE:
-            _projection_cache.popitem(last=False)
-        return result
-
-    @classmethod
-    def _build_from_input(
-        cls,
-        source: ContainmentProjectionInput,
-        preserved_relation_names: frozenset[str],
-    ) -> ContainmentProjection:
-        """Build an uncached projection from content-complete facts."""
         from tiergraph.machine import (
             AddItem,
             AttachValue,
@@ -844,18 +768,18 @@ class ContainmentProjection:
         }
         result = cls(
             projected,
-            MappingProxyType(old_to_new),
-            MappingProxyType(new_to_old),
-            MappingProxyType(tier_names),
-            MappingProxyType(containment_names),
-            MappingProxyType(relation_names),
+            old_to_new,
+            new_to_old,
+            tier_names,
+            containment_names,
+            relation_names,
             roots_name,
-            MappingProxyType(parent_order),
+            parent_order,
             traversal_order,
-            MappingProxyType(event_tiers),
-            MappingProxyType(admitted_sources),
-            MappingProxyType(admitted_targets),
-            MappingProxyType(active_by_parent),
+            event_tiers,
+            admitted_sources,
+            admitted_targets,
+            active_by_parent,
         )
         result._verify_identity(refs)
         return result

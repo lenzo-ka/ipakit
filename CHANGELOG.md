@@ -111,7 +111,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `Form.segments` memoizes its tiergraph containment projection by content, so repeated reads of the same transcription and distance matrices reuse one projection; `read()` still returns a fresh `Form` per call.
 - Breaking API cleanup: converters now use uniform ``to_``/``from_`` names with an ``ipa_string`` input, distance ``weighted``/``strict`` options are keyword-only, and CLI ``convert to-ipa`` is now ``convert from-cmu``.
 - ipakit builds its graphs on the tiergraph library and no longer carries its own graph engine; Python 3.12 is required.
 - `RuleSet.variants` refuses a form carrying an interval: a variant is keyed by its spelling, so two branches spelling alike with different spans would merge and one tier reading would go silently (#145).
@@ -178,7 +177,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The animated jaw now moves: a low vowel opens the hinge and a closure raises it, so the lower lip, lower teeth and tongue floor ride it, where the old `offset × carriage` term read zero for every posture and left the mandible static. The frontal lips split their travel so both converge on the teeth-line seam rather than the maxillary lip staying skull-fixed.
 - A bracketed change naming a structural feature is refused: `t -> [tier=mora]` parsed, fired at every `t` and wrote into a bundle no unit carries (#145).
 - `DistanceModel.is_similar` charged structural marks a length and a price the alignment never pays, so `lez‿ami` against `lezami` short-circuited to `False` above 12/13 for two forms it scores identical (#166).
 - The feature-space fingerprint no longer digests structural features, which cannot reach a distance, so declaring one leaves a saved matrix readable (#145).

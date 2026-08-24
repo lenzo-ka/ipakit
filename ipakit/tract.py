@@ -376,16 +376,11 @@ class Head:
 
         upper_outer = tuple(pose(point) for point in upper[:5])
         left, right = upper_outer[0], upper_outer[-1]
-        seam = pose(upper[5])
-        # Both lips leave the occlusal parting line as the mouth opens.  The
-        # lower lip travels slightly farther because it rides the mandible,
-        # but the maxillary lip is not nailed to the skull-fixed seam.
-        upper_share = 0.10
-        upper_mid = (seam[0], seam[1] - aperture_height * upper_share)
+        upper_mid = pose(upper[5])
         upper_edge = (left, upper_mid, right)
         # The lower lip rides on the mandible.  Its outer and inner edges move
         # together while their corners remain anchored to the shared seam.
-        lower_mid = (seam[0], seam[1] + aperture_height * (1.0 - upper_share))
+        lower_mid = (upper_mid[0], upper_mid[1] + aperture_height)
         lower_edge = (left, lower_mid, right)
         lower_outer = tuple(
             (point[0], point[1] + aperture_height)
@@ -753,7 +748,7 @@ class Head:
         return pts[-1][1]
 
     def jaw_close(self, control: TractPoint) -> float:
-        """Signed jaw pose for this posture, -1 open to 1 shut.
+        """How far the jaw is closed for this posture, 0 open to 1 shut.
 
         The jaw is not stated by any feature -- it makes no constriction, so
         it is not an articulator -- but it is not free either: a segment that
@@ -763,13 +758,6 @@ class Head:
         """
         if control.offset is None or control.arc is None:
             return 0.0
-        neutral = self.rest.offset if self.rest is not None else 0.0
-        if neutral and control.offset < neutral:
-            # A low vowel is declared by aperture rather than by an anterior
-            # jaw-carried constriction.  Its amount below the head's neutral
-            # tongue-body offset is the only explicit opening measure in the
-            # posture, so map that deficit onto the opening half of the hinge.
-            return max(-1.0, (control.offset - neutral) / neutral)
         # Only a constriction the jaw carries closes the jaw. A glottal or
         # pharyngeal one does not: `jaw_carriage` is ~0 back there, and
         # deriving a closed jaw from /h/ would be reading the mandible off a
@@ -797,7 +785,7 @@ class Head:
         if carrier == "skull":
             return point
         membership = self.jaw_carriage(arc)
-        if membership <= 0.0 or close == 0.0:
+        if membership <= 0.0 or close <= 0.0:
             return point
         moved = self.rotate_jaw(point, close)
         return (
@@ -809,9 +797,9 @@ class Head:
         self, point: tuple[float, float], close: float
     ) -> tuple[float, float]:
         """Rigidly rotate a mandibular point about the declared condyle."""
-        if self.hinge is None or close == 0.0:
+        if self.hinge is None or close <= 0.0:
             return point
-        angle = math.radians(self.jaw_rotation * max(-1.0, min(1.0, close)))
+        angle = math.radians(self.jaw_rotation * min(1.0, close))
         cosine, sine = math.cos(angle), math.sin(angle)
         dx, dy = point[0] - self.hinge[0], point[1] - self.hinge[1]
         return (
