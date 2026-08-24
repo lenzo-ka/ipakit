@@ -1,5 +1,5 @@
 {
-  "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/capture_containment_golden.py generate",
+  "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/containment_oracle.py generate",
   "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. Navigation is identical to the legacy implementation on every accepted graph.",
   "fixtures": {
     "fixture:canonical-relation-order": {

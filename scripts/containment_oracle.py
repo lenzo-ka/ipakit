@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -17,6 +18,10 @@ import tiergraph
 
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN = ROOT / "tests/tiergraph/baselines/containment-navigation.json"
+GENERATED = (
+    "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 "
+    "python scripts/containment_oracle.py generate"
+)
 sys.path.insert(0, str(ROOT))
 
 from ipakit import Form, FormBuilder, IPAFeatures  # noqa: E402
@@ -528,6 +533,91 @@ def _as_json(value: object) -> object:
     return value
 
 
+def _render() -> str:
+    fixtures = {
+        name: {
+            "class": _as_json(_structural_class(graph)),
+            "answers": _as_json(_answers(graph)),
+        }
+        for name, graph in corpus()
+    }
+    payload = {
+        "_generated": GENERATED,
+        "source_commit": "485f7a7c631001b58acfffc2884011081e0bcd19",
+        "accepted_domain": (
+            "Exactly graphs whose containment instances have one event source and "
+            "only event targets (including a declared empty target side); across "
+            "multiple relations, repeated incidence is retained. Navigation is "
+            "identical to the legacy implementation on every accepted graph."
+        ),
+        "refusals": {
+            "source_cardinality_other_than_one": (
+                "Refused by instance index and relation name because joint or "
+                "empty-source containment navigation is not defined by "
+                "OrderedContainment."
+            ),
+            "boundary_endpoint_relation": (
+                "Refused by relation name because tiergraph OrderedContainment is "
+                "item-only; lift when tiergraph supports boundary containment "
+                "traversal. No mainline ipakit profile or named fixture constructs "
+                "this shape."
+            ),
+        },
+        "refused_constructions": {
+            "boundary-owns": {
+                "legacy_direct_children": ["/clock/1"],
+                "projection": "refused by relation name",
+            },
+        },
+        "routing": {
+            "accepted_event_only_relations": (
+                "Delegated to tiergraph OrderedContainment; the consumer composes "
+                "canonical order and per-relation inverse multiplicity across "
+                "relations."
+            ),
+            "boundary_endpoint_relations": (
+                "Refused before projection; there is no kernel path until tiergraph "
+                "supports boundary containment traversal."
+            ),
+        },
+        "population": {
+            "kind": (
+                "fixture-derived structural classes, derived and checked, with "
+                "constructor/validator drift guard"
+            ),
+            "boundary": "the named fixtures in this artifact",
+            "outside_member_example": (
+                "boundary-owns: legacy direct_children(root) returns the "
+                "coarse-tick boundary; projection refuses boundary-owns by name"
+            ),
+            "surface": {
+                "relation_declaration_fields": [
+                    "name",
+                    "ordered",
+                    "acyclic",
+                    "source_tiers",
+                    "target_tiers",
+                    "source_kinds",
+                    "target_kinds",
+                    "source_arity",
+                    "target_arity",
+                    "allow_empty_source",
+                    "allow_empty_target",
+                    "semantic_precedence",
+                    "containment",
+                    "choice",
+                    "member_of",
+                ],
+                "constructor_validator_sha256": (
+                    "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa"
+                ),
+            },
+        },
+        "fixtures": fixtures,
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
 def verify() -> Coverage:
     payload = json.loads(GOLDEN.read_text(encoding="utf-8"))
     fixture_count = event_count = comparison_count = 0
@@ -573,13 +663,25 @@ def verify() -> Coverage:
     return Coverage(fixture_count, event_count, comparison_count)
 
 
-if __name__ == "__main__":
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "action", choices=("check", "generate"), default="check", nargs="?"
+    )
+    args = parser.parse_args()
     seed = os.environ.get("PYTHONHASHSEED")
     if seed != "0":
         raise SystemExit("PYTHONHASHSEED=0 is required")
+    if args.action == "generate":
+        GOLDEN.write_text(_render(), encoding="utf-8")
     coverage = verify()
     print(
         f"containment oracle: {coverage.events} events over "
         f"{coverage.fixtures} fixtures; {coverage.comparisons} ordered comparisons; "
         f"matched committed golden; fixture-sample-bounded; PYTHONHASHSEED={seed}"
     )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

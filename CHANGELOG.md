@@ -1,9 +1,5 @@
 # Changelog
 
-- Require Python 3.12 and tiergraph as the containment substrate. The projection accepts exactly containment instances with one event source and only event targets, including declared empty target sides and incidence across multiple relations. It refuses any other source cardinality by instance index and relation name, and refuses boundary-endpoint containment by relation name because tiergraph's `OrderedContainment` is item-only; no mainline profile or named fixture constructs that shape, and tiergraph boundary containment traversal is the condition for lifting the refusal. Accepted relations delegate to `OrderedContainment`, with consumer-side composition restoring canonical cross-relation order and per-relation inverse multiplicity. Navigation is identical to the legacy implementation on every accepted graph. A byte-reproducible committed golden records the legacy implementation at `485f7a7` (whose ancestors include the migration commits); its named fixture population includes canonical cross-relation ordering, shared inverse incidence, and empty-target constructions, with structural classifications derived from the graphs and checked. Projection and identity validation raise hard runtime errors; there is no silent old-kernel fallback.
-
-- Corpus roles can record typed producer/declaration provenance, corpora carry declaration fingerprints and explicit durable splits, and `Experiment`/`ipakit rules derives` classify and serialize batch derivability with reproducible identities and report comparison. A CMUdict-slice demonstration and dated storage scaling report exercise the full lane.
-
 All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -13,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Corpus provenance: roles record typed producer and declaration provenance, corpora carry declaration fingerprints and durable splits, and `Experiment` / `ipakit rules derives` classify and serialize batch derivability with reproducible identities.
 - An English syllabifier with evidence-bearing onset strata, strictness selection, and a regenerable CMUdict harvest, curation-loop history, and ipa-dict cross-check.
 - A declared `Form → Intervals` syllabifier mechanism with Japanese moraic, Pinyin-backed Mandarin, and constraint-derived Spanish worked languages.
 - Prosodic tiers bear graded distance: stress, tone and length ride on the unit they attach to and add one ordinal term to the metric (primary vs secondary stress is half a step), read metric-only so stored features and round-trips are unchanged and no-rider phones score as before; the stress feature is now the 3-level ordinal `none < secondary < primary`. `explain_word_distance` traces a comparison position by position with the per-term breakdown, on the module and CLI (`distance word --explain`). `confusion.json`'s fingerprint moves; its triangle does not (#190).
@@ -114,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- ipakit builds its graphs on the tiergraph library and no longer carries its own graph engine; Python 3.12 is required.
 - `RuleSet.variants` refuses a form carrying an interval: a variant is keyed by its spelling, so two branches spelling alike with different spans would merge and one tier reading would go silently (#145).
 - `form.edge_tier()` and `form.tiers()` are `edge_level()` and `levels()`: both answer with the ordinal `level` feature, and `tier` is a declared feature of its own now (#145).
 - `œ`, `ɯ` and `ʌ` declare a constriction location, from Wood's later restatements of the same four families; 268 of 9591 pairs move and no consonant pair does (#175).
