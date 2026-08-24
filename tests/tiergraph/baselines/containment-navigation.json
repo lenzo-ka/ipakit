@@ -11303,7 +11303,7 @@
     },
     "profile:panphon": {
       "answers": {
-        "/clock/0/segment/0": {
+        "{urn:ipakit:panphon}segment[0]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11314,12 +11314,12 @@
             "segment": []
           },
           "leaves": [
-            "/clock/0/segment/0"
+            "{urn:ipakit:panphon}segment[0]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/1/segment/0": {
+        "{urn:ipakit:panphon}segment[1]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11330,12 +11330,12 @@
             "segment": []
           },
           "leaves": [
-            "/clock/1/segment/0"
+            "{urn:ipakit:panphon}segment[1]"
           ],
           "parents": [],
           "routes": []
         },
-        "/clock/2/segment/0": {
+        "{urn:ipakit:panphon}segment[2]": {
           "ancestors": [],
           "descendants": [],
           "descendants_by_tier": {
@@ -11346,7 +11346,7 @@
             "segment": []
           },
           "leaves": [
-            "/clock/2/segment/0"
+            "{urn:ipakit:panphon}segment[2]"
           ],
           "parents": [],
           "routes": []

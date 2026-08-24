@@ -12,6 +12,9 @@ from dataclasses import dataclass, fields
 from functools import lru_cache
 from pathlib import Path
 
+from tiergraph.build import document
+from tiergraph.build import item as graph_item
+
 import tiergraph
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -196,11 +199,20 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
     native_form = Form.parse("ata", inventory)
     native = _graph_from_compatibility(native_form.units, native_form.intervals)
     graphs.append(("profile:gesture", project_gestures(native, inventory)))
-    panphon_builder = GraphBuilder(panphon_declaration(()))
-    for spelling in ("p", "a", "t"):
-        panphon_builder.append_input_atom("segment", {"spelling": spelling})
-    panphon = panphon_builder.build()
-    graphs.append(("profile:panphon", panphon))
+    panphon_builder = document("urn:ipakit:panphon", prefix="panphon")
+    for declaration in panphon_declaration(()):
+        panphon_builder.attribute(
+            declaration.name,
+            declaration.value_type,
+            domain=declaration.domain,
+        )
+    panphon_builder.tier(
+        "segment",
+        (graph_item(spelling=spelling) for spelling in ("p", "a", "t")),
+        item_type="segment",
+        membership="segment-members",
+    )
+    graphs.append(("profile:panphon", panphon_builder.build()))
     graphs.extend(
         (
             f"profile:japanese-rewrite:{name}",

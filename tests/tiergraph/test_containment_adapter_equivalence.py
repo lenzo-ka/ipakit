@@ -117,6 +117,19 @@ def _embedded_pinyin_fixture() -> Graph:
     return builder.build()
 
 
+def _embedded_panphon_fixture() -> Graph:
+    """Build the pre-migration PanPhon shape without the native builder."""
+    declarations = Declarations(
+        (TierDeclaration("segment", frozenset({"spelling"})),),
+        (FeatureDeclaration("spelling"),),
+        (),
+    )
+    builder = GraphBuilder(declarations)
+    for spelling in ("p", "a", "t"):
+        builder.append_input_atom("segment", {"spelling": spelling})
+    return builder.build()
+
+
 def _normalize(value: object, native_to_embedded: Mapping[str, str]) -> object:
     """Translate only complete native item references, preserving all structure."""
     if isinstance(value, str):
@@ -137,10 +150,16 @@ def _paths(
     name: str, graph: Graph | tiergraph.Graph
 ) -> tuple[Graph, tiergraph.Graph, dict[str, str]]:
     if isinstance(graph, tiergraph.Graph):
-        assert name in {"profile:cmu", "profile:mora", "profile:pinyin"}
+        assert name in {
+            "profile:cmu",
+            "profile:mora",
+            "profile:panphon",
+            "profile:pinyin",
+        }
         fixtures = {
             "profile:cmu": _embedded_cmu_fixture,
             "profile:mora": _embedded_mora_fixture,
+            "profile:panphon": _embedded_panphon_fixture,
             "profile:pinyin": _embedded_pinyin_fixture,
         }
         embedded = fixtures[name]()
