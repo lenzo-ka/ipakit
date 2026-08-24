@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+import ipakit
 import pytest
 from ipakit._containment_projection import ContainmentProjection
+from ipakit._rewrite_graph import japanese_moraic_fixture
 from ipakit._tiergraph import (
     Declarations,
     FeatureDeclaration,
@@ -130,6 +132,18 @@ def _embedded_panphon_fixture() -> Graph:
     return builder.build()
 
 
+def _embedded_rewrite_fixture(name: str) -> Graph:
+    """Materialize the independent embedded reference, including ``inserts``."""
+    form = japanese_moraic_fixture(name, ipakit.load_ipa_features())
+    captured = form.__dict__["_tiergraph_index"].containment_input
+    return Graph(
+        captured.declarations,
+        captured.clock,
+        captured.relations,
+        captured.roots,
+    )
+
+
 def _normalize(value: object, native_to_embedded: Mapping[str, str]) -> object:
     """Translate only complete native item references, preserving all structure."""
     if isinstance(value, str):
@@ -155,14 +169,18 @@ def _paths(
             "profile:mora",
             "profile:panphon",
             "profile:pinyin",
-        }
+        } or name.startswith("profile:japanese-rewrite:")
         fixtures = {
             "profile:cmu": _embedded_cmu_fixture,
             "profile:mora": _embedded_mora_fixture,
             "profile:panphon": _embedded_panphon_fixture,
             "profile:pinyin": _embedded_pinyin_fixture,
         }
-        embedded = fixtures[name]()
+        embedded = (
+            _embedded_rewrite_fixture(name.rsplit(":", 1)[1])
+            if name.startswith("profile:japanese-rewrite:")
+            else fixtures[name]()
+        )
         native = graph
         embedded_by_tier = {
             tier: tuple(
@@ -174,10 +192,34 @@ def _paths(
                 declaration.name for declaration in embedded.declarations.tiers
             )
         }
-        native_to_embedded = {
-            str(ref): embedded_by_tier[ref.tier.local_name][ref.index]
-            for ref in native.canonical_items()
+        native_tier_names = {
+            tier.declaration.name: tier.declaration.long_name for tier in native.tiers
         }
+        native_to_embedded = {
+            str(ref): embedded_by_tier[native_tier_names[ref.tier]][ref.index]
+            for ref in native.canonical_items()
+            if native_tier_names[ref.tier] in embedded_by_tier
+        }
+        positions = {}
+        for position in native.position_values:
+            attributes = {
+                value.name.local_name: int(value.lexical)
+                for value in position.attributes
+            }
+            tick = attributes["tick"]
+            gap = attributes["gap"]
+            pointer = (
+                f"/clock/{tick}"
+                if embedded.clock[tick].gap_count == 1
+                else f"/clock/{tick}/gaps/{gap}"
+            )
+            positions[position.reference] = pointer
+        for relation in native.polyadic_relations:
+            for endpoint in (*relation.sources, *relation.targets):
+                if isinstance(endpoint, tiergraph.DurablePositionRef):
+                    native_to_embedded[str(endpoint)] = positions[
+                        native.resolve_position(endpoint)
+                    ]
         return embedded, native, native_to_embedded
 
     embedded = graph

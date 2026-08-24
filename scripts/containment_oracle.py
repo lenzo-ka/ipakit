@@ -34,6 +34,7 @@ from ipakit._rewrite_graph import (  # noqa: E402
 )
 from ipakit._tiergraph import (  # noqa: E402
     Declarations,
+    EndpointKind,
     FeatureDeclaration,
     Graph,
     Relation,
@@ -216,7 +217,7 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
     graphs.extend(
         (
             f"profile:japanese-rewrite:{name}",
-            _legacy_containment_sample(japanese_moraic_fixture(name, inventory)),
+            japanese_moraic_fixture(name, inventory)._graph,
         )
         for name in japanese_moraic_fixtures()
     )
@@ -417,8 +418,19 @@ class _NativeContainment:
 def _answers(graph: Graph) -> dict[str, object]:
     if isinstance(graph, tiergraph.Graph):
         projected = _NativeContainment.build(graph)
-        tiers = tuple(tier.declaration.long_name for tier in graph.tiers)
-        refs = tuple(str(ref) for ref in graph.canonical_items())
+        tiers = tuple(
+            tier.declaration.long_name
+            for tier in graph.tiers
+            if tier.declaration.long_name != "clock"
+        )
+        tier_names = {
+            tier.declaration.name
+            for tier in graph.tiers
+            if tier.declaration.long_name != "clock"
+        }
+        refs = tuple(
+            str(ref) for ref in graph.canonical_items() if ref.tier in tier_names
+        )
     else:
         projected = ContainmentProjection.build(graph)
         tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
@@ -496,7 +508,7 @@ def _structural_class(graph: Graph) -> dict[str, object]:
     targets = [
         target for _, relation_targets in relation_parts for target in relation_targets
     ]
-    return {
+    result: dict[str, object] = {
         "containment_declarations": len(containment),
         "source_arities": sorted({len(sources) for sources, _ in relation_parts}),
         "target_arities": sorted({len(targets) for _, targets in relation_parts}),
@@ -512,10 +524,54 @@ def _structural_class(graph: Graph) -> dict[str, object]:
             }
         ),
     }
+    if isinstance(graph, tiergraph.Graph):
+        boundary_relations = tuple(
+            relation
+            for relation in graph.polyadic_relations
+            if any(
+                isinstance(
+                    endpoint, tiergraph.DurablePositionRef | tiergraph.PositionRef
+                )
+                for endpoint in (*relation.sources, *relation.targets)
+            )
+        )
+
+        def endpoint_kind(endpoint: object) -> str:
+            return "event" if isinstance(endpoint, tiergraph.ItemRef) else "position"
+
+    else:
+        boundary_relations = tuple(
+            relation
+            for relation in graph.relations
+            if any(
+                graph.resolve(endpoint).kind is not EndpointKind.EVENT
+                for endpoint in (*relation.sources, *relation.targets)
+            )
+        )
+
+        def endpoint_kind(endpoint: object) -> str:
+            assert isinstance(endpoint, str)
+            return (
+                "event"
+                if graph.resolve(endpoint).kind is EndpointKind.EVENT
+                else "position"
+            )
+
+    if boundary_relations:
+        result["boundary_relation_shapes"] = sorted(
+            (
+                tuple(endpoint_kind(endpoint) for endpoint in relation.sources),
+                tuple(endpoint_kind(endpoint) for endpoint in relation.targets),
+            )
+            for relation in boundary_relations
+        )
+    return result
 
 
 def _as_json(value: object) -> object:
     if isinstance(value, tuple):
+        return [_as_json(item) for item in value]
+    if isinstance(value, list):
         return [_as_json(item) for item in value]
     if isinstance(value, dict):
         return {key: _as_json(item) for key, item in value.items()}
@@ -538,13 +594,22 @@ def verify() -> Coverage:
         seen.add(name)
         fixture_count += 1
         refs = (
-            graph.canonical_items()
+            tuple(
+                ref
+                for ref in graph.canonical_items()
+                if next(
+                    tier.declaration.long_name
+                    for tier in graph.tiers
+                    if tier.declaration.name == ref.tier
+                )
+                != "clock"
+            )
             if isinstance(graph, tiergraph.Graph)
             else graph.event_references()
         )
         event_count += len(refs)
         tier_count = (
-            len(graph.tiers)
+            sum(tier.declaration.long_name != "clock" for tier in graph.tiers)
             if isinstance(graph, tiergraph.Graph)
             else len(graph.declarations.tiers)
         )

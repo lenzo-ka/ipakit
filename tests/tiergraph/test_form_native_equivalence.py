@@ -33,8 +33,7 @@ def _relation_shapes() -> Form:
     builder.contain(owner, (first, second))
     builder.relate((first,), "alternatives", (first, second))
     builder.relate((first,), "selects", (second,))
-    # Position-anchored relations are deliberately omitted by the current
-    # projection. Keep that behavior pinned until its dedicated cutover.
+    # Position-anchored relations are first-class authoritative facts.
     builder.relate((builder._builder.tick(0),), "inserts", (first,))
     builder.add_root(owner)
     return builder.build()
@@ -56,7 +55,7 @@ def _corpus() -> tuple[tuple[str, Form], ...]:
         ("form-of-held-intervals", held),
         ("dataclass-edited", edited),
         ("builder-hierarchy", _hierarchy()),
-        ("relations-current-drops", _relation_shapes()),
+        ("relations-with-position-endpoint", _relation_shapes()),
     )
 
 

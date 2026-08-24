@@ -509,9 +509,19 @@ class ContainmentProjection:
             declaration.name: _name(f"contains-{index}")
             for index, declaration in enumerate(containment)
         }
+        boundary_relation_names = {
+            relation.name
+            for relation in source.relations
+            if any(
+                source.endpoint_kinds[endpoint] is not EndpointKind.EVENT
+                for endpoint in (*relation.sources, *relation.targets)
+            )
+        }
         relation_names = {
-            declaration.name: containment_names.get(
-                declaration.name, _name(f"relation-{index}")
+            declaration.name: (
+                _name(declaration.name)
+                if declaration.name in boundary_relation_names
+                else containment_names.get(declaration.name, _name(f"relation-{index}"))
             )
             for index, declaration in enumerate(source.declarations.relations)
         }
@@ -524,6 +534,31 @@ class ContainmentProjection:
             for tick, node in enumerate(source.clock)
             for encoded_gap in range(node.gap_count + 1)
         )
+        clock_position_indices = {
+            position: index for index, position in enumerate(clock_positions)
+        }
+
+        def durable_position(pointer: str) -> tg.DurablePositionRef:
+            resolved = source.resolve(pointer)
+            gap = 0
+            if resolved.kind is EndpointKind.REFINED_GAP:
+                assert resolved.gap is not None
+                gap = resolved.gap
+            boundary_index = clock_position_indices[(resolved.tick, gap)]
+            cell_count = max(0, len(clock_positions) - 1)
+            if boundary_index < cell_count:
+                anchor: tg.DurableItemRef | tg.QualifiedName = tg.DurableItemRef(
+                    f"ipakit-clockcell-{boundary_index}"
+                )
+                side = tg.BoundarySide.BEFORE
+            elif cell_count:
+                anchor = tg.DurableItemRef(f"ipakit-clockcell-{cell_count - 1}")
+                side = tg.BoundarySide.AFTER
+            else:
+                anchor = clock_name
+                side = tg.BoundarySide.BEFORE
+            return tg.DurablePositionRef(anchor, side)
+
         root_tiers = _ordered_unique(source.event_tiers[root] for root in source.roots)
 
         def item_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
@@ -534,6 +569,38 @@ class ContainmentProjection:
                 None if tiers is None else tuple(tier_names[tier] for tier in tiers),
                 minimum=arity[0],
                 maximum=arity[1],
+                allow_empty=getattr(declaration, f"allow_empty_{side}"),
+            )
+
+        def relation_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
+            """Lower compatibility endpoint kinds without perturbing item-only sides."""
+            kinds = getattr(declaration, f"{side}_kinds")
+            if kinds == frozenset({EndpointKind.EVENT}):
+                return tg.RelationSideDeclaration(
+                    (tg.RelationEndpointKind.ITEM,),
+                    None,
+                    minimum=getattr(declaration, f"{side}_arity")[0],
+                    maximum=getattr(declaration, f"{side}_arity")[1],
+                    allow_empty=getattr(declaration, f"allow_empty_{side}"),
+                )
+            endpoint_kinds = (
+                *(
+                    (tg.RelationEndpointKind.ITEM,)
+                    if EndpointKind.EVENT in kinds
+                    else ()
+                ),
+                *(
+                    (tg.RelationEndpointKind.BOUNDARY,)
+                    if kinds
+                    & frozenset({EndpointKind.COARSE_TICK, EndpointKind.REFINED_GAP})
+                    else ()
+                ),
+            )
+            return tg.RelationSideDeclaration(
+                endpoint_kinds,
+                None,
+                minimum=getattr(declaration, f"{side}_arity")[0],
+                maximum=getattr(declaration, f"{side}_arity")[1],
                 allow_empty=getattr(declaration, f"allow_empty_{side}"),
             )
 
@@ -555,20 +622,8 @@ class ContainmentProjection:
             *(
                 tg.PolyadicRelationDeclaration(
                     relation_names[declaration.name],
-                    tg.RelationSideDeclaration(
-                        (tg.RelationEndpointKind.ITEM,),
-                        None,
-                        minimum=declaration.source_arity[0],
-                        maximum=declaration.source_arity[1],
-                        allow_empty=declaration.allow_empty_source,
-                    ),
-                    tg.RelationSideDeclaration(
-                        (tg.RelationEndpointKind.ITEM,),
-                        None,
-                        minimum=declaration.target_arity[0],
-                        maximum=declaration.target_arity[1],
-                        allow_empty=declaration.allow_empty_target,
-                    ),
+                    relation_side(declaration, "source"),
+                    relation_side(declaration, "target"),
                     acyclic=declaration.acyclic,
                 )
                 for declaration in source.declarations.relations
@@ -604,14 +659,25 @@ class ContainmentProjection:
         ) + tuple(
             tg.PolyadicRelationInstance(
                 relation_names[relation.name],
-                tuple(old_to_new[item] for item in relation.sources),
-                tuple(old_to_new[item] for item in relation.targets),
+                tuple(
+                    (
+                        old_to_new[item]
+                        if source.endpoint_kinds[item] is EndpointKind.EVENT
+                        else durable_position(item)
+                    )
+                    for item in relation.sources
+                ),
+                tuple(
+                    (
+                        old_to_new[item]
+                        if source.endpoint_kinds[item] is EndpointKind.EVENT
+                        else durable_position(item)
+                    )
+                    for item in relation.targets
+                ),
             )
             for relation in source.relations
             if relation.name not in containment_names
-            and all(
-                item in old_to_new for item in (*relation.sources, *relation.targets)
-            )
         )
         parent_order = {
             (target, source_ref, relation.name): rank
