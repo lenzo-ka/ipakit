@@ -642,8 +642,10 @@ class DistanceMixin(IPAFeaturesBase):
         basis left once the segment cannot be built. ``distance("", "")``
         is 0.0 for the same reason.
         """
-        for arg in (phone1, phone2):
-            units = self.read(arg).segments
+        f1 = self.read(phone1)
+        f2 = self.read(phone2)
+        for arg, form in ((phone1, f1), (phone2, f2)):
+            units = form.segments
             if len(units) > 1:
                 raise ValueError(
                     f"distance() compares single units; {arg!r} is "
@@ -651,8 +653,8 @@ class DistanceMixin(IPAFeaturesBase):
                     "or segment_distance() for segment strings."
                 )
         try:
-            (s1,) = self.read(phone1).segments
-            (s2,) = self.read(phone2).segments
+            (s1,) = f1.segments
+            (s2,) = f2.segments
         except ValueError:
             same = unicodedata.normalize("NFC", phone1) == unicodedata.normalize(
                 "NFC", phone2
