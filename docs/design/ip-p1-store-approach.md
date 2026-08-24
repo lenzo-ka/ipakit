@@ -1,5 +1,7 @@
 # IP-P1-STORE approach
 
+**Superseded: this approach is implemented. `Form` builds one authoritative `tiergraph.Graph` natively and the embedded graph engine is deleted; this record is kept for the approach it set out. [representation.md](../representation.md) describes the current representation.**
+
 `Form` will store one authoritative structural object: a `tiergraph.Graph` built
 once when the legacy `GraphBuilder` scaffold finishes.  The existing
 containment conversion becomes that construction seam.  Its result also keeps
