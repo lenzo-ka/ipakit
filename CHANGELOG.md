@@ -111,7 +111,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `Form.segments` memoizes its tiergraph containment projection by content, so repeated reads of the same transcription and distance matrices reuse one projection; `read()` still returns a fresh `Form` per call.
 - Breaking API cleanup: converters now use uniform ``to_``/``from_`` names with an ``ipa_string`` input, distance ``weighted``/``strict`` options are keyword-only, and CLI ``convert to-ipa`` is now ``convert from-cmu``.
 - ipakit builds its graphs on the tiergraph library and no longer carries its own graph engine; Python 3.12 is required.
 - `RuleSet.variants` refuses a form carrying an interval: a variant is keyed by its spelling, so two branches spelling alike with different spans would merge and one tier reading would go silently (#145).
