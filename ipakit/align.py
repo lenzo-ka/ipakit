@@ -16,7 +16,7 @@ from typing import Any
 from . import _corpus
 from ._cmu_graph import BASE_CMUDICT, POCKETSPHINX, CMUDialect
 from ._cmu_graph import read as read_cmu
-from ._tiergraph_builder import PositionHandle
+from ._fact_builder import PositionHandle
 from .features import IPAFeatures
 from .form import Form, FormBuilder
 from .mapper import CMUMapper

@@ -18,17 +18,17 @@ sys.path.insert(0, str(ROOT))
 
 import ipakit  # noqa: E402
 from ipakit import Form, FormBuilder, Interval, Timing  # noqa: E402
+from ipakit._containment_projection import ContainmentProjectionInput  # noqa: E402
 from ipakit._corpus_query import Match, _unit_paths  # noqa: E402
-from ipakit._tiergraph import (  # noqa: E402
+from ipakit._fact_builder import FactBuilder  # noqa: E402
+from ipakit._graph_facts import (  # noqa: E402
     Declarations,
     EndpointKind,
     FeatureDeclaration,
-    Graph,
     Relation,
     RelationDeclaration,
     TierDeclaration,
 )
-from ipakit._tiergraph_builder import GraphBuilder  # noqa: E402
 
 
 class OracleMismatch(AssertionError):
@@ -86,17 +86,17 @@ def _containment_refusal(*, boundary: bool) -> None:
             ),
         ),
     )
-    builder = GraphBuilder(declarations)
+    builder = FactBuilder(declarations)
     first = builder.append_input_atom("item", {"label": "first"})
     second = builder.append_input_atom("item", {"label": "second"})
     third = builder.append_input_atom("item", {"label": "third"})
     if not boundary:
         builder.relate((first, second), "contains", (third,))
-        form = Form._from_graph(builder.build())
+        form = Form._from_projection_input(builder.build_input())
     else:
-        base = builder.build()
-        form = Form._from_graph(
-            Graph(
+        base = builder.build_input()
+        form = Form._from_projection_input(
+            ContainmentProjectionInput.from_facts(
                 base.declarations,
                 base.clock,
                 (Relation(("/clock/0/item/0",), "contains", ("/clock/1",)),),

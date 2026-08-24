@@ -55,7 +55,7 @@ from .segment import (
 from .validation import ValidationMixin
 
 if TYPE_CHECKING:
-    from ._tiergraph import Declarations
+    from ._graph_facts import Declarations
     from .form import Form, _FormConstants
 
 #: What a resolved query term carries: one value, or a set of them.

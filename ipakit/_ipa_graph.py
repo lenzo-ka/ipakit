@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ._tiergraph import (
+from ._graph_facts import (
     Declarations,
     EndpointKind,
     FeatureDeclaration,

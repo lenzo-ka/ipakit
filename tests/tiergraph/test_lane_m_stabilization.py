@@ -9,21 +9,9 @@ import pytest
 from ipakit import Form, FormBuilder, IPAFeatures
 from ipakit._cmu_graph import read as read_cmu
 from ipakit._codecs import DeliverySelectionError, render_delivery
+from ipakit._fact_builder import FactBuilder
 from ipakit._ipa_graph import declarations as ipa_declarations
 from ipakit._panphon_graph import fingerprint
-from ipakit._tiergraph import (
-    ClockNode,
-    Declarations,
-    Event,
-    EventGroup,
-    FeatureDeclaration,
-    Graph,
-    Relation,
-    RelationDeclaration,
-    TierDeclaration,
-)
-from ipakit._tiergraph_builder import GraphBuilder
-from ipakit._tiergraph_json import Model, dumps
 
 import tiergraph
 
@@ -42,66 +30,6 @@ def test_declarations_are_referenced_and_fingerprinted_over_canonical_identity()
     assert graph.relation_declarations
 
 
-def test_feature_keys_are_lexical_including_inventory_extensions() -> None:
-    inventory = IPAFeatures()
-    names = [feature.name for feature in ipa_declarations(inventory).features]
-    assert names == sorted(names)
-    declarations = Declarations(
-        (TierDeclaration("phone", frozenset({"z-extension", "a-core"})),),
-        (FeatureDeclaration("z-extension"), FeatureDeclaration("a-core")),
-        (),
-    )
-    graph = Graph(
-        declarations,
-        (
-            ClockNode(
-                groups=(EventGroup("phone", (Event({"z-extension": 2, "a-core": 1}),)),)
-            ),
-            ClockNode(),
-        ),
-    )
-    wire = dumps(graph, Model("extension", "1", declarations))
-    assert wire.index('"a-core"') < wire.index('"z-extension"')
-
-
-def test_durable_labels_are_declared_data_while_paths_are_revision_local() -> None:
-    declarations = Declarations(
-        (TierDeclaration("item", frozenset({"label"})),),
-        (FeatureDeclaration("label"),),
-        (),
-    )
-    first = GraphBuilder(declarations)
-    first.append_input_atom("item", {"label": "durable"})
-    original = first.build()
-    second = GraphBuilder(declarations)
-    second.append_input_atom("item", {"label": "new"})
-    second.add_event("item", 0, {"label": "durable"})
-    revised = second.build()
-    assert original.resolve("/clock/0/item/0").event.features["label"] == "durable"  # type: ignore[union-attr]
-    assert revised.resolve("/clock/0/item/1").event.features["label"] == "durable"  # type: ignore[union-attr]
-
-
-def test_acyclicity_is_per_declared_relation_not_their_union() -> None:
-    declarations = Declarations(
-        (TierDeclaration("item"),),
-        (),
-        (
-            RelationDeclaration("a", acyclic=True),
-            RelationDeclaration("b", acyclic=True),
-        ),
-    )
-    events = EventGroup("item", (Event({}), Event({})))
-    graph = Graph(
-        declarations,
-        (ClockNode(groups=(events,)), ClockNode()),
-        (
-            Relation(("/clock/0/item/0",), "a", ("/clock/0/item/1",)),
-            Relation(("/clock/0/item/1",), "b", ("/clock/0/item/0",)),
-        ),
-    )
-    assert len(graph.relations) == 2
-
-
 def test_ipa_resolved_views_are_opt_in_but_cmu_facts_are_authoritative() -> None:
     form = IPAFeatures().read("a")
     assert "features" not in form.to_dict()["units"][0]
@@ -116,7 +44,7 @@ def test_ipa_resolved_views_are_opt_in_but_cmu_facts_are_authoritative() -> None
 
 def test_rendering_selection_is_profile_explicit_and_choices_never_guess() -> None:
     inventory = IPAFeatures()
-    builder = GraphBuilder(ipa_declarations(inventory))
+    builder = FactBuilder(ipa_declarations(inventory))
     choice = builder.add_event("analysis", 0, {}, duration=0)
     first = builder.add_event("delivery", 0, {}, duration=0)
     second = builder.add_event("delivery", 0, {}, duration=0)

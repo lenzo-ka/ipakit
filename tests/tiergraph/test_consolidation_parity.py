@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import ipakit._tiergraph as tiergraph
-import ipakit._tiergraph_builder as tiergraph_builder
+import json
+
 from scripts.consolidation_parity import corpus_bytes
 
+import tiergraph
 
-def test_parity_corpus_detects_broken_pointer_escaping(monkeypatch) -> None:
-    canonical = corpus_bytes()
-    monkeypatch.setattr(tiergraph, "_escape", lambda value: value)
-    monkeypatch.setattr(tiergraph_builder, "_escape", lambda value: value)
-    assert corpus_bytes() != canonical
+
+def test_parity_corpus_escaped_graph_is_native_and_round_trips() -> None:
+    escaped = json.loads(corpus_bytes())["escaped"]
+    graph = tiergraph.wire.loads(escaped)
+    assert tiergraph.wire.loads(tiergraph.wire.dumps(graph)) == graph
+    assert graph.tiers[0].declaration.long_name == "custom~/tier"
+    assert graph.tiers[0].items[0].attributes[0].name.local_name == "feature~/key"

@@ -132,7 +132,6 @@ check: tiergraph-pin gate-subject lint
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/piece1_oracle.py check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/piece1_oracle.py prove
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/containment_oracle.py
-	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/capture_containment_golden.py check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/consolidation_parity.py check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/invariants.py
 	@$(NICE) $(PYTHON) scripts/confusion.py validate

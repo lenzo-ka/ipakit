@@ -870,7 +870,7 @@ The animation backend chooses the most specific complete description available: 
 ```python
 from ipakit._gesture_backend import oral_tract_frames
 from ipakit._gesture_graph import project as project_gestures
-from ipakit._tiergraph import Timing
+from ipakit import Timing
 from ipakit.form import _graph_from_compatibility
 
 gesture_inventory = ipa.IPAFeatures()

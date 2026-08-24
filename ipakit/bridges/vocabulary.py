@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .._codecs import RenderLane, RenderProfile, render_graph
-from .._tiergraph import (
+from .._fact_builder import copy_fact_builder
+from .._graph_facts import (
     Declarations,
     FeatureDeclaration,
     RelationDeclaration,
     TierDeclaration,
 )
-from .._tiergraph_builder import copy_fact_builder
 from ..form import Form
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 

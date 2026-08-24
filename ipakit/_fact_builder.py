@@ -11,13 +11,12 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ._tiergraph import (
+from ._graph_facts import (
     ClockNode,
     Declarations,
     Event,
     EventGroup,
     FrozenValue,
-    Graph,
     GraphValidationError,
     RefinedSpan,
     Relation,
@@ -501,15 +500,6 @@ class FactBuilder:
             raise ValueError("handle belongs to a different builder")
 
 
-class GraphBuilder(FactBuilder):
-    """Build the retained embedded graph for legacy, not-yet-migrated callers."""
-
-    def build(self) -> Graph:
-        """Materialize the embedded graph from the canonical accumulated facts."""
-        clock, relations, roots = self._build_facts()
-        return Graph(self.declarations, clock, relations, roots)
-
-
 def copy_fact_builder(
     source: ContainmentProjectionInput, declarations: Declarations | None = None
 ) -> tuple[FactBuilder, dict[str, EventHandle]]:
@@ -556,119 +546,6 @@ def copy_fact_builder(
         )
     for root in source.roots:
         builder.add_root(handles[root])
-    return builder, handles
-
-
-def add_event_copy(
-    graph: Graph,
-    tier: str,
-    tick: int,
-    features: Mapping[str, FrozenValue],
-    *,
-    duration: int = 1,
-    timing: Timing | None = None,
-) -> Graph:
-    """Add an event while regenerating every reference from stable handles."""
-    builder, _ = _copy_builder(graph)
-    builder.add_event(tier, tick, features, duration=duration, timing=timing)
-    return builder.build()
-
-
-def remove_events_copy(graph: Graph, references: Iterable[str]) -> Graph:
-    """Remove events and dependent links while reindexing surviving references."""
-    removed = set(references)
-    for reference in removed:
-        resolved = graph.resolve(reference)
-        if resolved.event is not None and resolved.event.structural_duration == 1:
-            raise GraphValidationError(
-                f"cannot remove clock-consuming input atom {reference}: "
-                "the structural clock is immutable and input-owned"
-            )
-    builder, _ = _copy_builder(graph, removed)
-    return builder.build()
-
-
-def add_relation_copy(
-    graph: Graph, sources: Sequence[str], name: str, targets: Sequence[str]
-) -> Graph:
-    """Add a relation after translating old pointers to stable copied handles."""
-    builder, handles = _copy_builder(graph)
-    builder.relate(
-        (_copied_endpoint(item, handles) for item in sources),
-        name,
-        (_copied_endpoint(item, handles) for item in targets),
-    )
-    return builder.build()
-
-
-def remove_relations_copy(graph: Graph, relations: Iterable[Relation]) -> Graph:
-    """Remove selected immutable relations without retaining stale pointers."""
-    removed = set(relations)
-    builder, _ = _copy_builder(graph, excluded_relations=removed)
-    return builder.build()
-
-
-def _copy_builder(
-    graph: Graph,
-    excluded_events: set[str] | None = None,
-    excluded_relations: set[Relation] | None = None,
-) -> tuple[GraphBuilder, dict[str, EventHandle]]:
-    excluded_events = excluded_events or set()
-    excluded_relations = excluded_relations or set()
-    builder = GraphBuilder(graph.declarations)
-    builder._input_tick = len(graph.clock) - 1
-    builder._refiners = {
-        tick: [] for tick, node in enumerate(graph.clock) if node.gap_count > 1
-    }
-    # Placeholder handles retain input-owned cardinality when provenance is absent.
-    for tick, node in enumerate(graph.clock):
-        if node.gap_count > 1:
-            builder._refiners[tick] = [
-                EventHandle(builder._owner, -index - 1)
-                for index in range(node.gap_count - 1)
-            ]
-    handles: dict[str, EventHandle] = {}
-    for tick, node in enumerate(graph.clock):
-        for group in node.groups:
-            for index, event in enumerate(group.events):
-                reference = f"/clock/{tick}/{_escape(group.tier)}/{index}"
-                if reference in excluded_events:
-                    continue
-                if event.span is None:
-                    handle = builder.add_event(
-                        group.tier,
-                        tick,
-                        event.features,
-                        duration=event.structural_duration or 0,
-                        timing=event.timing,
-                        durable_id=event.durable_id,
-                    )
-                else:
-                    handle = builder.add_span(
-                        group.tier,
-                        _pointer_position(event.span.start),
-                        _pointer_position(event.span.end),
-                        event.features,
-                        timing=event.timing,
-                        durable_id=event.durable_id,
-                    )
-                handles[reference] = handle
-    for relation in graph.relations:
-        if relation in excluded_relations:
-            continue
-        if any(
-            reference in excluded_events
-            for reference in (*relation.sources, *relation.targets)
-        ):
-            continue
-        builder.relate(
-            (_copied_endpoint(reference, handles) for reference in relation.sources),
-            relation.name,
-            (_copied_endpoint(reference, handles) for reference in relation.targets),
-        )
-    for root in graph.roots:
-        if root not in excluded_events:
-            builder.add_root(handles[root])
     return builder, handles
 
 

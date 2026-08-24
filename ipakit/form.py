@@ -100,8 +100,8 @@ class FormBuilder:
     """
 
     def __init__(self, features: IPAFeatures | None = None) -> None:
+        from ._fact_builder import FactBuilder
         from ._ipa_graph import declarations
-        from ._tiergraph_builder import FactBuilder
 
         self.features = _default(features)
         self._builder = FactBuilder(declarations(self.features))
@@ -1174,13 +1174,13 @@ class _CompatibilityProjection:
     ) -> None:
         from tiergraph import DurableItemRef
 
-        from ._tiergraph_builder import LegacyCoordinates, LegacyOccurrence
+        from ._fact_builder import LegacyCoordinates, LegacyOccurrence
 
         self.projection_input = projection_input
         self._inventory = inventory
         from ._containment_projection import ContainmentProjection
 
-        graph = ContainmentProjection.build_captured(projection_input).graph
+        graph = ContainmentProjection.from_input(projection_input).graph
         indexed: list[tuple[int, Unit, str]] = []
         for path in projection_input.refs:
             event = projection_input.events[path]
@@ -1406,13 +1406,6 @@ class _FormGraphIndex:
     containment_input: Any
     inventory: IPAFeatures
 
-    @classmethod
-    def build(cls, scaffold: Any, inventory: IPAFeatures) -> _FormGraphIndex:
-        from ._containment_projection import ContainmentProjectionInput
-
-        projection_input = ContainmentProjectionInput.capture(scaffold)
-        return cls(projection_input, inventory)
-
     def _memo(self, name: str, build: Callable[[], _T]) -> _T:
         cached = self.__dict__.get(name, _VIEW_ABSENT)
         if cached is _VIEW_ABSENT:
@@ -1475,7 +1468,7 @@ class _FormGraphIndex:
 
         from tiergraph import ResolvedItem, ResolvedPosition, resolve_path
 
-        from ._tiergraph import GraphValidationError
+        from ._graph_facts import GraphValidationError
 
         try:
             resolved = resolve_path(graph, _ClockPathProfile(path), path)
@@ -1513,10 +1506,10 @@ def _graph_from_compatibility(
     units: Sequence[Unit], intervals: Sequence[Interval]
 ) -> Any:
     """Build constructed/edited forms from units once, without lexical scanning."""
+    from ._fact_builder import FactBuilder
+    from ._graph_facts import Declarations, TierDeclaration
+    from ._graph_facts import Timing as GraphTiming
     from ._ipa_graph import BOUNDARY_TIER, SEGMENT_TIER, ZERO_TIER, declarations
-    from ._tiergraph import Declarations, TierDeclaration
-    from ._tiergraph import Timing as GraphTiming
-    from ._tiergraph_builder import FactBuilder
 
     inventory = _default(None)
     declared = declarations(inventory)
@@ -1703,31 +1696,11 @@ class Form:
             from ._containment_projection import ContainmentProjection
 
             index = namespace["_tiergraph_index"]
-            containment = ContainmentProjection.build_captured(index.containment_input)
+            containment = ContainmentProjection.from_input(index.containment_input)
             graph = containment.graph
             object.__setattr__(self, "_tiergraph_containment", containment)
             object.__setattr__(self, "_tiergraph_graph", graph)
         return graph
-
-    def _install_scaffold(self, scaffold: Any) -> None:
-        """Promote a build-only ipakit graph and immediately drop it."""
-        inventory = next(
-            (
-                unit.__dict__["_inventory"]
-                for node in scaffold.clock
-                for group in node.groups
-                for event in group.events
-                if isinstance((unit := event.features.get("compatibility-unit")), Unit)
-                and unit.segment is not None
-                and unit.__dict__.get("_inventory") is not None
-            ),
-            _default(None),
-        )
-        from ._containment_projection import ContainmentProjectionInput
-
-        self._install_projection_input(
-            ContainmentProjectionInput.capture(scaffold), inventory=inventory
-        )
 
     def _install_projection_input(
         self, projection_input: Any, *, inventory: IPAFeatures | None = None
@@ -1756,14 +1729,6 @@ class Form:
         form = cls.__new__(cls)
         object.__setattr__(form, "spelling", spelling)
         form._install_projection_input(projection_input)
-        return form
-
-    @classmethod
-    def _from_graph(cls, graph: Any, spelling: str | None = None) -> Form:
-        """Adopt a validated parser graph without rebuilding or rescanning it."""
-        form = cls.__new__(cls)
-        object.__setattr__(form, "spelling", spelling)
-        form._install_scaffold(graph)
         return form
 
     @property
@@ -1842,6 +1807,7 @@ class Form:
         not an inventory of the words in the transcription: today it contains
         only words carrying asserted prominence.
         """
+        from ._fact_builder import FactBuilder
         from ._ipa_graph import (
             BOUNDARY_TIER,
             CLOCK_TREATMENTS,
@@ -1850,7 +1816,6 @@ class Form:
             OccurrenceKind,
             declarations,
         )
-        from ._tiergraph_builder import FactBuilder
 
         out: list[Unit] = []
         graph_declarations = declarations(features)

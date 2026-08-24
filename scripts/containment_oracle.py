@@ -3,12 +3,10 @@
 
 from __future__ import annotations
 
-import hashlib
-import inspect
 import json
 import os
 import sys
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,8 +21,19 @@ sys.path.insert(0, str(ROOT))
 
 from ipakit import Form, FormBuilder, IPAFeatures  # noqa: E402
 from ipakit._cmu_graph import read as read_cmu  # noqa: E402
-from ipakit._containment_projection import ContainmentProjection  # noqa: E402
+from ipakit._containment_projection import (  # noqa: E402
+    ContainmentProjection,
+    ContainmentProjectionInput,
+)
+from ipakit._fact_builder import FactBuilder  # noqa: E402
 from ipakit._gesture_graph import project as project_gestures  # noqa: E402
+from ipakit._graph_facts import (  # noqa: E402
+    Declarations,
+    EndpointKind,
+    FeatureDeclaration,
+    RelationDeclaration,
+    TierDeclaration,
+)
 from ipakit._mora_graph import build as build_mora  # noqa: E402
 from ipakit._panphon_graph import declaration as panphon_declaration  # noqa: E402
 from ipakit._pinyin_graph import build as build_pinyin  # noqa: E402
@@ -32,16 +41,6 @@ from ipakit._rewrite_graph import (  # noqa: E402
     japanese_moraic_fixture,
     japanese_moraic_fixtures,
 )
-from ipakit._tiergraph import (  # noqa: E402
-    Declarations,
-    EndpointKind,
-    FeatureDeclaration,
-    Graph,
-    Relation,
-    RelationDeclaration,
-    TierDeclaration,
-)
-from ipakit._tiergraph_builder import GraphBuilder  # noqa: E402
 from ipakit.form import _graph_from_compatibility  # noqa: E402
 
 
@@ -52,13 +51,13 @@ class Coverage:
     comparisons: int
 
 
-def _structural_fixture(kind: str) -> Graph:
+def _structural_fixture(kind: str) -> ContainmentProjectionInput:
     declared = Declarations(
         tuple(TierDeclaration(name, frozenset({"label"})) for name in ("a", "b")),
         (FeatureDeclaration("label"),),
         (RelationDeclaration("contains", containment=True, acyclic=True),),
     )
-    builder = GraphBuilder(declared)
+    builder = FactBuilder(declared)
     root = builder.begin("a", {"label": "root"})
     first = builder.begin("a", {"label": "first"})
     second = builder.begin("b", {"label": "second"})
@@ -76,10 +75,10 @@ def _structural_fixture(kind: str) -> Graph:
         builder.contain(second, (leaf,), relation="contains")
     else:
         builder.contain(root, (second, first), relation="contains")
-    return builder.build()
+    return builder.build_input()
 
 
-def _cross_relation_cycle_fixture() -> Graph:
+def _cross_relation_cycle_fixture() -> ContainmentProjectionInput:
     declared = Declarations(
         (TierDeclaration("item", frozenset({"label"})),),
         (FeatureDeclaration("label"),),
@@ -88,15 +87,15 @@ def _cross_relation_cycle_fixture() -> Graph:
             RelationDeclaration("b", containment=True, acyclic=True),
         ),
     )
-    builder = GraphBuilder(declared)
+    builder = FactBuilder(declared)
     first = builder.append_input_atom("item", {"label": "first"})
     second = builder.append_input_atom("item", {"label": "second"})
     builder.contain(first, (second,), relation="a")
     builder.contain(second, (first,), relation="b")
-    return builder.build()
+    return builder.build_input()
 
 
-def _adversarial_fixture(kind: str) -> Graph:
+def _adversarial_fixture(kind: str) -> ContainmentProjectionInput:
     relation_names = ("b", "a") if kind == "canonical-relation-order" else ("a", "b")
     declarations = Declarations(
         (TierDeclaration("item", frozenset({"label"})),),
@@ -112,7 +111,7 @@ def _adversarial_fixture(kind: str) -> Graph:
             for name in relation_names
         ),
     )
-    builder = GraphBuilder(declarations)
+    builder = FactBuilder(declarations)
     root = builder.append_input_atom("item", {"label": "root"})
     first = builder.append_input_atom("item", {"label": "first"})
     second = builder.append_input_atom("item", {"label": "second"})
@@ -124,47 +123,11 @@ def _adversarial_fixture(kind: str) -> Graph:
         builder.contain(root, (first,), relation="b")
     else:
         builder.contain(root, (), relation="a")
-    return builder.build()
-
-
-def _legacy_containment_sample(form: Form) -> Graph:
-    """Materialize only this legacy-oracle's build-scaffold fixture."""
-    index = form.__dict__["_tiergraph_index"]
-    projection = form._containment
-    feature_names = frozenset(
-        key for _, event in index.events.values() for key in event.features
-    )
-    tiers = tuple(
-        TierDeclaration(name, feature_names) for name in projection.tier_names
-    )
-    containment = tuple(
-        RelationDeclaration(name, acyclic=True, containment=True)
-        for name in projection.containment_names
-    )
-    by_name = {value: key for key, value in projection.containment_names.items()}
-    relations = tuple(
-        Relation(
-            tuple(projection.new_to_old[item] for item in relation.sources),
-            by_name[relation.declaration],
-            tuple(projection.new_to_old[item] for item in relation.targets),
-        )
-        for relation in form._graph.polyadic_relations
-        if relation.declaration in by_name
-    )
-    return Graph(
-        Declarations(
-            tiers,
-            tuple(FeatureDeclaration(name) for name in feature_names),
-            containment,
-        ),
-        index.clock,
-        relations,
-        form.roots,
-    )
+    return builder.build_input()
 
 
 @lru_cache(maxsize=1)
-def corpus() -> tuple[tuple[str, Graph], ...]:
+def corpus() -> tuple[tuple[str, object], ...]:
     """Build every named checked-in navigation fixture and profile sample."""
     inventory = IPAFeatures()
     hierarchy = FormBuilder(inventory)
@@ -177,7 +140,7 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
     hierarchy.contain(utterance, (phrase,))
     hierarchy.add_root(utterance)
 
-    graphs: list[tuple[str, Graph]] = [
+    graphs: list[tuple[str, object]] = [
         ("fixture:heterogeneous", _structural_fixture("heterogeneous")),
         ("fixture:duplicate-child", _structural_fixture("duplicate-child")),
         ("fixture:diamond", _structural_fixture("diamond")),
@@ -192,7 +155,10 @@ def corpus() -> tuple[tuple[str, Graph], ...]:
             _adversarial_fixture("shared-parent-incidence"),
         ),
         ("fixture:empty-target", _adversarial_fixture("empty-target")),
-        ("profile:ipa", _legacy_containment_sample(hierarchy.build())),
+        (
+            "profile:ipa",
+            hierarchy.build().__dict__["_tiergraph_index"].containment_input,
+        ),
         ("profile:cmu", read_cmu(("K", "AE1", "T"))),
         ("profile:pinyin", build_pinyin("shui", "sh", "ui", 3)),
         ("profile:mora", build_mora(("to", "o"), "high")),
@@ -415,7 +381,7 @@ class _NativeContainment:
         return tuple(result)
 
 
-def _answers(graph: Graph) -> dict[str, object]:
+def _answers(graph: object) -> dict[str, object]:
     if isinstance(graph, tiergraph.Graph):
         projected = _NativeContainment.build(graph)
         tiers = tuple(
@@ -432,7 +398,8 @@ def _answers(graph: Graph) -> dict[str, object]:
             str(ref) for ref in graph.canonical_items() if ref.tier in tier_names
         )
     else:
-        projected = ContainmentProjection.build(graph)
+        assert isinstance(graph, ContainmentProjectionInput)
+        projected = ContainmentProjection.from_input(graph)
         tiers = tuple(declaration.name for declaration in graph.declarations.tiers)
         refs = graph.event_references()
     answers: dict[str, object] = {}
@@ -454,24 +421,7 @@ def _answers(graph: Graph) -> dict[str, object]:
     return answers
 
 
-def _surface() -> dict[str, object]:
-    functions = (
-        RelationDeclaration.__post_init__,
-        Graph._validate_relation,
-        Graph._validate_endpoints,
-        Graph._validate_acyclic,
-        GraphBuilder.contain,
-    )
-    source = "\n".join(inspect.getsource(function) for function in functions)
-    return {
-        "relation_declaration_fields": [
-            field.name for field in fields(RelationDeclaration)
-        ],
-        "constructor_validator_sha256": hashlib.sha256(source.encode()).hexdigest(),
-    }
-
-
-def _structural_class(graph: Graph) -> dict[str, object]:
+def _structural_class(graph: object) -> dict[str, object]:
     if isinstance(graph, tiergraph.Graph):
         adapter = _NativeContainment.build(graph)
         containment = {name for name, _ in adapter.traversals}
@@ -580,11 +530,6 @@ def _as_json(value: object) -> object:
 
 def verify() -> Coverage:
     payload = json.loads(GOLDEN.read_text(encoding="utf-8"))
-    if payload["population"]["surface"] != _surface():
-        raise AssertionError(
-            "containment constructor/validator surface drifted; regenerate and "
-            "review the fixture-derived population"
-        )
     fixture_count = event_count = comparison_count = 0
     seen: set[str] = set()
     for name, graph in corpus():

@@ -13,7 +13,6 @@ from ipakit._ipa_graph import (
     parse_signature,
     prosody_host_tiers,
 )
-from ipakit._tiergraph import ClockNode, Event, EventGroup, Graph, Relation
 from ipakit.constants import DEFAULT_IPA_FEATS
 
 
@@ -149,38 +148,6 @@ def test_clock_treatment_and_structural_distinctions() -> None:
 def test_linking_mark_is_not_a_signature_boundary() -> None:
     with pytest.raises(ValueError, match="undeclared prosodic signature symbol"):
         parse_signature("ˈ‿ˈ", IPAFeatures())
-
-
-def test_declared_phrase_and_utterance_tiers_host_prosody() -> None:
-    inventory = IPAFeatures()
-    Graph(
-        declarations(inventory),
-        (
-            ClockNode(
-                groups=(
-                    EventGroup("phrase", (Event({"value": "phrase"}),)),
-                    EventGroup("utterance", (Event({"value": "utterance"}),)),
-                    EventGroup(
-                        "prosody",
-                        (Event({"stress": "primary"}), Event({"stress": "secondary"})),
-                    ),
-                )
-            ),
-            ClockNode(),
-        ),
-        (
-            Relation(
-                ("/clock/0/prosody/0",),
-                "associates-with",
-                ("/clock/0/phrase/0",),
-            ),
-            Relation(
-                ("/clock/0/prosody/1",),
-                "associates-with",
-                ("/clock/0/utterance/0",),
-            ),
-        ),
-    )
 
 
 def test_assigned_stress_values_are_rule_engine_values() -> None:

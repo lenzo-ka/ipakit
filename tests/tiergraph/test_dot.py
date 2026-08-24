@@ -9,16 +9,6 @@ from pathlib import Path
 
 import ipakit
 import pytest
-from ipakit._tiergraph import (
-    ClockNode,
-    Declarations,
-    Event,
-    EventGroup,
-    Graph,
-    Relation,
-    RelationDeclaration,
-    TierDeclaration,
-)
 
 ROOT = Path(__file__).parents[2]
 FIGURE = ROOT / "docs" / "figures" / "perhaps-i-am-a-bad-man.dot"
@@ -51,51 +41,6 @@ def test_dot_is_byte_identical_in_process_and_across_hash_seeds() -> None:
             ).stdout
         )
     assert outputs == [form.to_dot().encode()] * 3
-
-
-def test_every_event_is_defined_once_triggered_and_every_relation_is_exact() -> None:
-    declared = Declarations(
-        (TierDeclaration("first"), TierDeclaration("second")),
-        (),
-        (RelationDeclaration("links"), RelationDeclaration("answers")),
-    )
-    graph = Graph(
-        declared,
-        (
-            ClockNode(groups=(EventGroup("first", (Event({}), Event({}))),)),
-            ClockNode(groups=(EventGroup("second", (Event({}),)),)),
-            ClockNode(),
-        ),
-        (
-            Relation(("/clock/0/first/0",), "links", ("/clock/1/second/0",)),
-            Relation(("/clock/0/first/1",), "answers", ("/clock/1/second/0",)),
-        ),
-    )
-    dot = ipakit.tiergraph_dot.dumps(graph)
-    assert dot.count("[shape=box, group=") == len(graph.event_references())
-    for reference in graph.event_references():
-        identifier = ipakit.tiergraph_dot._event_id(reference)
-        assert dot.count(f"{identifier} [shape=box") == 1
-        assert (
-            len(
-                re.findall(
-                    rf"^  clock_\S+ -> {re.escape(identifier)} "
-                    r'\[color="#2f6f9f", penwidth=1\.35',
-                    dot,
-                    re.M,
-                )
-            )
-            == 1
-        )
-    for relation in graph.relations:
-        for source in relation.sources:
-            for target in relation.targets:
-                edge = (
-                    f"{ipakit.tiergraph_dot._endpoint_id(graph, source)} -> "
-                    f"{ipakit.tiergraph_dot._endpoint_id(graph, target)} "
-                    f'[label="{relation.name}"'
-                )
-                assert dot.count(edge) == 1
 
 
 def test_tier_rows_are_exactly_the_tiers_with_events_in_declaration_order() -> None:
