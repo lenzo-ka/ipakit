@@ -252,6 +252,63 @@ class ContainmentProjectionInput:
     roots: tuple[str, ...]
 
     @classmethod
+    def from_facts(
+        cls,
+        declarations: Declarations,
+        clock: Iterable[ClockNode],
+        relations: Iterable[Relation] = (),
+        roots: Iterable[str] = (),
+    ) -> ContainmentProjectionInput:
+        """Collect projection facts without constructing an embedded graph."""
+        held_clock = tuple(clock)
+        held_relations = tuple(relations)
+        held_roots = tuple(roots)
+        refs = tuple(
+            f"/clock/{tick}/{_escape(group.tier)}/{index}"
+            for tick, node in enumerate(held_clock)
+            for group in node.groups
+            for index in range(len(group.events))
+        )
+        event_tiers = {
+            f"/clock/{tick}/{_escape(group.tier)}/{index}": group.tier
+            for tick, node in enumerate(held_clock)
+            for group in node.groups
+            for index in range(len(group.events))
+        }
+        events = {
+            f"/clock/{tick}/{_escape(group.tier)}/{index}": event
+            for tick, node in enumerate(held_clock)
+            for group in node.groups
+            for index, event in enumerate(group.events)
+        }
+        endpoints = {
+            ref
+            for relation in held_relations
+            for ref in (*relation.sources, *relation.targets)
+        }
+        collected = cls(
+            refs,
+            declarations,
+            held_relations,
+            event_tiers,
+            events,
+            {},
+            held_clock,
+            held_roots,
+        )
+        endpoint_kinds = {ref: collected.resolve(ref).kind for ref in endpoints}
+        return cls(
+            refs,
+            declarations,
+            held_relations,
+            event_tiers,
+            events,
+            endpoint_kinds,
+            held_clock,
+            held_roots,
+        )
+
+    @classmethod
     def capture(cls, source: Graph) -> ContainmentProjectionInput:
         refs = source.event_references()
         endpoints = {
