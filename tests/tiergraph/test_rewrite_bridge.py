@@ -12,6 +12,8 @@ from ipakit._rewrite_graph import (
 )
 from ipakit._tiergraph_builder import GraphBuilder
 
+import tiergraph
+
 HERE = Path(__file__).parent
 
 
@@ -108,12 +110,34 @@ def test_attested_japanese_adaptations_use_the_rewrite_bridge(name):
     }
     assert names["rewrites-to"] in authoritative
     if len(fixture.output) > len(fixture.source):
-        # ``inserts`` targets a clock position, not an event, so it rides the
-        # compatibility surface (which feeds ``to_dot``) but is absent from the
-        # authoritative polyadic graph.  Pin both facts so the divergence stays
-        # known rather than drifting into a silently dropped relation.
         assert "inserts" in compatibility
-        assert names["inserts"] not in authoritative
+        assert names["inserts"] in authoritative
+        declaration = next(
+            item
+            for item in form._graph.relation_declarations
+            if item.name == names["inserts"]
+        )
+        assert declaration.sources.endpoint_kinds == (
+            tiergraph.RelationEndpointKind.BOUNDARY,
+        )
+        assert declaration.targets.endpoint_kinds == (
+            tiergraph.RelationEndpointKind.ITEM,
+        )
+        instances = tuple(
+            relation
+            for relation in form._graph.polyadic_relations
+            if relation.declaration == names["inserts"]
+        )
+        assert instances
+        assert all(
+            len(relation.sources) == 1
+            and isinstance(relation.sources[0], tiergraph.DurablePositionRef)
+            and relation.targets
+            and all(
+                isinstance(target, tiergraph.ItemRef) for target in relation.targets
+            )
+            for relation in instances
+        )
 
 
 def test_phantoms_do_not_corrupt_the_compatibility_surface():

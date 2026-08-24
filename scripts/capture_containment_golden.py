@@ -174,7 +174,14 @@ def render() -> str:
 
     payload = json.loads(rendered)
     graphs = dict(corpus())
-    for name in ("profile:cmu", "profile:pinyin", "profile:mora", "profile:panphon"):
+    migrated = {
+        "profile:cmu",
+        "profile:pinyin",
+        "profile:mora",
+        "profile:panphon",
+        *(name for name in graphs if name.startswith("profile:japanese-rewrite:")),
+    }
+    for name in migrated:
         graph = graphs[name]
         payload["fixtures"][name] = {
             "class": _as_json(_structural_class(graph)),

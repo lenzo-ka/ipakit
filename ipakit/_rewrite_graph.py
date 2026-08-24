@@ -23,7 +23,7 @@ from ._tiergraph import (
     RelationDeclaration,
     TierDeclaration,
 )
-from ._tiergraph_builder import EventHandle, EventSpec, GraphBuilder, PositionHandle
+from ._tiergraph_builder import EventHandle, EventSpec, FactBuilder, PositionHandle
 from .form import Form, Unit
 
 
@@ -192,7 +192,7 @@ def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[_Mora, ...]:
     return tuple(morae)
 
 
-def _input(builder: GraphBuilder, form: Form, source_tier: str) -> list[_Token]:
+def _input(builder: FactBuilder, form: Form, source_tier: str) -> list[_Token]:
     tokens: list[_Token] = []
     for index, unit in enumerate(form.units):
         facts = {
@@ -232,7 +232,7 @@ def project_derivation(
     if not source_tiers:
         raise ValueError("a derivation projection requires an ordered source tier")
     tiers = (*source_tiers, *target_tiers, "mora")
-    builder = GraphBuilder(_bridge_declarations(inventory, tiers))
+    builder = FactBuilder(_bridge_declarations(inventory, tiers))
     start = inventory.read(derivation.start, strict=True)
     current = _input(builder, start, source_tiers[0])
     coordinates = builder.compatibility_coordinates()
@@ -357,7 +357,9 @@ def project_derivation(
         if children:
             builder.contain(mora, (child.handle for child in children))
 
-    return Form._from_graph(builder.build(), spelling=derivation.result)
+    return Form._from_projection_input(
+        builder.build_input(), spelling=derivation.result
+    )
 
 
 def japanese_moraic_fixture(name: str, inventory: Any) -> Form:
