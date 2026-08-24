@@ -13,7 +13,7 @@ from typing import Any
 
 import tiergraph as tg
 
-from ._tiergraph import Event, Graph, _escape
+from ._tiergraph import Event, Graph, Relation, _escape
 
 ValueRenderer = Callable[[Event], str]
 
@@ -170,8 +170,26 @@ def _event_table(graph: Graph) -> dict[str, tuple[int, str, Event]]:
     }
 
 
-def _selected_delivery(graph: Graph, selected: object | None) -> str | None:
-    alternatives = [r for r in graph.relations if r.name == "alternatives"]
+def _native_event_relations(graph: Any) -> tuple[Relation, ...]:
+    """Expose authoritative native item relations in compatibility coordinates."""
+    projection = graph._containment
+    names = {native: old for old, native in projection.relation_names.items()}
+    return tuple(
+        Relation(
+            tuple(projection.new_to_old[source] for source in relation.sources),
+            names[relation.declaration],
+            tuple(projection.new_to_old[target] for target in relation.targets),
+        )
+        for relation in graph._graph.polyadic_relations
+        if relation.declaration in names
+        and all(source in projection.new_to_old for source in relation.sources)
+        and all(target in projection.new_to_old for target in relation.targets)
+    )
+
+
+def _selected_delivery(graph: Any, selected: object | None) -> str | None:
+    relations = _native_event_relations(graph)
+    alternatives = tuple(r for r in relations if r.name == "alternatives")
     candidates = tuple(
         target for relation in alternatives for target in relation.targets
     )
@@ -181,7 +199,7 @@ def _selected_delivery(graph: Graph, selected: object | None) -> str | None:
                 f"delivery selection {selected!r} is not a candidate; candidates are {list(candidates)!r}"
             )
         return selected
-    selections = [r.targets[0] for r in graph.relations if r.name == "selects"]
+    selections = [r.targets[0] for r in relations if r.name == "selects"]
     if len(selections) > 1:
         raise DeliverySelectionError("delivery graph has more than one selection")
     if selections:
@@ -194,7 +212,7 @@ def _selected_delivery(graph: Graph, selected: object | None) -> str | None:
 
 
 def render_delivery(
-    graph: Graph,
+    graph: Any,
     selected: object | None = None,
     profile: DeliveryProfile = DEFAULT_DELIVERY_PROFILE,
     *,
@@ -202,7 +220,12 @@ def render_delivery(
 ) -> DeliveryRenderings:
     """Project a selected alternative into house, segmental, and word surfaces."""
 
-    table = _event_table(graph)
+    index = graph.__dict__["_tiergraph_index"]
+    table = {
+        path: (int(path.split("/")[2]), graph._containment.event_tiers[path], event)
+        for path, event in index.event_items(graph._containment, graph._graph)
+    }
+    relations = _native_event_relations(graph)
     selected = _selected_delivery(graph, selected)
     scoped: set[str] | None = None
     if selected is not None:
@@ -210,7 +233,7 @@ def render_delivery(
         changed = True
         while changed:
             changed = False
-            for relation in graph.relations:
+            for relation in relations:
                 if relation.name not in {"contains", "realized-by"}:
                     continue
                 if any(source in scoped for source in relation.sources):
@@ -227,7 +250,7 @@ def render_delivery(
         key=lambda item: (item[0], item[1]),
     )
     stress = {ref: "none" for _, ref, _ in hosts}
-    for relation in graph.relations:
+    for relation in relations:
         if relation.name != "associates-with" or len(relation.sources) != 1:
             continue
         source = relation.sources[0]
@@ -276,7 +299,7 @@ def render_delivery(
     for word_ref in word_refs:
         children = [
             target
-            for relation in graph.relations
+            for relation in relations
             if relation.name == "contains" and word_ref in relation.sources
             for target in relation.targets
             if target in stress

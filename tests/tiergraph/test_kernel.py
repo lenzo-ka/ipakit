@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit._containment_projection import ContainmentProjection
+from ipakit._containment_projection import (
+    ContainmentProjection,
+    ContainmentProjectionInput,
+)
 from ipakit._ipa_graph import assign_signature
 from ipakit._ipa_graph import declarations as ipa_declarations
 from ipakit._tiergraph import (
@@ -24,6 +27,9 @@ from ipakit._tiergraph import (
     TierDeclaration,
     Timing,
 )
+from tiergraph.machine import ExecutionError
+
+import tiergraph as tg
 
 FIXTURES = Path(__file__).parent / "fixtures"
 TIERS = ("top", "group", "unit", "variant", "mark", "target")
@@ -294,6 +300,28 @@ def choice_graph(links: tuple[Relation, ...]) -> Graph:
     return graph(node(top=(event(),), variant=(event(), event())), node(), links=links)
 
 
+def native_choice_graph(links: tuple[Relation, ...]) -> tg.Graph:
+    facts = ContainmentProjectionInput.from_facts(
+        declarations(),
+        (node(top=(event(),), variant=(event(), event())), node()),
+        links,
+    )
+    return ContainmentProjection.build_captured(facts).graph
+
+
+def test_native_choice_lowering_is_relation_order_independent() -> None:
+    source = "/clock/0/top/0"
+    first, second = "/clock/0/variant/0", "/clock/0/variant/1"
+    alternatives = Relation((source,), "alternatives", (first, second))
+    selects = Relation((source,), "selects", (second,))
+
+    membership_first = native_choice_graph((alternatives, selects))
+    selection_first = native_choice_graph((selects, alternatives))
+
+    assert selection_first == membership_first
+    assert tg.wire.dumps(selection_first) == tg.wire.dumps(membership_first)
+
+
 def test_choice_validation() -> None:
     source = "/clock/0/top/0"
     first, second = "/clock/0/variant/0", "/clock/0/variant/1"
@@ -333,6 +361,58 @@ def test_choice_validation() -> None:
     for links, reason in bad:
         with pytest.raises(GraphValidationError, match=reason):
             choice_graph(links)
+
+
+@pytest.mark.parametrize(
+    ("links", "reason"),
+    (
+        (
+            (
+                Relation(
+                    ("/clock/0/top/0",),
+                    "alternatives",
+                    ("/clock/0/variant/0", "/clock/0/variant/0"),
+                ),
+            ),
+            "duplicate declared-distinct targets",
+        ),
+        (
+            (
+                Relation(("/clock/0/top/0",), "alternatives", ("/clock/0/variant/0",)),
+                Relation(("/clock/0/top/0",), "alternatives", ("/clock/0/variant/1",)),
+            ),
+            "repeats source.*unique-source relation.*alternatives",
+        ),
+        (
+            (
+                Relation(
+                    ("/clock/0/top/0",),
+                    "alternatives",
+                    ("/clock/0/variant/0", "/clock/0/variant/1"),
+                ),
+                Relation(("/clock/0/top/0",), "selects", ("/clock/0/variant/0",)),
+                Relation(("/clock/0/top/0",), "selects", ("/clock/0/variant/1",)),
+            ),
+            "repeats source.*unique-source relation.*selects",
+        ),
+        (
+            (
+                Relation(("/clock/0/top/0",), "alternatives", ("/clock/0/variant/0",)),
+                Relation(("/clock/0/top/0",), "selects", ("/clock/0/variant/1",)),
+            ),
+            "outside.*membership",
+        ),
+        (
+            (Relation(("/clock/0/top/0",), "selects", ("/clock/0/variant/0",)),),
+            "has no.*membership relation",
+        ),
+    ),
+)
+def test_native_choice_constraints_reject_invalid_instances(
+    links: tuple[Relation, ...], reason: str
+) -> None:
+    with pytest.raises(ExecutionError, match=reason):
+        native_choice_graph(links)
 
 
 def test_heterogeneous_containment_traversal_and_cycles() -> None:

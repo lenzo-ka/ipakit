@@ -9,6 +9,8 @@ from ipakit._containment_projection import (
     ContainmentProjectionInput,
 )
 
+import tiergraph as tg
+
 FEATURES = ipakit.load_ipa_features()
 
 
@@ -85,3 +87,19 @@ def test_native_fact_assembly_matches_embedded_capture_byte_for_byte() -> None:
         ) == tuple(
             item.durable_id for tier in expected.tiers for item in tier.items
         ), name
+        if name == "relations-with-position-endpoint":
+            declarations = {
+                declaration.name.local_name: declaration
+                for declaration in actual.relation_declarations
+                if isinstance(declaration, tg.PolyadicRelationDeclaration)
+            }
+            alternatives = declarations["alternatives"]
+            selects = declarations["selects"]
+            assert alternatives.unique_sources is True
+            assert alternatives.distinct_targets is True
+            assert alternatives.targets.minimum == 1
+            assert alternatives.targets.maximum is None
+            assert selects.unique_sources is True
+            assert selects.sources.minimum == selects.sources.maximum == 1
+            assert selects.targets.minimum == selects.targets.maximum == 1
+            assert selects.targets_subset_of == alternatives.name

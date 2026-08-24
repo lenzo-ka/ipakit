@@ -85,7 +85,9 @@ def test_pinyin_renderer_accepts_native_qualified_tier_names() -> None:
     assert render_pinyin(builder.build(), syllable_tier=tier) == "mā"
 
 
-def _delivery_graph(stress: tuple[str, ...]):
+def _delivery_graph(
+    stress: tuple[str, ...], *, select: bool = True, native: bool = True
+):
     builder = GraphBuilder(declarations(IPAFeatures()))
     hosts = tuple(
         builder.append_input_atom("syllable", {"spelling": value})
@@ -113,31 +115,35 @@ def _delivery_graph(stress: tuple[str, ...]):
     )
     delivery = builder.add_event("delivery", 0, {"value": "reading"}, duration=0)
     builder.relate((analysis,), "alternatives", (delivery,))
-    builder.relate((analysis,), "selects", (delivery,))
+    if select:
+        builder.relate((analysis,), "selects", (delivery,))
     prosody = []
     for host, value in zip(hosts, stress, strict=True):
         event = builder.add_event("prosody", 0, {"stress": value}, duration=0)
         builder.relate((event,), "associates-with", (host,))
         prosody.append(event)
     builder.contain(delivery, prosody)
-    return builder.build(), hosts
+    graph = (
+        Form._from_projection_input(builder.build_input())
+        if native
+        else builder.build()
+    )
+    return graph, hosts
 
 
 def test_one_analysis_projects_into_all_three_notations_without_base_mutation() -> None:
     graph, _ = _delivery_graph(("primary", "none", "none", "primary"))
-    before = graph.to_data()
+    before = tg.wire.dumps(graph._graph)
     rendered = render_delivery(graph)
     assert rendered.prosodic_signature == "ˈ#.#.ˈ‖"
     assert rendered.segmental_signature == "ˈyou # .were # .enˈgaged ‖"
     assert rendered.orthographic_delivery == "YOU were enGAGED"
-    assert graph.to_data() == before
+    assert tg.wire.dumps(graph._graph) == before
 
 
 def test_delivery_refuses_unselected_mutually_exclusive_alternatives() -> None:
-    graph, _ = _delivery_graph(("primary", "none", "none", "primary"))
-    relations = tuple(r for r in graph.relations if r.name != "selects")
-    graph = type(graph)(graph.declarations, graph.clock, relations)
-    candidate = next(r.targets[0] for r in relations if r.name == "alternatives")
+    graph, _ = _delivery_graph(("primary", "none", "none", "primary"), select=False)
+    candidate = "/clock/0/delivery/0"
     with pytest.raises(
         DeliverySelectionError,
         match=rf"delivery alternatives require a selection; candidates are \['{candidate}'\]",
@@ -148,7 +154,7 @@ def test_delivery_refuses_unselected_mutually_exclusive_alternatives() -> None:
 @pytest.mark.parametrize("selected", [object(), "stray", "/clock/0/analysis/0"])
 def test_delivery_refuses_selection_that_is_not_a_candidate(selected: object) -> None:
     graph, _ = _delivery_graph(("primary", "none", "none", "primary"))
-    candidate = next(r.targets[0] for r in graph.relations if r.name == "alternatives")
+    candidate = "/clock/0/delivery/0"
     with pytest.raises(DeliverySelectionError) as caught:
         render_delivery(graph, selected=selected)
     assert str(caught.value).endswith(
@@ -160,7 +166,9 @@ def test_signature_round_trip_and_edit_provenance() -> None:
     inventory = IPAFeatures()
     signature = parse_signature(".ˈˌ#", inventory)
     assert render_signature(signature, inventory) == ".ˈˌ#"
-    graph, handles = _delivery_graph(("none", "primary", "secondary", "none"))
+    graph, handles = _delivery_graph(
+        ("none", "primary", "secondary", "none"), native=False
+    )
     host_refs = tuple(f"/clock/{index}/syllable/0" for index in range(4))
     edited = apply_signature(graph, ".ˈˌ.# #‖".replace(" ", ""), inventory, host_refs)
     assert len(edited.hosts) == 4

@@ -546,6 +546,8 @@ class ContainmentProjection:
                 _name(declaration.name)
                 if declaration.name in boundary_relation_names
                 or declaration.name in preserved_relation_names
+                or declaration.choice
+                or declaration.member_of is not None
                 else containment_names.get(declaration.name, _name(f"relation-{index}"))
             )
             for index, declaration in enumerate(source.declarations.relations)
@@ -649,7 +651,16 @@ class ContainmentProjection:
                     relation_names[declaration.name],
                     relation_side(declaration, "source"),
                     relation_side(declaration, "target"),
+                    unique_sources=(
+                        declaration.choice or declaration.member_of is not None
+                    ),
+                    distinct_targets=declaration.choice,
                     acyclic=declaration.acyclic,
+                    targets_subset_of=(
+                        None
+                        if declaration.member_of is None
+                        else relation_names[declaration.member_of]
+                    ),
                 )
                 for declaration in source.declarations.relations
                 if not declaration.containment
@@ -701,8 +712,14 @@ class ContainmentProjection:
                     for item in relation.targets
                 ),
             )
-            for relation in source.relations
-            if relation.name not in containment_names
+            for relation in _dependency_ordered_relations(
+                tuple(
+                    relation
+                    for relation in source.relations
+                    if relation.name not in containment_names
+                ),
+                source.declarations,
+            )
         )
         parent_order = {
             (target, source_ref, relation.name): rank
@@ -1012,6 +1029,50 @@ class ContainmentProjection:
                 result.append(item)
                 pending.extend(self.parents(item))
         return tuple(result)
+
+
+def _dependency_ordered_relations(
+    relations: tuple[Relation, ...], declarations: Declarations
+) -> tuple[Relation, ...]:
+    """Topologically order subset-constrained relations without moving others."""
+    dependencies = {
+        declaration.name: declaration.member_of
+        for declaration in declarations.relations
+        if declaration.member_of is not None
+    }
+    participating = frozenset(dependencies) | frozenset(dependencies.values())
+    if not participating:
+        return relations
+
+    declaration_order = {
+        declaration.name: index
+        for index, declaration in enumerate(declarations.relations)
+    }
+    remaining = set(participating)
+    ordered_names: list[str] = []
+    while remaining:
+        ready = sorted(
+            (name for name in remaining if dependencies.get(name) not in remaining),
+            key=declaration_order.__getitem__,
+        )
+        if not ready:
+            # Declaration validation owns dependency-cycle rejection. Keep the
+            # input stable here so lowering does not obscure that diagnostic.
+            return relations
+        ordered_names.extend(ready)
+        remaining.difference_update(ready)
+
+    rank = {name: index for index, name in enumerate(ordered_names)}
+    dependent_relations = iter(
+        sorted(
+            (relation for relation in relations if relation.name in participating),
+            key=lambda relation: rank[relation.name],
+        )
+    )
+    return tuple(
+        next(dependent_relations) if relation.name in participating else relation
+        for relation in relations
+    )
 
 
 def _ordered_unique(values: Iterable[str]) -> tuple[str, ...]:
