@@ -1,0 +1,421 @@
+{
+  "format_version": "6",
+  "graph": {
+    "attribute_declarations": [
+      {
+        "domain": "item",
+        "name": "ipakit-containment:arc",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:articulator",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:atom",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:compatibility-index",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:compatibility-interval",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:exemplar",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:features-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "position",
+        "name": "ipakit-containment:gap",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:input",
+        "value_type": "boolean"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:kind",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:notes",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:offset",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:output",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:prominence",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:prosody-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:provenance-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:segment-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:source-value",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:span-end",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:span-start",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:spelling",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:structural-duration",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:symbol",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:target-index",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:text",
+        "value_type": "string"
+      },
+      {
+        "domain": "position",
+        "name": "ipakit-containment:tick",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:timing-duration",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:timing-start",
+        "value_type": "double"
+      }
+    ],
+    "namespaces": [
+      {
+        "namespace": "https://ipakit.dev/tiergraph/containment-projection/v1",
+        "prefix": "ipakit-containment"
+      }
+    ],
+    "position_values": [
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 0,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 1,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 2,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 3,
+          "tier": "ipakit-containment:clock"
+        }
+      }
+    ],
+    "relation_declarations": [
+      {
+        "acyclic": false,
+        "distinct_targets": true,
+        "kind": "polyadic",
+        "name": "ipakit-containment:alternatives",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "unique_sources": true
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-0",
+        "tier": "ipakit-containment:tier-0"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-1",
+        "tier": "ipakit-containment:tier-1"
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:roots",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": true,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 0,
+          "minimum": 0
+        },
+        "targets": {
+          "allow_empty": true,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 0,
+          "tiers": []
+        },
+        "unique_sources": false
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:selects",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1
+        },
+        "targets_subset_of": [
+          "ipakit-containment:alternatives"
+        ],
+        "unique_sources": true
+      }
+    ],
+    "relations": [
+      {
+        "declaration": "ipakit-containment:alternatives",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-0"
+          }
+        ],
+        "targets": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-1"
+          },
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:selects",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-0"
+          }
+        ],
+        "targets": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:roots"
+      }
+    ],
+    "tiers": [
+      {
+        "declaration": {
+          "long_name": "analysis",
+          "name": "ipakit-containment:tier-0"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/analysis/0"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "delivery",
+          "name": "ipakit-containment:tier-1"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/delivery/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/delivery/1"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "clock",
+          "name": "ipakit-containment:clock"
+        },
+        "items": [
+          {
+            "durable_id": "ipakit-clockcell-0"
+          },
+          {
+            "durable_id": "ipakit-clockcell-1"
+          },
+          {
+            "durable_id": "ipakit-clockcell-2"
+          }
+        ]
+      }
+    ]
+  }
+}

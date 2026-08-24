@@ -6,7 +6,7 @@ import hashlib
 import json
 
 import pytest
-from ipakit import FormBuilder, IPAFeatures
+from ipakit import Form, FormBuilder, IPAFeatures
 from ipakit._cmu_graph import read as read_cmu
 from ipakit._codecs import DeliverySelectionError, render_delivery
 from ipakit._ipa_graph import declarations as ipa_declarations
@@ -121,7 +121,7 @@ def test_rendering_selection_is_profile_explicit_and_choices_never_guess() -> No
     first = builder.add_event("delivery", 0, {}, duration=0)
     second = builder.add_event("delivery", 0, {}, duration=0)
     builder.relate((choice,), "alternatives", (first, second))
-    graph = builder.build()
+    graph = Form._from_projection_input(builder.build_input())
     with pytest.raises(DeliverySelectionError, match="require a selection"):
         render_delivery(graph)
     assert render_delivery(graph, selected="/clock/0/delivery/0")
