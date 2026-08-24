@@ -174,9 +174,9 @@ class TestTheConverterLanes:
         assert ipakit.to_kirshenbaum(alias) == ipakit.to_kirshenbaum(canonical) != ""
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
-    def test_ipa_to_xsampa(self, ipa: IPAFeatures, alias: str) -> None:
+    def test_to_xsampa(self, ipa: IPAFeatures, alias: str) -> None:
         canonical = ipa.ligature_map[alias]
-        assert ipakit.ipa_to_xsampa(alias) == ipakit.ipa_to_xsampa(canonical) != ""
+        assert ipakit.to_xsampa(alias) == ipakit.to_xsampa(canonical) != ""
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
     def test_word_distance_reads_the_two_spellings_as_one_word(
@@ -210,7 +210,7 @@ class TestAnAliasCarryingDiacritics:
         assert ipakit.features("ʦʰ")["manner"] == "affricate"
         assert ipakit.features("ʦʰ")["release"] == "aspirated"
         assert ipakit.describe("ʦʰ") == ipakit.describe("t͡sʰ")
-        assert ipakit.ipa_to_xsampa("ʦʰ") == "t_s_h"
+        assert ipakit.to_xsampa("ʦʰ") == "t_s_h"
 
 
 class TestAnAliasInsideATieChain:
@@ -284,11 +284,11 @@ class TestStrictAgreesWithItself:
             ipakit.to_cmu,
             ipakit.to_timit,
             ipakit.to_kirshenbaum,
-            ipakit.ipa_to_xsampa,
+            ipakit.to_xsampa,
         ):
             strictly = functools.partial(convert, strict=True)
             assert _answer(strictly, alias) == _answer(strictly, canonical)
-        assert ipakit.ipa_to_xsampa(alias, strict=True) == ipakit.ipa_to_xsampa(
+        assert ipakit.to_xsampa(alias, strict=True) == ipakit.to_xsampa(
             canonical, strict=True
         )
 

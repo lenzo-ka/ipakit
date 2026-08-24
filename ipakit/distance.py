@@ -827,6 +827,7 @@ class DistanceMixin(IPAFeaturesBase):
         self,
         ipa1: str,
         ipa2: str,
+        *,
         weighted: bool = True,
         return_alignment: bool = False,
         strict: bool = True,
@@ -1082,6 +1083,7 @@ class DistanceMixin(IPAFeaturesBase):
         self,
         ipa1: str,
         ipa2: str,
+        *,
         weighted: bool = True,
         strict: bool = True,
     ) -> float:
@@ -1143,9 +1145,9 @@ class DistanceMixin(IPAFeaturesBase):
         self,
         forms: str | Iterable[str],
         acceptable: str | Iterable[str],
+        *,
         weighted: bool = True,
         strict: bool = True,
-        *,
         mode: str = "global",
     ) -> PronunciationMatch:
         """The best match between an observed form and a set of acceptable ones.

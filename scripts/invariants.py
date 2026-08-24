@@ -241,7 +241,7 @@ def entry_points(ipa: IPAFeatures) -> dict[str, Callable[[str], object]]:
         "to_cmu": ipakit.to_cmu,
         "to_timit": ipakit.to_timit,
         "to_kirshenbaum": ipakit.to_kirshenbaum,
-        "ipa_to_xsampa": ipakit.ipa_to_xsampa,
+        "to_xsampa": ipakit.to_xsampa,
         "word_distance": lambda s: ipakit.word_distance(s, "ta").edit_cost,
         "distance": lambda s: ipakit.distance(s, "t"),
         "contains": lambda s: s in ipa,

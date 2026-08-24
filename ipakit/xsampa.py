@@ -41,7 +41,7 @@ def _maps() -> tuple[dict[str, str], dict[str, str]]:
     return xs2ipa, ipa2xs
 
 
-def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
+def from_xsampa(xsampa: str, strict: bool = False) -> str:
     """Convert an X-SAMPA string to IPA (greedy longest-match).
 
     With ``strict=True``, raise ``ValueError`` on symbols that cannot be
@@ -55,7 +55,7 @@ def xsampa_to_ipa(xsampa: str, strict: bool = False) -> str:
     return result
 
 
-def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
+def to_xsampa(ipa_string: str, strict: bool = False) -> str:
     """Convert an IPA string to X-SAMPA (greedy longest-match).
 
     X-SAMPA has a single tie encoding (``_``), so tie *sense* cannot
@@ -69,14 +69,16 @@ def ipa_to_xsampa(ipa: str, strict: bool = False) -> str:
     converted instead of skipping them.
     """
     _, ipa2xs = _maps()
-    ipa = resolve_aliases(ipa)
+    ipa_string = resolve_aliases(ipa_string)
     prominence = ipa_features().prominence_markers
-    lost = [character for character in ipa if character in prominence]
+    lost = [character for character in ipa_string if character in prominence]
     if lost:
         report_unconvertible(lost, "IPA -> X-SAMPA", strict=strict, stacklevel=3)
-        ipa = "".join(character for character in ipa if character not in prominence)
-    if ipa in ipa2xs:
-        return ipa2xs[ipa]
+        ipa_string = "".join(
+            character for character in ipa_string if character not in prominence
+        )
+    if ipa_string in ipa2xs:
+        return ipa2xs[ipa_string]
     return "".join(
-        convert_structured_ipa(ipa, ipa2xs, strict=strict, what="IPA -> X-SAMPA")
+        convert_structured_ipa(ipa_string, ipa2xs, strict=strict, what="IPA -> X-SAMPA")
     )

@@ -85,7 +85,7 @@ class TestConvert:
 
     def test_to_ipa_json(self, monkeypatch, capsys):
         rc, out, _ = run(
-            monkeypatch, capsys, "convert", "to-ipa", "K", "AE1", "T", "-j"
+            monkeypatch, capsys, "convert", "from-cmu", "K", "AE1", "T", "-j"
         )
         assert rc == 0
         assert json.loads(out) == "kˈæt"
@@ -1049,7 +1049,7 @@ LOSSY_INVOCATIONS = [
     ("convert", "to-xsampa", "k@t"),
     ("convert", "to-timit", "k@t"),
     ("convert", "to-kirshenbaum", "k@t"),
-    ("convert", "to-ipa", "K", "AE1", "QQ", "T"),
+    ("convert", "from-cmu", "K", "AE1", "QQ", "T"),
     ("convert", "from-timit", "k", "q9", "t"),
 ]
 
@@ -1070,7 +1070,7 @@ CLEAN_INVOCATIONS = [
     ("convert", "to-xsampa", "kæt"),
     ("convert", "to-timit", "kæt"),
     ("convert", "to-kirshenbaum", "kæt"),
-    ("convert", "to-ipa", "K", "AE1", "T"),
+    ("convert", "from-cmu", "K", "AE1", "T"),
     ("convert", "from-timit", "k", "ae", "t"),
 ]
 
@@ -1116,7 +1116,7 @@ class TestInputThatWasNotReadInFullReachesTheExitStatus:
             "to-xsampa",
             "to-timit",
             "to-kirshenbaum",
-            "to-ipa",
+            "from-cmu",
             "from-timit",
         }
 
@@ -1335,8 +1335,8 @@ LIBRARY_ONLY = {
     "feature_bundles": "returns one dict per segment; 'features' prints that",
     # Generic over a phonemap name; the CLI ships a subcommand per map
     # instead (to-timit, to-kirshenbaum, from-timit, ...).
-    "ipa_to_phonemap": "generic; the CLI spells one subcommand per map",
-    "phonemap_to_ipa": "generic; the CLI spells one subcommand per map",
+    "to_phonemap": "generic; the CLI spells one subcommand per map",
+    "from_phonemap": "generic; the CLI spells one subcommand per map",
     # A second spelling of a number the CLI already prints another way.
     "word_similarity": "'distance word --raw' prints this value via word_distance",
     "sequence_similarity": "the similarity of sequence_distance, which 'distance seq' spells",
@@ -1573,7 +1573,7 @@ class TestTheDeliberateApiCliDifferences:
             "docs/ties.md's claim may now hold -- check its default and "
             "update this test and the doc together"
         )
-        assert ipakit.word_distance.__defaults__ is not None
+        assert ipakit.word_distance.__kwdefaults__ is not None
         flat_sig = _inspect.signature(ipakit.word_distance)
         assert flat_sig.parameters["strict"].default is True
 

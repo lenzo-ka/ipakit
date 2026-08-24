@@ -32,11 +32,11 @@ class TestConvenienceFunctions:
         assert ipakit.to_ipa(ipakit.segments("kæt")) == "kæt"
 
     def test_generic_phonemap_functions_exported(self) -> None:
-        # ipa_to_phonemap / phonemap_to_ipa are now part of the public surface.
-        assert ipakit.ipa_to_phonemap("kæt", "timit") == ["k", "ae", "t"]
-        assert ipakit.phonemap_to_ipa(["k", "ae", "t"], "timit") == "kæt"
-        assert "ipa_to_phonemap" in ipakit.__all__
-        assert "phonemap_to_ipa" in ipakit.__all__
+        # to_phonemap / from_phonemap are now part of the public surface.
+        assert ipakit.to_phonemap("kæt", "timit") == ["k", "ae", "t"]
+        assert ipakit.from_phonemap(["k", "ae", "t"], "timit") == "kæt"
+        assert "to_phonemap" in ipakit.__all__
+        assert "from_phonemap" in ipakit.__all__
 
     def test_tokenize(self) -> None:
         result = ipakit.tokenize("pat")
@@ -69,16 +69,16 @@ class TestConvenienceFunctions:
 class TestXSAMPAFunctions:
     """Tests for X-SAMPA related functions."""
 
-    def test_xsampa_to_ipa_basic(self) -> None:
-        assert ipakit.xsampa_to_ipa("p") == "p"
-        assert ipakit.xsampa_to_ipa("a") == "a"
-        assert ipakit.xsampa_to_ipa("t") == "t"
+    def test_from_xsampa_basic(self) -> None:
+        assert ipakit.from_xsampa("p") == "p"
+        assert ipakit.from_xsampa("a") == "a"
+        assert ipakit.from_xsampa("t") == "t"
 
-    def test_xsampa_to_ipa_extended(self) -> None:
+    def test_from_xsampa_extended(self) -> None:
         # Uppercase X-SAMPA = IPA extensions
-        assert ipakit.xsampa_to_ipa("S") == "ʃ"
-        assert ipakit.xsampa_to_ipa("A") == "ɑ"
-        assert ipakit.xsampa_to_ipa("E") == "ɛ"
+        assert ipakit.from_xsampa("S") == "ʃ"
+        assert ipakit.from_xsampa("A") == "ɑ"
+        assert ipakit.from_xsampa("E") == "ɛ"
 
     def test_features_from_xsampa(self) -> None:
         bundles = ipakit.features_from_xsampa("pat")

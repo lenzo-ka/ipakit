@@ -224,7 +224,7 @@ out = {
     # phonemaps/cmu.xml
     "cmu": ipakit.to_cmu("kaet".replace("ae", "\\u00e6")),
     # phonemaps/xsampa.xml
-    "xsampa": ipakit.ipa_to_xsampa("\\u0283"),
+    "xsampa": ipakit.to_xsampa("\\u0283"),
     # data/rules/*.rules
     "rulesets": sorted(p.stem for p in rules.RULES_DIR.glob("*.rules")),
     "derived": rules.shipped("german-final-devoicing").apply("ta\\u02d0\\u0261"),

@@ -15,7 +15,7 @@ Class API:
 
 Converter return types follow the target format: converters to a token-oriented
 phone set (``to_cmu``, ``to_timit``) return ``list[str]``, while converters to a
-transcription string (``ipa_to_xsampa``, ``to_kirshenbaum``) return ``str``.
+transcription string (``to_xsampa``, ``to_kirshenbaum``) return ``str``.
 """
 
 from __future__ import annotations
@@ -95,10 +95,10 @@ from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
 from .phonemaps import (
     from_kirshenbaum,
+    from_phonemap,
     from_timit,
-    ipa_to_phonemap,
-    phonemap_to_ipa,
     to_kirshenbaum,
+    to_phonemap,
     to_timit,
 )
 from .rules import (
@@ -138,7 +138,7 @@ from .tiergraph_dot import to_dot as to_dot
 
 # X-SAMPA string conversion lives in ipakit.xsampa, the single source of truth
 # for the IPA <-> X-SAMPA table. Re-exported here for the flat module API.
-from .xsampa import ipa_to_xsampa, xsampa_to_ipa
+from .xsampa import from_xsampa, to_xsampa
 
 # ======================================================================
 # Module-level API (lazy singletons)
@@ -236,6 +236,7 @@ def pairwise_distances(phones: list[str]) -> list[list[float]]:
 def word_distance(
     ipa1: str,
     ipa2: str,
+    *,
     weighted: bool = True,
     return_alignment: bool = False,
     strict: bool = True,
@@ -311,7 +312,7 @@ def directional_word_distance(
 
 
 def word_similarity(
-    ipa1: str, ipa2: str, weighted: bool = True, strict: bool = True
+    ipa1: str, ipa2: str, *, weighted: bool = True, strict: bool = True
 ) -> float:
     """Compute phonetic similarity between two IPA words.
 
@@ -361,9 +362,9 @@ def explain_word_distance(
 def nearest_pronunciation(
     forms: str | Iterable[str],
     acceptable: str | Iterable[str],
+    *,
     weighted: bool = True,
     strict: bool = True,
-    *,
     mode: str = "global",
 ) -> PronunciationMatch:
     """The nearest acceptable pronunciation in a set, and which pair matched.
@@ -561,7 +562,7 @@ def features_from_xsampa(
     xsampa: str, with_defaults: bool = True
 ) -> list[dict[str, str]]:
     """Get feature bundles from X-SAMPA string."""
-    ipa_str = xsampa_to_ipa(xsampa)
+    ipa_str = from_xsampa(xsampa)
     return _get_ipa().compose(ipa_str, with_defaults=with_defaults)
 
 
@@ -682,9 +683,9 @@ def to_ipa(segments: list[Segment]) -> str:
     return _get_ipa().to_ipa(segments)
 
 
-def normalize(segments: str) -> str:
+def normalize(text: str) -> str:
     """Normalize whitespace-separated IPA segments into decodable IPA string."""
-    return _get_ipa().normalize(segments)
+    return _get_ipa().normalize(text)
 
 
 def from_wild(text: str) -> str:
@@ -1297,8 +1298,8 @@ __all__ = [
     "hierarchy",
     "hierarchy_dot",
     "hierarchy_text",
-    "ipa_to_phonemap",
-    "ipa_to_xsampa",
+    "to_phonemap",
+    "to_xsampa",
     "is_pure_ipa",
     "is_valid_ipa",
     "load_ipa_features",
@@ -1309,7 +1310,7 @@ __all__ = [
     "normalize_lookalikes",
     "notebook",
     "normalized_distance",
-    "phonemap_to_ipa",
+    "from_phonemap",
     "phones_matching",
     "respell",
     "segment",
@@ -1338,7 +1339,7 @@ __all__ = [
     "sequence_distance",
     "sequence_similarity",
     "rank_sequences",
-    "xsampa_to_ipa",
+    "from_xsampa",
     "parse_query",
     "language",
     "languages",

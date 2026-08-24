@@ -237,7 +237,7 @@ Every one of the five tone letters — the exact bijection that is the best argu
 
 This is not ipakit's problem to solve; it is **SAMPROSA's stated design constraint**. The SAM documentation says so directly: prosodic and segmental transcriptions must be kept on separate tiers, "because certain symbols have different meanings in SAMPROSA from their meaning in SAMPA: e.g. H denotes a labial-palatal semivowel in SAMPA, but High tone in SAMPROSA". Gibbon's own proposal handles this with paired angle brackets `< >` as **tier escape symbols**.
 
-ipakit's converter surface (`xsampa_to_ipa`, `ipa_to_xsampa`) is a single flat string in and a single flat string out. There is no tier. Shipping SAMPROSA into that surface means `H` has two readings and the function signature carries nothing to choose between them.
+ipakit's converter surface (`from_xsampa`, `to_xsampa`) is a single flat string in and a single flat string out. There is no tier. Shipping SAMPROSA into that surface means `H` has two readings and the function signature carries nothing to choose between them.
 
 ## 3. Validation
 

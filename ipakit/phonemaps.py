@@ -114,11 +114,11 @@ def _normalize_for_map(ipa: str, ipa_to_target: dict[str, str]) -> str:
     return ipa
 
 
-def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
+def to_phonemap(ipa_string: str, phonemap: str, strict: bool = False) -> list[str]:
     """Convert IPA string to target phonemap symbols.
 
     Args:
-        ipa: IPA string to convert
+        ipa_string: IPA string to convert
         phonemap: Name of phonemap ("timit", "kirshenbaum")
         strict: If True, raise ValueError for unconvertible symbols instead of
             skipping them.
@@ -127,16 +127,16 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
         List of target symbols
     """
     ipa_to_target, _ = _load_phonemap(phonemap)
-    ipa = resolve_aliases(ipa)
-    if ipa in ipa_to_target:
-        return [ipa_to_target[ipa]]
+    ipa_string = resolve_aliases(ipa_string)
+    if ipa_string in ipa_to_target:
+        return [ipa_to_target[ipa_string]]
     # The generic phonemap contract historically repairs an omitted tie when
     # a table declares only the tied sequence (notably TIMIT ``oʊ`` -> OW).
     # That compatibility normalization is necessarily string-level because
     # it changes where the structured segment boundary will be read.
-    ipa = _normalize_for_map(ipa, ipa_to_target)
+    ipa_string = _normalize_for_map(ipa_string, ipa_to_target)
     return convert_structured_ipa(
-        ipa,
+        ipa_string,
         ipa_to_target,
         strict=strict,
         what=f"IPA -> {phonemap}",
@@ -144,7 +144,7 @@ def ipa_to_phonemap(ipa: str, phonemap: str, strict: bool = False) -> list[str]:
     )
 
 
-def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> str:
+def from_phonemap(symbols: list[str], phonemap: str, strict: bool = False) -> str:
     """Convert phonemap symbols to IPA string.
 
     Args:
@@ -173,7 +173,7 @@ def phonemap_to_ipa(symbols: list[str], phonemap: str, strict: bool = False) -> 
 # --- TIMIT-specific functions ---
 
 
-def to_timit(ipa: str, strict: bool = False) -> list[str]:
+def to_timit(ipa_string: str, strict: bool = False) -> list[str]:
     """Convert IPA string to TIMIT phoneset symbols.
 
     TIMIT uses a 61-phone set with lowercase symbols.
@@ -186,7 +186,7 @@ def to_timit(ipa: str, strict: bool = False) -> list[str]:
         >>> to_timit("hɛloʊ")
         ['hh', 'eh', 'l', 'ow']
     """
-    return ipa_to_phonemap(ipa, "timit", strict=strict)
+    return to_phonemap(ipa_string, "timit", strict=strict)
 
 
 def from_timit(symbols: list[str], strict: bool = False) -> str:
@@ -198,13 +198,13 @@ def from_timit(symbols: list[str], strict: bool = False) -> str:
         >>> from_timit(["k", "ae", "t"])
         'kæt'
     """
-    return phonemap_to_ipa(symbols, "timit", strict=strict)
+    return from_phonemap(symbols, "timit", strict=strict)
 
 
 # --- Kirshenbaum-specific functions ---
 
 
-def to_kirshenbaum(ipa: str, strict: bool = False) -> str:
+def to_kirshenbaum(ipa_string: str, strict: bool = False) -> str:
     """Convert IPA string to Kirshenbaum ASCII-IPA notation.
 
     Kirshenbaum is an ASCII representation of IPA for plain text. Uses uppercase
@@ -217,7 +217,7 @@ def to_kirshenbaum(ipa: str, strict: bool = False) -> str:
         >>> to_kirshenbaum("kæt")
         'k&t'
     """
-    symbols = ipa_to_phonemap(ipa, "kirshenbaum", strict=strict)
+    symbols = to_phonemap(ipa_string, "kirshenbaum", strict=strict)
     return "".join(symbols)
 
 
