@@ -74,29 +74,29 @@ DROPPED = set(FOLDED_SPELLINGS) | UNENCODABLE
 
 
 class TestBasicConversion:
-    def test_ipa_to_xsampa(self) -> None:
-        assert ipakit.ipa_to_xsampa("pʃɑ") == "pSA"
-        assert ipakit.ipa_to_xsampa("kæt") == "k{t"
-        assert ipakit.ipa_to_xsampa("θɪŋk") == "TINk"
+    def test_to_xsampa(self) -> None:
+        assert ipakit.to_xsampa("pʃɑ") == "pSA"
+        assert ipakit.to_xsampa("kæt") == "k{t"
+        assert ipakit.to_xsampa("θɪŋk") == "TINk"
 
-    def test_xsampa_to_ipa(self) -> None:
-        assert ipakit.xsampa_to_ipa("pSA") == "pʃɑ"
-        assert ipakit.xsampa_to_ipa("k{t") == "kæt"
-        assert ipakit.xsampa_to_ipa("TINk") == "θɪŋk"
+    def test_from_xsampa(self) -> None:
+        assert ipakit.from_xsampa("pSA") == "pʃɑ"
+        assert ipakit.from_xsampa("k{t") == "kæt"
+        assert ipakit.from_xsampa("TINk") == "θɪŋk"
 
     def test_affricate_tie_bar(self) -> None:
         # tie bar maps to `_`; t͡ʃ <-> t_S round-trips cleanly
-        assert ipakit.ipa_to_xsampa("t͡ʃ") == "t_S"
-        assert ipakit.xsampa_to_ipa("t_S") == "t͡ʃ"
+        assert ipakit.to_xsampa("t͡ʃ") == "t_S"
+        assert ipakit.from_xsampa("t_S") == "t͡ʃ"
 
     def test_unknown_chars_skipped(self) -> None:
         # digits are not IPA; they are skipped, not emitted
-        assert ipakit.ipa_to_xsampa("p4") == "p"
-        assert ipakit.xsampa_to_ipa("") == ""
+        assert ipakit.to_xsampa("p4") == "p"
+        assert ipakit.from_xsampa("") == ""
 
     def test_methods_match_module_functions(self, ipa: IPAFeatures) -> None:
-        assert ipa.ipa_to_xsampa("t͡ʃ") == ipakit.ipa_to_xsampa("t͡ʃ") == "t_S"
-        assert ipa.xsampa_to_ipa("t_S") == ipakit.xsampa_to_ipa("t_S") == "t͡ʃ"
+        assert ipa.to_xsampa("t͡ʃ") == ipakit.to_xsampa("t͡ʃ") == "t_S"
+        assert ipa.from_xsampa("t_S") == ipakit.from_xsampa("t_S") == "t͡ʃ"
 
 
 class TestRoundTrip:
@@ -111,16 +111,16 @@ class TestRoundTrip:
         for sym in list(ipa.phones) + list(ipa.diacritics):
             if TIES & set(sym) or sym in DROPPED:
                 continue
-            xs = ipakit.ipa_to_xsampa(sym)
-            if ipakit.xsampa_to_ipa(xs) != sym:
-                failures.append((sym, xs, ipakit.xsampa_to_ipa(xs)))
+            xs = ipakit.to_xsampa(sym)
+            if ipakit.from_xsampa(xs) != sym:
+                failures.append((sym, xs, ipakit.from_xsampa(xs)))
         assert failures == []
 
     def test_tie_bar_affricates_round_trip(self, ipa: IPAFeatures) -> None:
         """Tie-bar affricates round-trip, except the known X-SAMPA collisions."""
         for sym in [p for p in ipa.phones if ipa.tie_bar in p]:
-            xs = ipakit.ipa_to_xsampa(sym)
-            back = ipakit.xsampa_to_ipa(xs)
+            xs = ipakit.to_xsampa(sym)
+            back = ipakit.from_xsampa(xs)
             if sym in KNOWN_NON_ROUNDTRIP:
                 assert back != sym  # pinned: documented ambiguity
             else:
@@ -129,7 +129,7 @@ class TestRoundTrip:
     @pytest.mark.parametrize("word", ["kæt", "t͡ʃe͜ɪnd͡ʒ", "θɪŋk", "wˈɔtɚ", "pʃɑ"])
     def test_convention_words_round_trip(self, word: str) -> None:
         """IPA written in ipakit conventions round-trips through X-SAMPA."""
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa(word)) == word
+        assert ipakit.from_xsampa(ipakit.to_xsampa(word)) == word
 
     def test_round_trip_failures_are_exactly_documented(self, ipa: IPAFeatures) -> None:
         """The whole inventory round-trips but for the documented exceptions.
@@ -139,10 +139,10 @@ class TestRoundTrip:
         """
         dropped, collided = set(), set()
         for sym in list(ipa.phones) + list(ipa.diacritics):
-            xs = ipakit.ipa_to_xsampa(sym)
+            xs = ipakit.to_xsampa(sym)
             if not xs:
                 dropped.add(sym)
-            elif ipakit.xsampa_to_ipa(xs) != sym:
+            elif ipakit.from_xsampa(xs) != sym:
                 collided.add(sym)
         assert dropped == DROPPED
         assert collided == KNOWN_NON_ROUNDTRIP | TIE_SENSE
@@ -152,24 +152,24 @@ class TestRoundTrip:
     ) -> None:
         """The sweep above walks the registered inventory, and the accepted
         alias spellings are not in it -- so they could join the dropped set
-        without the equality noticing, and had: `ipa_to_xsampa("ʧ")` was
+        without the equality noticing, and had: `to_xsampa("ʧ")` was
         `""`, deleting the affricate mid-word. An alias converts as the
         thing it spells; coming back it yields the canonical spelling,
         which is the documented alias loss (docs/ties.md), not a drop.
         """
         for alias, canonical in ipa.ligature_map.items():
-            xs = ipakit.ipa_to_xsampa(alias)
-            assert xs == ipakit.ipa_to_xsampa(canonical) != ""
-            assert ipakit.xsampa_to_ipa(xs) == canonical
+            xs = ipakit.to_xsampa(alias)
+            assert xs == ipakit.to_xsampa(canonical) != ""
+            assert ipakit.from_xsampa(xs) == canonical
 
     @pytest.mark.parametrize("sym,canonical", sorted(FOLDED_SPELLINGS.items()))
     def test_canonical_spelling_of_a_folded_symbol_round_trips(
         self, sym: str, canonical: str
     ) -> None:
         """The sound survives; only the redundant spelling of it does not."""
-        assert ipakit.ipa_to_xsampa(sym) == ""
-        xs = ipakit.ipa_to_xsampa(canonical)
-        assert xs and ipakit.xsampa_to_ipa(xs) == canonical
+        assert ipakit.to_xsampa(sym) == ""
+        xs = ipakit.to_xsampa(canonical)
+        assert xs and ipakit.from_xsampa(xs) == canonical
 
 
 class TestUnconvertible:
@@ -178,16 +178,16 @@ class TestUnconvertible:
     def test_dropped_symbol_takes_its_neighbors_adjacency(self) -> None:
         # Lenient conversion deletes `ⱱ` and closes the gap, so `k` and `t`
         # come out adjacent. Documented, and the reason `strict` exists.
-        assert ipakit.ipa_to_xsampa("kⱱt") == "kt"
+        assert ipakit.to_xsampa("kⱱt") == "kt"
 
     @pytest.mark.parametrize("sym", sorted(DROPPED))
     def test_strict_raises_naming_the_symbol(self, sym: str) -> None:
         with pytest.raises(ValueError, match="unknown symbols"):
-            ipakit.ipa_to_xsampa(f"k{sym}t", strict=True)
+            ipakit.to_xsampa(f"k{sym}t", strict=True)
 
     def test_strict_names_the_offending_symbol(self) -> None:
         with pytest.raises(ValueError) as exc:
-            ipakit.ipa_to_xsampa("kⱱt", strict=True)
+            ipakit.to_xsampa("kⱱt", strict=True)
         assert "ⱱ" in str(exc.value)
 
 

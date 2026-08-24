@@ -180,7 +180,7 @@ def convert_greedy(
             lost.append(text[i])
             i += 1
     # stacklevel 4: report_unconvertible -> here -> the converter that
-    # called it (to_kirshenbaum, ipa_to_xsampa, ...) -> that converter's
+    # called it (to_kirshenbaum, to_xsampa, ...) -> that converter's
     # caller, which is the frame worth naming.
     if skipped is not None:
         skipped.extend(lost)

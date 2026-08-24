@@ -86,7 +86,7 @@ Examples:
   ipakit features "pʰ" --short         # Get short names for aspirated p
   ipakit describe p                    # "voiceless bilabial plosive"
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
-  ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
+  ipakit convert from-cmu K AE1 T        # CMU to IPA: kˈæt
   ipakit convert to-json "kæt"          # Versioned graph-backed Form JSON
   ipakit convert to-katakana "hɑt"      # Attested loanword adaptation: ホット
   ipakit query match plosive bilabial  # Find: b p ɓ ʘ

@@ -2722,16 +2722,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             i += len(run)
         return "".join(result)
 
-    def normalize(self, segments: str) -> str:
+    def normalize(self, text: str) -> str:
         """Normalize whitespace-separated IPA segments into decodable IPA string.
 
         Each whitespace-separated group is treated as one asserted unit;
         :meth:`add_ties` inserts the tie by sense (adjacent vowels bind
         sequentially, anything else fuses).
         """
-        segments = self.expand_ligatures(segments)
+        text = self.expand_ligatures(text)
         return unicodedata.normalize(
-            "NFC", "".join(self.add_ties(seg) for seg in segments.split())
+            "NFC", "".join(self.add_ties(seg) for seg in text.split())
         )
 
     # -------------------------------------------------------------------------
@@ -3872,22 +3872,22 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             _features=self,
         )
 
-    def ipa_to_xsampa(self, ipa: str, strict: bool = False) -> str:
+    def to_xsampa(self, ipa_string: str, strict: bool = False) -> str:
         """Convert an IPA string to X-SAMPA notation.
 
         Delegates to :mod:`ipakit.xsampa`, the single source of truth for the
         IPA <-> X-SAMPA table (``data/phonemaps/xsampa.xml``). With
         ``strict=True``, raise ``ValueError`` on unconvertible symbols.
         """
-        from .xsampa import ipa_to_xsampa
+        from .xsampa import to_xsampa
 
-        return ipa_to_xsampa(ipa, strict=strict)
+        return to_xsampa(ipa_string, strict=strict)
 
-    def xsampa_to_ipa(self, xsampa: str, strict: bool = False) -> str:
-        """Convert an X-SAMPA string to IPA. See :meth:`ipa_to_xsampa`."""
-        from .xsampa import xsampa_to_ipa
+    def from_xsampa(self, xsampa: str, strict: bool = False) -> str:
+        """Convert an X-SAMPA string to IPA. See :meth:`to_xsampa`."""
+        from .xsampa import from_xsampa
 
-        return xsampa_to_ipa(xsampa, strict=strict)
+        return from_xsampa(xsampa, strict=strict)
 
     # -------------------------------------------------------------------------
     # Derived properties

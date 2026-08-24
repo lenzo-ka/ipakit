@@ -23,8 +23,8 @@ class TestDefaultSkips:
         assert ipakit.from_timit(["k", "zz", "t"]) == "kt"
         assert ipakit.to_kirshenbaum("k4t") == "kt"
         assert ipakit.from_kirshenbaum("kπt") == "kt"
-        assert ipakit.xsampa_to_ipa("pπ") == "p"
-        assert ipakit.ipa_to_xsampa("p4") == "p"
+        assert ipakit.from_xsampa("pπ") == "p"
+        assert ipakit.to_xsampa("p4") == "p"
 
 
 class TestStrictRaises:
@@ -39,8 +39,8 @@ class TestStrictRaises:
             lambda: ipakit.from_timit(["k", "zz", "t"], strict=True),
             lambda: ipakit.to_kirshenbaum("k4t", strict=True),
             lambda: ipakit.from_kirshenbaum("kπt", strict=True),
-            lambda: ipakit.xsampa_to_ipa("pπ", strict=True),
-            lambda: ipakit.ipa_to_xsampa("p4", strict=True),
+            lambda: ipakit.from_xsampa("pπ", strict=True),
+            lambda: ipakit.to_xsampa("p4", strict=True),
         ],
     )
     def test_strict_raises_value_error(self, call) -> None:  # type: ignore[no-untyped-def]
@@ -55,8 +55,8 @@ class TestStrictRaises:
         # No unconvertible symbols -> strict must not raise.
         assert ipakit.to_cmu("ˈkæt", strict=True) == ["K", "AE1", "T"]
         assert ipakit.from_cmu(["K", "AE1", "T"], strict=True) == "kˈæt"
-        assert ipakit.ipa_to_xsampa("t͡ʃ", strict=True) == "t_S"
-        assert ipakit.xsampa_to_ipa("t_S", strict=True) == "t͡ʃ"
+        assert ipakit.to_xsampa("t͡ʃ", strict=True) == "t_S"
+        assert ipakit.from_xsampa("t_S", strict=True) == "t͡ʃ"
 
 
 class TestStrictOnClasses:
@@ -72,14 +72,14 @@ class TestStrictOnClasses:
     def test_ipafeatures_xsampa(self) -> None:
         ipa = IPAFeatures()
         with pytest.raises(ValueError):
-            ipa.ipa_to_xsampa("p4", strict=True)
+            ipa.to_xsampa("p4", strict=True)
         with pytest.raises(ValueError):
-            ipa.xsampa_to_ipa("pπ", strict=True)
+            ipa.from_xsampa("pπ", strict=True)
 
 
 _WHOLE_CONVERSION_CASES = (
     (
-        ipakit.ipa_to_xsampa,
+        ipakit.to_xsampa,
         "IPA -> X-SAMPA",
         {
             "kæt.dɒɡ": set(),

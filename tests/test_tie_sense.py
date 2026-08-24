@@ -171,18 +171,18 @@ class TestPhonesetBoundary:
     def test_both_ties_encode_as_underscore(self) -> None:
         import ipakit
 
-        assert ipakit.ipa_to_xsampa("t͡s") == "t_s"
-        assert ipakit.ipa_to_xsampa("a͜ɪ") == "a_I"
-        assert ipakit.ipa_to_xsampa("u͜i") == ipakit.ipa_to_xsampa("u͡i") == "u_i"
+        assert ipakit.to_xsampa("t͡s") == "t_s"
+        assert ipakit.to_xsampa("a͜ɪ") == "a_I"
+        assert ipakit.to_xsampa("u͜i") == ipakit.to_xsampa("u͡i") == "u_i"
 
     def test_round_trips_return_house_canonicals(self) -> None:
         import ipakit
 
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("t͡s")) == "t͡s"
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("a͜ɪ")) == "a͜ɪ"
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("u͜i")) == "u͜i"
+        assert ipakit.from_xsampa(ipakit.to_xsampa("t͡s")) == "t͡s"
+        assert ipakit.from_xsampa(ipakit.to_xsampa("a͜ɪ")) == "a͜ɪ"
+        assert ipakit.from_xsampa(ipakit.to_xsampa("u͜i")) == "u͜i"
         # Wild spellings canonicalize on the way through.
-        assert ipakit.xsampa_to_ipa(ipakit.ipa_to_xsampa("a͡ɪ")) == "a͜ɪ"
+        assert ipakit.from_xsampa(ipakit.to_xsampa("a͡ɪ")) == "a͜ɪ"
 
 
 class TestTielessNormalizationHeuristic:

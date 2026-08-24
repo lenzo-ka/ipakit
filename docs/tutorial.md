@@ -300,8 +300,8 @@ The supported ASCII and machine notations convert in both directions. The round 
 ```python
 ipa.to_cmu("kˈæt")  # ['K', 'AE1', 'T']
 ipa.from_cmu(["K", "AE1", "T"])  # 'kˈæt'
-ipa.ipa_to_xsampa("t͡ʃ")  # 't_S'
-ipa.xsampa_to_ipa("t_S")  # 't͡ʃ'
+ipa.to_xsampa("t͡ʃ")  # 't_S'
+ipa.from_xsampa("t_S")  # 't͡ʃ'
 ipa.to_timit("kæt")  # ['k', 'ae', 't']
 ipa.from_timit(["k", "ae", "t"])  # 'kæt'
 ipa.to_kirshenbaum("ʃɑk")  # 'SAk'
@@ -311,7 +311,7 @@ ipa.from_kirshenbaum("SAk")  # 'ʃɑk'
 ```console
 $ ipakit convert to-cmu "kˈæt"
 K AE1 T
-$ ipakit convert to-ipa K AE1 T
+$ ipakit convert from-cmu K AE1 T
 kˈæt
 $ ipakit convert to-xsampa "t͡ʃ"
 t_S

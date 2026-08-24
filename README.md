@@ -122,8 +122,8 @@ ipakit.to_cmu("nˈɔ͜ɪŋ")            # ['N', 'OY1', 'NG']   tied: one vowel
 ipakit.to_cmu("nˈɔɪŋ")             # ['N', 'AO1', 'IH0', 'NG']   untied: two
 
 # X-SAMPA (ASCII)
-ipakit.ipa_to_xsampa("t͡ʃ")        # 't_S'
-ipakit.xsampa_to_ipa("t_S")        # 't͡ʃ'
+ipakit.to_xsampa("t͡ʃ")        # 't_S'
+ipakit.from_xsampa("t_S")        # 't͡ʃ'
 
 # Kirshenbaum / TIMIT
 ipakit.to_kirshenbaum("kæt")       # 'k&t'
@@ -225,7 +225,7 @@ A word comparison reports `coverage` — the shorter token count over the longer
   - *Redundant spelling* — `˞`, `̀`, `́`, `̄`, `ʻ` are dropped: X-SAMPA has one encoding where IPA has two, and in a bijective table it belongs to the house-canonical spelling — `ʴ` (`` ` ``), the tone bars `˨`/`˦`/`˧` (`_L`/`_H`/`_M`), `ʰ` (`_h`). Written that way, the sound round-trips exactly.
   - *Unencodable* — `ⱱ`, `ˀ`, `ᵊ` are dropped: X-SAMPA has no notation for the labiodental flap (X-SAMPA predates the IPA's 2005 adoption of the symbol, and the standard chart marks that cell as having none), for glottalization, or for schwa release. An invented spelling would collide with notation already in use, so these stay unmapped rather than approximated.
 
-  A dropped symbol takes its neighbors' adjacency with it (`kⱱt → kt`), which is what `strict=True` is for: `ipa_to_xsampa("kⱱt", strict=True)` raises `ValueError` naming the symbol instead. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA distinctions) and carry no round-trip guarantee; Kirshenbaum has no labiodental-flap notation either.
+  A dropped symbol takes its neighbors' adjacency with it (`kⱱt → kt`), which is what `strict=True` is for: `to_xsampa("kⱱt", strict=True)` raises `ValueError` naming the symbol instead. The CMU, TIMIT, and Kirshenbaum mappings are lossy (they collapse IPA distinctions) and carry no round-trip guarantee; Kirshenbaum has no labiodental-flap notation either.
 
 ## CLI
 
@@ -233,7 +233,7 @@ A word comparison reports `coverage` — the shorter token count over the longer
 ipakit features p                    # Get features for 'p'
 ipakit describe p                    # "voiceless bilabial plosive"
 ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
-ipakit convert to-ipa K AE1 T        # CMU to IPA: kˈæt
+ipakit convert from-cmu K AE1 T        # CMU to IPA: kˈæt
 ipakit convert to-xsampa "t͡ʃ"        # IPA to X-SAMPA: t_S
 ipakit query match plosive bilabial  # Find phones by feature
 ipakit analysis natural-class p t k  # Shared features of a set

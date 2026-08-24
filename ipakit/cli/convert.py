@@ -51,19 +51,19 @@ class ToCmuCommand(Command):
         return 0
 
 
-class ToIpaCommand(Command):
+class FromCmuCommand(Command):
     """Convert CMU ARPABET symbols to IPA string.
 
     Accepts space-separated CMU symbols. Stress markers on vowels
     are converted to IPA stress marks (ˈ for primary, ˌ for secondary).
 
     Examples:
-        ipakit convert to-ipa K AE1 T      # kˈæt
-        ipakit convert to-ipa HH EH1 L OW0 # hˈɛlo͡ʊ
-        ipakit c to-ipa P IY1 T S AH0      # pˈitsə
+        ipakit convert from-cmu K AE1 T      # kˈæt
+        ipakit convert from-cmu HH EH1 L OW0 # hˈɛlo͡ʊ
+        ipakit c from-cmu P IY1 T S AH0      # pˈitsə
     """
 
-    name = "to-ipa"
+    name = "from-cmu"
     aliases = []
     help = "Convert CMU ARPABET to IPA (e.g., 'K AE1 T' → 'kˈæt')"
 
@@ -116,7 +116,7 @@ class ToXsampaCommand(Command):
         add_convert_strict_arg(parser)
 
     def run(self) -> int:
-        result = self.ipa.ipa_to_xsampa(self.args.ipa, strict=self.args.strict)
+        result = self.ipa.to_xsampa(self.args.ipa, strict=self.args.strict)
         if self.format == "json":
             self.output_json(result)
         else:
@@ -150,9 +150,9 @@ class FromXsampaCommand(Command):
         add_convert_strict_arg(parser)
 
     def run(self) -> int:
-        from .. import xsampa_to_ipa
+        from .. import from_xsampa
 
-        result = xsampa_to_ipa(self.args.xsampa, strict=self.args.strict)
+        result = from_xsampa(self.args.xsampa, strict=self.args.strict)
         if self.format == "json":
             self.output_json(result)
         else:
@@ -530,7 +530,7 @@ class ConvertGroup(CommandGroup):
 
     Subcommands:
         to-cmu         IPA → CMU ARPABET (speech synthesis)
-        to-ipa         CMU ARPABET → IPA
+        from-cmu         CMU ARPABET → IPA
         to-xsampa      IPA → X-SAMPA (ASCII)
         from-xsampa    X-SAMPA → IPA
         to-timit       IPA → TIMIT (speech recognition)
@@ -550,7 +550,7 @@ class ConvertGroup(CommandGroup):
     help = "Convert notation, serialize forms, and render attested adaptations"
     commands = [
         ToCmuCommand,
-        ToIpaCommand,
+        FromCmuCommand,
         ToXsampaCommand,
         FromXsampaCommand,
         ToTimitCommand,
