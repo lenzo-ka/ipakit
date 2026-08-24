@@ -1,8 +1,8 @@
-"""Read-only containment projection from ipakit graphs onto tiergraph.
+"""Assemble ipakit's containment view natively as a tiergraph graph.
 
-Only event identity and containment incidence cross this seam.  Profile values,
-clock coordinates, timing, roots, choices, and every other ipakit graph concern
-remain authoritative in the source graph.
+Canonical facts supply event identity, containment incidence, profile values,
+clock coordinates, timing, roots, choices, and the other graph concerns used to
+construct the authoritative tiergraph graph.
 """
 
 from __future__ import annotations
@@ -365,8 +365,8 @@ class ContainmentProjectionInput:
 class ContainmentProjection:
     """Single-source ordered containment view with lossless event identity.
 
-    Navigation is identical to the legacy implementation on every accepted
-    graph.  Accepted containment instances have exactly one event source and
+    Navigation preserves the compatibility contract on every accepted graph.
+    Accepted containment instances have exactly one event source and
     only event targets (including a declared empty target side).  Source
     cardinalities other than one and boundary endpoints are refused by name.
     """
@@ -828,8 +828,9 @@ class ContainmentProjection:
             if side == "source"
             else self.admitted_targets[relation_name]
         )
-        # The legacy traversal returned an empty fiber for a non-admitted origin,
-        # so skipping it preserves that answer.  Admitted origins are unchanged,
+        # The compatibility traversal returns an empty fiber for a non-admitted
+        # origin, so skipping it preserves that answer. Admitted origins are
+        # unchanged,
         # and Graph construction already rejects non-admitted stored endpoints.
         return tiers is None or (tier_name is not None and tier_name in tiers)
 

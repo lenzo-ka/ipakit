@@ -24,7 +24,7 @@ def to_dot(form: Form, *, include_empty_tiers: bool = False) -> str:
     return _render_via_sibling(form._graph, include_empty_tiers=include_empty_tiers)
 
 
-# --- Sibling-renderer migration ------------------------------------------------
+# --- Sibling-renderer bridge ---------------------------------------------------
 #
 # ipakit no longer emits DOT itself: it hands the authoritative graph to the
 # sibling ``tiergraph_dot.dumps`` with three presentation hooks and a clock

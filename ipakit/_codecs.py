@@ -9,11 +9,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 import tiergraph as tg
 
 from ._graph_facts import Event, Relation
+
+if TYPE_CHECKING:
+    from .form import Form
 
 ValueRenderer = Callable[[Event], str]
 
@@ -42,7 +45,7 @@ class RenderProfile:
     lanes: tuple[RenderLane, ...]
 
 
-def render_graph(form: Any, profile: RenderProfile) -> str:
+def render_graph(form: Form, profile: RenderProfile) -> str:
     """Render only declared lanes, in input order where that order is retained."""
 
     graph = form._graph
@@ -124,7 +127,7 @@ class DeliverySelectionError(ValueError):
     """Rendering cannot resolve exactly one declared delivery candidate."""
 
 
-def _native_event_relations(graph: Any) -> tuple[Relation, ...]:
+def _native_event_relations(graph: Form) -> tuple[Relation, ...]:
     """Expose authoritative native item relations in compatibility coordinates."""
     projection = graph._containment
     names = {native: old for old, native in projection.relation_names.items()}
@@ -141,7 +144,7 @@ def _native_event_relations(graph: Any) -> tuple[Relation, ...]:
     )
 
 
-def _selected_delivery(graph: Any, selected: object | None) -> str | None:
+def _selected_delivery(graph: Form, selected: object | None) -> str | None:
     relations = _native_event_relations(graph)
     alternatives = tuple(r for r in relations if r.name == "alternatives")
     candidates = tuple(
@@ -166,7 +169,7 @@ def _selected_delivery(graph: Any, selected: object | None) -> str | None:
 
 
 def render_delivery(
-    graph: Any,
+    graph: Form,
     selected: object | None = None,
     profile: DeliveryProfile = DEFAULT_DELIVERY_PROFILE,
     *,

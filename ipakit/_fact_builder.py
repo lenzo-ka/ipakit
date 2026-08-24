@@ -79,7 +79,7 @@ class _PendingRelation:
 
 @dataclass(frozen=True)
 class LegacyOccurrence:
-    """Record whether a legacy unit advances or refines the input clock."""
+    """Record whether a compatibility unit advances or refines the input clock."""
 
     consumes_span: bool
     refines_tick: bool = False
@@ -92,7 +92,7 @@ class LegacyOccurrence:
 
 
 class LegacyCoordinates:
-    """Provide lossless position math without importing the future Form adapter."""
+    """Provide lossless position math for the Form compatibility adapter."""
 
     def __init__(self, occurrences: Sequence[LegacyOccurrence]) -> None:
         refiners: dict[int, int] = {}
@@ -126,7 +126,7 @@ class LegacyCoordinates:
         )
 
     def to_graph(self, legacy_gap_index: int) -> PositionHandle:
-        """Map a legacy unit gap to its exact coarse or refined position."""
+        """Map a compatibility unit gap to its exact coarse or refined position."""
         if legacy_gap_index < 0:
             raise ValueError("legacy gap index is out of range")
         try:
@@ -135,7 +135,7 @@ class LegacyCoordinates:
             raise ValueError("legacy gap index is out of range") from error
 
     def to_legacy(self, position: PositionHandle) -> int:
-        """Recover the identical legacy gap index from a graph position."""
+        """Recover the identical compatibility gap index from a graph position."""
         try:
             return self._indices[position]
         except KeyError as error:
@@ -431,7 +431,7 @@ class FactBuilder:
         roots = tuple(paths[self._validated_handle(item)] for item in self._roots)
         return tuple(nodes), relations, roots
 
-    def build_input(self) -> object:
+    def build_input(self) -> ContainmentProjectionInput:
         """Build scaffold-free facts for the authoritative tiergraph projection."""
         from ._containment_projection import ContainmentProjectionInput
 

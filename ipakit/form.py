@@ -75,7 +75,10 @@ from .constants import ZERO_CLASS
 from .segment import state_mark_value
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ._containment_projection import ContainmentProjection
+    from ._containment_projection import (
+        ContainmentProjection,
+        ContainmentProjectionInput,
+    )
     from .features import IPAFeatures
     from .segment import Segment
 
@@ -1169,7 +1172,7 @@ class _CompatibilityProjection:
 
     def __init__(
         self,
-        projection_input: Any,
+        projection_input: ContainmentProjectionInput,
         inventory: IPAFeatures | None = None,
     ) -> None:
         from tiergraph import DurableItemRef
@@ -1403,7 +1406,7 @@ _AT_REFUSAL_PHRASES = {
 class _FormGraphIndex:
     """Non-authoritative spelling and public-object index for one tg.Graph."""
 
-    containment_input: Any
+    containment_input: ContainmentProjectionInput
     inventory: IPAFeatures
 
     def _memo(self, name: str, build: Callable[[], _T]) -> _T:
@@ -1688,7 +1691,10 @@ class Form:
         return graph
 
     def _install_projection_input(
-        self, projection_input: Any, *, inventory: IPAFeatures | None = None
+        self,
+        projection_input: ContainmentProjectionInput,
+        *,
+        inventory: IPAFeatures | None = None,
     ) -> None:
         """Install native facts and their authoritative tiergraph graph."""
         inventory = inventory or next(
@@ -1708,7 +1714,9 @@ class Form:
 
     @classmethod
     def _from_projection_input(
-        cls, projection_input: Any, spelling: str | None = None
+        cls,
+        projection_input: ContainmentProjectionInput,
+        spelling: str | None = None,
     ) -> Form:
         """Adopt native facts and build the authoritative graph directly."""
         form = cls.__new__(cls)

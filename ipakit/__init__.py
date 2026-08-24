@@ -20,7 +20,7 @@ transcription string (``ipa_to_xsampa``, ``to_kirshenbaum``) return ``str``.
 
 from __future__ import annotations
 
-import functools
+import functools as _functools
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
@@ -145,17 +145,17 @@ from .xsampa import ipa_to_xsampa, xsampa_to_ipa
 # ======================================================================
 
 
-@functools.lru_cache(maxsize=1)
+@_functools.lru_cache(maxsize=1)
 def _get_ipa() -> IPAFeatures:
     return IPAFeatures()
 
 
-@functools.lru_cache(maxsize=1)
+@_functools.lru_cache(maxsize=1)
 def _get_cmu() -> CMUMapper:
     return CMUMapper()
 
 
-@functools.lru_cache(maxsize=1)
+@_functools.lru_cache(maxsize=1)
 def _get_default_model() -> DistanceModel:
     return DistanceModel.global_(_get_ipa())
 
@@ -1238,7 +1238,9 @@ __all__ = [
     "CMUMapper",
     "DistanceModel",
     "Feature",
+    "FormBuilder",
     "IPAFeatures",
+    "Matchable",
     "Phone",
     "Segment",
     "Constituent",
@@ -1287,6 +1289,7 @@ __all__ = [
     "features",
     "features_from_cmu",
     "features_from_xsampa",
+    "features_to_shorts",
     "find",
     "from_cmu",
     "from_kirshenbaum",
@@ -1310,9 +1313,11 @@ __all__ = [
     "phones_matching",
     "respell",
     "segment",
+    "shorts_to_features",
     "stress_markers",
     "supplement_path",
     "to_cmu",
+    "to_dot",
     "to_ipa",
     "to_kirshenbaum",
     "to_phone",
