@@ -10,16 +10,15 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 import tiergraph as tg
 
-from ._tiergraph import (
+from ._graph_facts import (
     ClockNode,
     Declarations,
     EndpointKind,
     Event,
-    Graph,
     GraphValidationError,
     Position,
     Relation,
@@ -329,32 +328,6 @@ class ContainmentProjectionInput:
             held_roots,
         )
 
-    @classmethod
-    def capture(cls, source: Graph) -> ContainmentProjectionInput:
-        refs = source.event_references()
-        endpoints = {
-            ref
-            for relation in source.relations
-            for ref in (*relation.sources, *relation.targets)
-        }
-        resolved = {ref: source.resolve(ref) for ref in (*refs, *endpoints)}
-        event_tiers = {ref: resolved[ref].tier for ref in refs}
-        assert all(tier is not None for tier in event_tiers.values())
-        return cls(
-            refs,
-            source.declarations,
-            tuple(source.relations),
-            {ref: tier for ref, tier in event_tiers.items() if tier is not None},
-            {
-                ref: cast(Event, resolved[ref].event)
-                for ref in refs
-                if resolved[ref].event is not None
-            },
-            {ref: resolved[ref].kind for ref in endpoints},
-            tuple(source.clock),
-            tuple(source.roots),
-        )
-
     def resolve(self, pointer: str) -> ResolvedReference:
         """Resolve against captured immutable presentation facts."""
         parts = _pointer_parts(pointer)
@@ -438,23 +411,13 @@ class ContainmentProjection:
     active_by_parent: dict[str, tuple[str, ...]]
 
     @classmethod
-    def build(cls, source: Graph) -> ContainmentProjection:
-        """Project event identity and single-source containment incidence.
-
-        Projection or identity validation failure is a hard runtime error by
-        design.  Falling back to the old kernel would make navigation answers
-        depend silently on whether projection happened to succeed.
-        """
-        return cls.build_captured(ContainmentProjectionInput.capture(source))
-
-    @classmethod
-    def build_captured(
+    def from_input(
         cls,
         source: ContainmentProjectionInput,
         *,
         preserved_relation_names: frozenset[str] = frozenset(),
     ) -> ContainmentProjection:
-        """Build from facts captured while the build-only scaffold was resident."""
+        """Build the authoritative native graph from scaffold-free facts."""
         from tiergraph.machine import (
             AddItem,
             AttachValue,

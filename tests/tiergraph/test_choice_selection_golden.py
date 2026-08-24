@@ -6,7 +6,7 @@ from ipakit._containment_projection import (
     ContainmentProjection,
     ContainmentProjectionInput,
 )
-from ipakit._tiergraph import (
+from ipakit._graph_facts import (
     ClockNode,
     Declarations,
     Event,
@@ -56,7 +56,7 @@ def _choice_selection_graph(*, selection_first: bool = False) -> tg.Graph:
         clock,
         (selects, alternatives) if selection_first else (alternatives, selects),
     )
-    return ContainmentProjection.build_captured(facts).graph
+    return ContainmentProjection.from_input(facts).graph
 
 
 def test_choice_selection_native_lowering_matches_canonical_wire() -> None:

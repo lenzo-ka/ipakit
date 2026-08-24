@@ -9,7 +9,7 @@ from ipakit._gesture_graph import (
     declarations,
     project,
 )
-from ipakit._tiergraph import Timing
+from ipakit._graph_facts import Timing
 from ipakit.form import _graph_from_compatibility
 from ipakit.tract import constrictions
 

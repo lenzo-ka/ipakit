@@ -8,26 +8,26 @@ occurrences live.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import tiergraph
 
-from ._ipa_graph import SEGMENT_TIER
-from ._ipa_graph import declarations as ipa_declarations
-from ._tiergraph import (
+from ._fact_builder import copy_fact_builder
+from ._graph_facts import (
     Declarations,
-    Event,
     FeatureDeclaration,
-    JsonValue,
     RelationDeclaration,
     TierDeclaration,
     Timing,
 )
-from ._tiergraph import Graph as EmbeddedGraph
-from ._tiergraph_builder import copy_fact_builder
+from ._ipa_graph import SEGMENT_TIER
+from ._ipa_graph import declarations as ipa_declarations
 from .features import IPAFeatures
 from .segment import Segment
 from .tract import TractPoint, constrictions
+
+if TYPE_CHECKING:
+    from ._containment_projection import ContainmentProjectionInput
 
 GESTURE_TIER = "gesture"
 TARGET_TIER = "articulatory-target"
@@ -66,7 +66,7 @@ def declarations(inventory: IPAFeatures) -> Declarations:
 
 
 def project(
-    graph: EmbeddedGraph,
+    source: ContainmentProjectionInput,
     inventory: IPAFeatures,
     *,
     gesture_timing: Mapping[str, Sequence[Timing | None]] | None = None,
@@ -80,7 +80,7 @@ def project(
     """
 
     expected = ipa_declarations(inventory)
-    if graph.declarations != expected:
+    if source.declarations != expected:
         raise ValueError("gesture projection requires this inventory's IPA graph")
     declared = declarations(inventory)
     gesture_timing = gesture_timing or {}
@@ -90,15 +90,13 @@ def project(
         ContainmentProjectionInput,
     )
 
-    builder, handles = copy_fact_builder(
-        ContainmentProjectionInput.capture(graph), declared
-    )
+    builder, handles = copy_fact_builder(source, declared)
 
-    for tick, node in enumerate(graph.clock):
+    for tick, node in enumerate(source.clock):
         segment_group = next((g for g in node.groups if g.tier == SEGMENT_TIER), None)
         if segment_group is not None:
             for segment_index, segment_event in enumerate(segment_group.events):
-                source = f"/clock/{tick}/{SEGMENT_TIER}/{segment_index}"
+                source_ref = f"/clock/{tick}/{SEGMENT_TIER}/{segment_index}"
                 value = segment_event.features.get("value")
                 if not isinstance(value, Segment):
                     continue
@@ -112,19 +110,19 @@ def project(
                         tick,
                         facts,
                         duration=duration,
-                        timing=_timing_at(gesture_timing, source, target_index),
+                        timing=_timing_at(gesture_timing, source_ref, target_index),
                     )
                     target = builder.add_event(
                         TARGET_TIER,
                         tick,
                         facts,
                         duration=0,
-                        timing=_timing_at(target_timing, source, target_index),
+                        timing=_timing_at(target_timing, source_ref, target_index),
                     )
-                    builder.relate((handles[source],), PROJECTS_TO, (gesture,))
+                    builder.relate((handles[source_ref],), PROJECTS_TO, (gesture,))
                     builder.relate((gesture,), PROJECTS_TO, (target,))
     projection_input = cast(ContainmentProjectionInput, builder.build_input())
-    return ContainmentProjection.build_captured(
+    return ContainmentProjection.from_input(
         projection_input, preserved_relation_names=frozenset({PROJECTS_TO})
     ).graph
 
@@ -138,45 +136,6 @@ def _point_features(point: TractPoint, source: str, index: int) -> dict[str, obj
         "source-value": source,
         "target-index": index,
     }
-
-
-class GestureValues:
-    """Wire values for the private backend graph, including Segment identity."""
-
-    def __init__(self, inventory: IPAFeatures) -> None:
-        self.inventory = inventory
-
-    def encode(self, tier: str, event: Event) -> dict[str, JsonValue]:
-        from ._tiergraph_json import PlainValues
-
-        if tier != SEGMENT_TIER:
-            return PlainValues().encode(tier, event)
-        value = event.features.get("value")
-        if not isinstance(value, Segment):
-            return PlainValues().encode(tier, event)
-        portable = Event(
-            {**dict(event.features), "value": value.to_dict()},
-            event.duration,
-            event.span,
-            event.timing,
-        )
-        return PlainValues().encode(tier, portable)
-
-    def decode(self, tier: str, data: Mapping[str, JsonValue]) -> Event:
-        from ._tiergraph_json import PlainValues
-
-        event = PlainValues().decode(tier, data)
-        if tier != SEGMENT_TIER:
-            return event
-        value = event.features.get("value")
-        if not isinstance(value, Mapping):
-            return event
-        return Event(
-            {**dict(event.features), "value": Segment.from_dict(value, self.inventory)},
-            event.duration,
-            event.span,
-            event.timing,
-        )
 
 
 def _timing_at(

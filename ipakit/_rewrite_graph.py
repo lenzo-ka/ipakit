@@ -15,15 +15,15 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._ipa_graph import declarations
-from ._tiergraph import (
+from ._fact_builder import EventHandle, EventSpec, FactBuilder, PositionHandle
+from ._graph_facts import (
     Declarations,
     EndpointKind,
     FeatureDeclaration,
     RelationDeclaration,
     TierDeclaration,
 )
-from ._tiergraph_builder import EventHandle, EventSpec, FactBuilder, PositionHandle
+from ._ipa_graph import declarations
 from .form import Form, Unit
 
 

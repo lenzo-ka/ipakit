@@ -17,28 +17,14 @@ from ipakit import FormBuilder, IPAFeatures  # noqa: E402
 from ipakit._cmu_graph import read as read_cmu  # noqa: E402
 from ipakit._mora_graph import build as build_mora  # noqa: E402
 from ipakit._pinyin_graph import build as build_pinyin  # noqa: E402
-from ipakit._tiergraph import (  # noqa: E402
-    Declarations,
-    FeatureDeclaration,
-    Graph,
-    GraphValidationError,
-    TierDeclaration,
-)
-from ipakit._tiergraph_builder import GraphBuilder  # noqa: E402
-from ipakit._tiergraph_json import Model, dumps, loads  # noqa: E402
 
 DIGEST = ROOT / "scripts" / "consolidation_parity.sha256"
 
 
-def _wire(graph: Graph | tiergraph.Graph, model: Model | None = None) -> str:
-    if isinstance(graph, tiergraph.Graph):
-        wire = tiergraph.wire.dumps(graph)
-        assert tiergraph.wire.loads(wire) == graph
-        assert tiergraph.wire.dumps(tiergraph.wire.loads(wire)) == wire
-        return wire
-    assert model is not None
-    wire = dumps(graph, model)
-    assert dumps(loads(wire, model), model) == wire
+def _wire(graph: tiergraph.Graph) -> str:
+    wire = tiergraph.wire.dumps(graph)
+    assert tiergraph.wire.loads(wire) == graph
+    assert tiergraph.wire.dumps(tiergraph.wire.loads(wire)) == wire
     return wire
 
 
@@ -71,25 +57,17 @@ def corpus_bytes() -> bytes:
 
     escaped_tier = "custom~/tier"
     escaped_feature = "feature~/key"
-    escaped_declarations = Declarations(
-        (TierDeclaration(escaped_tier, frozenset({escaped_feature})),),
-        (FeatureDeclaration(escaped_feature),),
-        (),
+    escaped_builder = tiergraph.build.document(
+        "urn:ipakit:escaped-pointer", prefix="escaped"
     )
-    escaped_builder = GraphBuilder(escaped_declarations)
-    escaped_root = escaped_builder.append_input_atom(
-        escaped_tier, {escaped_feature: "pointer oracle"}
+    escaped_builder.attribute(escaped_feature, tiergraph.XsdType.STRING)
+    escaped_builder.tier(
+        escaped_tier,
+        (tiergraph.build.item(**{escaped_feature: "pointer oracle"}),),
+        item_type="escaped-item",
+        membership="escaped-members",
     )
-    escaped_builder.add_root(escaped_root)
-    escaped_model = Model("escaped-pointer", "1", escaped_declarations)
-    try:
-        escaped = escaped_builder.build()
-        escaped_wire = dumps(escaped, escaped_model)
-        assert dumps(loads(escaped_wire, escaped_model), escaped_model) == escaped_wire
-    except GraphValidationError as error:
-        # Keep mutation runs observable as corpus bytes even when a broken
-        # pointer cannot form a valid graph.
-        escaped_wire = f"ERROR: {error}"
+    escaped_wire = _wire(escaped_builder.build())
 
     payload = {
         "build": built_wire,

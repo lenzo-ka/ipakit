@@ -6,19 +6,18 @@ from ipakit._codecs import (
     DeliverySelectionError,
     RenderLane,
     RenderProfile,
-    apply_signature,
     render_delivery,
     render_graph,
     render_pinyin,
 )
-from ipakit._ipa_graph import declarations, parse_signature, render_signature
-from ipakit._pinyin_graph import build as build_pinyin
-from ipakit._tiergraph import (
+from ipakit._fact_builder import FactBuilder
+from ipakit._graph_facts import (
     Declarations,
     FeatureDeclaration,
     TierDeclaration,
 )
-from ipakit._tiergraph_builder import GraphBuilder
+from ipakit._ipa_graph import declarations, parse_signature, render_signature
+from ipakit._pinyin_graph import build as build_pinyin
 from tiergraph.build import document
 from tiergraph.build import item as graph_item
 
@@ -41,11 +40,11 @@ def test_renderer_only_emits_codec_declared_tiers() -> None:
         (FeatureDeclaration("spelling"),),
         (),
     )
-    builder = GraphBuilder(declared)
+    builder = FactBuilder(declared)
     builder.append_input_atom("atoms", {"spelling": "a"})
     builder.add_event("gesture", 0, {"spelling": "INVENTED"}, duration=0)
-    graph = builder.build()
-    assert render_graph(graph, RenderProfile((RenderLane("atoms", "spelling"),))) == "a"
+    form = Form._from_projection_input(builder.build_input())
+    assert render_graph(form, RenderProfile((RenderLane("atoms", "spelling"),))) == "a"
 
 
 def test_pinyin_tone_surface_does_not_move_semantic_attachment() -> None:
@@ -88,7 +87,7 @@ def test_pinyin_renderer_accepts_native_qualified_tier_names() -> None:
 def _delivery_graph(
     stress: tuple[str, ...], *, select: bool = True, native: bool = True
 ):
-    builder = GraphBuilder(declarations(IPAFeatures()))
+    builder = FactBuilder(declarations(IPAFeatures()))
     hosts = tuple(
         builder.append_input_atom("syllable", {"spelling": value})
         for value in ("you", "were", "en", "gaged")
@@ -162,25 +161,7 @@ def test_delivery_refuses_selection_that_is_not_a_candidate(selected: object) ->
     )
 
 
-def test_signature_round_trip_and_edit_provenance() -> None:
+def test_signature_round_trip() -> None:
     inventory = IPAFeatures()
     signature = parse_signature(".ˈˌ#", inventory)
     assert render_signature(signature, inventory) == ".ˈˌ#"
-    graph, handles = _delivery_graph(
-        ("none", "primary", "secondary", "none"), native=False
-    )
-    host_refs = tuple(f"/clock/{index}/syllable/0" for index in range(4))
-    edited = apply_signature(graph, ".ˈˌ.# #‖".replace(" ", ""), inventory, host_refs)
-    assert len(edited.hosts) == 4
-    assert all(
-        any(
-            relation.name == "associates-with" and ref in relation.sources
-            for relation in edited.graph.relations
-        )
-        for ref in edited.created
-        if "/prosody/" in ref
-    )
-    assert any(relation.name == "derived-from" for relation in edited.graph.relations)
-    assert edited.graph.declarations.tier("signature") is None
-    with pytest.raises(ValueError, match="slot count 3 does not equal host count 4"):
-        apply_signature(graph, ".ˈˌ", inventory, host_refs)

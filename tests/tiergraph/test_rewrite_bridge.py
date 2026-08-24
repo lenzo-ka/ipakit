@@ -5,12 +5,12 @@ from pathlib import Path
 
 import ipakit
 import pytest
+from ipakit._fact_builder import FactBuilder
 from ipakit._rewrite_graph import (
     japanese_moraic_fixture,
     japanese_moraic_fixtures,
     project_derivation,
 )
-from ipakit._tiergraph_builder import GraphBuilder
 
 import tiergraph
 
@@ -153,7 +153,7 @@ def test_malformed_compatibility_graph_has_a_typed_failure():
     source = inventory.read("p")
     from ipakit._ipa_graph import declarations
 
-    builder = GraphBuilder(declarations(inventory))
+    builder = FactBuilder(declarations(inventory))
     unit = source.units[0]
     facts = {
         "value": unit.segment,
@@ -163,7 +163,7 @@ def test_malformed_compatibility_graph_has_a_typed_failure():
         "compatibility-index": 1,
     }
     builder.append_input_atom("segment", facts)
-    malformed = ipakit.Form._from_graph(builder.build())
+    malformed = ipakit.Form._from_projection_input(builder.build_input())
     with pytest.raises(ipakit.FormProjectionError, match="not contiguous"):
         _ = malformed.units
 

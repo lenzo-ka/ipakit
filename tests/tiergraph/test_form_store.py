@@ -10,7 +10,7 @@ import ipakit
 import ipakit.form as form_module
 from ipakit import Form, Interval, Timing
 from ipakit._containment_projection import ContainmentProjectionInput
-from ipakit._tiergraph import EndpointKind
+from ipakit._graph_facts import EndpointKind
 from ipakit.form import Unit
 from ipakit.segment import Constituent, Segment, Sense
 
@@ -313,11 +313,7 @@ def test_interval_between_repeated_dots_uses_exact_refined_endpoint() -> None:
     assert held.intervals[0] == Interval("mora", 0, 2, FEATURES)
 
 
-def test_form_read_paths_use_only_the_authoritative_tiergraph_graph(
-    monkeypatch,
-) -> None:
-    from ipakit._tiergraph import Graph as ScaffoldGraph
-
+def test_form_read_paths_use_only_the_authoritative_tiergraph_graph() -> None:
     form = Form.parse("#a.b#", FEATURES)
     root_builder = form_module.FormBuilder(FEATURES)
     parent = root_builder.add_event("word", {"spelling": "ab"}, start=0, duration=2)
@@ -325,12 +321,6 @@ def test_form_read_paths_use_only_the_authoritative_tiergraph_graph(
     root_builder.contain(parent, children)
     root_builder.add_root(parent)
     hierarchy = root_builder.build()
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("build scaffold reached from a Form reader")
-
-    for name in ("resolve", "at", "event_references"):
-        monkeypatch.setattr(ScaffoldGraph, name, forbidden)
 
     assert isinstance(form._graph, tg.Graph)
     assert isinstance(hierarchy._graph, tg.Graph)
@@ -346,11 +336,9 @@ def test_form_read_paths_use_only_the_authoritative_tiergraph_graph(
     assert form.to_dot().startswith("digraph tiergraph")
 
 
-def test_form_fields_hold_no_ipakit_graph_and_projection_is_source_free() -> None:
-    from ipakit._tiergraph import Graph as ScaffoldGraph
-
+def test_form_fields_hold_native_graph_and_projection_is_source_free() -> None:
     form = Form.parse("a", FEATURES)
-    assert not any(isinstance(value, ScaffoldGraph) for value in form.__dict__.values())
+    assert isinstance(form._graph, tg.Graph)
     containment = form._containment
     assert not hasattr(containment, "source")
     assert containment.graph is form._graph
@@ -368,22 +356,6 @@ def test_per_query_graph_implementation_cannot_reappear() -> None:
     )
     form = Form.parse("a", FEATURES)
     assert form._containment is form._containment
-
-
-def test_scaffold_residency_is_evidenced_and_dated() -> None:
-    path = Path(__file__).parents[2] / "docs" / "design" / "residency-allowlist.json"
-    entries = json.loads(path.read_text(encoding="utf-8"))
-    scaffold = next(
-        item for item in entries if item["symbol"] == "ipakit._tiergraph.Graph"
-    )
-    assert scaffold == {
-        "symbol": "ipakit._tiergraph.Graph",
-        "owner": "IP-P1-STORE",
-        "reason": "scaffold",
-        "contract": "Construct byte-identical Forms before promotion to tiergraph.Graph",
-        "test_id": "tests/tiergraph/test_form_store.py::test_form_read_paths_use_only_the_authoritative_tiergraph_graph",
-        "removal": "P9",
-    }
 
 
 def test_interval_projection_retains_caller_order_across_tiers() -> None:

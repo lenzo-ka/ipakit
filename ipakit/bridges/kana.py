@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .._codecs import RenderLane, RenderProfile, render_graph
-from .._tiergraph import Event
+from .._graph_facts import Event
 from .vocabulary import VocabularyBridge
 
 _PATH = Path(__file__).parent.parent / "data" / "bridges" / "kana" / "kana.xml"

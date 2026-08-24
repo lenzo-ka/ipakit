@@ -5,8 +5,8 @@ left to right and joined to its successor. Each event has a trigger edge from
 the clock position it occupies; that edge is what "edge-triggered" means here,
 and its layout weight registers the event vertically with that moment. Events
 are emitted by tier declaration index, clock tick, and event index; relation
-order is already canonical in :class:`~ipakit._tiergraph.Graph`. No unordered
-collection controls output.
+order is already canonical in the native graph. No unordered collection
+controls output.
 
 Refined gaps are drawn because ``gap_count`` distinguishes positions inside a
 clock tick. Omitting them would make events and span endpoints at different
@@ -18,20 +18,20 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
-from ._tiergraph import EndpointKind, Graph
+from ._graph_facts import EndpointKind
 
 if TYPE_CHECKING:
     from .form import Form
 
 
-def dumps(graph: Graph, *, include_empty_tiers: bool = False) -> str:
+def dumps(graph: Any, *, include_empty_tiers: bool = False) -> str:
     """Return byte-stable DOT for ``graph``, including its complete clock.
 
     By default, tier rows answer "which tiers does this graph use?" and omit
     declared tiers with no events. Set ``include_empty_tiers`` to answer "which
     tiers does this model permit?" by drawing every declared tier.
     """
-    if not isinstance(graph, Graph) and not all(
+    if not all(
         hasattr(graph, name)
         for name in ("clock", "declarations", "relations", "resolve", "position")
     ):
@@ -360,7 +360,7 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
     return rendered
 
 
-def _ordered_event_references(graph: Graph) -> tuple[str, ...]:
+def _ordered_event_references(graph: Any) -> tuple[str, ...]:
     references: list[str] = []
     for tick, clock_node in enumerate(graph.clock):
         for tier in graph.declarations.tiers:
@@ -392,7 +392,7 @@ def _event_label(tier: str, features: Mapping[str, Any]) -> str:
     return tier
 
 
-def _event_position_ids(graph: Graph, reference: str) -> tuple[str, str]:
+def _event_position_ids(graph: Any, reference: str) -> tuple[str, str]:
     resolved = graph.resolve(reference)
     assert resolved.event is not None
     event = resolved.event
@@ -409,7 +409,7 @@ def _event_position_ids(graph: Graph, reference: str) -> tuple[str, str]:
     )
 
 
-def _endpoint_id(graph: Graph, pointer: str) -> str:
+def _endpoint_id(graph: Any, pointer: str) -> str:
     resolved = graph.resolve(pointer)
     if resolved.kind is EndpointKind.EVENT:
         return _event_id(pointer)
