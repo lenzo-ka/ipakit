@@ -4,6 +4,7 @@ Organized into subcommands:
     ipakit features <phone>     Get features for an IPA phone
     ipakit describe <phone>     Human-readable phone description
     ipakit notebook             Write the tutorial notebook here, to run
+    ipakit corpus ...           Build, inspect, and query form corpora
     ipakit convert ...          Convert notation, serialize Forms, render katakana
     ipakit query ...            Query phones by features
     ipakit rules ...            Rewrite rules and derived morae
@@ -12,6 +13,7 @@ Organized into subcommands:
     ipakit analysis ...         Analyze phones (describe, natural-class, minimal-pairs)
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
+    ipakit phoible ...          Read mounted PHOIBLE doculect inventories
     ipakit tract ...            Draw the mid-sagittal tract figure
     ipakit tiergraph ...        Render a form's tier graph as Graphviz DOT
 
@@ -85,6 +87,7 @@ Examples:
   ipakit features p                    # Get features for 'p'
   ipakit features "pʰ" --short         # Get short names for aspirated p
   ipakit describe p                    # "voiceless bilabial plosive"
+  ipakit corpus init speech-corpus     # Create an empty form corpus
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert from-cmu K AE1 T        # CMU to IPA: kˈæt
   ipakit convert to-json "kæt"          # Versioned graph-backed Form JSON
@@ -101,6 +104,7 @@ Examples:
   ipakit distance word kæt kæd         # word similarity
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
+  ipakit phoible --help                # Mounted PHOIBLE inventory commands
   ipakit tract draw t -o t.svg         # Mid-sagittal figure for 't'
   ipakit tiergraph "kæt" -o kæt.dot    # Complete ordered tier graph
   ipakit tract heads                   # Head shapes a figure can be drawn on
