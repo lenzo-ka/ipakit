@@ -74,7 +74,12 @@ from .experiment import Experiment as Experiment
 from .experiment import ExperimentReport as ExperimentReport
 from .experiment import Movement as Movement
 from .experiment import Residue as Residue
-from .features import IPAFeatures, _Query, available_supplements, supplement_path
+from .features import (
+    FeatureQuery,
+    IPAFeatures,
+    available_supplements,
+    supplement_path,
+)
 from .form import (
     Attribute,
     Boundary,
@@ -730,6 +735,54 @@ def normalize_lookalikes(text: str) -> str:
     return _get_ipa().normalize_lookalikes(text)
 
 
+def _japanese_moraic_form(ipa: str) -> Form:
+    """Resolve an attested source and return its derived graph-backed form."""
+    from ._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
+
+    name = next(
+        (
+            key
+            for key, fixture in japanese_moraic_fixtures().items()
+            if fixture.source == ipa
+        ),
+        None,
+    )
+    if name is None:
+        raise ValueError(
+            f"no attested Japanese loanword adaptation for {ipa!r}; "
+            "input is not approximated"
+        )
+    return japanese_moraic_fixture(name, _get_ipa())
+
+
+def morae(ipa: str) -> tuple[str, ...]:
+    """Return the derived morae for an attested Japanese loanword adaptation.
+
+    This is the bounded fixture-backed model used by ``ipakit rules morae``,
+    not a general Japanese-accent simulator.  Unmapped input is refused.
+
+    >>> morae("hɑt")
+    ('ho', 't', 'to')
+    """
+    return tuple(
+        str(event["value"]) for event in _japanese_moraic_form(ipa).tier_events("mora")
+    )
+
+
+def to_katakana(ipa: str) -> str:
+    """Render an attested Japanese loanword adaptation in katakana.
+
+    The input must be one of the codec's attested IPA sources; this function
+    refuses unknown forms rather than approximating them.
+
+    >>> to_katakana("hɑt")
+    'ホット'
+    """
+    from ._katakana_codec import render
+
+    return render(_japanese_moraic_form(ipa))
+
+
 def add_ties(segment: str) -> str:
     """Add tie bars between base phones in a multi-phone segment."""
     return _get_ipa().add_ties(segment)
@@ -742,7 +795,7 @@ def feature_bundles(
     return _get_ipa().compose(ipa_string, with_defaults=with_defaults)
 
 
-def phones_matching(query: _Query, with_defaults: bool = True) -> list[str]:
+def phones_matching(query: FeatureQuery, with_defaults: bool = True) -> list[str]:
     """Get all phones matching features.
 
     Accepts a dict of feature to value, or any collection of names that is
@@ -793,7 +846,7 @@ def respell(phone: str, **changes: str) -> str | None:
 
 def find(
     ipa_string: str,
-    query: _Query,
+    query: FeatureQuery,
     with_defaults: bool = True,
 ) -> list[tuple[int, Segment]]:
     """Find the units of an IPA string matching a feature query.
@@ -1286,6 +1339,7 @@ __all__ = [
     "distance_model",
     "extensions_in",
     "feature_bundles",
+    "FeatureQuery",
     "feature_values",
     "features",
     "features_from_cmu",
@@ -1304,6 +1358,7 @@ __all__ = [
     "is_valid_ipa",
     "load_ipa_features",
     "minimal_pairs",
+    "morae",
     "natural_class",
     "nearest_phones",
     "normalize",
@@ -1321,6 +1376,7 @@ __all__ = [
     "to_dot",
     "to_ipa",
     "to_kirshenbaum",
+    "to_katakana",
     "to_phone",
     "to_timit",
     "tokenize",

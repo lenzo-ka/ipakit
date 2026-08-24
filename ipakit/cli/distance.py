@@ -429,6 +429,79 @@ class WordCommand(Command):
         return 0
 
 
+class DirectionalCommand(Command):
+    """Directional edit distance from a reference to a hypothesis.
+
+    Deletion prices apply to the reference (material omitted); insertion
+    prices apply to the hypothesis (material supplied).  Giving the two sides
+    different prices makes their roles observable.  The defaults match the
+    flat-cost ``distance word --raw`` calculation.
+
+    Examples:
+        ipakit distance directional kætə kæt
+        ipakit d directional kætə kæt --delete-cost 0.25
+        ipakit d directional kæt kætə --insert-cost 0.5 -j
+    """
+
+    name = "directional"
+    aliases = ["dir"]
+    help = "Directional reference-to-hypothesis word distance"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.add_argument("reference", help="Target/reference IPA form")
+        parser.add_argument("hypothesis", help="Observed/hypothesis IPA form")
+        parser.add_argument(
+            "--insert-cost",
+            type=float,
+            default=None,
+            help="Flat cost for a phone supplied in the hypothesis (default: 1)",
+        )
+        parser.add_argument(
+            "--delete-cost",
+            type=float,
+            default=None,
+            help="Flat cost for a phone omitted from the reference (default: 1)",
+        )
+        parser.add_argument(
+            "--unweighted",
+            action="store_true",
+            help="Use a flat substitution cost instead of feature distance",
+        )
+        add_format_arg(parser)
+
+    def run(self) -> int:
+        reference = self.args.reference
+        hypothesis = self.args.hypothesis
+        result = self.ipa.directional_word_distance(
+            reference,
+            hypothesis,
+            insert_cost=self.args.insert_cost,
+            delete_cost=self.args.delete_cost,
+            weighted=not self.args.unweighted,
+            strict=False,
+        )
+        data = {
+            "reference": reference,
+            "hypothesis": hypothesis,
+            "edit_cost": round(result.edit_cost, 4),
+            "similarity": round(result.similarity, 4),
+            "coverage": round(result.coverage, 4),
+            "costs": result.costs,
+        }
+        if self.format == "json":
+            self.output_json(data)
+        else:
+            print(
+                f"{reference} -> {hypothesis}: similarity={result.similarity:.4f} "
+                f"edit_cost={result.edit_cost:.4f}{_coverage_note(result.coverage)} "
+                f"[{result.costs}]"
+            )
+        return 0
+
+
 class NearestCommand(Command):
     """The nearest acceptable pronunciation in a set, and which one matched.
 
@@ -590,6 +663,7 @@ class DistanceGroup(CommandGroup):
         matrix         Pairwise feature-distance matrix for multiple phones
         confusability  Inventory-relative confusability/distance (phones)
         word           Inventory-relative distance/similarity (IPA words)
+        directional    Directional reference-to-hypothesis word distance
         nearest        Best match of a form against a set of acceptable variants
         seq            Distance between two pre-tokenized phone sequences
 
@@ -602,15 +676,14 @@ class DistanceGroup(CommandGroup):
 
     name = "distance"
     aliases = ["d"]
-    help = (
-        "Phonetic distances (pair, segment, matrix, confusability, word, nearest, seq)"
-    )
+    help = "Phonetic distances (pair, segment, matrix, confusability, word, directional, nearest, seq)"
     commands = [
         PairCommand,
         SegmentCommand,
         MatrixCommand,
         ConfusabilityCommand,
         WordCommand,
+        DirectionalCommand,
         NearestCommand,
         SeqCommand,
     ]

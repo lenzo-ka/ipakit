@@ -819,6 +819,33 @@ class TestAttestedJapaneseAdaptationCommands:
         assert "not approximated" in err
 
 
+class TestDirectionalDistanceCommand:
+    def test_flat_costs_match_the_public_function(self, monkeypatch, capsys):
+        expected = ipakit.directional_word_distance("kætə", "kæt")
+        rc, out, err = run(
+            monkeypatch, capsys, "distance", "directional", "kætə", "kæt", "-j"
+        )
+        assert (rc, err) == (0, "")
+        assert json.loads(out)["edit_cost"] == round(expected.edit_cost, 4)
+
+    def test_side_specific_cost_is_exposed(self, monkeypatch, capsys):
+        rc, out, err = run(
+            monkeypatch,
+            capsys,
+            "distance",
+            "directional",
+            "kætə",
+            "kæt",
+            "--delete-cost",
+            "0.25",
+            "-j",
+        )
+        assert (rc, err) == (0, "")
+        result = json.loads(out)
+        assert result["costs"] == "insert=1.0 delete=0.25"
+        assert result["edit_cost"] == 0.25
+
+
 def _assert_flat_exports_are_inventoried(source, declared_exports, contract):
     """Require both declared and syntactically visible flat exports in the table."""
     exported = set(declared_exports)
@@ -1341,9 +1368,6 @@ LIBRARY_ONLY = {
     "word_similarity": "'distance word --raw' prints this value via word_distance",
     "sequence_similarity": "the similarity of sequence_distance, which 'distance seq' spells",
     "rank_sequences": "the n-best over a set of pre-tokenized sequences; the CLI compares one sequence to one, not a set",
-    # Exists to take a per-phone cost schedule, which is a mapping a
-    # command line cannot hold; with flat costs it is 'distance word'.
-    "directional_word_distance": "takes a CostSchedule; flat, it is 'distance word'",
     "is_valid_ipa": "'analysis validate' prints the issues, not the boolean",
     "is_pure_ipa": "the yes/no over extensions_in; neither is on the CLI",
     "extensions_in": "no CLI surface for the IPA-chart/extension split",

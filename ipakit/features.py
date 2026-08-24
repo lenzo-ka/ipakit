@@ -73,7 +73,12 @@ _Terms = tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]
 #: test fell into the mapping arm and was asked for ``.items()`` -- so a
 #: tuple of terms, a frozenset of them and a bare string all left an
 #: ``AttributeError`` out of a public method (#148).
-_Query = Mapping[str, str] | Iterable[str]
+FeatureQuery = Mapping[str, str] | Iterable[str]
+"""A feature-to-value mapping or an iterable of feature query terms."""
+
+# Backward-compatible internal spelling.  Some package modules and downstream
+# annotations used this before the query shape became part of the public API.
+_Query = FeatureQuery
 
 
 def available_supplements() -> list[str]:
@@ -1783,7 +1788,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             and all(feats.get(k) not in vals for k, vals in excluded.items())
         )
 
-    def phones_matching(self, query: _Query, with_defaults: bool = True) -> list[str]:
+    def phones_matching(
+        self, query: FeatureQuery, with_defaults: bool = True
+    ) -> list[str]:
         """Get all phones matching features.
 
         Accepts a dict of feature to value, or any collection of short or
@@ -1823,7 +1830,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def find(
         self,
         ipa: str,
-        query: _Query,
+        query: FeatureQuery,
         with_defaults: bool = True,
     ) -> list[tuple[int, Segment]]:
         """Locate the units of ``ipa`` whose features match ``query``.
