@@ -8,7 +8,7 @@ occurrences live.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import tiergraph
 
@@ -85,10 +85,7 @@ def project(
     declared = declarations(inventory)
     gesture_timing = gesture_timing or {}
     target_timing = target_timing or {}
-    from ._containment_projection import (
-        ContainmentProjection,
-        ContainmentProjectionInput,
-    )
+    from ._containment_projection import ContainmentProjection
 
     builder, handles = copy_fact_builder(source, declared)
 
@@ -121,7 +118,7 @@ def project(
                     )
                     builder.relate((handles[source_ref],), PROJECTS_TO, (gesture,))
                     builder.relate((gesture,), PROJECTS_TO, (target,))
-    projection_input = cast(ContainmentProjectionInput, builder.build_input())
+    projection_input = builder.build_input()
     return ContainmentProjection.from_input(
         projection_input, preserved_relation_names=frozenset({PROJECTS_TO})
     ).graph

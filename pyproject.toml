@@ -162,5 +162,5 @@ follow_imports = "skip"
 # submodule glob keeps isolated lint envs (mirrors-mypy) from failing on
 # tiergraph subpackages such as tiergraph.machine, and the sibling
 # tiergraph_dot renderer.
-module = ["tiergraph", "tiergraph.*", "tiergraph_dot", "tiergraph_dot.*"]
+module = ["tiergraph", "tiergraph.*", "tiergraph_dot"]
 ignore_missing_imports = true

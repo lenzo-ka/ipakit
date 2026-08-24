@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .._codecs import RenderLane, RenderProfile, render_graph
 from .._graph_facts import Event
 from .vocabulary import VocabularyBridge
+
+if TYPE_CHECKING:
+    from ..form import Form
 
 _PATH = Path(__file__).parent.parent / "data" / "bridges" / "kana" / "kana.xml"
 
@@ -22,7 +26,7 @@ class KanaBridge(VocabularyBridge):
 
         super().__init__(_PATH)
 
-    def render(self, form: object) -> str:
+    def render(self, form: Form) -> str:
         """Render the graph's mora tier as attested katakana glyphs."""
 
         outputs = {atom.spelling: atom.output for atom in self.atoms}
