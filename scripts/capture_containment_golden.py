@@ -176,6 +176,7 @@ def render() -> str:
     graphs = dict(corpus())
     migrated = {
         "profile:cmu",
+        "profile:gesture",
         "profile:pinyin",
         "profile:mora",
         "profile:panphon",

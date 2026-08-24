@@ -8,22 +8,23 @@ occurrences live.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import cast
+
+import tiergraph
 
 from ._ipa_graph import SEGMENT_TIER
 from ._ipa_graph import declarations as ipa_declarations
 from ._tiergraph import (
-    ClockNode,
     Declarations,
     Event,
-    EventGroup,
     FeatureDeclaration,
-    Graph,
     JsonValue,
-    Relation,
     RelationDeclaration,
     TierDeclaration,
     Timing,
 )
+from ._tiergraph import Graph as EmbeddedGraph
+from ._tiergraph_builder import copy_fact_builder
 from .features import IPAFeatures
 from .segment import Segment
 from .tract import TractPoint, constrictions
@@ -65,12 +66,12 @@ def declarations(inventory: IPAFeatures) -> Declarations:
 
 
 def project(
-    graph: Graph,
+    graph: EmbeddedGraph,
     inventory: IPAFeatures,
     *,
     gesture_timing: Mapping[str, Sequence[Timing | None]] | None = None,
     target_timing: Mapping[str, Sequence[Timing | None]] | None = None,
-) -> Graph:
+) -> tiergraph.Graph:
     """Project segment occurrences through the inventory's tract declarations.
 
     Timing maps are keyed by source segment JSON Pointer and then by projected
@@ -84,12 +85,16 @@ def project(
     declared = declarations(inventory)
     gesture_timing = gesture_timing or {}
     target_timing = target_timing or {}
-    nodes: list[ClockNode] = []
-    links = list(graph.relations)
+    from ._containment_projection import (
+        ContainmentProjection,
+        ContainmentProjectionInput,
+    )
+
+    builder, handles = copy_fact_builder(
+        ContainmentProjectionInput.capture(graph), declared
+    )
 
     for tick, node in enumerate(graph.clock):
-        gestures: list[Event] = []
-        targets: list[Event] = []
         segment_group = next((g for g in node.groups if g.tier == SEGMENT_TIER), None)
         if segment_group is not None:
             for segment_index, segment_event in enumerate(segment_group.events):
@@ -102,41 +107,26 @@ def project(
                 for target_index, point in enumerate(points):
                     facts = _point_features(point, value.to_ipa(), target_index)
                     duration = segment_event.structural_duration or 0
-                    gesture = Event(
+                    gesture = builder.add_event(
+                        GESTURE_TIER,
+                        tick,
                         facts,
                         duration=duration,
                         timing=_timing_at(gesture_timing, source, target_index),
                     )
-                    target = Event(
+                    target = builder.add_event(
+                        TARGET_TIER,
+                        tick,
                         facts,
                         duration=0,
                         timing=_timing_at(target_timing, source, target_index),
                     )
-                    gesture_pointer = f"/clock/{tick}/{GESTURE_TIER}/{len(gestures)}"
-                    target_pointer = f"/clock/{tick}/{TARGET_TIER}/{len(targets)}"
-                    gestures.append(gesture)
-                    targets.append(target)
-                    links.append(Relation((source,), PROJECTS_TO, (gesture_pointer,)))
-                    links.append(
-                        Relation((gesture_pointer,), PROJECTS_TO, (target_pointer,))
-                    )
-        groups = [
-            (
-                EventGroup(
-                    group.tier,
-                    tuple(_portable_segment(event) for event in group.events),
-                )
-                if group.tier == SEGMENT_TIER
-                else group
-            )
-            for group in node.groups
-        ]
-        if gestures:
-            groups.append(EventGroup(GESTURE_TIER, tuple(gestures)))
-        if targets:
-            groups.append(EventGroup(TARGET_TIER, tuple(targets)))
-        nodes.append(ClockNode(node.gap_count, tuple(groups)))
-    return Graph(declared, tuple(nodes), tuple(links), graph.roots)
+                    builder.relate((handles[source],), PROJECTS_TO, (gesture,))
+                    builder.relate((gesture,), PROJECTS_TO, (target,))
+    projection_input = cast(ContainmentProjectionInput, builder.build_input())
+    return ContainmentProjection.build_captured(
+        projection_input, preserved_relation_names=frozenset({PROJECTS_TO})
+    ).graph
 
 
 def _point_features(point: TractPoint, source: str, index: int) -> dict[str, object]:
@@ -148,17 +138,6 @@ def _point_features(point: TractPoint, source: str, index: int) -> dict[str, obj
         "source-value": source,
         "target-index": index,
     }
-
-
-def _portable_segment(event: Event) -> Event:
-    """Remove Form's private lazy compatibility cache from a backend graph."""
-
-    value = event.features.get("value")
-    spelling = event.features.get("spelling")
-    if not isinstance(value, Segment) or not isinstance(spelling, str):
-        return event
-    facts = {"value": value, "spelling": spelling}
-    return Event(facts, event.duration, event.span, event.timing)
 
 
 class GestureValues:
