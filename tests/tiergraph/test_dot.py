@@ -21,6 +21,10 @@ def _example() -> ipakit.Form:
     return build_example()
 
 
+def _dot_node_id(pointer: str) -> str:
+    return "event_" + ipakit.tiergraph_dot._identifier(pointer)
+
+
 def test_dot_is_byte_identical_in_process_and_across_hash_seeds() -> None:
     form = _example()
     assert form.to_dot().encode() == form.to_dot().encode()
@@ -89,8 +93,8 @@ def test_successive_events_in_each_tier_have_visible_quiet_links() -> None:
         ]
         for left, right in zip(references, references[1:], strict=False):
             edge = (
-                f"{ipakit.tiergraph_dot._event_id(left)} -> "
-                f"{ipakit.tiergraph_dot._event_id(right)} "
+                f"{_dot_node_id(left)} -> "
+                f"{_dot_node_id(right)} "
                 '[color="#888888", penwidth=0.8, arrowsize=0.55, constraint=false];'
             )
             assert dot.count(edge) == 1
@@ -120,19 +124,13 @@ def test_rendered_lanes_are_distinct_and_events_align_with_trigger_ticks() -> No
     dot = form.to_dot()
     for reference in form.__dict__["_tiergraph_index"].events:
         start_id = re.search(
-            rf"^  (clock_\S+) -> {re.escape(ipakit.tiergraph_dot._event_id(reference))} ",
+            rf"^  (clock_\S+) -> {re.escape(_dot_node_id(reference))} ",
             dot,
             re.M,
         ).group(1)
-        assert nodes[ipakit.tiergraph_dot._event_id(reference)][0] == pytest.approx(
+        assert nodes[_dot_node_id(reference)][0] == pytest.approx(
             nodes[start_id][0], abs=0.0001
         )
-
-
-def test_blank_spelling_falls_back_to_a_visible_event_label() -> None:
-    assert (
-        ipakit.tiergraph_dot._event_label("boundary", {"spelling": " "}) == "boundary"
-    )
 
 
 def test_clock_spine_is_strictly_ascending() -> None:

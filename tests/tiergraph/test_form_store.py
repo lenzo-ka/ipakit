@@ -199,8 +199,6 @@ def test_form_graph_index_defers_every_public_projection(monkeypatch) -> None:
         raise AssertionError("eager public projection")
 
     monkeypatch.setattr(form_module._CompatibilityProjection, "__init__", forbidden)
-    monkeypatch.setattr("ipakit.tiergraph_dot.dumps", forbidden)
-
     form = Form.parse("#a.b#", FEATURES)
     index = form.__dict__["_tiergraph_index"]
 
@@ -346,13 +344,27 @@ def test_form_fields_hold_native_graph_and_projection_is_source_free() -> None:
 
 def test_per_query_graph_implementation_cannot_reappear() -> None:
     root = Path(__file__).parents[2]
-    navigation = (root / "ipakit" / "_navigation.py").read_text(encoding="utf-8")
-    tree = ast.parse(navigation)
+    tree = ast.parse((root / "ipakit" / "form.py").read_text(encoding="utf-8"))
+    navigation = {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+        and node.name
+        in {"direct_children", "descendants", "leaves", "parents", "ancestors"}
+    }
+    assert navigation.keys() == {
+        "direct_children",
+        "descendants",
+        "leaves",
+        "parents",
+        "ancestors",
+    }
     assert not any(
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "build"
-        for node in ast.walk(tree)
+        for method in navigation.values()
+        for node in ast.walk(method)
     )
     form = Form.parse("a", FEATURES)
     assert form._containment is form._containment

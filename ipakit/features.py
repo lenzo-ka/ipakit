@@ -3369,16 +3369,6 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         return list(self.read(text, strict=strict).segments)
 
-    def _segments_from_parsed(
-        self, parsed: Sequence[tuple[str, list[str]]], strict: bool
-    ) -> list[Segment]:
-        """Build segments from one canonical token scan."""
-        return [
-            segment
-            for _, segment in self._units_from_parsed(parsed, strict)
-            if segment is not None
-        ]
-
     def _units_from_parsed(
         self, parsed: Sequence[tuple[str, list[str]]], strict: bool
     ) -> list[tuple[str, Segment | None]]:

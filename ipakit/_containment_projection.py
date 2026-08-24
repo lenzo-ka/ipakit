@@ -20,7 +20,6 @@ from ._graph_facts import (
     EndpointKind,
     Event,
     GraphValidationError,
-    Position,
     Relation,
     ResolvedReference,
     _escape,
@@ -360,30 +359,6 @@ class ContainmentProjectionInput:
                 event=group.events[index],
             )
         raise GraphValidationError("malformed JSON Pointer reference")
-
-    def position(self, pointer: str, *, span_endpoint: bool = False) -> Position:
-        """Resolve a captured clock position without retaining its scaffold."""
-        resolved = self.resolve(pointer)
-        if resolved.kind is EndpointKind.EVENT:
-            raise GraphValidationError("span endpoint must name a clock position")
-        refined = self.clock[resolved.tick].gap_count > 1
-        if span_endpoint and refined and resolved.kind is EndpointKind.COARSE_TICK:
-            raise GraphValidationError("refined span endpoint must name a gap")
-        if resolved.kind is EndpointKind.REFINED_GAP:
-            if not refined:
-                raise GraphValidationError("noncanonical placement")
-            assert resolved.gap is not None
-            return Position(resolved.tick, resolved.gap)
-        return Position(resolved.tick)
-
-    def event_references(self) -> tuple[str, ...]:
-        """Return captured events in canonical presentation order."""
-        return tuple(
-            f"/clock/{tick}/{_escape(group.tier)}/{index}"
-            for tick, node in enumerate(self.clock)
-            for group in node.groups
-            for index in range(len(group.events))
-        )
 
 
 @dataclass(frozen=True)

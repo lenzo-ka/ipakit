@@ -1447,21 +1447,6 @@ class _FormGraphIndex:
     def intervals(self) -> tuple[Interval, ...]:
         return self._memo("_intervals", lambda: self.compatibility.intervals)
 
-    @property
-    def dot(self) -> str:
-        from .tiergraph_dot import dumps
-
-        return self._memo("_dot", lambda: dumps(self.containment_input))
-
-    @property
-    def dot_with_empty_tiers(self) -> str:
-        from .tiergraph_dot import dumps
-
-        return self._memo(
-            "_dot_with_empty_tiers",
-            lambda: dumps(self.containment_input, include_empty_tiers=True),
-        )
-
     def at(self, containment: Any, graph: Any, path: str) -> Any:
         """Parse ipakit spelling, but resolve event identity in ``graph``."""
         from tiergraph.path import PathRefusal
