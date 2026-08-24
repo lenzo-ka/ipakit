@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """Assert and print the source trees imported by the release gate.
 
-The tiergraph revision comes from the Git dependency in ``pyproject.toml``.
-An editable development shadow is checked against it; an installed wheel has
-no checkout to re-verify.
+ipakit must be imported from this working tree; tiergraph is a published
+dependency, so its installed path and version are reported for the record.
 """
 
 from __future__ import annotations
 
 import subprocess
 import sys
+from importlib import metadata
 from pathlib import Path
 from types import ModuleType
 
 import ipakit
-from scripts import tiergraph_pin
 
 import tiergraph
 
@@ -56,16 +55,10 @@ def main() -> int:
         fail("ipakit import path", str(expected_ipakit), str(ipakit_path))
 
     tiergraph_path = source_path(tiergraph)
-    actual_tiergraph = tiergraph_pin.verify(source=tiergraph_path)
-    tiergraph_dirty = False
-    if actual_tiergraph is not None:
-        tiergraph_root = tiergraph_pin.worktree_for(tiergraph_path)
-        assert tiergraph_root is not None
-        tiergraph_dirty = bool(
-            git(tiergraph_root, "status", "--porcelain", "--untracked-files=normal")
-        )
-        if tiergraph_dirty:
-            fail("tiergraph working tree", "clean", "dirty")
+    try:
+        tiergraph_version = metadata.version("tiergraph")
+    except metadata.PackageNotFoundError:
+        tiergraph_version = "unknown"
 
     ipakit_commit = git(ROOT, "rev-parse", "HEAD")
     ipakit_dirty = bool(git(ROOT, "status", "--porcelain", "--untracked-files=normal"))
@@ -73,9 +66,7 @@ def main() -> int:
         "gate subject [executed]: "
         f"ipakit_path={ipakit_path}; ipakit_commit={ipakit_commit}; "
         f"ipakit_dirty={'yes' if ipakit_dirty else 'no'}; "
-        f"tiergraph_path={tiergraph_path}; "
-        f"tiergraph_commit={actual_tiergraph or 'wheel (pin verified by installer)'}; "
-        f"tiergraph_dirty={'yes' if tiergraph_dirty else 'no'}"
+        f"tiergraph_path={tiergraph_path}; tiergraph_version={tiergraph_version}"
     )
     return 0
 
