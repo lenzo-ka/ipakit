@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `python -m ipakit`.
 - `hierarchy()`, `hierarchy_text()`, `hierarchy_dot()` and `stress_markers()` at module level.
 - `ipakit.units`, which is `ipakit.form.units`.
-- `Node.opened_by`/`closed_by`/`asserted` on `Form.tree()`, and `ipakit.form.edge_tier()`.
+- `Node.opened_by`/`closed_by`/`asserted` on `Form.tree()`, and `ipakit.form.edge_level()`.
 - `validate_ipa` gains `empty_constituent` and `no_segments`.
 - A declared `natural-class` resolves as a query term: `[obstruent]`.
 - `ipa.xml` carries the license it is offered under, and a test holds it to the repository `LICENSE`.
@@ -107,7 +107,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IPAFeatures.word_distance`'s `sub_cost` parameter; `_align` is the parameterized entry point.
 - `ipakit.constants.TIE_BAR`, `SEQ_TIE` and `TIE_BARS`; the tie characters are read from `ipa.xml`.
 - The `to_ipa` alias (use `from_cmu`) and `compose_single` (use `segment(s).scalar()`) (#20).
-- `wiki`/`wiki_ref`/`wiki_refs` and `features_to_shorts`/`shorts_to_features` from the module level (#20).
 
 ### Changed
 
@@ -143,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `form.units()` preserves the declared separating marks `‿`, `|` and `‖`.
 - A boundary run is one boundary, and a form's own edge is part of any run it touches.
 - `Derivation.start` is the form as the engine read it, so it is `steps[0].before` by construction.
-- `rules._edge_level` calls `form.edge_tier()` instead of reading the top of the `level` ladder.
+- `rules._edge_level` calls `form.edge_level()` instead of reading the top of the `level` ladder.
 - `Site.left`/`right` report `None` for the virtual edge past the form, not `-1`.
 - Every term of a feature query must resolve, in `phones_matching`, `find` and a bracketed rule pattern alike.
 - An unregistered literal, a bare suprasegmental, a boundary target, `[voiced=∅]` and an undeclared feature key or value all raise.
