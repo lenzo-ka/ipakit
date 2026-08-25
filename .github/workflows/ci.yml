@@ -149,6 +149,8 @@ jobs:
         run: python scripts/xsampa_table.py validate
       - name: Confusion matrix matches the metric
         run: python scripts/confusion.py validate
+      - name: Committed tiergraph baselines match their manifest
+        run: PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify-baselines
       - name: ICU cross-check tests (skipped in the matrix job)
         run: pytest tests/test_xsampa.py
 

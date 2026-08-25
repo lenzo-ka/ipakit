@@ -553,19 +553,34 @@ def write_manifest(_: argparse.Namespace) -> None:
     print((BASELINES / "MANIFEST.sha256").relative_to(ROOT))
 
 
-def verify(_: argparse.Namespace) -> None:
+def _verify(skip_absent_captures: bool) -> None:
     failures = []
     for line in (
         (BASELINES / "MANIFEST.sha256").read_text(encoding="utf-8").splitlines()
     ):
         expected, relative = line.split("  ", 1)
         path = ROOT / relative
+        if (
+            skip_absent_captures
+            and not path.exists()
+            and relative.startswith("captures/")
+        ):
+            continue
         actual = _sha256(path.read_bytes()) if path.exists() else "missing"
         if actual != expected:
             failures.append(f"{relative}: expected {expected}, got {actual}")
     if failures:
         raise SystemExit("\n".join(failures))
+
+
+def verify(_: argparse.Namespace) -> None:
+    _verify(skip_absent_captures=False)
     print("tiergraph capture manifest: OK")
+
+
+def verify_baselines(_: argparse.Namespace) -> None:
+    _verify(skip_absent_captures=True)
+    print("tiergraph committed baselines: OK")
 
 
 def capture_all(args: argparse.Namespace) -> None:
@@ -595,6 +610,7 @@ def main() -> int:
         "manifest": write_manifest,
         "all": capture_all,
         "verify": verify,
+        "verify-baselines": verify_baselines,
     }
     for name, function in functions.items():
         command = commands.add_parser(name)
