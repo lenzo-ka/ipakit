@@ -111,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The containment projection is memoized by content: repeated reads of equal forms reuse one lowered graph rather than rebuilding it. The cache is inventory-independent and returns read-only projections, and it holds a bounded number of entries.
 - The tract animation gives the jaw a signed hinge (low vowels open it, jaw-carried closures raise it, dependent articulators ride it) and seats both lips at centered rests so a closure shares the travel between them instead of the upper lip doing most of it.
 - Breaking API cleanup: converters now use uniform ``to_``/``from_`` names with an ``ipa_string`` input, distance ``weighted``/``strict`` options are keyword-only, and CLI ``convert to-ipa`` is now ``convert from-cmu``.
 - ipakit builds its graphs on the tiergraph library and no longer carries its own graph engine; Python 3.12 is required.
