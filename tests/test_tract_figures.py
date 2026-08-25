@@ -359,13 +359,13 @@ def test_dental_tip_paints_the_declared_target_region(tmp_path: Path) -> None:
         r'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="5" class="constriction', svg
     )
     assert marker is not None
-    without = re.sub(r'<path d="[^"]*" class="tongue(?:body)?"[^>]*/>', "", svg)
-    width, painted = _pixels(svg, tmp_path / "theta.svg", width=760)
-    _, absent = _pixels(without, tmp_path / "theta-without-tongue.svg", width=760)
+    width, painted = _pixels(
+        _only_layer(svg, "tongue"), tmp_path / "theta-tongue.svg", width=760
+    )
     cx, cy = float(marker.group(1)), float(marker.group(2))
     near_target = [
         (x, y)
-        for x, y in _differing(width, painted, absent)
+        for x, y in _alpha_pixels(width, painted)
         if math.hypot(x - cx, y - cy) <= 18.0
     ]
     assert len(near_target) >= 10
