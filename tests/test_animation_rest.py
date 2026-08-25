@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import re
-import shutil
 from pathlib import Path
 
 import pytest
@@ -20,6 +19,7 @@ from ipakit.tract_svg import (
     section_svg,
 )
 
+from tests._renderers import require_renderer
 from tests.test_tract_figures import _alpha_pixels, _differing, _pixels
 
 
@@ -79,8 +79,7 @@ def test_sagittal_upper_lip_is_a_painted_named_body() -> None:
 
 
 def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
-    if shutil.which("rsvg-convert") is None:
-        return
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     svg = figure("a")
     without, removed = re.subn(r'<path[^>]+class="lip upper-lip"/>', "", svg, count=1)
     assert removed == 1
@@ -123,8 +122,7 @@ def test_timed_bilabial_reaches_continuous_raster_contact(
     phone: str, fps: int, duration: float, tmp_path: Path
 ) -> None:
     """Even an off-grid timed target reaches contact, without a body swap."""
-    if shutil.which("rsvg-convert") is None:
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     builder = FormBuilder()
     handles = builder.append_ipa(f"a{phone}a")
     for index, handle in enumerate(handles):
@@ -155,8 +153,7 @@ def test_timed_bilabial_center_survives_a_large_absolute_start(
     tmp_path: Path,
 ) -> None:
     """Candidate deduplication cannot discard a target center by clock scale."""
-    if shutil.which("rsvg-convert") is None:
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     builder = FormBuilder()
     handles = builder.append_ipa("aba")
     start = 1e9
@@ -185,8 +182,7 @@ def test_labiodental_context_cannot_move_bilabial_contact_place(
     word: str, bilabial_index: int, tmp_path: Path
 ) -> None:
     """A distant or adjacent lower-lip place cannot dilute a bilabial target."""
-    if shutil.which("rsvg-convert") is None:
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     ipa, h = IPAFeatures(), head()
     frames_per_unit = 100
     track = trajectory(word, head=h, frames_per_unit=frames_per_unit, features=ipa)
@@ -222,8 +218,7 @@ def test_labiodental_target_remains_apart_in_bilabial_context(
     phone: str, tmp_path: Path
 ) -> None:
     """Fixing the bilabial target does not turn labiodentals into contact."""
-    if shutil.which("rsvg-convert") is None:
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     ipa, h = IPAFeatures(), head()
     frame = trajectory(f"m{phone}", head=h, frames_per_unit=8, features=ipa).frames[16]
     # Measured gaps f/v/ɱ/ʋ = 25/25/21/31 px under centered rests; contact is 0.
