@@ -3,11 +3,15 @@
 Canonical facts supply event identity, containment incidence, profile values,
 clock coordinates, timing, roots, choices, and the other graph concerns used to
 construct the authoritative tiergraph graph.
+
+``ContainmentProjection.from_input`` is memoized in a bounded, thread-safe LRU
+keyed by content signature, so equal inputs reuse a single built projection.
 """
 
 from __future__ import annotations
 
 import json
+import threading
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -31,12 +35,24 @@ from ._graph_facts import (
 _NAMESPACE = "https://ipakit.dev/tiergraph/containment-projection/v1"
 _PREFIX = "ipakit-containment"
 _EVENT_TYPE = tg.QualifiedName(_NAMESPACE, "event")
+# Bounded LRU of built projections, keyed by content signature. The bound is
+# sized to a realistic working set: the IPA inventory is ~210 declared
+# symbols / ~140 single-unit phones, so 1024 entries hold every distinct
+# single phone many times over alongside the few hundred distinct multi-unit
+# forms a read loop revisits, while capping retained built graphs (and their
+# memory) at 1024. A workload whose distinct-form count exceeds this evicts
+# LRU-first rather than growing without bound.
 _PROJECTION_CACHE_MAXSIZE = 1024
+# Guards the whole read-modify-write of the OrderedDict, its LRU touch and
+# eviction, and the non-atomic counters below. The expensive graph build in
+# from_input runs OUTSIDE this lock.
+_projection_cache_lock = threading.Lock()
 _projection_cache: OrderedDict[tuple[object, ...], ContainmentProjection] = (
     OrderedDict()
 )
 _projection_cache_hits = 0
 _projection_cache_misses = 0
+_projection_cache_evictions = 0
 
 _PAYLOAD_DECLARATIONS = (
     ("text", tg.XsdType.STRING),
@@ -396,20 +412,29 @@ def _projection_signature(
 
 
 def _projection_cache_clear() -> None:
-    """Clear the bounded projection memo and its testable counters."""
+    """Clear the bounded projection memo and its testable counters.
+
+    Test helper: assumes no concurrent builds are in flight. A miss whose
+    build is still running could reinsert its entry after this clear.
+    """
     global _projection_cache_hits, _projection_cache_misses
-    _projection_cache.clear()
-    _projection_cache_hits = _projection_cache_misses = 0
+    global _projection_cache_evictions
+    with _projection_cache_lock:
+        _projection_cache.clear()
+        _projection_cache_hits = _projection_cache_misses = 0
+        _projection_cache_evictions = 0
 
 
-def _projection_cache_info() -> tuple[int, int, int, int]:
-    """Return hits, misses, current size, and maximum size."""
-    return (
-        _projection_cache_hits,
-        _projection_cache_misses,
-        len(_projection_cache),
-        _PROJECTION_CACHE_MAXSIZE,
-    )
+def _projection_cache_info() -> tuple[int, int, int, int, int]:
+    """Return hits, misses, evictions, current size, and maximum size."""
+    with _projection_cache_lock:
+        return (
+            _projection_cache_hits,
+            _projection_cache_misses,
+            _projection_cache_evictions,
+            len(_projection_cache),
+            _PROJECTION_CACHE_MAXSIZE,
+        )
 
 
 @dataclass(frozen=True)
@@ -445,22 +470,37 @@ class ContainmentProjection:
     ) -> ContainmentProjection:
         """Build the authoritative native graph from scaffold-free facts."""
         global _projection_cache_hits, _projection_cache_misses
+        global _projection_cache_evictions
 
         key = _projection_signature(source, preserved_relation_names)
-        try:
-            cached = _projection_cache.pop(key)
-        except KeyError:
-            _projection_cache_misses += 1
-        else:
-            _projection_cache_hits += 1
-            _projection_cache[key] = cached
-            return cached
+        with _projection_cache_lock:
+            try:
+                cached = _projection_cache.pop(key)
+            except KeyError:
+                _projection_cache_misses += 1
+            else:
+                _projection_cache_hits += 1
+                _projection_cache[key] = cached  # LRU touch: newest at the end
+                return cached
 
+        # Build outside the lock: graph construction is expensive and does not
+        # mutate the frozen input, so concurrent callers must not serialize on
+        # it.
         result = cls._build_from_input(source, preserved_relation_names)
-        _projection_cache[key] = result
-        if len(_projection_cache) > _PROJECTION_CACHE_MAXSIZE:
-            _projection_cache.popitem(last=False)
-        return result
+
+        with _projection_cache_lock:
+            # Double-check: another caller may have built and inserted this key
+            # while we were building. Prefer the stored entry so every reader of
+            # one signature shares a single projection instance; discard ours.
+            existing = _projection_cache.get(key)
+            if existing is not None:
+                _projection_cache.move_to_end(key)
+                return existing
+            _projection_cache[key] = result
+            if len(_projection_cache) > _PROJECTION_CACHE_MAXSIZE:
+                _projection_cache.popitem(last=False)
+                _projection_cache_evictions += 1
+            return result
 
     @classmethod
     def _build_from_input(
