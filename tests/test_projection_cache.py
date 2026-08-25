@@ -1,5 +1,8 @@
 """Content-keyed containment projection caching contracts."""
 
+import random
+import threading
+
 import pytest
 from ipakit import IPAFeatures
 from ipakit._containment_projection import (
@@ -19,7 +22,7 @@ def test_equal_forms_share_projection_without_sharing_form(ipa: IPAFeatures) -> 
     assert first is not second
     assert first.segments == second.segments
     assert first.units == second.units
-    hits, misses, size, _ = _projection_cache_info()
+    hits, misses, _evictions, size, _ = _projection_cache_info()
     assert hits >= 1
     assert misses >= 1
     assert size == 1
@@ -29,7 +32,7 @@ def test_different_content_does_not_collide(ipa: IPAFeatures) -> None:
     _projection_cache_clear()
 
     assert ipa.read("kæt").segments != ipa.read("dɒɡ").segments
-    hits, misses, size, _ = _projection_cache_info()
+    hits, misses, _evictions, size, _ = _projection_cache_info()
     assert hits == 0
     assert misses == 2
     assert size == 2
@@ -137,7 +140,7 @@ def test_cache_hit_matches_fresh_rebuild(ipa: IPAFeatures) -> None:
         fresh = ContainmentProjection._build_from_input(containment_input, frozenset())
         assert cached == fresh
 
-    hits, _misses, _size, _ = _projection_cache_info()
+    hits, _misses, _evictions, _size, _ = _projection_cache_info()
     assert hits > 0  # the corpus must actually exercise cache hits
 
 
@@ -165,3 +168,108 @@ def test_cached_projection_mapping_fields_are_read_only(ipa: IPAFeatures) -> Non
         mapping = getattr(containment, field)
         with pytest.raises(TypeError):
             mapping["\x00poison"] = None  # type: ignore[index]
+
+
+def test_concurrent_from_input_keeps_cache_and_counters_consistent(
+    ipa: IPAFeatures,
+) -> None:
+    """Concurrent from_input callers leave the cache and counters consistent.
+
+    Many threads call from_input over a mix of equal and distinct forms.
+    Regardless of interleaving: every call is counted exactly once
+    (hits + misses == calls), the cache never exceeds its bound, and every
+    returned projection equals an independent fresh rebuild.
+    """
+    distinct = _harvested_inputs(ipa)
+    assert len(distinct) > 1  # the mix must contain repeats and variety
+    # A workload with heavy repetition across threads maximizes contention on
+    # the read-modify-write the lock guards.
+    rng = random.Random(1234)
+    workload = distinct * 12
+    rng.shuffle(workload)
+
+    thread_count = 16
+    chunks: list[list[ContainmentProjectionInput]] = [[] for _ in range(thread_count)]
+    for index, item in enumerate(workload):
+        chunks[index % thread_count].append(item)
+
+    _projection_cache_clear()
+    barrier = threading.Barrier(thread_count)
+    collected: list[tuple[ContainmentProjectionInput, ContainmentProjection]] = []
+    collect_lock = threading.Lock()
+
+    def worker(chunk: list[ContainmentProjectionInput]) -> None:
+        barrier.wait()
+        local = [(ci, ContainmentProjection.from_input(ci)) for ci in chunk]
+        with collect_lock:
+            collected.extend(local)
+
+    threads = [threading.Thread(target=worker, args=(chunk,)) for chunk in chunks]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    hits, misses, _evictions, size, maxsize = _projection_cache_info()
+    assert hits + misses == len(workload)
+    assert size <= maxsize
+    assert len(collected) == len(workload)
+    for containment_input, projection in collected:
+        assert projection == ContainmentProjection._build_from_input(
+            containment_input, frozenset()
+        )
+
+
+def test_eviction_is_lru_capped_and_counted(
+    ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exceeding the bound evicts LRU-first, caps size, and counts evictions.
+
+    Drives real eviction with a tiny bound: three distinct inputs against a
+    maxsize of 2. Re-touching the first before inserting the third makes the
+    second the least-recently-used entry, so it -- not the re-touched first --
+    must be the one evicted.
+    """
+    import ipakit._containment_projection as cp
+
+    # Distinct inputs with distinct signatures, harvested from varied reads.
+    by_signature: dict[tuple[object, ...], ContainmentProjectionInput] = {}
+    for text in _INVARIANT_CORPUS:
+        source = ipa.read(text).__dict__["_tiergraph_index"].containment_input
+        by_signature.setdefault(cp._projection_signature(source, frozenset()), source)
+    distinct = list(by_signature.values())
+    assert len(distinct) >= 3
+
+    monkeypatch.setattr(cp, "_PROJECTION_CACHE_MAXSIZE", 2)
+    _projection_cache_clear()
+    try:
+        first, second, third = distinct[0], distinct[1], distinct[2]
+        ContainmentProjection.from_input(first)  # cache: [first]
+        ContainmentProjection.from_input(second)  # cache: [first, second]
+        ContainmentProjection.from_input(first)  # HIT, LRU touch -> [second, first]
+
+        _hits, _misses, evictions, size, maxsize = _projection_cache_info()
+        assert size == 2
+        assert maxsize == 2
+        assert evictions == 0
+
+        # Inserting a third distinct entry exceeds the bound of 2.
+        ContainmentProjection.from_input(third)  # evict LRU (second) -> [first, third]
+        _hits, _misses, evictions, size, maxsize = _projection_cache_info()
+        assert size == 2  # capped at the bound
+        assert maxsize == 2
+        assert evictions == 1  # exactly one entry evicted
+
+        # LRU discipline: the re-touched `first` survived (a HIT, no rebuild);
+        # the least-recently-used `second` was evicted (a MISS, rebuilt).
+        hits_a, misses_a, _e, _s, _m = _projection_cache_info()
+        ContainmentProjection.from_input(first)
+        hits_b, misses_b, _e, _s, _m = _projection_cache_info()
+        assert hits_b == hits_a + 1  # first was still cached
+        assert misses_b == misses_a  # no rebuild for first
+
+        ContainmentProjection.from_input(second)
+        _h, misses_c, _e, _s, _m = _projection_cache_info()
+        assert misses_c == misses_b + 1  # second had been evicted, rebuilt now
+    finally:
+        _projection_cache_clear()
