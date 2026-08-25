@@ -11,79 +11,79 @@
       "sha256": "5ee7e6d1da708826b474995cf82d829ca3c44002356b90cc38a2a90c61170f5c"
     },
     {
-      "bytes": 38235,
+      "bytes": 38230,
       "path": "docs/tutorial.md",
-      "sha256": "f4c5f4fb94c5a041412e47f0446758cb5db7d227ad0e506af24d817f0846c187"
+      "sha256": "218a08fc977e42658523d980bece38023320f01a8c6059a893fd5c3355ed503b"
     },
     {
-      "bytes": 48990,
+      "bytes": 48914,
       "path": "ipakit/notebooks/ipakit-tutorial.ipynb",
-      "sha256": "6e19b87813599a8d95a9065a97bdb0a2385d99140743885c954c4c2fe0f0d71b"
+      "sha256": "c65709ba45dcc72b557ebe1e73cc8b4855decfb5db0ce5ad5df6f6d718bdb398"
     },
     {
       "bytes": 45435,
       "path": "docs/figures/tract-a.svg",
-      "sha256": "90daa1ee0c1f84cd4d23f81037e49446507a292f5eabad5c12ee404b7fccf343"
+      "sha256": "b7ff102e238efa8fe0c517d5bf4cc283177c8b077ab6b7a39a347368a1601df5"
     },
     {
       "bytes": 44666,
       "path": "docs/figures/tract-eng.svg",
-      "sha256": "673820829d8726f18385aa3987533cc8b5cd5d9d1d3ee28c66b94655e0cbdc3f"
+      "sha256": "0a71adda980c5597c21b7ae96b398d0397f8ed40b6457d91682479fc40159c01"
     },
     {
       "bytes": 45348,
       "path": "docs/figures/tract-esh.svg",
-      "sha256": "278db3f951fc1eaf035c3f404a85628abd04263b7d0ca70268c374d97fa52046"
+      "sha256": "32fb54cdf00bae3817429d47788497b3a98a456d60ba7b4a5e44885787431af5"
     },
     {
       "bytes": 45436,
       "path": "docs/figures/tract-i.svg",
-      "sha256": "d390220221a256306a16957315de828dd70b6dc7ba06c84cf3c58b7d571912f0"
+      "sha256": "a97ac1c5e496831cd2dec006d7e0e01882ac69dd09731ac7066e1c14f4f20826"
     },
     {
       "bytes": 45060,
       "path": "docs/figures/tract-k.svg",
-      "sha256": "df739a786edb18915bb580ac7381627a99df5ffc9fa91cb5dab8afe013f226d7"
+      "sha256": "81086a0cf917cda327ff95f5e8b71b0dcbbb9ba403f02ee104327229079b36d1"
     },
     {
       "bytes": 44375,
       "path": "docs/figures/tract-m.svg",
-      "sha256": "7493c998e447b74280f38241dcffa1eb600316a99c78c85afb2b162b5dee75a3"
+      "sha256": "f5751471f7b525048af3acd8629489ee12ac94f21b10d87a28066593099ef4e9"
     },
     {
       "bytes": 44128,
       "path": "docs/figures/tract-n.svg",
-      "sha256": "377df1e0bbea540435757744df05630145685bc8e6cb4367a1820c620ed70b76"
+      "sha256": "0bafe52b15eb5755fae5b657b9e7b81d90f3903bcde7c2c230feafed06531395"
     },
     {
       "bytes": 40625,
       "path": "docs/figures/tract-reference.svg",
-      "sha256": "2faa62ad46e4c25ec85b1654bea1e428e82fdd78ca87d5c83dbec3cc14385534"
+      "sha256": "7bc25fc34c82285639e4944f3e2f50959cea814d65e1efe23b4997a2b237d88f"
     },
     {
       "bytes": 44791,
       "path": "docs/figures/tract-s.svg",
-      "sha256": "28e69490ee352b06d8f4ec2e06326191c5d593a8b2cfdc95e16e7ea1d9910236"
+      "sha256": "144708ff0f639b931cdaa6c16843da4287a0a396f0d02e55a9b54005c040c599"
     },
     {
       "bytes": 45691,
       "path": "docs/figures/tract-silence.svg",
-      "sha256": "91cda074b07f6a84805482db9ebc4e170dd715566afa8795cb2f7b0f27b7dd43"
+      "sha256": "756efbd42108a43eee6da550a86b81dda39f5568d59de49aa3bcd6bcd332d35e"
     },
     {
       "bytes": 44523,
       "path": "docs/figures/tract-t.svg",
-      "sha256": "6a553c23e79bcf68f39e03b6a3473fa2ba86f19138f7cd10226246f11e70b87a"
+      "sha256": "0c86d77bf7f846a6cfcf0124a58f58e7b2f85eebb9053854e0b7446bc68876bc"
     },
     {
       "bytes": 45060,
       "path": "docs/figures/tract-theta.svg",
-      "sha256": "d296f7f98bc5abe9bf4870477df0308996670b2e6415c65b27f33c4183cc1949"
+      "sha256": "8f1b8d8df08122d87bb4803d74f250c9eed7f466c50fd5baff57e6289c64c272"
     },
     {
       "bytes": 45431,
       "path": "docs/figures/tract-u.svg",
-      "sha256": "b778f169d56efe81dcecfb1f66a94c14236f4102678ef2d33cc2990666ac08f2"
+      "sha256": "39876a1a0449647e7352a710b5cc6cb13be7b3067b39b712ae334f3641435dce"
     },
     {
       "bytes": 46343,
