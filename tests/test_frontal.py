@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import re
-import shutil
 from pathlib import Path
 
 import pytest
@@ -21,6 +20,7 @@ from ipakit.tract_svg import (
     standalone_frontal_svg,
 )
 
+from tests._renderers import needs_renderer
 from tests.test_tract_figures import _differing, _pixels
 
 FIGURES = Path(__file__).resolve().parent.parent / "docs" / "figures"
@@ -101,7 +101,7 @@ def test_lips_and_aperture_share_the_parting_curves(
     assert upper[0] is lower[0] and upper[-1] is lower[-1]
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 def test_open_a_has_no_face_pixels_inside_the_lip_parting_line(
     ipa: IPAFeatures, tmp_path: Path
 ) -> None:
@@ -136,7 +136,7 @@ def test_open_a_has_no_face_pixels_inside_the_lip_parting_line(
     assert not skin
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 @pytest.mark.parametrize(
     ("phone", "layer", "minimum"),
     [
@@ -157,7 +157,7 @@ def test_frontal_occlusion_by_changed_pixels(
     assert changed == 0 if minimum == 0 else changed >= minimum
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 def test_kaet_frontal_tongue_occludes_cavity_and_reaches_velar_target(
     ipa: IPAFeatures, tmp_path: Path
 ) -> None:

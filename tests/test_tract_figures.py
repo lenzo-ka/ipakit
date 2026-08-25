@@ -24,7 +24,6 @@ import json
 import math
 import os
 import re
-import shutil
 import struct
 import subprocess
 import sys
@@ -61,6 +60,7 @@ from ipakit.tract import (
 )
 
 from tests import corpus
+from tests._renderers import needs_renderer, require_renderer
 
 # Advances rounded up: a box narrower than the text it holds is the bug this
 # guards against, so erring wide is the safe direction.
@@ -351,7 +351,7 @@ def test_lateral_keeps_the_declared_anterior_attachment() -> None:
     assert surface[0][0] == 0.0800 == h.tongue_span[0]
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 def test_dental_tip_paints_the_declared_target_region(tmp_path: Path) -> None:
     """The dental target is occupied by tongue pixels, not white space."""
     svg = _section(head().name, "θ")
@@ -1340,7 +1340,7 @@ def _distance_from_anchor_to_pixels(
     return min(math.dist(point, candidate) for candidate in painted)
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 def test_moved_reference_landmarks_stay_on_their_anatomy(tmp_path: Path) -> None:
     """Moved sagittal contours retain their labels in every shipped head.
 
@@ -1385,7 +1385,7 @@ def test_moved_reference_landmarks_stay_on_their_anatomy(tmp_path: Path) -> None
     ), measured
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 def test_velic_contrast_matches_generated_pixel_pins(tmp_path: Path) -> None:
     """Every place keeps the same wall gap, measured in rendered pixels."""
     pins = json.loads(VELIC_PIN_PATH.read_text(encoding="utf-8"))
@@ -1541,7 +1541,7 @@ def test_moving_a_heads_velar_anchor_moves_both_contact_sides(
     tract_module._load_heads.cache_clear()
 
 
-@pytest.mark.skipif(shutil.which("rsvg-convert") is None, reason="rsvg-convert absent")
+@needs_renderer("rsvg-convert", "rsvg-convert absent")
 @pytest.mark.parametrize("head_name", sorted(heads()))
 @pytest.mark.parametrize("phone", ["ŋ", "k", "ɡ", "k͡p", "ǃ"])
 def test_velum_and_dorsum_filled_interiors_do_not_overlap(
@@ -1599,8 +1599,7 @@ def test_upper_lip_never_enters_nose_over_inventory(
     is posed for every registered phone; that sweep includes the open jaw of
     vowels such as /a/ as well as closed and non-labial consonants.
     """
-    if shutil.which("rsvg-convert") is None:  # pragma: no cover
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     drawings = [
         tract_svg.drawing(head_name, phone) for phone in (None, *IPAFeatures().phones)
     ]
@@ -1710,8 +1709,7 @@ def _only_layer(
 def test_nasality_changes_painted_velum_pixels(
     nasal: str, oral: str, tmp_path: Path
 ) -> None:
-    if shutil.which("rsvg-convert") is None:  # pragma: no cover
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     width, nasal_rows = _pixels(
         _only_layer(tract_svg.figure(nasal), "velum"), tmp_path / f"{nasal}.svg"
     )
@@ -1769,8 +1767,7 @@ def test_velum_and_tongue_never_interpenetrate(tmp_path: Path) -> None:
     for the tongue retain the interior-overlap guard without calling rendered
     contact itself penetration.
     """
-    if shutil.which("rsvg-convert") is None:  # pragma: no cover
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     ipa = IPAFeatures()
     checked: dict[tuple[str, str], str] = {}
     for phone in sorted(ipa.phones):
@@ -1811,8 +1808,7 @@ def test_every_velum_survives_contact_with_the_tongue(tmp_path: Path) -> None:
     The model-owned velum leaves 100% of its area painted. Ninety percent
     leaves ten points of rasterizer headroom for contact antialiasing.
     """
-    if shutil.which("rsvg-convert") is None:  # pragma: no cover
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     ipa = IPAFeatures()
     failures = []
     for index, phone in enumerate(sorted(ipa.phones)):
@@ -1851,8 +1847,7 @@ def test_a_mark_is_painted_and_nothing_paints_over_it(
     is the only statement about the mark that a reader can rely on, and it
     is how nine defects in this drawing were found.
     """
-    if shutil.which("rsvg-convert") is None:  # pragma: no cover - CI has no rsvg
-        pytest.skip("rsvg-convert not installed: the raster claim is unmeasured here")
+    require_renderer("rsvg-convert", "the raster claim is unmeasured here")
     svg = tract_svg.figure(LAYERS[layer], "adult-male")
     without = re.sub(
         r'<(path|circle|rect|line)\b[^>]*class="[^"]*(?<![a-z-])'
