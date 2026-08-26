@@ -5,7 +5,7 @@ This is the entry surface for the dated design records. It quotes their verdict 
 
 An open entry is a verdict that says to build or adopt. A refusal says so explicitly. Settled includes superseded findings and verdicts that record an answer without either instruction. A mixed verdict appears in both sections.
 
-## Settled (39)
+## Settled (41)
 
 | design record | recorded state |
 | --- | --- |
@@ -47,6 +47,8 @@ An open entry is a verdict that says to build or adopt. A refusal says so explic
 | [vowel-constriction — What a partial declaration would and would not buy](design/vowel-constriction.md#what-a-partial-declaration-would-and-would-not-buy) | Superseded by [#175](https://github.com/lenzo-ka/ipakit/issues/175), and `ʌ` re-examined against a source that images it — still unstated, now on a measurement rather than on Wood's silence. |
 | [vowel-constriction — What a partial declaration would and would not buy](design/vowel-constriction.md#what-a-partial-declaration-would-and-would-not-buy) | Superseded within [#175](https://github.com/lenzo-ka/ipakit/issues/175) by reading the source rather than measuring again — `ʌ` is declared, and so are `œ` and `ɯ`. |
 | [ecosystem — The ecosystem, as its users describe it](design/ecosystem.md#the-ecosystem-as-its-users-describe-it) | Verdict: the dominant complaint is a silent wrong answer at the string boundary, and the reason it never gets fixed upstream is that there is no "correct IPA" to appeal to. |
+| [interop — 5. Sound classes are not derivable from features, so they ship as a declared configuration](design/interop.md#5-sound-classes-are-not-derivable-from-features-so-they-ship-as-a-declared-configuration) | Verdict updated 2026-08-26 (kal). |
+| [interop — 5. Sound classes are not derivable from features, so they ship as a declared configuration](design/interop.md#5-sound-classes-are-not-derivable-from-features-so-they-ship-as-a-declared-configuration) | Verdict: sound classes ship as a declared, overridable configuration |
 | [interop — 8. Epitran: a recipe, and one instruction not to follow it](design/interop.md#8-epitran-a-recipe-and-one-instruction-not-to-follow-it) | Verdict: a documented recipe and no code — but the recipe is subtractive, and the section is not short because the one step it must forbid is the step a reader would reach for first. |
 
 ## Open (9)
@@ -58,12 +60,12 @@ An open entry is a verdict that says to build or adopt. A refusal says so explic
 | [conlang — The conlang sound-change appliers: assessment](design/conlang.md#the-conlang-sound-change-appliers-assessment) | Verdict: ADOPT ONE, REFUSE EIGHT, AND THE ONE WORTH BUILDING IS NOT ON THE LIST. |
 | [conlang — 2.3 The repair the terms were wanted for still does not work](design/conlang.md#23-the-repair-the-terms-were-wanted-for-still-does-not-work) | Verdict on syllable structure: REFUSE `onset` and `coda` as query terms. `nucleus` is a defensible small adopt on its own merits and is not a syllable question. |
 | [conlang — 3. The wildcard](design/conlang.md#3-the-wildcard) | Verdict: ADOPT, spelled `[]`, matching any segment and no boundary, and not before the zero question is settled. |
-| [interop — 5. Sound classes cannot be derived, so they should not be shipped](design/interop.md#5-sound-classes-cannot-be-derived-so-they-should-not-be-shipped) | Verdict: build a derived sonority scale. |
+| [interop — 5. Sound classes are not derivable from features, so they ship as a declared configuration](design/interop.md#5-sound-classes-are-not-derivable-from-features-so-they-ship-as-a-declared-configuration) | Verdict: build a derived sonority scale. |
 | [interop — What is already there does not do the job](design/interop.md#what-is-already-there-does-not-do-the-job) | Verdict: build three small things, in this order, and no importer. |
 | [morph-boundary — Morphological boundaries: assessment](design/morph-boundary.md#morphological-boundaries-assessment) | Verdict: BUILD IT, as a tier of its own, and make it transparent. |
 | [tiers — Tiers: assessment](design/tiers.md#tiers-assessment) | Verdict: BUILD IT, as intervals a rule may read and may not rewrite. |
 
-## Refused (19)
+## Refused (18)
 
 | design record | recorded state |
 | --- | --- |
@@ -77,7 +79,6 @@ An open entry is a verdict that says to build or adopt. A refusal says so explic
 | [conlang — 7. Romanizers](design/conlang.md#7-romanizers) | Verdict: REFUSE. The capability is shipped; what is missing is one paragraph in [rules.md](design/rules.md) saying that a derivation's steps are forms and every notation reads one. |
 | [interop — Interoperating with the transcription ecosystem: assessment](design/interop.md#interoperating-with-the-transcription-ecosystem-assessment) | Verdict: CONSUME FREELY, EMIT ALMOST NOTHING, AND SHIP NO MAPPING TABLE AT ALL. |
 | [interop — 4. A BIPA phonemap does not fit `xsampa.xml`'s shape](design/interop.md#4-a-bipa-phonemap-does-not-fit-xsampaxmls-shape) | Verdict: do not build a BIPA phonemap. |
-| [interop — 5. Sound classes cannot be derived, so they should not be shipped](design/interop.md#5-sound-classes-cannot-be-derived-so-they-should-not-be-shipped) | Verdict: do not ship sound classes. |
 | [samprosa — SAMPROSA: assessment](design/samprosa.md#samprosa-assessment) | Verdict: DON'T BUILD. |
 | [supplement-bridges — Supplement-level bridges: assessment](design/supplement-bridges.md#supplement-level-bridges-assessment) | Verdict: DON'T ADMIT, and the reason is measured rather than categorical. |
 | [tract-validation — Tract geometry against measured area functions: assessment](design/tract-validation.md#tract-geometry-against-measured-area-functions-assessment) | Verdict: SPLIT. The consonant check holds and should be believed; the vowel rank correlation is a free parameter wearing a statistic's clothes, and is refused. |

@@ -27,7 +27,7 @@ The assessment is read-only on the library. Nothing here changed `ipakit/`, `ipa
 | Does a BIPA phonemap fit `xsampa.xml`'s shape? | **No. The relation is not a bijection: 275 collisions**, and 8 of the top classes are ipakit dropping a symbol it should not. |
 | Is CLTS only a catalog and normalizer? | **Mostly, but the brief named the wrong gaps.** It has a similarity and it has sound classes. It has **no tokenizer at all**. |
 | Is CLTS's similarity a metric? | **No. 23 distinct values over 9,316 pairs**, against ipakit's 3,025; nearest neighbor agrees on 22 of 137 phones. |
-| Could ipakit derive SCA / DOLGO / ASJP from its declarations? | **No: 2 of 12 DOLGO classes re-extend exactly.** They are historical judgments, so shipping them means a hand-maintained table. |
+| Could ipakit derive SCA / DOLGO / ASJP from its declarations? | **Not from features: 2 of 12 DOLGO classes re-extend exactly** — the rest are historical judgments. They ship as a declared, overridable configuration on `ipa.xml`'s footing (not hardcoding); the number sizes the supplement. §5, and [historical-linguistics.md](historical-linguistics.md). |
 | Does BIPA preserve the tie distinction? | **No. It deletes it.** Both tie bars normalize to the empty string; `t͡s` and `t͜s` are the same BIPA sound. |
 | Should ipakit consume Lexibank/CLDF corpora? | **No.** 191 repositories, ~2 GB, 28 with unclear licensing — and every word arrives normalized through BIPA, so it arrives with the ties already deleted. |
 | Did the measurement expose an ipakit defect? | **Yes, nine.** The largest: **64 of 68 registered diacritics are silently dropped** when a source writes them before the base. §12(a). |
@@ -271,9 +271,11 @@ BIPA sounds ipakit reads as one segment: 8075
 
 **Verdict: do not build a BIPA phonemap.** What should exist instead is documentation of the two-step read, which costs nothing and is measured in §1. If anything is shipped, the candidates are individual `lookalikes.xml` rows, each earning its place by the rule that file already states — a character with one dominant reading in the wild.
 
-## 5. Sound classes cannot be derived, so they should not be shipped
+## 5. Sound classes are not derivable from features, so they ship as a declared configuration
 
-SCA, DOLGO, ASJP and CV are principled reductions of an inventory, used for cognate detection and historical work, and taught. ipakit has a metric and natural classes but nothing of this kind. The house rule decides whether it should: a shipped table is derived from the declarations or it is not shipped.
+**Verdict updated 2026-08-26 (kal).** The original refusal below — a shipped sound-class table would be the hand-maintained second copy of the inventory `test_declared_not_hardcoded.py` exists to prevent — is overturned. `ipa.xml` is itself a configuration, usable, overridable and replaceable, so a declared sound-class table is configuration on that same footing, not a hidden second copy. The derivability measured here now sizes that configuration — how much falls out of the features for free versus how much it declares in its own right — rather than refusing it. The full argument, and the live use case (freezing panphon's geometry at dev time to compare feature systems), is in [historical-linguistics.md](historical-linguistics.md).
+
+SCA, DOLGO, ASJP and CV are principled reductions of an inventory, used for cognate detection and historical work, and taught. ipakit has a metric and natural classes but nothing of this kind. A shipped table can be derived from the declarations, or — per the update above — declared as an overridable configuration on `ipa.xml`'s footing; the measurement below says how much of it the features already give.
 
 A class is derivable here if the features its members share re-extend to exactly its members — `natural_class` over the class, then `phones_matching` over the result.
 
@@ -286,7 +288,7 @@ cv       4 classes over 139 phones; derivable from ipakit's declarations: 2 of 3
 
 The two DOLGO classes that do derive are the vowels and one epiglottal pair. The ones that do not are the interesting ones: DOLGO's `K` holds velars, uvulars, palatals, clicks *and* the alveolar affricates; `T` holds dentals, alveolars, retroflex stops *and* the postalveolar affricates. Those are not synchronic feature classes and were never meant to be — they group segments by diachronic stability, which is a historical judgment and not a fact about a bundle.
 
-**Verdict: do not ship sound classes.** Deriving them is measured impossible; hand-maintaining them is the second copy of the inventory `test_declared_not_hardcoded.py` exists to prevent; and there is no shipped demand — no rule set, no doc example and nothing in the metric asks for one. Someone doing historical work should use CLTS, which is where these live and where their curation is maintained.
+**Verdict: sound classes ship as a declared, overridable configuration** (updated 2026-08-26, kal; the earlier refusal is lifted). Deriving them from the features is measured impossible, but a declared table on `ipa.xml`'s footing is configuration, not the hidden second copy `test_declared_not_hardcoded.py` exists to prevent, so the refusal no longer holds; the derivability number sizes what the configuration inherits from the features versus what it states in its own right. The demand is no longer absent either: freezing panphon's geometry at dev time to compare feature systems is the live use case ([historical-linguistics.md](historical-linguistics.md)). CLTS remains where these classes' own curation is maintained.
 
 **Sonority is the near neighbor of this question and the answer is the opposite: build it.** PanPhon computes a sonority value from a decision tree over its features; ipakit exposes none, and a sweep of `ipakit/` for `sonor|syllabif|onset|coda|nucleus` finds `is_nucleus`, onset tracking in `normalize_stress_to_nucleus` and coda reasoning in `rules.py` — every consumer of a sonority scale, and no scale.
 
