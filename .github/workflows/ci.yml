@@ -19,7 +19,9 @@ permissions:
 jobs:
   # Decide whether this push/PR touches anything but documentation. A doc-only
   # change cannot move the metric, the derived artifacts or the Python surface,
-  # so the three build jobs below skip it and only `docs` runs. The default is
+  # so the three build jobs below skip it and only `docs` runs. Every gate that
+  # reads the documents must therefore live in `docs` and not only in the
+  # pytest job, or a doc-only change skips its own check. The default is
   # to run everything: anything we cannot cleanly diff sets code=true, so the
   # optimization can only ever skip work it is sure is safe to skip.
   changes:
@@ -195,9 +197,14 @@ jobs:
           cache-dependency-path: pyproject.toml
       - run: python -m pip install --upgrade pip
       # The doc examples run against the installed package and its dependencies;
-      # scripts/docexamples.py and scripts/tutorial.py are stdlib-only.
+      # scripts/docexamples.py, scripts/docquotes.py and scripts/tutorial.py
+      # are stdlib-only.
       - run: pip install -e .
       - name: README and docs Python examples produce their stated values
         run: PYTHONHASHSEED=0 python scripts/docexamples.py
+      # Runs here, not only in the pytest job, because a doc-only change skips
+      # that job and a doc-only change is exactly what breaks a quotation.
+      - name: Quotations are in the documents they cite
+        run: python scripts/docquotes.py .
       - name: Tutorial page and notebook are current
         run: PYTHONHASHSEED=0 python scripts/tutorial.py check all
