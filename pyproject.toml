@@ -49,7 +49,7 @@ dependencies = [
 #          and is not a Python dependency at all; the script says how to get it.
 #   dev  - everything, for local development.
 test = ["pytest>=9.1.1", "pytest-xdist>=3.8.0", "lxml>=6.1.1"]
-lint = ["ruff>=0.16.3", "mypy>=2.3.1", "black>=26.5.1,<27"]
+lint = ["ruff>=0.16.4", "mypy>=2.3.1", "black>=26.5.1,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
 interop = ["pyclts>=4.0.2", "panphon>=0.22.2"]
 align = ["pocketsphinx>=5.1.1,<6"]
