@@ -119,7 +119,7 @@ The difference is the point: the moraic declaration reports residue, the enumera
 
 ## 8. Metric firewall
 
-The 139-phone upper triangle contains 9,591 pairs; this lane moved 0, the stored fingerprint still equals the derived fingerprint, and `confusion.json` remains byte-unchanged at SHA-256 `f490f57876f92f9275eb9916c7ac199fad230e3463d665135059b93b53e9ef61`.
+The 139-phone upper triangle contains 9,591 pairs; this lane moved 0, the stored fingerprint still equals the derived fingerprint, and `confusion.json` was byte-unchanged at the SHA-256 it carried while this lane ran, `f490f57876f92f9275eb9916c7ac199fad230e3463d665135059b93b53e9ef61`. That hash is no longer the file's: `7387c16` deliberately charged fusion constituent arity, changed `ipakit/metric.py`, and regenerated the artifact to `560cfcd8bca23d7d787e38c8a9515c192603197c4c347a58b149cbc450936d51`. The claim above is what this lane verified, against the file as it then stood; the later move is a different change and not a breach of this firewall.
 
 The live control changed the declared plosive offset from `1.00` to `0.99` in a temporary inventory, made the same instrument report 4,325 movers, and then vanished with the temporary file.
 
