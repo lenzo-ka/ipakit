@@ -585,7 +585,17 @@ def normalized(
 ) -> float:
     """PROVISIONAL: apply the concrete readout these cost families require.
 
-    Replace this with tiergraph's declared readout when tiergraph 0.2.0 lands.
+    A ratio is not a semiring operation. Both of its cardinalities can be
+    folded inside the algebra, but the division that turns them into a score
+    sits above the signature, so it happens here rather than in the fold.
+
+    What is provisional is the DECLARATION rather than the arithmetic. The
+    substrate is expected to grow a way for a final division to be recorded as
+    part of what a profile states, so that a pipeline stays self-describing --
+    otherwise an undeclared post-pass computes the real answer and "load an
+    algebra and the same expression decides, counts or scores" stops being
+    true. When that lands, this computation most likely stays and gains a
+    place to be declared; do not assume it will be replaced by a different one.
     """
     normalization = pack.policy.normalization
     if normalization is Normalization.RAW:
