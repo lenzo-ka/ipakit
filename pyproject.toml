@@ -26,7 +26,14 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    "tiergraph>=0.1.0",
+    # Capped deliberately. tiergraph is heading for 0.2.0 with breaking changes
+    # already merged (a required `star` member on the Semiring protocol, selection
+    # cut from 24 published names to 18 with no shims, `to_jsonl` stamping a
+    # version key). ipakit uses none of those today, but it reads about 25 names
+    # across `tiergraph`, `tiergraph.build`, `tiergraph.machine` and
+    # `tiergraph.path`, which is too much surface to meet a breaking minor by
+    # accident. Lift the cap once the suite has been run against 0.2.0.
+    "tiergraph>=0.1.0,<0.2.0",
 ]
 
 [project.optional-dependencies]
