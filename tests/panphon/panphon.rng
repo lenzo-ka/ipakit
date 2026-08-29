@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The shape of the dev-only declared ternary feature table.
+
+     Feature names and segment spellings are data, so this grammar does not
+     enumerate them. A segment requires its name and admits declared-feature
+     attributes whose values are exactly Panphon's ternary alphabet. -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <element name="feature-table">
+      <attribute name="name"><text/></attribute>
+      <attribute name="version"><text/></attribute>
+      <attribute name="ipa-all-sha256"><ref name="sha256"/></attribute>
+      <attribute name="feature-weights-sha256"><ref name="sha256"/></attribute>
+      <ref name="features"/>
+      <ref name="weights"/>
+      <ref name="segments"/>
+    </element>
+  </start>
+
+  <define name="features">
+    <element name="features">
+      <oneOrMore>
+        <element name="feature">
+          <attribute name="name"><text/></attribute>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="weights">
+    <element name="weights">
+      <oneOrMore>
+        <element name="weight">
+          <attribute name="name"><text/></attribute>
+          <attribute name="value"><data type="decimal"/></attribute>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="segments">
+    <element name="segments">
+      <oneOrMore>
+        <element name="segment">
+          <attribute name="name"><text/></attribute>
+          <oneOrMore>
+            <attribute>
+              <anyName>
+                <except><name>name</name></except>
+              </anyName>
+              <ref name="ternary"/>
+            </attribute>
+          </oneOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="ternary">
+    <choice>
+      <value>-</value>
+      <value>0</value>
+      <value>+</value>
+    </choice>
+  </define>
+
+  <define name="sha256">
+    <data type="string">
+      <param name="pattern">[0-9a-f]{64}</param>
+    </data>
+  </define>
+</grammar>

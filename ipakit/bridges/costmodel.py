@@ -8,9 +8,12 @@ as separate, explicitly identified parts of every comparison cell.
 from __future__ import annotations
 
 import math
+import unicodedata
+import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from os import PathLike
 
 from ..distance import Alignment, PhoneCost, _substitution_cost, price
 from ..features import IPAFeatures
@@ -193,6 +196,99 @@ def house_pack(ipa: IPAFeatures, policy: CostPolicy = FAITHFUL) -> CostPack:
         substitution_ceiling=2.0 * policy.substitution_scale,
         indel_ceiling=2.0 * policy.indel_weight,
         tokenize=_house_segmentation(ipa),
+        policy=policy,
+    )
+
+
+def pack_from_declaration(
+    path: str | PathLike[str], policy: CostPolicy = FAITHFUL
+) -> CostPack:
+    """Build the symmetric-difference cost family from a ternary declaration."""
+    root = ET.parse(path).getroot()
+    feature_block = root.find("features")
+    segment_block = root.find("segments")
+    if feature_block is None or segment_block is None:
+        raise ValueError("a feature declaration requires features and segments blocks")
+    features = tuple(
+        name
+        for item in feature_block.findall("feature")
+        if (name := item.get("name")) is not None
+    )
+    if not features:
+        raise ValueError("a feature declaration must declare at least one feature")
+
+    vectors: dict[str, tuple[int, ...]] = {}
+    for item in segment_block:
+        name = item.get("name")
+        if name is None:
+            raise ValueError("every declared segment requires a name")
+        normalized = unicodedata.normalize("NFD", name)
+        if normalized != name:
+            raise ValueError(f"segment key is not NFD: {name!r}")
+        if normalized in vectors:
+            raise ValueError(f"duplicate segment key: {normalized!r}")
+        values: list[int] = []
+        for feature in features:
+            raw = item.get(feature)
+            if raw not in {"-", "0", "+"}:
+                raise ValueError(
+                    f"segment {name!r} feature {feature!r} is not ternary: {raw!r}"
+                )
+            values.append({"-": -1, "0": 0, "+": 1}[raw])
+        vectors[normalized] = tuple(values)
+
+    ordered = sorted(vectors, key=len, reverse=True)
+    width = float(len(features))
+    cache: dict[tuple[str, str], float] = {}
+
+    def sub(left: str, right: str) -> float:
+        if left == right:
+            return 0.0
+        key = (left, right)
+        hit = cache.get(key)
+        if hit is None:
+            hit = (
+                sum(
+                    abs(a - b) / 2.0
+                    for a, b in zip(vectors[left], vectors[right], strict=True)
+                )
+                / width
+                * policy.substitution_scale
+            )
+            cache[key] = hit
+        return hit
+
+    def indel(token: str) -> float:
+        vector = vectors[token]
+        raw = sum(0.5 if value == 0 else 1.0 for value in vector) / width
+        return raw * policy.indel_weight
+
+    def tokenize(word: str) -> Segmentation:
+        remaining = unicodedata.normalize("NFD", word)
+        tokens: list[str] = []
+        dropped: list[str] = []
+        while remaining:
+            token = next((item for item in ordered if remaining.startswith(item)), None)
+            if token is None:
+                dropped.append(remaining[0])
+                remaining = remaining[1:]
+            else:
+                tokens.append(token)
+                remaining = remaining[len(token) :]
+        return Segmentation(tuple(tokens), tuple(dropped))
+
+    identity = root.get("name", "declared")
+    version = root.get("version")
+    geometry = f"{identity}/{version}" if version else identity
+    return CostPack(
+        name=f"declared/{identity}",
+        geometry=geometry,
+        sub_cost=sub,
+        insert_cost=indel,
+        delete_cost=indel,
+        substitution_ceiling=1.0 * policy.substitution_scale,
+        indel_ceiling=1.0 * policy.indel_weight,
+        tokenize=tokenize,
         policy=policy,
     )
 
