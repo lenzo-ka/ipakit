@@ -156,6 +156,12 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
+def test_the_wheel_does_not_carry_the_dev_only_panphon_declaration(built_wheel):
+    with zipfile.ZipFile(built_wheel) as zf:
+        names = zf.namelist()
+    assert not any(name.endswith("panphon.xml") for name in names)
+
+
 def test_the_wheel_carries_each_grammar_beside_its_data(built_wheel):
     """A grammar travels with the data it describes, into the wheel too.
 
