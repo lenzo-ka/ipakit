@@ -155,6 +155,8 @@ jobs:
         run: PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify-baselines
       - name: ICU cross-check tests (skipped in the matrix job)
         run: pytest tests/test_xsampa.py
+      - name: Panphon characterization tests (skipped in the matrix job)
+        run: pytest tests/test_panphon_facts.py
 
   render:
     name: render (figure tests need real renderers)

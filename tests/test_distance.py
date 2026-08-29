@@ -76,6 +76,39 @@ class TestPhoneDistance:
         assert d == pytest.approx(1 / n_terms, abs=1e-4)
 
 
+def test_align_takes_a_foreign_substitution_cost_and_per_token_indel_prices() -> None:
+    ipa = IPAFeatures()
+    assert ipa._align(  # type: ignore[attr-defined]
+        ["k", "a", "t"],
+        ["k", "o", "t"],
+        lambda a, b: 0.0 if a == b else 0.5,
+        1.0,
+        1.0,
+    ) == (0.5, None)
+
+
+def test_align_base_row_is_the_running_sum_of_per_token_delete_prices() -> None:
+    ipa = IPAFeatures()
+    delete_prices = {"k": 0.25, "a": 0.5, "t": 2.0}
+
+    def sub(a: str, b: str) -> float:
+        return 0.0 if a == b else 0.5
+
+    assert ipa._align(  # type: ignore[attr-defined]
+        ["k", "a", "t"], [], sub, 1.0, delete_prices.__getitem__
+    ) == (2.75, None)
+
+
+def test_word_distance_kat_kot_is_unchanged_by_the_lift() -> None:
+    ipa = IPAFeatures()
+    result = ipa.word_distance("kat", "kot")
+    assert result.edit_cost == 0.32352092352092354
+    assert result.similarity == 0.9460798460798461
+    assert result.coverage == 1.0
+    assert result.costs == "insert=1.0 delete=1.0"
+    assert ipa.word_distance("mbanda", "banda").edit_cost == 1.0
+
+
 class TestSegmentDistance:
     """Tests for distance between segments (phones with diacritics)."""
 
