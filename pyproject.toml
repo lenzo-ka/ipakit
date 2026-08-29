@@ -146,7 +146,7 @@ ignore = ["E501"]
 python_version = "3.12"
 strict = true
 warn_unused_configs = true
-files = ["ipakit"]
+files = ["ipakit", "tests/test_costmodel.py"]
 
 [[tool.mypy.overrides]]
 # The interop extra is optional: panphon is untyped when installed and absent
