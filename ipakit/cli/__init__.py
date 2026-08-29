@@ -9,6 +9,7 @@ Organized into subcommands:
     ipakit query ...            Query phones by features
     ipakit rules ...            Rewrite rules and derived morae
     ipakit distance ...         Calculate phonetic distances
+    ipakit syllabify ...        Syllabify an IPA form by language
     ipakit hierarchy ...        Generate phone hierarchies
     ipakit analysis ...         Analyze phones (describe, natural-class, minimal-pairs)
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
@@ -57,6 +58,7 @@ from .phoible import PhoibleGroup
 from .policy import report
 from .query import QueryGroup
 from .rules import RulesGroup
+from .syllabify import SyllabifyCommand
 from .tiergraph import TiergraphCommand
 from .tract import TractGroup
 
@@ -132,6 +134,7 @@ Exit status (uniform across every subcommand):
         DescribeCommand,
         NotebookCommand,
         TiergraphCommand,
+        SyllabifyCommand,
     ]:
         cmd_parser = subparsers.add_parser(
             cmd_cls.name,

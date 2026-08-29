@@ -149,6 +149,33 @@ class TestDistance:
         assert "sub" in out and "stress" in out
 
 
+class TestSyllabify:
+    def test_success_reports_syllable_intervals(self, monkeypatch, capsys):
+        rc, out, err = run(
+            monkeypatch, capsys, "syllabify", "wɔtɚ", "--language", "english"
+        )
+        assert rc == 0
+        assert err == ""
+        assert "0:2 wɔ" in out
+        assert "2:4 tɚ" in out
+
+    def test_reports_unsyllabified_residue(self, monkeypatch, capsys):
+        rc, out, err = run(
+            monkeypatch, capsys, "syllabify", "strɛŋθ", "--language", "english"
+        )
+        assert rc == 0
+        assert err == ""
+        assert "2:6 rɛŋθ" in out
+        assert "0:1 s" in out
+        assert "1:2 t" in out
+
+    def test_lists_languages(self, monkeypatch, capsys):
+        rc, out, err = run(monkeypatch, capsys, "syllabify", "--languages")
+        assert rc == 0
+        assert err == ""
+        assert out.split() == ["english", "japanese", "mandarin", "spanish"]
+
+
 class TestHierarchy:
     def test_text(self, monkeypatch, capsys):
         rc, out, _ = run(monkeypatch, capsys, "hierarchy", "text")
@@ -1376,9 +1403,7 @@ LIBRARY_ONLY = {
     # of the shipped supplements have anything to say there.
     "available_supplements": "the CLI reads the shipped inventory only",
     "supplement_path": "the CLI reads the shipped inventory only",
-    "languages": "returns the declarations available to Python callers",
     "syllabifier": "constructs a reusable Form-to-Intervals callable",
-    "syllabify": "returns structured intervals and conflict objects",
     # Reference URLs are for programs and documents; 'describe' already
     # prints the human-facing account of a phone.
     "wiki": "returns a URL for programs; 'describe' speaks to people",
