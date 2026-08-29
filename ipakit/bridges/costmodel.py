@@ -14,8 +14,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from os import PathLike
+from typing import Protocol
 
-from ..distance import Alignment, PhoneCost, _substitution_cost, price
+from tiergraph.semiring import TROPICAL, ProductSemiring
+
+from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..features import IPAFeatures
 from ..metric import GAP_COST
 
@@ -28,6 +31,31 @@ class Normalization(StrEnum):
     RAW = "raw"
     DIV_MAXLEN = "div-maxlen"
     DIV_NULL_ALIGNMENT = "div-null-alignment"
+
+
+class DeclaredCostFamily(StrEnum):
+    """Which generic arithmetic family a ternary declaration supplies.
+
+    These names describe formulas rather than the foreign system whose table
+    first motivated them.  Keeping the family independent of the declaration
+    is what lets an experiment vary geometry and cost functions separately.
+    """
+
+    SYMMETRIC_DIFFERENCE = "symmetric-difference"
+    WEIGHTED_DIFFERENCE = "weighted-difference"
+
+
+class AbsentCell(StrEnum):
+    """What an explicitly absent declaration cell contributes to one fold.
+
+    Absence changes the index set, not the policy scalar.  Each member is the
+    same product-semiring fold with a different declared term, which makes an
+    absence treatment substitutable without changing the program around it.
+    """
+
+    SKIP = "skip"
+    ZERO_COUNTED = "zero-counted"
+    HALF_COUNTED = "half-counted"
 
 
 @dataclass(frozen=True)
@@ -127,7 +155,13 @@ def align_under(
     *,
     return_alignment: bool = False,
 ) -> tuple[float, Alignment | None]:
-    """Run one cost pack through ipakit's existing alignment fold."""
+    """Run one cost pack through ipakit's existing tropical alignment fold.
+
+    The production comparison takes both cost and optional witness from this
+    single DP. ``semiring_alignment`` remains the experimental route for
+    substituting another algebra; running both would charge every comparison
+    for two full grids merely to discard one result.
+    """
     return ipa._align(
         list(source.tokens),
         list(target.tokens),
@@ -136,6 +170,111 @@ def align_under(
         pack.delete_cost,
         return_alignment,
     )
+
+
+class FoldSemiring[Carrier](Protocol):
+    """The four operations the alignment fold is permitted to know about."""
+
+    zero: Carrier
+    one: Carrier
+
+    def add(self, left: Carrier, right: Carrier, /) -> Carrier:
+        """Combine alternative paths."""
+
+    def multiply(self, left: Carrier, right: Carrier, /) -> Carrier:
+        """Extend one path by one move."""
+
+
+@dataclass(frozen=True)
+class WinningPayloadSemiring[Carrier, Payload]:
+    """Carry the payload belonging to the move selected by a semiring.
+
+    ``ProductSemiring`` is wrong for this job because it selects each field
+    independently.  This adapter asks the supplied selective semiring which
+    whole operand won and returns that operand's payload; multiplication uses
+    a caller-supplied payload fold.  It is used on scaled tropical integers,
+    where float addition is exact, because tiergraph correctly refuses to
+    label its general float tropical multiplication exact enough for
+    ``LexicographicSemiring``.  Decimal is not substituted: ``k/2n`` repeats
+    there too, while the scaled integers are exact in ordinary floats.
+    """
+
+    values: FoldSemiring[Carrier]
+    payload_zero: Payload
+    payload_one: Payload
+    payload_multiply: Callable[[Payload, Payload], Payload]
+
+    @property
+    def zero(self) -> tuple[Carrier, Payload]:
+        """Return the paired additive identity."""
+        return (self.values.zero, self.payload_zero)
+
+    @property
+    def one(self) -> tuple[Carrier, Payload]:
+        """Return the paired multiplicative identity."""
+        return (self.values.one, self.payload_one)
+
+    def add(
+        self,
+        left: tuple[Carrier, Payload],
+        right: tuple[Carrier, Payload],
+        /,
+    ) -> tuple[Carrier, Payload]:
+        """Return the complete operand whose value the semiring selects."""
+        preferred = self.values.add(left[0], right[0])
+        return left if preferred == left[0] else right
+
+    def multiply(
+        self,
+        left: tuple[Carrier, Payload],
+        right: tuple[Carrier, Payload],
+        /,
+    ) -> tuple[Carrier, Payload]:
+        """Extend both the value and its attached payload."""
+        return (
+            self.values.multiply(left[0], right[0]),
+            self.payload_multiply(left[1], right[1]),
+        )
+
+
+def semiring_alignment[Carrier](
+    pack: CostPack,
+    source: Segmentation,
+    target: Segmentation,
+    semiring: FoldSemiring[Carrier],
+    *,
+    encode: Callable[[float], Carrier],
+) -> Carrier:
+    """Fold an alignment grid using only ``add``, ``multiply``, zero and one.
+
+    The fold cannot name tropical arithmetic, compare carrier values, or
+    branch on a pack.  Consequently COUNTING and PATH exercise the identical
+    recurrence rather than a similar-looking implementation.  PATH callers
+    must impose and report a visible cap before materializing its result; this
+    low-level fold does not silently truncate a carrier.
+    """
+    left, right = source.tokens, target.tokens
+    deletes = tuple(
+        encode(value) for value in _prices(pack.delete_cost, list(left), "delete_cost")
+    )
+    inserts = tuple(
+        encode(value) for value in _prices(pack.insert_cost, list(right), "insert_cost")
+    )
+    dp = [[semiring.zero for _ in range(len(right) + 1)] for _ in range(len(left) + 1)]
+    dp[0][0] = semiring.one
+    for i, deletion in enumerate(deletes, 1):
+        dp[i][0] = semiring.multiply(dp[i - 1][0], deletion)
+    for j, insertion in enumerate(inserts, 1):
+        dp[0][j] = semiring.multiply(dp[0][j - 1], insertion)
+    for i, left_token in enumerate(left, 1):
+        for j, right_token in enumerate(right, 1):
+            delete = semiring.multiply(dp[i - 1][j], deletes[i - 1])
+            insert = semiring.multiply(dp[i][j - 1], inserts[j - 1])
+            substitute = semiring.multiply(
+                dp[i - 1][j - 1], encode(pack.sub_cost(left_token, right_token))
+            )
+            dp[i][j] = semiring.add(semiring.add(delete, insert), substitute)
+    return dp[-1][-1]
 
 
 def compare(
@@ -201,7 +340,11 @@ def house_pack(ipa: IPAFeatures, policy: CostPolicy = FAITHFUL) -> CostPack:
 
 
 def pack_from_declaration(
-    path: str | PathLike[str], policy: CostPolicy = FAITHFUL
+    path: str | PathLike[str],
+    policy: CostPolicy = FAITHFUL,
+    *,
+    family: DeclaredCostFamily = DeclaredCostFamily.SYMMETRIC_DIFFERENCE,
+    absent: AbsentCell = AbsentCell.HALF_COUNTED,
 ) -> CostPack:
     """Build the symmetric-difference cost family from a ternary declaration.
 
@@ -259,7 +402,7 @@ def pack_from_declaration(
     if not features:
         raise ValueError("a feature declaration must declare at least one feature")
 
-    vectors: dict[str, tuple[int, ...]] = {}
+    vectors: dict[str, tuple[int | None, ...]] = {}
     for item in segment_block:
         name = item.get("name")
         if name is None:
@@ -269,18 +412,119 @@ def pack_from_declaration(
             raise ValueError(f"segment key is not NFD: {name!r}")
         if normalized in vectors:
             raise ValueError(f"duplicate segment key: {normalized!r}")
-        values: list[int] = []
+        values: list[int | None] = []
         for feature in features:
             raw = item.get(feature)
-            if raw not in {"-", "0", "+"}:
+            if raw not in {None, "-", "0", "+"}:
                 raise ValueError(
                     f"segment {name!r} feature {feature!r} is not ternary: {raw!r}"
                 )
-            values.append({"-": -1, "0": 0, "+": 1}[raw])
+            values.append(None if raw is None else {"-": -1, "0": 0, "+": 1}[raw])
         vectors[normalized] = tuple(values)
 
     ordered = sorted(vectors, key=len, reverse=True)
-    width = float(len(features))
+    weights_block = root.find("weights")
+    weight_items = tuple(weights_block) if weights_block is not None else ()
+    declared_weights: list[float] = []
+    for index, item in enumerate(weight_items):
+        feature = item.get("name") or (
+            features[index] if index < len(features) else f"weight[{index}]"
+        )
+        raw_weight = item.get("value")
+        try:
+            weight = float(raw_weight) if raw_weight is not None else math.nan
+        except ValueError as error:
+            raise ValueError(
+                f"weight for feature {feature!r} is not numeric: {raw_weight!r}"
+            ) from error
+        if not math.isfinite(weight) or weight < 0.0:
+            raise ValueError(
+                f"weight for feature {feature!r} must be non-negative and finite; "
+                f"got {raw_weight!r}"
+            )
+        declared_weights.append(weight)
+
+    weighted = family is DeclaredCostFamily.WEIGHTED_DIFFERENCE
+    if weighted:
+        if absent is not AbsentCell.SKIP:
+            raise ValueError(
+                "weighted difference supports only absent='skip'; its unnormalized "
+                "sum has no denominator in which a counted zero or half can differ"
+            )
+        if len(weight_items) != len(features):
+            offending = (
+                features[len(weight_items)]
+                if len(weight_items) < len(features)
+                else weight_items[len(features)].get("name", f"weight[{len(features)}]")
+            )
+            raise ValueError(
+                "weighted difference requires one weight per feature; "
+                f"feature {offending!r} breaks that correspondence"
+            )
+    weights = tuple(declared_weights) if declared_weights else (1.0,) * len(features)
+    inner = ProductSemiring(TROPICAL, TROPICAL)
+    # Bound once and annotated because the pre-commit hook type-checks this file
+    # alone, where the product's payload widens to Any without the package in
+    # view; CI checks the package and infers it. Naming the type satisfies both.
+    inner_one: tuple[float, float] = inner.one
+
+    def absent_term() -> tuple[float, float]:
+        # All absence treatments are one fold; only this declared term moves.
+        if absent is AbsentCell.SKIP:
+            return inner_one
+        if absent is AbsentCell.ZERO_COUNTED:
+            return (0.0, 1.0)
+        return (0.5, 1.0)
+
+    def vector_fold(
+        left: tuple[int | None, ...], right: tuple[int | None, ...]
+    ) -> tuple[float, float]:
+        total: tuple[float, float] = inner_one
+        for a, b in zip(left, right, strict=True):
+            term = absent_term() if a is None or b is None else (abs(a - b) / 2.0, 1.0)
+            total = inner.multiply(total, term)
+        return total
+
+    if weighted:
+
+        def raw_sub(left: str, right: str) -> float:
+            return sum(
+                abs(a - b) * weight
+                for a, b, weight in zip(
+                    vectors[left], vectors[right], weights, strict=True
+                )
+                if a is not None and b is not None
+            )
+
+        weight_total = sum(weights)
+
+        def raw_indel(token: str) -> float:
+            # Deliberately constant: this family defines an indel as the full
+            # feature-weight mass, rather than inspecting the segment's cells.
+            return weight_total
+
+        substitution_ceiling = 2.0 * weight_total
+        indel_ceiling = weight_total
+    else:
+
+        def raw_sub(left: str, right: str) -> float:
+            cost, count = vector_fold(vectors[left], vectors[right])
+            return cost / count if count else 0.0
+
+        def raw_indel(token: str) -> float:
+            vector = vectors[token]
+            terms = [
+                absent_term() if value is None else (0.5 if value == 0 else 1.0, 1.0)
+                for value in vector
+            ]
+            total = inner.one
+            for term in terms:
+                total = inner.multiply(total, term)
+            return total[0] / total[1] if total[1] else 0.0
+
+        substitution_ceiling = 1.0
+        indel_ceiling = 1.0
+
     cache: dict[tuple[str, str], float] = {}
 
     def sub(left: str, right: str) -> float:
@@ -289,21 +533,12 @@ def pack_from_declaration(
         key = (left, right)
         hit = cache.get(key)
         if hit is None:
-            hit = (
-                sum(
-                    abs(a - b) / 2.0
-                    for a, b in zip(vectors[left], vectors[right], strict=True)
-                )
-                / width
-                * policy.substitution_scale
-            )
+            hit = raw_sub(left, right) * policy.substitution_scale
             cache[key] = hit
         return hit
 
     def indel(token: str) -> float:
-        vector = vectors[token]
-        raw = sum(0.5 if value == 0 else 1.0 for value in vector) / width
-        return raw * policy.indel_weight
+        return raw_indel(token) * policy.indel_weight
 
     def tokenize(word: str) -> Segmentation:
         remaining = unicodedata.normalize("NFD", word)
@@ -323,13 +558,13 @@ def pack_from_declaration(
     version = root.get("version")
     geometry = f"{identity}/{version}" if version else identity
     return CostPack(
-        name=f"declared/{identity}",
+        name=f"declared/{identity}/{family.value}",
         geometry=geometry,
         sub_cost=sub,
         insert_cost=indel,
         delete_cost=indel,
-        substitution_ceiling=1.0 * policy.substitution_scale,
-        indel_ceiling=1.0 * policy.indel_weight,
+        substitution_ceiling=substitution_ceiling * policy.substitution_scale,
+        indel_ceiling=indel_ceiling * policy.indel_weight,
         tokenize=tokenize,
         policy=policy,
     )
@@ -348,7 +583,20 @@ def _house_segmentation(ipa: IPAFeatures) -> Callable[[str], Segmentation]:
 def normalized(
     pack: CostPack, source: Segmentation, target: Segmentation, raw: float
 ) -> float:
-    """Divide a raw alignment cost as ``pack.policy.normalization`` says."""
+    """PROVISIONAL: apply the concrete readout these cost families require.
+
+    A ratio is not a semiring operation. Both of its cardinalities can be
+    folded inside the algebra, but the division that turns them into a score
+    sits above the signature, so it happens here rather than in the fold.
+
+    What is provisional is the DECLARATION rather than the arithmetic. The
+    substrate is expected to grow a way for a final division to be recorded as
+    part of what a profile states, so that a pipeline stays self-describing --
+    otherwise an undeclared post-pass computes the real answer and "load an
+    algebra and the same expression decides, counts or scores" stops being
+    true. When that lands, this computation most likely stays and gains a
+    place to be declared; do not assume it will be replaced by a different one.
+    """
     normalization = pack.policy.normalization
     if normalization is Normalization.RAW:
         return raw

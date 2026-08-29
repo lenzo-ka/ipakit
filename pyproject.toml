@@ -146,6 +146,12 @@ ignore = ["E501"]
 python_version = "3.12"
 strict = true
 warn_unused_configs = true
+# Scoped to the package. Widening to cover dev-only comparison code is the
+# standing intent, but the CI lint job installs `.[lint]` only, which carries
+# ruff, black and mypy and no pytest -- so any scope reaching a test file fails
+# there on missing stubs while passing locally under `.[dev]`. Widen when there
+# is dev-only code outside the package to cover, and add pytest to `lint` in the
+# same change.
 files = ["ipakit"]
 
 [[tool.mypy.overrides]]
