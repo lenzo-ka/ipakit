@@ -368,8 +368,20 @@
          contour diacritics abbreviate the same thing, so the two spellings
          the chart calls equivalent resolve to one value. A sequence rather
          than an enumeration of named shapes because Chao's system admits
-         any run of levels: no list of shape names closes it. -->
-    <feature name="tone" axis="+y" short="ton" mode="prosodic" sequence="+" desc="Pitch, as a sequence of levels in time order" href="Tone_(linguistics)">
+         any run of levels: no list of shape names closes it.
+
+         `+f0` and not `+y`. The reference frame <features> declares is a
+         left-facing oral tract, where `+y` runs jaw to palate and is the
+         axis `height` ascends: vertical tongue position. Pitch does not
+         live there. It is the rate the vocal folds vibrate at, a laryngeal
+         quantity whose nearest kin here is `phonation` on
+         `+glottal-aperture`, and "high tone" shares a word with "high
+         vowel" and nothing else. Declaring it `+y` put tone and vowel
+         height on one dimension, so a read asking what ascends the tract's
+         vertical axis got both. This file is asked those questions rather
+         than answering them in code, which is what makes a wrong axis a
+         wrong answer waiting for its caller. -->
+    <feature name="tone" axis="+f0" short="ton" mode="prosodic" sequence="+" desc="Pitch, as a sequence of levels in time order" href="Tone_(linguistics)">
       <value name="bottom" short="t1"/>
       <value name="low" short="t2"/>
       <value name="mid" short="t3"/>

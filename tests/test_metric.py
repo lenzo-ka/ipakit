@@ -485,14 +485,63 @@ class TestCombiningSpellings:
 
 class TestReferenceFrame:
     """The ordinal scales ascend a declared reference frame: a left-facing
-    oral tract (+x lips->glottis, +y jaw->palate)."""
+    oral tract (+x lips->glottis, +y jaw->palate).
+
+    Which is why not every feature belongs in it. ``tone`` used to declare
+    ``+y``, the axis ``height`` ascends, so a read asking what climbs the
+    tract's vertical axis got pitch alongside vowel height. Pitch is the
+    rate the vocal folds vibrate at, and "high tone" shares a word with
+    "high vowel" and nothing else; it ascends ``+f0``, outside the tract
+    frame entirely, as ``length`` ascends ``+t``.
+    """
+
+    #: Every declared axis and what ascends it. Pinned whole rather than
+    #: asserted feature by feature, because the defect this replaces was
+    #: not a wrong value on one feature but two unlike things sharing one
+    #: axis, which no per-feature assertion is shaped to notice.
+    #:
+    #: Sharing an axis is not itself the error, and that is why this is a
+    #: map rather than a rule. Four features declare ``+x`` and are right
+    #: to: place, backness, constriction-location and articulator all
+    #: measure position along the same tract. ``height`` and ``tone``
+    #: sharing ``+y`` was the same arrangement in the file and the
+    #: opposite in kind, because the quantities are unrelated. No
+    #: mechanical rule separates those two cases -- "one feature per
+    #: axis" would refuse ``+x``, which is correct -- so what is checked
+    #: is the map, and a change to it has to be made on purpose.
+    #:
+    #: ``ipakit.tract.glottal_scale`` does refuse a second feature on
+    #: ``+glottal-aperture``, and that is not this rule generalized: it
+    #: refuses because it reads a single position off that axis, so two
+    #: features would leave the choice to the function. It is the only
+    #: reader that takes a single scale off an axis today. A reader that
+    #: wanted one off ``+y`` would need the same refusal, and the map
+    #: below is what keeps the question answerable until then.
+    AXES = {
+        "+constriction": {"manner"},
+        "+f0": {"tone"},
+        "+glottal-aperture": {"phonation"},
+        "+t": {"length"},
+        "+x": {"place", "backness", "constriction-location", "articulator"},
+        "+y": {"height"},
+        "+z": {"channel"},
+    }
 
     def test_axes_declared(self, ipa: IPAFeatures) -> None:
-        assert ipa.features["place"].axis == "+x"
-        assert ipa.features["backness"].axis == "+x"
-        assert ipa.features["height"].axis == "+y"
-        assert ipa.features["tone"].axis == "+y"
-        assert ipa.features["manner"].axis == "+constriction"
+        found: dict[str, set[str]] = {}
+        for name, feature in ipa.features.items():
+            if feature.axis:
+                found.setdefault(feature.axis, set()).add(name)
+        assert found == self.AXES
+
+    def test_the_tract_frame_holds_only_tract_features(self, ipa: IPAFeatures) -> None:
+        """The half that says why the map above is the shape it is: an
+        axis of the oral tract carries positions in that tract, and a
+        quantity measured somewhere else gets an axis of its own."""
+        tract = {"+x", "+y", "+z"}
+        on_tract = {n for n, f in ipa.features.items() if f.axis in tract}
+        assert "tone" not in on_tract
+        assert ipa.features["tone"].axis == "+f0"
 
     def test_height_ascends_y(self, ipa: IPAFeatures) -> None:
         h = ipa.features["height"]
