@@ -315,3 +315,66 @@ class TestATieBindsTheUnitAndNotTheBaseCharacter:
         absorbs = {mark for mark in ipa.diacritics if ipa._modifier_run("t" + mark, 1)}
         assert declines == set(ipa.diacritics) - absorbs
         assert declines, "no mark ends a unit, so this pins nothing"
+
+
+class TestAnEnumeratedCompoundStillDerives:
+    """The inventory lists tied compounds and gives them no features.
+
+    ``ipa.xml`` says so where the affricates are declared -- "Features are
+    DERIVED at load from the constituents" -- and the entries carry only
+    identity: a name, the legacy ligature ``alias``, and an ``href``. That
+    is the right arrangement and it is why there is no feature drift to
+    worry about between a stored compound and its derivation: nothing is
+    stored to drift.
+
+    The arrangement is deliberate rather than incidental: the declaration
+    states it in the comment above the affricates, and the entries were
+    written that way on purpose. What was missing was not the intent but
+    the gate -- nothing swept the tied phones, so "listing a compound
+    implies it derives" held without anything holding it. This is the
+    sweep. It makes the enumeration self-verifying: an entry whose
+    constituents stop composing fails here rather than shipping a name and
+    an href with nothing behind them.
+    """
+
+    def _tied(self, ipa: IPAFeatures) -> list[str]:
+        return sorted(p for p in ipa.phones if "͡" in p or "͜" in p)
+
+    def test_the_inventory_enumerates_compounds(self, ipa: IPAFeatures) -> None:
+        """Not vacuous: there are compounds to check."""
+        assert len(self._tied(ipa)) >= 20
+
+    def test_none_of_them_declares_its_own_features(self, ipa: IPAFeatures) -> None:
+        """The property that makes drift impossible. A compound that began
+        declaring features would be duplicating what the constituents
+        already say, and the two could then disagree."""
+        import re
+        from pathlib import Path
+
+        from ipakit.constants import DATA_DIR
+
+        source = Path(DATA_DIR / "ipa.xml").read_text(encoding="utf-8")
+        declaring = []
+        for match in re.finditer(r'<phone name="([^"]+)"([^/]*)/>', source):
+            name, attrs = match.group(1), match.group(2)
+            if "͡" not in name and "͜" not in name:
+                continue
+            extra = [
+                key
+                for key in re.findall(r"(\w[\w-]*)=", attrs)
+                if key not in ("alias", "href", "name")
+            ]
+            if extra:
+                declaring.append((name, extra))
+        assert declaring == []
+
+    def test_every_enumerated_compound_derives_a_real_bundle(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """The half the enumeration is taken to imply. A listed compound
+        whose constituents no longer compose would otherwise be a name and
+        an href with nothing behind them."""
+        for phone in self._tied(ipa):
+            bundle = ipa.get_features(phone)
+            assert bundle, phone
+            assert "manner" in bundle, (phone, sorted(bundle))
