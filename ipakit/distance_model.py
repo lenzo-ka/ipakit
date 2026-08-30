@@ -474,6 +474,24 @@ class DistanceModel:
         return list(self._ref)
 
     @property
+    def insert_cost(self) -> PhoneCost:
+        """What supplying a token costs, as this model was built with it.
+
+        A flat price or a per-phone callable, and separate from
+        :attr:`delete_cost` because the two are not the same question: a
+        learner who epenthesizes a vowel supplies material cheaply while
+        losing it is dear, and a model that averaged them could say
+        neither.
+        """
+        return self._insert
+
+    @property
+    def delete_cost(self) -> PhoneCost:
+        """What losing a token costs, on the same terms as
+        :attr:`insert_cost`."""
+        return self._delete
+
+    @property
     def gamma(self) -> float:
         """Percentile exponent; ``1.0`` is the identity.
 
