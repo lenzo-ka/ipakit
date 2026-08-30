@@ -10,13 +10,32 @@
     <element name="feature-table">
       <attribute name="name"><text/></attribute>
       <attribute name="version"><text/></attribute>
+      <attribute name="provenance"><text/></attribute>
       <attribute name="ipa-all-sha256"><ref name="sha256"/></attribute>
       <attribute name="feature-weights-sha256"><ref name="sha256"/></attribute>
+      <ref name="round-trip"/>
       <ref name="features"/>
       <ref name="weights"/>
       <ref name="segments"/>
     </element>
   </start>
+
+  <define name="round-trip">
+    <element name="round-trip">
+      <element name="external-to-house"><ref name="leg"/></element>
+      <element name="house-to-external"><ref name="leg"/></element>
+    </element>
+  </define>
+
+  <define name="leg">
+    <attribute name="fidelity"><text/></attribute>
+    <zeroOrMore>
+      <choice>
+        <element name="drop"><attribute name="name"><text/></attribute></element>
+        <element name="trick"><attribute name="name"><text/></attribute></element>
+      </choice>
+    </zeroOrMore>
+  </define>
 
   <define name="features">
     <element name="features">

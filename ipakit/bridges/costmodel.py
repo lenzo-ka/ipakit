@@ -21,6 +21,7 @@ from tiergraph.semiring import TROPICAL, ProductSemiring
 from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..features import IPAFeatures
 from ..metric import GAP_COST
+from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 
 COSTMODEL_VERSION = "1.0"
 
@@ -121,6 +122,7 @@ class CostPack:
     indel_ceiling: float
     tokenize: Callable[[str], Segmentation]
     policy: CostPolicy
+    bridge: Bridge | None = None
 
     @property
     def budget_ratio(self) -> float:
@@ -350,9 +352,12 @@ def pack_from_declaration(
 
     The family, not one system's instance of it. A declaration states some
     features and gives every segment a value in ``{-, 0, +}`` for each; this
-    reads that and returns the pack a comparison drives. Nothing here knows
-    which feature system it was handed, and that is what lets one cost model
-    meet a foreign geometry: swapping the declaration swaps the geometry.
+    reads that and returns the pack a comparison drives. Its round-trip
+    declaration becomes the pack's ``Bridge``: crossing a feature-system
+    boundary has a stated fidelity rather than an inferred losslessness.
+    Nothing here knows which feature system it was handed, and that is what
+    lets one cost model meet a foreign geometry: swapping the declaration
+    swaps the geometry.
 
     **Why symmetric difference.** Recast a ternary cell privatively -- each
     feature becomes two unary predicates, ``(f, +)`` and ``(f, -)``, and ``0``
@@ -390,6 +395,37 @@ def pack_from_declaration(
     report on the way.
     """
     root = ET.parse(path).getroot()
+    round_trip = root.find("round-trip")
+    if round_trip is None:
+        raise ValueError("a feature declaration requires a round-trip classification")
+    external = round_trip.find("external-to-house")
+    house = round_trip.find("house-to-external")
+    if external is None or house is None:
+        raise ValueError("a feature declaration must classify both directions")
+
+    def leg(element: ET.Element, direction: str) -> RoundTripLeg:
+        try:
+            fidelity = Fidelity(element.attrib["fidelity"])
+        except KeyError as error:
+            raise ValueError(f"{direction} requires a fidelity") from error
+        return RoundTripLeg(
+            direction,
+            fidelity,
+            tuple(item.attrib["name"] for item in element.findall("drop")),
+            tuple(item.attrib["name"] for item in element.findall("trick")),
+        )
+
+    identity = root.get("name", "declared")
+    version = root.get("version", "")
+    bridge = Bridge(
+        identity,
+        version,
+        root.get("provenance", ""),
+        RoundTripReport(
+            leg(external, "external-to-house"),
+            leg(house, "house-to-external"),
+        ),
+    )
     feature_block = root.find("features")
     segment_block = root.find("segments")
     if feature_block is None or segment_block is None:
@@ -554,8 +590,6 @@ def pack_from_declaration(
                 remaining = remaining[len(token) :]
         return Segmentation(tuple(tokens), tuple(dropped))
 
-    identity = root.get("name", "declared")
-    version = root.get("version")
     geometry = f"{identity}/{version}" if version else identity
     return CostPack(
         name=f"declared/{identity}/{family.value}",
@@ -567,6 +601,7 @@ def pack_from_declaration(
         indel_ceiling=indel_ceiling * policy.indel_weight,
         tokenize=tokenize,
         policy=policy,
+        bridge=bridge,
     )
 
 

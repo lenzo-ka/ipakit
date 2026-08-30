@@ -40,6 +40,13 @@ Usage:
     python scripts/panphon_geometry.py generate
     python scripts/panphon_geometry.py generate --write
     python scripts/panphon_geometry.py validate
+    python scripts/panphon_geometry.py describe
+
+``describe`` prints the declared bridge -- both round-trip legs and every
+drop -- for the pack the declaration builds. It is the dev-side entry
+point to that pack: ``declared_pack()`` returns it, and lives here rather
+than in the package because the shipped surface takes a declaration by
+path and does not resolve one out of the repository.
 """
 
 from __future__ import annotations
@@ -52,10 +59,29 @@ import importlib.metadata
 import sys
 import unicodedata
 from pathlib import Path
+from typing import TYPE_CHECKING
 from xml.sax.saxutils import quoteattr
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "tests" / "panphon" / "panphon.xml"
+
+if TYPE_CHECKING:
+    from ipakit.bridges.costmodel import CostPack
+
+ROUND_TRIP = (
+    "  <round-trip>",
+    '    <external-to-house fidelity="lossy-with-report">',
+    '      <drop name="10 refused spellings"/>',
+    '      <drop name="0-versus-absence mismatch"/>',
+    '      <drop name="silent segment deletion"/>',
+    "    </external-to-house>",
+    '    <house-to-external fidelity="lossy-with-report">',
+    '      <drop name="house bundles with no panphon vector"/>',
+    '      <drop name="house feature names and non-binary domains"/>',
+    '      <drop name="sequential tie U+035C has no row and is silently dropped"/>',
+    "    </house-to-external>",
+    "  </round-trip>",
+)
 
 
 def _sources() -> tuple[Path, Path]:
@@ -89,6 +115,7 @@ def render() -> str:
         "<?xml version='1.0' encoding='utf-8'?>",
         (
             f"<feature-table name={quoteattr('panphon')} version={quoteattr(version)} "
+            f"provenance={quoteattr('panphon declared feature data')} "
             f"ipa-all-sha256={quoteattr(hashlib.sha256(bases_path.read_bytes()).hexdigest())} "
             f"feature-weights-sha256={quoteattr(hashlib.sha256(weights_path.read_bytes()).hexdigest())}>"
         ),
@@ -111,8 +138,9 @@ def render() -> str:
         "       transcription. And no `applies` attribute is written, because panphon",
         "       states applicability nowhere and asserting one would make this a",
         "       claim about panphon rather than a record of it. -->",
-        "  <features>",
     ]
+    lines.extend(ROUND_TRIP)
+    lines.append("  <features>")
     lines.extend(f"    <feature name={quoteattr(name)}/>" for name in feature_names)
     lines.extend(["  </features>", "  <weights>"])
     lines.extend(
@@ -162,6 +190,29 @@ def cmd_validate(_: argparse.Namespace) -> int:
     return 1
 
 
+def declared_pack() -> CostPack:
+    """Load the dev declaration and expose its stated boundary losses."""
+    sys.path.insert(0, str(ROOT))
+    from ipakit.bridges.costmodel import pack_from_declaration
+
+    return pack_from_declaration(OUTPUT)
+
+
+def cmd_describe(_: argparse.Namespace) -> int:
+    """Print the checked declaration's identity and round-trip losses."""
+    pack = declared_pack()
+    assert pack.bridge is not None
+    print(f"{pack.name} ({pack.geometry})")
+    for leg in (
+        pack.bridge.round_trip.external_to_house,
+        pack.bridge.round_trip.house_to_external,
+    ):
+        print(f"{leg.direction}: {leg.fidelity.value}")
+        for loss in leg.drops:
+            print(f"  drops: {loss}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -170,6 +221,10 @@ def main(argv: list[str] | None = None) -> int:
     generate.set_defaults(func=cmd_generate)
     validate = subparsers.add_parser("validate")
     validate.set_defaults(func=cmd_validate)
+    describe = subparsers.add_parser(
+        "describe", help="show the dev pack and its declared boundary losses"
+    )
+    describe.set_defaults(func=cmd_describe)
     args = parser.parse_args(argv)
     return int(args.func(args))
 
