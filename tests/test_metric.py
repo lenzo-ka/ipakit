@@ -522,7 +522,7 @@ class TestReferenceFrame:
         "+f0": {"tone"},
         "+glottal-aperture": {"phonation"},
         "+t": {"length"},
-        "+x": {"place", "backness", "constriction-location", "articulator"},
+        "+x": {"place", "backness", "constriction-location"},
         "+y": {"height"},
         "+z": {"channel"},
     }
@@ -542,6 +542,18 @@ class TestReferenceFrame:
         on_tract = {n for n, f in ipa.features.items() if f.axis in tract}
         assert "tone" not in on_tract
         assert ipa.features["tone"].axis == "+f0"
+
+    def test_a_categorical_feature_declares_no_axis(self, ipa: IPAFeatures) -> None:
+        """``articulator`` names the organ that moves, and the metric has
+        always scored it as an identity: 0 for a match, 1 otherwise, the
+        same as ``airstream`` and ``release``. It declared ``+x`` anyway,
+        ordered by home position along the tract, which put a coordinate
+        in the data that no consumer read and that ``docs/distance.md``
+        contradicted in two places. An identity is not a position, and if
+        a position is ever wanted for the active articulator it is a
+        second declaration rather than this one meaning both."""
+        for name in ("airstream", "release", "articulator"):
+            assert ipa.features[name].axis is None, name
 
     def test_height_ascends_y(self, ipa: IPAFeatures) -> None:
         h = ipa.features["height"]

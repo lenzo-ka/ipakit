@@ -109,7 +109,7 @@
       <value name="pulmonic" short="pul" href="Pulmonic_consonant"/>
       <value name="ejective" short="eje" href="Ejective_consonant"/>
       <value name="implosive" short="imp" href="Implosive_consonant"/>
-      <value name="velaric" short="vel" href="Click_consonant"/>  <!-- velaric ingressive: the click airstream -->
+      <value name="velaric" short="vlc" href="Click_consonant"/>  <!-- velaric ingressive: the click airstream -->
     </feature>
 
     <feature name="place" axis="+x" short="plc" mode="overriding" desc="Where articulation occurs" href="Place_of_articulation">
@@ -227,7 +227,7 @@
     </feature>
     <feature name="length" axis="+t" short="len" mode="prosodic" desc="Segment duration" default="normal" href="Length_(phonetics)">
       <value name="extra-short" short="xsh"/>
-      <value name="normal" short="nrm"/>
+      <value name="normal" short="nml"/>
       <value name="half-long" short="hlg"/>
       <value name="long" short="lng"/>
     </feature>
@@ -243,7 +243,15 @@
       <value name="+" label="advanced"/>
       <value name="-" label="retracted"/>
     </feature>
-    <feature name="articulator" axis="+x" short="art" desc="Active articulator: the organ that moves to make the constriction, ordered by its home position along the tract" href="Place_of_articulation#Active_articulator">
+    <!-- No axis. The organ that moves is an identity, not a position, and
+         the metric has always scored it that way: a match is 0 and anything
+         else is 1, the same as `airstream` and `release`. It declared
+         `axis="+x"` and ordered its values by home position along the
+         tract, which read as a coordinate no consumer took: the shape
+         `tone` had on `+y`, pointed the other way. If a position along the
+         tract is ever wanted for the active articulator it is a second
+         declaration, not this one carrying two meanings. -->
+    <feature name="articulator" short="art" desc="Active articulator: the organ that moves to make the constriction" href="Place_of_articulation#Active_articulator">
       <!-- `aperture="median"` says the folds close toward each other about the
            tract axis rather than toward a wall, the way a tongue closes toward a
            palate. Rendering geometry: `offset` models the one-sided case, so a
@@ -342,7 +350,7 @@
 
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
       <value name="less" label="less-rounded" short="les"/>
-      <value name="more" label="more-rounded" short="mor"/>
+      <value name="more" label="more-rounded" short="mre"/>
     </feature>
 
     <feature name="phonation" axis="+glottal-aperture" short="phn" desc="Vocal fold vibration mode" href="Phonation">
@@ -479,7 +487,7 @@
          `level=syllable` or `tier=syllable`, for example. -->
     <feature name="tier" short="tir" type="categorical" mode="structural" desc="The tier an interval is declared on" href="Autosegmental_phonology">
       <value name="syllable" short="syl" href="Syllable"/>
-      <value name="word" short="wrd" href="Word"/>
+      <value name="word" short="twd" href="Word"/>
       <!-- The two prosodic tiers a break mark terminates. Without them a
            boundary could be READ and its nesting COMPUTED and the result
            still not be storable: `Form.tree()` nested 'a|b' into two

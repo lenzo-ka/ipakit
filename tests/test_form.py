@@ -920,35 +920,48 @@ class TestABoundaryBecomesASpan:
 
 
 class TestAShortCodeNamesOneFeatureValue:
-    """``shorts_to_features(["utt"])`` answers one feature, and two
-    features had claimed that code.
+    """A short code resolves without its feature, so it must name one.
 
-    A short code is resolved without its feature, so where two values
-    share one the reader silently picks whichever the file declares
-    first. ``ipa.xml`` says of the long names that "a plain name in a
-    query is refused rather than resolved by which feature this file
-    declares first" -- and the short codes had no such refusal, so the
-    ambiguity the long names were protected from arrived through the
-    abbreviation instead.
+    ``shorts_to_features`` maps a code straight to a (feature, value)
+    pair, with no way to say which feature was meant. Four codes were
+    claimed twice, and the reader silently picked whichever ``ipa.xml``
+    declared first -- so a value went out through ``features_to_shorts``
+    and came back as a different feature's: ``{"level": "word"}`` became
+    ``["wrd"]`` became ``{"tier": "word"}``. ``ipa.xml`` says of the long
+    names that "a plain name in a query is refused rather than resolved
+    by which feature this file declares first", and the abbreviation had
+    no such protection.
 
-    The design intent is visible in the declarations: ``level=syllable``
-    is ``slb`` and ``tier=syllable`` is ``syl``, two codes for two
-    meanings, deliberately. The pairs below are where that intent was not
-    carried through, and they are pinned rather than fixed because
-    changing a shipped short code changes what a written query means.
-    Adding ``tier=phrase`` and ``tier=utterance`` would have made two
-    more; they took ``phs`` and ``utr`` instead, which is what this test
-    is here to keep true of the next one.
+    The design intent was visible in the declarations all along:
+    ``level=syllable`` is ``slb`` and ``tier=syllable`` is ``syl``, two
+    codes for two meanings, deliberately. The four were where that intent
+    lapsed. Each moved the less canonical sense, so the reading a person
+    is likeliest to have written stayed put: ``vel`` is velar's and
+    velaric took ``vlc``; ``mor`` is mora's and more took ``mre``;
+    ``nrm`` is norm's and normal took ``nml``; ``wrd`` is the level
+    ladder's and the tier took ``twd``.
+
+    **This is an enforcement, not a record.** It was written as a pin
+    over the four while they stood, and emptying that dict is what turns
+    the same assertion into "no code is claimed twice". Nothing was added
+    to the converters: a guard refusing a contested code would only have
+    made a wrong answer into a refusal, and there is no contested code.
     """
 
-    #: Short codes claimed by more than one feature value, and what they
-    #: resolve to today. Pinned, not blessed: each is a silent choice
-    #: between two meanings, and none should gain a third.
-    KNOWN_COLLISIONS = {
-        "vel": {"airstream=velaric", "place=velar"},
-        "nrm": {"length=normal", "prominence=norm"},
-        "mor": {"rounding=more", "tier=mora"},
-        "wrd": {"level=word", "tier=word"},
+    #: Feature-level shorts are a separate namespace and are NOT checked
+    #: here. ``<feature name="syllabic" short="syl">`` and
+    #: ``<value name="syllable" short="syl">`` coexist, along with four
+    #: more such pairs, and none of them is reachable: a feature's short
+    #: addresses nothing -- ``ipakit query features syl`` answers
+    #: "Unknown feature: syl", while the long name works. Only values
+    #: enter ``_short_to_feature``. If a feature short ever becomes
+    #: addressable, these five become collisions and belong here.
+    FEATURE_SHORT_OVERLAPS = {
+        "apr": {"feature:approach", "manner=approximant"},
+        "bck": {"feature:backness", "backness=back"},
+        "str": {"feature:stress", "prominence=strong"},
+        "syl": {"feature:syllabic", "tier=syllable"},
+        "trt": {"feature:tongue-root", "articulator=tongue-root"},
     }
 
     def _codes(self):
@@ -966,14 +979,27 @@ class TestAShortCodeNamesOneFeatureValue:
                 codes[value.group(2)].add(f"{feature.group(1)}={value.group(1)}")
         return codes
 
-    def test_no_new_short_code_is_claimed_twice(self):
+    def test_no_short_code_is_claimed_twice(self):
         found = {c: w for c, w in self._codes().items() if len(w) > 1}
-        assert found == self.KNOWN_COLLISIONS
+        assert found == {}
 
-    def test_the_pinned_collisions_are_real(self):
-        """The other half. Without it the pin could name a pair that no
-        longer shares a code and the test would still pass, having
-        checked that nothing new appeared against a stale list."""
-        codes = self._codes()
-        for code, claimants in self.KNOWN_COLLISIONS.items():
-            assert codes[code] == claimants, f"{code} no longer names {claimants}"
+    def test_the_round_trip_that_was_lossy_holds(self):
+        """The half a uniqueness check cannot see.
+
+        Uniqueness is a property of the file; what was actually broken
+        was a round trip through two public functions. These four are the
+        pairs that failed, so the test fails if a rename is undone in the
+        data or if the converters stop agreeing with it.
+        """
+        for bundle in (
+            {"airstream": "velaric"},
+            {"rounding": "more"},
+            {"level": "word"},
+            {"length": "normal"},
+            {"place": "velar"},
+            {"tier": "mora"},
+            {"tier": "word"},
+            {"prominence": "norm"},
+        ):
+            shorts = ipakit.features_to_shorts(bundle)
+            assert ipakit.shorts_to_features(shorts) == bundle, bundle
