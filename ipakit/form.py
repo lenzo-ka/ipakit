@@ -2328,6 +2328,75 @@ class Form:
 
         return Node(level="form", children=build(tagged, 0, None, None))
 
+    def tier_intervals(
+        self, features: IPAFeatures | None = None
+    ) -> tuple[Interval, ...]:
+        """The spans the written boundaries imply, one per nested node.
+
+        :meth:`tree` already decides where the structure is -- which
+        levels a transcription asserts, and where each node begins and
+        ends -- and it decides it from ``ipa.xml`` rather than from
+        anything stated in code. What it does not do is leave the answer
+        anywhere: it returns a nesting, and a nesting is a value that
+        lives as long as the call. So ``a|b`` nested into two phrases and
+        ``Interval("phrase", ...)`` was refused, and the structure existed
+        for exactly the duration of the expression that computed it.
+
+        This is the projection that lands it. A node's level names the
+        tier its span sits on, so the two vocabularies meet here and only
+        here -- :func:`levels` is ordinal and says how strong a boundary
+        is, :func:`tier_names` is nominal and says what a span may sit on,
+        and this asks the first for a name it hands to the second.
+
+        Indices are into :attr:`units`, as every other interval's are, so
+        a span covers the boundary marks it encloses and stops before the
+        one that closed it. The ``form`` root and the ``segment`` leaves
+        get no interval: the root is the whole reading rather than a
+        declared tier, and a leaf is a unit, which is what an interval is
+        made of rather than something it spans.
+
+        Nothing is claimed that the transcription did not write. That is
+        :meth:`tree`'s rule, inherited whole: a level exists only where a
+        boundary asserts it, except the one a form's own edges spell
+        (:func:`edge_level`), so ``ab`` yields one word and never one
+        phrase.
+        """
+        at: dict[int, int] = {}
+        for index, unit in enumerate(self.units):
+            if not unit.is_boundary:
+                at[len(at)] = index
+
+        spans: list[Interval] = []
+        leaf = 0
+
+        def walk(node: Node) -> tuple[int, int]:
+            nonlocal leaf
+            if node.level == "segment":
+                first = at[leaf]
+                leaf += 1
+                return first, first + 1
+            bounds = [walk(child) for child in node.children]
+            start = min(low for low, _ in bounds)
+            end = max(high for _, high in bounds)
+            if node.level != "form":
+                spans.append(Interval(node.level, start, end, features))
+            return start, end
+
+        walk(self.tree(features))
+        return tuple(spans)
+
+    def with_tier_intervals(self, features: IPAFeatures | None = None) -> Form:
+        """This reading, with :meth:`tier_intervals` carried on it.
+
+        Kept separate from :meth:`read` deliberately. A form is what was
+        transcribed, and adding spans to every read would make two forms
+        that spell the same thing compare unequal because one had been
+        asked a question the other had not. So the derivation is a step a
+        caller takes, the way syllabification is, and the store it writes
+        into is the one both use.
+        """
+        return Form.of(self.units, [*self.intervals, *self.tier_intervals(features)])
+
     @property
     def boundaries(self) -> tuple[Boundary, ...]:
         """What the projections drop, and where it sat."""
