@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A feature-system declaration states its own round-trip fidelity: `<round-trip>` legs are required by the grammar, become the `CostPack`'s `Bridge`, and a declaration without them is refused rather than read as lossless. Crossing a feature-system boundary therefore reports a stated fidelity and its drops instead of an inferred losslessness. `scripts/panphon_geometry.py describe` prints the declared legs and drops.
 - `FeatureQuery`: the public type a feature query is written in, read by `phones_matching` and exported from the package root (#332).
 - `distance directional` (`dir`) on the CLI: directional reference-to-hypothesis word distance, the command form of `directional_word_distance` (#332).
 - Corpus provenance: roles record typed producer and declaration provenance, corpora carry declaration fingerprints and durable splits, and `Experiment` / `ipakit rules derives` classify and serialize batch derivability with reproducible identities.

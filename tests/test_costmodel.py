@@ -31,6 +31,12 @@ from tiergraph.semiring import TROPICAL
 CORPUS = Path(__file__).parent / "panphon" / "shared-corpus.txt"
 DECLARATION = Path(__file__).parent / "panphon" / "panphon.xml"
 
+ROUND_TRIP = """  <round-trip>
+    <external-to-house fidelity="lossless"/>
+    <house-to-external fidelity="lossless"/>
+  </round-trip>
+"""
+
 
 def _words() -> list[str]:
     return CORPUS.read_text(encoding="utf-8").splitlines()
@@ -195,8 +201,8 @@ def test_semiring_alignment_refuses_invalid_indel_prices(bad: float) -> None:
 def test_absence_is_a_declared_term_in_one_product_fold(tmp_path: Path) -> None:
     declaration = tmp_path / "absent.xml"
     declaration.write_text(
-        """<feature-table name="absent">
-  <features><feature name="f"/><feature name="g"/></features>
+        f"""<feature-table name="absent">
+{ROUND_TRIP}  <features><feature name="f"/><feature name="g"/></features>
   <segments>
     <segment name="a" f="+"/>
     <segment name="b" f="-" g="+"/>
@@ -228,6 +234,7 @@ def test_weighted_declaration_refuses_an_invalid_named_weight(
     declaration = tmp_path / "weights.xml"
     declaration.write_text(
         f"""<feature-table name="weights">
+{ROUND_TRIP}\
   <features><feature name="f"/></features>
   <weights><weight name="f" value="{value}"/></weights>
   <segments><segment name="a" f="+"/></segments>
@@ -246,7 +253,8 @@ def test_weighted_declaration_refuses_an_invalid_named_weight(
 def test_weighted_declaration_requires_one_weight_per_feature(tmp_path: Path) -> None:
     declaration = tmp_path / "short-weights.xml"
     declaration.write_text(
-        """<feature-table name="weights">
+        f"""<feature-table name="weights">
+{ROUND_TRIP}\
   <features><feature name="f"/><feature name="g"/></features>
   <weights><weight name="f" value="1"/></weights>
   <segments><segment name="a" f="+" g="-"/></segments>
@@ -270,7 +278,8 @@ def test_comparison_machinery_cannot_branch_on_a_pack_identity(tmp_path: Path) -
     assert "isinstance(pack" not in source
     declaration = tmp_path / "complete-weights.xml"
     declaration.write_text(
-        """<feature-table name="complete">
+        f"""<feature-table name="complete">
+{ROUND_TRIP}\
   <features><feature name="f"/></features>
   <weights><weight name="f" value="1"/></weights>
   <segments><segment name="a" f="+"/><segment name="b" f="-"/></segments>
