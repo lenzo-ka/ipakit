@@ -480,3 +480,139 @@ class TestTheNotesSayTheTrueThingAboutTheirAlphabet:
             f"{notation} leaves {unassigned} unassigned, so its note's claim "
             "that a spelled word is read rather than refused has changed"
         )
+
+
+def _run_capturing(monkeypatch: Any, argv: list[str]) -> tuple[int, str]:
+    """:func:`_run`, plus what the command printed.
+
+    The drop sweep below needs both halves: the status alone cannot tell a
+    command that dropped a symbol and said nothing from one that carried
+    the symbol through untouched, and those are opposite verdicts.
+    """
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    out, err = io.StringIO(), io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = ipakit.cli.main()
+    except SystemExit as exit_:  # argparse rejected the line
+        code = int(exit_.code or 0)
+    return code, out.getvalue()
+
+
+def _probe_argv(argv: list[str], probe: str) -> list[str]:
+    """``argv`` with the probe spliced into the transcription it carries.
+
+    The last positional is the transcription on every witness but one --
+    ``syllabify cat --language english`` ends in a flag's value -- so a
+    value whose preceding token is a flag is skipped rather than special
+    cased by name.
+    """
+    for i in range(len(argv) - 1, 0, -1):
+        if argv[i].startswith("-"):
+            continue
+        if i > 0 and argv[i - 1].startswith("-"):
+            continue
+        return [*argv[:i], probe, *argv[i + 1 :]]
+    raise AssertionError(f"no transcription argument found in {argv}")
+
+
+#: Unregistered in IPA, X-SAMPA and Kirshenbaum alike, and checked to be so
+#: by the sweep below rather than assumed.
+_PROBE_SYMBOL = "§"
+_PROBE = f"c{_PROBE_SYMBOL}t"
+
+
+class TestADroppedSymbolReachesTheExitStatus:
+    """``rc == 3`` means the input was not read in full, and the promotion
+    half of that is structural: :func:`ipakit.cli.policy.report` turns any
+    in-package ``UserWarning`` into status 3 at the dispatcher, by asking
+    what a warning is rather than by listing today's sites.
+
+    The *emission* half was not. That a reader which drops a symbol says
+    so was witnessed by ``LOSSY_INVOCATIONS`` in ``tests/test_cli.py`` --
+    a hand survey, whose own comment concedes the gap: a new soft-read
+    path "without a line here is a visible omission", visible to a person
+    reading the list rather than to anything that fails. Fifteen of the
+    routes declaring a notation were outside it. Nothing failed if one of
+    them dropped a symbol and reported success.
+
+    **The predicate is the biconditional, not ``rc in {1, 3}``.** Asserting
+    a nonzero status over these routes is wrong and was measured to be
+    wrong: ``convert normalize`` and ``convert add-ties`` answer ``c§t``
+    for ``c§t``, carrying the unregistered symbol through byte for byte.
+    Nothing was dropped, so exit 0 is the correct answer and a sweep
+    demanding otherwise would be a test that fails on right behavior. What
+    is actually promised is that a status of 0 means the input survived --
+    so a route that exits 0 must still be able to show the symbol.
+
+    The probe is one character rather than one per route, and it is
+    checked first: a probe some notation happens to register would make
+    every route pass by reading it successfully, which is the vacuous
+    version of this sweep. That check is not hypothetical. An earlier
+    probe here was ``@``, which ``convert from-xsampa`` and
+    ``from-kirshenbaum`` both answered at exit 0 -- and they were right,
+    because ``@`` is X-SAMPA for schwa. Read as a defect it was two false
+    positives; read correctly it is the same lesson the notation notes
+    carry, that a check's environment is part of its definition.
+    """
+
+    PROBE_SYMBOL = _PROBE_SYMBOL
+    PROBE = _PROBE
+
+    #: The witnesses, which carry each leaf's real arity. Reusing them is
+    #: the point: a leaf reached with the wrong number of arguments exits
+    #: on the argument list and never reaches its reader, which passes
+    #: this sweep while measuring nothing.
+    PROBED = [
+        (tuple(path), _probe_argv(argv, _PROBE))
+        for argv in [*WITNESSES, *REFUSERS]
+        for path, parser in LEAVES
+        if list(path) == argv[: len(path)]
+        and getattr(_command_of(parser), "reads_notation", None) is not None
+    ]
+
+    def test_the_probe_is_unregistered_in_every_declared_notation(self):
+        """Without this the sweep can pass by being read rather than by
+        being reported, and nothing would say which."""
+        readers = {
+            "IPA": ipakit.tokenize,
+            "X-SAMPA": ipakit.from_xsampa,
+            "Kirshenbaum": ipakit.from_kirshenbaum,
+        }
+        assert set(readers) == set(NOTATION_NOTES), "a notation has no reader here"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            read = {n: bool(fn(self.PROBE_SYMBOL)) for n, fn in readers.items()}
+        assert not any(read.values()), f"probe is registered somewhere: {read}"
+
+    def test_the_sweep_reaches_most_of_the_declared_routes(self):
+        """A denominator, so the result can be judged rather than trusted."""
+        declared = {
+            path
+            for path, parser in LEAVES
+            if getattr(_command_of(parser), "reads_notation", None) is not None
+        }
+        reached = {path for path, _ in self.PROBED}
+        assert len(reached) >= len(declared) - len(NEEDS_A_CORPUS)
+
+    @pytest.mark.parametrize(
+        "path, argv",
+        PROBED,
+        ids=[" ".join(path) for path, _ in PROBED],
+    )
+    def test_a_route_that_drops_the_probe_says_so_in_its_status(
+        self, monkeypatch, tmp_path, path, argv
+    ):
+        monkeypatch.chdir(tmp_path)
+        code, out = _run_capturing(monkeypatch, argv)
+        assert code != 2, (
+            f"{' '.join(argv)} exited on its argument list, so the probe never "
+            "reached the reader and this route measured nothing"
+        )
+        if code == 0:
+            assert self.PROBE_SYMBOL in out, (
+                f"{' '.join(argv)} exited 0 without carrying "
+                f"{self.PROBE_SYMBOL!r} through: the symbol was dropped and "
+                "the status says the input was read in full"
+            )
