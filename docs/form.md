@@ -34,6 +34,8 @@ form.phones                            # ('k', 'æ', 't', 'd', 'ɒ', 'ɡ')
 
 `phones` is identity, and prosody is not part of an identity. `a`, `ˈa` and `aː` are one phone, for the reason [ties.md](ties.md) gives: the `mode="prosodic"` features live on the unit, outside the feature bag.
 
+**Tie sense survives `segments` and not `phones`.** Which of the two ties joined a compound is a claim about timing inside the unit — the over-tie reads its constituents simultaneously, the under-tie in sequence ([house-style.md](house-style.md#ties-are-units)) — and it is carried on `Segment.junctures`, not in any feature bag. So `t͡s` and `t͜s` are two `Segment`s that differ, and one `phones` entry that does not: identity is what the unit *is*, and the timing inside it is what the unit *does*. A caller comparing timing reads `segments`; a caller counting sounds reads `phones` and is right not to see it.
+
 ```python
 [Form.parse(x).phones for x in ("a", "ˈa", "aː")]   # [('a',), ('a',), ('a',)]
 ```
