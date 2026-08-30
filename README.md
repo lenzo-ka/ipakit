@@ -149,7 +149,13 @@ which the converter says.
 
 Tokenization follows the same policy, and is never silent about it: a character
 registered nowhere is dropped with a warning, and `strict=True` raises instead —
-which is what makes `to_ipa(segments(x)) == x` a guarantee rather than a hope.
+which is what makes `to_ipa(segments(x, strict=True)) == x` a guarantee rather
+than a hope, for `x` written in house style. The qualifiers are both load-bearing.
+Without `strict=True` the equation is over whatever survived the drop, which is
+the thing the warning is telling you about; and a legacy ligature alias comes back
+as the spelling it abbreviates, so `to_ipa(segments("ʧa", strict=True))` is `t͡ʃa`
+rather than `ʧa` — the sound is preserved and the spelling is canonicalized, which
+is what `from_wild` is for.
 
 ```python
 ipakit.tokenize("kæQt")                # ['k', 'æ', 't'] + UserWarning naming 'Q'
