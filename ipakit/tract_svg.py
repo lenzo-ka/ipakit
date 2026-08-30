@@ -538,8 +538,10 @@ def _frontal_extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
     )
 
 
-def _frontal_scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
-    """Scale face-chart coordinates, whose y axis runs forehead to chin."""
+def _scaler(
+    x0: float, x1: float, y0: float, y1: float, *, flip_y: bool = True
+) -> Scaler:
+    """Fit chart coordinates into a panel, optionally reversing the y axis."""
     sx = (WIDTH - 2 * PAD) / (x1 - x0) if x1 > x0 else 1.0
     sy = (SECTION_HEIGHT - 2 * PAD) / (y1 - y0) if y1 > y0 else 1.0
     scale = min(sx, sy)
@@ -547,9 +549,15 @@ def _frontal_scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
     oy = PAD + ((SECTION_HEIGHT - 2 * PAD) - (y1 - y0) * scale) / 2
 
     def to(px: float, py: float) -> Point:
-        return (ox + (px - x0) * scale, oy + (py - y0) * scale)
+        y = y1 - py if flip_y else py - y0
+        return (ox + (px - x0) * scale, oy + y * scale)
 
     return to
+
+
+def _frontal_scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
+    """Scale face-chart coordinates, whose y axis runs forehead to chin."""
+    return _scaler(x0, x1, y0, y1, flip_y=False)
 
 
 FRONTAL_STYLE = """
@@ -772,19 +780,6 @@ def _extent(*sets: dict[str, Any]) -> tuple[float, float, float, float]:
                     xs.append(point[0])
                     ys.append(point[1])
     return min(xs), max(xs), min(ys), max(ys)
-
-
-def _scaler(x0: float, x1: float, y0: float, y1: float) -> Scaler:
-    sx = (WIDTH - 2 * PAD) / (x1 - x0) if x1 > x0 else 1.0
-    sy = (SECTION_HEIGHT - 2 * PAD) / (y1 - y0) if y1 > y0 else 1.0
-    scale = min(sx, sy)
-    ox = PAD + ((WIDTH - 2 * PAD) - (x1 - x0) * scale) / 2
-    oy = PAD + ((SECTION_HEIGHT - 2 * PAD) - (y1 - y0) * scale) / 2
-
-    def to(px: float, py: float) -> Point:
-        return (ox + (px - x0) * scale, oy + (y1 - py) * scale)
-
-    return to
 
 
 def _path(points: list[Point], close: bool = False) -> str:
