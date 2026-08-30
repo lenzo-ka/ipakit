@@ -8,10 +8,11 @@ is used only when a declaration explicitly asks for it.
 
 from __future__ import annotations
 
+import functools
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .constants import DATA_DIR
@@ -20,6 +21,41 @@ from .form import Form, Interval, Unit, tier_names
 from .rules import Pattern, RuleError, _pattern
 
 SYLLABLES_DIR = Path(DATA_DIR) / "syllables"
+
+#: The derivations this module implements, named by the ``mode`` attribute a
+#: declaration carries. Modes are the one vocabulary here that belongs to the
+#: code rather than to the data -- each name selects a branch written below --
+#: so it is declared once, here, and :func:`read_language` refuses anything
+#: else. The grammar deliberately does not enumerate them: a schema listing
+#: what the code implements would be a second copy that agrees only by habit.
+MODES = frozenset({"constraints", "enumerated", "moraic"})
+
+#: The stratum ``strictness="strict"`` admits, and the only stratum name this
+#: module spells. Everything else about the stratum vocabulary is read back out
+#: of the shipped declarations by :func:`declared_strata`, because a stratum is
+#: a curation decision recorded in the data and not a fact about the mechanism.
+CORE_STRATUM = "native"
+
+
+@functools.cache
+def declared_strata() -> frozenset[str]:
+    """Every stratum label the shipped declarations put on an onset.
+
+    This is the admitted vocabulary, and it is measured rather than listed.
+    The alternative -- a frozenset in this module naming the strata curation
+    happens to have used -- was four copies of the same three words in three
+    files, and the filter in :func:`syllabifier` dropped anything they did not
+    mention without saying so, which is a wrong answer under a green suite.
+    Reading the vocabulary out of the data means a stratum that reaches the
+    declarations is admitted by construction, and one that reaches neither is
+    refused by name.
+    """
+    return frozenset(
+        stratum
+        for path in sorted(SYLLABLES_DIR.glob("*.xml"))
+        for onset in ET.parse(path).getroot().findall("onset")
+        if (stratum := onset.get("stratum")) is not None
+    )
 
 
 def _default(features: IPAFeatures | None) -> IPAFeatures:
@@ -163,6 +199,12 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
     except ImportError:  # pragma: no cover - lxml is a project dependency
         pass
     root = ET.parse(path).getroot()
+    mode = root.attrib["mode"]
+    if mode not in MODES:
+        raise ValueError(
+            f"{path.name} declares mode {mode!r}, which this module has no "
+            f"derivation for; the declared modes are {', '.join(sorted(MODES))}"
+        )
     groups: dict[str, list[Span]] = {"nucleus": [], "onset": [], "coda": [], "mora": []}
     for kind in groups:
         groups[kind] = [
@@ -175,7 +217,7 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
         declared_syllables.extend(ET.parse(source).getroot().findall("syllable"))
     return Language(
         name=root.attrib["language"],
-        mode=root.attrib["mode"],
+        mode=mode,
         provenance=root.attrib["provenance"],
         nuclei=tuple(groups["nucleus"]),
         onsets=tuple(groups["onset"]),
@@ -186,10 +228,30 @@ def read_language(path: str | Path, features: IPAFeatures | None = None) -> Lang
 
 
 def languages() -> tuple[str, ...]:
+    """The languages a syllabifier can be built for, named by declaration.
+
+    The list is the directory, not a registry beside it. A phonology arrives
+    here as one XML file under ``ipakit/data/syllables``; nothing else has to
+    be edited for it to be offered, and nothing can offer a language whose
+    declaration is missing.
+    """
     return tuple(sorted(p.stem for p in SYLLABLES_DIR.glob("*.xml")))
 
 
 def language(name: str, features: IPAFeatures | None = None) -> Language:
+    """Read the shipped declaration called ``name``.
+
+    The declaration is the phonology and this is the whole of the lookup: what
+    comes back is the validated claims a curator wrote down -- nuclei, margins,
+    morae, the strata attached to them -- and not yet a mechanism. Reading it
+    is separate from building a syllabifier because the declaration is worth
+    inspecting on its own: an onset's ``harvested_count`` and ``exemplar`` are
+    the evidence for admitting it, and a caller comparing two curations needs
+    them without committing to a strictness.
+
+    An unknown name is refused with the available ones named, since the set is
+    small enough to print and the alternative is a caller guessing at spelling.
+    """
     path = SYLLABLES_DIR / f"{name}.xml"
     if not path.is_file():
         raise ValueError(
@@ -459,36 +521,96 @@ def syllabifier(
     *,
     strictness: str | None = None,
 ) -> Syllabifier:
+    """Build the mechanism one language's declaration describes.
+
+    A syllabifier here is language-relative by construction: there is no
+    universal syllabification to fall back on, so what comes back knows one
+    phonology and refuses material that phonology does not license rather than
+    absorbing it into a neighboring syllable. Building it is separate from
+    running it because the expensive half -- reading, validating and compiling
+    the declared spans -- is the half that does not depend on the word.
+
+    ``strictness`` is the admission policy over curated evidence, and it exists
+    because a margin inventory harvested from a lexicon is not one thing. Some
+    onsets are core to the phonology, some arrived with borrowings, and some
+    rest on a handful of proper names; a curator records which by labeling the
+    onset with a stratum, and this decides how much of that to believe:
+
+    - ``"strict"`` admits the core stratum alone, so the result is the
+      phonology as a native-vocabulary claim.
+    - ``"permissive"``, and the ``None`` default, admit every declared
+      stratum, so the result covers the lexicon as attested.
+
+    An onset carrying no stratum is core and is admitted at every setting,
+    which is what keeps a declaration written before curation behaving exactly
+    as it did. The strata themselves are read out of the shipped declarations
+    rather than listed here, and an onset labeled with one nothing declares is
+    refused by name -- the alternative, silently discarding it, is a wrong
+    answer that looks like a curation decision.
+    """
     features = _default(features)
     if not {"syllable", "mora"} <= set(tier_names(features)):
         raise ValueError("the inventory must declare syllable and mora tiers")
     declaration = language(name, features) if isinstance(name, str) else name
-    admitted = {
-        None: frozenset({"native", "borrowing", "marginal"}),
-        "strict": frozenset({"native"}),
-        "permissive": frozenset({"native", "borrowing", "marginal"}),
-    }
+    strata = admitted_strata(strictness)
+    onsets = _admit(declaration, strata)
+    return Syllabifier(replace(declaration, onsets=onsets), features)
+
+
+def admitted_strata(strictness: str | None) -> frozenset[str]:
+    """The strata one strictness admits.
+
+    The default and ``"permissive"`` are not two policies that happen to agree:
+    they are one, and they return the same object, because the two frozensets
+    that used to spell it out separately were one edit away from meaning
+    different things while reading as though they could not.
+    """
+    every = declared_strata()
+    admitted = {None: every, "strict": frozenset({CORE_STRATUM}), "permissive": every}
     if strictness not in admitted:
         raise ValueError("strictness must be 'strict', 'permissive', or None")
-    strata = admitted[strictness]
-    declaration = Language(
-        declaration.name,
-        declaration.mode,
-        declaration.provenance,
-        declaration.nuclei,
-        tuple(
-            onset
-            for onset in declaration.onsets
-            if onset.stratum is None or onset.stratum in strata
-        ),
-        declaration.morae,
-        declaration.syllables,
-        declaration.codas,
-    )
-    return Syllabifier(declaration, features)
+    return admitted[strictness]
+
+
+def _admit(declaration: Language, strata: frozenset[str]) -> tuple[Span, ...]:
+    """The onsets this strictness keeps, refusing a stratum nobody declared.
+
+    Selecting and checking are one walk on purpose. While there was no check,
+    an onset labeled with a stratum the module had never heard of simply
+    failed the membership test and was dropped as though the curator had asked
+    for it to be left out -- silently, at the most permissive setting there is.
+    Here the pass that decides whether to keep an onset is the one that decides
+    the label means anything, so an unrecognized stratum cannot be mistaken for
+    an excluded one. ``TestTheAdmittedStrata`` holds the measured witness.
+    """
+    kept: list[Span] = []
+    for onset in declaration.onsets:
+        # An unlabeled onset is core: it is admitted at every strictness.
+        if onset.stratum is None:
+            kept.append(onset)
+            continue
+        if onset.stratum not in declared_strata():
+            raise ValueError(
+                f"{declaration.name} declares onset {onset.source!r} with "
+                f"stratum {onset.stratum!r}, which no shipped declaration "
+                f"names; the declared strata are "
+                f"{', '.join(sorted(declared_strata()))}"
+            )
+        if onset.stratum in strata:
+            kept.append(onset)
+    return tuple(kept)
 
 
 def syllabify(
     form: Form | str, name: str, features: IPAFeatures | None = None
 ) -> Syllabification:
+    """Syllabify one form against one language, without keeping the mechanism.
+
+    The convenience spelling of ``syllabifier(name)(form)``, for the caller who
+    has a single word rather than a corpus. It rereads and revalidates the
+    declaration on every call, so a loop over more than a few forms should
+    build the syllabifier once and reuse it -- that is what the constructor is
+    for, and why this function does not take a strictness: choosing an
+    admission policy is a decision about a whole corpus, not about one word.
+    """
     return syllabifier(name, features)(form)

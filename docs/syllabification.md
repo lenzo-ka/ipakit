@@ -84,7 +84,7 @@ The queue resolved to 18 native exceptions, 1 borrowing, 39 marginal entries, an
 
 The four recorded iterations are the constraint baseline, native exceptions, borrowings, and marginal evidence; their inventory deltas and changed-form counts are recorded in the generated report rather than summarized from memory.
 
-Strictness names admitted labeled strata: `strict` admits `native`, `permissive` admits `native+borrowing+marginal`, and the default admits all three; an unlabeled onset is core and is admitted at every strictness, so the three declarations from phase 1 behave exactly as before.
+Strictness names admitted labeled strata: `strict` admits the core stratum alone, while `permissive` and the default admit every stratum the shipped declarations use — the vocabulary is read back out of the data rather than listed in the code, and an onset labeled with a stratum nothing declares is refused by name instead of quietly dropped. An unlabeled onset is core and is admitted at every strictness, so the three declarations from phase 1 behave exactly as before.
 
 `/ʃm/` is the canonical exhibit: CMUdict supplies 66 word-initial tokens, led by *schmader*, and curation retains the productive Yiddish/German pattern as a borrowing.
 

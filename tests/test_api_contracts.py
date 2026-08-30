@@ -5,6 +5,7 @@ answer rather than an error.
 """
 
 import dataclasses
+import inspect
 
 import ipakit
 import pytest
@@ -142,3 +143,27 @@ class TestAFormIsImmutable:
         )
         assert variant.prosody == {"stress": "primary"}
         assert unit.prosody == {}
+
+
+class TestEveryPublicNameSaysWhatItIs:
+    """A public name with no docstring is a name with no contract.
+
+    ``help(ipakit.syllabifier)`` printed a signature and nothing else, and the
+    three-way ``strictness`` argument -- which decides how much curated
+    evidence the result rests on -- was documented only by the ``ValueError``
+    raised on a fourth value. The predicate is over ``__all__`` rather than
+    over a list of the four that were missing, because the next export added
+    without one is the case worth catching.
+    """
+
+    def test_every_export_has_a_docstring(self) -> None:
+        undocumented = sorted(
+            name for name in ipakit.__all__ if not inspect.getdoc(getattr(ipakit, name))
+        )
+        assert not undocumented, (
+            f"these public names carry no docstring: {undocumented}. A caller "
+            f"reading help() gets a signature and no contract."
+        )
+
+    def test_the_sweep_is_not_vacuous(self) -> None:
+        assert len(ipakit.__all__) > 100, f"only {len(ipakit.__all__)} exports"

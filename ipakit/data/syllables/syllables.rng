@@ -5,7 +5,7 @@
     <element name="syllabification">
       <attribute name="language"><text /></attribute>
       <attribute name="version"><data type="positiveInteger" /></attribute>
-      <attribute name="mode"><choice><value>constraints</value><value>enumerated</value><value>moraic</value></choice></attribute>
+      <attribute name="mode"><data type="token"><param name="minLength">1</param></data></attribute>
       <attribute name="provenance"><text /></attribute>
       <oneOrMore>
         <choice>
@@ -14,7 +14,7 @@
             <attribute name="span"><text /></attribute>
             <choice>
               <group>
-                <attribute name="stratum"><choice><value>native</value><value>borrowing</value><value>marginal</value></choice></attribute>
+                <attribute name="stratum"><data type="token"><param name="minLength">1</param></data></attribute>
                 <attribute name="harvested-count"><data type="nonNegativeInteger" /></attribute>
                 <attribute name="curation-provenance"><data type="token"><param name="minLength">1</param></data></attribute>
                 <optional><attribute name="exemplar"><text /></attribute></optional>
