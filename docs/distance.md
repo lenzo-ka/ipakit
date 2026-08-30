@@ -58,7 +58,8 @@ Ordinal scales ascend a declared axis, recorded per feature in the data as `axis
 | feature | axis | ascends |
 |---|---|---|
 | `place`, `backness`, `constriction-location` | `+x` | lips → glottis |
-| `height`, `tone` | `+y` | jaw → palate, low → high |
+| `height` | `+y` | jaw → palate |
+| `tone` | `+f0` | low → high |
 | `manner` | `+constriction` | open → closed |
 | `channel` | `+z` | lateral → flat → grooved (out → in) |
 | `length` | `+t` | short → long |
