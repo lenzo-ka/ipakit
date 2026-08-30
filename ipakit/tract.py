@@ -1917,7 +1917,7 @@ def posture(
 
         def localize(point: TractPoint) -> TractPoint:
             if point.arc is not None and abs(point.arc - canonical) < 1e-12:
-                return TractPoint(local, point.offset, point.articulator)
+                return replace(point, arc=local)
             return point
 
         reading = localize(reading)

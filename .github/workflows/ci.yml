@@ -156,7 +156,7 @@ jobs:
       - name: ICU cross-check tests (skipped in the matrix job)
         run: pytest tests/test_xsampa.py
       - name: Panphon characterization tests (skipped in the matrix job)
-        run: pytest tests/test_panphon_facts.py tests/test_panphon_live_geometry.py
+        run: pytest tests/test_panphon_facts.py tests/test_panphon_live_geometry.py tests/tiergraph/test_j_panphon.py
 
   render:
     name: render (figure tests need real renderers)

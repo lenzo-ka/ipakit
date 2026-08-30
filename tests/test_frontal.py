@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import random
 import re
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from ipakit.tract_svg import (
     Point,
     _frontal_extent,
     _frontal_scaler,
+    _scaler,
     animate_two_pane,
     build_frontal_geometry,
     frontal_figure,
@@ -24,6 +26,21 @@ from tests._renderers import needs_renderer
 from tests.test_tract_figures import _differing, _pixels
 
 FIGURES = Path(__file__).resolve().parent.parent / "docs" / "figures"
+
+
+def test_frontal_and_sagittal_scalers_share_one_fit() -> None:
+    """Reflecting the input is the only difference between the projections."""
+    generator = random.Random(0)
+    for _ in range(2_000):
+        x0 = generator.uniform(-3, 3)
+        x1 = x0 + generator.uniform(0, 5)
+        y0 = generator.uniform(-3, 3)
+        y1 = y0 + generator.uniform(0, 5)
+        px = generator.uniform(x0, x1)
+        py = generator.uniform(y0, y1)
+        assert _frontal_scaler(x0, x1, y0, y1)(px, py) == pytest.approx(
+            _scaler(x0, x1, y0, y1)(px, y0 + y1 - py), abs=1e-9
+        )
 
 
 @pytest.fixture(scope="module")

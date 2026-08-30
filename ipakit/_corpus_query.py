@@ -232,15 +232,6 @@ def query_rule(
     return rules.parse(source, inventory)
 
 
-def _query_source(query: Query) -> str:
-    target = query.target.source if query.target is not None else "∅"
-    if not query.left and not query.right:
-        return target
-    left = " ".join(pattern.source for pattern in reversed(query.left))
-    right = " ".join(pattern.source for pattern in query.right)
-    return f"{target} / {left} _ {right}".rstrip()
-
-
 @dataclass(frozen=True)
 class Match:
     """One form-level structural match, independent of collection identity."""
