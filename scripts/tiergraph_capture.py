@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT))
 import ipakit  # noqa: E402
 from ipakit import Form, Interval  # noqa: E402
 from ipakit import rules as rules_api  # noqa: E402
-from tiergraph_example import build_example  # noqa: E402
+from tiergraph_example import build_derived_example, build_example  # noqa: E402
 
 
 def _ensure_hash_seed() -> None:
@@ -489,10 +489,21 @@ def capture_distances(_: argparse.Namespace) -> None:
 
 
 def capture_artifacts(_: argparse.Namespace) -> None:
-    tiergraph_path = ROOT / "docs" / "figures" / "perhaps-i-am-a-bad-man.dot"
-    derived_tiergraph = build_example().to_dot().encode()
-    if derived_tiergraph != tiergraph_path.read_bytes():
-        raise SystemExit("fresh tiergraph DOT differs byte-for-byte from shipped")
+    # Both worked figures, checked the same way. The second is derived from
+    # a transcription rather than built, and an artifact nothing rebuilds
+    # is an artifact nothing can catch drifting -- which is the whole point
+    # of this capture.
+    figures = ROOT / "docs" / "figures"
+    tiergraph_figures = [
+        (figures / "perhaps-i-am-a-bad-man.dot", build_example),
+        (figures / "derived-from-boundaries.dot", build_derived_example),
+    ]
+    for path, build in tiergraph_figures:
+        if build().to_dot().encode() != path.read_bytes():
+            raise SystemExit(
+                f"fresh tiergraph DOT differs byte-for-byte from shipped: "
+                f"{path.relative_to(ROOT)}"
+            )
     derived_confusion = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "confusion.py"), "generate"],
         cwd=ROOT,
@@ -513,7 +524,7 @@ def capture_artifacts(_: argparse.Namespace) -> None:
         ROOT / "docs" / "tutorial.md",
         ROOT / "ipakit" / "notebooks" / "ipakit-tutorial.ipynb",
         *sorted((ROOT / "docs" / "figures").glob("tract-*.svg")),
-        tiergraph_path,
+        *(path for path, _ in tiergraph_figures),
     ]
     records = [
         {

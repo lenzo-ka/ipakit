@@ -97,5 +97,17 @@ is one utterance containing one phrase containing six words. Its word
 pronunciations come from CMUdict phone entries through `CMUMapper`. The determiner
 *a* uses CMUdict's unstressed `AH0`, realized as `ə`; no stress feature is present.
 The figure does not claim a `derived-from` relation because ipakit did not compute
-that reduction—it depicts the attested reduced realization only. Regenerate the
-figure with `python scripts/tiergraph_example.py`.
+that reduction—it depicts the attested reduced realization only.
+
+Its counterpart, the [boundary-derived DOT figure](figures/derived-from-boundaries.dot),
+asserts nothing. It is one utterance of two phrases read out of a transcription whose
+boundary marks are written — a space between words, `|` between the phrases, `‖` at the
+end — and its utterance, phrases and thirteen words are spans no Python names. The pair
+is the division of labor: a transcription says where the structure is, and a builder says
+what the transcription cannot, which here is which orthographic word each run of phones
+spells and that one of them is emphatic.
+
+Nothing above `word` appears in the first figure, and that is correct rather than missing.
+One phrase filling one utterance writes no break, and an unwritten mark asserts nothing,
+so a reading of it has words and stops. Regenerate both figures with
+`python scripts/tiergraph_example.py`.

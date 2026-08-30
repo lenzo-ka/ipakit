@@ -89,6 +89,11 @@
       "bytes": 46343,
       "path": "docs/figures/perhaps-i-am-a-bad-man.dot",
       "sha256": "bc02c7adb03c07bfb912e99b4d41a9447020a41503cc031ab40099cfd2614818"
+    },
+    {
+      "bytes": 99011,
+      "path": "docs/figures/derived-from-boundaries.dot",
+      "sha256": "07cc7ffa753c511a8caca90297ff2d06d3bdf3580e8a9b44551d17698d58bac8"
     }
   ],
   "format": 1,

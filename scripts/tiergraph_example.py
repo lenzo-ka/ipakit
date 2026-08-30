@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Regenerate the documented single-phrase tiergraph example."""
+"""Regenerate the two documented tiergraph examples.
+
+They are a pair on purpose, because they show the two halves of where
+structure comes from. ``build_example`` asserts what a transcription
+cannot say: which orthographic word each run of phones spells, and that
+one of them is emphatic. ``build_derived_example`` asserts nothing --
+it reads a transcription whose boundary marks are written, and the
+utterance, its phrases and its words fall out of the reading.
+"""
 
 from __future__ import annotations
 
@@ -51,10 +59,41 @@ def build_example() -> ipakit.Form:
     return builder.build()
 
 
+#: A two-phrase utterance with every boundary it asserts written down.
+#:
+#: The single-phrase example above cannot demonstrate the derivation: one
+#: phrase filling one utterance writes no break, and a mark that is not
+#: written asserts nothing, so nothing above ``word`` would be derived and
+#: the figure would be right and empty. Two phrases and a closing ``‖``
+#: put the structure in the transcription, which is where reading can
+#: reach it.
+DERIVED_UTTERANCE = (
+    "pɚhˈæps ˈa\u035cɪ ˈæm ə bˈæd mˈæn"
+    " | "
+    "bˌʌt ˈa\u035cɪ ˈæm nˈɑt ə kɹˈuəl wˈʌn"
+    " ‖"
+)
+
+
+def build_derived_example() -> ipakit.Form:
+    """One utterance of two phrases, read rather than built.
+
+    Nothing here names a tier. The marks name levels, ``ipa.xml`` says
+    which tier each level terminates, and :meth:`Form.with_tier_intervals`
+    lands a span per node the reading asserts.
+    """
+    return ipakit.read(DERIVED_UTTERANCE).with_tier_intervals()
+
+
 def main() -> int:
-    destination = ROOT / "docs" / "figures" / "perhaps-i-am-a-bad-man.dot"
-    destination.write_text(build_example().to_dot(), encoding="utf-8")
-    print(destination.relative_to(ROOT))
+    figures = ROOT / "docs" / "figures"
+    for name, form in (
+        ("perhaps-i-am-a-bad-man", build_example()),
+        ("derived-from-boundaries", build_derived_example()),
+    ):
+        destination = figures / f"{name}.dot"
+        destination.write_text(form.to_dot(), encoding="utf-8")
+        print(destination.relative_to(ROOT))
     return 0
 
 
