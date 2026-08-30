@@ -30,7 +30,7 @@ class PhoibleLanguageCommand(Command):
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("code")
+        parser.add_argument("code", help="ISO 639-3 code or Glottocode to report on")
         _path_argument(parser)
 
     def run(self) -> int:
@@ -53,7 +53,10 @@ class PhoibleInventoryCommand(Command):
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("inventory_id")
+        parser.add_argument(
+            "inventory_id",
+            help="PHOIBLE InventoryID to write (see 'ipakit phoible language')",
+        )
         _path_argument(parser)
         add_output_arg(parser)
 

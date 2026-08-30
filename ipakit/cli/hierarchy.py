@@ -12,7 +12,6 @@ def add_features_arg(parser: argparse.ArgumentParser) -> None:
     """Add --features argument for hierarchy commands."""
     parser.add_argument(
         "--features",
-        "-f",
         help="Comma-separated feature order for grouping (e.g., 'manner,place,voiced')",
     )
 
@@ -25,10 +24,10 @@ class TextCommand(Command):
     grouping hierarchy (first feature = top level).
 
     Examples:
-        ipakit hierarchy text                      # Default feature order
-        ipakit hierarchy text -f manner            # Group by manner only
-        ipakit hierarchy text -f manner,place      # Manner then place
-        ipakit h text -f voiced,manner --indent 4  # Custom indentation
+        ipakit hierarchy text                          # Default feature order
+        ipakit hierarchy text --features manner        # Group by manner only
+        ipakit hierarchy text --features manner,place  # Manner then place
+        ipakit h text --features voiced,manner --indent 4  # Custom indentation
     """
 
     name = "text"
@@ -65,10 +64,10 @@ class DotCommand(Command):
     (requires graphviz 'dot' command in PATH).
 
     Examples:
-        ipakit hierarchy dot                       # Print DOT to stdout
-        ipakit hierarchy dot -o phones.dot        # Save to file
-        ipakit h dot -o phones.dot --render       # Save and render PNG
-        ipakit h dot -f manner,place -t "Consonants"  # Custom title
+        ipakit hierarchy dot                     # Print DOT to stdout
+        ipakit hierarchy dot -o phones.dot       # Save to file
+        ipakit h dot -o phones.dot --render      # Save and render PNG
+        ipakit h dot --features manner,place --title "Consonants"
     """
 
     name = "dot"
@@ -89,13 +88,11 @@ class DotCommand(Command):
         )
         parser.add_argument(
             "--render",
-            "-r",
             action="store_true",
             help="Also render to PNG using graphviz (requires 'dot' command)",
         )
         parser.add_argument(
             "--title",
-            "-t",
             default="IPA Phone Hierarchy",
             help="Graph title (default: 'IPA Phone Hierarchy')",
         )
@@ -144,8 +141,8 @@ class JsonCommand(Command):
 
     Examples:
         ipakit hierarchy json                      # Full hierarchy
-        ipakit hierarchy json -f manner            # Group by manner
-        ipakit h json -f manner,place > tree.json  # Save to file
+        ipakit hierarchy json --features manner    # Group by manner
+        ipakit h json --features manner,place > tree.json  # Save to file
     """
 
     name = "json"
@@ -179,9 +176,9 @@ class HierarchyGroup(CommandGroup):
         json   JSON tree (for programmatic use)
 
     Examples:
-        ipakit hierarchy text -f manner,place    # Text tree
-        ipakit hierarchy dot -o tree.dot -r      # DOT + PNG
-        ipakit hierarchy json > phones.json      # JSON export
+        ipakit hierarchy text --features manner,place  # Text tree
+        ipakit hierarchy dot -o tree.dot --render      # DOT + PNG
+        ipakit hierarchy json > phones.json            # JSON export
     """
 
     name = "hierarchy"

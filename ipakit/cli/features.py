@@ -27,6 +27,7 @@ class FeaturesCommand(Command):
     name = "features"
     aliases = ["f"]
     help = "Get phonetic features for an IPA phone or string"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -39,7 +40,6 @@ class FeaturesCommand(Command):
         add_format_arg(parser, ["text", "json", "short"])
         parser.add_argument(
             "--short",
-            "-s",
             action="store_const",
             const="short",
             dest="format",

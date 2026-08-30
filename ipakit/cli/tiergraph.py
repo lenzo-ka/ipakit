@@ -10,7 +10,19 @@ from .base import Command, add_output_arg
 
 
 class TiergraphCommand(Command):
+    """Write the complete ordered tier graph behind a form as Graphviz DOT.
+
+    The graph is the store a Form is kept in: every unit, every tier it
+    belongs to, and the order relations among them, rather than the flat
+    string a transcription prints as. Render it with 'dot -Tsvg'.
+
+    Examples:
+        ipakit tiergraph "kæt" -o kaet.dot
+        ipakit tiergraph --from-json form.json
+    """
+
     name, aliases, help = "tiergraph", [], "Render a form's tier graph as DOT"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

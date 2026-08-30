@@ -26,6 +26,7 @@ class DescribeCommand(Command):
     help = (
         "Generate human-readable description (e.g., 'p' → 'voiceless bilabial plosive')"
     )
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -69,6 +70,7 @@ class NaturalClassCommand(Command):
     help = (
         "Find features shared by a set of phones (e.g., 'p t k' → plosive, voiceless)"
     )
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -114,6 +116,7 @@ class MinimalPairsCommand(Command):
     name = "minimal-pairs"
     aliases = ["mp"]
     help = "Find phones differing by ~one feature (e.g., 'p' → 'ɸ', 'f', 't'...)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -172,6 +175,7 @@ class NearestCommand(Command):
     name = "nearest"
     aliases = ["near"]
     help = "Find n nearest phones by distance (e.g., 'p' → 'ɸ', 'f'...)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -236,6 +240,7 @@ class ValidateCommand(Command):
     name = "validate"
     aliases = ["val"]
     help = "Check IPA string for well-formedness"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -243,12 +248,13 @@ class ValidateCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument("ipa", help="IPA string to validate")
-        # Primary name is --warnings-as-errors; --strict/-s kept as aliases.
+        # Primary name is --warnings-as-errors; --strict kept as an alias.
         # (Distinct from the converter --strict, which fails on unknown symbols.)
+        # No short flag: -s is --set across the rules group, and one letter
+        # meaning two things is the collision this parser no longer has.
         parser.add_argument(
             "--warnings-as-errors",
             "--strict",
-            "-s",
             dest="strict",
             action="store_true",
             help="Treat warnings as errors",

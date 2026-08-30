@@ -25,6 +25,7 @@ class ToCmuCommand(Command):
     name = "to-cmu"
     aliases = []
     help = "Convert IPA to CMU ARPABET (e.g., 'kæt' → 'K AE0 T')"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -105,6 +106,7 @@ class ToXsampaCommand(Command):
     name = "to-xsampa"
     aliases = []
     help = "Convert IPA to X-SAMPA ASCII notation"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -177,6 +179,7 @@ class NormalizeCommand(Command):
     name = "normalize"
     aliases = ["norm"]
     help = "Normalize IPA to canonical form (adds tie bars, resolves ligatures)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -213,6 +216,7 @@ class TokenizeCommand(Command):
     name = "tokenize"
     aliases = ["tok"]
     help = "Split IPA string into segments (keeps diacritics attached)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -245,6 +249,7 @@ class ToJsonCommand(Command):
     name = "to-json"
     aliases = ["repr"]
     help = "Parse IPA into the complete JSON representation"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -319,6 +324,7 @@ class ToKatakanaCommand(Command):
     name = "to-katakana"
     aliases = []
     help = "Render an attested Japanese loanword adaptation (no approximation)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -352,6 +358,7 @@ class AddTiesCommand(Command):
     name = "add-ties"
     aliases = []
     help = "Add tie bars to create affricates/diphthongs (e.g., 'ts' → 't͡s')"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -387,6 +394,7 @@ class ToTimitCommand(Command):
     name = "to-timit"
     aliases = []
     help = "Convert IPA to TIMIT phoneset (e.g., 'kæt' → 'k ae t')"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -458,6 +466,7 @@ class ToKirshenbaumCommand(Command):
     name = "to-kirshenbaum"
     aliases = ["to-kirsh"]
     help = "Convert IPA to Kirshenbaum ASCII (e.g., 'ʃɑk' → 'SAk')"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

@@ -84,7 +84,7 @@ def test_stdin_repeatable_files_and_columns_preserve_csv(tmp_path: Path):
     second = tmp_path / "second.txt"
     first.write_text("an\n", encoding="utf-8")
     second.write_text("at\n", encoding="utf-8")
-    repeated = invoke("query", "[nasal]", "-f", first, "-f", second)
+    repeated = invoke("query", "[nasal]", "--file", first, "--file", second)
     assert repeated.returncode == 0
     assert repeated.stdout.splitlines() == ["an\t/clock/1/segment/0\tn\t"]
 
@@ -95,10 +95,12 @@ def test_stdin_repeatable_files_and_columns_preserve_csv(tmp_path: Path):
     table = tmp_path / "forms.csv"
     raw = 'id,ipa,note\n1,an,"kept, verbatim"\n2,at,plain\n'
     table.write_text(raw, encoding="utf-8", newline="")
-    by_name = invoke("query", "[nasal]", "-f", table, "--column", "ipa")
-    by_number = invoke("query", "[nasal]", "-f", table, "--column", "2")
+    by_name = invoke("query", "[nasal]", "--file", table, "--column", "ipa")
+    by_number = invoke("query", "[nasal]", "--file", table, "--column", "2")
     assert by_name.stdout == by_number.stdout == "an\t/clock/1/segment/0\tn\t\n"
-    filtered = invoke("query", "[nasal]", "-f", table, "--column", "ipa", "--filter")
+    filtered = invoke(
+        "query", "[nasal]", "--file", table, "--column", "ipa", "--filter"
+    )
     assert filtered.stdout == '1,an,"kept, verbatim"\n'
 
 
@@ -129,22 +131,26 @@ def test_every_corpus_subcommand_runs_through_the_binary(tmp_path: Path):
     location = tmp_path / "speech"
     assert invoke("corpus", "init", location).returncode == 0
     assert (
-        invoke("corpus", "add", "one", "anp", "-r", "broad", "-C", location).returncode
+        invoke(
+            "corpus", "add", "one", "anp", "--role", "broad", "-C", location
+        ).returncode
         == 0
     )
     assert (
-        invoke("corpus", "add", "two", "amp", "-r", "narrow", "-C", location).returncode
+        invoke(
+            "corpus", "add", "two", "amp", "--role", "narrow", "-C", location
+        ).returncode
         == 0
     )
     assert invoke("corpus", "validate", "-C", location).stdout == "valid\t2\n"
     assert invoke("corpus", "ids", "-C", location).stdout == "one\ntwo\n"
     assert invoke("corpus", "show", "one", "-C", location).stdout == "one\tbroad\tanp\n"
-    queried = invoke("corpus", "query", "[nasal]", "-r", "broad", "-C", location)
+    queried = invoke("corpus", "query", "[nasal]", "--role", "broad", "-C", location)
     assert queried.returncode == 0 and queried.stdout.startswith("one\tbroad\t")
     derived = invoke(
         "corpus",
         "derives",
-        "--rules",
+        "--set",
         "american-english",
         "--source",
         "broad",
@@ -175,7 +181,7 @@ def test_ingest_cmudict_reports_refusal_and_default_cited_query(tmp_path: Path):
     derived = invoke(
         "corpus",
         "derives",
-        "--rules",
+        "--set",
         "american-english",
         "--source",
         "cited",
@@ -193,11 +199,15 @@ def test_rules_derives_writes_full_report_and_prints_summary(tmp_path: Path):
     report = tmp_path / "report.json"
     assert invoke("corpus", "init", location).returncode == 0
     assert (
-        invoke("corpus", "add", "one", "anp", "-r", "broad", "-C", location).returncode
+        invoke(
+            "corpus", "add", "one", "anp", "--role", "broad", "-C", location
+        ).returncode
         == 0
     )
     assert (
-        invoke("corpus", "add", "two", "amp", "-r", "narrow", "-C", location).returncode
+        invoke(
+            "corpus", "add", "two", "amp", "--role", "narrow", "-C", location
+        ).returncode
         == 0
     )
     # Add replaces neither entry nor role, so make the pair through the API.

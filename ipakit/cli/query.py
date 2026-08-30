@@ -30,21 +30,65 @@ class _Input:
 
 
 class FindFormsCommand(Command):
-    """Find a structural query in IPA strings (the phonological grep)."""
+    """Find a structural query in IPA strings (the phonological grep).
+
+    The query is the rule notation with no arrow: a target, and optionally
+    an environment after '/'. One row per match -- the input, the paths it
+    matched at, the matching text, and any agreement variables it bound --
+    or with --filter, the matching input lines verbatim, so the command
+    composes with itself and with grep.
+
+    Input is the positional strings, one or more files, or stdin.
+
+    Examples:
+        ipakit query '[nasal]' an am              # match in two strings
+        ipakit query 'a / * _ #' --filter < words # keep the lines that match
+        ipakit query '[nasal]' --file forms.csv --column ipa
+    """
 
     name = "find"
     aliases: list[str] = []
     help = "Run the arrowless rule DSL over IPA strings"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("dsl")
-        parser.add_argument("strings", nargs="*")
-        parser.add_argument("--file", "-f", action="append", default=[])
-        parser.add_argument("--filter", action="store_true")
-        parser.add_argument("--exact", action="store_true")
-        parser.add_argument("--column")
-        parser.add_argument("--delimiter", default=None)
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+
+        parser.add_argument("dsl", help="Structural query in the arrowless rule DSL")
+        parser.add_argument(
+            "strings",
+            nargs="*",
+            help="IPA strings to search; with none given, read them from stdin",
+        )
+        parser.add_argument(
+            "--file",
+            action="append",
+            default=[],
+            metavar="FILE",
+            help="Read inputs from a file, or '-' for stdin (repeatable)",
+        )
+        parser.add_argument(
+            "--filter",
+            action="store_true",
+            help="Print the matching input lines verbatim instead of the matches",
+        )
+        parser.add_argument(
+            "--exact",
+            action="store_true",
+            help="Take the query as written, skipping wild-IPA normalization",
+        )
+        parser.add_argument(
+            "--column",
+            metavar="NAME|N",
+            help="Read the IPA from this column of each row, by header or by 1-based number",
+        )
+        parser.add_argument(
+            "--delimiter",
+            default=None,
+            help="Column separator (default: ',' for a .csv source, tab otherwise)",
+        )
         parser.add_argument(
             "--segmented", action="store_true", help="read whitespace-delimited units"
         )
@@ -416,7 +460,7 @@ class ShortsCommand(Command):
 
     Examples:
         ipakit query shorts plo bil +voi       # → manner=plosive place=bilabial voiced=+
-        ipakit q shorts manner=plosive -s      # → plo
+        ipakit q shorts manner=plosive --to-shorts   # → plo
         ipakit q shorts +voi plo               # Expand to full features
     """
 
@@ -436,7 +480,6 @@ class ShortsCommand(Command):
         )
         parser.add_argument(
             "--to-shorts",
-            "-s",
             action="store_true",
             help="Convert feature=value pairs to short names",
         )

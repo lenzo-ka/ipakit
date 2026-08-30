@@ -356,6 +356,7 @@ class ApplyCommand(RuleCommand):
     name = "apply"
     aliases = ["a"]
     help = "Apply rules to forms and print the derived forms"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -389,7 +390,20 @@ class ApplyCommand(RuleCommand):
 
 
 class DerivesCommand(RuleCommand):
-    """Run a reproducible rule-set experiment over corpus role pairs."""
+    """Run a reproducible rule-set experiment over corpus role pairs.
+
+    For every entry carrying both roles, ask whether the rules derive the
+    target form from the source, and classify the answer. The coverage line
+    and the counts go to stdout; the full per-entry record, including what
+    each refusal was, is written to --report so a run can be compared with
+    a later one instead of re-read from a terminal.
+
+    The rule set is named the way the rest of this group names one: -r
+    notation, -s a shipped set, or --file a rule file. ``ipakit corpus
+    derives`` is the same question answered on the terminal alone, and
+    takes only a shipped set. No example is shown here because every one
+    of them needs a corpus on disk; docs/corpus.md has a worked run.
+    """
 
     name = "derives"
     aliases: list[str] = []
@@ -397,13 +411,44 @@ class DerivesCommand(RuleCommand):
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+
         add_rules_args(parser)
-        parser.add_argument("--corpus", "-C", type=Path, required=True)
-        parser.add_argument("--source", required=True)
-        parser.add_argument("--target", required=True)
-        parser.add_argument("--split")
-        parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
-        parser.add_argument("--report", type=Path, required=True)
+        parser.add_argument(
+            "--corpus",
+            "-C",
+            type=Path,
+            required=True,
+            help="Directory holding the corpus to run over",
+        )
+        parser.add_argument(
+            "--source",
+            required=True,
+            help="Role the derivation starts from, e.g. cited",
+        )
+        parser.add_argument(
+            "--target",
+            required=True,
+            help="Role the derivation must reach, e.g. narrow",
+        )
+        parser.add_argument(
+            "--split",
+            metavar="NAME",
+            help="Run over this named split of the corpus instead of all of it",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=DEFAULT_LIMIT,
+            help=f"Cap on the forms explored per entry (default: {DEFAULT_LIMIT})",
+        )
+        parser.add_argument(
+            "--report",
+            type=Path,
+            required=True,
+            help="Path to write the full per-entry report to, as JSON",
+        )
 
     def run(self) -> int:
         try:
@@ -452,6 +497,7 @@ class TraceCommand(RuleCommand):
     name = "trace"
     aliases = ["t"]
     help = "Show the derivation trace (which rule fired where)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -545,6 +591,7 @@ class VariantsCommand(RuleCommand):
     name = "variants"
     aliases = ["v"]
     help = "Every form the rules derive, when a rule is optional ('~>')"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -638,6 +685,7 @@ class RecognizeCommand(RuleCommand):
     name = "recognize"
     aliases = ["rec"]
     help = "Report where a rule's environment holds, with no rewriting"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -704,6 +752,7 @@ class UnitsCommand(RuleCommand):
     name = "units"
     aliases = ["u"]
     help = "Split a form into rule units (boundaries kept)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -760,6 +809,7 @@ class MoraeCommand(Command):
     name = "morae"
     aliases = []
     help = "Show morae for an attested Japanese loanword adaptation"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
