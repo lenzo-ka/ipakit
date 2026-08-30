@@ -18,23 +18,64 @@ if TYPE_CHECKING:
     from ..mapper import CMUMapper
 
 
-#: Said on every command that reads IPA text from the command line.
+#: Said on every command that reads a phonetic notation from the command
+#: line, keyed by the notation the command declares.
 #:
-#: Every ASCII letter is a registered phone, so ``cat`` parses as the three
-#: phones ``c a t`` and is answered as confidently as ``kæt`` is. Nothing in
-#: the reader can tell an orthographic word from a real transcription --
-#: ``kat`` is genuine IPA and is used throughout the test corpus -- so the
-#: hazard is documented at the point of use rather than guessed at. The
-#: ``--lax``/exit-3 policy does not fire here: it reports symbols that could
-#: not be read, and these were all read.
+#: In each of these notations every lowercase ASCII letter is a symbol --
+#: which is to say, the letters an English word is spelled with -- so
+#: ``cat`` parses as three phones and is answered as confidently as a
+#: deliberate transcription is. Nothing in the reader can tell an
+#: orthographic word from a real one -- ``kat`` is genuine IPA and is used
+#: throughout the test corpus -- so the hazard is documented at the point
+#: of use rather than guessed at. The ``--lax``/exit-3 policy does not
+#: fire here: it reports symbols that could not be read, and these were
+#: all read.
 #:
-#: Written once and attached by :func:`register_command`, so a command that
-#: declares ``reads_ipa`` cannot be missing the note.
-ORTHOGRAPHY_NOTE = """
+#: Lowercase is the load-bearing word. Kirshenbaum leaves four uppercase
+#: letters unassigned, and those do exit 3 -- so it is specifically a
+#: lowercase spelling that slips through, and specifically that which the
+#: notes have to warn about.
+#:
+#: Keyed rather than written once because the note has to be true of the
+#: notation it appears under. ipakit's own wording -- "every ASCII letter
+#: is a registered phone" -- is false on X-SAMPA, whose letters are ASCII
+#: stand-ins that mostly do not denote themselves.
+#:
+#: X-SAMPA and Kirshenbaum are species of wild (``docs/ties.md``): ASCII
+#: conventions for writing IPA, which is why ``ipakit/xsampa.py`` hands
+#: its result to ``from_wild`` to canonicalize. That is also why the
+#: hazard is sharpest here. A wild ASCII convention has to spend its
+#: letters on something, so it assigns nearly all of them -- and an
+#: alphabet with no unassigned lowercase letters is one in which every
+#: English word is a legible transcription.
+#:
+#: :func:`register_command` attaches the entry a command names, and raises
+#: where a command names a notation with no entry, so a notation cannot be
+#: declared without its note being written.
+NOTATION_NOTES = {
+    "IPA": """
 Input is IPA transcription, not orthography. Every ASCII letter is a
 registered phone, so a word written in spelling -- 'cat', 'pin' -- is read
 as the phones it spells and answered confidently rather than refused.
-"""
+""",
+    "X-SAMPA": """
+Input is X-SAMPA, not orthography. Every lowercase ASCII letter is an
+X-SAMPA symbol, so a word written in spelling is read as the phones it
+encodes and answered confidently rather than refused -- and the reading is
+rarely the spelling's: 'cat' is read as the palatal plosive 'c', then 'a',
+then 't'.
+""",
+    "Kirshenbaum": """
+Input is Kirshenbaum ASCII IPA, not orthography. Every lowercase ASCII
+letter is a Kirshenbaum symbol, so a word written in spelling is read as
+the phones it encodes and answered confidently rather than refused -- and
+the reading is rarely the spelling's: 'cat' is read as the palatal plosive
+'c', then 'a', then 't'.
+""",
+}
+
+#: The notation ipakit is written in, and the value most commands declare.
+IPA = "IPA"
 
 
 class Command(ABC):
@@ -44,14 +85,18 @@ class Command(ABC):
     aliases: list[str] = []  # Short aliases
     help: str  # Help text
 
-    #: True where the command reads IPA text from the command line.
+    #: The phonetic notation the command reads from the command line, or
+    #: None where it reads no transcription at all.
     #:
-    #: The only consumer is :func:`register_command`, which attaches
-    #: :data:`ORTHOGRAPHY_NOTE` to the command's help. It is a declaration
-    #: rather than something inferred from the argument list because an
-    #: argument's name says nothing about the notation it carries:
-    #: ``convert from-xsampa`` takes a transcription too, and it is not IPA.
-    reads_ipa: bool = False
+    #: The only consumer is :func:`register_command`, which attaches the
+    #: matching :data:`NOTATION_NOTES` entry to the command's help. It is a
+    #: declaration rather than something inferred from the argument list
+    #: because an argument's name says nothing about the notation it
+    #: carries: ``convert from-xsampa`` takes a transcription too, and it
+    #: is not IPA. It names the notation rather than answering "is this
+    #: IPA?" for the same reason -- the routes that are not IPA are not
+    #: thereby free of the hazard, they carry a different form of it.
+    reads_notation: str | None = None
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -231,8 +276,9 @@ def register_command(
       the command is rather than only what it is called;
     * whatever :meth:`Command.add_arguments` adds, which may overwrite the
       description with the same docstring;
-    * :data:`ORTHOGRAPHY_NOTE`, where the command declares ``reads_ipa`` --
-      after ``add_arguments``, so it survives that overwrite.
+    * the :data:`NOTATION_NOTES` entry for the notation the command
+      declares in ``reads_notation`` -- after ``add_arguments``, so it
+      survives that overwrite.
     """
     parser = subparsers.add_parser(
         cmd_cls.name,
@@ -242,10 +288,16 @@ def register_command(
     parser.description = cmd_cls.__doc__
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
     cmd_cls.add_arguments(parser)
-    if cmd_cls.reads_ipa:
-        parser.description = (
-            (parser.description or "").rstrip() + "\n" + ORTHOGRAPHY_NOTE
-        )
+    if cmd_cls.reads_notation is not None:
+        try:
+            note = NOTATION_NOTES[cmd_cls.reads_notation]
+        except KeyError:
+            raise ValueError(
+                f"{cmd_cls.name} declares reads_notation="
+                f"{cmd_cls.reads_notation!r}, which has no entry in "
+                f"NOTATION_NOTES; write the note that is true of it"
+            ) from None
+        parser.description = (parser.description or "").rstrip() + "\n" + note
     add_lax_arg(parser)
     parser.set_defaults(cmd_cls=cmd_cls)
     return parser

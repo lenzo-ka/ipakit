@@ -20,13 +20,16 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import string
 import sys
+import warnings
 from collections import defaultdict
 from typing import Any
 
+import ipakit
 import ipakit.cli
 import pytest
-from ipakit.cli.base import Command
+from ipakit.cli.base import NOTATION_NOTES, Command, register_command
 
 #: A word in English spelling, and no kind of transcription. Every letter
 #: in it is a registered phone, so nothing in the reader can refuse it --
@@ -166,8 +169,8 @@ class TestEveryCommandSaysWhatItIs:
         assert blank == [], f"{' '.join(path)} has arguments with no help"
 
 
-#: One invocation per IPA-reading route that ANSWERS a plain orthographic
-#: word, each spelling a real English word. Written out because the
+#: One invocation per notation-reading route that ANSWERS a plain
+#: orthographic word, each spelling a real English word. Written out because the
 #: unconditional sweep below can only hand a leaf one word, and a command
 #: wanting two forms or a rule set is never reached that way.
 WITNESSES = [
@@ -198,6 +201,11 @@ WITNESSES = [
     ["convert", "tokenize", "cat"],
     ["convert", "normalize", "cat"],
     ["convert", "add-ties", "cat"],
+    # Not IPA: 'cat' is read as three X-SAMPA (Kirshenbaum) symbols, and
+    # the answer is glyph-identical to the input, so nothing on screen
+    # says a reading happened at all.
+    ["convert", "from-xsampa", "cat"],
+    ["convert", "from-kirshenbaum", "cat"],
     ["analysis", "describe", "cat"],
     ["analysis", "validate", "cat"],
     ["analysis", "natural-class", "c", "t"],
@@ -232,41 +240,53 @@ class TestOrthographyIsNotIPA:
     ``kat`` is genuine IPA used throughout the test corpus. A guess that
     blocks correct input is worse than the hazard. What is left is to say
     so at the point of use, and to keep saying it -- which is these three
-    checks: the note is attached where a command declares it reads IPA,
-    the routes that swallow an orthographic word are exactly the ones
-    carrying the note, and the escapes are pinned rather than assumed shut.
+    checks: the note is attached where a command declares the notation it
+    reads, the routes that swallow an orthographic word are exactly the
+    ones carrying a note, and the escapes are pinned rather than assumed
+    shut.
+
+    The hazard is not ipakit's alone. ``convert from-xsampa cat`` answers
+    ``cat``, because all 52 ASCII letters are X-SAMPA symbols -- so the
+    word is read as a palatal plosive, an open front vowel and an alveolar
+    plosive, and the answer is glyph-identical to what was typed. Each
+    notation therefore carries its own note rather than sharing one:
+    ipakit's wording, "every ASCII letter is a registered phone", is false
+    of an alphabet whose letters mostly do not denote themselves.
     """
 
-    IPA_ROUTES = [
+    NOTATION_ROUTES = [
         (path, parser)
         for path, parser in LEAVES
-        if getattr(_command_of(parser), "reads_ipa", False)
+        if getattr(_command_of(parser), "reads_notation", None) is not None
     ]
 
     #: Leaves that answer a plain orthographic word with exit 0 and read
-    #: something other than IPA. Pinned rather than skipped: if one starts
-    #: reading IPA, or a new leaf joins them, this fails and the limit gets
-    #: looked at instead of quietly widening.
-    NOT_IPA = {
+    #: no phonetic notation at all. Pinned rather than skipped: if one
+    #: starts reading a notation, or a new leaf joins them, this fails and
+    #: the limit gets looked at instead of quietly widening.
+    #:
+    #: ``convert from-xsampa`` and ``from-kirshenbaum`` were held here
+    #: because ipakit's own note would have been false on them -- their
+    #: letters are symbols of a different alphabet. They now declare that
+    #: alphabet and carry its own note. ``query shorts`` was held because
+    #: it reads short codes rather than phones; it now says so when a term
+    #: names no code, so it no longer answers this word with exit 0.
+    NOT_A_NOTATION = {
         # 'cat' is a directory name here, not a transcription.
         ("corpus", "init"),
-        # A different notation, with the same hazard and a different note
-        # to write; ipakit's own note would be false on them.
-        ("convert", "from-xsampa"),
-        ("convert", "from-kirshenbaum"),
-        # Short feature codes ('plo', 'bil'), not phones.
-        ("query", "shorts"),
     }
 
     def test_the_sweep_is_not_vacuous(self):
-        assert len(self.IPA_ROUTES) >= 30, f"only {len(self.IPA_ROUTES)} IPA routes"
+        assert (
+            len(self.NOTATION_ROUTES) >= 30
+        ), f"only {len(self.NOTATION_ROUTES)} notation routes"
 
-    def test_every_ipa_route_is_measured_somewhere(self):
+    def test_every_notation_route_is_measured_somewhere(self):
         """The three tables above cover every declared IPA route between
         them. Without this a route could be declared, get the note by
         construction, and never be run against an orthographic word at
         all -- which is the half of the predicate that is evidence."""
-        declared = {path for path, _ in self.IPA_ROUTES}
+        declared = {path for path, _ in self.NOTATION_ROUTES}
         measured = set(NEEDS_A_CORPUS)
         for argv in [*WITNESSES, *REFUSERS]:
             measured.add(
@@ -277,10 +297,12 @@ class TestOrthographyIsNotIPA:
 
     @pytest.mark.parametrize(
         "path, parser",
-        IPA_ROUTES,
-        ids=[" ".join(path) for path, _ in IPA_ROUTES],
+        NOTATION_ROUTES,
+        ids=[" ".join(path) for path, _ in NOTATION_ROUTES],
     )
-    def test_a_route_that_reads_ipa_says_it_is_not_orthography(self, path, parser):
+    def test_a_route_that_reads_a_notation_says_it_is_not_orthography(
+        self, path, parser
+    ):
         assert "orthograph" in parser.format_help()
 
     @pytest.mark.parametrize("path, parser", LEAVES, ids=IDS)
@@ -296,7 +318,7 @@ class TestOrthographyIsNotIPA:
         monkeypatch.chdir(tmp_path)
         if _run(monkeypatch, [*path, ORTHOGRAPHIC]) != 0:
             return
-        if tuple(path) in self.NOT_IPA:
+        if tuple(path) in self.NOT_A_NOTATION:
             return
         assert "orthograph" in parser.format_help(), (
             f"{' '.join(path)} answered {ORTHOGRAPHIC!r} without saying "
@@ -359,3 +381,102 @@ class TestEveryLeafTakesTheGlobalFlags:
     @pytest.mark.parametrize("path, parser", LEAVES, ids=IDS)
     def test_the_leaf_names_the_class_that_runs_it(self, path, parser):
         assert _command_of(parser) is not None
+
+
+class TestANotationCannotBeDeclaredWithoutItsNote:
+    """``reads_notation`` names an alphabet rather than answering "is this
+    IPA?", which means the next notation ipakit reads is one string away
+    from being declared -- and its note is a separate act that nothing
+    would otherwise require.
+
+    So registration refuses a notation it has no note for. Without this
+    the declaration would attach nothing and the command would look
+    exactly like one that reads no transcription at all, which is the
+    silent-wrong-answer shape the notes exist to close.
+    """
+
+    def _leaf(self, notation):
+        class _Probe(Command):
+            name = "probe"
+            help = "probe"
+            reads_notation = notation
+
+            def run(self) -> int:  # pragma: no cover - never executed
+                return 0
+
+        return _Probe
+
+    def _register(self, cmd_cls):
+        parser = argparse.ArgumentParser()
+        return register_command(parser.add_subparsers(), cmd_cls)
+
+    def test_an_unwritten_notation_is_refused_by_name(self):
+        with pytest.raises(ValueError, match="Cyrillic"):
+            self._register(self._leaf("Cyrillic"))
+
+    def test_every_written_notation_registers(self):
+        """The other half: the refusal above must be about the note being
+        missing, not about registration rejecting every notation."""
+        for notation in NOTATION_NOTES:
+            parser = self._register(self._leaf(notation))
+            assert "orthograph" in parser.format_help(), notation
+
+    def test_a_leaf_that_declares_nothing_still_registers(self):
+        parser = self._register(self._leaf(None))
+        assert "orthograph" not in parser.format_help()
+
+
+class TestTheNotesSayTheTrueThingAboutTheirAlphabet:
+    """Each note claims every LOWERCASE ASCII letter is a symbol of the
+    notation it heads. That is the claim the hazard rests on -- an English
+    word is spelled in lowercase, so if any lowercase letter were
+    unassigned the reader would refuse the word and there would be nothing
+    to warn about.
+
+    It is checked rather than asserted because it is a fact about three
+    conversion tables that no one edits with this note in mind. Kirshenbaum
+    already leaves four UPPERCASE letters unassigned, which is why the note
+    says lowercase and why the difference is worth a test rather than a
+    comment.
+    """
+
+    READERS = {
+        "IPA": lambda s: ipakit.tokenize(s),
+        "X-SAMPA": lambda s: ipakit.from_xsampa(s),
+        "Kirshenbaum": lambda s: ipakit.from_kirshenbaum(s),
+    }
+
+    #: ASCII ``g`` is not house IPA, and that is the settled design rather
+    #: than a gap.
+    #:
+    #: IPA's ``g`` is U+0261 LATIN SMALL LETTER SCRIPT G, so ASCII ``g``
+    #: (U+0067) is a different character: a keyboard stand-in, which
+    #: ``docs/ties.md`` calls a soft read and puts behind the wild-import
+    #: door. Strict parsing therefore refuses it -- ``tokenize("dog") ==
+    #: ["d", "o"]``, reported, never quietly substituted -- while
+    #: ``from_wild`` and ``normalize_lookalikes`` read it as ``ɡ``, and
+    #: ``ipakit features`` opens that door deliberately for interactive
+    #: lookup (``--no-lookalikes`` closes it; ``docs/cli-api-sync.md``
+    #: records the intent).
+    #:
+    #: Pinned because it is the one letter where "every lowercase letter
+    #: is a symbol" is true of the wild reading and false of the strict
+    #: one, and a reader of this class should not have to rediscover
+    #: which of the two the notes are about.
+    KNOWN_UNASSIGNED = {"IPA": ["g"]}
+
+    def test_every_declared_notation_has_a_reader_here(self):
+        """Otherwise a notation could be added, get an unchecked note, and
+        this class would pass by not looking at it."""
+        assert set(self.READERS) == set(NOTATION_NOTES)
+
+    @pytest.mark.parametrize("notation", sorted(READERS))
+    def test_every_lowercase_letter_is_a_symbol(self, notation):
+        read = self.READERS[notation]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            unassigned = [c for c in string.ascii_lowercase if not read(c)]
+        assert unassigned == self.KNOWN_UNASSIGNED.get(notation, []), (
+            f"{notation} leaves {unassigned} unassigned, so its note's claim "
+            "that a spelled word is read rather than refused has changed"
+        )

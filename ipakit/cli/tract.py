@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .base import Command, CommandGroup, add_format_arg, add_output_arg
+from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
 
 
 class DrawCommand(Command):
@@ -41,7 +41,7 @@ class DrawCommand(Command):
     name = "draw"
     aliases = []
     help = "Draw a phone's mid-sagittal tract figure (SVG, or a page)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

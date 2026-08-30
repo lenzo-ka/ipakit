@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from ..form import Form
-from .base import Command, add_output_arg
+from .base import IPA, Command, add_output_arg
 
 
 class TiergraphCommand(Command):
@@ -22,7 +22,7 @@ class TiergraphCommand(Command):
     """
 
     name, aliases, help = "tiergraph", [], "Render a form's tier graph as DOT"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

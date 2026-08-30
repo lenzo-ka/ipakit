@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from .base import Command, add_format_arg, add_output_arg, add_strict_arg
+from .base import IPA, Command, add_format_arg, add_output_arg, add_strict_arg
 
 
 class FeaturesCommand(Command):
@@ -27,7 +27,7 @@ class FeaturesCommand(Command):
     name = "features"
     aliases = ["f"]
     help = "Get phonetic features for an IPA phone or string"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

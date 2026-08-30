@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .. import corpus, rules
 from .._corpus_query import _normalize_wild_query
-from .base import Command, CommandGroup
+from .base import IPA, Command, CommandGroup
 
 
 def _location(parser: argparse.ArgumentParser) -> None:
@@ -56,7 +56,7 @@ class Add(Command):
     """
 
     name, aliases, help = "add", [], "Add a named form"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -209,7 +209,7 @@ class Query(Command):
     """
 
     name, aliases, help = "query", [], "Stream structural matches"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

@@ -114,7 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Breaking CLI cleanup: a short flag names one option across the whole parser. `-f` is `--format` only (`query find --file` and `hierarchy --features` lose it), `-r` is `--rule` only (`corpus --role` and `hierarchy dot --render` lose it), `-s` is `--set` only (`features --short`, `query shorts --to-shorts` and `analysis validate --warnings-as-errors` lose it), `-t` is `--threshold` only (`hierarchy dot --title` loses it), and `corpus derives --rules` is `--set`/`-s`, as `ipakit rules` spells it.
-- Every CLI leaf prints a description and every argument prints help; a command that reads IPA says in its help that the input is IPA rather than orthography.
+- Every CLI leaf prints a description and every argument prints help; a command declares the notation it reads and its help says that input is that notation rather than orthography. `convert from-xsampa` and `from-kirshenbaum` carry a note written for their own alphabet, where every lowercase ASCII letter is a symbol and `cat` reads as a palatal plosive before an open front vowel.
 - The containment projection is memoized by content: repeated reads of equal forms reuse one lowered graph rather than rebuilding it. The cache is inventory-independent and returns read-only projections, and it holds a bounded number of entries.
 - The tract animation gives the jaw a signed hinge (low vowels open it, jaw-carried closures raise it, dependent articulators ride it) and seats both lips at centered rests so a closure shares the travel between them instead of the upper lip doing most of it.
 - Breaking API cleanup: converters now use uniform ``to_``/``from_`` names with an ``ipa_string`` input, distance ``weighted``/``strict`` options are keyword-only, and CLI ``convert to-ipa`` is now ``convert from-cmu``.
@@ -183,6 +183,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `query shorts` printed nothing and exited 0 for a term naming no code. It reports the terms it could not read and exits 3, distinguishing a term not written as `feature=value` from a pair no short code names.
 - `syllabifier` dropped an onset whose stratum the module did not name — 39 of English's 125 declared onsets after a rename, at `strictness="permissive"`, with no error. The admitted strata are read from the shipped declarations and an unrecognized stratum is refused by name.
 - `read_language` refuses a `mode` no derivation implements instead of falling through to the constraints branch.
 - Three rows of `docs/cli-api-sync.md` were marked library-only while the CLI reached them (`load_ipa_features`, the syllabification row, `notebook`); each row's marker is now crossed with the measured `LIBRARY_ONLY` set.

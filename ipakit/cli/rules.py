@@ -70,7 +70,7 @@ from ..rules import (
     parse,
     shipped,
 )
-from .base import Command, CommandGroup, add_format_arg, add_output_arg
+from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..features import IPAFeatures
@@ -356,7 +356,7 @@ class ApplyCommand(RuleCommand):
     name = "apply"
     aliases = ["a"]
     help = "Apply rules to forms and print the derived forms"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -497,7 +497,7 @@ class TraceCommand(RuleCommand):
     name = "trace"
     aliases = ["t"]
     help = "Show the derivation trace (which rule fired where)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -591,7 +591,7 @@ class VariantsCommand(RuleCommand):
     name = "variants"
     aliases = ["v"]
     help = "Every form the rules derive, when a rule is optional ('~>')"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -685,7 +685,7 @@ class RecognizeCommand(RuleCommand):
     name = "recognize"
     aliases = ["rec"]
     help = "Report where a rule's environment holds, with no rewriting"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -752,7 +752,7 @@ class UnitsCommand(RuleCommand):
     name = "units"
     aliases = ["u"]
     help = "Split a form into rule units (boundaries kept)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -809,7 +809,7 @@ class MoraeCommand(Command):
     name = "morae"
     aliases = []
     help = "Show morae for an attested Japanese loanword adaptation"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
