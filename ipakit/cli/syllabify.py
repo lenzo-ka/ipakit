@@ -6,7 +6,7 @@ import argparse
 from typing import Any
 
 from ..syllable import Syllabification, languages, syllabify
-from .base import Command, add_format_arg
+from .base import IPA, Command, add_format_arg
 
 
 class SyllabifyCommand(Command):
@@ -26,7 +26,7 @@ class SyllabifyCommand(Command):
     name = "syllabify"
     aliases: list[str] = []
     help = "Syllabify an IPA form using a language declaration"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

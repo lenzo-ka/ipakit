@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 
 from ..distance_model import DistanceModel
 from ..models import Phoneset
-from .base import Command, CommandGroup, add_format_arg
+from .base import IPA, Command, CommandGroup, add_format_arg
 
 if TYPE_CHECKING:
     from ..features import IPAFeatures
@@ -72,7 +72,7 @@ class PairCommand(Command):
     name = "pair"
     aliases = []
     help = "Distance between two phones (0.0=identical, 1.0=max different)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -121,7 +121,7 @@ class SegmentCommand(Command):
     name = "segment"
     aliases = ["seg"]
     help = "Distance between segments (handles diacritics, affricates)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -165,7 +165,7 @@ class MatrixCommand(Command):
     name = "matrix"
     aliases = []
     help = "Pairwise distance matrix for multiple phones"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -224,7 +224,7 @@ class ConfusabilityCommand(Command):
     name = "confusability"
     aliases = ["conf"]
     help = "Inventory-relative confusability/distance between two phones"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -307,7 +307,7 @@ class WordCommand(Command):
     name = "word"
     aliases = ["w"]
     help = "Inventory-relative distance/similarity between two IPA words"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -451,7 +451,7 @@ class DirectionalCommand(Command):
     name = "directional"
     aliases = ["dir"]
     help = "Directional reference-to-hypothesis word distance"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -528,7 +528,7 @@ class NearestCommand(Command):
     name = "nearest"
     aliases = []
     help = "Nearest acceptable pronunciation in a set (best match + which won)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -617,7 +617,7 @@ class SeqCommand(Command):
     name = "seq"
     aliases = []
     help = "Distance/similarity between two pre-tokenized phone sequences"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

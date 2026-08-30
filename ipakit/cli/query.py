@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from .._corpus_query import _normalize_wild_query
 from ..constants import MAX_EXAMPLE_PHONES
 from ..models import Feature
 from .base import (
+    IPA,
     Command,
     CommandGroup,
     add_format_arg,
@@ -49,7 +51,7 @@ class FindFormsCommand(Command):
     name = "find"
     aliases: list[str] = []
     help = "Run the arrowless rule DSL over IPA strings"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -485,19 +487,59 @@ class ShortsCommand(Command):
         )
         add_format_arg(parser)
 
+    def _report_unreadable(self, unreadable: list[str], what: str) -> None:
+        """Say which terms named nothing, so an empty answer is not silent.
+
+        Both directions of this command are filters: a term naming no
+        registered code, and a pair naming no short, are simply absent
+        from the result. That is right for the library -- ``slot`` has no
+        short name and :meth:`features_to_shorts` is asked for the ones
+        that do -- and wrong at a command line, where the terms were
+        typed in the expectation of an answer. ``query shorts cat``
+        printed nothing and exited 0, which reads as "``cat`` expands to
+        no features" rather than "there is no such code".
+
+        Reported as a warning rather than an error because the terms that
+        *were* read are still answered: the dispatcher turns any warning
+        raised inside the package into :data:`~ipakit.cli.policy.LOSSY`,
+        so a caller reading only the exit status learns the input was not
+        taken in full, and ``--lax`` accepts it as before.
+        """
+        if unreadable:
+            warnings.warn(
+                f"dropped {len(unreadable)} term(s) {sorted(set(unreadable))}: "
+                f"{what}, so the result is shorter than the input.",
+                stacklevel=2,
+            )
+
     def run(self) -> int:
+        unreadable: list[str] = []
         if self.args.to_shorts:
             # Parse feature=value pairs
             feats = {}
+            malformed: list[str] = []
             for item in self.args.terms:
-                if "=" in item:
-                    k, v = item.split("=", 1)
-                    feats[k] = v
+                if "=" not in item:
+                    malformed.append(item)
+                    continue
+                k, v = item.split("=", 1)
+                if not self.ipa.features_to_shorts({k: v}):
+                    unreadable.append(item)
+                    continue
+                feats[k] = v
             shorts = self.ipa.features_to_shorts(feats)
+            self._report_unreadable(malformed, "not written as feature=value")
+            self._report_unreadable(unreadable, "no short code names that value")
             print(" ".join(shorts))
         else:
             # Convert short names to features
             feats = self.ipa.shorts_to_features(self.args.terms)
+            unreadable = [
+                term
+                for term in self.args.terms
+                if not self.ipa.shorts_to_features([term])
+            ]
+            self._report_unreadable(unreadable, "no such short code is registered")
             if self.format == "json":
                 self.output_json(feats)
             else:

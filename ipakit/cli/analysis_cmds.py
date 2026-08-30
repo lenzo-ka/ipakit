@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from .base import Command, CommandGroup, add_format_arg, add_no_defaults_arg
+from .base import IPA, Command, CommandGroup, add_format_arg, add_no_defaults_arg
 
 
 class DescribeCommand(Command):
@@ -26,7 +26,7 @@ class DescribeCommand(Command):
     help = (
         "Generate human-readable description (e.g., 'p' → 'voiceless bilabial plosive')"
     )
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -70,7 +70,7 @@ class NaturalClassCommand(Command):
     help = (
         "Find features shared by a set of phones (e.g., 'p t k' → plosive, voiceless)"
     )
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -116,7 +116,7 @@ class MinimalPairsCommand(Command):
     name = "minimal-pairs"
     aliases = ["mp"]
     help = "Find phones differing by ~one feature (e.g., 'p' → 'ɸ', 'f', 't'...)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -175,7 +175,7 @@ class NearestCommand(Command):
     name = "nearest"
     aliases = ["near"]
     help = "Find n nearest phones by distance (e.g., 'p' → 'ɸ', 'f'...)"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -240,7 +240,7 @@ class ValidateCommand(Command):
     name = "validate"
     aliases = ["val"]
     help = "Check IPA string for well-formedness"
-    reads_ipa = True
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
