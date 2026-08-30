@@ -12,10 +12,6 @@ from .base import Command, add_format_arg
 class SyllabifyCommand(Command):
     """Syllabify an IPA form using a language declaration.
 
-    Input is IPA transcription, not orthography. For example, English
-    ``strɛŋθ`` is an IPA form; ``strength`` would be read literally as IPA
-    symbols and could produce a confidently wrong analysis.
-
     The output reports every syllable interval and any unsyllabified residue.
     Conflicts between stated and freely derived syllable edges are also shown.
 
@@ -30,6 +26,7 @@ class SyllabifyCommand(Command):
     name = "syllabify"
     aliases: list[str] = []
     help = "Syllabify an IPA form using a language declaration"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

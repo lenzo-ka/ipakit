@@ -12,15 +12,33 @@ from .base import Command, CommandGroup
 
 
 def _location(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--corpus", "-C", type=Path, default=Path("."))
+    parser.add_argument(
+        "--corpus",
+        "-C",
+        type=Path,
+        default=Path("."),
+        help="Directory holding the corpus (default: the working directory)",
+    )
 
 
 class Init(Command):
+    """Write the directory layout a corpus needs, with no entries in it.
+
+    A corpus is a directory of JSON entries plus the assets they name;
+    everything else in this group reads or writes one that already exists.
+    """
+
     name, aliases, help = "init", [], "Create an empty corpus"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("location", type=Path, nargs="?", default=Path("."))
+        parser.add_argument(
+            "location",
+            type=Path,
+            nargs="?",
+            default=Path("."),
+            help="Directory to create the corpus in (default: the working directory)",
+        )
 
     def run(self) -> int:
         corpus.create(self.args.location)
@@ -28,13 +46,31 @@ class Init(Command):
 
 
 class Add(Command):
+    """Store one transcription of one entry, under the role it plays.
+
+    An entry holds several forms of the same item -- a cited pronunciation,
+    a narrow transcription, an observed one -- and the role is what tells
+    them apart. This writes a whole entry, and an ID already in the corpus
+    is refused rather than overwritten; a second role on an entry that
+    exists goes through the Python API.
+    """
+
     name, aliases, help = "add", [], "Add a named form"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("fileid")
-        parser.add_argument("text", nargs="?")
-        parser.add_argument("--role", "-r", required=True)
+        parser.add_argument("fileid", help="Entry ID to store the form under")
+        parser.add_argument(
+            "text",
+            nargs="?",
+            help="IPA form to store; with none given, read it from stdin",
+        )
+        parser.add_argument(
+            "--role",
+            required=True,
+            help="Which transcription of the entry this is, e.g. cited, broad",
+        )
         parser.add_argument(
             "--segmented", action="store_true", help="read whitespace-delimited units"
         )
@@ -60,12 +96,19 @@ class Add(Command):
 
 
 class IngestCMUdict(Command):
+    """Read a CMUdict file into a corpus, one entry per pronunciation.
+
+    Each word arrives as a ``cited`` form. A line whose phones do not map
+    is refused rather than approximated, and every refusal is reported on
+    stderr with its line number and reason; the summary counts both.
+    """
+
     name, aliases, help = "ingest-cmudict", [], "Ingest an external CMUdict file"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("corpus", type=Path)
-        parser.add_argument("path", type=Path)
+        parser.add_argument("corpus", type=Path, help="Corpus directory to add to")
+        parser.add_argument("path", type=Path, help="CMUdict file to read")
 
     def run(self) -> int:
         report = corpus.ingest_cmudict(
@@ -86,6 +129,12 @@ class IngestCMUdict(Command):
 
 
 class Validate(Command):
+    """Check that every entry parses and every asset it names is there.
+
+    One line per finding, then ``valid`` and the entry count if there were
+    none. Exit status is 1 where anything was found.
+    """
+
     name, aliases, help = "validate", [], "Validate a corpus and its assets"
 
     @classmethod
@@ -115,6 +164,12 @@ class Validate(Command):
 
 
 class Ids(Command):
+    """Print every entry ID in the corpus, one per line.
+
+    The list the other subcommands take an ID from, and what to pipe into
+    a shell loop over the collection.
+    """
+
     name, aliases, help = "ids", [], "List corpus entry IDs"
 
     @classmethod
@@ -128,11 +183,13 @@ class Ids(Command):
 
 
 class Show(Command):
+    """Print one entry's forms as ID, role and IPA, one row per role."""
+
     name, aliases, help = "show", [], "Show an entry's named forms"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("fileid")
+        parser.add_argument("fileid", help="Entry ID to read")
         _location(parser)
 
     def run(self) -> int:
@@ -143,13 +200,30 @@ class Show(Command):
 
 
 class Query(Command):
+    """Run one structural query over every entry, and stream what matched.
+
+    The query is the arrowless rule DSL (see ``ipakit query find``). One row
+    per match: entry ID, role, the paths it matched at, the matching text,
+    and any agreement variables it bound. How the query was read is printed
+    on stderr, because a wild query is normalized before it runs.
+    """
+
     name, aliases, help = "query", [], "Stream structural matches"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("dsl")
-        parser.add_argument("--role", "-r", default="cited")
-        parser.add_argument("--exact", action="store_true")
+        parser.add_argument("dsl", help="Structural query in the arrowless rule DSL")
+        parser.add_argument(
+            "--role",
+            default="cited",
+            help="Which transcription of each entry to search (default: cited)",
+        )
+        parser.add_argument(
+            "--exact",
+            action="store_true",
+            help="Take the query as written, skipping wild-IPA normalization",
+        )
         _location(parser)
 
     def run(self) -> int:
@@ -182,17 +256,44 @@ class Query(Command):
 
 
 class Derives(Command):
+    """Ask, entry by entry, whether the rules carry one role to the other.
+
+    One row per entry: ``witness`` where the rules derive the target form
+    from the source, ``refusal`` where they do not, ``unexplored`` where the
+    search hit its budget and so answered neither. The summary counts all
+    three. ``ipakit rules derives`` is the same question with a written
+    report and a rule set that may come from notation or a file.
+    """
+
     name, aliases, help = "derives", [], "Check role pairs under a rule set"
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--rules", required=True)
-        parser.add_argument("--source", required=True)
-        parser.add_argument("--target", required=True)
+        # --set/-s, spelled as ``ipakit rules`` spells it: one verb naming
+        # one thing one way. It was --rules here and --rule/--set/--file
+        # there, for the same shipped rule set.
+        parser.add_argument(
+            "--set",
+            "-s",
+            dest="named_set",
+            metavar="NAME",
+            required=True,
+            help="A shipped rule set (see 'ipakit rules list')",
+        )
+        parser.add_argument(
+            "--source",
+            required=True,
+            help="Role the derivation starts from, e.g. broad",
+        )
+        parser.add_argument(
+            "--target",
+            required=True,
+            help="Role the derivation must reach, e.g. narrow",
+        )
         _location(parser)
 
     def run(self) -> int:
-        grammar = rules.shipped(self.args.rules, self.ipa)
+        grammar = rules.shipped(self.args.named_set, self.ipa)
         counts = {"witness": 0, "refusal": 0, "unexplored": 0}
         for fileid, answer in corpus.query_derivations(
             corpus.open(self.args.corpus),

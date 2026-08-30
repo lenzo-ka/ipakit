@@ -46,7 +46,7 @@ from pathlib import Path
 
 from .analysis_cmds import AnalysisGroup, DescribeCommand
 from .analyze import AnalyzeGroup
-from .base import Command, add_lax_arg
+from .base import Command, add_lax_arg, register_command
 from .convert import ConvertGroup
 from .corpus import CorpusGroup
 from .distance import DistanceGroup
@@ -75,6 +75,17 @@ GROUPS = [
     InfoGroup,
     PhoibleGroup,
     TractGroup,
+]
+
+#: Commands that hang off the top level rather than under a group. The
+#: counterpart of a group's ``commands``, and registered by the same
+#: function, so a flag added to every leaf reaches both families.
+STANDALONE: list[type[Command]] = [
+    FeaturesCommand,
+    DescribeCommand,
+    NotebookCommand,
+    TiergraphCommand,
+    SyllabifyCommand,
 ]
 
 
@@ -129,21 +140,8 @@ Exit status (uniform across every subcommand):
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Register standalone commands (not in groups)
-    for cmd_cls in [
-        FeaturesCommand,
-        DescribeCommand,
-        NotebookCommand,
-        TiergraphCommand,
-        SyllabifyCommand,
-    ]:
-        cmd_parser = subparsers.add_parser(
-            cmd_cls.name,
-            aliases=cmd_cls.aliases,
-            help=cmd_cls.help,
-        )
-        cmd_cls.add_arguments(cmd_parser)
-        add_lax_arg(cmd_parser)
-        cmd_parser.set_defaults(cmd_cls=cmd_cls)
+    for cmd_cls in STANDALONE:
+        register_command(subparsers, cmd_cls)
 
     # Register command groups
     for group in GROUPS:

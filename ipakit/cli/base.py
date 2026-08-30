@@ -18,12 +18,40 @@ if TYPE_CHECKING:
     from ..mapper import CMUMapper
 
 
+#: Said on every command that reads IPA text from the command line.
+#:
+#: Every ASCII letter is a registered phone, so ``cat`` parses as the three
+#: phones ``c a t`` and is answered as confidently as ``kæt`` is. Nothing in
+#: the reader can tell an orthographic word from a real transcription --
+#: ``kat`` is genuine IPA and is used throughout the test corpus -- so the
+#: hazard is documented at the point of use rather than guessed at. The
+#: ``--lax``/exit-3 policy does not fire here: it reports symbols that could
+#: not be read, and these were all read.
+#:
+#: Written once and attached by :func:`register_command`, so a command that
+#: declares ``reads_ipa`` cannot be missing the note.
+ORTHOGRAPHY_NOTE = """
+Input is IPA transcription, not orthography. Every ASCII letter is a
+registered phone, so a word written in spelling -- 'cat', 'pin' -- is read
+as the phones it spells and answered confidently rather than refused.
+"""
+
+
 class Command(ABC):
     """Base class for CLI commands."""
 
     name: str  # Subcommand name
     aliases: list[str] = []  # Short aliases
     help: str  # Help text
+
+    #: True where the command reads IPA text from the command line.
+    #:
+    #: The only consumer is :func:`register_command`, which attaches
+    #: :data:`ORTHOGRAPHY_NOTE` to the command's help. It is a declaration
+    #: rather than something inferred from the argument list because an
+    #: argument's name says nothing about the notation it carries:
+    #: ``convert from-xsampa`` takes a transcription too, and it is not IPA.
+    reads_ipa: bool = False
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -184,6 +212,45 @@ class Command(ABC):
         return 1
 
 
+def register_command(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+    cmd_cls: type[Command],
+) -> argparse.ArgumentParser:
+    """Register one leaf command under ``subparsers``.
+
+    The one place a leaf is built, whether it hangs off the top level
+    (:func:`ipakit.cli.create_parser`) or off a group
+    (:meth:`CommandGroup.register`). It used to be written out in both, and
+    ``add_lax_arg`` standing in both copies was the evidence: a flag every
+    leaf is supposed to accept had already been added twice. The next one
+    would have reached one family of commands and not the other.
+
+    Three things every leaf gets, in this order:
+
+    * the class docstring as the parser description, so ``--help`` says what
+      the command is rather than only what it is called;
+    * whatever :meth:`Command.add_arguments` adds, which may overwrite the
+      description with the same docstring;
+    * :data:`ORTHOGRAPHY_NOTE`, where the command declares ``reads_ipa`` --
+      after ``add_arguments``, so it survives that overwrite.
+    """
+    parser = subparsers.add_parser(
+        cmd_cls.name,
+        aliases=cmd_cls.aliases,
+        help=cmd_cls.help,
+    )
+    parser.description = cmd_cls.__doc__
+    parser.formatter_class = argparse.RawDescriptionHelpFormatter
+    cmd_cls.add_arguments(parser)
+    if cmd_cls.reads_ipa:
+        parser.description = (
+            (parser.description or "").rstrip() + "\n" + ORTHOGRAPHY_NOTE
+        )
+    add_lax_arg(parser)
+    parser.set_defaults(cmd_cls=cmd_cls)
+    return parser
+
+
 class CommandGroup(ABC):
     """Base class for command groups (subcommand containers)."""
 
@@ -207,14 +274,7 @@ class CommandGroup(ABC):
         )
 
         for cmd_cls in cls.commands:
-            cmd_parser = group_sub.add_parser(
-                cmd_cls.name,
-                aliases=cmd_cls.aliases,
-                help=cmd_cls.help,
-            )
-            cmd_cls.add_arguments(cmd_parser)
-            add_lax_arg(cmd_parser)
-            cmd_parser.set_defaults(cmd_cls=cmd_cls)
+            register_command(group_sub, cmd_cls)
 
 
 def add_format_arg(

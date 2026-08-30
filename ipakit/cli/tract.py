@@ -41,6 +41,7 @@ class DrawCommand(Command):
     name = "draw"
     aliases = []
     help = "Draw a phone's mid-sagittal tract figure (SVG, or a page)"
+    reads_ipa = True
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

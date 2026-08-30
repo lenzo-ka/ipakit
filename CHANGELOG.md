@@ -112,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Breaking CLI cleanup: a short flag names one option across the whole parser. `-f` is `--format` only (`query find --file` and `hierarchy --features` lose it), `-r` is `--rule` only (`corpus --role` and `hierarchy dot --render` lose it), `-s` is `--set` only (`features --short`, `query shorts --to-shorts` and `analysis validate --warnings-as-errors` lose it), `-t` is `--threshold` only (`hierarchy dot --title` loses it), and `corpus derives --rules` is `--set`/`-s`, as `ipakit rules` spells it.
+- Every CLI leaf prints a description and every argument prints help; a command that reads IPA says in its help that the input is IPA rather than orthography.
 - The containment projection is memoized by content: repeated reads of equal forms reuse one lowered graph rather than rebuilding it. The cache is inventory-independent and returns read-only projections, and it holds a bounded number of entries.
 - The tract animation gives the jaw a signed hinge (low vowels open it, jaw-carried closures raise it, dependent articulators ride it) and seats both lips at centered rests so a closure shares the travel between them instead of the upper lip doing most of it.
 - Breaking API cleanup: converters now use uniform ``to_``/``from_`` names with an ``ipa_string`` input, distance ``weighted``/``strict`` options are keyword-only, and CLI ``convert to-ipa`` is now ``convert from-cmu``.
