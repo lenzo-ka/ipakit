@@ -317,7 +317,7 @@ class TestWhichBranchAppliesIsDeclaredAndNotKnown:
     pass on code that had simply stopped composing anything.
     """
 
-    TONE = '<feature name="tone" axis="+y" short="ton" mode="prosodic" sequence="+"'
+    TONE = '<feature name="tone" axis="+f0" short="ton" mode="prosodic" sequence="+"'
     RELEASE = '<feature name="release" type="categorical" short="rel" mode="release"'
 
     def _load(self, tmp_path, old: str, new: str) -> IPAFeatures:
