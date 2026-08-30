@@ -132,7 +132,9 @@ def wildcard_match(want: str, got: str) -> bool:
     return re.search(pattern, got, re.S) is not None
 
 
-def check_block(block: str, env: dict, report: list) -> tuple[int, int]:
+def check_block(
+    block: str, env: dict, report: list, unchecked: list
+) -> tuple[int, int]:
     checked = failed = 0
     lines = block.split("\n")
     try:
@@ -191,6 +193,11 @@ def check_block(block: str, env: dict, report: list) -> tuple[int, int]:
             continue
         wanted, ok = literal(want)
         if not ok:
+            # The comment is prose, or a value elided with "...", so there is
+            # nothing to compare against. The call still ran; only its result
+            # went unchecked. Count it, because a total that hides what it
+            # passed over reads as coverage it does not have.
+            unchecked.append(want.strip()[:70])
             continue
         checked += 1
         if wanted != value and repr(value) != want.strip():
@@ -208,6 +215,7 @@ def main() -> int:
         path for path in (ROOT / "docs").rglob("*.md") if path.name not in GENERATED
     )
     total = failures = skipped_total = 0
+    unchecked: list[str] = []
     for path in paths:
         env: dict = {}
         report: list = []
@@ -218,7 +226,7 @@ def main() -> int:
             if NO_RUN in info:
                 skipped += 1
                 continue
-            one, two = check_block(block, env, report)
+            one, two = check_block(block, env, report, unchecked)
             checked, failed = checked + one, failed + two
         total += checked
         failures += failed
@@ -233,7 +241,12 @@ def main() -> int:
             print(f"           document says: {want}")
             print(f"           library gives: {got}")
 
-    tail = f" ({skipped_total} illustrative fences skipped)" if skipped_total else ""
+    parts = []
+    if skipped_total:
+        parts.append(f"{skipped_total} illustrative fences skipped")
+    if unchecked:
+        parts.append(f"{len(unchecked)} values ran but quote nothing comparable")
+    tail = f" ({'; '.join(parts)})" if parts else ""
     print(f"\n{total} quoted values checked in the hand-written documents{tail}")
     if total < args.floor:
         print(
