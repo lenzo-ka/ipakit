@@ -1155,8 +1155,17 @@ class TestAMalformedRuleIsAnErrorNotATraceback:
 #: One invocation per surface that soft-reads IPA, found by running every
 #: leaf command against input holding an unregistered symbol. These are the
 #: ones that drop it, print an answer derived from the remainder, and used
-#: to report success. The list is the survey, kept here so a new soft-read
-#: path added to the CLI without a line here is a visible omission.
+#: to report success.
+#:
+#: **No longer the guarantee.** This was the survey, and a survey is a list
+#: of the routes someone thought of: fifteen routes declaring a notation
+#: were never in it, and nothing failed when one of them dropped a symbol
+#: quietly. ``TestADroppedSymbolReachesTheExitStatus``
+#: (``tests/test_cli_hygiene.py``) now sweeps the policy over the declared
+#: routes themselves, 36 of the 38, and is what a new soft-read path has to
+#: get past. These stay as worked cases -- each is a real command line with
+#: its own arity and flags, several of them the specific ones that were
+#: once wrong -- but they are examples now, not the coverage.
 LOSSY_INVOCATIONS = [
     ("features", "k@t"),
     ("describe", "@"),

@@ -183,6 +183,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The exit-3 policy — status 3 means part of the input was dropped — was guarded on its promotion half at the dispatcher and witnessed on its emission half by a hand survey that omitted fifteen of the routes declaring a notation. It is swept over 36 of the 38 declared routes now, against a probe checked to be unregistered in each notation, and the invariant asserted is the biconditional: a route may exit 0 only if it can still show the symbol it was handed.
 - The X-SAMPA round-trip guarantee was enforced over the registered inventory only; it is now swept over the composed forms built from it as well (base plus one mark in either position, and adjacent base pairs), which found seventeen collisions the README did not enumerate, fourteen of them changing the sound (`dʴ → ɖ`, `ǀǀ → ǁ`, `ʰh → ʱ`) and three folding onto a registered spelling of it. The README's unencodable list was also short by one, `^`.
 - `query shorts` printed nothing and exited 0 for a term naming no code. It reports the terms it could not read and exits 3, distinguishing a term not written as `feature=value` from a pair no short code names.
 - `syllabifier` dropped an onset whose stratum the module did not name — 39 of English's 125 declared onsets after a rename, at `strictness="permissive"`, with no error. The admitted strata are read from the shipped declarations and an unrecognized stratum is refused by name.
