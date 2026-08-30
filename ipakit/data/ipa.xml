@@ -243,15 +243,7 @@
       <value name="+" label="advanced"/>
       <value name="-" label="retracted"/>
     </feature>
-    <!-- No axis. The organ that moves is an identity, not a position, and
-         the metric has always scored it that way: a match is 0 and anything
-         else is 1, the same as `airstream` and `release`. It declared
-         `axis="+x"` and ordered its values by home position along the
-         tract, which read as a coordinate no consumer took: the shape
-         `tone` had on `+y`, pointed the other way. If a position along the
-         tract is ever wanted for the active articulator it is a second
-         declaration, not this one carrying two meanings. -->
-    <feature name="articulator" short="art" desc="Active articulator: the organ that moves to make the constriction" href="Place_of_articulation#Active_articulator">
+    <feature name="articulator" axis="+x" short="art" desc="Active articulator: the organ that moves to make the constriction, ordered by its home position along the tract" href="Place_of_articulation#Active_articulator">
       <!-- `aperture="median"` says the folds close toward each other about the
            tract axis rather than toward a wall, the way a tongue closes toward a
            palate. Rendering geometry: `offset` models the one-sided case, so a
