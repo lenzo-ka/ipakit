@@ -12,6 +12,7 @@ import pytest
 from ipakit.bridges.costmodel import (
     CHEAP_INDEL,
     FAITHFUL,
+    PANPHON_CONSERVING,
     AbsentCell,
     CostPack,
     CostPolicy,
@@ -299,3 +300,55 @@ def test_comparison_machinery_cannot_branch_on_a_pack_identity(tmp_path: Path) -
         for cost in (pack.sub_cost, pack.insert_cost, pack.delete_cost):
             assert callable(cost)
             assert "family" not in inspect.getclosurevars(cost).nonlocals
+
+
+class TestDoublingSubstitutionIsNotARescale:
+    """The one-line repair, asked of a corpus rather than argued.
+
+    panphon's substitution ceiling is 1.0 against an indel pair of 2.0, so
+    the recurrence can never prefer two indels to a substitution however
+    unlike the phones are. Doubling the substitution scale is the repair,
+    and `PANPHON_CONSERVING` is it as a setting.
+
+    What makes it a measurement rather than a change of units is that it
+    does not move every pair by the same factor. A pure substitution
+    doubles. A pure indel does not move at all. A mixed pair moves by
+    something in between, because the doubling changes *which alignment
+    wins* -- and that is the whole content of the question, since a
+    uniform rescale would leave every ordering intact and be worth
+    nothing.
+
+    Pinned over both arms, because a claim about the repair that held for
+    one geometry and not the other would be a claim about that geometry.
+    """
+
+    def _arms(self, ipa: IPAFeatures, policy: CostPolicy) -> dict[str, CostPack]:
+        return {
+            "house": house_pack(ipa, policy),
+            "declared": pack_from_declaration(DECLARATION, policy),
+        }
+
+    def _ratio(self, ipa: IPAFeatures, arm: str, source: str, target: str) -> float:
+        faithful = compare(ipa, self._arms(ipa, FAITHFUL)[arm], source, target)
+        doubled = compare(ipa, self._arms(ipa, PANPHON_CONSERVING)[arm], source, target)
+        return doubled.edit_cost / faithful.edit_cost
+
+    def test_a_pure_substitution_doubles(self) -> None:
+        ipa = IPAFeatures()
+        for arm in ("house", "declared"):
+            assert self._ratio(ipa, arm, "kat", "kot") == pytest.approx(2.0), arm
+
+    def test_a_pure_indel_does_not_move(self) -> None:
+        """The scale prices substitutions and nothing else, so a pair the
+        aligner answers entirely with indels is untouched."""
+        ipa = IPAFeatures()
+        for arm in ("house", "declared"):
+            assert self._ratio(ipa, arm, "mbanda", "banda") == pytest.approx(1.0), arm
+
+    def test_a_mixed_pair_moves_by_neither_factor(self) -> None:
+        """Between the two, because the doubling re-decides the alignment.
+        A rescale could not do this, and a rescale would be worthless."""
+        ipa = IPAFeatures()
+        for arm in ("house", "declared"):
+            ratio = self._ratio(ipa, arm, "a", "ndʒulu")
+            assert 1.0 < ratio < 2.0, (arm, ratio)
