@@ -224,3 +224,55 @@ def test_cli_renders_ipa_and_form_json(tmp_path: Path) -> None:
         capture_output=True,
     ).stdout
     assert restored == ipakit.read_json(source.read_text()).to_dot()
+
+
+DERIVED_FIGURE = ROOT / "docs" / "figures" / "derived-from-boundaries.dot"
+
+
+def _derived_example() -> ipakit.Form:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from tiergraph_example import build_derived_example
+
+    return build_derived_example()
+
+
+def test_the_derived_figure_is_deterministic_across_hash_seeds() -> None:
+    """The same guard the built figure has.
+
+    This one is read out of a transcription rather than assembled, so its
+    node identities come from a different path -- and a committed artifact
+    whose determinism nothing checks is one that can drift under a
+    dictionary order without anything failing.
+    """
+    form = _derived_example()
+    program = (
+        "import sys; sys.path.insert(0, 'scripts'); "
+        "from tiergraph_example import build_derived_example; "
+        "sys.stdout.write(build_derived_example().to_dot())"
+    )
+    outputs = []
+    for seed in ("0", "12345", "999"):
+        outputs.append(
+            subprocess.run(
+                [sys.executable, "-c", program],
+                cwd=ROOT,
+                env={**os.environ, "PYTHONHASHSEED": seed},
+                check=True,
+                capture_output=True,
+            ).stdout
+        )
+    assert outputs == [form.to_dot().encode()] * 3
+
+
+def test_the_derived_figure_carries_every_tier_its_marks_assert() -> None:
+    """What the figure is for: the structure came from the marks.
+
+    A space, a ``|`` and a ``‖`` are written, and the utterance, both
+    phrases and all thirteen words are spans nobody declared in Python.
+    Asserted by count so a mark quietly ceasing to split is a failure here
+    rather than a thinner picture nobody looks at.
+    """
+    counts: dict[str, int] = {}
+    for interval in _derived_example().intervals:
+        counts[interval.tier] = counts.get(interval.tier, 0) + 1
+    assert counts == {"utterance": 1, "phrase": 2, "word": 13}
