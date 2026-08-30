@@ -362,3 +362,63 @@ class TestWhichMarksAreDeclared:
         for level, letter in (("top", "˥"), ("bottom", "˩")):
             found = FEATURES.declaring_mark("tone", level)
             assert found is not None and found[1] == letter
+
+
+class TestAContourSpelledAcrossMarksIsWithheldNotTruncated:
+    """One contour has two spellings, and they used to disagree.
+
+    ``a᷅`` packs the trajectory into one mark declaring ``tone="low>mid"``,
+    and the metric withholds it: a sequence is a trajectory rather than a
+    point, so ``value_distance`` has no honest answer and the rider is
+    excluded by construction. That is stated in ``metric.py`` and it is
+    right.
+
+    ``a˩˥`` spells the same contour as two Chao letters, each declaring
+    one level. The rider map is keyed by feature, so the second mark
+    overwrote the first and the unit rode as its FINAL level alone. The
+    consequence was a silent wrong answer rather than a withheld one:
+    ``a˩˥`` and ``a˧˥`` are different tones and scored 0 against each
+    other, while ``a˩˥`` against ``a˩˧`` scored, because there only the
+    endpoint differed. Which pairs the truncation happened to separate
+    was an accident of where the contours ended.
+
+    A feature claimed by more than one mark is a sequence spelled the long
+    way, so it is withheld the same way. The two spellings now agree, and
+    the honest limitation replaces the quiet one.
+    """
+
+    def test_two_contours_sharing_an_endpoint_are_not_called_identical(self):
+        """The case that was wrong: these differ, and the truncation could
+        not see it because it kept only the last level."""
+        assert ipakit.distance("a˩˥", "a˧˥") == 0.0
+        assert ipakit.distance("a˩˥", "a˩˧") == 0.0
+        assert ipakit.distance("a˩˥", "a˥˩") == 0.0
+
+    def test_it_withholds_rather_than_scoring_from_a_fragment(self):
+        """Withheld, not scored: a contour contributes no tone term at
+        all, the same as the packed spelling. Both are 0 against a bare
+        vowel because neither rides."""
+        assert ipakit.distance("a", "a˩˥") == 0.0
+        assert ipakit.distance("a", "a᷅") == 0.0
+
+    def test_a_single_level_still_rides(self):
+        """The narrowing is only for sequences. One mark declaring one
+        level is a point on the scale and still scores, so this does not
+        quietly switch tone off."""
+        assert ipakit.distance("a", "a˥") > 0.0
+        assert ipakit.distance("a˥", "a˩") > ipakit.distance("a˥", "a˧")
+
+    def test_no_registered_phone_can_reach_this_path(self):
+        """Why the shipped matrix is untouched, stated as the reason
+        rather than as the outcome.
+
+        The rider path only narrows where one unit carries two marks
+        declaring the same prosodic feature. No phone in the inventory
+        carries a prosodic mark at all, so nothing in `confusion.json`
+        can reach it -- which is what makes this change safe for a
+        shipped artifact, and is checkable here rather than only in the
+        derived-artifact guard.
+        """
+        for phone in FEATURES.phones:
+            segment = ipakit.segments(phone, strict=True)[0]
+            assert not segment.prosody, (phone, segment.prosody)

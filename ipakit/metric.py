@@ -385,6 +385,7 @@ def _segment_prosodic(features: IPAFeatures, segment: Segment) -> dict[str, str]
     round-trips are unaffected. Empty when the unit carries no prosodic mark,
     which is every shipped phone."""
     out: dict[str, str] = {}
+    spelled_twice: set[str] = set()
     prosodic = features.features_by_mode.get("prosodic", frozenset())
     for mark in getattr(segment, "prosody", ()) or ():
         decl = features.diacritics.get(mark)
@@ -396,8 +397,22 @@ def _segment_prosodic(features: IPAFeatures, segment: Segment) -> dict[str, str]
             # answer for it; those stay out of the metric until a sequence
             # comparison exists. Single-level riders (stress, a plain tone,
             # length) ride here.
-            if feat in prosodic and Feature.SEQUENCER not in val:
-                out[feat] = val
+            if feat not in prosodic or Feature.SEQUENCER in val:
+                continue
+            # The same trajectory can be spelled across several marks
+            # instead of inside one: ``a˩˥`` is two Chao letters, each
+            # declaring a level of the one contour. Assigning here would
+            # keep whichever came last, so ``a˩˥`` and ``a˧˥`` would ride
+            # as ``top`` alike and score 0 against each other -- a
+            # silently truncated contour, where the packed spelling
+            # ``a᷅`` withholds honestly. A feature claimed by more than
+            # one mark is therefore a sequence too, and is withheld the
+            # same way, so the two spellings of one contour agree.
+            if feat in out and out[feat] != val:
+                spelled_twice.add(feat)
+            out[feat] = val
+    for feat in spelled_twice:
+        del out[feat]
     return out
 
 
