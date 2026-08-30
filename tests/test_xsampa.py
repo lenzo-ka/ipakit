@@ -114,13 +114,14 @@ RHOTIC_SUFFIX_COLLISION = {
     "ɜʴ": "ɝ",
 }
 
-# `_hh` is ipakit's own encoding of `ʱ` -- X-SAMPA has none, and the generator
-# names it a curated override. It extends `_h` (`ʰ`), so pre-aspiration written
-# before a glottal fricative spells it. Unlike the rest of this section the
-# ambiguity is a choice ipakit made rather than one X-SAMPA handed it: a `ʱ`
-# encoding that is not a prefix-extension of `_h` would not collide, and if one
-# is ever chosen this pin is what says these two stopped colliding.
-BREATHY_RELEASE_COLLISION = {"ʰh": "ʱ", "ʰɦ": "ʱ"}
+# `ʱ` had a curated encoding, `_hh`, which X-SAMPA does not define. It extended
+# `_h` (`ʰ`), so pre-aspiration written before a glottal fricative spelled it and
+# `ʰh`/`ʰɦ` both read back as `ʱ`. That ambiguity was ipakit's own rather than one
+# X-SAMPA handed it -- the sixteen below are the standard's -- and the pin said
+# it would be what reported the collision ending. It ended by the encoding being
+# dropped rather than re-chosen: `ʱ` is unmappable now, declined rather than
+# impossible, which is why its reason in the generator reads differently from the
+# four marks X-SAMPA genuinely cannot spell.
 
 # `|\|\` (ǁ) is two `|\` (ǀ), so a doubled dental click spells the alveolar
 # lateral one and `ǀǁ` re-splits after the first two. Standard X-SAMPA on both
@@ -138,7 +139,6 @@ EJECTIVE_FOLD = {"tʼ": "ť"}
 #: Base + one mark, in either position. The pairs are elsewhere.
 COMPOSED_NON_ROUNDTRIP = {
     **RHOTIC_SUFFIX_COLLISION,
-    **BREATHY_RELEASE_COLLISION,
     **EJECTIVE_FOLD,
 }
 
