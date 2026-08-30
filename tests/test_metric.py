@@ -1019,3 +1019,37 @@ class TestMetricFingerprint:
                 ipa.get_features(p) for p in ipa.phones
             ]
             assert list(variant.phones) == list(ipa.phones)
+
+
+class TestArticulatorIsPositionedNotMerelyNamed:
+    """The organ that moves sits somewhere, and the metric reads where.
+
+    This was reported as a defect the other way round -- that the
+    declaration asserted `axis="+x"` while nothing consumed it -- and the
+    docs said so too, listing `articulator` among the categorical
+    dimensions and leaving it out of the axes table. Measurement says
+    otherwise, and measurement is what settles it: the values carry `arc`
+    coordinates on the same scale `place` uses, `metric.py` resolves the
+    articulator into the compared bundle, and the resulting distances are
+    graded rather than 0-or-1.
+
+    Pinned because a categorical reading is a plausible misreading of the
+    same data, and the cost of acting on it would have been deleting a
+    declaration the metric depends on.
+    """
+
+    def test_the_score_is_graded_not_binary(self, ipa: IPAFeatures) -> None:
+        """A tongue tip against a tongue blade is a small difference, and
+        a categorical score has no way to say so."""
+        adjacent = ipa.distance("t̺", "t̻")
+        assert 0.0 < adjacent < 0.01, adjacent
+
+    def test_further_along_the_tract_costs_more(self, ipa: IPAFeatures) -> None:
+        """Ordered, not merely distinct. Each step moves the articulator
+        further from the tongue tip and the distance rises with it."""
+        steps = [ipa.distance("t̺", other) for other in ("t̻", "c", "k")]
+        assert steps == sorted(steps), steps
+        assert steps[0] < steps[-1]
+
+    def test_it_declares_the_tract_axis(self, ipa: IPAFeatures) -> None:
+        assert ipa.features["articulator"].axis == "+x"

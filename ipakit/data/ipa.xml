@@ -109,7 +109,7 @@
       <value name="pulmonic" short="pul" href="Pulmonic_consonant"/>
       <value name="ejective" short="eje" href="Ejective_consonant"/>
       <value name="implosive" short="imp" href="Implosive_consonant"/>
-      <value name="velaric" short="vel" href="Click_consonant"/>  <!-- velaric ingressive: the click airstream -->
+      <value name="velaric" short="vlc" href="Click_consonant"/>  <!-- velaric ingressive: the click airstream -->
     </feature>
 
     <feature name="place" axis="+x" short="plc" mode="overriding" desc="Where articulation occurs" href="Place_of_articulation">
@@ -227,7 +227,7 @@
     </feature>
     <feature name="length" axis="+t" short="len" mode="prosodic" desc="Segment duration" default="normal" href="Length_(phonetics)">
       <value name="extra-short" short="xsh"/>
-      <value name="normal" short="nrm"/>
+      <value name="normal" short="nml"/>
       <value name="half-long" short="hlg"/>
       <value name="long" short="lng"/>
     </feature>
@@ -342,7 +342,7 @@
 
     <feature name="rounding" short="rou" desc="Degree of lip rounding" href="Roundedness">
       <value name="less" label="less-rounded" short="les"/>
-      <value name="more" label="more-rounded" short="mor"/>
+      <value name="more" label="more-rounded" short="mre"/>
     </feature>
 
     <feature name="phonation" axis="+glottal-aperture" short="phn" desc="Vocal fold vibration mode" href="Phonation">
@@ -479,7 +479,7 @@
          `level=syllable` or `tier=syllable`, for example. -->
     <feature name="tier" short="tir" type="categorical" mode="structural" desc="The tier an interval is declared on" href="Autosegmental_phonology">
       <value name="syllable" short="syl" href="Syllable"/>
-      <value name="word" short="wrd" href="Word"/>
+      <value name="word" short="twd" href="Word"/>
       <!-- The two prosodic tiers a break mark terminates. Without them a
            boundary could be READ and its nesting COMPUTED and the result
            still not be storable: `Form.tree()` nested 'a|b' into two

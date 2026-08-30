@@ -49,7 +49,7 @@ Ordinal features could compute distance from declaration order — value *i* to 
 
 **Distances survive inventory growth.** Adding a place value leaves every existing place distance unchanged, because anchors are absolute. Under index distance, adding a value would silently shift every distance in the library, and with it the shipped matrix.
 
-Unanchored dimensions — `tone`, `length`, `phonation` — still use declaration order, honestly, because there the label set *is* the model. Categorical dimensions (`airstream`, `release`, `articulator`) score 0 for a match and 1 otherwise; they have no continuum to be positioned on.
+Unanchored dimensions — `tone`, `length`, `phonation` — still use declaration order, honestly, because there the label set *is* the model. Categorical dimensions (`airstream`, `release`) score 0 for a match and 1 otherwise; they have no continuum to be positioned on. `articulator` is not one of them: the organs it names sit at declared `arc` positions along the same tract `place` measures, so a tongue tip and a tongue blade are near neighbours and a tongue tip and the vocal folds are not.
 
 ## 3. The reference frame
 
@@ -57,7 +57,7 @@ Ordinal scales ascend a declared axis, recorded per feature in the data as `axis
 
 | feature | axis | ascends |
 |---|---|---|
-| `place`, `backness`, `constriction-location` | `+x` | lips → glottis |
+| `place`, `backness`, `constriction-location`, `articulator` | `+x` | lips → glottis |
 | `height` | `+y` | jaw → palate |
 | `tone` | `+f0` | low → high |
 | `manner` | `+constriction` | open → closed |
