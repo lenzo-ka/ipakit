@@ -329,11 +329,11 @@ class Head:
         # keeps the otherwise straight leaf legible at rest without moving
         # either its declared laryngeal attachment or constriction target.
         bend = self.epiglottis_thickness * 0.65
-        centre, half_width = [], []
+        center, half_width = [], []
         for i in range(samples + 1):
             t = i / samples
             bow = math.sin(math.pi * t)
-            centre.append(
+            center.append(
                 (
                     root[0] + dx * t + nx * bend * bow,
                     root[1] + dy * t + ny * bend * bow,
@@ -342,11 +342,11 @@ class Head:
             half_width.append(self.epiglottis_thickness * 0.5 * bow)
         left = tuple(
             (p[0] + nx * width, p[1] + ny * width)
-            for p, width in zip(centre, half_width, strict=True)
+            for p, width in zip(center, half_width, strict=True)
         )
         right = tuple(
             (p[0] - nx * width, p[1] - ny * width)
-            for p, width in reversed(list(zip(centre, half_width, strict=True)))
+            for p, width in reversed(list(zip(center, half_width, strict=True)))
         )
         return EpiglottisShape(body=left + right, tip=tip, target=target)
 

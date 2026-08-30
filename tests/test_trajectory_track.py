@@ -119,14 +119,14 @@ class _DisplayLabelParser(HTMLParser):
 def test_transcript_has_exact_units_and_optional_display_label(renderer) -> None:
     value = trajectory("ˈkæt", head=head(), frames_per_unit=2)
     plain = renderer(value)
-    labelled = renderer(value, display_label="cat & kitten")
+    labeled = renderer(value, display_label="cat & kitten")
 
     assert _transcript_units(plain) == list(value.units)
-    assert _transcript_units(labelled) == list(value.units)
+    assert _transcript_units(labeled) == list(value.units)
     assert 'class="display-label"' not in plain
-    assert '<span class="display-label">cat &amp; kitten</span>' in labelled
+    assert '<span class="display-label">cat &amp; kitten</span>' in labeled
     assert re.findall(r'<path\b[^>]*\bd="[^"]*"', plain) == re.findall(
-        r'<path\b[^>]*\bd="[^"]*"', labelled
+        r'<path\b[^>]*\bd="[^"]*"', labeled
     )
 
 

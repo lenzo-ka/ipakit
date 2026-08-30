@@ -237,7 +237,7 @@ def test_closure_reaches_the_parting_curve(ipa: IPAFeatures) -> None:
     the teeth occlude most of the band the tongue crosses: a tongue stopping a
     third of the way short still leaves the same two corner pixels.  Reach is
     a geometric claim, so it is measured on the geometry -- how far the visible
-    centre edge sits below the declared parting curve, as a fraction of the
+    center edge sits below the declared parting curve, as a fraction of the
     local floor-to-roof band, which is the same fraction ``offset`` means.
     """
     h, marks = head(), landmarks(ipa)
@@ -252,7 +252,7 @@ def test_closure_reaches_the_parting_curve(ipa: IPAFeatures) -> None:
             "points"
         ]
         upper, lower = geometry["upper_edge"], geometry["lower_edge"]
-        centre = (upper[0][0] + upper[-1][0]) / 2.0
+        center = (upper[0][0] + upper[-1][0]) / 2.0
 
         def edge_y(edge: tuple[Point, ...], x: float) -> float:
             for left, right in zip(edge, edge[1:], strict=False):
@@ -262,7 +262,7 @@ def test_closure_reaches_the_parting_curve(ipa: IPAFeatures) -> None:
                     return left[1] + (right[1] - left[1]) * t
             return min(edge, key=lambda point: abs(point[0] - x))[1]
 
-        x, y = min(points, key=lambda point: abs(point[0] - centre))
+        x, y = min(points, key=lambda point: abs(point[0] - center))
         roof, floor = edge_y(upper, x), edge_y(lower, x)
         return (y - roof) / (floor - roof)
 

@@ -88,7 +88,7 @@ The clock is the visible top row. Its arrows and labels put all coarse ticks and
 refined gaps in ascending order; dotted edges anchor events to their starting
 positions and dashed `extent` edges end at their half-open structural endpoints.
 Tier rows follow declaration order. Event order within a row is clock index and
-event index, while declared relations are labelled edges. Those rules are also
+event index, while declared relations are labeled edges. Those rules are also
 the emission rules, so the output does not depend on dictionary, set, or hash
 iteration order.
 

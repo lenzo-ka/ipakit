@@ -948,7 +948,7 @@ def _midline() -> tuple[tuple[float, float, float], ...]:
     ``docs/articulatory-data.md`` says outright that the X-Ray Microbeam
     instrument sees nothing behind 0.44, so the pharyngeal half of this
     polyline is drawn rather than measured. A projection that gets its
-    behaviour from the tract's bend is getting it from there.
+    behavior from the tract's bend is getting it from there.
     """
     knots = [(p.arc, p.x, p.y) for p in head("adult-male").midline]
     dense: list[tuple[float, float, float]] = []
@@ -1003,11 +1003,11 @@ def _projected(point: tuple[float, float]) -> float:
 
 @functools.cache
 def _pivot() -> tuple[float, float]:
-    """The centre of curvature of the tract, from three points on it.
+    """The center of curvature of the tract, from three points on it.
 
     Not a free parameter: the circle through the palatal, uvular and
     pharyngeal midline points, which is where an arch sweeping those three
-    would have to be centred.
+    would have to be centered.
     """
     places = landmarks(IPAFeatures()).places
     (ax, ay), (bx, by), (cx, cy) = (
@@ -1060,7 +1060,7 @@ def chart_polar(
     """The figure wrapped around the tract's own bend instead.
 
     The same figure, read as the tongue arch it was named for: backness is an
-    angle about the centre of curvature of the tract, height is how near the
+    angle about the center of curvature of the tract, height is how near the
     arch comes to the wall. Both readings lay the quadrilateral in the
     mid-sagittal plane and pin it to the same corners. The chart says nothing
     that chooses between them.

@@ -1668,8 +1668,8 @@ class TestTheDeliberateApiCliDifferences:
         never part of that.
         """
         rc, model_out, _ = run(monkeypatch, capsys, "distance", "word", "kæt", "kæd")
-        modelled = ipakit.distance_model().word_distance("kæt", "kæd")
-        assert rc == 0 and f"{modelled.similarity:.4f}" in model_out
+        modeled = ipakit.distance_model().word_distance("kæt", "kæd")
+        assert rc == 0 and f"{modeled.similarity:.4f}" in model_out
 
         rc, raw_out, _ = run(
             monkeypatch, capsys, "distance", "word", "kæt", "kæd", "--raw"

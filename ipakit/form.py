@@ -638,7 +638,7 @@ def _derive_form_constants(features: IPAFeatures) -> _FormConstants:
     structural = {
         name
         for name in features.features_by_mode.get("structural", ())
-        if name != "tie" and features.features[name].centre is None
+        if name != "tie" and features.features[name].center is None
     }
     marks: dict[str, Mapping[str, str]] = {}
     for symbol, declared in features.diacritics.items():

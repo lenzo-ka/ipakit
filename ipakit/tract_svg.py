@@ -444,21 +444,21 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
         if not controls or head.tongue_span is None or len(declared) < 4:
             return declared
         top = declared[:3]
-        left, centre, right = top
+        left, center, right = top
         front = head.tongue_span[0]
         root = head.tongue_span[1]
         # Density sets the lateral endpoints and the depth band exactly, and
-        # the centre and closure height only to within the sampling of the
+        # the center and closure height only to within the sampling of the
         # raised cosine: a coarse grid can step over the constriction peak.
-        # Measured, the drift is sub-pixel at figure scale (centre ~7e-5 from
+        # Measured, the drift is sub-pixel at figure scale (center ~7e-5 from
         # SAMPLES 30 to 960, closure height ~4e-3 from samples 6 to 240), far
         # inside the reach pin's tolerance.
         samples = 24
         upper: list[Point] = []
         for index in range(samples + 1):
             x = left[0] + (right[0] - left[0]) * index / samples
-            half = max(centre[0] - left[0], right[0] - centre[0]) or 1.0
-            lateral = min(1.0, abs(x - centre[0]) / half)
+            half = max(center[0] - left[0], right[0] - center[0]) or 1.0
+            lateral = min(1.0, abs(x - center[0]) / half)
             # A sagittal tongue span projected face-on has an elliptical
             # planform: the available depth is the chord sqrt(1-u^2) at
             # normalized lateral position u.  Thus the band comes entirely

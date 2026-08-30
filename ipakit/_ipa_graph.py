@@ -104,7 +104,7 @@ def _derive_declarations(inventory: IPAFeatures) -> Declarations:
         }
     )
     unit_structural = frozenset(
-        name for name in structural if inventory.features[name].centre is not None
+        name for name in structural if inventory.features[name].center is not None
     )
     declared_tier = inventory.features.get("tier")
     hierarchy_tiers = tuple(

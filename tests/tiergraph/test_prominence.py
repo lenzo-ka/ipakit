@@ -34,7 +34,7 @@ def test_repetition_walks_the_declaration_and_unmarked_is_the_norm() -> None:
     feature = inventory.features["prominence"]
     assert feature.values == ["reduced", "norm", "emphatic", "strong"]
     assert feature.default is None
-    assert feature.centre == "norm"
+    assert feature.center == "norm"
     (raised,) = _events(inventory.read("^^am", strict=True), "word")
     assert raised is not None and raised.features["prominence"] == "strong"
     assert _events(inventory.read("am", strict=True), "word") == []
