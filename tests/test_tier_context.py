@@ -481,10 +481,15 @@ class TestNothingNamedTierAnswersWithALevel:
     def test_every_tier_named_read_answers_with_a_declared_tier(self) -> None:
         declared = set(FEATURES.features["tier"].values)
         assert set(tier_names(FEATURES)) == declared
-        assert declared & set(FEATURES.features["level"].values) == {
-            "syllable",
-            "word",
-        }
+        # The overlap is the whole level ladder, and that is a requirement
+        # rather than a coincidence: `tree()` builds a node per asserted
+        # level and a node is stored as an Interval on the tier its level
+        # names, so a level with no tier of that name computes a span that
+        # cannot be written down. This used to read `== {"syllable",
+        # "word"}`, which pinned the state of the world at a time when
+        # `phrase` and `utterance` were levels a form could be nested by
+        # and not tiers a span could sit on.
+        assert set(FEATURES.features["level"].values) <= declared
 
     def test_and_the_two_vocabularies_are_not_the_same_vocabulary(self) -> None:
         """``syllable`` and ``word`` are in both and mean two different things:

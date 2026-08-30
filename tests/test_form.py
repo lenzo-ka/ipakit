@@ -36,6 +36,7 @@ from ipakit.form import (
     edge_level,
     levels,
     spell,
+    tier_names,
     units,
 )
 
@@ -843,3 +844,136 @@ class TestABoundaryPatternMatchesItsLevelOrStronger:
             ipakit.rewrite("a|b", "a -> o / _ [level=phrase]")
         with pytest.raises(R.RuleError, match="'-word' is ambiguous"):
             ipakit.rewrite("a|b", "a -> o / _ [-word]")
+
+
+class TestABoundaryBecomesASpan:
+    """``tree()`` decided where the structure was and left it nowhere.
+
+    It reads ``ipa.xml`` for which levels a transcription asserts and
+    where each node begins and ends, and returns a nesting -- a value
+    that lives as long as the call. The store for structure is
+    ``Form.intervals``, and nothing wrote to it: ``read("a|b").intervals``
+    was empty while ``tree()`` was nesting the same string into two
+    phrases, so ``scripts/tiergraph_example.py`` had to hand-build
+    utterance over phrase over word with the builder to get a figure of
+    something the reader could already see.
+
+    Worse than absent, it was unstorable. ``tier`` declared four values
+    and ``level`` declared four different ones, overlapping on two, so
+    ``Interval("phrase", ...)`` raised. The structure was computable and
+    not expressible, which is the shape :meth:`tier_intervals` closes.
+    """
+
+    def test_a_written_break_yields_spans_on_the_tier_its_level_names(self):
+        got = ipakit.read("a|b").with_tier_intervals().intervals
+        assert {(i.tier, i.start, i.end) for i in got} == {
+            ("word", 0, 1),
+            ("phrase", 0, 1),
+            ("word", 2, 3),
+            ("phrase", 2, 3),
+        }
+
+    def test_a_span_indexes_units_and_stops_before_the_mark_that_closed_it(self):
+        """Indices are into ``units`` like every other interval's, so the
+        boundary unit itself is in no span."""
+        form = ipakit.read("a b").with_tier_intervals()
+        assert form.units[1].is_boundary
+        assert {(i.start, i.end) for i in form.intervals} == {(0, 1), (2, 3)}
+
+    def test_nothing_unwritten_is_claimed(self):
+        """:meth:`tree`'s rule, inherited whole. A form with no break in
+        it is one word because a form edge is an unwritten word edge, and
+        is NOT thereby one phrase -- the level a form's edges spell is the
+        one a separator spells, not whichever happens to be outermost."""
+        tiers = {i.tier for i in ipakit.read("ab").with_tier_intervals().intervals}
+        assert tiers == {"word"}
+
+    def test_a_level_no_boundary_asserts_gets_no_span(self):
+        """``a b‖c d`` writes word and utterance breaks and no phrase
+        break, so it has words and utterances and no phrase."""
+        got = ipakit.read("a b‖c d").with_tier_intervals().intervals
+        assert {i.tier for i in got} == {"word", "utterance"}
+        assert {(i.start, i.end) for i in got if i.tier == "utterance"} == {
+            (0, 3),
+            (4, 7),
+        }
+
+    def test_the_derivation_is_a_step_not_a_side_effect_of_reading(self):
+        """Two forms spelling the same thing must not compare unequal
+        because one was asked for its spans and the other was not."""
+        assert ipakit.read("a|b").intervals == ()
+        assert ipakit.read("a|b") == ipakit.read("a|b")
+
+    def test_every_declared_level_names_a_declared_tier(self):
+        """The guard the missing values needed.
+
+        ``tree()`` builds a node per asserted level and this projects each
+        onto the tier its level names, so a level with no tier of that
+        name is a node that cannot be stored -- which is exactly what
+        ``phrase`` and ``utterance`` were. Stated over the declarations
+        rather than over today's four, so declaring a fifth level without
+        its tier fails here rather than at the first transcription that
+        writes the mark.
+        """
+        missing = [lvl for lvl in levels() if lvl not in tier_names()]
+        assert missing == [], f"levels with no tier to sit on: {missing}"
+
+
+class TestAShortCodeNamesOneFeatureValue:
+    """``shorts_to_features(["utt"])`` answers one feature, and two
+    features had claimed that code.
+
+    A short code is resolved without its feature, so where two values
+    share one the reader silently picks whichever the file declares
+    first. ``ipa.xml`` says of the long names that "a plain name in a
+    query is refused rather than resolved by which feature this file
+    declares first" -- and the short codes had no such refusal, so the
+    ambiguity the long names were protected from arrived through the
+    abbreviation instead.
+
+    The design intent is visible in the declarations: ``level=syllable``
+    is ``slb`` and ``tier=syllable`` is ``syl``, two codes for two
+    meanings, deliberately. The pairs below are where that intent was not
+    carried through, and they are pinned rather than fixed because
+    changing a shipped short code changes what a written query means.
+    Adding ``tier=phrase`` and ``tier=utterance`` would have made two
+    more; they took ``phs`` and ``utr`` instead, which is what this test
+    is here to keep true of the next one.
+    """
+
+    #: Short codes claimed by more than one feature value, and what they
+    #: resolve to today. Pinned, not blessed: each is a silent choice
+    #: between two meanings, and none should gain a third.
+    KNOWN_COLLISIONS = {
+        "vel": {"airstream=velaric", "place=velar"},
+        "nrm": {"length=normal", "prominence=norm"},
+        "mor": {"rounding=more", "tier=mora"},
+        "wrd": {"level=word", "tier=word"},
+    }
+
+    def _codes(self):
+        import collections
+        import re
+
+        source = FEATURES.xml_path.read_text(encoding="utf-8")
+        codes = collections.defaultdict(set)
+        for feature in re.finditer(
+            r'<feature name="([^"]+)".*?</feature>', source, re.S
+        ):
+            for value in re.finditer(
+                r'<value name="([^"]+)"[^/]*?short="([^"]+)"', feature.group()
+            ):
+                codes[value.group(2)].add(f"{feature.group(1)}={value.group(1)}")
+        return codes
+
+    def test_no_new_short_code_is_claimed_twice(self):
+        found = {c: w for c, w in self._codes().items() if len(w) > 1}
+        assert found == self.KNOWN_COLLISIONS
+
+    def test_the_pinned_collisions_are_real(self):
+        """The other half. Without it the pin could name a pair that no
+        longer shares a code and the test would still pass, having
+        checked that nothing new appeared against a stale list."""
+        codes = self._codes()
+        for code, claimants in self.KNOWN_COLLISIONS.items():
+            assert codes[code] == claimants, f"{code} no longer names {claimants}"

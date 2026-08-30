@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Form.tier_intervals()` and `Form.with_tier_intervals()`: the spans a transcription's written boundaries imply, as `Interval`s on the tier each boundary's level names. `Form.tree()` already decided where the structure was and returned a nesting that lived as long as the call; this lands it in `Form.intervals`, the store syllabification already writes to. Nothing unwritten is claimed: `ab` is one word because a form edge is an unwritten word edge, and is not thereby one phrase. `phrase` and `utterance` join the declared `tier` vocabulary so those spans can be stored at all — `Form.tree()` nested `a|b` into two phrases while `Interval("phrase", ...)` was refused.
 - A feature-system declaration states its own round-trip fidelity: `<round-trip>` legs are required by the grammar, become the `CostPack`'s `Bridge`, and a declaration without them is refused rather than read as lossless. Crossing a feature-system boundary therefore reports a stated fidelity and its drops instead of an inferred losslessness. `scripts/panphon_geometry.py describe` prints the declared legs and drops.
 - `FeatureQuery`: the public type a feature query is written in, read by `phones_matching` and exported from the package root (#332).
 - `distance directional` (`dir`) on the CLI: directional reference-to-hypothesis word distance, the command form of `directional_word_distance` (#332).

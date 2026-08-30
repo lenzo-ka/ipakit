@@ -468,6 +468,16 @@
     <feature name="tier" short="tir" type="categorical" mode="structural" desc="The tier an interval is declared on" href="Autosegmental_phonology">
       <value name="syllable" short="syl" href="Syllable"/>
       <value name="word" short="wrd" href="Word"/>
+      <!-- The two prosodic tiers a break mark terminates. Without them a
+           boundary could be READ and its nesting COMPUTED and the result
+           still not be storable: `Form.tree()` nested 'a|b' into two
+           phrases while `Interval("phrase", ...)` was refused, so the
+           structure existed for exactly as long as the call that made it.
+           They are here because `<suprasegmental>` declares levels that
+           name them, and a level that splits a node needs a tier for the
+           node to sit on. -->
+      <value name="phrase" short="phs" href="Prosodic_unit"/>
+      <value name="utterance" short="utr" href="Utterance_(linguistics)"/>
       <value name="mora" short="mor" href="Mora_(linguistics)"/>
       <value name="morph" short="mph" href="Morpheme"/>
     </feature>
