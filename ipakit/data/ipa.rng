@@ -156,7 +156,7 @@
           <optional><attribute name="default"><text/></attribute></optional>
           <!-- An ordinal unit scale may name its unmarked interior value
                without making it a default in segment feature bundles. -->
-          <optional><attribute name="centre"><text/></attribute></optional>
+          <optional><attribute name="center"><text/></attribute></optional>
           <!-- `over` names the feature this one is derived from; `place`
                gives the constriction a secondary-articulation feature adds;
                `applies` restricts the feature to a class of hosts;

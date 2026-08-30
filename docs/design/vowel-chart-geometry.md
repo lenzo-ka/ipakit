@@ -103,9 +103,9 @@ Placing the figure in the mid-sagittal plane and reading an `arc` off it takes f
 **A reading.** "Lay the quadrilateral in the mid-sagittal plane" is not one instruction. Two readings are equally faithful to the figure:
 
 - **Flat.** The figure is a plane region and goes in as one, three corners pinned. Height is then a single direction everywhere — the displacement that carries a close back vowel down the pharynx carries a close front vowel back along the palate.
-- **Wrapped.** The figure is read as the tongue *arch* it was named for. Backness is an angle about the centre of curvature of the tract — not a free parameter, it is the circle through the palatal, uvular and pharyngeal midline points — and height is how near the arch comes to the wall.
+- **Wrapped.** The figure is read as the tongue *arch* it was named for. Backness is an angle about the center of curvature of the tract — not a free parameter, it is the circle through the palatal, uvular and pharyngeal midline points — and height is how near the arch comes to the wall.
 
-**And a tract.** The midline these project onto is ipakit's, and its provenance is not uniform: of ten declared points exactly three are `measured` (arcs 0.24, 0.32 and 0.40) and the rest are `extrapolated`. Everything behind `arc` 0.45 is drawn, because `docs/articulatory-data.md` records that the X-Ray Microbeam instrument sees nothing behind 0.44. A projection whose behaviour comes from the tract's bend is taking it from there.
+**And a tract.** The midline these project onto is ipakit's, and its provenance is not uniform: of ten declared points exactly three are `measured` (arcs 0.24, 0.32 and 0.40) and the rest are `extrapolated`. Everything behind `arc` 0.45 is drawn, because `docs/articulatory-data.md` records that the X-Ray Microbeam instrument sees nothing behind 0.44. A projection whose behavior comes from the tract's bend is taking it from there.
 
 ## 4. The interaction, which is the whole question
 
@@ -202,7 +202,7 @@ So the four constriction locations that beat every other reading on the bands co
 
 **What the defense defends is the ordering, averaged over speakers.** No one in it defends reading a coordinate off a cell for one vowel — which is what a projection is — and the strongest defender's own numbers are correlations over a normalized five-speaker average. That is a claim about a scatter plot, not about where `ɔ` constricts.
 
-The one place the whole literature agrees is where it bears hardest here. Wood's abstract classification is fine and the coordinates are not, and he says why the confusion persists: "Many have continued to rely on the model simply because it has provided a convenient abstract classification system … An abstract classifying system is consequently not affected by any errors of fact regarding speech production providing the categories remain intact." That is exactly the licence ipakit needs and exactly the licence it would give up. `height` and `backness` as declared names for vowel qualities are unaffected by any of this. `height` and `backness` as a coordinate system a location is projected out of are the thing every source above refuses.
+The one place the whole literature agrees is where it bears hardest here. Wood's abstract classification is fine and the coordinates are not, and he says why the confusion persists: "Many have continued to rely on the model simply because it has provided a convenient abstract classification system … An abstract classifying system is consequently not affected by any errors of fact regarding speech production providing the categories remain intact." That is exactly the license ipakit needs and exactly the license it would give up. `height` and `backness` as declared names for vowel qualities are unaffected by any of this. `height` and `backness` as a coordinate system a location is projected out of are the thing every source above refuses.
 
 ## 8. ipakit already is the chart
 

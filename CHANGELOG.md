@@ -115,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- US spelling throughout, the declared format included: `prominence` declares `center`, and `Feature.center` carries it. Everything else was prose, comments and local names. One britishism stands, inside a quotation in `docs/design/morph-boundary.md`, because altering a quoted source is the defect the quotation gate exists to catch.
 - Breaking CLI cleanup: a short flag names one option across the whole parser. `-f` is `--format` only (`query find --file` and `hierarchy --features` lose it), `-r` is `--rule` only (`corpus --role` and `hierarchy dot --render` lose it), `-s` is `--set` only (`features --short`, `query shorts --to-shorts` and `analysis validate --warnings-as-errors` lose it), `-t` is `--threshold` only (`hierarchy dot --title` loses it), and `corpus derives --rules` is `--set`/`-s`, as `ipakit rules` spells it.
 - Every CLI leaf prints a description and every argument prints help; a command declares the notation it reads and its help says that input is that notation rather than orthography. `convert from-xsampa` and `from-kirshenbaum` carry a note written for their own alphabet, where every lowercase ASCII letter is a symbol and `cat` reads as a palatal plosive before an open front vowel.
 - The containment projection is memoized by content: repeated reads of equal forms reuse one lowered graph rather than rebuilding it. The cache is inventory-independent and returns read-only projections, and it holds a bounded number of entries.

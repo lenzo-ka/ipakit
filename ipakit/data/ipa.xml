@@ -411,11 +411,11 @@
 
     <!-- Unit features use the same ordinal house style as separator
          features: weakest first, with the order read rather than restated.
-         Prominence differs from break in having a centre. `norm` is the
-         unspecified centre and therefore has no mark; `reduced` reserves
+         Prominence differs from break in having a center. `norm` is the
+         unspecified center and therefore has no mark; `reduced` reserves
          the downward side of the ladder without choosing its spelling.
          Repeating the upward mark walks the declared values above norm. -->
-    <feature name="prominence" short="prm" mode="structural" centre="norm" desc="Asserted prominence of a unit" href="Prosodic_unit">
+    <feature name="prominence" short="prm" mode="structural" center="norm" desc="Asserted prominence of a unit" href="Prosodic_unit">
       <value name="reduced" short="red"/>
       <value name="norm" short="nrm"/>
       <value name="emphatic" short="emp"/>
@@ -895,7 +895,7 @@
     <suprasegmental name="ꜛ" step="up" href="Upstep"/>
     <suprasegmental name="ꜜ" step="down" href="Downstep"/>
     <!-- A prefix unit mark. One copy selects the first declared value above
-         prominence's centre; repetition walks upward through that ordinal
+         prominence's center; repetition walks upward through that ordinal
          declaration. Its segment position is spelling; Form raises it to
          the following word event. -->
     <suprasegmental name="^" prominence="emphatic" desc="raise the following unit's prominence" href="Prosodic_unit"/>

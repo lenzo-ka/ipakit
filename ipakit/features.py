@@ -232,7 +232,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """Refuse inventory drift from the one unit-raising mechanism.
 
         Prefix raising is deliberately not a generic interpretation of every
-        centred structural feature: the reader, word-event projection and
+        centered structural feature: the reader, word-event projection and
         renderers implement the literally named ``prominence`` feature.  Make
         that coupling a load-time contract instead of letting a declaration
         rename turn the notation into an unregistered character.
@@ -243,18 +243,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 "the prefix unit-raising mechanism requires a declared "
                 "'prominence' feature; the declaration is missing or renamed"
             )
-        if feature.centre is None:
+        if feature.center is None:
             raise ValueError(
                 "the prefix unit-raising mechanism requires feature "
-                "'prominence' to declare a centre"
+                "'prominence' to declare a center"
             )
-        centre = feature.values.index(feature.centre)
-        if centre + 1 >= len(feature.values):
+        center = feature.values.index(feature.center)
+        if center + 1 >= len(feature.values):
             raise ValueError(
                 "the prefix unit-raising mechanism requires feature "
-                "'prominence' to declare a value above its centre"
+                "'prominence' to declare a value above its center"
             )
-        expected = feature.values[centre + 1]
+        expected = feature.values[center + 1]
         markers = {
             symbol: mark.features.get("prominence")
             for symbol, mark in self.diacritics.items()
@@ -271,7 +271,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if wrong:
             raise ValueError(
                 "the prefix unit-raising mechanism requires each prominence "
-                f"mark to name the first value above the centre, {expected!r}; "
+                f"mark to name the first value above the center, {expected!r}; "
                 f"got {wrong}"
             )
 
@@ -491,7 +491,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     name=name,
                     values=values,
                     default=default,
-                    centre=feat_elem.get("centre"),
+                    center=feat_elem.get("center"),
                     type=feat_type,
                     desc=desc,
                     value_aliases=dict(self._value_aliases.get(name, {})),
@@ -521,9 +521,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             set(self.features["manner"].values) if "manner" in self.features else set()
         )
         for name, feat in self.features.items():
-            if feat.centre is not None and feat.centre not in feat.values_set:
+            if feat.center is not None and feat.center not in feat.values_set:
                 raise ValueError(
-                    f"feature {name!r} declares centre={feat.centre!r}, which "
+                    f"feature {name!r} declares center={feat.center!r}, which "
                     "is not one of its declared values"
                 )
             for token in feat.applies:
@@ -4056,11 +4056,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         )
 
     def raised_prominence(self, marks: Sequence[str]) -> str:
-        """Read a repeated upward mark against prominence's centred ladder."""
+        """Read a repeated upward mark against prominence's centered ladder."""
         feature = self.features["prominence"]
-        if feature.centre is None:
-            raise ValueError("prominence requires a declared centre")
-        index = feature.values.index(feature.centre) + len(marks)
+        if feature.center is None:
+            raise ValueError("prominence requires a declared center")
+        index = feature.values.index(feature.center) + len(marks)
         if not marks or len(set(marks)) != 1 or index >= len(feature.values):
             glyphs = sorted(set(marks))
             raise ValueError(
