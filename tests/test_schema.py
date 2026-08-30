@@ -449,6 +449,108 @@ def test_no_grammar_enumerates_a_declared_value() -> None:
         )
 
 
+#: Grammars whose enumerations the check below cannot ask about yet, each with
+#: the reason. Pinned rather than dropped, so the limit stays known: the test
+#: under this asserts that each one is still a live violation, and a grammar
+#: that stops enumerating fails there until its entry is removed.
+_ENUMERATION_ESCAPES = {
+    "vocabulary.rng": (
+        "it enumerates fidelity, kind and source-style, and each is a second "
+        "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
+        "ipa.xml declares. The Python side already refuses an unknown value by "
+        "construction -- Fidelity(...) raises -- so the enumerations are "
+        "redundant, but removing them is a change to the bridges."
+    ),
+}
+
+
+@functools.cache
+def _supplied_values() -> dict[str, frozenset[str]]:
+    """Every value the shipped documents supply, by attribute name."""
+    supplied: dict[str, set[str]] = {}
+    for document in _documents():
+        for element in ET.parse(document).getroot().iter():
+            for name, value in element.attrib.items():
+                supplied.setdefault(name, set()).add(value)
+    return {name: frozenset(values) for name, values in supplied.items()}
+
+
+def _enumerations(grammar: Path) -> dict[str, list[str]]:
+    """The values ``grammar`` spells out, by the attribute they are under."""
+    out: dict[str, list[str]] = {}
+    for attribute in ET.parse(grammar).getroot().iter(f"{RNG}attribute"):
+        if not (name := attribute.get("name", "")):
+            continue
+        spelled = sorted(
+            (node.text or "").strip() for node in attribute.iter(f"{RNG}value")
+        )
+        if spelled:
+            out.setdefault(name, []).extend(spelled)
+    return out
+
+
+def _copied_vocabularies(grammar: Path) -> dict[str, list[str]]:
+    supplied = _supplied_values()
+    return {
+        name: copied
+        for name, values in _enumerations(grammar).items()
+        if (copied := sorted(set(values) & supplied.get(name, frozenset())))
+    }
+
+
+def test_no_grammar_enumerates_a_value_a_document_supplies() -> None:
+    """The same rule as above, asked of the documents rather than of ipa.xml.
+
+    ``test_no_grammar_enumerates_a_declared_value`` reaches only the names
+    ``ipa.xml`` declares, so a vocabulary living in some other shipped document
+    -- or in the code that reads it -- escaped both it and
+    ``test_no_grammar_names_the_inventory``. The syllable strata escaped that
+    way: three words written into ``syllables.rng``, into ``syllable.py``
+    twice, and into the curation script, agreeing only by habit, while an
+    onset labeled with a fourth was dropped from the inventory without a word.
+
+    This asks the general question. If a shipped document supplies a value for
+    an attribute, that value is vocabulary and the grammar states the shape it
+    arrives in, not the list it is drawn from. Where the vocabulary genuinely
+    belongs to the code -- ``mode`` names a derivation this library implements
+    -- the code declares it once and refuses the rest by name, which is louder
+    than a grammar and reaches a declaration built in memory as well as one
+    read off disk.
+    """
+    supplied = _supplied_values()
+    assert len(supplied) > 20, f"only {len(supplied)} attribute names found"
+    smuggled = {
+        grammar.name: copied
+        for grammar in _grammars()
+        if grammar.name not in _ENUMERATION_ESCAPES
+        if (copied := _copied_vocabularies(grammar))
+    }
+    assert not smuggled, (
+        f"these grammars enumerate values the shipped documents supply: "
+        f"{smuggled}. That list is a second copy of a vocabulary declared "
+        f"somewhere else; admit the attribute by shape and let whatever owns "
+        f"the vocabulary refuse an unknown value by name."
+    )
+
+
+def test_the_enumeration_check_states_what_it_does_not_cover() -> None:
+    """Each escape is still a real violation, or it is not an escape.
+
+    A pinned exception that has quietly stopped applying is an exception
+    nobody will remove, so coverage can only change deliberately: fixing
+    ``vocabulary.rng`` fails here until its entry goes.
+    """
+    for name, reason in _ENUMERATION_ESCAPES.items():
+        grammar = next((g for g in _grammars() if g.name == name), None)
+        assert grammar is not None, f"{name} is exempted but is not in the tree"
+        assert len(reason) > 40, f"{name} is exempted without a reason"
+        assert _copied_vocabularies(grammar), (
+            f"{name} no longer enumerates any value a document supplies, so "
+            f"the exemption in _ENUMERATION_ESCAPES is stale; delete it and "
+            f"let the check cover this grammar."
+        )
+
+
 # --------------------------------------------------------------------------
 # 4. Negative tests
 # --------------------------------------------------------------------------

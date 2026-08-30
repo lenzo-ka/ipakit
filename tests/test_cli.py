@@ -889,6 +889,35 @@ def _assert_flat_exports_are_inventoried(source, declared_exports, contract):
     assert not missing, f"flat exports missing from CLI capability contract: {missing}"
 
 
+def _contract_rows() -> list[tuple[str, bool, set[str]]]:
+    """Each table row as (capability, claims library-only, public functions).
+
+    Only the flat module's functions are read out of a row. Classes, constants
+    and dotted module paths are exports of the representation rather than reads
+    a command could print, which is the same limit
+    ``TestEveryPublicReadIsEitherOnTheCommandLineOrDeclaredLibraryOnly``
+    already states for itself; crossing the two requires them to be scoped the
+    same way.
+    """
+    text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
+    out = []
+    for line in [line for line in text.splitlines() if line.startswith("|")][2:]:
+        cells = line.split("|")
+        named = set(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", line))
+        out.append(
+            (
+                cells[1].strip(),
+                "**Library-only by decision:**" in line,
+                {
+                    n
+                    for n in named
+                    if n in ipakit.__all__ and inspect.isfunction(getattr(ipakit, n))
+                },
+            )
+        )
+    return out
+
+
 class TestCapabilityInventoryContract:
     def test_every_row_has_exactly_one_contract_state(self):
         text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
@@ -900,6 +929,53 @@ class TestCapabilityInventoryContract:
                 for marker in ("**CLI-reachable:**", "**Library-only by decision:**")
             )
             assert states == 1, row
+
+    def test_each_rows_marker_agrees_with_the_measured_reachability(self):
+        """The marker is a claim about the code, so ask the code.
+
+        ``test_every_row_has_exactly_one_contract_state`` asks only that a row
+        carries a marker, never that the marker is true, and three rows drifted
+        under it: a command shipped and the table went on calling the row
+        library-only. ``LIBRARY_ONLY`` is already measured against the parser --
+        it is an exact set, asserted in both directions -- so crossing the two
+        makes the table equal by construction to that measurement instead of a
+        third opinion about the same fact.
+
+        Both arms, because a row is wrong in either direction. A library-only
+        row may name no function the CLI reaches; a CLI-reachable row must name
+        at least one, since a row whose every function is declared library-only
+        is a library-only row wearing the other marker.
+        """
+        rows = _contract_rows()
+        assert rows, "no capability rows found"
+        reachable = [
+            (capability, sorted(names - set(LIBRARY_ONLY)))
+            for capability, library_only, names in rows
+            if library_only and names - set(LIBRARY_ONLY)
+        ]
+        assert not reachable, (
+            f"these rows are marked library-only but name functions the CLI "
+            f"reaches: {reachable}. Either the command should not exist or the "
+            f"row should say **CLI-reachable:** and name it."
+        )
+        stranded = [
+            capability
+            for capability, library_only, names in rows
+            if not library_only and names and not names - set(LIBRARY_ONLY)
+        ]
+        assert not stranded, (
+            f"these rows are marked CLI-reachable but every function they name "
+            f"is declared library-only: {stranded}"
+        )
+
+    def test_the_row_crossing_is_not_vacuous(self):
+        """A parse that matched nothing would pass the check above silently."""
+        rows = _contract_rows()
+        assert len(rows) > 10, f"only {len(rows)} capability rows parsed"
+        carrying = [c for c, _, names in rows if names]
+        assert len(carrying) > 5, f"only {carrying} rows named a public function"
+        assert any(library_only for _, library_only, _ in rows)
+        assert set(LIBRARY_ONLY) & {n for _, _, names in rows for n in names}
 
     def test_every_intentional_flat_export_is_inventoried(self):
         """Keep a newly exported symbol from silently escaping the table."""

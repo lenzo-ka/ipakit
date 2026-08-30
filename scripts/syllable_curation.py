@@ -16,7 +16,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -29,7 +29,7 @@ from ipakit.bridges.ipa_dict import IPADictReader
 from ipakit.corpus import Corpus
 from ipakit.form import Form, Unit
 from ipakit.mapper import CMUMapper
-from ipakit.syllable import Language, syllabifier
+from ipakit.syllable import CORE_STRATUM, Language, declared_strata, syllabifier
 
 
 @dataclass(frozen=True)
@@ -103,15 +103,26 @@ def harvest(corpus: Corpus) -> tuple[Evidence, ...]:
     )
 
 
+#: The strata this curation assigns, from the core outward. They are minted
+#: here, written into the declaration, and read back out of it by
+#: ``ipakit.syllable.declared_strata`` -- so each is spelled once, at the point
+#: the decision to use it is made, and nothing downstream keeps a second list.
+BORROWING_STRATUM = "borrowing"
+MARGINAL_STRATUM = "marginal"
+
+
 def classify_exception(onset: str) -> tuple[str | None, str]:
     phones = onset.split()
     if onset in {"f s", "l k s", "θ s"}:
         return None, "refuse an initialism spelling as transcription noise"
     if phones[:2] == ["ʃ", "m"]:
-        return "borrowing", "retain the productive Yiddish/German borrowing pattern"
+        return (
+            BORROWING_STRATUM,
+            "retain the productive Yiddish/German borrowing pattern",
+        )
     if phones and phones[0] == "s":
-        return "native", "retain the English s-cluster sonority exception"
-    return "marginal", "retain attested proper-name, clipping, or loan evidence"
+        return CORE_STRATUM, "retain the English s-cluster sonority exception"
+    return MARGINAL_STRATUM, "retain attested proper-name, clipping, or loan evidence"
 
 
 def _span_xml(parent: ET.Element, evidence: Evidence) -> None:
@@ -125,7 +136,7 @@ def _span_xml(parent: ET.Element, evidence: Evidence) -> None:
     if not evidence.legal:
         stratum, decision = classify_exception(evidence.onset)
         attributes.update(
-            stratum=stratum or "marginal",
+            stratum=stratum or MARGINAL_STRATUM,
             decision=decision,
             **{"curation-provenance": "CMUdict curation queue, iteration 2"},
         )
@@ -172,19 +183,20 @@ def _write_xml(root: ET.Element, path: Path) -> None:
 
 
 def _filtered(language: Language, strata: frozenset[str]) -> Language:
-    return Language(
-        language.name,
-        language.mode,
-        language.provenance,
-        language.nuclei,
-        tuple(
+    """The declaration with only the onsets ``strata`` admits.
+
+    Named the same way :func:`ipakit.syllable._admit` names it, and changing
+    only ``onsets``: listing all eight fields positionally, as this once did,
+    resets a ninth field to its default the day one is added rather than
+    failing.
+    """
+    return replace(
+        language,
+        onsets=tuple(
             span
             for span in language.onsets
             if span.stratum is None or span.stratum in strata
         ),
-        language.morae,
-        language.syllables,
-        language.codas,
     )
 
 
@@ -194,14 +206,16 @@ def _signature(built: Any, form: Form) -> tuple[Any, ...]:
 
 
 def iterations(corpus: Corpus, language: Language) -> list[dict[str, Any]]:
-    stages = (
+    # The curation ladder, each rung admitting one stratum more than the last.
+    # The top rung is whatever the shipped declarations actually label onsets
+    # with, read back from the data, so this cannot come to a different
+    # conclusion about the vocabulary than the library does.
+    core = frozenset({CORE_STRATUM})
+    stages: tuple[tuple[str, frozenset[str]], ...] = (
         ("constraint baseline", frozenset()),
-        ("admit native exceptions", frozenset({"native"})),
-        ("admit borrowings", frozenset({"native", "borrowing"})),
-        (
-            "admit marginal evidence",
-            frozenset({"native", "borrowing", "marginal"}),
-        ),
+        ("admit native exceptions", core),
+        ("admit borrowings", core | {BORROWING_STRATUM}),
+        ("admit marginal evidence", declared_strata()),
     )
     forms = [entry.forms["cited"] for entry in corpus if "cited" in entry.forms]
     previous: list[tuple[Any, ...]] | None = None

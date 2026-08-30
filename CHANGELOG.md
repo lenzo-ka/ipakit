@@ -180,7 +180,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A bracketed change naming a structural feature is refused: `t -> [tier=mora]` parsed, fired at every `t` and wrote into a bundle no unit carries (#145).
+- `syllabifier` dropped an onset whose stratum the module did not name — 39 of English's 125 declared onsets after a rename, at `strictness="permissive"`, with no error. The admitted strata are read from the shipped declarations and an unrecognized stratum is refused by name.
+- `read_language` refuses a `mode` no derivation implements instead of falling through to the constraints branch.
+- Three rows of `docs/cli-api-sync.md` were marked library-only while the CLI reached them (`load_ipa_features`, the syllabification row, `notebook`); each row's marker is now crossed with the measured `LIBRARY_ONLY` set.
 - `DistanceModel.is_similar` charged structural marks a length and a price the alignment never pays, so `lez‿ami` against `lezami` short-circuited to `False` above 12/13 for two forms it scores identical (#166).
 - The feature-space fingerprint no longer digests structural features, which cannot reach a distance, so declaring one leaves a saved matrix readable (#145).
 - A bare query term two features claim resolves by declaration order no longer: a value declares `bare` to own its plain spelling, and a contested term nothing claims is refused naming the claimants (#178).
