@@ -52,7 +52,6 @@ XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
 OVERRIDES: dict[str, str] = {
     "␣": "*",  # silence placeholder
     "‿": "-\\",  # linking (absence of a break)
-    "ʱ": "_hh",  # breathy-voiced / murmured release
     "ᶣ": "_H_w",  # labial-palatal approximant release
     "ť": "t_>",  # ejective (legacy caron form)
     "ȡ": "d_j\\",  # curly-tail d (alveolo-palatal)
@@ -122,6 +121,17 @@ UNMAPPABLE: dict[str, str] = {
     # (_h _w ' _G _?\ ...) with no glottal or schwa member.
     "ˀ": "glottalization: no X-SAMPA diacritic",
     "ᵊ": "schwa release: no X-SAMPA diacritic",
+    # The one entry here that X-SAMPA COULD spell, declined rather than
+    # impossible, and the distinction is worth keeping in the reason
+    # rather than blurred into the four above. ipakit spelled it `_hh`,
+    # extending X-SAMPA's `_h`, which made a join ambiguous against a key
+    # our own override claimed: `ʰh` and `ʰɦ` both read back as `ʱ`. That
+    # ambiguity was ours, not the standard's -- sixteen of the seventeen
+    # composed-form collisions are X-SAMPA's own, and this was the
+    # seventeenth. IPA is the primary notation and X-SAMPA a convenience,
+    # so declining to spell one mark there costs less than inventing an
+    # ambiguity the standard does not have.
+    "ʱ": "breathy-voiced release: declined, not impossible; `_hh` was ours and made `ʰh` ambiguous",
 }
 
 
