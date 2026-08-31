@@ -70,7 +70,7 @@ def _load_phonemap(name: str) -> tuple[dict[str, str], dict[str, str]]:
             target = elem.get(target_name, "")
             if not target:
                 # Per row rather than only over the whole table, so one row
-                # spelling the column differently from its neighbours is as
+                # spelling the column differently from its neighbors is as
                 # loud as a whole document doing it.
                 unread.append(dict(elem.attrib))
             elif ipa:

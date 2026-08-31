@@ -2094,7 +2094,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         for name in names:
             # A place is cardinal just like its degree: at a unit target it
             # must be that unit's declared place.  Weight only units that
-            # actually place this articulator.  A releasing neighbour has no
+            # actually place this articulator.  A releasing neighbor has no
             # competing place, so the gesture stays at the constricting
             # unit's arc while its degree fades; two differently placed
             # gestures move place only during their direct transition.
@@ -2365,7 +2365,7 @@ class Trajectory:
     def dominant_unit_indices(self, ordinal: float) -> tuple[int, ...]:
         """Indices of spoken units dominant at ``ordinal`` on the blend clock.
 
-        Exact transition midpoints return both neighbouring units.  During a
+        Exact transition midpoints return both neighboring units.  During a
         synthetic rest's dominant interval no spoken-unit index is returned.
         """
         distances = tuple(abs(ordinal - index) for index in range(len(self.play_units)))

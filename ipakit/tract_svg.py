@@ -313,7 +313,7 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
     # place back into the bilabial share of the gesture, and convert degree
     # into activation above the head's declared open baseline.  The latter
     # keeps place and degree consistent at an unplaced vowel target: its
-    # implied baseline degree contributes no contact whichever neighbouring
+    # implied baseline degree contributes no contact whichever neighboring
     # gesture supplies the otherwise immaterial fallback place.
     contact = 0.0
     if lower_lip is not None and lower_lip.arc is not None:

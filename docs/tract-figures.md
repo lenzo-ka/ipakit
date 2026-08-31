@@ -97,7 +97,7 @@ The answer is an annotation layer rather than a posture that pretends. Voicing i
 | square | a postural feature *this* bundle's posture did not read: one arc and one offset are on offer, and a bundle stating two postures loses one | `height` and `backness` beside a consonantal manner; `place` beside `manner="vowel"`; `backness` beside a stated `constriction-location` |
 | tilde | a coordinate the posture *did* draw, read off a feature that states something else | `backness` supplying the `arc` of a vowel that states no `constriction-location` |
 
-The tilde is the one chip that does not mean "missing", and it is the answer to a failure this layer had. `docs/design/tract-validation.md` §4 measured `ɝ` at `arc` 0.22 against the 0.44 the drawing gives it, beside a chip saying `rhotacized` is unmodelled, and observed that "a reader has no way to know the note explains the error". A chip that names the coordinate rather than a neighbouring property is what closes that: under `ə` the strip says the horizontal position came from `backness`, which is where the tongue body is and not where it constricts.
+The tilde is the one chip that does not mean "missing", and it is the answer to a failure this layer had. `docs/design/tract-validation.md` §4 measured `ɝ` at `arc` 0.22 against the 0.44 the drawing gives it, beside a chip saying `rhotacized` is unmodelled, and observed that "a reader has no way to know the note explains the error". A chip that names the coordinate rather than a neighboring property is what closes that: under `ə` the strip says the horizontal position came from `backness`, which is where the tongue body is and not where it constricts.
 
 **Left to the caption**, because neither of the above is honest:
 
