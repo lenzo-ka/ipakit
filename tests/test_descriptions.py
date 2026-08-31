@@ -6,7 +6,7 @@ intended: a diphthong's flat projection is its nucleus, so `a͜ɪ` reads
 back as `a`'s sentence and no describer got it wrong.
 
 The exception saying so has to be a predicate over the *shape* of that
-collapse, in the sense `docs/reviewing.md` gives -- one atomic member,
+collapse -- one atomic member,
 every other member a diphthong opening on it and carrying its bundle.
 Asking only which `kind` values the group holds is not that predicate:
 `{"atomic"} <= {"atomic", "diphthong"}`, so it excuses two consonants

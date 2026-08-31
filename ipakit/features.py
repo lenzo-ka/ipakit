@@ -1189,10 +1189,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         # HEIGHT, because ``height`` declares ``high`` as an alias of
         # ``close`` and sits above ``tone``, for which ``high`` is a value
         # outright. A tone rule written the obvious way parsed, ran, and
-        # answered about height. That is the shape docs/reviewing.md names:
-        # not a match against nothing, which the guards below already catch
-        # loudly, but a match against something else. Deciding it here
-        # rather than by where a feature sits in the file is the point --
+        # answered about height. The failure is not a match against
+        # nothing, which the guards below already catch loudly, but a
+        # match against something else. Deciding it here rather than by
+        # where a feature sits in the file is the point --
         # declaration order is not meaning.
         claims = self._claimants(term)
         if len(claims) == 1:

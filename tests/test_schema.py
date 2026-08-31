@@ -5,9 +5,8 @@ the code that reads those files says nothing about their shape. A
 misplaced attribute or a section under the wrong parent is read by
 ``xml.etree.ElementTree`` without complaint and comes back as a missing
 feature, a phone with no place, a head that draws slightly wrong -- a
-silent wrong answer of the shape ``docs/reviewing.md`` is about. The
-grammars in ``ipakit/data`` say what well-formed means; this module is
-what makes the saying bite.
+silent wrong answer under a green suite. The grammars in ``ipakit/data``
+say what well-formed means; this module is what makes the saying bite.
 
 Four claims, in order of how much they are worth:
 

@@ -8,8 +8,8 @@ that happen to be in the tree today. A list of those would document the
 present and catch nothing.
 
 Two of these matter more than the rest. A guard that silently matches
-nothing passes every document, which is the failure ``docs/reviewing.md``
-names first, so one test perturbs a real quotation and requires a report,
+nothing passes every document, which is the first failure to rule out,
+so one test perturbs a real quotation and requires a report,
 and another points the check at a tree with nothing in it and requires a
 complaint rather than a pass.
 """

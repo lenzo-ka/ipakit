@@ -10,17 +10,15 @@ docstrings inside the package, and ``tests/test_cli.py`` replays the
 ``README.md`` or ``docs/form.md`` was checked by whoever last edited it
 and never again.
 
-``docs/reviewing.md`` names documentation drifting away from behavior as
-a first-class recurring failure here, so this closes that hole from the
-same direction: every expression in a ``python`` fence is evaluated, and
-where the document quotes a value beside or beneath it, the two must
-agree.
+Documentation drifting away from behavior is a first-class recurring
+failure here, so this closes that hole from the same direction: every
+expression in a ``python`` fence is evaluated, and where the document
+quotes a value beside or beneath it, the two must agree.
 
 What counts as a quoted value is deliberately conservative -- a comment
 that does not parse as a Python literal is prose, and prose is not
 checked. The count of what *was* checked is printed and asserted against
-a floor, so this cannot go quietly vacuous the way ``docs/reviewing.md``
-warns about.
+a floor, so this cannot go quietly vacuous.
 """
 
 from __future__ import annotations
@@ -57,7 +55,7 @@ GENERATED = {"tutorial.md", "tutorial.src.md"}
 
 #: A floor, not a total. The totals move whenever a document gains an
 #: example; a floor only fails when a *sweep* has collapsed, which is the
-#: failure mode ``docs/reviewing.md`` says to guard against.
+#: failure mode worth guarding against.
 FLOOR = 90
 
 
@@ -145,8 +143,7 @@ def check_block(
     for stmt in tree.body:
         if isinstance(stmt, ast.Assert):
             # A document quoting an assertion is quoting test source, not
-            # offering an example -- docs/reviewing.md shows the shape a
-            # sweep's floor should take. There is nothing here to run.
+            # offering an example. There is nothing here to run.
             continue
         source = ast.get_source_segment(block, stmt) or ""
         want = quoted(lines, stmt)

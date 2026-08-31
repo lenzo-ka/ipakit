@@ -54,8 +54,8 @@ one ends -- and may not name one in its center. That is not caution: the
 restriction buying regularity is on a rule's center and not on its
 contexts (docs/calculus.md), and what leaves the finite-state tradition
 is rewriting a tier rather than reading one, the multi-tape treatments
-going beyond regular power precisely for structure-modifying rules
-(docs/design/tiers.md). A tier term claims a **position** rather than a
+going beyond regular power precisely for structure-modifying rules. A
+tier term claims a **position** rather than a
 unit and so consumes nothing, which is what keeps the restriction from
 costing anything: "a ``t`` that begins a syllable" is a statement about
 where the target sits, and where the target sits is context.
@@ -85,19 +85,18 @@ surface and still reported one change per mark, where the contract says
 there is one.
 
 So a target that matched a boundary spans the run, ``[lo, hi)``. A site
-wider than one unit is what docs/design/captures.md refused under the
-name *span*, and this is not that. There the width is stated by the
-rule -- ``ab -> ba``, n patterns and n terms with a permutation on the
-right -- and it costs the things that document lists: overlapping sites
-where the scan is one wide, a decision about which of several new units
-inherits a mark that rode the span, an exchange check per term. Here the
-rule states one pattern and matches one boundary; the width is a fact
-about how the *form* was spelled. Maximal stretches cannot overlap, so
-the sites stay disjoint and ``Query.sites`` keeps its promise; the right
-of the arrow keeps its single implicit term; and a boundary carries no
-prosody for anything to inherit. What does widen is :attr:`Edit.before`,
-which reports the run as it was written -- the honest reading of a
-rewrite whose input was two marks.
+wider than one unit is the *span* this library refused, and this is not
+that. There the width is stated by the rule -- ``ab -> ba``, n patterns
+and n terms with a permutation on the right -- and it costs: overlapping
+sites where the scan is one wide, a decision about which of several new
+units inherits a mark that rode the span, an exchange check per term.
+Here the rule states one pattern and matches one boundary; the width is
+a fact about how the *form* was spelled. Maximal stretches cannot
+overlap, so the sites stay disjoint and ``Query.sites`` keeps its
+promise; the right of the arrow keeps its single implicit term; and a
+boundary carries no prosody for anything to inherit. What does widen is
+:attr:`Edit.before`, which reports the run as it was written -- the
+honest reading of a rewrite whose input was two marks.
 
 The run is walked as far as **the pattern** matches rather than as far
 as :func:`_run` goes, which is the same "a boundary pattern is a class"
@@ -609,7 +608,7 @@ class Pattern:
         term would match wherever the rest of it held -- assimilation to
         every following consonant instead of the agreeing ones -- and a
         well-formed wrong answer is the shape of every defect this
-        library has had (docs/reviewing.md).
+        library has had.
         """
         if self.tier is not None:
             raise RuleError(
@@ -976,9 +975,9 @@ def _agreement(value: str, features: IPAFeatures) -> Agreement | None:
     ambiguous today, since no feature declares a one-letter value; what
     makes it intolerable is the other direction. A variable must never be
     able to reach a form, because a leak would then be a **phone**, and
-    the whole failure mode of this library is a well-formed wrong answer
-    (docs/reviewing.md). ``α`` and ``γ`` do not survive a read -- they are
-    dropped, loudly -- and ``β`` does.
+    the whole failure mode of this library is a well-formed wrong answer.
+    ``α`` and ``γ`` do not survive a read -- they are dropped, loudly --
+    and ``β`` does.
 
     So the test is the property, not the letter: a variable is a letter of
     :data:`VARIABLE_SERIES` that **spells nothing this inventory reads**.
@@ -1635,10 +1634,10 @@ def _target_end(
     is the first one the pattern matched, so there is nothing to its left
     to absorb.
 
-    **This is not the span docs/design/captures.md refused.** That span is
-    a target whose width the *rule* states -- ``ab -> ba``, n patterns and
-    n terms, with a permutation on the right -- and it breaks things this
-    does not: ``aa`` on ``aaa`` finds overlapping sites, so non-overlap
+    **This is not the span this library refused.** That span is a target
+    whose width the *rule* states -- ``ab -> ba``, n patterns and n terms,
+    with a permutation on the right -- and it breaks things this does
+    not: ``aa`` on ``aaa`` finds overlapping sites, so non-overlap
     stops being an accident of a one-wide scan; ``_carry_prosody`` has to
     say which of several new units inherits a mark that rode a permuted
     span; ``_check_no_exchange`` has to run per term. Here the rule states
@@ -2150,10 +2149,9 @@ def _resolve_agreements(
     The last place a variable could go quiet, and it does not. A change
     naming an unbound variable **raises** rather than dropping the term
     or writing nothing: dropping it would apply the rest of the change
-    and report an edit, which is a well-formed wrong answer of exactly
-    the shape docs/reviewing.md is about. :func:`parse` refuses the rule
-    that would reach here, so this is a guard on the invariant rather
-    than a path a written rule can take.
+    and report an edit, which is a well-formed wrong answer.
+    :func:`parse` refuses the rule that would reach here, so this is a
+    guard on the invariant rather than a path a written rule can take.
     """
     bound = dict(site.bindings)
     out: dict[str, str | None] = {}
@@ -2568,10 +2566,9 @@ def rebase(
     **The policy: an interval may lose material to an edit and may never
     gain material from outside itself.** Everything below follows from
     that one sentence, and it is the only reading available to a system
-    where a rule may read a tier and may not write one (§2 of
-    docs/design/tiers.md): a rule says what happened to the *units*, and
-    says nothing about the tier, so rebasing may carry the caller's claim
-    forward and may not enlarge it.
+    where a rule may read a tier and may not write one: a rule says what
+    happened to the *units*, and says nothing about the tier, so rebasing
+    may carry the caller's claim forward and may not enlarge it.
 
     Written out, for an edit over ``[a, b)`` replacing ``b - a`` units
     with ``r`` and a span ``[s, e)``, with ``delta = r - (b - a)``:
@@ -2749,9 +2746,8 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
         # restriction is on the center rather than on the contexts
         # (docs/calculus.md); a tier term in the center is a rule that
         # rewrites structure, which is exactly the power the multi-tape
-        # treatments needed to go beyond regular for
-        # (docs/design/tiers.md section 2). Refused here rather than
-        # answered at match time, because a refusal at match time would
+        # treatments needed to go beyond regular for. Refused here rather
+        # than answered at match time, because a refusal at match time would
         # be site-dependent: fine on one form, quietly nothing on the
         # next.
         raise RuleError(
@@ -3055,10 +3051,9 @@ def _check_inserted_change(source: str, becomes: Becomes) -> None:
     than some default voiced thing because grooved, postalveolar and
     fricative are read off the ``ʃ`` that was standing there, so the
     right of the arrow is already a capture with exactly one implicit
-    term (docs/design/captures.md). An insertion matches nothing, that
-    term does not exist, and :meth:`Action.edit` therefore finds every
-    site and declines every one of them: the rule parses, recognizes,
-    and spells nothing at all.
+    term. An insertion matches nothing, that term does not exist, and
+    :meth:`Action.edit` therefore finds every site and declines every one
+    of them: the rule parses, recognizes, and spells nothing at all.
 
     The other reading -- *insert the segment this bundle names* -- is not
     available, and not because resolving it would be hard. A query
@@ -3240,9 +3235,9 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
         # 't -> [tier=mora]' PARSED and then did nothing at all: the
         # change was written into a bundle no unit carries, so the rule
         # was a well-formed statement with no effect and no complaint --
-        # the shape of every defect this library has had
-        # (docs/reviewing.md). The query side already refuses a
-        # structural term (`_structural_terms`) and this side did not.
+        # the shape of every defect this library has had. The query side
+        # already refuses a structural term (`_structural_terms`) and this
+        # side did not.
         #
         # Refused for the reason the target is: a structural feature is a
         # property of a boundary, a juncture or a tier, and rewriting one
@@ -3309,8 +3304,7 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
             f"{rhs!r} writes an interval edge on the {spelled[0]!r} tier. A "
             "rule may READ a tier in its context and may not rewrite one: "
             "the right of the arrow is the center of the rule, and a rule "
-            "that moves an interval edge is a structure-modifying rule "
-            "(docs/design/tiers.md section 2)."
+            "that moves an interval edge is a structure-modifying rule."
         )
     # A literal that spells no phone spells nothing to put anywhere. An
     # insertion inserts a position, and a prosodic mark is a property of a

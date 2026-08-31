@@ -328,6 +328,14 @@ Proposed replacement for the first passage:
 > docs/design/samprosa.md. The block earns its keep on the three
 > symbols above.
 
+**Adopted, with one change.** The shipped comment carries the reason
+rather than the pointer: a later ruling took internal citations out of the
+code entirely, so where this proposed *see docs/design/samprosa.md*, the
+data now states why SAMPROSA was declined — a separate-tier notation whose
+ASCII symbols would take on a second, incompatible reading in this
+single-tier string space. The proposal stands as written above; only its
+last clause did not ship.
+
 Proposed replacement for the second, which only needs the proper noun dropped:
 
 > The next symbol marked would not be so lucky, and a batch

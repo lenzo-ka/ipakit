@@ -10,10 +10,10 @@ output embedded; ``check`` regenerates into memory and compares bytes.
 That single check subsumes "every example works and prints what the page
 says it prints", because a wrong output is a byte difference. It is the
 same guard ``scripts/confusion.py validate`` gives the distance matrix,
-and it exists for the reason ``docs/reviewing.md`` gives at length:
-documentation drifting away from behavior is this repo's most frequent
-recurring failure, and a tutorial is the worst place for it because its
-readers are the ones who cannot yet tell when it is wrong.
+and it exists for one reason: documentation drifting away from behavior
+is this repo's most frequent recurring failure, and a tutorial is the
+worst place for it because its readers are the ones who cannot yet tell
+when it is wrong.
 
 Two block types in the source are executed.
 

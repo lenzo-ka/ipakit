@@ -60,8 +60,6 @@ exit status.
 
 Measurements are taken under ``PYTHONHASHSEED=0``; the script re-execs itself
 to get there rather than trusting the caller to remember.
-
-See docs/reviewing.md for why the sweep is the shape the review takes.
 """
 
 from __future__ import annotations

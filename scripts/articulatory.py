@@ -31,8 +31,8 @@ the printed header always says which was used.
 Each subcommand asserts the shape of what it read -- speaker count, files per
 speaker, frames per speaker -- so a run over a truncated or wrongly-pathed
 copy fails loudly instead of reporting a clean, empty result. See
-docs/reviewing.md for why, and docs/articulatory-data.md for what the numbers
-turned out to be and what they do and do not ground.
+docs/articulatory-data.md for what the numbers turned out to be and what they
+do and do not ground.
 """
 
 from __future__ import annotations

@@ -14,7 +14,6 @@ drift.
     python scripts/invariants.py --quick      # skip the O(n^2) sweeps
 
 Exit status is 1 if any invariant fails, so it can gate a release.
-See docs/reviewing.md for why these are the ones worth checking.
 """
 
 from __future__ import annotations
@@ -66,8 +65,7 @@ UNDECLARED_VERTEX_ARCS = frozenset({0.11, 0.15, 0.17, 0.21, 0.40})
 #: The largest disagreement, per shipped polyline, between a vertex's
 #: declared ``arc`` and its own polyline's normalized cumulative
 #: arclength -- the two readings of "proportional position along the
-#: midline" that ``docs/design/tract-validation.md`` 1 relies on being
-#: the same quantity.
+#: midline", which the geometry relies on being the same quantity.
 #:
 #: Pinned rather than bounded, deliberately. The smallest tolerance that
 #: passes today is 0.064, and adjacent declared places sit 0.03 to 0.06
@@ -301,9 +299,8 @@ def check_descriptions(ipa: IPAFeatures) -> bool:
     nucleus between them, nor a diphthong sharing a sentence with a vowel
     it is not built on, nor one whose bundle has drifted off its
     nucleus's -- the last being how eight derived diphthongs once
-    acquired explicit features, which is the defect ``docs/reviewing.md``
-    tells this story about. An exception that asks only which *kinds* the
-    group holds excuses all four, and the first of them is every
+    acquired explicit features. An exception that asks only which *kinds*
+    the group holds excuses all four, and the first of them is every
     collision this check exists to find.
     """
     groups: dict[str, list[str]] = defaultdict(list)

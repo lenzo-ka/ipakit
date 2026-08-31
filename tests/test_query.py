@@ -167,7 +167,8 @@ class TestAMannerAddedToTheDataDoesNotWidenTheClass:
     and it takes that manner in without a word, while the declaration it
     was standing in for does not -- one phone reclassified, every rule
     site written that way quietly wider, no test anywhere the wiser.
-    That is the shape of defect ``docs/reviewing.md`` was written about.
+    That is the shape of defect this suite exists to catch: a wrong
+    answer nothing announces.
 
     Measured on a loaded copy of the data rather than argued: the phone
     moves to the new manner, and the two spellings are asked what they
@@ -557,13 +558,13 @@ def _spellable_terms(ipa: IPAFeatures) -> list[str]:
 def _corpus_units(ipa: IPAFeatures) -> list[Unit]:
     """The canonical corpus, parsed into the units a query is asked about.
 
-    ``tests.corpus`` is the one enumeration (docs/reviewing.md), taken
-    here in all three extents it offers: the bare phones, one mark on
-    either side of every base, and the two-prosodic-mark sample. The last
-    two matter for different reasons -- a stressed unit is spelled with
-    the mark in front, and a contour is only *derived* where two levels
-    sit next to each other -- and without them a term about stress and a
-    term about nothing look identical.
+    ``tests.corpus`` is the one enumeration, taken here in all three
+    extents it offers: the bare phones, one mark on either side of every
+    base, and the two-prosodic-mark sample. The last two matter for
+    different reasons -- a stressed unit is spelled with the mark in
+    front, and a contour is only *derived* where two levels sit next to
+    each other -- and without them a term about stress and a term about
+    nothing look identical.
     """
     seen: set[str] = set()
     units: list[Unit] = []
@@ -966,7 +967,7 @@ class TestABareTermBelongsToOneFeature:
     as an alias of ``close`` and sits above ``tone``, for which ``high`` is
     a value outright -- so a tone rule written the obvious way parsed, ran,
     and answered about height. That is a well-formed wrong answer, which is
-    the shape docs/reviewing.md says every defect here has had.
+    the shape every defect found here has had.
     """
 
     def test_a_contested_term_no_feature_claims_is_refused(

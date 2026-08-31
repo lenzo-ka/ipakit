@@ -16,7 +16,7 @@ his 1982 monograph and the three his later restatements name — `œ` and
 which is [#175](https://github.com/lenzo-ka/ipakit/issues/175). They are
 read at the arcs `place` already declares for the four locations under
 ipakit's own names for them. The rest are not classified by any source
-read for `docs/design/vowel-constriction.md`, so they state nothing,
+consulted, so they state nothing,
 keep the `backness` fallback, and have that fallback *reported*:
 `tract_reading` puts `backness` in `approximated` and `unmodeled`
 returns it with kind `approximate`. `tests/test_vowel_tract_limit.py` is
@@ -135,7 +135,7 @@ def _inventory_declaring(
     two readings below are latent rather than live, and why reaching them
     takes a whole inventory of one's own. That is a supported extension
     point: `load_ipa_features(xml_path=...)` takes any document, and
-    `docs/reviewing.md` says outright that `ipa.xml` travels on its own.
+    `ipa.xml` travels on its own.
     """
     tree = ET.parse(ipa.xml_path)
     root = tree.getroot()
@@ -192,10 +192,10 @@ FAMILIES = {
     "pharyngeal": ("ɑ", "a", "æ"),
 }
 
-#: The monophthongs no source read for `docs/design/vowel-constriction.md`
-#: classifies by name. Nine of them are central, which is the assessment's
-#: finding -- `ɨ` and `ʉ` are the only central symbols any source places,
-#: and it places them in different families with 0.44 in the gap. The
+#: The monophthongs no source consulted classifies by name. Nine of them
+#: are central, and that is where the sources run out -- `ɨ` and `ʉ` are
+#: the only central symbols any source places, and it places them in
+#: different families with 0.44 in the gap. The
 #: other three are peripheral qualities no family names: `ɒ` is named
 #: only on Wood's own site and by no published statement of the four,
 #: and `ɶ` and `ʏ` are named nowhere at all.

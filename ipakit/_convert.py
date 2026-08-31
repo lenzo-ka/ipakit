@@ -90,7 +90,7 @@ def report_unconvertible(
 
     Raising and warning live in one function so the two branches cannot
     drift into disagreeing about what counts as a loss -- the recurring
-    failure this repo has fixed twice (``docs/reviewing.md``).
+    failure this repo has fixed twice.
     """
     if not skipped:
         return

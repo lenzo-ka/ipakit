@@ -85,8 +85,7 @@ class Feature:
     place: str | None = None
     # A feature whose stated presence makes the tract-x constriction
     # unlocalizable: the segment constricts, but at no single point the
-    # evidence supports (a rhotacized nucleus -- docs/design/
-    # vowel-constriction.md §6). Declared in the data as
+    # evidence supports (a rhotacized nucleus). Declared in the data as
     # constriction="unlocalized"; the metric withholds the tract-x term
     # for such a segment rather than asserting a position or a maximal
     # difference. None means the ordinary case: the constriction has a

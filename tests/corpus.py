@@ -1,7 +1,7 @@
 """One enumeration of the sweep corpus, imported rather than rebuilt.
 
-``docs/reviewing.md`` records what happens otherwise: six review rounds
-rebuilt a sweep by hand and the corpus drifted, with two lanes a day
+Rebuilt by hand it drifts, and has: six review rounds
+rebuilt a sweep by hand and the corpus went with them, with two lanes a day
 apart reporting 7921 and 8338 units and neither able to tell whether the
 other had a different inventory or a different definition. The form and
 rules tests each had their own copy of this function; this is that copy,

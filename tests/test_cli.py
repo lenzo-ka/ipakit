@@ -1510,8 +1510,8 @@ class TestEveryPublicReadIsEitherOnTheCommandLineOrDeclaredLibraryOnly:
     again next release is the failure mode; so the question is asked as a
     predicate over the code -- which public functions does no CLI command
     call? -- and only the *answer* is written down. A hand-maintained
-    list of today's offenders would document the present
-    (docs/reviewing.md); this describes the shape and lets the set be the
+    list of today's offenders would document only the
+    present; this describes the shape and lets the set be the
     assertion.
 
     Equality, not containment, is what makes it work in both directions:

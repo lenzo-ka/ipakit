@@ -4,8 +4,8 @@ Every value ipakit computes comes out of a file in ``ipakit/data``. Those
 files reach an installed user only if a glob in ``pyproject.toml`` names
 them, and nothing else in the suite notices when one does not: the tests
 import from the checkout, where the data is on disk either way. A data
-file that stops shipping is therefore a silent wrong answer of exactly
-the shape ``docs/reviewing.md`` describes -- green suite, broken install.
+file that stops shipping is therefore a silent wrong answer -- green
+suite, broken install.
 
 ``data/rules/*.rules`` was added to ``package-data`` after the rule sets
 themselves; between those two commits the shipped wheel had no rule sets
@@ -13,8 +13,8 @@ in it and the suite was green. These tests are written so the *next* such
 extension fails here rather than in a classroom.
 
 The guards are predicates over the whole tree rather than a list of
-today's files, per ``docs/reviewing.md``: "a guard that lists today's
-offenders documents the present."
+today's files, because a guard that lists today's offenders documents
+only the present.
 """
 
 import json

@@ -69,7 +69,7 @@ def _terms(tier: str) -> tuple[str, str]:
 class TestTheVocabularyIsWideEnoughToSweep:
     """Every sweep below loops over the declared tiers. If that vocabulary
     were empty or one member long, the loops would pass while testing
-    nothing, which is the failure ``docs/reviewing.md`` names first."""
+    nothing, which is the first failure to rule out."""
 
     def test_there_are_several_declared_tiers(self) -> None:
         assert len(tier_names(FEATURES)) >= 3, tier_names(FEATURES)
@@ -84,8 +84,8 @@ class TestATierTermIsRefusedInTheCenter:
 
     Kaplan & Kay's restriction is on a rule's **center** and not on its
     contexts (docs/calculus.md), and what leaves the finite-state
-    tradition is rewriting a tier rather than reading one
-    (docs/design/tiers.md §2). So the center is closed to a tier term and
+    tradition is rewriting a tier rather than reading one. So the center is
+    closed to a tier term and
     the context is open to it, and both halves are asserted here.
     """
 
@@ -432,10 +432,10 @@ class TestTheTierNamesAreDeclaredAndNotWrittenInPython:
     def test_no_declared_tier_name_is_a_string_literal_in_the_rule_engine(
         self,
     ) -> None:
-        """The predicate, over the source rather than over today's names: a
-        tier name pasted into ``rules.py`` is the mistake, whichever one it
-        is. ``docs/design/tiers.md`` records the precedent -- ``'#'`` was
-        pasted as ``word`` once, and a newly declared separator had notation
+        """The predicate, over the source rather than over today's
+        names: a tier name pasted into ``rules.py`` is the mistake,
+        whichever one it is. There is precedent -- ``'#'`` was pasted as
+        ``word`` once, and a newly declared separator had notation
         nothing would parse."""
         tree = ast.parse(_RULES_PY.read_text(encoding="utf-8"))
         declared = set(tier_names(FEATURES))

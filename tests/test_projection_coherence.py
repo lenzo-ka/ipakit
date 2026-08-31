@@ -16,8 +16,8 @@ phonation marks declared the voicing their phonation fixes -- `̥` says
 `voiced="-"`, `̬` says `voiced="+"` -- and two said nothing, so on a
 voiceless base the breathy and creaky marks left the base's voicing
 standing while adding a voiced phonation on top of it. An asymmetry in
-the data, and `docs/reviewing.md` says to let the data be wrong before
-the code is clever. All four marks state it now.
+the data, and the data is the place to fix it rather than teaching the
+code to be clever. All four marks state it now.
 
 The three candidate fixes, and why this one:
 

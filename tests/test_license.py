@@ -7,8 +7,8 @@ well with no package around it -- which is exactly why it carries its own
 would leave behind.
 
 That puts the same license in two places, and two copies of anything is what
-this repository drifts on. ``docs/reviewing.md`` is a record of that shape:
-prose and data that agreed when written and quietly stopped agreeing. So the
+this repository drifts on, in one shape over and over: prose and data that
+agreed when written and quietly stopped agreeing. So the
 second copy is only safe if something compares them, and this is that
 something.
 

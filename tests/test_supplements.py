@@ -22,8 +22,8 @@ own derived data.
 
 The second is ``to_phone``, which picks a winner over the whole phone
 table. A new candidate can outrank an existing winner -- measured below
-at 25 bundles for one plausible supplement -- and that is a silent
-behavior change of exactly the shape ``docs/reviewing.md`` records. The
+at 25 bundles for one plausible supplement -- and that is a behavior
+change nothing announces. The
 rank key that stops it is asserted in both directions: monotone with it,
 and the movers it would otherwise let through, pinned.
 """
@@ -258,8 +258,8 @@ class TestFeaturesAreEqualByConstruction:
 
     An entry that declares no features takes them from its own spelling,
     which is the rule tied entries already load under. The alternative --
-    the author retyping the bundle -- is two copies of one fact, and this
-    repository's record on those is in ``docs/reviewing.md``.
+    the author retyping the bundle -- is two copies of one fact, and two
+    copies drift.
     """
 
     @pytest.mark.parametrize("unit", ["pʰ", "tʰ", "kʰ"])
@@ -509,8 +509,8 @@ class TestToPhoneOnlyGainsAnswers:
         """The sweep the fast test samples: every unit that spells itself back.
 
         The corpus is ``scripts/sweep.py``'s, imported rather than rebuilt,
-        for the reason ``docs/reviewing.md`` gives: six rounds rebuilt this
-        enumeration by hand and it drifted. Slow because ``to_phone`` reads
+        for the reason it always is: six rounds rebuilt this enumeration by
+        hand and it drifted. Slow because ``to_phone`` reads
         the whole phone table per call.
         """
         from sweep import corpus

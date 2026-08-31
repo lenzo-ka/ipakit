@@ -29,11 +29,11 @@ def _load_phonemap(name: str) -> tuple[dict[str, str], dict[str, str]]:
     A phonemap that maps nothing is not a phonemap, so this raises rather
     than warning. Two empty dicts are a well-formed answer that every
     caller downstream reads as "no mapping exists for anything" instead of
-    "this file did not load", which is the silent wrong answer
-    ``docs/reviewing.md`` is about. These files ship with the package, so a
-    column no row spells is a packaging or declaration error rather than
-    anything a caller did or can respond to, and the place to say so is
-    the load, where the document can still be named.
+    "this file did not load", which is a silent wrong answer. These files
+    ship with the package, so a column no row spells is a packaging or
+    declaration error rather than anything a caller did or can respond
+    to, and the place to say so is the load, where the document can still
+    be named.
 
     Args:
         name: Name of the phonemap (e.g., "timit", "kirshenbaum")
