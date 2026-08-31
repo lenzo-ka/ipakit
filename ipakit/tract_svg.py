@@ -57,6 +57,7 @@ from typing import Any
 
 from .features import IPAFeatures
 from .tract import (
+    FULL_CLOSURE_OFFSET,
     Head,
     Landmarks,
     Posture,
@@ -78,6 +79,12 @@ WIDTH = 760
 SECTION_HEIGHT = 560
 CHART_HEIGHT = 300
 PAD = 54
+
+# The arc at or below which a pose is at the lips. ipa.xml puts a bilabial at
+# arc 0.00 and a labiodental at 0.03, so this cutoff separates two places of
+# articulation. Distinct from the rest-proximity distance below, which is a
+# span in (arc, offset) space rather than an arc coordinate.
+LABIAL_ARC_CUTOFF = 0.02
 CEILING = 0.20
 FRAMES_PER_UNIT = 8  # how finely the ordinal timeline is sampled between units
 MS_PER_UNIT = 420  # playback only: maps one ordinal unit to wall-clock ms
@@ -422,7 +429,11 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
         close = max(close, max(0.0, 1.0 - distance / 0.20))
         if distance <= 0.025:
             close = 1.0
-    if pose is not None and pose[0] <= 0.02 and pose[1] >= 0.995:
+    if (
+        pose is not None
+        and pose[0] <= LABIAL_ARC_CUTOFF
+        and pose[1] >= FULL_CLOSURE_OFFSET
+    ):
         close = 1.0
     gap = max(0.0, 0.115 * (1.0 - close))
     width = p.aperture_width
@@ -672,7 +683,9 @@ def drawing(
         active = {"place": str(bundle.get("place") or "")}
         if point.offset is not None:
             active["degree"] = (
-                "closed" if point.offset >= 0.995 else f"{1 - point.offset:.2f} open"
+                "closed"
+                if point.offset >= FULL_CLOSURE_OFFSET
+                else f"{1 - point.offset:.2f} open"
             )
         # The glottal state at the finest granularity the segment spells it,
         # named by the data's own label rather than by a table here.
@@ -1187,8 +1200,8 @@ def _constriction(
     # offset carries the articulator from the midline to the wall
     ax = openp[0] + (wall[0] - openp[0]) * offset
     ay = openp[1] + (wall[1] - openp[1]) * offset
-    shut = offset >= 0.995
-    if arc <= 0.02 and shut:
+    shut = offset >= FULL_CLOSURE_OFFSET
+    if arc <= LABIAL_ARC_CUTOFF and shut:
         return ""  # drawn as the lips meeting, see _lips
     # The dot marks the constriction target on the articulator, with its name
     # and state beside it. The reach line from the midline up to the dot was

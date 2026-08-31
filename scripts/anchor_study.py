@@ -43,6 +43,10 @@ DEFAULT_REPORT = ROOT / "docs/anchor-study.md"
 TASKS = ("002", "007")
 SYNC_SPEAKERS = 5
 SYNC_TOLERANCE_S = 0.050
+
+# The acoustic model used for alignment requires this rate; a source at any
+# other rate is resampled to it before alignment.
+ALIGNMENT_SAMPLE_RATE_HZ = 16_000
 SYNC_MIN_TOKENS = 6
 WINDOW_PAD_S = 0.060
 NON_INFORMATIVE = frozenset({"alveolar-fricative", "vowel"})
@@ -119,13 +123,13 @@ def _resample_for_alignment(source: Path, destination: Path) -> None:
             raise ValueError(f"{source}: expected mono 16-bit PCM WAV")
         source_rate = reader.getframerate()
         samples = array.array("h", reader.readframes(reader.getnframes()))
-    if source_rate == 16_000:
+    if source_rate == ALIGNMENT_SAMPLE_RATE_HZ:
         result = samples
     else:
-        count = round(len(samples) * 16_000 / source_rate)
+        count = round(len(samples) * ALIGNMENT_SAMPLE_RATE_HZ / source_rate)
         result = array.array("h")
         for out_index in range(count):
-            position = out_index * source_rate / 16_000
+            position = out_index * source_rate / ALIGNMENT_SAMPLE_RATE_HZ
             left = min(int(position), len(samples) - 1)
             right = min(left + 1, len(samples) - 1)
             weight = position - left
@@ -133,7 +137,7 @@ def _resample_for_alignment(source: Path, destination: Path) -> None:
     with wave.open(str(destination), "wb") as writer:
         writer.setnchannels(1)
         writer.setsampwidth(2)
-        writer.setframerate(16_000)
+        writer.setframerate(ALIGNMENT_SAMPLE_RATE_HZ)
         writer.writeframes(result.tobytes())
 
 

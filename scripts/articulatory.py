@@ -72,6 +72,12 @@ BIN_MM = 2.0  # x-binning for every profile below
 # free parameter in the mapping, and every arc printed here is on that scale.
 NOMINAL_TRACT_MM = 175.0
 
+# A speaker counts as recovered when the rms residual is within this. The
+# printed sentence below quotes the same figure, so it is named once and
+# interpolated rather than written twice; the two drifted apart silently
+# while both were literals. Where the value came from is not recorded.
+OUTLINE_RMS_TOLERANCE_MM = 1.4
+
 # A pellet trajectory carries occasional wild samples -- a mistracked frame
 # reads hundreds of mm from the true position. Extreme-value statistics (the
 # palate envelope, the diameter profile) take this quantile rather than the
@@ -687,9 +693,10 @@ def cmd_palate(corpus: Corpus, args: argparse.Namespace) -> int:
     summarize("rms at the raw maximum", [row[6] for row in rows], " mm")
     summarize("signed bias", [row[7] for row in rows], " mm")
     summarize("PAL.DAT points per speaker", [float(row[1]) for row in rows])
-    within = sum(1 for row in rows if row[5] <= 1.4)
+    within = sum(1 for row in rows if row[5] <= OUTLINE_RMS_TOLERANCE_MM)
     print(
-        f"\n  {within} of {len(rows)} speakers recover the outline to 1.4 mm rms.\n"
+        f"\n  {within} of {len(rows)} speakers recover the outline to "
+        f"{OUTLINE_RMS_TOLERANCE_MM:g} mm rms.\n"
         "  The raw maximum is the same measurement with the mistracked frames "
         "left in;\n  the gap between the two columns is what those frames are "
         "worth."

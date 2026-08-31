@@ -75,6 +75,13 @@ GLOTTAL_AXIS = "+glottal-aperture"
 #: :func:`glottal_aperture` reads (0 shut .. 1 as wide as the tract).
 GLOTTAL_REST = 1.0
 
+#: The offset at or above which a constriction counts as a full closure.
+#: ``ipa.xml`` declares a plosive and a nasal at ``offset="1.00"`` and an
+#: affricate at ``offset="0.95"``, so this threshold is what keeps an
+#: affricate from reading as a complete closure. It is a phonetic claim about
+#: where closure begins, not a rounding tolerance.
+FULL_CLOSURE_OFFSET = 0.995
+
 
 class _DefaultAnchor(str):
     """Distinguish omitted ``anchor='center'`` from an explicit argument."""
@@ -1458,7 +1465,7 @@ def glottal_aperture(features: IPAFeatures, bundle: dict[str, str]) -> float | N
     apertures = organ.apertures if organ is not None else {}
     if (
         point.offset is not None
-        and point.offset >= 0.995
+        and point.offset >= FULL_CLOSURE_OFFSET
         and apertures.get(point.articulator or "") == "median"
     ):
         return 0.0
