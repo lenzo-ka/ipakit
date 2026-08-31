@@ -676,7 +676,7 @@ class DistanceGroup(CommandGroup):
         seq            Distance between two pre-tokenized phone sequences
 
     Examples:
-        ipakit distance pair p b               # Raw feature distance: ~0.04
+        ipakit distance pair p b               # Raw feature distance: ~0.05
         ipakit distance confusability p b      # inventory-relative
         ipakit distance word kæt kæd           # word similarity
         ipakit distance matrix p t k           # 3x3 comparison matrix
