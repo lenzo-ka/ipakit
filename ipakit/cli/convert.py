@@ -17,7 +17,7 @@ class ToCmuCommand(Command):
 
     Examples:
         ipakit convert to-cmu "kæt"        # K AE0 T
-        ipakit convert to-cmu "ˈhɛloʊ"     # HH EH1 L OW0
+        ipakit convert to-cmu "ˈhɛlo͜ʊ"    # HH EH1 L OW0
         ipakit c to-cmu "kæt" --no-stress  # K AE T
         ipakit c to-cmu "kæt" -f json      # ["K", "AE0", "T"]
         ipakit c to-cmu "k4t" --strict     # error: unknown symbols ['4']
@@ -169,7 +169,6 @@ class NormalizeCommand(Command):
 
     Applies normalizations including:
     - Converting legacy ligatures to tie-bar form (ʧ → t͡ʃ)
-    - Converting tie-bar-below to tie-bar-above (t͜ʃ → t͡ʃ)
     - Joining space-separated segments
 
     Examples:

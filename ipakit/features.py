@@ -2948,9 +2948,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         The tokenizer is total by default -- it never raises, whatever it
         is handed -- but it is not silent: an unregistered character is
         dropped with a warning (see :meth:`parse`). ``strict=True`` raises
-        ``ValueError`` instead, which is what to use when
-        ``to_ipa(segments(x)) == x`` has to be guaranteed rather than
-        hoped for.
+        ``ValueError`` instead, which is what to use when no character
+        may be dropped without being named.
+
+        It does not promise ``to_ipa(segments(x)) == x``. What a unit
+        carries survives; what sits *between* units -- a break, a
+        linking tie -- is carried by no unit and does not, and stress
+        comes back on the nucleus rather than where it was written. Use
+        :meth:`read` when the structure has to survive.
 
         Examples:
             >>> IPAFeatures().tokenize("t͡ʃa")
@@ -3371,8 +3376,16 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         units, belongs to no unit at either side, and is kept by ``Form``.
 
         Unregistered characters are dropped with a warning, as in
-        :meth:`tokenize`; ``strict=True`` raises instead, which is what
-        guarantees ``to_ipa(segments(text)) == text``.
+        :meth:`tokenize`; ``strict=True`` raises instead, so nothing is
+        lost without being said.
+
+        That is narrower than round-tripping, and the paragraph above
+        says why: a break or a linking tie belongs to no unit, so it is
+        not a segment to return and does not survive
+        ``to_ipa(segments(text))`` however strictly the text was read.
+        Neither does stress position, which rides the nucleus rather
+        than the syllable edge. ``read`` returns the :class:`Form` that
+        keeps them.
         """
         return list(self.read(text, strict=strict).segments)
 

@@ -22,7 +22,7 @@ class ValidateCommand(Command):
     Examples:
         ipakit analyze validate            # Check bundled ipa.xml
         ipakit analyze validate -f json    # JSON result with error list
-        ipakit a v --ipa-xml custom.xml    # Validate custom file
+        ipakit --ipa-xml custom.xml a v    # Validate custom file
     """
 
     name = "validate"
