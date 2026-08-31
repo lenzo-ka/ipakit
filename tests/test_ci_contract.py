@@ -107,9 +107,23 @@ def _installed_binaries(job: str) -> set[str]:
     }
 
 
+def _runs_on_pull_request(job: str) -> bool:
+    """Whether this job runs on a pull request at all.
+
+    A job excluded from pull requests still installs its binaries on main and
+    on the nightly, so a file it names is not unreachable -- but it cannot show
+    those tests passing on the change that introduces them. Coverage that only
+    appears after merge is not coverage a reviewer can see, so it does not
+    count here.
+    """
+    return "github.event_name != 'pull_request'" not in job
+
+
 def _unreachable_binary_guards(workflow: str) -> list[str]:
     coverage: list[tuple[list[str], set[str]]] = []
     for job in _job_blocks(workflow):
+        if not _runs_on_pull_request(job):
+            continue
         binaries = _installed_binaries(job)
         for line in job.splitlines():
             paths = _pytest_paths(line.strip())
@@ -207,6 +221,33 @@ def test_the_binary_guard_detects_an_uninstalled_program() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     broken = workflow.replace(
         "sudo apt-get update && sudo apt-get install -y espeak-ng", "true", 1
+    )
+    assert _unreachable_binary_guards(broken) == [
+        "tests/test_espeak_binary.py: espeak-ng"
+    ]
+
+
+def test_a_binary_supplied_only_after_merge_is_not_coverage() -> None:
+    """Installing it in a job that never runs on a PR leaves the file unseen.
+
+    This is the mistake the guard was written and then immediately made: the
+    binary went into the full suite, which is gated off pull requests, so the
+    file kept skipping on every PR while the predicate read green.
+    """
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    anchor = (
+        "    name: test (py${{ matrix.python-version }})\n"
+        "    needs: changes\n"
+        "    if: ${{ needs.changes.outputs.code == 'true' }}"
+    )
+    assert anchor in workflow, "the test job's header moved"
+    broken = workflow.replace(
+        anchor,
+        anchor.replace(
+            "needs.changes.outputs.code == 'true'",
+            "github.event_name != 'pull_request'",
+        ),
+        1,
     )
     assert _unreachable_binary_guards(broken) == [
         "tests/test_espeak_binary.py: espeak-ng"

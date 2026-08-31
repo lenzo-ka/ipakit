@@ -109,6 +109,10 @@ jobs:
       # runs of the same suite, so the saving is paid three times per push.
       # The default -m 'not slow' (pyproject addopts) keeps the O(n^2) sweep
       # tests out of the per-PR run; the full-suite job below runs them.
+      # test_espeak_binary.py gates all twelve of its tests on this binary.
+      # It goes here rather than in the full suite, which never runs on a pull
+      # request: installed there, the file would still skip on every PR.
+      - run: sudo apt-get update && sudo apt-get install -y espeak-ng
       - run: pytest -n auto
 
   full-suite:
@@ -129,9 +133,6 @@ jobs:
           cache-dependency-path: pyproject.toml
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[test]"
-      # test_espeak_binary.py gates every test on the binary being present, so
-      # without this the file skips wholly and the full suite is not full.
-      - run: sudo apt-get update && sudo apt-get install -y espeak-ng
       # Override the addopts default (-m 'not slow') so every test runs.
       - run: pytest -m "slow or not slow" -n auto
 
