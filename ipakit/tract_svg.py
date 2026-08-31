@@ -365,6 +365,16 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             for q in points[1:]
             if q.arc is not None and q.offset is not None
         ]
+    elif head.rest is not None:
+        # The reference drawing has no reading, so the branch above leaves it
+        # with no tongue at all. It is the landmark key, and a key that names
+        # every place while omitting the articulator that reaches them cannot
+        # be read against a posed frame. Draw the home tongue the head
+        # declares -- `RestPosture.tongue_controls`, the same surface a phone
+        # is drawn from, at the same jaw close this figure already uses.
+        current["tongue"] = tongue_surface(
+            head.name, list(head.rest.tongue_controls), close, closures=()
+        )
     if p.reading is not None:
         current["marks"] = [{"label": m.label, "kind": m.kind} for m in p.unmodeled]
         current["secondary"] = [

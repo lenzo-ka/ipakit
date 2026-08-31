@@ -61,7 +61,7 @@ What *is* adult-only is the measurement. The X-Ray Microbeam corpus is 48 Americ
 
 ![The tract at rest, every landmark named](figures/tract-reference.svg)
 
-Every landmark the head declares, at the rest posture. Figures for individual phones name only the landmarks that phone uses, so this one is the key to those. [tract-reference.md](tract-reference.md) has the declared positions and where each number came from.
+Every landmark the head declares, at the rest posture, and the tongue drawn there with them. A key that named every place while leaving out the articulator that reaches them could not be read against a posed figure, which is what it is for. The surface comes from the head's own declared home controls, so it is the same tongue a phone is drawn from rather than a second idea of rest; and because that declaration puts the tip at full contact, the tip sits against the alveolar ridge here. Figures for individual phones name only the landmarks that phone uses, so this one is the key to those. [tract-reference.md](tract-reference.md) has the declared positions and where each number came from.
 
 ## How to read it
 
