@@ -116,13 +116,35 @@ The budget names each kind of material and derives its price from declarations a
 |---|---|---|---|
 | atomic feature | one declared `value_distance` term | graded | average atomic contrast `0.195`; maximum `0.460` |
 | diacritic | the feature terms it contributes | graded, sub-additive | applicable-mark mean `0.038`; maximum `0.144` |
-| aspiration | its declared release comparison | graded | `d(t,tʰ) = 0.048` |
-| dentalization | its declared place comparison | graded | `d(t,t̪) = 0.005` |
-| labialization | its secondary-place comparison | graded | `d(t,tʷ) = 0.002` |
-| second articulator, fusion | nearest-part sharing at `SECONDARY_WEIGHT` | graded | `d(ɡ,ɡ͡b) = 0.034 = d(ɡ,b)/2` |
-| unmatched phased constituent | nearest-part comparison plus one material term | graded | `d(t,t͡s) = 0.263`; `d(e,e͜ɪ) = 0.255` |
+| aspiration | its declared release comparison | graded | `t` against `tʰ` |
+| dentalization | its declared place comparison | graded | `t` against `t̪` |
+| labialization | the `protrusion` bridge, one gesture however it is spelled | graded | `t` against `tʷ` |
+| second articulator, fusion | nearest-part sharing at `SECONDARY_WEIGHT`, plus the arity charge | graded | `ɡ` against `ɡ͡b` |
+| unmatched phased constituent | nearest-part comparison plus one material term | graded | `t` against `t͡s`; `e` against `e͜ɪ` |
 | juncture | one binding-sense term | categorical | agreement `0`, disagreement or unaligned `1` |
 | prosodic rider | one declared `value_distance` term per tier | graded | one term on the unit clock |
+
+The exemplars are checked rather than quoted, so a change that moves them
+fails here rather than going stale in prose:
+
+```python
+import ipakit
+
+budget = {
+    "aspiration": round(ipakit.segment_distance("t", "tʰ"), 4),
+    "dentalization": round(ipakit.segment_distance("t", "t̪"), 4),
+    "labialization": round(ipakit.segment_distance("t", "tʷ"), 4),
+    "fusion": round(ipakit.segment_distance("ɡ", "ɡ͡b"), 4),
+    "phased": round(ipakit.segment_distance("t", "t͡s"), 4),
+    "diphthong": round(ipakit.segment_distance("e", "e͜ɪ"), 4),
+}
+budget   # {'aspiration': 0.0476, 'dentalization': 0.005, 'labialization': 0.0522, 'fusion': 0.0838, 'phased': 0.2629, 'diphthong': 0.2549}
+```
+
+The fusion figure is no longer `d(ɡ,b)/2`. It was, until the fusion branch
+began charging constituent arity: the difference is exactly that charge,
+`d(ɡ,ɡ͡b) - d(ɡ,b)/2 = 0.05`, and the identity in this table outlived the
+change that broke it.
 
 The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md). [design/mass-budget.md](design/mass-budget.md) is the dated record of the divergence, its measured geometry, and the repair.
 
