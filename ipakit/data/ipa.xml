@@ -516,6 +516,17 @@
       <spelling feature="release" value="nasal" port="1.0"/>
       <spelling feature="approach" value="nasal" port="1.0"/>
     </bridge>
+    <bridge name="protrusion" desc="The lips pushed forward and narrowed" href="Roundedness">
+      <!-- One gesture, two spellings. A vowel states it as `rounded` and a
+           consonant as `labialized`, and before this bridge only the vowel
+           reading reached the metric: `labialized` is a secondary
+           articulation, so it was carried by the weighted place components
+           and a labial base moved nowhere. Lip protrusion is not a second
+           place; it is its own dimension, and the tract has no other
+           feature for it. -->
+      <spelling feature="rounded" value="+"/>
+      <spelling feature="labialized" value="+"/>
+    </bridge>
     <bridge name="laterality" desc="Airflow at the sides of the tongue" href="Lateral_consonant">
       <spelling feature="channel" value="lateral"/>
       <spelling feature="release" value="lateral"/>

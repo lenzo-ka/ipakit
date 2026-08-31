@@ -18,6 +18,7 @@ from ipakit.metric import (
     _metric_bundle,
     _nearest_part_cost,
     bundle_distance,
+    excluded_keys,
     metric_fingerprint,
     segment_metric,
     segment_terms,
@@ -1053,3 +1054,49 @@ class TestArticulatorIsPositionedNotMerelyNamed:
 
     def test_it_declares_the_tract_axis(self, ipa: IPAFeatures) -> None:
         assert ipa.features["articulator"].axis == "+x"
+
+
+class TestLipProtrusionIsOneGestureWhereverItIsSpelled:
+    """A vowel spells lip rounding `rounded`; a consonant spells it
+    `labialized`. They are the same gesture, and before the `protrusion`
+    bridge only the vowel spelling reached the metric.
+
+    `labialized` is declared `mode="secondary"`, so it was carried by the
+    weighted place components and never compared as a key. A secondary
+    articulation modeled only as a second place has nothing to move when
+    the base already sits at that place, so lip rounding on a labial cost
+    exactly nothing while the same gesture on a vowel cost a full step.
+    """
+
+    def test_rounding_a_labial_is_not_free(self, ipa: IPAFeatures) -> None:
+        """The sharp case. `p` is bilabial and unrounded; `pʷ` is bilabial
+        and rounded. The bundles differ, and the score used to not."""
+        assert ipa.segment_distance("p", "pʷ") > 0.0
+
+    def test_the_same_gesture_costs_about_the_same_on_either_side(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Not equality: `kʷ` gains a labial constriction a velar lacks, so
+        it may legitimately cost more than protrusion alone. What is
+        refused is the two orders of magnitude the place-only model gave,
+        where one gesture scored 0.0476 on a vowel and 0.0022 on a
+        consonant."""
+        vowel = ipa.segment_distance("i", "y")
+        for base in "ptkbdɡmnfsl":
+            consonant = ipa.segment_distance(base, base + "ʷ")
+            assert 0.5 * vowel < consonant < 2.0 * vowel, (base, consonant, vowel)
+
+    def test_a_base_that_already_rounds_is_still_free(self, ipa: IPAFeatures) -> None:
+        """`w` declares `rounded="+"` already, so `wʷ` asserts nothing new
+        and zero is the right answer. The fix must not manufacture a
+        difference where the declaration carries none."""
+        assert ipa.segment_distance("w", "wʷ") == 0.0
+
+    def test_the_bridge_carries_rounded_rather_than_doubling_it(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """A bridged feature is excluded from the ordinary comparison, or
+        the derived binary and its source would both be counted."""
+        assert ("rounded", "+") in ipa.bridges["protrusion"]
+        assert ("labialized", "+") in ipa.bridges["protrusion"]
+        assert "rounded" in excluded_keys(ipa)

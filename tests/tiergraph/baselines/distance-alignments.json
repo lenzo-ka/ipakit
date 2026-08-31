@@ -145,6 +145,12 @@
               "a": "-",
               "b": "-",
               "cost": 0.0,
+              "label": "protrusion"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
               "label": "retroflex"
             },
             {
@@ -152,12 +158,6 @@
               "b": "-",
               "cost": 0.0,
               "label": "rhotacized"
-            },
-            {
-              "a": "-",
-              "b": "-",
-              "cost": 0.0,
-              "label": "rounded"
             },
             {
               "a": "-",
@@ -452,6 +452,12 @@
               "a": "-",
               "b": "-",
               "cost": 0.0,
+              "label": "protrusion"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
               "label": "retroflex"
             },
             {
@@ -459,12 +465,6 @@
               "b": "-",
               "cost": 0.0,
               "label": "rhotacized"
-            },
-            {
-              "a": "-",
-              "b": "-",
-              "cost": 0.0,
-              "label": "rounded"
             },
             {
               "a": "-",
@@ -705,6 +705,12 @@
               "a": "-",
               "b": "-",
               "cost": 0.0,
+              "label": "protrusion"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
               "label": "retroflex"
             },
             {
@@ -712,12 +718,6 @@
               "b": "-",
               "cost": 0.0,
               "label": "rhotacized"
-            },
-            {
-              "a": "-",
-              "b": "-",
-              "cost": 0.0,
-              "label": "rounded"
             },
             {
               "a": "-",
