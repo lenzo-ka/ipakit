@@ -13,7 +13,7 @@ vowels a source classifies. `u` is at 0.45, `o`, `ɔ` and `ʌ` at 0.56 and
 vowels no source places, and three peripheral qualities outside the
 ranges Wood names, keep an `arc` from `backness`; `backness` says
 where the tongue body is rather than where it constricts, so that arc is
-reported in `Reading.approximated` and by `unmodelled` as kind
+reported in `Reading.approximated` and by `unmodeled` as kind
 `approximate`. A caller can tell a sourced location from an unsourced one
 without reading a source, which is the property that makes a partial
 declaration worth making. `tests/test_constriction_location.py` holds the
@@ -38,7 +38,7 @@ source rather than a rule:
   rules all die on the same `ɛ` against `ʌ` pair. Every coordinate in
   `ipa.xml` is one feature, one value, one number.
 * **Declaring `place` on a vowel does not move `arc`** -- the vowel
-  branch never reads that slot, and `unmodelled` reports the stated place
+  branch never reads that slot, and `unmodeled` reports the stated place
   as `unread` rather than dropping it -- and it renames the phone,
   because `describe` reads the place slot out of the bundle. This is why
   the carrier is a separate `constriction-location` borrowing `place`'s
@@ -109,7 +109,7 @@ from pathlib import Path
 
 import pytest
 from ipakit import IPAFeatures
-from ipakit.tract import tract_point, tract_reading, unmodelled
+from ipakit.tract import tract_point, tract_reading, unmodeled
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -215,7 +215,7 @@ class TestTheLimitAsItStands:
     ) -> None:
         """And that is the change, not a side effect of it.
 
-        `unmodelled` reports a stated value the posture did not read, and
+        `unmodeled` reports a stated value the posture did not read, and
         this limit used to be invisible to it: `backness` was read for
         `arc` and `height` for `offset` on every vowel, so nothing was
         dropped and a predicate over consumption was blind by
@@ -240,7 +240,7 @@ class TestTheLimitAsItStands:
             stated = ipa.get_features(phone, with_defaults=False)
             reading = tract_reading(ipa, stated)
             assert "height" in reading.read, phone
-            kinds = {m.feature: m.kind for m in unmodelled(ipa, stated)}
+            kinds = {m.feature: m.kind for m in unmodeled(ipa, stated)}
             if "constriction-location" in stated:
                 sourced += 1
                 assert reading.read >= {"constriction-location", "height"}, phone
@@ -256,7 +256,7 @@ class TestTheLimitAsItStands:
             == ipa.features["backness"].coordinates["central"]["arc"]
         )
         assert ("place", "unread") in {
-            (m.feature, m.kind) for m in unmodelled(ipa, placed)
+            (m.feature, m.kind) for m in unmodeled(ipa, placed)
         }
 
     def test_the_features_that_would_carry_it_declare_no_geometry(

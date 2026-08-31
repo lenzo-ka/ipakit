@@ -182,7 +182,7 @@ What a second projection does to a drawing is worth measuring rather than assumi
 bundles moved:            0 of 139
 pairwise distances moved: 0 of 9,591
 glottal_aperture moved:   0 of 139
-unmodelled marks moved:   0 of 139
+unmodeled marks moved:   0 of 139
 ```
 
 The metric is untouched, exactly as the brief predicts, and so are the figures: the glottal scale is the feature that declares `axis="+glottal-aperture"`, so a projection over any other feature says nothing about the folds (§8e).
@@ -306,4 +306,4 @@ phones = list(base.phones)
 m1, m2 = base.pairwise_distances(phones), alt.pairwise_distances(phones)
 ```
 
-The corpus counts come from `python scripts/sweep.py corpus`. The pairwise tolerance is `scripts/confusion.py`'s `TOLERANCE = 1e-9`, for the reason given there. The blast-radius comparison in §2 uses the checked-in `docs/examples/aspirated-stops.xml`. The projection measurement in §5 splices a second `<projection>` over `length` into `<projections>` and reads `ipakit.tract.glottal_aperture` and `ipakit.tract.unmodelled` over the 139 registered phones; `length` was chosen because it is ordinal and sorts before `phonation`, which is what a selection by name rather than by declaration would turn on — the experiment is about the mechanism, not about a phonetic claim.
+The corpus counts come from `python scripts/sweep.py corpus`. The pairwise tolerance is `scripts/confusion.py`'s `TOLERANCE = 1e-9`, for the reason given there. The blast-radius comparison in §2 uses the checked-in `docs/examples/aspirated-stops.xml`. The projection measurement in §5 splices a second `<projection>` over `length` into `<projections>` and reads `ipakit.tract.glottal_aperture` and `ipakit.tract.unmodeled` over the 139 registered phones; `length` was chosen because it is ordinal and sorts before `phonation`, which is what a selection by name rather than by declaration would turn on — the experiment is about the mechanism, not about a phonetic claim.

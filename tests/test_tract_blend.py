@@ -152,7 +152,7 @@ def test_glottal_none_resolves_to_rest_before_blending() -> None:
         velic=0.0,
         glottal=None,
         secondary=(),
-        unmodelled=(),
+        unmodeled=(),
     )
     out = blend([silent, silent], 0.5)
     assert out.glottal is not None

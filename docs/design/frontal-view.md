@@ -8,7 +8,7 @@ change to the metric.
 ## Parameter-set diff and consumption
 
 The version-1 track parameter list grows in place from
-`reading, rest, constrictions, velic, glottal, secondary, unmodelled` to that
+`reading, rest, constrictions, velic, glottal, secondary, unmodeled` to that
 same ordered list followed by `aperture_width, protrusion`. Both additions are
 normalized scalars, declared on the `rounded` values in `ipa.xml`, serialized
 on every frame, and blended with the same weighted-scalar rule as `velic`.
@@ -20,7 +20,7 @@ on every frame, and blended with the same weighted-scalar rule as `velic`.
 | velic | velum and nasal port | not visible through the face mask | intentionally projection-specific |
 | glottal | vocal folds | occluded by the face | intentionally projection-specific |
 | secondary | secondary sagittal constriction | retained but occluded in D1 | later skin-off read |
-| unmodelled | honest annotation | retained, not drawn | diagnostic, not a pose coordinate |
+| unmodeled | honest annotation | retained, not drawn | diagnostic, not a pose coordinate |
 | aperture_width | sagittal geometry unchanged | transverse mouth/lip/interior width | gap exposed by H1 and now modeled |
 | protrusion | sagittal geometry unchanged | lip-body thickening/pucker contribution | gap exposed by H1 and now modeled |
 

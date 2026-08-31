@@ -33,7 +33,7 @@ in ``ipa.xml`` rather than from a list here:
 :func:`secondary_marks`
     A secondary articulation declares its own place, so it is a second
     constriction and genuinely drawable.
-:func:`unmodelled`
+:func:`unmodeled`
     Everything else a segment states that this plane does not carry, with
     the reason it does not, so a renderer annotates instead of inventing.
 
@@ -63,7 +63,7 @@ HEADS_FILE = PHONEMAPS_DIR.parent / "heads.xml"
 
 #: The axis the vocal folds open along, and the one declaration
 #: :func:`glottal_scale` reads. A quantity this module draws, named the
-#: way ``+z`` is in :func:`unmodelled`; which feature measures it stays
+#: way ``+z`` is in :func:`unmodeled`; which feature measures it stays
 #: the data's call.
 GLOTTAL_AXIS = "+glottal-aperture"
 
@@ -115,7 +115,7 @@ class Reading:
     consonantal manner is read from ``place`` and ``manner`` and never
     looks at ``height``, so a stated height reaches nothing.
 
-    :func:`unmodelled` asks this rather than asking whether a feature
+    :func:`unmodeled` asks this rather than asking whether a feature
     carries coordinates, so that what a drawing claims to show is what it
     was given.
 
@@ -1230,7 +1230,7 @@ class Posture:
     velic: float
     glottal: float | None
     secondary: tuple[Mark, ...]
-    unmodelled: tuple[Mark, ...]
+    unmodeled: tuple[Mark, ...]
     aperture_width: float = 1.0
     protrusion: float = 0.0
     implied: tuple[TractPoint, ...] = ()
@@ -1252,7 +1252,7 @@ def _resting_posture(h: Head) -> Posture:
         velic=1.0 if declared.velum == "lowered" else 0.0,
         glottal=GLOTTAL_REST,
         secondary=(),
-        unmodelled=(),
+        unmodeled=(),
         rest_weight=1.0,
         tongue_controls=declared.tongue_controls,
     )
@@ -1390,7 +1390,7 @@ def glottal_scale(features: IPAFeatures) -> Feature | None:
     ``phonation`` declares ``axis="+glottal-aperture"`` in ``ipa.xml``,
     and an inventory that measures the folds with some other feature says
     so the same way. The axis is spelled here for the reason
-    :func:`unmodelled` spells ``+z``: it names the quantity this module
+    :func:`unmodeled` spells ``+z``: it names the quantity this module
     computes, not a phonetic fact the data owns.
 
     One feature declares it, or none. Two would leave the choice between
@@ -1522,7 +1522,7 @@ def secondary_marks(features: IPAFeatures, bundle: dict[str, str]) -> tuple[Mark
     return tuple(sorted(out, key=lambda m: m.arc or 0.0))
 
 
-def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...]:
+def unmodeled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...]:
     """What a segment states that this plane's posture does not carry.
 
     ``stated`` is what the segment itself says -- ``get_features`` with
@@ -1621,7 +1621,7 @@ def unmodelled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...
         elif feat.mode == "prosodic":
             kind = "prosodic"
         else:
-            kind = "unmodelled"
+            kind = "unmodeled"
         out.append(
             Mark(
                 feature=name,
@@ -1709,7 +1709,7 @@ def tract_reading(features: IPAFeatures, bundle: dict[str, str]) -> Reading:
     A name lands in ``read`` where this call took its stated value and
     got something back -- an arc, an offset, an articulator, or the
     branch itself. Recording it here rather than restating the branch in
-    :func:`unmodelled` is what keeps the two from disagreeing about what
+    :func:`unmodeled` is what keeps the two from disagreeing about what
     the picture holds.
 
     Whichever feature supplies the ``arc`` is the one asked for the
@@ -1893,7 +1893,7 @@ def posture(
             velic=0.0,
             glottal=None,
             secondary=(),
-            unmodelled=(),
+            unmodeled=(),
         )
     h = head_shape if head_shape is not None else head()
     bundle = features.get_features(phone)
@@ -1931,7 +1931,7 @@ def posture(
             _resting_posture(h),
             glottal=glottal_aperture(features, bundle),
             secondary=secondary_marks(features, bundle),
-            unmodelled=unmodelled(features, stated),
+            unmodeled=unmodeled(features, stated),
             aperture_width=aperture_width,
             protrusion=protrusion,
         )
@@ -1961,7 +1961,7 @@ def posture(
         velic=velic_aperture(features, bundle),
         glottal=glottal_aperture(features, bundle),
         secondary=secondary_marks(features, bundle),
-        unmodelled=unmodelled(features, stated),
+        unmodeled=unmodeled(features, stated),
         aperture_width=aperture_width,
         protrusion=protrusion,
         implied=_implied_positions(features, h, controls),
@@ -2031,7 +2031,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     ``reading`` -- the primary point the renderer derives jaw close from --
     is the target-weighted mean of the units' readings; it drives no
     tongue closure, so blending its arc is jaw motion, not a sliding
-    constriction. The annotations (``secondary``, ``unmodelled``) and the
+    constriction. The annotations (``secondary``, ``unmodeled``) and the
     silence ``rest`` follow the single dominant unit rather than
     interpolating, being labels on a frame and not quantities of it.
     """
@@ -2201,7 +2201,7 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
         velic=velic,
         glottal=glottal,
         secondary=dominant.secondary,
-        unmodelled=dominant.unmodelled,
+        unmodeled=dominant.unmodeled,
         aperture_width=aperture_width,
         protrusion=protrusion,
         implied=dominant.implied,
@@ -2224,7 +2224,7 @@ def _track_parameters() -> tuple[str, ...]:
         "velic",
         "glottal",
         "secondary",
-        "unmodelled",
+        "unmodeled",
         "aperture_width",
         "protrusion",
         "implied",
@@ -2258,7 +2258,7 @@ def _posture_data(value: Posture) -> dict[str, Any]:
         "reading": _point_data(value.reading),
         "rest": _point_data(value.rest),
         "secondary": [_mark_data(mark) for mark in value.secondary],
-        "unmodelled": [_mark_data(mark) for mark in value.unmodelled],
+        "unmodeled": [_mark_data(mark) for mark in value.unmodeled],
         "velic": value.velic,
         "aperture_width": value.aperture_width,
         "protrusion": value.protrusion,
@@ -2309,7 +2309,7 @@ def _posture_from_data(value: Any) -> Posture:
         velic=value["velic"],
         glottal=value["glottal"],
         secondary=tuple(_mark_from_data(mark) for mark in value["secondary"]),
-        unmodelled=tuple(_mark_from_data(mark) for mark in value["unmodelled"]),
+        unmodeled=tuple(_mark_from_data(mark) for mark in value["unmodeled"]),
         aperture_width=value["aperture_width"],
         protrusion=value["protrusion"],
         implied=tuple(_required_point_from_data(p) for p in value.get("implied", [])),
