@@ -415,7 +415,7 @@ l -> [velarized=+] / [vowel] _ ; dark l
 #   underneath -- "after a rhyme" -- because a rhyme is a constituent and a
 #   context is a sequence of units; each of its endings is a separate line,
 #   and a spelling nobody enumerated is a spelling that does not flap.
-# * THE FOOT IS NOT MODELLED, only its segmental shadow. "Foot-medial" is
+# * THE FOOT IS NOT MODELED, only its segmental shadow. "Foot-medial" is
 #   what tapping means and "the next nucleus carries no stress" is what it
 #   asks, and the two come apart wherever a foot boundary is not marked by
 #   a stress: across a word boundary inside a phrase ('hit it' flaps, 'hit

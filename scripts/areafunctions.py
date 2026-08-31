@@ -351,7 +351,7 @@ CHART_COLUMNS = ("front", "near-front", "central", "near-back", "back")
 #: anatomical anchor and no correspondence to centimetres, so a projection has
 #: to be given its corners from outside the figure; these are the anatomical
 #: names Wood's four locations already carry, which is the least arbitrary
-#: anchoring available and the one most favourable to the construction. Every
+#: anchoring available and the one most favorable to the construction. Every
 #: corner lands on its own anchor by construction, so what the projection is
 #: actually asked for is the interior of the figure.
 CHART_CORNERS = (
@@ -852,7 +852,7 @@ def parse_female(text: str) -> Female:
     Perturbed, over the transcription this reads: dropping a row, adding
     one, moving a distance by a section, and losing a column are each
     refused, by name. **What it does not see** is a distance wrong by less
-    than half a section, and an area copied from the neighbouring row with
+    than half a section, and an area copied from the neighboring row with
     the section number left right -- the distance column pins which section
     a row is, and nothing here can pin what is in it. The three
     cross-checks that did that were made once, by hand, off the prose, and

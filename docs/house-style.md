@@ -21,7 +21,7 @@ That is why `n͡d` and `ⁿd` are different phonological objects on purpose: one
 | `a͜ɪt` | `a͜ɪ` `t` |
 | `aɪt` | `a` `ɪ` `t` |
 
-No lexicon is consulted and no language is assumed. The reader needs only the glyphs, because the writer already said which neighbours belong together — which is why the same string tokenizes the same way in a language nobody has told us about.
+No lexicon is consulted and no language is assumed. The reader needs only the glyphs, because the writer already said which neighbors belong together — which is why the same string tokenizes the same way in a language nobody has told us about.
 
 **And it lets a unit be built rather than looked up.** The inventory names a finite set of bases; the tie composes them, so a unit the table never lists is still one unit with features derived from its constituents:
 
