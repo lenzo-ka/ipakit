@@ -22,7 +22,15 @@ CORPUS_VERSION = 1
 ENTRY_VERSION = 1
 _CORPUS_TYPE = "ipakit.corpus"
 _ENTRY_TYPE = "ipakit.corpus.entry"
-_ID_RE = re.compile(r"[A-Za-z0-9'][A-Za-z0-9.'_-]{0,127}\Z")
+# The longest an entry id may be. The pattern spells it as one leading
+# character plus the rest, and _check_id quotes it in its message, so the
+# bound is named once and both read from it.
+MAX_ENTRY_ID_LENGTH = 128
+# A split name is free text rather than an id -- it is not matched against
+# the pattern above -- so it carries its own bound, which happens to be the
+# same number today. They are separate rules and may move apart.
+MAX_SPLIT_NAME_LENGTH = 128
+_ID_RE = re.compile(rf"[A-Za-z0-9'][A-Za-z0-9.'_-]{{0,{MAX_ENTRY_ID_LENGTH - 1}}}\Z")
 _KIND_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
 _EXTENSIONS = {"textgrid": "TextGrid"}
 
@@ -88,7 +96,8 @@ class ValidationReport:
 def _check_id(entry_id: str) -> str:
     if not isinstance(entry_id, str) or _ID_RE.fullmatch(entry_id) is None:
         raise CorpusError(
-            f"invalid entry id {entry_id!r}: expected 1-128 ASCII letters, "
+            f"invalid entry id {entry_id!r}: expected "
+            f"1-{MAX_ENTRY_ID_LENGTH} ASCII letters, "
             "digits, apostrophe, '.', '_' or '-', beginning with one of those"
         )
     return entry_id
@@ -181,9 +190,10 @@ class Corpus:
 
     def put_split(self, name: str, entry_ids: Iterable[str]) -> tuple[str, ...]:
         """Atomically define a named, explicit subset of current entry IDs."""
-        if not isinstance(name, str) or not name or len(name) > 128:
+        if not isinstance(name, str) or not name or len(name) > MAX_SPLIT_NAME_LENGTH:
             raise CorpusError(
-                "split names must be non-empty strings of at most 128 characters"
+                "split names must be non-empty strings of at most "
+                f"{MAX_SPLIT_NAME_LENGTH} characters"
             )
         members = tuple(dict.fromkeys(_check_id(item) for item in entry_ids))
         missing = sorted(set(members) - set(self.ids()))
