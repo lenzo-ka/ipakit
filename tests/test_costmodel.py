@@ -424,4 +424,16 @@ class TestAnInventoryRelativePackIsNotAPortableOne:
                 warnings.simplefilter("ignore")
                 model = DistanceModel.for_phoneset(ipa, phoneset, gamma=1.0)
             scores[name] = model_pack(ipa, model).sub_cost("i", "ɪ")
-        assert scores["sparse"] != scores["dense"], scores
+
+        # Pinned rather than described. The docstring for `model_pack`
+        # used to carry these as prose and drifted from them, because no
+        # gate reads a docstring: `docexamples` walks README and docs/,
+        # and `--doctest-modules` runs only `>>>` blocks. A figure worth
+        # stating is worth failing on.
+        assert scores["sparse"] == pytest.approx(0.052288, abs=5e-6), scores
+        assert scores["dense"] == pytest.approx(0.030769, abs=5e-6), scores
+
+        # The ordering is the claim the figures illustrate: a sparser
+        # reference has fewer close pairs, so one contrast ranks higher
+        # in it than in a denser one.
+        assert scores["sparse"] > scores["dense"], scores
