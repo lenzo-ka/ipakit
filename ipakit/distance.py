@@ -877,8 +877,11 @@ class DistanceMixin(IPAFeaturesBase):
             optional alignment.
 
         Examples:
-            word_distance("kæt", "kæd")   # Small (minimal pair, ~0.04)
-            word_distance("kæt", "dɒɡ")   # Large (different word)
+            >>> import ipakit
+            >>> ipakit.word_distance("kæt", "kæd").edit_cost
+            0.1
+            >>> round(ipakit.word_distance("kæt", "dɒɡ").edit_cost, 4)
+            0.6464
         """
         from .metric import GAP_COST
 
@@ -1100,8 +1103,16 @@ class DistanceMixin(IPAFeaturesBase):
             weighted: If True, use feature distance for substitution costs.
 
         Examples:
-            word_similarity("kæt", "kæd")   # ~0.99 (minimal pair)
-            word_similarity("kæt", "dɒɡ")   # Low (different word)
+            >>> import ipakit
+            >>> round(ipakit.word_similarity("kæt", "kæd"), 4)
+            0.9833
+            >>> round(ipakit.word_similarity("kæt", "dɒɡ"), 4)
+            0.8923
+
+        The second is the metric's compression, not a bug: two words of a
+        length whose vowels sit near each other stay close on this scale
+        even where no segment matches. Read it against the first rather
+        than against zero.
         """
         return self.word_distance(
             ipa1, ipa2, weighted=weighted, strict=strict
