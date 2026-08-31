@@ -374,7 +374,7 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
         ]
         if p.glottal is not None:
             current["folds"] = [
-                {"edges": edges, "shut": p.glottal <= 0.01}
+                {"edges": edges, "shut": p.glottal <= GLOTTAL_SHUT_APERTURE}
                 for arc in sorted(marks.median.values())
                 if (edges := head.median_body(arc, p.glottal)) is not None
             ]
@@ -861,6 +861,14 @@ CHAR_W = 6.72  # advance of the 10.5px monospace label face, rounded up:
 LINE_H = 12.0
 LIP_INSET = 0.014  # arc taken off the front, so the boundary meets the lips
 
+# The velic port reads as sealed at or below this aperture and as fully open
+# at or above the other. The glottal threshold below is the same number and is
+# deliberately not this constant: a velum and a glottis are different valves,
+# and one moving is no reason for the other to move with it.
+VELIC_SEALED_APERTURE = 0.01
+VELIC_OPEN_APERTURE = 0.99
+GLOTTAL_SHUT_APERTURE = 0.01
+
 
 def _lips(
     src: dict[str, Any],
@@ -1229,7 +1237,7 @@ def _wall_with_port(src: dict[str, Any], to: Scaler, aperture: float) -> str:
     """
     rows = _inside(src)
     seam = _lip_seam(src, to, 0)
-    if aperture <= 0.01:
+    if aperture <= VELIC_SEALED_APERTURE:
         pts = [to(*r["wall"]) for r in rows]
         if seam is not None:
             pts.insert(0, seam)
@@ -1483,7 +1491,7 @@ def _nasal(
     # The floor near the port stops being a boundary once the port is open.
     keep = (
         len(lower)
-        if aperture <= 0.01
+        if aperture <= VELIC_SEALED_APERTURE
         else max(2, int(len(lower) * (1 - 0.18 * aperture)))
     )
     parts = [
@@ -1517,9 +1525,9 @@ def _nasal(
         return "".join(parts)
     body = [to(*point) for point in posed["body"]]
     tx, ty = to(*posed["tip"])
-    if aperture <= 0.01:
+    if aperture <= VELIC_SEALED_APERTURE:
         state = "sealed"
-    elif aperture >= 0.99:
+    elif aperture >= VELIC_OPEN_APERTURE:
         state = "open"
     else:
         state = "part-open"

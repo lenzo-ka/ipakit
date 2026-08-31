@@ -715,7 +715,16 @@ NEAR_CONTACT_MM = 3.0
 # need to reach reliably; its back edge is where the outline ends (median arc
 # 0.40). Outside it XRMB measures no tract dimension at all.
 WINDOW = (0.20, 0.40)
-PROFILE_ARCS = tuple(round(0.15 + 0.025 * i, 3) for i in range(12))
+# The arcs a profile is sampled at, and how near a measured arc must fall to
+# be counted at one. The tolerance is narrower than half the step on purpose:
+# half of 0.025 is 0.0125, so a frame sitting exactly midway between two arcs
+# is claimed by neither rather than by both. Written in terms of the step so
+# the two cannot drift apart -- they were separate literals, and changing the
+# step alone would have left the bins the wrong width with nothing to say so.
+PROFILE_ARC_STEP = 0.025
+PROFILE_ARC_TOLERANCE = 0.012
+
+PROFILE_ARCS = tuple(round(0.15 + PROFILE_ARC_STEP * i, 3) for i in range(12))
 
 
 def tongue_line(frame: Frame) -> list[Point]:
@@ -814,7 +823,7 @@ def cmd_clearance(corpus: Corpus, args: argparse.Namespace) -> int:
             if arc is None:
                 continue
             for target in PROFILE_ARCS:
-                if abs(arc - target) < 0.012:
+                if abs(arc - target) < PROFILE_ARC_TOLERANCE:
                     coverage[target].append(100 * histogram.total / frames)
         modes.append((speaker, _modes(wall, near)))
     check_read(corpus, tally)
