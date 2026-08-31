@@ -612,6 +612,17 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 )
             )
         raw_forms = raw.get("forms")
+        raw_provenance = raw.get("provenance", {})
+        if not isinstance(raw_provenance, dict):
+            findings.append(
+                Finding(
+                    "provenance",
+                    f"entry {path.name!r} provenance must be a JSON object",
+                    entry_id=stored_id if isinstance(stored_id, str) else None,
+                    path=path.name,
+                )
+            )
+            raw_provenance = {}
         if not isinstance(raw.get("meta"), dict):
             findings.append(
                 Finding(
@@ -626,7 +637,33 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 Finding("forms", f"entry {path.name!r} forms must be a JSON object")
             )
         else:
-            for role, representation in sorted(raw_forms.items()):
+            for role, representation in sorted(raw_forms.items(), key=repr):
+                if not isinstance(role, str) or not role:
+                    findings.append(
+                        Finding(
+                            "form_role",
+                            f"entry {path.name!r} has an invalid form role {role!r}",
+                            entry_id=stored_id if isinstance(stored_id, str) else None,
+                            path=path.name,
+                        )
+                    )
+                record = raw_provenance.get(role) if raw_provenance else None
+                if record is not None:
+                    try:
+                        producer = record["producer"]
+                        Producer(producer["name"], producer["version"])
+                        record["declaration_fingerprint"]
+                    except (KeyError, TypeError):
+                        findings.append(
+                            Finding(
+                                "form_provenance",
+                                f"entry {path.name!r} form {role!r} has malformed provenance",
+                                entry_id=(
+                                    stored_id if isinstance(stored_id, str) else None
+                                ),
+                                path=path.name,
+                            )
+                        )
                 try:
                     if not isinstance(representation, dict):
                         raise ValueError("representation must be a JSON object")

@@ -642,11 +642,31 @@ def cmd_similarity(clts: Clts, args: argparse.Namespace) -> int:
     return 0
 
 
-def _ranks(values: list[float]) -> list[int]:
-    order = sorted(range(len(values)), key=lambda i: values[i])
-    ranks = [0] * len(values)
-    for position, index in enumerate(order):
-        ranks[index] = position
+def _ranks(values: list[float]) -> list[float]:
+    """One-based ascending ranks with the average rank for ties.
+
+    Tie-averaging is not a refinement here, it is the difference between a
+    correct rho and a wrong one. This function is fed every pairwise phone
+    distance, and that input is tied by construction: equal-featured pairs
+    score identically in their thousands. Assigning tied values distinct
+    ranks by sort position invents an ordering the data does not carry,
+    and the correlation then reports agreement about it.
+
+    Matches `perceptual_validation.py` and `areafunctions.py`, which
+    already agree with each other; this copy did not, and its rho and its
+    rank-disagreement table were both wrong.
+    """
+    order = sorted(range(len(values)), key=values.__getitem__)
+    ranks = [0.0] * len(values)
+    start = 0
+    while start < len(order):
+        end = start + 1
+        while end < len(order) and values[order[end]] == values[order[start]]:
+            end += 1
+        rank = (start + 1 + end) / 2
+        for index in order[start:end]:
+            ranks[index] = rank
+        start = end
     return ranks
 
 
