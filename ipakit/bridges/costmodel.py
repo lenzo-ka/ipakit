@@ -376,16 +376,19 @@ def model_pack(
 
     That is the asymmetric case, and it is where this earns its keep: a
     learner's L1 inventory and the L2 they are learning rank the same
-    contrast differently. `i`/`ɪ` scores 0.058 against a Spanish reference
-    and 0.031 against an English one -- the same geometry, two
-    distributions, and neither number is wrong.
+    contrast differently -- the same geometry, two distributions, and
+    neither answer wrong. `i`/`ɪ` against a sparse reference and against
+    a dense one is the worked pair, pinned in
+    `TestAnInventoryRelativePackIsNotAPortableOne` rather than quoted
+    here: a figure in prose goes stale in silence, and no gate reads a
+    docstring.
 
     **What that number is, and what it is not.** It says how unusual the
     contrast is against that inventory's own spread. A sparser inventory
     has fewer close pairs, so a small raw difference ranks high in it; a
     denser one has many, so the same difference ranks low. That is a fact
     about the inventory, NOT a claim about a listener: reading "unusual
-    against Spanish" as "hard for a Spanish speaker to hear" is a
+    against this inventory" as "hard for a speaker of it to hear" is a
     hypothesis about perception, and it needs perceptual data to become a
     finding. The quantity here is distinctiveness relative to a reference,
     which is worth having on its own terms and is not a difficulty score.
