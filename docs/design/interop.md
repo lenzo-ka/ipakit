@@ -8,7 +8,7 @@ Should ipakit interoperate with CLTS/BIPA, the speech-technology stack, external
 
 What is worth having is the opposite of a table: **a documented two-step read of foreign convention, which the library already implements.** `normalize_lookalikes` followed by `add_ties` moves BIPA agreement from 6,142 to 8,075 of 8,765 — from 70% to 92% — with no new code and no new data. The residue is not a long tail. It is a handful of inventory gaps and one parser defect, listed in §1.
 
-The single most valuable output of this lane is not an interop verdict at all. It is that measuring against outside systems exposed **a silent wrong answer under `strict=True`**: `ipakit.segments("ⁿd", strict=True)` returns one segment spelling `d`, with no warning and no exception. `features("ⁿd")` is `{}` and `distance("ⁿd", "d")` is `0.0`. Swept over the whole diacritic table, **64 of 68 registered marks vanish this way**. Every external source measured here reaches it. That is §12(a), and it is the shape [reviewing.md](../reviewing.md) exists to catch.
+The single most valuable output of this lane is not an interop verdict at all. It is that measuring against outside systems exposed **a silent wrong answer under `strict=True`**: `ipakit.segments("ⁿd", strict=True)` returns one segment spelling `d`, with no warning and no exception. `features("ⁿd")` is `{}` and `distance("ⁿd", "d")` is `0.0`. Swept over the whole diacritic table, **64 of 68 registered marks vanish this way**. Every external source measured here reaches it. That is §12(a) — since closed by [#118](https://github.com/lenzo-ka/ipakit/issues/118) and [#131](https://github.com/lenzo-ka/ipakit/issues/131), where the same sweep now reads 4 of 69; the figure above is what the measurement found, not what the library does today, and it is the shape [reviewing.md](../reviewing.md) exists to catch.
 
 The second most valuable is a correction to the question. The brief, and this document's own first draft, asked how many segments ipakit **refuses**. Over PHOIBLE's 3,142 that is 6.5%, and every one of them is loud and safe. The number that matters is the **43.8% ipakit accepts and silently reads as two segments** — 81% of the world's documented inventories load, and 11% load without a segment count changing underneath. For a phonetic layer under a model pipeline that is the whole story, and it is invisible to a refusal count.
 
@@ -30,7 +30,7 @@ The assessment is read-only on the library. Nothing here changed `ipakit/`, `ipa
 | Could ipakit derive SCA / DOLGO / ASJP from its declarations? | **Not from features: 2 of 12 DOLGO classes re-extend exactly** — the rest are historical judgments. They ship as a declared, overridable configuration on `ipa.xml`'s footing (not hardcoding); the number sizes the supplement. §5, and [historical-linguistics.md](historical-linguistics.md). |
 | Does BIPA preserve the tie distinction? | **No. It deletes it.** Both tie bars normalize to the empty string; `t͡s` and `t͜s` are the same BIPA sound. |
 | Should ipakit consume Lexibank/CLDF corpora? | **No.** 191 repositories, ~2 GB, 28 with unclear licensing — and every word arrives normalized through BIPA, so it arrives with the ties already deleted. |
-| Did the measurement expose an ipakit defect? | **Yes, nine.** The largest: **64 of 68 registered diacritics are silently dropped** when a source writes them before the base. §12(a). |
+| Did the measurement expose an ipakit defect? | **Yes, nine.** The largest: **64 of 68 registered diacritics are silently dropped** when a source writes them before the base. §12(a), since closed; the sweep now reads 4 of 69. |
 | Can a practitioner do real pronunciation-lexicon work today? | **Yes, at 99.977% over CMUdict** — but 31 entries are silently wrong because `to_cmu` and `segments` tokenize differently, and `to_cmu` rejects the tie glyph the safest TTS setting emits. §7. |
 | Which speech tool is the worst partner? | **The one that never refuses.** gruut raises on 0 of 47 words and silently damages 30. espeak and phonemizer each become clean with one setting. |
 | Which number should an interop effort be judged on? | **Not refusals.** PHOIBLE: 6.5% refused and loud, **43.8% silently resegmented**; per inventory, 81% accepted against 11% correctly segmented. |
@@ -582,7 +582,7 @@ bʌtər
 
 Reported, not fixed; this lane is read-only on the library.
 
-Each of these that later work has closed carries a superseded line saying what closed it. **(c) and (i) carry none, and still reproduce.**
+Each of these that later work has closed carries a superseded line saying what closed it. **(i)'s dropped symbols still reproduce.** (c) has since been closed and carries its own line; (i)'s line supersedes a sub-claim about prosody in the metric, not the dropped symbols the section is named for.
 
 ### (a) A leading modifier is dropped silently, under `strict=True`
 
@@ -750,7 +750,7 @@ curl -O https://raw.githubusercontent.com/cmusphinx/cmudict/master/cmudict.dict
 python scripts/interop.py cmudict --lexicon cmudict.dict
 ```
 
-`marks` needs nothing at all — it sweeps ipakit's own diacritic table, which is why §12(a)'s 64 of 68 is the one number here that cannot go stale against an outside project. The PanPhon measurements read that package's own shipped `ipa_all.csv`. `inventory` takes a path, so it runs over PHOIBLE, phonepiece or any other segment list:
+`marks` needs nothing at all — it sweeps ipakit's own diacritic table, which is why §12(a)'s 64 of 68 is the one number here that cannot go stale against an outside project. It went stale against ipakit instead: the same sweep now reads 4 of 69, the residue being the boundary and linking marks `^`, `|`, `‖` and `‿`. The PanPhon measurements read that package's own shipped `ipa_all.csv`. `inventory` takes a path, so it runs over PHOIBLE, phonepiece or any other segment list:
 
 ```
 python scripts/interop.py inventory --inventory phoible.csv --column Phoneme
