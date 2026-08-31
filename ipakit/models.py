@@ -308,8 +308,11 @@ class Feature:
     ) -> float:
         """Compute distance between two values of this feature.
 
-        For ordinal features, uses scale distance based on declaration order.
-        For categorical/binary features, returns 0 if same, 1 if different.
+        Where the data declares physical coordinates for both values, the
+        distance is their anchor separation scaled to the feature's span.
+        Otherwise ordinal features use scale distance based on declaration
+        order, and categorical/binary features return 0 if same, 1 if
+        different.
         Either side may be a tuple of values (a multi-valued feature, e.g. a
         double articulation's places): the distance is then the directional
         best-match mean, max of the two directions.

@@ -846,8 +846,7 @@ class DistanceMixin(IPAFeaturesBase):
         ``DistanceModel`` took, and no caller ever passed it.
 
         A gap costs ``GAP_COST``, which is what an unmatched position costs
-        one level down in :meth:`segment_distance` and inside
-        :func:`~ipakit.metric.segment_metric`. A substitution costs the
+        one level down in :meth:`segment_distance`. A substitution costs the
         token pair's dissimilarity priced by :func:`_substitution_cost`, so
         a position where the two words share nothing costs exactly the
         delete and the insert it stands for. That is what puts the two
@@ -1124,8 +1123,10 @@ class DistanceMixin(IPAFeaturesBase):
         units (one is ``None`` for a gap), ``cost`` is that position's
         contribution, and for a substitution ``terms`` lists the
         ``(label, a, b, cost)`` rows behind it -- each comparable feature, the
-        tract coordinates, and every prosodic rider (stress, tone, length). The
-        mean of the position costs over ``max(len)`` is the word distance.
+        tract coordinates, and every prosodic rider (stress, tone, length). A
+        substitution's ``cost`` is the segment metric between the two units,
+        not the price the edit DP paid for that position, so the reported
+        costs do not sum to :attr:`WordDistanceResult.edit_cost`.
         """
         result = self.word_distance(
             ipa1, ipa2, weighted=weighted, return_alignment=True, strict=strict

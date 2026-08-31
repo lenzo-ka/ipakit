@@ -440,13 +440,16 @@ def pack_from_declaration(
     family: DeclaredCostFamily = DeclaredCostFamily.SYMMETRIC_DIFFERENCE,
     absent: AbsentCell = AbsentCell.HALF_COUNTED,
 ) -> CostPack:
-    """Build the symmetric-difference cost family from a ternary declaration.
+    """Build a declared cost family from a ternary declaration.
 
     The family, not one system's instance of it. A declaration states some
     features and gives every segment a value in ``{-, 0, +}`` for each; this
-    reads that and returns the pack a comparison drives. Its round-trip
-    declaration becomes the pack's ``Bridge``: crossing a feature-system
-    boundary has a stated fidelity rather than an inferred losslessness.
+    reads that and returns the pack a comparison drives. ``family`` picks the
+    arithmetic: the default symmetric difference, normalized into [0, 1], or
+    ``WEIGHTED_DIFFERENCE``, an unnormalized weighted sum whose ceiling is
+    twice the declared weight mass. Its round-trip declaration becomes the
+    pack's ``Bridge``: crossing a feature-system boundary has a stated
+    fidelity rather than an inferred losslessness.
     Nothing here knows which feature system it was handed, and that is what
     lets one cost model meet a foreign geometry: swapping the declaration
     swaps the geometry.
@@ -460,24 +463,25 @@ def pack_from_declaration(
     triangle inequality: symmetric difference over a measure space is a metric
     by construction.
 
-    **What the arithmetic really is.** A ternary cell makes ``|a - b|`` one of
-    0, 1 or 2; halving gives 0, 0.5 or 1 per feature; the sum over ``n``
-    features is a multiple of one half; dividing by ``n`` leaves an integer
-    over ``2n``. Every cost this returns is therefore ``k / 2n`` for some
-    integer ``k`` -- a point on a fixed rational grid rather than an arbitrary
-    real. With the 24-feature declarations in circulation that grid is
-    ``k / 48``, and since ``48 = 2^4 * 3`` most of its points are exact in
-    neither binary nor decimal floating point. That is a reason to scale by
-    ``2n`` where exactness matters, not a reason to reach for a wider numeric
-    type: the values are integers wearing a denominator.
+    **What the arithmetic really is, under symmetric difference.** A ternary
+    cell makes ``|a - b|`` one of 0, 1 or 2; halving gives 0, 0.5 or 1 per
+    feature; the sum over ``n`` features is a multiple of one half; dividing
+    by ``n`` leaves an integer over ``2n``. Every cost that family returns is
+    therefore ``k / 2n`` for some integer ``k`` -- a point on a fixed rational
+    grid rather than an arbitrary real. With the 24-feature declarations in
+    circulation that grid is ``k / 48``, and since ``48 = 2^4 * 3`` most of
+    its points are exact in neither binary nor decimal floating point. That is
+    a reason to scale by ``2n`` where exactness matters, not a reason to reach
+    for a wider numeric type: the values are integers wearing a denominator.
 
-    **``0`` is a value here, not an absence.** It participates: ``0`` against
-    ``+`` costs half a step, and ``0`` against ``0`` costs nothing, so two
-    segments are recorded as agreeing about a feature neither of them may
-    have. That is faithful to the fixed-width reading a ternary declaration
-    encodes, and it is deliberately not repaired here -- a declaration that
-    wishes to distinguish inapplicable from underspecified has to say so, and
-    a cost family cannot invent the distinction on its behalf.
+    **``0`` is a value here, not an absence.** It participates: under
+    symmetric difference ``0`` against ``+`` costs half a step, and ``0``
+    against ``0`` costs nothing, so two segments are recorded as agreeing
+    about a feature neither of them may have. That is faithful to the
+    fixed-width reading a ternary declaration encodes, and it is deliberately
+    not repaired here -- a declaration that wishes to distinguish inapplicable
+    from underspecified has to say so, and a cost family cannot invent the
+    distinction on its behalf.
 
     **The tokenizer reports what it could not read.** Longest-match over the
     declared segments, and every character it cannot place is carried out in

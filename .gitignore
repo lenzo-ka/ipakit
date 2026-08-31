@@ -38,6 +38,7 @@ htmlcov/
 export/
 
 # Local working docs (not part of the published package)
+untracked/
 REVIEW_PLAN.md
 omp-review-*.md
 omp-review-*.session.jsonl

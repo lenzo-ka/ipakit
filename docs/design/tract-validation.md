@@ -162,7 +162,7 @@ tract_point(f, f.get_features("u")).arc    # 0.45
 tract_point(f, f.get_features("ɑ")).arc    # 0.74
 ```
 
-Measured, those two constrict 5.6 cm apart in a 17.5 cm tract. `arc` feeds `ipakit.metric` through `_sagittal`, so this is not confined to drawing. It is a limit of the declarations rather than a coding error, and closing it means either extending `backness` past `uvular` or letting `height` contribute to `arc` for a vowel — both changes to `ipa.xml`, both with a distance sweep behind them, and neither is this lane's to make.
+Measured, those two constrict 5.6 cm apart in a 17.5 cm tract. `arc` feeds `ipakit.metric` through `_tract_x`, so this is not confined to drawing. It is a limit of the declarations rather than a coding error, and closing it means either extending `backness` past `uvular` or letting `height` contribute to `arc` for a vowel — both changes to `ipa.xml`, both with a distance sweep behind them, and neither is this lane's to make.
 
 **Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the shared point is what the measurement asks for. `ʌ` and `ɔ` both constrict at `arc` 0.65 in §4's own table, so giving them one tract point is right; what they do not share is a lip aperture, and that is the unmodeled thing.**
 

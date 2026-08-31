@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 #: declared without its note being written.
 NOTATION_NOTES = {
     "IPA": """
-Input is IPA transcription, not orthography. Every ASCII letter is a
+Input is IPA transcription, not orthography. Every lowercase ASCII letter is a
 registered phone, so a word written in spelling -- 'cat', 'pin' -- is read
 as the phones it spells and answered confidently rather than refused.
 """,

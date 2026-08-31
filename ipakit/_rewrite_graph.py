@@ -4,8 +4,9 @@ This module intentionally implements no recognition or rewriting.  It consumes
 the immutable trace produced by :mod:`ipakit.rules` and projects that trace onto
 the input-owned graph clock.  The rule engine scans its changing derivation
 state.  The graph stores the resulting phantoms in the builder's pinned
-four-coordinate order, tested by
-``test_chained_phantom_sequences_have_pinned_subsequent_scan_order``.
+four-coordinate order, gated in ``tests/tiergraph/test_rewrite_bridge.py`` by
+``test_hot_bridge_projection_matches_serialized_fixture``, whose golden pins
+the order of chained phantoms sharing a tick and tier.
 """
 
 from __future__ import annotations

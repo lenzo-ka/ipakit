@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 import unicodedata
 from pathlib import Path
@@ -252,11 +253,58 @@ def target_of(link: str, path: Path, root: Path) -> Path | None:
     return resolved if resolved.is_file() else None
 
 
+def _ignored(root: Path) -> frozenset[Path]:
+    """What git is told to ignore under ``root``.
+
+    A gate over a working directory reads whatever is sitting in it, and
+    what is sitting in it is not what the repository ships. This tree
+    carries a second git repository of working registers beside the
+    package, so walking the filesystem alone reports their stale
+    quotations as failures of the documents this checks -- a red gate
+    that no commit can turn green, which teaches a reader to discount it.
+
+    ``--directory`` collapses a wholly ignored directory to one entry, so
+    the result is matched by prefix rather than by equality. Outside a
+    repository, or with no git to ask, the set is empty and the walk is
+    what it was.
+    """
+    try:
+        listed = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(root),
+                "ls-files",
+                "--others",
+                "--ignored",
+                "--exclude-standard",
+                "--directory",
+                "-z",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    return frozenset((root / entry).resolve() for entry in listed.split("\0") if entry)
+
+
 def documents(root: Path) -> list[Path]:
+    ignored = _ignored(root)
+
+    def carried(path: Path) -> bool:
+        resolved = path.resolve()
+        return not any(
+            entry == resolved or entry in resolved.parents for entry in ignored
+        )
+
     return sorted(
         path
         for path in root.rglob("*.md")
         if not any(part.startswith(".") for part in path.relative_to(root).parts)
+        and carried(path)
     )
 
 
