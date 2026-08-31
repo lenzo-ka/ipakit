@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from ..distance_model import DistanceModel
 from ..models import Phoneset
@@ -70,7 +70,7 @@ class PairCommand(Command):
     """
 
     name = "pair"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Distance between two phones (0.0=identical, 1.0=max different)"
     reads_notation = IPA
 
@@ -119,7 +119,7 @@ class SegmentCommand(Command):
     """
 
     name = "segment"
-    aliases = ["seg"]
+    aliases: ClassVar[list[str]] = ["seg"]
     help = "Distance between segments (handles diacritics, affricates)"
     reads_notation = IPA
 
@@ -163,7 +163,7 @@ class MatrixCommand(Command):
     """
 
     name = "matrix"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Pairwise distance matrix for multiple phones"
     reads_notation = IPA
 
@@ -222,7 +222,7 @@ class ConfusabilityCommand(Command):
     """
 
     name = "confusability"
-    aliases = ["conf"]
+    aliases: ClassVar[list[str]] = ["conf"]
     help = "Inventory-relative confusability/distance between two phones"
     reads_notation = IPA
 
@@ -305,7 +305,7 @@ class WordCommand(Command):
     """
 
     name = "word"
-    aliases = ["w"]
+    aliases: ClassVar[list[str]] = ["w"]
     help = "Inventory-relative distance/similarity between two IPA words"
     reads_notation = IPA
 
@@ -449,7 +449,7 @@ class DirectionalCommand(Command):
     """
 
     name = "directional"
-    aliases = ["dir"]
+    aliases: ClassVar[list[str]] = ["dir"]
     help = "Directional reference-to-hypothesis word distance"
     reads_notation = IPA
 
@@ -526,7 +526,7 @@ class NearestCommand(Command):
     """
 
     name = "nearest"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Nearest acceptable pronunciation in a set (best match + which won)"
     reads_notation = IPA
 
@@ -615,7 +615,7 @@ class SeqCommand(Command):
     """
 
     name = "seq"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Distance/similarity between two pre-tokenized phone sequences"
     reads_notation = IPA
 
@@ -683,9 +683,9 @@ class DistanceGroup(CommandGroup):
     """
 
     name = "distance"
-    aliases = ["d"]
+    aliases: ClassVar[list[str]] = ["d"]
     help = "Phonetic distances (pair, segment, matrix, confusability, word, directional, nearest, seq)"
-    commands = [
+    commands: ClassVar[list[type[Command]]] = [
         PairCommand,
         SegmentCommand,
         MatrixCommand,

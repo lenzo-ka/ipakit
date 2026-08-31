@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import ClassVar
 
 from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
 
@@ -39,7 +40,7 @@ class DrawCommand(Command):
     """
 
     name = "draw"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Draw a phone's mid-sagittal tract figure (SVG, or a page)"
     reads_notation = IPA
 
@@ -109,7 +110,7 @@ class HeadsCommand(Command):
     """
 
     name = "heads"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "List the declared head shapes"
 
     @classmethod
@@ -167,6 +168,6 @@ class TractGroup(CommandGroup):
     """
 
     name = "tract"
-    aliases = ["t"]
+    aliases: ClassVar[list[str]] = ["t"]
     help = "Draw the mid-sagittal tract (draw, heads)"
-    commands = [DrawCommand, HeadsCommand]
+    commands: ClassVar[list[type[Command]]] = [DrawCommand, HeadsCommand]

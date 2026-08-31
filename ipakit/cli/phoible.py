@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import warnings
+from typing import ClassVar
 
 from ..bridges.phoible import PhoibleBridge
 from .base import Command, CommandGroup, add_output_arg
@@ -25,7 +26,7 @@ class PhoibleLanguageCommand(Command):
     """List every separately attributed inventory for a language."""
 
     name = "language"
-    aliases = ["spread"]
+    aliases: ClassVar[list[str]] = ["spread"]
     help = "Report the inventory spread for an ISO code or Glottocode"
 
     @classmethod
@@ -48,7 +49,7 @@ class PhoibleInventoryCommand(Command):
     """Write one selected inventory as a house phoneset file."""
 
     name = "inventory"
-    aliases = ["phoneset"]
+    aliases: ClassVar[list[str]] = ["phoneset"]
     help = "Write one InventoryID as a --phoneset-compatible file"
 
     @classmethod
@@ -77,7 +78,7 @@ class PhoibleAuditCommand(Command):
     """Measure strict primary-segment coverage over the mounted checkout."""
 
     name = "audit"
-    aliases: list[str] = []
+    aliases: ClassVar[list[str]] = []
     help = "Count accepted/refused rows and inventories"
 
     @classmethod
@@ -103,6 +104,10 @@ class PhoibleGroup(CommandGroup):
     """Query PHOIBLE without pretending rival doculects are one inventory."""
 
     name = "phoible"
-    aliases: list[str] = []
+    aliases: ClassVar[list[str]] = []
     help = "Read separately mounted PHOIBLE doculect inventories"
-    commands = [PhoibleLanguageCommand, PhoibleInventoryCommand, PhoibleAuditCommand]
+    commands: ClassVar[list[type[Command]]] = [
+        PhoibleLanguageCommand,
+        PhoibleInventoryCommand,
+        PhoibleAuditCommand,
+    ]

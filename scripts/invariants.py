@@ -32,8 +32,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit import IPAFeatures  # noqa: E402
-from ipakit.constants import METADATA_ATTRS  # noqa: E402
+from ipakit import IPAFeatures
+from ipakit.constants import METADATA_ATTRS
 
 TOLERANCE = 1e-9
 

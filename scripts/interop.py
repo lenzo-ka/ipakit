@@ -45,7 +45,7 @@ from typing import Any
 # Make the package importable when run from a source checkout.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit import (  # noqa: E402
+from ipakit import (
     add_ties,
     distance,
     features,

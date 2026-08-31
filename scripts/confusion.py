@@ -20,10 +20,10 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit.constants import DEFAULT_CONFUSION  # noqa: E402
-from ipakit.distance_model import MATRIX_VERSION  # noqa: E402
-from ipakit.features import IPAFeatures  # noqa: E402
-from ipakit.metric import metric_fingerprint  # noqa: E402
+from ipakit.constants import DEFAULT_CONFUSION
+from ipakit.distance_model import MATRIX_VERSION
+from ipakit.features import IPAFeatures
+from ipakit.metric import metric_fingerprint
 
 # The matrix holds feature distances in [0, 1]. Cross-CPython-version float
 # rounding can differ in the last bit (~1e-16), so the derived cache is validated

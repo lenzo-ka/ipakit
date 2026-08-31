@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from typing import Any
+from typing import Any, ClassVar
 
 from .base import IPA, Command, add_format_arg, add_output_arg, add_strict_arg
 
@@ -25,7 +25,7 @@ class FeaturesCommand(Command):
     """
 
     name = "features"
-    aliases = ["f"]
+    aliases: ClassVar[list[str]] = ["f"]
     help = "Get phonetic features for an IPA phone or string"
     reads_notation = IPA
 

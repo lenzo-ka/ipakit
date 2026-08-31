@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import ClassVar
 
 from .base import Command, CommandGroup
 
@@ -31,7 +32,7 @@ class TextCommand(Command):
     """
 
     name = "text"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Text tree grouped by features"
 
     @classmethod
@@ -71,7 +72,7 @@ class DotCommand(Command):
     """
 
     name = "dot"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "DOT graph for Graphviz visualization"
 
     @classmethod
@@ -146,7 +147,7 @@ class JsonCommand(Command):
     """
 
     name = "json"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "JSON hierarchy for programmatic use"
 
     @classmethod
@@ -182,6 +183,6 @@ class HierarchyGroup(CommandGroup):
     """
 
     name = "hierarchy"
-    aliases = ["h"]
+    aliases: ClassVar[list[str]] = ["h"]
     help = "Generate phone hierarchies (text, dot, json)"
-    commands = [TextCommand, DotCommand, JsonCommand]
+    commands: ClassVar[list[type[Command]]] = [TextCommand, DotCommand, JsonCommand]

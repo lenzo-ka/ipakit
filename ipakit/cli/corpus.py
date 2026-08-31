@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 from .. import corpus, rules
 from .._corpus_query import _normalize_wild_query
@@ -321,4 +322,13 @@ class Derives(Command):
 
 class CorpusGroup(CommandGroup):
     name, aliases, help = "corpus", [], "Build, inspect, query, and validate corpora"
-    commands = [Init, Add, IngestCMUdict, Validate, Ids, Show, Query, Derives]
+    commands: ClassVar[list[type[Command]]] = [
+        Init,
+        Add,
+        IngestCMUdict,
+        Validate,
+        Ids,
+        Show,
+        Query,
+        Derives,
+    ]

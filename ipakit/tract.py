@@ -1545,7 +1545,7 @@ def unmodeled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...]
       velum, by :func:`velic_aperture`;
     * glottal state is drawn as the folds, by :func:`glottal_aperture`;
     * a ``mode="secondary"`` feature is drawn as a lesser constriction, by
-      :func:`secondary_points`;
+      :func:`secondary_marks`;
     * a ``mode="structural"`` feature is not a property of a sound at all
       -- a tie joins two units, it does not shape one.
 

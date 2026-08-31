@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from typing import Any
+from typing import Any, ClassVar
 
 from ..syllable import Syllabification, languages, syllabify
 from .base import IPA, Command, add_format_arg
@@ -24,7 +24,7 @@ class SyllabifyCommand(Command):
     """
 
     name = "syllabify"
-    aliases: list[str] = []
+    aliases: ClassVar[list[str]] = []
     help = "Syllabify an IPA form using a language declaration"
     reads_notation = IPA
 

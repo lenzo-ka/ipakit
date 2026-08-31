@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import ClassVar
 
 from .base import Command, CommandGroup, add_format_arg, add_no_defaults_arg
 
@@ -25,7 +26,7 @@ class ValidateCommand(Command):
     """
 
     name = "validate"
-    aliases = ["v"]
+    aliases: ClassVar[list[str]] = ["v"]
     help = "Validate IPA XML file for consistency errors"
 
     @classmethod
@@ -66,7 +67,7 @@ class SummaryCommand(Command):
     """
 
     name = "summary"
-    aliases = ["s"]
+    aliases: ClassVar[list[str]] = ["s"]
     help = "Summary statistics (counts, distributions)"
 
     @classmethod
@@ -121,7 +122,7 @@ class CountsCommand(Command):
     """
 
     name = "counts"
-    aliases = ["c"]
+    aliases: ClassVar[list[str]] = ["c"]
     help = "Detailed feature value counts"
 
     @classmethod
@@ -176,7 +177,7 @@ class PhonesCommand(Command):
     """
 
     name = "phones"
-    aliases = ["p"]
+    aliases: ClassVar[list[str]] = ["p"]
     help = "List all phones with features (text, tsv, csv, json)"
 
     @classmethod
@@ -242,7 +243,7 @@ class DiacriticsCommand(Command):
     """
 
     name = "diacritics"
-    aliases = ["d"]
+    aliases: ClassVar[list[str]] = ["d"]
     help = "List all diacritics with feature modifications"
 
     @classmethod
@@ -287,7 +288,7 @@ class ReportCommand(Command):
     """
 
     name = "report"
-    aliases = ["r"]
+    aliases: ClassVar[list[str]] = ["r"]
     help = "Full analysis report (summary, validation, samples)"
 
     @classmethod
@@ -368,9 +369,9 @@ class AnalyzeGroup(CommandGroup):
     """
 
     name = "analyze"
-    aliases = ["a", "data"]
+    aliases: ClassVar[list[str]] = ["a", "data"]
     help = "Inspect/validate the feature data files (not phones; cf. 'analysis')"
-    commands = [
+    commands: ClassVar[list[type[Command]]] = [
         ValidateCommand,
         SummaryCommand,
         CountsCommand,
