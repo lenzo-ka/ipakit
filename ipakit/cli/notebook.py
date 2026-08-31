@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import ClassVar
 
 from .._notebook import notebook
 from .base import Command
@@ -28,7 +29,7 @@ class NotebookCommand(Command):
     """
 
     name = "notebook"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Write the tutorial notebook here, to run yourself"
 
     @classmethod

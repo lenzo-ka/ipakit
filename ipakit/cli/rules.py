@@ -52,7 +52,7 @@ import argparse
 import dataclasses
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from .. import corpus as corpus_api
 from ..experiment import Experiment
@@ -354,7 +354,7 @@ class ApplyCommand(RuleCommand):
     """
 
     name = "apply"
-    aliases = ["a"]
+    aliases: ClassVar[list[str]] = ["a"]
     help = "Apply rules to forms and print the derived forms"
     reads_notation = IPA
 
@@ -406,7 +406,7 @@ class DerivesCommand(RuleCommand):
     """
 
     name = "derives"
-    aliases: list[str] = []
+    aliases: ClassVar[list[str]] = []
     help = "Classify derivability over a corpus or named split"
 
     @classmethod
@@ -495,7 +495,7 @@ class TraceCommand(RuleCommand):
     """
 
     name = "trace"
-    aliases = ["t"]
+    aliases: ClassVar[list[str]] = ["t"]
     help = "Show the derivation trace (which rule fired where)"
     reads_notation = IPA
 
@@ -589,7 +589,7 @@ class VariantsCommand(RuleCommand):
     """
 
     name = "variants"
-    aliases = ["v"]
+    aliases: ClassVar[list[str]] = ["v"]
     help = "Every form the rules derive, when a rule is optional ('~>')"
     reads_notation = IPA
 
@@ -683,7 +683,7 @@ class RecognizeCommand(RuleCommand):
     """
 
     name = "recognize"
-    aliases = ["rec"]
+    aliases: ClassVar[list[str]] = ["rec"]
     help = "Report where a rule's environment holds, with no rewriting"
     reads_notation = IPA
 
@@ -750,7 +750,7 @@ class UnitsCommand(RuleCommand):
     """
 
     name = "units"
-    aliases = ["u"]
+    aliases: ClassVar[list[str]] = ["u"]
     help = "Split a form into rule units (boundaries kept)"
     reads_notation = IPA
 
@@ -807,7 +807,7 @@ class MoraeCommand(Command):
     """
 
     name = "morae"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Show morae for an attested Japanese loanword adaptation"
     reads_notation = IPA
 
@@ -867,7 +867,7 @@ class ListCommand(Command):
     """
 
     name = "list"
-    aliases = ["l"]
+    aliases: ClassVar[list[str]] = ["l"]
     help = "List the shipped rule sets, or the rules in one"
 
     @classmethod
@@ -939,7 +939,7 @@ class InvertibilityCommand(RuleCommand):
     """
 
     name = "invertibility"
-    aliases = ["invertible"]
+    aliases: ClassVar[list[str]] = ["invertible"]
     help = "Report rule and ruleset invertibility against an inventory"
 
     @classmethod
@@ -1020,9 +1020,9 @@ class RulesGroup(CommandGroup):
     """
 
     name = "rules"
-    aliases = ["r"]
+    aliases: ClassVar[list[str]] = ["r"]
     help = "Rewrite rules (apply, variants, trace, recognize, units, morae, list, invertibility)"
-    commands = [
+    commands: ClassVar[list[type[Command]]] = [
         ApplyCommand,
         DerivesCommand,
         VariantsCommand,

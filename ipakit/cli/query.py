@@ -8,7 +8,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from .._corpus_query import _normalize_wild_query
 from ..constants import MAX_EXAMPLE_PHONES
@@ -49,7 +49,7 @@ class FindFormsCommand(Command):
     """
 
     name = "find"
-    aliases: list[str] = []
+    aliases: ClassVar[list[str]] = []
     help = "Run the arrowless rule DSL over IPA strings"
     reads_notation = IPA
 
@@ -196,7 +196,7 @@ class MatchCommand(Command):
     """
 
     name = "match"
-    aliases = ["m"]
+    aliases: ClassVar[list[str]] = ["m"]
     help = "Find phones matching feature criteria (e.g., 'plosive bilabial')"
 
     @classmethod
@@ -252,7 +252,7 @@ class ListCommand(Command):
     """
 
     name = "list"
-    aliases = ["l"]
+    aliases: ClassVar[list[str]] = ["l"]
     help = "List phones with a specific feature value (e.g., 'manner=plosive')"
 
     @classmethod
@@ -307,7 +307,7 @@ class ClassesCommand(Command):
     """
 
     name = "classes"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "List character classes (phone, diacritic, etc.)"
 
     @classmethod
@@ -356,7 +356,7 @@ class FeaturesListCommand(Command):
     """
 
     name = "features"
-    aliases = ["f"]
+    aliases: ClassVar[list[str]] = ["f"]
     help = "List all features or values for a specific feature"
 
     @classmethod
@@ -467,7 +467,7 @@ class ShortsCommand(Command):
     """
 
     name = "shorts"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert between feature names and short codes"
 
     @classmethod
@@ -569,9 +569,9 @@ class QueryGroup(CommandGroup):
     """
 
     name = "query"
-    aliases = ["q"]
+    aliases: ClassVar[list[str]] = ["q"]
     help = "Query phones by features (match, list, features, classes, shorts)"
-    commands = [
+    commands: ClassVar[list[type[Command]]] = [
         FindFormsCommand,
         MatchCommand,
         ListCommand,

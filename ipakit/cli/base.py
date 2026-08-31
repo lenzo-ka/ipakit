@@ -8,7 +8,7 @@ import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, ClassVar
 
 from ..constants import DEFAULT_CMU_MAP, DEFAULT_IPA_FEATS
 from .policy import LOSSY
@@ -82,7 +82,7 @@ class Command(ABC):
     """Base class for CLI commands."""
 
     name: str  # Subcommand name
-    aliases: list[str] = []  # Short aliases
+    aliases: ClassVar[list[str]] = []  # Short aliases
     help: str  # Help text
 
     #: The phonetic notation the command reads from the command line, or
@@ -307,9 +307,9 @@ class CommandGroup(ABC):
     """Base class for command groups (subcommand containers)."""
 
     name: str  # Group name
-    aliases: list[str] = []  # Short aliases
+    aliases: ClassVar[list[str]] = []  # Short aliases
     help: str  # Help text
-    commands: list[type[Command]] = []  # Subcommands
+    commands: ClassVar[list[type[Command]]] = []  # Subcommands
 
     @classmethod
     def register(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import ClassVar
 
 from .base import IPA, Command, CommandGroup, add_convert_strict_arg, add_format_arg
 
@@ -23,7 +24,7 @@ class ToCmuCommand(Command):
     """
 
     name = "to-cmu"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert IPA to CMU ARPABET (e.g., 'kæt' → 'K AE0 T')"
     reads_notation = IPA
 
@@ -65,7 +66,7 @@ class FromCmuCommand(Command):
     """
 
     name = "from-cmu"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert CMU ARPABET to IPA (e.g., 'K AE1 T' → 'kˈæt')"
 
     @classmethod
@@ -104,7 +105,7 @@ class ToXsampaCommand(Command):
     """
 
     name = "to-xsampa"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert IPA to X-SAMPA ASCII notation"
     reads_notation = IPA
 
@@ -140,7 +141,7 @@ class FromXsampaCommand(Command):
 
     name = "from-xsampa"
     reads_notation = "X-SAMPA"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert X-SAMPA ASCII notation to IPA"
 
     @classmethod
@@ -178,7 +179,7 @@ class NormalizeCommand(Command):
     """
 
     name = "normalize"
-    aliases = ["norm"]
+    aliases: ClassVar[list[str]] = ["norm"]
     help = "Normalize IPA to canonical form (adds tie bars, resolves ligatures)"
     reads_notation = IPA
 
@@ -215,7 +216,7 @@ class TokenizeCommand(Command):
     """
 
     name = "tokenize"
-    aliases = ["tok"]
+    aliases: ClassVar[list[str]] = ["tok"]
     help = "Split IPA string into segments (keeps diacritics attached)"
     reads_notation = IPA
 
@@ -248,7 +249,7 @@ class ToJsonCommand(Command):
     """
 
     name = "to-json"
-    aliases = ["repr"]
+    aliases: ClassVar[list[str]] = ["repr"]
     help = "Parse IPA into the complete JSON representation"
     reads_notation = IPA
 
@@ -291,7 +292,7 @@ class FromJsonCommand(Command):
     """
 
     name = "from-json"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Restore the JSON representation and emit IPA"
 
     @classmethod
@@ -323,7 +324,7 @@ class ToKatakanaCommand(Command):
     """
 
     name = "to-katakana"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Render an attested Japanese loanword adaptation (no approximation)"
     reads_notation = IPA
 
@@ -357,7 +358,7 @@ class AddTiesCommand(Command):
     """
 
     name = "add-ties"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Add tie bars to create affricates/diphthongs (e.g., 'ts' → 't͡s')"
     reads_notation = IPA
 
@@ -393,7 +394,7 @@ class ToTimitCommand(Command):
     """
 
     name = "to-timit"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert IPA to TIMIT phoneset (e.g., 'kæt' → 'k ae t')"
     reads_notation = IPA
 
@@ -429,7 +430,7 @@ class FromTimitCommand(Command):
     """
 
     name = "from-timit"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Convert TIMIT phoneset to IPA (e.g., 'k ae t' → 'kæt')"
 
     @classmethod
@@ -465,7 +466,7 @@ class ToKirshenbaumCommand(Command):
     """
 
     name = "to-kirshenbaum"
-    aliases = ["to-kirsh"]
+    aliases: ClassVar[list[str]] = ["to-kirsh"]
     help = "Convert IPA to Kirshenbaum ASCII (e.g., 'ʃɑk' → 'SAk')"
     reads_notation = IPA
 
@@ -502,7 +503,7 @@ class FromKirshenbaumCommand(Command):
 
     name = "from-kirshenbaum"
     reads_notation = "Kirshenbaum"
-    aliases = ["from-kirsh"]
+    aliases: ClassVar[list[str]] = ["from-kirsh"]
     help = "Convert Kirshenbaum ASCII to IPA (e.g., 'SAk' → 'ʃɑk')"
 
     @classmethod
@@ -546,9 +547,9 @@ class ConvertGroup(CommandGroup):
     """
 
     name = "convert"
-    aliases = ["c"]
+    aliases: ClassVar[list[str]] = ["c"]
     help = "Convert notation, serialize forms, and render attested adaptations"
-    commands = [
+    commands: ClassVar[list[type[Command]]] = [
         ToCmuCommand,
         FromCmuCommand,
         ToXsampaCommand,

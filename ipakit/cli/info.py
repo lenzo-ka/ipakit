@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import ClassVar
 
 from .base import Command, CommandGroup, add_format_arg
 
@@ -30,7 +31,7 @@ class StressCommand(Command):
     """
 
     name = "stress"
-    aliases = []
+    aliases: ClassVar[list[str]] = []
     help = "Show IPA stress marker symbols and meanings"
 
     @classmethod
@@ -73,6 +74,6 @@ class InfoGroup(CommandGroup):
     """
 
     name = "info"
-    aliases = ["i"]
+    aliases: ClassVar[list[str]] = ["i"]
     help = "Quick reference (stress markers, symbols)"
-    commands = [StressCommand]
+    commands: ClassVar[list[type[Command]]] = [StressCommand]
