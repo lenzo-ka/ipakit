@@ -154,9 +154,12 @@ class TestTheDataSaysWhatThePythonUsedTo:
     def test_the_excluded_keys(self, ipa: IPAFeatures) -> None:
         from ipakit.constants import METADATA_ATTRS
 
+        # `nasalized` and `rounded` are here for the same reason: a bridge
+        # claims every informative value they have, so the derived bridge
+        # feature carries them and comparing them again would cancel it.
         assert excluded_keys(ipa) == frozenset(
             set(METADATA_ATTRS)
-            | {"place", "nasalized", "constriction-location"}
+            | {"place", "nasalized", "rounded", "constriction-location"}
             | set(ipa.secondary_places)
         )
 
@@ -188,6 +191,7 @@ class TestTheDataSaysWhatThePythonUsedTo:
                 ("release", "nasal"),
                 ("approach", "nasal"),
             ),
+            "protrusion": (("rounded", "+"), ("labialized", "+")),
             "laterality": (("channel", "lateral"), ("release", "lateral")),
         }
 

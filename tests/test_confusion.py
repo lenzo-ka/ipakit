@@ -41,11 +41,11 @@ def test_shipped_confusion_matrix_sha256_is_unchanged() -> None:
     tracked = confusion.read_bytes()
     shipped = json.loads(tracked)
     assert hashlib.sha256(tracked).hexdigest() == (
-        "560cfcd8bca23d7d787e38c8a9515c192603197c4c347a58b149cbc450936d51"
+        "e7d1c7cdbcd8bb3fa0665a01f4546326ff77e19b62a7b34614431f0e9b735a25"
     )
     assert len(shipped["phones"]) == 139
     assert len(shipped["triangle"]) == 9591
-    assert shipped["metric"] == "6e8987fefcd52216"
+    assert shipped["metric"] == "ff0fea2927f9e3f1"
 
 
 def test_validate_subcommand_exit_zero() -> None:
