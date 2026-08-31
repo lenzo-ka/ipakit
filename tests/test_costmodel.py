@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import inspect
 import math
+import warnings
 from itertools import combinations_with_replacement
 from pathlib import Path
 from typing import Any
 
+import ipakit
 import pytest
 from ipakit.bridges.costmodel import (
     CHEAP_INDEL,
@@ -23,9 +25,11 @@ from ipakit.bridges.costmodel import (
     align_under,
     compare,
     house_pack,
+    model_pack,
     pack_from_declaration,
     semiring_alignment,
 )
+from ipakit.distance_model import DistanceModel
 from ipakit.features import IPAFeatures
 from tiergraph.semiring import TROPICAL
 
@@ -352,3 +356,72 @@ class TestDoublingSubstitutionIsNotARescale:
         for arm in ("house", "declared"):
             ratio = self._ratio(ipa, arm, "a", "ndʒulu")
             assert 1.0 < ratio < 2.0, (arm, ratio)
+
+
+class TestAnInventoryRelativePackIsNotAPortableOne:
+    """Two kinds of cost model, and the difference has to stay visible.
+
+    `house_pack` and `pack_from_declaration` price a pair from the two
+    segments' declarations alone. Nothing about the rest of the inventory
+    enters, so the number is portable and comparable across studies -- and
+    compressed, because spreading a scale requires knowing what else
+    exists.
+
+    `model_pack` wraps a `DistanceModel`, which ranks a raw score within a
+    reference distribution and bends the rank by gamma. That buys legible
+    magnitudes and costs portability: the same pair against a different
+    reference is a different number, and nothing in the number says which
+    reference produced it. So the pack carries one and the row reports it.
+
+    The machinery is adopted rather than rebuilt. `DistanceModel` already
+    persists a matrix with a `metric_fingerprint` over the phones it
+    holds, already refuses a reader whose feature space does not match,
+    and already re-slices to a phoneset. A second redistribution here
+    would have been a second place for the same number to live.
+    """
+
+    def test_a_portable_pack_names_no_reference(self) -> None:
+        ipa = IPAFeatures()
+        for pack in (house_pack(ipa), pack_from_declaration(DECLARATION)):
+            assert pack.reference is None
+            assert compare(ipa, pack, "kat", "kot").reference is None
+
+    def test_an_inventory_relative_row_names_its_reference_and_gamma(self) -> None:
+        ipa = IPAFeatures()
+        model = DistanceModel.global_(ipa, gamma=2.0)
+        row = compare(ipa, model_pack(ipa, model), "kat", "kot")
+        assert row.reference is not None
+        assert "gamma=2.0" in row.reference
+
+    def test_gamma_raises_realized_cost_toward_the_budget(self) -> None:
+        """The direction matters and is easy to get backwards. A
+        `DistanceModel` ranks *confusability*, so a larger gamma pushes
+        realized substitution costs UP toward the indel budget -- which is
+        the whole reason the parameter exists, since a budget-correct
+        ceiling nothing reaches leaves the aligner preferring
+        substitution."""
+        ipa = IPAFeatures()
+        costs = [
+            compare(
+                ipa, model_pack(ipa, DistanceModel.global_(ipa, gamma=g)), "kat", "kot"
+            ).edit_cost
+            for g in (0.5, 1.0, 2.0)
+        ]
+        assert costs[0] < costs[1] < costs[2], costs
+
+    def test_two_inventories_rank_one_contrast_differently(self) -> None:
+        """The asymmetric case. One geometry, two references, two answers,
+        and neither is wrong -- which is exactly why a bare figure needs
+        its reference named beside it."""
+        ipa = IPAFeatures()
+        sparse = ipakit.Phoneset.from_list(list("ptkbdɡmnfsxlraeiou"), name="sparse")
+        dense = ipakit.Phoneset.from_list(
+            list("ptkbdɡmnŋfvszʃʒhlrjwæɛɪiuʊ"), name="dense"
+        )
+        scores = {}
+        for name, phoneset in (("sparse", sparse), ("dense", dense)):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                model = DistanceModel.for_phoneset(ipa, phoneset, gamma=1.0)
+            scores[name] = model_pack(ipa, model).sub_cost("i", "ɪ")
+        assert scores["sparse"] != scores["dense"], scores

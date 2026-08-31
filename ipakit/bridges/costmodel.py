@@ -19,6 +19,7 @@ from typing import Protocol
 from tiergraph.semiring import TROPICAL, ProductSemiring
 
 from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
+from ..distance_model import DistanceModel
 from ..features import IPAFeatures
 from ..metric import GAP_COST
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
@@ -122,6 +123,9 @@ class CostPack:
     indel_ceiling: float
     tokenize: Callable[[str], Segmentation]
     policy: CostPolicy
+    #: The reference distribution a percentile was taken against, where the
+    #: pack is inventory-relative. None for the portable packs.
+    reference: str | None = None
     bridge: Bridge | None = None
 
     @property
@@ -147,6 +151,10 @@ class ComparisonRow:
     dropped: tuple[str, ...]
     alignment: Alignment | None = None
     geometry_mapping: str | None = None
+    #: The reference distribution behind an inventory-relative figure.
+    #: Two numbers ranked over different inventories are not comparable
+    #: and nothing in the numbers says so, which is why this travels.
+    reference: str | None = None
 
 
 def align_under(
@@ -309,6 +317,7 @@ def compare(
         normalized=normalized(pack, left, right, cost),
         dropped=dropped,
         alignment=alignment,
+        reference=pack.reference,
     )
 
 
@@ -338,6 +347,89 @@ def house_pack(ipa: IPAFeatures, policy: CostPolicy = FAITHFUL) -> CostPack:
         indel_ceiling=2.0 * policy.indel_weight,
         tokenize=_house_segmentation(ipa),
         policy=policy,
+    )
+
+
+def model_pack(
+    ipa: IPAFeatures,
+    model: DistanceModel,
+    policy: CostPolicy = FAITHFUL,
+) -> CostPack:
+    """A cost model over an inventory-relative :class:`DistanceModel`.
+
+    The other two packs are inventory-INDEPENDENT: `house_pack` and
+    `pack_from_declaration` price a pair from the two segments'
+    declarations alone, so the number does not move when the inventory
+    does. That portability is bought with compression -- a raw structural
+    score occupies about a third of its nominal range -- and it is the
+    right default, because a figure that changes when a phone is added is
+    not comparable across studies.
+
+    Sometimes the inventory is the question. A `DistanceModel` ranks a
+    raw cost within a reference distribution and bends the rank by
+    `gamma`, which is what raises realized costs toward the indel budget
+    and makes magnitudes legible. Crucially the reference can be a
+    specific inventory rather than everything: `DistanceModel.for_phoneset`
+    re-slices the percentile to one phoneset, so the same geometry answers
+    "how unusual is this contrast" relative to whichever inventory is
+    doing the hearing.
+
+    That is the asymmetric case, and it is where this earns its keep: a
+    learner's L1 inventory and the L2 they are learning rank the same
+    contrast differently. `i`/`ɪ` scores 0.058 against a Spanish reference
+    and 0.031 against an English one -- the same geometry, two
+    distributions, and neither number is wrong.
+
+    **What that number is, and what it is not.** It says how unusual the
+    contrast is against that inventory's own spread. A sparser inventory
+    has fewer close pairs, so a small raw difference ranks high in it; a
+    denser one has many, so the same difference ranks low. That is a fact
+    about the inventory, NOT a claim about a listener: reading "unusual
+    against Spanish" as "hard for a Spanish speaker to hear" is a
+    hypothesis about perception, and it needs perceptual data to become a
+    finding. The quantity here is distinctiveness relative to a reference,
+    which is worth having on its own terms and is not a difficulty score.
+
+    Computed once and reused: `DistanceModel.save` writes the matrix with
+    a `metric_fingerprint` over the phones it holds, and
+    `from_matrix_file` refuses a reader whose feature space does not match
+    it -- so a saved model cannot quietly be read against an inventory it
+    was not built for. Nothing here recomputes a distribution that has
+    already been computed.
+
+    The row this pack produces carries the model's reference and gamma,
+    because a percentile is meaningless without the distribution it was
+    taken against, and two figures ranked over different inventories are
+    not comparable while looking exactly as though they were.
+    """
+
+    def _weighted(cost: PhoneCost) -> PhoneCost:
+        # The model's own indel prices, kept per-phone and kept apart.
+        # Insertion and deletion are different questions -- a learner who
+        # epenthesizes supplies material cheaply while losing it is dear --
+        # so this scales each without collapsing them into one gap price.
+        if callable(cost):
+            return lambda token: float(cost(token)) * policy.indel_weight
+        return float(cost) * policy.indel_weight
+
+    def sub(t1: str, t2: str) -> float:
+        if t1 == t2:
+            return 0.0
+        return model.sub_cost(t1, t2) * policy.substitution_scale
+
+    named = model.reference_name or f"{len(model.reference_phones)} phones"
+    reference = f"{named} gamma={model.gamma!r}"
+    return CostPack(
+        name="ipakit/model",
+        geometry="ipakit/inventory-relative",
+        sub_cost=sub,
+        insert_cost=_weighted(model.insert_cost),
+        delete_cost=_weighted(model.delete_cost),
+        substitution_ceiling=2.0 * policy.substitution_scale,
+        indel_ceiling=2.0 * policy.indel_weight,
+        tokenize=_house_segmentation(ipa),
+        policy=policy,
+        reference=reference,
     )
 
 
