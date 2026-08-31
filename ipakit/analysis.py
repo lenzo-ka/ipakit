@@ -449,21 +449,25 @@ class AnalysisMixin(IPAFeaturesBase):
         ``superseded_stress`` -- is licensed by **uninterpretability**:
         there is nothing for the mark to bind, so it has no reading at
         all. That license does not extend to a doubled dot, which is
-        perfectly interpretable: it delimits an *empty syllable*, and
-        the rule engine's insertion scan treats that syllable as a real
-        constituent -- ``rewrite("kæt..dɒɡ", "∅ -> ə / . _")`` is
-        ``"əkæt.ə.ədɒɡ"``, three epenthetic vowels, one of them the
-        empty syllable's own.
+        perfectly interpretable: it delimits an *empty syllable*.
 
         The license is the *other* convention in that document:
         **unknown characters are dropped audibly, never silently.**
-        ``Form.tree()`` discards the empty group and says nothing --
-        ``Form.parse("kæt..dɒɡ")`` has the same tree as ``"kæt.dɒɡ"``,
-        two syllables, with no mention of the third the string
-        asserted. So the two layers disagree about what the input means
-        and neither of them says so. The claim here is therefore not
-        "your input is malformed" but "you asserted a constituent and it
-        was discarded".
+        Every layer discards the empty constituent, and none of them
+        mentions it. ``Form.parse("kæt..dɒɡ")`` has the same tree as
+        ``"kæt.dɒɡ"``, two syllables, with no mention of the third the
+        string asserted; the rule engine agrees, offering the same
+        insertion sites either way -- ``rewrite("kæt..dɒɡ", "∅ -> ə / .
+        _")`` is ``"əkæt..ədɒɡ"`` against ``"əkæt.ədɒɡ"``, two
+        epenthetic vowels both times. The word mark behaves the same
+        way, ``"##kæt"`` against ``"#kæt"``.
+
+        That agreement is what licenses the warning rather than
+        weakening it. Nothing here is inconsistent, so nothing will
+        surface on its own: the string asserts a constituent, every
+        reader drops it, and the drop is silent at every layer. The
+        claim is therefore not "your input is malformed" but "you
+        asserted a constituent and it was discarded".
 
         Hence ``warning``, never ``error``, and no repair. An error
         would reject input the rule engine rewrites correctly today, and
