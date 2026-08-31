@@ -1359,6 +1359,14 @@ def constrictions(
     the closures a drawing owes and the places a comparison reads, and
     ``tract_point`` for the one-point summary. They answer different
     questions, and only a single named place makes them agree.
+
+    Examples:
+        >>> import ipakit
+        >>> ipa = ipakit.load_ipa_features()
+        >>> [(c.arc, c.offset) for c in constrictions(ipa, ipa.get_features("w"))]
+        [(0.0, 0.5), (0.45, 0.5)]
+        >>> tract_point(ipa, ipa.get_features("w")).arc
+        0.225
     """
     primary = tract_point(features, bundle)
     place = features.features.get("place")
