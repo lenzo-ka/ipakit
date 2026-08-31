@@ -246,3 +246,57 @@ def test_create_and_open_layout_contract(tmp_path: Path):
     (root / "corpus.json").write_text('{"type":"ipakit.corpus","v":999}\n')
     with pytest.raises(_corpus.CorpusError, match="unsupported corpus version"):
         _corpus.open(root)
+
+
+class TestValidateAndReadAgreeOnWhatIsWellFormed:
+    """`validate` reports and `read` enforces, and they must not diverge.
+
+    The two encode the same rules in two shapes -- collect-all against
+    raise-on-first -- so a rule added to one and not the other makes
+    `validate` certify a corpus `read` then refuses. That had happened:
+    `provenance` was added to the reader and to `put_form` and never to
+    the validator, so three malformations passed clean and raised on read.
+
+    This is the guard rather than a shared code path, because the guard is
+    what actually fails when they drift. A refactor that unified them
+    would satisfy this test; so would keeping them separate and correct.
+    """
+
+    def _corpus_with(self, tmp_path: Path, mutate) -> Path:
+        location = tmp_path / "speech"
+        corpus = _corpus.create(location)
+        corpus.add("e1", {"text": "cat"}, {"ipa": _form("kæt")})
+        path = location / "entries" / "e1.json"
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        mutate(raw)
+        path.write_text(json.dumps(raw), encoding="utf-8")
+        return location
+
+    @pytest.mark.parametrize(
+        "name,mutate",
+        [
+            ("provenance is not an object", lambda r: r.update(provenance="nope")),
+            (
+                "form role is empty",
+                lambda r: r["forms"].update({"": r["forms"]["ipa"]}),
+            ),
+            (
+                "provenance record is malformed",
+                lambda r: r.update(provenance={"ipa": {"producer": {}}}),
+            ),
+        ],
+    )
+    def test_what_read_refuses_validate_reports(self, tmp_path, name, mutate) -> None:
+        location = self._corpus_with(tmp_path, mutate)
+
+        refused = False
+        try:
+            _corpus.open(location).read("e1")
+        except _corpus.CorpusError:
+            refused = True
+
+        report = _corpus.validate(location)
+        assert (
+            refused
+        ), f"{name}: read accepted it, so this case no longer discriminates"
+        assert not report.valid, f"{name}: read refuses it and validate calls it clean"
