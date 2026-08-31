@@ -107,6 +107,20 @@ def _installed_binaries(job: str) -> set[str]:
     }
 
 
+# A binary-gated file that CI genuinely cannot run, with the reason. An entry
+# here is a declaration, not a silence: the file still skips, but the skip is
+# stated and reviewable instead of being invisible. Keep it short -- anything
+# CI could install belongs in a job, not here.
+DECLARED_UNRUNNABLE = {
+    "tests/test_espeak_binary.py": (
+        "asserts espeak-ng 1.52.0 exactly, because the mnemonic-to-IPA "
+        "agreement it checks was established against that build; "
+        "ubuntu-latest ships 1.51, so installing the package makes these "
+        "tests fail rather than pass"
+    ),
+}
+
+
 def _runs_on_pull_request(job: str) -> bool:
     """Whether this job runs on a pull request at all.
 
@@ -132,6 +146,8 @@ def _unreachable_binary_guards(workflow: str) -> list[str]:
 
     missing: list[str] = []
     for path, required in _binary_guarded_files(ROOT / "tests").items():
+        if path in DECLARED_UNRUNNABLE:
+            continue
         if not any(
             required <= provided
             and any(path == named or path.startswith(named) for named in paths)
@@ -216,39 +232,46 @@ def test_binary_guarded_files_run_in_a_job_that_installs_their_binary() -> None:
     assert _unreachable_binary_guards(workflow) == []
 
 
-def test_the_binary_guard_detects_an_uninstalled_program() -> None:
-    """Measure the predicate against a configuration with a known hole."""
-    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    broken = workflow.replace(
-        "sudo apt-get update && sudo apt-get install -y espeak-ng", "true", 1
+def test_every_declared_exemption_still_names_a_real_guarded_file() -> None:
+    """An exemption for a file that no longer skips is a silence nobody needs."""
+    guarded = _binary_guarded_files(ROOT / "tests")
+    assert set(DECLARED_UNRUNNABLE) <= set(guarded), (
+        f"exempted files that are no longer binary-gated: "
+        f"{sorted(set(DECLARED_UNRUNNABLE) - set(guarded))}"
     )
-    assert _unreachable_binary_guards(broken) == [
-        "tests/test_espeak_binary.py: espeak-ng"
-    ]
 
 
-def test_a_binary_supplied_only_after_merge_is_not_coverage() -> None:
-    """Installing it in a job that never runs on a PR leaves the file unseen.
+def test_the_binary_guard_reports_a_file_that_loses_its_exemption() -> None:
+    """Measure the predicate against a known hole.
 
-    This is the mistake the guard was written and then immediately made: the
-    binary went into the full suite, which is gated off pull requests, so the
-    file kept skipping on every PR while the predicate read green.
+    Dropping the exemption must surface the file, because nothing in CI
+    installs espeak-ng. If this passes with the exemption in place and fails
+    without it, the predicate is reading the workflow rather than the map.
     """
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    anchor = (
-        "    name: test (py${{ matrix.python-version }})\n"
-        "    needs: changes\n"
-        "    if: ${{ needs.changes.outputs.code == 'true' }}"
-    )
-    assert anchor in workflow, "the test job's header moved"
-    broken = workflow.replace(
-        anchor,
-        anchor.replace(
-            "needs.changes.outputs.code == 'true'",
-            "github.event_name != 'pull_request'",
-        ),
-        1,
-    )
-    assert _unreachable_binary_guards(broken) == [
-        "tests/test_espeak_binary.py: espeak-ng"
-    ]
+    exempt = dict(DECLARED_UNRUNNABLE)
+    try:
+        DECLARED_UNRUNNABLE.clear()
+        assert _unreachable_binary_guards(workflow) == [
+            "tests/test_espeak_binary.py: espeak-ng"
+        ]
+    finally:
+        DECLARED_UNRUNNABLE.update(exempt)
+
+
+def test_the_full_suite_is_not_counted_as_pull_request_coverage() -> None:
+    """A job excluded from pull requests cannot vouch for a file on a PR.
+
+    The full suite installs and runs things the per-PR jobs do not, and its
+    own comment says it never runs on a pull request. Counting it as coverage
+    is how a file can be "covered" and still skip on every change that
+    touches it.
+    """
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    named = {
+        re.match(r"(?m)^  ([A-Za-z0-9_-]+):", job).group(1): _runs_on_pull_request(job)
+        for job in _job_blocks(workflow)
+        if re.match(r"(?m)^  ([A-Za-z0-9_-]+):", job)
+    }
+    assert named["full-suite"] is False, "the full suite is gated off pull requests"
+    assert named["test"] is True, "the per-PR test job must run on pull requests"
