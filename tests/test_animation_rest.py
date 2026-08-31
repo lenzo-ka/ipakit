@@ -420,3 +420,30 @@ def test_k_target_is_legible_without_a_new_plateau() -> None:
     # retain at least 96% closure after the target-to-target change.
     assert len(near_k) == 3
     assert min(near_k) >= 0.96
+
+
+def test_a_negative_tongue_offset_is_refused_not_clamped() -> None:
+    """A tongue behind the floor is not a posture, so it is not drawn.
+
+    The offset is clamped above and refused below, and the asymmetry is
+    deliberate: past contact is a real constriction pressed further, while
+    below the floor is impossible. Clamping the impossible case to zero
+    would render a plausible picture from a broken declaration.
+
+    Nothing in the shipped inventory reaches this -- the minimum
+    constriction offset is 0.05 and no tongue control declares a negative
+    one -- so the guard needs its own witness or it is a claim with no
+    evidence behind it. This constructs the case the data cannot.
+    """
+    ipa, h = IPAFeatures(), head("adult-male")
+    marks = landmarks(ipa)
+    frame = trajectory("a", head=h, frames_per_unit=2, features=ipa).frames[0]
+    below = [
+        control.__class__(**{**vars(control), "offset": -0.25})
+        for control in frame.tongue_controls
+    ]
+    broken = frame.__class__(**{**vars(frame), "tongue_controls": tuple(below)})
+    # The guard lives in the FRONTAL tongue, which is where the offset is
+    # sampled against the mouth edges; the sagittal builder never reaches it.
+    with pytest.raises(ValueError, match="not a drawable posture"):
+        build_frontal_geometry(h, marks, broken)
