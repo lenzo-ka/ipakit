@@ -62,6 +62,71 @@ def _guarded_files(tests: Path) -> dict[str, set[str]]:
     return guarded
 
 
+def _binary_guarded_files(tests: Path) -> dict[str, set[str]]:
+    """Test files that skip themselves when an external binary is absent.
+
+    The module guard above reads ``importorskip``, which names a Python module.
+    A file can also gate itself on a program found through ``shutil.which``, and
+    that form is invisible to it: the module is installed, so nothing reports a
+    hole while every test in the file skips.
+
+    A ``which`` call alone is not the pattern -- ``test_schema.py`` looks a
+    validator up and then fails loudly when it is missing, which is the
+    behavior wanted. What makes a file unreachable is looking one up and
+    skipping on it, so both must be present.
+    """
+    guarded: dict[str, set[str]] = {}
+    for path in sorted(tests.rglob("test_*.py")):
+        text = path.read_text(encoding="utf-8")
+        if "skipif" not in text:
+            continue
+        binaries: set[str] = set()
+        for node in ast.walk(ast.parse(text)):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            function = node.func
+            if (
+                isinstance(function, ast.Attribute)
+                and function.attr == "which"
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                binaries.add(node.args[0].value)
+        if binaries:
+            guarded[path.relative_to(ROOT).as_posix()] = binaries
+    return guarded
+
+
+def _installed_binaries(job: str) -> set[str]:
+    """Package names an apt-get step installs, which are the binaries we get."""
+    return {
+        package
+        for group in re.findall(r"apt-get install(?:\s+-[A-Za-z-]+)*\s+([^\n]+)", job)
+        for package in shlex.split(group)
+        if not package.startswith("-")
+    }
+
+
+def _unreachable_binary_guards(workflow: str) -> list[str]:
+    coverage: list[tuple[list[str], set[str]]] = []
+    for job in _job_blocks(workflow):
+        binaries = _installed_binaries(job)
+        for line in job.splitlines():
+            paths = _pytest_paths(line.strip())
+            if paths is not None:
+                coverage.append((paths, binaries))
+
+    missing: list[str] = []
+    for path, required in _binary_guarded_files(ROOT / "tests").items():
+        if not any(
+            required <= provided
+            and any(path == named or path.startswith(named) for named in paths)
+            for paths, provided in coverage
+        ):
+            missing.append(f"{path}: {', '.join(sorted(required))}")
+    return missing
+
+
 def _job_blocks(workflow: str) -> list[str]:
     starts = list(re.finditer(r"(?m)^  [A-Za-z0-9_-]+:\s*$", workflow))
     return [
@@ -128,4 +193,21 @@ def test_ci_guard_detects_a_file_removed_from_its_only_capable_job() -> None:
     broken = workflow.replace(" tests/test_panphon_live_geometry.py", "", 1)
     assert _unreachable_guards(broken, project) == [
         "tests/test_panphon_live_geometry.py: panphon"
+    ]
+
+
+def test_binary_guarded_files_run_in_a_job_that_installs_their_binary() -> None:
+    """A file that skips on a missing program must have a job supplying it."""
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert _unreachable_binary_guards(workflow) == []
+
+
+def test_the_binary_guard_detects_an_uninstalled_program() -> None:
+    """Measure the predicate against a configuration with a known hole."""
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    broken = workflow.replace(
+        "sudo apt-get update && sudo apt-get install -y espeak-ng", "true", 1
+    )
+    assert _unreachable_binary_guards(broken) == [
+        "tests/test_espeak_binary.py: espeak-ng"
     ]

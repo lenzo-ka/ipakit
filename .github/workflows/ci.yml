@@ -129,6 +129,9 @@ jobs:
           cache-dependency-path: pyproject.toml
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[test]"
+      # test_espeak_binary.py gates every test on the binary being present, so
+      # without this the file skips wholly and the full suite is not full.
+      - run: sudo apt-get update && sudo apt-get install -y espeak-ng
       # Override the addopts default (-m 'not slow') so every test runs.
       - run: pytest -m "slow or not slow" -n auto
 
