@@ -102,11 +102,11 @@ def excluded_keys(features: IPAFeatures) -> frozenset[str]:
     key would put back exactly the nominal place comparison the line
     above takes out, in a spelling the weighted components cannot see.
     The reason it matters here rather than in principle is that no vowel
-    is obliged to state one: 16 do and 23 do not, and a key present on
-    one side and absent on the other scores the maximal difference, so
-    counting it would say that schwa is further from ``i`` than ``i`` is
-    from ``p``. What a stated location contributes is its ``arc``, and
-    that reaches every distance through :func:`_sagittal`.
+    is obliged to state one, and a key present on one side and absent on
+    the other scores the maximal difference, so counting it would say
+    that schwa is further from ``i`` than ``i`` is from ``p``. What a
+    stated location contributes is its ``arc``, and that reaches every
+    distance through :func:`_tract_x`.
     """
     bridged: set[str] = set()
     for spellings in features.bridges.values():
@@ -488,9 +488,11 @@ def _nearest_part_cost(
     """Charge material by its nearest real comparison on the other side.
 
     This is the one extra-material convention for both composition paths:
-    unordered reduction calls it for every source part, while ordered
-    alignment calls it only for a part left unmatched by a candidate
-    matching. ``present`` is nonempty because every segment has a part.
+    ordered alignment calls it for a part left unmatched by a candidate
+    matching, while unordered reduction charges every source part the same
+    way through :func:`_nearest_part`, which also reports which opposite
+    part was selected. ``present`` is nonempty because every segment has a
+    part.
     """
     return min(segment_metric(features, part, other) for other in present)
 

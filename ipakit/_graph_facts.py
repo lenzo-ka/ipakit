@@ -2,8 +2,9 @@
 
 This module deliberately has no profile vocabulary.  It exists below public
 construction APIs so profiles can share addressing and validation laws without
-making those laws depend on a spelling system.  ``Graph.roots`` may be empty;
-root-reachability diagnostics belong to higher profile lanes.
+making those laws depend on a spelling system.  Roots are declared one layer
+up, on :class:`ipakit._containment_projection.ContainmentProjectionInput`, and
+may be empty; root-reachability diagnostics belong to higher profile lanes.
 """
 
 from __future__ import annotations

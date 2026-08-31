@@ -9,10 +9,11 @@ is a derived read: the grouping (``children``), the classification
 merge time. See docs/ties.md for the tie conventions.
 
 Serialization: ``to_json``/``from_json`` carry the junctures explicitly and
-are the round-trip-guaranteed form. ``to_ipa`` emits sense-correct glyphs
-and is lossy exactly on the legacy alias collisions (an intentional
-simultaneous ``a+ɪ`` emits ``a͡ɪ``, which re-ingests as the registered
-sequential diphthong).
+are the round-trip-guaranteed form. ``to_ipa`` emits sense-correct glyphs,
+and the glyph is authoritative on the way back in, so ``parse(to_ipa(x))``
+is structurally ``x``. It is lossy on spelling only, where a legacy alias
+canonicalizes — ``ʧa`` emits as ``t͡ʃa``, the same unit spelled in house
+style.
 """
 
 from __future__ import annotations
@@ -1013,10 +1014,11 @@ class Segment:
     def to_ipa(self) -> str:
         """Emit the unit with sense-correct tie glyphs and prosody marks.
 
-        Lossy exactly on the legacy alias collisions (see docs/ties.md):
-        the emitted string always re-ingests to a valid unit, but for
-        collision spellings the registered sense wins over the emitted
-        glyph, so ``parse(to_ipa(x))`` may differ structurally from ``x``.
+        Structurally faithful (see docs/ties.md): every emitted glyph
+        carries the sense it was emitted for, so ``parse(to_ipa(x))``
+        is ``x``. The string can still differ from the one ``x`` was
+        read from, because a legacy alias emits as its canonical
+        spelling -- ``ʧ`` as ``t͡ʃ``.
         """
         features = self._features
         # Stress is written before its domain, every other prosodic mark

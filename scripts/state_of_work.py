@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import posixpath
 import re
 import sys
 from dataclasses import dataclass
@@ -74,12 +75,23 @@ def findings() -> tuple[list[Finding], list[Finding]]:
     return verdicts, superseded
 
 
+def rebase(match: re.Match[str]) -> str:
+    """Rewrite one quoted link from a design record's frame into this page's.
+
+    A design record links relative to ``docs/design``; this page sits in
+    ``docs``. One pass over each target, so a ``../`` that climbs out of
+    ``design`` is not prefixed straight back into it.
+    """
+    target = match.group(1)
+    if target.startswith(("http://", "https://", "#")):
+        return match.group(0)
+    path, sep, anchor = target.partition("#")
+    return f"]({posixpath.normpath(posixpath.join('design', path))}{sep}{anchor})"
+
+
 def row(item: Finding) -> str:
     label = f"{Path(item.document).stem} — {item.heading}"
-    statement = re.sub(r"\]\(\.\./([^)]+)\)", r"](\1)", item.statement)
-    statement = re.sub(
-        r"\]\((?!https?://|#|design/)([^)]+)\)", r"](design/\1)", statement
-    )
+    statement = re.sub(r"\]\(([^)]+)\)", rebase, item.statement)
     return f"| [{label}]({item.link}) | {statement} |"
 
 

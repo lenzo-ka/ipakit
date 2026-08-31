@@ -222,7 +222,7 @@ Recorded because the brief for this work assumed the mechanism was in place, and
 
 [#160](https://github.com/lenzo-ka/ipakit/issues/160) landed a `constriction-location` slot that the vowel branch reads ahead of `backness`. It declares `vocabulary="place"`, so a nucleus states one of the twelve place *names* and the arc comes from that place's own declaration — which is why adopting Wood's four families would cost nothing and move no consonant. A projected location is not a place name. It is a number per cell, 35 of them, none coinciding with a declared place, and the slot as built cannot hold one. Carrying it would mean either 35 new `place` values, or a second coordinate table keyed on two features, which is the cell table refused on the first pass and again on the second.
 
-The rest of the cost is unchanged and is real: `arc` reaches `ipakit.metric` through `_sagittal`, so moving the vowel anchors moves a large part of the matrix and `confusion.json` has to be regenerated with every mover explained. None of it was incurred, because the values do not survive §4.
+The rest of the cost is unchanged and is real: `arc` reaches `ipakit.metric` through `_tract_x`, so moving the vowel anchors moves a large part of the matrix and `confusion.json` has to be regenerated with every mover explained. None of it was incurred, because the values do not survive §4.
 
 ## 10. How to re-run this
 

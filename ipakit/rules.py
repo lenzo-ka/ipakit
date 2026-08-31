@@ -1571,9 +1571,11 @@ class Site:
     An entry is ``None`` where no unit licensed that item: the context
     matched the virtual edge past the end of the form, the item was
     optional (``(∅)``) and nothing was there, or the item was a tier term
-    (``<mora``), which claims a position and so takes no unit at all. One
-    entry per context item either way, so the two sequences stay
-    alignable with the notation.
+    (``<mora``), which claims a position and so takes no unit at all.
+    One entry per unit an item consumed, and a single ``None`` for an
+    item that consumed none, so a side is index-alignable with the
+    notation only where nothing on it is quantified: ``([vowel]){2}`` is
+    one written item and two entries.
 
     ``bindings`` is the same kind of record for the other thing a site
     can carry: what each agreement variable took as its value here. It is
@@ -1861,8 +1863,8 @@ class Query:
                     return None
                 # None, as for the virtual edge and for an absent optional
                 # item: no unit licensed this item, because a position is
-                # not a unit. One entry per item either way, so the record
-                # stays alignable with the notation.
+                # not a unit. One entry per unit consumed, so an item that
+                # consumed none contributes exactly this one.
                 matched.append(None)
                 continue
             if past_the_end:
@@ -2363,12 +2365,14 @@ class Rule:
     action: Action
     source: str = ""
     #: Written ``~>``: the rule *may* fire at a site rather than does.
-    #: Honoured by :class:`RuleSet`, which is where a derivation lives;
+    #: Honored by :class:`RuleSet`, which is where a derivation lives;
     #: :meth:`apply` below is the mechanism and applies every edit it
     #: finds, optional or not.
     optional: bool = False
-    #: Ordered graph tiers recognition scans.  The legacy Form engine reads
-    #: the compatibility sequence; the bridge uses this explicit selection.
+    #: Ordered graph tiers a rule declares it scans.  Carried and not yet
+    #: read: recognition matches the unit sequence whatever this says, and
+    #: the bridge takes its tier selection from :meth:`Derivation.to_form`.
+    #: Setting it does not change what matches.
     source_tiers: tuple[str, ...] = ("segment",)
 
     @property

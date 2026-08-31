@@ -1327,8 +1327,9 @@ def constrictions(
     """Every constriction the segment makes, not only its named one.
 
     ``tract_point`` answers with one place because that is what a per-feature
-    comparison needs, and the metric reads it. Some segments make two at
-    once, and a drawing that shows one of them shows the wrong sound:
+    comparison needs, and the metric takes its offset from there. Some
+    segments make two constrictions at once, and a drawing that shows one of
+    them shows the wrong sound:
 
     * a **click** closes at its named place *and* at the velum, and rarefies
       the pocket between. Drawn with the front closure alone it is an
@@ -1339,15 +1340,18 @@ def constrictions(
 
     Returned front to back, and every element is a constriction the segment
     actually makes. That is not ``tract_point``'s answer with company added.
-    A segment naming one place constricts there, so the metric's point is the
-    front-most element; a combining place declares no arc of its own and the
-    metric answers with the mean of its components, which lies strictly
-    between them and so is a constriction at neither. ``w`` is drawn closing
-    at the lips and at the velum, and compared at 0.225, where nothing closes.
+    A segment naming one place constricts there, and ``tract_point`` returns
+    it; a combining place declares no arc of its own, so ``tract_point``
+    answers with the mean of its components, which lies strictly between them
+    and so is a constriction at neither -- 0.225 for ``w``, midway between
+    the lips and the velum, where nothing closes.
 
-    Ask ``tract_point`` for the summary the metric uses and this for the
-    closures a drawing owes. They answer different questions, and only a
-    single named place makes them agree.
+    ``ipakit.metric._tract_x`` reads arc from here, so a double articulation
+    is compared as the set of places it closes at rather than as the point
+    between them, and ``tract_point``'s arc reaches no distance. Ask this for
+    the closures a drawing owes and the places a comparison reads, and
+    ``tract_point`` for the one-point summary. They answer different
+    questions, and only a single named place makes them agree.
     """
     primary = tract_point(features, bundle)
     place = features.features.get("place")
@@ -1550,7 +1554,7 @@ def unmodeled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...]
       -- a tie joins two units, it does not shape one.
 
     What is left is stated and invisible, and the same declarations say
-    *why*, which is what ``Mark.kind`` carries: ``offscale`` is a value
+    *why*, which is what ``Mark.kind`` carries: ``off scale`` is a value
     declared to hold no position on its own axis (silence is not a degree
     of constriction), a postural feature the reading did not take is
     ``unread`` -- the posture went to another feature for that
@@ -2016,10 +2020,9 @@ def blend(units: Sequence[Posture], t: float, falloff: float = 0.5) -> Posture:
     degree at ``t`` is the target-weighted mean of those per-unit targets,
     taken at the articulator's OWN arc (itself the
     target-weighted mean of the arcs the constricting units place it at, so
-    every cardinal target retains its declared place). An articulator whose
-    blended degree remains imperceptibly
-    close to rest is not emitted; a below-rest gesture such as a lowered
-    vowel root remains a real control. The survivors are the blended
+    every cardinal target retains its declared place). Degree is not
+    thresholded against rest, so a below-rest gesture such as a lowered vowel
+    root is a control like any other. The result is the blended
     ``constrictions``, each ``(cardinal arc, blended offset, articulator)`` --
     which :func:`ipakit.tract_svg.build_geometry` renders as-is, because
     ``Head.tongue_point`` already takes the max over controls and so draws a

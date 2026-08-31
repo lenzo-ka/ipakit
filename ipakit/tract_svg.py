@@ -1301,8 +1301,10 @@ def _annotate(
     Labels used to sit above the wall, which is where the nasal branch now
     runs, so they collided with it and with each other. Places are read off
     the roof and hang inside the oral cavity; articulators hang below the
-    open trace. Both stagger over three depths, because the front of the
-    mouth packs six places into 0.24 of arc and two depths is not enough.
+    open trace. Both hand their anchors to :func:`_place_labels`, which drops
+    each label to the shallowest depth clear of everything already placed;
+    the two sets share one ``taken`` list, so an articulator label cannot
+    land under a place label.
     """
     parts: list[str] = []
     # The landmarks the inventory this drawing was made against declares --
@@ -2104,23 +2106,27 @@ def animate(
 ) -> str:
     """A word as a played trajectory, drawn frame by frame.
 
-    ``ipakit.tract.score`` reads the word into one :class:`~ipakit.tract.Posture`
-    per segment; the timeline is sampled on a uniform ordinal clock at
-    ``frames_per_unit`` frames per unit, so frame ``f`` between units ``i`` and
-    ``i+1`` sits at ordinal ``t = i + f/frames_per_unit`` with no notion of
-    duration -- one unit is one unit. Each ordinal is blended to a Posture by
-    ``ipakit.tract.blend`` and projected through the head, and every frame goes
-    through the same ``section_svg`` a still figure does, so a frame cannot
-    drift from a drawing. The scale is fixed across frames from the whole
-    sequence's extent. Playback maps the ordinal clock to milliseconds and is
-    the only place time in seconds appears.
+    ``ipakit.tract.trajectory`` reads the word into one
+    :class:`~ipakit.tract.Posture` per segment and, where the head declares a
+    rest, bookends that sequence with a resting posture. The ordinal clock
+    runs over the played sequence, bookends included, at ``frames_per_unit``
+    frames per unit, so frame ``f`` between its units ``i`` and ``i+1`` sits
+    at ordinal ``t = i + f/frames_per_unit`` -- and a spoken segment therefore
+    sits one whole unit later than its own index wherever a leading rest was
+    added. There is no notion of duration: one unit is one unit. Each ordinal
+    is blended to a Posture by ``ipakit.tract.blend`` and projected through
+    the head, and every frame goes through the same ``section_svg`` a still
+    figure does, so a frame cannot drift from a drawing. The scale is fixed
+    across frames from the whole sequence's extent. Playback maps the ordinal
+    clock to milliseconds and is the only place time in seconds appears.
 
     The result is one self-contained page -- a filmstrip of the units and a
     flipbook player with an inline scrubber and autoplay -- with no runtime
     dependencies, readable in a browser without a rasterizer. The transcript
-    highlights the spoken unit with the greatest Gaussian dominance on the
-    trajectory's ordinal clock; at an exact transition midpoint both adjacent
-    units are active. ``display_label`` may add caller-supplied orthography,
+    uses the trajectory's ordinal clock and highlights the spoken unit whose
+    center is nearest on it; at an exact transition midpoint both adjacent
+    units are active, and a synthetic rest bookend activates neither.
+    ``display_label`` may add caller-supplied orthography,
     but no orthographic label is inferred. Printable Unicode and LF are
     carried verbatim through HTML parsing; other C0 controls (including tab
     and CR), DEL, and C1 controls raise :class:`ValueError`.

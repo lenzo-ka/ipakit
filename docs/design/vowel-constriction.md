@@ -288,7 +288,7 @@ What an implementation would need, so that the next lane starts from the cost ra
 
 **Superseded by [#160](https://github.com/lenzo-ka/ipakit/issues/160), and closed.** The branch reads a `constriction-location` a nucleus states, and `backness` where none is stated. `place` was refused as the carrier on the second obstacle named below, and on a third this assessment did not reach: the dental and linguolabial marks already put a place on a vowel, and reading that slot as the tongue body's constriction would have moved every one of those units, toward saying a dental vowel's *body* is at the teeth. The slot takes `place`'s values, aliases and arcs by declaration — `vocabulary="place"` — rather than restating them, so where `velar` is stays one number in one file and the last bullet below stays a single decision. No vowel states one, and nothing moved: zero movers over every pair the inventory makes and over the whole unit corpus.
 
-- **A before and after over all 9591 pairs, with every mover explained.** `arc` reaches `ipakit.metric` through `_sagittal`. Moving the vowel anchors moves a large part of the matrix, and `confusion.json` has to be regenerated.
+- **A before and after over all 9591 pairs, with every mover explained.** `arc` reaches `ipakit.metric` through `_tract_x`. Moving the vowel anchors moves a large part of the matrix, and `confusion.json` has to be regenerated.
 - **A decision about the anchors themselves.** Answered in §8, and answered by declining: the measurement cannot separate Wood's own proportions from the arcs `place` already declares, so reuse the declared ones and move nothing.
 
 None of that is measurement, and none of it was this lane's to make on the strength of a document.
