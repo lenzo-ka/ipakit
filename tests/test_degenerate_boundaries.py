@@ -66,16 +66,28 @@ EMPTY = frozenset(
 )
 
 
-class TestTheTwoLayersReallyDoDisagree:
+class TestEveryLayerDiscardsItAndNoneOfThemSays:
     """The argument for warning is a measurement, not a preference, so it
-    is worth a test of its own: if either layer changes its reading the
-    docstring's reasoning has moved and must be rewritten."""
+    is worth a test of its own: if any layer changes its reading the
+    docstring's reasoning has moved and must be rewritten.
 
-    def test_the_rule_engine_gives_the_empty_syllable_its_own_vowel(self) -> None:
-        # Three insertion sites in 'kæt..dɒɡ' against two in 'kæt.dɒɡ':
-        # the extra one is the empty syllable, a real constituent here.
+    This class was once named for the opposite claim -- that the two
+    layers disagreed -- and stayed green while the claim went false,
+    because only its assertions were corrected. A name and a comment
+    that contradict the assertion under them gate nothing, so the
+    reading each layer gives is spelled out here rather than summarized
+    in the title.
+    """
+
+    def test_the_rule_engine_offers_the_same_sites_either_way(self) -> None:
+        # Two insertion sites in both: the doubled dot delimits an empty
+        # syllable, and the engine gives it no vowel of its own.
         assert ipakit.rewrite("kæt.dɒɡ", "∅ -> ə / . _") == "əkæt.ədɒɡ"
         assert ipakit.rewrite("kæt..dɒɡ", "∅ -> ə / . _") == "əkæt..ədɒɡ"
+
+    def test_the_word_mark_run_offers_the_same_sites_too(self) -> None:
+        assert ipakit.rewrite("#kæt", "∅ -> ə / # _") == "#əkæt"
+        assert ipakit.rewrite("##kæt", "∅ -> ə / # _") == "##əkæt"
 
     def test_the_tree_discards_it_without_a_word(self) -> None:
         doubled = Form.parse("kæt..dɒɡ").tree()
