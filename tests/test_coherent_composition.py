@@ -1,7 +1,7 @@
 """What ``compose_unit`` must satisfy: it answers the question, or nothing.
 
-The defect this file exists for was silent in the way ``docs/reviewing.md``
-describes. ``compose_unit`` spells a change by appending the mark that
+The defect this file exists for was silent -- a wrong answer under a green
+suite. ``compose_unit`` spells a change by appending the mark that
 *declares* the wanted value, then verifies by reading the result back and
 checking the keys it was asked for. Those keys were right and the answer
 was still wrong: ``compose_unit("s", place="bilabial")`` was ``"s̼"``, the
@@ -212,8 +212,8 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         that says only that value and by a mark that also moves an
         independent dimension. Screening the candidates is what makes the
         clean one win; the "fewest declared features" ordering picks the
-        same mark today, and ``docs/reviewing.md`` records what happens when
-        two orderings agree only by habit. So the set is enumerated rather
+        same mark today, and two orderings that agree only by habit come
+        apart without warning. So the set is enumerated rather
         than trusted, and the answer checked.
 
         One pair, and it is prosody that shrank the set: four of the five
@@ -433,8 +433,8 @@ class TestAMisdeclaredProjectionFailsOnLoad:
 
     A projection that named the wrong feature, or covered only some of the
     finer feature's values, would silently widen or narrow what counts as
-    one fact -- which is exactly the class of quiet data error
-    ``docs/reviewing.md`` says to let fail loudly.
+    one fact -- which is exactly the class of quiet data error that has to
+    fail loudly instead.
     """
 
     ORIGINAL = '<value name="devoiced" reads="-"/>'

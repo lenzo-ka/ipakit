@@ -354,8 +354,8 @@ class TestTheTwoReadsAreOneImplementation:
     def test_the_prosodic_read_and_the_segmental_one_are_one_function(self) -> None:
         """Made equal by construction rather than checked to agree.
 
-        If these ever become two functions again, ``docs/reviewing.md``
-        records what happens next.
+        If these ever become two functions again, they will answer
+        differently and nothing here will say so.
         """
         # By ``sys.modules`` because ``ipakit.form`` names a function on
         # the package as well as the module under it.

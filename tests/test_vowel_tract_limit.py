@@ -54,8 +54,8 @@ What is left needs a location per (height, backness) cell, and that
 partition is five bits read straight off the measurement. `ipa.xml` is
 the source of truth and the area functions are evidence about it, so a
 table copied out of one speaker's MRI is the fit this refuses to make.
-`docs/design/tract-validation.md` 6 (D1, D2) is the assessment; this is
-the same finding where something checks it.
+That refusal came of holding the declarations against the measurements;
+this is the same finding where something checks it.
 
 **Two further sources have since been measured, and they refuse the
 table rather than supplying it.** Wood (1979) reviews X-rayed vowel
@@ -69,8 +69,7 @@ So there is no coordinate to copy. What reproduces is Wood's four
 discrete locations, which land inside the measured band in 21 of 25
 columns against 12 of 25 for the arcs ipakit declares -- a partition of
 the (height, backness) plane into four families, which is a shape no
-one-feature-one-value-one-number declaration can state.
-`docs/design/vowel-constriction.md` is that assessment. **The
+one-feature-one-value-one-number declaration can state. **The
 classification is what has since been adopted**, at the arcs `place`
 already declares for the four locations: over the same 35 measured bands
 the library now scores 26, against 25 for the classification read at
@@ -282,10 +281,9 @@ class TestTheChartIsAlreadyWhatIsDeclared:
     already declared, faithfully, and one of them is already read as a
     position along the tract.
 
-    `docs/design/vowel-chart-geometry.md` is the assessment, and it
-    measures what the projection does with the other axis. If either of
-    these stops holding, the declarations have moved away from the
-    figure and that document's argument needs re-checking.
+    What the projection does with the other axis has been measured
+    separately. If either of these stops holding, the declarations have
+    moved away from the figure and that measurement needs re-checking.
     """
 
     def test_backness_is_the_chart_horizontal_projected_between_two_places(

@@ -285,12 +285,11 @@ class CostSchedule:
 
     **A schedule is language-relative, and a score computed under one is
     not comparable to a score computed under another.** That is not a
-    defect and it is not a retreat from the commitment in
-    ``docs/design/tiers.md`` section 7 that the feature space, the
-    comparison bundle and therefore ``distance`` are universal. A schedule
-    is not a term in the comparison: it adds no feature, changes no
-    bundle, and moves no value ``distance`` returns. It parameterizes what
-    a comparison charges. The bundle stays universal; how much a loss is
+    defect and it is not a retreat from the commitment that the feature
+    space, the comparison bundle and therefore ``distance`` are universal.
+    A schedule is not a term in the comparison: it adds no feature,
+    changes no bundle, and moves no value ``distance`` returns. It
+    parameterizes what a comparison charges. The bundle stays universal; how much a loss is
     worth to you does not, and never did.
 
     Prices are refused at construction if negative or not finite, for the

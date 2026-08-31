@@ -4,9 +4,8 @@
 was compared at their average -- ``w`` between the lips and the velum, where
 nothing closes. The reading is now the set of every constriction's arc,
 compared by best-match; and a rhotic, whose constriction the evidence gives no
-single arc for (docs/design/vowel-constriction.md section 6), states no
-locatable arc at all, so the metric withholds the term rather than inventing a
-position.
+single arc for, states no locatable arc at all, so the metric withholds the
+term rather than inventing a position.
 """
 
 import xml.etree.ElementTree as ET

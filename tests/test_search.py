@@ -224,7 +224,7 @@ class TestProsodicTermsAreAskedOfTheProsody:
         decide what it asks of `Unit.prosody`. If these two drift, one
         query gets two answers depending on whether it was written to
         `find` or to a rule -- which is the shape of defect this repo has
-        had most often (docs/reviewing.md).
+        had most often.
         """
         from ipakit.rules import _is_prosodic
 

@@ -4,16 +4,15 @@
 and ``articulator`` -- proportional position along the tract midline, 0
 at the lips to 1 at the glottis. ``heads.xml`` states one again on every
 polyline vertex and hand-places an ``(x, y)`` beside it. That is one
-quantity written down three times, and ``docs/reviewing.md`` names the
-shape: *prefer making two things equal by construction over vigilance,
-and pin what a guard cannot see.*
+quantity written down three times, against the standing preference:
+*make two things equal by construction rather than by vigilance, and pin
+what a guard cannot see.*
 
 Nothing is a wrong answer today, because ``ipakit.metric`` imports only
 ``tract_point`` from ``ipakit.tract`` and never reaches a head. The cost
-is to the drawing and to the one external check the geometry has:
-``docs/design/tract-validation.md`` 1 compares declared arcs against
-measured area functions, and that comparison is only meaningful while
-the two readings agree.
+is to the drawing and to the one external check the geometry has --
+declared arcs compared against measured area functions -- which is only
+meaningful while the two readings agree.
 
 Three relationships, checked here on their own terms rather than folded
 into one number:

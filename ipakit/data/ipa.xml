@@ -197,8 +197,7 @@
          classifies by name. Their `arc` still comes from `backness`,
          and `tract_reading` reports that arc as approximated rather
          than stated, so a caller can tell a sourced location from an
-         unsourced one without reading the source. See
-         docs/design/vowel-constriction.md, issues #123 and #175. -->
+         unsourced one without reading the source. -->
     <feature name="constriction-location" axis="+x" short="cnl" applies="nucleus" vocabulary="place" desc="Where a nucleus constricts the tract, stated as one of the places `place` locates" href="Vowel"/>
 
     <feature name="voiced" short="voi" type="binary" mode="overriding" desc="Vocal cord vibration" href="Voice_(phonetics)">
@@ -466,10 +465,10 @@
          mode="structural" for the reason `level` gives, and it is what
          keeps the metric out of this: a structural feature is in no phone's
          bundle by construction, so declaring a tier, or a language
-         declaring three more, moves no distance. That boundary is the
-         commitment docs/design/tiers.md §7 makes: tiers and their
-         inventories are language-relative, the feature space and therefore
-         `distance` are not.
+         declaring three more, moves no distance. That boundary is where
+         the commitment sits: tiers and their inventories are
+         language-relative, the feature space and therefore `distance`
+         are not.
 
          `syllable` and `word` are deliberately spelled the same as `level`'s
          values and are deliberately NOT declared `bare`. Two features claim
@@ -591,8 +590,10 @@
        another <notation> with its own symbols, and
        `notation != "chart"` goes on answering the same question. No
        second notation is planned: SAMPROSA was assessed for this slot
-       and declined; see docs/design/samprosa.md. The block earns its
-       keep on the three symbols it lists.
+       and declined, being a separate-tier notation whose ASCII symbols
+       would take on a second, incompatible reading in this single-tier
+       string space. The block earns its keep on the three symbols it
+       lists.
 
        Deliberately NOT an attribute on each symbol's own element, which
        is the obvious shape and the one this started as. MEASURED: with

@@ -218,9 +218,8 @@ def _tract_x(
     velum. ``None`` where the segment holds no arc at all, exactly as the
     single-point reading did. ``_UNLOCALIZED`` where a stated feature
     declares its constriction has no single location: a rhotacized nucleus
-    constricts, but the evidence gives no arc to place it at
-    (docs/design/vowel-constriction.md section 6), so the metric withholds
-    the term rather than inventing a position.
+    constricts, but the evidence gives no arc to place it at, so the metric
+    withholds the term rather than inventing a position.
 
     A single-constriction segment yields a one-tuple ``(arc,)`` whose arc is
     the single point's, so its distances and its fingerprint line do not
@@ -875,7 +874,8 @@ def _fingerprint_lines(features: IPAFeatures, phones: tuple[str, ...]) -> Iterat
     # had a cost: declaring `tier` moves 0 of 9591 distances and still
     # invalidated every saved matrix, so a language declaring a tier of its
     # own was refused a matrix that was provably still correct for it.
-    # docs/design/tiers.md §7 promises that does not happen.
+    # Tiers and their inventories are language-relative and the feature
+    # space is not, so declaring one must leave a saved matrix standing.
     #
     # Omitting them outright rather than digesting a reduced line is
     # deliberate: it means declaring one changes nothing, which is the

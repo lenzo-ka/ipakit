@@ -1576,11 +1576,10 @@ def unmodeled(features: IPAFeatures, stated: dict[str, str]) -> tuple[Mark, ...]
     which says where the tongue body is and not where it constricts. A
     mark naming ``backness`` is what lets a caller tell that arc from a
     stated one, and it is a mark rather than a note beside the figure
-    because ``docs/design/tract-validation.md`` 4 measured the note and
-    found it insufficient: the rhotic is drawn 0.22 of a tract from
-    where it was measured, with an annotation saying that something is
-    missing, and a reader has no way to know which number the annotation
-    is about.
+    because the note was measured and found insufficient: the rhotic is
+    drawn 0.22 of a tract from where it was measured, with an annotation
+    saying that something is missing, and a reader has no way to know
+    which number the annotation is about.
     """
     scale = glottal_scale(features)
     glottal: set[str] = set()

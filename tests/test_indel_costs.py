@@ -1,13 +1,12 @@
 """Per-phone insertion and deletion costs, and the directional distance.
 
 Every test here is a predicate about the *shape* of the arithmetic rather
-than a pinned value, because the defect this change is guarding against is
-the one ``docs/reviewing.md`` describes: a well-formed number computed the
-wrong way, under a green suite. The two shapes at risk are a base row
-built as an index times a constant and a denominator built as a length
-times a price. Both are correct whenever every phone costs the same, which
-is the case the whole suite was written under, so neither would announce
-itself.
+than a pinned value, because the defect this change is guarding against is a
+well-formed number computed the wrong way, under a green suite. The two
+shapes at risk are a base row built as an index times a constant and a
+denominator built as a length times a price. Both are correct whenever every
+phone costs the same, which is the case the whole suite was written under,
+so neither would announce itself.
 
 Each zero-valued assertion here is paired with a control that shares its
 code path. A sweep that reports "nothing moved" is worth nothing until the
@@ -501,8 +500,7 @@ class TestSchedulesDerivedFromRuleSets:
 
         A deletion schedule prices the reference side, so a pair moves if
         and only if the reference contains a phone the schedule names. The
-        second count is the one that matters, in the shape
-        ``docs/reviewing.md`` asks for: movers whose reference holds no
+        second count is the one that matters: movers whose reference holds no
         priced phone must be zero, or the schedule is reaching somewhere it
         does not name.
         """
@@ -539,8 +537,8 @@ class TestSchedulesDerivedFromRuleSets:
 
 
 class TestTheBoundaryWithTheFeatureSpace:
-    """docs/design/tiers.md section 7: the feature space, the comparison
-    bundle and therefore ``distance`` are not language-relative. A cost
+    """The feature space, the comparison bundle and therefore ``distance``
+    are not language-relative, whatever tiers a language declares. A cost
     schedule parameterizes a comparison and is not a term in it, and this
     is the measurement that says so rather than the claim that says so."""
 

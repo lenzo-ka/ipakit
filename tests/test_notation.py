@@ -26,8 +26,7 @@ The ``samprosa`` notation two tests below build is **deliberately
 fictional**: a stand-in for any second notation, so the loader's
 behavior when one exists is pinned whichever notation ever arrives.
 ipakit does not ship one and none is planned -- SAMPROSA was assessed
-for that slot and declined, see ``docs/design/samprosa.md`` -- so the
-name here is a fixture, not a commitment.
+for that slot and declined -- so the name here is a fixture, not a commitment.
 """
 
 from __future__ import annotations

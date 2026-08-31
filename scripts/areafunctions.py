@@ -35,8 +35,7 @@ plain-text extraction of your own copy, or set ``$IPAKIT_STORY1996_TEXT``.
 ``table`` asserts the shape of what it read -- 18 columns, the published tract
 lengths, and section counts that predict every short row in the table -- so a
 run over a bad extraction fails loudly instead of reporting clean numbers over
-nothing. See docs/reviewing.md for why, and docs/design/tract-validation.md for
-what the numbers turned out to be, which of them survive, and which do not.
+nothing.
 
 The vowel symbols in the PDF's text layer are custom-encoded and unreadable.
 They are not used. Column order comes from the example words in Table II
@@ -460,11 +459,11 @@ class Table:
         """The extent of a vowel's constriction as ``(front, back, cm^2)``.
 
         A constriction is a region and not a point -- both external sources say
-        so, and the argmin over eleven vowels is what
-        docs/design/tract-validation.md 3 refuses. This grows the narrowest
-        section outward while the area stays within ``depth`` of it, which is
-        the closest thing an area function offers to the zero-area run that
-        makes the occlusion check in ``occlusions`` free of any parameter.
+        so, and an argmin over eleven vowels reports a point. This grows the
+        narrowest section outward while the area stays within ``depth`` of
+        it, which is the closest thing an area function offers to the
+        zero-area run that makes the occlusion check in ``occlusions`` free
+        of any parameter.
         """
         column = self.area[symbol]
         found = self.narrowest(symbol, glottal_cm, labial_cm)
@@ -641,8 +640,7 @@ def cmd_occlusions(table: Table, args: argparse.Namespace) -> int:
     print(f"\n{inside} of {len(OCCLUDED)} declared place arcs inside the closure")
     print(
         "The two that are not are both velar, both in the same direction, and the\n"
-        "size of the miss tracks the vowel context -- see docs/design/"
-        "tract-validation.md 2."
+        "size of the miss tracks the vowel context."
     )
     return 0
 
@@ -703,9 +701,8 @@ def cmd_stability(table: Table, args: argparse.Namespace) -> int:
     print(
         "\nNothing outside this table fixes the cutoff, and the figure moves across "
         "the\nwhole interpretable range as it slides. A number reported from any one "
-        "row\nwould be a report of that row. This is why "
-        "docs/design/tract-validation.md\nrefuses the vowel figure and keeps the "
-        "occlusion check."
+        "row\nwould be a report of that row. This is why the vowel figure is "
+        "refused and the\nocclusion check kept."
     )
     return 0
 
@@ -1124,9 +1121,8 @@ def cmd_chart(table: Table, args: argparse.Namespace) -> int:
 
     The quadrilateral is a stated model of tongue-body position with no free
     parameters to fit, so a location projected out of it would be a
-    declaration rather than a fit -- which is the shape of evidence
-    ``docs/design/vowel-constriction.md`` could not obtain from any source.
-    This measures whether that projection exists.
+    declaration rather than a fit -- which is the shape of evidence no
+    source supplies. This measures whether that projection exists.
 
     Two things are asked. Whether the figure's own asymmetry produces the
     height-by-backness interaction the measurement shows, which is what would
@@ -1501,7 +1497,7 @@ def cmd_replicate(table: Table, args: argparse.Namespace) -> int:
         )
     print(
         "\nThe spread column is what a fitted table would have to pick one value "
-        "from.\nSee docs/design/vowel-constriction.md for what it is read as."
+        "from."
     )
     return 0
 

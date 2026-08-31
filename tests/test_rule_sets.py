@@ -1280,11 +1280,11 @@ def _length_delta(rule: R.Rule) -> int:
 
 
 class TestHowManyShippedRulesChangeTheLengthOfTheUnitSequence:
-    """The count docs/design/tiers.md §4 rests on, kept where it can fail.
+    """The count the tier-rebasing question rests on, kept where it can fail.
 
     A length change is what an interval endpoint has to be rebased across,
     so this number is the answer to whether tier rebasing can be deferred.
-    It was typed into that document as prose and was wrong by six -- every
+    It was once typed out as prose and was wrong by six -- every
     rule whose right-hand side spells two units -- which is the shape of
     mistake a sentence cannot catch and this file can.
 

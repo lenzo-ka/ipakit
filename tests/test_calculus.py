@@ -1,9 +1,9 @@
 """The calculus over the string set: ``A ~> B`` and what it derives.
 
 ``docs/calculus.md`` states the algebra. This file is the measurement
-behind every number on that page, in the shape ``docs/reviewing.md``
-asks for: sweeps over generated input with the corpus size asserted, and
-the escapes pinned so a limit changes deliberately rather than quietly.
+behind every number on that page: sweeps over generated input with the
+corpus size asserted, and the escapes pinned so a limit changes
+deliberately rather than quietly.
 
 Four claims carry the rest, and each has a class of its own.
 

@@ -2213,12 +2213,12 @@ class TestARunUsedAsATargetIsOneBoundary:
     here are on :meth:`Query.sites` and on the edits, and the spelling is
     checked as well rather than instead.
 
-    The site is the run ``[lo, hi)``, and that is **not** the span
-    docs/design/captures.md refused. That span is a target whose width
-    the *rule* states -- ``ab -> ba``, n patterns and n terms with a
-    permutation on the right -- and what it costs is listed there: ``aa``
-    on ``aaa`` finds overlapping sites, so ``Query.sites``'s promise of
-    non-overlapping positions stops being an accident of a one-wide scan;
+    The site is the run ``[lo, hi)``, and that is **not** the wider span
+    that was refused: a target whose width the *rule* states -- ``ab ->
+    ba``, n patterns and n terms with a permutation on the right. What
+    that one costs is the reason it was refused. ``aa`` on ``aaa`` finds
+    overlapping sites, so ``Query.sites``'s promise of non-overlapping
+    positions stops being an accident of a one-wide scan;
     ``_carry_prosody`` has to say which of several new units inherits a
     mark; ``_check_no_exchange`` has to run per term. None of that is
     reached here. The rule states one pattern and matches one boundary,

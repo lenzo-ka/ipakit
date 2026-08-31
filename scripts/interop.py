@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Measure ipakit against the transcription ecosystem: CLTS/BIPA and PanPhon.
 
-Every number in docs/design/interop.md comes from a subcommand here. The
-point of writing them once, in the shape scripts/sweep.py and
-scripts/articulatory.py already use, is that a design document is prose and
-nothing checks prose -- so a claim that carries an argument has to be
-re-runnable by whoever doubts it.
+Every number this repo reports about that ecosystem comes from a subcommand
+here. The point of writing them once, in the shape scripts/sweep.py and
+scripts/articulatory.py already use, is that prose is checked by nothing --
+so a claim that carries an argument has to be re-runnable by whoever doubts
+it.
 
     python scripts/interop.py segmentation   # where the two tokenizers agree
     python scripts/interop.py ties           # what BIPA does to a tie bar
@@ -24,8 +24,7 @@ and is imported by this script only -- never by the library.
 
 Each subcommand asserts the shape of what it read, so a run over a truncated
 or wrongly-pathed copy fails loudly instead of reporting a clean, empty
-result. See docs/reviewing.md for why, and docs/design/interop.md for what
-the numbers turned out to be and what they do and do not ground.
+result.
 """
 
 from __future__ import annotations

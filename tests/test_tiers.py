@@ -40,8 +40,8 @@ class TestTheTierVocabularyIsDeclaredAndNominal:
     ) -> None:
         """The mechanism that keeps the metric out of this.
 
-        docs/design/tiers.md §7 commits that a language declaring tiers
-        moves no distance. That holds by construction, not by care: a
+        A language declaring tiers moves no distance, and that holds by
+        construction rather than by care: a
         structural feature is excluded from every phone bundle.
         """
         assert ipa.features["tier"].mode == "structural"
@@ -132,15 +132,15 @@ def _without_the_tier_feature() -> IPAFeatures:
 
 
 class TestDeclaringATierDoesNotInvalidateASavedMatrix:
-    """§7's promise, held operationally rather than only in the numbers.
+    """The no-distance promise, held operationally and not only in the numbers.
 
-    ``docs/design/tiers.md`` §7 commits that a language declaring a tier
-    moves no distance. That was true of the distances and false of the
-    reader: the feature-space fingerprint hashed every declared feature,
-    so declaring ``tier`` moved 0 of 9591 pairs and still refused every
-    saved matrix. A structural feature cannot reach the metric -- the mode
-    gate drops it before a bundle is built -- so the digest now skips it,
-    and the two agree by construction.
+    A language declaring a tier moves no distance. That was true of the
+    distances and false of the reader: the feature-space fingerprint
+    hashed every declared feature, so declaring ``tier`` moved 0 of 9591
+    pairs and still refused every saved matrix. A structural feature
+    cannot reach the metric -- the mode gate drops it before a bundle is
+    built -- so the digest now skips it, and the two agree by
+    construction.
     """
 
     def test_a_new_structural_feature_leaves_the_fingerprint_alone(

@@ -6,13 +6,12 @@ This checks quoted *prose* against the document it is attributed to: when
 a page writes a sentence in quotation marks and names the sibling it took
 that sentence from, the sentence has to still be there.
 
-The documents under ``docs/design/`` argue against each other and quote
-each other heavily, and nothing was holding those quotations true. Four
-went stale in a single week -- the sibling was reworded and the quoting
-page kept the old words, which reads as a citation and is not one.
-``docs/reviewing.md`` names documentation drifting away from behavior as
-a recurring failure here; a quotation drifting away from its source is
-the same failure between two documents.
+The documents in this tree argue against each other and quote each other
+heavily, and nothing was holding those quotations true. Four went stale
+in a single week -- the sibling was reworded and the quoting page kept
+the old words, which reads as a citation and is not one. Documentation
+drifting away from behavior is a recurring failure here, and a quotation
+drifting away from its source is the same failure between two documents.
 
 A quotation is bound to the **nearest document named before it in its own
 sentence**, either as a markdown link or written out as
@@ -316,7 +315,7 @@ def named_of(name: str, path: Path, root: Path, tree: list[Path]) -> Path | None
     ``README.md`` does -- makes the reference ambiguous, and an ambiguous
     attribution is not one this should guess at. The tree is walked; no
     document is named here, because a list of them in this file would be
-    the second copy of the tree that ``docs/reviewing.md`` warns about.
+    a second copy of the tree, and two copies drift.
     """
     for candidate in (path.parent / name, root / name):
         try:
