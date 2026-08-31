@@ -14,9 +14,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit.form import FormBuilder  # noqa: E402
-from ipakit.tract import head, trajectory  # noqa: E402
-from ipakit.tract_svg import animate_two_pane, frontal_figure  # noqa: E402
+from ipakit.form import FormBuilder
+from ipakit.tract import head, trajectory
+from ipakit.tract_svg import animate_two_pane, frontal_figure
 
 FIGURES = Path(__file__).resolve().parent.parent / "docs" / "figures"
 TALKING_HEADS = Path(__file__).resolve().parent.parent / "talking-heads"

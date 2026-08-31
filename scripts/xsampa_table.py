@@ -42,8 +42,8 @@ from xml.sax.saxutils import quoteattr
 # Make the package importable when run from a source checkout.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit.constants import PHONEMAPS_DIR  # noqa: E402
-from ipakit.features import IPAFeatures  # noqa: E402
+from ipakit.constants import PHONEMAPS_DIR
+from ipakit.features import IPAFeatures
 
 XSAMPA_FILE = PHONEMAPS_DIR / "xsampa.xml"
 

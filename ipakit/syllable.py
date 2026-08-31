@@ -16,7 +16,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .constants import DATA_DIR
-from .features import IPAFeatures  # noqa: E402
+from .features import IPAFeatures
 from .form import Form, Interval, Unit, tier_names
 from .rules import Pattern, RuleError, _pattern
 
