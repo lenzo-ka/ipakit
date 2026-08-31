@@ -27,18 +27,29 @@ repos:
     rev: 26.5.1
     hooks:
       - id: black
-        files: ^(ipakit|tests)/
+        # Match the lint job's scope exactly. CI runs `black --check ipakit
+        # tests scripts`; leaving scripts out here made every local commit
+        # touching one report "Passed" for a file the hook never opened, and
+        # the divergence only surfaced in CI.
+        files: ^(ipakit|tests|scripts)/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.18
     hooks:
       - id: ruff-check
         args: ["--fix"]
-        files: ^(ipakit|tests)/
+        # As above: CI runs `ruff check ipakit tests scripts`.
+        files: ^(ipakit|tests|scripts)/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.1.0
     hooks:
       - id: mypy
+        # NOT widened to match the others. `pyproject.toml` sets
+        # `files = ["ipakit"]` deliberately, because the lint job installs
+        # `.[lint]`, which has no pytest -- a scope reaching a test file
+        # fails there while passing locally under `.[dev]`. This hook agrees
+        # with that scope; widening it would disagree with CI rather than
+        # match it.
         files: ^ipakit/
         args: ["--config-file=pyproject.toml"]
