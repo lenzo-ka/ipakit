@@ -45,3 +45,8 @@ omp-review-*.session.jsonl
 
 # Agent / local tooling (not part of the repo)
 .claude/
+
+# Large tiergraph baseline captures. tests/tiergraph/baselines/README.md calls
+# this directory intentionally untracked and authenticates its contents through
+# MANIFEST.sha256 rather than through git.
+captures/
