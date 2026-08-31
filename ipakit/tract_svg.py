@@ -359,7 +359,7 @@ def build_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str, Any]:
             if q.arc is not None and q.offset is not None
         ]
     if p.reading is not None:
-        current["marks"] = [{"label": m.label, "kind": m.kind} for m in p.unmodelled]
+        current["marks"] = [{"label": m.label, "kind": m.kind} for m in p.unmodeled]
         current["secondary"] = [
             {"arc": m.arc, "offset": m.offset, "label": m.label}
             for m in p.secondary
@@ -945,7 +945,7 @@ def _chip(x: float, y: float, kind: str) -> str:
 
     Shape rather than color alone, because these have to survive a
     rasterizer and a monochrome print. ``kind`` is derived in
-    ``ipakit.tract.unmodelled`` from the feature's own declaration.
+    ``ipakit.tract.unmodeled`` from the feature's own declaration.
     """
     cls = kind.replace(" ", "-")
     half = CHIP / 2

@@ -120,7 +120,7 @@ Three things fall out that no choice of window can move.
 
 **Superseded by [#123](https://github.com/lenzo-ka/ipakit/issues/123), in its last clause only.** `ɝ` is still at 0.44 and no source classifies it, so everything up to that clause stands. What changed is the note: the layer now annotates the *coordinate* as well as the property, with a mark naming `backness` and kind `approximate`, because `backness` says where the tongue body is and not where it constricts. A reader of `ɝ`'s strip is told which number is a stand-in rather than only that something else is absent.
 
-**`ɝ` is the most anterior constriction in the set.** At `arc` 0.22 it is forward of `i`, which is the geometric signature of American English r-coloring. `ipakit` places it at 0.44, the most posterior of everything it calls non-back. The model is not silent about this: `rhotacized` declares no coordinates, so `unmodelled()` returns it with kind `unmodelled` and a renderer annotates rather than invents. The annotation layer is doing its job. The `arc` is still 0.22 away from the measurement, which means a figure drawn from it puts the constriction in the wrong place *and* prints a note saying something is missing, and a reader has no way to know the note explains the error.
+**`ɝ` is the most anterior constriction in the set.** At `arc` 0.22 it is forward of `i`, which is the geometric signature of American English r-coloring. `ipakit` places it at 0.44, the most posterior of everything it calls non-back. The model is not silent about this: `rhotacized` declares no coordinates, so `unmodeled()` returns it with kind `unmodeled` and a renderer annotates rather than invents. The annotation layer is doing its job. The `arc` is still 0.22 away from the measurement, which means a figure drawn from it puts the constriction in the wrong place *and* prints a note saying something is missing, and a reader has no way to know the note explains the error.
 
 ## 5. Gaines, and a question that turns out to be circular
 
@@ -164,7 +164,7 @@ tract_point(f, f.get_features("ɑ")).arc    # 0.74
 
 Measured, those two constrict 5.6 cm apart in a 17.5 cm tract. `arc` feeds `ipakit.metric` through `_sagittal`, so this is not confined to drawing. It is a limit of the declarations rather than a coding error, and closing it means either extending `backness` past `uvular` or letting `height` contribute to `arc` for a vowel — both changes to `ipa.xml`, both with a distance sweep behind them, and neither is this lane's to make.
 
-**Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the shared point is what the measurement asks for. `ʌ` and `ɔ` both constrict at `arc` 0.65 in §4's own table, so giving them one tract point is right; what they do not share is a lip aperture, and that is the unmodelled thing.**
+**Superseded by [#127](https://github.com/lenzo-ka/ipakit/issues/127): the shared point is what the measurement asks for. `ʌ` and `ɔ` both constrict at `arc` 0.65 in §4's own table, so giving them one tract point is right; what they do not share is a lip aperture, and that is the unmodeled thing.**
 
 **D2 — `ʌ` and `ɔ` are the same point in tract space.** Both are `back` and `open-mid`, so both yield `arc` 0.56, `offset` 0.16. They differ only in `rounded`, which the geometry does not carry (`docs/tract-anatomy.md` §4.4 says so plainly, and the annotation layer reports it). The posture is therefore identical for two segments the data separates. Worth knowing before anyone reads a drawn posture as a claim about the sound.
 

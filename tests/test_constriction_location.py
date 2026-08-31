@@ -18,7 +18,7 @@ read at the arcs `place` already declares for the four locations under
 ipakit's own names for them. The rest are not classified by any source
 read for `docs/design/vowel-constriction.md`, so they state nothing,
 keep the `backness` fallback, and have that fallback *reported*:
-`tract_reading` puts `backness` in `approximated` and `unmodelled`
+`tract_reading` puts `backness` in `approximated` and `unmodeled`
 returns it with kind `approximate`. `tests/test_vowel_tract_limit.py` is
 what the limit has become.
 
@@ -60,7 +60,7 @@ import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import METADATA_ATTRS
 from ipakit.features import Feature
-from ipakit.tract import tract_point, tract_reading, unmodelled
+from ipakit.tract import tract_point, tract_reading, unmodeled
 
 
 def _invariants() -> types.ModuleType:
@@ -274,13 +274,13 @@ class TestTheUnstatedCaseIsReported:
             assert reading.point.arc is not None, phone
             stated = ipa.get_features(phone, with_defaults=False)
             assert ("backness", "approximate") in {
-                (m.feature, m.kind) for m in unmodelled(ipa, stated)
+                (m.feature, m.kind) for m in unmodeled(ipa, stated)
             }, phone
 
     def test_an_approximated_feature_is_always_one_the_reading_took(
         self, ipa: IPAFeatures
     ) -> None:
-        """`unmodelled` overrides its own skip for a name in `approximated`,
+        """`unmodeled` overrides its own skip for a name in `approximated`,
         so a name there that the reading did not take would annotate a
         value nothing drew and label it as the drawing. Swept over every
         unit rather than over the vowels, because the property is about
@@ -369,7 +369,7 @@ class TestTheBranchReadsAStatedLocation:
         self, ipa: IPAFeatures, tmp_path: Path
     ) -> None:
         """The posture is one arc, so the feature that did not supply it is
-        reported the way any unread stated value is -- `unmodelled` says
+        reported the way any unread stated value is -- `unmodeled` says
         `unread`, which is the only honest thing to say about a bundle
         stating two positions at once. The point is that it says something:
         a dropped value that goes unannotated is the failure the annotation
@@ -378,7 +378,7 @@ class TestTheBranchReadsAStatedLocation:
         stated = located.get_features("ⱺ", with_defaults=False)
         assert "backness" not in tract_reading(located, stated).read
         assert ("backness", "unread") in {
-            (m.feature, m.kind) for m in unmodelled(located, stated)
+            (m.feature, m.kind) for m in unmodeled(located, stated)
         }
 
     def test_a_location_that_declares_no_arc_falls_back_to_backness(
@@ -463,7 +463,7 @@ class TestTheLocationWinsWholeOrNotAtAll:
         assert SLOT not in reading.read
         assert reading.approximated == frozenset({"backness"})
         stated = made.get_features("ⱺ", with_defaults=False)
-        marks = {(m.feature, m.kind) for m in unmodelled(made, stated)}
+        marks = {(m.feature, m.kind) for m in unmodeled(made, stated)}
         assert ("backness", "approximate") in marks
         assert (SLOT, "unread") in marks
 

@@ -55,7 +55,7 @@ from ipakit.tract import (
     secondary_marks,
     tract_point,
     tract_reading,
-    unmodelled,
+    unmodeled,
     velic_aperture,
 )
 
@@ -494,7 +494,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
             stated = ipa.get_features(phone, with_defaults=False)
             reading = tract_reading(ipa, stated)
             drawn = reading.read - reading.approximated
-            for mark in unmodelled(ipa, stated):
+            for mark in unmodeled(ipa, stated):
                 checked += 1
                 approximate += mark.kind == "approximate"
                 if mark.feature in drawn or (mark.feature, mark.value) in ported:
@@ -528,7 +528,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         stated_location, approximated = [], []
         for phone in vowels:
             stated = ipa.get_features(phone, with_defaults=False)
-            kinds = {(m.feature, m.kind) for m in unmodelled(ipa, stated)}
+            kinds = {(m.feature, m.kind) for m in unmodeled(ipa, stated)}
             if "constriction-location" in stated:
                 stated_location.append(phone)
                 assert ("backness", "unread") in kinds, phone
@@ -574,7 +574,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
                 if not dropped:
                     continue
                 checked += 1
-                reported = {m.feature for m in unmodelled(ipa, bundle)}
+                reported = {m.feature for m in unmodeled(ipa, bundle)}
                 if not dropped <= reported:
                     silent.append((phone, manner, sorted(dropped - reported)))
         assert checked > 100, f"only {checked} bundles dropped a stated value"
@@ -598,19 +598,19 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         assert tract_point(ipa, built) == tract_point(
             ipa, {"manner": "stop", "place": "alveolar"}
         ), "the posture no longer drops the vowel coordinates"
-        assert {(m.feature, m.kind) for m in unmodelled(ipa, built)} == {
+        assert {(m.feature, m.kind) for m in unmodeled(ipa, built)} == {
             ("height", "unread"),
             ("backness", "unread"),
         }
 
         composed = {**ipa.get_features("a"), "manner": "stop"}
         assert not tract_point(ipa, composed).placed, "it is the unplaced case"
-        assert {"height", "backness"} <= {m.feature for m in unmodelled(ipa, composed)}
+        assert {"height", "backness"} <= {m.feature for m in unmodeled(ipa, composed)}
 
         # And the other direction: a vowel manner reads no place.
         vocalic = {**ipa.get_features("t", with_defaults=False), "manner": "vowel"}
         assert ("place", "unread") in {
-            (m.feature, m.kind) for m in unmodelled(ipa, vocalic)
+            (m.feature, m.kind) for m in unmodeled(ipa, vocalic)
         }
 
     def test_a_value_that_declares_no_position_says_why(self) -> None:
@@ -629,7 +629,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         }
         assert offscale, "nothing declares offscale: the sweep is vacuous"
         for name, value in sorted(offscale):
-            marks = unmodelled(ipa, {name: value})
+            marks = unmodeled(ipa, {name: value})
             assert [(m.feature, m.kind) for m in marks] == [(name, "off scale")]
             assert not tract_point(ipa, {name: value}).placed
 
@@ -644,7 +644,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         checked = 0
         for phone in sorted(ipa.phones):
             stated = ipa.get_features(phone, with_defaults=False)
-            for mark in unmodelled(ipa, stated):
+            for mark in unmodeled(ipa, stated):
                 checked += 1
                 declared = ipa.features[mark.feature].labels.get(mark.value)
                 assert mark.label == (declared or f"{mark.feature} {mark.value}")
@@ -671,13 +671,13 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
                 {**stated, "manner": m} for m in ipa.features["manner"].values
             ]
             for bundle in bundles:
-                for mark in unmodelled(ipa, bundle):
+                for mark in unmodeled(ipa, bundle):
                     kinds.setdefault(mark.kind, set()).add((mark.feature, mark.value))
         names = {kind: {n for n, _ in pairs} for kind, pairs in kinds.items()}
         assert names["out of plane"] == {
             n for n, f in ipa.features.items() if f.axis == "+z"
         }
-        assert {"airstream", "retroflex"} <= names["unmodelled"]
+        assert {"airstream", "retroflex"} <= names["unmodeled"]
         assert {"height", "backness", "place"} <= names["unread"]
         for kind, pairs in kinds.items():
             for name, value in pairs:
@@ -765,7 +765,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
             stated = ipa.get_features(unit, with_defaults=False)
             assert not (set(stated) & prosodic), unit
             assert stated == bare, unit
-            assert unmodelled(ipa, stated) == unmodelled(ipa, bare), unit
+            assert unmodeled(ipa, stated) == unmodeled(ipa, bare), unit
 
 
 DATA = Path(ipakit.__file__).resolve().parent / "data" / "ipa.xml"
@@ -944,7 +944,7 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
         annotated = {
             mark.feature
             for phone in ipa.phones
-            for mark in unmodelled(ipa, ipa.get_features(phone, with_defaults=False))
+            for mark in unmodeled(ipa, ipa.get_features(phone, with_defaults=False))
         }
         assert set(candidates) & annotated, "no candidate reaches the annotations"
 
@@ -978,8 +978,8 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
             # as already drawn, so a projection must not silence a mark.
             for phone in sorted(ipa.phones):
                 stated = ipa.get_features(phone, with_defaults=False)
-                assert [m.feature for m in unmodelled(ipa, stated)] == [
-                    m.feature for m in unmodelled(custom, stated)
+                assert [m.feature for m in unmodeled(ipa, stated)] == [
+                    m.feature for m in unmodeled(custom, stated)
                 ], f"{fine} silenced a mark on {phone}"
 
     def test_the_scale_is_whichever_feature_declares_the_axis(
@@ -2151,7 +2151,7 @@ class TestWhatDrawsItselfInANotebook:
         Every registered phone, plus one marked unit per diacritic so no
         diacritic goes unexercised. The full 8060-unit corpus is ~90s of
         drawing, which is too slow for the default run; what a marked unit
-        can do that a bare one cannot is reach ``unmodelled``, and one unit
+        can do that a bare one cannot is reach ``unmodeled``, and one unit
         per diacritic reaches all of it.
         """
         ipa = IPAFeatures()
