@@ -472,6 +472,21 @@ def build_frontal_geometry(head: Head, marks: Landmarks, p: Posture) -> dict[str
                     for control in controls
                     if (value := head.tongue_offset(arc, control)) is not None
                 )
+            # Clamped above, refused below. A tongue offset above 1.0 is a
+            # constriction pressed past contact and the roof is the honest
+            # place to put it; a NEGATIVE offset is not a posture at all --
+            # it asks for a tongue behind the floor. Clamping that to zero
+            # would draw a plausible picture from impossible data, which is
+            # the failure this library is written against. Unreachable from
+            # the shipped inventory, whose minimum constriction offset is
+            # 0.05 and which declares no negative tongue control, so this
+            # fires only for a declaration that has gone wrong.
+            lowest = min(offsets, default=0.0)
+            if lowest < 0.0:
+                raise ValueError(
+                    f"tongue offset {lowest!r} is below the floor at arc {arc!r}: "
+                    "a negative offset is not a drawable posture"
+                )
             offset = min(1.0, max(offsets, default=0.0))
             roof = edge_y(mouth["upper_edge"], x)
             floor = edge_y(mouth["lower_edge"], x)

@@ -9,7 +9,14 @@ from pathlib import Path
 import pytest
 from ipakit.features import IPAFeatures
 from ipakit.form import FormBuilder
-from ipakit.tract import constrictions, head, landmarks, posture, trajectory
+from ipakit.tract import (
+    constrictions,
+    head,
+    landmarks,
+    posture,
+    tract_point,
+    trajectory,
+)
 from ipakit.tract_svg import (
     _pose,
     build_frontal_geometry,
@@ -50,11 +57,28 @@ def test_static_silence_and_animation_bookends_share_declared_velic_rest() -> No
 
 
 def test_k_to_ash_has_no_global_rest_trough() -> None:
-    track = trajectory("kæt", head=head(), frames_per_unit=12)
+    ipa = IPAFeatures()
+    track = trajectory("kæt", head=head(), frames_per_unit=12, features=ipa)
     # Ordinals 1 and 2 are /k/ and /æ/. The dorsum must remain between those
     # posture targets throughout; 0.002 admits only float/sampling noise.
     span = [f for o, f in zip(track.ordinals, track.frames, strict=True) if 1 <= o <= 2]
-    targets = (_offset(span[0], "tongue-dorsum"), _offset(span[-1], "tongue-dorsum"))
+    # The /k/ end is checked against the declaration rather than assumed.
+    # That is a smaller repair than it looks and the limit is worth stating:
+    # `tract_point` reads the same `ipa.xml` the trajectory does, so moving
+    # the declared closure moves both sides and this still passes. What it
+    # does pin is the commitment `blended_controls` documents -- integer
+    # moments are cardinal, the owning unit is reached exactly -- which a
+    # blend regression would break while the declaration stood still.
+    #
+    # The other end stays read from the span, and cannot be anchored: `æ`
+    # declares a tongue-ROOT target and no dorsum offset at all, so there is
+    # no declared value to compare against. The original self-reference is
+    # therefore reduced, not removed, and a drift that moved both endpoints
+    # together would still pass here. Removing it needs a declared dorsum
+    # target for the open vowel, which is a data question, not a test one.
+    closure = tract_point(ipa, ipa.get_features("k")).offset
+    assert _offset(span[0], "tongue-dorsum") == closure, "/k/ left its declared closure"
+    targets = (closure, _offset(span[-1], "tongue-dorsum"))
     lo, hi = min(targets), max(targets)
     assert all(
         lo - 0.002 <= _offset(frame, "tongue-dorsum") <= hi + 0.002 for frame in span
@@ -76,6 +100,22 @@ def test_sagittal_upper_lip_is_a_painted_named_body() -> None:
     svg = figure("a")
     assert svg.count("upper-lip") == 1
     assert re.search(r'<path[^>]+class="lip upper-lip"', svg)
+
+
+def test_the_upper_lip_moves_along_the_path() -> None:
+    """The lip that was frozen, pinned to be moving.
+
+    It was byte-identical across all forty-nine frames of this path until
+    #338 re-seated both lips against the skull. The tests beside this one
+    assert the upper lip *exists* and *paints*, and both of those passed
+    while it was frozen -- so nothing here would notice it freezing again.
+    Motion is the property that was wrong, so motion is what this asserts.
+    """
+    ipa, h = IPAFeatures(), head("adult-male")
+    marks = landmarks(ipa)
+    track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
+    bodies = [repr(build_geometry(h, marks, f)["lips_body"]) for f in track.frames]
+    assert len(set(bodies)) > len(bodies) // 2, len(set(bodies))
 
 
 def test_sagittal_upper_lip_contributes_raster_pixels(tmp_path: Path) -> None:
@@ -380,3 +420,30 @@ def test_k_target_is_legible_without_a_new_plateau() -> None:
     # retain at least 96% closure after the target-to-target change.
     assert len(near_k) == 3
     assert min(near_k) >= 0.96
+
+
+def test_a_negative_tongue_offset_is_refused_not_clamped() -> None:
+    """A tongue behind the floor is not a posture, so it is not drawn.
+
+    The offset is clamped above and refused below, and the asymmetry is
+    deliberate: past contact is a real constriction pressed further, while
+    below the floor is impossible. Clamping the impossible case to zero
+    would render a plausible picture from a broken declaration.
+
+    Nothing in the shipped inventory reaches this -- the minimum
+    constriction offset is 0.05 and no tongue control declares a negative
+    one -- so the guard needs its own witness or it is a claim with no
+    evidence behind it. This constructs the case the data cannot.
+    """
+    ipa, h = IPAFeatures(), head("adult-male")
+    marks = landmarks(ipa)
+    frame = trajectory("a", head=h, frames_per_unit=2, features=ipa).frames[0]
+    below = [
+        control.__class__(**{**vars(control), "offset": -0.25})
+        for control in frame.tongue_controls
+    ]
+    broken = frame.__class__(**{**vars(frame), "tongue_controls": tuple(below)})
+    # The guard lives in the FRONTAL tongue, which is where the offset is
+    # sampled against the mouth edges; the sagittal builder never reaches it.
+    with pytest.raises(ValueError, match="not a drawable posture"):
+        build_frontal_geometry(h, marks, broken)
