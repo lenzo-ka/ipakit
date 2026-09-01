@@ -1,3 +1,30 @@
+"""The canonical wire form of a choice-selection graph, pinned.
+
+``choice_selection_v1.json`` is the golden. Its point is that the wire
+form is order-independent: the same graph built membership-first and
+selection-first must dump to the same bytes, so the file is asserted
+against twice rather than once.
+
+Regenerate it from this module's own builder, which is what produced it::
+
+    PYTHONHASHSEED=0 python -c "import sys; sys.path.insert(0, '.'); \
+        from tests.tiergraph.test_choice_selection_golden import \
+            _choice_selection_graph, GOLDEN; \
+        import tiergraph as tg; \
+        GOLDEN.write_text(tg.wire.dumps(_choice_selection_graph()))"
+
+The other tiergraph baselines document their regeneration in
+``baselines/README.md`` and this one did not, which is worth more than it
+looks: a golden nobody can regenerate is a fixture that eventually gets
+edited by hand to make a test pass, and a hand-edited golden asserts
+whatever was typed rather than whatever the code produces.
+
+It will need regenerating when the tiergraph pin moves. The file carries
+two attribute declarations on the ``position`` domain, and that value is
+dropped from the wire schema at 0.2.0, so the declarations become
+``boundary`` and these bytes change with them.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
