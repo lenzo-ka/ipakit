@@ -39,7 +39,7 @@ from ipakit.rules import DEFAULT_LIMIT, RuleError, RuleSet, surface
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import CHART, check_zero  # noqa: E402
+from invariants import CHART, check_zero
 
 FEATURES = IPAFeatures()
 

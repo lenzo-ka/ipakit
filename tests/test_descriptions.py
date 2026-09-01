@@ -34,7 +34,7 @@ from ipakit import IPAFeatures
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import (  # noqa: E402
+from invariants import (
     _nucleus_and_its_diphthongs,
     check_descriptions,
 )

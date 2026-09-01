@@ -34,7 +34,7 @@ from ipakit import IPAFeatures
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import entry_points  # noqa: E402
+from invariants import entry_points
 
 # The seven that stand for a phone; ˖/˗ are spacing aliases of combining
 # marks and are covered by the sweep and by TestTheSpacingAliases.

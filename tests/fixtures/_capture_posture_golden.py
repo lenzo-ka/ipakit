@@ -33,9 +33,9 @@ from pathlib import Path
 # up from tests/fixtures/, and scripts/tract_svg.py does the same to draw.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from ipakit.features import IPAFeatures  # noqa: E402
-from ipakit.tract import head  # noqa: E402
-from ipakit.tract_svg import drawing, render  # noqa: E402
+from ipakit.features import IPAFeatures
+from ipakit.tract import head
+from ipakit.tract_svg import drawing, render
 
 # A key for the phone=None reference drawing. NUL is not a phone in any
 # inventory, so it cannot collide with a real entry in the map.

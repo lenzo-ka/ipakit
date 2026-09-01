@@ -57,7 +57,7 @@ from tests.corpus import self_spelling_phones
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import check_projection_coherence  # noqa: E402
+from invariants import check_projection_coherence
 
 FEATURES = IPAFeatures()
 
