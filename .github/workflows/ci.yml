@@ -170,6 +170,18 @@ jobs:
       # somebody happened to run the release gate by hand. About 40 seconds.
       - name: Invariants hold and derived artifacts are current
         run: PYTHONHASHSEED=0 python scripts/invariants.py
+      # The last two release-gate steps CI did not reach. Both re-derive a
+      # committed golden and compare; the manifest above only proves those
+      # goldens have not been hand-edited, which is a different question from
+      # whether the code still produces them. Nothing else reads either file:
+      # containment-navigation.json is read only by containment_oracle.py, and
+      # consolidation_parity.sha256 only by consolidation_parity.py -- the
+      # parity test asserts a round-trip over the corpus, never that the
+      # committed digest still matches it. About four seconds together.
+      - name: Containment navigation matches its golden
+        run: PYTHONHASHSEED=0 python scripts/containment_oracle.py
+      - name: Consolidation parity digest matches the derived corpus
+        run: PYTHONHASHSEED=0 python scripts/consolidation_parity.py check
       - name: ICU cross-check tests (skipped in the matrix job)
         run: pytest tests/test_xsampa.py
       - name: Panphon characterization tests (skipped in the matrix job)
