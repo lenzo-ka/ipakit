@@ -163,6 +163,13 @@ jobs:
         run: python scripts/confusion.py validate
       - name: Committed tiergraph baselines match their manifest
         run: PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify-baselines
+      # The full invariant sweep, including "derived artifacts current", which
+      # is what caught the stale figure record this commit repairs. `make
+      # check` has always run it and CI never did, so the only thing standing
+      # between a regenerated artifact and a stale record of it was whether
+      # somebody happened to run the release gate by hand. About 40 seconds.
+      - name: Invariants hold and derived artifacts are current
+        run: PYTHONHASHSEED=0 python scripts/invariants.py
       - name: ICU cross-check tests (skipped in the matrix job)
         run: pytest tests/test_xsampa.py
       - name: Panphon characterization tests (skipped in the matrix job)
