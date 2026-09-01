@@ -220,3 +220,18 @@ jobs:
         run: python scripts/docquotes.py .
       - name: Tutorial page and notebook are current
         run: PYTHONHASHSEED=0 python scripts/tutorial.py check all
+      # Three more generated documents with a `check` mode each. `make check`
+      # has run all three for as long as they have existed; CI never has, so
+      # the regenerate-never-hand-edit rule held only for whoever ran the
+      # release gate by hand, and a drifting exhibit reached main green.
+      # They belong in this job rather than a code-triggered one because two
+      # of the three derive from code while the artifact lives under docs/:
+      # an exhibit goes stale when the metric moves, and it also goes stale
+      # when someone edits the document, and this is the only job that runs
+      # for both. Together they add about a second.
+      - name: House-style exhibits match ipa.xml
+        run: python scripts/house_style.py check
+      - name: Perceptual-validation exhibits match the data and the metric
+        run: PYTHONHASHSEED=0 python scripts/perceptual_validation.py check
+      - name: State of the work matches docs/design
+        run: python scripts/state_of_work.py check
