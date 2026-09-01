@@ -105,6 +105,16 @@ jobs:
       # to run. The ICU-backed X-SAMPA cross-check self-skips (importorskip);
       # the confusion-matrix guard is stdlib and runs.
       - run: pip install -e ".[test]"
+      # What is under test, asserted before anything tests it. The suite is
+      # only evidence about this branch if `import ipakit` resolves inside the
+      # checkout, and nothing here checked that: an install resolving to a
+      # published ipakit instead would run the whole suite green against code
+      # the branch does not contain. `make check` has run this since it
+      # existed; CI, which is the run anyone actually reads, did not.
+      # It also puts the tiergraph path and version in the log, which is the
+      # provenance a red run gets diagnosed against.
+      - name: The subject under test is this checkout
+        run: python -m scripts.gate_subject
       # Across the runner's cores, as the Makefile does. A matrix job is three
       # runs of the same suite, so the saving is paid three times per push.
       # The default -m 'not slow' (pyproject addopts) keeps the O(n^2) sweep
