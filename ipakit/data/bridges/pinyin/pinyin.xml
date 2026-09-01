@@ -13,7 +13,27 @@
   <!-- The IPA members below are the strict phonetic syllabary used by the
        Mandarin worked syllabifier. Tone is absent because it rides the
        syllable and does not change membership. Additions belong here, at the
-       Pinyin declaration boundary, rather than in Python. -->
+       Pinyin declaration boundary, rather than in Python.
+
+       This list is a declared demonstrator, not a partial copy of the real
+       syllabary. Hanyu Pinyin has on the order of four hundred syllables and
+       a dozen are declared here, which is a stance rather than neglect:
+       syllabification is optional in this library, only the operations that
+       need it depend on it, and most lexicons supply none at all. A syllable
+       the list does not hold is REPORTED rather than guessed, so
+       `syllabify("pʰiŋ", "mandarin")` answers with no syllables and
+       `unsyllabified=((0, 3),)`, which is a legible refusal and not a silent
+       wrong answer. The sibling kana declaration takes the same
+       attested only position.
+
+       It grows when a consumer needs it, and growing it is curation rather
+       than pasting a table. The house pattern is the one
+       `scripts/syllable_curation.py` used for the English onsets, where each
+       entry carries a harvested count, an exemplar and a decision. Anything
+       added here has to face where a naive table goes wrong: the syllabic
+       fricatives of zhi, chi, shi, ri, zi, ci and si; the y and w spelling
+       rules behind yi, wu, yu, ye and yuan; `er`; and tone riding the
+       syllable without changing membership. -->
   <syllable spelling="ma" ipa="ma" /><syllable spelling="ba" ipa="pa" />
   <syllable spelling="pa" ipa="pʰa" /><syllable spelling="fa" ipa="fa" />
   <syllable spelling="da" ipa="ta" /><syllable spelling="ta" ipa="tʰa" />
