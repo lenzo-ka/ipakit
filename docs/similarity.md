@@ -114,6 +114,10 @@ These are different commitments with different costs. The comparisons above do n
 
 ## 6. What stays open
 
+A difference that distinguishes nothing is not a difference the distance owes anything to. Ninety-one registered pairs differ in their feature bundle and score zero, and every one is a mark asserting what the base already carries: `ɡˠ` is a velar wearing a velar secondary, `d̺` states the articulator `d` already implies, `m̃` nasalizes a nasal. Those are not counterexamples to the metric — a bundle that differs where the distance does not is a defect only when the difference is **distinctive**, and these are not.
+
+The reason the operator records them anyway is that respellings are operators: `compose_unit("ɡ", velarized="+")` is faithful to what it was asked and answers `ɡˠ`, while a value the base already carries comes back unchanged. The vacuity is a fact about the resulting segment's phonetics rather than about the operation, so it is stated here rather than repaired there. `tests/test_distinctive_difference.py` holds the boundary: no registered pair may differ in a non-vacuous feature while scoring zero, with vacuity derived from the declaration so a supplement is covered by the same rule.
+
 The fusion branch has no arity floor. Adding a second articulator can cost less than adding a smaller diacritic because the former receives the declared secondary share of a graded comparison. A floor is deferred and pinned; it needs its own derivation and measurement rather than a constant chosen to repair one example.
 
 External validation has begun with the Miller–Nicely ordering run above. One dataset is a hypothesis test, not a fit; a successor under different conditions remains queued. The inventory has no affricates, so the `t͡ʃ`–`ʃ` comparison remains the first stated affricate test, not a claimed result, for a lineage successor such as Wang and Bilger (1973).
