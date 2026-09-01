@@ -139,7 +139,23 @@ extend-exclude = ["ipakit/notebooks/"]
 
 [tool.ruff.lint]
 # black owns formatting; ruff lints only. E501 (line length) is left to black.
-select = ["E", "F", "I", "UP", "B"]
+#
+# The second group is a ratchet rather than a cleanup: each of those four is at
+# zero across `ipakit tests scripts` today, so selecting them changes no line
+# of code and only fixes the current state in place. They are chosen for what
+# they would catch here, not for being free -- families that cannot fire in
+# this repo at all are left out, because a rule that can never fail is a gate
+# in name only: logging, numpy and Django have no code here to check, and FA
+# is inert at `target-version = py312`, where neither of its rules can fire.
+#
+#   ERA  commented-out code, which goes stale silently and is read as live
+#   PGH  blanket `# noqa` and `# type: ignore` -- a bare suppression hides
+#        which rule it answers, and that ambiguity is what made an earlier
+#        RUF100 sweep unsafe to act on
+#   PLE  pylint's error class, including the bidirectional-unicode check,
+#        which is worth having in a package whose data is Unicode phonetics
+#   T10  a `breakpoint()` or `pdb` import left behind
+select = ["E", "F", "I", "UP", "B", "ERA", "PGH", "PLE", "T10"]
 ignore = ["E501"]
 
 [tool.mypy]
