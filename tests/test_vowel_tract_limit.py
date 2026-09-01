@@ -112,7 +112,7 @@ from ipakit.tract import tract_point, tract_reading, unmodeled
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import (  # noqa: E402
+from invariants import (
     POSTURAL_ATTRS,
     check_typed_values_declare_no_geometry,
 )

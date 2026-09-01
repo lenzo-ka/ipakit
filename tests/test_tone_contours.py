@@ -43,7 +43,7 @@ from ipakit.form import declared_prosody, units
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import check_contour_marks, pitch_marks  # noqa: E402
+from invariants import check_contour_marks, pitch_marks
 
 FEATURES = IPAFeatures()
 

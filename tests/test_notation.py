@@ -42,7 +42,7 @@ from ipakit.form import zeros
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import CHART, NON_CHART, check_notation, declared_symbols  # noqa: E402
+from invariants import CHART, NON_CHART, check_notation, declared_symbols
 
 FEATURES = IPAFeatures()
 

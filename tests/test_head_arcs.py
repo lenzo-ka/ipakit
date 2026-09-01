@@ -53,7 +53,7 @@ from ipakit.tract import TractPoint, heads
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from invariants import (  # noqa: E402
+from invariants import (
     ARCLENGTH_GAPS,
     UNDECLARED_VERTEX_ARCS,
     check_head_arcs,
