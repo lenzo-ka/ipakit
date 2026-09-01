@@ -17,6 +17,7 @@ from ipakit.tract_svg import (
     _scaler,
     animate_two_pane,
     build_frontal_geometry,
+    build_geometry,
     frontal_figure,
     frontal_svg,
     standalone_frontal_svg,
@@ -354,3 +355,50 @@ def test_checked_in_timed_two_pane_player_is_current() -> None:
     assert (FIGURES / "two-pane-timed.html").read_text(
         encoding="utf-8"
     ) == animate_two_pane(timed) + "\n"
+
+
+def test_the_two_views_agree_that_there_is_a_tongue() -> None:
+    """Neither view may draw a tongue the other one omits.
+
+    The sagittal surface and the frontal planform read the same
+    ``p.tongue_controls`` and then diverge into geometry that shares no
+    key: the sagittal answers with ``tongue`` and the frontal with a
+    ``tongue`` entry among its named ``contours``. Nothing connected the
+    two, so one could stop producing a tongue while the other carried on
+    and every figure that draws only one view would still look right.
+
+    It asks whether the contour has POINTS, not whether it is named. The
+    name survives an empty projection, so a gate reading the name alone
+    passes while the frontal draws nothing -- which is what the first
+    version of this test did, and an injection emptying the frontal
+    points did not fire it.
+
+    This asserts presence rather than shape, which is the honest limit:
+    the two are projections of one surface into different planes and
+    their point sets are not comparable. What it catches is a view going
+    silent, which is the divergence that would return no error.
+
+    The sweep is asserted against a floor so it cannot pass by covering
+    nothing -- the frontal early return for empty controls is unreachable
+    across the shipped inventory, so a run that found no tongues at all
+    would mean the sweep stopped working rather than that the views
+    agreed.
+    """
+    ipa = IPAFeatures()
+    marks = landmarks(ipa)
+    disagreed: list[tuple[str, str, bool, bool]] = []
+    drawn = 0
+    for head_name in heads():
+        shape = head(head_name)
+        for phone in ipa.phones:
+            pose = posture(ipa, phone, shape)
+            sagittal = bool(build_geometry(shape, marks, pose).get("tongue"))
+            frontal = any(
+                contour["name"] == "tongue" and contour["points"]
+                for contour in build_frontal_geometry(shape, marks, pose)["contours"]
+            )
+            drawn += 1 if sagittal else 0
+            if sagittal != frontal:
+                disagreed.append((head_name, phone, sagittal, frontal))
+    assert drawn > 300, f"the sweep drew only {drawn} tongues; it is not covering"
+    assert disagreed == [], disagreed
