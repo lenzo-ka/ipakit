@@ -115,6 +115,13 @@ def test_the_upper_lip_moves_along_the_path() -> None:
     marks = landmarks(ipa)
     track = trajectory("kæt", head=h, frames_per_unit=12, features=ipa)
     bodies = [repr(build_geometry(h, marks, f)["lips_body"]) for f in track.frames]
+    # Frozen is exactly one distinct value, which is what the bug was, so
+    # "more than one" is the property. The bound here is stronger on
+    # purpose: a lip that moved only at the two ends would clear
+    # not-frozen while still being wrong, and half the frames is a floor
+    # that such a path fails. It is a floor on motion, not a captured
+    # figure -- this path measures 39 distinct across 49 frames, so the
+    # margin is wide and a drop to the bound would itself be a finding.
     assert len(set(bodies)) > len(bodies) // 2, len(set(bodies))
 
 

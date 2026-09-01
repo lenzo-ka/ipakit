@@ -1109,10 +1109,20 @@ class DistanceMixin(IPAFeaturesBase):
             >>> round(ipakit.word_similarity("kæt", "dɒɡ"), 4)
             0.8923
 
-        The second is the metric's compression, not a bug: two words of a
-        length whose vowels sit near each other stay close on this scale
-        even where no segment matches. Read it against the first rather
-        than against zero.
+        The second is what the normalizer does, and it is worth seeing
+        before this number is read as agreement. No segment matches:
+        ``d(k,d)`` is 0.0980, ``d(æ,ɒ)`` 0.1272 and ``d(t,ɡ)`` 0.0980, so
+        the alignment costs 0.6464 while the null alignment that deletes
+        three phones and inserts three costs 6.0. A substitution is priced
+        in fractions and the thing it is measured against is priced in
+        whole gaps, so word similarity compresses toward 1 however unlike
+        the segments are.
+
+        That is a property of the scale rather than a claim that these
+        words resemble each other, and the vowels are not close: 0.1272
+        is wider than ``d(i,u)`` at 0.1076, which is front-close against
+        back-close. Read this figure against the 0.9833 above, never
+        against zero.
         """
         return self.word_distance(
             ipa1, ipa2, weighted=weighted, strict=strict
