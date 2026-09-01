@@ -119,3 +119,24 @@ The fusion branch has no arity floor. Adding a second articulator can cost less 
 External validation has begun with the Miller–Nicely ordering run above. One dataset is a hypothesis test, not a fit; a successor under different conditions remains queued. The inventory has no affricates, so the `t͡ʃ`–`ʃ` comparison remains the first stated affricate test, not a claimed result, for a lineage successor such as Wang and Bilger (1973).
 
 Prosodic riders remain one value-distance term per tier by design. That convention prevents the same rider from acquiring more mass merely because its host exposes more segmental terms. It remains a declared modeling choice to revisit only with evidence about the tier, not by changing the denominator locally.
+
+Which marks reach that term is worth stating, because the convention above says how a rider is priced and not which riders there are. Measured against `a`:
+
+```python
+import ipakit
+
+round(ipakit.distance("a", "ˈa"), 6)    # 0.045455
+round(ipakit.distance("a", "á"), 6)     # 0.045455
+round(ipakit.distance("a", "à"), 6)     # 0.045455
+round(ipakit.distance("a", "aː"), 6)    # 0.030303
+round(ipakit.distance("a", "ǎ"), 6)     # 0.022727
+round(ipakit.distance("a", "a᷅"), 6)    # 0.0
+```
+
+In order: primary stress, a high level tone, a low level tone, length, a rising contour, and a falling one.
+
+Two things follow that a reader should not have to infer. **The term records that a rider is present, not which one it is** — `á` and `à` price identically, so a high tone and a low tone are the same distance from an unmarked vowel and from each other the comparison says nothing. And **contours do not reach the term at all**: ipakit models pitch levels, so a contour mark leaves the distance unchanged, which is a scope decision rather than a measurement. The declared `tone` feature, whose values are `bottom`, `high`, `low`, `mid` and `top`, is carried by no registered phone; tone reaches the comparison through the rider rather than through that feature.
+
+Structure above the segment does not reach the comparison either. A syllable, word, phrase or utterance boundary leaves the distance unchanged, so two forms differing only in where a boundary falls score as identical. That is not a pricing of zero — the marks are dropped before the metric is entered — and the two are indistinguishable in a scalar while meaning different things. This is tracked as a release blocker rather than presented as a design position.
+
+One mark is a defect rather than a scope decision: `a̋`, extra-high, yields an empty feature bundle where the other tone marks yield a full one, so it reads as no segment at all. It is not that the contour is out of scope; nothing is read.
