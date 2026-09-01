@@ -84,6 +84,18 @@ ROUND_TRIP = (
 )
 
 
+# The shape of the panphon tables this declaration was generated against.
+# Pinned exactly rather than floored, because the output is a generated
+# declaration: a table of a different shape produces a different one, and a
+# floor would let it regenerate silently against changed input. Contrast
+# scripts/interop.py, which asserts only that ipa_all.csv has not collapsed --
+# that is a sweep guarding against a vacuous run, not a generator pinning its
+# input, so the two strictnesses are deliberate rather than a disagreement.
+PANPHON_ROWS = 6367
+PANPHON_FEATURES = 24
+PANPHON_WEIGHTS = 22
+
+
 def _sources() -> tuple[Path, Path]:
     try:
         import panphon
@@ -103,7 +115,11 @@ def render() -> str:
         weight_row = next(weights_reader)
         weight_names = tuple(weight_row)
     feature_names = tuple(rows[0])[1:]
-    if len(rows) != 6367 or len(feature_names) != 24 or len(weight_names) != 22:
+    if (
+        len(rows) != PANPHON_ROWS
+        or len(feature_names) != PANPHON_FEATURES
+        or len(weight_names) != PANPHON_WEIGHTS
+    ):
         raise ValueError(
             "unexpected panphon table shape: "
             f"{len(rows)} rows, {len(feature_names)} features, "

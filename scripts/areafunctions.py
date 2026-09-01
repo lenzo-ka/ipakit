@@ -76,6 +76,11 @@ SOURCE_ENV = "IPAKIT_STORY1996_TEXT"
 #: The section interval, stated in the caption of Table III.
 INTERVAL_CM = 0.396825
 
+# How far a tract length derived from the section count may sit from the one
+# the corpus states before the disagreement is an error rather than rounding.
+# In centimetres, on the same scale as INTERVAL_CM.
+LENGTH_AGREEMENT_CM = 0.05
+
 #: The 18 imaged shapes, in the column order of Table III, which is the order
 #: of Table II. Named by the example word Table II gives, because that is what
 #: the text layer preserves; the IPA symbol is this reader's reading of it.
@@ -755,7 +760,7 @@ def parse_second(text: str) -> Second:
         )
     for key, column in area.items():
         derived = (len(column) - 1) * interval[key]
-        if abs(derived - stated[key]) > 0.05:
+        if abs(derived - stated[key]) > LENGTH_AGREEMENT_CM:
             raise ValueError(
                 f"{key}: {len(column)} sections of {interval[key]} cm give "
                 f"{derived:.2f} cm, against a printed length of {stated[key]}"
@@ -801,7 +806,7 @@ def parse_intra(text: str) -> Intra:
                 f"{key}: {len(column)} sections, expected {EXPECTED_THIRD_SECTIONS}"
             )
         derived = len(column) * interval[key]
-        if abs(derived - stated[key]) > 0.05:
+        if abs(derived - stated[key]) > LENGTH_AGREEMENT_CM:
             raise ValueError(
                 f"{key}: {len(column)} sections of {interval[key]} cm give "
                 f"{derived:.2f} cm, against a printed length of {stated[key]}"
@@ -889,7 +894,7 @@ def parse_female(text: str) -> Female:
                     "its own section number gives"
                 )
         derived = len(column) * step
-        if abs(derived - stated[key]) > 0.05:
+        if abs(derived - stated[key]) > LENGTH_AGREEMENT_CM:
             raise ValueError(
                 f"{key}: {len(column)} sections of {step} cm give "
                 f"{derived:.2f} cm, against a printed length of {stated[key]}"
