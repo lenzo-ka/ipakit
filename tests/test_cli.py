@@ -5,6 +5,7 @@ asserting the output parses), and a failure path asserting exit code 1. Also
 covers the top-level dispatch: no command, unknown command, and a bare group.
 """
 
+import argparse
 import ast
 import inspect
 import io
@@ -990,6 +991,70 @@ class TestCapabilityInventoryContract:
                 source, ["PUBLIC_NEW_CONST"], "| Capability | Public/API entry points |"
             )
 
+    def test_a_group_summary_that_lists_its_routes_lists_all_of_them(
+        self, monkeypatch, capsys
+    ):
+        """A hand-written list in a group's help is a second register.
+
+        Several group summaries enumerate their subcommands in prose --
+        "Phonetic distances (pair, segment, ...)" -- which reads well and
+        drifts the moment a route is added, because nothing derives it
+        from the parser. `distance map` shipped and the summary went on
+        naming eight of nine. The spot-check below could not catch it: it
+        asserts three specific names rather than sweeping, so it passes
+        for every route it does not happen to mention.
+
+        This sweeps instead. A summary that names ANY of its group's
+        leaves is treated as claiming to name them all, since a partial
+        list is the failure being guarded.
+        """
+        parser = ipakit.cli.create_parser()
+        groups = [
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        ]
+        assert groups, "no command groups found"
+        missing: list[str] = []
+        for group_action in groups:
+            for name, sub in group_action.choices.items():
+                # Canonical names only: `choices` repeats each parser under
+                # every alias, and a summary naming `minimal-pairs` has not
+                # failed to mention `mp`.
+                leaves = []
+                seen_parsers: list[object] = []
+                for a in sub._actions:
+                    if not isinstance(a, argparse._SubParsersAction):
+                        continue
+                    for leaf, leaf_parser in a.choices.items():
+                        if leaf_parser not in seen_parsers:
+                            seen_parsers.append(leaf_parser)
+                            leaves.append(leaf)
+                summary = group_action._choices_actions and next(
+                    (
+                        c.help or ""
+                        for c in group_action._choices_actions
+                        if c.dest == name
+                    ),
+                    "",
+                )
+                if not leaves or not summary or "(" not in summary:
+                    continue
+                # A parenthetical is a ROUTE LIST only if every comma-separated
+                # item in it is a route. Otherwise it is prose that happens to
+                # contain a route word -- "(not phones; cf. 'analysis')" is a
+                # remark, and matching on substrings alone reads it as a list
+                # naming one of six.
+                inside = summary[summary.index("(") + 1 : summary.rfind(")")]
+                items = [item.strip() for item in inside.split(",")]
+                if not items or not all(item in leaves for item in items):
+                    continue
+                missing += [f"{name}: {leaf}" for leaf in leaves if leaf not in items]
+        assert not missing, (
+            f"these group summaries name some of their routes but not all: "
+            f"{sorted(set(missing))}. Either name every one or none."
+        )
+
     def test_new_routes_are_named_by_top_level_and_group_help(
         self, monkeypatch, capsys
     ):
@@ -1499,7 +1564,6 @@ LIBRARY_ONLY = {
     "find": "no command runs a feature query over a transcription",
     "respell": "no command applies a feature change to a phone",
     "to_phone": "no command realizes a feature bundle as a symbol",
-    "from_wild": "no command imports wild-convention text",
 }
 
 

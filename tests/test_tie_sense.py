@@ -195,9 +195,13 @@ class TestTielessNormalizationHeuristic:
         assert ipa.add_ties("t͜s") == "t͜s"
 
     def test_normalized_vowel_pair_is_canonical(self, ipa: IPAFeatures) -> None:
-        # normalize emits the canonical sequential spelling directly.
-        out = ipa.normalize("eɪ")
+        # normalize emits the canonical sequential spelling directly --
+        # given a SEQUENCE, which is what asserts that "eɪ" is one phone.
+        # The same characters as a bare string say no such thing and come
+        # back untied.
+        out = ipa.normalize(["eɪ"])
         assert out == "e" + ipa.seq_tie + "ɪ"
+        assert ipa.normalize("eɪ") == "eɪ"
         assert ipa.tokenize(out) == ["e͜ɪ"]
         assert ipa.get_phone(out) is not None
 
@@ -270,7 +274,7 @@ class TestATieBindsTheUnitAndNotTheBaseCharacter:
     ) -> None:
         # The run a base absorbs is ``_modifier_run``'s, which stops at a
         # stress mark (it scopes what follows), at a break and at a tie.
-        assert ipa.add_ties("pə.tˈeɪ.toʊ") == "p͡ə.tˈe͜ɪ.t͡o͜ʊ"
+        assert ipa.add_ties("pə.tˈeɪ.toʊ") == "p͜ə.tˈe͜ɪ.t͜o͜ʊ"
 
     def test_every_mark_between_two_bases_gets_a_tie(self, ipa: IPAFeatures) -> None:
         """The sweep: one mark written between two bases never costs the

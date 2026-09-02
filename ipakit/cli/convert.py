@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import ClassVar
 
-from .base import IPA, Command, CommandGroup, add_convert_strict_arg, add_format_arg
+from ..models import Phoneset
+from .base import (
+    IPA,
+    Command,
+    CommandGroup,
+    add_convert_strict_arg,
+    add_format_arg,
+)
 
 
 class ToCmuCommand(Command):
@@ -190,10 +198,37 @@ class NormalizeCommand(Command):
         parser.add_argument(
             "ipa", help="IPA string to normalize (may be space-separated)"
         )
+        parser.add_argument(
+            "--delimiter",
+            default="",
+            metavar="SEP",
+            help=(
+                "Split the input on SEP and treat each piece as ONE phone, "
+                "giving it the ties it was written without. Unset by "
+                "default: nothing is tied, because a space here is the word "
+                "separator and reading it as a phone separator would both "
+                "invent ties and eat a boundary"
+            ),
+        )
+        parser.add_argument(
+            "--decompose",
+            action="store_true",
+            help=(
+                "Emit NFD, every modifier its own character. The default is "
+                "NFC, which is what downstream consumers expect"
+            ),
+        )
         add_format_arg(parser)
 
     def run(self) -> int:
-        result = self.ipa.normalize(self.args.ipa)
+        # The shell hands over a string, so splitting is done here where a
+        # person chose the delimiter -- the library takes a sequence, and
+        # never guesses that a space separates phones rather than words.
+        result = self.ipa.normalize(
+            self.args.ipa,
+            delimiter=self.args.delimiter or None,
+            compose=not self.args.decompose,
+        )
         if self.format == "json":
             self.output_json(result)
         else:
@@ -345,15 +380,26 @@ class ToKatakanaCommand(Command):
 
 
 class AddTiesCommand(Command):
-    """Add tie bars between phones in a multi-phone segment.
+    """Tie the parts of a multi-segment phone into one.
 
-    Used to create affricates and diphthongs from their components.
-    The tie bar (◌͡◌) indicates co-articulation.
+    Used to write an affricate or a diphthong as the single phone it is,
+    from components spelled without a tie.
+
+    WHICH TIE IS NOT ONE CHOICE, and this is what the examples show. A
+    junction between two vocalic parts takes the SEQUENTIAL TIE, U+035C
+    COMBINING DOUBLE BREVE BELOW; every other junction takes the TIE BAR,
+    U+0361 COMBINING DOUBLE INVERTED BREVE. So a diphthong and an
+    affricate come back spelled differently, matching how ``ipa.xml``
+    registers each. The choice is made per junction, so a run of three or
+    more parts may carry both.
+
+    Neither is the IPA undertie, U+203F, which links across a boundary
+    and is a different mark for a different job.
 
     Examples:
-        ipakit convert add-ties "ts"       # t͡s
-        ipakit convert add-ties "dʒ"       # d͡ʒ
-        ipakit c add-ties "aɪ"             # a͡ɪ (diphthong)
+        ipakit convert add-ties "ts"       # t͡s   (U+0361, affricate)
+        ipakit convert add-ties "dʒ"       # d͡ʒ   (U+0361, affricate)
+        ipakit c add-ties "aɪ"             # a͜ɪ   (U+035C, diphthong)
     """
 
     name = "add-ties"
@@ -525,6 +571,118 @@ class FromKirshenbaumCommand(Command):
         return 0
 
 
+class PhonesetCommand(Command):
+    """Read a phoneset file that may be wild, write it in house style.
+
+    A phoneset file is one phone per line, and the delimiting is what
+    this command trusts: each line names a single phone, so anything
+    that does not read as one is repaired rather than reinterpreted.
+
+    Two different repairs, and they are not the same kind of thing:
+
+    WILD SPELLINGS are text that is not house-style IPA -- the ASCII
+    stand-ins ``g``, ``:``, ``?`` and ``'``, and tie conventions written
+    the other way round. These go through ``from_wild``, which is where
+    every soft read in the library lives.
+
+    MISSING TIES are different. ``aɪ`` is well-formed IPA already, and
+    means a SEQUENCE of two vowels; ``a͜ɪ`` means ONE diphthong. Nothing
+    about the text says which was meant -- the DELIMITER does, because
+    the file put it on one line. So a line parsing to more than one
+    segment gets the ties it left out, at each junction, and a line that
+    already reads as one phone is copied through byte for byte whatever
+    convention it used.
+
+    Every change is listed on stderr, so nothing is rewritten silently,
+    and a line that cannot be read as one phone even after both repairs
+    fails the run rather than being dropped from the output.
+
+    Examples:
+        ipakit convert phoneset en.phones
+        ipakit convert phoneset en.phones -o en-house.phones
+        ipakit convert phoneset wild.txt --quiet      # no change report
+    """
+
+    name = "phoneset"
+    aliases: ClassVar[list[str]] = []
+    help = "Rewrite a phoneset file in house style (wild spellings, missing ties)"
+    reads_notation = IPA
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+
+        parser.add_argument("file", type=Path, help="Phoneset file, one phone per line")
+        parser.add_argument(
+            "-o",
+            "--output",
+            type=Path,
+            metavar="FILE",
+            help="Write here instead of standard output",
+        )
+        parser.add_argument(
+            "--no-tie",
+            action="store_true",
+            help="Canonicalize wild spellings only; leave untied entries as written",
+        )
+        parser.add_argument(
+            "--quiet",
+            action="store_true",
+            help="Do not list the changed entries on stderr",
+        )
+
+    def run(self) -> int:
+        if not Path(self.args.file).exists():
+            return self.error(f"No such phoneset file: {self.args.file}")
+        source = Phoneset.from_file(self.args.file)
+
+        out: list[str] = []
+        wild: list[tuple[str, str]] = []
+        tied: list[tuple[str, str]] = []
+        refused: list[str] = []
+        for member in source.phones:
+            house = self.ipa.from_wild(member)
+            if house != member:
+                wild.append((member, house))
+            if not self.args.no_tie and len(self.ipa.segments(house)) > 1:
+                candidate = self.ipa.add_ties(house)
+                if len(self.ipa.segments(candidate)) == 1:
+                    tied.append((house, candidate))
+                    house = candidate
+                else:
+                    refused.append(member)
+            out.append(house)
+
+        if refused:
+            for member in refused:
+                print(
+                    f"cannot read {member!r} as one phone: its parts do not "
+                    "compose, and a tie will not fix that",
+                    file=sys.stderr,
+                )
+            return self.error(f"{len(refused)} entr(ies) unreadable; nothing written")
+
+        text = "\n".join(out) + "\n"
+        if self.args.output:
+            Path(self.args.output).write_text(text, encoding="utf-8")
+        else:
+            self.print(text.rstrip("\n"))
+
+        if not self.args.quiet:
+            for before, after in wild:
+                print(f"wild spelling: {before} -> {after}", file=sys.stderr)
+            for before, after in tied:
+                print(f"tied: {before} -> {after}", file=sys.stderr)
+            unchanged = len(source.phones) - len(wild) - len(tied)
+            print(
+                f"{len(source.phones)} entries: {unchanged} unchanged, "
+                f"{len(wild)} wild spelling(s), {len(tied)} tied",
+                file=sys.stderr,
+            )
+        return 0
+
+
 class ConvertGroup(CommandGroup):
     """Convert between IPA and various phonetic notations.
 
@@ -563,4 +721,5 @@ class ConvertGroup(CommandGroup):
         FromJsonCommand,
         ToKatakanaCommand,
         AddTiesCommand,
+        PhonesetCommand,
     ]

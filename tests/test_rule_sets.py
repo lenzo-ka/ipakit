@@ -2278,12 +2278,12 @@ class TestTheTrapsTheFilesRecord:
         way; applied to a word it produces one tied chain, and then a rule
         conditioned on a following vowel no longer sees one.
         """
-        assert ipakit.add_ties("kæt") == "k͡æ͡t"
-        assert ipakit.add_ties("stɹaɪk") == "s͡t͡ɹ͡a͜ɪ͡k"
+        assert ipakit.add_ties("kæt") == "k͜æ͜t"
+        assert ipakit.add_ties("stɹaɪk") == "s͡t͡ɹ͜a͜ɪ͜k"
         assert ipakit.add_ties("aɪ") == "a͜ɪ", "a bare diphthong is fine"
         english = R.shipped("american-english", FEATURES)
         assert english.apply("pə.tˈe͜ɪ.to͜ʊ") == "pə.tʰˈe͜ɪ.ɾo͜ʊ"
-        assert english.apply(ipakit.add_ties("pə.tˈeɪ.toʊ")) == "p͡ə.tʰˈe͜ɪ.t͡o͜ʊ"
+        assert english.apply(ipakit.add_ties("pə.tˈeɪ.toʊ")) == "p͜ə.tʰˈe͜ɪ.t͜o͜ʊ"
 
     def test_the_wide_spelling_of_the_prothesis_context_over_applies(self):
         """'[-vowel]' would repair /sw/ and /sj/, which need no repair."""

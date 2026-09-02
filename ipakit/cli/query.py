@@ -570,7 +570,7 @@ class QueryGroup(CommandGroup):
 
     name = "query"
     aliases: ClassVar[list[str]] = ["q"]
-    help = "Query phones by features (match, list, features, classes, shorts)"
+    help = "Query phones by features (find, match, list, features, classes, " "shorts)"
     commands: ClassVar[list[type[Command]]] = [
         FindFormsCommand,
         MatchCommand,
