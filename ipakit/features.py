@@ -2675,10 +2675,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     def add_ties(self, segment: str) -> str:
         """Add tie bars between base phones in a multi-phone segment.
 
-        Whitespace grouping asserts unit-hood; the inserted glyph follows a
-        documented heuristic: two adjacent vocalic bases bind sequentially
-        (under-tie: a trajectory), anything else binds simultaneously
-        (over-tie). Write the tie explicitly to override.
+        Whitespace grouping asserts unit-hood; which glyph is inserted
+        follows from what each tie CLAIMS. The over-tie claims
+        simultaneity, and only two consonants can be simultaneous -- an
+        affricate, or a labial-velar. Everything else is a trajectory and
+        binds sequentially with the under-tie: vowel to vowel, and
+        consonant to vowel either way round, since a consonant and a
+        vowel are not articulated at the same time however they are
+        ordered. Write the tie explicitly to override.
+
+        Decided per junction, so a run may carry both: ``cadza`` ties its
+        ``d``-``z`` with the over-tie and everything around it
+        sequentially.
 
         A tie binds the preceding **unit** -- a base and the marks written
         on it -- which is what :meth:`parse` reads back off the result, so
@@ -2698,7 +2706,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         Every adjacent pair inside one group is tied, so a whole word
         handed over as one group comes back as one unit. That is the
         contract -- the grouping is the assertion -- and not something
-        this can detect: ``add_ties("kæt")`` is ``k͡æ͡t`` because ``kæt``
+        this can detect: ``add_ties("kæt")`` is ``k͜æ͜t`` because ``kæt``
         was offered as a segment.
         """
         if self.tie_bars & set(segment):
@@ -2715,10 +2723,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 prev_phone_char = ""
                 continue
             if prev_phone_char:
+                # The over-tie asserts SIMULTANEITY, which only two
+                # consonants can be: an affricate, or a labial-velar. A
+                # consonant and a vowel are a trajectory however they are
+                # ordered, so every junction that is not consonant to
+                # consonant binds sequentially.
                 result.append(
-                    self.seq_tie
-                    if self._vocalic(prev_phone_char) and self._vocalic(char)
-                    else self.tie_bar
+                    self.tie_bar
+                    if not self._vocalic(prev_phone_char) and not self._vocalic(char)
+                    else self.seq_tie
                 )
             result.append(char)
             prev_phone_char = char
@@ -2729,17 +2742,54 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             i += len(run)
         return "".join(result)
 
-    def normalize(self, text: str) -> str:
-        """Normalize whitespace-separated IPA segments into decodable IPA string.
+    def normalize(
+        self,
+        phones: str | Sequence[str],
+        *,
+        delimiter: str | None = None,
+        compose: bool = True,
+    ) -> str:
+        """Canonicalize IPA, tying only what was handed over separated.
 
-        Each whitespace-separated group is treated as one asserted unit;
-        :meth:`add_ties` inserts the tie by sense (adjacent vowels bind
-        sequentially, anything else fuses).
+        THE TYPE IS THE ASSERTION. A sequence says "each of these is one
+        phone", so each element gets the ties it was written without and
+        they are concatenated: ``["tʃ", "eɪ", "n", "dʒ"]`` is
+        ``"t͡ʃe͜ɪnd͡ʒ"``. A plain string says nothing of the kind and is
+        never tied -- there is nothing in ``"hɛloʊ"`` to say where one
+        phone ends.
+
+        Splitting a string on whitespace would be wrong twice over: a
+        space in house style is an alias for the WORD separator, so
+        reading it as a phone separator both invents ties and consumes a
+        boundary that was content. A caller holding separated phones says
+        so with a sequence; one holding a delimited string names its
+        ``delimiter``, which splits it into exactly that sequence. Both
+        are explicit, which is the point -- there is deliberately no
+        default delimiter, because defaulting to a space would restore
+        the reading this exists to prevent.
+
+        NORMAL FORMS, and the two ends differ on purpose
+        (``docs/house-style.md``, ``docs/ties.md``). Input goes through
+        :meth:`canonicalize_unicode` -- NFD, then the few symbols the
+        inventory stores precomposed are rebuilt so they match their keys,
+        so ``ç`` comes back one code point while ``ɛ̃`` stays base plus
+        mark. Output is NFC, because a library's final output is an
+        interop surface before it is an internal one and downstream
+        consumers expect composed text. Pass ``compose=False`` for the
+        decomposed form, which is what anything reading modifiers as
+        separate segments wants.
         """
-        text = self.expand_ligatures(text)
-        return unicodedata.normalize(
-            "NFC", "".join(self.add_ties(seg) for seg in text.split())
-        )
+        if isinstance(phones, str) and delimiter is not None:
+            phones = phones.split(delimiter)
+        if isinstance(phones, str):
+            text = self.canonicalize_unicode(self.expand_ligatures(phones))
+        else:
+            text = "".join(
+                self.add_ties(self.canonicalize_unicode(self.expand_ligatures(phone)))
+                for phone in phones
+                if phone
+            )
+        return unicodedata.normalize("NFC" if compose else "NFD", text)
 
     # -------------------------------------------------------------------------
     # Stress normalization
@@ -3720,10 +3770,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     prev_i -= 1
                 next_i = i + 1
                 if prev_i >= 0 and next_i < len(chars):
-                    both_vocalic = self._vocalic(chars[prev_i]) and self._vocalic(
-                        chars[next_i]
-                    )
-                    chars[i] = self.seq_tie if both_vocalic else self.tie_bar
+                    # The same junction rule :meth:`add_ties` writes with,
+                    # because an under-tie must mean the same thing when
+                    # ipakit writes it and when it reads imported text back:
+                    # the over-tie claims simultaneity, so only consonant to
+                    # consonant takes it.
+                    both_consonantal = not self._vocalic(
+                        chars[prev_i]
+                    ) and not self._vocalic(chars[next_i])
+                    chars[i] = self.tie_bar if both_consonantal else self.seq_tie
         return "".join(chars)
 
     def tie_glyph_variants(self, spelling: str) -> list[str]:
