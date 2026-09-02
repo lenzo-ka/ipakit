@@ -1021,7 +1021,10 @@ class RulesGroup(CommandGroup):
 
     name = "rules"
     aliases: ClassVar[list[str]] = ["r"]
-    help = "Rewrite rules (apply, variants, trace, recognize, units, morae, list, invertibility)"
+    help = (
+        "Rewrite rules (apply, derives, variants, trace, recognize, units, "
+        "morae, list, invertibility)"
+    )
     commands: ClassVar[list[type[Command]]] = [
         ApplyCommand,
         DerivesCommand,
