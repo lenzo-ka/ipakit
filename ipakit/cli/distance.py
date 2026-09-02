@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast
 
@@ -704,6 +705,24 @@ class MapCommand(Command):
             help="Match one-to-one minimizing total distance, instead of nearest",
         )
         parser.add_argument(
+            "--no-tie",
+            action="store_true",
+            help=(
+                "Take entries exactly as written. By default a line parsing "
+                "to more than one segment gets the ties it left out, taking "
+                "the format at its word: one phone per line"
+            ),
+        )
+        parser.add_argument(
+            "--wild",
+            action="store_true",
+            help=(
+                "Also read wild spellings: ASCII stand-ins (g, :, ?, ') and "
+                "the other tie convention. Off by default, so a valid tied "
+                "construction is never rewritten behind your back"
+            ),
+        )
+        parser.add_argument(
             "--max-distance",
             type=float,
             metavar="D",
@@ -720,11 +739,52 @@ class MapCommand(Command):
         source = Phoneset.from_file(self.args.source)
         target = Phoneset.from_file(self.args.target)
 
+        # An entry that cannot be read as one phone is refused here rather
+        # than reported as merely unmapped. The library tolerates it, since
+        # one bad line should not deny an answer about the rest; a command
+        # line exits on it, because a file of orthography read as a phoneset
+        # is a mistake worth stopping for and 'unmapped' does not say so.
+        def read(phone: str) -> str:
+            """One entry as this invocation reads it, complaining if it moved."""
+            house = self.ipa.from_wild(phone) if self.args.wild else phone
+            if house != phone:
+                print(f"wild: {phone} -> {house}", file=sys.stderr)
+            if not self.args.no_tie and len(self.ipa.segments(house)) > 1:
+                tied = self.ipa.add_ties(house)
+                if len(self.ipa.segments(tied)) == 1:
+                    print(f"tied: {house} -> {tied}", file=sys.stderr)
+                    house = tied
+            return house
+
+        source = Phoneset.from_list([read(p) for p in source.phones], source.name)
+        target = Phoneset.from_list([read(p) for p in target.phones], target.name)
+        unreadable = [
+            phone
+            for phoneset in (source, target)
+            for phone in phoneset.phones
+            if len(self.ipa.segments(phone)) != 1
+        ]
+        if unreadable:
+            for phone in unreadable:
+                print(
+                    f"cannot read {phone!r} as one phone"
+                    + (
+                        "; drop --no-tie to read it as one"
+                        if self.args.no_tie
+                        else "; --wild may help" if not self.args.wild else ""
+                    ),
+                    file=sys.stderr,
+                )
+            return self.error(f"{len(unreadable)} entr(ies) are not single phones")
+
         operation = one_to_one_mapping if self.args.one_to_one else nearest_mapping
         mapping = operation(
-            source, target, ipa=self.ipa, max_distance=self.args.max_distance
+            source,
+            target,
+            ipa=self.ipa,
+            max_distance=self.args.max_distance,
+            tied=False,  # already applied above, where it can be reported
         )
-
         if self.format == "json":
             self.output_json(
                 {
@@ -796,7 +856,10 @@ class DistanceGroup(CommandGroup):
 
     name = "distance"
     aliases: ClassVar[list[str]] = ["d"]
-    help = "Phonetic distances (pair, segment, matrix, confusability, word, directional, nearest, seq)"
+    help = (
+        "Phonetic distances and inventory mapping (pair, segment, matrix, "
+        "confusability, word, directional, nearest, seq, map)"
+    )
     commands: ClassVar[list[type[Command]]] = [
         PairCommand,
         SegmentCommand,

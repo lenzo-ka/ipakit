@@ -44,6 +44,7 @@ __all__ = [
     "Correspondence",
     "PhonesetMapping",
     "nearest_mapping",
+    "tie_delimited_entry",
     "one_to_one_mapping",
 ]
 
@@ -149,6 +150,43 @@ def _features(ipa: IPAFeatures | None) -> IPAFeatures:
     return _get_ipa()
 
 
+def tie_delimited_entry(phone: str, ipa: IPAFeatures) -> str:
+    """Supply the ties a delimited inventory entry left out.
+
+    NOT a wild read, and that decides where it may be applied. ``g`` is
+    not IPA and ``from_wild`` repairs it; ``t͜s`` and ``t͡s`` are one
+    phone under two tie conventions and ``from_wild`` canonicalizes
+    between them. ``aɪ`` is neither -- well-formed IPA meaning a SEQUENCE
+    of two vowels, against ``a͜ɪ`` meaning ONE diphthong. Both are
+    legitimate and denote different things, so nothing in the text
+    licenses a rewrite.
+
+    THE DELIMITER LICENSES IT: one phone per line, so a line parsing to
+    more than one segment is missing its ties. Which is also why this is
+    opt-in -- it trusts the file's claim, and a file that holds
+    orthography rather than phones makes that claim falsely.
+
+    WHICH TIE is :meth:`IPAFeatures.add_ties`, not a rule kept here: the
+    over-tie claims simultaneity, so only consonant to consonant takes
+    it, and everything else binds sequentially. One rule, one place.
+
+    An entry already readable as one phone is returned byte-identical,
+    whatever convention it used, and a base carrying modifiers (``tʰ``,
+    ``ˈʌ``, ``aː``) is one segment and is left alone.
+    """
+    if len(ipa.segments(phone)) <= 1:
+        return phone
+    tied = ipa.add_ties(phone)
+    return tied if len(ipa.segments(tied)) == 1 else phone
+
+
+def _tied(phoneset: Phoneset, ipa: IPAFeatures) -> Phoneset:
+    """Every entry read as one phone, changing only what needs it."""
+    return Phoneset.from_list(
+        [tie_delimited_entry(p, ipa) for p in phoneset.phones], name=phoneset.name
+    )
+
+
 def _cost_rows(
     source: Phoneset, target: Phoneset, ipa: IPAFeatures
 ) -> list[list[float]]:
@@ -157,7 +195,19 @@ def _cost_rows(
     Computed once and reused: both operations need the whole matrix, and
     the metric is the expensive part.
     """
-    return [[ipa.distance(a, b) for b in target.phones] for a in source.phones]
+
+    def cost(a: str, b: str) -> float:
+        """Distance, or infinity where an entry cannot be read as one phone.
+
+        Reported as unmapped rather than raised: one unreadable line in a
+        phoneset should not deny an answer about the other forty.
+        """
+        try:
+            return ipa.distance(a, b)
+        except ValueError:
+            return float("inf")
+
+    return [[cost(a, b) for b in target.phones] for a in source.phones]
 
 
 def nearest_mapping(
@@ -166,6 +216,7 @@ def nearest_mapping(
     *,
     ipa: IPAFeatures | None = None,
     max_distance: float | None = None,
+    tied: bool = False,
 ) -> PhonesetMapping:
     """Map each source phone onto its closest target phone.
 
@@ -189,6 +240,8 @@ def nearest_mapping(
     features = _features(ipa)
     left = _as_phoneset(source, "source")
     right = _as_phoneset(target, "target")
+    if tied:
+        left, right = _tied(left, features), _tied(right, features)
     if not right.phones:
         return PhonesetMapping(
             left, right, "nearest", tuple(Correspondence(p, None, None) for p in left)
@@ -198,7 +251,7 @@ def nearest_mapping(
     found: list[Correspondence] = []
     for phone, row in zip(left.phones, rows, strict=True):
         best = min(row)
-        if max_distance is not None and best > max_distance:
+        if best == float("inf") or (max_distance is not None and best > max_distance):
             found.append(Correspondence(phone, None, None))
             continue
         at = [right.phones[i] for i, value in enumerate(row) if value == best]
@@ -281,6 +334,7 @@ def one_to_one_mapping(
     *,
     ipa: IPAFeatures | None = None,
     max_distance: float | None = None,
+    tied: bool = False,
 ) -> PhonesetMapping:
     """Pair the phonesets one-to-one, minimizing total distance.
 
@@ -308,6 +362,8 @@ def one_to_one_mapping(
     features = _features(ipa)
     left = _as_phoneset(source, "source")
     right = _as_phoneset(target, "target")
+    if tied:
+        left, right = _tied(left, features), _tied(right, features)
     if not left.phones or not right.phones:
         return PhonesetMapping(
             left,
@@ -325,7 +381,7 @@ def one_to_one_mapping(
             found.append(Correspondence(phone, None, None))
             continue
         cost = rows[index][column]
-        if max_distance is not None and cost > max_distance:
+        if cost == float("inf") or (max_distance is not None and cost > max_distance):
             found.append(Correspondence(phone, None, None))
             continue
         found.append(Correspondence(phone, right.phones[column], cost))
