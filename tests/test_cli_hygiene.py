@@ -221,12 +221,18 @@ REFUSERS = [
     ["rules", "morae", "pin"],
 ]
 
-#: The IPA-reading routes reached by neither, because both want a corpus on
-#: disk before they read anything. Named so the coverage check below stays
-#: a statement about all of them rather than about the ones easy to run.
-NEEDS_A_CORPUS = [
+#: The IPA-reading routes reached by neither witness nor refuser, because
+#: each wants a file on disk before it reads anything: the corpus routes
+#: want a corpus, and ``distance map`` wants two phoneset files. The
+#: orthography hazard is real for all of them -- a phoneset file may hold
+#: English spelling as readily as an argument may -- so they are named
+#: here rather than dropped, and the coverage check below stays a
+#: statement about every declared route rather than about the ones easy
+#: to run from a command line.
+NEEDS_FILES_ON_DISK = [
     ("corpus", "add"),
     ("corpus", "query"),
+    ("distance", "map"),
 ]
 
 
@@ -287,7 +293,7 @@ class TestOrthographyIsNotIPA:
         construction, and never be run against an orthographic word at
         all -- which is the half of the predicate that is evidence."""
         declared = {path for path, _ in self.NOTATION_ROUTES}
-        measured = set(NEEDS_A_CORPUS)
+        measured = set(NEEDS_FILES_ON_DISK)
         for argv in [*WITNESSES, *REFUSERS]:
             measured.add(
                 next(path for path, _ in LEAVES if list(path) == argv[: len(path)])
@@ -594,7 +600,7 @@ class TestADroppedSymbolReachesTheExitStatus:
             if getattr(_command_of(parser), "reads_notation", None) is not None
         }
         reached = {path for path, _ in self.PROBED}
-        assert len(reached) >= len(declared) - len(NEEDS_A_CORPUS)
+        assert len(reached) >= len(declared) - len(NEEDS_FILES_ON_DISK)
 
     @pytest.mark.parametrize(
         "path, argv",

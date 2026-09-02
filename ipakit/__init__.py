@@ -986,6 +986,42 @@ def minimal_pairs(
     )
 
 
+def phoneset_mapping(
+    source: object,
+    target: object,
+    *,
+    one_to_one: bool = False,
+    max_distance: float | None = None,
+) -> object:
+    """Relate one phoneset to another.
+
+    Two operations. By default this is DIRECTIONAL and MANY-TO-ONE: each
+    source phone gets its closest target, several sources may land on the
+    same one, and :meth:`PhonesetMapping.collapses` reports each contrast
+    the target set cannot carry.
+
+    With ``one_to_one=True`` it is a MATCHING instead: each phone used at
+    most once, chosen to minimize total distance over the whole set --
+    which is not what taking each phone's nearest in turn produces.
+
+    Args:
+        source: phones being mapped (a Phoneset or any iterable of str)
+        target: phones being mapped onto
+        one_to_one: match one-to-one rather than nearest
+        max_distance: refuse a pairing past this distance, reporting the
+            phone unmapped rather than pairing it with the least bad
+
+    Examples:
+        >>> m = ipakit.phoneset_mapping(["p", "b"], ["t", "d"])
+        >>> [(c.source, c.target) for c in m]
+        [('p', 't'), ('b', 'd')]
+    """
+    from .phoneset_map import nearest_mapping, one_to_one_mapping
+
+    operation = one_to_one_mapping if one_to_one else nearest_mapping
+    return operation(source, target, ipa=_get_ipa(), max_distance=max_distance)  # type: ignore[arg-type]
+
+
 def nearest_phones(
     phone: str,
     n: int = 10,
@@ -1365,6 +1401,7 @@ __all__ = [
     "morae",
     "natural_class",
     "nearest_phones",
+    "phoneset_mapping",
     "normalize",
     "normalize_lookalikes",
     "notebook",
