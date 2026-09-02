@@ -1335,12 +1335,29 @@ class _ClockPathProfile:
 
         segments = path.segments
 
-        def refuse(code: Any) -> NoReturn:
-            """Never returns, so every call below is a terminal branch."""
-            raise PathRefusal(code, PathOffender(text=self.text, path=path))
+        def refuse(code: Any, sentence: str) -> NoReturn:
+            """Refuse with the typed code, and wording a reader can use.
+
+            ``PathRefusal`` renders its own message from the whole
+            ``PathOffender`` -- eleven fields of which ten are usually
+            None -- and its docstring calls that wording diagnostic-only
+            while the code is the stable part. So the code and offender
+            are left exactly as they are and only the wording is
+            replaced: ``.code``, ``.offender`` and ``except PathRefusal``
+            are untouched, and what reaches a person is a sentence
+            rather than a repr. Never returns, so every call below is a
+            terminal branch.
+            """
+            error = PathRefusal(code, PathOffender(text=self.text, path=path))
+            error.args = (sentence,)
+            raise error
 
         if len(segments) < 2 or segments[0] != "clock" or not segments[1].isdigit():
-            refuse(PathRefusalCode.MALFORMED_POINTER)
+            refuse(
+                PathRefusalCode.MALFORMED_POINTER,
+                f"{self.text!r}: not a clock path; expected /clock/<tick> "
+                f"or /clock/<tick>/gaps/<gap>",
+            )
         tick = int(segments[1])
         tick_count, gap_counts = _clock_bounds(graph.boundary_values)
         clock_positions = tuple(
@@ -1365,11 +1382,19 @@ class _ClockPathProfile:
         elif len(segments) == 4 and segments[2] == "gaps" and segments[3].isdigit():
             gap = int(segments[3])
             if gap >= gap_counts[tick]:
-                refuse(PathRefusalCode.BOUNDARY_NOT_IN_PARENT)
+                refuse(
+                    PathRefusalCode.BOUNDARY_NOT_IN_PARENT,
+                    f"{self.text!r}: gap {gap} does not belong to tick {tick}, "
+                    f"which has {gap_counts[tick]}",
+                )
         elif len(segments) == 4 and segments[3].isdigit():
             return ItemBinding(DurableItemRef(self.text))
         else:
-            refuse(PathRefusalCode.MALFORMED_POINTER)
+            refuse(
+                PathRefusalCode.MALFORMED_POINTER,
+                f"{self.text!r}: not a clock path; expected /clock/<tick> "
+                f"or /clock/<tick>/gaps/<gap>",
+            )
         for position in clock_positions:
             attributes = {
                 attribute.name.local_name: int(attribute.lexical)
@@ -1377,7 +1402,10 @@ class _ClockPathProfile:
             }
             if attributes == {"gap": gap, "tick": tick}:
                 return BoundaryBinding(position.reference)
-        refuse(PathRefusalCode.OUT_OF_RANGE)
+        refuse(
+            PathRefusalCode.OUT_OF_RANGE,
+            f"{self.text!r}: no clock boundary at tick {tick}, gap {gap}",
+        )
 
     def spell(self, binding: Any, graph: Any) -> Any:
         """Refuse reverse projection, which Form.at never requests."""

@@ -209,9 +209,9 @@
         "utf8_hex": "696e74657276616c20737461727473206265666f72652074686520666f726d3a202d31"
       },
       "invalid_refined_gap": {
-        "message": "'/clock/0/gaps/9': gap does not belong to named tick",
-        "type": "GraphValidationError",
-        "utf8_hex": "272f636c6f636b2f302f676170732f39273a2067617020646f6573206e6f742062656c6f6e6720746f206e616d6564207469636b"
+        "message": "'/clock/0/gaps/9': gap 9 does not belong to tick 0, which has 2",
+        "type": "PathRefusal",
+        "utf8_hex": "272f636c6f636b2f302f676170732f39273a20676170203920646f6573206e6f742062656c6f6e6720746f207469636b20302c207768696368206861732032"
       },
       "malformed_pointer": {
         "message": "'/clock//segment/0': malformed JSON Pointer reference",
