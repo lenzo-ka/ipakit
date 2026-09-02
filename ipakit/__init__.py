@@ -692,9 +692,37 @@ def to_ipa(segments: list[Segment]) -> str:
     return _get_ipa().to_ipa(segments)
 
 
-def normalize(text: str) -> str:
-    """Normalize whitespace-separated IPA segments into decodable IPA string."""
-    return _get_ipa().normalize(text)
+def normalize(
+    phones: str | Sequence[str],
+    *,
+    delimiter: str | None = None,
+    compose: bool = True,
+) -> str:
+    """Canonicalize IPA, tying only what was handed over separated.
+
+    The type is the assertion: a sequence says each element is one phone,
+    so each gets the ties it was written without and they concatenate. A
+    plain string says nothing of the kind and is never tied -- a space in
+    house style is the WORD separator, so splitting on one would both
+    invent ties and eat a boundary that was content. Naming a
+    ``delimiter`` splits the string into that sequence, which is the same
+    claim made about a string; there is no default, so it is never made
+    for you.
+
+    Canonicalized on the way in -- NFD, then the few registered
+    precomposed symbols rebuilt -- and emitted as NFC, which is what
+    downstream consumers expect. ``compose=False`` keeps the decomposed
+    form, for anything reading modifiers as separate segments.
+
+    Examples:
+        >>> normalize(["tʃ", "eɪ", "n", "dʒ"])
+        't͡ʃe͜ɪnd͡ʒ'
+        >>> normalize("tʃ eɪ n dʒ", delimiter=" ")
+        't͡ʃe͜ɪnd͡ʒ'
+        >>> normalize("hɛloʊ")
+        'hɛloʊ'
+    """
+    return _get_ipa().normalize(phones, delimiter=delimiter, compose=compose)
 
 
 def from_wild(text: str) -> str:

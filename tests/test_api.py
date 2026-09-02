@@ -58,8 +58,10 @@ class TestConvenienceFunctions:
         assert ipakit.segment("t͡s").kind.value == "affricate"
 
     def test_normalize(self) -> None:
-        result = ipakit.normalize("tʃ")
-        assert result == "t͡ʃ"
+        # A sequence asserts that each element is one phone, so it is tied.
+        assert ipakit.normalize(["tʃ"]) == "t͡ʃ"
+        # A bare string asserts nothing and is never tied.
+        assert ipakit.normalize("tʃ") == "tʃ"
 
     def test_add_ties(self) -> None:
         result = ipakit.add_ties("ts")

@@ -148,10 +148,17 @@ class TestNormalization:
     def test_normalize_adds_ties(self, ipa: IPAFeatures) -> None:
         # Consonant pairs fuse (over-tie); adjacent vowels bind sequentially
         # (under-tie) - which is the canonical diphthong spelling directly.
-        result = ipa.normalize("tʃ eɪ n dʒ")
+        result = ipa.normalize(["tʃ", "eɪ", "n", "dʒ"])
         assert "t͡ʃ" in result
         assert "e͜ɪ" in result
         assert "d͡ʒ" in result
+        # The same phones as one string are NOT split on the spaces: a
+        # space here is the word separator, so reading it as a phone
+        # separator would invent ties and eat a boundary.
+        assert ipa.normalize("tʃ eɪ n dʒ") == "tʃ eɪ n dʒ"
+        # Naming the delimiter makes that claim explicitly, and is then
+        # the same request as handing over the sequence.
+        assert ipa.normalize("tʃ eɪ n dʒ", delimiter=" ") == result
         assert ipa.get_phone("e͜ɪ") is not None
 
     def test_add_tie_bars(self, ipa: IPAFeatures) -> None:
