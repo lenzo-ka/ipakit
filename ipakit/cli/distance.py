@@ -657,6 +657,118 @@ class SeqCommand(Command):
         return 0
 
 
+class MapCommand(Command):
+    """Map one phoneset onto another, by nearest phone or one-to-one.
+
+    Two operations, because "the mapping" between two phonesets is
+    ambiguous and they answer different questions.
+
+    NEAREST (the default) is directional and many-to-one: every source
+    phone gets its closest target, whether or not the target set holds
+    anything like it. Several sources may land on one target, and that
+    is the interesting part -- each such collapse is a contrast the
+    source drew that the target cannot.
+
+    ONE-TO-ONE (--one-to-one) is a matching: each phone used at most
+    once, chosen to minimize TOTAL distance over the whole set. That is
+    not what taking each phone's nearest in turn gives, and the greedy
+    answer is worse without saying so. Surplus phones on the larger side
+    come back unmapped rather than forced onto a partner.
+
+    Examples:
+        ipakit distance map english.txt spanish.txt
+        ipakit distance map english.txt spanish.txt --one-to-one
+        ipakit distance map a.txt b.txt --max-distance 0.1
+        ipakit distance map a.txt b.txt -f json
+    """
+
+    name = "map"
+    aliases: ClassVar[list[str]] = []
+    help = "Map one phoneset onto another (nearest, or one-to-one)"
+    reads_notation = IPA
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+
+        parser.add_argument(
+            "source", type=Path, help="Source phoneset file (one phone per line)"
+        )
+        parser.add_argument(
+            "target", type=Path, help="Target phoneset file (one phone per line)"
+        )
+        parser.add_argument(
+            "--one-to-one",
+            action="store_true",
+            help="Match one-to-one minimizing total distance, instead of nearest",
+        )
+        parser.add_argument(
+            "--max-distance",
+            type=float,
+            metavar="D",
+            help="Refuse a pairing past this distance; the phone is reported unmapped",
+        )
+        add_format_arg(parser)
+
+    def run(self) -> int:
+        from ..phoneset_map import nearest_mapping, one_to_one_mapping
+
+        for path in (self.args.source, self.args.target):
+            if not Path(path).exists():
+                return self.error(f"No such phoneset file: {path}")
+        source = Phoneset.from_file(self.args.source)
+        target = Phoneset.from_file(self.args.target)
+
+        operation = one_to_one_mapping if self.args.one_to_one else nearest_mapping
+        mapping = operation(
+            source, target, ipa=self.ipa, max_distance=self.args.max_distance
+        )
+
+        if self.format == "json":
+            self.output_json(
+                {
+                    "kind": mapping.kind,
+                    "source": source.name,
+                    "target": target.name,
+                    "correspondences": [
+                        {
+                            "source": c.source,
+                            "target": c.target,
+                            "distance": (
+                                None if c.distance is None else round(c.distance, 4)
+                            ),
+                            "ties": list(c.ties),
+                        }
+                        for c in mapping
+                    ],
+                    "collapses": {k: list(v) for k, v in mapping.collapses().items()},
+                    "unmapped": list(mapping.unmapped),
+                    "unused_targets": list(mapping.unused_targets),
+                    "total_distance": round(mapping.total_distance, 4),
+                }
+            )
+            return 0
+
+        for c in mapping:
+            if c.target is None:
+                print(f"{c.source}\t-\t(unmapped)")
+                continue
+            tie = f"  ties: {' '.join(c.ties)}" if c.ties else ""
+            print(f"{c.source}\t{c.target}\t{c.distance:.4f}{tie}")
+        collapses = mapping.collapses()
+        if collapses:
+            # Printed rather than left to be noticed: a merged contrast is
+            # the whole reason to read a many-to-one mapping.
+            print()
+            for onto, sources in collapses.items():
+                print(f"collapsed onto {onto}: {' '.join(sources)}")
+        if mapping.unmapped:
+            print(f"\nunmapped: {' '.join(mapping.unmapped)}")
+        print(f"\ntotal distance: {mapping.total_distance:.4f}")
+        return 0
+
+
 class DistanceGroup(CommandGroup):
     """Calculate phonetic distances between IPA phones, words, and phone sequences.
 
@@ -693,5 +805,6 @@ class DistanceGroup(CommandGroup):
         WordCommand,
         DirectionalCommand,
         NearestCommand,
+        MapCommand,
         SeqCommand,
     ]

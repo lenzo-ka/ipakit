@@ -1,0 +1,332 @@
+"""Relate one phoneset to another: nearest-neighbor, and one-to-one.
+
+Two operations, and they answer different questions. Asking for "the
+mapping" between two phonesets is ambiguous between them, so both are
+named rather than one being the default.
+
+``nearest_mapping`` is DIRECTIONAL and MANY-TO-ONE. Every source phone
+gets the closest target phone, whether or not the target set holds
+anything like it. Several sources may land on one target, and that is
+not a defect -- it is the answer to "what does this target set do to my
+distinctions", which is usually why the question was asked. Mapping A
+onto B and B onto A give different results, so the direction is part of
+the request and never inferred.
+
+``one_to_one_mapping`` is a MATCHING. Each phone is used at most once, and
+the pairing chosen is the one minimizing TOTAL distance over the whole
+set -- not the one you get by taking each phone's nearest in turn.
+**Greedy nearest-first is not optimal and the difference is silent**: a
+phone that grabs its favourite target can force a later phone onto a much
+worse one, and the total is worse than a pairing where the first phone
+settles for second best. Nothing in the output would show it, which is
+why this solves the assignment problem properly instead. Where the sets
+differ in size, the surplus phones on the larger side are unmatched
+rather than being forced onto a partner.
+
+Neither operation invents a threshold. Pass ``max_distance`` to refuse a
+correspondence past some distance, and the phone is reported unmapped
+instead of silently paired with whatever happened to be least bad.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from .models import Phoneset
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from .features import IPAFeatures
+
+__all__ = [
+    "Correspondence",
+    "PhonesetMapping",
+    "nearest_mapping",
+    "one_to_one_mapping",
+]
+
+
+@dataclass(frozen=True)
+class Correspondence:
+    """One source phone and what it was paired with, if anything."""
+
+    source: str
+    target: str | None
+    distance: float | None
+    #: Other targets at exactly the same distance as ``target``. A tie is
+    #: reported rather than resolved by sort order, because which of two
+    #: equidistant targets is "the" answer is not a fact this library
+    #: holds -- an order is declared or it does not exist.
+    ties: tuple[str, ...] = ()
+
+    @property
+    def mapped(self) -> bool:
+        """Whether this source phone found a partner."""
+        return self.target is not None
+
+
+@dataclass(frozen=True)
+class PhonesetMapping:
+    """The result of relating two phonesets, with what it cost."""
+
+    source: Phoneset
+    target: Phoneset
+    #: ``"nearest"`` or ``"one-to-one"``. Carried because the two answer
+    #: different questions and a bare table of pairs does not say which.
+    kind: str
+    correspondences: tuple[Correspondence, ...]
+
+    def __iter__(self):  # type: ignore[no-untyped-def]
+        return iter(self.correspondences)
+
+    def __len__(self) -> int:
+        return len(self.correspondences)
+
+    @property
+    def mapped(self) -> tuple[Correspondence, ...]:
+        """Correspondences that found a partner."""
+        return tuple(c for c in self.correspondences if c.mapped)
+
+    @property
+    def unmapped(self) -> tuple[str, ...]:
+        """Source phones with no partner, in source order."""
+        return tuple(c.source for c in self.correspondences if not c.mapped)
+
+    @property
+    def unused_targets(self) -> tuple[str, ...]:
+        """Target phones nothing was mapped onto, in target order."""
+        taken = {c.target for c in self.correspondences if c.target is not None}
+        return tuple(p for p in self.target.phones if p not in taken)
+
+    @property
+    def total_distance(self) -> float:
+        """Summed distance over mapped correspondences."""
+        return sum(c.distance or 0.0 for c in self.mapped)
+
+    @property
+    def exact(self) -> tuple[Correspondence, ...]:
+        """Correspondences at distance zero -- the phone survived the move."""
+        return tuple(c for c in self.mapped if c.distance == 0.0)
+
+    def collapses(self) -> dict[str, tuple[str, ...]]:
+        """Targets that more than one source landed on, and which sources.
+
+        This is the part worth reading. A many-to-one mapping merges
+        distinctions, and each entry here is a contrast the source set
+        drew that the target set cannot: after the mapping, those source
+        phones are indistinguishable. Empty for a one-to-one mapping by
+        construction.
+        """
+        onto: dict[str, list[str]] = {}
+        for correspondence in self.correspondences:
+            if correspondence.target is not None:
+                onto.setdefault(correspondence.target, []).append(correspondence.source)
+        return {
+            target: tuple(sources)
+            for target, sources in onto.items()
+            if len(sources) > 1
+        }
+
+    def ambiguous(self) -> tuple[Correspondence, ...]:
+        """Correspondences where some other target was equally close."""
+        return tuple(c for c in self.correspondences if c.ties)
+
+
+def _as_phoneset(value: Phoneset | Iterable[str], name: str) -> Phoneset:
+    """Accept a Phoneset or any iterable of phone strings."""
+    if isinstance(value, Phoneset):
+        return value
+    return Phoneset.from_list(list(value), name=name)
+
+
+def _features(ipa: IPAFeatures | None) -> IPAFeatures:
+    if ipa is not None:
+        return ipa
+    from . import _get_ipa
+
+    return _get_ipa()
+
+
+def _cost_rows(
+    source: Phoneset, target: Phoneset, ipa: IPAFeatures
+) -> list[list[float]]:
+    """Distance from every source phone to every target phone.
+
+    Computed once and reused: both operations need the whole matrix, and
+    the metric is the expensive part.
+    """
+    return [[ipa.distance(a, b) for b in target.phones] for a in source.phones]
+
+
+def nearest_mapping(
+    source: Phoneset | Iterable[str],
+    target: Phoneset | Iterable[str],
+    *,
+    ipa: IPAFeatures | None = None,
+    max_distance: float | None = None,
+) -> PhonesetMapping:
+    """Map each source phone onto its closest target phone.
+
+    Directional and many-to-one: several source phones may land on the
+    same target, which is how the mapping reports a distinction the
+    target set does not carry. See :meth:`PhonesetMapping.collapses`.
+
+    Args:
+        source: the phones being mapped, as a Phoneset or any iterable
+        target: the phones being mapped onto
+        ipa: feature system to measure with; the shipped one by default
+        max_distance: refuse a pairing past this distance and report the
+            source phone unmapped, rather than pairing it with whatever
+            was least bad
+
+    Examples:
+        >>> m = nearest_mapping(["p", "b"], ["t", "d"])
+        >>> [(c.source, c.target) for c in m]
+        [('p', 't'), ('b', 'd')]
+    """
+    features = _features(ipa)
+    left = _as_phoneset(source, "source")
+    right = _as_phoneset(target, "target")
+    if not right.phones:
+        return PhonesetMapping(
+            left, right, "nearest", tuple(Correspondence(p, None, None) for p in left)
+        )
+
+    rows = _cost_rows(left, right, features)
+    found: list[Correspondence] = []
+    for phone, row in zip(left.phones, rows, strict=True):
+        best = min(row)
+        if max_distance is not None and best > max_distance:
+            found.append(Correspondence(phone, None, None))
+            continue
+        at = [right.phones[i] for i, value in enumerate(row) if value == best]
+        found.append(Correspondence(phone, at[0], best, tuple(at[1:])))
+    return PhonesetMapping(left, right, "nearest", tuple(found))
+
+
+def _assign(rows: Sequence[Sequence[float]], n_targets: int) -> list[int | None]:
+    """Minimum-total-cost one-to-one assignment, by the Hungarian method.
+
+    Returns, for each row, the column it is assigned to, or None where the
+    row is left unassigned because there were more rows than columns.
+
+    This is O(n^3) and phonesets are tens to low hundreds of phones, so
+    the cost is not worth avoiding -- and the greedy alternative gives a
+    different, worse answer without saying so.
+    """
+    n_rows = len(rows)
+    size = max(n_rows, n_targets)
+    # Square the matrix with zero-cost padding. Padding is what makes the
+    # surplus rows come back unassigned rather than distorting the pairing
+    # the real rows get.
+    cost = [
+        [rows[r][c] if r < n_rows and c < n_targets else 0.0 for c in range(size)]
+        for r in range(size)
+    ]
+
+    # Jonker-Volgenant style shortest augmenting path, one row at a time.
+    INF = float("inf")
+    u = [0.0] * (size + 1)
+    v = [0.0] * (size + 1)
+    p = [0] * (size + 1)
+    way = [0] * (size + 1)
+    for i in range(1, size + 1):
+        p[0] = i
+        j0 = 0
+        minv = [INF] * (size + 1)
+        used = [False] * (size + 1)
+        while True:
+            used[j0] = True
+            i0 = p[j0]
+            delta = INF
+            j1 = 0
+            for j in range(1, size + 1):
+                if used[j]:
+                    continue
+                cur = cost[i0 - 1][j - 1] - u[i0] - v[j]
+                if cur < minv[j]:
+                    minv[j] = cur
+                    way[j] = j0
+                if minv[j] < delta:
+                    delta = minv[j]
+                    j1 = j
+            for j in range(size + 1):
+                if used[j]:
+                    u[p[j]] += delta
+                    v[j] -= delta
+                else:
+                    minv[j] -= delta
+            j0 = j1
+            if p[j0] == 0:
+                break
+        while j0:
+            j1 = way[j0]
+            p[j0] = p[j1]
+            j0 = j1
+
+    assignment: list[int | None] = [None] * n_rows
+    for j in range(1, size + 1):
+        row = p[j] - 1
+        col = j - 1
+        if row < n_rows and col < n_targets:
+            assignment[row] = col
+    return assignment
+
+
+def one_to_one_mapping(
+    source: Phoneset | Iterable[str],
+    target: Phoneset | Iterable[str],
+    *,
+    ipa: IPAFeatures | None = None,
+    max_distance: float | None = None,
+) -> PhonesetMapping:
+    """Pair the phonesets one-to-one, minimizing total distance.
+
+    Each phone is used at most once. The pairing is the one with the
+    smallest summed distance over the whole set, which is NOT what taking
+    each phone's nearest in turn produces: a greedy pass lets an early
+    phone claim a target that a later phone needed more, and the total
+    comes out worse with nothing in the result to show it.
+
+    Where the sets differ in size the surplus is unmatched, and where
+    ``max_distance`` is given a pair further apart than that is broken
+    rather than kept.
+
+    Args:
+        source: one phoneset, as a Phoneset or any iterable
+        target: the other
+        ipa: feature system to measure with; the shipped one by default
+        max_distance: break any pair further apart than this
+
+    Examples:
+        >>> m = one_to_one_mapping(["p", "b"], ["b", "p"])
+        >>> sorted((c.source, c.target) for c in m)
+        [('b', 'b'), ('p', 'p')]
+    """
+    features = _features(ipa)
+    left = _as_phoneset(source, "source")
+    right = _as_phoneset(target, "target")
+    if not left.phones or not right.phones:
+        return PhonesetMapping(
+            left,
+            right,
+            "one-to-one",
+            tuple(Correspondence(p, None, None) for p in left),
+        )
+
+    rows = _cost_rows(left, right, features)
+    assignment = _assign(rows, len(right.phones))
+    found: list[Correspondence] = []
+    for index, phone in enumerate(left.phones):
+        column = assignment[index]
+        if column is None:
+            found.append(Correspondence(phone, None, None))
+            continue
+        cost = rows[index][column]
+        if max_distance is not None and cost > max_distance:
+            found.append(Correspondence(phone, None, None))
+            continue
+        found.append(Correspondence(phone, right.phones[column], cost))
+    return PhonesetMapping(left, right, "one-to-one", tuple(found))
