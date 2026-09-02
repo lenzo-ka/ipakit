@@ -39,7 +39,7 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
 
     import tiergraph as tg
     import tiergraph_dot as sibling
-    from tiergraph import ClockPosition, ItemRef, QualifiedName
+    from tiergraph import ClockCoordinate, ItemRef, QualifiedName
 
     from .segment import Constituent, Segment, Sense
 
@@ -74,15 +74,15 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
             for source in relation.sources:
                 child_map.setdefault(source, []).extend(relation.targets)
 
-    def _position(pointer: str) -> ClockPosition:
+    def _position(pointer: str) -> ClockCoordinate:
         # "/clock/T" (coarse, gap 0) or "/clock/T/gaps/G" (refined).
         parts = pointer.split("/")
         gap = int(parts[4]) if len(parts) > 4 else 0
-        return ClockPosition(int(parts[2]), gap)
+        return ClockCoordinate(int(parts[2]), gap)
 
-    span_memo: dict[Any, tuple[ClockPosition, ClockPosition]] = {}
+    span_memo: dict[Any, tuple[ClockCoordinate, ClockCoordinate]] = {}
 
-    def _span(reference: Any) -> tuple[ClockPosition, ClockPosition]:
+    def _span(reference: Any) -> tuple[ClockCoordinate, ClockCoordinate]:
         cached = span_memo.get(reference)
         if cached is not None:
             return cached
@@ -98,7 +98,7 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
             # Flat item (segment/boundary): durable-id tick + structural extent.
             tick = int(durable_of[id(item)].split("/")[2])
             duration = int(attributes["structural-duration"])
-            result = (ClockPosition(tick, 0), ClockPosition(tick + duration, 0))
+            result = (ClockCoordinate(tick, 0), ClockCoordinate(tick + duration, 0))
         else:
             # Structural container (e.g. an utterance): span its descendants.
             spans = [_span(child) for child in child_map.get(reference, ())]
@@ -156,7 +156,7 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
             token += f"\nprominence: {prominence}"
         return token
 
-    def binding(item: Any) -> tuple[ClockPosition, ClockPosition]:
+    def binding(item: Any) -> tuple[ClockCoordinate, ClockCoordinate]:
         return _span(ref_of[id(item)])
 
     def relation_name(relation: Any) -> str | None:
@@ -171,7 +171,7 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
             return "bipartite"
         return None
 
-    clock = tg.ClockProfile.from_position_values(
+    clock = tg.ClockProfile.from_boundary_values(
         graph,
         clock_tier,
         tick_attribute=QualifiedName(_CONTAINMENT_NS, "tick"),

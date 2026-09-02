@@ -485,7 +485,7 @@ def _structural_class(graph: object) -> dict[str, object]:
             for relation in graph.polyadic_relations
             if any(
                 isinstance(
-                    endpoint, tiergraph.DurablePositionRef | tiergraph.PositionRef
+                    endpoint, tiergraph.DurableBoundaryRef | tiergraph.BoundaryRef
                 )
                 for endpoint in (*relation.sources, *relation.targets)
             )

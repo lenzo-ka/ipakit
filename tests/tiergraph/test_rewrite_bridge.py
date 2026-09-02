@@ -131,7 +131,7 @@ def test_attested_japanese_adaptations_use_the_rewrite_bridge(name):
         assert instances
         assert all(
             len(relation.sources) == 1
-            and isinstance(relation.sources[0], tiergraph.DurablePositionRef)
+            and isinstance(relation.sources[0], tiergraph.DurableBoundaryRef)
             and relation.targets
             and all(
                 isinstance(target, tiergraph.ItemRef) for target in relation.targets
