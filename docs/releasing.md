@@ -56,11 +56,18 @@ job references it; the OIDC identity is scoped to it).
 3. **Verify locally** (all must be clean):
    ```bash
    make check          # lint, suite, invariants, the data validators, the document guards
+   python scripts/check_hrefs.py   # the shipped hrefs still point at live articles
    python -m build && twine check dist/*
    python -c "import importlib.metadata as m, ipakit; \
      assert m.version('ipakit') == ipakit.__version__"
    rm -rf dist build
    ```
+
+`check_hrefs.py` is separate from `make check` because it needs the network
+and Wikipedia's uptime: in the ordinary gate that would fail unrelated work
+for an unrelated reason. Here a human is already waiting, and a link that
+died since the last release is about to be published. It exits 2 rather than
+0 when it cannot reach the API — unchecked is not the same as clean.
 
 4. **Commit + tag**:
    ```bash

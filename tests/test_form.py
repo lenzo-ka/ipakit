@@ -718,11 +718,22 @@ class TestDeclaringAFurtherLevelExtendsTheTreeWithNoCodeChange:
     def extended(self, tmp_path):
         """The shipped inventory plus one declared level and one mark for it."""
         source = FEATURES.xml_path.read_text(encoding="utf-8")
-        value = '<value name="utterance" short="utt" href="Utterance_(linguistics)"/>'
+        # Anchored on the declaration and not on its href: a link target is
+        # documentation, it gets repointed when a page is renamed, and that
+        # should not decide whether this test can run. The short code is not
+        # decoration here -- `level` and `tier` both declare an "utterance",
+        # and it is the ordinal ladder this grows. The unpacking asserts
+        # exactly one line does.
+        (value,) = [
+            line
+            for line in source.splitlines()
+            if '<value name="utterance" short="utt"' in line
+        ]
+        indent = " " * (len(value) - len(value.lstrip()))
         mark = '<suprasegmental name="‖" break="major" level="utterance"'
-        assert source.count(value) == 1 and source.count(mark) == 1
+        assert source.count(mark) == 1
         patched = source.replace(
-            value, f'{value}\n      <value name="{self.LEVEL}" short="dsc"/>'
+            value, f'{value}\n{indent}<value name="{self.LEVEL}" short="dsc"/>'
         ).replace(
             mark,
             f'<suprasegmental name="{self.GLYPH}" break="major"'

@@ -50,7 +50,7 @@
     <class name="phones" desc="segments declared as inventory atoms" href="International_Phonetic_Alphabet"/>
     <class name="diacritics" desc="marks that contribute to a host unit" href="Diacritic"/>
     <class name="suprasegmentals" desc="prosodic and structural marks" href="Suprasegmental"/>
-    <class name="separators" desc="written boundaries that carry no segment" href="Boundary_(linguistics)"/>
+    <class name="separators" desc="written boundaries that carry no segment" href="Juncture"/>
     <class name="zeros" desc="positions that carry no segment" href="Zero_(linguistics)"/>
   </classes>
 
@@ -89,7 +89,7 @@
        the positive value of a binary feature. -->
   <features>
     <feature name="manner" axis="+constriction" short="mnr" mode="overriding" desc="How airflow is constricted" href="Manner_of_articulation">
-      <value name="silence" short="sil" offscale="+" href="Pause_(linguistics)"/>  <!-- no position: absence of signal, equidistant from every manner -->
+      <value name="silence" short="sil" offscale="+" href="Pausa"/>  <!-- no position: absence of signal, equidistant from every manner -->
       <value name="vowel" offset="0.40" short="vow" href="Vowel"/>
       <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
       <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
@@ -302,7 +302,7 @@
     </feature>
 
     <!-- Diacritic multi-valued features -->
-    <feature name="release" type="categorical" short="rel" mode="release" desc="How stop closure is released" href="Consonant_release">
+    <feature name="release" type="categorical" short="rel" mode="release" desc="How stop closure is released" href="Plosive">
       <value name="aspirated" label="aspirated" short="asp" bare="+" href="Aspirated_consonant"/>
       <value name="breathy" label="breathy-released" short="brt" href="Breathy_voice"/>
       <value name="lateral" label="lateral-released" short="lrl" href="Lateral_release_(phonetics)"/>
@@ -447,7 +447,7 @@
       <value name="syllable" short="slb" href="Syllable"/>
       <value name="word" short="wrd" href="Word"/>
       <value name="phrase" short="phr" href="Prosodic_unit"/>
-      <value name="utterance" short="utt" href="Utterance_(linguistics)"/>
+      <value name="utterance" short="utt" href="Utterance"/>
     </feature>
 
     <!-- The tiers an interval may be declared on. Nominal on purpose, and
@@ -488,7 +488,7 @@
            name them, and a level that splits a node needs a tier for the
            node to sit on. -->
       <value name="phrase" short="phs" href="Prosodic_unit"/>
-      <value name="utterance" short="utr" href="Utterance_(linguistics)"/>
+      <value name="utterance" short="utr" href="Utterance"/>
       <value name="mora" short="mor" href="Mora_(linguistics)"/>
       <value name="morph" short="mph" href="Morpheme"/>
     </feature>

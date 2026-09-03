@@ -63,7 +63,7 @@ prosodic and structural marks ([declared basis](https://en.wikipedia.org/wiki/Su
 
 ### separators
 
-written boundaries that carry no segment ([declared basis](https://en.wikipedia.org/wiki/Boundary_(linguistics))).
+written boundaries that carry no segment ([declared basis](https://en.wikipedia.org/wiki/Juncture)).
 
 `.` `#`
 
