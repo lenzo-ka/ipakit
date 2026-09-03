@@ -106,6 +106,7 @@ from .phonemaps import (
     to_phonemap,
     to_timit,
 )
+from .phoneset_map import Correspondence, PhonesetMapping
 from .rules import (
     DEFAULT_LIMIT,
     Action,
@@ -1015,17 +1016,18 @@ def minimal_pairs(
 
 
 def phoneset_mapping(
-    source: object,
-    target: object,
+    source: Phoneset | Iterable[str],
+    target: Phoneset | Iterable[str],
     *,
     one_to_one: bool = False,
     max_distance: float | None = None,
-) -> object:
+    tied: bool = False,
+) -> PhonesetMapping:
     """Relate one phoneset to another.
 
     Two operations. By default this is DIRECTIONAL and MANY-TO-ONE: each
     source phone gets its closest target, several sources may land on the
-    same one, and :meth:`PhonesetMapping.collapses` reports each contrast
+    same one, and :attr:`PhonesetMapping.collapses` reports each contrast
     the target set cannot carry.
 
     With ``one_to_one=True`` it is a MATCHING instead: each phone used at
@@ -1038,16 +1040,32 @@ def phoneset_mapping(
         one_to_one: match one-to-one rather than nearest
         max_distance: refuse a pairing past this distance, reporting the
             phone unmapped rather than pairing it with the least bad
+        tied: read each entry as one phone, tying a multi-segment entry
+            that is not already tied -- what an inventory list means,
+            where "aɪ" is one diphthong and not a vowel then a glide.
+            Off by default: a bare iterable asserts nothing about its
+            elements, so nothing is tied unless you say so.
 
     Examples:
         >>> m = ipakit.phoneset_mapping(["p", "b"], ["t", "d"])
         >>> [(c.source, c.target) for c in m]
         [('p', 't'), ('b', 'd')]
+
+        An inventory list, where each line is meant as one phone:
+
+        >>> m = ipakit.phoneset_mapping(["aɪ"], ["a", "ɪ"], tied=True)
+        >>> [c.source for c in m]
+        ['a͜ɪ']
     """
+    # Local: these are the two operations `one_to_one` selects between,
+    # and importing them here keeps `ipakit.nearest_mapping` from
+    # existing as a second, unlisted spelling of this function.
     from .phoneset_map import nearest_mapping, one_to_one_mapping
 
     operation = one_to_one_mapping if one_to_one else nearest_mapping
-    return operation(source, target, ipa=_get_ipa(), max_distance=max_distance)  # type: ignore[arg-type]
+    return operation(
+        source, target, ipa=_get_ipa(), max_distance=max_distance, tied=tied
+    )
 
 
 def nearest_phones(
@@ -1430,6 +1448,8 @@ __all__ = [
     "natural_class",
     "nearest_phones",
     "phoneset_mapping",
+    "PhonesetMapping",
+    "Correspondence",
     "normalize",
     "normalize_lookalikes",
     "notebook",

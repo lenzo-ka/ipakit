@@ -1490,6 +1490,7 @@ def _cli_vocabulary():
     make the function count as spelled.
     """
     vocabulary = set()
+    imported: dict[str, set[str]] = {}
     for path in sorted((ROOT / "ipakit" / "cli").glob("*.py")):
         for sub in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(sub, ast.Attribute):
@@ -1500,6 +1501,63 @@ def _cli_vocabulary():
                 vocabulary.add(sub.name.split(".")[-1])
                 if sub.asname:
                     vocabulary.add(sub.asname)
+            elif isinstance(sub, ast.ImportFrom) and sub.module:
+                module = sub.module.split(".")[-1]
+                imported.setdefault(module, set()).update(a.name for a in sub.names)
+    return vocabulary | _helper_vocabulary(imported)
+
+
+def _helper_vocabulary(imported):
+    """What the CLI reads through a non-public helper it imports.
+
+    A command that delegates still reads whatever it delegates to, so a
+    function reached that way has a command-line spelling. Following one
+    hop is what keeps that true across a refactor: `convert phoneset` and
+    `distance map` wanted the same inventory reading and different
+    reporting, so the reading moved into `read_inventory_entry` -- and
+    `from_wild`, still reached by `--wild` on both, stopped being written
+    anywhere under `cli/`. Before that extraction the two commands each
+    spelled it, and it was the duplication that satisfied this predicate.
+
+    Two narrowings, and both are load-bearing:
+
+    NON-PUBLIC HELPERS ONLY. What a *public* function calls is its own
+    business, not a command-line spelling. `to_timit` calls the generic
+    `to_phonemap`, and the CLI deliberately spells one subcommand per map
+    rather than the generic -- which is the reason `to_phonemap` is
+    declared library-only. Following public API would erase exactly the
+    distinction this set exists to draw.
+
+    READS THROUGH THE FEATURES OBJECT ONLY. A bare attribute name is
+    ambiguous across receivers: `rules.parse` calls `source.find(...)` on
+    a *string*, which would otherwise credit the public `find` with a
+    spelling it does not have. A call on a parameter annotated
+    `IPAFeatures` is a read of the library; a call on a `str` is not.
+    """
+    vocabulary = set()
+    for module, names in imported.items():
+        source = ROOT / "ipakit" / f"{module}.py"
+        if not source.exists():
+            continue
+        for node in ast.parse(source.read_text(encoding="utf-8")).body:
+            if not isinstance(node, ast.FunctionDef) or node.name not in names:
+                continue
+            if node.name in ipakit.__all__:
+                continue
+            receivers = {
+                argument.arg
+                for argument in node.args.args + node.args.kwonlyargs
+                if argument.annotation is not None
+                and "IPAFeatures" in ast.unparse(argument.annotation)
+            }
+            for sub in ast.walk(node):
+                if (
+                    isinstance(sub, ast.Call)
+                    and isinstance(sub.func, ast.Attribute)
+                    and isinstance(sub.func.value, ast.Name)
+                    and sub.func.value.id in receivers
+                ):
+                    vocabulary.add(sub.func.attr)
     return vocabulary
 
 

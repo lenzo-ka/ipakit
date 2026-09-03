@@ -731,7 +731,11 @@ class MapCommand(Command):
         add_format_arg(parser)
 
     def run(self) -> int:
-        from ..phoneset_map import nearest_mapping, one_to_one_mapping
+        from ..phoneset_map import (
+            nearest_mapping,
+            one_to_one_mapping,
+            read_inventory_entry,
+        )
 
         for path in (self.args.source, self.args.target):
             if not Path(path).exists():
@@ -746,14 +750,11 @@ class MapCommand(Command):
         # is a mistake worth stopping for and 'unmapped' does not say so.
         def read(phone: str) -> str:
             """One entry as this invocation reads it, complaining if it moved."""
-            house = self.ipa.from_wild(phone) if self.args.wild else phone
-            if house != phone:
-                print(f"wild: {phone} -> {house}", file=sys.stderr)
-            if not self.args.no_tie and len(self.ipa.segments(house)) > 1:
-                tied = self.ipa.add_ties(house)
-                if len(self.ipa.segments(tied)) == 1:
-                    print(f"tied: {house} -> {tied}", file=sys.stderr)
-                    house = tied
+            house, steps = read_inventory_entry(
+                phone, self.ipa, wild=self.args.wild, tie=not self.args.no_tie
+            )
+            for kind, before, after in steps:
+                print(f"{kind}: {before} -> {after}", file=sys.stderr)
             return house
 
         source = Phoneset.from_list([read(p) for p in source.phones], source.name)
@@ -802,7 +803,7 @@ class MapCommand(Command):
                         }
                         for c in mapping
                     ],
-                    "collapses": {k: list(v) for k, v in mapping.collapses().items()},
+                    "collapses": {k: list(v) for k, v in mapping.collapses.items()},
                     "unmapped": list(mapping.unmapped),
                     "unused_targets": list(mapping.unused_targets),
                     "total_distance": round(mapping.total_distance, 4),
@@ -816,7 +817,7 @@ class MapCommand(Command):
                 continue
             tie = f"  ties: {' '.join(c.ties)}" if c.ties else ""
             print(f"{c.source}\t{c.target}\t{c.distance:.4f}{tie}")
-        collapses = mapping.collapses()
+        collapses = mapping.collapses
         if collapses:
             # Printed rather than left to be noticed: a merged contrast is
             # the whole reason to read a many-to-one mapping.

@@ -66,8 +66,8 @@ class TestTheTwoOperationsDiffer:
         assert set(mapping.unmapped) == {"ʃ", "ʒ"}
 
     def test_only_the_nearest_mapping_collapses(self) -> None:
-        assert nearest_mapping(self.SOURCE, self.TARGET).collapses()
-        assert one_to_one_mapping(self.SOURCE, self.TARGET).collapses() == {}
+        assert nearest_mapping(self.SOURCE, self.TARGET).collapses
+        assert one_to_one_mapping(self.SOURCE, self.TARGET).collapses == {}
 
 
 class TestCollapseIsTheReportWorthReading:
@@ -75,10 +75,10 @@ class TestCollapseIsTheReportWorthReading:
 
     def test_it_names_the_target_and_every_source_that_landed_on_it(self) -> None:
         mapping = nearest_mapping(["s", "ʃ", "z"], ["s", "z"])
-        assert mapping.collapses() == {"s": ("s", "ʃ")}
+        assert mapping.collapses == {"s": ("s", "ʃ")}
 
     def test_a_mapping_that_preserves_every_contrast_collapses_nothing(self) -> None:
-        assert nearest_mapping(["p", "t"], ["p", "t"]).collapses() == {}
+        assert nearest_mapping(["p", "t"], ["p", "t"]).collapses == {}
 
     def test_an_identical_phoneset_maps_onto_itself_at_zero(self) -> None:
         mapping = nearest_mapping(["p", "t", "k"], ["p", "t", "k"])
@@ -111,8 +111,8 @@ class TestTiesAreReportedNotResolved:
         assert len(distances) == 1, "the fixture is only a tie if these are equal"
 
     def test_ambiguous_collects_them(self) -> None:
-        assert nearest_mapping(["t͡ʃ"], ["s", "t"]).ambiguous()
-        assert not nearest_mapping(["p"], ["p"]).ambiguous()
+        assert nearest_mapping(["t͡ʃ"], ["s", "t"]).ambiguous
+        assert not nearest_mapping(["p"], ["p"]).ambiguous
 
 
 class TestMaxDistanceRefusesRatherThanForcing:
@@ -341,3 +341,82 @@ class TestTyingChangesOnlyWhatNeedsIt:
         assert tied.count(self.TIE_BAR) == 1, "only d-z is consonant to consonant"
         assert tied.count(self.SEQ_TIE) == 3, "c-a, a-d and z-a are all mixed"
         assert tied.index(self.TIE_BAR) == tied.index("d") + 1
+
+
+class TestTheSharedReader:
+    """Both commands read an entry the same way, or their results differ.
+
+    `distance map` and `convert phoneset` want the same reading and
+    different reporting -- a line per change while streaming against a
+    tally at the end. Writing it twice is how two readings drift apart,
+    so the reading returns its steps and each caller reports them.
+    """
+
+    @staticmethod
+    def _read(phone: str, **kw):
+        from ipakit.phoneset_map import read_inventory_entry
+
+        return read_inventory_entry(phone, ipakit.IPAFeatures(), **kw)
+
+    def test_an_entry_needing_nothing_reports_no_steps(self) -> None:
+        assert self._read("p") == ("p", [])
+
+    def test_a_tie_is_supplied_and_named(self) -> None:
+        house, steps = self._read("dʒ")
+        assert house == "d͡ʒ"
+        assert steps == [("tied", "dʒ", "d͡ʒ")]
+
+    def test_a_wild_spelling_is_left_alone_unless_asked(self) -> None:
+        assert (
+            self._read("t͜s")[0] == "t͜s"
+        ), "a valid tied construction is not rewritten"
+        house, steps = self._read("t͜s", wild=True)
+        assert house == "t͡s"
+        assert steps == [("wild", "t͜s", "t͡s")]
+
+    def test_both_steps_are_reported_in_order(self) -> None:
+        # `g` is the ASCII stand-in, so the wild read fires first and the
+        # tie is then supplied on what it produced.
+        house, steps = self._read("gz", wild=True)
+        assert [kind for kind, _, _ in steps] == ["wild", "tied"]
+        assert steps[1][1] == steps[0][2], "the tie reads what the wild step wrote"
+        assert house == steps[-1][2]
+
+    def test_no_tie_leaves_a_multi_segment_entry_alone(self) -> None:
+        assert self._read("dʒ", tie=False) == ("dʒ", [])
+
+    def test_an_entry_that_cannot_resolve_comes_back_as_it_stands(self) -> None:
+        house, _ = self._read("ɟʝx")
+        assert isinstance(house, str), "returned for the caller to refuse, not raised"
+
+
+class TestThePublicEntryPointReachesTheWholeOperation:
+    """``ipakit.phoneset_mapping`` is the only public door to this module.
+
+    It shipped without ``tied``, so a library caller holding an inventory
+    list -- the case the CLI reads by default -- could not ask for the
+    reading the CLI gives, and nothing said so: the call succeeded and
+    quietly compared untied entries. The signature comparison is what
+    notices mechanically; the forwarding test is what says a parameter is
+    wired through rather than merely accepted.
+    """
+
+    def test_it_forwards_tied_rather_than_only_accepting_it(self) -> None:
+        (tied,) = [
+            c.source for c in ipakit.phoneset_mapping(["aɪ"], ["a", "ɪ"], tied=True)
+        ]
+        (plain,) = [c.source for c in ipakit.phoneset_mapping(["aɪ"], ["a", "ɪ"])]
+        assert (tied, plain) == ("a͜ɪ", "aɪ")
+
+    def test_it_offers_every_option_the_operations_take(self) -> None:
+        """``ipa`` is deliberately absent: the public path supplies it."""
+        import inspect
+
+        public = set(inspect.signature(ipakit.phoneset_mapping).parameters)
+        for operation in (nearest_mapping, one_to_one_mapping):
+            options = set(inspect.signature(operation).parameters)
+            options -= {"source", "target", "ipa"}
+            assert options <= public, (
+                f"{operation.__name__} takes {sorted(options - public)},"
+                " unreachable from ipakit.phoneset_mapping"
+            )

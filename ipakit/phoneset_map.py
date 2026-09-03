@@ -44,6 +44,7 @@ __all__ = [
     "Correspondence",
     "PhonesetMapping",
     "nearest_mapping",
+    "read_inventory_entry",
     "tie_delimited_entry",
     "one_to_one_mapping",
 ]
@@ -111,6 +112,7 @@ class PhonesetMapping:
         """Correspondences at distance zero -- the phone survived the move."""
         return tuple(c for c in self.mapped if c.distance == 0.0)
 
+    @property
     def collapses(self) -> dict[str, tuple[str, ...]]:
         """Targets that more than one source landed on, and which sources.
 
@@ -130,6 +132,7 @@ class PhonesetMapping:
             if len(sources) > 1
         }
 
+    @property
     def ambiguous(self) -> tuple[Correspondence, ...]:
         """Correspondences where some other target was equally close."""
         return tuple(c for c in self.correspondences if c.ties)
@@ -180,11 +183,83 @@ def tie_delimited_entry(phone: str, ipa: IPAFeatures) -> str:
     return tied if len(ipa.segments(tied)) == 1 else phone
 
 
+def read_inventory_entry(
+    phone: str, ipa: IPAFeatures, *, wild: bool = False, tie: bool = True
+) -> tuple[str, list[tuple[str, str, str]]]:
+    """One inventory entry in house style, and what it took to get there.
+
+    Returns the entry and the steps that changed it, each as
+    ``(kind, before, after)`` with ``kind`` either ``"wild"`` or
+    ``"tied"``. Callers report those however suits them -- a line per
+    change while streaming, or a tally at the end -- which is why this
+    returns them rather than printing: two commands wanted the same
+    reading and different reporting, and writing it twice is how the two
+    readings drift apart.
+
+    The two steps are not the same kind of act. ``wild`` repairs text
+    that is not house-style IPA, and is off by default because a valid
+    tied construction must not be silently rewritten. ``tie`` supplies
+    the ties a delimited entry left out, which the file's one-phone-per-
+    line claim licenses -- see :func:`tie_delimited_entry`.
+
+    An entry that still will not read as one phone is returned as it
+    stands, with the steps that were tried, for the caller to refuse.
+    """
+    steps: list[tuple[str, str, str]] = []
+    house = phone
+    if wild:
+        canonical = ipa.from_wild(house)
+        if canonical != house:
+            steps.append(("wild", house, canonical))
+            house = canonical
+    if tie:
+        tied = tie_delimited_entry(house, ipa)
+        if tied != house:
+            steps.append(("tied", house, tied))
+            house = tied
+    return house, steps
+
+
 def _tied(phoneset: Phoneset, ipa: IPAFeatures) -> Phoneset:
     """Every entry read as one phone, changing only what needs it."""
     return Phoneset.from_list(
         [tie_delimited_entry(p, ipa) for p in phoneset.phones], name=phoneset.name
     )
+
+
+def _prepare(
+    source: Phoneset | Iterable[str],
+    target: Phoneset | Iterable[str],
+    ipa: IPAFeatures | None,
+    tied: bool,
+) -> tuple[IPAFeatures, Phoneset, Phoneset]:
+    """Resolve both sides the same way, whichever operation asked.
+
+    Shared so the two cannot drift: reading an entry differently on the
+    nearest path than on the matching path would make their results
+    incomparable for a reason nothing in the output would show.
+    """
+    features = _features(ipa)
+    left = _as_phoneset(source, "source")
+    right = _as_phoneset(target, "target")
+    if tied:
+        left, right = _tied(left, features), _tied(right, features)
+    return features, left, right
+
+
+def _unmapped(phone: str) -> Correspondence:
+    """A source phone that found no partner."""
+    return Correspondence(phone, None, None)
+
+
+def _refused(cost: float, max_distance: float | None) -> bool:
+    """Whether a pairing at this cost is declined.
+
+    Two reasons, one test: an unreadable entry costs infinity, and a
+    caller's threshold rejects anything past it. Both mean unmapped, and
+    keeping them together is what stops one path checking only one.
+    """
+    return cost == float("inf") or (max_distance is not None and cost > max_distance)
 
 
 def _cost_rows(
@@ -222,7 +297,7 @@ def nearest_mapping(
 
     Directional and many-to-one: several source phones may land on the
     same target, which is how the mapping reports a distinction the
-    target set does not carry. See :meth:`PhonesetMapping.collapses`.
+    target set does not carry. See :attr:`PhonesetMapping.collapses`.
 
     Args:
         source: the phones being mapped, as a Phoneset or any iterable
@@ -237,22 +312,18 @@ def nearest_mapping(
         >>> [(c.source, c.target) for c in m]
         [('p', 't'), ('b', 'd')]
     """
-    features = _features(ipa)
-    left = _as_phoneset(source, "source")
-    right = _as_phoneset(target, "target")
-    if tied:
-        left, right = _tied(left, features), _tied(right, features)
-    if not right.phones:
+    features, left, right = _prepare(source, target, ipa, tied)
+    if not left.phones or not right.phones:
         return PhonesetMapping(
-            left, right, "nearest", tuple(Correspondence(p, None, None) for p in left)
+            left, right, "nearest", tuple(_unmapped(p) for p in left)
         )
 
     rows = _cost_rows(left, right, features)
     found: list[Correspondence] = []
     for phone, row in zip(left.phones, rows, strict=True):
         best = min(row)
-        if best == float("inf") or (max_distance is not None and best > max_distance):
-            found.append(Correspondence(phone, None, None))
+        if _refused(best, max_distance):
+            found.append(_unmapped(phone))
             continue
         at = [right.phones[i] for i, value in enumerate(row) if value == best]
         found.append(Correspondence(phone, at[0], best, tuple(at[1:])))
@@ -359,17 +430,10 @@ def one_to_one_mapping(
         >>> sorted((c.source, c.target) for c in m)
         [('b', 'b'), ('p', 'p')]
     """
-    features = _features(ipa)
-    left = _as_phoneset(source, "source")
-    right = _as_phoneset(target, "target")
-    if tied:
-        left, right = _tied(left, features), _tied(right, features)
+    features, left, right = _prepare(source, target, ipa, tied)
     if not left.phones or not right.phones:
         return PhonesetMapping(
-            left,
-            right,
-            "one-to-one",
-            tuple(Correspondence(p, None, None) for p in left),
+            left, right, "one-to-one", tuple(_unmapped(p) for p in left)
         )
 
     rows = _cost_rows(left, right, features)
@@ -377,12 +441,8 @@ def one_to_one_mapping(
     found: list[Correspondence] = []
     for index, phone in enumerate(left.phones):
         column = assignment[index]
-        if column is None:
-            found.append(Correspondence(phone, None, None))
+        if column is None or _refused(rows[index][column], max_distance):
+            found.append(_unmapped(phone))
             continue
-        cost = rows[index][column]
-        if cost == float("inf") or (max_distance is not None and cost > max_distance):
-            found.append(Correspondence(phone, None, None))
-            continue
-        found.append(Correspondence(phone, right.phones[column], cost))
+        found.append(Correspondence(phone, right.phones[column], rows[index][column]))
     return PhonesetMapping(left, right, "one-to-one", tuple(found))

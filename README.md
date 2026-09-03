@@ -89,6 +89,12 @@ ipakit.word_similarity("kæt", "kæd")   # near 1.0: a minimal pair
 ipakit.sequence_distance(["k", "a", "t"], ["k", "æ", "t"])  # over pre-tokenized phones
 ipakit.nearest_pronunciation("kat", ["kæt", "kɑt"])   # best-matching acceptable variant
 
+# Map one inventory onto another (asymmetric: en->es is not es->en)
+m = ipakit.phoneset_mapping(["s", "z", "ʃ"], ["s", "z"])
+m.collapses          # {'s': ('s', 'ʃ')} -- the contrast the target cannot carry
+ipakit.phoneset_mapping(["s", "z", "ʃ"], ["s", "z"], one_to_one=True).unmapped
+                       # ('ʃ',) -- a matching refuses where nearest merged
+
 # Tokenize / normalize (tie-bar affricates, diphthongs)
 ipakit.tokenize("t͡ʃe͜ɪnd͡ʒ")   # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']
 
@@ -178,6 +184,19 @@ ipakit.from_wild("kæt!")      # 'kæt!'   -- ! could be a click or downstep; no
 See [docs/ties.md](docs/ties.md) for the full soft-read table and the reasoning
 behind `'` and `!`.
 
+`normalize` is not that door. It canonicalizes, and ties only what arrived
+separated — a sequence says each element is one phone, a plain string says
+nothing of the kind:
+
+```python
+ipakit.normalize(["tʃ", "eɪ", "n", "dʒ"])   # 't͡ʃe͜ɪnd͡ʒ' -- each element one phone
+ipakit.normalize("hɛloʊ")                    # 'hɛloʊ'      -- never tied
+ipakit.normalize("tʃ eɪ n dʒ", delimiter=" ")  # the same claim, made about a string
+```
+
+A space here is an alias for the word separator, so splitting on one without
+being asked would invent ties and consume a boundary that was content.
+
 ### Distribution-aware distance
 
 `distance()` is the **raw feature metric** — an absolute, inventory-independent
@@ -251,6 +270,9 @@ ipakit distance confusability p b    # Inventory-relative confusability
 ipakit distance word kæt kæd         # Word similarity
 ipakit distance seq "k a t" "k æ t" # Distance over pre-tokenized phone sequences
 ipakit distance nearest kat kæt kɑt  # Best-matching acceptable variant
+ipakit distance map en.phones es.phones        # Map one inventory onto another
+ipakit distance map en.phones es.phones --one-to-one   # ...as a matching instead
+ipakit convert phoneset wild.phones -o house.phones    # A phoneset file to house style
 ipakit rules apply -s american-english pˈɪn    # Broad to narrow: pʰˈɪ̃n
 ipakit rules trace -s american-english bˈʌtɚ   # Which rule fired, and where
 ipakit rules recognize -r 't -> ʔ / _ #' kæt   # Where it holds, nothing rewritten

@@ -472,6 +472,53 @@ ipakit.rank_sequences(["b", "ʌ", "t", "ɚ"],
 
 On the command line: `distance seq` compares two pre-tokenized sequences (each argument a space-separated token list, `--local` for the fit), and `distance nearest -n K --local` ranks candidates.
 
+## 13. Relating one inventory to another
+
+"The mapping" between two phonesets is ambiguous between two operations that answer different questions, so both are offered and every result says which it is.
+
+**Nearest is directional and many-to-one.** Every source phone takes its closest target, whether or not the target set holds anything like it, so several sources may land on one target. That is the useful answer when you are asking what a second inventory *does* to the distinctions the first one drew, and `collapses` is where it is written down: each entry is a contrast the source set makes that the target set cannot carry.
+
+```python
+import ipakit
+
+en = ["p", "b", "t", "d", "k", "ɡ", "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ"]
+es = ["p", "b", "t", "d", "k", "ɡ", "f", "s", "x"]
+
+nearest = ipakit.phoneset_mapping(en, es)
+nearest.collapses
+# {'b': ('b', 'v'), 'd': ('d', 'ð'), 'f': ('f', 'θ'), 's': ('s', 'z', 'ʃ', 'ʒ')}
+nearest.unused_targets
+# ('x',)
+```
+
+Read that as a claim about the two sets and not about either language: four English contrasts have nowhere to go in this target set, the sibilants merge four ways, and `x` is a target nothing chose. `mapped`, `unmapped`, `exact` (distance zero — the phone survived the move) and `total_distance` describe the same result from other angles, and `ambiguous` lists the correspondences where some other target was equally close, reported as a tie rather than settled by sort order.
+
+**One-to-one is a matching.** Each phone is used at most once, and the pairing minimizes total distance **over the whole set**. That is deliberately not what taking each phone's nearest in turn produces: greedy lets an early phone claim a target a later one needed more, and the total comes out worse with nothing in the result to say so, which is why this solves the assignment rather than sorting. Surplus phones on the larger side come back unmapped, and nothing collapses by construction.
+
+```python
+matched = ipakit.phoneset_mapping(en, es, one_to_one=True)
+matched.unmapped
+# ('v', 'ð', 'z', 'ʃ', 'ʒ')
+matched.collapses
+# {}
+```
+
+**`max_distance` refuses rather than accepts the least bad.** Without it every source phone is paired with something, however far; with it, a phone past the threshold is reported unmapped, which is the honest answer when the target set has no counterpart at all.
+
+```python
+ipakit.phoneset_mapping(["θ", "p"], ["p", "k"], max_distance=0.02).unmapped
+# ('θ',)
+```
+
+**An inventory list means one phone per line, and `tied=True` reads it that way.** A line with more than one segment is missing its ties, and the delimiter is what licenses supplying them — the text does not, since `aɪ` is well-formed IPA for a *sequence*. Which tie is [ties.md](ties.md)'s rule and not a second one kept here: the over-tie claims simultaneity, so consonant-to-consonant takes it and everything else binds sequentially.
+
+```python
+[c.source for c in ipakit.phoneset_mapping(["aɪ", "tʃ"], ["a", "ɪ", "t", "ʃ"], tied=True)]
+# ['a͜ɪ', 't͡ʃ']
+```
+
+On the command line: `distance map SOURCE TARGET` takes two inventory files, one phone per line, and prints the correspondences and the collapses; `--one-to-one` switches operations, `--max-distance` sets the refusal, `--wild` reads non-IPA spellings, `--no-tie` turns off the tied reading, and `-f json` gives the whole result. To convert an inventory file to house style once rather than on every comparison, `convert phoneset` writes what the tied and wild readings produce.
+
 ## Related
 
 - [docs/ties.md](ties.md) — tie conventions, the representation, and how segments compose

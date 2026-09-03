@@ -641,17 +641,16 @@ class PhonesetCommand(Command):
         wild: list[tuple[str, str]] = []
         tied: list[tuple[str, str]] = []
         refused: list[str] = []
+        from ..phoneset_map import read_inventory_entry
+
         for member in source.phones:
-            house = self.ipa.from_wild(member)
-            if house != member:
-                wild.append((member, house))
-            if not self.args.no_tie and len(self.ipa.segments(house)) > 1:
-                candidate = self.ipa.add_ties(house)
-                if len(self.ipa.segments(candidate)) == 1:
-                    tied.append((house, candidate))
-                    house = candidate
-                else:
-                    refused.append(member)
+            house, steps = read_inventory_entry(
+                member, self.ipa, wild=True, tie=not self.args.no_tie
+            )
+            for kind, before, after in steps:
+                (wild if kind == "wild" else tied).append((before, after))
+            if len(self.ipa.segments(house)) != 1:
+                refused.append(member)
             out.append(house)
 
         if refused:
