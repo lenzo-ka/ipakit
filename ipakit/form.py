@@ -69,7 +69,7 @@ import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 
 from .constants import ZERO_CLASS
 from .segment import state_mark_value
@@ -1335,7 +1335,8 @@ class _ClockPathProfile:
 
         segments = path.segments
 
-        def refuse(code: Any) -> None:
+        def refuse(code: Any) -> NoReturn:
+            """Never returns, so every call below is a terminal branch."""
             raise PathRefusal(code, PathOffender(text=self.text, path=path))
 
         if len(segments) < 2 or segments[0] != "clock" or not segments[1].isdigit():
