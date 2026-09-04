@@ -138,7 +138,7 @@ budget = {
     "phased": round(ipakit.segment_distance("t", "t͡s"), 4),
     "diphthong": round(ipakit.segment_distance("e", "e͜ɪ"), 4),
 }
-budget   # {'aspiration': 0.0476, 'dentalization': 0.005, 'labialization': 0.0522, 'fusion': 0.0838, 'phased': 0.2629, 'diphthong': 0.2549}
+budget   # {'aspiration': 0.0476, 'dentalization': 0.005, 'labialization': 0.0543, 'fusion': 0.0838, 'phased': 0.2629, 'diphthong': 0.2549}
 ```
 
 The fusion figure is no longer `d(ɡ,b)/2`. It was, until the fusion branch
@@ -169,7 +169,7 @@ One budget question remains explicitly deferred. A fusion has no arity floor, so
 A bundle distance is the mean over these terms:
 
 - **Each shared or unshared feature key**, scored by that feature's `value_distance` (§2). A key present on one side only scores 1.
-- **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`. Which features are secondary articulations, and the place each constricts at, are declared in the data (`mode="secondary" place="velar"` on the feature) rather than tabulated here. A secondary articulation is read off the assembled bundle, not off the glyph stack, so it counts once and counts the same however it is written — inherent to the base phone (`ɫ`), as a modifier letter (`lˠ`), or as a combining diacritic (`l̴`) — and those three are at distance 0 from each other.
+- **The place components**, as a weighted set. Primary components weigh 1.0, secondary articulations 0.5 (`SECONDARY_WEIGHT`); the term is the larger of the two directional weighted best-match means. This is what puts `tʲ` strictly between `t` and `c`. Which features are secondary articulations, and the place each constricts at, are declared in the data (`mode="secondary" place="velar"` on the feature) rather than tabulated here. A secondary articulation is read off the assembled bundle, not off the glyph stack, so it counts once and counts the same however it is written — inherent to the base phone (`ɫ`), as a modifier letter (`lˠ`), or as a combining diacritic (`l̴`) — and those three are at distance 0 from each other. The tract-x term reads the same constrictions with primary components and click closures at weight 1.0 and secondary articulations at `SECONDARY_WEIGHT`; one coinciding with an existing constriction adds nothing, so `kˠ` and `k` agree on that term. An unlocalized primary withholds the whole tract-x term, including localized secondaries, rather than inventing a location for the primary.
 - **Two tract terms**, `arc` and `offset`, compared directly.
 
 **Bridge features** are derived for the comparison and never stored. They exist because one phonetic dimension can be spelled several ways: `nasality` unifies `manner=nasal`, `nasalized=+`, and `release=nasal`; `laterality` unifies `channel=lateral` and `release=lateral`. Without them, `ã` and `n` share no key expressing nasality at all. With them, `ã` is nearer `n` than plain `a` is. The equivalences are declared in `ipa.xml`'s `<bridges>` block — that three spellings name one dimension is phonetics, not metric mechanics — and the exclusion that goes with them is derived from the same declaration: a feature every one of whose informative values a bridge claims is *carried* by that bridge, so counting it again would cancel the bridge out. `nasalized` is such a feature; `channel` and `release` are not, because each also holds values no bridge claims.

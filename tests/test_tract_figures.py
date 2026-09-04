@@ -1894,9 +1894,10 @@ def test_the_metric_point_is_a_closure_unless_the_place_combines() -> None:
     metric on ``w``.
 
     Stated as the shape of the mistake rather than as today's six segments:
-    a single named place puts the metric's point in the tuple, a combining
-    one keeps it out. Both arms are required to be reached, so removing
-    either kind from the inventory fails here instead of passing vacuously.
+    a single named place puts the metric's point in the tuple, while a
+    combining one keeps it out. Both arms are required to be reached, so
+    removing either kind from the inventory fails here instead of passing
+    vacuously.
     """
     ipa = IPAFeatures()
     combining: list[str] = []
@@ -1914,9 +1915,9 @@ def test_the_metric_point_is_a_closure_unless_the_place_combines() -> None:
             ), f"{phone}: the mean of two places is not a closure at either"
         else:
             simple += 1
-            assert points[0] == summary, (
-                f"{phone}: names one place, so the metric's point is its "
-                f"front-most closure -- got {points[0]} for {summary}"
+            assert summary in points, (
+                f"{phone}: names one place, so the metric's point must be "
+                f"one of its closures -- got {points} for {summary}"
             )
     assert simple > 100, f"only {simple} single-place segments: the sweep is vacuous"
     assert combining, "no combining place reached: the exception is unchecked"
@@ -1942,6 +1943,101 @@ def test_a_click_closes_twice() -> None:
         assert all(
             q.offset is not None and q.offset >= 0.995 for q in points
         ), f"{phone}: a click's closures must be complete"
+
+
+def test_a_secondary_articulation_adds_its_constriction() -> None:
+    """A secondary constricts at its declared place with approximant degree."""
+    ipa = IPAFeatures()
+    place = ipa.features["place"].coordinates
+    approximant = ipa.features["manner"].coordinates["approximant"]["offset"]
+    cases = {
+        "ɫ": (("alveolar", "velar"), "velar"),
+        "tʷ": (("bilabial", "alveolar"), "bilabial"),
+        "tˤ": (("alveolar", "pharyngeal"), "pharyngeal"),
+    }
+    for phone, (names, secondary_name) in cases.items():
+        points = constrictions(ipa, ipa.get_features(phone))
+        assert [point.arc for point in points] == sorted(
+            place[name]["arc"] for name in names
+        )
+        secondary_arc = place[secondary_name]["arc"]
+        secondary = next(point for point in points if point.arc == secondary_arc)
+        assert secondary.offset == approximant
+
+    assert len(constrictions(ipa, ipa.get_features("kˠ"))) == 1
+
+
+def test_combining_places_and_clicks_share_coincident_constrictions() -> None:
+    ipa = IPAFeatures()
+    assert constrictions(ipa, ipa.get_features("pᶣ")) == constrictions(
+        ipa, ipa.get_features("pʲ")
+    )
+    assert [
+        (point.arc, point.offset)
+        for point in constrictions(ipa, ipa.get_features("wˤ"))
+    ] == [(0.0, 0.5), (0.45, 0.5), (0.74, 0.5)]
+    assert [
+        (point.arc, point.offset)
+        for point in constrictions(ipa, ipa.get_features("ǀˠ"))
+    ] == [(0.08, 1.0), (0.45, 1.0)]
+
+
+def test_constrictions_carry_their_kind() -> None:
+    ipa = IPAFeatures()
+
+    def kinds(phone: str) -> tuple[str, ...]:
+        return tuple(
+            point.kind for point in constrictions(ipa, ipa.get_features(phone))
+        )
+
+    assert kinds("ǀˠ") == ("primary", "closure")
+    assert kinds("pᶣ") == ("primary", "secondary")
+    assert kinds("w") == ("primary", "primary")
+    assert kinds("kˠ") == ("primary",)
+
+
+def test_a_coincident_secondary_never_displaces_a_vowel_primary() -> None:
+    """A vowel's primary is more open than an approximant, and a secondary at
+    the vowel's own arc must not replace it: the phone keeps its one primary
+    point, at the vowel's own degree, and gains nothing."""
+    ipa = IPAFeatures()
+    for vowel, marked in (
+        ("ɑ", "ɑˤ"),
+        ("a", "aˤ"),
+        ("ɯ", "ɯˠ"),
+        ("u", "uˠ"),
+        ("i", "iʲ"),
+        ("e", "eʲ"),
+    ):
+        (own,) = constrictions(ipa, ipa.get_features(vowel))
+        (kept,) = constrictions(ipa, ipa.get_features(marked))
+        assert (kept.arc, kept.offset, kept.kind) == (
+            own.arc,
+            own.offset,
+            "primary",
+        ), marked
+    # A non-coincident secondary on a vowel is a second point.
+    assert [p.kind for p in constrictions(ipa, ipa.get_features("oˤ"))] == [
+        "primary",
+        "secondary",
+    ]
+
+
+def test_missing_approximant_coordinate_silently_omits_secondaries(
+    tmp_path: Path,
+) -> None:
+    # A custom inventory may omit this coordinate; its secondaries stay silent.
+    ipa = IPAFeatures()
+    tree = ET.parse(ipa.xml_path)
+    approximant = tree.getroot().find(
+        ".//feature[@name='manner']/value[@name='approximant']"
+    )
+    assert approximant is not None
+    del approximant.attrib["offset"]
+    path = tmp_path / "ipa.xml"
+    tree.write(path, encoding="utf-8", xml_declaration=True)
+    patched = IPAFeatures(path)
+    assert len(constrictions(patched, patched.get_features("tʲ"))) == 1
 
 
 def _draw(*argv: str, out: Path) -> str:

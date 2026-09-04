@@ -42,7 +42,7 @@ class TestTheReadingCarriesEveryConstriction:
         assert isinstance(x, tuple) and len(x) == 2
         assert x == tuple(sorted(x))
         # the lips and the dorsum, not the 0.225 midpoint the average gave
-        assert not any(abs(v - 0.225) < 1e-9 for v in x)
+        assert not any(abs(arc - 0.225) < 1e-9 for arc, _ in x)
 
     def test_a_click_closes_at_its_place_and_the_velum(self, ipa: IPAFeatures) -> None:
         assert len(_x(ipa, "ǃ")) == 2  # type: ignore[arg-type]
@@ -56,11 +56,11 @@ class TestBestMatchIsBackwardCompatibleOnSingletons:
     def test_over_one_tuples_it_is_the_absolute_difference(self) -> None:
         # This is why every single-constriction pair is bit-identical: the
         # set reduction collapses to the subtraction it replaced.
-        assert _arc_distance((0.3,), (0.7,)) == abs(0.3 - 0.7)
-        assert _arc_distance((0.5,), (0.5,)) == 0.0
+        assert _arc_distance(((0.3, 1.0),), ((0.7, 1.0),)) == abs(0.3 - 0.7)
+        assert _arc_distance(((0.5, 1.0),), ((0.5, 1.0),)) == 0.0
 
     def test_it_is_symmetric_and_bounded(self) -> None:
-        a, b = (0.0, 0.45), (0.17,)
+        a, b = ((0.0, 1.0), (0.45, 1.0)), ((0.17, 1.0),)
         assert _arc_distance(a, b) == _arc_distance(b, a)
         assert 0.0 <= _arc_distance(a, b) <= 1.0
 

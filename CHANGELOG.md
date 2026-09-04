@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The metric's tract-x reading includes secondary articulations at `SECONDARY_WEIGHT`; `confusion.json` is regenerated.
+
 ### Added
 
 - Mapping one phoneset onto another, as `ipakit.phoneset_mapping` and `ipakit distance map`: nearest (directional and many-to-one, with `collapses` naming each contrast the target set cannot carry) or one-to-one (an optimal matching, not greedy). `max_distance` refuses a pairing rather than accepting the least bad one, and `tied` reads an inventory list as one phone per line. [docs/distance.md](docs/distance.md) §13.

@@ -55,6 +55,13 @@ def test_projection_reads_inventory_tract_vocabulary() -> None:
     )
 
 
+def test_projection_keeps_a_secondary_on_a_combining_primary() -> None:
+    inventory, graph = _inventory_and_graph("wˤ")
+    projected = project(graph, inventory)
+    gestures = tuple(event for _, event in _tier_events(projected, GESTURE_TIER))
+    assert tuple(event.features["arc"] for event in gestures) == (0.0, 0.45, 0.74)
+
+
 def test_timed_targets_follow_time_while_fallbacks_follow_structure() -> None:
     inventory, segments = _inventory_and_graph()
     gestures = project(segments, inventory)

@@ -31,13 +31,15 @@ in ``ipa.xml`` rather than from a list here:
     declared on the glottal-aperture axis, and off the projections onto
     it, which is how a coarser spelling still gets a position.
 :func:`secondary_marks`
-    A secondary articulation declares its own place, so it is a second
-    constriction and genuinely drawable.
+    A secondary articulation declares its own place, so it is drawn as a
+    second constriction. :func:`constrictions` returns it as well, and the
+    metric reads it at ``SECONDARY_WEIGHT``.
 :func:`unmodeled`
     Everything else a segment states that this plane does not carry, with
     the reason it does not, so a renderer annotates instead of inventing.
 
-None of them is read by ``ipakit.metric``, and none moves a distance.
+Glottal and unmodeled annotations stay outside the tract coordinates the
+metric reads.
 """
 
 from __future__ import annotations
@@ -95,8 +97,11 @@ _ANCHORS = ("center", "onset")
 class TractPoint:
     """Where a constriction is, and what makes it.
 
-    ``arc`` and ``offset`` locate the constriction; ``articulator`` names
-    the organ that travels there. Place names the target, not the mover:
+    ``arc`` locates the constriction along the tract midline.
+    ``offset`` records its degree from open midline to full closure.
+    ``articulator`` names the organ that travels there.
+    ``kind`` distinguishes primary, closure, and secondary constrictions.
+    Place names the target, not the mover:
     the two coincide by convention for most sounds, but not for
     linguolabials (tongue to the upper lip) or apical/laminal contrasts.
     A renderer needs the articulator to animate at all.
@@ -105,6 +110,7 @@ class TractPoint:
     arc: float | None  # 0 lips .. 1 glottis, None if unplaced
     offset: float | None  # 0 open midline .. 1 full closure, None if unplaced
     articulator: str | None = None  # the organ that moves, None if unknown
+    kind: str = "primary"
 
     @property
     def placed(self) -> bool:
@@ -1344,6 +1350,8 @@ def constrictions(
     * a **combining place** is two places by definition. ``bilabial^velar``
       declares no arc of its own precisely because its position is its
       components', so ``w`` had nowhere to be drawn at all.
+    * a **secondary articulation** constricts at its declared place with
+      approximant degree, unless the primary already constricts there.
 
     Returned front to back, and every element is a constriction the segment
     actually makes. That is not ``tract_point``'s answer with company added.
@@ -1365,6 +1373,8 @@ def constrictions(
         >>> ipa = ipakit.load_ipa_features()
         >>> [(c.arc, c.offset) for c in constrictions(ipa, ipa.get_features("w"))]
         [(0.0, 0.5), (0.45, 0.5)]
+        >>> [(c.arc, c.offset) for c in constrictions(ipa, ipa.get_features("ɫ"))]
+        [(0.13, 0.5), (0.45, 0.5)]
         >>> tract_point(ipa, ipa.get_features("w")).arc
         0.225
     """
@@ -1373,7 +1383,7 @@ def constrictions(
     if place is None or primary.arc is None:
         return (primary,)
 
-    def at(value: str, offset: float) -> TractPoint | None:
+    def at(value: str, offset: float, kind: str) -> TractPoint | None:
         arc = place.coordinates.get(value, {}).get("arc")
         if arc is None:
             return None
@@ -1381,25 +1391,65 @@ def constrictions(
             arc=arc,
             offset=offset,
             articulator=place.articulators.get(value),
+            kind=kind,
         )
 
     named = bundle.get("place") or ""
-    extra: list[TractPoint] = []
+    points: list[TractPoint] = []
+
+    def collect(point: TractPoint | None) -> None:
+        """Add one arc; a coincident secondary yields to what is there.
+
+        A secondary at the same arc as a primary or a closure asserts
+        nothing the segment has not, whatever the degrees: a vowel's
+        primary is more open than an approximant and is still the
+        primary. Two points of one kind keep the tighter.
+        """
+        if point is None or point.arc is None:
+            return
+        for index, old in enumerate(points):
+            if old.arc is not None and abs(point.arc - old.arc) <= 1e-9:
+                if point.kind == "secondary" and old.kind != "secondary":
+                    return
+                if old.kind == "secondary" and point.kind != "secondary":
+                    points[index] = point
+                elif (point.offset or 0.0) > (old.offset or 0.0):
+                    points[index] = point
+                return
+        points.append(point)
 
     # A combining place is its components, each making the constriction.
     if Feature.COMBINER in named:
-        parts = [at(v, primary.offset or 1.0) for v in named.split(Feature.COMBINER)]
-        found = [q for q in parts if q is not None]
-        if found:
-            return tuple(sorted(found, key=lambda q: q.arc or 0.0))
+        for value in named.split(Feature.COMBINER):
+            collect(at(value, primary.offset or 1.0, "primary"))
+    else:
+        collect(primary)
 
     # A click holds a velar closure behind whatever it names.
     if bundle.get("airstream") == "velaric":
-        back = at("velar", 1.0)
-        if back is not None and abs((back.arc or 0.0) - primary.arc) > 1e-9:
-            extra.append(back)
+        back = at("velar", 1.0, "closure")
+        collect(back)
 
-    return tuple(sorted((primary, *extra), key=lambda q: q.arc or 0.0))
+    # A secondary articulation is a constriction too, of approximant
+    # degree: lesser than the primary, and read off the manner scale
+    # rather than chosen here, because a secondary of any greater degree
+    # would BE the primary. It is skipped where it coincides with a
+    # constriction already collected, primary or closure: a place already
+    # constricts there, so adding a secondary asserts nothing it has not.
+    manner_scale = features.features.get("manner")
+    lesser = (
+        manner_scale.coordinates.get("approximant", {}).get("offset")
+        if manner_scale is not None
+        else None
+    )
+    if lesser is not None:
+        for secondary, target in features.secondary_places.items():
+            if bundle.get(secondary) != "+":
+                continue
+            for value in target.split(Feature.COMBINER):
+                collect(at(value, lesser, "secondary"))
+
+    return tuple(sorted(points, key=lambda q: q.arc or 0.0))
 
 
 def glottal_scale(features: IPAFeatures) -> Feature | None:
@@ -1505,10 +1555,8 @@ def secondary_marks(features: IPAFeatures, bundle: dict[str, str]) -> tuple[Mark
     drawable in this plane -- it has a place and a degree like any other
     constriction -- so it is drawn rather than annotated. It is drawn
     lighter than the primary because it is lesser, not because it is less
-    certain. It stays out of :func:`constrictions`, whose members are the
-    closures the segment is *made of*: putting it there would deform the
-    tongue body identically to a primary constriction of the same degree,
-    which claims more than the phone declares.
+    certain. :func:`constrictions` returns the same articulation, and the
+    metric reads its place at ``SECONDARY_WEIGHT``.
     """
     place = features.features.get("place")
     manner = features.features.get("manner")
