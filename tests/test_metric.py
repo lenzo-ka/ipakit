@@ -13,16 +13,19 @@ import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR
 from ipakit.metric import (
+    _UNLOCALIZED,
     SECONDARY_WEIGHT,
     _arity_base,
     _metric_bundle,
     _nearest_part_cost,
+    _tract_x,
     bundle_distance,
     excluded_keys,
     metric_fingerprint,
     segment_metric,
     segment_terms,
 )
+from ipakit.tract import constrictions
 from scripts.invariants import check_fusion_arity
 
 
@@ -250,6 +253,35 @@ class TestMaterialBudget:
 
 
 class TestSecondaryArticulation:
+    def test_tract_x_reads_secondary_constrictions(self, ipa: IPAFeatures) -> None:
+        assert len(_tract_x(ipa, ipa.get_features("ɫ"))) == 2
+        assert len(_tract_x(ipa, ipa.get_features("l"))) == 1
+
+    def test_plain_phone_tract_entries_keep_unit_weight(self, ipa: IPAFeatures) -> None:
+        for phone in ipa.phones:
+            bundle = ipa.get_features(phone)
+            if any(bundle.get(name) == "+" for name in ipa.secondary_places):
+                continue
+            reading = _tract_x(ipa, bundle)
+            if isinstance(reading, tuple):
+                assert all(weight == 1.0 for _, weight in reading), phone
+
+    def test_tract_x_changes_bundle_distance(self, ipa: IPAFeatures) -> None:
+        assert ipa.distance("k", "kˠ") == 0.0
+        assert ipa.distance("l", "ɫ") > 0.0
+        assert ipa.distance("t", "tʷ") > 0.0
+
+    def test_secondary_spellings_have_identical_tract_x(self, ipa: IPAFeatures) -> None:
+        readings = [
+            _tract_x(ipa, ipa.get_features(phone)) for phone in ["ɫ", "lˠ", "l̴"]
+        ]
+        assert readings[1:] == readings[:-1]
+
+    def test_explanation_reports_secondary_tract_x(self, ipa: IPAFeatures) -> None:
+        step = next(s for s in ipa.explain_word_distance("l", "ɫ") if s["op"] == "sub")
+        tract_x = next(t for t in step["terms"] if t["label"] == "tract-x")
+        assert tract_x["cost"] > 0.0
+
     def test_palatalization_moves_toward_palatal(self, ipa: IPAFeatures) -> None:
         # place(t, tʲ) = δ/3 < place(tʲ, c) = 2δ/3 < place(t, c) = δ shows
         # through the full D as a strict ordering.
@@ -262,6 +294,29 @@ class TestSecondaryArticulation:
 
     def test_secondary_never_outweighs_primary(self, ipa: IPAFeatures) -> None:
         assert D(ipa, "t", "tʲ") < D(ipa, "t", "c")
+
+    def test_secondary_tract_weight_preserves_primary_orderings(
+        self, ipa: IPAFeatures
+    ) -> None:
+        for velar, labialized, labial in [
+            ("k", "kʷ", "p"),
+            ("ɡ", "ɡʷ", "b"),
+            ("ŋ", "ŋʷ", "m"),
+            ("x", "xʷ", "ɸ"),
+            ("ɣ", "ɣʷ", "β"),
+            ("ɠ", "ɠʷ", "ɓ"),
+        ]:
+            assert D(ipa, velar, labialized) < D(ipa, velar, labial)
+
+    def test_unlocalized_primary_withholds_secondary_tract_x(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert _tract_x(ipa, ipa.get_features("ɚˤ")) is _UNLOCALIZED
+        pharyngeal = ipa.features["place"].coordinates["pharyngeal"]["arc"]
+        assert any(
+            point.arc == pharyngeal
+            for point in constrictions(ipa, ipa.get_features("ɚˤ"))
+        )
 
     def test_secondary_counted_once(self, ipa: IPAFeatures) -> None:
         # The articulation enters as exactly one weighted component. Twice

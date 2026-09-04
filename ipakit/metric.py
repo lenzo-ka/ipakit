@@ -209,8 +209,8 @@ _UNLOCALIZED = _Unlocalized()
 
 def _tract_x(
     features: IPAFeatures, bundle: dict[str, str]
-) -> tuple[float, ...] | _Unlocalized | None:
-    """The tract-x reading: the arcs a segment constricts at.
+) -> tuple[tuple[float, float], ...] | _Unlocalized | None:
+    """The tract-x reading: ``(arc, weight)`` for every constriction.
 
     A sorted tuple of every constriction's arc, so a double articulation is
     two positions rather than the average of two -- ``w`` closes at the lips
@@ -219,11 +219,12 @@ def _tract_x(
     single-point reading did. ``_UNLOCALIZED`` where a stated feature
     declares its constriction has no single location: a rhotacized nucleus
     constricts, but the evidence gives no arc to place it at, so the metric
-    withholds the term rather than inventing a position.
+    withholds the whole term rather than inventing a position, including
+    any localized secondary articulation the same segment states.
 
-    A single-constriction segment yields a one-tuple ``(arc,)`` whose arc is
-    the single point's, so its distances and its fingerprint line do not
-    move.
+    Primary components and click closures weigh 1.0; secondary articulations
+    weigh ``SECONDARY_WEIGHT``. A single-constriction segment yields one
+    ``(arc, 1.0)`` entry and keeps the same distance and fingerprint text.
     """
     for name, feat in features.features.items():
         if feat.constriction == "unlocalized":
@@ -231,23 +232,39 @@ def _tract_x(
             if value is not None and value != feat.default:
                 return _UNLOCALIZED
     arcs = tuple(
-        sorted(p.arc for p in constrictions(features, bundle) if p.arc is not None)
+        sorted(
+            (p.arc, SECONDARY_WEIGHT if p.kind == "secondary" else 1.0)
+            for p in constrictions(features, bundle)
+            if p.arc is not None
+        )
     )
     return arcs or None
 
 
-def _arc_distance(a: tuple[float, ...], b: tuple[float, ...]) -> float:
+def _arc_distance(
+    a: tuple[tuple[float, float], ...], b: tuple[tuple[float, float], ...]
+) -> float:
     """Directional best-match between two sets of arcs, in [0, 1].
 
     ``max`` of the two directional means, the shape
     :func:`_weighted_place_distance` uses for place components. Over two
-    one-tuples it is ``|a - b|``, so a single-constriction pair scores
-    exactly as the single-point subtraction did. The tuples are sorted, so
-    the mean sums them in a fixed order and the matrix stays reproducible.
+    weight-1.0 singletons it is ``|a - b|``, so a single-constriction pair
+    scores exactly as the single-point subtraction did. The tuples are sorted,
+    so the mean sums them in a fixed order and the matrix stays reproducible.
     """
 
-    def direction(src: tuple[float, ...], dst: tuple[float, ...]) -> float:
-        return sum(min(abs(s - t) for t in dst) for s in src) / len(src)
+    def direction(
+        src: tuple[tuple[float, float], ...],
+        dst: tuple[tuple[float, float], ...],
+    ) -> float:
+        total_weight = sum(weight for _, weight in src)
+        return (
+            sum(
+                weight * min(abs(arc - target) for target, _ in dst)
+                for arc, weight in src
+            )
+            / total_weight
+        )
 
     return max(direction(a, b), direction(b, a))
 
@@ -266,7 +283,9 @@ def _tract_terms_text(features: IPAFeatures, bundle: dict[str, str]) -> list[str
     elif x is None:
         arcs = [repr(None)]
     else:
-        arcs = [repr(v) for v in x]
+        arcs = [
+            repr(arc) if weight == 1.0 else repr((arc, weight)) for arc, weight in x
+        ]
     return arcs + [repr(offset)]
 
 

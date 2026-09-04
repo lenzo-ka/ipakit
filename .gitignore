@@ -50,3 +50,6 @@ omp-review-*.session.jsonl
 # this directory intentionally untracked and authenticates its contents through
 # MANIFEST.sha256 rather than through git.
 captures/
+
+# On-demand working artifacts from scripts/frontal_figures.py, unpinned by design.
+talking-heads/

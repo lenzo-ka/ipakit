@@ -150,7 +150,7 @@ close as any pair gets" and the numbers spread out:
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
 # 0.9962464810760088
-ipa.confusability("f", "a")  # 0.27598790532791156
+ipa.confusability("f", "a")  # 0.27588364091335627
 ```
 
 ```console
@@ -164,7 +164,7 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9833333333333333
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.9870364577902895
+# 0.9870712125951413
 ```
 
 > **These are two numbers for one English phrase.** `ipakit distance word` prints the
@@ -175,7 +175,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9870  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9871  [reference: ipa, 139 phones]
 $ ipakit distance word --raw kæt kæd
 kæt ~ kæd: similarity=0.9833  [raw feature distance]
 ```
@@ -983,8 +983,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.confusability("tʰ", "t"), 4)  # 0.9655
-round(ipa.confusability("tʰ", "t"), 4)  # 0.9642
+round(model.confusability("tʰ", "t"), 4)  # 0.9656
+round(ipa.confusability("tʰ", "t"), 4)  # 0.9643
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the
