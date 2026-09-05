@@ -39,3 +39,4 @@ recursive-include docs *.svg
 
 # Bridge declarations and the grammars stating their shape.
 recursive-include ipakit/data/bridges *.xml *.rng
+recursive-include ipakit/data/textgrid *.json

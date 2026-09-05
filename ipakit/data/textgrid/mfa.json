@@ -1,0 +1,50 @@
+{
+  "summary": "The two-tier layout a forced aligner writes, on physical time.",
+  "tier_map": {
+    "words": "word",
+    "phones": "segment"
+  },
+  "span_view": {
+    "base_tier": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "base"
+    },
+    "span_tiers": [
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "words"
+      },
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "phones"
+      }
+    ],
+    "coverage_relation": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "coverage"
+    },
+    "score_attribute": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "score"
+    },
+    "value_attribute": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "spelling"
+    },
+    "char_offset_attribute": null,
+    "alternative_relation": null,
+    "point_tiers": [],
+    "point_coverage_relation": null,
+    "value_attributes": {
+      "{https://ipakit.dev/textgrid/v1}words": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}phones": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      }
+    },
+    "clock_face": "physical"
+  }
+}

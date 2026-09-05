@@ -1,0 +1,90 @@
+{
+  "summary": "Structural intervals with stress and tone points.",
+  "tier_map": {
+    "utterance": "utterance",
+    "word": "word",
+    "syllable": "syllable",
+    "segment": "segment",
+    "stress": "stress",
+    "tone": "tone"
+  },
+  "span_view": {
+    "base_tier": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "base"
+    },
+    "span_tiers": [
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "utterance"
+      },
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "word"
+      },
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "syllable"
+      },
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "segment"
+      }
+    ],
+    "coverage_relation": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "coverage"
+    },
+    "score_attribute": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "score"
+    },
+    "value_attribute": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "spelling"
+    },
+    "char_offset_attribute": null,
+    "alternative_relation": null,
+    "point_tiers": [
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "stress"
+      },
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "tone"
+      }
+    ],
+    "point_coverage_relation": {
+      "namespace": "https://ipakit.dev/textgrid/v1",
+      "local_name": "point-coverage"
+    },
+    "value_attributes": {
+      "{https://ipakit.dev/textgrid/v1}utterance": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}word": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}syllable": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}segment": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}stress": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}tone": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      }
+    },
+    "clock_face": "tick"
+  }
+}

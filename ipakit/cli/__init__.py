@@ -60,6 +60,7 @@ from .policy import report
 from .query import QueryGroup
 from .rules import RulesGroup
 from .syllabify import SyllabifyCommand
+from .textgrid import TextGridGroup
 from .tiergraph import TiergraphCommand
 from .tract import TractGroup
 
@@ -76,6 +77,7 @@ GROUPS = [
     InfoGroup,
     InventoryGroup,
     PhoibleGroup,
+    TextGridGroup,
     TractGroup,
 ]
 

@@ -190,6 +190,7 @@ WITNESSES = [
     ["syllabify", "cat", "--language", "english"],
     ["query", "find", "n", "pin"],
     ["tiergraph", "cat"],
+    ["textgrid", "write", "cat"],
     ["features", "cat"],
     ["describe", "cat"],
     ["tract", "draw", "c"],
