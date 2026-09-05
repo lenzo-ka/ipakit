@@ -2,12 +2,15 @@ import argparse
 import dataclasses
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import ipakit.textgrid as textgrid
 import pytest
 from ipakit.cli.textgrid import TextGridWriteCommand
 from ipakit.form import Form, Interval, Timing
+from ipakit.inventories import Style
 from ipakit.textgrid import TEXTGRID_DIR, profile, profiles, read, write
 
 FIXTURES = Path(__file__).parent / "fixtures" / "textgrid"
@@ -45,6 +48,91 @@ def test_mfa_read_and_golden() -> None:
     ]
     assert read(document, profile="mfa") == actual
     assert write(actual, "mfa") == document
+
+
+def test_mfa_style_round_trips_both_hand_written_goldens() -> None:
+    for name in ("mfa_two_words.TextGrid", "mfa_untied.TextGrid"):
+        document = (FIXTURES / name).read_text(encoding="utf-8")
+        assert (
+            write(read(document, profile="mfa", style="mfa"), "mfa", style="mfa")
+            == document
+        )
+
+
+def test_cmudict_style_reads_stress_and_writes_its_declared_collapse() -> None:
+    document = (FIXTURES / "cmudict.TextGrid").read_text(encoding="utf-8")
+    form = read(document, profile="mfa", style="cmudict")
+    assert [unit.text for unit in form.units] == ["ə", "k", "t"]
+    canonical = document.replace('text = "AH0 K T"', 'text = "AH K T"').replace(
+        'text = "AH0"', 'text = "AH"'
+    )
+    assert write(form, "mfa", style="cmudict") == canonical
+    collapsed = dataclasses.replace(form.units[0], text="ʌ")
+    assert (
+        write(
+            Form.of((collapsed, *form.units[1:]), form.intervals),
+            "mfa",
+            style="cmudict",
+        )
+        == canonical
+    )
+
+
+def test_cmudict_hand_written_stress_and_affricate_round_trip() -> None:
+    document = (FIXTURES / "cmudict_stress.TextGrid").read_text(encoding="utf-8")
+    form = read(document, profile="mfa", style="cmudict")
+    assert [unit.text for unit in form.units] == ["ˈʌ", "ˌʌ", "d͡ʒ"]
+    assert write(form, "mfa", style="cmudict") == document
+
+
+@pytest.mark.parametrize(("tier", "mark"), [("stress", "ˈ"), ("tone", "˥˩")])
+def test_styled_prosody_point_is_not_duplicated_in_intervals(
+    tier: str, mark: str
+) -> None:
+    base = write(Form.parse("a"), "prosody")
+    document = base.replace(
+        f'name = "{tier}" \n        xmin = 0 \n        xmax = 1 \n        points: size = 0',
+        f'name = "{tier}" \n        xmin = 0 \n        xmax = 1 \n        points: size = 1 \n        points [1]:\n            number = 0 \n            mark = "{mark}"',
+    )
+    form = read(document, profile="prosody", style="mfa")
+    assert write(form, "prosody", style="mfa") == document
+    assert all(
+        line.strip() == 'text = "a"'
+        for line in document.splitlines()
+        if "text =" in line and 'text = ""' not in line
+    )
+
+
+def test_cmudict_stress_lives_in_label_or_point_by_profile() -> None:
+    parsed = Form.parse("ˈʌkt")
+    timed = Form.of(
+        tuple(
+            dataclasses.replace(unit, timing=Timing(index, 1))
+            for index, unit in enumerate(parsed.units)
+        )
+    )
+    mfa = write(timed, "mfa", style="cmudict")
+    assert ["AH1", "K", "T"] == [
+        line.split('"')[1] for line in mfa.splitlines() if "text =" in line
+    ][1:]
+    reread = read(mfa, profile="mfa", style="cmudict")
+    assert reread.to_ipa() == timed.to_ipa()
+    assert [unit.timing for unit in reread.units] == [
+        unit.timing for unit in timed.units
+    ]
+
+    prosody = write(parsed, "prosody", style="cmudict")
+    assert 'text = "AH"' in prosody
+    assert 'mark = "ˈ"' in prosody
+    assert read(prosody, profile="prosody", style="cmudict") == parsed
+
+
+def test_unspellable_marked_unit_recommends_its_point_profile() -> None:
+    with pytest.raises(
+        ValueError,
+        match=r"segments.*segment.*label 'ˈa'.*stress point tier, e.g. prosody",
+    ):
+        write(Form.parse("ˈa"), "segments", style="mfa")
 
 
 def test_segment_timing_covers_its_whole_base_span() -> None:
@@ -312,3 +400,86 @@ def test_style_seam() -> None:
             read=str.lower,
         ).units
     ] == list("kæt")
+
+
+def test_named_style_refusals_and_exclusivity() -> None:
+    def spell_small(value: str) -> str:
+        if value != "k":
+            raise ValueError(f"cannot spell {value!r}")
+        return "K"
+
+    refusing = Style("small", lambda value: value.lower(), spell_small)
+    with pytest.raises(ValueError, match="segments.*segment.*interval 2.*label 'æ'"):
+        write(Form.parse("kæt"), style=refusing)
+    document = write(Form.parse("kæt")).replace('text = "æ"', 'text = "Q"')
+    with pytest.raises(ValueError, match="segment.*interval 2.*label 'Q'"):
+        read(document, profile="segments", style="mfa")
+    with pytest.raises(ValueError, match="style and spell.*one or the other"):
+        write(Form.parse("k"), style="ipa", spell=str.upper)
+    with pytest.raises(ValueError, match="style and read.*one or the other"):
+        read(write(Form.parse("k")), profile="segments", style="ipa", read=str.lower)
+
+
+def test_wild_style_reads_a_wild_segment() -> None:
+    document = write(Form.parse("ɡ")).replace('text = "ɡ"', 'text = "g"')
+    assert read(document, profile="segments", style="wild").to_ipa() == "ɡ"
+
+
+def test_style_cli_text_and_json(tmp_path: Path) -> None:
+    document = FIXTURES / "cmudict.TextGrid"
+    text = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ipakit",
+            "textgrid",
+            "read",
+            str(document),
+            "--profile",
+            "mfa",
+            "--style",
+            "cmudict",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert text.stdout.splitlines()[0] == "əkt"
+    structured = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ipakit",
+            "textgrid",
+            "read",
+            str(document),
+            "--profile",
+            "mfa",
+            "--style",
+            "cmudict",
+            "-f",
+            "json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(structured.stdout)["units"][0]["text"] == "ə"
+    unknown = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ipakit",
+            "textgrid",
+            "read",
+            str(document),
+            "--profile",
+            "mfa",
+            "--style",
+            "nope",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert unknown.returncode == 1
+    assert "ipakit inventory list" in unknown.stderr
