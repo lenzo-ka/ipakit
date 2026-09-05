@@ -2,26 +2,28 @@
 
 A TextGrid is a document of numbered intervals and points over one extent. The numbers are not necessarily seconds: a text-parsed form has no durations, so ipakit writes it on ticks, one per segment, and invents no duration. A form read from a timed document carries its physical clock and is written on the physical face when the selected profile asks for it.
 
-A tick profile's numbers are ordinal positions, so a read installs no timing and rebuilds the transcription's structure: a level tier's spans become the boundary marks the form spells.
+A tick profile's numbers are ordinal positions, so a read installs no timing and rebuilds the transcription's structure. A document carrying a `boundary` tier restores the marks the form spelled. A document without one infers boundaries from the level tiers, which cannot recover adjacent marks, their order, or a linking mark.
 
 A physical profile's numbers are durations in the named unit, so a read installs a `Timing` on every unit and carries the other tiers as `Interval`s.
 
-An explicit `tier_map` without a named profile reads the document's numbers as physical timing because the document carries its own numbers and nothing declares otherwise.
+An explicit `tier_map` without a named profile requires `face="physical"` or `face="tick"`; the numbers do not declare which clock face they carry.
 
 ## Profiles
 
 - `segments` emits one segment interval tier, the shape an aligner reads.
 - `words` emits word intervals followed by segment intervals.
-- `prosody` emits utterance, word, syllable, and segment interval tiers followed by stress and tone point tiers.
+- `prosody` emits utterance, word, syllable, and segment interval tiers followed by stress, tone, and boundary point tiers.
 - `mfa` emits the `words` and `phones` interval tiers used by forced alignment, on physical time.
 
 The profile registry is the `ipakit/data/textgrid` directory, so adding a JSON document adds a profile.
 
-Each profile document is an envelope with a one-line `summary`, a `tier_map`, and a `span_view` document accepted verbatim by `tiergraph.SpanViewProfile.from_data`. The span view declares the emitted tier names and order. The tier map assigns each TextGrid tier name an ipakit role: `segment`, a role declared by `ipakit.form.tier_names(features)`, or a prosodic role declared by `features.features_by_mode["prosodic"]`.
+Each profile document is an envelope with a one-line `summary`, a `tier_map`, and a `span_view` document accepted verbatim by `tiergraph.SpanViewProfile.from_data`. The span view declares the emitted tier names and order. The tier map assigns each TextGrid tier name an ipakit role: `segment`, `boundary`, a role declared by `ipakit.form.tier_names(features)`, or a prosodic role declared by `features.features_by_mode["prosodic"]`.
 
 A document's tier names are whatever wrote it. A tier map says which ipakit role each name carries and must cover every tier in the document. Reading without an explicit map and without a named profile refuses because the segment tier cannot be inferred safely.
 
 The codec infers containment between imported interval tiers by exact enclosure of their numbers. An empty-labeled interval is kept as an unclaimed span rather than dropped.
+
+Two tiers may share a non-segment role on read. A repeated role imports two annotators' tiers as intervals on one role, and a form carrying overlapping intervals on one role is refused on write because a tier is one cover.
 
 On write, a span tier label is the sequence of non-boundary segments it covers, spelled by ipakit. On read, a non-segment span label supplies extent only and is not interpreted, so an aligner's orthographic word labels do not become IPA.
 

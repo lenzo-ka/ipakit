@@ -29,7 +29,7 @@ def test_prosody_read() -> None:
 def test_mfa_read_and_golden() -> None:
     document = (FIXTURES / "mfa_two_words.TextGrid").read_text(encoding="utf-8")
     mapping = {"words": "word", "phones": "segment"}
-    actual = read(document, tier_map=mapping)
+    actual = read(document, tier_map=mapping, face="physical")
     assert [unit.text for unit in actual.units] == list("kætsæt")
     assert actual.intervals == (
         Interval("word", 0, 3, timing=Timing(0, 0.75)),
@@ -73,6 +73,37 @@ def test_tick_read_rebuilds_the_form(transcription: str, name: str) -> None:
     actual = read(write(expected, name), profile=name)
     assert actual == expected
     assert all(unit.timing is None for unit in actual.units)
+
+
+@pytest.mark.parametrize(
+    "transcription",
+    [
+        "ka.#ta",
+        "ka#.ta",
+        "ka##ta",
+        "ka.‖ta",
+        "ka‿ta",
+        "ka‿",
+        "ka‖ta",
+        "lez‿ami",
+        "ka.ta‖pa.ta‖",
+        "ˌkæt",
+        "a˥˩",
+        "ka˥",
+    ],
+)
+def test_prosody_carries_boundary_marks(transcription: str) -> None:
+    expected = Form.parse(transcription, strict=True)
+    assert read(write(expected, "prosody"), profile="prosody") == expected
+
+
+def test_boundary_point_must_land_on_a_segment_start_or_final_boundary() -> None:
+    document = write(Form.parse("a"), "prosody").replace(
+        'name = "boundary" \n        xmin = 0 \n        xmax = 1 \n        points: size = 0',
+        'name = "boundary" \n        xmin = 0 \n        xmax = 1 \n        points: size = 1 \n        points [1]:\n            number = 0.5 \n            mark = "."',
+    )
+    with pytest.raises(ValueError, match="boundary.*point 1.*0.5.*final boundary"):
+        read(document, profile="prosody")
 
 
 def test_strict_reader_refuses_an_unregistered_segment_label() -> None:
@@ -136,6 +167,31 @@ def test_profile_envelope_refusals(tmp_path, monkeypatch, change, message) -> No
         profile("segments")
 
 
+def test_profile_refuses_roles_on_the_wrong_tier_classes(tmp_path, monkeypatch) -> None:
+    shutil.copytree(TEXTGRID_DIR, tmp_path / "textgrid")
+    path = tmp_path / "textgrid" / "prosody.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["tier_map"]["word"], data["tier_map"]["stress"] = (
+        data["tier_map"]["stress"],
+        data["tier_map"]["word"],
+    )
+    path.write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(textgrid, "TEXTGRID_DIR", tmp_path / "textgrid")
+    with pytest.raises(ValueError, match="tier 'word'.*role 'stress'"):
+        profile("prosody")
+
+
+def test_bad_span_view_refusal_names_profile_and_file(tmp_path, monkeypatch) -> None:
+    shutil.copytree(TEXTGRID_DIR, tmp_path / "textgrid")
+    path = tmp_path / "textgrid" / "prosody.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["span_view"]["clock_face"] = "sideways"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(textgrid, "TEXTGRID_DIR", tmp_path / "textgrid")
+    with pytest.raises(ValueError, match=r"prosody.*prosody\.json.*span_view"):
+        profile("prosody")
+
+
 def test_profile_registry_refuses_a_non_json_file(tmp_path, monkeypatch) -> None:
     shutil.copytree(TEXTGRID_DIR, tmp_path / "textgrid")
     (tmp_path / "textgrid" / "notes.txt").write_text("stray", encoding="utf-8")
@@ -149,9 +205,27 @@ def test_mapping_refusals() -> None:
     with pytest.raises(ValueError, match="words.*phones.*segment role"):
         read(document)
     with pytest.raises(ValueError, match="phones.*uncovered"):
-        read(document, tier_map={"words": "word"})
+        read(document, tier_map={"words": "word"}, face="physical")
     with pytest.raises(ValueError, match="unknown.*accepted roles"):
-        read(document, tier_map={"words": "word", "phones": "unknown"})
+        read(
+            document,
+            tier_map={"words": "word", "phones": "unknown"},
+            face="physical",
+        )
+
+
+def test_explicit_tier_map_requires_an_explicit_clock_face() -> None:
+    document = write(Form.parse("kæt"))
+    mapping = {"segment": "segment"}
+    with pytest.raises(ValueError, match="physical.*tick"):
+        read(document, tier_map=mapping)
+    with pytest.raises(ValueError, match="segments.*tick"):
+        read(document, profile="segments", face="tick")
+    with pytest.raises(ValueError, match="physical.*tick"):
+        read(document, tier_map=mapping, face="ordinal")
+    actual = read(document, tier_map=mapping, face="tick")
+    assert [unit.text for unit in actual.units] == list("kæt")
+    assert all(unit.timing is None for unit in actual.units)
 
 
 def test_nonsegment_role_may_be_assigned_more_than_once() -> None:
@@ -165,9 +239,47 @@ def test_nonsegment_role_may_be_assigned_more_than_once() -> None:
             "segment": "segment",
             "stress": "stress",
             "tone": "tone",
+            "boundary": "boundary",
         },
+        face="physical",
     )
     assert sum(interval.tier == "word" for interval in actual.intervals) == 2
+
+
+def test_write_refuses_overlapping_intervals_on_one_role() -> None:
+    parsed = Form.parse("kæt")
+    form = Form.of(
+        parsed.units,
+        (Interval("word", 0, 2), Interval("word", 1, 3)),
+    )
+    with pytest.raises(
+        ValueError,
+        match=r"word.*Interval\('word', 0, 2\).*Interval\('word', 1, 3\).*one ordered, non-overlapping cover",
+    ):
+        write(form, "words")
+
+
+@pytest.mark.parametrize(
+    ("tier", "mark", "expected"),
+    [("stress", "ˈ", "ˈa"), ("tone", "˥", "a˥")],
+)
+def test_point_mark_placement_is_decided_by_the_inventory(
+    tier: str, mark: str, expected: str
+) -> None:
+    document = write(Form.parse("a"), "prosody").replace(
+        f'name = "{tier}" \n        xmin = 0 \n        xmax = 1 \n        points: size = 0',
+        f'name = "{tier}" \n        xmin = 0 \n        xmax = 1 \n        points: size = 1 \n        points [1]:\n            number = 0 \n            mark = "{mark}"',
+    )
+    assert read(document, profile="prosody").to_ipa() == expected
+
+
+def test_unreadable_point_mark_has_a_textgrid_diagnostic() -> None:
+    document = write(Form.parse("a"), "prosody").replace(
+        'name = "tone" \n        xmin = 0 \n        xmax = 1 \n        points: size = 0',
+        'name = "tone" \n        xmin = 0 \n        xmax = 1 \n        points: size = 1 \n        points [1]:\n            number = 0 \n            mark = "ˈ"',
+    )
+    with pytest.raises(ValueError, match="tone.*point 1.*mark 'ˈ'.*cannot apply"):
+        read(document, profile="prosody")
 
 
 def test_textgrid_cli_has_no_scale_option() -> None:
@@ -193,5 +305,10 @@ def test_style_seam() -> None:
     assert upper == expected
     assert [
         unit.text
-        for unit in read(upper, tier_map={"segment": "segment"}, read=str.lower).units
+        for unit in read(
+            upper,
+            tier_map={"segment": "segment"},
+            face="physical",
+            read=str.lower,
+        ).units
     ] == list("kæt")

@@ -82,6 +82,11 @@ class TextGridReadCommand(Command):
             "--tier-map",
             help="Comma-separated TextGrid tier-to-role mapping",
         )
+        parser.add_argument(
+            "--face",
+            choices=("physical", "tick"),
+            help="Coordinate face required with --tier-map (physical or tick)",
+        )
         parser.add_argument("--unit", default="s", help="Physical coordinate unit")
         add_format_arg(parser)
         add_output_arg(parser)
@@ -95,6 +100,7 @@ class TextGridReadCommand(Command):
                 self.args.file.read_bytes(),
                 profile=self.args.profile,
                 tier_map=mapping,
+                face=self.args.face,
                 unit=self.args.unit,
                 features=self.ipa,
             )

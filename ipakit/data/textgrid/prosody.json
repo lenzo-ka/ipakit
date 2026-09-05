@@ -6,7 +6,8 @@
     "syllable": "syllable",
     "segment": "segment",
     "stress": "stress",
-    "tone": "tone"
+    "tone": "tone",
+    "boundary": "boundary"
   },
   "span_view": {
     "base_tier": {
@@ -53,6 +54,10 @@
       {
         "namespace": "https://ipakit.dev/textgrid/v1",
         "local_name": "tone"
+      },
+      {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "boundary"
       }
     ],
     "point_coverage_relation": {
@@ -81,6 +86,10 @@
         "local_name": "spelling"
       },
       "{https://ipakit.dev/textgrid/v1}tone": {
+        "namespace": "https://ipakit.dev/textgrid/v1",
+        "local_name": "spelling"
+      },
+      "{https://ipakit.dev/textgrid/v1}boundary": {
         "namespace": "https://ipakit.dev/textgrid/v1",
         "local_name": "spelling"
       }
