@@ -8,7 +8,9 @@ Use `inventories()` to list the shipped names and `inventory(name)` to load one;
 
 `ipa` is the house notation and finite shipped inventory, while `wild` is the soft IPA reader and has no finite phoneset.
 
-CMUdict, PocketSphinx, TIMIT, MFA, bare `espeak`, and every declared eSpeak language are finite inventories; language-scoped eSpeak names have the form `espeak:en`.
+CMUdict, PocketSphinx, TIMIT, MFA, bare `espeak`, and every declared eSpeak language are finite inventories; MFA has the union `mfa` and generated members `mfa:<name>`, while language-scoped eSpeak names have the form `espeak:en`.
+
+Declared refusals are excluded from the phone count and available through `Inventory.refusals`; `inventory show` prints their spellings and reasons separately.
 
 Bare `espeak` is the union of the phone names in every shipped eSpeak NG declaration, the vocabulary used by wav2vec2 eSpeak phoneme recognizers, while each `espeak:<code>` inventory retains its language's table.
 
@@ -20,7 +22,7 @@ Inventory order is declaration order: XML atom order for bridges, phonemap row o
 
 Finite inventories contain sounds. Their construction applies the declared silence-spelling rule `Phoneset.from_file()` applies.
 
-The registry discovers its eSpeak, phonemap and bridge members from the declaration directories, so an added eSpeak declaration makes its language visible without a name being written anywhere else.
+The registry discovers its eSpeak, MFA, phonemap and bridge members from the declaration directories, so an added eSpeak or MFA declaration becomes visible without a name being written anywhere else.
 
 Add a vocabulary inventory by placing its XML declaration under the matching bridge data directory; adapt the bridge only where its atom contract differs from `VocabularyBridge`. Notation-specific converters that cannot strictly read and spell one phone in both directions do not belong in this registry.
 

@@ -238,8 +238,23 @@ class TestTheCliRoute:
         rc, out, err = self._run(monkeypatch, capsys, str(ortho), str(ipa), "--no-tie")
 
         assert rc == 3
-        assert "cannot read" in err.lower()
-        assert "'cat'" in err, "the offending entry is named"
+        assert (
+            "cannot read 'cat' as one phone; drop --no-tie to read it as one; "
+            "--wild may help"
+        ) in err
+
+        rc, _, err = self._run(
+            monkeypatch,
+            capsys,
+            str(ortho),
+            str(ipa),
+            "--no-tie",
+            "--from-style",
+            "ipa",
+        )
+        assert rc == 3
+        assert "cannot read 'cat' as one phone; drop --no-tie to read it as one" in err
+        assert "--wild may help" not in err
 
     def test_a_phoneset_file_of_ipa_maps(self, tmp_path, monkeypatch, capsys) -> None:
         ipa = tmp_path / "ipa.txt"

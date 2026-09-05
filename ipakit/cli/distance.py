@@ -766,6 +766,16 @@ class MapCommand(Command):
             if from_style or to_style:
                 return self.error("--wild cannot be combined with a style option")
             from_style = to_style = "wild"
+
+        def one_phone_error(phone: str, style: str | None) -> str:
+            hints = []
+            if self.args.no_tie:
+                hints.append("drop --no-tie to read it as one")
+            if style is None:
+                hints.append("--wild may help")
+            suffix = f"; {'; '.join(hints)}" if hints else ""
+            return f"cannot read {phone!r} as one phone{suffix}"
+
         try:
             from ..phoneset_map import read_inventory_entry
 
@@ -778,10 +788,7 @@ class MapCommand(Command):
                     raw = Phoneset.from_file(path)
                     for phone in raw:
                         if self.args.no_tie and len(self.ipa.segments(phone)) != 1:
-                            raise ValueError(
-                                f"cannot read {phone!r} as one phone; drop --no-tie "
-                                "to read it as one; --wild may help"
-                            )
+                            raise ValueError(one_phone_error(phone, selected))
                         _, steps = read_inventory_entry(
                             phone,
                             self.ipa,
@@ -801,14 +808,16 @@ class MapCommand(Command):
                 tied=not self.args.no_tie,
                 ipa=self.ipa,
             )
-            for phone in (*mapping.source.phones, *mapping.target.phones):
-                if len(self.ipa.segments(phone)) != 1:
-                    print(
-                        f"Error: cannot read {phone!r} as one phone; drop --no-tie "
-                        "to read it as one; --wild may help",
-                        file=sys.stderr,
-                    )
-                    return 3
+            for phones, style in (
+                (mapping.source.phones, from_style),
+                (mapping.target.phones, to_style),
+            ):
+                for phone in phones:
+                    if len(self.ipa.segments(phone)) != 1:
+                        print(
+                            f"Error: {one_phone_error(phone, style)}", file=sys.stderr
+                        )
+                        return 3
         except FileNotFoundError as error:
             return self.error(str(error))
         except OSError as error:

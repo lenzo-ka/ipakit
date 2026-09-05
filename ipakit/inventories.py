@@ -56,6 +56,8 @@ class Inventory:
     style: Style
     phones: Phoneset | None
     provenance: str
+    version: str | None = None
+    refusals: dict[str, str] = field(default_factory=dict)
 
 
 def _one_ipa(spelling: str) -> str:
@@ -348,10 +350,42 @@ def _wild_inventory() -> Inventory:
     )
 
 
-def _mfa_inventory() -> Inventory:
-    from .bridges.mfa import MFA
+@functools.cache
+def _mfa_bridge(declaration: str) -> VocabularyBridge:
+    """Load one MFA declaration once; the generated union is relatively large."""
+    from .bridges.mfa import MFABridge
 
-    return _bridge_inventory("mfa", MFA)
+    return MFABridge(declaration)
+
+
+@functools.cache
+def _mfa_inventory(declaration: str) -> Inventory:
+    """Build an MFA inventory without changing its declared house spellings."""
+    bridge = _mfa_bridge(declaration)
+    by_output = {atom.output: atom.spelling for atom in bridge.atoms}
+    by_spelling = {atom.spelling: atom.output for atom in bridge.atoms}
+    name = bridge.name
+
+    def read(spelling: str) -> str:
+        try:
+            return by_output[spelling]
+        except KeyError as error:
+            raise ValueError(f"cannot read {spelling!r} as one {name} phone") from error
+
+    def spell(ipa: str) -> str:
+        try:
+            return by_spelling[ipa]
+        except KeyError as error:
+            raise ValueError(f"cannot spell {ipa!r} as one {name} phone") from error
+
+    return Inventory(
+        name,
+        Style(name, read, spell),
+        _inventory_phones([atom.spelling for atom in bridge.atoms], name),
+        bridge.provenance,
+        bridge.version,
+        {item.spelling: item.reason for item in bridge.refusals},
+    )
 
 
 def _espeak_language_inventory(code: str) -> Inventory:
@@ -367,6 +401,7 @@ def _registry() -> dict[str, tuple[Callable[[], Inventory], str]]:
     import xml.etree.ElementTree as ET
 
     from ._cmu_graph import BASE_CMUDICT
+    from .bridges.mfa import UNION, declarations
 
     registry: dict[str, tuple[Callable[[], Inventory], str]] = {
         "ipa": (_ipa_inventory, "ipakit house IPA declaration"),
@@ -385,11 +420,13 @@ def _registry() -> dict[str, tuple[Callable[[], Inventory], str]]:
             "are the vocabulary emitted by wav2vec2 eSpeak phoneme recognizers",
         ),
     }
-    mfa_path = _DATA / "bridges" / "mfa" / "mfa.xml"
-    if mfa_path.is_file():
-        registry["mfa"] = (
-            _mfa_inventory,
-            ET.parse(mfa_path).getroot().attrib["provenance"],
+    for declaration in (UNION, *declarations()):
+        path = _DATA / "bridges" / "mfa" / f"{declaration}.xml"
+        root = ET.parse(path).getroot()
+        name = root.attrib["name"]
+        registry[name] = (
+            functools.partial(_mfa_inventory, declaration),
+            root.attrib["provenance"],
         )
     if (_PHONEMAPS / "timit.xml").is_file():
         registry["timit"] = (_timit_inventory, "TIMIT phonemap declaration")
@@ -409,6 +446,13 @@ def inventory(name: str) -> Inventory:
     try:
         builder, provenance = registry[name]
     except KeyError as error:
+        if name.startswith("mfa:"):
+            from .bridges.mfa import declarations
+
+            raise ValueError(
+                f"no shipped inventory {name!r}; have mfa:<name> "
+                f"({', '.join(declarations())})"
+            ) from error
         ordinary = [
             member for member in sorted(registry) if not member.startswith("espeak:")
         ]
@@ -421,7 +465,14 @@ def inventory(name: str) -> Inventory:
     if item.name != name:
         raise ValueError(f"inventory builder for {name!r} returned {item.name!r}")
     if item.provenance != provenance:
-        return Inventory(item.name, item.style, item.phones, provenance)
+        return Inventory(
+            item.name,
+            item.style,
+            item.phones,
+            provenance,
+            item.version,
+            item.refusals,
+        )
     return item
 
 

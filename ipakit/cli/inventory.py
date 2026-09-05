@@ -65,6 +65,8 @@ class InventoryShowCommand(Command):
         except ValueError as error:
             return self.error(str(error))
         self.print(f"name: {item.name}")
+        if item.version is not None:
+            self.print(f"version: {item.version}")
         self.print(f"provenance: {item.provenance}")
         if item.phones is None:
             self.print("kind: style")
@@ -81,6 +83,11 @@ class InventoryShowCommand(Command):
             self.print("spelling\thouse IPA members")
             for spelling, members in item.style.collapses.items():
                 self.print(f"{spelling}\t{' '.join(members)}")
+        if item.refusals:
+            self.print("refusals")
+            self.print("spelling\treason")
+            for spelling, reason in item.refusals.items():
+                self.print(f"{spelling}\t{reason}")
         return 0
 
 

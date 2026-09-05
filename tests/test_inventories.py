@@ -28,6 +28,40 @@ def test_registry_discovers_every_espeak_declaration() -> None:
     assert {"cmudict", "pocketsphinx", "espeak"} <= set(ipakit.inventories())
 
 
+def test_registry_discovers_every_mfa_declaration() -> None:
+    from ipakit.bridges.mfa import declarations
+
+    assert {f"mfa:{name}" for name in declarations()} <= set(ipakit.inventories())
+
+
+def test_mfa_union_and_english_keep_declared_atom_order() -> None:
+    from ipakit.bridges.mfa import MFA, UNION, MFABridge
+
+    union = MFABridge(UNION)
+    assert list(ipakit.inventory("mfa").phones or ()) == [
+        atom.spelling for atom in union.atoms
+    ]
+    assert list(ipakit.inventory("mfa:english").phones or ()) == [
+        atom.spelling for atom in MFA.atoms
+    ]
+
+
+def test_mfa_korean_carries_atoms_and_refusals() -> None:
+    korean = ipakit.inventory("mfa:korean")
+    assert korean.phones is not None
+    assert len(korean.phones) == 90
+    assert len(korean.refusals) == 15
+    assert korean.version == "korean_mfa-v3.0.0"
+
+
+def test_unknown_mfa_declaration_names_every_member() -> None:
+    from ipakit.bridges.mfa import declarations
+
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory("mfa:nosuch")
+    assert all(name in str(caught.value) for name in declarations())
+
+
 def test_unknown_name_reports_what_is_available() -> None:
     with pytest.raises(ValueError, match="no shipped inventory 'nosuch'; have"):
         ipakit.inventory("nosuch")
@@ -133,6 +167,13 @@ def test_espeak_union_maps_to_mfa() -> None:
     assert mapping.source_inventory.name == "espeak"
 
 
+def test_mfa_english_maps_to_cmudict_and_spells() -> None:
+    mapping = ipakit.phoneset_mapping("mfa:english", "cmudict")
+    assert mapping.source_inventory is not None
+    assert mapping.source_inventory.name == "mfa:english"
+    assert all(item.source_spelling is not None for item in mapping)
+
+
 def test_cli_shows_bare_espeak(monkeypatch, capsys) -> None:
     monkeypatch.setattr(sys, "argv", ["ipakit", "inventory", "show", "espeak"])
     assert ipakit.cli.main() == 0
@@ -140,6 +181,13 @@ def test_cli_shows_bare_espeak(monkeypatch, capsys) -> None:
     assert "espeak" in output
     assert "a͜ɛ\trefused: cannot spell 'a͜ɛ' in espeak" in output
     assert "candidate 'aE'" in output
+
+
+def test_cli_shows_mfa_refusals(monkeypatch, capsys) -> None:
+    rc, output, _ = _run_cli(monkeypatch, capsys, "inventory", "show", "mfa:korean")
+    assert rc == 0
+    assert "refusals\nspelling\treason" in output
+    assert "c͈\toutside-house-ipa: U+0348" in output
 
 
 def test_cli_lists_bare_espeak(monkeypatch, capsys) -> None:
