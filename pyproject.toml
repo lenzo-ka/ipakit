@@ -26,14 +26,49 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    # Capped deliberately. tiergraph is heading for 0.2.0 with breaking changes
-    # already merged (a required `star` member on the Semiring protocol, selection
-    # cut from 24 published names to 18 with no shims, `to_jsonl` stamping a
-    # version key). ipakit uses none of those today, but it reads about 25 names
-    # across `tiergraph`, `tiergraph.build`, `tiergraph.machine` and
-    # `tiergraph.path`, which is too much surface to meet a breaking minor by
-    # accident. Lift the cap once the suite has been run against 0.2.0.
-    "tiergraph>=0.1.0,<0.2.0",
+    # Capped at the minor because tiergraph is pre-1.0 and each 0.X.0 breaks
+    # deliberately -- an alpha minor is effectively a major, so `<0.3.0` is the
+    # honest bound rather than a cautious one.
+    #
+    # The comment that stood here was measured, checked, and cleared the wrong
+    # three things: it named the `star` member on the Semiring protocol, the
+    # 24-to-18 selection cut and `to_jsonl`'s version key, said ipakit used none
+    # of them -- all true -- and listed `tiergraph`, `tiergraph.build`,
+    # `tiergraph.machine` and `tiergraph.path` as the exposed surface. None of
+    # that is what broke. A comment that reads as reassurance is worse than one
+    # nobody checked, so what actually broke is recorded instead:
+    #
+    #   five renames        ClockPosition->ClockCoordinate, PositionRef->
+    #                       BoundaryRef, PositionBinding->BoundaryBinding,
+    #                       ResolvedPosition->ResolvedBoundary, and
+    #                       POSITION_NOT_IN_PARENT->BOUNDARY_NOT_IN_PARENT
+    #   one dropped value   AttributeDomain.POSITION, replaced by BOUNDARY --
+    #                       a wire change, not a rename
+    #   one more rename     DurablePositionRef->DurableBoundaryRef
+    #   four MEMBERS        ClockProfile.from_position_values, and on Graph:
+    #                       position_values, resolve_position, promote_position
+    #   the wire version    "format_version": "6" became "0.2.0"
+    #
+    # Thirteen, where the handover list named nine. The four member renames are
+    # the reason to distrust a name-level diff: `hasattr(tiergraph,
+    # 'ClockProfile')` is true whether or not its methods moved, so checking
+    # exported names says nothing about members. Migrating found them; diffing
+    # could not.
+    #
+    # 0.2.0 IS NOT ON PyPI YET. This stays a version requirement rather than a
+    # `git+https://` direct reference on purpose: PyPI refuses to accept a
+    # distribution whose metadata carries a direct URL, so pinning to a git sha
+    # here would make ipakit itself unpublishable -- the opposite of what the
+    # pin is for. Until tiergraph publishes, supply it out of band and this
+    # requirement resolves against what is installed:
+    #
+    #   pip install -e /path/to/tiergraph     # self-reports 0.2.0
+    #   pip install -e .
+    #
+    # Verified against the tiergraph checkout at main 6276260: tests/tiergraph
+    # is 151 passed, 2 failed, and both failures are goldens carrying the old
+    # wire values rather than code defects.
+    "tiergraph>=0.2.0,<0.3.0",
 ]
 
 [project.optional-dependencies]

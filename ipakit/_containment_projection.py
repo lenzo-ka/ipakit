@@ -619,7 +619,7 @@ class ContainmentProjection:
             position: index for index, position in enumerate(clock_positions)
         }
 
-        def durable_position(pointer: str) -> tg.DurablePositionRef:
+        def durable_position(pointer: str) -> tg.DurableBoundaryRef:
             resolved = source.resolve(pointer)
             gap = 0
             if resolved.kind is EndpointKind.REFINED_GAP:
@@ -638,7 +638,7 @@ class ContainmentProjection:
             else:
                 anchor = clock_name
                 side = tg.BoundarySide.BEFORE
-            return tg.DurablePositionRef(anchor, side)
+            return tg.DurableBoundaryRef(anchor, side)
 
         root_tiers = _ordered_unique(source.event_tiers[root] for root in source.roots)
 
@@ -806,12 +806,12 @@ class ContainmentProjection:
             *(DeclareRelation(declaration) for declaration in declarations),
             DeclareAttribute(
                 tg.AttributeDeclaration(
-                    tick_name, tg.AttributeDomain.POSITION, tg.XsdType.INTEGER
+                    tick_name, tg.AttributeDomain.BOUNDARY, tg.XsdType.INTEGER
                 )
             ),
             DeclareAttribute(
                 tg.AttributeDeclaration(
-                    gap_name, tg.AttributeDomain.POSITION, tg.XsdType.INTEGER
+                    gap_name, tg.AttributeDomain.BOUNDARY, tg.XsdType.INTEGER
                 )
             ),
             *(
@@ -836,13 +836,13 @@ class ContainmentProjection:
                 for boundary_index, (tick, gap) in enumerate(clock_positions)
                 for opcode in (
                     AttachValue(
-                        tg.AttributeDomain.POSITION,
-                        tg.PositionRef(clock_name, boundary_index),
+                        tg.AttributeDomain.BOUNDARY,
+                        tg.BoundaryRef(clock_name, boundary_index),
                         tg.AttributeValue(tick_name, tg.XsdType.INTEGER, str(tick)),
                     ),
                     AttachValue(
-                        tg.AttributeDomain.POSITION,
-                        tg.PositionRef(clock_name, boundary_index),
+                        tg.AttributeDomain.BOUNDARY,
+                        tg.BoundaryRef(clock_name, boundary_index),
                         tg.AttributeValue(gap_name, tg.XsdType.INTEGER, str(gap)),
                     ),
                 )

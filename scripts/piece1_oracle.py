@@ -56,9 +56,21 @@ def _hierarchy() -> tuple[Form, dict[str, bool]]:
 
 def _refusal(action: Any) -> dict[str, str]:
     """Capture the byte-bearing public diagnostic, including its exception type."""
+    # `PathRefusal` subclasses neither `tiergraph.Refusal` nor `ValueError`
+    # -- its MRO is (PathRefusal, Exception), and it has been that at v0.1.0
+    # and at HEAD alike, so this is not a regression. What changed is which
+    # exception these fixtures REACH: a path refusal now arrives where a
+    # ValueError used to, so a handler that named only the base types stopped
+    # recording and started crashing. Path addressing carries its own
+    # `PathRefusalCode`, separate from `RefusalStage`, so it is enumerated
+    # rather than assumed to arrive under the document-reader base. If it
+    # later joins `Refusal`, this tuple still catches it.
+    # Imported here rather than at module scope, as the rest of this file does.
+    from tiergraph.path import PathRefusal
+
     try:
         action()
-    except (TypeError, ValueError) as error:
+    except (TypeError, ValueError, PathRefusal) as error:
         message = str(error)
         return {
             "type": type(error).__name__,

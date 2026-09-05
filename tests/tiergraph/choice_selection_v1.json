@@ -1,5 +1,5 @@
 {
-  "format_version": "6",
+  "format_version": "0.2.0",
   "graph": {
     "attribute_declarations": [
       {
@@ -38,7 +38,7 @@
         "value_type": "string"
       },
       {
-        "domain": "position",
+        "domain": "boundary",
         "name": "ipakit-containment:gap",
         "value_type": "integer"
       },
@@ -128,7 +128,7 @@
         "value_type": "string"
       },
       {
-        "domain": "position",
+        "domain": "boundary",
         "name": "ipakit-containment:tick",
         "value_type": "integer"
       },

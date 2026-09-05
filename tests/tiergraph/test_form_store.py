@@ -129,7 +129,7 @@ def test_authoritative_graph_positions_biject_with_accepted_clock_positions() ->
             accepted.append((tick, gap + 1))
 
     emitted = []
-    for position in form._graph.position_values:
+    for position in form._graph.boundary_values:
         attributes = {
             attribute.name.local_name: int(attribute.lexical)
             for attribute in position.attributes
@@ -149,7 +149,7 @@ def test_authoritative_graph_positions_reproduce_clock_bounds() -> None:
         "_tiergraph_index"
     ].containment_input
 
-    tick_count, gap_counts = form_module._clock_bounds(form._graph.position_values)
+    tick_count, gap_counts = form_module._clock_bounds(form._graph.boundary_values)
 
     assert len(source.clock) > 1
     assert any(node.gap_count > 1 for node in source.clock)

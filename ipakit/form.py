@@ -1331,21 +1331,38 @@ class _ClockPathProfile:
     def bind(self, path: Any, graph: Any) -> Any:
         from tiergraph.path import PathOffender, PathRefusal, PathRefusalCode
 
-        from tiergraph import DurableItemRef, ItemBinding, PositionBinding, PositionRef
+        from tiergraph import BoundaryBinding, BoundaryRef, DurableItemRef, ItemBinding
 
         segments = path.segments
 
-        def refuse(code: Any) -> NoReturn:
-            """Never returns, so every call below is a terminal branch."""
-            raise PathRefusal(code, PathOffender(text=self.text, path=path))
+        def refuse(code: Any, sentence: str) -> NoReturn:
+            """Refuse with the typed code, and wording a reader can use.
+
+            ``PathRefusal`` renders its own message from the whole
+            ``PathOffender`` -- eleven fields of which ten are usually
+            None -- and its docstring calls that wording diagnostic-only
+            while the code is the stable part. So the code and offender
+            are left exactly as they are and only the wording is
+            replaced: ``.code``, ``.offender`` and ``except PathRefusal``
+            are untouched, and what reaches a person is a sentence
+            rather than a repr. Never returns, so every call below is a
+            terminal branch.
+            """
+            error = PathRefusal(code, PathOffender(text=self.text, path=path))
+            error.args = (sentence,)
+            raise error
 
         if len(segments) < 2 or segments[0] != "clock" or not segments[1].isdigit():
-            refuse(PathRefusalCode.MALFORMED_POINTER)
+            refuse(
+                PathRefusalCode.MALFORMED_POINTER,
+                f"{self.text!r}: not a clock path; expected /clock/<tick> "
+                f"or /clock/<tick>/gaps/<gap>",
+            )
         tick = int(segments[1])
-        tick_count, gap_counts = _clock_bounds(graph.position_values)
+        tick_count, gap_counts = _clock_bounds(graph.boundary_values)
         clock_positions = tuple(
             position
-            for position in graph.position_values
+            for position in graph.boundary_values
             if any(
                 attribute.name.local_name == "tick" for attribute in position.attributes
             )
@@ -1354,8 +1371,8 @@ class _ClockPathProfile:
             tier for tier in graph.tiers if tier.declaration.name.local_name == "clock"
         )
         if tick >= tick_count:
-            return PositionBinding(
-                PositionRef(
+            return BoundaryBinding(
+                BoundaryRef(
                     clock_tier.declaration.name,
                     len(clock_tier.items) + 1,
                 )
@@ -1365,19 +1382,30 @@ class _ClockPathProfile:
         elif len(segments) == 4 and segments[2] == "gaps" and segments[3].isdigit():
             gap = int(segments[3])
             if gap >= gap_counts[tick]:
-                refuse(PathRefusalCode.POSITION_NOT_IN_PARENT)
+                refuse(
+                    PathRefusalCode.BOUNDARY_NOT_IN_PARENT,
+                    f"{self.text!r}: gap {gap} does not belong to tick {tick}, "
+                    f"which has {gap_counts[tick]}",
+                )
         elif len(segments) == 4 and segments[3].isdigit():
             return ItemBinding(DurableItemRef(self.text))
         else:
-            refuse(PathRefusalCode.MALFORMED_POINTER)
+            refuse(
+                PathRefusalCode.MALFORMED_POINTER,
+                f"{self.text!r}: not a clock path; expected /clock/<tick> "
+                f"or /clock/<tick>/gaps/<gap>",
+            )
         for position in clock_positions:
             attributes = {
                 attribute.name.local_name: int(attribute.lexical)
                 for attribute in position.attributes
             }
             if attributes == {"gap": gap, "tick": tick}:
-                return PositionBinding(position.reference)
-        refuse(PathRefusalCode.OUT_OF_RANGE)
+                return BoundaryBinding(position.reference)
+        refuse(
+            PathRefusalCode.OUT_OF_RANGE,
+            f"{self.text!r}: no clock boundary at tick {tick}, gap {gap}",
+        )
 
     def spell(self, binding: Any, graph: Any) -> Any:
         """Refuse reverse projection, which Form.at never requests."""
@@ -1455,7 +1483,7 @@ class _FormGraphIndex:
         """Parse ipakit spelling, but resolve event identity in ``graph``."""
         from tiergraph.path import PathRefusal
 
-        from tiergraph import ResolvedItem, ResolvedPosition, resolve_path
+        from tiergraph import ResolvedBoundary, ResolvedItem, resolve_path
 
         from ._graph_facts import GraphValidationError
 
@@ -1469,11 +1497,11 @@ class _FormGraphIndex:
         if isinstance(resolved, ResolvedItem):
             old = containment.new_to_old[resolved.current]
             return self.containment_input.events[old]
-        assert isinstance(resolved, ResolvedPosition)
+        assert isinstance(resolved, ResolvedBoundary)
         attributes = {
             attribute.name.local_name: int(attribute.lexical)
-            for position in graph.position_values
-            if graph.resolve_position(position.reference) == resolved.current
+            for position in graph.boundary_values
+            if graph.resolve_boundary(position.reference) == resolved.current
             for attribute in position.attributes
         }
         return self.containment_input.clock[attributes["tick"]]
