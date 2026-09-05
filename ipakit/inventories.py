@@ -13,6 +13,7 @@ from .models import Phoneset
 
 if TYPE_CHECKING:
     from .bridges.vocabulary import VocabularyBridge
+    from .features import IPAFeatures
 
 _DATA = Path(__file__).parent / "data"
 _ESPEAK = _DATA / "bridges" / "espeak"
@@ -34,10 +35,15 @@ class Style:
 
     def read(self, spelling: str) -> str:
         """Read one external spelling as house IPA."""
-        return self._reader(spelling)
+        from . import normalize
+
+        return self._reader(normalize(spelling))
 
     def spell(self, ipa: str) -> str:
         """Spell one house-IPA phone in this notation."""
+        from . import normalize
+
+        ipa = normalize(ipa)
         spelling = self._speller(ipa)
         read = self.read(spelling)
         if read == ipa or ipa in self.collapses.get(spelling, ()):
@@ -85,6 +91,7 @@ def _inventory_phones(phones: list[str], name: str) -> Phoneset:
 
 def _bridge_inventory(name: str, bridge: VocabularyBridge) -> Inventory:
     """Build in XML atom order; choose spellings by union ranking rules."""
+    from . import normalize
     from .features import IPAFeatures
     from .phoneset_map import tie_delimited_entry
 
@@ -96,7 +103,7 @@ def _bridge_inventory(name: str, bridge: VocabularyBridge) -> Inventory:
     for atom in bridge.atoms:
         if atom.kind != "unit":
             continue
-        phone = tie_delimited_entry(atom.spelling, features)
+        phone = normalize(tie_delimited_entry(atom.spelling, features))
         if len(features.segments(phone)) == 1:
             phones.append(phone)
             outputs[phone].append(atom.output)
@@ -351,19 +358,21 @@ def _wild_inventory() -> Inventory:
 
 
 @functools.cache
-def _mfa_bridge(declaration: str) -> VocabularyBridge:
+def _mfa_bridge(declaration: str, ipa: IPAFeatures | None = None) -> VocabularyBridge:
     """Load one MFA declaration once; the generated union is relatively large."""
     from .bridges.mfa import MFABridge
 
-    return MFABridge(declaration)
+    return MFABridge(declaration, ipa=ipa)
 
 
 @functools.cache
-def _mfa_inventory(declaration: str) -> Inventory:
-    """Build an MFA inventory without changing its declared house spellings."""
-    bridge = _mfa_bridge(declaration)
-    by_output = {atom.output: atom.spelling for atom in bridge.atoms}
-    by_spelling = {atom.spelling: atom.output for atom in bridge.atoms}
+def _mfa_inventory(declaration: str, ipa: IPAFeatures | None = None) -> Inventory:
+    """Build an MFA inventory with canonically normalized house spellings."""
+    from . import normalize
+
+    bridge = _mfa_bridge(declaration, ipa)
+    by_output = {atom.output: normalize(atom.spelling) for atom in bridge.atoms}
+    by_spelling = {normalize(atom.spelling): atom.output for atom in bridge.atoms}
     name = bridge.name
 
     def read(spelling: str) -> str:
@@ -381,7 +390,7 @@ def _mfa_inventory(declaration: str) -> Inventory:
     return Inventory(
         name,
         Style(name, read, spell),
-        _inventory_phones([atom.spelling for atom in bridge.atoms], name),
+        _inventory_phones([normalize(atom.spelling) for atom in bridge.atoms], name),
         bridge.provenance,
         bridge.version,
         {item.spelling: item.reason for item in bridge.refusals},
@@ -440,7 +449,7 @@ def _registry() -> dict[str, tuple[Callable[[], Inventory], str]]:
     return registry
 
 
-def inventory(name: str) -> Inventory:
+def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
     """Load a named inventory, refusing an absent declaration."""
     registry = _registry()
     try:
@@ -461,7 +470,13 @@ def inventory(name: str) -> Inventory:
             f"no shipped inventory {name!r}; have {', '.join(ordinary)}, "
             f"espeak:<code> ({languages} languages); see 'ipakit inventory list'"
         ) from error
-    item = builder()
+    if ipa is not None and (name == "mfa" or name.startswith("mfa:")):
+        from .bridges.mfa import UNION
+
+        declaration = UNION if name == "mfa" else name.removeprefix("mfa:")
+        item = _mfa_inventory(declaration, ipa)
+    else:
+        item = builder()
     if item.name != name:
         raise ValueError(f"inventory builder for {name!r} returned {item.name!r}")
     if item.provenance != provenance:

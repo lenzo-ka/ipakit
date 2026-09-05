@@ -170,11 +170,19 @@ class TestThePublicEntryPoint:
         assert "phoneset_mapping" in ipakit.__all__
 
     def test_an_unreadable_styled_entry_is_unmapped_with_its_reason(self) -> None:
-        mapping = ipakit.phoneset_mapping(["NOPE", "P"], ["p"], source_style="cmudict")
-        refused = next(item for item in mapping if item.source == "NOPE")
+        mapping = ipakit.phoneset_mapping(["p"], ["p"], source_style="cmudict")
+        refused = next(item for item in mapping if item.reason is not None)
+        assert refused.source == "p"
+        assert refused.source_spelling is None
         assert refused.target is None
         assert refused.reason is not None
         assert "CMU" in refused.reason
+
+    def test_an_unreadable_styled_target_is_not_a_target(self) -> None:
+        mapping = ipakit.phoneset_mapping(["b"], ["p", "P"], target_style="cmudict")
+        assert mapping.target.phones == ["p"]
+        assert mapping.unreadable_targets[0][0] == "p"
+        assert mapping.unused_targets == ()
 
 
 class TestTheCliRoute:

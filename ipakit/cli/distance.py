@@ -828,6 +828,18 @@ class MapCommand(Command):
                 return 3
             return self.error(str(error))
 
+        unreadable = [
+            ("source", c.source, c.reason) for c in mapping if c.reason is not None
+        ] + [("target", entry, reason) for entry, reason in mapping.unreadable_targets]
+        for side, entry, reason in unreadable:
+            style = mapping.source_style if side == "source" else mapping.target_style
+            name = style.name if style is not None else "ipa"
+            print(
+                f"Error: cannot read {entry!r} as {name} on {side} side: {reason}",
+                file=sys.stderr,
+            )
+        status = 3 if unreadable else 0
+
         def spelled(style: Style | None, phone: str) -> str | None:
             if style is None:
                 return phone
@@ -880,10 +892,11 @@ class MapCommand(Command):
                         spelled(mapping.target_style, value)
                         for value in mapping.unused_targets
                     ],
+                    "unreadable_targets": list(mapping.unreadable_targets),
                     "total_distance": round(mapping.total_distance, 4),
                 }
             )
-            return 0
+            return status
 
         for c in mapping:
             if c.target is None:
@@ -922,7 +935,7 @@ class MapCommand(Command):
             ]
             print(f"\nunused targets: {' '.join(values)}")
         print(f"\ntotal distance: {mapping.total_distance:.4f}")
-        return 0
+        return status
 
 
 class DistanceGroup(CommandGroup):

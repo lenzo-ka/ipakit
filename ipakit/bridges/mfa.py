@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..features import IPAFeatures
 from ..form import Form
 from .vocabulary import VocabularyBridge, VocabularyProjection
 
@@ -33,13 +34,15 @@ class MFADictionaryEntry:
 class MFABridge(VocabularyBridge):
     """One declared MFA vocabulary and the dictionary-line syntax."""
 
-    def __init__(self, declaration: str = "english") -> None:
+    def __init__(
+        self, declaration: str = "english", *, ipa: IPAFeatures | None = None
+    ) -> None:
         """Load ``declaration``, refusing an absent MFA vocabulary."""
 
         path = _DATA / f"{declaration}.xml"
         if not path.is_file():
             raise ValueError(f"no declared MFA vocabulary for {declaration!r}")
-        super().__init__(path)
+        super().__init__(path, ipa=ipa)
         self.declaration = declaration
 
     def read_tokens(self, labels: list[str] | tuple[str, ...]) -> Form:

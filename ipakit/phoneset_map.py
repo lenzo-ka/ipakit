@@ -87,6 +87,9 @@ class PhonesetMapping:
     target_inventory: Inventory | None = None
     source_style: Style | None = field(default=None, repr=False, compare=False)
     target_style: Style | None = field(default=None, repr=False, compare=False)
+    #: Target entries refused by their style, as raw input and reason. They are
+    #: not targets and therefore cannot appear among ``unused_targets``.
+    unreadable_targets: tuple[tuple[str, str], ...] = ()
 
     def __iter__(self):  # type: ignore[no-untyped-def]
         return iter(self.correspondences)

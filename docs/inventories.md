@@ -18,6 +18,8 @@ The union style reads a name to its house-IPA spelling only where every declarat
 
 The union style spells with an agreed name, preferring the name carried by the most declarations, then the shortest, then the lexically first, and refuses a phone without one by naming each ambiguous candidate and its `espeak:<code>` meanings.
 
+When mapping inventories, an entry its selected style cannot read is reported on its own side and makes the command fail rather than being respelled as a valid entry.
+
 Inventory order is declaration order: XML atom order for bridges, phonemap row order for CMU and TIMIT, and `IPAFeatures().phones` order for `ipa`; the eSpeak union is the exception and uses sorted house IPA.
 
 Finite inventories contain sounds. Their construction applies the declared silence-spelling rule `Phoneset.from_file()` applies.

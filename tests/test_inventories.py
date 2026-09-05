@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import sys
 
@@ -15,6 +16,31 @@ def _run_cli(monkeypatch, capsys, *arguments: str):
     rc = ipakit.cli.main()
     captured = capsys.readouterr()
     return rc, captured.out, captured.err
+
+
+def _style_failures(item):
+    refused = set()
+    mismatches = set()
+    for phone in item.phones or ():
+        try:
+            spelling = item.style.spell(phone)
+        except ValueError:
+            refused.add(phone)
+            continue
+        if item.style.read(spelling) != phone:
+            mismatches.add(phone)
+    return refused, mismatches
+
+
+def _fresh_inventory(name: str):
+    """Build from the declaration, bypassing inventory-object caches."""
+    from ipakit.inventories import _registry
+
+    builder = _registry()[name][0]
+    if isinstance(builder, functools.partial):
+        function = getattr(builder.func, "__wrapped__", builder.func)
+        return function(*builder.args, **(builder.keywords or {}))
+    return getattr(builder, "__wrapped__", builder)()
 
 
 def test_registry_discovers_every_espeak_declaration() -> None:
@@ -39,10 +65,10 @@ def test_mfa_union_and_english_keep_declared_atom_order() -> None:
 
     union = MFABridge(UNION)
     assert list(ipakit.inventory("mfa").phones or ()) == [
-        atom.spelling for atom in union.atoms
+        ipakit.normalize(atom.spelling) for atom in union.atoms
     ]
     assert list(ipakit.inventory("mfa:english").phones or ()) == [
-        atom.spelling for atom in MFA.atoms
+        ipakit.normalize(atom.spelling) for atom in MFA.atoms
     ]
 
 
@@ -144,21 +170,54 @@ def test_every_finite_style_round_trips_except_its_declared_collapses() -> None:
         item = ipakit.inventory(name)
         if item.phones is None:
             continue
-        mismatches = set()
-        for phone in item.phones:
-            try:
-                spelling = item.style.spell(phone)
-            except ValueError:
-                continue
-            if item.style.read(spelling) != phone:
-                mismatches.add(phone)
+        refused, mismatches = _style_failures(item)
+        expected_refused, _ = _style_failures(_fresh_inventory(name))
         declared = {
             phone
             for spelling, phones in item.style.collapses.items()
             for phone in phones
             if item.style.read(spelling) != phone
         }
+        assert refused == expected_refused, name
         assert mismatches == declared, name
+
+
+def test_round_trip_sweep_detects_an_injected_spelling_refusal() -> None:
+    item = ipakit.inventory("cmudict")
+    expected_refused, _ = _style_failures(_fresh_inventory("cmudict"))
+    original = item.style._speller
+
+    def refusing(phone: str) -> str:
+        if phone == "p":
+            raise ValueError("injected refusal")
+        return original(phone)
+
+    object.__setattr__(item.style, "_speller", refusing)
+    try:
+        refused, _ = _style_failures(item)
+        assert refused != expected_refused
+    finally:
+        object.__setattr__(item.style, "_speller", original)
+
+
+def test_styles_normalize_canonically_equivalent_input() -> None:
+    for name in ("espeak", "espeak:pt"):
+        style = ipakit.inventory(name).style
+        assert style.spell("ĩ") == style.spell("i\N{COMBINING TILDE}")
+    ipa = ipakit.inventory("ipa").style
+    assert ipa.read("ĩ") == ipa.read("i\N{COMBINING TILDE}")
+
+
+def test_mfa_inventory_bridge_is_cached_per_parser_identity() -> None:
+    from ipakit.inventories import _mfa_bridge
+
+    default = _mfa_bridge("korean")
+    supplemented = ipakit.IPAFeatures(supplements=["aspirated-stops"])
+    custom = _mfa_bridge("korean", supplemented)
+    assert custom is not default
+    assert custom is _mfa_bridge("korean", supplemented)
+    assert custom.ipa is supplemented
+    assert custom.read(["pʰ"]).to_ipa() == "pʰ"
 
 
 def test_espeak_union_maps_to_mfa() -> None:
@@ -247,6 +306,59 @@ def test_distance_map_accepts_named_sides_and_reports_json(monkeypatch, capsys) 
     assert report["source_inventory"] == "cmudict"
     assert report["target_inventory"] == "mfa"
     assert {"source_spelling", "target_spelling"} <= report["correspondences"][0].keys()
+
+
+def test_distance_map_refuses_a_source_its_style_cannot_read(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("p\n", encoding="utf-8")
+    target = tmp_path / "target.txt"
+    target.write_text("b\n", encoding="utf-8")
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "distance",
+        "map",
+        str(source),
+        str(target),
+        "--from-style",
+        "cmudict",
+        "-f",
+        "json",
+    )
+    assert rc == 3
+    assert "cannot read 'p' as cmudict on source side" in error
+    refused = json.loads(output)["correspondences"][0]
+    assert refused["source"] == "p"
+    assert refused["source_spelling"] is None
+    assert refused["reason"] is not None
+
+
+def test_distance_map_refuses_a_target_its_style_cannot_read(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("b\n", encoding="utf-8")
+    target = tmp_path / "target.txt"
+    target.write_text("p\n", encoding="utf-8")
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "distance",
+        "map",
+        str(source),
+        str(target),
+        "--to-style",
+        "cmudict",
+        "-f",
+        "json",
+    )
+    assert rc == 3
+    assert "cannot read 'p' as cmudict on target side" in error
+    report = json.loads(output)
+    assert report["unreadable_targets"][0][0] == "p"
+    assert report["unused_targets"] == []
 
 
 def test_distance_map_refuses_name_file_collision_and_accepts_escape(

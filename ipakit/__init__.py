@@ -1056,9 +1056,10 @@ def phoneset_mapping(
         ipa: feature declaration used both to read anonymous IPA and to measure
             distances
 
-    An entry its side's style cannot read is passed to the metric unchanged,
-    which reports it unmapped; its :class:`Correspondence` carries the read
-    failure in ``reason``.
+    An entry the source style cannot read is reported raw and unmapped; its
+    :class:`Correspondence` carries the read failure in ``reason``. An entry
+    the target style cannot read is not a target and is reported in
+    :attr:`PhonesetMapping.unreadable_targets` with its reason.
 
     Examples:
         >>> m = ipakit.phoneset_mapping(["p", "b"], ["t", "d"])
@@ -1089,7 +1090,7 @@ def phoneset_mapping(
         selected: str | Style | None,
         side: str,
     ) -> tuple[Phoneset, Inventory | None, Style, dict[str, str]]:
-        named = inventory(value) if isinstance(value, str) else None
+        named = inventory(value, ipa=features) if isinstance(value, str) else None
         if named is not None:
             if selected is not None:
                 raise ValueError(
@@ -1128,15 +1129,17 @@ def phoneset_mapping(
             try:
                 resolved.append(style.read(phone))
             except ValueError as error:
-                resolved.append(phone)
+                if side == "source":
+                    resolved.append(phone)
                 reasons[phone] = str(error)
         return Phoneset.from_list(resolved, raw.name), None, style, reasons
 
     left, left_inventory, left_style, left_reasons = resolve(
         source, source_style, "source"
     )
-    right, right_inventory, right_style, _ = resolve(target, target_style, "target")
-
+    right, right_inventory, right_style, right_reasons = resolve(
+        target, target_style, "target"
+    )
     operation = one_to_one_mapping if one_to_one else nearest_mapping
     result = operation(
         left,
@@ -1160,7 +1163,11 @@ def phoneset_mapping(
             target=None if item.source in left_reasons else item.target,
             distance=None if item.source in left_reasons else item.distance,
             ties=() if item.source in left_reasons else item.ties,
-            source_spelling=spelling(left_style, item.source),
+            source_spelling=(
+                None
+                if item.source in left_reasons
+                else spelling(left_style, item.source)
+            ),
             target_spelling=(
                 None
                 if item.target is None or item.source in left_reasons
@@ -1177,6 +1184,7 @@ def phoneset_mapping(
         target_inventory=right_inventory,
         source_style=left_style,
         target_style=right_style,
+        unreadable_targets=tuple(right_reasons.items()),
     )
 
 
