@@ -97,7 +97,13 @@ from .form import FormBuilder as FormBuilder
 from .form import (
     FormProjectionError as FormProjectionError,
 )
-from .inventories import Inventory, Style, inventories, inventory
+from .inventories import (
+    Inventory,
+    Style,
+    inventories,
+    inventory,
+    inventory_from_dictionary,
+)
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
 from .phonemaps import (
@@ -1018,8 +1024,8 @@ def minimal_pairs(
 
 
 def phoneset_mapping(
-    source: str | Path | Phoneset | Iterable[str],
-    target: str | Path | Phoneset | Iterable[str],
+    source: str | Path | Phoneset | Inventory | Iterable[str],
+    target: str | Path | Phoneset | Inventory | Iterable[str],
     *,
     one_to_one: bool = False,
     max_distance: float | None = None,
@@ -1040,8 +1046,8 @@ def phoneset_mapping(
     which is not what taking each phone's nearest in turn produces.
 
     Args:
-        source: a registry name, a Path, a Phoneset, or any iterable of str
-        target: a registry name, a Path, a Phoneset, or any iterable of str
+        source: an Inventory, registry name, Path, Phoneset, or iterable of str
+        target: an Inventory, registry name, Path, Phoneset, or iterable of str
         one_to_one: match one-to-one rather than nearest
         max_distance: refuse a pairing past this distance, reporting the
             phone unmapped rather than pairing it with the least bad
@@ -1086,11 +1092,15 @@ def phoneset_mapping(
         return spelling
 
     def resolve(
-        value: str | Path | Phoneset | Iterable[str],
+        value: str | Path | Phoneset | Inventory | Iterable[str],
         selected: str | Style | None,
         side: str,
     ) -> tuple[Phoneset, Inventory | None, Style, dict[str, str]]:
-        named = inventory(value, ipa=features) if isinstance(value, str) else None
+        named = (
+            value
+            if isinstance(value, Inventory)
+            else (inventory(value, ipa=features) if isinstance(value, str) else None)
+        )
         if named is not None:
             if selected is not None:
                 raise ValueError(
@@ -1122,6 +1132,7 @@ def phoneset_mapping(
         elif isinstance(value, Phoneset):
             raw = value
         else:
+            assert not isinstance(value, Inventory)
             raw = Phoneset.from_list(list(value), side)
         resolved = []
         reasons = {}
@@ -1573,6 +1584,7 @@ __all__ = [
     "nearest_phones",
     "inventories",
     "inventory",
+    "inventory_from_dictionary",
     "phoneset_mapping",
     "normalize",
     "normalize_lookalikes",

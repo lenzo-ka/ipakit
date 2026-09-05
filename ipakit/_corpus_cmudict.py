@@ -36,6 +36,32 @@ class CMUdictIngestReport:
         return not self.refusals
 
 
+@dataclass(frozen=True)
+class CMUdictDictionaryEntry:
+    """One parsed CMUdict headword, variant, and phone spelling sequence."""
+
+    word: str
+    variant: int
+    phones: tuple[str, ...]
+
+
+def read_cmudict_dictionary_line(line: str) -> CMUdictDictionaryEntry | None:
+    """Read one CMUdict line, returning ``None`` for comments and blanks."""
+    content = line.split("#", 1)[0].strip()
+    if not content or content.startswith(";;;"):
+        return None
+    fields = content.split()
+    spelling = fields[0]
+    parsed = _ENTRY.fullmatch(spelling)
+    if parsed is None or len(fields) < 2:
+        raise ValueError("expected a headword and one or more phones")
+    return CMUdictDictionaryEntry(
+        parsed.group("word").lower(),
+        int(parsed.group("variant") or "1"),
+        tuple(fields[1:]),
+    )
+
+
 def ingest_cmudict(
     corpus: Corpus,
     source_path: str | os.PathLike[str],
@@ -68,20 +94,15 @@ def ingest_cmudict(
         with stream:
             for line_number, raw in enumerate(stream, 1):
                 line = raw.rstrip("\r\n")
-                content = line.split("#", 1)[0].strip()
-                if not content or content.startswith(";;;"):
-                    continue
-                fields = content.split()
-                spelling = fields[0]
-                parsed = _ENTRY.fullmatch(spelling)
                 word: str | None = None
                 try:
-                    if parsed is None or len(fields) < 2:
-                        raise ValueError("expected a headword and one or more phones")
-                    word = parsed.group("word").lower()
-                    variant = int(parsed.group("variant") or "1")
+                    entry = read_cmudict_dictionary_line(line)
+                    if entry is None:
+                        continue
+                    word = entry.word
+                    variant = entry.variant
                     fileid = word if variant == 1 else f"{word}.{variant}"
-                    transcription = cmu.cmu_to_ipa(fields[1:], strict=True)
+                    transcription = cmu.cmu_to_ipa(list(entry.phones), strict=True)
                     form = ipa.read(transcription, strict=True)
                     corpus.add(
                         fileid,

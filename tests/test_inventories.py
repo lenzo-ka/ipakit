@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import sys
+from pathlib import Path
 
 import ipakit
 import ipakit.cli
@@ -453,3 +454,91 @@ def test_inventory_show_style_and_unknown_name(monkeypatch, capsys) -> None:
 @pytest.mark.parametrize("name", ["pocketsphinx", "timit"])
 def test_less_common_inventories_load(name: str) -> None:
     assert ipakit.inventory(name).phones is not None
+
+
+def test_inventory_from_cmudict_keeps_first_seen_order(tmp_path) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text(
+        ";;; header\nWORD  W ER1 D # note\nWORD(2)  W AO1 R D\nSIL  SIL\n",
+        encoding="utf-8",
+    )
+    derived = ipakit.inventory_from_dictionary(source, "cmudict")
+    assert list(derived.phones or ()) == ["w", "ˈɝ", "d", "ˈɔ", "ɹ"]
+    assert derived.style.name == "cmudict"
+    assert str(source) in derived.provenance
+
+
+def test_inventory_from_mfa_dictionary_uses_its_declaration() -> None:
+    source = Path(__file__).parent / "fixtures" / "mfa_english_us_v3_1_0.dict"
+    derived = ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    assert list(derived.phones or ())[:4] == ["m", "e͜j", "t", "s"]
+
+
+def test_inventory_from_dictionary_refusals_are_specific(tmp_path) -> None:
+    source = tmp_path / "bad.dict"
+    source.write_text("GOOD P\nBAD NOPE\n", encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory_from_dictionary(source, "cmudict")
+    message = str(caught.value)
+    assert "line 2" in message
+    assert "'bad'" in message
+    assert "'NOPE'" in message
+
+
+def test_inventory_from_dictionary_refuses_a_style_without_a_reader(
+    tmp_path,
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("word p\n", encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory_from_dictionary(source, "timit")
+    assert "cmudict" in str(caught.value)
+    assert "pocketsphinx" in str(caught.value)
+    assert "mfa:<name>" in str(caught.value)
+
+
+def test_derived_inventory_is_a_mapping_side(tmp_path) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("word P AH0\n", encoding="utf-8")
+    derived = ipakit.inventory_from_dictionary(source, "cmudict")
+    mapping = ipakit.phoneset_mapping(derived, "mfa")
+    assert mapping.source_inventory is derived
+
+
+def test_inventory_from_dictionary_cli_text_native_and_json(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("word P AH0\n", encoding="utf-8")
+    rc, output, _ = _run_cli(
+        monkeypatch, capsys, "inventory", "from-dict", str(source), "--style", "cmudict"
+    )
+    assert (rc, output) == (0, "p\nə\n")
+    rc, output, _ = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "cmudict",
+        "--spell",
+        "native",
+    )
+    assert (rc, output) == (0, "P\nAH\n")
+    rc, output, _ = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "cmudict",
+        "-f",
+        "json",
+    )
+    report = json.loads(output)
+    assert report["phones"] == [
+        {"house_ipa": "p", "spelling": "P"},
+        {"house_ipa": "ə", "spelling": "AH"},
+    ]
