@@ -12,7 +12,7 @@ from ipakit.bridges import (
     VocabularyResidueError,
 )
 from ipakit.bridges.kana import KANA
-from ipakit.bridges.mfa import MFA
+from ipakit.bridges.mfa import MFA, MFABridge
 from ipakit.bridges.pinyin import PINYIN
 from ipakit.form import Form
 
@@ -21,15 +21,41 @@ ESPEAK_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_en_1_52_0.txt"
 ESPEAK_CMN_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_cmn_1_52_0.txt"
 
 
+def grouping_drop_bridge(tmp_path: Path) -> VocabularyBridge:
+    """Build the small legacy-grouping witness for both mapper drop paths."""
+    declaration = tmp_path / "grouping.xml"
+    declaration.write_text("""<?xml version="1.0" encoding="UTF-8"?>
+<vocabulary name="grouping" version="1" provenance="test declaration" tier="grouping" source-style="segmented" separator=" ">
+  <round-trip>
+    <external-to-house fidelity="lossless" />
+    <house-to-external fidelity="lossy-with-report">
+      <drop name="ties absent from spellings" />
+      <drop name="unit boundaries collapsed by atom grouping" />
+    </house-to-external>
+  </round-trip>
+  <mapper tie-drop="ties absent from spellings" boundary-drop="unit boundaries collapsed by atom grouping" />
+  <atom spelling="a" />
+  <atom spelling="j" />
+  <atom spelling="t" />
+  <atom spelling="ʃ" />
+  <atom spelling="tʃ" />
+  <atom spelling="aj" />
+</vocabulary>
+""")
+    return VocabularyBridge(declaration)
+
+
 def test_mfa_inventory_is_pinned_and_parses_under_base_ipa() -> None:
     assert MFA.version == "english_mfa-v3.1.0"
-    assert len(MFA.atoms) == 101
-    assert all(Form.parse(atom.spelling, strict=True) for atom in MFA.atoms)
+    assert len(MFA.atoms) == 91
+    assert all(
+        len(Form.parse(atom.spelling, strict=True).units) == 1 for atom in MFA.atoms
+    )
 
 
 def test_mfa_atoms_are_grouping_tier_over_house_units() -> None:
     form = MFA.read_tokens(("aj", "pʰ", "tʃ"))
-    assert form.to_ipa() == "ajpʰtʃ"
+    assert form.to_ipa() == "a͜jpʰt͡ʃ"
     groups = [
         event
         for node in form.__dict__["_tiergraph_index"].clock
@@ -37,8 +63,8 @@ def test_mfa_atoms_are_grouping_tier_over_house_units() -> None:
         if group.tier == "mfa"
         for event in group.events
     ]
-    assert [event.features["atom"] for event in groups] == ["aj", "pʰ", "tʃ"]
-    assert [event.structural_duration for event in groups] == [2, 1, 2]
+    assert [event.features["atom"] for event in groups] == ["a͜j", "pʰ", "t͡ʃ"]
+    assert [event.structural_duration for event in groups] == [1, 1, 1]
 
 
 def test_segmented_stream_refuses_unvocabularied_token_by_name() -> None:
@@ -67,12 +93,13 @@ def test_read_accepts_the_default_emission_and_keeps_segmentation() -> None:
 
 
 def test_dictionary_fixture_round_trips_byte_exact() -> None:
+    bridge = MFABridge("english_us")
     lines = [
         line for line in FIXTURE.read_text().splitlines() if not line.startswith("#")
     ]
     assert len(lines) == 26
     assert [
-        MFA.emit_dictionary_line(MFA.read_dictionary_line(line)) for line in lines
+        bridge.emit_dictionary_line(bridge.read_dictionary_line(line)) for line in lines
     ] == lines
 
 
@@ -80,35 +107,12 @@ def test_mfa_round_trip_classification_names_house_drops() -> None:
     assert MFA.round_trip.external_to_house.fidelity is Fidelity.LOSSLESS
     ours = MFA.round_trip.house_to_external
     assert ours.fidelity is Fidelity.LOSSY_WITH_REPORT
-    assert ours.drops == (
-        "ties and simultaneity absent from MFA spellings",
-        "narrow detail outside the MFA English inventory",
-        "house unit boundaries collapsed by MFA atom grouping",
-    )
+    assert ours.drops == ("narrow detail outside the MFA inventory",)
 
 
 @pytest.mark.parametrize(
     ("house", "emitted", "name", "span"),
-    [
-        (
-            "t͡ʃ",
-            "tʃ",
-            "ties and simultaneity absent from MFA spellings",
-            (0, 1),
-        ),
-        (
-            "n̪",
-            "n",
-            "narrow detail outside the MFA English inventory",
-            (0, 1),
-        ),
-        (
-            "aj",
-            "aj",
-            "house unit boundaries collapsed by MFA atom grouping",
-            (0, 2),
-        ),
-    ],
+    [("n̪", "n", "narrow detail outside the MFA inventory", (0, 1))],
 )
 def test_mfa_mapper_exercises_each_declared_drop(
     house: str, emitted: str, name: str, span: tuple[int, int]
@@ -130,20 +134,39 @@ def test_mfa_mapper_refuses_word_boundaries_positioned() -> None:
 
 
 def test_mfa_mapper_reports_the_same_drop_once_per_site() -> None:
-    mapped = MFA.map_to_mfa(Form.parse("ajaj", strict=True))
-    assert MFA.emit(mapped) == "aj aj"
-    name = "house unit boundaries collapsed by MFA atom grouping"
+    mapped = MFA.map_to_mfa(Form.parse("n̪an̪", strict=True))
+    assert MFA.emit(mapped) == "n a n"
+    name = "narrow detail outside the MFA inventory"
     assert mapped.report.drops == (
-        ProjectionDrop(name, (0, 2), "aj", "aj"),
-        ProjectionDrop(name, (2, 4), "aj", "aj"),
+        ProjectionDrop(name, (0, 1), "n̪", "n"),
+        ProjectionDrop(name, (2, 3), "n̪", "n"),
     )
 
 
-def test_mfa_mapper_reports_untied_affricate_as_boundary_collapse() -> None:
+def test_mfa_mapper_preserves_untied_affricate_as_a_cluster() -> None:
     mapped = MFA.map_to_mfa(Form.parse("tʃa", strict=True))
-    assert MFA.emit(mapped) == "tʃ a"
-    name = "house unit boundaries collapsed by MFA atom grouping"
-    assert mapped.report.drops == (ProjectionDrop(name, (0, 2), "tʃ", "tʃ"),)
+    assert MFA.emit(mapped) == "t ʃ a"
+    assert mapped.report.drops == ()
+
+
+def test_vocabulary_mapper_reports_tie_drop(tmp_path: Path) -> None:
+    bridge = grouping_drop_bridge(tmp_path)
+    mapped = bridge.map(Form.parse("t͡ʃ", strict=True))
+    assert bridge.emit(mapped) == "tʃ"
+    assert mapped.report.drops == (
+        ProjectionDrop("ties absent from spellings", (0, 1), "t͡ʃ", "tʃ"),
+    )
+
+
+def test_vocabulary_mapper_reports_boundary_collapse(tmp_path: Path) -> None:
+    bridge = grouping_drop_bridge(tmp_path)
+    mapped = bridge.map(Form.parse("aj", strict=True))
+    assert bridge.emit(mapped) == "aj"
+    assert mapped.report.drops == (
+        ProjectionDrop(
+            "unit boundaries collapsed by atom grouping", (0, 2), "aj", "aj"
+        ),
+    )
 
 
 def test_mfa_mapper_no_drop_form_has_empty_serializable_report() -> None:
@@ -274,12 +297,12 @@ def test_every_generated_espeak_declaration_loads() -> None:
     assert all(EspeakBridge(path.stem).atoms for path in declarations)
 
 
-def test_espeak_declared_refusal_names_mnemonic_and_position() -> None:
+def test_espeak_declared_refusal_names_spelling_and_position() -> None:
     bridge = EspeakBridge("fr")
     refused = bridge.refusals[0]
     with pytest.raises(
         VocabularyResidueError,
-        match=rf"mnemonic {refused.spelling!r} at span \[1:{1 + len(refused.spelling)}\]",
+        match=rf"spelling {refused.spelling!r} at span \[1:{1 + len(refused.spelling)}\]",
     ):
         bridge.read("p" + refused.spelling)
 
@@ -314,7 +337,7 @@ def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:
         (
             "duplicate",
             lambda atoms: atoms[1].set("output", atoms[0].attrib["spelling"]),
-            r"atom 2 output 'p' duplicates atom 1",
+            r"atom 2 output 'a' duplicates atom 1",
         ),
         (
             "non-IPA",
@@ -326,7 +349,7 @@ def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:
 def test_vocabulary_load_refuses_bad_atom_with_identity_and_position(
     tmp_path: Path, label: str, mutate, message: str
 ) -> None:
-    declaration = Path(__file__).parent.parent / "ipakit/data/bridges/mfa/mfa.xml"
+    declaration = Path(__file__).parent.parent / "ipakit/data/bridges/mfa/english.xml"
     root = ET.parse(declaration).getroot()
     mutate(root.findall("atom"))
     bad = tmp_path / f"{label}.xml"

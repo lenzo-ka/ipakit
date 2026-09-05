@@ -284,6 +284,14 @@ class VocabularyBridge(Bridge):
             for index, token in enumerate(text):
                 atom = self._by_output.get(token)
                 if atom is None:
+                    refusal = next(
+                        (item for item in self.refusals if item.spelling == token), None
+                    )
+                    if refusal is not None:
+                        raise VocabularyResidueError(
+                            f"{self.name} vocabulary refuses token {index} spelling "
+                            f"{token!r}: {refusal.reason}"
+                        )
                     raise VocabularyResidueError(
                         f"{self.name} vocabulary has no atom for token {index}: {token!r}"
                     )
@@ -317,7 +325,7 @@ class VocabularyBridge(Bridge):
             if isinstance(match, Refusal):
                 end = position + len(match.spelling)
                 raise VocabularyResidueError(
-                    f"{self.name} vocabulary refuses eSpeak mnemonic "
+                    f"{self.name} vocabulary refuses spelling "
                     f"{match.spelling!r} at span [{position}:{end}]: {match.reason}"
                 )
             if not isinstance(match, Atom):  # narrows the heterogeneous token table

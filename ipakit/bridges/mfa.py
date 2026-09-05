@@ -1,4 +1,4 @@
-"""English MFA v3.1.0 vocabulary and dictionary-line bridge."""
+"""MFA vocabulary and dictionary-line bridges."""
 
 from __future__ import annotations
 
@@ -8,7 +8,17 @@ from pathlib import Path
 from ..form import Form
 from .vocabulary import VocabularyBridge, VocabularyProjection
 
-_PATH = Path(__file__).parent.parent / "data" / "bridges" / "mfa" / "mfa.xml"
+_DATA = Path(__file__).parent.parent / "data" / "bridges" / "mfa"
+UNION = "mfa"
+"""The declaration name of the union of shipped MFA phone inventories."""
+
+
+def declarations() -> tuple[str, ...]:
+    """Return the shipped MFA declaration names in sorted order."""
+
+    return tuple(
+        sorted(path.stem for path in _DATA.glob("*.xml") if path.stem != UNION)
+    )
 
 
 @dataclass(frozen=True)
@@ -21,19 +31,23 @@ class MFADictionaryEntry:
 
 
 class MFABridge(VocabularyBridge):
-    """The declared English MFA v3.1.0 vocabulary and dictionary syntax."""
+    """One declared MFA vocabulary and the dictionary-line syntax."""
 
-    def __init__(self) -> None:
-        """Load the shipped English MFA vocabulary declaration."""
+    def __init__(self, declaration: str = "english") -> None:
+        """Load ``declaration``, refusing an absent MFA vocabulary."""
 
-        super().__init__(_PATH)
+        path = _DATA / f"{declaration}.xml"
+        if not path.is_file():
+            raise ValueError(f"no declared MFA vocabulary for {declaration!r}")
+        super().__init__(path)
+        self.declaration = declaration
 
     def read_tokens(self, labels: list[str] | tuple[str, ...]) -> Form:
         """Read an aligned label sequence as an explicitly segmented stream."""
         return self.read(labels)
 
     def map_to_mfa(self, form: Form) -> VocabularyProjection:
-        """Project an arbitrary reachable house form into English MFA atoms."""
+        """Project an arbitrary reachable house form into MFA atoms."""
         return self.map(form)
 
     def read_dictionary_line(self, line: str) -> MFADictionaryEntry:

@@ -670,10 +670,7 @@ def _mutations(
                 "RELAXNG_ERR_NOELEM",
             ),
         ]
-    if document.name in {"mfa.xml", "en.xml"} and document.parent.name in {
-        "mfa",
-        "espeak",
-    }:
+    if document.suffix == ".xml" and document.parent.name in {"mfa", "espeak"}:
         return [
             (
                 "atom with no spelling",
@@ -751,7 +748,7 @@ def _negatives() -> Iterator[Any]:
         DATA / "heads.xml",
         DATA / "phonemaps" / "cmu.xml",
         SUPPLEMENT_XML,
-        DATA / "bridges" / "mfa" / "mfa.xml",
+        DATA / "bridges" / "mfa" / "english.xml",
         DATA / "bridges" / "espeak" / "en.xml",
     ):
         grammar = _grammars_for(document)[0]
