@@ -32,6 +32,7 @@ class Style:
     _reader: Callable[[str], str] = field(repr=False, compare=False)
     _speller: Callable[[str], str] = field(repr=False, compare=False)
     collapses: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    separator: str | None = None
 
     def read(self, spelling: str) -> str:
         """Read one external spelling as house IPA."""
@@ -132,7 +133,7 @@ def _bridge_inventory(name: str, bridge: VocabularyBridge) -> Inventory:
 
     return Inventory(
         name,
-        Style(name, read, spell),
+        Style(name, read, spell, separator=bridge.separator or None),
         _inventory_phones(phones, name),
         bridge.provenance,
     )
@@ -178,7 +179,7 @@ def _cmu_inventory(name: str) -> Inventory:
     }
     return Inventory(
         name,
-        Style(name, read, spell, collapses),
+        Style(name, read, spell, collapses, " "),
         _inventory_phones(phones, name),
         f"CMU ARPAbet ({dialect.purpose}) from cmu.xml",
     )
@@ -389,7 +390,7 @@ def _mfa_inventory(declaration: str, ipa: IPAFeatures | None = None) -> Inventor
 
     return Inventory(
         name,
-        Style(name, read, spell),
+        Style(name, read, spell, separator=""),
         _inventory_phones([normalize(atom.spelling) for atom in bridge.atoms], name),
         bridge.provenance,
         bridge.version,
