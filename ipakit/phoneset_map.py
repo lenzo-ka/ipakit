@@ -36,19 +36,44 @@ from typing import TYPE_CHECKING
 from .models import Phoneset
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     from .features import IPAFeatures
     from .inventories import Inventory, Style
 
 __all__ = [
     "Correspondence",
+    "PhonesetComparison",
     "PhonesetMapping",
     "nearest_mapping",
     "read_inventory_entry",
     "tie_delimited_entry",
     "one_to_one_mapping",
 ]
+
+
+@dataclass(frozen=True)
+class PhonesetComparison:
+    """A segmental comparison of two phonesets.
+
+    Set tuples keep order of first appearance in ``a`` and then ``b``;
+    they are never sorted by their surface spelling. ``matrix`` has rows
+    from ``a`` and columns from ``b``. The metric is symmetric, so the
+    reverse matrix is its transpose and a union-by-union matrix would be
+    symmetric.
+    """
+
+    a: Phoneset
+    b: Phoneset
+    union: tuple[str, ...]
+    intersection: tuple[str, ...]
+    only_a: tuple[str, ...]
+    only_b: tuple[str, ...]
+    forward: PhonesetMapping
+    backward: PhonesetMapping
+    matrix: tuple[tuple[float, ...], ...]
+    spellings: Mapping[str, tuple[str | None, str | None]]
+    stripped: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True)

@@ -521,6 +521,32 @@ ipakit.phoneset_mapping(["θ", "p"], ["p", "k"], max_distance=0.02).unmapped
 
 On the command line: `distance map SOURCE TARGET` takes a registry name or a phoneset file on each side and prints each correspondence in both notations; collapses, unmapped phones, and unused targets use the same styles, with `-` where spelling is refused. `--from-style` and `--to-style` name the notation each file is written in, `--one-to-one` switches operations, `--max-distance` sets the refusal, `--wild` abbreviates wild style on both sides, `--no-tie` turns off the tied reading, and `-f json` gives the whole result. A token that is both a registry name and a file is refused; prefix the path with `./` to select the file. `inventory list` and `inventory show NAME` inspect the same registry. To convert an inventory file to house style once rather than on every comparison, `convert phoneset --from-style NAME` writes what that style and the tied reading produce; the default style is `wild`.
 
+## 14. Comparing two inventories
+
+`phoneset_comparison` reads both sides into house IPA and removes stress marks before set comparison, reporting every changed entry in `stripped`; stress is stripped by default because it is assigned to words, while length is retained because an inventory may use it contrastively. Pass `strip="prosodic"` to remove every prosodic mark or `strip=None` to retain them all; its set tuples preserve first appearance in A and then B and are never surface-sorted.
+
+Tie glyphs keep their distinct house senses during comparison, so an over-tied and an under-tied spelling are different members unless that side selects the `wild` style to canonicalize tie conventions; [ties.md](ties.md) states the rule.
+
+```python
+comparison = ipakit.phoneset_comparison("pocketsphinx", "mfa:english_us")
+comparison.union  # ('i', 'ɪ', 'ɛ', 'æ', 'ɑ', 'ɔ', 'ʊ', 'u', 'ʌ', 'ə', 'ɚ', 'ɝ', 'e͜ɪ', 'o͜ʊ', 'a͜ɪ', 'a͜ʊ', 'ɔ͜ɪ', 'j', 'w', 'm', 'n', 'ŋ', 'l', 'ɹ', 'p', 'b', 't', 'd', 'k', 'ɡ', 't͡ʃ', 'd͡ʒ', 'f', 'v', 'θ', 'ð', 's', 'z', 'ʃ', 'ʒ', 'h', 'a͜j', 'a͜w', 'bʲ', 'c', 'cʰ', 'cʷ', 'dʲ', 'd̪', 'e͜j', 'fʲ', 'iː', 'kʰ', 'kʷ', 'mʲ', 'm̩', 'n̩', 'o͜w', 'pʰ', 'pʲ', 'pʷ', 'tʰ', 'tʲ', 'tʷ', 't̪', 'vʲ', 'ç', 'ɐ', 'ɑː', 'ɒ', 'ɒː', 'ɔ͜j', 'ɟ', 'ɟʷ', 'ɡʷ', 'ɫ', 'ɫ̩', 'ɱ', 'ɲ', 'ɾ', 'ɾʲ', 'ɾ̃', 'ʉ', 'ʉː', 'ʎ', 'ʔ')
+comparison.intersection  # ('i', 'ɪ', 'ɛ', 'æ', 'ɑ', 'ʊ', 'ə', 'ɚ', 'ɝ', 'j', 'w', 'm', 'n', 'ŋ', 'l', 'ɹ', 'p', 'b', 't', 'd', 'k', 'ɡ', 't͡ʃ', 'd͡ʒ', 'f', 'v', 'θ', 'ð', 's', 'z', 'ʃ', 'ʒ', 'h')
+comparison.only_a  # ('ɔ', 'u', 'ʌ', 'e͜ɪ', 'o͜ʊ', 'a͜ɪ', 'a͜ʊ', 'ɔ͜ɪ')
+comparison.only_b  # ('a͜j', 'a͜w', 'bʲ', 'c', 'cʰ', 'cʷ', 'dʲ', 'd̪', 'e͜j', 'fʲ', 'iː', 'kʰ', 'kʷ', 'mʲ', 'm̩', 'n̩', 'o͜w', 'pʰ', 'pʲ', 'pʷ', 'tʰ', 'tʲ', 'tʷ', 't̪', 'vʲ', 'ç', 'ɐ', 'ɑː', 'ɒ', 'ɒː', 'ɔ͜j', 'ɟ', 'ɟʷ', 'ɡʷ', 'ɫ', 'ɫ̩', 'ɱ', 'ɲ', 'ɾ', 'ɾʲ', 'ɾ̃', 'ʉ', 'ʉː', 'ʎ', 'ʔ')
+comparison.stripped  # ()
+comparison.backward.collapses  # {'b': ('b', 'bʲ'), 'k': ('c', 'cʰ', 'k', 'kʰ', 'kʷ'), 't': ('cʷ', 't', 'tʰ', 'tʲ', 'tʷ', 't̪'), 'd': ('d', 'dʲ', 'd̪', 'ɟʷ'), 'f': ('f', 'fʲ'), 'h': ('h', 'ʔ'), 'i': ('i', 'iː'), 'l': ('l', 'ɫ', 'ɫ̩', 'ʎ'), 'm': ('m', 'mʲ', 'm̩', 'ɱ'), 'n': ('n', 'n̩', 'ɾ̃'), 'p': ('p', 'pʰ', 'pʲ', 'pʷ'), 'v': ('v', 'vʲ'), 'θ': ('ç', 'θ'), 'ð': ('ð', 'ɾ', 'ɾʲ'), 'ŋ': ('ŋ', 'ɲ'), 'ə': ('ɐ', 'ə'), 'ɑ': ('ɑ', 'ɑː'), 'ɔ': ('ɒ', 'ɒː'), 'ɡ': ('ɟ', 'ɡ', 'ɡʷ'), 'ʊ': ('ʉ', 'ʉː', 'ʊ')}
+```
+
+The MFA-to-ARPAbet report shows the aspirated and plain dorsal stops collapsing onto `K`, the plain and aspirated or articulated coronals collapsing onto `T`, MFA `ɾ` and `ɾʲ` joining `ð` at `DH`, and `ʔ` joining `h` at `HH`; in the other direction PocketSphinx `UW` joins `ʊ`, while `AY` maps to MFA `aj` rather than being an exact spelling match.
+
+The phone metric is symmetric but nearest mapping is directional, so both mappings are reported; `matrix` has A rows and B columns, and the B-by-A matrix is its transpose.
+
+```sh
+ipakit distance compare pocketsphinx mfa:english_us
+```
+
+Use `-f tsv` for only the matrix or `-f json` for the complete structured result; `--strip stress|prosodic|none` selects the same projection and defaults to `stress`, `--from-style` and `--to-style` describe files, and the name-or-file collision rule is the same as `distance map`.
+
 An entry a selected style cannot read is reported on its source or target side and makes `distance map` exit 3; it is never presented as a valid spelling or used as a target.
 
 ## Related
