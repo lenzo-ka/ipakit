@@ -491,4 +491,111 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
     return item
 
 
-__all__ = ["Inventory", "Style", "inventories", "inventory"]
+def inventory_from_dictionary(
+    path: Path,
+    style: str | Style,
+    *,
+    name: str | None = None,
+    ipa: IPAFeatures | None = None,
+) -> Inventory:
+    """Derive a finite inventory from a pronunciation dictionary."""
+    selected = inventory(style).style if isinstance(style, str) else style
+    if ipa is not None and selected.name in {"ipa", "wild"}:
+        from .form import Form
+
+        def read_house(spelling: str) -> str:
+            Form.parse(spelling, features=ipa, strict=True)
+            return spelling
+
+        selected = (
+            Style("ipa", read_house, lambda value: value)
+            if selected.name == "ipa"
+            else Style(
+                "wild",
+                lambda spelling: read_house(ipa.from_wild(spelling)),
+                lambda value: value,
+            )
+        )
+    supported = "cmudict, pocketsphinx, mfa, mfa:<name>, ipa, wild"
+    if selected.name in {"cmudict", "pocketsphinx"}:
+        from ._corpus_cmudict import read_cmudict_dictionary_line
+
+        def read_line(line: str) -> tuple[str, tuple[str, ...]] | None:
+            entry = read_cmudict_dictionary_line(line)
+            return None if entry is None else (entry.word, entry.phones)
+
+    elif selected.name == "mfa" or selected.name.startswith("mfa:"):
+        from .bridges.mfa import MFABridge
+
+        def read_line(line: str) -> tuple[str, tuple[str, ...]] | None:
+            if not line.strip() or line.lstrip().startswith("#"):
+                return None
+            word, spellings, _ = MFABridge.split_dictionary_line(line)
+            return word, spellings
+
+    elif selected.name in {"ipa", "wild"}:
+
+        def read_line(line: str) -> tuple[str, tuple[str, ...]] | None:
+            content = line.strip()
+            if not content:
+                return None
+            fields = content.split()
+            if len(fields) < 2:
+                raise ValueError("expected a headword and one or more phones")
+            return fields[0], tuple(fields[1:])
+
+    else:
+        raise ValueError(
+            f"style {selected.name!r} has no pronunciation-dictionary reader; "
+            f"would accept {supported}"
+        )
+
+    phones: list[str] = []
+    source = Path(path)
+    from .models import _silence_spellings
+
+    silence = _silence_spellings()
+    try:
+        with source.open(encoding="utf-8") as stream:
+            for line_number, raw in enumerate(stream, 1):
+                line = raw.rstrip("\r\n")
+                try:
+                    parsed = read_line(line)
+                except (UnicodeError, ValueError) as error:
+                    raise ValueError(
+                        f"cannot read dictionary line {line_number} in {source}: "
+                        f"entry {line!r}: {error}"
+                    ) from error
+                if parsed is None:
+                    continue
+                entry, spellings = parsed
+                for spelling in spellings:
+                    if spelling in silence:
+                        continue
+                    try:
+                        phones.append(selected.read(spelling))
+                    except ValueError as error:
+                        raise ValueError(
+                            f"cannot read dictionary line {line_number} in {source}: "
+                            f"entry {entry!r}, phone {spelling!r}: {error}"
+                        ) from error
+    except OSError as error:
+        raise ValueError(
+            f"cannot read pronunciation dictionary {source}: {error}"
+        ) from error
+    inventory_name = name or source.stem
+    return Inventory(
+        inventory_name,
+        selected,
+        _inventory_phones(phones, inventory_name),
+        f"Pronunciation dictionary {source} read as {selected.name}",
+    )
+
+
+__all__ = [
+    "Inventory",
+    "Style",
+    "inventories",
+    "inventory",
+    "inventory_from_dictionary",
+]

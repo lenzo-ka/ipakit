@@ -53,8 +53,9 @@ class MFABridge(VocabularyBridge):
         """Project an arbitrary reachable house form into MFA atoms."""
         return self.map(form)
 
-    def read_dictionary_line(self, line: str) -> MFADictionaryEntry:
-        """Read the plain MFA word-tab-segmented-phones dictionary form."""
+    @staticmethod
+    def split_dictionary_line(line: str) -> tuple[str, tuple[str, ...], str]:
+        """Split an MFA dictionary line without interpreting its phones."""
         if "\t" in line:
             word, pronunciation = line.split("\t", 1)
             separator = "\t"
@@ -64,7 +65,15 @@ class MFABridge(VocabularyBridge):
                 raise ValueError(f"MFA dictionary line has no pronunciation: {line!r}")
             word, pronunciation = parts
             separator = line[len(word) : len(line) - len(pronunciation)]
-        return MFADictionaryEntry(word, self.read(pronunciation.split()), separator)
+        spellings = tuple(pronunciation.split())
+        if not spellings:
+            raise ValueError(f"MFA dictionary line has no pronunciation: {line!r}")
+        return word, spellings, separator
+
+    def read_dictionary_line(self, line: str) -> MFADictionaryEntry:
+        """Read the plain MFA word-tab-segmented-phones dictionary form."""
+        word, spellings, separator = self.split_dictionary_line(line)
+        return MFADictionaryEntry(word, self.read(spellings), separator)
 
     def emit_dictionary_line(self, entry: MFADictionaryEntry) -> str:
         """Emit one entry in MFA's word-plus-segmented-phones syntax."""
