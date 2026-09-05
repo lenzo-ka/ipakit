@@ -627,6 +627,11 @@ class PhonesetCommand(Command):
             help="Canonicalize wild spellings only; leave untied entries as written",
         )
         parser.add_argument(
+            "--from-style",
+            metavar="NAME",
+            help="Read the file in this named inventory notation (default: wild)",
+        )
+        parser.add_argument(
             "--quiet",
             action="store_true",
             help="Do not list the changed entries on stderr",
@@ -640,15 +645,37 @@ class PhonesetCommand(Command):
         out: list[str] = []
         wild: list[tuple[str, str]] = []
         tied: list[tuple[str, str]] = []
+        styled_steps: list[tuple[str, str]] = []
+        changed: set[str] = set()
         refused: list[str] = []
+        from ..inventories import inventory
         from ..phoneset_map import read_inventory_entry
 
+        try:
+            style = inventory(self.args.from_style or "wild").style
+        except ValueError as error:
+            return self.error(str(error))
+
         for member in source.phones:
+            try:
+                styled = style.read(member)
+            except ValueError:
+                refused.append(member)
+                out.append(member)
+                continue
             house, steps = read_inventory_entry(
-                member, self.ipa, wild=True, tie=not self.args.no_tie
+                styled, self.ipa, wild=False, tie=not self.args.no_tie
             )
+            if styled != member:
+                steps.insert(0, (style.name, member, styled))
             for kind, before, after in steps:
-                (wild if kind == "wild" else tied).append((before, after))
+                if kind == "wild":
+                    wild.append((before, after))
+                elif kind == "tied":
+                    tied.append((before, after))
+                else:
+                    styled_steps.append((before, after))
+                changed.add(member)
             if len(self.ipa.segments(house)) != 1:
                 refused.append(member)
             out.append(house)
@@ -673,10 +700,13 @@ class PhonesetCommand(Command):
                 print(f"wild spelling: {before} -> {after}", file=sys.stderr)
             for before, after in tied:
                 print(f"tied: {before} -> {after}", file=sys.stderr)
-            unchanged = len(source.phones) - len(wild) - len(tied)
+            for before, after in styled_steps:
+                print(f"{style.name}: {before} -> {after}", file=sys.stderr)
+            unchanged = len(source.phones) - len(changed)
             print(
                 f"{len(source.phones)} entries: {unchanged} unchanged, "
-                f"{len(wild)} wild spelling(s), {len(tied)} tied",
+                f"{len(wild)} wild spelling(s), {len(tied)} tied, "
+                f"{len(styled_steps)} {style.name}",
                 file=sys.stderr,
             )
         return 0

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import functools as _functools
 from collections.abc import Iterable, Sequence
+from dataclasses import replace as _replace
 from pathlib import Path
 from typing import Any
 
@@ -96,6 +97,7 @@ from .form import FormBuilder as FormBuilder
 from .form import (
     FormProjectionError as FormProjectionError,
 )
+from .inventories import Inventory, Style, inventories, inventory
 from .mapper import CMUMapper
 from .models import Feature, Phone, PhoneMapping, Phoneset
 from .phonemaps import (
@@ -1016,12 +1018,15 @@ def minimal_pairs(
 
 
 def phoneset_mapping(
-    source: Phoneset | Iterable[str],
-    target: Phoneset | Iterable[str],
+    source: str | Path | Phoneset | Iterable[str],
+    target: str | Path | Phoneset | Iterable[str],
     *,
     one_to_one: bool = False,
     max_distance: float | None = None,
+    source_style: str | Style | None = None,
+    target_style: str | Style | None = None,
     tied: bool = False,
+    ipa: IPAFeatures | None = None,
 ) -> PhonesetMapping:
     """Relate one phoneset to another.
 
@@ -1035,16 +1040,26 @@ def phoneset_mapping(
     which is not what taking each phone's nearest in turn produces.
 
     Args:
-        source: phones being mapped (a Phoneset or any iterable of str)
-        target: phones being mapped onto
+        source: a registry name, a Path, a Phoneset, or any iterable of str
+        target: a registry name, a Path, a Phoneset, or any iterable of str
         one_to_one: match one-to-one rather than nearest
         max_distance: refuse a pairing past this distance, reporting the
             phone unmapped rather than pairing it with the least bad
+        source_style: notation used by an anonymous source; refused beside a
+            named inventory, which already declares its style
+        target_style: notation used by an anonymous target, under the same rule
         tied: read each entry as one phone, tying a multi-segment entry
             that is not already tied -- what an inventory list means,
             where "aɪ" is one diphthong and not a vowel then a glide.
             Off by default: a bare iterable asserts nothing about its
             elements, so nothing is tied unless you say so.
+        ipa: feature declaration used both to read anonymous IPA and to measure
+            distances
+
+    An entry the source style cannot read is reported raw and unmapped; its
+    :class:`Correspondence` carries the read failure in ``reason``. An entry
+    the target style cannot read is not a target and is reported in
+    :attr:`PhonesetMapping.unreadable_targets` with its reason.
 
     Examples:
         >>> m = ipakit.phoneset_mapping(["p", "b"], ["t", "d"])
@@ -1062,9 +1077,114 @@ def phoneset_mapping(
     # existing as a second, unlisted spelling of this function.
     from .phoneset_map import nearest_mapping, one_to_one_mapping
 
+    features = ipa or _get_ipa()
+
+    def read_house(spelling: str) -> str:
+        from .form import Form
+
+        Form.parse(spelling, features=features, strict=True)
+        return spelling
+
+    def resolve(
+        value: str | Path | Phoneset | Iterable[str],
+        selected: str | Style | None,
+        side: str,
+    ) -> tuple[Phoneset, Inventory | None, Style, dict[str, str]]:
+        named = inventory(value, ipa=features) if isinstance(value, str) else None
+        if named is not None:
+            if selected is not None:
+                raise ValueError(
+                    f"{side}_style cannot be given with inventory {value!r}; "
+                    "the inventory already declares its style"
+                )
+            if named.phones is None:
+                raise ValueError(f"{value!r} is a notation, not a finite inventory")
+            return named.phones, named, named.style, {}
+        style: Style | None
+        if selected == "ipa":
+            style = Style("ipa", read_house, lambda value: value)
+        elif selected == "wild":
+            style = Style(
+                "wild",
+                lambda spelling: read_house(features.from_wild(spelling)),
+                lambda value: value,
+            )
+        else:
+            style = inventory(selected).style if isinstance(selected, str) else selected
+        if style is None:
+            style = Style(
+                "ipa",
+                read_house,
+                lambda value: value,
+            )
+        if isinstance(value, Path):
+            raw = Phoneset.from_file(value)
+        elif isinstance(value, Phoneset):
+            raw = value
+        else:
+            raw = Phoneset.from_list(list(value), side)
+        resolved = []
+        reasons = {}
+        for phone in raw:
+            try:
+                resolved.append(style.read(phone))
+            except ValueError as error:
+                if side == "source":
+                    resolved.append(phone)
+                reasons[phone] = str(error)
+        return Phoneset.from_list(resolved, raw.name), None, style, reasons
+
+    left, left_inventory, left_style, left_reasons = resolve(
+        source, source_style, "source"
+    )
+    right, right_inventory, right_style, right_reasons = resolve(
+        target, target_style, "target"
+    )
     operation = one_to_one_mapping if one_to_one else nearest_mapping
-    return operation(
-        source, target, ipa=_get_ipa(), max_distance=max_distance, tied=tied
+    result = operation(
+        left,
+        right,
+        ipa=features,
+        max_distance=max_distance,
+        tied=tied,
+        source_style=left_style,
+        target_style=right_style,
+    )
+
+    def spelling(style: Style, phone: str) -> str | None:
+        try:
+            return style.spell(phone)
+        except ValueError:
+            return None
+
+    correspondences = tuple(
+        _replace(
+            item,
+            target=None if item.source in left_reasons else item.target,
+            distance=None if item.source in left_reasons else item.distance,
+            ties=() if item.source in left_reasons else item.ties,
+            source_spelling=(
+                None
+                if item.source in left_reasons
+                else spelling(left_style, item.source)
+            ),
+            target_spelling=(
+                None
+                if item.target is None or item.source in left_reasons
+                else spelling(right_style, item.target)
+            ),
+            reason=left_reasons.get(item.source),
+        )
+        for item in result
+    )
+    return _replace(
+        result,
+        correspondences=correspondences,
+        source_inventory=left_inventory,
+        target_inventory=right_inventory,
+        source_style=left_style,
+        target_style=right_style,
+        unreadable_targets=tuple(right_reasons.items()),
     )
 
 
@@ -1376,10 +1496,12 @@ def variants(
 __all__ = [
     # Classes
     "CMUMapper",
+    "Correspondence",
     "DistanceModel",
     "Feature",
     "FormBuilder",
     "IPAFeatures",
+    "Inventory",
     "Matchable",
     "Phone",
     "Segment",
@@ -1392,6 +1514,7 @@ __all__ = [
     "import_phoneset",
     "PhoneMapping",
     "Phoneset",
+    "PhonesetMapping",
     "CostSchedule",
     "PhoneCost",
     "Alignment",
@@ -1404,6 +1527,7 @@ __all__ = [
     "Language",
     "Syllabification",
     "Syllabifier",
+    "Style",
     "AgreementPosition",
     "DisagreementKind",
     "DisagreementPosition",
@@ -1447,9 +1571,9 @@ __all__ = [
     "morae",
     "natural_class",
     "nearest_phones",
+    "inventories",
+    "inventory",
     "phoneset_mapping",
-    "PhonesetMapping",
-    "Correspondence",
     "normalize",
     "normalize_lookalikes",
     "notebook",

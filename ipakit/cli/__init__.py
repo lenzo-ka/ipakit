@@ -53,6 +53,7 @@ from .distance import DistanceGroup
 from .features import FeaturesCommand
 from .hierarchy import HierarchyGroup
 from .info import InfoGroup
+from .inventory import InventoryGroup
 from .notebook import NotebookCommand
 from .phoible import PhoibleGroup
 from .policy import report
@@ -73,6 +74,7 @@ GROUPS = [
     AnalysisGroup,
     AnalyzeGroup,
     InfoGroup,
+    InventoryGroup,
     PhoibleGroup,
     TractGroup,
 ]

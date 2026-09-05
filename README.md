@@ -272,6 +272,7 @@ ipakit distance seq "k a t" "k æ t" # Distance over pre-tokenized phone sequenc
 ipakit distance nearest kat kæt kɑt  # Best-matching acceptable variant
 ipakit distance map en.phones es.phones        # Map one inventory onto another
 ipakit distance map en.phones es.phones --one-to-one   # ...as a matching instead
+ipakit inventory list                                 # List named inventories and styles
 ipakit convert phoneset wild.phones -o house.phones    # A phoneset file to house style
 ipakit rules apply -s american-english pˈɪn    # Broad to narrow: pʰˈɪ̃n
 ipakit rules trace -s american-english bˈʌtɚ   # Which rule fired, and where

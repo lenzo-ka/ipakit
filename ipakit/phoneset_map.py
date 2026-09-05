@@ -30,7 +30,7 @@ instead of silently paired with whatever happened to be least bad.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 from .models import Phoneset
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from .features import IPAFeatures
+    from .inventories import Inventory, Style
 
 __all__ = [
     "Correspondence",
@@ -62,6 +63,9 @@ class Correspondence:
     #: equidistant targets is "the" answer is not a fact this library
     #: holds -- an order is declared or it does not exist.
     ties: tuple[str, ...] = ()
+    source_spelling: str | None = None
+    target_spelling: str | None = None
+    reason: str | None = None
 
     @property
     def mapped(self) -> bool:
@@ -79,6 +83,13 @@ class PhonesetMapping:
     #: different questions and a bare table of pairs does not say which.
     kind: str
     correspondences: tuple[Correspondence, ...]
+    source_inventory: Inventory | None = None
+    target_inventory: Inventory | None = None
+    source_style: Style | None = field(default=None, repr=False, compare=False)
+    target_style: Style | None = field(default=None, repr=False, compare=False)
+    #: Target entries refused by their style, as raw input and reason. They are
+    #: not targets and therefore cannot appear among ``unused_targets``.
+    unreadable_targets: tuple[tuple[str, str], ...] = ()
 
     def __iter__(self):  # type: ignore[no-untyped-def]
         return iter(self.correspondences)
@@ -252,6 +263,36 @@ def _unmapped(phone: str) -> Correspondence:
     return Correspondence(phone, None, None)
 
 
+def _styled(
+    result: PhonesetMapping,
+    source_style: Style | None,
+    target_style: Style | None,
+) -> PhonesetMapping:
+    """Attach spellings where an operation was given notation styles."""
+
+    def spell(style: Style | None, phone: str | None) -> str | None:
+        if style is None or phone is None:
+            return None
+        try:
+            return style.spell(phone)
+        except ValueError:
+            return None
+
+    return replace(
+        result,
+        correspondences=tuple(
+            replace(
+                item,
+                source_spelling=spell(source_style, item.source),
+                target_spelling=spell(target_style, item.target),
+            )
+            for item in result
+        ),
+        source_style=source_style,
+        target_style=target_style,
+    )
+
+
 def _refused(cost: float, max_distance: float | None) -> bool:
     """Whether a pairing at this cost is declined.
 
@@ -292,6 +333,8 @@ def nearest_mapping(
     ipa: IPAFeatures | None = None,
     max_distance: float | None = None,
     tied: bool = False,
+    source_style: Style | None = None,
+    target_style: Style | None = None,
 ) -> PhonesetMapping:
     """Map each source phone onto its closest target phone.
 
@@ -314,8 +357,10 @@ def nearest_mapping(
     """
     features, left, right = _prepare(source, target, ipa, tied)
     if not left.phones or not right.phones:
-        return PhonesetMapping(
-            left, right, "nearest", tuple(_unmapped(p) for p in left)
+        return _styled(
+            PhonesetMapping(left, right, "nearest", tuple(_unmapped(p) for p in left)),
+            source_style,
+            target_style,
         )
 
     rows = _cost_rows(left, right, features)
@@ -327,7 +372,11 @@ def nearest_mapping(
             continue
         at = [right.phones[i] for i, value in enumerate(row) if value == best]
         found.append(Correspondence(phone, at[0], best, tuple(at[1:])))
-    return PhonesetMapping(left, right, "nearest", tuple(found))
+    return _styled(
+        PhonesetMapping(left, right, "nearest", tuple(found)),
+        source_style,
+        target_style,
+    )
 
 
 def _assign(rows: Sequence[Sequence[float]], n_targets: int) -> list[int | None]:
@@ -406,6 +455,8 @@ def one_to_one_mapping(
     ipa: IPAFeatures | None = None,
     max_distance: float | None = None,
     tied: bool = False,
+    source_style: Style | None = None,
+    target_style: Style | None = None,
 ) -> PhonesetMapping:
     """Pair the phonesets one-to-one, minimizing total distance.
 
@@ -432,8 +483,12 @@ def one_to_one_mapping(
     """
     features, left, right = _prepare(source, target, ipa, tied)
     if not left.phones or not right.phones:
-        return PhonesetMapping(
-            left, right, "one-to-one", tuple(_unmapped(p) for p in left)
+        return _styled(
+            PhonesetMapping(
+                left, right, "one-to-one", tuple(_unmapped(p) for p in left)
+            ),
+            source_style,
+            target_style,
         )
 
     rows = _cost_rows(left, right, features)
@@ -445,4 +500,8 @@ def one_to_one_mapping(
             found.append(_unmapped(phone))
             continue
         found.append(Correspondence(phone, right.phones[column], rows[index][column]))
-    return PhonesetMapping(left, right, "one-to-one", tuple(found))
+    return _styled(
+        PhonesetMapping(left, right, "one-to-one", tuple(found)),
+        source_style,
+        target_style,
+    )

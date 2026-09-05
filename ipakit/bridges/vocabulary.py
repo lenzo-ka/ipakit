@@ -16,6 +16,7 @@ from .._graph_facts import (
     RelationDeclaration,
     TierDeclaration,
 )
+from ..features import IPAFeatures
 from ..form import Form
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
 
@@ -104,9 +105,10 @@ def _leg(element: ET.Element, direction: str) -> RoundTripLeg:
 class VocabularyBridge(Bridge):
     """Longest-match tokenizer and structural renderer for one declaration."""
 
-    def __init__(self, declaration: Path):
+    def __init__(self, declaration: Path, *, ipa: IPAFeatures | None = None):
         """Load and check the vocabulary declaration at ``declaration``."""
 
+        self.ipa = ipa
         root = ET.parse(declaration).getroot()
         if root.tag != "vocabulary":
             raise ValueError(f"{declaration} is not a vocabulary declaration")
@@ -161,7 +163,7 @@ class VocabularyBridge(Bridge):
                 else "a" + spelling if kind == "mark" else spelling
             )
             try:
-                Form.parse(probe, strict=True)
+                Form.parse(probe, features=ipa, strict=True)
             except ValueError as error:
                 qualification = (
                     "a house IPA prefix"
@@ -229,7 +231,9 @@ class VocabularyBridge(Bridge):
                     (
                         tuple(
                             unit.text
-                            for unit in Form.parse(atom.spelling, strict=True).units
+                            for unit in Form.parse(
+                                atom.spelling, features=self.ipa, strict=True
+                            ).units
                         ),
                         atom,
                     )
@@ -247,7 +251,7 @@ class VocabularyBridge(Bridge):
                 source = item.attrib["source"]
                 target = item.attrib["target"]
                 drop = item.attrib["drop"]
-                parsed = Form.parse(source, strict=True)
+                parsed = Form.parse(source, features=self.ipa, strict=True)
                 if len(parsed.units) != 1:
                     raise ValueError(
                         f"{self.name} mapper reduction source must be one house unit: {source!r}"
@@ -340,7 +344,7 @@ class VocabularyBridge(Bridge):
 
         atoms = self.tokenize(text)
         ipa = "".join(atom.spelling for atom in atoms)
-        form = Form.parse(ipa, strict=True)
+        form = Form.parse(ipa, features=self.ipa, strict=True)
         projection_input = form.__dict__["_tiergraph_index"].containment_input
         old = projection_input.declarations
         feature_names = {feature.name for feature in old.features}
@@ -404,7 +408,7 @@ class VocabularyBridge(Bridge):
                     "output": str(event.features["output"]) + atom.output,
                 }
                 continue
-            width = len(Form.parse(atom.spelling, strict=True).units)
+            width = len(Form.parse(atom.spelling, features=self.ipa, strict=True).units)
             grouped_spelling = (
                 "".join(prefix.spelling for prefix in prefixes) + atom.spelling
             )
