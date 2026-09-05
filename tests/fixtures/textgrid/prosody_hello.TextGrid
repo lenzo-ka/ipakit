@@ -53,7 +53,7 @@ item []:
         intervals [2]:
             xmin = 1 
             xmax = 2 
-            text = "ˈɛ" 
+            text = "ɛ" 
         intervals [3]:
             xmin = 2 
             xmax = 3 

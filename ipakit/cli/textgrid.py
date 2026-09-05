@@ -43,6 +43,9 @@ class TextGridWriteCommand(Command):
             default="segments",
             help=f"TextGrid profile ({', '.join(profiles())})",
         )
+        parser.add_argument(
+            "--style", help="Inventory style (see 'ipakit inventory list')"
+        )
         add_output_arg(parser)
 
     def run(self) -> int:
@@ -52,6 +55,7 @@ class TextGridWriteCommand(Command):
                 write(
                     form,
                     self.args.profile,
+                    style=self.args.style,
                     features=self.ipa,
                 ).rstrip("\n")
             )
@@ -88,6 +92,9 @@ class TextGridReadCommand(Command):
             help="Coordinate face required with --tier-map (physical or tick)",
         )
         parser.add_argument("--unit", default="s", help="Physical coordinate unit")
+        parser.add_argument(
+            "--style", help="Inventory style (see 'ipakit inventory list')"
+        )
         add_format_arg(parser)
         add_output_arg(parser)
 
@@ -102,6 +109,7 @@ class TextGridReadCommand(Command):
                 tier_map=mapping,
                 face=self.args.face,
                 unit=self.args.unit,
+                style=self.args.style,
                 features=self.ipa,
             )
         except (OSError, ValueError) as error:

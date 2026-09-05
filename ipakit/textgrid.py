@@ -23,12 +23,14 @@ from .form import (
     Timing,
     Unit,
     boundary_marks,
+    declared_prosody,
     edge_level,
     levels,
     tier_names,
     units,
 )
 from .form import spell as spell_units
+from .inventories import Style, inventory
 
 TEXTGRID_DIR = Path(__file__).parent / "data" / "textgrid"
 
@@ -176,22 +178,74 @@ def _write_base(
     return base, positions
 
 
+def _interval_text(
+    unit: Unit, point_roles: frozenset[str], features: IPAFeatures
+) -> str:
+    """Spell a unit minus prosody carried by this profile's point tiers."""
+    if unit.segment is None or not point_roles:
+        return unit.text
+    prosody = tuple(
+        glyph
+        for glyph in unit.segment.prosody
+        if not (set(declared_prosody(glyph, features)) & point_roles)
+    )
+    return dataclasses.replace(unit.segment, prosody=prosody).to_ipa()
+
+
+def _point_profile(role: str, features: IPAFeatures) -> str | None:
+    for name in profiles():
+        candidate = _load_profile(name, features=features)
+        point_roles = {
+            candidate.tier_map[tier.local_name]
+            for tier in candidate.span_view.point_tiers
+        }
+        if role in point_roles:
+            return name
+    return None
+
+
 def write(
     form: Form,
     profile: str = "segments",
     *,
     spell: Callable[[str], str] | None = None,
+    style: str | Style | None = None,
     scale: int | None = None,
     features: IPAFeatures | None = None,
 ) -> str:
     """Write carried spans as carried, or derive tiers when none are carried.
 
-    ``spell`` is the single seam for an external named inventory style; its
-    identity default leaves house IPA labels unchanged.
+    ``style`` selects a named or supplied inventory style. ``spell`` remains
+    the callable seam for callers that do not use the registry.
     """
+    if style is not None and spell is not None:
+        raise ValueError(
+            "TextGrid style and spell cannot be combined; accepted input: one or the other"
+        )
     features = _features(features)
     selected = _load_profile(profile, features=features)
-    transform: Callable[[str], str] = (lambda value: value) if spell is None else spell
+    selected_style = (
+        inventory(style, ipa=features).style if isinstance(style, str) else style
+    )
+    transform: Callable[[str], str] = (
+        selected_style.spell
+        if selected_style is not None
+        else ((lambda value: value) if spell is None else spell)
+    )
+    refusals: list[tuple[str, int, str]] = []
+    carried_point_roles = frozenset(
+        selected.tier_map[tier.local_name]
+        for tier in selected.span_view.point_tiers
+        if selected.tier_map[tier.local_name] != "boundary"
+    )
+
+    def styled(value: str, tier: str, interval: int) -> str:
+        try:
+            return transform(value)
+        except ValueError:
+            refusals.append((tier, interval, value))
+            return ""
+
     if selected.span_view.clock_face == "physical":
         missing = next(
             (
@@ -234,8 +288,16 @@ def write(
         values: list[tuple[str, int, int]] = []
         if role == "segment":
             values = [
-                (transform(form.units[i].text), positions[i][0], positions[i][1])
-                for i in nonboundary
+                (
+                    styled(
+                        _interval_text(form.units[i], carried_point_roles, features),
+                        tier.local_name,
+                        number,
+                    ),
+                    positions[i][0],
+                    positions[i][1],
+                )
+                for number, i in enumerate(nonboundary, 1)
             ]
         else:
             for interval in (item for item in intervals if item.tier == role):
@@ -255,9 +317,27 @@ def write(
                 if selected.span_view.clock_face == "physical" and interval.timing:
                     start = physical_edges[Decimal(str(interval.timing.start))]
                     end = physical_edges[Decimal(str(interval.timing.end))]
+                if selected_style is None:
+                    label = transform(spell_units([form.units[i] for i in covered]))
+                else:
+                    separator = (
+                        selected_style.separator
+                        if selected_style.separator is not None
+                        else " "
+                    )
+                    label = separator.join(
+                        styled(
+                            _interval_text(
+                                form.units[i], carried_point_roles, features
+                            ),
+                            tier.local_name,
+                            len(values) + 1,
+                        )
+                        for i in covered
+                    )
                 values.append(
                     (
-                        transform(spell_units([form.units[i] for i in covered])),
+                        label,
                         start,
                         end,
                     )
@@ -277,7 +357,10 @@ def write(
             starts = [positions[i][0] for i in nonboundary]
             for position, run in marks.items():
                 at = len(base) if position == len(starts) else starts[position]
-                point_values.append((transform("".join(run)), at))
+                mark = "".join(run)
+                point_values.append(
+                    (mark if selected_style is not None else transform(mark), at)
+                )
         else:
             for i in nonboundary:
                 mark = "".join(
@@ -286,8 +369,40 @@ def write(
                     if feature == role
                 )
                 if mark:
-                    point_values.append((transform(mark), positions[i][0]))
+                    point_values.append(
+                        (
+                            mark if selected_style is not None else transform(mark),
+                            positions[i][0],
+                        )
+                    )
         point_data.append((tier, point_values))
+    if refusals:
+        details = "; ".join(
+            f"tier {tier!r} interval {interval} label {label!r}"
+            for tier, interval, label in refusals
+        )
+        style_name = selected_style.name if selected_style is not None else "callable"
+        missing_prosody = sorted(
+            {
+                role
+                for _, _, label in refusals
+                for unit in units(label, features)
+                for _, role, _ in unit.provenance
+                if role not in carried_point_roles
+            }
+        )
+        point_profiles = {
+            role: _point_profile(role, features) for role in missing_prosody
+        }
+        point_advice = "".join(
+            f"; use a profile with a {role} point tier, e.g. {point_profiles[role]}"
+            for role in missing_prosody
+            if point_profiles[role] is not None
+        )
+        raise ValueError(
+            f"TextGrid profile {profile!r} style {style_name!r} refused {details}; "
+            f"accepted labels: phones the style can spell{point_advice}"
+        )
     graph = build(base, span_data, point_data)
     graph_clock = clock(graph) if selected.span_view.clock_face == "physical" else None
     document: str = to_textgrid(
@@ -304,13 +419,18 @@ def read(
     tier_map: Mapping[str, str] | None = None,
     face: str | None = None,
     read: Callable[[str], str] | None = None,
+    style: str | Style | None = None,
     features: IPAFeatures | None = None,
 ) -> Form:
     """Read a TextGrid through an explicit mapping from tier names to roles.
 
-    ``read`` is the identity-default counterpart of :func:`write`'s ``spell``
-    style seam.
+    ``style`` selects a named or supplied inventory style. ``read`` remains
+    the callable seam for callers that do not use the registry.
     """
+    if style is not None and read is not None:
+        raise ValueError(
+            "TextGrid style and read cannot be combined; accepted input: one or the other"
+        )
     features = _features(features)
     selected = (
         _load_profile(profile, features=features) if profile is not None else None
@@ -329,7 +449,14 @@ def read(
             "TextGrid tier_map requires a face; accepted faces: physical, tick"
         )
     result = from_textgrid(document, unit=unit)
-    transform: Callable[[str], str] = (lambda value: value) if read is None else read
+    selected_style = (
+        inventory(style, ipa=features).style if isinstance(style, str) else style
+    )
+    transform: Callable[[str], str] = (
+        selected_style.read
+        if selected_style is not None
+        else ((lambda value: value) if read is None else read)
+    )
     span_names = tuple(t.local_name for t in result.profile.span_tiers)
     point_names = tuple(t.local_name for t in result.profile.point_tiers)
     document_names = (*span_names, *point_names)
@@ -394,10 +521,22 @@ def read(
     unit_starts: set[int] = set()
     labels: list[str] = []
     segment_spans = []
+    document_label_at: dict[int, str] = {}
     for interval_number, span in enumerate(views[segment_tier], 1):
         if not span.value:
             continue
-        label = transform(span.value)
+        try:
+            label = transform(span.value)
+        except ValueError as error:
+            accepted_label = (
+                f"one {selected_style.name} segment"
+                if selected_style is not None
+                else "one house-IPA segment"
+            )
+            raise ValueError(
+                f"TextGrid tier {segment_tier!r} interval {interval_number} "
+                f"label {span.value!r} is unreadable; accepted label: {accepted_label}"
+            ) from error
         try:
             parsed = units(label, features, strict=True)
         except ValueError as error:
@@ -424,6 +563,9 @@ def read(
         unit_starts.add(span.start)
         labels.append(label)
         segment_spans.append(span)
+        document_label_at.update(
+            (base, span.value) for base in range(span.start, span.end)
+        )
         built_units.append(parsed[0])
     level_order = levels(features)
     level_set = set(level_order)
@@ -499,7 +641,11 @@ def read(
                     (
                         qualified_tier.local_name,
                         number,
-                        transform(span.value or ""),
+                        (
+                            (span.value or "")
+                            if selected_style is not None
+                            else transform(span.value or "")
+                        ),
                     )
                 )
         carried_units: list[Unit] = []
@@ -582,7 +728,11 @@ def read(
                     f"TextGrid tier {qualified_tier.local_name!r} point {number} at {shown} does not land on a unit start; accepted coordinate: a segment's left boundary"
                 )
             index = base_to_unit[span.start]
-            mark = transform(span.value or "")
+            mark = (
+                (span.value or "")
+                if selected_style is not None
+                else transform(span.value or "")
+            )
             existing = "".join(
                 g for g, feature, _ in built_units[index].provenance if feature == role
             )
@@ -592,10 +742,42 @@ def read(
                 )
             if not existing:
                 replacement = None
+                collapsed: tuple[str, ...] = ()
+                collapse_style = selected_style
+                if selected_style is not None:
+                    collapsed = selected_style.collapses.get(
+                        document_label_at[span.start], ()
+                    )
+                for core in collapsed:
+                    for candidate in (mark + core, core + mark):
+                        try:
+                            parsed_mark = units(candidate, features, strict=True)
+                        except ValueError:
+                            continue
+                        if (
+                            len(parsed_mark) == 1
+                            and not parsed_mark[0].is_boundary
+                            and any(
+                                feature == role
+                                for _, feature, _ in parsed_mark[0].provenance
+                            )
+                        ):
+                            assert collapse_style is not None
+                            try:
+                                collapse_style.spell(parsed_mark[0].text)
+                            except ValueError:
+                                continue
+                            else:
+                                replacement = parsed_mark
+                                break
+                    if replacement is not None:
+                        break
                 for candidate in (
                     mark + built_units[index].text,
                     built_units[index].text + mark,
                 ):
+                    if replacement is not None:
+                        break
                     try:
                         parsed_mark = units(candidate, features, strict=True)
                     except ValueError:

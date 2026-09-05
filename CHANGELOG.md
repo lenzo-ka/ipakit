@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Praat TextGrid reading and writing accepts named inventory styles for strict external segment labels while retaining point marks in house notation.
 - `inventory_from_dictionary` and `ipakit inventory from-dict` derive a finite, ordered phone inventory from a CMUdict, PocketSphinx, MFA, IPA, or wild-spelling pronunciation dictionary.
 - Praat TextGrid reading and writing over tiergraph span-view profiles, with tick and physical clocks, tier-role maps, and CLI commands.
 
