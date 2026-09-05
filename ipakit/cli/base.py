@@ -57,6 +57,7 @@ NOTATION_NOTES = {
 Input is IPA transcription, not orthography. Every lowercase ASCII letter is a
 registered phone, so a word written in spelling -- 'cat', 'pin' -- is read
 as the phones it spells and answered confidently rather than refused.
+Where a command accepts ``--from-style``, that option overrides this notation.
 """,
     "X-SAMPA": """
 Input is X-SAMPA, not orthography. Every lowercase ASCII letter is an

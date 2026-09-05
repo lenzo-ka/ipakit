@@ -169,6 +169,13 @@ class TestThePublicEntryPoint:
     def test_it_is_exported(self) -> None:
         assert "phoneset_mapping" in ipakit.__all__
 
+    def test_an_unreadable_styled_entry_is_unmapped_with_its_reason(self) -> None:
+        mapping = ipakit.phoneset_mapping(["NOPE", "P"], ["p"], source_style="cmudict")
+        refused = next(item for item in mapping if item.source == "NOPE")
+        assert refused.target is None
+        assert refused.reason is not None
+        assert "CMU" in refused.reason
+
 
 class TestTheCliRoute:
     """`distance map` reads its phonesets from files.
@@ -230,7 +237,7 @@ class TestTheCliRoute:
 
         rc, out, err = self._run(monkeypatch, capsys, str(ortho), str(ipa), "--no-tie")
 
-        assert rc != 0
+        assert rc == 3
         assert "cannot read" in err.lower()
         assert "'cat'" in err, "the offending entry is named"
 

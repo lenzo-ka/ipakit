@@ -679,8 +679,13 @@ class MapCommand(Command):
     Examples:
         ipakit distance map english.txt spanish.txt
         ipakit distance map english.txt spanish.txt --one-to-one
+        ipakit distance map cmudict mfa
+        ipakit distance map cmudict target.txt --to-style wild
         ipakit distance map a.txt b.txt --max-distance 0.1
         ipakit distance map a.txt b.txt -f json
+
+    SOURCE and TARGET may each be a named inventory or a phoneset file. Run
+    ``ipakit inventory list`` for names; style options describe file notation.
     """
 
     name = "map"
@@ -693,11 +698,13 @@ class MapCommand(Command):
         parser.description = cls.__doc__
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
+        parser.add_argument("source", help="Source inventory name or file")
+        parser.add_argument("target", help="Target inventory name or file")
         parser.add_argument(
-            "source", type=Path, help="Source phoneset file (one phone per line)"
+            "--from-style", metavar="NAME", help="Notation of a source file"
         )
         parser.add_argument(
-            "target", type=Path, help="Target phoneset file (one phone per line)"
+            "--to-style", metavar="NAME", help="Notation of a target file"
         )
         parser.add_argument(
             "--one-to-one",
@@ -731,71 +738,118 @@ class MapCommand(Command):
         add_format_arg(parser)
 
     def run(self) -> int:
-        from ..phoneset_map import (
-            nearest_mapping,
-            one_to_one_mapping,
-            read_inventory_entry,
-        )
+        import ipakit
 
-        for path in (self.args.source, self.args.target):
-            if not Path(path).exists():
-                return self.error(f"No such phoneset file: {path}")
-        source = Phoneset.from_file(self.args.source)
-        target = Phoneset.from_file(self.args.target)
+        from ..inventories import Style, inventories
 
-        # An entry that cannot be read as one phone is refused here rather
-        # than reported as merely unmapped. The library tolerates it, since
-        # one bad line should not deny an answer about the rest; a command
-        # line exits on it, because a file of orthography read as a phoneset
-        # is a mistake worth stopping for and 'unmapped' does not say so.
-        def read(phone: str) -> str:
-            """One entry as this invocation reads it, complaining if it moved."""
-            house, steps = read_inventory_entry(
-                phone, self.ipa, wild=self.args.wild, tie=not self.args.no_tie
-            )
-            for kind, before, after in steps:
-                print(f"{kind}: {before} -> {after}", file=sys.stderr)
-            return house
+        known = set(inventories())
 
-        source = Phoneset.from_list([read(p) for p in source.phones], source.name)
-        target = Phoneset.from_list([read(p) for p in target.phones], target.name)
-        unreadable = [
-            phone
-            for phoneset in (source, target)
-            for phone in phoneset.phones
-            if len(self.ipa.segments(phone)) != 1
-        ]
-        if unreadable:
-            for phone in unreadable:
-                print(
-                    f"cannot read {phone!r} as one phone"
-                    + (
-                        "; drop --no-tie to read it as one"
-                        if self.args.no_tie
-                        else "; --wild may help" if not self.args.wild else ""
-                    ),
-                    file=sys.stderr,
+        def resolve(token: str):  # type: ignore[no-untyped-def]
+            path = Path(token)
+            if token in known and path.exists():
+                raise ValueError(
+                    f"{token} is both an inventory and a file here; "
+                    f"write ./{token} for the file"
                 )
-            return self.error(f"{len(unreadable)} entr(ies) are not single phones")
+            if token in known:
+                return token
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"no inventory or file {token!r}; run 'ipakit inventory list' "
+                    "for the names"
+                )
+            return path
 
-        operation = one_to_one_mapping if self.args.one_to_one else nearest_mapping
-        mapping = operation(
-            source,
-            target,
-            ipa=self.ipa,
-            max_distance=self.args.max_distance,
-            tied=False,  # already applied above, where it can be reported
-        )
+        from_style = self.args.from_style
+        to_style = self.args.to_style
+        if self.args.wild:
+            if from_style or to_style:
+                return self.error("--wild cannot be combined with a style option")
+            from_style = to_style = "wild"
+        try:
+            from ..phoneset_map import read_inventory_entry
+
+            resolved = [resolve(self.args.source), resolve(self.args.target)]
+            for index, (side, selected) in enumerate(
+                zip(resolved, (from_style, to_style), strict=True)
+            ):
+                if isinstance(side, Path) and (selected is None or selected == "wild"):
+                    path = side
+                    raw = Phoneset.from_file(path)
+                    for phone in raw:
+                        if self.args.no_tie and len(self.ipa.segments(phone)) != 1:
+                            raise ValueError(
+                                f"cannot read {phone!r} as one phone; drop --no-tie "
+                                "to read it as one; --wild may help"
+                            )
+                        _, steps = read_inventory_entry(
+                            phone,
+                            self.ipa,
+                            wild=selected == "wild",
+                            tie=not self.args.no_tie,
+                        )
+                        for kind, before, after in steps:
+                            print(f"{kind}: {before} -> {after}", file=sys.stderr)
+                    resolved[index] = raw
+            mapping = ipakit.phoneset_mapping(
+                resolved[0],
+                resolved[1],
+                one_to_one=self.args.one_to_one,
+                max_distance=self.args.max_distance,
+                source_style=from_style,
+                target_style=to_style,
+                tied=not self.args.no_tie,
+                ipa=self.ipa,
+            )
+            for phone in (*mapping.source.phones, *mapping.target.phones):
+                if len(self.ipa.segments(phone)) != 1:
+                    print(
+                        f"Error: cannot read {phone!r} as one phone; drop --no-tie "
+                        "to read it as one; --wild may help",
+                        file=sys.stderr,
+                    )
+                    return 3
+        except FileNotFoundError as error:
+            return self.error(str(error))
+        except OSError as error:
+            return self.error(f"cannot read phoneset: {error}")
+        except ValueError as error:
+            if str(error).startswith("cannot read"):
+                print(f"Error: {error}", file=sys.stderr)
+                return 3
+            return self.error(str(error))
+
+        def spelled(style: Style | None, phone: str) -> str | None:
+            if style is None:
+                return phone
+            try:
+                return style.spell(phone)
+            except ValueError:
+                return None
+
         if self.format == "json":
             self.output_json(
                 {
                     "kind": mapping.kind,
-                    "source": source.name,
-                    "target": target.name,
+                    "source": mapping.source.name,
+                    "target": mapping.target.name,
+                    "source_inventory": (
+                        mapping.source_inventory.name
+                        if mapping.source_inventory
+                        else None
+                    ),
+                    "target_inventory": (
+                        mapping.target_inventory.name
+                        if mapping.target_inventory
+                        else None
+                    ),
                     "correspondences": [
                         {
                             "source": c.source,
                             "target": c.target,
+                            "source_spelling": c.source_spelling,
+                            "target_spelling": c.target_spelling,
+                            "reason": c.reason,
                             "distance": (
                                 None if c.distance is None else round(c.distance, 4)
                             ),
@@ -803,9 +857,20 @@ class MapCommand(Command):
                         }
                         for c in mapping
                     ],
-                    "collapses": {k: list(v) for k, v in mapping.collapses.items()},
-                    "unmapped": list(mapping.unmapped),
-                    "unused_targets": list(mapping.unused_targets),
+                    "collapses": {
+                        (spelled(mapping.target_style, k) or "-"): [
+                            spelled(mapping.source_style, value) for value in v
+                        ]
+                        for k, v in mapping.collapses.items()
+                    },
+                    "unmapped": [
+                        spelled(mapping.source_style, value)
+                        for value in mapping.unmapped
+                    ],
+                    "unused_targets": [
+                        spelled(mapping.target_style, value)
+                        for value in mapping.unused_targets
+                    ],
                     "total_distance": round(mapping.total_distance, 4),
                 }
             )
@@ -813,19 +878,40 @@ class MapCommand(Command):
 
         for c in mapping:
             if c.target is None:
-                print(f"{c.source}\t-\t(unmapped)")
+                reason = f": {c.reason}" if c.reason else ""
+                print(f"{c.source_spelling or '-'}\t-\t(unmapped{reason})")
                 continue
             tie = f"  ties: {' '.join(c.ties)}" if c.ties else ""
-            print(f"{c.source}\t{c.target}\t{c.distance:.4f}{tie}")
+            house = ""
+            if c.source_spelling != c.source or c.target_spelling != c.target:
+                house = f"  [{c.source} → {c.target}]"
+            print(
+                f"{c.source_spelling or '-'}\t{c.target_spelling or '-'}\t"
+                f"{c.distance:.4f}{house}{tie}"
+            )
         collapses = mapping.collapses
         if collapses:
             # Printed rather than left to be noticed: a merged contrast is
             # the whole reason to read a many-to-one mapping.
             print()
             for onto, sources in collapses.items():
-                print(f"collapsed onto {onto}: {' '.join(sources)}")
+                target = spelled(mapping.target_style, onto) or "-"
+                spelled_sources = [
+                    spelled(mapping.source_style, source) or "-" for source in sources
+                ]
+                print(f"collapsed onto {target}: {' '.join(spelled_sources)}")
         if mapping.unmapped:
-            print(f"\nunmapped: {' '.join(mapping.unmapped)}")
+            values = [
+                spelled(mapping.source_style, phone) or "-"
+                for phone in mapping.unmapped
+            ]
+            print(f"\nunmapped: {' '.join(values)}")
+        if mapping.unused_targets:
+            values = [
+                spelled(mapping.target_style, phone) or "-"
+                for phone in mapping.unused_targets
+            ]
+            print(f"\nunused targets: {' '.join(values)}")
         print(f"\ntotal distance: {mapping.total_distance:.4f}")
         return 0
 
