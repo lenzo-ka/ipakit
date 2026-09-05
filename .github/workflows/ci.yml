@@ -260,3 +260,11 @@ jobs:
         run: PYTHONHASHSEED=0 python scripts/perceptual_validation.py check
       - name: State of the work matches docs/design
         run: python scripts/state_of_work.py check
+      # The declarations under ipakit/data and the summary page under docs/ are
+      # one generated artifact, so the check has to run for a change to either.
+      # `guards` skips a doc-only change, which would let a hand edit to the
+      # summary skip the gate that guards it; this job runs for every change.
+      # The clone is a sparse, blobless fetch of the dictionary metadata alone,
+      # about a megabyte.
+      - name: MFA declarations match the pinned mfa-models revision
+        run: python scripts/mfa_vocabularies.py check --fetch --source "${{ runner.temp }}/mfa-models"

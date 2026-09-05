@@ -16,9 +16,10 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check panphon-geometry-check lint check gate-subject
+.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check panphon-geometry-check lint check gate-subject
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
+MFA_MODELS ?= $(HOME)/.cache/ipakit/mfa-models
 
 ## espeak-vocabularies: regenerate every language-scoped eSpeak declaration
 espeak-vocabularies:
@@ -33,6 +34,21 @@ espeak-vocabularies-check:
 		echo "espeak-vocabularies: pinned checkout absent; generated-data check skipped"; \
 	else \
 		$(PYTHON) scripts/espeak_vocabularies.py check --source "$(ESPEAK_NG)"; \
+	fi
+
+## mfa-vocabularies: regenerate every MFA dictionary declaration and the union
+mfa-vocabularies:
+	@if test ! -d "$(MFA_MODELS)/dictionary"; then \
+		echo "mfa-vocabularies: pinned clone absent; nothing regenerated"; \
+	else \
+		$(PYTHON) scripts/mfa_vocabularies.py generate --source "$(MFA_MODELS)"; \
+	fi
+
+mfa-vocabularies-check:
+	@if test ! -d "$(MFA_MODELS)/dictionary"; then \
+		echo "mfa-vocabularies: pinned clone absent; generated-data check skipped"; \
+	else \
+		$(PYTHON) scripts/mfa_vocabularies.py check --source "$(MFA_MODELS)"; \
 	fi
 
 panphon-geometry-check:
@@ -145,6 +161,7 @@ check: gate-subject lint
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/perceptual_validation.py check
 	@$(NICE) $(PYTHON) scripts/state_of_work.py check
 	@$(MAKE) --no-print-directory espeak-vocabularies-check
+	@$(MAKE) --no-print-directory mfa-vocabularies-check
 	@$(MAKE) --no-print-directory panphon-geometry-check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/docexamples.py
