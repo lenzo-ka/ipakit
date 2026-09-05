@@ -525,34 +525,13 @@ def inventory_from_dictionary(
             return None if entry is None else (entry.word, entry.phones)
 
     elif selected.name == "mfa" or selected.name.startswith("mfa:"):
-        from .bridges.mfa import UNION, MFABridge
-
-        declaration = (
-            UNION if selected.name == "mfa" else selected.name.removeprefix("mfa:")
-        )
-        bridge = MFABridge(declaration)
+        from .bridges.mfa import MFABridge
 
         def read_line(line: str) -> tuple[str, tuple[str, ...]] | None:
             if not line.strip() or line.lstrip().startswith("#"):
                 return None
-            if "\t" in line:
-                word, pronunciation = line.split("\t", 1)
-            else:
-                fields = line.split(maxsplit=1)
-                if len(fields) != 2:
-                    bridge.read_dictionary_line(line)
-                    raise AssertionError("unreachable")
-                word, pronunciation = fields
-            spellings = tuple(pronunciation.split())
-            for spelling in spellings:
-                try:
-                    selected.read(spelling)
-                except ValueError as error:
-                    raise ValueError(
-                        f"entry {word!r}, phone {spelling!r}: {error}"
-                    ) from error
-            entry = bridge.read_dictionary_line(line)
-            return entry.word or word, spellings
+            word, spellings, _ = MFABridge.split_dictionary_line(line)
+            return word, spellings
 
     elif selected.name in {"ipa", "wild"}:
 

@@ -474,6 +474,37 @@ def test_inventory_from_mfa_dictionary_uses_its_declaration() -> None:
     assert list(derived.phones or ())[:4] == ["m", "e͜j", "t", "s"]
 
 
+@pytest.mark.parametrize("line", ["bad\t\n", "bad\t   \n"])
+def test_inventory_from_mfa_dictionary_refuses_an_empty_pronunciation(
+    tmp_path, line: str
+) -> None:
+    source = tmp_path / "bad.dict"
+    source.write_text(line, encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    message = str(caught.value)
+    assert "line 1" in message
+    assert "entry 'bad\\t" in message
+    assert "MFA dictionary line has no pronunciation" in message
+
+
+def test_inventory_from_mfa_dictionary_filters_silence_before_reading(tmp_path) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("mates\tm ej t s SIL\n", encoding="utf-8")
+    derived = ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    assert list(derived.phones or ()) == ["m", "e͜j", "t", "s"]
+
+
+def test_inventory_from_mfa_phone_refusal_has_one_entry_prefix(tmp_path) -> None:
+    source = tmp_path / "bad.dict"
+    source.write_text("mates\tm NOPE\n", encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    message = str(caught.value)
+    assert message.count("entry ") == 1
+    assert "entry 'mates', phone 'NOPE'" in message
+
+
 def test_inventory_from_dictionary_refusals_are_specific(tmp_path) -> None:
     source = tmp_path / "bad.dict"
     source.write_text("GOOD P\nBAD NOPE\n", encoding="utf-8")
