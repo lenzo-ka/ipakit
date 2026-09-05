@@ -43,6 +43,32 @@ def test_strip_selects_stress_all_prosody_or_nothing() -> None:
     assert nothing.stripped == ()
 
 
+def test_stripped_reports_only_marks_that_were_removed() -> None:
+    default = ipakit.phoneset_comparison(["á"], [])
+    nothing = ipakit.phoneset_comparison(["á"], [], strip=None)
+    prosodic = ipakit.phoneset_comparison(["á"], [], strip="prosodic")
+
+    assert dict(ipakit.read(default.a.phones[0], strict=True).units[0].prosody) == {
+        "tone": "high"
+    }
+    assert default.stripped == ()
+    assert nothing.stripped == ()
+    assert prosodic.stripped == (("á", "a"),)
+
+
+def test_tie_senses_are_contrastive_unless_imported_as_wild() -> None:
+    strict = ipakit.phoneset_comparison(["t͡ʃ"], ["t͜ʃ"])
+    wild = ipakit.phoneset_comparison(["t͡ʃ"], ["t͜ʃ"], a_style="wild", b_style="wild")
+
+    assert strict.intersection == ()
+    assert strict.only_a == ("t͡ʃ",)
+    assert strict.only_b == ("t͜ʃ",)
+    assert strict.matrix == ((pytest.approx(2 / 3),),)
+    assert wild.intersection == ("t͡ʃ",)
+    assert wild.only_a == ()
+    assert wild.only_b == ()
+
+
 def test_reverse_matrix_is_the_transpose() -> None:
     forward = ipakit.phoneset_comparison(["p", "a"], ["b", "i", "t"])
     reverse = ipakit.phoneset_comparison(["b", "i", "t"], ["p", "a"])

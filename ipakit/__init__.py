@@ -1217,6 +1217,8 @@ def phoneset_comparison(
     is retained in ``stripped``. Set results preserve first appearance in A
     followed by B. Matrix rows are A and columns are B. Because phone
     similarity is symmetric, the B-by-A matrix is its transpose.
+    Tie glyphs keep their distinct house senses unless a ``wild`` style
+    explicitly canonicalizes them; see ``docs/ties.md``.
     """
     from types import MappingProxyType
 
@@ -1252,7 +1254,7 @@ def phoneset_comparison(
                 ).to_ipa()
             else:
                 phone = segment.to_ipa()
-            if phone != original:
+            if features.normalize(phone) != normalized:
                 changed.append((original, phone))
             values.append(phone)
         return Phoneset.from_list(list(dict.fromkeys(values)), phoneset.name)

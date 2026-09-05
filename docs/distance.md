@@ -525,6 +525,8 @@ On the command line: `distance map SOURCE TARGET` takes a registry name or a pho
 
 `phoneset_comparison` reads both sides into house IPA and removes stress marks before set comparison, reporting every changed entry in `stripped`; stress is stripped by default because it is assigned to words, while length is retained because an inventory may use it contrastively. Pass `strip="prosodic"` to remove every prosodic mark or `strip=None` to retain them all; its set tuples preserve first appearance in A and then B and are never surface-sorted.
 
+Tie glyphs keep their distinct house senses during comparison, so an over-tied and an under-tied spelling are different members unless that side selects the `wild` style to canonicalize tie conventions; [ties.md](ties.md) states the rule.
+
 ```python
 comparison = ipakit.phoneset_comparison("pocketsphinx", "mfa:english_us")
 comparison.union  # ('i', 'ɪ', 'ɛ', 'æ', 'ɑ', 'ɔ', 'ʊ', 'u', 'ʌ', 'ə', 'ɚ', 'ɝ', 'e͜ɪ', 'o͜ʊ', 'a͜ɪ', 'a͜ʊ', 'ɔ͜ɪ', 'j', 'w', 'm', 'n', 'ŋ', 'l', 'ɹ', 'p', 'b', 't', 'd', 'k', 'ɡ', 't͡ʃ', 'd͡ʒ', 'f', 'v', 'θ', 'ð', 's', 'z', 'ʃ', 'ʒ', 'h', 'a͜j', 'a͜w', 'bʲ', 'c', 'cʰ', 'cʷ', 'dʲ', 'd̪', 'e͜j', 'fʲ', 'iː', 'kʰ', 'kʷ', 'mʲ', 'm̩', 'n̩', 'o͜w', 'pʰ', 'pʲ', 'pʷ', 'tʰ', 'tʲ', 'tʷ', 't̪', 'vʲ', 'ç', 'ɐ', 'ɑː', 'ɒ', 'ɒː', 'ɔ͜j', 'ɟ', 'ɟʷ', 'ɡʷ', 'ɫ', 'ɫ̩', 'ɱ', 'ɲ', 'ɾ', 'ɾʲ', 'ɾ̃', 'ʉ', 'ʉː', 'ʎ', 'ʔ')
