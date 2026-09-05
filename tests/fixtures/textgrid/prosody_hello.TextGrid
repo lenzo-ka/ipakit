@@ -1,0 +1,95 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 5 
+tiers? <exists> 
+size = 7 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "utterance" 
+        xmin = 0 
+        xmax = 5 
+        intervals: size = 1 
+        intervals [1]:
+            xmin = 0 
+            xmax = 5 
+            text = "hˈɛloʊ" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "word" 
+        xmin = 0 
+        xmax = 5 
+        intervals: size = 1 
+        intervals [1]:
+            xmin = 0 
+            xmax = 5 
+            text = "hˈɛloʊ" 
+    item [3]:
+        class = "IntervalTier" 
+        name = "syllable" 
+        xmin = 0 
+        xmax = 5 
+        intervals: size = 2 
+        intervals [1]:
+            xmin = 0 
+            xmax = 2 
+            text = "hˈɛ" 
+        intervals [2]:
+            xmin = 2 
+            xmax = 5 
+            text = "loʊ" 
+    item [4]:
+        class = "IntervalTier" 
+        name = "segment" 
+        xmin = 0 
+        xmax = 5 
+        intervals: size = 5 
+        intervals [1]:
+            xmin = 0 
+            xmax = 1 
+            text = "h" 
+        intervals [2]:
+            xmin = 1 
+            xmax = 2 
+            text = "ˈɛ" 
+        intervals [3]:
+            xmin = 2 
+            xmax = 3 
+            text = "l" 
+        intervals [4]:
+            xmin = 3 
+            xmax = 4 
+            text = "o" 
+        intervals [5]:
+            xmin = 4 
+            xmax = 5 
+            text = "ʊ" 
+    item [5]:
+        class = "TextTier" 
+        name = "stress" 
+        xmin = 0 
+        xmax = 5 
+        points: size = 1 
+        points [1]:
+            number = 1 
+            mark = "ˈ" 
+    item [6]:
+        class = "TextTier" 
+        name = "tone" 
+        xmin = 0 
+        xmax = 5 
+        points: size = 0 
+    item [7]:
+        class = "TextTier" 
+        name = "boundary" 
+        xmin = 0 
+        xmax = 5 
+        points: size = 2 
+        points [1]:
+            number = 2 
+            mark = "." 
+        points [2]:
+            number = 5 
+            mark = "‖" 
