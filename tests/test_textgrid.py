@@ -78,6 +78,63 @@ def test_cmudict_style_reads_stress_and_writes_its_declared_collapse() -> None:
     )
 
 
+def test_cmudict_hand_written_stress_and_affricate_round_trip() -> None:
+    document = (FIXTURES / "cmudict_stress.TextGrid").read_text(encoding="utf-8")
+    form = read(document, profile="mfa", style="cmudict")
+    assert [unit.text for unit in form.units] == ["ˈʌ", "ˌʌ", "d͡ʒ"]
+    assert write(form, "mfa", style="cmudict") == document
+
+
+@pytest.mark.parametrize(("tier", "mark"), [("stress", "ˈ"), ("tone", "˥˩")])
+def test_styled_prosody_point_is_not_duplicated_in_intervals(
+    tier: str, mark: str
+) -> None:
+    base = write(Form.parse("a"), "prosody")
+    document = base.replace(
+        f'name = "{tier}" \n        xmin = 0 \n        xmax = 1 \n        points: size = 0',
+        f'name = "{tier}" \n        xmin = 0 \n        xmax = 1 \n        points: size = 1 \n        points [1]:\n            number = 0 \n            mark = "{mark}"',
+    )
+    form = read(document, profile="prosody", style="mfa")
+    assert write(form, "prosody", style="mfa") == document
+    assert all(
+        line.strip() == 'text = "a"'
+        for line in document.splitlines()
+        if "text =" in line and 'text = ""' not in line
+    )
+
+
+def test_cmudict_stress_lives_in_label_or_point_by_profile() -> None:
+    parsed = Form.parse("ˈʌkt")
+    timed = Form.of(
+        tuple(
+            dataclasses.replace(unit, timing=Timing(index, 1))
+            for index, unit in enumerate(parsed.units)
+        )
+    )
+    mfa = write(timed, "mfa", style="cmudict")
+    assert ["AH1", "K", "T"] == [
+        line.split('"')[1] for line in mfa.splitlines() if "text =" in line
+    ][1:]
+    reread = read(mfa, profile="mfa", style="cmudict")
+    assert reread.to_ipa() == timed.to_ipa()
+    assert [unit.timing for unit in reread.units] == [
+        unit.timing for unit in timed.units
+    ]
+
+    prosody = write(parsed, "prosody", style="cmudict")
+    assert 'text = "AH"' in prosody
+    assert 'mark = "ˈ"' in prosody
+    assert read(prosody, profile="prosody", style="cmudict") == parsed
+
+
+def test_unspellable_marked_unit_recommends_its_point_profile() -> None:
+    with pytest.raises(
+        ValueError,
+        match=r"segments.*segment.*label 'ˈa'.*stress point tier, e.g. prosody",
+    ):
+        write(Form.parse("ˈa"), "segments", style="mfa")
+
+
 def test_segment_timing_covers_its_whole_base_span() -> None:
     document = (FIXTURES / "mfa_two_words.TextGrid").read_text(encoding="utf-8")
     document = document.replace(

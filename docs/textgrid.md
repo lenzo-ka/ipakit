@@ -35,11 +35,11 @@ The written extent is the extent of the form's units, so silence outside the out
 
 A style spells and reads segment interval labels. On write, a word, utterance, or other non-segment interval label is built from its styled segment labels, using the style's declared separator or a space when it declares none; MFA declares concatenation to retain aligner word labels, while CMUdict declares a space. On read, a non-segment interval label continues to supply extent only and is not interpreted.
 
-Stress, tone, and boundary point marks remain house marks and are not styled. This keeps prosodic structure separate from an aligner's phone alphabet.
+Each prosodic mark lives in exactly one place: when the profile declares a point tier for its role, the point carries the house mark and the styled segment label contains segmental text alone. When no such point tier exists, the mark stays in the segment label and the style spells the whole marked unit; a style that cannot do so refuses the label and directs the caller to a profile with that point tier.
 
 Writing is strict and atomic: every phone the style refuses becomes an empty provisional label, all refusals are collected with the profile, tier, interval, and house-IPA label, and no document is returned. Reading is also strict and names the tier, interval, and document label it refuses.
 
-MFA reads its untied `tʃ`, `aj`, and `kp` phone labels as the single house phones `t͡ʃ`, `a͜j`, and `k͡p`, then writes the untied labels again: `ipakit textgrid read aligned.TextGrid --profile mfa --style mfa` and `ipakit textgrid write "t͡ʃa͜jk͡p" --profile mfa --style mfa`. CMUdict reads `AH0` as unstressed house `ə`, while its declared collapse means both house `ə` and `ʌ` spell canonically as `AH`; `ipakit textgrid read arpabet.TextGrid --profile mfa --style cmudict` reads `AH0 K T`, and writing `ʌkt` with that style emits `AH K T`.
+MFA reads its untied `tʃ`, `aj`, and `kp` phone labels as the single house phones `t͡ʃ`, `a͜j`, and `k͡p`, then writes the untied labels again: `ipakit textgrid read aligned.TextGrid --profile mfa --style mfa` and `ipakit textgrid write "t͡ʃa͜jk͡p" --profile mfa --style mfa`. CMUdict reads a digit-0 label such as `AH0` as unstressed house `ə` and writes it back as `AH`, its declared collapse, while `AH1` and `AH2` keep their stress digits; both house `ə` and `ʌ` therefore spell canonically as `AH` when unstressed.
 
 ```
 ipakit textgrid write "kæt dɒɡ" --profile words -o speech.TextGrid
