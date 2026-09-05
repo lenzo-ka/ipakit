@@ -97,6 +97,7 @@ from .form import FormBuilder as FormBuilder
 from .form import (
     FormProjectionError as FormProjectionError,
 )
+from .form import declared_prosody as _declared_prosody
 from .inventories import (
     Inventory,
     Style,
@@ -114,7 +115,7 @@ from .phonemaps import (
     to_phonemap,
     to_timit,
 )
-from .phoneset_map import Correspondence, PhonesetMapping
+from .phoneset_map import Correspondence, PhonesetComparison, PhonesetMapping
 from .rules import (
     DEFAULT_LIMIT,
     Action,
@@ -1199,6 +1200,123 @@ def phoneset_mapping(
     )
 
 
+def phoneset_comparison(
+    a: str | Path | Phoneset | Inventory | Iterable[str],
+    b: str | Path | Phoneset | Inventory | Iterable[str],
+    *,
+    a_style: str | Style | None = None,
+    b_style: str | Style | None = None,
+    ipa: IPAFeatures | None = None,
+    strip: str | None = "stress",
+) -> PhonesetComparison:
+    """Compare two inventories as segmental sets, mappings, and a matrix.
+
+    Inputs are resolved by :func:`phoneset_mapping`. Every phone is then
+    normalized and stripped of stress by default; ``strip="prosodic"`` removes
+    every prosodic mark and ``strip=None`` removes none. Each changed spelling
+    is retained in ``stripped``. Set results preserve first appearance in A
+    followed by B. Matrix rows are A and columns are B. Because phone
+    similarity is symmetric, the B-by-A matrix is its transpose.
+    """
+    from types import MappingProxyType
+
+    from .phoneset_map import nearest_mapping
+
+    features = ipa or _get_ipa()
+    if strip not in {"stress", "prosodic", None}:
+        raise ValueError("strip must be 'stress', 'prosodic', or None")
+    resolved = phoneset_mapping(
+        a, b, source_style=a_style, target_style=b_style, tied=True, ipa=features
+    )
+    changed: list[tuple[str, str]] = []
+
+    def stripped_phone(phoneset: Phoneset) -> Phoneset:
+        values = []
+        for original in phoneset:
+            normalized = features.normalize(original)
+            form = Form.parse(normalized, features=features, strict=True)
+            if len(form.units) != 1:
+                raise ValueError(f"cannot read {original!r} as one phone")
+            segment = form.units[0].segment
+            assert segment is not None
+            if strip == "prosodic":
+                phone = form.units[0].core
+            elif strip == "stress":
+                phone = _replace(
+                    segment,
+                    prosody=tuple(
+                        glyph
+                        for glyph in segment.prosody
+                        if "stress" not in _declared_prosody(glyph, features)
+                    ),
+                ).to_ipa()
+            else:
+                phone = segment.to_ipa()
+            if phone != original:
+                changed.append((original, phone))
+            values.append(phone)
+        return Phoneset.from_list(list(dict.fromkeys(values)), phoneset.name)
+
+    left = stripped_phone(resolved.source)
+    right = stripped_phone(resolved.target)
+    forward = nearest_mapping(
+        left,
+        right,
+        ipa=features,
+        source_style=resolved.source_style,
+        target_style=resolved.target_style,
+    )
+    backward = nearest_mapping(
+        right,
+        left,
+        ipa=features,
+        source_style=resolved.target_style,
+        target_style=resolved.source_style,
+    )
+    forward = _replace(
+        forward,
+        source_inventory=resolved.source_inventory,
+        target_inventory=resolved.target_inventory,
+    )
+    backward = _replace(
+        backward,
+        source_inventory=resolved.target_inventory,
+        target_inventory=resolved.source_inventory,
+    )
+    union = tuple(dict.fromkeys((*left.phones, *right.phones)))
+    left_set, right_set = set(left), set(right)
+
+    def spell(style: Style | None, phone: str) -> str | None:
+        if style is None:
+            return None
+        try:
+            return style.spell(phone)
+        except ValueError:
+            return None
+
+    return PhonesetComparison(
+        left,
+        right,
+        union,
+        tuple(phone for phone in union if phone in left_set and phone in right_set),
+        tuple(phone for phone in left if phone not in right_set),
+        tuple(phone for phone in right if phone not in left_set),
+        forward,
+        backward,
+        tuple(tuple(1.0 - features.distance(x, y) for y in right) for x in left),
+        MappingProxyType(
+            {
+                phone: (
+                    spell(resolved.source_style, phone),
+                    spell(resolved.target_style, phone),
+                )
+                for phone in union
+            }
+        ),
+        tuple(changed),
+    )
+
+
 def nearest_phones(
     phone: str,
     n: int = 10,
@@ -1525,6 +1643,7 @@ __all__ = [
     "import_phoneset",
     "PhoneMapping",
     "Phoneset",
+    "PhonesetComparison",
     "PhonesetMapping",
     "CostSchedule",
     "PhoneCost",
@@ -1586,6 +1705,7 @@ __all__ = [
     "inventory",
     "inventory_from_dictionary",
     "phoneset_mapping",
+    "phoneset_comparison",
     "normalize",
     "normalize_lookalikes",
     "notebook",

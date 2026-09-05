@@ -9,10 +9,11 @@ from typing import TYPE_CHECKING, ClassVar, cast
 
 from ..distance_model import DistanceModel
 from ..models import Phoneset
-from .base import IPA, Command, CommandGroup, add_format_arg
+from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
 
 if TYPE_CHECKING:
     from ..features import IPAFeatures
+    from ..phoneset_map import PhonesetMapping
 
 
 def add_model_args(parser: argparse.ArgumentParser) -> None:
@@ -938,6 +939,158 @@ class MapCommand(Command):
         return status
 
 
+class CompareCommand(Command):
+    """Compare two phonesets as sets, directional mappings, and similarities.
+
+    A and B may each be a named inventory or a phoneset file. The comparison
+    reads house IPA, strips and reports stress marks by default, preserves
+    declaration order, and reports nearest mappings in both directions.
+    """
+
+    name = "compare"
+    aliases: ClassVar[list[str]] = []
+    help = "Compare two phonesets in both directions"
+    reads_notation = IPA
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.description = cls.__doc__
+        parser.add_argument("a", help="First inventory name or file")
+        parser.add_argument("b", help="Second inventory name or file")
+        parser.add_argument("--from-style", metavar="NAME", help="Notation of file A")
+        parser.add_argument("--to-style", metavar="NAME", help="Notation of file B")
+        parser.add_argument(
+            "--strip",
+            choices=("stress", "prosodic", "none"),
+            default="stress",
+            help="Marks to strip before comparison (default: stress)",
+        )
+        add_format_arg(parser, ["text", "json", "tsv"])
+        add_output_arg(parser)
+
+    def run(self) -> int:
+        import ipakit
+
+        from ..inventories import inventories
+
+        known = set(inventories())
+
+        def resolve(token: str):  # type: ignore[no-untyped-def]
+            path = Path(token)
+            if token in known and path.exists():
+                raise ValueError(
+                    f"{token} is both an inventory and a file here; "
+                    f"write ./{token} for the file"
+                )
+            if token in known:
+                return token
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"no inventory or file {token!r}; run 'ipakit inventory list' "
+                    "for the names"
+                )
+            return path
+
+        try:
+            comparison = ipakit.phoneset_comparison(
+                resolve(self.args.a),
+                resolve(self.args.b),
+                a_style=self.args.from_style,
+                b_style=self.args.to_style,
+                ipa=self.ipa,
+                strip=None if self.args.strip == "none" else self.args.strip,
+            )
+        except (FileNotFoundError, OSError, ValueError) as error:
+            return self.error(str(error))
+
+        def matrix() -> None:
+            self.print("\t" + "\t".join(comparison.b.phones))
+            for phone, row in zip(comparison.a, comparison.matrix, strict=True):
+                self.print(phone + "\t" + "\t".join(f"{value:.4f}" for value in row))
+
+        if self.format == "tsv":
+            matrix()
+            return 0
+
+        def mapping_json(mapping: PhonesetMapping) -> dict[str, object]:
+            return {
+                "mapped": len(mapping.mapped),
+                "exact": len(mapping.exact),
+                "unmapped": list(mapping.unmapped),
+                "collapses": {
+                    key: list(value) for key, value in mapping.collapses.items()
+                },
+                "correspondences": [
+                    {
+                        "source": item.source,
+                        "target": item.target,
+                        "distance": item.distance,
+                        "source_spelling": item.source_spelling,
+                        "target_spelling": item.target_spelling,
+                    }
+                    for item in mapping
+                ],
+            }
+
+        if self.format == "json":
+            self.output_json(
+                {
+                    "a": list(comparison.a),
+                    "b": list(comparison.b),
+                    "union": list(comparison.union),
+                    "intersection": list(comparison.intersection),
+                    "only_a": list(comparison.only_a),
+                    "only_b": list(comparison.only_b),
+                    "stripped": [list(item) for item in comparison.stripped],
+                    "spellings": [
+                        {"phone": p, "a": a, "b": b}
+                        for p, (a, b) in comparison.spellings.items()
+                    ],
+                    "forward": mapping_json(comparison.forward),
+                    "backward": mapping_json(comparison.backward),
+                    "matrix": [list(row) for row in comparison.matrix],
+                }
+            )
+            return 0
+
+        spelling = comparison.spellings
+
+        def show(values, side: int | None = None):  # type: ignore[no-untyped-def]
+            shown = []
+            for phone in values:
+                forms = spelling[phone]
+                sides = range(2) if side is None else (side,)
+                external = [
+                    f"{'AB'[index]}: {forms[index]}"
+                    for index in sides
+                    if forms[index] not in {None, phone}
+                ]
+                shown.append(f"{phone} [{'; '.join(external)}]" if external else phone)
+            return " ".join(shown)
+
+        self.print(f"union: {show(comparison.union)}")
+        self.print(f"intersection: {show(comparison.intersection)}")
+        self.print(f"only A: {show(comparison.only_a, 0)}")
+        self.print(f"only B: {show(comparison.only_b, 1)}")
+        for label, mapping in (
+            ("A -> B", comparison.forward),
+            ("B -> A", comparison.backward),
+        ):
+            self.print(
+                f"\n{label}: mapped={len(mapping.mapped)} exact={len(mapping.exact)} "
+                f"unmapped={len(mapping.unmapped)}"
+            )
+            for target, sources in mapping.collapses.items():
+                self.print(f"collapsed onto {target}: {' '.join(sources)}")
+        self.print("\nsimilarity matrix:")
+        matrix()
+        if comparison.stripped:
+            self.print(
+                "\nstripped: " + " ".join(f"{a}->{b}" for a, b in comparison.stripped)
+            )
+        return 0
+
+
 class DistanceGroup(CommandGroup):
     """Calculate phonetic distances between IPA phones, words, and phone sequences.
 
@@ -954,6 +1107,8 @@ class DistanceGroup(CommandGroup):
         word           Inventory-relative distance/similarity (IPA words)
         directional    Directional reference-to-hypothesis word distance
         nearest        Best match of a form against a set of acceptable variants
+        map            Map one phoneset onto another
+        compare        Compare phonesets as sets, mappings, and a matrix
         seq            Distance between two pre-tokenized phone sequences
 
     Examples:
@@ -967,7 +1122,7 @@ class DistanceGroup(CommandGroup):
     aliases: ClassVar[list[str]] = ["d"]
     help = (
         "Phonetic distances and inventory mapping (pair, segment, matrix, "
-        "confusability, word, directional, nearest, seq, map)"
+        "confusability, word, directional, nearest, map, compare, seq)"
     )
     commands: ClassVar[list[type[Command]]] = [
         PairCommand,
@@ -978,5 +1133,6 @@ class DistanceGroup(CommandGroup):
         DirectionalCommand,
         NearestCommand,
         MapCommand,
+        CompareCommand,
         SeqCommand,
     ]

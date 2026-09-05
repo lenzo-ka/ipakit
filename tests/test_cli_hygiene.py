@@ -224,7 +224,7 @@ REFUSERS = [
 
 #: The IPA-reading routes reached by neither witness nor refuser, because
 #: each wants a file on disk before it reads anything: the corpus routes
-#: want a corpus, and ``distance map`` and ``convert phoneset`` want phoneset files. The
+#: want a corpus, and the phoneset commands want phoneset files. The
 #: orthography hazard is real for all of them -- a phoneset file may hold
 #: English spelling as readily as an argument may -- so they are named
 #: here rather than dropped, and the coverage check below stays a
@@ -234,6 +234,7 @@ NEEDS_FILES_ON_DISK = [
     ("corpus", "add"),
     ("corpus", "query"),
     ("distance", "map"),
+    ("distance", "compare"),
     ("convert", "phoneset"),
 ]
 
