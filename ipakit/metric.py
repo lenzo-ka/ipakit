@@ -533,8 +533,8 @@ def _arity_base(features: IPAFeatures) -> float:
     the inventory's one-constituent atoms after off-scale non-speech atoms are
     excluded. That filter is load-bearing: silence has one term, so retaining
     it would set the base to ``1 / 1`` instead of the shipped speech minimum
-    ``1 / 20``. Marked speech atoms remain in the population; their optional
-    terms give them 21 or more terms, so they do not attain the minimum. The
+    ``1 / 21``. Marked speech atoms remain in the population; their optional
+    terms give them 22 or more terms, so they do not attain the minimum. The
     base changes if the declared atomic feature budget or off-scale boundary
     changes.
 

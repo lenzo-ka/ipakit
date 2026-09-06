@@ -25,7 +25,7 @@ Most of what "register this segment" sounds like it buys, you already have. A co
 ipakit.describe("tʰ")
 # 'voiceless aspirated alveolar plosive'
 round(ipakit.distance("tʰ", "t"), 4)
-# 0.0476
+# 0.0455
 round(ipakit.confusability("tʰ", "t"), 4)
 # 0.9643
 [p for p, _ in ipakit.nearest_phones("tʰ", n=3)]

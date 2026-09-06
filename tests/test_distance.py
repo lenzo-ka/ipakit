@@ -102,8 +102,8 @@ def test_align_base_row_is_the_running_sum_of_per_token_delete_prices() -> None:
 def test_word_distance_kat_kot_is_unchanged_by_the_lift() -> None:
     ipa = IPAFeatures()
     result = ipa.word_distance("kat", "kot")
-    assert result.edit_cost == 0.32352092352092354
-    assert result.similarity == 0.9460798460798461
+    assert result.edit_cost == 0.3088154269972452
+    assert result.similarity == 0.9485307621671258
     assert result.coverage == 1.0
     assert result.costs == "insert=1.0 delete=1.0"
     assert ipa.word_distance("mbanda", "banda").edit_cost == 1.0

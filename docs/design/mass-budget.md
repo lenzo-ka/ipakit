@@ -38,7 +38,7 @@ The repair applies the unordered branch's convention to ordered alignment: an un
 
 Two alternatives were measured separately. Leaving the gap flat while charging an absent juncture zero, `junc=absent`, put every affricate at `0.3333` from a constituent. That restored the ordering but retained the constant because the orphan's identity still did not enter. Applying both changes put `t͡s` `0.0129` from `t`, `t͡ʃ` `0.0152` from `ʃ`, and `e͜ɪ` `0.0049` from `e`. Those values erase the typed-tie distinction: an affricate or diphthong becomes approximately identical to one phase. The juncture term therefore remains categorical and charged when unaligned.
 
-With `gap=nearest` alone, the constituent distances are graded: `p͡f`–`f` is `0.2574`, `t͡s`–`t` is `0.2629`, and `t͡ɬ`–`ɬ` is `0.2754`. The ordering is `d(t͡ʃ, ʃ) = 0.2652 < d(t͡ʃ, i) = 0.3846`; `d(t͡ʃ, t͡s) = 0.0030` remains smaller by a factor of about 88.
+With `gap=nearest` alone, the constituent distances are graded: `p͡f`–`f` is `0.2571`, `t͡s`–`t` is `0.2623`, and `t͡ɬ`–`ɬ` is `0.2742`. The ordering is `d(t͡ʃ, ʃ) = 0.2644 < d(t͡ʃ, i) = 0.3788`; `d(t͡ʃ, t͡s) = 0.0029` remains smaller by a factor of about 91.
 
 The shipped values in this paragraph and the live deferred comparison below are checked by `scripts/docexamples.py`:
 
@@ -46,16 +46,16 @@ The shipped values in this paragraph and the live deferred comparison below are 
 from ipakit import IPAFeatures
 
 ipa = IPAFeatures()
-round(ipa.distance("p͡f", "f"), 4)       # 0.2574
-round(ipa.distance("t͡s", "t"), 4)       # 0.2629
-round(ipa.distance("t͡ɬ", "ɬ"), 4)       # 0.2754
-round(ipa.distance("t͡ʃ", "ʃ"), 4)       # 0.2652
-round(ipa.distance("t͡ʃ", "i"), 4)       # 0.3846
-round(ipa.distance("t͡ʃ", "t͡s"), 4)     # 0.003
-round(ipa.distance("e͜ɪ", "e"), 4)       # 0.2549
-round(ipa.distance("ɡ", "b͡v"), 4)       # 0.2897
-round(ipa.distance("ɡ", "ɡ͡b"), 4)       # 0.0838
-round(ipa.distance("t", "tʰ"), 4)        # 0.0476
+round(ipa.distance("p͡f", "f"), 4)       # 0.2571
+round(ipa.distance("t͡s", "t"), 4)       # 0.2623
+round(ipa.distance("t͡ɬ", "ɬ"), 4)       # 0.2742
+round(ipa.distance("t͡ʃ", "ʃ"), 4)       # 0.2644
+round(ipa.distance("t͡ʃ", "i"), 4)       # 0.3788
+round(ipa.distance("t͡ʃ", "t͡s"), 4)     # 0.0029
+round(ipa.distance("e͜ɪ", "e"), 4)       # 0.2547
+round(ipa.distance("ɡ", "b͡v"), 4)       # 0.2878
+round(ipa.distance("ɡ", "ɡ͡b"), 4)       # 0.0798
+round(ipa.distance("t", "tʰ"), 4)        # 0.0455
 ```
 
 ## 5. The mover account
@@ -74,7 +74,7 @@ The spectrum was then remeasured with the instrument that produced §3's figures
 
 ## 7. Open measurements
 
-The fusion branch now charges the absolute constituent-count difference at `arity_base = 1 / 20 = 0.05`, derived from the smallest complete speech-atom term count. The graded sharing term remains additive, so a whole second articulator in `ɡ͡b` costs `0.0838`, above aspiration on `t` at `0.0476`. The invariant checks that ordering over every unordered one-to-two constituent pair in the shipped inventory.
+The fusion branch charges the absolute constituent-count difference at `arity_base = 1 / 21`, derived from the smallest complete speech-atom term count. The graded sharing term remains additive, so a whole second articulator in `ɡ͡b` costs `0.0798`, above aspiration on `t` at `0.0455`. The invariant checks that ordering over every unordered one-to-two constituent pair in the shipped inventory.
 
 The residual triangle violation is not an arity-magnitude problem: `d(ɡ, b͡v) = 0.2897` still exceeds `d(ɡ, ɡ͡b) + d(ɡ͡b, b͡v) = 0.1161`. Closing that gap through arity alone would require `arity_base` of about `0.224`, roughly four and a half times the derived value, and would still add nothing to the equal-arity `ɡ͡b`–`b͡v` leg. The follow-up is the sharing rule that seats a composite beside a constituent at `d(sharers) / 2`, not a larger arity base.
 

@@ -73,11 +73,11 @@ def test_mfa_union_and_english_keep_declared_atom_order() -> None:
     ]
 
 
-def test_mfa_korean_carries_atoms_and_refusals() -> None:
+def test_mfa_korean_carries_every_atom_without_refusal() -> None:
     korean = ipakit.inventory("mfa:korean")
     assert korean.phones is not None
-    assert len(korean.phones) == 90
-    assert len(korean.refusals) == 15
+    assert len(korean.phones) == 105
+    assert korean.refusals == {}
     assert korean.version == "korean_mfa-v3.0.0"
 
 
@@ -243,11 +243,11 @@ def test_cli_shows_bare_espeak(monkeypatch, capsys) -> None:
     assert "candidate 'aE'" in output
 
 
-def test_cli_shows_mfa_refusals(monkeypatch, capsys) -> None:
+def test_cli_shows_mfa_korean_fortis_atoms(monkeypatch, capsys) -> None:
     rc, output, _ = _run_cli(monkeypatch, capsys, "inventory", "show", "mfa:korean")
     assert rc == 0
-    assert "refusals\nspelling\treason" in output
-    assert "c͈\toutside-house-ipa: U+0348" in output
+    assert "c͈\tc͈" in output
+    assert "refusals\n" not in output
 
 
 def test_cli_lists_bare_espeak(monkeypatch, capsys) -> None:

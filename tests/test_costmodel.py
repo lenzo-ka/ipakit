@@ -77,7 +77,7 @@ def test_house_pack_reproduces_word_distance_exactly_over_the_shared_corpus() ->
 def test_indel_weight_scales_indels_and_never_the_substitution() -> None:
     ipa = IPAFeatures()
     pack = house_pack(ipa, CHEAP_INDEL)
-    assert compare(ipa, pack, "kat", "kot").edit_cost == 0.32352092352092354
+    assert compare(ipa, pack, "kat", "kot").edit_cost == 0.3088154269972452
     assert compare(ipa, pack, "mbanda", "banda").edit_cost == 0.25
 
 

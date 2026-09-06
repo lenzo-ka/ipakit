@@ -204,6 +204,19 @@
       <value name="+" label="voiced"/>
       <value name="-" label="voiceless"/>
     </feature>
+    <!-- Fortis is the laryngeal contrast written with U+0348 COMBINING
+         DOUBLE VERTICAL LINE BELOW, extIPA's "strong articulation" mark.
+         Korean needs it for the tense series `p͈ t͈ k͈ s͈ t͡ɕ͈`.
+         The mark is registered from the extIPA chart (ICPLA), with the
+         Korean interpretation following Cho, Jun & Ladefoged (2002),
+         Journal of Phonetics 30: stiffer vocal folds, higher F0 onset and
+         longer closure, without aspiration. Those are laryngeal and
+         temporal correlates, not a tract location, so this feature declares
+         no axis, place, articulator or constriction. It applies only to the
+         obstruent natural class declared on manner. -->
+    <feature name="fortis" short="for" type="binary" default="-" applies="obstruent" desc="Laryngeal fortis contrast; extIPA strong articulation, registered because Korean needs it" href="Extended_International_Phonetic_Alphabet">
+      <value name="+" label="strong articulation"/>
+    </feature>
     <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness">
       <!-- Width and protrusion are normalized lip DOF, not tract-x/y
            coordinates.  They pose every projection from the same state. -->
@@ -820,6 +833,9 @@
          above <projections>), and a mark that says one fact twice is
          exactly what that block exists to license. -->
     <diacritic name="̤" phonation="breathy" voiced="+" href="Breathy_voice"/>
+    <!-- U+0348 COMBINING DOUBLE VERTICAL LINE BELOW: extIPA strong
+         articulation; the fortis laryngeal series Korean needs. -->
+    <diacritic name="͈" fortis="+" href="Extended_International_Phonetic_Alphabet"/>
     <!-- The next two carry the chart's above-the-symbol spelling as an
          alias. The IPA writes the voicelessness ring and the syllabicity
          line above a symbol whose descender leaves no room below it, and

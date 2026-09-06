@@ -49,7 +49,7 @@ Ordinal features could compute distance from declaration order — value *i* to 
 
 **Distances survive inventory growth.** Adding a place value leaves every existing place distance unchanged, because anchors are absolute. Under index distance, adding a value would silently shift every distance in the library, and with it the shipped matrix.
 
-Unanchored dimensions — `tone`, `length`, `phonation` — still use declaration order, honestly, because there the label set *is* the model. Categorical dimensions (`airstream`, `release`) score 0 for a match and 1 otherwise; they have no continuum to be positioned on. `articulator` is not one of them: the organs it names sit at declared `arc` positions along the same tract `place` measures, so a tongue tip and a tongue blade are near neighbors and a tongue tip and the vocal folds are not.
+Unanchored dimensions — `tone`, `length`, `phonation` — still use declaration order, honestly, because there the label set *is* the model. Binary and categorical laryngeal terms such as `voiced`, `fortis`, and `release` score one feature step at maximal difference; `airstream` is categorical too, and none of these has a continuum to be positioned on. `articulator` is not one of them: the organs it names sit at declared `arc` positions along the same tract `place` measures, so a tongue tip and a tongue blade are near neighbors and a tongue tip and the vocal folds are not.
 
 ## 3. The reference frame
 
@@ -138,7 +138,7 @@ budget = {
     "phased": round(ipakit.segment_distance("t", "t͡s"), 4),
     "diphthong": round(ipakit.segment_distance("e", "e͜ɪ"), 4),
 }
-budget   # {'aspiration': 0.0476, 'dentalization': 0.005, 'labialization': 0.0543, 'fusion': 0.0838, 'phased': 0.2629, 'diphthong': 0.2549}
+budget   # {'aspiration': 0.0455, 'dentalization': 0.0048, 'labialization': 0.0517, 'fusion': 0.0798, 'phased': 0.2623, 'diphthong': 0.2547}
 ```
 
 The fusion figure is no longer `d(ɡ,b)/2`. It was, until the fusion branch
@@ -257,7 +257,7 @@ import ipakit
 from ipakit.closure import metric_closure
 
 closure = metric_closure(ipakit.load_ipa_features())
-closure.distance("p", "b")   # 0.05
+closure.distance("p", "b")   # 0.047619047619047616
 ```
 
 It is deliberately **not** exported at module level and **not** the default, because closure is not free. A pair shortens whenever some third phone offers a cheaper path, and over the shipped inventory those paths are mostly artifacts: a double articulation shares one constituent with each endpoint, so `ɡ → ɡ͡b → b͡v` is cheap even though a voiced velar plosive and a voiced labiodental affricate are not alike. About a fifth of pairs shorten, and the largest shortcuts land on some of the least similar pairs — so a closure trades a true inequality for occasional badly wrong similarities.

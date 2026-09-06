@@ -279,7 +279,7 @@ def word_distance(
 
     Examples:
         >>> ipakit.word_distance("kæt", "kæd")
-        WordDistanceResult(edit_cost=0.1, similarity=0.98..., coverage=1.0, costs='insert=1.0 delete=1.0', alignment=None)
+        WordDistanceResult(edit_cost=0.095..., similarity=0.984..., coverage=1.0, costs='insert=1.0 delete=1.0', alignment=None)
         >>> ipakit.word_distance("kæt", "kæ").coverage
         0.666...
     """
@@ -1330,7 +1330,7 @@ def nearest_phones(
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('t', 0.019), ('ɸ', 0.027), ('f', 0.03)]
+        [('t', 0.019), ('ɸ', 0.025), ('f', 0.028)]
     """
     return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
 

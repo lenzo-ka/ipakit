@@ -170,8 +170,9 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # six names a tone that is not one of the five levels.
         # 67 before the four phase marks declared their approach as well as
         # their release: one further pair each, at the other phase.
-        assert len(pairs) == 72, f"{len(pairs)} declared pairs, not 72"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10008
+        # 73 after the strong-articulation mark added fortis=+.
+        assert len(pairs) == 73, f"{len(pairs)} declared pairs, not 73"
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10147
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (

@@ -282,7 +282,7 @@ class WordCommand(Command):
     what ipakit.word_distance() and ipakit.word_similarity() return.
 
     The two disagree, and are meant to: for kæt ~ kæd the model says
-    0.9854 and the raw measure says 0.9833. Without --raw there was no
+    0.9871 and the raw measure says 0.9841. Without --raw there was no
     command line spelling of the second number at all, so a reader
     comparing the API against the CLI saw a discrepancy where there was
     a choice of measure.

@@ -72,7 +72,7 @@ class TestWhatItCosts:
         # that shares a different constituent with each.
         direct = ipa.distance("ɡ", "b͡v")
         assert direct > 0.25
-        assert closure.distance("ɡ", "b͡v") == pytest.approx(0.1161, abs=0.00005)
+        assert closure.distance("ɡ", "b͡v") == pytest.approx(0.1106, abs=0.00005)
 
     def test_the_diagnostic_reports_the_damage(
         self, ipa: IPAFeatures, closure: MetricClosure

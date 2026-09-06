@@ -87,10 +87,10 @@ ipa.describe("ḁ")  # 'voiceless open front unrounded vowel'
 > the *full* bundle — every feature, defaults included — and `with_defaults=False` gives
 > only what the phone states. `ipakit features p` is the other way round: it shows only
 > the stated features, and `--all` adds the defaults. So the two spellings of "the
-> features of /p/" give 4 keys and 23 keys respectively.
+> features of /p/" give 4 keys and 24 keys respectively.
 
 ```python
-len(ipa.features("p"))  # 23   the API default: everything
+len(ipa.features("p"))  # 24   the API default: everything
 len(ipa.features("p", with_defaults=False))  # 4
 ```
 
@@ -111,24 +111,25 @@ t: plo alv
 is more different. A voicing contrast is small; a consonant against a vowel is large.
 
 ```python
-ipa.distance("p", "b")  # 0.05
-ipa.distance("p", "k")  # 0.0675
-ipa.distance("p", "a")  # 0.33772727272727276
+ipa.distance("p", "b")  # 0.047619047619047616
+ipa.distance("p", "k")  # 0.0642857142857143
+ipa.distance("p", "a")  # 0.3230434782608696
 ```
 
 ```console
 $ ipakit distance pair p b
-0.0500
+0.0476
 $ ipakit distance pair p a
-0.3377
+0.3230
 ```
 
 `nearest_phones` is usually the more useful question — not *how far* but *what is close*:
 
 ```python
 ipa.nearest_phones("p", n=5)
-# [('t', 0.0195), ('ɸ', 0.02666666666666666), ('f', 0.029666666666666664),
-# ('ȶ', 0.033499999999999995), ('θ', 0.04116666666666666)]
+# [('t', 0.018571428571428572), ('ɸ', 0.02539682539682539), ('f',
+# 0.02825396825396825), ('ȶ', 0.0319047619047619), ('θ',
+# 0.039206349206349196)]
 ```
 
 ```console
@@ -136,10 +137,10 @@ $ ipakit analysis nearest p -n 5
 p (voiceless bilabial plosive)
 --------------------------------------------------
   t  0.019  voiceless alveolar plosive
-  ɸ  0.027  voiceless bilabial fricative
-  f  0.030  voiceless labiodental fricative
-  ȶ  0.033  voiceless alveolo-palatal plosive
-  θ  0.041  voiceless dental fricative
+  ɸ  0.025  voiceless bilabial fricative
+  f  0.028  voiceless labiodental fricative
+  ȶ  0.032  voiceless alveolo-palatal plosive
+  θ  0.039  voiceless dental fricative
 ```
 
 Raw distances are hard to interpret on their own, because the range that actually occurs
@@ -150,7 +151,7 @@ close as any pair gets" and the numbers spread out:
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
 # 0.9962464810760088
-ipa.confusability("f", "a")  # 0.27588364091335627
+ipa.confusability("f", "a")  # 0.2940256490459806
 ```
 
 ```console
@@ -162,7 +163,7 @@ For whole words there are two different measures, and it matters which one you g
 
 ```python
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
-# 0.9833333333333333
+# 0.9841269841269842
 ipa.distance_model().word_distance("kæt", "kæd").similarity
 # 0.9870712125951413
 ```
@@ -177,7 +178,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 $ ipakit distance word kæt kæd
 kæt ~ kæd: similarity=0.9871  [reference: ipa, 139 phones]
 $ ipakit distance word --raw kæt kæd
-kæt ~ kæd: similarity=0.9833  [raw feature distance]
+kæt ~ kæd: similarity=0.9841  [raw feature distance]
 ```
 
 A word comparison also reports `coverage`, the shorter token count over the longer. It
@@ -205,7 +206,7 @@ without re-tokenizing, so boundaries you drew (`d͡ʒ` as one token) are kept as
 
 ```python
 ipa.sequence_distance(["k", "a", "t"], ["k", "æ", "t"]).similarity
-# 0.9968013468013468
+# 0.9969467401285583
 ```
 
 **Do not build a metric tree on `distance`.** It is symmetric and bounded and zero on
@@ -221,7 +222,7 @@ explanation = ipa.explain_word_distance("kæt", "kæd")
 # [('match', 'k', 'k'), ('match', 'æ', 'æ'), ('sub', 't', 'd')]
 [term["label"] for term in explanation[-1]["terms"] if term["cost"] != 0]
 # ['voiced']
-sum(step["cost"] for step in explanation)  # 0.05
+sum(step["cost"] for step in explanation)  # 0.0476
 ```
 
 ## 3. What phones match a description?
@@ -266,6 +267,7 @@ $ ipakit analysis natural-class m n ŋ
 airstream=pulmonic
 centralized=-
 channel=flat
+fortis=-
 fronting=0
 height-mod=0
 labialized=-
@@ -926,7 +928,7 @@ setup at all:
 
 ```python
 ipa.describe("tʰ")  # 'voiceless aspirated alveolar plosive'
-round(ipa.distance("tʰ", "t"), 4)  # 0.0476
+round(ipa.distance("tʰ", "t"), 4)  # 0.0455
 [p for p, _ in ipa.nearest_phones("tʰ", n=3)]  # ['t', 'ȶ', 'p']
 ```
 

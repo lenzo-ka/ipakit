@@ -40,10 +40,12 @@ from .phonemaps import _load_phonemap
 from .segment import (
     APPROACH_MODE,
     Constituent,
+    ModifierHostError,
     Segment,
     Sense,
     apply_modifiers,
     approach_run,
+    check_modifier_hosts,
     check_prosody,
     fill_defaults,
     flat_projection,
@@ -514,11 +516,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     bare=frozenset(bare_values),
                 )
 
-        # `applies` names a declared manner value, or one of the derived
-        # classes below -- each a predicate over declared data, not a list
-        # of values restated in Python.
+        # `applies` names a declared manner value, a natural class declared
+        # over manner, or one of the derived classes below -- each a
+        # predicate over declared data, not a list of values restated in
+        # Python.
         manner_values = (
             set(self.features["manner"].values) if "manner" in self.features else set()
+        )
+        manner_classes = (
+            set(self.features["manner"].value_classes)
+            if "manner" in self.features
+            else set()
         )
         for name, feat in self.features.items():
             if feat.center is not None and feat.center not in feat.values_set:
@@ -531,11 +539,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     manner_values
                     and token not in DERIVED_CLASSES
                     and token not in manner_values
+                    and token not in manner_classes
                 ):
                     raise ValueError(
                         f"feature {name!r} declares applies={token!r}, which is "
-                        f"neither a declared manner value nor one of "
-                        f"{sorted(DERIVED_CLASSES)}"
+                        "neither a declared manner value, a natural class over "
+                        f"manner, nor one of {sorted(DERIVED_CLASSES)}"
                     )
             # `over` names the scale this feature's values move along, and
             # a move is only readable if the scale is ordered. Checked at
@@ -2379,6 +2388,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         except (ValueError, KeyError):
             return None
 
+        if any(
+            was.get(key) != value and not self.feature_applies(key, was)
+            for key, value in wanted.items()
+        ):
+            return None
+
         # Picks are kept per placement: a mark supplying an approach-phase
         # key is written before the base and one supplying anything else
         # after it, which is the same rule the reader applies and the only
@@ -3505,14 +3520,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # unit. Building from them is the point of this path: feeding
             # ``token`` back through ``_segment_from_token`` would perform a
             # second tokenization once for every segment in the form.
-            seg = self._segment_from_parsed(base, diacritics)
+            seg = self._segment_from_parsed(base, diacritics, strict=strict)
             # A token that carries no unit has nothing to take the stress,
             # so the mark stays pending for the syllabic unit that does.
             if seg is not None:
                 raised: dict[str, str] = {}
                 if pending_stress and self.is_nucleus(seg.scalar()):
                     seg = self._segment_from_parsed(
-                        base, diacritics, tuple(pending_stress)
+                        base, diacritics, tuple(pending_stress), strict=strict
                     )
                     pending_stress = []
                 if pending_prominence:
@@ -3880,6 +3895,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if start + len(modifiers) != len(part):
             stray = part[start + len(modifiers)]
             raise ValueError(f"unknown modifier {stray!r} in {part!r}")
+        base_features = self.phones[base].features
+        check_modifier_hosts(self, base_features, approach, approach=True)
+        check_modifier_hosts(self, base_features, modifiers)
         return Constituent(
             base=base, modifiers=tuple(modifiers), approach=tuple(approach)
         )
@@ -3894,7 +3912,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return self._segment_from_parsed(chain, diacritics, stress)
 
     def _segment_from_parsed(
-        self, chain: str, diacritics: list[str], stress: tuple[str, ...] = ()
+        self,
+        chain: str,
+        diacritics: list[str],
+        stress: tuple[str, ...] = (),
+        *,
+        strict: bool = False,
     ) -> Segment | None:
         """Build one unit from an already-parsed ``(chain, diacritics)``
         pair, so a caller that has run :meth:`parse` does not run it
@@ -3904,7 +3927,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         glyphs = raw[1::2]
         try:
             constituents = tuple(self._parse_constituent(p) for p in part_strs)
-        except ValueError:
+        except ValueError as exc:
+            if strict and isinstance(exc, ModifierHostError):
+                raise
             # Structural-only or malformed token (lone tie, stray mark):
             # nothing segmental to represent.
             return None
@@ -3937,6 +3962,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 modifiers.append(mark)
         if modifiers:
             last = constituents[-1]
+            if strict:
+                check_modifier_hosts(self, self.phones[last.base].features, modifiers)
             constituents = constituents[:-1] + (
                 dataclasses.replace(last, modifiers=last.modifiers + tuple(modifiers)),
             )
@@ -4044,15 +4071,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             if feat.mode == "secondary" and feat.place is not None
         }
 
-    def feature_applies(self, feature: str, bundle: dict[str, str]) -> bool:
+    def feature_applies(self, feature: str, bundle: Mapping[str, str]) -> bool:
         """Whether a description of this segment reads ``feature`` out.
 
         A feature that declares no ``applies`` applies to everything.
-        Otherwise it applies when the segment's manner is named, or when
-        one of the derived classes claims it: ``consonant`` is the
-        complement of vowel and silence (:attr:`consonant_manners`), and
-        ``nucleus`` is anything that can be a syllable peak
-        (:meth:`is_nucleus`).
+        Otherwise it applies when the segment's manner is named, when a
+        natural class declared over manner contains it, or when one of the
+        derived classes claims it: ``consonant`` is the complement of vowel
+        and silence (:attr:`consonant_manners`), and ``nucleus`` is anything
+        that can be a syllable peak (:meth:`is_nucleus`).
         """
         feat = self.features.get(feature)
         if feat is None or not feat.applies:
@@ -4061,6 +4088,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if manner is None:
             return True
         if manner in feat.applies:
+            return True
+        manner_feature = self.features.get("manner")
+        if manner_feature is not None and any(
+            manner in manner_feature.value_classes.get(term, frozenset())
+            for term in feat.applies
+        ):
             return True
         if "consonant" in feat.applies and manner in self.consonant_manners:
             return True

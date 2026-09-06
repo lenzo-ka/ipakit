@@ -40,6 +40,10 @@ _JSON_TYPE = "ipa-segment"
 _OBSTRUENT = "obstruent"
 
 
+class ModifierHostError(ValueError):
+    """A declared mark was written on a host outside its natural class."""
+
+
 class Sense(StrEnum):
     """Juncture sense: what a tie asserts about timing."""
 
@@ -388,6 +392,37 @@ def apply_modifiers(
                 where=where,
             )
     return feats
+
+
+def check_modifier_hosts(
+    features: IPAFeatures,
+    feats: Mapping[str, str],
+    modifiers: Iterable[str],
+    *,
+    approach: bool = False,
+) -> None:
+    """Refuse a mark whose feature declares an incompatible host class."""
+    manner_feature = features.features.get("manner")
+    if manner_feature is None:
+        return
+    for mod in modifiers:
+        mark = features.diacritics.get(mod)
+        if mark is None:
+            continue
+        for key in phase_keys(features, mod, approach):
+            feature = features.features.get(key)
+            host_classes = (
+                feature.applies & manner_feature.value_classes.keys()
+                if feature is not None
+                else set()
+            )
+            if host_classes and not features.feature_applies(key, feats):
+                rule = " ".join(sorted(host_classes))
+                manner = feats.get("manner")
+                raise ModifierHostError(
+                    f"mark {mod!r} states feature {key!r}, whose applicability "
+                    f"rule is {rule!r}; base manner {manner!r} does not satisfy it"
+                )
 
 
 def fill_defaults(features: IPAFeatures, feats: dict[str, str]) -> dict[str, str]:

@@ -12,6 +12,7 @@ every member below, so the stub bodies are never executed.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from .models import Feature, Phone, Phoneset
@@ -89,7 +90,7 @@ class IPAFeaturesBase:
     def tie_bars(self) -> frozenset[str]:
         raise NotImplementedError
 
-    def feature_applies(self, feature: str, bundle: dict[str, str]) -> bool:
+    def feature_applies(self, feature: str, bundle: Mapping[str, str]) -> bool:
         raise NotImplementedError
 
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:

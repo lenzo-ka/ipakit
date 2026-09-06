@@ -46,7 +46,7 @@ class TestExactPins:
         db = bundle_distance(
             ipa, ipa.segment("ɡ").constituents[0], ipa.segment("b").constituents[0]
         )
-        assert _arity_base(ipa) == pytest.approx(1 / 20, abs=1e-12)
+        assert _arity_base(ipa) == pytest.approx(1 / 21, abs=1e-12)
         assert D(ipa, "ɡ", "ɡ͡b") == pytest.approx(_arity_base(ipa) + db / 2, abs=1e-12)
         assert D(ipa, "b", "ɡ͡b") == pytest.approx(
             _arity_base(ipa)
@@ -170,10 +170,10 @@ class TestMaterialBudget:
         assert checked > 30, f"budget sweep checked only {checked} parts"
 
     def test_expected_gap_geometry(self, ipa: IPAFeatures) -> None:
-        assert D(ipa, "t͡s", "t") == pytest.approx(0.2629, abs=0.00005)
-        assert D(ipa, "t͡ʃ", "ʃ") == pytest.approx(0.2652, abs=0.00005)
+        assert D(ipa, "t͡s", "t") == pytest.approx(0.2623, abs=0.00005)
+        assert D(ipa, "t͡ʃ", "ʃ") == pytest.approx(0.2644, abs=0.00005)
         assert D(ipa, "t͡ʃ", "ʃ") < D(ipa, "t͡ʃ", "i")
-        assert D(ipa, "t͡ʃ", "t͡s") == pytest.approx(0.0030, abs=0.00005)
+        assert D(ipa, "t͡ʃ", "t͡s") == pytest.approx(0.0029, abs=0.00005)
 
     def test_adding_an_articulator_costs_at_least_a_release_phase(
         self, ipa: IPAFeatures

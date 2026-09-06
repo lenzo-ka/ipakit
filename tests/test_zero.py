@@ -182,7 +182,7 @@ class TestAnUnroutedClassIsRefused:
         assert len(FEATURES.phones) == 139
         # Nothing about the zero can reach a distance: it is in no table
         # the metric reads.
-        assert ipakit.distance("t", "d") == pytest.approx(0.05)
+        assert ipakit.distance("t", "d") == pytest.approx(1 / 21)
 
 
 class TestZeroIsNotSilence:
