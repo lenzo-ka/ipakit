@@ -357,7 +357,13 @@ class TestAskingForWhatIsAlreadyTrueIsANoOp:
         for unit in self_spelling_phones():
             for mark in list(FEATURES.diacritics)[:24]:
                 for text in (unit, unit + mark):
-                    if FEATURES.segment(text).to_ipa() != text:
+                    # A mark its host cannot carry is refused, not composed;
+                    # such a pair is not a candidate for this sweep.
+                    try:
+                        spelled = FEATURES.segment(text, strict=True).to_ipa()
+                    except ValueError:
+                        continue
+                    if spelled != text:
                         continue
                     bundle = _bundle(FEATURES, text)
                     for key, value in bundle.items():

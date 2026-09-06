@@ -214,7 +214,7 @@
          temporal correlates, not a tract location, so this feature declares
          no axis, place, articulator or constriction. It applies only to the
          obstruent natural class declared on manner. -->
-    <feature name="fortis" short="for" type="binary" default="-" applies="obstruent" desc="Laryngeal fortis contrast; extIPA strong articulation, registered because Korean needs it" href="Extended_International_Phonetic_Alphabet">
+    <feature name="fortis" short="for" type="binary" default="-" applies="obstruent" desc="Laryngeal fortis contrast; extIPA strong articulation, registered because Korean needs it" href="Extensions_to_the_International_Phonetic_Alphabet">
       <value name="+" label="strong articulation"/>
     </feature>
     <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness">
@@ -835,7 +835,7 @@
     <diacritic name="̤" phonation="breathy" voiced="+" href="Breathy_voice"/>
     <!-- U+0348 COMBINING DOUBLE VERTICAL LINE BELOW: extIPA strong
          articulation; the fortis laryngeal series Korean needs. -->
-    <diacritic name="͈" fortis="+" href="Extended_International_Phonetic_Alphabet"/>
+    <diacritic name="͈" fortis="+" href="Extensions_to_the_International_Phonetic_Alphabet"/>
     <!-- The next two carry the chart's above-the-symbol spelling as an
          alias. The IPA writes the voicelessness ring and the syllabicity
          line above a symbol whose descender leaves no room below it, and
