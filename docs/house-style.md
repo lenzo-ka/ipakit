@@ -83,7 +83,7 @@ This was a choice and it has a cost: `constriction-location`, `tongue-blade` and
 
 It also fixes what the declaration is answerable to. A name taken from the literature can be *wrong* against the literature — the `href` is what makes that checkable — where an invented name can only be inconsistent with itself.
 
-**The consequence is that ipakit's feature set is not panphon's, and the difference is one of kind.** ipakit's feature set is substantially larger than panphon's, and neither is a subset of the other. Set the names beside each other and the two traditions are visible:
+**The consequence is that ipakit's feature set is not panphon's, and the difference is one of kind.** The two sets are neither the same size nor nested, and both halves of that are checkable from what follows: panphon's names are enumerated below, and ipakit's are the ones [the generated exhibits](house-style-exhibits.md) list from `ipa.xml`, so a reader compares two enumerations rather than two remembered numbers. Set the names beside each other and the two traditions are visible:
 
 - panphon: `syl son cons cont delrel lat nas strid voi sg cg ant cor distr lab hi lo back round velaric tense long hitone hireg` — binary distinctive features, values `+`, `-`, `0`
 - ipakit: `manner place articulator phonation airstream channel constriction-location height backness rounding …` — the IPA chart's descriptive axes, multi-valued
