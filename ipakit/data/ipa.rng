@@ -165,7 +165,7 @@
                `vocabulary` names the feature whose value set, aliases and
                tract coordinates this one takes as its own instead of
                restating them, and a feature declaring it declares no
-               <value> of its own. All four point at names declared
+               <value> of its own. These attributes point at names declared
                elsewhere. -->
           <optional><attribute name="over"><text/></attribute></optional>
           <optional><attribute name="place"><text/></attribute></optional>

@@ -1013,14 +1013,52 @@ def check_borrowed_vocabulary(ipa: IPAFeatures) -> bool:
 
 
 def check_no_locus_feature_admits_its_own_exponent(ipa: IPAFeatures) -> bool:
-    """A feature cannot be applied where its own articulatory setting lives."""
+    """A feature cannot be applied where its own articulatory setting lives.
+
+    The sweep follows both approach and trailing marks, but, like the two
+    production calls, checks each mark against the registered base bundle.
+    A mark that changes the base's place to a later mark's locus would make
+    accumulated modifier state relevant; no declaration does that. If one
+    does, this check and production must take that accumulated bundle.
+    """
+    import xml.etree.ElementTree as ET
+
     from ipakit.segment import ModifierHostError, check_modifier_hosts, phase_keys
     from ipakit.tract import constrictions
 
     failures: list[str] = []
     checked = 0
     place = ipa.features.get("place")
-    for name, feature in ipa.features.items():
+    root = ET.parse(ipa.xml_path).getroot()
+    declared_loci = {
+        name: locus
+        for elem in root.findall("./features/feature")
+        if (name := elem.get("name")) is not None
+        if (locus := elem.get("locus")) is not None
+    }
+    locus_features = set(declared_loci) | {
+        name for name, feature in ipa.features.items() if feature.locus is not None
+    }
+    if not locus_features:
+        # The per-feature guard below reaches a feature that declares a locus
+        # and asserts nothing. It cannot reach a table with no locus at all,
+        # which is the shape the defect arrived in: a rule that is merely
+        # absent reads as a rule that holds.
+        failures.append("no feature declares a locus; this check is vacuous")
+    for name in sorted(locus_features):
+        feature = ipa.features.get(name)
+        declared_locus = declared_loci.get(name)
+        if feature is None:
+            failures.append(
+                f"{name} declares locus={declared_locus!r}, but was not loaded"
+            )
+            continue
+        if declared_locus is not None and feature.locus != declared_locus:
+            failures.append(
+                f"{name} declares locus={declared_locus!r}, but the loaded feature "
+                f"has locus={feature.locus!r}"
+            )
+            continue
         if feature.locus is None:
             continue
         locus_arc = (
@@ -1033,37 +1071,45 @@ def check_no_locus_feature_admits_its_own_exponent(ipa: IPAFeatures) -> bool:
                 f"{name} declares locus={feature.locus!r}, which has no place arc"
             )
             continue
-        marks = [
-            mark for mark in ipa.diacritics if name in phase_keys(ipa, mark, False)
-        ]
-        if not marks:
-            failures.append(
-                f"{name} declares locus={feature.locus!r}, but no mark states it"
-            )
-            continue
+        candidates: list[tuple[str, dict[str, str]]] = []
         for symbol in ipa.phones:
             bundle = ipa.get_features(symbol)
             if not ipa.feature_applies(name, bundle):
                 continue
-            checked += 1
-            primary = [
-                point
+            primary_arcs = [
+                arc
                 for point in constrictions(ipa, bundle)
-                if point.kind == "primary" and point.arc is not None
+                if point.kind == "primary" and (arc := point.arc) is not None
             ]
-            if not any(abs(point.arc - locus_arc) <= TOLERANCE for point in primary):
+            if not any(abs(arc - locus_arc) <= TOLERANCE for arc in primary_arcs):
                 continue
-            for mark in marks:
+            candidates.append((symbol, bundle))
+        if not candidates:
+            continue
+        marks = [
+            (mark, approach)
+            for mark in ipa.diacritics
+            for approach in (False, True)
+            if name in phase_keys(ipa, mark, approach)
+        ]
+        feature_checked = 0
+        for symbol, bundle in candidates:
+            for mark, approach in marks:
+                checked += 1
+                feature_checked += 1
                 try:
-                    check_modifier_hosts(ipa, bundle, [mark])
+                    check_modifier_hosts(ipa, bundle, [mark], approach=approach)
                 except ModifierHostError:
                     continue
                 failures.append(
                     f"{name} admits /{symbol}/ (place={bundle.get('place')}, "
                     f"primary arc={locus_arc}) at its own locus={feature.locus}"
                 )
-    if not any(feature.locus is not None for feature in ipa.features.values()):
-        failures.append("no feature declares a locus; this check is vacuous")
+        if not feature_checked:
+            failures.append(
+                f"{name} has applicable phones at locus={feature.locus!r}, but "
+                "made no production assertion"
+            )
     return _report("no locus feature admits its own exponent", failures, checked)
 
 
