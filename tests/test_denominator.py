@@ -6,7 +6,7 @@ import json
 
 import ipakit
 from ipakit.constants import DEFAULT_CONFUSION
-from ipakit.metric import metric_fingerprint
+from ipakit.metric import _bundle_terms, metric_fingerprint
 
 
 def test_default_fingerprint_stays_the_shipped_space() -> None:
@@ -42,3 +42,52 @@ def test_every_named_public_read_carries_the_choice() -> None:
     assert ipakit.phoneset_comparison(
         ["a"], ["e"], ipa=ipa, applicable_only=True
     ).matrix == ((1 - expected,),)
+
+
+def test_every_restricted_feature_is_resolved_from_its_declaration() -> None:
+    ipa = ipakit.IPAFeatures()
+    hosts = {
+        "channel": ("a", "e"),
+        "constriction-location": ("p", "t"),
+        "fortis": ("a", "e"),
+        "retroflex": ("a", "e"),
+        "rhotacized": ("p", "t"),
+    }
+    for key, pair in hosts.items():
+        left = ipa.segment(pair[0]).constituents[0]
+        right = ipa.segment(pair[1]).constituents[0]
+        host1 = left.bundle(ipa, with_defaults=False)
+        host2 = right.bundle(ipa, with_defaults=False)
+        assert not (ipa.feature_applies(key, host1) and ipa.feature_applies(key, host2))
+        basic_terms = _bundle_terms(ipa, left, right)[1]
+        scoped_terms = _bundle_terms(ipa, left, right, applicable_only=True)[1]
+        assert scoped_terms < basic_terms
+
+
+def test_every_distance_returning_wrapper_forwards_the_choice() -> None:
+    ipa = ipakit.IPAFeatures()
+    expected = ipa.distance("a", "e", applicable_only=True)
+    assert (
+        ipa.directional_word_distance("a", "e", applicable_only=True).edit_cost
+        == 2 * expected
+    )
+    assert (
+        ipa.sequence_distance(["a"], ["e"], applicable_only=True).edit_cost
+        == 2 * expected
+    )
+    assert ipa.sequence_similarity(["a"], ["e"], applicable_only=True) == 1 - expected
+    assert (
+        ipa.rank_sequences(["a"], [["e"]], applicable_only=True)[0].result.edit_cost
+        == 2 * expected
+    )
+    assert (
+        ipa.nearest_pronunciation("a", ["e"], applicable_only=True).result.edit_cost
+        == 2 * expected
+    )
+    assert (
+        ipa.rank_pronunciations("a", ["e"], applicable_only=True)[0].result.edit_cost
+        == 2 * expected
+    )
+    assert ipakit.explain_word_distance("a", "e", applicable_only=True)[-1][
+        "cost"
+    ] == round(expected, 4)

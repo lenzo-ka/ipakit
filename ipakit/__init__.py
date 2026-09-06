@@ -175,6 +175,11 @@ def _get_default_model() -> DistanceModel:
     return DistanceModel.global_(_get_ipa())
 
 
+@_functools.lru_cache(maxsize=1)
+def _get_scoped_model() -> DistanceModel:
+    return DistanceModel.derive(_get_ipa(), applicable_only=True)
+
+
 def load_ipa_features(
     xml_path: Path = DEFAULT_IPA_FEATS,
     supplements: Sequence[Path | str] = (),
@@ -305,6 +310,7 @@ def directional_word_distance(
     weighted: bool = True,
     return_alignment: bool = False,
     strict: bool = True,
+    applicable_only: bool = False,
 ) -> WordDistanceResult:
     """Edit distance from a reference form to a hypothesis, sides named.
 
@@ -331,6 +337,7 @@ def directional_word_distance(
         weighted=weighted,
         return_alignment=return_alignment,
         strict=strict,
+        applicable_only=applicable_only,
     )
 
 
@@ -374,6 +381,7 @@ def explain_word_distance(
     *,
     weighted: bool = True,
     strict: bool = True,
+    applicable_only: bool = False,
 ) -> list[dict[str, object]]:
     """A per-position trace of a word comparison, for debugging and detail.
 
@@ -389,7 +397,11 @@ def explain_word_distance(
         ('sub', 't', 'd')
     """
     return _get_ipa().explain_word_distance(
-        ipa1, ipa2, weighted=weighted, strict=strict
+        ipa1,
+        ipa2,
+        weighted=weighted,
+        strict=strict,
+        applicable_only=applicable_only,
     )
 
 
@@ -400,6 +412,7 @@ def nearest_pronunciation(
     weighted: bool = True,
     strict: bool = True,
     mode: str = "global",
+    applicable_only: bool = False,
 ) -> PronunciationMatch:
     """The nearest acceptable pronunciation in a set, and which pair matched.
 
@@ -418,7 +431,12 @@ def nearest_pronunciation(
         ('fæmli', 1.0)
     """
     return _get_ipa().nearest_pronunciation(
-        forms, acceptable, weighted=weighted, strict=strict, mode=mode
+        forms,
+        acceptable,
+        weighted=weighted,
+        strict=strict,
+        mode=mode,
+        applicable_only=applicable_only,
     )
 
 
@@ -430,6 +448,7 @@ def rank_pronunciations(
     weighted: bool = True,
     strict: bool = True,
     mode: str = "global",
+    applicable_only: bool = False,
 ) -> list[PronunciationMatch]:
     """The acceptable pronunciations ranked, best first -- the n-best form of
     :func:`nearest_pronunciation`. ``mode="local"`` matches each as a target
@@ -441,7 +460,13 @@ def rank_pronunciations(
         [1.0]
     """
     return _get_ipa().rank_pronunciations(
-        forms, acceptable, n=n, weighted=weighted, strict=strict, mode=mode
+        forms,
+        acceptable,
+        n=n,
+        weighted=weighted,
+        strict=strict,
+        mode=mode,
+        applicable_only=applicable_only,
     )
 
 
@@ -452,6 +477,7 @@ def sequence_distance(
     weighted: bool = True,
     mode: str = "global",
     return_alignment: bool = False,
+    applicable_only: bool = False,
 ) -> WordDistanceResult:
     """Distance between two pre-tokenized phone sequences (each element one
     phone unit), aligned as given -- see
@@ -462,7 +488,12 @@ def sequence_distance(
         True
     """
     return _get_ipa().sequence_distance(
-        seq1, seq2, weighted=weighted, mode=mode, return_alignment=return_alignment
+        seq1,
+        seq2,
+        weighted=weighted,
+        mode=mode,
+        return_alignment=return_alignment,
+        applicable_only=applicable_only,
     )
 
 
@@ -472,6 +503,7 @@ def sequence_similarity(
     *,
     weighted: bool = True,
     mode: str = "global",
+    applicable_only: bool = False,
 ) -> float:
     """The ``similarity`` of :func:`sequence_distance`, in [0, 1].
 
@@ -479,7 +511,13 @@ def sequence_similarity(
         >>> round(ipakit.sequence_similarity(["k", "æ", "t"], ["k", "æ", "d"]), 2)
         0.98
     """
-    return _get_ipa().sequence_similarity(seq1, seq2, weighted=weighted, mode=mode)
+    return _get_ipa().sequence_similarity(
+        seq1,
+        seq2,
+        weighted=weighted,
+        mode=mode,
+        applicable_only=applicable_only,
+    )
 
 
 def rank_sequences(
@@ -489,6 +527,7 @@ def rank_sequences(
     n: int | None = None,
     weighted: bool = True,
     mode: str = "global",
+    applicable_only: bool = False,
 ) -> list[SequenceMatch]:
     """Candidate phone sequences ranked by similarity to ``observed``, best
     first -- see :meth:`~ipakit.distance.DistanceMixin.rank_sequences`.
@@ -499,16 +538,24 @@ def rank_sequences(
         1.0
     """
     return _get_ipa().rank_sequences(
-        observed, candidates, n=n, weighted=weighted, mode=mode
+        observed,
+        candidates,
+        n=n,
+        weighted=weighted,
+        mode=mode,
+        applicable_only=applicable_only,
     )
 
 
-def normalized_distance(phone1: str, phone2: str) -> float:
+def normalized_distance(
+    phone1: str, phone2: str, *, applicable_only: bool = False
+) -> float:
     """CDF-renormalized distance (percentile within the bundled IPA inventory)."""
-    return _get_default_model().distance(phone1, phone2)
+    model = _get_scoped_model() if applicable_only else _get_default_model()
+    return model.distance(phone1, phone2)
 
 
-def confusability(phone1: str, phone2: str) -> float:
+def confusability(phone1: str, phone2: str, *, applicable_only: bool = False) -> float:
     """Normalized confusability (percentile similarity) in the bundled IPA inventory.
 
     The complement of :func:`normalized_distance`; 1.0 for identical phones.
@@ -520,7 +567,8 @@ def confusability(phone1: str, phone2: str) -> float:
         >>> ipakit.confusability("p", "p")
         1.0
     """
-    return _get_default_model().confusability(phone1, phone2)
+    model = _get_scoped_model() if applicable_only else _get_default_model()
+    return model.confusability(phone1, phone2)
 
 
 def distance_model(
@@ -531,12 +579,25 @@ def distance_model(
     delete_cost: PhoneCost = 1.0,
     threshold: float | None = None,
     max_length_ratio: float | None = None,
+    applicable_only: bool = False,
 ) -> DistanceModel:
     """Build a distribution-aware distance model over a reference inventory.
 
     ``reference=None`` uses the bundled global IPA inventory (default).
     """
     ipa = _get_ipa()
+    if applicable_only:
+        phones = list(reference) if isinstance(reference, Phoneset) else reference
+        return DistanceModel.derive(
+            ipa,
+            phones=phones,
+            gamma=gamma,
+            insert_cost=insert_cost,
+            delete_cost=delete_cost,
+            threshold=threshold,
+            max_length_ratio=max_length_ratio,
+            applicable_only=True,
+        )
     if reference is None:
         return DistanceModel.global_(
             ipa,

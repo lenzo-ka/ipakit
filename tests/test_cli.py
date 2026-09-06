@@ -890,7 +890,7 @@ def _assert_flat_exports_are_inventoried(source, declared_exports, contract):
     assert not missing, f"flat exports missing from CLI capability contract: {missing}"
 
 
-def _contract_rows() -> list[tuple[str, bool, set[str]]]:
+def _contract_rows(text: str | None = None) -> list[tuple[str, bool, set[str]]]:
     """Each table row as (capability, claims library-only, public functions).
 
     Only the flat module's functions are read out of a row. Classes, constants
@@ -900,11 +900,12 @@ def _contract_rows() -> list[tuple[str, bool, set[str]]]:
     already states for itself; crossing the two requires them to be scoped the
     same way.
     """
-    text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
+    if text is None:
+        text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
     out = []
     for line in [line for line in text.splitlines() if line.startswith("|")][2:]:
         cells = line.split("|")
-        named = set(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", line))
+        named = set(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", cells[2]))
         out.append(
             (
                 cells[1].strip(),
@@ -919,7 +920,56 @@ def _contract_rows() -> list[tuple[str, bool, set[str]]]:
     return out
 
 
+def _assert_scoped_reads_are_inventoried(
+    rows: list[tuple[str, bool, set[str]]],
+) -> None:
+    raw = next(
+        names
+        for capability, _, names in rows
+        if capability == "Raw and inventory-relative distance"
+    )
+    scoped = set().union(
+        *(
+            names
+            for capability, _, names in rows
+            if capability.startswith("Applicability-scoped")
+        )
+    )
+    missing = sorted(raw - scoped)
+    assert not missing, f"distance reads missing from applicability contract: {missing}"
+    without_parameter = sorted(
+        name
+        for name in scoped
+        if "applicable_only" not in inspect.signature(getattr(ipakit, name)).parameters
+    )
+    assert (
+        not without_parameter
+    ), f"scoped reads without applicable_only: {without_parameter}"
+
+
 class TestCapabilityInventoryContract:
+    def test_every_distance_read_is_in_the_applicability_contract(self):
+        _assert_scoped_reads_are_inventoried(_contract_rows())
+
+    def test_leaving_out_a_sibling_read_fails_the_gate(self):
+        contract = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
+        head, found, tail = contract.rpartition("`directional_word_distance`, ")
+        assert found
+        incomplete = head + tail
+        with pytest.raises(AssertionError, match="directional_word_distance"):
+            _assert_scoped_reads_are_inventoried(_contract_rows(incomplete))
+
+    @pytest.mark.parametrize("name", ["directional", "nearest", "seq"])
+    def test_scoped_distance_commands_expose_the_option(self, name):
+        from ipakit.cli.distance import DistanceGroup
+
+        command = next(
+            command for command in DistanceGroup.commands if command.name == name
+        )
+        parser = argparse.ArgumentParser()
+        command.add_arguments(parser)
+        assert any(action.dest == "applicable_only" for action in parser._actions)
+
     def test_every_row_has_exactly_one_contract_state(self):
         text = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
         rows = [line for line in text.splitlines() if line.startswith("|")][2:]

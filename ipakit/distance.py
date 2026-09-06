@@ -1057,6 +1057,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         return_alignment: bool = False,
         strict: bool = True,
+        applicable_only: bool = False,
     ) -> WordDistanceResult:
         """Edit distance from a **reference** to a **hypothesis**, named sides.
 
@@ -1113,6 +1114,7 @@ class DistanceMixin(IPAFeaturesBase):
             return_alignment,
             GAP_COST if insert_cost is None else insert_cost,
             GAP_COST if delete_cost is None else delete_cost,
+            applicable_only=applicable_only,
         )
 
     def word_similarity(
@@ -1201,7 +1203,9 @@ class DistanceMixin(IPAFeaturesBase):
             # public explanation predates priced substitutions and reports
             # the segment metric itself; keep those two currencies distinct.
             metric_cost = (
-                self.segment_distance(step.left, step.right)
+                self.segment_distance(
+                    step.left, step.right, applicable_only=applicable_only
+                )
                 if step.op == "sub" and step.left is not None and step.right is not None
                 else step.cost
             )
@@ -1216,6 +1220,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         strict: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> PronunciationMatch:
         """The best match between an observed form and a set of acceptable ones.
 
@@ -1235,7 +1240,13 @@ class DistanceMixin(IPAFeaturesBase):
         read as a distance between two words.
         """
         return self.rank_pronunciations(
-            forms, acceptable, n=1, weighted=weighted, strict=strict, mode=mode
+            forms,
+            acceptable,
+            n=1,
+            weighted=weighted,
+            strict=strict,
+            mode=mode,
+            applicable_only=applicable_only,
         )[0]
 
     def sequence_distance(
@@ -1246,6 +1257,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         mode: str = "global",
         return_alignment: bool = False,
+        applicable_only: bool = False,
     ) -> WordDistanceResult:
         """Distance between two **pre-tokenized** phone sequences.
 
@@ -1270,6 +1282,7 @@ class DistanceMixin(IPAFeaturesBase):
             GAP_COST,
             GAP_COST,
             mode,
+            applicable_only=applicable_only,
         )
 
     def sequence_similarity(
@@ -1279,10 +1292,15 @@ class DistanceMixin(IPAFeaturesBase):
         *,
         weighted: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> float:
         """The ``similarity`` of :meth:`sequence_distance`, in [0, 1]."""
         return self.sequence_distance(
-            seq1, seq2, weighted=weighted, mode=mode
+            seq1,
+            seq2,
+            weighted=weighted,
+            mode=mode,
+            applicable_only=applicable_only,
         ).similarity
 
     def rank_sequences(
@@ -1293,6 +1311,7 @@ class DistanceMixin(IPAFeaturesBase):
         n: int | None = None,
         weighted: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> list[SequenceMatch]:
         """Candidate phone sequences ranked by similarity to ``observed``.
 
@@ -1309,7 +1328,13 @@ class DistanceMixin(IPAFeaturesBase):
         scored = [
             SequenceMatch(
                 similarity=(
-                    r := self.sequence_distance(obs, c, weighted=weighted, mode=mode)
+                    r := self.sequence_distance(
+                        obs,
+                        c,
+                        weighted=weighted,
+                        mode=mode,
+                        applicable_only=applicable_only,
+                    )
                 ).similarity,
                 observed=tuple(obs),
                 candidate=tuple(c),
@@ -1321,13 +1346,31 @@ class DistanceMixin(IPAFeaturesBase):
         return scored if n is None else scored[:n]
 
     def _score_pronunciation(
-        self, form: str, candidate: str, weighted: bool, strict: bool, mode: str
+        self,
+        form: str,
+        candidate: str,
+        weighted: bool,
+        strict: bool,
+        mode: str,
+        applicable_only: bool,
     ) -> WordDistanceResult:
         if mode == "global":
-            return self.word_distance(form, candidate, weighted=weighted, strict=strict)
+            return self.word_distance(
+                form,
+                candidate,
+                weighted=weighted,
+                strict=strict,
+                applicable_only=applicable_only,
+            )
         t1 = self._word_units(form)
         t2 = self._word_units(candidate)
-        return self.sequence_distance(t1, t2, weighted=weighted, mode=mode)
+        return self.sequence_distance(
+            t1,
+            t2,
+            weighted=weighted,
+            mode=mode,
+            applicable_only=applicable_only,
+        )
 
     def rank_pronunciations(
         self,
@@ -1338,6 +1381,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         strict: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> list[PronunciationMatch]:
         """:meth:`nearest_pronunciation`, but the whole ranking, best first.
 
@@ -1356,7 +1400,14 @@ class DistanceMixin(IPAFeaturesBase):
         scored = [
             PronunciationMatch(
                 similarity=(
-                    r := self._score_pronunciation(form, cand, weighted, strict, mode)
+                    r := self._score_pronunciation(
+                        form,
+                        cand,
+                        weighted,
+                        strict,
+                        mode,
+                        applicable_only,
+                    )
                 ).similarity,
                 form=form,
                 accepted=cand,

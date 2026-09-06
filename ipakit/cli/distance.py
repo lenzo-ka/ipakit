@@ -21,7 +21,7 @@ def add_applicable_only_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--applicable-only",
         action="store_true",
-        help="Count only features applicable to either compared host",
+        help="Count only features applicable to both compared hosts",
     )
 
 
@@ -524,6 +524,7 @@ class DirectionalCommand(Command):
             action="store_true",
             help="Use a flat substitution cost instead of feature distance",
         )
+        add_applicable_only_arg(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
@@ -536,6 +537,7 @@ class DirectionalCommand(Command):
             delete_cost=self.args.delete_cost,
             weighted=not self.args.unweighted,
             strict=False,
+            applicable_only=self.args.applicable_only,
         )
         data = {
             "reference": reference,
@@ -601,6 +603,7 @@ class NearestCommand(Command):
             help="Match each candidate as a target embedded in the form "
             "(local fit) rather than whole-to-whole",
         )
+        add_applicable_only_arg(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
@@ -612,7 +615,11 @@ class NearestCommand(Command):
         if self.args.n is None:
             ranked = [
                 self.ipa.nearest_pronunciation(
-                    self.args.form, self.args.acceptable, strict=False, mode=mode
+                    self.args.form,
+                    self.args.acceptable,
+                    strict=False,
+                    mode=mode,
+                    applicable_only=self.args.applicable_only,
                 )
             ]
         else:
@@ -622,6 +629,7 @@ class NearestCommand(Command):
                 n=self.args.n,
                 strict=False,
                 mode=mode,
+                applicable_only=self.args.applicable_only,
             )
         total = len(self.args.acceptable)
         if self.format == "json":
@@ -679,13 +687,16 @@ class SeqCommand(Command):
             action="store_true",
             help="Fit seq2 as a target embedded in seq1 (free ends on seq1)",
         )
+        add_applicable_only_arg(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
         t1 = self.args.seq1.split()
         t2 = self.args.seq2.split()
         mode = "local" if self.args.local else "global"
-        result = self.ipa.sequence_distance(t1, t2, mode=mode)
+        result = self.ipa.sequence_distance(
+            t1, t2, mode=mode, applicable_only=self.args.applicable_only
+        )
         if self.format == "json":
             self.output_json(
                 {

@@ -313,18 +313,6 @@ def _weighted_place_distance(
     return max(direction(c1, c2), direction(c2, c1))
 
 
-def _denominator_applies(features: IPAFeatures, key: str, host: dict[str, str]) -> bool:
-    """Whether a declared host-class term belongs in the scoped space."""
-    feature = features.features.get(key)
-    if feature is None or not feature.applies:
-        return True
-    manner = features.features.get("manner")
-    declared = set(manner.values if manner is not None else ())
-    if manner is not None:
-        declared.update(manner.value_classes)
-    return not feature.applies <= declared or features.feature_applies(key, host)
-
-
 def _bundle_terms(
     features: IPAFeatures,
     a: Constituent,
@@ -343,14 +331,14 @@ def _bundle_terms(
         f1 = {
             key: value
             for key, value in f1.items()
-            if _denominator_applies(features, key, host1)
-            and _denominator_applies(features, key, host2)
+            if features.feature_applies(key, host1)
+            and features.feature_applies(key, host2)
         }
         f2 = {
             key: value
             for key, value in f2.items()
-            if _denominator_applies(features, key, host1)
-            and _denominator_applies(features, key, host2)
+            if features.feature_applies(key, host1)
+            and features.feature_applies(key, host2)
         }
     # Sorted, not set order: the loop below sums floats, and addition is
     # not associative, so iterating a set of strings makes the result
@@ -856,14 +844,14 @@ def _atomic_rows(
         f1 = {
             key: value
             for key, value in f1.items()
-            if _denominator_applies(features, key, host1)
-            and _denominator_applies(features, key, host2)
+            if features.feature_applies(key, host1)
+            and features.feature_applies(key, host2)
         }
         f2 = {
             key: value
             for key, value in f2.items()
-            if _denominator_applies(features, key, host1)
-            and _denominator_applies(features, key, host2)
+            if features.feature_applies(key, host1)
+            and features.feature_applies(key, host2)
         }
     for key in sorted(set(f1) | set(f2)):
         feat = features.features.get(key)

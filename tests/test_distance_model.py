@@ -464,6 +464,20 @@ class TestFeatureSpaceFingerprint:
         saved = json.loads(model.save(tmp_path / "c.json").read_text(encoding="utf-8"))
         assert saved["metric"] == metric_fingerprint(ipa, saved["phones"])
 
+    def test_scoped_save_records_and_requires_its_denominator(self, tmp_path, ipa):
+        model = DistanceModel.derive(ipa, phones=["a", "e", "p"], applicable_only=True)
+        path = model.save(tmp_path / "scoped.json")
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        assert model.applicable_only is True
+        assert saved["metric"] == metric_fingerprint(
+            ipa, saved["phones"], applicable_only=True
+        )
+        with pytest.raises(ValueError, match="different feature space"):
+            DistanceModel.from_matrix_file(ipa, path)
+        reloaded = DistanceModel.from_matrix_file(ipa, path, applicable_only=True)
+        assert reloaded.applicable_only is True
+        assert reloaded.reference_phones == model.reference_phones
+
     def test_round_trip(self, tmp_path, ipa):
         model = DistanceModel.derive(ipa, phones=_core_phones(ipa))
         reloaded = DistanceModel.from_matrix_file(ipa, model.save(tmp_path / "c.json"))
