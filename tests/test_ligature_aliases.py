@@ -440,12 +440,16 @@ class TestARuleReadsAnAliasAsItsCanonical:
         from ipakit.form import units
         from ipakit.rules import _pattern
 
+        def reads_back(text: str) -> bool:
+            try:
+                return ipa.segment(text, strict=True).to_ipa() == text
+            except ValueError:
+                return False
+
         checked = 0
         for phone in ipa.phones:
             texts = [phone] + [
-                phone + mark
-                for mark in ipa.diacritics
-                if ipa.segment(phone + mark).to_ipa() == phone + mark
+                phone + mark for mark in ipa.diacritics if reads_back(phone + mark)
             ]
             for text in texts[:4]:
                 assert _pattern(text, ipa).literal == units(text, ipa)[0].core

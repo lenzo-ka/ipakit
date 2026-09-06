@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, cast
 
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS
 from .form import units
-from .segment import approach_run, modifier_mode
+from .segment import (
+    ModifierHostError,
+    approach_run,
+    check_modifier_hosts,
+    modifier_mode,
+)
 
 # The slots a conventional name renders itself, in the order it renders
 # them. There is one sentence, not two: "[voice] [modifiers] [place]
@@ -417,6 +423,7 @@ class AnalysisMixin(IPAFeaturesBase):
         Checks for:
         - Unknown symbols (not in phones, diacritics, or suprasegmentals)
         - Orphan diacritics (diacritic without preceding base phone)
+        - Diacritics whose feature does not apply to the host phone
         - Malformed tie bars (tie bar without phones on both sides)
         - Stress marks that reach no unit: nothing after them to bind
           (``unbound_stress``), or another stress mark between them and
@@ -567,6 +574,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
         i = 0
         last_was_phone = False
+        last_phone_features: Mapping[str, str] | None = None
         current_segment_diacritics: set[str] = set()
         # The last boundary with no segment seen since: (symbol, level,
         # position). Marks that carry no unit and delimit nothing -- a
@@ -589,6 +597,47 @@ class AnalysisMixin(IPAFeaturesBase):
             if matched_phone:
                 # Valid phone found
                 last_was_phone = True
+                if matched_phone in self.phones:
+                    last_phone_features = self.phones[matched_phone].features
+                else:
+                    try:
+                        composed = cast(Any, self).segment(matched_phone, strict=True)
+                    except ModifierHostError as exc:
+                        message = str(exc)
+                        bad_mark = next(
+                            (
+                                mark
+                                for mark in known_diacritics
+                                if f"mark {mark!r}" in message
+                            ),
+                            matched_phone[-1],
+                        )
+                        issues.append(
+                            {
+                                "type": "error",
+                                "code": "invalid_diacritic",
+                                "message": message,
+                                "position": str(i + matched_phone.index(bad_mark)),
+                                "symbol": bad_mark,
+                            }
+                        )
+                        final_base = max(
+                            (
+                                phone
+                                for phone in known_phones
+                                if matched_phone.endswith(phone)
+                            ),
+                            key=len,
+                            default=None,
+                        )
+                        last_phone_features = (
+                            self.phones[final_base].features
+                            if final_base is not None
+                            else None
+                        )
+                    else:
+                        last = composed.constituents[-1]
+                        last_phone_features = self.phones[last.base].features
                 current_segment_diacritics = set()
                 saw_phone = True
                 pending = None
@@ -656,6 +705,7 @@ class AnalysisMixin(IPAFeaturesBase):
                     and modifier_mode(self, char) != "structural"
                 ):
                     last_was_phone = False
+                    last_phone_features = None
                     current_segment_diacritics = set()
                 i += 1
                 continue
@@ -701,6 +751,30 @@ class AnalysisMixin(IPAFeaturesBase):
                     )
                 else:
                     current_segment_diacritics.add(char)
+                    host_features = last_phone_features
+                    is_approach = bool(not last_was_phone and lead and ahead)
+                    if is_approach:
+                        host_features = self.phones[
+                            ipa[i + lead : i + lead + ahead]
+                        ].features
+                    if host_features is not None:
+                        try:
+                            check_modifier_hosts(
+                                cast(Any, self),
+                                host_features,
+                                [char],
+                                approach=is_approach,
+                            )
+                        except ModifierHostError as exc:
+                            issues.append(
+                                {
+                                    "type": "error",
+                                    "code": "invalid_diacritic",
+                                    "message": str(exc),
+                                    "position": str(i),
+                                    "symbol": char,
+                                }
+                            )
                 i += 1
                 continue
 
@@ -728,6 +802,7 @@ class AnalysisMixin(IPAFeaturesBase):
                         }
                     )
                 last_was_phone = False
+                last_phone_features = None
                 i += 1
                 continue
 
@@ -749,6 +824,7 @@ class AnalysisMixin(IPAFeaturesBase):
                 }
             )
             last_was_phone = False
+            last_phone_features = None
             i += 1
 
         # A form built only out of marks names no sound: every constituent

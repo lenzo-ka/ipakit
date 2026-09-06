@@ -1,5 +1,14 @@
+from types import MappingProxyType
+
 import pytest
-from ipakit import Form, load_ipa_features, segment_distance, segments
+from ipakit import (
+    Form,
+    is_valid_ipa,
+    load_ipa_features,
+    segment_distance,
+    segments,
+    validate_ipa,
+)
 from ipakit.tract import constrictions, unmodeled
 
 IPA = load_ipa_features()
@@ -23,6 +32,46 @@ def test_korean_fortis_series_parses_strictly(unit: str) -> None:
 def test_fortis_refuses_non_obstruents_by_the_declared_rule(unit: str) -> None:
     with pytest.raises(ValueError, match="fortis.*obstruent"):
         Form.parse(unit, strict=True)
+
+
+@pytest.mark.parametrize("unit", ["a͈", "m͈"])
+def test_lax_fortis_drops_non_obstruents_audibly(unit: str) -> None:
+    with pytest.warns(UserWarning, match="dropped.*unplaced mark"):
+        assert segments(unit) == []
+
+
+@pytest.mark.parametrize("unit", ["a͈", "m͈", "a͈͡p", "m͈͡p"])
+def test_validation_reports_fortis_on_non_obstruents(unit: str) -> None:
+    (issue,) = validate_ipa(unit)
+    assert issue["type"] == "error"
+    assert issue["code"] == "invalid_diacritic"
+    assert "fortis" in issue["message"]
+    assert "obstruent" in issue["message"]
+    assert issue["position"] == "1"
+    assert issue["symbol"] == "͈"
+    assert is_valid_ipa(unit) is False
+
+
+@pytest.mark.parametrize("unit", ["a̺", "a̺͡p"])
+def test_preexisting_applicability_rule_agrees_on_both_modifier_paths(
+    unit: str,
+) -> None:
+    ipa = load_ipa_features()
+    # The shipped channel/retroflex declarations occur on base phones, not
+    # modifier marks. Give the existing apical mark the existing retroflex
+    # feature in this private inventory so both modifier routes exercise the
+    # pre-existing applies="consonant" rule without changing shipped data.
+    ipa.features["manner"].value_classes["consonant"] = frozenset(
+        value for value in ipa.features["manner"].values if value != "vowel"
+    )
+    mark = ipa.diacritics["̺"]
+    mark.features = MappingProxyType(
+        {**mark.features, "retroflex": "+", "articulator": "tongue-tip"}
+    )
+    with pytest.warns(UserWarning, match="dropped.*unplaced mark"):
+        assert ipa.segments(unit) == []
+    with pytest.raises(ValueError, match="retroflex.*consonant"):
+        ipa.segments(unit, strict=True)
 
 
 def test_fortis_is_one_laryngeal_feature_step() -> None:

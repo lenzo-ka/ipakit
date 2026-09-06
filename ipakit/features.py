@@ -3962,8 +3962,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 modifiers.append(mark)
         if modifiers:
             last = constituents[-1]
-            if strict:
+            try:
                 check_modifier_hosts(self, self.phones[last.base].features, modifiers)
+            except ModifierHostError:
+                if strict:
+                    raise
+                return None
             constituents = constituents[:-1] + (
                 dataclasses.replace(last, modifiers=last.modifiers + tuple(modifiers)),
             )

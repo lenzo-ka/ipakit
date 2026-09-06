@@ -2263,7 +2263,11 @@ class TestWhatDrawsItselfInANotebook:
             for mark in sorted(ipa.diacritics):
                 for phone in phones:
                     candidate = phone + mark
-                    if ipa.segment(candidate).to_ipa() == candidate:
+                    try:
+                        segment = ipa.segment(candidate, strict=True)
+                    except ValueError:
+                        continue
+                    if segment.to_ipa() == candidate:
                         units.append(candidate)
                         break
                 else:
