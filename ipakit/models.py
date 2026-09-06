@@ -113,6 +113,11 @@ class Feature:
     # constriction and a vowel has none; ``rhotacized`` is a vowel color
     # and ``retroflex`` the consonant tongue shape.
     applies: frozenset[str] = field(default_factory=frozenset)
+    # The articulatory home of the setting this feature names. A modifier
+    # stating the feature cannot apply where the host's primary constriction
+    # is already at that place: the setting is varied against a constriction,
+    # not added to the organ that is its own exponent.
+    locus: str | None = None
     # Value -> the word a description uses for it, declared in the data.
     # An unlabeled value is not read out at all (the unremarkable side of
     # a binary, ``channel=flat``). Distinct from an alias, which is a

@@ -401,10 +401,8 @@ def check_modifier_hosts(
     *,
     approach: bool = False,
 ) -> None:
-    """Refuse a mark whose feature declares an incompatible host class."""
+    """Refuse a mark whose feature declares an incompatible host."""
     manner_feature = features.features.get("manner")
-    if manner_feature is None:
-        return
     for mod in modifiers:
         mark = features.diacritics.get(mod)
         if mark is None:
@@ -413,7 +411,7 @@ def check_modifier_hosts(
             feature = features.features.get(key)
             host_classes = (
                 feature.applies & manner_feature.value_classes.keys()
-                if feature is not None
+                if feature is not None and manner_feature is not None
                 else set()
             )
             if host_classes and not features.feature_applies(key, feats):
@@ -422,6 +420,30 @@ def check_modifier_hosts(
                 raise ModifierHostError(
                     f"mark {mod!r} states feature {key!r}, whose applicability "
                     f"rule is {rule!r}; base manner {manner!r} does not satisfy it"
+                )
+            if feature is None or feature.locus is None:
+                continue
+            place_feature = features.features.get("place")
+            locus_arc = (
+                place_feature.coordinates.get(feature.locus, {}).get("arc")
+                if place_feature is not None
+                else None
+            )
+            if locus_arc is None:
+                continue
+            from .tract import constrictions
+
+            primary_arcs = [
+                point.arc
+                for point in constrictions(features, dict(feats))
+                if point.kind == "primary" and point.arc is not None
+            ]
+            if any(abs(arc - locus_arc) <= 1e-9 for arc in primary_arcs):
+                place = feats.get("place")
+                raise ModifierHostError(
+                    f"mark {mod!r} states feature {key!r}, whose locus rule "
+                    f"excludes {feature.locus!r}; base place {place!r} has its "
+                    "primary constriction there"
                 )
 
 
