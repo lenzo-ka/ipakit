@@ -217,7 +217,7 @@ def read_json(data: str) -> Form:
 # --- Distance & Features ---
 
 
-def distance(phone1: str, phone2: str) -> float:
+def distance(phone1: str, phone2: str, *, applicable_only: bool = False) -> float:
     """Compute phonetic distance between two IPA phones (0.0 identical, 1.0 maximal).
 
     Each argument is one unit: a phone with any diacritics, but not a word.
@@ -225,10 +225,10 @@ def distance(phone1: str, phone2: str) -> float:
     string of units. An unknown phone scores 1.0 (maximally far); two empty
     inputs are identical (0.0).
     """
-    return _get_ipa().distance(phone1, phone2)
+    return _get_ipa().distance(phone1, phone2, applicable_only=applicable_only)
 
 
-def segment_distance(seg1: str, seg2: str) -> float:
+def segment_distance(seg1: str, seg2: str, *, applicable_only: bool = False) -> float:
     """Structural distance between two segment strings (0.0-1.0).
 
     Unlike :func:`distance`, accepts multi-unit strings: units are
@@ -238,10 +238,12 @@ def segment_distance(seg1: str, seg2: str) -> float:
         >>> 0.0 < segment_distance("t͡s", "t͡ʃ") < 1.0
         True
     """
-    return _get_ipa().segment_distance(seg1, seg2)
+    return _get_ipa().segment_distance(seg1, seg2, applicable_only=applicable_only)
 
 
-def pairwise_distances(phones: list[str]) -> list[list[float]]:
+def pairwise_distances(
+    phones: list[str], *, applicable_only: bool = False
+) -> list[list[float]]:
     """Full distance matrix over a list of phones.
 
     Examples:
@@ -249,7 +251,7 @@ def pairwise_distances(phones: list[str]) -> list[list[float]]:
         >>> m[0][0], m[0][1] == m[1][0]
         (0.0, True)
     """
-    return _get_ipa().pairwise_distances(phones)
+    return _get_ipa().pairwise_distances(phones, applicable_only=applicable_only)
 
 
 def word_distance(
@@ -259,6 +261,7 @@ def word_distance(
     weighted: bool = True,
     return_alignment: bool = False,
     strict: bool = True,
+    applicable_only: bool = False,
 ) -> WordDistanceResult:
     """Compute phonetic edit distance between two IPA words.
 
@@ -289,6 +292,7 @@ def word_distance(
         weighted=weighted,
         return_alignment=return_alignment,
         strict=strict,
+        applicable_only=applicable_only,
     )
 
 
@@ -331,7 +335,12 @@ def directional_word_distance(
 
 
 def word_similarity(
-    ipa1: str, ipa2: str, *, weighted: bool = True, strict: bool = True
+    ipa1: str,
+    ipa2: str,
+    *,
+    weighted: bool = True,
+    strict: bool = True,
+    applicable_only: bool = False,
 ) -> float:
     """Compute phonetic similarity between two IPA words.
 
@@ -350,7 +359,13 @@ def word_similarity(
         >>> ipakit.word_similarity("kæt", "dɒɡ")  # weighted subs are cheap (shared features)
         0.8...
     """
-    return _get_ipa().word_similarity(ipa1, ipa2, weighted=weighted, strict=strict)
+    return _get_ipa().word_similarity(
+        ipa1,
+        ipa2,
+        weighted=weighted,
+        strict=strict,
+        applicable_only=applicable_only,
+    )
 
 
 def explain_word_distance(
@@ -1034,6 +1049,7 @@ def phoneset_mapping(
     target_style: str | Style | None = None,
     tied: bool = False,
     ipa: IPAFeatures | None = None,
+    applicable_only: bool = False,
 ) -> PhonesetMapping:
     """Relate one phoneset to another.
 
@@ -1161,6 +1177,7 @@ def phoneset_mapping(
         tied=tied,
         source_style=left_style,
         target_style=right_style,
+        applicable_only=applicable_only,
     )
 
     def spelling(style: Style, phone: str) -> str | None:
@@ -1208,6 +1225,7 @@ def phoneset_comparison(
     b_style: str | Style | None = None,
     ipa: IPAFeatures | None = None,
     strip: str | None = "stress",
+    applicable_only: bool = False,
 ) -> PhonesetComparison:
     """Compare two inventories as segmental sets, mappings, and a matrix.
 
@@ -1228,7 +1246,13 @@ def phoneset_comparison(
     if strip not in {"stress", "prosodic", None}:
         raise ValueError("strip must be 'stress', 'prosodic', or None")
     resolved = phoneset_mapping(
-        a, b, source_style=a_style, target_style=b_style, tied=True, ipa=features
+        a,
+        b,
+        source_style=a_style,
+        target_style=b_style,
+        tied=True,
+        ipa=features,
+        applicable_only=applicable_only,
     )
     changed: list[tuple[str, str]] = []
 
@@ -1267,6 +1291,7 @@ def phoneset_comparison(
         ipa=features,
         source_style=resolved.source_style,
         target_style=resolved.target_style,
+        applicable_only=applicable_only,
     )
     backward = nearest_mapping(
         right,
@@ -1274,6 +1299,7 @@ def phoneset_comparison(
         ipa=features,
         source_style=resolved.target_style,
         target_style=resolved.source_style,
+        applicable_only=applicable_only,
     )
     forward = _replace(
         forward,
@@ -1305,7 +1331,13 @@ def phoneset_comparison(
         tuple(phone for phone in right if phone not in left_set),
         forward,
         backward,
-        tuple(tuple(1.0 - features.distance(x, y) for y in right) for x in left),
+        tuple(
+            tuple(
+                1.0 - features.distance(x, y, applicable_only=applicable_only)
+                for y in right
+            )
+            for x in left
+        ),
         MappingProxyType(
             {
                 phone: (

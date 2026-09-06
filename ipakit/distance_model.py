@@ -302,6 +302,7 @@ class DistanceModel:
         delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
+        applicable_only: bool = False,
     ) -> Self:
         """Build the matrix from the inventory in hand, not from the shipped file.
 
@@ -324,7 +325,7 @@ class DistanceModel:
         relative to. They are not comparable across inventories.
         """
         ph = list(phones) if phones is not None else list(ipa.phones)
-        matrix = ipa.pairwise_distances(ph)
+        matrix = ipa.pairwise_distances(ph, applicable_only=applicable_only)
         name = "+".join([ipa.xml_path.stem, *ipa.supplements])
         return cls(
             ipa,

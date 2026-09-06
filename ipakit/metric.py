@@ -313,14 +313,45 @@ def _weighted_place_distance(
     return max(direction(c1, c2), direction(c2, c1))
 
 
+def _denominator_applies(features: IPAFeatures, key: str, host: dict[str, str]) -> bool:
+    """Whether a declared host-class term belongs in the scoped space."""
+    feature = features.features.get(key)
+    if feature is None or not feature.applies:
+        return True
+    manner = features.features.get("manner")
+    declared = set(manner.values if manner is not None else ())
+    if manner is not None:
+        declared.update(manner.value_classes)
+    return not feature.applies <= declared or features.feature_applies(key, host)
+
+
 def _bundle_terms(
-    features: IPAFeatures, a: Constituent, b: Constituent
+    features: IPAFeatures,
+    a: Constituent,
+    b: Constituent,
+    *,
+    applicable_only: bool = False,
 ) -> tuple[float, int]:
     """The summed term cost and term count for two constituents' bundles.
     :func:`bundle_distance` is their ratio; exposing them lets a caller fold
     in further terms (prosodic riders) at the same weight before dividing."""
     f1, p1 = _metric_bundle(features, a)
     f2, p2 = _metric_bundle(features, b)
+    if applicable_only:
+        host1 = a.bundle(features, with_defaults=False)
+        host2 = b.bundle(features, with_defaults=False)
+        f1 = {
+            key: value
+            for key, value in f1.items()
+            if _denominator_applies(features, key, host1)
+            and _denominator_applies(features, key, host2)
+        }
+        f2 = {
+            key: value
+            for key, value in f2.items()
+            if _denominator_applies(features, key, host1)
+            and _denominator_applies(features, key, host2)
+        }
     # Sorted, not set order: the loop below sums floats, and addition is
     # not associative, so iterating a set of strings makes the result
     # depend on Python's per-process hash randomization. The shipped
@@ -370,9 +401,15 @@ def _bundle_terms(
     return total, count
 
 
-def bundle_distance(features: IPAFeatures, a: Constituent, b: Constituent) -> float:
+def bundle_distance(
+    features: IPAFeatures,
+    a: Constituent,
+    b: Constituent,
+    *,
+    applicable_only: bool = False,
+) -> float:
     """Distance between two constituents' bundles, in [0, 1]."""
-    total, count = _bundle_terms(features, a, b)
+    total, count = _bundle_terms(features, a, b, applicable_only=applicable_only)
     return total / count if count else 0.0
 
 
@@ -501,7 +538,11 @@ def _fold_prosody(seg_d: float, weight: int, pt: float, pc: int) -> float:
 
 
 def _nearest_part_cost(
-    features: IPAFeatures, part: Segment, present: tuple[Segment, ...]
+    features: IPAFeatures,
+    part: Segment,
+    present: tuple[Segment, ...],
+    *,
+    applicable_only: bool = False,
 ) -> float:
     """Charge material by its nearest real comparison on the other side.
 
@@ -512,20 +553,30 @@ def _nearest_part_cost(
     part was selected. ``present`` is nonempty because every segment has a
     part.
     """
-    return min(segment_metric(features, part, other) for other in present)
+    return min(
+        segment_metric(features, part, other, applicable_only=applicable_only)
+        for other in present
+    )
 
 
 def _nearest_part(
-    features: IPAFeatures, part: Segment, present: tuple[Segment, ...]
+    features: IPAFeatures,
+    part: Segment,
+    present: tuple[Segment, ...],
+    *,
+    applicable_only: bool = False,
 ) -> tuple[int, float]:
     """The selected opposite part and its cost, with metric tie-breaking."""
-    choices = tuple(segment_metric(features, part, other) for other in present)
+    choices = tuple(
+        segment_metric(features, part, other, applicable_only=applicable_only)
+        for other in present
+    )
     cost = min(choices)
     return choices.index(cost), cost
 
 
 @functools.cache
-def _arity_base(features: IPAFeatures) -> float:
+def _arity_base(features: IPAFeatures, applicable_only: bool = False) -> float:
     """The normalized mass of one added constituent in an unordered fusion.
 
     Arity is one categorical structural fact, so it carries the mass of one
@@ -553,7 +604,12 @@ def _arity_base(features: IPAFeatures) -> float:
         if manner is not None and bundle.get("manner") in manner.offscale:
             continue
         counts.append(
-            _bundle_terms(features, segment.constituents[0], segment.constituents[0])[1]
+            _bundle_terms(
+                features,
+                segment.constituents[0],
+                segment.constituents[0],
+                applicable_only=applicable_only,
+            )[1]
         )
     if not counts:  # pragma: no cover - a valid IPA inventory has speech atoms
         raise ValueError("fusion arity needs at least one declared atomic speech unit")
@@ -565,6 +621,7 @@ def segment_metric(
     x: Segment,
     y: Segment,
     *,
+    applicable_only: bool = False,
     _rows: list[tuple[str, str | None, str | None, float]] | None = None,
 ) -> float:
     """The structural distance ``D`` (design spec section 7), plus the unit's
@@ -593,9 +650,14 @@ def segment_metric(
             _rows.append(("silence", x.to_ipa(), y.to_ipa(), 1.0))
         return 1.0
     if len(x.constituents) == 1 and len(y.constituents) == 1:
-        bt, bc = _bundle_terms(features, x.constituents[0], y.constituents[0])
+        bt, bc = _bundle_terms(
+            features,
+            x.constituents[0],
+            y.constituents[0],
+            applicable_only=applicable_only,
+        )
         if _rows is not None:
-            _rows.extend(_atomic_rows(features, x, y))
+            _rows.extend(_atomic_rows(features, x, y, applicable_only=applicable_only))
             _rows.extend(_prosodic_rows(features, x, y))
         return (bt + pt) / (bc + pc) if (bc + pc) else 0.0
 
@@ -608,14 +670,23 @@ def segment_metric(
             src: tuple[Segment, ...], dst: tuple[Segment, ...]
         ) -> tuple[float, list[tuple[int, int, float]]]:
             selected = [
-                (i, *_nearest_part(features, part, dst)) for i, part in enumerate(src)
+                (
+                    i,
+                    *_nearest_part(
+                        features, part, dst, applicable_only=applicable_only
+                    ),
+                )
+                for i, part in enumerate(src)
             ]
             return sum(cost for _, _, cost in selected) / len(src), selected
 
         dx, x_selected = direction(px, py)
         dy, y_selected = direction(py, px)
         arity = abs(len(px) - len(py))
-        arity_cost = arity * _arity_base(features)
+        arity_base = (
+            _arity_base(features, True) if applicable_only else _arity_base(features)
+        )
+        arity_cost = arity * arity_base
         selected_costs = x_selected if dx >= dy else y_selected
         # Sum in the same form the trace exposes. Besides keeping exact
         # reconstruction, this states the additive law directly: every row's
@@ -653,13 +724,16 @@ def segment_metric(
             # indirect shortcut (including between two equal-arity units).
             continue
         matched = dict(matching)
-        pair_cost = sum(segment_metric(features, px[i], py[j]) for i, j in matching)
+        pair_cost = sum(
+            segment_metric(features, px[i], py[j], applicable_only=applicable_only)
+            for i, j in matching
+        )
         unmatched_cost = sum(
-            _nearest_part_cost(features, px[i], py)
+            _nearest_part_cost(features, px[i], py, applicable_only=applicable_only)
             for i in range(len(px))
             if i not in matched
         ) + sum(
-            _nearest_part_cost(features, py[j], px)
+            _nearest_part_cost(features, py[j], px, applicable_only=applicable_only)
             for j in range(len(py))
             if j not in matched.values()
         )
@@ -701,7 +775,12 @@ def segment_metric(
                         f"matched part a[{i}]~b[{j}]{nested}",
                         px[i].to_ipa(),
                         py[j].to_ipa(),
-                        segment_metric(features, px[i], py[j]),
+                        segment_metric(
+                            features,
+                            px[i],
+                            py[j],
+                            applicable_only=applicable_only,
+                        ),
                     )
                 )
             for side, parts, opposite, used in (
@@ -711,7 +790,12 @@ def segment_metric(
                 for i, part in enumerate(parts):
                     if i in used:
                         continue
-                    j, cost = _nearest_part(features, part, opposite)
+                    j, cost = _nearest_part(
+                        features,
+                        part,
+                        opposite,
+                        applicable_only=applicable_only,
+                    )
                     candidate.append(
                         (
                             f"unmatched part {side}[{i}] nearest opposite[{j}]",
@@ -756,12 +840,31 @@ def segment_metric(
 
 
 def _atomic_rows(
-    features: IPAFeatures, x: Segment, y: Segment
+    features: IPAFeatures,
+    x: Segment,
+    y: Segment,
+    *,
+    applicable_only: bool = False,
 ) -> list[tuple[str, str | None, str | None, float]]:
     """Named rows for the atomic bundle path."""
     rows: list[tuple[str, str | None, str | None, float]] = []
     f1, p1 = _metric_bundle(features, x.constituents[0])
     f2, p2 = _metric_bundle(features, y.constituents[0])
+    if applicable_only:
+        host1 = x.constituents[0].bundle(features, with_defaults=False)
+        host2 = y.constituents[0].bundle(features, with_defaults=False)
+        f1 = {
+            key: value
+            for key, value in f1.items()
+            if _denominator_applies(features, key, host1)
+            and _denominator_applies(features, key, host2)
+        }
+        f2 = {
+            key: value
+            for key, value in f2.items()
+            if _denominator_applies(features, key, host1)
+            and _denominator_applies(features, key, host2)
+        }
     for key in sorted(set(f1) | set(f2)):
         feat = features.features.get(key)
         v1, v2 = f1.get(key), f2.get(key)
@@ -825,7 +928,11 @@ def _prosodic_rows(
 
 
 def segment_terms(
-    features: IPAFeatures, x: Segment, y: Segment
+    features: IPAFeatures,
+    x: Segment,
+    y: Segment,
+    *,
+    applicable_only: bool = False,
 ) -> list[tuple[str, str | None, str | None, float]]:
     """The flat, non-overlapping term breakdown behind ``segment_metric``.
 
@@ -836,7 +943,9 @@ def segment_terms(
     metric without counting a parent aggregate beside children.
     """
     rows: list[tuple[str, str | None, str | None, float]] = []
-    distance = segment_metric(features, x, y, _rows=rows)
+    distance = segment_metric(
+        features, x, y, applicable_only=applicable_only, _rows=rows
+    )
     if rows and sum(row[3] for row in rows) / len(rows) != distance:
         # The metric deliberately groups its three ordered subtotals before
         # adding them. Preserve that last-bit result in a flat report: absorb
@@ -915,14 +1024,22 @@ def _fingerprint_lines(features: IPAFeatures, phones: tuple[str, ...]) -> Iterat
         )
 
 
-def metric_fingerprint(features: IPAFeatures, phones: Iterable[str]) -> str:
+def metric_fingerprint(
+    features: IPAFeatures,
+    phones: Iterable[str],
+    *,
+    applicable_only: bool = False,
+) -> str:
     """Digest of the feature space distances over ``phones`` are computed in.
 
     A saved matrix is a set of numbers whose meaning is the space they
-    were derived in, and a reader had no way to ask which space that was.
-    ``phones`` does not answer it: it detects membership drift, and a
-    bridge -- a whole extra term in the denominator of every distance --
-    changes no membership at all. This is what the reader compares.
+    were derived in, and a reader needs to know which space that was.
+    ``phones`` does not answer it: it detects membership drift, while a
+    bridge or a denominator choice changes no membership at all. By default
+    every declared feature is a term in the common space. With
+    ``applicable_only=True``, inapplicable terms are omitted per host and the
+    applicability declarations become part of the space. This is what the
+    reader compares.
 
     Two halves, both asked of the metric rather than listed here, so
     neither can go stale against a change to what the metric reads:
@@ -961,12 +1078,19 @@ def metric_fingerprint(features: IPAFeatures, phones: Iterable[str]) -> str:
     Keys compare by value, so hash randomization moves where an entry
     sits and never what it says.
     """
-    return _fingerprint(features, tuple(phones))
+    return _fingerprint(features, tuple(phones), applicable_only)
 
 
 @functools.cache
-def _fingerprint(features: IPAFeatures, phones: tuple[str, ...]) -> str:
+def _fingerprint(
+    features: IPAFeatures, phones: tuple[str, ...], applicable_only: bool
+) -> str:
     digest = hashlib.blake2b(digest_size=FINGERPRINT_BYTES)
+    if applicable_only:
+        digest.update(b"applicable-only\n")
+        for name in sorted(features.features):
+            applies = ",".join(sorted(features.features[name].applies))
+            digest.update(f"applies\t{name}\t{applies}\n".encode())
     for line in _fingerprint_lines(features, phones):
         digest.update(line.encode("utf-8"))
         digest.update(b"\n")

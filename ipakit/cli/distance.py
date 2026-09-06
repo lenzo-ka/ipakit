@@ -16,6 +16,15 @@ if TYPE_CHECKING:
     from ..phoneset_map import PhonesetMapping
 
 
+def add_applicable_only_arg(parser: argparse.ArgumentParser) -> None:
+    """Add the opt-in feature-applicability denominator."""
+    parser.add_argument(
+        "--applicable-only",
+        action="store_true",
+        help="Count only features applicable to either compared host",
+    )
+
+
 def add_model_args(parser: argparse.ArgumentParser) -> None:
     """Add the DistanceModel reference/shape options shared by model commands."""
     parser.add_argument(
@@ -34,12 +43,26 @@ def add_model_args(parser: argparse.ArgumentParser) -> None:
             "(docs/distance.md section 9). Default: 1.0, the identity"
         ),
     )
+    add_applicable_only_arg(parser)
 
 
 def build_model(
     ipa: IPAFeatures, args: argparse.Namespace, **extra: object
 ) -> DistanceModel:
     """Build a DistanceModel from shared CLI args (global, or --phoneset-scoped)."""
+    if getattr(args, "applicable_only", False):
+        phones = (
+            list(Phoneset.from_file(args.phoneset))
+            if getattr(args, "phoneset", None)
+            else None
+        )
+        return DistanceModel.derive(
+            ipa,
+            phones=phones,
+            gamma=args.gamma,
+            applicable_only=True,
+            **extra,  # type: ignore[arg-type]
+        )
     if getattr(args, "phoneset", None):
         phoneset = Phoneset.from_file(args.phoneset)
         return DistanceModel.for_phoneset(ipa, phoneset, gamma=args.gamma, **extra)  # type: ignore[arg-type]
@@ -83,6 +106,7 @@ class PairCommand(Command):
 
         parser.add_argument("phone1", help="First IPA phone symbol")
         parser.add_argument("phone2", help="Second IPA phone symbol")
+        add_applicable_only_arg(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
@@ -91,7 +115,11 @@ class PairCommand(Command):
         if self.args.phone2 not in self.ipa:
             return self.error(f"Unknown phone: {self.args.phone2}")
 
-        d = self.ipa.distance(self.args.phone1, self.args.phone2)
+        d = self.ipa.distance(
+            self.args.phone1,
+            self.args.phone2,
+            applicable_only=self.args.applicable_only,
+        )
 
         if self.format == "json":
             self.output_json(
@@ -132,10 +160,15 @@ class SegmentCommand(Command):
 
         parser.add_argument("seg1", help="First IPA segment (may include diacritics)")
         parser.add_argument("seg2", help="Second IPA segment")
+        add_applicable_only_arg(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
-        d = self.ipa.segment_distance(self.args.seg1, self.args.seg2)
+        d = self.ipa.segment_distance(
+            self.args.seg1,
+            self.args.seg2,
+            applicable_only=self.args.applicable_only,
+        )
 
         if self.format == "json":
             self.output_json(
@@ -179,6 +212,7 @@ class MatrixCommand(Command):
             nargs="*",
             help="Phones to include (default: first 20 alphabetically)",
         )
+        add_applicable_only_arg(parser)
         add_format_arg(parser, ["text", "tsv", "json"])
 
     def run(self) -> int:
@@ -187,7 +221,9 @@ class MatrixCommand(Command):
             if self.args.phones
             else sorted(self.ipa.phones.keys())[:20]
         )
-        matrix = self.ipa.pairwise_distances(phones)
+        matrix = self.ipa.pairwise_distances(
+            phones, applicable_only=self.args.applicable_only
+        )
 
         if self.format == "json":
             self.output_json({"phones": phones, "matrix": matrix})
@@ -351,7 +387,12 @@ class WordCommand(Command):
         of the command line exits 3 on.
         """
         w1, w2 = self.args.word1, self.args.word2
-        result = self.ipa.word_distance(w1, w2, strict=False)
+        result = self.ipa.word_distance(
+            w1,
+            w2,
+            strict=False,
+            applicable_only=self.args.applicable_only,
+        )
         data: dict[str, object] = {
             "word1": w1,
             "word2": w2,
@@ -379,7 +420,12 @@ class WordCommand(Command):
     def _run_explain(self) -> int:
         """A per-position alignment trace -- ipakit.explain_word_distance."""
         w1, w2 = self.args.word1, self.args.word2
-        steps = self.ipa.explain_word_distance(w1, w2, strict=False)
+        steps = self.ipa.explain_word_distance(
+            w1,
+            w2,
+            strict=False,
+            applicable_only=self.args.applicable_only,
+        )
         if self.format == "json":
             self.output_json({"word1": w1, "word2": w2, "steps": steps})
             return 0
@@ -736,6 +782,7 @@ class MapCommand(Command):
             metavar="D",
             help="Refuse a pairing past this distance; the phone is reported unmapped",
         )
+        add_applicable_only_arg(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
@@ -808,6 +855,7 @@ class MapCommand(Command):
                 target_style=to_style,
                 tied=not self.args.no_tie,
                 ipa=self.ipa,
+                applicable_only=self.args.applicable_only,
             )
             for phones, style in (
                 (mapping.source.phones, from_style),
@@ -965,6 +1013,7 @@ class CompareCommand(Command):
             default="stress",
             help="Marks to strip before comparison (default: stress)",
         )
+        add_applicable_only_arg(parser)
         add_format_arg(parser, ["text", "json", "tsv"])
         add_output_arg(parser)
 
@@ -999,6 +1048,7 @@ class CompareCommand(Command):
                 b_style=self.args.to_style,
                 ipa=self.ipa,
                 strip=None if self.args.strip == "none" else self.args.strip,
+                applicable_only=self.args.applicable_only,
             )
         except (FileNotFoundError, OSError, ValueError) as error:
             return self.error(str(error))
