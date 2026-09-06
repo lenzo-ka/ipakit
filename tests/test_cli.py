@@ -1720,15 +1720,15 @@ class TestTheDeliberateApiCliDifferences:
         docs/tutorial.md states it in those words and quotes both counts,
         so this asserts the numbers the page quotes, not numbers of its own.
         """
-        assert len(ipakit.features("p")) == 23
+        assert len(ipakit.features("p")) == 24
         assert len(ipakit.features("p", with_defaults=False)) == 4
 
         # The CLI's line counts are not the API's key counts and are not
         # asserted as if they were: it prints 'name', prints 'class', and
         # drops 'href' (metadata, not a declared feature), so the default
         # read is name + class + the two stated features, and --all adds
-        # the 19 defaults. That --all lands on 23 lines as well is a
-        # coincidence of two different compositions, not the same 23.
+        # the 20 defaults. That --all lands on 24 lines as well is a
+        # coincidence of two different compositions, not the same 24.
         rc, out, _ = run(monkeypatch, capsys, "features", "p")
         assert rc == 0
         assert out.strip().splitlines() == [
@@ -1739,12 +1739,12 @@ class TestTheDeliberateApiCliDifferences:
         ]
         rc, out_all, _ = run(monkeypatch, capsys, "features", "p", "--all")
         assert rc == 0
-        assert len(out_all.strip().splitlines()) == 23
+        assert len(out_all.strip().splitlines()) == 24
         assert "href" not in out_all
         assert set(out.strip().splitlines()) < set(out_all.strip().splitlines())
 
         page = (ROOT / "docs" / "tutorial.md").read_text(encoding="utf-8")
-        assert "give 4 keys and 23 keys respectively" in page, (
+        assert "give 4 keys and 24 keys respectively" in page, (
             "the tutorial no longer states the inversion this pins; either "
             "the difference stopped being deliberate or the page went stale"
         )
@@ -1777,7 +1777,7 @@ class TestTheDeliberateApiCliDifferences:
         """'distance word' is the inventory-relative measure and 'pair' is
         the raw one, which left the API's word_distance with no CLI
         spelling at all -- so the two surfaces looked like they disagreed
-        (0.9864 against 0.9833) where they were computing different
+        (0.9871 against 0.9841) where they were computing different
         things. --raw is the missing spelling.
 
         The model figure is a percentile in the shipped distribution and

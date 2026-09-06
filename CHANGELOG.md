@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `fortis`, the binary laryngeal feature written by U+0348 COMBINING DOUBLE VERTICAL LINE BELOW (extIPA strong articulation), registered because Korean needs it for its tense obstruent series.
 - `phoneset_comparison` and `ipakit distance compare` report two ordered phonesets' union, intersection, differences, directional nearest mappings, and similarity matrix after stripping stress by default; callers may instead strip all prosody or retain it.
 - Praat TextGrid reading and writing accepts named inventory styles for strict external segment labels while retaining point marks in house notation.
 - `inventory_from_dictionary` and `ipakit inventory from-dict` derive a finite, ordered phone inventory from a CMUdict, PocketSphinx, MFA, IPA, or wild-spelling pronunciation dictionary.

@@ -62,7 +62,7 @@ class TestToneAndLengthAlsoRide:
 class TestItIsMetricOnlyAndContained:
     def test_a_phone_with_no_rider_is_unchanged(self, ipa):
         # p/b carry no prosody: their distance is the plain feature distance.
-        assert ipa.distance("p", "b") == pytest.approx(0.05, abs=1e-6)
+        assert ipa.distance("p", "b") == pytest.approx(1 / 21, abs=1e-6)
 
     def test_the_stored_features_are_untouched(self, ipa):
         # The rider is read for the metric; it does not enter the unit's

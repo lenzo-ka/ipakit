@@ -5,27 +5,13 @@
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossless" />
   </round-trip>
-  <refusal spelling="c͈" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="k͈" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="k͈ʷ" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="k͈ː" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="p͈" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="p͈ʲ" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="s͈" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="s͈ʷ" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="tɕ͈" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="tɕ͈ʷ" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="tɕ͈ː" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="t͈" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="t͈ʲ" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="t͈ː" reason="outside-house-ipa: U+0348" />
-  <refusal spelling="ɕ͈" reason="outside-house-ipa: U+0348" />
   <atom spelling="b" />
   <atom spelling="bʲ" />
   <atom spelling="bʷ" />
   <atom spelling="c" />
   <atom spelling="cʰ" />
   <atom spelling="cʰː" />
+  <atom spelling="c͈" />
   <atom spelling="d" />
   <atom spelling="d͡ʑ" output="dʑ" />
   <atom spelling="d͡ʑʷ" output="dʑʷ" />
@@ -43,6 +29,9 @@
   <atom spelling="kʷ" />
   <atom spelling="kʷː" />
   <atom spelling="k̚" />
+  <atom spelling="k͈" />
+  <atom spelling="k͈ʷ" />
+  <atom spelling="k͈ː" />
   <atom spelling="m" />
   <atom spelling="mʲ" />
   <atom spelling="mʲː" />
@@ -58,11 +47,15 @@
   <atom spelling="pʲː" />
   <atom spelling="pʷ" />
   <atom spelling="p̚" />
+  <atom spelling="p͈" />
+  <atom spelling="p͈ʲ" />
   <atom spelling="s" />
   <atom spelling="sʰ" />
   <atom spelling="sʰː" />
   <atom spelling="sʷ" />
   <atom spelling="sː" />
+  <atom spelling="s͈" />
+  <atom spelling="s͈ʷ" />
   <atom spelling="t" />
   <atom spelling="t͡ɕ" output="tɕ" />
   <atom spelling="t͡ɕʰ" output="tɕʰ" />
@@ -70,12 +63,18 @@
   <atom spelling="t͡ɕʷ" output="tɕʷ" />
   <atom spelling="t͡ɕʷː" output="tɕʷː" />
   <atom spelling="t͡ɕː" output="tɕː" />
+  <atom spelling="t͡ɕ͈" output="tɕ͈" />
+  <atom spelling="t͡ɕ͈ʷ" output="tɕ͈ʷ" />
+  <atom spelling="t͡ɕ͈ː" output="tɕ͈ː" />
   <atom spelling="tʰ" />
   <atom spelling="tʰː" />
   <atom spelling="tʲ" />
   <atom spelling="tʷ" />
   <atom spelling="tʷː" />
   <atom spelling="t̚" />
+  <atom spelling="t͈" />
+  <atom spelling="t͈ʲ" />
+  <atom spelling="t͈ː" />
   <atom spelling="u" />
   <atom spelling="uː" />
   <atom spelling="w" />
@@ -84,6 +83,7 @@
   <atom spelling="ŋ" />
   <atom spelling="ɐ" />
   <atom spelling="ɕʰ" />
+  <atom spelling="ɕ͈" />
   <atom spelling="ɛ" />
   <atom spelling="ɛː" />
   <atom spelling="ɟ" />

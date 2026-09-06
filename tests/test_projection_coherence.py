@@ -164,7 +164,7 @@ class TestWhatTheFixDidNotChange:
         assert len(self_spelling_phones()) == 139
         moved_marks = ("̤", "̰")
         assert not [p for p in FEATURES.phones if p.endswith(moved_marks)]
-        assert ipakit.distance("t", "d") == pytest.approx(0.05)
+        assert ipakit.distance("t", "d") == pytest.approx(1 / 21)
 
     def test_composition_still_answers_the_marks_own_request(self) -> None:
         # The projection is what keeps `compose_unit` from calling a mark

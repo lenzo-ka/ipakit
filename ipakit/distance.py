@@ -879,9 +879,9 @@ class DistanceMixin(IPAFeaturesBase):
         Examples:
             >>> import ipakit
             >>> ipakit.word_distance("kæt", "kæd").edit_cost
-            0.1
+            0.09523809523809523
             >>> round(ipakit.word_distance("kæt", "dɒɡ").edit_cost, 4)
-            0.6464
+            0.6162
         """
         from .metric import GAP_COST
 
@@ -1105,23 +1105,23 @@ class DistanceMixin(IPAFeaturesBase):
         Examples:
             >>> import ipakit
             >>> round(ipakit.word_similarity("kæt", "kæd"), 4)
-            0.9833
+            0.9841
             >>> round(ipakit.word_similarity("kæt", "dɒɡ"), 4)
-            0.8923
+            0.8973
 
         The second is what the normalizer does, and it is worth seeing
         before this number is read as agreement. No segment matches:
-        ``d(k,d)`` is 0.0980, ``d(æ,ɒ)`` 0.1272 and ``d(t,ɡ)`` 0.0980, so
-        the alignment costs 0.6464 while the null alignment that deletes
+        ``d(k,d)`` is 0.0933, ``d(æ,ɒ)`` 0.1214 and ``d(t,ɡ)`` 0.0933, so
+        the alignment costs 0.6162 while the null alignment that deletes
         three phones and inserts three costs 6.0. A substitution is priced
         in fractions and the thing it is measured against is priced in
         whole gaps, so word similarity compresses toward 1 however unlike
         the segments are.
 
         That is a property of the scale rather than a claim that these
-        words resemble each other, and the vowels are not close: 0.1272
-        is wider than ``d(i,u)`` at 0.1076, which is front-close against
-        back-close. Read this figure against the 0.9833 above, never
+        words resemble each other, and the vowels are not close: 0.1214
+        is wider than ``d(i,u)`` at 0.1027, which is front-close against
+        back-close. Read this figure against the 0.9841 above, never
         against zero.
         """
         return self.word_distance(

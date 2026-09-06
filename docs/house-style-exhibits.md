@@ -53,7 +53,7 @@ segments declared as inventory atoms ([declared basis](https://en.wikipedia.org/
 
 marks that contribute to a host unit ([declared basis](https://en.wikipedia.org/wiki/Diacritic)).
 
-`ʰ` `ʱ` `ʲ` `ʴ` `ʷ` `ʼ` `˞` `ˠ` `ˡ` `ˤ` `̃` `̈` `̘` `̙` `̚` `̜` `̝` `̞` `̟` `̠` `̤` `̥` `̩` `̪` `̬` `̯` `̰` `̴` `̹` `̺` `̻` `̼` `̽` `ᶣ` `ⁿ` `ʻ` `ˀ` `ᵊ`
+`ʰ` `ʱ` `ʲ` `ʴ` `ʷ` `ʼ` `˞` `ˠ` `ˡ` `ˤ` `̃` `̈` `̘` `̙` `̚` `̜` `̝` `̞` `̟` `̠` `̤` `͈` `̥` `̩` `̪` `̬` `̯` `̰` `̴` `̹` `̺` `̻` `̼` `̽` `ᶣ` `ⁿ` `ʻ` `ˀ` `ᵊ`
 
 ### suprasegmentals
 

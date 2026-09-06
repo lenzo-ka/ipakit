@@ -38,15 +38,12 @@ def test_language_query_returns_the_spread_and_never_an_inventory() -> None:
     )
 
 
-def test_inventory_id_returns_phoneset_annotations_and_positioned_refusal() -> None:
+def test_inventory_id_returns_phoneset_annotations() -> None:
     inventory = PhoibleBridge(FIXTURE).inventory(160)
-    assert inventory.phoneset == Phoneset("phoible-160", ["b"])
+    assert inventory.phoneset == Phoneset("phoible-160", ["b", "k͈"])
     assert inventory.entries[0].allophones == ("b", "p")
     assert inventory.entries[0].marginal is None
-    assert inventory.refusals[0].row == 3
-    assert inventory.refusals[0].field == "Phoneme"
-    assert inventory.refusals[0].value == "k͈"
-    assert "unknown symbols" in inventory.refusals[0].reason
+    assert inventory.refusals == ()
 
 
 def test_false_marginal_is_carried_on_bridge_record() -> None:
@@ -77,10 +74,10 @@ def test_truncated_row_is_a_positioned_refusal(tmp_path) -> None:
 
 def test_fixture_audit_counts_rows_inventories_and_reasons() -> None:
     audit = PhoibleBridge(FIXTURE).audit()
-    assert (audit.rows, audit.accepted_rows, audit.refused_rows) == (3, 2, 1)
-    assert (audit.inventories, audit.accepted_inventories) == (2, 1)
-    assert audit.refused_inventories == 1
-    assert audit.refusal_reasons[0][1] == 1
+    assert (audit.rows, audit.accepted_rows, audit.refused_rows) == (3, 3, 0)
+    assert (audit.inventories, audit.accepted_inventories) == (2, 2)
+    assert audit.refused_inventories == 0
+    assert audit.refusal_reasons == ()
 
 
 def test_cli_language_shows_spread_with_sources_and_keys(monkeypatch, capsys) -> None:
@@ -92,9 +89,7 @@ def test_cli_language_shows_spread_with_sources_and_keys(monkeypatch, capsys) ->
     assert "2175\tstan1293\tuz\teng_ladefoged1989\tEnglish (American)" in out
 
 
-def test_cli_inventory_is_a_phoneset_file_and_refusals_exit_three(
-    tmp_path, monkeypatch, capsys
-) -> None:
+def test_cli_inventory_is_a_phoneset_file(tmp_path, monkeypatch, capsys) -> None:
     output = tmp_path / "english.txt"
     status, _, error = run(
         monkeypatch,
@@ -107,9 +102,9 @@ def test_cli_inventory_is_a_phoneset_file_and_refusals_exit_three(
         "-o",
         str(output),
     )
-    assert status == 3
-    assert Phoneset.from_file(output).phones == ["b"]
-    assert "PHOIBLE row 3 Phoneme 'k͈'" in error
+    assert status == 0
+    assert Phoneset.from_file(output).phones == ["b", "k͈"]
+    assert error == ""
 
 
 def test_cli_without_mount_exits_cleanly(monkeypatch, capsys) -> None:

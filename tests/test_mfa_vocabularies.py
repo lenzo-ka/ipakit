@@ -1,11 +1,10 @@
 import os
-import re
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-from ipakit.bridges import VocabularyBridge, VocabularyResidueError
+from ipakit.bridges import VocabularyBridge
 from ipakit.bridges.mfa import MFA, UNION, MFABridge, declarations
 from ipakit.form import Form
 from scripts.mfa_vocabularies import REVISION, ROOT, generate, stale
@@ -73,6 +72,12 @@ def test_union_atoms_and_refusals_are_disjoint() -> None:
     assert all(item.reason for item in union.refusals)
 
 
+def test_korean_fortis_phones_are_atoms_not_refusals() -> None:
+    korean = MFABridge("korean")
+    assert len(korean.atoms) == 105
+    assert not korean.refusals
+
+
 def test_default_and_union_identity() -> None:
     assert MFA.version == "english_mfa-v3.1.0"
     assert MFA.name == "mfa:english"
@@ -82,13 +87,6 @@ def test_default_and_union_identity() -> None:
     union = MFABridge(UNION)
     assert union.name == "mfa"
     assert union.version == f"mfa-models@{REVISION}"
-
-
-def test_segmented_refusal_preserves_declared_reason() -> None:
-    bridge = MFABridge("korean")
-    refused = bridge.refusals[0]
-    with pytest.raises(VocabularyResidueError, match=re.escape(refused.reason)):
-        bridge.read([refused.spelling])
 
 
 @needs_source

@@ -6,7 +6,7 @@ The source is a `[dev]`-only git clone, never a runtime dependency or a manual p
 
 ## Union
 
-The union covers 843 distinct MFA phones: 828 atoms and 15 refusals.
+The union covers 843 distinct MFA phones: 843 atoms and 0 refusals.
 
 ## Declarations
 
@@ -26,8 +26,8 @@ The union covers 843 distinct MFA phones: 828 atoms and 15 refusals.
 | `german` | `german_mfa-v3.0.0` | `dictionary/german/mfa/v3.0.0` | 52 | 0 |
 | `hausa` | `hausa_mfa-v3.0.0` | `dictionary/hausa/mfa/v3.0.0` | 76 | 0 |
 | `japanese` | `japanese_mfa-v3.0.0` | `dictionary/japanese/mfa/v3.0.0` | 83 | 0 |
-| `korean` | `korean_mfa-v3.0.0` | `dictionary/korean/mfa/v3.0.0` | 90 | 15 |
-| `korean_jamo` | `korean_jamo_mfa-v2.0.0` | `dictionary/korean/jamo_mfa/v2.0.0` | 50 | 6 |
+| `korean` | `korean_mfa-v3.0.0` | `dictionary/korean/mfa/v3.0.0` | 105 | 0 |
+| `korean_jamo` | `korean_jamo_mfa-v2.0.0` | `dictionary/korean/jamo_mfa/v2.0.0` | 56 | 0 |
 | `mandarin` | `mandarin_mfa-v2.0.0a` | `dictionary/mandarin/mfa/v2.0.0a` | 119 | 0 |
 | `mandarin_china` | `mandarin_china_mfa-v3.0.0` | `dictionary/mandarin/china_mfa/v3.0.0` | 139 | 0 |
 | `mandarin_erhua` | `mandarin_erhua_mfa-v2.0.0a` | `dictionary/mandarin/erhua_mfa/v2.0.0a` | 119 | 0 |
@@ -74,18 +74,3 @@ A dictionary whose `phone_set` is not `MFA` is skipped. `ARPA` is the English AR
 
 ## Refusals
 
-`c͈` (U+0063 U+0348) — outside-house-ipa: U+0348; declarations: korean.
-`k͈` (U+006B U+0348) — outside-house-ipa: U+0348; declarations: korean, korean_jamo.
-`k͈ʷ` (U+006B U+0348 U+02B7) — outside-house-ipa: U+0348; declarations: korean.
-`k͈ː` (U+006B U+0348 U+02D0) — outside-house-ipa: U+0348; declarations: korean.
-`p͈` (U+0070 U+0348) — outside-house-ipa: U+0348; declarations: korean, korean_jamo.
-`p͈ʲ` (U+0070 U+0348 U+02B2) — outside-house-ipa: U+0348; declarations: korean.
-`s͈` (U+0073 U+0348) — outside-house-ipa: U+0348; declarations: korean, korean_jamo.
-`s͈ʷ` (U+0073 U+0348 U+02B7) — outside-house-ipa: U+0348; declarations: korean.
-`tɕ͈` (U+0074 U+0255 U+0348) — outside-house-ipa: U+0348; declarations: korean, korean_jamo.
-`tɕ͈ʷ` (U+0074 U+0255 U+0348 U+02B7) — outside-house-ipa: U+0348; declarations: korean.
-`tɕ͈ː` (U+0074 U+0255 U+0348 U+02D0) — outside-house-ipa: U+0348; declarations: korean.
-`t͈` (U+0074 U+0348) — outside-house-ipa: U+0348; declarations: korean, korean_jamo.
-`t͈ʲ` (U+0074 U+0348 U+02B2) — outside-house-ipa: U+0348; declarations: korean.
-`t͈ː` (U+0074 U+0348 U+02D0) — outside-house-ipa: U+0348; declarations: korean.
-`ɕ͈` (U+0255 U+0348) — outside-house-ipa: U+0348; declarations: korean, korean_jamo.

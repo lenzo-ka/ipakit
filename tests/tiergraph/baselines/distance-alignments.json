@@ -72,7 +72,7 @@
         {
           "a": "t",
           "b": "d",
-          "cost": 0.05,
+          "cost": 0.0476,
           "op": "sub",
           "terms": [
             {
@@ -98,6 +98,12 @@
               "b": "flat",
               "cost": 0.0,
               "label": "channel"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "fortis"
             },
             {
               "a": "0",
@@ -201,7 +207,7 @@
       "id": "substitution",
       "left": "kæt",
       "right": "kæd",
-      "segment_distance": 0.016666666666666666,
+      "segment_distance": 0.015873015873015872,
       "word_distance": {
         "alignment": [
           [
@@ -219,10 +225,10 @@
         ],
         "costs": "insert=1.0 delete=1.0",
         "coverage": 1.0,
-        "edit_cost": 0.1,
-        "similarity": 0.9833333333333333
+        "edit_cost": 0.09523809523809523,
+        "similarity": 0.9841269841269842
       },
-      "word_similarity": 0.9833333333333333
+      "word_similarity": 0.9841269841269842
     },
     {
       "explain_word_distance": [
@@ -379,7 +385,7 @@
         {
           "a": "ɹ",
           "b": "ɾ",
-          "cost": 0.0333,
+          "cost": 0.0317,
           "op": "sub",
           "terms": [
             {
@@ -405,6 +411,12 @@
               "b": "flat",
               "cost": 0.0,
               "label": "channel"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "fortis"
             },
             {
               "a": "0",
@@ -507,7 +519,7 @@
         {
           "a": "a͜ɪ",
           "b": "a",
-          "cost": 0.2759,
+          "cost": 0.2747,
           "op": "sub",
           "terms": [
             {
@@ -519,7 +531,7 @@
             {
               "a": "ɪ",
               "b": "a",
-              "cost": 0.1037,
+              "cost": 0.0989,
               "label": "unmatched part a[1] nearest opposite[0]"
             },
             {
@@ -561,7 +573,7 @@
       "id": "mixed",
       "left": "stɹa͜ɪk",
       "right": "sutoɾaiku",
-      "segment_distance": 0.5440636924803592,
+      "segment_distance": 0.5408109908134612,
       "word_distance": {
         "alignment": [
           [
@@ -603,10 +615,10 @@
         ],
         "costs": "insert=1.0 delete=1.0",
         "coverage": 0.5555555555555556,
-        "edit_cost": 4.618495670995671,
-        "similarity": 0.6701074520717378
+        "edit_cost": 4.612965203987931,
+        "similarity": 0.6705024854294335
       },
-      "word_similarity": 0.6701074520717378
+      "word_similarity": 0.6705024854294335
     },
     {
       "explain_word_distance": [
@@ -620,7 +632,7 @@
         {
           "a": "ˈæ",
           "b": "ˌæ",
-          "cost": 0.0227,
+          "cost": 0.0217,
           "op": "sub",
           "terms": [
             {
@@ -652,6 +664,12 @@
               "b": "flat",
               "cost": 0.0,
               "label": "channel"
+            },
+            {
+              "a": "-",
+              "b": "-",
+              "cost": 0.0,
+              "label": "fortis"
             },
             {
               "a": "0",
@@ -768,7 +786,7 @@
       "id": "prosody",
       "left": "kˈæt",
       "right": "kˌæt",
-      "segment_distance": 0.007575757575757576,
+      "segment_distance": 0.007246376811594203,
       "word_distance": {
         "alignment": [
           [
@@ -786,10 +804,10 @@
         ],
         "costs": "insert=1.0 delete=1.0",
         "coverage": 1.0,
-        "edit_cost": 0.045454545454545456,
-        "similarity": 0.9924242424242424
+        "edit_cost": 0.043478260869565216,
+        "similarity": 0.9927536231884058
       },
-      "word_similarity": 0.9924242424242424
+      "word_similarity": 0.9927536231884058
     }
   ],
   "python_hash_seed": 0

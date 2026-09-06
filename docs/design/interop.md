@@ -126,7 +126,7 @@ Three of these are decisions worth taking on their own merits, independent of an
 - **The Chao tone digits** are the dominant convention in Sinitic and Southeast Asian description and in every corpus normalized through BIPA. Whether they belong in `ipa.xml` or in a phonemap is a real question; that they are absent from both is the finding.
 - **`ʳ`, `ˢ`, `ʶ`** are release modifiers of exactly the shape ipakit already declares for `ʰ`, `ˡ` and `ⁿ`. 59 sounds, and the mechanism is there.
 
-The rest — `͈` fortis, `͉` lenis, `͓` frictionalized, `̫` — are extIPA and near-extIPA, which is a scope question rather than an oversight.
+The rest — `͉` lenis, `͓` frictionalized, `̫` — are extIPA and near-extIPA, which is a scope question rather than an oversight; `͈` is registered as the fortis laryngeal feature because Korean needs it.
 
 ### The resegmentations are one defect, not a disagreement
 
@@ -424,7 +424,7 @@ This is not a defect in `lookalikes.xml`. That file already states the rule it l
 
 For contrast, the 65 rescues that did fire are all correct: `:` → `ː` and `g` → `ɡ`. The soft reads are right symbol by symbol and wrong at the word level for exactly one of them.
 
-**Verdict: a documented recipe and no code — but the recipe is subtractive, and the section is not short because the one step it must forbid is the step a reader would reach for first.** The genuine inventory gaps Epitran's output names — `͈` (Korean tense series), `ᵐ` and `ᵑ` (ipakit registers `ⁿ` but not these), `ᶑ`, `ˢ`, `̱`, `̍`, `̊`, `⁀` (a third tie glyph) — are the same list §1 produced from BIPA, arriving independently.
+**Verdict: a documented recipe and no code — but the recipe is subtractive, and the section is not short because the one step it must forbid is the step a reader would reach for first.** The inventory gaps Epitran's output names — `ᵐ` and `ᵑ` (ipakit registers `ⁿ` but not these), `ᶑ`, `ˢ`, `̱`, `̍`, `̊`, `⁀` (a third tie glyph) — are the same list §1 produced from BIPA, arriving independently; the Korean tense-series `͈` is registered as `fortis` because Korean needs it.
 
 ## 9. Inventories: build three small things, and not an importer
 
@@ -460,7 +460,7 @@ PHOIBLE segments ipakit refuses:              203
   BIPA grapheme ipakit ALSO refuses:          150
 ```
 
-17%, and the reason is not that the table is thin. ipakit's refusals are gaps in its own **diacritic** inventory — `͈ ͉ ͓ ͇ ȵ ʆ ʓ` — and BIPA spells those sounds with the identical characters: `b͈` maps to `b͈`. A grapheme-to-grapheme table cannot fix what both sides spell the same way. The untied side fares no better: BIPA writes `ae` and `ai` untied too, so 880 of 1,377 survive the rewrite unchanged. And where CLTS's mapping does fire it is itself lossy — `ɡ̤ǀ͓` becomes `ǀ`, dropping the voicing and both diacritics.
+17%, and the reason is not that the table is thin. The measured refusals were gaps in ipakit's own **diacritic** inventory — `͈ ͉ ͓ ͇ ȵ ʆ ʓ` — and BIPA spells those sounds with the identical characters: `b͈` maps to `b͈`. A grapheme-to-grapheme table cannot fix what both sides spell the same way. The untied side fares no better: BIPA writes `ae` and `ai` untied too, so 880 of 1,377 survive the rewrite unchanged. And where CLTS's mapping does fire it is itself lossy — `ɡ̤ǀ͓` becomes `ǀ`, dropping the voicing and both diacritics. U+0348 is registered independently as the laryngeal `fortis` feature because Korean needs it.
 
 **Answer: its own piece of work, and a small one.**
 
@@ -472,7 +472,7 @@ PHOIBLE segments ipakit refuses:              203
 
 1. **Fix §12(a).** It is one branch, and it reaches 126 PHOIBLE segments, 22 phonepiece segments and 2 Epitran outputs.
 2. **Fix §12(b).** Alone it takes PHOIBLE from 49.7% to roughly 90% single-segment.
-3. **Add the dozen missing diacritics**, ranked by how many inventories contain them rather than by symbol count — `͉` (416 inventories), `͈` (415), `ȵ` (391), `̊` (87), `͓` (67), `͇` (28), then the tail. That ranking closes about 90% of the refusal weight and it is a thing generation cannot produce.
+3. **Add the missing diacritics a language needs**, ranked by how many inventories contain them rather than by symbol count — `͉` (416 inventories), `ȵ` (391), `̊` (87), `͓` (67), `͇` (28), then the tail. That ranking closes about 90% of the measured refusal weight and it is a thing generation cannot produce; Korean supplies the language case for the registered `͈` fortis mark.
 
 Then document the two conventions rather than coding around them: PHOIBLE overloads `|` as "or" where ipakit correctly reads the IPA minor break, so an importer must split on it first (100 segments), and Epitran's quote is §8.
 
@@ -480,7 +480,7 @@ Then document the two conventions rather than coding around them: PHOIBLE overlo
 
 `scripts/sweep.py`'s corpus is every phone and every phone plus one mark that re-spells itself — **closed under ipakit's own inventory**. Three consequences, and they are the argument:
 
-- It can never contain `͈`, `ȵ`, or an untied `ai`. It is structurally incapable of finding either defect class this lane found. Generation tests the parser against itself; an inventory tests it against the world.
+- It can never contain an undeclared mark such as `ȵ`, or an untied `ai`. It is structurally incapable of finding either defect class this lane found. Generation tests the parser against itself; an inventory tests it against the world. Once a language supplies the case for declaring a mark, as Korean does for `͈`, the sweep can cover it.
 - It carries **no frequency prior**, weighting `t` and `ʘ̬` alike. The ranking that says to fix `͉` before `ᴱ` — 416 inventories against 3 — is the whole argument for what to do first, and generation cannot produce it.
 - It is **one mark per base**. Real inventories stack three (`d̪z̪̤`, `ŋ̥ǂ͓ˡxˀ`), which is where the leading-mark path and mark ordering actually bite.
 

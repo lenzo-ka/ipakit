@@ -121,6 +121,8 @@ UNMAPPABLE: dict[str, str] = {
     # (_h _w ' _G _?\ ...) with no glottal or schwa member.
     "ˀ": "glottalization: no X-SAMPA diacritic",
     "ᵊ": "schwa release: no X-SAMPA diacritic",
+    # The extIPA strong-articulation mark has no X-SAMPA counterpart.
+    "͈": "strong articulation: no X-SAMPA diacritic",
     # The one entry here that X-SAMPA COULD spell, declined rather than
     # impossible, and the distinction is worth keeping in the reason
     # rather than blurred into the four above. ipakit spelled it `_hh`,

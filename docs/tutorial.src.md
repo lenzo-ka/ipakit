@@ -92,7 +92,7 @@ ipa.describe("ḁ")
 > the *full* bundle — every feature, defaults included — and `with_defaults=False` gives
 > only what the phone states. `ipakit features p` is the other way round: it shows only
 > the stated features, and `--all` adds the defaults. So the two spellings of "the
-> features of /p/" give 4 keys and 23 keys respectively.
+> features of /p/" give 4 keys and 24 keys respectively.
 
 ```python-run
 len(ipa.features("p"))                 # the API default: everything
