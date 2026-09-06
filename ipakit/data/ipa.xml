@@ -211,10 +211,11 @@
          Korean interpretation following Cho, Jun & Ladefoged (2002),
          Journal of Phonetics 30: stiffer vocal folds, higher F0 onset and
          longer closure, without aspiration. Those are laryngeal and
-         temporal correlates, not a tract location, so this feature declares
-         no axis, place, articulator or constriction. It applies only to the
-         obstruent natural class declared on manner. -->
-    <feature name="fortis" short="for" type="binary" default="-" applies="obstruent" desc="Laryngeal fortis contrast; extIPA strong articulation, registered because Korean needs it" href="Extensions_to_the_International_Phonetic_Alphabet">
+         temporal correlates, not a tract location, so this feature contributes
+         no axis, place, articulator or constriction to a bundle. Its locus says
+         where that setting already lives and its applicability says which
+         manner class may otherwise receive it. -->
+    <feature name="fortis" short="for" type="binary" default="-" applies="obstruent" locus="glottal" desc="Laryngeal fortis contrast; extIPA strong articulation, registered because Korean needs it" href="Extensions_to_the_International_Phonetic_Alphabet">
       <value name="+" label="strong articulation"/>
     </feature>
     <feature name="rounded" short="rnd" type="binary" desc="Lip rounding" href="Roundedness">

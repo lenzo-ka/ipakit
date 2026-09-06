@@ -899,6 +899,7 @@ NOT_BORROWED = {
     "constriction": "whether the borrower's constriction has no single location (a rhotic); the borrower's own fact, not the source's",
     "vocabulary": "the borrowing itself",
     "applies": "which hosts the borrower is expected on",
+    "locus": "where the borrower's setting has its articulatory home",
     "sequence": "whether the borrower's values may be trajectories",
     "over": "the scale the borrower's values move along",
     "moves": "a move is read only beside `over`, which is the borrower's own",
@@ -1011,6 +1012,61 @@ def check_borrowed_vocabulary(ipa: IPAFeatures) -> bool:
     return _report("a borrowed vocabulary is one declaration", failures, checked)
 
 
+def check_no_locus_feature_admits_its_own_exponent(ipa: IPAFeatures) -> bool:
+    """A feature cannot be applied where its own articulatory setting lives."""
+    from ipakit.segment import ModifierHostError, check_modifier_hosts, phase_keys
+    from ipakit.tract import constrictions
+
+    failures: list[str] = []
+    checked = 0
+    place = ipa.features.get("place")
+    for name, feature in ipa.features.items():
+        if feature.locus is None:
+            continue
+        locus_arc = (
+            place.coordinates.get(feature.locus, {}).get("arc")
+            if place is not None
+            else None
+        )
+        if locus_arc is None:
+            failures.append(
+                f"{name} declares locus={feature.locus!r}, which has no place arc"
+            )
+            continue
+        marks = [
+            mark for mark in ipa.diacritics if name in phase_keys(ipa, mark, False)
+        ]
+        if not marks:
+            failures.append(
+                f"{name} declares locus={feature.locus!r}, but no mark states it"
+            )
+            continue
+        for symbol in ipa.phones:
+            bundle = ipa.get_features(symbol)
+            if not ipa.feature_applies(name, bundle):
+                continue
+            checked += 1
+            primary = [
+                point
+                for point in constrictions(ipa, bundle)
+                if point.kind == "primary" and point.arc is not None
+            ]
+            if not any(abs(point.arc - locus_arc) <= TOLERANCE for point in primary):
+                continue
+            for mark in marks:
+                try:
+                    check_modifier_hosts(ipa, bundle, [mark])
+                except ModifierHostError:
+                    continue
+                failures.append(
+                    f"{name} admits /{symbol}/ (place={bundle.get('place')}, "
+                    f"primary arc={locus_arc}) at its own locus={feature.locus}"
+                )
+    if not any(feature.locus is not None for feature in ipa.features.values()):
+        failures.append("no feature declares a locus; this check is vacuous")
+    return _report("no locus feature admits its own exponent", failures, checked)
+
+
 def check_no_symbol_states_an_inapplicable_feature(ipa: IPAFeatures) -> bool:
     """A symbol does not declare a feature its own class is outside.
 
@@ -1074,6 +1130,7 @@ def main(argv: list[str] | None = None) -> int:
         check_typed_values_declare_no_geometry(ipa),
         check_borrowed_vocabulary_is_total(ipa),
         check_borrowed_vocabulary(ipa),
+        check_no_locus_feature_admits_its_own_exponent(ipa),
         check_no_symbol_states_an_inapplicable_feature(ipa),
         check_fusion_arity(ipa),
         check_derived_artifacts(),

@@ -34,6 +34,23 @@ def test_fortis_refuses_non_obstruents_by_the_declared_rule(unit: str) -> None:
         Form.parse(unit, strict=True)
 
 
+@pytest.mark.parametrize("unit", ["ʔ͈", "h͈", "ɦ͈"])
+def test_fortis_refuses_its_declared_locus(unit: str) -> None:
+    with pytest.raises(ValueError, match="fortis.*locus.*glottal.*place.*glottal"):
+        Form.parse(unit, strict=True)
+
+
+@pytest.mark.parametrize("unit", ["ʔ͈", "h͈", "ɦ͈"])
+def test_lax_fortis_drops_its_declared_locus_audibly(unit: str) -> None:
+    with pytest.warns(UserWarning, match="dropped.*unplaced mark"):
+        assert segments(unit) == []
+
+
+@pytest.mark.parametrize("unit", ["ʜ͈", "ʢ͈"])
+def test_epiglottals_do_not_collide_with_the_glottal_locus(unit: str) -> None:
+    assert Form.parse(unit, strict=True).to_ipa() == unit
+
+
 @pytest.mark.parametrize("unit", ["a͈", "m͈"])
 def test_lax_fortis_drops_non_obstruents_audibly(unit: str) -> None:
     with pytest.warns(UserWarning, match="dropped.*unplaced mark"):

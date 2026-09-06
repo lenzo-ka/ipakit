@@ -159,7 +159,9 @@
           <optional><attribute name="center"><text/></attribute></optional>
           <!-- `over` names the feature this one is derived from; `place`
                gives the constriction a secondary-articulation feature adds;
-               `applies` restricts the feature to a class of hosts;
+               `applies` restricts the feature to a class of hosts; `locus`
+               excludes a host whose primary constriction is at the place
+               where the feature's setting has its articulatory home;
                `vocabulary` names the feature whose value set, aliases and
                tract coordinates this one takes as its own instead of
                restating them, and a feature declaring it declares no
@@ -172,6 +174,7 @@
                the x term rather than asserting a position. -->
           <optional><attribute name="constriction"><text/></attribute></optional>
           <optional><attribute name="applies"><text/></attribute></optional>
+          <optional><attribute name="locus"><text/></attribute></optional>
           <optional><attribute name="vocabulary"><text/></attribute></optional>
           <!-- A sequence-valued feature states a trajectory: its value is
                an ordered run of its declared values, not one of them. -->

@@ -507,6 +507,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     place=feat_elem.get("place"),
                     constriction=feat_elem.get("constriction"),
                     applies=frozenset((feat_elem.get("applies") or "").split()),
+                    locus=feat_elem.get("locus"),
                     labels=labels,
                     value_classes={k: frozenset(v) for k, v in classes.items()},
                     sequence=feat_elem.get("sequence") == "+",
@@ -545,6 +546,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         f"feature {name!r} declares applies={token!r}, which is "
                         "neither a declared manner value, a natural class over "
                         f"manner, nor one of {sorted(DERIVED_CLASSES)}"
+                    )
+            if feat.locus is not None:
+                place = self.features.get("place")
+                if (
+                    place is None
+                    or feat.locus not in place.values_set
+                    or "arc" not in place.coordinates.get(feat.locus, {})
+                ):
+                    raise ValueError(
+                        f"feature {name!r} declares locus={feat.locus!r}, which "
+                        "is not a declared place with an arc"
                     )
             # `over` names the scale this feature's values move along, and
             # a move is only readable if the scale is ordered. Checked at
