@@ -192,6 +192,8 @@ jobs:
         run: pytest tests/test_xsampa.py
       - name: Panphon characterization tests (skipped in the matrix job)
         run: pytest tests/test_panphon_facts.py tests/test_panphon_live_geometry.py tests/tiergraph/test_j_panphon.py
+      - name: Comparison extras tests (partition check skips in the matrix job)
+        run: pytest tests/test_comparison_example.py
 
   render:
     name: render (figure tests need real renderers)
