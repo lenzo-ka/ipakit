@@ -98,7 +98,7 @@
   ],
   "format": 1,
   "fresh_confusion_matches_shipped_byte_for_byte": true,
-  "ipakit": "0.1.0",
+  "ipakit": "0.2.0",
   "kind": "derived-artifact-bytes",
   "python_hash_seed": 0
 }
