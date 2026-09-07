@@ -119,31 +119,59 @@ def _report(name: str, failures: list[str], checked: int) -> bool:
     return not failures
 
 
-def check_metric(ipa: IPAFeatures) -> bool:
+def check_metric(ipa: IPAFeatures, *, applicable_only: bool = False) -> bool:
     """Identity, symmetry, range, and distinct pairs at distance zero.
 
     The zero check is the one that has caught real defects: two distinct
     phones the metric cannot tell apart means a feature is being dropped.
     """
     phones = list(ipa.phones)
-    identity = [p for p in phones if ipa.distance(p, p) != 0.0]
+    if applicable_only:
+        transcribed = []
+        for base in ipa.phones:
+            host = ipa.get_features(base, with_defaults=False)
+            for mark, declaration in ipa.diacritics.items():
+                stated = set(declaration.features) - METADATA_ATTRS
+                if not stated or all(
+                    ipa.feature_applies(name, host) for name in stated
+                ):
+                    continue
+                candidate = base + mark
+                if ipa.is_valid_ipa(candidate):
+                    transcribed.append(candidate)
+        phones.extend(dict.fromkeys(transcribed))
+    label = "scoped " if applicable_only else ""
+    identity = [
+        p for p in phones if ipa.distance(p, p, applicable_only=applicable_only) != 0.0
+    ]
     asymmetric, out_of_range, collisions = [], [], []
     pairs = 0
     for a, b in itertools.combinations(phones, 2):
         pairs += 1
-        forward, back = ipa.distance(a, b), ipa.distance(b, a)
+        forward = ipa.distance(a, b, applicable_only=applicable_only)
+        back = ipa.distance(b, a, applicable_only=applicable_only)
         if abs(forward - back) > TOLERANCE:
             asymmetric.append(f"d({a},{b})={forward} but d({b},{a})={back}")
         if not 0.0 <= forward <= 1.0:
             out_of_range.append(f"d({a},{b})={forward}")
-        if forward == 0.0:
+        # Explicit bundles are a transcription oracle: unlike descriptions,
+        # reading them with defaults disabled never consults applicability.
+        if forward == 0.0 and (
+            not applicable_only
+            or ipa.get_features(a, with_defaults=False)
+            != ipa.get_features(b, with_defaults=False)
+        ):
             collisions.append(f"d({a},{b})=0 but they are different phones")
     return all(
         [
-            _report("identity", [f"d({p},{p})!=0" for p in identity], len(phones)),
-            _report("symmetry", asymmetric, pairs),
-            _report("range [0,1]", out_of_range, pairs),
-            _report("no distinct pair at distance 0", collisions, pairs),
+            _report(
+                f"{label}identity",
+                [f"d({p},{p})!=0" for p in identity],
+                len(phones),
+            ),
+            _report(f"{label}symmetry", asymmetric, pairs),
+            _report(f"{label}range [0,1]", out_of_range, pairs),
+            _report(f"{label}no distinct pair at distance 0", collisions, pairs),
         ]
     )
 
@@ -1163,6 +1191,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     results = [
         check_metric(ipa),
+        check_metric(ipa, applicable_only=True),
         check_round_trips(ipa),
         check_one_flat_read(ipa, args.quick),
         check_alias_equivalence(ipa, args.quick),

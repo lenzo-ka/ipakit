@@ -93,6 +93,11 @@ class IPAFeaturesBase:
     def feature_applies(self, feature: str, bundle: Mapping[str, str]) -> bool:
         raise NotImplementedError
 
+    def feature_applies_or_is_stated(
+        self, feature: str, bundle: Mapping[str, str]
+    ) -> bool:
+        raise NotImplementedError
+
     def get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
         raise NotImplementedError
 
@@ -134,5 +139,7 @@ class IPAFeaturesBase:
     def read_json(self, data: str) -> Form:
         raise NotImplementedError
 
-    def distance(self, phone1: str, phone2: str) -> float:
+    def distance(
+        self, phone1: str, phone2: str, *, applicable_only: bool = False
+    ) -> float:
         raise NotImplementedError

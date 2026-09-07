@@ -620,7 +620,9 @@ class DistanceMixin(IPAFeaturesBase):
         )
         return total / len(all_keys)
 
-    def distance(self, phone1: str, phone2: str) -> float:
+    def distance(
+        self, phone1: str, phone2: str, *, applicable_only: bool = False
+    ) -> float:
         """Structural distance between two phones/units (0.0-1.0).
 
         Routed through the Segment metric (design spec section 7):
@@ -661,9 +663,16 @@ class DistanceMixin(IPAFeaturesBase):
             return 0.0 if same else 1.0
         from .metric import segment_metric
 
-        return segment_metric(self, s1, s2)  # type: ignore[arg-type]
+        return segment_metric(
+            self,  # type: ignore[arg-type]
+            s1,
+            s2,
+            applicable_only=applicable_only,
+        )
 
-    def segment_distance(self, seg1: str, seg2: str) -> float:
+    def segment_distance(
+        self, seg1: str, seg2: str, *, applicable_only: bool = False
+    ) -> float:
         """Distance between two segment strings (potentially multi-unit).
 
         One flat positional mean over ``max(len(t1), len(t2))`` terms:
@@ -700,7 +709,12 @@ class DistanceMixin(IPAFeaturesBase):
             return 0.0
         total = sum(
             (
-                segment_metric(self, t1[i], t2[i])  # type: ignore[arg-type,misc]
+                segment_metric(  # type: ignore[misc]
+                    self,  # type: ignore[arg-type]
+                    t1[i],
+                    t2[i],
+                    applicable_only=applicable_only,
+                )
                 if i < len(t1) and i < len(t2)
                 else GAP_COST
             )
@@ -708,7 +722,9 @@ class DistanceMixin(IPAFeaturesBase):
         )
         return total / max_len
 
-    def pairwise_distances(self, phones: list[str]) -> list[list[float]]:
+    def pairwise_distances(
+        self, phones: list[str], *, applicable_only: bool = False
+    ) -> list[list[float]]:
         """Compute pairwise distance matrix for a list of phones.
 
         Returns a 2D list where matrix[i][j] is the distance between phones[i] and phones[j].
@@ -717,7 +733,7 @@ class DistanceMixin(IPAFeaturesBase):
         matrix = [[0.0] * n for _ in range(n)]
         for i in range(n):
             for j in range(i + 1, n):
-                d = self.distance(phones[i], phones[j])
+                d = self.distance(phones[i], phones[j], applicable_only=applicable_only)
                 matrix[i][j] = d
                 matrix[j][i] = d
         return matrix
@@ -832,6 +848,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         return_alignment: bool = False,
         strict: bool = True,
+        applicable_only: bool = False,
     ) -> WordDistanceResult:
         """Compute phonetic edit distance between two IPA words.
 
@@ -890,7 +907,13 @@ class DistanceMixin(IPAFeaturesBase):
         tokens1 = self._word_units(ipa1)
         tokens2 = self._word_units(ipa2)
         return self._aligned_words(
-            tokens1, tokens2, weighted, return_alignment, GAP_COST, GAP_COST
+            tokens1,
+            tokens2,
+            weighted,
+            return_alignment,
+            GAP_COST,
+            GAP_COST,
+            applicable_only=applicable_only,
         )
 
     def _aligned_words(
@@ -902,6 +925,7 @@ class DistanceMixin(IPAFeaturesBase):
         insert_cost: PhoneCost,
         delete_cost: PhoneCost,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> WordDistanceResult:
         """Align two token sequences under one indel parameterization.
 
@@ -915,7 +939,11 @@ class DistanceMixin(IPAFeaturesBase):
         def raw_cost(t1: str, t2: str) -> float:
             if t1 == t2:
                 return 0.0
-            d = self.segment_distance(t1, t2) if weighted else 1.0
+            d = (
+                self.segment_distance(t1, t2, applicable_only=applicable_only)
+                if weighted
+                else 1.0
+            )
             # The pair's own prices: what deleting the left token and
             # supplying the right one would cost. See _substitution_cost.
             return _substitution_cost(d, price(insert_cost, t2), price(delete_cost, t1))
@@ -942,7 +970,12 @@ class DistanceMixin(IPAFeaturesBase):
             s1, s2 = self.segment(t1), self.segment(t2)  # type: ignore[attr-defined]
             return tuple(
                 {"label": label, "a": a, "b": b, "cost": round(cost, 4)}
-                for label, a, b, cost in segment_terms(self, s1, s2)  # type: ignore[arg-type]
+                for label, a, b, cost in segment_terms(
+                    self,  # type: ignore[arg-type]
+                    s1,
+                    s2,
+                    applicable_only=applicable_only,
+                )
             )
 
         if n == 0 and m == 0:
@@ -1024,6 +1057,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         return_alignment: bool = False,
         strict: bool = True,
+        applicable_only: bool = False,
     ) -> WordDistanceResult:
         """Edit distance from a **reference** to a **hypothesis**, named sides.
 
@@ -1080,6 +1114,7 @@ class DistanceMixin(IPAFeaturesBase):
             return_alignment,
             GAP_COST if insert_cost is None else insert_cost,
             GAP_COST if delete_cost is None else delete_cost,
+            applicable_only=applicable_only,
         )
 
     def word_similarity(
@@ -1089,6 +1124,7 @@ class DistanceMixin(IPAFeaturesBase):
         *,
         weighted: bool = True,
         strict: bool = True,
+        applicable_only: bool = False,
     ) -> float:
         """Compute phonetic similarity between two IPA words.
 
@@ -1125,7 +1161,11 @@ class DistanceMixin(IPAFeaturesBase):
         against zero.
         """
         return self.word_distance(
-            ipa1, ipa2, weighted=weighted, strict=strict
+            ipa1,
+            ipa2,
+            weighted=weighted,
+            strict=strict,
+            applicable_only=applicable_only,
         ).similarity
 
     def explain_word_distance(
@@ -1135,6 +1175,7 @@ class DistanceMixin(IPAFeaturesBase):
         *,
         weighted: bool = True,
         strict: bool = True,
+        applicable_only: bool = False,
     ) -> list[dict[str, object]]:
         """A per-position trace of a word comparison, for debugging and detail.
 
@@ -1149,7 +1190,12 @@ class DistanceMixin(IPAFeaturesBase):
         costs do not sum to :attr:`WordDistanceResult.edit_cost`.
         """
         result = self.word_distance(
-            ipa1, ipa2, weighted=weighted, return_alignment=True, strict=strict
+            ipa1,
+            ipa2,
+            weighted=weighted,
+            return_alignment=True,
+            strict=strict,
+            applicable_only=applicable_only,
         )
         explained = []
         for step in result.alignment.steps if result.alignment else ():
@@ -1157,7 +1203,9 @@ class DistanceMixin(IPAFeaturesBase):
             # public explanation predates priced substitutions and reports
             # the segment metric itself; keep those two currencies distinct.
             metric_cost = (
-                self.segment_distance(step.left, step.right)
+                self.segment_distance(
+                    step.left, step.right, applicable_only=applicable_only
+                )
                 if step.op == "sub" and step.left is not None and step.right is not None
                 else step.cost
             )
@@ -1172,6 +1220,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         strict: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> PronunciationMatch:
         """The best match between an observed form and a set of acceptable ones.
 
@@ -1191,7 +1240,13 @@ class DistanceMixin(IPAFeaturesBase):
         read as a distance between two words.
         """
         return self.rank_pronunciations(
-            forms, acceptable, n=1, weighted=weighted, strict=strict, mode=mode
+            forms,
+            acceptable,
+            n=1,
+            weighted=weighted,
+            strict=strict,
+            mode=mode,
+            applicable_only=applicable_only,
         )[0]
 
     def sequence_distance(
@@ -1202,6 +1257,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         mode: str = "global",
         return_alignment: bool = False,
+        applicable_only: bool = False,
     ) -> WordDistanceResult:
         """Distance between two **pre-tokenized** phone sequences.
 
@@ -1226,6 +1282,7 @@ class DistanceMixin(IPAFeaturesBase):
             GAP_COST,
             GAP_COST,
             mode,
+            applicable_only=applicable_only,
         )
 
     def sequence_similarity(
@@ -1235,10 +1292,15 @@ class DistanceMixin(IPAFeaturesBase):
         *,
         weighted: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> float:
         """The ``similarity`` of :meth:`sequence_distance`, in [0, 1]."""
         return self.sequence_distance(
-            seq1, seq2, weighted=weighted, mode=mode
+            seq1,
+            seq2,
+            weighted=weighted,
+            mode=mode,
+            applicable_only=applicable_only,
         ).similarity
 
     def rank_sequences(
@@ -1249,6 +1311,7 @@ class DistanceMixin(IPAFeaturesBase):
         n: int | None = None,
         weighted: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> list[SequenceMatch]:
         """Candidate phone sequences ranked by similarity to ``observed``.
 
@@ -1265,7 +1328,13 @@ class DistanceMixin(IPAFeaturesBase):
         scored = [
             SequenceMatch(
                 similarity=(
-                    r := self.sequence_distance(obs, c, weighted=weighted, mode=mode)
+                    r := self.sequence_distance(
+                        obs,
+                        c,
+                        weighted=weighted,
+                        mode=mode,
+                        applicable_only=applicable_only,
+                    )
                 ).similarity,
                 observed=tuple(obs),
                 candidate=tuple(c),
@@ -1277,13 +1346,31 @@ class DistanceMixin(IPAFeaturesBase):
         return scored if n is None else scored[:n]
 
     def _score_pronunciation(
-        self, form: str, candidate: str, weighted: bool, strict: bool, mode: str
+        self,
+        form: str,
+        candidate: str,
+        weighted: bool,
+        strict: bool,
+        mode: str,
+        applicable_only: bool,
     ) -> WordDistanceResult:
         if mode == "global":
-            return self.word_distance(form, candidate, weighted=weighted, strict=strict)
+            return self.word_distance(
+                form,
+                candidate,
+                weighted=weighted,
+                strict=strict,
+                applicable_only=applicable_only,
+            )
         t1 = self._word_units(form)
         t2 = self._word_units(candidate)
-        return self.sequence_distance(t1, t2, weighted=weighted, mode=mode)
+        return self.sequence_distance(
+            t1,
+            t2,
+            weighted=weighted,
+            mode=mode,
+            applicable_only=applicable_only,
+        )
 
     def rank_pronunciations(
         self,
@@ -1294,6 +1381,7 @@ class DistanceMixin(IPAFeaturesBase):
         weighted: bool = True,
         strict: bool = True,
         mode: str = "global",
+        applicable_only: bool = False,
     ) -> list[PronunciationMatch]:
         """:meth:`nearest_pronunciation`, but the whole ranking, best first.
 
@@ -1312,7 +1400,14 @@ class DistanceMixin(IPAFeaturesBase):
         scored = [
             PronunciationMatch(
                 similarity=(
-                    r := self._score_pronunciation(form, cand, weighted, strict, mode)
+                    r := self._score_pronunciation(
+                        form,
+                        cand,
+                        weighted,
+                        strict,
+                        mode,
+                        applicable_only,
+                    )
                 ).similarity,
                 form=form,
                 accepted=cand,

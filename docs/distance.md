@@ -14,6 +14,7 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 | Triangle inequality | **Not guaranteed** — see [Not a metric](#not-a-metric-in-the-mathematical-sense) |
 | Silence | `d(␣, X) == 1.0` for every speech sound `X` |
 | Weighting | None; every dimension contributes equally at maximal difference |
+| Denominator | The whole declared space by default; pass `applicable_only=True` or `--applicable-only` to omit a term when either host cannot carry it |
 | Word alignment | a gap costs `GAP_COST`, a substitution costs `(delete + insert) ×` the pair's dissimilarity, and `similarity` is normalized by the null alignment's cost |
 | Length asymmetry | reported as `WordDistanceResult.coverage`, never folded into the score |
 | Parameters | Word gaps use `GAP_COST = 1.0`; segment material uses the declared `MATERIAL_BUDGET`; secondary place sharing uses `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` |
@@ -75,6 +76,16 @@ Two kinds of value hold **no position** on their scale:
 - **Combining values.** `bilabial^velar` is an overlap, not a point on the front–back continuum. It compares by expanding to its components, and never pads the interval between them. The combiner is `^` rather than `+`, which is already the positive value of every binary feature.
 
 ## 4. Comparing two segments
+
+The denominator has two defensible readings, and the caller chooses between them.
+
+The basic reading is the default: every declared feature belongs to one common comparison space, including a feature whose `applies=` class does not contain either phone, so any two phones remain commensurable and a saved matrix has one stable meaning.
+
+The applicability-scoped reading is opt-in with `applicable_only=True` in Python and `--applicable-only` on distance commands: it counts only terms each compared host could carry according to the `applies=` declarations in `ipa.xml`, so registering a feature for one language or host class leaves unrelated distances alone.
+
+For a consonant-vowel pair, that reading drops every host-class feature because no such feature applies to both hosts; its denominator is markedly smaller and its distance larger than under the basic reading, which is one reason the basic denominator remains the default.
+
+Choose the basic reading when distances must share a universal denominator or be compared with the shipped matrix; choose the scoped reading when isolation from features outside the compared hosts matters more than that universal space.
 
 Distance is computed over a segment's derived structure, never over a flattened feature bag. Given two segments:
 

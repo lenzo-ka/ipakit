@@ -329,7 +329,11 @@ def _refused(cost: float, max_distance: float | None) -> bool:
 
 
 def _cost_rows(
-    source: Phoneset, target: Phoneset, ipa: IPAFeatures
+    source: Phoneset,
+    target: Phoneset,
+    ipa: IPAFeatures,
+    *,
+    applicable_only: bool = False,
 ) -> list[list[float]]:
     """Distance from every source phone to every target phone.
 
@@ -344,7 +348,7 @@ def _cost_rows(
         phoneset should not deny an answer about the other forty.
         """
         try:
-            return ipa.distance(a, b)
+            return ipa.distance(a, b, applicable_only=applicable_only)
         except ValueError:
             return float("inf")
 
@@ -360,6 +364,7 @@ def nearest_mapping(
     tied: bool = False,
     source_style: Style | None = None,
     target_style: Style | None = None,
+    applicable_only: bool = False,
 ) -> PhonesetMapping:
     """Map each source phone onto its closest target phone.
 
@@ -388,7 +393,7 @@ def nearest_mapping(
             target_style,
         )
 
-    rows = _cost_rows(left, right, features)
+    rows = _cost_rows(left, right, features, applicable_only=applicable_only)
     found: list[Correspondence] = []
     for phone, row in zip(left.phones, rows, strict=True):
         best = min(row)
@@ -482,6 +487,7 @@ def one_to_one_mapping(
     tied: bool = False,
     source_style: Style | None = None,
     target_style: Style | None = None,
+    applicable_only: bool = False,
 ) -> PhonesetMapping:
     """Pair the phonesets one-to-one, minimizing total distance.
 
@@ -516,7 +522,7 @@ def one_to_one_mapping(
             target_style,
         )
 
-    rows = _cost_rows(left, right, features)
+    rows = _cost_rows(left, right, features, applicable_only=applicable_only)
     assignment = _assign(rows, len(right.phones))
     found: list[Correspondence] = []
     for index, phone in enumerate(left.phones):

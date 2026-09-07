@@ -134,7 +134,12 @@ def _checked_global(ipa: IPAFeatures) -> tuple[list[str], Matrix, str]:
 
 
 def _check_fingerprint(
-    ipa: IPAFeatures, phones: list[str], recorded: str | None, path: Path
+    ipa: IPAFeatures,
+    phones: list[str],
+    recorded: str | None,
+    path: Path,
+    *,
+    applicable_only: bool = False,
 ) -> None:
     """Refuse a matrix derived in a feature space this inventory is not.
 
@@ -152,13 +157,24 @@ def _check_fingerprint(
     """
     if recorded is None:
         return
-    derived = metric_fingerprint(ipa, phones)
+    derived = metric_fingerprint(ipa, phones, applicable_only=applicable_only)
     if derived == recorded:
         return
+    denominator = "applicability-scoped" if applicable_only else "basic"
+    other_denominator = "basic" if applicable_only else "applicability-scoped"
+    other = metric_fingerprint(ipa, phones, applicable_only=not applicable_only)
+    if recorded == other:
+        raise ValueError(
+            f"{path.name} uses a different feature space: the {other_denominator} "
+            f"denominator, but the reader requested the {denominator} denominator. "
+            f"The file records metric "
+            f"{recorded}, while that request gives {derived}. Reload with "
+            f"applicable_only={str(not applicable_only)}."
+        )
     raise ValueError(
-        f"{path.name} was derived in a different feature space than "
-        f"{ipa.xml_path.name} declares: the file records metric {recorded}, "
-        f"this inventory gives {derived}. Percentiles read from it would be "
+        f"{path.name} was derived in a different feature space from the "
+        f"{denominator} denominator {ipa.xml_path.name} declares: the file records "
+        f"metric {recorded}, this inventory gives {derived}. Percentiles read from it would be "
         "relative to a distribution this inventory did not produce. If you "
         "edited the inventory, regenerate the matrix: "
         "'python scripts/confusion.py generate --write' for the shipped one, "
@@ -183,6 +199,7 @@ class DistanceModel:
         delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
+        applicable_only: bool = False,
     ) -> None:
         """Construct a model from a phone x phone ``matrix``.
 
@@ -235,6 +252,7 @@ class DistanceModel:
         self._delete = delete_cost
         self._threshold = threshold
         self._max_length_ratio = max_length_ratio
+        self._applicable_only = applicable_only
         self._index = {p: i for i, p in enumerate(phones)}
         self._ref = list(ref_phones) if ref_phones is not None else list(phones)
         self._cdf = self._build_cdf()
@@ -302,6 +320,7 @@ class DistanceModel:
         delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
+        applicable_only: bool = False,
     ) -> Self:
         """Build the matrix from the inventory in hand, not from the shipped file.
 
@@ -324,7 +343,7 @@ class DistanceModel:
         relative to. They are not comparable across inventories.
         """
         ph = list(phones) if phones is not None else list(ipa.phones)
-        matrix = ipa.pairwise_distances(ph)
+        matrix = ipa.pairwise_distances(ph, applicable_only=applicable_only)
         name = "+".join([ipa.xml_path.stem, *ipa.supplements])
         return cls(
             ipa,
@@ -337,6 +356,7 @@ class DistanceModel:
             delete_cost=delete_cost,
             threshold=threshold,
             max_length_ratio=max_length_ratio,
+            applicable_only=applicable_only,
         )
 
     def save(self, path: str | Path) -> Path:
@@ -363,7 +383,9 @@ class DistanceModel:
             "version": MATRIX_VERSION,
             "reference": self._name,
             "space": self._space,
-            "metric": metric_fingerprint(self._ipa, ref),
+            "metric": metric_fingerprint(
+                self._ipa, ref, applicable_only=self._applicable_only
+            ),
             "phones": ref,
             "triangle": [
                 self._m[idxs[i]][idxs[j]] for i in range(n) for j in range(i + 1, n)
@@ -440,6 +462,7 @@ class DistanceModel:
         delete_cost: PhoneCost = 1.0,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
+        applicable_only: bool = False,
     ) -> Self:
         """External confusion matrix (TSV grid or JSON model). CDF over its pairs."""
         p = Path(path)
@@ -447,7 +470,13 @@ class DistanceModel:
             phones, m, sp = _load_matrix_tsv(p, space=space or "similarity")
         else:
             phones, m, sp, fingerprint = _load_matrix_json(p)
-            _check_fingerprint(ipa, phones, fingerprint, p)
+            _check_fingerprint(
+                ipa,
+                phones,
+                fingerprint,
+                p,
+                applicable_only=applicable_only,
+            )
         return cls(
             ipa,
             p.stem,
@@ -459,6 +488,7 @@ class DistanceModel:
             delete_cost=delete_cost,
             threshold=threshold,
             max_length_ratio=max_length_ratio,
+            applicable_only=applicable_only,
         )
 
     # -- introspection --------------------------------------------------------
@@ -472,6 +502,11 @@ class DistanceModel:
     def reference_phones(self) -> list[str]:
         """Copy of the reference inventory the percentiles are relative to."""
         return list(self._ref)
+
+    @property
+    def applicable_only(self) -> bool:
+        """Whether the matrix uses the applicability-scoped denominator."""
+        return self._applicable_only
 
     @property
     def insert_cost(self) -> PhoneCost:

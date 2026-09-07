@@ -4115,6 +4115,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             return True
         return "nucleus" in feat.applies and self.is_nucleus(bundle)
 
+    def feature_applies_or_is_stated(
+        self, feature: str, bundle: Mapping[str, str]
+    ) -> bool:
+        """Whether a feature applies to this host or states a non-default value."""
+        feat = self.features.get(feature)
+        value = bundle.get(feature)
+        stated = value is not None and feat is not None and value != feat.default
+        return self.feature_applies(feature, bundle) or stated
+
     def is_nucleus(self, bundle: Mapping[str, str]) -> bool:
         """Whether a feature bundle can be a syllable peak.
 
