@@ -160,10 +160,21 @@ def _check_fingerprint(
     derived = metric_fingerprint(ipa, phones, applicable_only=applicable_only)
     if derived == recorded:
         return
+    denominator = "applicability-scoped" if applicable_only else "basic"
+    other_denominator = "basic" if applicable_only else "applicability-scoped"
+    other = metric_fingerprint(ipa, phones, applicable_only=not applicable_only)
+    if recorded == other:
+        raise ValueError(
+            f"{path.name} uses a different feature space: the {other_denominator} "
+            f"denominator, but the reader requested the {denominator} denominator. "
+            f"The file records metric "
+            f"{recorded}, while that request gives {derived}. Reload with "
+            f"applicable_only={str(not applicable_only)}."
+        )
     raise ValueError(
-        f"{path.name} was derived in a different feature space than "
-        f"{ipa.xml_path.name} declares: the file records metric {recorded}, "
-        f"this inventory gives {derived}. Percentiles read from it would be "
+        f"{path.name} was derived in a different feature space from the "
+        f"{denominator} denominator {ipa.xml_path.name} declares: the file records "
+        f"metric {recorded}, this inventory gives {derived}. Percentiles read from it would be "
         "relative to a distribution this inventory did not produce. If you "
         "edited the inventory, regenerate the matrix: "
         "'python scripts/confusion.py generate --write' for the shipped one, "

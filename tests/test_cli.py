@@ -927,6 +927,12 @@ def _assert_scoped_reads_are_inventoried(
         names
         for capability, _, names in rows
         if capability == "Raw and inventory-relative distance"
+    ).copy()
+    raw.update(
+        name
+        for _, _, names in rows
+        for name in names
+        if "float" in str(inspect.signature(getattr(ipakit, name)).return_annotation)
     )
     scoped = set().union(
         *(
@@ -945,6 +951,11 @@ def _assert_scoped_reads_are_inventoried(
     assert (
         not without_parameter
     ), f"scoped reads without applicable_only: {without_parameter}"
+    assert (
+        "applicable_only"
+        in inspect.signature(ipakit.IPAFeatures.nearest_phones).parameters
+    )
+    assert "applicable_only" in inspect.signature(ipakit.Segment.distance).parameters
 
 
 class TestCapabilityInventoryContract:

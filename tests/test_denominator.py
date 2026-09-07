@@ -44,6 +44,29 @@ def test_every_named_public_read_carries_the_choice() -> None:
     ).matrix == ((1 - expected,),)
 
 
+def test_explicit_out_of_class_value_survives_scoping() -> None:
+    ipa = ipakit.IPAFeatures()
+    for marked, plain in (("sʴ", "s"), ("r˞", "r"), ("wʴ", "w")):
+        assert ipa.is_valid_ipa(marked)
+        assert ipa.describe(marked) != ipa.describe(plain)
+        assert ipa.segment_distance(marked, plain) == 0.05
+        assert ipa.segment_distance(marked, plain, applicable_only=True) > 0.0
+
+
+def test_neighbor_and_segment_reads_carry_the_choice() -> None:
+    ipa = ipakit.IPAFeatures()
+    expected = ipa.distance("sʴ", "s", applicable_only=True)
+    nearest = dict(ipa.nearest_phones("sʴ", n=len(ipa.phones), applicable_only=True))
+    assert nearest["s"] == expected
+    assert (
+        dict(ipakit.nearest_phones("sʴ", n=len(ipa.phones), applicable_only=True))["s"]
+        == expected
+    )
+    assert (
+        ipa.segment("sʴ").distance(ipa.segment("s"), applicable_only=True) == expected
+    )
+
+
 def test_every_restricted_feature_is_resolved_from_its_declaration() -> None:
     ipa = ipakit.IPAFeatures()
     hosts = {

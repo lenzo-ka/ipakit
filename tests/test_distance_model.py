@@ -472,11 +472,22 @@ class TestFeatureSpaceFingerprint:
         assert saved["metric"] == metric_fingerprint(
             ipa, saved["phones"], applicable_only=True
         )
-        with pytest.raises(ValueError, match="different feature space"):
+        with pytest.raises(ValueError, match="applicability-scoped denominator"):
             DistanceModel.from_matrix_file(ipa, path)
         reloaded = DistanceModel.from_matrix_file(ipa, path, applicable_only=True)
         assert reloaded.applicable_only is True
         assert reloaded.reference_phones == model.reference_phones
+
+    def test_denominator_mismatch_names_the_requested_fix(self, tmp_path, ipa):
+        basic = DistanceModel.derive(ipa, phones=["a", "e", "p"])
+        path = basic.save(tmp_path / "basic.json")
+        with pytest.raises(ValueError) as caught:
+            DistanceModel.from_matrix_file(ipa, path, applicable_only=True)
+        message = str(caught.value)
+        assert "basic denominator" in message
+        assert "applicability-scoped denominator" in message
+        assert "applicable_only=False" in message
+        assert "regenerate" not in message
 
     def test_round_trip(self, tmp_path, ipa):
         model = DistanceModel.derive(ipa, phones=_core_phones(ipa))

@@ -1416,6 +1416,8 @@ def nearest_phones(
     phone: str,
     n: int = 10,
     with_defaults: bool = True,
+    *,
+    applicable_only: bool = False,
 ) -> list[tuple[str, float]]:
     """Find the n nearest phones by phonetic distance.
 
@@ -1425,7 +1427,12 @@ def nearest_phones(
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
         [('t', 0.019), ('ɸ', 0.025), ('f', 0.028)]
     """
-    return _get_ipa().nearest_phones(phone, n=n, with_defaults=with_defaults)
+    return _get_ipa().nearest_phones(
+        phone,
+        n=n,
+        with_defaults=with_defaults,
+        applicable_only=applicable_only,
+    )
 
 
 def hierarchy(

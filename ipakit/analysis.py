@@ -223,17 +223,12 @@ class AnalysisMixin(IPAFeaturesBase):
         non-default value is always read out.
         """
 
-        def stated(name: str) -> bool:
-            feat = self.features.get(name)
-            value = feats.get(name)
-            return value is not None and feat is not None and value != feat.default
-
         pool = [
             name
             for name, feat in self.features.items()
             if feat.labels
             and name not in _PRIMARY_SLOTS
-            and (self.feature_applies(name, feats) or stated(name))
+            and self.feature_applies_or_is_stated(name, feats)
         ]
         last = len(_MODIFIER_READ_ORDER)
         return sorted(
@@ -374,6 +369,8 @@ class AnalysisMixin(IPAFeaturesBase):
         phone: str,
         n: int = 10,
         with_defaults: bool = True,
+        *,
+        applicable_only: bool = False,
     ) -> list[tuple[str, float]]:
         """Find the n nearest phones by phonetic distance.
 
@@ -386,6 +383,7 @@ class AnalysisMixin(IPAFeaturesBase):
             phone: The reference phone or composable unit
             n: Maximum number of results
             with_defaults: Include default feature values in comparison
+            applicable_only: Compare only applicable or explicitly stated features
 
         Raises:
             ValueError: if ``phone`` cannot be resolved at all -- an empty
@@ -402,7 +400,7 @@ class AnalysisMixin(IPAFeaturesBase):
         for candidate in self.phones:
             if candidate == phone:
                 continue
-            dist = self.distance(phone, candidate)
+            dist = self.distance(phone, candidate, applicable_only=applicable_only)
             distances.append((candidate, dist))
 
         distances.sort(key=lambda x: (x[1], x[0]))

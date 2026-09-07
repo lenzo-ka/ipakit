@@ -947,12 +947,14 @@ class Segment:
         """
         return {k: v for k, v in self.bag().items() if len(v) > 1}
 
-    def distance(self, other: Segment) -> float:
+    def distance(self, other: Segment, *, applicable_only: bool = False) -> float:
         """Structural distance to another Segment, in [0, 1] (the metric
         of design spec section 7; see ipakit.metric)."""
         from .metric import segment_metric
 
-        return segment_metric(self._require_features(), self, other)
+        return segment_metric(
+            self._require_features(), self, other, applicable_only=applicable_only
+        )
 
     def features_at(self, index: int, with_defaults: bool = True) -> dict[str, str]:
         """Flat features of the index-th top-level child (edge reads

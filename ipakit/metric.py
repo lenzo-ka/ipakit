@@ -331,14 +331,12 @@ def _bundle_terms(
         f1 = {
             key: value
             for key, value in f1.items()
-            if features.feature_applies(key, host1)
-            and features.feature_applies(key, host2)
+            if features.feature_applies_or_is_stated(key, host1)
         }
         f2 = {
             key: value
             for key, value in f2.items()
-            if features.feature_applies(key, host1)
-            and features.feature_applies(key, host2)
+            if features.feature_applies_or_is_stated(key, host2)
         }
     # Sorted, not set order: the loop below sums floats, and addition is
     # not associative, so iterating a set of strings makes the result
@@ -844,14 +842,12 @@ def _atomic_rows(
         f1 = {
             key: value
             for key, value in f1.items()
-            if features.feature_applies(key, host1)
-            and features.feature_applies(key, host2)
+            if features.feature_applies_or_is_stated(key, host1)
         }
         f2 = {
             key: value
             for key, value in f2.items()
-            if features.feature_applies(key, host1)
-            and features.feature_applies(key, host2)
+            if features.feature_applies_or_is_stated(key, host2)
         }
     for key in sorted(set(f1) | set(f2)):
         feat = features.features.get(key)
