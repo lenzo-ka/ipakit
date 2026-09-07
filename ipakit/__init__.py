@@ -26,7 +26,7 @@ from dataclasses import replace as _replace
 from pathlib import Path
 from typing import Any
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Re-export classes
 # ``tract_svg`` is imported here so ``import ipakit`` is enough to draw: the

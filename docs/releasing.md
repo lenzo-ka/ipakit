@@ -53,7 +53,24 @@ job references it; the OIDC identity is scoped to it).
    `## [X.Y.Z] - YYYY-MM-DD` heading (and fix the compare/tag links at the
    bottom).
 
-3. **Verify locally** (all must be clean):
+3. **Regenerate what carries the version.** `tests/tiergraph/baselines/derived-artifacts.json`
+   records the version it was captured under, so bumping step 1 makes it stale
+   and the manifest digest covering it stale with it:
+   ```bash
+   PYTHONHASHSEED=0 python scripts/tiergraph_capture.py artifacts
+   ```
+   Then update only that file's line in `tests/tiergraph/baselines/MANIFEST.sha256`.
+   Do **not** run `tiergraph_capture.py manifest` here: it globs the gitignored
+   `captures/` directory, so a manifest regenerated in a working checkout gains
+   entries a clean clone cannot reproduce.
+
+   A digest mismatch on `captures/confusion-derived.json` means a stale local
+   capture, not a regression: regenerate it with `PYTHONHASHSEED=0` and compare
+   against the committed value before believing the message. Working in the main
+   checkout is what exposes you to this; the captures directory is untracked and
+   shared across everything you have run there.
+
+4. **Verify locally** (all must be clean):
    ```bash
    make check          # lint, suite, invariants, the data validators, the document guards
    python scripts/check_hrefs.py   # the shipped hrefs still point at live articles
@@ -69,14 +86,14 @@ for an unrelated reason. Here a human is already waiting, and a link that
 died since the last release is about to be published. It exits 2 rather than
 0 when it cannot reach the API — unchecked is not the same as clean.
 
-4. **Commit + tag**:
+5. **Commit + tag**:
    ```bash
    git commit -am "Release vX.Y.Z"
    git tag vX.Y.Z          # tag must equal ipakit.__version__ with a leading v
    git push && git push --tags
    ```
 
-5. **Publish** — create a **GitHub Release** for tag `vX.Y.Z` (Releases → Draft
+6. **Publish** — create a **GitHub Release** for tag `vX.Y.Z` (Releases → Draft
    a new release). Publishing the release triggers `publish.yml`, which:
    - builds sdist + wheel,
    - runs `twine check`,
@@ -84,7 +101,7 @@ died since the last release is about to be published. It exits 2 rather than
      otherwise),
    - uploads to PyPI via OIDC.
 
-6. **Verify**: `pip install ipakit==X.Y.Z` and `python -c "import ipakit; print(ipakit.__version__)"`.
+7. **Verify**: `pip install ipakit==X.Y.Z` and `python -c "import ipakit; print(ipakit.__version__)"`.
 
 ---
 
