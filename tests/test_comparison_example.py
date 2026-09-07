@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import ipakit
+import pytest
 from scripts._comparison_order import aligned_orders
-from scripts.compare_inventories import partition_selections
 
 
 def test_shared_phones_lead_both_axes_at_the_same_indices() -> None:
@@ -32,6 +32,9 @@ def test_shared_phones_lead_both_axes_at_the_same_indices() -> None:
 
 
 def test_partition_seeding_is_optimal_and_refuses_when_sources_are_too_few() -> None:
+    pytest.importorskip("scipy")
+    from scripts.compare_inventories import partition_selections
+
     sources = ("a", "b", "c")
     uncovered_targets = ("x", "y")
     targets = ("x", "y", "z")

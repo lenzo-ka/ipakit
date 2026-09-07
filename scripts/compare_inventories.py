@@ -34,7 +34,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 try:
-    import matplotlib
     import numpy as np
     from scipy.cluster.hierarchy import (
         leaves_list,
@@ -48,10 +47,7 @@ except ImportError as error:
         'inventory comparison extras are required; install with: pip install -e ".[compare]"'
     ) from error
 
-matplotlib.use("svg")
 import ipakit  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import Rectangle  # noqa: E402
 from scripts._comparison_order import aligned_orders  # noqa: E402
 
 DEFAULT_CUTOFF = 0.75
@@ -334,6 +330,18 @@ def write_heatmap(
     b_name: str,
 ) -> None:
     """Write a self-contained SVG heatmap with the exact-match diagonal marked."""
+    try:
+        import matplotlib
+
+        matplotlib.use("svg")
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Rectangle
+    except ImportError as error:
+        raise SystemExit(
+            "inventory comparison extras are required; install with: "
+            'pip install -e ".[compare]"'
+        ) from error
+
     width = max(9.0, 3.5 + 0.23 * len(columns))
     height = max(7.0, 2.5 + 0.23 * len(rows))
     figure, axis = plt.subplots(figsize=(width, height), constrained_layout=True)
