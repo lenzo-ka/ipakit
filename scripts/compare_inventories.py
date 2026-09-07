@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
-"""Cluster and draw the similarity matrix for two phone inventories.
+"""Draw two inventories, then show three answers to "how do they map?"
 
 The library preserves declaration order because that is meaningful source data,
 but declaration order hides structure in a figure. This example clusters the
 shared and side-only groups independently while using one shared-phone order on
 both axes, making exact matches a visible leading diagonal without discarding
 the inventories' unmatched phones.
+
+The mapping display fixes every shared phone to its identity first.  It then
+compares the side-only phones in three ways: an unconstrained cover (a source
+may be reused), an optimal one-to-one matching, and a partition of all sources
+onto all targets, with globally optimal seeding of the uncovered targets.
+Cover and matching make sense in either direction.  A partition does not: it
+is a surjection, so it is refused when there are fewer side-only sources than
+side-only targets.
+
+For the default pair this matters twice.  ``ʊ`` and ``ə`` are shared and
+therefore cannot also stand in for ``u`` and ``ʌ``.  The best eligible rows are
+``ʉ → u`` and ``ɐ → ʌ`` instead: ʉ and ɐ are how MFA spells the vowels
+CMU writes ``u`` and ``ʌ``.  With identities fixed, the partition recovers a
+notational correspondence between the projects, not an acoustic near-miss.
 """
 
 from __future__ import annotations
@@ -13,6 +27,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,6 +41,7 @@ try:
         linkage,
         optimal_leaf_ordering,
     )
+    from scipy.optimize import linear_sum_assignment
     from scipy.spatial.distance import squareform
 except ImportError as error:
     raise SystemExit(
@@ -37,6 +53,215 @@ import ipakit  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 from scripts._comparison_order import aligned_orders  # noqa: E402
+
+DEFAULT_CUTOFF = 0.75
+
+
+@dataclass(frozen=True)
+class Selection:
+    """One selected from-phone for a to-phone."""
+
+    source: str
+    target: str
+    similarity: float
+    extra_cost: float = 0.0
+
+
+def side_similarities(
+    result: ipakit.PhonesetComparison,
+) -> dict[tuple[str, str], float]:
+    """Measure side-only sources against every target without source reuse."""
+    row = {phone: i for i, phone in enumerate(result.a.phones)}
+    column = {phone: i for i, phone in enumerate(result.b.phones)}
+    return {
+        (source, target): result.matrix[row[source]][column[target]]
+        for source in result.only_a
+        for target in result.b.phones
+    }
+
+
+def cover_selections(
+    sources: tuple[str, ...],
+    targets: tuple[str, ...],
+    scores: dict[tuple[str, str], float],
+) -> tuple[Selection, ...]:
+    """Best source for each target, with reuse permitted."""
+    return tuple(
+        Selection(source, target, scores[source, target])
+        for target in targets
+        for source in [max(sources, key=lambda item: scores[item, target])]
+    )
+
+
+def matching_selections(
+    sources: tuple[str, ...],
+    targets: tuple[str, ...],
+    scores: dict[tuple[str, str], float],
+) -> tuple[Selection, ...]:
+    """Globally optimal one-to-one selection, never greedy nearest-first."""
+    rows, columns = linear_sum_assignment(
+        np.asarray(
+            [[-scores[source, target] for source in sources] for target in targets]
+        )
+    )
+    by_target = {
+        targets[row]: sources[column] for row, column in zip(rows, columns, strict=True)
+    }
+    return tuple(
+        Selection(
+            by_target[target],
+            target,
+            scores[by_target[target], target],
+            max(scores[source, target] for source in sources)
+            - scores[by_target[target], target],
+        )
+        for target in targets
+    )
+
+
+def partition_selections(
+    sources: tuple[str, ...],
+    uncovered_targets: tuple[str, ...],
+    targets: tuple[str, ...],
+    scores: dict[tuple[str, str], float],
+) -> tuple[Selection, ...] | str:
+    """Optimally seeded surjection, or the reason that no surjection exists.
+
+    Surjectivity binds targets: every target must receive a source.  It does not
+    bind sources to uncovered targets; after coverage is secured, every other
+    source may join any target, including one already covered by an identity or
+    another source, and therefore keeps its unconstrained best target.
+
+    Choosing distinct representatives that maximize their total similarity to
+    the uncovered targets is a linear assignment problem.  Solving it makes the
+    seeding globally optimal (unlike filling targets greedily, which can spend
+    another target's only good source).  It does not minimize total regret from
+    every source's nearest target; that is a different objective.  Once seeded,
+    each remaining source independently takes its nearest target.
+    """
+    if len(sources) < len(uncovered_targets):
+        return (
+            f"refused: partition has {len(sources)} side-only sources and "
+            f"{len(uncovered_targets)} side-only targets; a surjection requires at least "
+            "as many sources as targets"
+        )
+    best = {
+        source: max(targets, key=lambda target: scores[source, target])
+        for source in sources
+    }
+    seed_costs = np.asarray(
+        [
+            [-scores[source, target] for source in sources]
+            for target in uncovered_targets
+        ]
+    )
+    rows, columns = linear_sum_assignment(seed_costs)
+    representative = {
+        sources[column]: uncovered_targets[row]
+        for row, column in zip(rows, columns, strict=True)
+    }
+    return tuple(
+        Selection(
+            source,
+            representative.get(source, best[source]),
+            scores[source, representative.get(source, best[source])],
+            scores[source, best[source]]
+            - scores[source, representative.get(source, best[source])],
+        )
+        for source in sources
+    )
+
+
+def print_mapping_table(
+    title: str,
+    sources: tuple[str, ...],
+    targets: tuple[str, ...],
+    scores: dict[tuple[str, str], float],
+    selections: tuple[Selection, ...],
+    cutoff: float,
+) -> None:
+    """Print target-first candidate rows, selected first and visibly marked."""
+    print(f"\n{title}")
+    print("to phone  candidates (descending similarity; * selected)")
+    for target in targets:
+        selected = [item for item in selections if item.target == target]
+        selected_sources = {item.source for item in selected}
+        candidates = sorted(
+            (
+                (source, scores[source, target])
+                for source in sources
+                if scores[source, target] >= cutoff or source in selected_sources
+            ),
+            key=lambda item: (-item[1], sources.index(item[0])),
+        )
+        selected_by_source = {item.source: item for item in selected}
+        ordered = [item for item in candidates if item[0] in selected_sources]
+        ordered.extend(item for item in candidates if item[0] not in selected_sources)
+        rendered = []
+        for source, similarity in ordered:
+            choice = selected_by_source.get(source)
+            mark = "*" if choice is not None else " "
+            cost = (
+                f", cost +{choice.extra_cost:.4f}"
+                if choice is not None and choice.extra_cost > 5e-13
+                else ""
+            )
+            rendered.append(f"{mark}{source} {similarity:.4f}{cost}")
+        print(f"{target:<8}  {', '.join(rendered) or '—'}")
+
+
+def print_mappings(result: ipakit.PhonesetComparison, cutoff: float) -> None:
+    """Print fixed identities, three forward modes, and reverse refusal."""
+    sources, targets = result.only_a, result.only_b
+    scores = side_similarities(result)
+    print(
+        f"\nfixed identities: {len(result.intersection)} shared phones "
+        "(reported as one block; each maps to itself)"
+    )
+    print(f"candidate cutoff: similarity >= {cutoff:.2f}")
+    print_mapping_table(
+        "unconstrained cover",
+        sources,
+        targets,
+        scores,
+        cover_selections(sources, targets, scores),
+        cutoff,
+    )
+    print_mapping_table(
+        "optimal one-to-one matching",
+        sources,
+        targets,
+        scores,
+        matching_selections(sources, targets, scores),
+        cutoff,
+    )
+    partition = partition_selections(sources, targets, result.b.phones, scores)
+    assert not isinstance(partition, str)
+    print_mapping_table(
+        "partition (globally optimal seeding; surjection)",
+        sources,
+        result.b.phones,
+        scores,
+        partition,
+        cutoff,
+    )
+    by_pair = {(item.source, item.target): item for item in partition}
+    if ("ʉ", "u") in by_pair and ("ɐ", "ʌ") in by_pair:
+        high = by_pair["ʉ", "u"]
+        low = by_pair["ɐ", "ʌ"]
+        print(
+            "fixed-identity rows: "
+            f"*ʉ → u {high.similarity:.4f}, cost +{high.extra_cost:.4f}; "
+            f"*ɐ → ʌ {low.similarity:.4f}, cost +{low.extra_cost:.4f}"
+        )
+    reverse = partition_selections(
+        targets,
+        sources,
+        result.a.phones,
+        {(target, source): value for (source, target), value in scores.items()},
+    )
+    assert isinstance(reverse, str)
+    print(f"\nreverse partition\n{reverse}")
 
 
 def clustered(phones: tuple[str, ...]) -> tuple[str, ...]:
@@ -147,13 +372,19 @@ def write_heatmap(
 def parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     argument_parser = argparse.ArgumentParser(description=__doc__)
-    argument_parser.add_argument("a", nargs="?", default="cmudict")
-    argument_parser.add_argument("b", nargs="?", default="mfa:english_us")
+    argument_parser.add_argument("a", nargs="?", default="mfa:english_us")
+    argument_parser.add_argument("b", nargs="?", default="cmudict")
     argument_parser.add_argument(
         "--output",
         type=Path,
         default=Path("phoneset-comparison.svg"),
         help="SVG destination; the ordered TSV uses the same stem (default: %(default)s)",
+    )
+    argument_parser.add_argument(
+        "--cutoff",
+        type=float,
+        default=DEFAULT_CUTOFF,
+        help="minimum similarity shown in candidate lists (default: %(default)s)",
     )
     return argument_parser
 
@@ -164,12 +395,15 @@ def main() -> int:
     svg_path = args.output
     tsv_path = svg_path.with_suffix(".tsv")
     result = ipakit.phoneset_comparison(args.a, args.b)
+    if not 0.0 <= args.cutoff <= 1.0:
+        raise SystemExit("--cutoff must be between 0 and 1")
     rows, columns, matrix = ordered_comparison(result)
     svg_path.parent.mkdir(parents=True, exist_ok=True)
     write_tsv(tsv_path, rows, columns, matrix)
     write_heatmap(svg_path, result, rows, columns, matrix, args.a, args.b)
     print(tsv_path)
     print(svg_path)
+    print_mappings(result, args.cutoff)
     return 0
 
 
