@@ -1,6 +1,6 @@
 # Tier-graph acceptance coverage
 
-The graph kernel is the `tiergraph` library (`tiergraph>=0.1.0,<0.2.0`, <https://github.com/lenzo-ka/tiergraph>), so the criteria below split three ways. A cell naming a test names a witness in this repository. A cell saying **tiergraph contract** names a guarantee that belongs to the library and is carried by that project's own conformance suite; no path here can honor it, and none is given. A cell saying **no local witness** records a criterion this repository asserts and does not currently test.
+The graph kernel is the `tiergraph` library (`tiergraph>=0.2.0,<0.3.0`, <https://github.com/lenzo-ka/tiergraph>), so the criteria below split three ways. A cell naming a test names a witness in this repository. A cell saying **tiergraph contract** names a guarantee that belongs to the library and is carried by that project's own conformance suite; no path here can honor it, and none is given. A cell saying **no local witness** records a criterion this repository asserts and does not currently test.
 
 Nothing gates this table, so a citation goes stale silently. Re-resolve the node ids before trusting a row.
 

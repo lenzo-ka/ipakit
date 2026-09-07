@@ -39,6 +39,8 @@ derived forms, expose structural queries at the shell, and test rule systems
 against paired forms. That is also the substrate on which rule induction can
 run; the inducer itself remains a separate concern.
 
+Praat TextGrids enter and leave through named tier profiles, including an MFA alignment profile. The shipped [inventory registry](https://github.com/lenzo-ka/ipakit/blob/main/docs/inventories.md) includes the pinned MFA phone declarations and eSpeak NG vocabularies, and [TextGrid interchange](https://github.com/lenzo-ka/ipakit/blob/main/docs/textgrid.md) applies those inventory styles to tier labels without guessing.
+
 The package uses tiergraph for graph navigation; its phonetic data and geometry
 ship as declarations. It is typed, and the Python API and `ipakit` command expose the
 same model. See [the canonical representation](https://github.com/lenzo-ka/ipakit/blob/main/docs/representation.md),
@@ -84,6 +86,7 @@ ipakit.respell("t", manner="nasal") # None  (unattested — no phone spells it)
 
 # Phonetic distance (0.0 identical … 1.0 maximally different)
 ipakit.distance("p", "b")       # small: differ only in voicing
+ipakit.distance("p", "b", applicable_only=True)  # omit features either host cannot carry
 ipakit.nearest_phones("p", n=3) # [(phone, distance), ...] closest first
 ipakit.word_similarity("kæt", "kæd")   # near 1.0: a minimal pair
 ipakit.sequence_distance(["k", "a", "t"], ["k", "æ", "t"])  # over pre-tokenized phones
@@ -94,6 +97,8 @@ m = ipakit.phoneset_mapping(["s", "z", "ʃ"], ["s", "z"])
 m.collapses          # {'s': ('s', 'ʃ')} -- the contrast the target cannot carry
 ipakit.phoneset_mapping(["s", "z", "ʃ"], ["s", "z"], one_to_one=True).unmapped
                        # ('ʃ',) -- a matching refuses where nearest merged
+ipakit.phoneset_comparison("pocketsphinx", "mfa:english_us")
+                       # set differences, nearest mappings both ways, and a similarity matrix
 
 # Tokenize / normalize (tie-bar affricates, diphthongs)
 ipakit.tokenize("t͡ʃe͜ɪnd͡ʒ")   # ['t͡ʃ', 'e͜ɪ', 'n', 'd͡ʒ']

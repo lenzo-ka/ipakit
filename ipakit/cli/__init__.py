@@ -14,7 +14,9 @@ Organized into subcommands:
     ipakit analysis ...         Analyze phones (describe, natural-class, minimal-pairs)
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
+    ipakit inventory ...        Inspect named inventories and notation styles
     ipakit phoible ...          Read mounted PHOIBLE doculect inventories
+    ipakit textgrid ...         Read and write Praat TextGrid documents
     ipakit tract ...            Draw the mid-sagittal tract figure
     ipakit tiergraph ...        Render a form's tier graph as Graphviz DOT
 
@@ -105,6 +107,8 @@ Examples:
   ipakit features "pʰ" --short         # Get short names for aspirated p
   ipakit describe p                    # "voiceless bilabial plosive"
   ipakit corpus init speech-corpus     # Create an empty form corpus
+  ipakit inventory list               # List named inventories and styles
+  ipakit textgrid write "kæt" -o kæt.TextGrid  # Write a segment-tier TextGrid
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert from-cmu K AE1 T        # CMU to IPA: kˈæt
   ipakit convert to-json "kæt"          # Versioned graph-backed Form JSON
@@ -121,6 +125,7 @@ Examples:
   ipakit distance word kæt kæd         # word similarity
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
+  ipakit info stress                   # Show the declared stress markers
   ipakit phoible --help                # Mounted PHOIBLE inventory commands
   ipakit tract draw t -o t.svg         # Mid-sagittal figure for 't'
   ipakit tiergraph "kæt" -o kæt.dot    # Complete ordered tier graph

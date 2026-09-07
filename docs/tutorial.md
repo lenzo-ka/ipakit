@@ -344,11 +344,9 @@ ipa.features_from_cmu("K")[0]["place"]  # 'velar'
 ipa.to_cmu("k4t")  # ['K', 'T']   the '4' is dropped
 ```
 
-> **A gap worth knowing about.** `ipakit convert to-cmu "k4t"` prints `K T` and exits 0
-> with no warning, while `ipakit features "k4t"` warns and exits 3 under the CLI's
-> lossy-read policy. The converters drop unmappable symbols silently by design, so
-> nothing reaches the policy layer that sets the exit status. If you are calling the
-> converters from a script, pass `--strict`.
+> **Loss is explicit.** `ipakit convert to-cmu "k4t"` prints `K T`, warns that `4` was
+> dropped, and exits 3, just as `ipakit features "k4t"` does under the CLI's lossy-read
+> policy. Pass `--strict` to refuse the partial conversion instead.
 
 ## 5. Splitting a transcription, and keeping what `segments()` drops
 

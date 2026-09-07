@@ -50,6 +50,9 @@ using it.
 | [calculus.md](calculus.md) | **Form to *set* of forms.** What the optional arrow `A ~> B` opens: optionality per site, the closure and the identity, whether composition is associative and where the cap stops it, whether the set is finite, and how a truncation is reported. What the algebra cannot express is said near the top rather than in a footnote. |
 | [similarity.md](similarity.md) | **Why similarity has this shape.** The standing justification for the scoring commitments, their structural and external validation, and their stated costs beside neighboring approaches. |
 | [distance.md](distance.md) | **How distance is computed.** The operational mechanics, parameters, checked values, and — stated plainly — the failure of triangle inequality, with the uses that rules out. |
+| [inventories.md](inventories.md) | **Named inventories and styles.** The shipped IPA, MFA, eSpeak, aligner, and machine-notation vocabularies; strict reading and spelling; dictionary-derived inventories; and the registry used by TextGrid labels and phoneset comparison. |
+| [mfa-vocabularies.md](mfa-vocabularies.md) | **Generated MFA vocabulary inventory.** The pinned source revision, declarations, refusals, and generation inputs behind the shipped MFA registry members. |
+| [espeak-vocabularies.md](espeak-vocabularies.md) | **Generated eSpeak NG vocabulary inventory.** The source version, declaration coverage, and refusal classes behind the shipped language-scoped and union inventories. |
 | [supplements.md](supplements.md) | **Extending the inventory.** Registering a sound `ipa.xml` does not: what that buys that composition already gives you and what it does not, what a supplemental file may declare, how it merges, what it does to `to_phone`'s choice of winner and to the reference distribution, and how to carry your own derived matrix. |
 
 ## Reference — the articulatory model
@@ -60,7 +63,14 @@ using it.
 | [tract-reference.md](tract-reference.md) | The labeled key to the mid-sagittal figures. |
 | [tract-figures.md](tract-figures.md) | The figures in [figures/](figures/), what each shows, how `make figures` draws them, and how to draw your own — from Python, from a notebook, or from the command line. |
 | [articulatory-data.md](articulatory-data.md) | The model measured against an external corpus (X-Ray Microbeam). What that corpus can ground, what it cannot see, and why its blind spots are facts about the instrument rather than about phonetics. |
+| [anchor-study.md](anchor-study.md) | The generated audio-to-pellet synchronization gate and target-timing measurements that support the articulatory comparison. |
 | [gestural-model.md](gestural-model.md) | The landed gesture and timed-target projection backend, its three-level animation fallback, and the larger dynamic gestural model that remains a design direction. |
+
+## Generated validation exhibits
+
+| | |
+| --- | --- |
+| [perceptual-validation-exhibits.md](perceptual-validation-exhibits.md) | The generated Miller–Nicely comparison behind the perceptual validation discussed in [similarity.md](similarity.md). |
 
 ## The wider literature
 
@@ -75,6 +85,8 @@ using it.
 | [state-of-the-work.md](state-of-the-work.md) | **What is settled, open and refused.** A generated index over the dated design records, with every entry pointing back to the verdict or superseded finding that supplies it. |
 | [reviewing.md](reviewing.md) | **Read this before changing anything.** How defects in this library have actually been found — every one a silent wrong answer under a green suite. Measure rather than predict; sweep rather than sample; make two things equal by construction. |
 | [releasing.md](releasing.md) | The release checklist. |
+| [cli-api-sync.md](cli-api-sync.md) | The generated cross-check of public Python reads against CLI reachability and explicit library-only decisions. |
+| [tiergraph-acceptance.md](tiergraph-acceptance.md) | The acceptance criteria for the tiergraph integration, with local witnesses, upstream contracts, and acknowledged coverage gaps. |
 
 The documents in `design/` are dated historical design records. They preserve the evidence and decisions that led to the implementation, but [representation.md](representation.md) supersedes them wherever they describe the stored representation.
 
