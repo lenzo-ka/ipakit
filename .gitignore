@@ -53,3 +53,7 @@ captures/
 
 # On-demand working artifacts from scripts/frontal_figures.py, unpinned by design.
 talking-heads/
+# scripts/compare_inventories.py writes here when run without --output, so a
+# reader following the example in a checkout does not dirty the tree.
+phoneset-comparison.svg
+phoneset-comparison.tsv
