@@ -466,6 +466,51 @@ def test_inventory_from_cmudict_keeps_first_seen_order(tmp_path) -> None:
     assert list(derived.phones or ()) == ["w", "ˈɝ", "d", "ˈɔ", "ɹ"]
     assert derived.style.name == "cmudict"
     assert str(source) in derived.provenance
+    assert derived.counts == {
+        "w": {"entries": 2, "tokens": 2},
+        "ˈɝ": {"entries": 1, "tokens": 1},
+        "d": {"entries": 2, "tokens": 2},
+        "ˈɔ": {"entries": 1, "tokens": 1},
+        "ɹ": {"entries": 1, "tokens": 1},
+    }
+    assert derived.dropped == {}
+
+
+def test_inventory_from_dictionary_counts_tokens_and_entries_separately(
+    tmp_path,
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("ONE P P AH0\nTWO P T\n", encoding="utf-8")
+    derived = ipakit.inventory_from_dictionary(source, "cmudict")
+    assert derived.counts == {
+        "p": {"entries": 2, "tokens": 3},
+        "ə": {"entries": 1, "tokens": 1},
+        "t": {"entries": 1, "tokens": 1},
+    }
+    json.dumps(derived.counts)
+
+
+def test_inventory_from_dictionary_can_drop_a_low_entry_tail(tmp_path) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("ONE P P AH0\nTWO P T\n", encoding="utf-8")
+    derived = ipakit.inventory_from_dictionary(source, "cmudict", min_entries=2)
+    assert list(derived.phones or ()) == ["p"]
+    assert derived.counts["p"] == {"entries": 2, "tokens": 3}
+    assert derived.dropped == {
+        "ə": {"entries": 1, "tokens": 1},
+        "t": {"entries": 1, "tokens": 1},
+    }
+    assert derived.refusals == {}
+
+
+@pytest.mark.parametrize("minimum", [0, -1])
+def test_inventory_from_dictionary_refuses_invalid_entry_cutoff(
+    tmp_path, minimum: int
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("ONE P\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="min_entries must be at least 1"):
+        ipakit.inventory_from_dictionary(source, "cmudict", min_entries=minimum)
 
 
 def test_inventory_from_mfa_dictionary_uses_its_declaration() -> None:
@@ -573,3 +618,49 @@ def test_inventory_from_dictionary_cli_text_native_and_json(
         {"house_ipa": "p", "spelling": "P"},
         {"house_ipa": "ə", "spelling": "AH"},
     ]
+    assert report["counts"] == {
+        "p": {"entries": 1, "tokens": 1},
+        "ə": {"entries": 1, "tokens": 1},
+    }
+    assert report["dropped"] == {}
+
+
+def test_inventory_from_dictionary_cli_reports_requested_drops(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("ONE P AH0\nTWO P T\n", encoding="utf-8")
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "cmudict",
+        "--min-entries",
+        "2",
+    )
+    assert (rc, output) == (0, "p\n")
+    assert error == "dropped\tə\tentries=1\ttokens=1\ndropped\tt\tentries=1\ttokens=1\n"
+
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "cmudict",
+        "--min-entries",
+        "2",
+        "-f",
+        "json",
+    )
+    assert (rc, error) == (0, "")
+    report = json.loads(output)
+    assert report["phones"] == [{"house_ipa": "p", "spelling": "P"}]
+    assert report["dropped"] == {
+        "ə": {"entries": 1, "tokens": 1},
+        "t": {"entries": 1, "tokens": 1},
+    }

@@ -65,6 +65,8 @@ class Inventory:
     provenance: str
     version: str | None = None
     refusals: dict[str, str] = field(default_factory=dict)
+    counts: dict[str, dict[str, int]] = field(default_factory=dict)
+    dropped: dict[str, dict[str, int]] = field(default_factory=dict)
 
 
 def _one_ipa(spelling: str) -> str:
@@ -488,6 +490,8 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
             provenance,
             item.version,
             item.refusals,
+            item.counts,
+            item.dropped,
         )
     return item
 
@@ -498,8 +502,11 @@ def inventory_from_dictionary(
     *,
     name: str | None = None,
     ipa: IPAFeatures | None = None,
+    min_entries: int | None = None,
 ) -> Inventory:
-    """Derive a finite inventory from a pronunciation dictionary."""
+    """Derive a counted finite inventory from a pronunciation dictionary."""
+    if min_entries is not None and min_entries < 1:
+        raise ValueError("min_entries must be at least 1")
     selected = inventory(style).style if isinstance(style, str) else style
     if ipa is not None and selected.name in {"ipa", "wild"}:
         from .form import Form
@@ -552,6 +559,8 @@ def inventory_from_dictionary(
         )
 
     phones: list[str] = []
+    token_counts: dict[str, int] = defaultdict(int)
+    entry_counts: dict[str, int] = defaultdict(int)
     source = Path(path)
     from .models import _silence_spellings
 
@@ -570,26 +579,45 @@ def inventory_from_dictionary(
                 if parsed is None:
                     continue
                 entry, spellings = parsed
+                entry_phones: list[str] = []
                 for spelling in spellings:
                     if spelling in silence:
                         continue
                     try:
-                        phones.append(selected.read(spelling))
+                        phone = selected.read(spelling)
                     except ValueError as error:
                         raise ValueError(
                             f"cannot read dictionary line {line_number} in {source}: "
                             f"entry {entry!r}, phone {spelling!r}: {error}"
                         ) from error
+                    phones.append(phone)
+                    entry_phones.append(phone)
+                    token_counts[phone] += 1
+                for phone in dict.fromkeys(entry_phones):
+                    entry_counts[phone] += 1
     except OSError as error:
         raise ValueError(
             f"cannot read pronunciation dictionary {source}: {error}"
         ) from error
     inventory_name = name or source.stem
+    counts = {
+        phone: {"entries": entry_counts[phone], "tokens": token_counts[phone]}
+        for phone in dict.fromkeys(phones)
+    }
+    dropped = {
+        phone: dict(count)
+        for phone, count in counts.items()
+        if min_entries is not None and count["entries"] < min_entries
+    }
     return Inventory(
         inventory_name,
         selected,
-        _inventory_phones(phones, inventory_name),
+        _inventory_phones(
+            [phone for phone in phones if phone not in dropped], inventory_name
+        ),
         f"Pronunciation dictionary {source} read as {selected.name}",
+        counts=counts,
+        dropped=dropped,
     )
 
 

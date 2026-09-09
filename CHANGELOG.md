@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Dictionary-derived inventories carry token and entry counts and report optional `min_entries` tail drops.
 - `DistanceModel` warns when its reference inventory holds too few distinct-phone pairs to place a percentile position.
 
 ### Changed

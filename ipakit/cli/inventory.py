@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import ClassVar
 
@@ -106,6 +107,11 @@ class InventoryFromDictionaryCommand(Command):
         parser.add_argument("--style", required=True, help="Dictionary phone notation")
         parser.add_argument("--name", help="Name for the derived inventory")
         parser.add_argument(
+            "--min-entries",
+            type=int,
+            help="Drop phones attested in fewer dictionary entries",
+        )
+        parser.add_argument(
             "--spell",
             choices=("house", "native"),
             default="house",
@@ -117,7 +123,11 @@ class InventoryFromDictionaryCommand(Command):
     def run(self) -> int:
         try:
             item = inventory_from_dictionary(
-                self.args.file, self.args.style, name=self.args.name, ipa=self.ipa
+                self.args.file,
+                self.args.style,
+                name=self.args.name,
+                ipa=self.ipa,
+                min_entries=self.args.min_entries,
             )
             assert item.phones is not None
             rows = [
@@ -136,12 +146,21 @@ class InventoryFromDictionaryCommand(Command):
                     "style": item.style.name,
                     "provenance": item.provenance,
                     "phones": rows,
+                    "counts": item.counts,
+                    "dropped": item.dropped,
                 }
             )
         else:
             key = "house_ipa" if self.args.spell == "house" else "spelling"
             for row in rows:
                 self.print(row[key])
+            for phone, counts in item.dropped.items():
+                spelling = phone if key == "house_ipa" else item.style.spell(phone)
+                print(
+                    f"dropped\t{spelling}\tentries={counts['entries']}"
+                    f"\ttokens={counts['tokens']}",
+                    file=sys.stderr,
+                )
         return 0
 
 
