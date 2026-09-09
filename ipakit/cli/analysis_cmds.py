@@ -104,7 +104,9 @@ class MinimalPairsCommand(Command):
 
     Minimal pairs are phones that differ in only one phonetic feature.
     This is useful for understanding phonological contrasts and for
-    language teaching (learners confuse similar sounds).
+    language teaching (learners confuse similar sounds). Unlike nearest,
+    minimal pairs exclude the reference because it differs from itself by
+    no features.
 
     Examples:
         ipakit analysis minimal-pairs p    # t, ɸ, f ...
@@ -165,7 +167,9 @@ class NearestCommand(Command):
 
     Ranks all phones by their phonetic similarity to the reference phone,
     based on feature distance. Useful for finding related sounds or
-    potential confusion pairs.
+    potential confusion pairs. The reference appears first at distance 0
+    because it belongs to this inventory, and therefore uses one of the n
+    result slots.
 
     Examples:
         ipakit analysis nearest p          # Show 10 nearest phones to p

@@ -600,13 +600,15 @@ class DistanceModel:
         """The ``n`` reference phones closest to ``phone``.
 
         Returns ``(phone, distance)`` pairs sorted by ascending distance.
-        A phone outside the model's matrix is scored against the reference
-        inventory via the :meth:`confusability` fallback; empty if its
-        features cannot be derived at all.
+        The query appears first at distance 0 when it belongs to the reference
+        set and therefore uses one of the ``n`` result slots. A phone outside
+        the model's matrix is scored against the reference inventory via the
+        :meth:`confusability` fallback but does not become a reference phone;
+        empty if its features cannot be derived at all.
         """
         if phone not in self._index and not self._resolves(phone):
             return []
-        ds = [(p, self.distance(phone, p)) for p in self._ref if p != phone]
+        ds = [(p, self.distance(phone, p)) for p in self._ref]
         ds.sort(key=lambda x: (x[1], x[0]))
         return ds[:n]
 

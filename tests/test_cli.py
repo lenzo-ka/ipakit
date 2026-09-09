@@ -197,6 +197,13 @@ class TestAnalysis:
         assert rc == 0
         assert "plosive" in out
 
+    def test_nearest_includes_the_reference_in_n(self, monkeypatch, capsys):
+        rc, out, _ = run(
+            monkeypatch, capsys, "analysis", "nearest", "p", "-n", "1", "-j"
+        )
+        assert rc == 0
+        assert json.loads(out)["nearest"] == [{"phone": "p", "distance": 0.0}]
+
     def test_validate_valid(self, monkeypatch, capsys):
         rc, _, _ = run(monkeypatch, capsys, "analysis", "validate", "kæt")
         assert rc == 0

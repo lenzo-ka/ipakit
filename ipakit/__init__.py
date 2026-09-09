@@ -1090,6 +1090,8 @@ def minimal_pairs(
     """Find phones that differ by approximately one feature (minimal pairs).
 
     Returns list of (phone, differing_feature, differing_value) tuples.
+    Unlike :func:`nearest_phones`, this function excludes the query because a
+    phone differs from itself by no features.
 
     Examples:
         >>> ipakit.minimal_pairs("p")
@@ -1422,10 +1424,13 @@ def nearest_phones(
     """Find the n nearest phones by phonetic distance.
 
     Returns list of (phone, distance) tuples sorted by distance.
+    The query appears first at distance 0 when it belongs to the registered
+    reference set and therefore uses one of the ``n`` result slots. A
+    resolvable query outside that set is not synthesized as an answer.
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('t', 0.019), ('ɸ', 0.025), ('f', 0.028)]
+        [('p', 0.0), ('t', 0.019), ('ɸ', 0.025)]
     """
     return _get_ipa().nearest_phones(
         phone,

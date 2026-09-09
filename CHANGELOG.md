@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Nearest-phone results include the query at distance 0 when it belongs to the reference inventory; unregistered queries are not synthesized as answers.
+
 ## [0.2.0] - 2026-09-07
 
 ### Changed

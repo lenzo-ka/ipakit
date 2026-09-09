@@ -122,7 +122,7 @@ $ ipakit distance pair p b
 $ ipakit distance pair p a
 ```
 
-`nearest_phones` is usually the more useful question — not *how far* but *what is close*:
+`nearest_phones` is usually the more useful question — not *how far* but *what is close*. A query that belongs to the reference inventory appears first at distance 0, so it uses one of the requested result slots:
 
 ```python-run
 ipa.nearest_phones("p", n=5)

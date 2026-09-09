@@ -181,13 +181,14 @@ class TestInventoryRelativity:
 
 
 class TestNearest:
-    def test_sorted_restricted_excludes_self(self, ipa):
+    def test_sorted_restricted_includes_self(self, ipa):
         phones = _core_phones(ipa)
         m = _model(ipa, phones)
         near = m.nearest("p", n=3)
         assert len(near) == 3
+        assert near[0] == ("p", 0.0)
+        assert m.nearest("p", n=1) == [("p", 0.0)]
         assert [d for _, d in near] == sorted(d for _, d in near)
-        assert "p" not in [p for p, _ in near]
         assert all(p in phones for p, _ in near)
 
 
@@ -228,7 +229,7 @@ class TestPhoneLevelOOVFallback:
         assert m.distance("p", "ZZZ") == 1.0
         assert m.nearest("ZZZ") == []
 
-    def test_oov_nearest_sorted_and_excludes_self(self, ipa):
+    def test_oov_nearest_sorted_and_does_not_synthesize_query(self, ipa):
         m = _model(ipa, _core_phones(ipa))
         near = m.nearest("t͡ʃ", n=5)
         assert len(near) == 5

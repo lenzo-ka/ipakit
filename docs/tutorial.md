@@ -123,24 +123,23 @@ $ ipakit distance pair p a
 0.3230
 ```
 
-`nearest_phones` is usually the more useful question — not *how far* but *what is close*:
+`nearest_phones` is usually the more useful question — not *how far* but *what is close*. A query that belongs to the reference inventory appears first at distance 0, so it uses one of the requested result slots:
 
 ```python
 ipa.nearest_phones("p", n=5)
-# [('t', 0.018571428571428572), ('ɸ', 0.02539682539682539), ('f',
-# 0.02825396825396825), ('ȶ', 0.0319047619047619), ('θ',
-# 0.039206349206349196)]
+# [('p', 0.0), ('t', 0.018571428571428572), ('ɸ', 0.02539682539682539), ('f',
+# 0.02825396825396825), ('ȶ', 0.0319047619047619)]
 ```
 
 ```console
 $ ipakit analysis nearest p -n 5
 p (voiceless bilabial plosive)
 --------------------------------------------------
+  p  0.000  voiceless bilabial plosive
   t  0.019  voiceless alveolar plosive
   ɸ  0.025  voiceless bilabial fricative
   f  0.028  voiceless labiodental fricative
   ȶ  0.032  voiceless alveolo-palatal plosive
-  θ  0.039  voiceless dental fricative
 ```
 
 Raw distances are hard to interpret on their own, because the range that actually occurs
