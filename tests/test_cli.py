@@ -933,7 +933,7 @@ def _assert_scoped_reads_are_inventoried(
     raw = next(
         names
         for capability, _, names in rows
-        if capability == "Raw and inventory-relative distance"
+        if capability == "Raw distance and inventory-relative percentile positions"
     ).copy()
     raw.update(
         name

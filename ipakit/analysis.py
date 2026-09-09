@@ -374,15 +374,16 @@ class AnalysisMixin(IPAFeaturesBase):
         *,
         applicable_only: bool = False,
     ) -> list[tuple[str, float]]:
-        """Find the n nearest phones by phonetic distance.
+        """Find the n nearest phones by raw structural-distance magnitude.
 
-        Returns list of (phone, distance) tuples sorted by distance.
-        The query appears first at distance 0 when it belongs to the registered
-        reference set and therefore uses one of the ``n`` result slots.
-        Answers are drawn from the registered inventory; the reference may be
-        any resolvable unit, registered or composed, so an unregistered
-        affricate gets neighbors like any other input but is not synthesized
-        as an answer.
+        Returns list of (phone, distance) tuples sorted by distance magnitude.
+        This inventory-independent value is the structural phone scale, not a
+        ``DistanceModel`` percentile. The query appears first at 0.0 when it
+        belongs to the registered reference set; that zero means the same phone
+        and uses one of the ``n`` result slots. Answers are drawn from the
+        registered inventory; the reference may be any resolvable unit,
+        registered or composed, so an unregistered affricate gets neighbors
+        like any other input but is not synthesized as an answer.
 
         Args:
             phone: The reference phone or composable unit

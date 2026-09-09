@@ -163,13 +163,13 @@ class MinimalPairsCommand(Command):
 
 
 class NearestCommand(Command):
-    """Find the n nearest phones by phonetic distance.
+    """Find the n nearest phones by raw structural-distance magnitude.
 
     Ranks all phones by their phonetic similarity to the reference phone,
-    based on feature distance. Useful for finding related sounds or
-    potential confusion pairs. The reference appears first at distance 0
-    because it belongs to this inventory, and therefore uses one of the n
-    result slots.
+    based on inventory-independent feature distance, not a DistanceModel
+    percentile. Useful for finding related sounds or potential confusion pairs.
+    The reference appears first at 0.0 because it is the same phone; that result
+    uses one of the n slots.
 
     Examples:
         ipakit analysis nearest p          # Show 10 nearest phones to p
@@ -179,7 +179,7 @@ class NearestCommand(Command):
 
     name = "nearest"
     aliases: ClassVar[list[str]] = ["near"]
-    help = "Find n nearest phones by distance (e.g., 'p' → 'ɸ', 'f'...)"
+    help = "Find n nearest phones by raw distance (e.g., 'p' → 'ɸ', 'f'...)"
     reads_notation = IPA
 
     @classmethod

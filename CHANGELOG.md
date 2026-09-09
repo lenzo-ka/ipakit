@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DistanceModel` warns when its reference inventory holds too few distinct-phone pairs to place a percentile position.
+
 ### Changed
 
 - Nearest-phone results include the query when it belongs to the reference inventory, and an open-upper empirical-CDF plotting position reserves distance 0 for identity; unregistered queries are not synthesized as answers.

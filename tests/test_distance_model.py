@@ -167,6 +167,57 @@ class TestPercentile:
         ds = [m.distance(a, b) for a in phones for b in phones if a < b]
         assert max(ds) - min(ds) > 0.8  # CDF spreads bunched raw values
 
+    def test_equal_place_swap_magnitudes_keep_one_nonzero_position(self, ipa):
+        pairs = [("b", "d"), ("m", "n"), ("p", "t")]
+        raw = [ipa.distance(a, b) for a, b in pairs]
+        assert raw == pytest.approx([0.018571429] * 3)
+        model = DistanceModel.global_(ipa)
+        positions = [model.distance(a, b) for a, b in pairs]
+        assert positions == pytest.approx([positions[0]] * 3)
+        assert positions[0] > 0.0
+
+
+class TestReferenceSizeWarning:
+    def test_a_reference_with_no_pairs_warns_and_keeps_the_declared_scale(self, ipa):
+        with pytest.warns(UserWarning) as caught:
+            model = DistanceModel(ipa, "one-phone", ["p"], [[0.0]], "distance")
+        assert str(caught[0].message) == (
+            "reference inventory 'one-phone' has 0 distinct-phone pairs in its "
+            "CDF; at least 3 are required for usable percentile positions, so "
+            "positions from this reference are not usable."
+        )
+        assert model.distance("p", "t") == 1.0
+        assert model.distance("p", "a") == 1.0
+        assert model.nearest("t") == [("p", 1.0)]
+
+    def test_three_pairs_are_the_first_silent_reference(self, ipa):
+        phones = ["p", "t", "a"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            model = _model(ipa, phones)
+        assert len(model._cdf) == 3
+
+    def test_a_reference_above_the_floor_does_not_warn(self, ipa):
+        phones = ["p", "t", "k", "a"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            model = _model(ipa, phones)
+        assert len(model._cdf) == 6
+
+    def test_full_size_constructors_stay_silent(self, ipa, full_inputs):
+        from ipakit.models import Phoneset
+
+        phones, matrix = full_inputs
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            DistanceModel(ipa, "shipped", phones, matrix, "distance")
+            DistanceModel.global_(ipa)
+            DistanceModel.derive(ipa)
+            DistanceModel.for_phoneset(
+                ipa, Phoneset.from_list(phones, name="full-size")
+            )
+            DistanceModel.from_matrix_file(ipa, DEFAULT_CONFUSION)
+
 
 class TestGamma:
     def test_gamma_pushes_dissimilar_apart(self, ipa):
@@ -594,12 +645,16 @@ class TestFeatureSpaceFingerprint:
 
     def test_a_tsv_grid_is_never_checked(self, tmp_path, bridged):
         path = tmp_path / "c.tsv"
-        path.write_text("\tp\tb\np\t1.0\t0.9\nb\t0.9\t1.0\n", encoding="utf-8")
+        path.write_text(
+            "\tp\tb\tt\np\t1.0\t0.9\t0.8\nb\t0.9\t1.0\t0.7\n" "t\t0.8\t0.7\t1.0\n",
+            encoding="utf-8",
+        )
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             assert DistanceModel.from_matrix_file(bridged, path).reference_phones == [
                 "p",
                 "b",
+                "t",
             ]
 
 

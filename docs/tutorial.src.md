@@ -108,8 +108,7 @@ $ ipakit features kæt --short
 
 ## 2. How similar are two sounds, and what is near this one?
 
-`distance` is a number in `[0, 1]` over the feature bundles: 0 is identical, and larger
-is more different. A voicing contrast is small; a consonant against a vowel is large.
+`distance` is an inventory-independent magnitude in `[0, 1]` over the feature bundles: 0 means the same phone, and larger is more different. A voicing contrast is small; a consonant against a vowel is large.
 
 ```python-run
 ipa.distance("p", "b")
@@ -122,7 +121,7 @@ $ ipakit distance pair p b
 $ ipakit distance pair p a
 ```
 
-`nearest_phones` is usually the more useful question — not *how far* but *what is close*. A query that belongs to the reference inventory appears first at distance 0, so it uses one of the requested result slots:
+`nearest_phones` is usually the more useful question — not *how far* but *what is close*. Its numbers are raw structural-distance magnitudes. A query that belongs to the reference inventory appears first at 0.0 because it is the same phone, so it uses one of the requested result slots:
 
 ```python-run
 ipa.nearest_phones("p", n=5)
@@ -132,7 +131,7 @@ ipa.nearest_phones("p", n=5)
 $ ipakit analysis nearest p -n 5
 ```
 
-Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`confusability` rescales against the whole inventory**, reserving 1.0 for identity and spreading distinct pairs below it:
+Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`confusability` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary model distance reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
 
 ```python-run
 ipa.confusability("f", "θ")            # the most-confused English pair
@@ -151,10 +150,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 ```
 
 > **These are two numbers for one English phrase.** `ipakit distance word` prints the
-> inventory-relative `distance_model().word_distance` score by default; add `--raw` to
-> print `word_similarity`. Reach for `confusability`/`distance_model` when you want a
-> number comparable across pairs, and `word_similarity` or `distance word --raw` when
-> you want the raw edit cost.
+> inventory-relative `distance_model().word_distance` score by default; add `--raw` to print `word_similarity`. Reach for `confusability`/`distance_model` when you want positions comparable across pairs under one stated reference inventory, and `word_similarity` or `distance word --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
 
 ```console-run
 $ ipakit distance word kæt kæd

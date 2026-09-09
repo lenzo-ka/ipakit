@@ -45,6 +45,12 @@ if TYPE_CHECKING:
 
 Matrix = list[list[float]]
 
+#: A complete reference inventory can contribute 0, 1, 3, 6, ... phone
+#: pairs. With the open-upper denominator, the first two cases can express
+#: only one or two positions; three pairs are the first reference that can
+#: express the four quarter positions 0, 1/4, 2/4, and 3/4.
+_MIN_USABLE_REFERENCE_PAIRS = 3
+
 #: Format version written into a saved matrix. One spelling, read by
 #: :meth:`DistanceModel.save` and by ``scripts/confusion.py``, which writes
 #: the same object for the shipped inventory.
@@ -262,6 +268,16 @@ class DistanceModel:
         self._index = {p: i for i, p in enumerate(phones)}
         self._ref = list(ref_phones) if ref_phones is not None else list(phones)
         self._cdf = self._build_cdf()
+        if len(self._cdf) < _MIN_USABLE_REFERENCE_PAIRS:
+            pairs = len(self._cdf)
+            warnings.warn(
+                f"reference inventory {self._name!r} has {pairs} distinct-phone "
+                f"pair{'s' if pairs != 1 else ''} in its CDF; at least "
+                f"{_MIN_USABLE_REFERENCE_PAIRS} are required for usable "
+                "percentile positions, so positions from this reference are "
+                "not usable.",
+                stacklevel=3,
+            )
 
     # -- construction ---------------------------------------------------------
 
@@ -598,7 +614,12 @@ class DistanceModel:
         return self._norm_conf(1.0 - self._ipa.segment_distance(a, b))
 
     def similarity(self, a: str, b: str) -> float:
-        """Alias for :meth:`confusability`."""
+        """Inventory-relative similarity percentile; alias for :meth:`confusability`.
+
+        This is a position in this reference inventory's distribution, not a
+        magnitude comparable to ``segment_distance`` or to a model over
+        another inventory.
+        """
         return self.confusability(a, b)
 
     def distance(self, a: str, b: str) -> float:
@@ -608,12 +629,14 @@ class DistanceModel:
     def nearest(self, phone: str, n: int = 10) -> list[tuple[str, float]]:
         """The ``n`` reference phones closest to ``phone``.
 
-        Returns ``(phone, distance)`` pairs sorted by ascending distance.
-        The query appears first at distance 0 when it belongs to the reference
-        set and therefore uses one of the ``n`` result slots. A phone outside
-        the model's matrix is scored against the reference inventory via the
-        :meth:`confusability` fallback but does not become a reference phone;
-        empty if its features cannot be derived at all.
+        Returns ``(phone, distance_position)`` pairs sorted by the complementary
+        similarity percentile within this reference inventory. These positions
+        are not structural distance magnitudes and are not comparable across
+        inventories. The query appears first at 0.0 when it belongs to the
+        reference set: that zero means the same phone. The closest distinct pair
+        sits above zero. A phone outside the model's matrix is scored against the
+        reference inventory via the :meth:`confusability` fallback but does not
+        become a reference phone; empty if its features cannot be derived at all.
         """
         if phone not in self._index and not self._resolves(phone):
             return []
