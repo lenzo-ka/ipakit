@@ -130,6 +130,19 @@ class TestGammaIsRefusedOutsideItsDomain:
 
 
 class TestPercentile:
+    def test_open_upper_empirical_cdf_reserves_one_for_identity(self, ipa):
+        phones = ["p", "b", "t"]
+        matrix = [
+            [0.0, 0.1, 0.2],
+            [0.1, 0.0, 0.3],
+            [0.2, 0.3, 0.0],
+        ]
+        m = DistanceModel(ipa, "three", phones, matrix, "distance")
+        assert m.confusability("p", "b") == 3 / 4
+        assert m.confusability("p", "t") == 2 / 4
+        assert m.confusability("b", "t") == 1 / 4
+        assert m.confusability("p", "p") == 1.0
+
     def test_bounds_identity_unknown(self, ipa):
         m = _model(ipa, _core_phones(ipa))
         assert m.distance("p", "p") == 0.0
@@ -164,6 +177,11 @@ class TestGamma:
             assert sharp.distance(a, b) >= base.distance(a, b) - 1e-12  # 1-p**2 >= 1-p
         assert sharp.distance("p", "p") == base.distance("p", "p") == 0.0
 
+    def test_rounding_a_tiny_gamma_cannot_give_a_distinct_pair_identity(self, ipa):
+        m = _model(ipa, _core_phones(ipa), gamma=5e-324)
+        assert m.confusability("p", "t") < 1.0
+        assert m.distance("p", "t") > 0.0
+
 
 class TestInventoryRelativity:
     def test_reference_changes_percentile(self, ipa):
@@ -190,6 +208,30 @@ class TestNearest:
         assert m.nearest("p", n=1) == [("p", 0.0)]
         assert [d for _, d in near] == sorted(d for _, d in near)
         assert all(p in phones for p, _ in near)
+
+    def test_only_identity_has_zero_distance(self, ipa):
+        phones = [
+            "p",
+            "b",
+            "t",
+            "d",
+            "k",
+            "ɡ",
+            "s",
+            "z",
+            "m",
+            "n",
+            "l",
+            "ɹ",
+            "a",
+            "i",
+            "u",
+        ]
+        m = _model(ipa, phones)
+        near = m.nearest("i")
+        assert near[0] == ("i", 0.0)
+        assert all(distance > 0.0 for _, distance in near[1:])
+        assert all(m.distance(a, b) > 0.0 for a, b in itertools.combinations(phones, 2))
 
 
 class TestPhoneLevelOOVFallback:
@@ -250,10 +292,9 @@ class TestWord:
         and nothing costs more.
 
         The ceiling is approached rather than reached here, unlike the plain
-        path, because the cost is an empirical percentile and the top
-        percentile is 1 minus the share of reference pairs at the maximum. What
-        must hold is the inequality, and that the sentinel pair sits at the top
-        of it.
+        path, because the cost is an empirical plotting position. What must
+        hold is the inequality, and that the sentinel pair sits at the top of
+        it.
         """
         phones, M = full_inputs
         m = DistanceModel(ipa, "ipa", phones, M, "distance")

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Nearest-phone results include the query at distance 0 when it belongs to the reference inventory; unregistered queries are not synthesized as answers.
+- Nearest-phone results include the query when it belongs to the reference inventory, and an open-upper empirical-CDF plotting position reserves distance 0 for identity; unregistered queries are not synthesized as answers.
 
 ## [0.2.0] - 2026-09-07
 

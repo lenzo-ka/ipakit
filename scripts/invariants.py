@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ipakit import IPAFeatures
 from ipakit.constants import METADATA_ATTRS
+from ipakit.distance_model import DistanceModel
 
 TOLERANCE = 1e-9
 
@@ -161,6 +162,48 @@ def check_metric(ipa: IPAFeatures, *, applicable_only: bool = False) -> bool:
             or ipa.get_features(a, with_defaults=False)
             != ipa.get_features(b, with_defaults=False)
         ):
+            collisions.append(f"d({a},{b})=0 but they are different phones")
+    return all(
+        [
+            _report(
+                f"{label}identity",
+                [f"d({p},{p})!=0" for p in identity],
+                len(phones),
+            ),
+            _report(f"{label}symmetry", asymmetric, pairs),
+            _report(f"{label}range [0,1]", out_of_range, pairs),
+            _report(f"{label}no distinct pair at distance 0", collisions, pairs),
+        ]
+    )
+
+
+def check_distance_model(
+    ipa: IPAFeatures,
+    *,
+    phones: list[str] | None = None,
+    applicable_only: bool = False,
+) -> bool:
+    """Identity, symmetry, range, and distinct-pair separation after the CDF.
+
+    Pair identity comes only from choosing two different entries in ``phones``;
+    it does not consult the normalization being tested, so a broken transform
+    cannot also move the discriminator and make its own collision disappear.
+    """
+    phones = list(ipa.phones) if phones is None else list(phones)
+    model = DistanceModel.derive(ipa, phones=phones, applicable_only=applicable_only)
+    label = "scoped derived model " if applicable_only else "derived model "
+    identity = [p for p in phones if model.distance(p, p) != 0.0]
+    asymmetric, out_of_range, collisions = [], [], []
+    pairs = 0
+    for a, b in itertools.combinations(phones, 2):
+        pairs += 1
+        forward = model.distance(a, b)
+        back = model.distance(b, a)
+        if abs(forward - back) > TOLERANCE:
+            asymmetric.append(f"d({a},{b})={forward} but d({b},{a})={back}")
+        if not 0.0 <= forward <= 1.0:
+            out_of_range.append(f"d({a},{b})={forward}")
+        if forward == 0.0:
             collisions.append(f"d({a},{b})=0 but they are different phones")
     return all(
         [
@@ -1191,7 +1234,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     results = [
         check_metric(ipa),
+        check_distance_model(ipa),
         check_metric(ipa, applicable_only=True),
+        check_distance_model(ipa, applicable_only=True),
         check_round_trips(ipa),
         check_one_flat_read(ipa, args.quick),
         check_alias_equivalence(ipa, args.quick),

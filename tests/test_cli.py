@@ -1845,7 +1845,7 @@ class TestTheDeliberateApiCliDifferences:
         """'distance word' is the inventory-relative measure and 'pair' is
         the raw one, which left the API's word_distance with no CLI
         spelling at all -- so the two surfaces looked like they disagreed
-        (0.9871 against 0.9841) where they were computing different
+        (0.9870 against 0.9841) where they were computing different
         things. --raw is the missing spelling.
 
         The model figure is a percentile in the shipped distribution and

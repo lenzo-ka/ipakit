@@ -19,6 +19,7 @@ from __future__ import annotations
 import bisect
 import functools
 import json
+import math
 import warnings
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -183,7 +184,12 @@ def _check_fingerprint(
 
 
 class DistanceModel:
-    """CDF-renormalized phonetic distance over a reference inventory."""
+    """CDF-renormalized phonetic distance over a reference inventory.
+
+    Percentiles use the open-upper, right-continuous empirical-CDF plotting
+    position ``#{x in sample: x <= similarity} / (N + 1)``, reserving 1.0
+    for identity.
+    """
 
     def __init__(
         self,
@@ -556,11 +562,13 @@ class DistanceModel:
         return cdf
 
     def _norm_conf(self, sim: float) -> float:
-        """Percentile of a raw similarity within the reference distribution (+ gamma)."""
-        if not self._cdf:
-            return sim
-        p = bisect.bisect_right(self._cdf, sim) / len(self._cdf)
-        return p**self._gamma if self._gamma != 1.0 else p
+        """Open-upper, right-continuous CDF plotting position, then gamma."""
+        p = bisect.bisect_right(self._cdf, sim) / (len(self._cdf) + 1)
+        transformed = p**self._gamma if self._gamma != 1.0 else p
+        # For a positive gamma the exact result stays below 1, but a tiny
+        # exponent can round it to 1.0 in binary64. Identity bypasses this
+        # method, so cap normalized distinct-pair values one float below it.
+        return min(transformed, math.nextafter(1.0, 0.0))
 
     # -- phone-level API ------------------------------------------------------
 
@@ -572,8 +580,9 @@ class DistanceModel:
         """Normalized confusability of two phones, in [0, 1].
 
         The percentile of the pair's raw similarity within the reference
-        inventory's distribution (then raised to ``gamma``). 1.0 for identical
-        phones. A phone outside the model's matrix falls back to
+        inventory's distribution (then raised to ``gamma``). Distinct phones
+        are in [0, 1); 1.0 is reserved for identical phones. A phone outside
+        the model's matrix falls back to
         feature-derived similarity through the same CDF, matching
         :meth:`sub_cost` (and sharing its calibration caveat); 0.0 if a
         phone's features cannot be derived at all.
@@ -593,7 +602,7 @@ class DistanceModel:
         return self.confusability(a, b)
 
     def distance(self, a: str, b: str) -> float:
-        """Renormalized phone distance: ``1 - confusability(a, b)``."""
+        """Renormalized phone distance; 0.0 is reserved for identity."""
         return 1.0 - self.confusability(a, b)
 
     def nearest(self, phone: str, n: int = 10) -> list[tuple[str, float]]:
@@ -609,7 +618,7 @@ class DistanceModel:
         if phone not in self._index and not self._resolves(phone):
             return []
         ds = [(p, self.distance(phone, p)) for p in self._ref]
-        ds.sort(key=lambda x: (x[1], x[0]))
+        ds.sort(key=lambda x: x[1])
         return ds[:n]
 
     # -- word-level API -------------------------------------------------------

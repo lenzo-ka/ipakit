@@ -132,10 +132,7 @@ ipa.nearest_phones("p", n=5)
 $ ipakit analysis nearest p -n 5
 ```
 
-Raw distances are hard to interpret on their own, because the range that actually occurs
-is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is
-unreachable. **`confusability` rescales against the whole inventory**, so 1.0 means "as
-close as any pair gets" and the numbers spread out:
+Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`confusability` rescales against the whole inventory**, reserving 1.0 for identity and spreading distinct pairs below it:
 
 ```python-run
 ipa.confusability("f", "θ")            # the most-confused English pair

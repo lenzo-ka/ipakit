@@ -301,7 +301,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 `DistanceModel` takes a `gamma` that raises the percentile to a power, and it defaults to `1.0`, which is the identity. This section is why the knob exists, why it ships switched off, and what it is actually good for — which is narrower than its name suggests.
 
-**A percentile is a ranking scale, not a decision scale.** The model counts how many reference pairs are no more similar than the pair in hand and divides by the total. That is a rank expressed as a fraction, and it is uniform over the reference pairs by construction, whatever the underlying similarities look like:
+**A percentile is a ranking scale, not a decision scale.** The model counts how many reference pairs are no more similar than the pair in hand and divides by one more than the total, the open-upper, right-continuous empirical-CDF plotting position. Equal raw similarities share the upper edge of their jump, and the other ranks are evenly spaced whatever the underlying similarities look like; the excluded upper endpoint reserves 1.0 confusability and 0.0 distance for identity:
 
 ```python
 import ipakit

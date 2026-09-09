@@ -142,20 +142,17 @@ p (voiceless bilabial plosive)
   ȶ  0.032  voiceless alveolo-palatal plosive
 ```
 
-Raw distances are hard to interpret on their own, because the range that actually occurs
-is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is
-unreachable. **`confusability` rescales against the whole inventory**, so 1.0 means "as
-close as any pair gets" and the numbers spread out:
+Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`confusability` rescales against the whole inventory**, reserving 1.0 for identity and spreading distinct pairs below it:
 
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
-# 0.9962464810760088
-ipa.confusability("f", "a")  # 0.2940256490459806
+# 0.9961426188490409
+ipa.confusability("f", "a")  # 0.2939949958298582
 ```
 
 ```console
 $ ipakit distance conf f θ
-f ~ θ: confusability=0.9962 distance=0.0038  [reference: ipa, 139 phones]
+f ~ θ: confusability=0.9961 distance=0.0039  [reference: ipa, 139 phones]
 ```
 
 For whole words there are two different measures, and it matters which one you get.
@@ -164,7 +161,7 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9841269841269842
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.9870712125951413
+# 0.9870378092855157
 ```
 
 > **These are two numbers for one English phrase.** `ipakit distance word` prints the
@@ -175,7 +172,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9871  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9870  [reference: ipa, 139 phones]
 $ ipakit distance word --raw kæt kæd
 kæt ~ kæd: similarity=0.9841  [raw feature distance]
 ```
@@ -982,8 +979,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.confusability("tʰ", "t"), 4)  # 0.9656
-round(ipa.confusability("tʰ", "t"), 4)  # 0.9643
+round(model.confusability("tʰ", "t"), 4)  # 0.9655
+round(ipa.confusability("tʰ", "t"), 4)  # 0.9642
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the
