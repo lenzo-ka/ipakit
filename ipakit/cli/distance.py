@@ -243,13 +243,15 @@ class MatrixCommand(Command):
 
 
 class ConfusabilityCommand(Command):
-    """Inventory-relative confusability and distance between two phones.
+    """Inventory-relative percentile positions for two phones.
 
     Unlike 'pair' (raw feature distance), this uses the distribution-aware
-    DistanceModel: the score is a percentile within a reference inventory, so
-    it answers "how confusable are these *relative to* the inventory?".
-    Confusability runs 0.0 (distinct) to 1.0 (identical); distance is its
-    complement. Scope the inventory with --phoneset (default: full bundled IPA).
+    DistanceModel. Confusability is the pair's similarity percentile in the
+    reference inventory; distance is its complementary position. Neither is a
+    structural magnitude comparable to 'pair', and neither is comparable across
+    inventories. Distance 0.0 means identity; the closest distinct pair sits
+    just above it. Scope the inventory with --phoneset (default: full bundled
+    IPA).
 
     Examples:
         ipakit distance confusability p b      # confusability and its complement
@@ -261,7 +263,7 @@ class ConfusabilityCommand(Command):
 
     name = "confusability"
     aliases: ClassVar[list[str]] = ["conf"]
-    help = "Inventory-relative confusability/distance between two phones"
+    help = "Inventory-relative percentile positions between two phones"
     reads_notation = IPA
 
     @classmethod
@@ -318,7 +320,7 @@ class WordCommand(Command):
     what ipakit.word_distance() and ipakit.word_similarity() return.
 
     The two disagree, and are meant to: for kæt ~ kæd the model says
-    0.9871 and the raw measure says 0.9841. Without --raw there was no
+    0.9870 and the raw measure says 0.9841. Without --raw there was no
     command line spelling of the second number at all, so a reader
     comparing the API against the CLI saw a discrepancy where there was
     a choice of measure.
@@ -1155,16 +1157,18 @@ class CompareCommand(Command):
 class DistanceGroup(CommandGroup):
     """Calculate phonetic distances between IPA phones, words, and phone sequences.
 
-    Two flavors: 'pair'/'segment'/'matrix' give the raw feature distance
-    (0.0 identical to 1.0 maximal); 'confusability'/'word' use the
-    distribution-aware DistanceModel, scoring as a percentile within a
-    reference inventory (scope it with --phoneset).
+    Two flavors: 'pair'/'segment'/'matrix' give raw feature-distance magnitudes
+    (0.0 identical to 1.0 maximal); 'confusability' gives complementary
+    percentile positions in a reference inventory, and 'word' aligns with
+    substitution costs derived from those positions. Positions are not raw
+    distances and are not comparable across inventories (scope them with
+    --phoneset).
 
     Subcommands:
         pair           Feature distance between two base phones
         segment        Feature distance between complex segments (diacritics)
         matrix         Pairwise feature-distance matrix for multiple phones
-        confusability  Inventory-relative confusability/distance (phones)
+        confusability  Inventory-relative percentile positions (phones)
         word           Inventory-relative distance/similarity (IPA words)
         directional    Directional reference-to-hypothesis word distance
         nearest        Best match of a form against a set of acceptable variants
@@ -1182,7 +1186,7 @@ class DistanceGroup(CommandGroup):
     name = "distance"
     aliases: ClassVar[list[str]] = ["d"]
     help = (
-        "Phonetic distances and inventory mapping (pair, segment, matrix, "
+        "Raw distances, inventory positions, and mapping (pair, segment, matrix, "
         "confusability, word, directional, nearest, map, compare, seq)"
     )
     commands: ClassVar[list[type[Command]]] = [

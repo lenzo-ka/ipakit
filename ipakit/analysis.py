@@ -314,6 +314,8 @@ class AnalysisMixin(IPAFeaturesBase):
 
         Returns list of (phone, differing_feature, differing_value) tuples,
         sorted by phonetic distance.
+        Unlike :meth:`nearest_phones`, this method excludes the query because
+        a phone differs from itself by no features.
 
         Examples:
             >>> ipakit.minimal_pairs("p")
@@ -372,12 +374,16 @@ class AnalysisMixin(IPAFeaturesBase):
         *,
         applicable_only: bool = False,
     ) -> list[tuple[str, float]]:
-        """Find the n nearest phones by phonetic distance.
+        """Find the n nearest phones by raw structural-distance magnitude.
 
-        Returns list of (phone, distance) tuples sorted by distance.
-        Neighbors are drawn from the registered inventory; the reference
-        may be any resolvable unit, registered or composed, so an
-        unregistered affricate gets neighbors like any other input.
+        Returns list of (phone, distance) tuples sorted by distance magnitude.
+        This inventory-independent value is the structural phone scale, not a
+        ``DistanceModel`` percentile. The query appears first at 0.0 when it
+        belongs to the registered reference set; that zero means the same phone
+        and uses one of the ``n`` result slots. Answers are drawn from the
+        registered inventory; the reference may be any resolvable unit,
+        registered or composed, so an unregistered affricate gets neighbors
+        like any other input but is not synthesized as an answer.
 
         Args:
             phone: The reference phone or composable unit
@@ -398,8 +404,6 @@ class AnalysisMixin(IPAFeaturesBase):
 
         distances = []
         for candidate in self.phones:
-            if candidate == phone:
-                continue
             dist = self.distance(phone, candidate, applicable_only=applicable_only)
             distances.append((candidate, dist))
 

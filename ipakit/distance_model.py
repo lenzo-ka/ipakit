@@ -19,6 +19,7 @@ from __future__ import annotations
 import bisect
 import functools
 import json
+import math
 import warnings
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -43,6 +44,12 @@ if TYPE_CHECKING:
     from .features import IPAFeatures
 
 Matrix = list[list[float]]
+
+#: A complete reference inventory can contribute 0, 1, 3, 6, ... phone
+#: pairs. With the open-upper denominator, the first two cases can express
+#: only one or two positions; three pairs are the first reference that can
+#: express the four quarter positions 0, 1/4, 2/4, and 3/4.
+_MIN_USABLE_REFERENCE_PAIRS = 3
 
 #: Format version written into a saved matrix. One spelling, read by
 #: :meth:`DistanceModel.save` and by ``scripts/confusion.py``, which writes
@@ -183,7 +190,12 @@ def _check_fingerprint(
 
 
 class DistanceModel:
-    """CDF-renormalized phonetic distance over a reference inventory."""
+    """CDF-renormalized phonetic distance over a reference inventory.
+
+    Percentiles use the open-upper, right-continuous empirical-CDF plotting
+    position ``#{x in sample: x <= similarity} / (N + 1)``, reserving 1.0
+    for identity.
+    """
 
     def __init__(
         self,
@@ -256,6 +268,16 @@ class DistanceModel:
         self._index = {p: i for i, p in enumerate(phones)}
         self._ref = list(ref_phones) if ref_phones is not None else list(phones)
         self._cdf = self._build_cdf()
+        if len(self._cdf) < _MIN_USABLE_REFERENCE_PAIRS:
+            pairs = len(self._cdf)
+            warnings.warn(
+                f"reference inventory {self._name!r} has {pairs} distinct-phone "
+                f"pair{'s' if pairs != 1 else ''} in its CDF; at least "
+                f"{_MIN_USABLE_REFERENCE_PAIRS} are required for usable "
+                "percentile positions, so positions from this reference are "
+                "not usable.",
+                stacklevel=3,
+            )
 
     # -- construction ---------------------------------------------------------
 
@@ -556,11 +578,13 @@ class DistanceModel:
         return cdf
 
     def _norm_conf(self, sim: float) -> float:
-        """Percentile of a raw similarity within the reference distribution (+ gamma)."""
-        if not self._cdf:
-            return sim
-        p = bisect.bisect_right(self._cdf, sim) / len(self._cdf)
-        return p**self._gamma if self._gamma != 1.0 else p
+        """Open-upper, right-continuous CDF plotting position, then gamma."""
+        p = bisect.bisect_right(self._cdf, sim) / (len(self._cdf) + 1)
+        transformed = p**self._gamma if self._gamma != 1.0 else p
+        # For a positive gamma the exact result stays below 1, but a tiny
+        # exponent can round it to 1.0 in binary64. Identity bypasses this
+        # method, so cap normalized distinct-pair values one float below it.
+        return min(transformed, math.nextafter(1.0, 0.0))
 
     # -- phone-level API ------------------------------------------------------
 
@@ -572,8 +596,9 @@ class DistanceModel:
         """Normalized confusability of two phones, in [0, 1].
 
         The percentile of the pair's raw similarity within the reference
-        inventory's distribution (then raised to ``gamma``). 1.0 for identical
-        phones. A phone outside the model's matrix falls back to
+        inventory's distribution (then raised to ``gamma``). Distinct phones
+        are in [0, 1); 1.0 is reserved for identical phones. A phone outside
+        the model's matrix falls back to
         feature-derived similarity through the same CDF, matching
         :meth:`sub_cost` (and sharing its calibration caveat); 0.0 if a
         phone's features cannot be derived at all.
@@ -589,25 +614,34 @@ class DistanceModel:
         return self._norm_conf(1.0 - self._ipa.segment_distance(a, b))
 
     def similarity(self, a: str, b: str) -> float:
-        """Alias for :meth:`confusability`."""
+        """Inventory-relative similarity percentile; alias for :meth:`confusability`.
+
+        This is a position in this reference inventory's distribution, not a
+        magnitude comparable to ``segment_distance`` or to a model over
+        another inventory.
+        """
         return self.confusability(a, b)
 
     def distance(self, a: str, b: str) -> float:
-        """Renormalized phone distance: ``1 - confusability(a, b)``."""
+        """Renormalized phone distance; 0.0 is reserved for identity."""
         return 1.0 - self.confusability(a, b)
 
     def nearest(self, phone: str, n: int = 10) -> list[tuple[str, float]]:
         """The ``n`` reference phones closest to ``phone``.
 
-        Returns ``(phone, distance)`` pairs sorted by ascending distance.
-        A phone outside the model's matrix is scored against the reference
-        inventory via the :meth:`confusability` fallback; empty if its
-        features cannot be derived at all.
+        Returns ``(phone, distance_position)`` pairs sorted by the complementary
+        similarity percentile within this reference inventory. These positions
+        are not structural distance magnitudes and are not comparable across
+        inventories. The query appears first at 0.0 when it belongs to the
+        reference set: that zero means the same phone. The closest distinct pair
+        sits above zero. A phone outside the model's matrix is scored against the
+        reference inventory via the :meth:`confusability` fallback but does not
+        become a reference phone; empty if its features cannot be derived at all.
         """
         if phone not in self._index and not self._resolves(phone):
             return []
-        ds = [(p, self.distance(phone, p)) for p in self._ref if p != phone]
-        ds.sort(key=lambda x: (x[1], x[0]))
+        ds = [(p, self.distance(phone, p)) for p in self._ref]
+        ds.sort(key=lambda x: x[1])
         return ds[:n]
 
     # -- word-level API -------------------------------------------------------

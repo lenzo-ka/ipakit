@@ -107,8 +107,7 @@ t: plo alv
 
 ## 2. How similar are two sounds, and what is near this one?
 
-`distance` is a number in `[0, 1]` over the feature bundles: 0 is identical, and larger
-is more different. A voicing contrast is small; a consonant against a vowel is large.
+`distance` is an inventory-independent magnitude in `[0, 1]` over the feature bundles: 0 means the same phone, and larger is more different. A voicing contrast is small; a consonant against a vowel is large.
 
 ```python
 ipa.distance("p", "b")  # 0.047619047619047616
@@ -123,40 +122,36 @@ $ ipakit distance pair p a
 0.3230
 ```
 
-`nearest_phones` is usually the more useful question — not *how far* but *what is close*:
+`nearest_phones` is usually the more useful question — not *how far* but *what is close*. Its numbers are raw structural-distance magnitudes. A query that belongs to the reference inventory appears first at 0.0 because it is the same phone, so it uses one of the requested result slots:
 
 ```python
 ipa.nearest_phones("p", n=5)
-# [('t', 0.018571428571428572), ('ɸ', 0.02539682539682539), ('f',
-# 0.02825396825396825), ('ȶ', 0.0319047619047619), ('θ',
-# 0.039206349206349196)]
+# [('p', 0.0), ('t', 0.018571428571428572), ('ɸ', 0.02539682539682539), ('f',
+# 0.02825396825396825), ('ȶ', 0.0319047619047619)]
 ```
 
 ```console
 $ ipakit analysis nearest p -n 5
 p (voiceless bilabial plosive)
 --------------------------------------------------
+  p  0.000  voiceless bilabial plosive
   t  0.019  voiceless alveolar plosive
   ɸ  0.025  voiceless bilabial fricative
   f  0.028  voiceless labiodental fricative
   ȶ  0.032  voiceless alveolo-palatal plosive
-  θ  0.039  voiceless dental fricative
 ```
 
-Raw distances are hard to interpret on their own, because the range that actually occurs
-is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is
-unreachable. **`confusability` rescales against the whole inventory**, so 1.0 means "as
-close as any pair gets" and the numbers spread out:
+Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`confusability` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary model distance reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
 
 ```python
 ipa.confusability("f", "θ")  # the most-confused English pair
-# 0.9962464810760088
-ipa.confusability("f", "a")  # 0.2940256490459806
+# 0.9961426188490409
+ipa.confusability("f", "a")  # 0.2939949958298582
 ```
 
 ```console
 $ ipakit distance conf f θ
-f ~ θ: confusability=0.9962 distance=0.0038  [reference: ipa, 139 phones]
+f ~ θ: confusability=0.9961 distance=0.0039  [reference: ipa, 139 phones]
 ```
 
 For whole words there are two different measures, and it matters which one you get.
@@ -165,18 +160,15 @@ For whole words there are two different measures, and it matters which one you g
 ipa.word_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9841269841269842
 ipa.distance_model().word_distance("kæt", "kæd").similarity
-# 0.9870712125951413
+# 0.9870378092855157
 ```
 
 > **These are two numbers for one English phrase.** `ipakit distance word` prints the
-> inventory-relative `distance_model().word_distance` score by default; add `--raw` to
-> print `word_similarity`. Reach for `confusability`/`distance_model` when you want a
-> number comparable across pairs, and `word_similarity` or `distance word --raw` when
-> you want the raw edit cost.
+> inventory-relative `distance_model().word_distance` score by default; add `--raw` to print `word_similarity`. Reach for `confusability`/`distance_model` when you want positions comparable across pairs under one stated reference inventory, and `word_similarity` or `distance word --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
 
 ```console
 $ ipakit distance word kæt kæd
-kæt ~ kæd: similarity=0.9871  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9870  [reference: ipa, 139 phones]
 $ ipakit distance word --raw kæt kæd
 kæt ~ kæd: similarity=0.9841  [raw feature distance]
 ```
@@ -983,8 +975,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.confusability("tʰ", "t"), 4)  # 0.9656
-round(ipa.confusability("tʰ", "t"), 4)  # 0.9643
+round(model.confusability("tʰ", "t"), 4)  # 0.9655
+round(ipa.confusability("tʰ", "t"), 4)  # 0.9642
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the

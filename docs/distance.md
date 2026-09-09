@@ -6,8 +6,8 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 
 | | |
 |---|---|
-| Range | `[0, 1]`; 0 identical, 1 maximally different |
-| Three scales, three names | `distance` (structural, `[0,1]`), `normalized_distance` (percentile in a reference inventory, `[0,1]`), `WordDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
+| Raw distance range | `[0, 1]`; 0 is the magnitude for identical phones, 1 is maximally different |
+| Three scales, three names | `distance` (structural magnitude, `[0,1]`), `normalized_distance` (complementary percentile position in a reference inventory, `[0,1]`), `WordDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
 | Basis | Articulatory structure — where a constriction is, what makes it, how close it is |
 | Claim | Structural consistency; **not** a model of perceptual confusability |
 | Symmetry | `d(x, y) == d(y, x)`, by construction: each directional reduction is wrapped in `max(a→b, b→a)` |
@@ -220,11 +220,11 @@ If weights are ever wanted, the only defensible source is empirical confusion da
 
 `get_features` resolves registered phones first, then composes tie-barred sequences of known phones. Distance follows: any composable segment has a distance, whether or not it is in the inventory.
 
-`DistanceModel` adds a percentile transform over a reference inventory. Phones absent from its matrix fall back to feature-derived similarity routed through the same CDF; phones whose features cannot be derived at all keep the explicit sentinels (`confusability` 0.0, `distance` 1.0, `nearest` empty). A phoneset whose members are absent from the matrix is reported, not silently dropped — see `import_phoneset` if the members are spelled in another tie convention.
+`DistanceModel` places a pair in a reference inventory's similarity distribution. Its phone-level values are inventory-relative percentile positions, not magnitudes comparable to `segment_distance`, and positions from different inventories are not comparable. Phones absent from its matrix fall back to feature-derived similarity routed through the same CDF; phones whose features cannot be derived at all keep the explicit sentinels (`confusability` 0.0, `distance` 1.0, `nearest` empty). A phoneset whose members are absent from the matrix is reported, not silently dropped — see `import_phoneset` if the members are spelled in another tie convention. A reference with fewer than three distinct-phone pairs warns that its positions are not usable; the raw `segment_distance` path remains available for such a small inventory.
 
 ## Not a metric in the mathematical sense
 
-`distance` is symmetric, is zero exactly on identity, and lies in `[0, 1]`. It does **not** satisfy the triangle inequality, and is therefore a *dissimilarity*, not a metric. Measured over the shipped inventory, a small fraction of triples violate it, and the worst cases are not marginal:
+Raw `distance` is symmetric, is zero exactly on identity, and lies in `[0, 1]`. It does **not** satisfy the triangle inequality, and is therefore a *dissimilarity*, not a metric. Measured over the shipped inventory, a small fraction of triples violate it, and the worst cases are not marginal:
 
 ```
 d(b͡v, ɡ)              far apart
@@ -285,11 +285,11 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **Thresholds are not portable across versions.** The shipped `confusion.json` is a derived artifact; changes to the anchors, the inventory, or the metric regenerate it and shift absolute values. Orderings are far more stable than magnitudes. If you have tuned an `is_similar` threshold, re-tune it after upgrading — and see [§9](#9-ranking-deciding-and-gamma), which is about the same subject from the other end: what a threshold on a percentile scale can and cannot mean in the first place. The configuration a number came from is nameable now: `DistanceModel.scoring` reports a versioned `ScoringParameters` bundling `gamma` and the two indel costs, so what you tuned against can be pinned rather than rediscovered from drifting results.
 
-**Percentiles are inventory-relative.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution. The same pair scores differently under a small English set and the full bundled inventory; this is intended, and it is why `distance_model(phoneset)` exists.
+**Percentiles are inventory-relative positions.** `DistanceModel` reports where a pair falls in *its reference inventory's* distribution, not how large its structural difference is. A model value is not comparable to `segment_distance`, and the same pair can occupy different positions under a small English set and the full bundled inventory; positions from those two models are not comparable.
 
 **Silence is maximally different from every speech sound.** `d(␣, X) = 1.0`, so a position where one word has a phone and the other has silence costs a delete and an insert: the phone went, and a silence arrived. Silence is a token that fills a position, not the absence of one — a word that drops the segment outright is a token shorter, pays a single gap, and scores as the nearer of the two.
 
-**The three scales are named apart.** `distance` is structural and bounded; `normalized_distance` is a percentile within a reference inventory and also bounded, but the two are *not* comparable; `WordDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
+**The three scales are named apart.** `distance` is a structural magnitude and is bounded; `normalized_distance` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `WordDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `word_distance("lez‿ami", "lezami") = 0`.
 
@@ -301,7 +301,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 `DistanceModel` takes a `gamma` that raises the percentile to a power, and it defaults to `1.0`, which is the identity. This section is why the knob exists, why it ships switched off, and what it is actually good for — which is narrower than its name suggests.
 
-**A percentile is a ranking scale, not a decision scale.** The model counts how many reference pairs are no more similar than the pair in hand and divides by the total. That is a rank expressed as a fraction, and it is uniform over the reference pairs by construction, whatever the underlying similarities look like:
+**A percentile is a position, not a distance magnitude or a decision scale.** The model counts how many reference pairs are no more similar than the pair in hand and divides by one more than the total, the open-upper, right-continuous empirical-CDF plotting position. Equal raw similarities share the upper edge of their jump, and the other ranks are evenly spaced whatever the underlying similarities look like. The model treats identity separately: its 0.0 distance means the same phone, while the closest distinct pair sits one plotting-position step above it. No returned 0.0 means merely “the closest pair in this inventory”:
 
 ```python
 import ipakit
@@ -313,6 +313,8 @@ round(sum(s > 0.5 for s in sims) / len(sims), 1)   # 0.5
 ```
 
 Half the pairs sit above 0.5 because half of anything sits above its own median. That is exactly what makes the scale good at ranking — the value *is* the rank, so "how many pairs are nearer than this one" is read straight off it — and exactly what makes it bad at deciding. The number says nothing about whether the inventory is crowded or sparse, so a cut point tuned on one inventory means something else on another. Worse, the ranks are uniform over *pairs*, not over degrees of likeness, and most pairs of phones are nothing like each other; so every pair a listener could plausibly confuse is packed into the last few percent of the range, with the whole rest of the scale spent separating pairs no one would confuse either way.
+
+A one-phone reference supplies no pairs and only position 0; a two-phone reference supplies one pair and only positions 0 and 1/2. Both warn because those positions are not usable as a percentile scale. Three phones supply three pairs and are the first complete reference to reach four positions: 0, 1/4, 2/4, and 3/4.
 
 **Gamma is monotone, so it reorders nothing at the phone level.** Raising every value to a common positive power leaves every comparison as it was; it only redistributes the spacing, pulling values below 1.0 toward 0 in proportion to how far below they already are.
 
@@ -334,7 +336,7 @@ cut = 0.5
  == {ab for ab in pairs if flat.confusability(*ab) >= cut ** (1 / 3)})   # True
 ```
 
-So on `confusability`, `distance` and `nearest`, gamma buys no decision that moving the threshold could not. What it buys there is legibility. A power above 1 stretches the scale near 1.0 and compresses it near 0 — the slope of `p ** g` is `g * p ** (g - 1)`, which is above 1 at the top and below it at the bottom — and the top is the crowded end. So it spreads the pairs worth telling apart and squeezes together the ones that were never in question:
+So on `DistanceModel.confusability`, `.distance` and `.nearest`, gamma buys no decision that moving the threshold could not. What it buys there is legibility. A power above 1 stretches the scale near 1.0 and compresses it near 0 — the slope of `p ** g` is `g * p ** (g - 1)`, which is above 1 at the top and below it at the bottom — and the top is the crowded end. So it spreads the pairs worth telling apart and squeezes together the ones that were never in question:
 
 ```python
 near = lambda m: m.confusability("s", "ʃ") - m.confusability("p", "b")

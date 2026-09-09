@@ -27,14 +27,14 @@ ipakit.describe("tʰ")
 round(ipakit.distance("tʰ", "t"), 4)
 # 0.0455
 round(ipakit.confusability("tʰ", "t"), 4)
-# 0.9643
+# 0.9642
 [p for p, _ in ipakit.nearest_phones("tʰ", n=3)]
 # ['t', 'ȶ', 'p']
 ```
 
 What registering adds is **membership** — being one of the phones the library counts, ranks and normalizes against. Concretely, four things.
 
-**The reference distribution.** `confusability`, `normalized_distance` and `DistanceModel` return a *percentile within a reference inventory*, and that inventory is a set of registered phones. `distance_model(reference=[...])` re-slices the shipped matrix, so a member that matrix has no row for is dropped from the reference CDF, with a warning:
+**The reference distribution.** `confusability`, `normalized_distance` and the phone-level `DistanceModel` methods return *percentile positions within a reference inventory*, and that inventory is a set of registered phones. Those positions are ranks, not magnitudes comparable to `segment_distance`, and positions from different inventories are not comparable. `distance_model(reference=[...])` re-slices the shipped matrix, so a member that matrix has no row for is dropped from the reference CDF, with a warning:
 
 ```python
 narrow = ipakit.distance_model(reference=["p", "t", "k", "tʰ", "s", "a"])
@@ -42,7 +42,7 @@ narrow.reference_phones
 # ['p', 't', 'k', 's', 'a']
 ```
 
-The percentiles that model returns are the surviving subset's, and are byte-identical to a model built without ever naming `tʰ`. There is no way for a composed unit to be part of a reference distribution without registering it.
+The percentile positions that model returns are the surviving subset's, and are byte-identical to a model built without ever naming `tʰ`. A surviving reference with fewer than three distinct-phone pairs also warns that its positions are not usable. There is no way for a composed unit to be part of a reference distribution without registering it.
 
 **The write side.** `to_phone` and `respell` answer only with registered phones. (`compose_unit` exists to fill that gap and returns `tʰ`; registering is what makes `respell` — and so a feature-changing rewrite rule — answer directly.)
 
@@ -141,7 +141,7 @@ It also means a supplement cannot be used to *re-spell* the base inventory. `č`
 
 `distance` is inventory-independent — it compares two feature bundles and does not consult the inventory — so it does not move.
 
-Everything **normalized** does move, by design. `confusability`, `normalized_distance`, `nearest` and `DistanceModel.global_` return a percentile within a reference distribution, and a supplemented inventory has a different distribution: three extra phones are three phones' worth of new pairs in the CDF. The same raw distance therefore reads as a different percentile. That is the point of registering, and it is also why a supplemented inventory must carry **its own derived data**.
+Everything **normalized** does move, by design. `confusability`, `normalized_distance`, and `DistanceModel.confusability`, `.distance`, and `.nearest` return positions within a reference distribution, and a supplemented inventory has a different distribution: three extra phones are three phones' worth of new pairs in the CDF. The same raw distance therefore occupies a different position. That is the point of registering, and it is also why a supplemented inventory must carry **its own derived data**. The flat `nearest_phones` method remains on the raw structural-distance scale.
 
 The shipped `data/confusion.json` is the bare inventory's matrix and stays that way. `DistanceModel.global_` reads it; `DistanceModel.for_phoneset` re-slices it and cannot help, since a supplemented phone has no row in it. The constructor for a supplemented inventory is `derive`:
 
@@ -166,7 +166,7 @@ DistanceModel.from_matrix_file(inventory, saved).reference_phones == model.refer
 # True
 ```
 
-Regenerate it whenever the supplement or the metric changes. Percentiles are not comparable across inventories, which is why the model's `reference_name` says which files it was built from.
+Regenerate it whenever the supplement or the metric changes. Percentile positions are not comparable across inventories or to raw `segment_distance`, which is why the model's `reference_name` says which files it was built from.
 
 A saved matrix also records the feature space it was derived in, and a reader refuses one derived in another — see [distance.md](distance.md) §11. That check is deliberately blind to supplements, which matters here because it also guards `DistanceModel.global_`, and a supplemented inventory reads the shipped matrix through it. It digests what the metric reads off the phones *the file itself lists*, and a supplement declares no feature, type or bridge, so a supplemented inventory agrees with the shipped matrix and with any matrix derived before the supplement was written. It should: the space did not move, only the membership, and membership is what `phones` records. The case the refusal is for is the other one this page names — editing a copy of `ipa.xml`, and not regenerating what was derived from the original.
 

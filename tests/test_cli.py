@@ -197,6 +197,13 @@ class TestAnalysis:
         assert rc == 0
         assert "plosive" in out
 
+    def test_nearest_includes_the_reference_in_n(self, monkeypatch, capsys):
+        rc, out, _ = run(
+            monkeypatch, capsys, "analysis", "nearest", "p", "-n", "1", "-j"
+        )
+        assert rc == 0
+        assert json.loads(out)["nearest"] == [{"phone": "p", "distance": 0.0}]
+
     def test_validate_valid(self, monkeypatch, capsys):
         rc, _, _ = run(monkeypatch, capsys, "analysis", "validate", "kæt")
         assert rc == 0
@@ -926,7 +933,7 @@ def _assert_scoped_reads_are_inventoried(
     raw = next(
         names
         for capability, _, names in rows
-        if capability == "Raw and inventory-relative distance"
+        if capability == "Raw distance and inventory-relative percentile positions"
     ).copy()
     raw.update(
         name
@@ -1838,7 +1845,7 @@ class TestTheDeliberateApiCliDifferences:
         """'distance word' is the inventory-relative measure and 'pair' is
         the raw one, which left the API's word_distance with no CLI
         spelling at all -- so the two surfaces looked like they disagreed
-        (0.9871 against 0.9841) where they were computing different
+        (0.9870 against 0.9841) where they were computing different
         things. --raw is the missing spelling.
 
         The model figure is a percentile in the shipped distribution and

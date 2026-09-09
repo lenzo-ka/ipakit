@@ -430,8 +430,8 @@ class TestAnInventoryRelativePackIsNotAPortableOne:
         # gate reads a docstring: `docexamples` walks README and docs/,
         # and `--doctest-modules` runs only `>>>` blocks. A figure worth
         # stating is worth failing on.
-        assert scores["sparse"] == pytest.approx(0.052288, abs=5e-6), scores
-        assert scores["dense"] == pytest.approx(0.030769, abs=5e-6), scores
+        assert scores["sparse"] == pytest.approx(0.064935, abs=5e-6), scores
+        assert scores["dense"] == pytest.approx(0.036810, abs=5e-6), scores
 
         # The ordering is the claim the figures illustrate: a sparser
         # reference has fewer close pairs, so one contrast ranks higher

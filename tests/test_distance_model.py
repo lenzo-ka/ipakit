@@ -130,6 +130,19 @@ class TestGammaIsRefusedOutsideItsDomain:
 
 
 class TestPercentile:
+    def test_open_upper_empirical_cdf_reserves_one_for_identity(self, ipa):
+        phones = ["p", "b", "t"]
+        matrix = [
+            [0.0, 0.1, 0.2],
+            [0.1, 0.0, 0.3],
+            [0.2, 0.3, 0.0],
+        ]
+        m = DistanceModel(ipa, "three", phones, matrix, "distance")
+        assert m.confusability("p", "b") == 3 / 4
+        assert m.confusability("p", "t") == 2 / 4
+        assert m.confusability("b", "t") == 1 / 4
+        assert m.confusability("p", "p") == 1.0
+
     def test_bounds_identity_unknown(self, ipa):
         m = _model(ipa, _core_phones(ipa))
         assert m.distance("p", "p") == 0.0
@@ -154,6 +167,57 @@ class TestPercentile:
         ds = [m.distance(a, b) for a in phones for b in phones if a < b]
         assert max(ds) - min(ds) > 0.8  # CDF spreads bunched raw values
 
+    def test_equal_place_swap_magnitudes_keep_one_nonzero_position(self, ipa):
+        pairs = [("b", "d"), ("m", "n"), ("p", "t")]
+        raw = [ipa.distance(a, b) for a, b in pairs]
+        assert raw == pytest.approx([0.018571429] * 3)
+        model = DistanceModel.global_(ipa)
+        positions = [model.distance(a, b) for a, b in pairs]
+        assert positions == pytest.approx([positions[0]] * 3)
+        assert positions[0] > 0.0
+
+
+class TestReferenceSizeWarning:
+    def test_a_reference_with_no_pairs_warns_and_keeps_the_declared_scale(self, ipa):
+        with pytest.warns(UserWarning) as caught:
+            model = DistanceModel(ipa, "one-phone", ["p"], [[0.0]], "distance")
+        assert str(caught[0].message) == (
+            "reference inventory 'one-phone' has 0 distinct-phone pairs in its "
+            "CDF; at least 3 are required for usable percentile positions, so "
+            "positions from this reference are not usable."
+        )
+        assert model.distance("p", "t") == 1.0
+        assert model.distance("p", "a") == 1.0
+        assert model.nearest("t") == [("p", 1.0)]
+
+    def test_three_pairs_are_the_first_silent_reference(self, ipa):
+        phones = ["p", "t", "a"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            model = _model(ipa, phones)
+        assert len(model._cdf) == 3
+
+    def test_a_reference_above_the_floor_does_not_warn(self, ipa):
+        phones = ["p", "t", "k", "a"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            model = _model(ipa, phones)
+        assert len(model._cdf) == 6
+
+    def test_full_size_constructors_stay_silent(self, ipa, full_inputs):
+        from ipakit.models import Phoneset
+
+        phones, matrix = full_inputs
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            DistanceModel(ipa, "shipped", phones, matrix, "distance")
+            DistanceModel.global_(ipa)
+            DistanceModel.derive(ipa)
+            DistanceModel.for_phoneset(
+                ipa, Phoneset.from_list(phones, name="full-size")
+            )
+            DistanceModel.from_matrix_file(ipa, DEFAULT_CONFUSION)
+
 
 class TestGamma:
     def test_gamma_pushes_dissimilar_apart(self, ipa):
@@ -163,6 +227,11 @@ class TestGamma:
         for a, b in [("p", "k"), ("s", "f"), ("p", "a")]:
             assert sharp.distance(a, b) >= base.distance(a, b) - 1e-12  # 1-p**2 >= 1-p
         assert sharp.distance("p", "p") == base.distance("p", "p") == 0.0
+
+    def test_rounding_a_tiny_gamma_cannot_give_a_distinct_pair_identity(self, ipa):
+        m = _model(ipa, _core_phones(ipa), gamma=5e-324)
+        assert m.confusability("p", "t") < 1.0
+        assert m.distance("p", "t") > 0.0
 
 
 class TestInventoryRelativity:
@@ -181,14 +250,39 @@ class TestInventoryRelativity:
 
 
 class TestNearest:
-    def test_sorted_restricted_excludes_self(self, ipa):
+    def test_sorted_restricted_includes_self(self, ipa):
         phones = _core_phones(ipa)
         m = _model(ipa, phones)
         near = m.nearest("p", n=3)
         assert len(near) == 3
+        assert near[0] == ("p", 0.0)
+        assert m.nearest("p", n=1) == [("p", 0.0)]
         assert [d for _, d in near] == sorted(d for _, d in near)
-        assert "p" not in [p for p, _ in near]
         assert all(p in phones for p, _ in near)
+
+    def test_only_identity_has_zero_distance(self, ipa):
+        phones = [
+            "p",
+            "b",
+            "t",
+            "d",
+            "k",
+            "ɡ",
+            "s",
+            "z",
+            "m",
+            "n",
+            "l",
+            "ɹ",
+            "a",
+            "i",
+            "u",
+        ]
+        m = _model(ipa, phones)
+        near = m.nearest("i")
+        assert near[0] == ("i", 0.0)
+        assert all(distance > 0.0 for _, distance in near[1:])
+        assert all(m.distance(a, b) > 0.0 for a, b in itertools.combinations(phones, 2))
 
 
 class TestPhoneLevelOOVFallback:
@@ -228,7 +322,7 @@ class TestPhoneLevelOOVFallback:
         assert m.distance("p", "ZZZ") == 1.0
         assert m.nearest("ZZZ") == []
 
-    def test_oov_nearest_sorted_and_excludes_self(self, ipa):
+    def test_oov_nearest_sorted_and_does_not_synthesize_query(self, ipa):
         m = _model(ipa, _core_phones(ipa))
         near = m.nearest("t͡ʃ", n=5)
         assert len(near) == 5
@@ -249,10 +343,9 @@ class TestWord:
         and nothing costs more.
 
         The ceiling is approached rather than reached here, unlike the plain
-        path, because the cost is an empirical percentile and the top
-        percentile is 1 minus the share of reference pairs at the maximum. What
-        must hold is the inequality, and that the sentinel pair sits at the top
-        of it.
+        path, because the cost is an empirical plotting position. What must
+        hold is the inequality, and that the sentinel pair sits at the top of
+        it.
         """
         phones, M = full_inputs
         m = DistanceModel(ipa, "ipa", phones, M, "distance")
@@ -552,12 +645,16 @@ class TestFeatureSpaceFingerprint:
 
     def test_a_tsv_grid_is_never_checked(self, tmp_path, bridged):
         path = tmp_path / "c.tsv"
-        path.write_text("\tp\tb\np\t1.0\t0.9\nb\t0.9\t1.0\n", encoding="utf-8")
+        path.write_text(
+            "\tp\tb\tt\np\t1.0\t0.9\t0.8\nb\t0.9\t1.0\t0.7\n" "t\t0.8\t0.7\t1.0\n",
+            encoding="utf-8",
+        )
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             assert DistanceModel.from_matrix_file(bridged, path).reference_phones == [
                 "p",
                 "b",
+                "t",
             ]
 
 

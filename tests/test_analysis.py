@@ -297,6 +297,8 @@ class TestNearestPhones:
         nearest = ipa.nearest_phones("p", n=5)
         assert isinstance(nearest, list)
         assert len(nearest) <= 5
+        assert nearest[0] == ("p", 0.0)
+        assert ipa.nearest_phones("p", n=1) == [("p", 0.0)]
 
     def test_nearest_sorted_by_distance(self, ipa: IPAFeatures) -> None:
         nearest = ipa.nearest_phones("p", n=10)
@@ -326,6 +328,7 @@ class TestNearestPhones:
     def test_module_function(self) -> None:
         nearest = ipakit.nearest_phones("p", n=3)
         assert len(nearest) == 3
+        assert nearest[0] == ("p", 0.0)
         # Check structure: list of (phone, distance) tuples
         for phone, dist in nearest:
             assert isinstance(phone, str)

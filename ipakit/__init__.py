@@ -223,7 +223,7 @@ def read_json(data: str) -> Form:
 
 
 def distance(phone1: str, phone2: str, *, applicable_only: bool = False) -> float:
-    """Compute phonetic distance between two IPA phones (0.0 identical, 1.0 maximal).
+    """Compute raw phonetic-distance magnitude (0.0 identical, 1.0 maximal).
 
     Each argument is one unit: a phone with any diacritics, but not a word.
     Multi-unit input raises ``ValueError`` -- use :func:`word_distance` for a
@@ -550,16 +550,24 @@ def rank_sequences(
 def normalized_distance(
     phone1: str, phone2: str, *, applicable_only: bool = False
 ) -> float:
-    """CDF-renormalized distance (percentile within the bundled IPA inventory)."""
+    """Complementary percentile position in the bundled IPA inventory.
+
+    This is an inventory-relative rank, not a magnitude comparable to
+    :func:`segment_distance` or to a model over another inventory. Zero means
+    identity; the closest distinct pair sits just above it.
+    """
     model = _get_scoped_model() if applicable_only else _get_default_model()
     return model.distance(phone1, phone2)
 
 
 def confusability(phone1: str, phone2: str, *, applicable_only: bool = False) -> float:
-    """Normalized confusability (percentile similarity) in the bundled IPA inventory.
+    """Similarity percentile position in the bundled IPA inventory.
 
-    The complement of :func:`normalized_distance`; 1.0 for identical phones.
-    For an inventory-scoped model, build one with :func:`distance_model`.
+    The complement of :func:`normalized_distance`; 1.0 is reserved for
+    identical phones. This is an inventory-relative rank, not a magnitude
+    comparable to :func:`segment_distance` or to a model over another
+    inventory. For an inventory-scoped model, build one with
+    :func:`distance_model`.
 
     Examples:
         >>> round(ipakit.confusability("p", "b"), 3)
@@ -584,6 +592,9 @@ def distance_model(
     """Build a distribution-aware distance model over a reference inventory.
 
     ``reference=None`` uses the bundled global IPA inventory (default).
+    Phone-level values from the model are percentile positions in that
+    reference distribution, not structural magnitudes, and are not comparable
+    across inventories.
     """
     ipa = _get_ipa()
     if applicable_only:
@@ -1090,6 +1101,8 @@ def minimal_pairs(
     """Find phones that differ by approximately one feature (minimal pairs).
 
     Returns list of (phone, differing_feature, differing_value) tuples.
+    Unlike :func:`nearest_phones`, this function excludes the query because a
+    phone differs from itself by no features.
 
     Examples:
         >>> ipakit.minimal_pairs("p")
@@ -1419,13 +1432,18 @@ def nearest_phones(
     *,
     applicable_only: bool = False,
 ) -> list[tuple[str, float]]:
-    """Find the n nearest phones by phonetic distance.
+    """Find the n nearest phones by raw structural-distance magnitude.
 
-    Returns list of (phone, distance) tuples sorted by distance.
+    Returns list of (phone, distance) tuples sorted by distance magnitude.
+    This inventory-independent value is the same scale as
+    :func:`segment_distance`, not a ``DistanceModel`` percentile. The query
+    appears first at 0.0 when it belongs to the registered reference set; that
+    zero means the same phone and uses one of the ``n`` result slots. A
+    resolvable query outside that set is not synthesized as an answer.
 
     Examples:
         >>> [(p, round(d, 3)) for p, d in ipakit.nearest_phones("p", n=3)]
-        [('t', 0.019), ('ɸ', 0.025), ('f', 0.028)]
+        [('p', 0.0), ('t', 0.019), ('ɸ', 0.025)]
     """
     return _get_ipa().nearest_phones(
         phone,

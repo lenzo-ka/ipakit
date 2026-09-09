@@ -204,22 +204,17 @@ being asked would invent ties and consume a boundary that was content.
 
 ### Distribution-aware distance
 
-`distance()` is the **raw feature metric** — an absolute, inventory-independent
-mean over phonetic features, so a given pair scores the same whatever inventory
-you loaded. Raw
-distances bunch up in a narrow band, which makes fixed thresholds hard to pick.
-`normalized_distance()` renormalizes a raw distance to its **percentile** within
-the bundled IPA inventory's pairwise distribution, spreading values across
-`[0, 1]`:
+`distance()` is the **raw feature metric** — an inventory-independent magnitude over phonetic features, so a given pair scores the same whatever inventory you loaded.
+
+Raw distances bunch up in a narrow band, which makes fixed thresholds hard to pick. `normalized_distance()` places a raw distance at its complementary **percentile position** within the bundled IPA inventory's pairwise distribution. That position is not a second distance magnitude and is not comparable to one from another inventory. Zero means identity; the closest distinct pair sits just above it:
 
 ```python
 ipakit.distance("p", "b")             # raw structural distance
-ipakit.normalized_distance("p", "b")  # its percentile within the bundled inventory
+ipakit.normalized_distance("p", "b")  # its position within the bundled inventory
 ipakit.confusability("p", "b")        # the complement of normalized_distance
 ```
 
-For a model over a chosen reference inventory — percentiles are **relative** to
-it and not comparable across inventories — use `distance_model()`:
+For a model over a chosen reference inventory, use `distance_model()`. Its phone values are percentile positions **relative** to that inventory, not structural magnitudes, and are not comparable across inventories:
 
 ```python
 from ipakit import Phoneset
@@ -230,13 +225,13 @@ eng = ipakit.distance_model(
         name="english",
     )
 )
-eng.distance("p", "b")                       # percentile within THIS inventory, not the full one
-eng.nearest("p", n=3)                        # nearest phones drawn from this inventory
+eng.distance("p", "b")                       # complementary position in THIS inventory
+eng.nearest("p", n=3)                        # (phone, position), from this inventory
 eng.word_similarity("kæt", "kæd")
 eng.is_similar("kæt", "kæd", threshold=0.8)  # True
 ```
 
-Distances are **structural**: two segments are close when they are made similarly — same articulator, similar position in the vocal tract, similar constriction. That correlates with perceptual confusability but does not model it. Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. [docs/distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) documents the representation, the comparison, and what the numbers do and do not mean.
+Raw distances are **structural**: two segments are close when they are made similarly — same articulator, similar position in the vocal tract, similar constriction. That correlates with perceptual confusability but does not model it. Exact values are pinned in the test suite rather than quoted here: a change that moves them fails CI, where prose would go stale in silence. [docs/distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) documents the representation, the comparison, and what the numbers do and do not mean.
 
 `distance_model()` also accepts `gamma` (an exponent on the percentile; it reorders no phone pair, and its real effect is to reprice substitutions against gaps in word alignment — [docs/distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) §9 is what it is and is not good for), `insert_cost` / `delete_cost` for word alignment, and `threshold` / `max_length_ratio` defaults for `is_similar`. The raw pairwise matrix ships as `ipakit/data/confusion.json`; per-inventory models reuse it and only re-slice the percentile distribution.
 
@@ -271,7 +266,7 @@ ipakit query match plosive bilabial  # Find phones by feature
 ipakit analysis natural-class p t k  # Shared features of a set
 ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw structural distance
-ipakit distance confusability p b    # Inventory-relative confusability
+ipakit distance confusability p b    # Inventory-relative percentile positions
 ipakit distance word kæt kæd         # Word similarity
 ipakit distance seq "k a t" "k æ t" # Distance over pre-tokenized phone sequences
 ipakit distance nearest kat kæt kɑt  # Best-matching acceptable variant
@@ -286,8 +281,7 @@ ipakit tract draw t -o t.svg         # Mid-sagittal figure for one phone
 ipakit tract heads                   # Head shapes a figure can be drawn on
 ```
 
-The `distance confusability`/`word` commands use the distribution-aware model;
-scope them to a reference inventory with `--phoneset FILE` (one phone per line).
+The `distance confusability` command prints inventory-relative percentile positions, and `distance word` derives its substitution costs from them; neither output is the raw `distance pair` magnitude. Scope the model to a reference inventory with `--phoneset FILE` (one phone per line), and do not compare its positions across inventories.
 
 `ipakit rules` applies context-sensitive rewrite rules (`A -> B / C _ D`): a
 shipped set with `-s`, notation with `-r` (repeatable, and an ordered cascade), a
