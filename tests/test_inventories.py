@@ -540,6 +540,45 @@ def test_inventory_from_mfa_dictionary_filters_silence_before_reading(tmp_path) 
     assert list(derived.phones or ()) == ["m", "e͜j", "t", "s"]
 
 
+def test_inventory_from_mfa_dictionary_reports_marker_only_placeholder(
+    tmp_path,
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("<cutoff>\tspn\nmates\tm ej t s\n", encoding="utf-8")
+    derived = ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    assert list(derived.phones or ()) == ["m", "e͜j", "t", "s"]
+    assert derived.refusals == {
+        "<cutoff>": "dictionary line 1: placeholder pronunciation consists "
+        "entirely of non-phone MFA aligner markers: 'spn'"
+    }
+
+
+def test_inventory_from_mfa_dictionary_can_refuse_marker_only_placeholder(
+    tmp_path,
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("<cutoff>\tspn\n", encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory_from_dictionary(
+            source, "mfa:english_us", refuse_unreadable=True
+        )
+    message = str(caught.value)
+    assert "line 1" in message
+    assert "entry '<cutoff>', phone 'spn'" in message
+
+
+def test_inventory_from_mfa_dictionary_refuses_marker_mixed_with_phones(
+    tmp_path,
+) -> None:
+    source = tmp_path / "bad.dict"
+    source.write_text("word\tp spn t\n", encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    message = str(caught.value)
+    assert "line 1" in message
+    assert "entry 'word', phone 'spn'" in message
+
+
 def test_inventory_from_mfa_phone_refusal_has_one_entry_prefix(tmp_path) -> None:
     source = tmp_path / "bad.dict"
     source.write_text("mates\tm NOPE\n", encoding="utf-8")
@@ -622,7 +661,59 @@ def test_inventory_from_dictionary_cli_text_native_and_json(
         "p": {"entries": 1, "tokens": 1},
         "ə": {"entries": 1, "tokens": 1},
     }
+    assert report["refusals"] == {}
     assert report["dropped"] == {}
+
+
+def test_inventory_from_dictionary_cli_reports_placeholders(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "sample.dict"
+    source.write_text("<cutoff>\tspn\nword\tp\n", encoding="utf-8")
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "mfa:english_us",
+        "-f",
+        "json",
+    )
+    assert (rc, error) == (0, "")
+    assert json.loads(output)["refusals"] == {
+        "<cutoff>": "dictionary line 1: placeholder pronunciation consists "
+        "entirely of non-phone MFA aligner markers: 'spn'"
+    }
+
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "mfa:english_us",
+    )
+    assert (rc, output) == (0, "p\n")
+    assert error == (
+        "refused\t<cutoff>\tdictionary line 1: placeholder pronunciation "
+        "consists entirely of non-phone MFA aligner markers: 'spn'\n"
+    )
+
+    rc, _, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "inventory",
+        "from-dict",
+        str(source),
+        "--style",
+        "mfa:english_us",
+        "--refuse-unreadable",
+    )
+    assert rc != 0
+    assert "entry '<cutoff>', phone 'spn'" in error
 
 
 def test_inventory_from_dictionary_cli_reports_requested_drops(

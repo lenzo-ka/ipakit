@@ -503,8 +503,13 @@ def inventory_from_dictionary(
     name: str | None = None,
     ipa: IPAFeatures | None = None,
     min_entries: int | None = None,
+    refuse_unreadable: bool = False,
 ) -> Inventory:
-    """Derive a counted finite inventory from a pronunciation dictionary."""
+    """Derive a counted finite inventory from a pronunciation dictionary.
+
+    Marker-only MFA placeholders are reported on the returned inventory unless
+    ``refuse_unreadable`` requests the strict unreadable-token behavior.
+    """
     if min_entries is not None and min_entries < 1:
         raise ValueError("min_entries must be at least 1")
     selected = inventory(style).style if isinstance(style, str) else style
@@ -525,6 +530,7 @@ def inventory_from_dictionary(
             )
         )
     supported = "cmudict, pocketsphinx, mfa, mfa:<name>, ipa, wild"
+    placeholder_pronunciation: Callable[[tuple[str, ...]], bool] | None = None
     if selected.name in {"cmudict", "pocketsphinx"}:
         from ._corpus_cmudict import read_cmudict_dictionary_line
 
@@ -534,6 +540,8 @@ def inventory_from_dictionary(
 
     elif selected.name == "mfa" or selected.name.startswith("mfa:"):
         from .bridges.mfa import MFABridge
+
+        placeholder_pronunciation = MFABridge.is_placeholder_pronunciation
 
         def read_line(line: str) -> tuple[str, tuple[str, ...]] | None:
             if not line.strip() or line.lstrip().startswith("#"):
@@ -561,6 +569,7 @@ def inventory_from_dictionary(
     phones: list[str] = []
     token_counts: dict[str, int] = defaultdict(int)
     entry_counts: dict[str, int] = defaultdict(int)
+    refusals: dict[str, str] = {}
     source = Path(path)
     from .models import _silence_spellings
 
@@ -579,6 +588,17 @@ def inventory_from_dictionary(
                 if parsed is None:
                     continue
                 entry, spellings = parsed
+                if (
+                    not refuse_unreadable
+                    and placeholder_pronunciation is not None
+                    and placeholder_pronunciation(spellings)
+                ):
+                    markers = " ".join(spellings)
+                    refusals[entry] = (
+                        f"dictionary line {line_number}: placeholder pronunciation "
+                        f"consists entirely of non-phone MFA aligner markers: {markers!r}"
+                    )
+                    continue
                 entry_phones: list[str] = []
                 for spelling in spellings:
                     if spelling in silence:
@@ -616,6 +636,7 @@ def inventory_from_dictionary(
             [phone for phone in phones if phone not in dropped], inventory_name
         ),
         f"Pronunciation dictionary {source} read as {selected.name}",
+        refusals=refusals,
         counts=counts,
         dropped=dropped,
     )
