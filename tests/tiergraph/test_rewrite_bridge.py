@@ -148,6 +148,76 @@ def test_phantoms_do_not_corrupt_the_compatibility_surface():
     )
 
 
+def test_chained_phantoms_preserve_the_rule_engines_total_order():
+    """The graph records the ordered result; it does not rescan phantoms."""
+    inventory = ipakit.load_ipa_features()
+    form = japanese_moraic_fixture("hot", inventory)
+    observed = [
+        (
+            tick,
+            group.tier,
+            event.features["spelling"],
+            event.features.get("derivation-step"),
+            event.features.get("source-site-order"),
+            event.features.get("application-order"),
+            event.features.get("target-index"),
+        )
+        for tick, node in enumerate(form.__dict__["_tiergraph_index"].clock)
+        for group in node.groups
+        for event in group.events
+        if event.features.get("phantom")
+    ]
+
+    assert observed == [
+        (0, "narrow", "h", None, None, None, None),
+        (0, "allophonic", "h", None, None, None, None),
+        (0, "allophonic", "h", None, None, None, None),
+        (0, "mora", "ho", None, None, None, None),
+        (1, "narrow", "o", 0, 0, 0, 0),
+        (1, "allophonic", "o", None, None, None, None),
+        (1, "allophonic", "o", None, None, None, None),
+        (2, "narrow", "t", None, None, None, None),
+        (2, "allophonic", "tː", 1, 0, 0, 0),
+        (2, "allophonic", "tː", None, None, None, None),
+        (2, "mora", "t", None, None, None, None),
+        (2, "mora", "to", None, None, None, None),
+        (3, "allophonic", "o", 2, 0, 0, 0),
+    ]
+
+
+def test_insertion_then_deletion_keeps_cross_tier_input_clock_positions():
+    inventory = ipakit.load_ipa_features()
+    derivation = ipakit.rules.RuleSet.parse(
+        "∅ -> ə / a _\na -> ∅ / _ ə", inventory
+    ).derive("a", inventory)
+    form = project_derivation(derivation, inventory)
+    index = form.__dict__["_tiergraph_index"]
+
+    assert derivation.result == "ə"
+    assert [
+        (tick, group.tier, event.features["spelling"], event.features["trace"])
+        for tick, node in enumerate(index.clock)
+        for group in node.groups
+        for event in group.events
+        if group.tier in {"narrow", "allophonic"}
+    ] == [
+        (0, "narrow", "a", "no-op"),
+        (1, "narrow", "ə", "∅ -> ə / a _: ∅ -> ə @1"),
+        (1, "allophonic", "ə", "no-op"),
+    ]
+    links = {
+        (link.sources, link.name, link.targets)
+        for link in index.containment_input.relations
+    }
+    assert (("/clock/1",), "inserts", ("/clock/1/narrow/0",)) in links
+    assert (("/clock/0/narrow/0",), "rewrites-to", ()) in links
+    assert (
+        ("/clock/1/narrow/0",),
+        "rewrites-to",
+        ("/clock/1/allophonic/0",),
+    ) in links
+
+
 def test_malformed_compatibility_graph_has_a_typed_failure():
     inventory = ipakit.load_ipa_features()
     source = inventory.read("p")

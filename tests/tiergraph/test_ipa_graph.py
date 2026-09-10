@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
-from ipakit import Form, IPAFeatures, Segment, rules
+from ipakit import Form, FormBuilder, IPAFeatures, Segment, rules
 from ipakit._ipa_graph import (
     CLOCK_TREATMENTS,
     OccurrenceKind,
@@ -62,6 +62,19 @@ def test_structured_segment_fixture_restores_without_tokenizing(
     assert dict(unit.features) == fixture["features"]
     assert dict(unit.prosody) == fixture["prosody"]
     assert [list(item) for item in unit.provenance] == fixture["provenance"]
+
+
+def test_parsed_and_programmatic_construction_are_byte_identical() -> None:
+    """The parser and public builder lower one scan to one canonical store."""
+    text = "t͡s.∅ˈa"
+    parsed = Form.parse(text, strict=True)
+    builder = FormBuilder()
+    builder.append_ipa(text, strict=True)
+    constructed = builder.build()
+
+    assert parsed.to_ipa() == constructed.to_ipa() == text
+    assert parsed.to_json() == constructed.to_json()
+    assert parsed._graph == constructed._graph
 
 
 @pytest.mark.parametrize("view", ["features", "prosody", "provenance"])

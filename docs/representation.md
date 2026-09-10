@@ -34,11 +34,23 @@ assert form.leaves(form.roots[0]) == ("/clock/0/segment/0", "/clock/1/segment/0"
 
 Builder handles are opaque edit-time identities, while navigation returns canonical paths. After `build()`, use `roots`, `at`, `direct_children`, `descendants`, `leaves`, `parents`, and `ancestors` on `Form`; never retain or compare a handle to a path. `at(path)` dereferences the same canonical paths returned by navigation and recorded by matches.
 
+`append_ipa()` uses the same canonical scan and lowering as `read()`. For the
+same IPA input, a parser-built form and a builder containing only that append
+have byte-identical serialized JSON and equal authoritative graphs; construction
+does not maintain a second parser-shaped representation.
+
 `ipakit.read()` populates a unit tier only where the transcription asserts a
 feature on that unit. In particular, its `word` tier currently contains only
 words with asserted prominence; it is not an inventory of the words in the
 input. Consumers that need every word must not infer them from the presence of
 word-tier events.
+
+Containment may be heterogeneous. A phrase can directly contain initial,
+medial, or final silence segments alongside word events. Filtering
+`direct_children(phrase, "word")` returns only lexical words, while
+`leaves(utterance)` expands the word children and retains the silence segments
+in their declared order. Silence therefore remains reachable without becoming
+a fabricated word.
 
 ## Tier-graph envelope
 
@@ -69,6 +81,13 @@ Structured IPA segment events carry exact spelling and a versioned `ipa-segment`
 A renderer selects transcription tiers through its explicit codec profile; it does not guess from graph roots. Mutually exclusive delivery roots use `alternatives`; rendering requires either one persisted `selects` relation or one ephemeral selection argument, and the ephemeral choice does not mutate the graph. Multiple unrelated roots may coexist for traversal.
 
 The linear view supplies `units`, `intervals`, segment and boundary reads, rule sites and edits, pairwise `Alignment`, and rewrite traces. Capability negotiation, recognizer invocation, and rewrite-rule induction are intentionally deferred; version stamps identify the contract and do not negotiate it.
+
+Rewrite recognition scans the rule engine's changing linear derivation state,
+not the stored graph. Projection then records broad, narrow, and allophonic
+events on the immutable input clock. Insertions remain anchored to their input
+boundary, deletions retain an empty-target rewrite relation, and chained
+phantoms retain the engine's deterministic result order without adding clock
+positions or changing compatibility-unit indices.
 ## Draw the tier graph
 
 Every `Form` can render its complete graph as Graphviz DOT:

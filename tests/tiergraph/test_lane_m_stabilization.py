@@ -103,3 +103,50 @@ def test_public_builder_two_phrase_pattern_projects_and_round_trips() -> None:
     assert tuple(unit.text for unit in form.units) == ("k", "a", "t", "a")
     assert form.to_ipa() == "kata"
     assert type(form).from_json(form.to_json()) == form
+
+
+def test_phrase_navigation_keeps_silence_without_inventing_silence_words() -> None:
+    builder = FormBuilder()
+    utterance = builder.begin("utterance")
+    phrase = builder.begin("phrase")
+    initial = builder.add_event("segment", {"spelling": "␣"}, start=0, duration=0)
+    first_word = builder.begin("word", {"spelling": "a"})
+    first_segment = builder.append_ipa("a")[0]
+    builder.end(first_word)
+    builder.contain(first_word, (first_segment,))
+    medial = builder.add_event("segment", {"spelling": "␣"}, start=1, duration=0)
+    second_word = builder.begin("word", {"spelling": "b"})
+    second_segment = builder.append_ipa("b")[0]
+    builder.end(second_word)
+    builder.contain(second_word, (second_segment,))
+    final = builder.add_event("segment", {"spelling": "␣"}, start=2, duration=0)
+    builder.end(phrase)
+    builder.contain(phrase, (initial, first_word, medial, second_word, final))
+    builder.end(utterance)
+    builder.contain(utterance, (phrase,))
+    builder.add_root(utterance)
+    form = builder.build()
+
+    root = form.roots[0]
+    phrase_path = form.direct_children(root, "phrase")[0]
+    direct = form.direct_children(phrase_path)
+    words = form.direct_children(phrase_path, "word")
+    leaves = form.leaves(root)
+
+    assert [form._containment.event_tiers[path] for path in direct] == [
+        "segment",
+        "word",
+        "segment",
+        "word",
+        "segment",
+    ]
+    assert words == (direct[1], direct[3])
+    assert [form.at(path).features["spelling"] for path in words] == ["a", "b"]
+    assert [form.at(path).features["spelling"] for path in leaves] == [
+        "␣",
+        "a",
+        "␣",
+        "b",
+        "␣",
+    ]
+    assert all(form.at(path).structural_duration == 0 for path in leaves[::2])
