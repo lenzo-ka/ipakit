@@ -34,6 +34,9 @@ class MFADictionaryEntry:
 class MFABridge(VocabularyBridge):
     """One declared MFA vocabulary and the dictionary-line syntax."""
 
+    NON_PHONE_ALIGNER_MARKERS = frozenset({"<s>", "</s>", "spn"})
+    """Reserved aligner labels that do not denote phones."""
+
     def __init__(
         self, declaration: str = "english", *, ipa: IPAFeatures | None = None
     ) -> None:
@@ -69,6 +72,14 @@ class MFABridge(VocabularyBridge):
         if not spellings:
             raise ValueError(f"MFA dictionary line has no pronunciation: {line!r}")
         return word, spellings, separator
+
+    @classmethod
+    def is_placeholder_pronunciation(cls, spellings: tuple[str, ...]) -> bool:
+        """Return whether an MFA pronunciation consists only of aligner markers."""
+
+        return bool(spellings) and all(
+            spelling in cls.NON_PHONE_ALIGNER_MARKERS for spelling in spellings
+        )
 
     def read_dictionary_line(self, line: str) -> MFADictionaryEntry:
         """Read the plain MFA word-tab-segmented-phones dictionary form."""

@@ -3,6 +3,7 @@ import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import ipakit
 import pytest
 from ipakit.bridges import VocabularyBridge
 from ipakit.bridges.mfa import MFA, UNION, MFABridge, declarations
@@ -23,6 +24,22 @@ needs_source = pytest.mark.skipif(
     not (SOURCE / "dictionary").is_dir(),
     reason="MFA_MODELS does not name a populated mfa-models checkout",
 )
+
+
+@needs_source
+def test_pinned_english_us_dictionary_reads_with_reported_placeholders() -> None:
+    source = SOURCE / "dictionary/english/us_mfa/english_us_mfa.dict"
+    derived = ipakit.inventory_from_dictionary(source, "mfa:english_us")
+    assert derived.refusals == {
+        "<cutoff>": "dictionary line 29: placeholder pronunciation consists "
+        "entirely of non-phone MFA aligner markers: 'spn'",
+        "<unk>": "dictionary line 30: placeholder pronunciation consists "
+        "entirely of non-phone MFA aligner markers: 'spn'",
+        "[bracketed]": "dictionary line 31: placeholder pronunciation consists "
+        "entirely of non-phone MFA aligner markers: 'spn'",
+        "[laughter]": "dictionary line 32: placeholder pronunciation consists "
+        "entirely of non-phone MFA aligner markers: 'spn'",
+    }
 
 
 def test_every_shipped_declaration_loads_and_is_listed() -> None:
