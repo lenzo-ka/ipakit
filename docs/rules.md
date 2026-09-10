@@ -30,6 +30,13 @@ ipa.derive("atapa", r).trace()          # the same, with an account
 
 A `Site` records *which* neighbors licensed it, not merely that some did, so a trace can explain itself. An entry is `None` where the context matched the virtual edge past the end of the form rather than a unit that is really there. `bindings` is the same kind of record for [agreement variables](#a-rule-may-bind-a-value-and-re-use-it), empty for a rule that names none.
 
+The rule engine scans each changing linear derivation. When a derivation is
+projected into a tier graph, its original input clock remains the axis:
+insertions anchor to an input boundary, deletions retain an empty-target
+`rewrites-to` relation, and later broad/narrow/allophonic events do not rebase
+earlier positions. The graph records the engine's deterministic phantom order;
+it is not a second rule scanner.
+
 ## Notation
 
 | Piece | Means |
