@@ -16,6 +16,7 @@ from .._graph_facts import (
     RelationDeclaration,
     TierDeclaration,
 )
+from .._provenance import SourceMetadata
 from ..features import IPAFeatures
 from ..form import Form
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
@@ -119,13 +120,15 @@ class VocabularyBridge(Bridge):
         inward = report.find("house-to-external")
         if outward is None or inward is None:
             raise ValueError("vocabulary declaration must classify both directions")
+        source_metadata = SourceMetadata.from_root(root, declaration)
         super().__init__(
             root.attrib["name"],
-            root.attrib["version"],
-            root.attrib["provenance"],
+            source_metadata.version,
+            source_metadata.provenance,
             RoundTripReport(
                 _leg(outward, "external-to-house"), _leg(inward, "house-to-external")
             ),
+            source_metadata,
         )
         self.tier = root.attrib.get("tier", "vocabulary")
         self.source_style = root.attrib.get("source-style", "text")

@@ -93,7 +93,7 @@ dependencies = [
 #          Dev-only, NEVER imported at runtime: the library supplies the metric,
 #          while this one reader-run example clusters and draws its result.
 #   dev  - everything, for local development.
-test = ["pytest>=9.1.1", "pytest-xdist>=3.8.0", "lxml>=6.1.2"]
+test = ["pytest>=9.1.1", "pytest-xdist>=3.8.0", "lxml>=6.1.2", "packaging>=24.2"]
 lint = ["ruff>=0.16.5", "mypy>=2.3.1", "black>=26.5.1,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
 interop = ["pyclts>=4.0.2", "panphon>=0.22.2"]

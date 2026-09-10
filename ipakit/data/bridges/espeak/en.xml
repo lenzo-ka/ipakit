@@ -9,7 +9,7 @@
   This declaration is scoped to en. Other language tables may inherit,
   replace, or add phonemes and therefore receive separate declarations.
 -->
-<vocabulary name="espeak-en" version="espeak-ng-1.52.0" provenance="eSpeak NG 1.52.0 phsource/phonemes and phsource/ph_english (GPL-3.0-or-later)" tier="espeak-en" source-style="text">
+<vocabulary name="espeak-en" version="espeak-ng@4870adfa25b1a32b4361592f1be8a40337c58d6c" upstream="eSpeak NG" upstream-url="https://github.com/espeak-ng/espeak-ng/tree/4870adfa25b1a32b4361592f1be8a40337c58d6c/phsource" artifact="1.52.0 phsource/phonemes and phsource/ph_english" license="GPL-3.0-or-later" kind="synthesis-phoneme-table" tier="espeak-en" source-style="text">
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report">

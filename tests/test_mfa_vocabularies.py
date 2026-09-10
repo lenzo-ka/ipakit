@@ -8,7 +8,7 @@ import pytest
 from ipakit.bridges import VocabularyBridge
 from ipakit.bridges.mfa import MFA, UNION, MFABridge, declarations
 from ipakit.form import Form
-from scripts.mfa_vocabularies import REVISION, ROOT, generate, stale
+from scripts.mfa_vocabularies import PIN, REVISION, ROOT, generate, stale
 
 DATA = ROOT / "ipakit" / "data" / "bridges" / "mfa"
 
@@ -96,7 +96,9 @@ def test_korean_fortis_phones_are_atoms_not_refusals() -> None:
 
 
 def test_default_and_union_identity() -> None:
-    assert MFA.version == "english_mfa-v3.1.0"
+    assert MFA.version == PIN
+    assert MFA.source is not None
+    assert MFA.source.artifact == "english_mfa dictionary v3.1.0"
     assert MFA.name == "mfa:english"
     assert MFA.tier == "mfa"
     with pytest.raises(ValueError, match="'nope'"):

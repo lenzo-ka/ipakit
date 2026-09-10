@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inventory-cards>
+  <card family="ipa" title="House IPA">
+    <source path="ipakit/data/ipa.xml" />
+    <purpose>The finite house inventory is the shared notation and feature space into which the library reads other phone spellings.</purpose>
+    <conventions>Registered entries use the library's IPA spelling, tie, boundary, and prosody conventions; inventory order is declaration order.</conventions>
+    <strengths>Use it when a finite, feature-bearing reference inventory and an identity spelling boundary are wanted.</strengths>
+    <limitations>It is a declared working inventory rather than a claim that every possible or attested IPA segment is registered.</limitations>
+    <note origin="CONTRIBUTING.md: Registered wins; composition is the fallback">Registered sounds become candidates for inventory search and models; a well-formed unregistered tie chain can still compose without being promoted into the finite inventory.</note>
+  </card>
+  <card family="wild" title="Wild IPA">
+    <source path="ipakit/data/ipa.xml" />
+    <purpose>The soft reader brings common external IPA-like spellings into house IPA when a caller explicitly asks for forgiving input.</purpose>
+    <conventions>It applies declared lookalikes and then requires a strict house-IPA result; spelling remains house IPA.</conventions>
+    <strengths>Use it at an import boundary where keyboard substitutes and canonically equivalent spellings are expected.</strengths>
+    <limitations>It has no finite phoneset, so it is a notation style rather than a reference inventory for mapping or distance.</limitations>
+    <note origin="ipakit/features.py: _load_lookalikes">Soft lookalikes are read only through explicit wild import, leaving strict house parsing unchanged.</note>
+  </card>
+  <card family="cmudict" title="CMUdict">
+    <source path="ipakit/data/phonemaps/cmu.xml" />
+    <purpose>The CMUdict style reads and spells the ARPAbet vocabulary used by pronunciation dictionaries for speech synthesis and lexical work.</purpose>
+    <conventions>Vowel stress digits are meaningful: primary, secondary, and unstressed spellings remain distinct house units where the dictionary distinguishes them.</conventions>
+    <strengths>Use it for CMUdict-format lexicons whose stress markings should survive inventory derivation and round trips.</strengths>
+    <limitations>The mapping is an explicit finite ARPAbet boundary, not a general parser for arbitrary ASCII phonetic notation.</limitations>
+    <note origin="docs/inventories.md: dictionary-derived inventories">`AH0` and `AH1` read as distinct house units, preserving the stress contrast the dictionary writes.</note>
+  </card>
+  <card family="pocketsphinx" title="PocketSphinx">
+    <source path="ipakit/data/phonemaps/cmu.xml" />
+    <purpose>The PocketSphinx style presents the CMU phone vocabulary under the stressless convention expected by recognizer dictionaries.</purpose>
+    <conventions>It shares the declared CMU phone map while refusing stress digits and recognizing the style's silence and boundary labels.</conventions>
+    <strengths>Use it for stressless PocketSphinx lexicons where accepting a stress-bearing token would overstate what the notation commits to.</strengths>
+    <limitations>It intentionally does not repair a CMUdict pronunciation by stripping stress; the `cmudict` style is the appropriate reader when digits carry information.</limitations>
+    <note origin="docs/inventories.md: dictionary-derived inventories">Stress digits are refused rather than silently discarded, so a dictionary in the neighboring convention fails clearly.</note>
+  </card>
+  <card family="timit" title="TIMIT">
+    <source path="ipakit/data/phonemaps/timit.xml" />
+    <purpose>The TIMIT style reads and spells the corpus's acoustic-phonetic segment labels in house IPA.</purpose>
+    <conventions>Main labels provide canonical spellings; closure, epenthetic, syllabic, and pause labels are accepted as declared extras without replacing the canonical choice.</conventions>
+    <strengths>Use it for TIMIT label interchange and for a finite sound inventory in the corpus's transcription convention.</strengths>
+    <limitations>Several corpus labels can describe the same house sound or structural material, so label count and finite phone count answer different questions.</limitations>
+    <note origin="ipakit/data/phonemaps/timit.xml: extras">The declaration retains closure and pause labels for corpus interchange, while the inventory applies the shared silence rule and counts sounds.</note>
+  </card>
+  <card family="espeak" title="eSpeak NG">
+    <source path="ipakit/data/bridges/espeak/*.xml" />
+    <purpose>The language-scoped inventories expose eSpeak NG's compact synthesis phoneme tables, and the family union supplies the vocabulary emitted by eSpeak-based recognizers.</purpose>
+    <conventions>Each language resolves eSpeak table inheritance into native mnemonics; the union reads a mnemonic only where every declaration carrying it agrees on one house phone.</conventions>
+    <strengths>Use a language member for synthesis-facing text in that table's convention, or the union for cross-language recognizer vocabulary coverage.</strengths>
+    <limitations>A shared mnemonic can mean different sounds in different language tables, so the union deliberately refuses an ambiguous read or spelling instead of choosing one language silently.</limitations>
+    <note origin="docs/inventories.md: eSpeak union">The union ranks agreed spellings by declaration coverage, length, and lexical order; selecting `espeak:&lt;code&gt;` retains a language table's own answer where tables disagree.</note>
+  </card>
+  <card family="mfa" title="Montreal Forced Aligner">
+    <source path="ipakit/data/bridges/mfa/*.xml" />
+    <purpose>The language and variety members carry the phone sets of freely shared MFA pronunciation dictionaries, while the union provides a broad aligner-facing vocabulary.</purpose>
+    <conventions>Dictionary tokens are segmented; each declared MFA phone becomes one house unit, with ties added when one MFA token is written by several IPA characters.</conventions>
+    <strengths>Use a language member with its matching aligner dictionary, and derive an attested inventory from a dictionary when token or entry weight matters.</strengths>
+    <limitations>The family union combines doculects, while a declared member records membership rather than how broadly each phone is attested in its dictionary.</limitations>
+    <note origin="review-state.md: 2026-09-09 measured en-US lexicon">In the pinned en-US dictionary, the smallest frequency-ranked prefix reaching 99% of `{mfa_en_us_tokens:,}` phone tokens contains `{mfa_en_us_core_99}` of `{mfa_en_us_types}` phones.</note>
+    <note origin="review-state.md: 2026-09-07 MFA en-US tail">The low-attestation tail contains xenophones in loans and names, including `pʷ` in `{p_labialized_entries}` entries and `ɡʷ` in `{g_labialized_entries}`, alongside ordinary English allophony written for few eligible words; an entry cutoff locates this tail but cannot interpret it.</note>
+    <note origin="review-state.md: 2026-09-07 MFA en-US tail">`ɱ` occurs in `{labiodental_nasal_entries}` dictionary entry and `{labiodental_nasal_tokens}` token, as an alternate for *infection*; it is labiodental assimilation, not a xenophone. Recording that assimilation for one word is a reasonable lexicographic judgment, while its rarity measures how often the variant was written rather than whether English has the sound.</note>
+    <note origin="review-state.md: 2026-09-09 marker-only placeholders">The `{mfa_en_us_placeholders}` marker-only entries — `{mfa_en_us_placeholder_names}` — serve the aligner rather than pronounce words, so dictionary ingestion excludes them from phone counts and reports each one.</note>
+  </card>
+  <card family="panphon" title="Panphon (development comparison)">
+    <source path="tests/panphon/panphon.xml" />
+    <purpose>The dev-only declaration is a comparison target for running Panphon's feature geometry through the same declared machinery as the house system.</purpose>
+    <conventions>Its generated table preserves Panphon's ternary feature values, source spelling normalization, weight order, and declared round-trip losses without promoting it to a shipped style or inventory.</conventions>
+    <strengths>Use it to compare feature systems and cost policies on common inputs while keeping Panphon's own data visible and reproducible.</strengths>
+    <limitations>It is a compatibility target rather than a correctness oracle: unsupported segments can be dropped by Panphon, and a ternary zero does not distinguish several kinds of underspecification.</limitations>
+    <note origin="scripts/panphon_geometry.py: normalized segment keys">The declaration contains `{panphon_segments}` segment rows over `{panphon_features}` features and `{panphon_weights}` supplied weights; generation normalizes every segment key to NFD and refuses a duplicate normalized key.</note>
+    <note origin="tests/panphon/panphon.xml: fidelity notes">Feature and weight order differ at the tail, and the generated declaration retains that order instead of quietly repairing the comparison target.</note>
+  </card>
+</inventory-cards>

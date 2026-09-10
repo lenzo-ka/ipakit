@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import functools
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ._provenance import SourceMetadata
 from .models import Phoneset
 
 if TYPE_CHECKING:
@@ -67,6 +69,31 @@ class Inventory:
     refusals: dict[str, str] = field(default_factory=dict)
     counts: dict[str, dict[str, int]] = field(default_factory=dict)
     dropped: dict[str, dict[str, int]] = field(default_factory=dict)
+    source: SourceMetadata | None = None
+
+
+def _source(path: Path) -> SourceMetadata:
+    """Read structured source metadata from a declaration root."""
+    return SourceMetadata.from_root(ET.parse(path).getroot(), path)
+
+
+def _declared_inventory(
+    name: str,
+    style: Style,
+    phones: Phoneset | None,
+    source: SourceMetadata,
+    refusals: dict[str, str] | None = None,
+) -> Inventory:
+    """Build an inventory whose prose provenance has one declared source."""
+    return Inventory(
+        name,
+        style,
+        phones,
+        source.provenance,
+        source.version,
+        refusals or {},
+        source=source,
+    )
 
 
 def _one_ipa(spelling: str) -> str:
@@ -98,6 +125,9 @@ def _bridge_inventory(name: str, bridge: VocabularyBridge) -> Inventory:
     from .features import IPAFeatures
     from .phoneset_map import tie_delimited_entry
 
+    source = bridge.source
+    if source is None:
+        raise ValueError(f"{bridge.name} has no structured source metadata")
     features = IPAFeatures()
     phones = []
     outputs: dict[str, list[str]] = defaultdict(list)
@@ -133,11 +163,11 @@ def _bridge_inventory(name: str, bridge: VocabularyBridge) -> Inventory:
             key=lambda value: (-declaration_counts[value], len(value), value),
         )
 
-    return Inventory(
+    return _declared_inventory(
         name,
         Style(name, read, spell, separator=bridge.separator or None),
         _inventory_phones(phones, name),
-        bridge.provenance,
+        source,
     )
 
 
@@ -179,11 +209,11 @@ def _cmu_inventory(name: str) -> Inventory:
         for spelling, members in grouped.items()
         if len(members) > 1
     }
-    return Inventory(
+    return _declared_inventory(
         name,
         Style(name, read, spell, collapses, " "),
         _inventory_phones(phones, name),
-        f"CMU ARPAbet ({dialect.purpose}) from cmu.xml",
+        _source(_PHONEMAPS / "cmu.xml"),
     )
 
 
@@ -216,11 +246,11 @@ def _timit_inventory() -> Inventory:
         for phone in ipa_to_timit
         if len(features.segments(tied := tie_delimited_entry(phone, features))) == 1
     ]
-    return Inventory(
+    return _declared_inventory(
         "timit",
         Style("timit", read, spell),
         _inventory_phones(list(dict.fromkeys(phones)), "timit"),
-        "TIMIT phonemap declaration",
+        _source(_PHONEMAPS / "timit.xml"),
     )
 
 
@@ -239,6 +269,34 @@ def _disagreement(
     return ValueError(
         f"cannot {direction} {value!r} in espeak: declarations do not give one phone "
         f"({details}); select espeak:<code>"
+    )
+
+
+@functools.lru_cache(maxsize=1)
+def _espeak_source() -> SourceMetadata:
+    """Derive the union's source identity from every language declaration."""
+    sources = [_source(path) for path in sorted(_ESPEAK.glob("*.xml"))]
+    if not sources:
+        raise ValueError("the eSpeak inventory has no declarations")
+    common = {
+        field: {getattr(source, field) for source in sources}
+        for field in ("upstream", "upstream_url", "version", "license", "kind")
+    }
+    disagreements = {
+        field: values for field, values in common.items() if len(values) != 1
+    }
+    if disagreements:
+        raise ValueError(
+            f"eSpeak declarations disagree on source metadata: {disagreements}"
+        )
+    first = sources[0]
+    return SourceMetadata(
+        first.upstream,
+        first.upstream_url,
+        f"union of {len(sources)} declared {first.kind} artifacts",
+        first.version,
+        first.license,
+        first.kind,
     )
 
 
@@ -329,12 +387,11 @@ def _espeak_inventory() -> Inventory:
             f"({details}); select espeak:<code>"
         )
 
-    return Inventory(
+    return _declared_inventory(
         "espeak",
         Style("espeak", read, spell),
         _inventory_phones(sorted(set(phones)), "espeak"),
-        "Union across every shipped eSpeak NG 1.52.0 declaration; its names "
-        "are the vocabulary emitted by wav2vec2 eSpeak phoneme recognizers",
+        _espeak_source(),
     )
 
 
@@ -343,20 +400,20 @@ def _ipa_inventory() -> Inventory:
     from .features import IPAFeatures
 
     ipa = IPAFeatures()
-    return Inventory(
+    return _declared_inventory(
         "ipa",
         Style("ipa", _one_ipa, lambda value: value),
         _inventory_phones(list(ipa.phones), "ipa"),
-        "ipakit house IPA declaration",
+        _source(_DATA / "ipa.xml"),
     )
 
 
 def _wild_inventory() -> Inventory:
-    return Inventory(
+    return _declared_inventory(
         "wild",
         Style("wild", _wild, lambda value: value),
         None,
-        "ipakit soft IPA reader",
+        _source(_DATA / "ipa.xml"),
     )
 
 
@@ -374,6 +431,9 @@ def _mfa_inventory(declaration: str, ipa: IPAFeatures | None = None) -> Inventor
     from . import normalize
 
     bridge = _mfa_bridge(declaration, ipa)
+    source = bridge.source
+    if source is None:
+        raise ValueError(f"{bridge.name} has no structured source metadata")
     by_output = {atom.output: normalize(atom.spelling) for atom in bridge.atoms}
     by_spelling = {normalize(atom.spelling): atom.output for atom in bridge.atoms}
     name = bridge.name
@@ -390,12 +450,11 @@ def _mfa_inventory(declaration: str, ipa: IPAFeatures | None = None) -> Inventor
         except KeyError as error:
             raise ValueError(f"cannot spell {ipa!r} as one {name} phone") from error
 
-    return Inventory(
+    return _declared_inventory(
         name,
         Style(name, read, spell, separator=""),
         _inventory_phones([normalize(atom.spelling) for atom in bridge.atoms], name),
-        bridge.provenance,
-        bridge.version,
+        source,
         {item.spelling: item.reason for item in bridge.refusals},
     )
 
@@ -408,29 +467,24 @@ def _espeak_language_inventory(code: str) -> Inventory:
 
 
 @functools.lru_cache(maxsize=1)
-def _registry() -> dict[str, tuple[Callable[[], Inventory], str]]:
+def _registry() -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
     """Return the one registry table used for listing and loading."""
-    import xml.etree.ElementTree as ET
-
-    from ._cmu_graph import BASE_CMUDICT
     from .bridges.mfa import UNION, declarations
 
-    registry: dict[str, tuple[Callable[[], Inventory], str]] = {
-        "ipa": (_ipa_inventory, "ipakit house IPA declaration"),
-        "wild": (_wild_inventory, "ipakit soft IPA reader"),
+    ipa_source = _source(_DATA / "ipa.xml")
+    cmu_source = _source(_PHONEMAPS / "cmu.xml")
+    registry: dict[str, tuple[Callable[[], Inventory], SourceMetadata]] = {
+        "ipa": (_ipa_inventory, ipa_source),
+        "wild": (_wild_inventory, ipa_source),
         "cmudict": (
             functools.partial(_cmu_inventory, "cmudict"),
-            f"CMU ARPAbet ({BASE_CMUDICT.purpose}) from cmu.xml",
+            cmu_source,
         ),
         "pocketsphinx": (
             functools.partial(_cmu_inventory, "pocketsphinx"),
-            "CMUdict phone set; PocketSphinx stress handling from cmu.xml",
+            cmu_source,
         ),
-        "espeak": (
-            _espeak_inventory,
-            "Union across every shipped eSpeak NG 1.52.0 declaration; its names "
-            "are the vocabulary emitted by wav2vec2 eSpeak phoneme recognizers",
-        ),
+        "espeak": (_espeak_inventory, _espeak_source()),
     }
     for declaration in (UNION, *declarations()):
         path = _DATA / "bridges" / "mfa" / f"{declaration}.xml"
@@ -438,16 +492,16 @@ def _registry() -> dict[str, tuple[Callable[[], Inventory], str]]:
         name = root.attrib["name"]
         registry[name] = (
             functools.partial(_mfa_inventory, declaration),
-            root.attrib["provenance"],
+            SourceMetadata.from_root(root, path),
         )
     if (_PHONEMAPS / "timit.xml").is_file():
-        registry["timit"] = (_timit_inventory, "TIMIT phonemap declaration")
+        registry["timit"] = (_timit_inventory, _source(_PHONEMAPS / "timit.xml"))
     for path in sorted(_ESPEAK.glob("*.xml")):
         code = path.stem
         name = f"espeak:{code}"
         registry[name] = (
             functools.partial(_espeak_language_inventory, code),
-            ET.parse(path).getroot().attrib["provenance"],
+            _source(path),
         )
     return registry
 
@@ -456,7 +510,7 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
     """Load a named inventory, refusing an absent declaration."""
     registry = _registry()
     try:
-        builder, provenance = registry[name]
+        builder, source = registry[name]
     except KeyError as error:
         if name.startswith("mfa:"):
             from .bridges.mfa import declarations
@@ -482,16 +536,17 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
         item = builder()
     if item.name != name:
         raise ValueError(f"inventory builder for {name!r} returned {item.name!r}")
-    if item.provenance != provenance:
+    if item.source != source:
         return Inventory(
             item.name,
             item.style,
             item.phones,
-            provenance,
-            item.version,
+            source.provenance,
+            source.version,
             item.refusals,
             item.counts,
             item.dropped,
+            source,
         )
     return item
 

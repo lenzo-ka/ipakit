@@ -16,7 +16,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check panphon-geometry-check lint check gate-subject
+.PHONY: figures figures-clean tutorial tutorial-basics notebook inventory-cards inventory-cards-check house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check panphon-geometry-check lint check gate-subject
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 MFA_MODELS ?= $(HOME)/.cache/ipakit/mfa-models
@@ -49,6 +49,21 @@ mfa-vocabularies-check:
 		echo "mfa-vocabularies: pinned clone absent; generated-data check skipped"; \
 	else \
 		$(PYTHON) scripts/mfa_vocabularies.py check --source "$(MFA_MODELS)"; \
+	fi
+
+## inventory-cards: regenerate docs/inventories.md from declarations and counts
+inventory-cards:
+	@if test ! -f "$(MFA_MODELS)/dictionary/english/us_mfa/english_us_mfa.dict"; then \
+		echo "inventory-cards: pinned MFA dictionary absent; nothing regenerated"; \
+	else \
+		$(PYTHON) scripts/inventory_cards.py build --mfa-models "$(MFA_MODELS)"; \
+	fi
+
+inventory-cards-check:
+	@if test ! -f "$(MFA_MODELS)/dictionary/english/us_mfa/english_us_mfa.dict"; then \
+		echo "inventory-cards: pinned MFA dictionary absent; generated-document check skipped"; \
+	else \
+		$(PYTHON) scripts/inventory_cards.py check --mfa-models "$(MFA_MODELS)"; \
 	fi
 
 panphon-geometry-check:
@@ -163,6 +178,7 @@ check: gate-subject lint
 	@$(MAKE) --no-print-directory espeak-vocabularies-check
 	@$(MAKE) --no-print-directory mfa-vocabularies-check
 	@$(MAKE) --no-print-directory panphon-geometry-check
+	@$(MAKE) --no-print-directory inventory-cards-check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/tutorial.py check all
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/docexamples.py
 	@$(NICE) $(PYTHON) scripts/docquotes.py

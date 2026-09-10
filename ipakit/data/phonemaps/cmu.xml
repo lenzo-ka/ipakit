@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<phonemap description="IPA to CMU Pronouncing Dictionary" from="ipa" to="cmu">
+<phonemap description="IPA to CMU Pronouncing Dictionary" from="ipa" to="cmu" upstream="CMU Pronouncing Dictionary" upstream-url="https://github.com/cmusphinx/cmudict" artifact="ARPAbet-to-house-IPA phonemap" version="unpinned" license="BSD-2-Clause" kind="pronunciation-dictionary-phone-map">
     <!--
     stress="0 1 2" indicates valid stress levels:
       0 = unstressed, 1 = primary, 2 = secondary

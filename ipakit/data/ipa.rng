@@ -48,6 +48,12 @@
   <start>
     <element name="ipa">
       <attribute name="version"><text/></attribute>
+      <attribute name="declaration-version"><text/></attribute>
+      <attribute name="upstream"><text/></attribute>
+      <attribute name="upstream-url"><text/></attribute>
+      <attribute name="artifact"><text/></attribute>
+      <attribute name="license"><text/></attribute>
+      <attribute name="kind"><text/></attribute>
       <!-- The base URL every `href` below is relative to. -->
       <optional><attribute name="wiki"><text/></attribute></optional>
       <interleave>

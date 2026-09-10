@@ -270,3 +270,5 @@ jobs:
       # about a megabyte.
       - name: MFA declarations match the pinned mfa-models revision
         run: python scripts/mfa_vocabularies.py check --fetch --source "${{ runner.temp }}/mfa-models"
+      - name: Inventory cards match declarations and computed counts
+        run: python scripts/inventory_cards.py check --mfa-models "${{ runner.temp }}/mfa-models"
