@@ -25,7 +25,7 @@ def grouping_drop_bridge(tmp_path: Path) -> VocabularyBridge:
     """Build the small legacy-grouping witness for both mapper drop paths."""
     declaration = tmp_path / "grouping.xml"
     declaration.write_text("""<?xml version="1.0" encoding="UTF-8"?>
-<vocabulary name="grouping" version="1" provenance="test declaration" tier="grouping" source-style="segmented" separator=" ">
+<vocabulary name="grouping" version="unpinned" upstream="test" upstream-url="https://example.test/grouping" artifact="test declaration" license="MIT" kind="test-vocabulary" tier="grouping" source-style="segmented" separator=" ">
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report">
@@ -46,7 +46,11 @@ def grouping_drop_bridge(tmp_path: Path) -> VocabularyBridge:
 
 
 def test_mfa_inventory_is_pinned_and_parses_under_base_ipa() -> None:
-    assert MFA.version == "english_mfa-v3.1.0"
+    from scripts.mfa_vocabularies import PIN
+
+    assert MFA.version == PIN
+    assert MFA.source is not None
+    assert MFA.source.artifact == "english_mfa dictionary v3.1.0"
     assert len(MFA.atoms) == 91
     assert all(
         len(Form.parse(atom.spelling, strict=True).units) == 1 for atom in MFA.atoms
@@ -194,9 +198,11 @@ def test_mfa_mapper_refuses_undeclared_or_empty_residue_positioned(
 
 
 def test_espeak_en_inventory_is_language_scoped_and_pinned() -> None:
+    from scripts.espeak_vocabularies import PIN
+
     assert ESPEAK_EN.language == "en"
     assert ESPEAK_EN.name == "espeak-en"
-    assert ESPEAK_EN.version == "espeak-ng-1.52.0"
+    assert ESPEAK_EN.version == PIN
     assert ESPEAK_EN.source_style == "text"
     assert ESPEAK_EN.separator == ""
     assert len(ESPEAK_EN.atoms) == 67

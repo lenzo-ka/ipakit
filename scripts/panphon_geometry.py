@@ -127,11 +127,15 @@ def render() -> str:
         )
 
     version = importlib.metadata.version("panphon")
+    upstream_url = f"https://github.com/dmort27/panphon/tree/{version}"
     lines = [
         "<?xml version='1.0' encoding='utf-8'?>",
         (
             f"<feature-table name={quoteattr('panphon')} version={quoteattr(version)} "
-            f"provenance={quoteattr('panphon declared feature data')} "
+            f"upstream={quoteattr('Panphon')} "
+            f"upstream-url={quoteattr(upstream_url)} "
+            f"artifact={quoteattr('ipa_all.csv and feature_weights.csv')} "
+            f"license={quoteattr('MIT')} kind={quoteattr('phonetic-feature-table')} "
             f"ipa-all-sha256={quoteattr(hashlib.sha256(bases_path.read_bytes()).hexdigest())} "
             f"feature-weights-sha256={quoteattr(hashlib.sha256(weights_path.read_bytes()).hexdigest())}>"
         ),

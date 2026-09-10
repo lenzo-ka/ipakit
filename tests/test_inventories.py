@@ -74,11 +74,15 @@ def test_mfa_union_and_english_keep_declared_atom_order() -> None:
 
 
 def test_mfa_korean_carries_every_atom_without_refusal() -> None:
+    from scripts.mfa_vocabularies import PIN
+
     korean = ipakit.inventory("mfa:korean")
     assert korean.phones is not None
     assert len(korean.phones) == 105
     assert korean.refusals == {}
-    assert korean.version == "korean_mfa-v3.0.0"
+    assert korean.version == PIN
+    assert korean.source is not None
+    assert korean.source.artifact == "korean_mfa dictionary v3.0.0"
 
 
 def test_unknown_mfa_declaration_names_every_member() -> None:

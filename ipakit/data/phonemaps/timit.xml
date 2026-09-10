@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<phonemap description="IPA to TIMIT phoneset" from="ipa" to="timit">
+<phonemap description="IPA to TIMIT phoneset" from="ipa" to="timit" upstream="TIMIT Acoustic-Phonetic Continuous Speech Corpus" upstream-url="https://catalog.ldc.upenn.edu/LDC93S1" artifact="TIMIT 61-phone-to-house-IPA phonemap" version="LDC93S1" license="LicenseRef-LDC-TIMIT" kind="speech-corpus-phone-map">
     <!--
     TIMIT: Texas Instruments/MIT speech corpus phoneset (61 phones)
     Based on CMU/ARPABET but lowercase, with additional allophones.

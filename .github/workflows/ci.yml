@@ -237,8 +237,11 @@ jobs:
       - run: python -m pip install --upgrade pip
       # The doc examples run against the installed package and its dependencies;
       # scripts/docexamples.py, scripts/docquotes.py and scripts/tutorial.py
-      # are stdlib-only.
-      - run: pip install -e .
+      # are stdlib-only. scripts/inventory_cards.py is not: it validates every
+      # declared SPDX identifier through packaging, which is declared in the
+      # test extra because only a gate reads it. Installing the extra keeps that
+      # version constraint in pyproject.toml rather than spelling it here too.
+      - run: pip install -e ".[test]"
       - name: README and docs Python examples produce their stated values
         run: PYTHONHASHSEED=0 python scripts/docexamples.py
       # Runs here, not only in the pytest job, because a doc-only change skips
@@ -270,3 +273,5 @@ jobs:
       # about a megabyte.
       - name: MFA declarations match the pinned mfa-models revision
         run: python scripts/mfa_vocabularies.py check --fetch --source "${{ runner.temp }}/mfa-models"
+      - name: Inventory cards match declarations and computed counts
+        run: python scripts/inventory_cards.py check --mfa-models "${{ runner.temp }}/mfa-models"

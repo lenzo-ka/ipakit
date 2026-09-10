@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start>
+    <element name="inventory-cards">
+      <oneOrMore>
+        <element name="card">
+          <attribute name="family"><text /></attribute>
+          <attribute name="title"><text /></attribute>
+          <oneOrMore>
+            <element name="source">
+              <attribute name="path"><text /></attribute>
+            </element>
+          </oneOrMore>
+          <element name="purpose"><text /></element>
+          <element name="conventions"><text /></element>
+          <element name="strengths"><text /></element>
+          <element name="limitations"><text /></element>
+          <oneOrMore>
+            <element name="note">
+              <attribute name="origin"><text /></attribute>
+              <text />
+            </element>
+          </oneOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+  </start>
+</grammar>

@@ -40,6 +40,18 @@
            from is already stated by the rows. -->
       <optional><attribute name="from"><text/></attribute></optional>
       <attribute name="to"><text/></attribute>
+      <!-- Inventory-bearing maps carry this group. Converter-only maps may
+           carry it too, but do not need source metadata for the cards. -->
+      <optional>
+        <group>
+          <attribute name="upstream"><text/></attribute>
+          <attribute name="upstream-url"><text/></attribute>
+          <attribute name="artifact"><text/></attribute>
+          <attribute name="version"><text/></attribute>
+          <attribute name="license"><text/></attribute>
+          <attribute name="kind"><text/></attribute>
+        </group>
+      </optional>
       <!-- The rows and the extras section are order-independent to the
            reader, which finds each by name. Within a run of rows order does
            matter, and that RELAX NG preserves without being told: the first

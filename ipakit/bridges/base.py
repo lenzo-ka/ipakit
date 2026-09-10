@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from .._provenance import SourceMetadata
+
 
 class Fidelity(StrEnum):
     """The bridge contract's three round-trip classifications."""
@@ -40,3 +42,4 @@ class Bridge:
     version: str
     provenance: str
     round_trip: RoundTripReport
+    source: SourceMetadata | None = None

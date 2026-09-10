@@ -18,6 +18,7 @@ from typing import Protocol
 
 from tiergraph.semiring import TROPICAL, ProductSemiring
 
+from .._provenance import SourceMetadata
 from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..distance_model import DistanceModel
 from ..features import IPAFeatures
@@ -515,15 +516,16 @@ def pack_from_declaration(
         )
 
     identity = root.get("name", "declared")
-    version = root.get("version", "")
+    source = SourceMetadata.from_root(root, path)
     bridge = Bridge(
         identity,
-        version,
-        root.get("provenance", ""),
+        source.version,
+        source.provenance,
         RoundTripReport(
             leg(external, "external-to-house"),
             leg(house, "house-to-external"),
         ),
+        source,
     )
     feature_block = root.find("features")
     segment_block = root.find("segments")
@@ -689,7 +691,7 @@ def pack_from_declaration(
                 remaining = remaining[len(token) :]
         return Segmentation(tuple(tokens), tuple(dropped))
 
-    geometry = f"{identity}/{version}" if version else identity
+    geometry = f"{identity}/{source.version}"
     return CostPack(
         name=f"declared/{identity}/{family.value}",
         geometry=geometry,

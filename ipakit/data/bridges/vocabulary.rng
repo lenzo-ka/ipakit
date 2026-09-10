@@ -4,7 +4,11 @@
     <element name="vocabulary">
       <attribute name="name"><text /></attribute>
       <attribute name="version"><text /></attribute>
-      <attribute name="provenance"><text /></attribute>
+      <attribute name="upstream"><text /></attribute>
+      <attribute name="upstream-url"><text /></attribute>
+      <attribute name="artifact"><text /></attribute>
+      <attribute name="license"><text /></attribute>
+      <attribute name="kind"><text /></attribute>
       <optional><attribute name="tier"><text /></attribute></optional>
       <optional><attribute name="source-style"><choice><value>text</value><value>segmented</value></choice></attribute></optional>
       <optional><attribute name="separator"><text /></attribute></optional>

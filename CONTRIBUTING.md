@@ -129,6 +129,7 @@ Several files in the tree are outputs. Editing one by hand produces a change tha
 | Artifact | Regenerate with | Guarded by |
 | --- | --- | --- |
 | `docs/tutorial.md` | `make tutorial` (source is `docs/tutorial.src.md`) | `python scripts/tutorial.py check` — byte-identical |
+| `docs/inventories.md` | `make inventory-cards` (prose is declared in `docs/inventories.src.md` and `ipakit/data/inventory-cards.xml`) | `python scripts/inventory_cards.py check --mfa-models PATH` — byte-identical |
 | `ipakit/data/confusion.json` | `python scripts/confusion.py generate --write` | `python scripts/confusion.py validate` |
 | `ipakit/data/phonemaps/xsampa.xml` | `python scripts/xsampa_table.py generate --write` (the flag warns that it drops the file's hand grouping and comments — restore them) | `python scripts/xsampa_table.py validate` |
 | `docs/figures/*.svg` | `make figures` | `tests/test_tract_figures.py` |

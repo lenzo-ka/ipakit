@@ -25,6 +25,9 @@ def test_declaration_has_the_full_ternary_table_and_provenance() -> None:
     assert len(features) == 24
     assert len(segments) == 6367
     assert root.get("version") == "0.22.2"
+    assert root.get("upstream") == "Panphon"
+    assert root.get("license") == "MIT"
+    assert "provenance" not in root.attrib
     assert len(root.get("ipa-all-sha256", "")) == 64
     assert len(root.get("feature-weights-sha256", "")) == 64
     assert all(

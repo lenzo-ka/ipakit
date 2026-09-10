@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<ipa version="1.1" wiki="https://en.wikipedia.org/wiki/">
+<ipa version="unpinned" declaration-version="1.1" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="house IPA feature and notation declaration" license="BSD-2-Clause" kind="phonetic-feature-inventory" wiki="https://en.wikipedia.org/wiki/">
   <!-- This file travels on its own. It is the inventory, the feature
        declarations and the reasoning behind them, in one document that reads
        and copies without the package around it, so the terms it is offered
