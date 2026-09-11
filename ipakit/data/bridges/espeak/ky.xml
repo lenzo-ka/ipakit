@@ -86,7 +86,7 @@
   <atom spelling="ɲ" output="n^" />
   <atom spelling="ɾ" output="**" />
   <atom spelling="ɾ" output="*" />
-  <atom spelling="r." output="r." />
+  <atom spelling="ɽ" output="r." />
   <atom spelling="b" output="b" />
   <atom spelling="d̪" output="d[" />
   <atom spelling="dʑ" output="dZ;" />

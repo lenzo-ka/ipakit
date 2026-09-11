@@ -554,8 +554,14 @@ The MFA-to-ARPAbet report shows the aspirated and plain dorsal stops collapsing 
 
 The phone metric is symmetric but nearest mapping is directional, so both mappings are reported; `matrix` has A rows and B columns, and the B-by-A matrix is its transpose.
 
+The report names its reproducibility terms: this command uses raw structural feature distance, so it has no percentile reference inventory; it states whether the denominator includes all declared features or only mutually applicable ones, records the strip policy, and includes each named inventory's structured source metadata. The source `kind` matters: a pronunciation-dictionary map, harmonized dictionary phone set, speech-corpus map, and synthesis table are not four independent estimates of a language's phoneme inventory.
+
+Nearest mapping always finds a least-bad target when the target is nonempty. That is not a coverage claim. Library callers use `comparison.forward.coverage(limit)` and command-line callers repeat `--coverage-at DISTANCE` to report how many source phones fall within caller-chosen raw-distance limits. No default threshold is invented. Each direction also reports its mean and worst correspondence; `asymmetry` is the backward mean divided by the forward mean where defined. It is a useful granularity description, not proof of a phonological relationship.
+
+Every distance-produced correspondence is explicitly labeled `nearest` in JSON, and text calls its many-to-one groups “nearest collapses.” A derivational label such as `derived` or `ambiguous` requires an explicit relationship or rule set. For example, an MFA English tap may be phonetically nearest to CMU `DH`, while English flapping derives taps from /t/ or /d/ and is not uniquely invertible. The comparison does not guess the missing phonemic history.
+
 ```sh
-ipakit distance compare pocketsphinx mfa:english_us
+ipakit distance compare pocketsphinx mfa:english_us --coverage-at 0.01 --coverage-at 0.05
 ```
 
 Use `-f tsv` for only the matrix or `-f json` for the complete structured result; `--strip stress|prosodic|none` selects the same projection and defaults to `stress`, `--from-style` and `--to-style` describe files, and the name-or-file collision rule is the same as `distance map`.

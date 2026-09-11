@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from .inventories import Inventory, Style
 
 __all__ = [
+    "Coverage",
     "Correspondence",
     "PhonesetComparison",
     "PhonesetMapping",
@@ -50,6 +51,20 @@ __all__ = [
     "tie_delimited_entry",
     "one_to_one_mapping",
 ]
+
+
+@dataclass(frozen=True)
+class Coverage:
+    """How much of one inventory lies within a caller-declared distance."""
+
+    max_distance: float
+    covered: int
+    total: int
+
+    @property
+    def fraction(self) -> float:
+        """Covered source phones divided by all source phones."""
+        return self.covered / self.total if self.total else 1.0
 
 
 @dataclass(frozen=True)
@@ -74,6 +89,21 @@ class PhonesetComparison:
     matrix: tuple[tuple[float, ...], ...]
     spellings: Mapping[str, tuple[str | None, str | None]]
     stripped: tuple[tuple[str, str], ...]
+    strip: str | None = "stress"
+    applicable_only: bool = False
+
+    @property
+    def asymmetry(self) -> float | None:
+        """Backward mean divided by forward mean, when the ratio is defined.
+
+        This describes directional granularity; it does not establish why the
+        inventories differ or turn a nearest correspondence into a derivation.
+        """
+        forward = self.forward.mean_distance
+        backward = self.backward.mean_distance
+        if forward is None or forward == 0.0 or backward is None:
+            return None
+        return backward / forward
 
 
 @dataclass(frozen=True)
@@ -172,6 +202,39 @@ class PhonesetMapping:
     def ambiguous(self) -> tuple[Correspondence, ...]:
         """Correspondences where some other target was equally close."""
         return tuple(c for c in self.correspondences if c.ties)
+
+    def coverage(self, max_distance: float) -> Coverage:
+        """Count sources whose nearest target is no farther than the limit."""
+        if max_distance < 0:
+            raise ValueError("max_distance must be non-negative")
+        return Coverage(
+            max_distance,
+            sum(
+                item.distance is not None and item.distance <= max_distance
+                for item in self.correspondences
+            ),
+            len(self.correspondences),
+        )
+
+    @property
+    def mean_distance(self) -> float | None:
+        """Mean over mapped sources, or None when there are none."""
+        distances = [item.distance for item in self.mapped if item.distance is not None]
+        return sum(distances) / len(distances) if distances else None
+
+    @property
+    def worst(self) -> Correspondence | None:
+        """The most distant mapped correspondence, in declaration-order ties."""
+
+        def distance(item: Correspondence) -> float:
+            assert item.distance is not None
+            return item.distance
+
+        return max(
+            (item for item in self.mapped if item.distance is not None),
+            key=distance,
+            default=None,
+        )
 
 
 def _as_phoneset(value: Phoneset | Iterable[str], name: str) -> Phoneset:

@@ -14,6 +14,8 @@ Use `inventories()` to list the shipped names and `inventory(name)` to load one;
 
 CMUdict, PocketSphinx, TIMIT, MFA, bare `espeak`, and every declared eSpeak language are finite inventories; MFA has the union `mfa` and generated members `mfa:<name>`, while language-scoped eSpeak names have the form `espeak:en`.
 
+These are deliberately different kinds of finite declaration. CMUdict and PocketSphinx expose a pronunciation-dictionary alphabet, TIMIT a labeled speech-corpus phoneset, MFA harmonized dictionary phone sets across languages, and eSpeak language-specific synthesis phoneme tables. House IPA is the pivot among their spellings and feature descriptions; it does not erase those construction purposes. A nearest-feature correspondence therefore means proximity only. In particular, an MFA allophone's nearest CMU phone is not evidence of the phoneme it derives from: that relation must be supplied by a declared phonological rule or correspondence, and may be one-to-many when a rule is not invertible.
+
 Declared refusals are excluded from the phone count and available through `Inventory.refusals`; `inventory show` prints their spellings and reasons separately.
 
 Bare `espeak` is the union of the phone names in every shipped eSpeak NG declaration, the vocabulary used by wav2vec2 eSpeak phoneme recognizers, while each `espeak:<code>` inventory retains its language's table.
@@ -33,6 +35,8 @@ The registry discovers its eSpeak, MFA, phonemap and bridge members from the dec
 [Praat TextGrid interchange](textgrid.md#label-styles) applies a named style strictly to segment labels and tier labels derived from them while retaining point marks in house notation.
 
 Add a vocabulary inventory by placing its XML declaration under the matching bridge data directory; adapt the bridge only where its atom contract differs from `VocabularyBridge`. Notation-specific converters that cannot strictly read and spell one phone in both directions do not belong in this registry.
+
+X-SAMPA and Kirshenbaum remain notation converters rather than finite inventories: their maps say how symbols are written, not which sounds a language, corpus, recognizer, or synthesizer contains. Pinyin and kana are structured vocabulary bridges whose units can contain IPA sequences, so flattening their rows into a phoneset would lose the unit boundary the declaration supplies. New interop pivots should be added as styles plus finite inventories only when an upstream inventory establishes both claims; an open-ended notation alone establishes only the style.
 
 The `ipakit inventory` group inspects this named registry; `ipakit phoible inventory` selects a PHOIBLE doculect instead.
 
@@ -240,7 +244,7 @@ The TIMIT style reads and spells the corpus's acoustic-phonetic segment labels i
 | --- | ---: |
 | Registry entries | 130 |
 | Finite inventories | 130 |
-| Phone counts | 560 in `espeak` union; 56–144 across 129 scoped members |
+| Phone counts | 555 in `espeak` union; 56–144 across 129 scoped members |
 
 ### Qualitative
 

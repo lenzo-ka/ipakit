@@ -40,6 +40,22 @@ TONE_RE = re.compile(
     r"^Tone\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*" r"(?:envelope/)?([^,\s)]+)"
 )
 
+# eSpeak's ASCII mnemonic printer does not translate a trailing dot.  These
+# spellings are nevertheless determined by the pinned phoneme inventories:
+# explicit parallel declarations settle the retroflex consonants, while the
+# named synthesis templates settle the vowel qualities.  Keep the template in
+# the key so a language is never assigned another language's dotted vowel.
+INVENTORY_IPA = {
+    ("r.", "r3/@tap_rfx"): "ɽ",
+    ("s.", "ufric/sh_rfx"): "ʂ",
+    ("ts.", "ustop/ts_rfx_unasp"): "ʈ͡ʂ",
+    ("ts.h", "ustop/ts_rfx"): "ʈ͡ʂʰ",
+    ("i.", "vowel/i#_6"): "ɨ",
+    ("a.", "vowel/aa_7"): "ɑ",
+    ("i.", "vowel/ii_5"): "ɪ",
+    ("u.", "vowel/u_7"): "ʊ",
+}
+
 
 @dataclass(frozen=True)
 class Phone:
@@ -307,6 +323,14 @@ def _explicit_ipa(phone: Phone) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _inventory_ipa(phone: Phone) -> str | None:
+    """Return IPA fixed by an inventory peer or named synthesis template."""
+    for (mnemonic, template), ipa in INVENTORY_IPA.items():
+        if phone.mnemonic == mnemonic and any(template in line for line in phone.body):
+            return ipa
+    return None
+
+
 def tone_directive(phone: Phone) -> tuple[int, int, str] | None:
     """Return the final compiled Tone instruction, if this is tone content."""
     for line in reversed(phone.body):
@@ -380,6 +404,8 @@ def spelling(
     explicit, refusal = _explicit_ipa(phone)
     if explicit is not None or refusal is not None:
         candidate = explicit
+    elif inferred := _inventory_ipa(phone):
+        candidate = inferred
     # Tone content is stress-kind in phsource; the Tone directive, rather
     # than the broad source type, distinguishes it from stress controls.
     elif tone_directive(phone) is not None:
@@ -402,8 +428,10 @@ def spelling(
 
     probe = "a" + candidate if tone_directive(phone) is not None else candidate
     try:
-        Form.parse(probe, strict=True)
+        parsed = Form.parse(probe, strict=True)
     except ValueError:
+        return None, "outside-house-ipa"
+    if "." in candidate and parsed.boundaries:
         return None, "outside-house-ipa"
     return candidate, None
 
