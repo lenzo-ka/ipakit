@@ -73,7 +73,7 @@
   <atom spelling="ŋ" output="N" />
   <atom spelling="ɾ" output="**" />
   <atom spelling="ɾ" output="*" />
-  <atom spelling="r." output="r." />
+  <atom spelling="ɽ" output="r." />
   <atom spelling="b" output="b" />
   <atom spelling="d" output="d" />
   <atom spelling="d̪" output="d[" />
@@ -125,7 +125,7 @@
   <atom spelling="tɕh" output="tS;h" />
   <atom spelling="ts" output="ts" />
   <atom spelling="tsh" output="tsh" />
-  <atom spelling="i." output="i." />
+  <atom spelling="ɨ" output="i." />
   <atom spelling="ai" output="ai" />
   <atom spelling="au" output="au" />
   <atom spelling="eu" output="eu" />
@@ -151,6 +151,7 @@
   <atom spelling="ŋ̩ː" output="N-:" />
   <atom spelling="r̩ː" output="r-:" />
   <atom spelling="l̩ː" output="l-:" />
+  <atom spelling="ɨː" output="i.:" />
   <atom spelling="aiː" output="ai:" />
   <atom spelling="auː" output="au:" />
   <atom spelling="euː" output="eu:" />

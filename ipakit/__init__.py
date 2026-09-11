@@ -115,7 +115,7 @@ from .phonemaps import (
     to_phonemap,
     to_timit,
 )
-from .phoneset_map import Correspondence, PhonesetComparison, PhonesetMapping
+from .phoneset_map import Correspondence, Coverage, PhonesetComparison, PhonesetMapping
 from .rules import (
     DEFAULT_LIMIT,
     Action,
@@ -1422,6 +1422,8 @@ def phoneset_comparison(
             }
         ),
         tuple(changed),
+        strip,
+        applicable_only,
     )
 
 
@@ -1743,6 +1745,7 @@ def variants(
 
 
 __all__ = [
+    "Coverage",
     # Classes
     "CMUMapper",
     "Correspondence",

@@ -18,6 +18,25 @@ def test_explicit_ipa_wins_and_embedded_codepoints_decode() -> None:
     assert spelling(Phone("O~", ("ipa ɒ", "vwl"))) == ("ɒ", None)
 
 
+def test_dotted_mnemonics_use_inventory_determined_ipa() -> None:
+    cases = {
+        ("r.", "FMT(r3/@tap_rfx)"): "ɽ",
+        ("s.", "WAV(ufric/sh_rfx, 50)"): "ʂ",
+        ("ts.", "WAV(ustop/ts_rfx_unasp)"): "ʈ͡ʂ",
+        ("ts.h", "WAV(ustop/ts_rfx)"): "ʈ͡ʂʰ",
+        ("i.", "FMT(vowel/i#_6)"): "ɨ",
+        ("a.", "FMT(vowel/aa_7)"): "ɑ",
+        ("i.", "FMT(vowel/ii_5)"): "ɪ",
+        ("u.", "FMT(vowel/u_7)"): "ʊ",
+    }
+    for (mnemonic, instruction), expected in cases.items():
+        assert spelling(Phone(mnemonic, ("vwl", instruction))) == (expected, None)
+
+
+def test_unresolved_dotted_mnemonic_is_not_accepted_as_one_phone() -> None:
+    assert spelling(Phone("x.", ("frc",))) == (None, "outside-house-ipa")
+
+
 def test_non_ipa_source_phonemes_remain_declared_refusals() -> None:
     assert spelling(Phone("#a", ("virtual",))) == (None, "control-or-virtual")
     assert spelling(Phone(";", ("ipa NULL",))) == (None, "conditional-null")

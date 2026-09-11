@@ -1026,6 +1026,14 @@ class CompareCommand(Command):
             default="stress",
             help="Marks to strip before comparison (default: stress)",
         )
+        parser.add_argument(
+            "--coverage-at",
+            metavar="DISTANCE",
+            type=float,
+            action="append",
+            default=[],
+            help="Report coverage within this caller-chosen raw distance",
+        )
         add_applicable_only_arg(parser)
         add_format_arg(parser, ["text", "json", "tsv"])
         add_output_arg(parser)
@@ -1036,6 +1044,8 @@ class CompareCommand(Command):
         from ..inventories import inventories
 
         known = set(inventories())
+        if any(value < 0 for value in self.args.coverage_at):
+            return self.error("--coverage-at must be non-negative")
 
         def resolve(token: str):  # type: ignore[no-untyped-def]
             path = Path(token)
@@ -1076,6 +1086,7 @@ class CompareCommand(Command):
             return 0
 
         def mapping_json(mapping: PhonesetMapping) -> dict[str, object]:
+            coverages = [mapping.coverage(value) for value in self.args.coverage_at]
             return {
                 "mapped": len(mapping.mapped),
                 "exact": len(mapping.exact),
@@ -1083,6 +1094,25 @@ class CompareCommand(Command):
                 "collapses": {
                     key: list(value) for key, value in mapping.collapses.items()
                 },
+                "mean_distance": mapping.mean_distance,
+                "worst": (
+                    None
+                    if mapping.worst is None
+                    else {
+                        "source": mapping.worst.source,
+                        "target": mapping.worst.target,
+                        "distance": mapping.worst.distance,
+                    }
+                ),
+                "coverage": [
+                    {
+                        "max_distance": item.max_distance,
+                        "covered": item.covered,
+                        "total": item.total,
+                        "fraction": item.fraction,
+                    }
+                    for item in coverages
+                ],
                 "correspondences": [
                     {
                         "source": item.source,
@@ -1090,6 +1120,7 @@ class CompareCommand(Command):
                         "distance": item.distance,
                         "source_spelling": item.source_spelling,
                         "target_spelling": item.target_spelling,
+                        "relation": "nearest",
                     }
                     for item in mapping
                 ],
@@ -1105,6 +1136,25 @@ class CompareCommand(Command):
                     "only_a": list(comparison.only_a),
                     "only_b": list(comparison.only_b),
                     "stripped": [list(item) for item in comparison.stripped],
+                    "terms": {
+                        "distance": "raw-feature-distance",
+                        "reference_inventory": None,
+                        "applicable_only": comparison.applicable_only,
+                        "strip": comparison.strip,
+                        "a_source": (
+                            None
+                            if comparison.forward.source_inventory is None
+                            or comparison.forward.source_inventory.source is None
+                            else comparison.forward.source_inventory.source.to_dict()
+                        ),
+                        "b_source": (
+                            None
+                            if comparison.forward.target_inventory is None
+                            or comparison.forward.target_inventory.source is None
+                            else comparison.forward.target_inventory.source.to_dict()
+                        ),
+                    },
+                    "asymmetry": comparison.asymmetry,
                     "spellings": [
                         {"phone": p, "a": a, "b": b}
                         for p, (a, b) in comparison.spellings.items()
@@ -1131,10 +1181,28 @@ class CompareCommand(Command):
                 shown.append(f"{phone} [{'; '.join(external)}]" if external else phone)
             return " ".join(shown)
 
+        self.print(
+            "terms: raw feature distance (no reference scaling); "
+            f"denominator={'applicable features only' if comparison.applicable_only else 'all declared features'}; "
+            f"strip={comparison.strip or 'none'}"
+        )
+        for label, inventory in (
+            ("A", comparison.forward.source_inventory),
+            ("B", comparison.forward.target_inventory),
+        ):
+            if inventory is not None and inventory.source is not None:
+                source = inventory.source
+                self.print(
+                    f"{label}: {inventory.name} — {source.kind}; "
+                    f"{source.artifact}; {source.version}"
+                )
+
         self.print(f"union: {show(comparison.union)}")
         self.print(f"intersection: {show(comparison.intersection)}")
         self.print(f"only A: {show(comparison.only_a, 0)}")
         self.print(f"only B: {show(comparison.only_b, 1)}")
+        if comparison.asymmetry is not None:
+            self.print(f"asymmetry (B->A mean / A->B mean): {comparison.asymmetry:.4f}")
         for label, mapping in (
             ("A -> B", comparison.forward),
             ("B -> A", comparison.backward),
@@ -1143,8 +1211,21 @@ class CompareCommand(Command):
                 f"\n{label}: mapped={len(mapping.mapped)} exact={len(mapping.exact)} "
                 f"unmapped={len(mapping.unmapped)}"
             )
+            if mapping.mean_distance is not None:
+                self.print(f"mean distance: {mapping.mean_distance:.4f}")
+            if mapping.worst is not None:
+                self.print(
+                    f"worst: {mapping.worst.source} -> {mapping.worst.target} "
+                    f"({mapping.worst.distance:.4f})"
+                )
+            for value in self.args.coverage_at:
+                coverage = mapping.coverage(value)
+                self.print(
+                    f"coverage <= {value:g}: {coverage.covered}/{coverage.total} "
+                    f"({coverage.fraction:.1%})"
+                )
             for target, sources in mapping.collapses.items():
-                self.print(f"collapsed onto {target}: {' '.join(sources)}")
+                self.print(f"nearest collapse onto {target}: {' '.join(sources)}")
         self.print("\nsimilarity matrix:")
         matrix()
         if comparison.stripped:

@@ -272,6 +272,16 @@ def test_no_finite_inventory_contains_a_silence_or_boundary() -> None:
             assert forbidden.isdisjoint(phones), name
 
 
+def test_every_phone_in_every_shipped_inventory_is_readable_house_ipa() -> None:
+    """A declaration is not readable merely because its XML can be loaded."""
+    ipa = ipakit.load_ipa_features()
+    for name in ipakit.inventories():
+        phones = ipakit.inventory(name).phones
+        if phones is not None:
+            for phone in phones:
+                ipa.read(phone)
+
+
 def test_an_uncollapsed_phone_is_not_reported_as_a_collapse() -> None:
     assert "p" not in ipakit.phoneset_mapping("cmudict", "mfa").collapses
 

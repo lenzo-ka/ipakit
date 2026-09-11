@@ -98,6 +98,36 @@ def test_english_us_pair_invariants() -> None:
             assert union.matrix[i][j] == pytest.approx(union.matrix[j][i])
 
 
+def test_coverage_is_a_caller_chosen_claim_not_merely_nearest() -> None:
+    result = ipakit.phoneset_comparison(["p", "θ"], ["p"])
+    exact = result.forward.coverage(0.0)
+    all_nearest = result.forward.coverage(1.0)
+    assert (exact.covered, exact.total, exact.fraction) == (1, 2, 0.5)
+    assert (all_nearest.covered, all_nearest.total) == (2, 2)
+    assert result.forward.mean_distance is not None
+    assert result.forward.worst is not None
+    assert result.forward.worst.source == "θ"
+    with pytest.raises(ValueError, match="non-negative"):
+        result.forward.coverage(-0.1)
+
+
+@pytest.mark.parametrize(
+    "left,right",
+    [
+        ("cmudict", "mfa:english_us"),
+        ("cmudict", "timit"),
+        ("timit", "mfa:english_us"),
+        ("cmudict", "espeak:en-us"),
+    ],
+)
+def test_representative_interop_pivots_compare(left: str, right: str) -> None:
+    result = ipakit.phoneset_comparison(left, right)
+    assert result.forward.source_inventory is not None
+    assert result.forward.target_inventory is not None
+    assert len(result.forward) == len(result.a)
+    assert len(result.backward) == len(result.b)
+
+
 def _run(monkeypatch, capsys, *args: str):
     import ipakit.cli
 
@@ -121,9 +151,35 @@ def test_cli_formats(tmp_path, monkeypatch, capsys, format_: str) -> None:
         assert output.startswith("\ta\tb\n")
         assert "union:" not in output
     else:
+        assert "terms: raw feature distance" in output
         assert "union:" in output
         assert "A -> B:" in output
         assert "similarity matrix:" in output
+
+
+def test_cli_json_names_terms_provenance_coverage_and_nearest_relation(
+    monkeypatch, capsys
+) -> None:
+    status, output, _ = _run(
+        monkeypatch,
+        capsys,
+        "cmudict",
+        "timit",
+        "--coverage-at",
+        "0.02",
+        "-f",
+        "json",
+    )
+    assert status == 0
+    report = json.loads(output)
+    assert report["terms"]["distance"] == "raw-feature-distance"
+    assert report["terms"]["reference_inventory"] is None
+    assert report["terms"]["a_source"]["kind"] == "pronunciation-dictionary-phone-map"
+    assert report["terms"]["b_source"]["kind"] == "speech-corpus-phone-map"
+    assert report["forward"]["coverage"][0]["max_distance"] == 0.02
+    assert {item["relation"] for item in report["forward"]["correspondences"]} == {
+        "nearest"
+    }
 
 
 def test_cli_refuses_name_file_collision(tmp_path, monkeypatch, capsys) -> None:
