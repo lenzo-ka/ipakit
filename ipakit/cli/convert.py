@@ -572,7 +572,7 @@ class FromKirshenbaumCommand(Command):
 
 
 class PhonesetCommand(Command):
-    """Read a phoneset file that may be wild, write it in house style.
+    """Read a phoneset file through house IPA and write a selected style.
 
     A phoneset file is one phone per line, and the delimiting is what
     this command trusts: each line names a single phone, so anything
@@ -600,12 +600,13 @@ class PhonesetCommand(Command):
     Examples:
         ipakit convert phoneset en.phones
         ipakit convert phoneset en.phones -o en-house.phones
+        ipakit convert phoneset timit.phones --from-style timit --to-style cmudict
         ipakit convert phoneset wild.txt --quiet      # no change report
     """
 
     name = "phoneset"
     aliases: ClassVar[list[str]] = []
-    help = "Rewrite a phoneset file in house style (wild spellings, missing ties)"
+    help = "Transcode a phoneset file through house IPA"
     reads_notation = IPA
 
     @classmethod
@@ -632,6 +633,11 @@ class PhonesetCommand(Command):
             help="Read the file in this named inventory notation (default: wild)",
         )
         parser.add_argument(
+            "--to-style",
+            metavar="NAME",
+            help="Write the file in this named inventory notation (default: house IPA)",
+        )
+        parser.add_argument(
             "--quiet",
             action="store_true",
             help="Do not list the changed entries on stderr",
@@ -642,7 +648,7 @@ class PhonesetCommand(Command):
             return self.error(f"No such phoneset file: {self.args.file}")
         source = Phoneset.from_file(self.args.file)
 
-        out: list[str] = []
+        house_entries: list[tuple[str, str]] = []
         wild: list[tuple[str, str]] = []
         tied: list[tuple[str, str]] = []
         styled_steps: list[tuple[str, str]] = []
@@ -661,7 +667,6 @@ class PhonesetCommand(Command):
                 styled = style.read(member)
             except ValueError:
                 refused.append(member)
-                out.append(member)
                 continue
             house, steps = read_inventory_entry(
                 styled, self.ipa, wild=False, tie=not self.args.no_tie
@@ -678,7 +683,8 @@ class PhonesetCommand(Command):
                 changed.add(member)
             if len(self.ipa.segments(house)) != 1:
                 refused.append(member)
-            out.append(house)
+                continue
+            house_entries.append((member, house))
 
         if refused:
             for member in refused:
@@ -688,6 +694,41 @@ class PhonesetCommand(Command):
                     file=sys.stderr,
                 )
             return self.error(f"{len(refused)} entr(ies) unreadable; nothing written")
+
+        target_style = None
+        if self.args.to_style:
+            try:
+                target_style = inventory(self.args.to_style).style
+            except ValueError as error:
+                return self.error(str(error))
+
+        out: list[str] = []
+        target_steps: list[tuple[str, str]] = []
+        unspellable: list[tuple[str, str, str]] = []
+        for member, house in house_entries:
+            if target_style is None:
+                out.append(house)
+                continue
+            try:
+                rendered = target_style.spell(house)
+            except ValueError as error:
+                unspellable.append((member, house, str(error)))
+                continue
+            out.append(rendered)
+            if rendered != house:
+                target_steps.append((house, rendered))
+
+        if unspellable:
+            assert target_style is not None
+            for member, house, reason in unspellable:
+                print(
+                    f"cannot spell {style.name} {member!r} (house IPA {house!r}) "
+                    f"as {target_style.name}: {reason}",
+                    file=sys.stderr,
+                )
+            return self.error(
+                f"{len(unspellable)} entr(ies) unspellable; nothing written"
+            )
 
         text = "\n".join(out) + "\n"
         if self.args.output:
@@ -702,11 +743,15 @@ class PhonesetCommand(Command):
                 print(f"tied: {before} -> {after}", file=sys.stderr)
             for before, after in styled_steps:
                 print(f"{style.name}: {before} -> {after}", file=sys.stderr)
+            if target_style is not None:
+                for before, after in target_steps:
+                    print(f"{target_style.name}: {before} -> {after}", file=sys.stderr)
             unchanged = len(source.phones) - len(changed)
             print(
                 f"{len(source.phones)} entries: {unchanged} unchanged, "
                 f"{len(wild)} wild spelling(s), {len(tied)} tied, "
-                f"{len(styled_steps)} {style.name}",
+                f"{len(styled_steps)} {style.name}, "
+                f"{len(target_steps)} target spelling(s)",
                 file=sys.stderr,
             )
         return 0
