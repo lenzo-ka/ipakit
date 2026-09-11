@@ -455,6 +455,55 @@ def test_convert_phoneset_reports_style_bucket(tmp_path, monkeypatch, capsys) ->
     assert "tied: AH" not in error
 
 
+def test_convert_phoneset_transcodes_between_declared_styles(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("iy\ndx\n", encoding="utf-8")
+    target = tmp_path / "target.txt"
+    target.write_text("sentinel\n", encoding="utf-8")
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "convert",
+        "phoneset",
+        str(source),
+        "--from-style",
+        "timit",
+        "--to-style",
+        "cmudict",
+        "-o",
+        str(target),
+    )
+    assert rc != 0
+    assert output == ""
+    assert "cannot spell timit 'dx' (house IPA 'ɾ') as cmudict" in error
+    assert "nothing written" in error
+    assert target.read_text(encoding="utf-8") == "sentinel\n"
+
+
+def test_convert_phoneset_transcodes_only_after_every_entry_spells(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("iy\np\n", encoding="utf-8")
+    rc, output, error = _run_cli(
+        monkeypatch,
+        capsys,
+        "convert",
+        "phoneset",
+        str(source),
+        "--from-style",
+        "timit",
+        "--to-style",
+        "cmudict",
+    )
+    assert rc == 0
+    assert output == "IY\nP\n"
+    assert "timit: iy -> i" in error
+    assert "cmudict: i -> IY" in error
+
+
 def test_inventory_show_style_and_unknown_name(monkeypatch, capsys) -> None:
     rc, output, _ = _run_cli(monkeypatch, capsys, "inventory", "show", "wild")
     assert rc == 0
