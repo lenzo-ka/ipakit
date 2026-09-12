@@ -9,6 +9,10 @@ python scripts/interop.py --clts /path/to/clts declarations
 ```
 
 This emits deterministic JSON (`ipakit-clts-declaration-census`, version 1).
+The reusable library entry point is `ipakit.clts.declaration_audit(Path(...))`;
+the command delegates to it and only handles arguments, diagnostics, and JSON
+output. The library returns the same plain dictionary and raises `ValueError`
+for malformed input or `OSError` for inaccessible files.
 It reads the master `pkg/transcriptionsystems/features.json` separately from
 the derived `data/features.tsv` and observed `data/sounds.tsv`. Qualified
 identities retain unit kind, feature name, and value: two features sharing a

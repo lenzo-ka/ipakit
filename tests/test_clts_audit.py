@@ -8,13 +8,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from ipakit import load_ipa_features
+from ipakit import clts, load_ipa_features
 from scripts import interop
 
 
 @pytest.fixture
 def source(tmp_path: Path) -> Path:
-    master = tmp_path.joinpath(*interop.MASTER_FEATURES)
+    master = tmp_path.joinpath(*clts.MASTER_FEATURES)
     master.parent.mkdir(parents=True)
     master.write_text(json.dumps({"vowel": {"height": ["close", "open"]}}))
     data = tmp_path / "data"
@@ -31,7 +31,7 @@ def source(tmp_path: Path) -> Path:
 
 
 def test_declared_but_unobserved_and_composite_context(source: Path) -> None:
-    result = interop.declaration_audit(source)
+    result = clts.declaration_audit(source)
     close, opened = result["clts_to_ipakit"]
     assert close["observed_count"] == 2
     assert close["observed_unit_kinds"] == {"diphthong": 1, "vowel": 1}
@@ -45,11 +45,11 @@ def test_declared_but_unobserved_and_composite_context(source: Path) -> None:
 
 
 def test_new_declaration_without_catalog_witness_is_not_lost(source: Path) -> None:
-    path = source.joinpath(*interop.MASTER_FEATURES)
+    path = source.joinpath(*clts.MASTER_FEATURES)
     master = json.loads(path.read_text())
     master["new-kind"] = {"new-feature": ["close"]}
     path.write_text(json.dumps(master))
-    rows = interop.declaration_audit(source)["clts_to_ipakit"]
+    rows = clts.declaration_audit(source)["clts_to_ipakit"]
     added = next(row for row in rows if row["source"][1] == "new-kind")
     assert added["source"] == ["clts", "new-kind", "new-feature", "close"]
     assert added["declared"] and not added["cataloged"]
@@ -57,15 +57,15 @@ def test_new_declaration_without_catalog_witness_is_not_lost(source: Path) -> No
 
 
 def test_undeclared_catalog_value_remains_explicit(source: Path) -> None:
-    path = source.joinpath(*interop.MASTER_FEATURES)
+    path = source.joinpath(*clts.MASTER_FEATURES)
     path.write_text('{"vowel": {"height": ["close"]}}')
-    rows = interop.declaration_audit(source)["clts_to_ipakit"]
+    rows = clts.declaration_audit(source)["clts_to_ipakit"]
     assert rows[1]["cataloged"] and not rows[1]["declared"]
 
 
 def test_native_population_comes_from_loader(source: Path) -> None:
     ipa = load_ipa_features()
-    rows = interop.declaration_audit(source)["ipakit_to_clts"]
+    rows = clts.declaration_audit(source)["ipakit_to_clts"]
     assert {tuple(row["source"][1:]) for row in rows} == {
         (name, value)
         for name, feature in ipa.features.items()
@@ -90,9 +90,9 @@ def test_native_population_comes_from_loader(source: Path) -> None:
     ],
 )
 def test_malformed_master_fails(source: Path, content: str) -> None:
-    source.joinpath(*interop.MASTER_FEATURES).write_text(content)
+    source.joinpath(*clts.MASTER_FEATURES).write_text(content)
     with pytest.raises(ValueError):
-        interop.declaration_audit(source)
+        clts.declaration_audit(source)
 
 
 @pytest.mark.parametrize(
@@ -116,7 +116,33 @@ def test_malformed_master_fails(source: Path, content: str) -> None:
 def test_malformed_catalog_fails(source: Path, name: str, content: str) -> None:
     (source / "data" / name).write_text(content)
     with pytest.raises(ValueError):
-        interop.declaration_audit(source)
+        clts.declaration_audit(source)
+
+
+@pytest.mark.parametrize(
+    "name,content",
+    [
+        (
+            "features.tsv",
+            'ID\tTYPE\tFEATURE\tVALUE\nv1\tvowel\theight\tclose\nv2\tvowel\theight\t"open\n',
+        ),
+        ("sounds.tsv", 'ID\tTYPE\tFEATURES\tGRAPHEME\ns1\tvowel\tv1\t"i\n'),
+    ],
+)
+def test_malformed_quotes_fail_cli_without_json(
+    source: Path, name: str, content: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (source / "data" / name).write_text(content)
+    assert interop.main(["--clts", str(source), "declarations"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "declarations:" in captured.err
+    assert "TSV quoting" in captured.err
+
+
+def test_valid_quoted_tabs_and_newlines_are_preserved() -> None:
+    rows = clts._audit_tsv(b'ID\tNOTE\n1\t"first\tpart\nsecond line"\n', {"ID"})
+    assert rows == [{"ID": "1", "NOTE": "first\tpart\nsecond line"}]
 
 
 def test_cli_is_deterministic_and_content_pinned(
@@ -128,7 +154,9 @@ def test_cli_is_deterministic_and_content_pinned(
     assert interop.main(argv) == 0
     assert capsys.readouterr().out == first
     result = json.loads(first)
-    name = "/".join(interop.MASTER_FEATURES)
+    assert result == clts.declaration_audit(source)
+    assert interop.declaration_audit is clts.declaration_audit
+    name = "/".join(clts.MASTER_FEATURES)
     assert (
         result["sources"]["clts"][name]
         == hashlib.sha256((source / name).read_bytes()).hexdigest()
@@ -155,7 +183,7 @@ def test_composite_repeated_features_are_occurrences_not_duplicate_sounds(
     (source / "data/sounds.tsv").write_text(
         "ID\tTYPE\tFEATURES\tGRAPHEME\n1\tcluster\tv1 v1\tii\n"
     )
-    row = interop.declaration_audit(source)["clts_to_ipakit"][0]
+    row = clts.declaration_audit(source)["clts_to_ipakit"][0]
     assert row["observed_count"] == 1
     assert row["observed_occurrences"] == 2
     assert row["witness_ids"] == ["1"]
