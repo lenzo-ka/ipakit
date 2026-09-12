@@ -34,6 +34,15 @@ second copy of the rules.
 and external feature systems. Those comparisons should expose disagreements and
 losses, not treat house semantics as the unspoken definition of every model.
 
+An explicit development goal is for house to express every distinction available
+in the other inventories, subject to declared exceptions. This is an expressivity
+goal, not a claim of achieved coverage or a requirement to convert other models
+through house. Compositional and tier-structured expressions can provide coverage;
+merely retaining an opaque source label does not demonstrate a house interpretation.
+Coverage audits should distinguish demonstrated support, unresolved mappings,
+enhancement gaps, and deliberate exceptions with their rationale. Directional
+conversions must identify distinctions they merge or lose.
+
 ## Ties are units
 
 A tie names one unit and makes one claim about the timing inside it, and there are **two ties making two different claims** — the distinction is the mechanism, not a typographic variant. The **over-tie** `◌͡◌` (U+0361) reads its constituents *simultaneously*, in one shared timing slot: affricates and double articulations, `t͡s`, `k͡p`. The **under-tie** `◌͜◌` (U+035C) reads them *sequentially*, binding several timing slots into one unit: diphthongs and moraic chains, `e͜ɪ`, `a͜ɪ͜ə`. Standard IPA treats the two glyphs as interchangeable; here they are not, and [ties.md](ties.md) is the full account.

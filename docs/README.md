@@ -40,7 +40,7 @@ using it.
 | | |
 | --- | --- |
 | [systems.md](systems.md) | **Comparative systems.** House theory, Pinyin, kana, CLTS/BIPA, Panphon, and future models: different organizing principles on a shared computational substrate. |
-| [clts-audit.md](clts-audit.md) | **CLTS declaration census.** Library and command-line audit, declared versus observed domains, comparison provenance, and unresolved semantic mappings. |
+| [clts-audit.md](clts-audit.md) | **CLTS/BIPA.** Frozen native feature-set/Jaccard scoring, shared cost comparisons, library and command-line census/extraction, source provenance and licensing, and unresolved semantic mappings. |
 | [model-operations.md](model-operations.md) | **Finite model operations.** Typed declarations, model-bound feature edits, exact realization candidates, and the shared ternary comparison reader; distinct from productive rewriting. |
 | [pinyin.md](pinyin.md) | **Pinyin.** Existing syllable-primary profile, semantic tone attachment, orthographic placement, optional IPA realization, and library boundaries. |
 | [kana.md](kana.md) | **Kana.** Mora-tier rendering and the existing bounded attested-adaptation API/CLI; declared coverage and refusals. |

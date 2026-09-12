@@ -16,13 +16,14 @@ it.
     python scripts/interop.py phonemap       # would a BIPA map fit xsampa.xml's shape?
     python scripts/interop.py all
 
-CLTS is external data under its own license and is NOT bundled: CI will not
+The complete CLTS checkout is external data under its own license: CI may not
 have it, so legacy measurements exit 0 with a message when it is absent.
+The separately attributed finite core snapshot ships for native comparisons.
 The declarations command instead exits nonzero on missing or malformed input.
 Clone
 <https://github.com/cldf-clts/clts> and point --clts at it, or set
 IPAKIT_CLTS_DIR. `pyclts` is a dev dependency (pip install -e ".[interop]")
-and is imported by this script only -- never by the library.
+and is loaded only for requested live measurements or development extraction.
 
 Each subcommand asserts the shape of what it read, so a run over a truncated
 or wrongly-pathed copy fails loudly instead of reporting a clean, empty
@@ -66,7 +67,15 @@ from ipakit import (
     to_cmu,
     to_phone,
 )
-from ipakit.clts import FEATURES_TSV, SOUNDS_TSV, declaration_audit
+from ipakit.clts import (
+    FEATURES_TSV,
+    SOUNDS_TSV,
+    build_core,
+    declaration_audit,
+    extract_snapshot,
+    read_snapshot,
+    validate_parity,
+)
 from ipakit.metric import metric_fingerprint
 
 #: Environment variable naming a clone of cldf-clts/clts. No default path is
@@ -203,6 +212,61 @@ def cmd_declarations(_: Clts | None, args: argparse.Namespace) -> int:
         return 1
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
     return 0
+
+
+def cmd_clts_snapshot(_: Clts | None, args: argparse.Namespace) -> int:
+    """Generate/check the frozen core, or extract explicit research tokens."""
+    try:
+        if not args.clts:
+            raise ValueError(f"pass --clts or set {CLTS_ENV}")
+        source = Path(args.clts).expanduser()
+        if args.tokens_json:
+            if args.write or args.check:
+                raise ValueError(
+                    "research-token snapshots cannot replace the shipped core"
+                )
+            tokens = json.loads(Path(args.tokens_json).read_text(encoding="utf-8"))
+            if not isinstance(tokens, list):
+                raise ValueError("research tokens must be a JSON array")
+            print(extract_snapshot(source, tokens=tokens).dumps(), end="")
+            return 0
+        result = build_core(source)
+        root = Path(__file__).resolve().parents[1]
+        if args.check:
+            stale = result.stale(root)
+            print(
+                json.dumps(
+                    {
+                        "status": "stale" if stale else "matched",
+                        "artifacts": [str(p) for p in stale],
+                    }
+                )
+            )
+            return int(bool(stale))
+        for relative, content in result.artifacts.items():
+            if args.write:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+            else:
+                print(content.decode("utf-8"), end="")
+        return 0
+    except (OSError, ValueError) as exc:
+        print(f"{getattr(exc, 'code', 'invalid-input')}: {exc}", file=sys.stderr)
+        return 1
+
+
+def cmd_clts_parity(_: Clts | None, args: argparse.Namespace) -> int:
+    """Validate exact sets and exhaustive unique-set score parity against pyclts."""
+    try:
+        if not args.clts:
+            raise ValueError(f"pass --clts or set {CLTS_ENV}")
+        snapshot = read_snapshot(Path(args.snapshot) if args.snapshot else None)
+        print(json.dumps(validate_parity(Path(args.clts), snapshot), sort_keys=True))
+        return 0
+    except (OSError, ValueError) as exc:
+        print(f"{getattr(exc, 'code', 'invalid-input')}: {exc}", file=sys.stderr)
+        return 1
 
 
 # ---------------------------------------------------------------------------
@@ -1598,12 +1662,24 @@ def main(argv: list[str] | None = None) -> int:
         **PANPHON_COMMANDS,
         "all": cmd_all,
         "declarations": cmd_declarations,
+        "clts-snapshot": cmd_clts_snapshot,
+        "clts-parity": cmd_clts_parity,
     }.items():
         summary = ((func.__doc__ or name).strip().splitlines() or [name])[0]
         cmd = sub.add_parser(name, help=summary)
         cmd.set_defaults(
             func=func, needs_clts=name in COMMANDS, inventory=None, lexicon=None
         )
+        if name == "clts-snapshot":
+            action = cmd.add_mutually_exclusive_group()
+            action.add_argument("--check", action="store_true")
+            action.add_argument("--write", action="store_true")
+            cmd.add_argument(
+                "--tokens-json",
+                help="explicit research token array; never overwrites core",
+            )
+        if name == "clts-parity":
+            cmd.add_argument("--snapshot", help="snapshot path; default: shipped core")
         if name in ("cmudict", "all"):
             cmd.add_argument("--lexicon", help="a CMUdict-format pronunciation lexicon")
         if name in ("inventory", "all"):

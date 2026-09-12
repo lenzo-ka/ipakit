@@ -22,7 +22,7 @@ sharing IPA spellings does not establish identical units or equivalent claims.
 | [House phonetic system](house-style.md) | Declared features, constituent composition, ties and junctures; prosodic tiers; [articulatory attachment](tract-anatomy.md). | Parsing, composition, rewrites, structural comparison, and schematic posture/animation. Its inventory and theory remain open to testing and revision. |
 | [Pinyin](pinyin.md) | Syllable-primary structure; tone belongs to the syllable; written mark placement is separate. Optional IPA realization. | Existing native profile, library construction/rendering, and serialization tests. No dedicated graph-ingestion CLI; the constructor is internal. |
 | [Kana](kana.md) | Mora groupings and mora-kind-dependent orthographic realization. | Existing bounded attested-adaptation API/CLI and mora-tier renderer, not a comprehensive Japanese system. |
-| CLTS/BIPA | Sound descriptions and feature sets under a different declaration system. | Existing audit/comparison tooling; native frozen scorer and source-preserving integration are separate delivery stages. See [capabilities and status](capabilities.md#integration-status). |
+| [CLTS/BIPA](clts-audit.md) | Sound descriptions and feature sets under a different declaration system. | Native frozen core feature-set/Jaccard scoring, shared alignment costs, and declaration census. Source-preserving Form integration and semantic feature mapping remain separate work. |
 | Panphon | A different phonological feature-vector geometry. | Existing native vector-cost comparison machinery in [cost packs](../ipakit/bridges/costmodel.py). Using that geometry is distinct from asserting equivalence to house features. |
 | Converter–Distributor | A future example intended to exercise a different set of organizing principles. | Not claimed as implemented or included in the present CLTS integration scope. |
 
@@ -53,6 +53,12 @@ machinery requires compatible contracts, not an assumption that every algebra
 satisfies the same laws.
 
 ## Comparing the house theory with CLTS
+
+The [house expressivity goal](house-style.md#one-explicit-model-not-the-substrate)
+is to cover the other inventories' distinctions, with explicit exceptions.
+That goal motivates enhancement work; it does not make house primary or require
+foreign-to-foreign computation to pass through it. Coverage remains something
+to establish with constructive witnesses, not infer from token counts.
 
 The useful questions are directional: which distinctions correspond, which
 require interpretation, and which occur on only one side? A spelling match or

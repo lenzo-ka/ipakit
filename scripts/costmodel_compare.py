@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import json
 import sys
 from pathlib import Path
 
@@ -44,8 +45,10 @@ from ipakit.bridges.costmodel import (  # noqa: E402
     CostPack,
     CostPolicy,
     compare,
+    compare_token_corpus,
     house_pack,
     pack_from_declaration,
+    set_feature_pack,
 )
 
 DECLARATION = ROOT / "tests" / "panphon" / "panphon.xml"
@@ -86,6 +89,23 @@ def main() -> int:
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
     parser.add_argument("--corpus", type=Path, default=CORPUS)
     parser.add_argument(
+        "--tokens-json",
+        type=Path,
+        help="explicit array of token arrays; no automatic segmentation",
+    )
+    parser.add_argument(
+        "--clts-snapshot",
+        nargs="?",
+        const="shipped",
+        help="optional finite CLTS snapshot; omit value for shipped core",
+    )
+    parser.add_argument(
+        "--clts-gap",
+        type=float,
+        default=1.0,
+        help="explicit CLTS adapter gap policy (not upstream similarity)",
+    )
+    parser.add_argument(
         "--policy",
         action="append",
         choices=sorted(POLICIES),
@@ -96,8 +116,44 @@ def main() -> int:
         action="store_true",
         help="every ordered pair rather than consecutive ones",
     )
-    parser.add_argument("--format", choices=("table", "tsv"), default="table")
+    parser.add_argument("--format", choices=("table", "tsv", "json"), default="table")
     args = parser.parse_args()
+
+    if args.tokens_json:
+        if args.format != "json":
+            parser.error("explicit-token comparison currently uses --format json")
+        from ipakit.clts import read_snapshot
+
+        try:
+            corpus = json.loads(args.tokens_json.read_text(encoding="utf-8"))
+            ipa = ipakit.IPAFeatures()
+            snapshot = (
+                read_snapshot(
+                    None
+                    if args.clts_snapshot == "shipped"
+                    else Path(args.clts_snapshot)
+                )
+                if args.clts_snapshot
+                else None
+            )
+            packs = []
+            for name in args.policy or sorted(POLICIES):
+                policy = POLICIES[name]
+                packs.extend(_packs(ipa, policy))
+                if snapshot:
+                    packs.append(
+                        set_feature_pack(snapshot.geometry, policy, gap=args.clts_gap)
+                    )
+            report = compare_token_corpus(ipa, packs, corpus, all_pairs=args.all_pairs)
+        except (OSError, ValueError) as exc:
+            print(f"{getattr(exc, 'code', 'invalid-input')}: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
+        return 0
+    if args.clts_snapshot or args.format == "json":
+        parser.error(
+            "CLTS/JSON comparisons require --tokens-json; no implicit CLTS tokenizer"
+        )
 
     words = [
         line.strip()

@@ -7,6 +7,7 @@ as separate, explicitly identified parts of every comparison cell.
 
 from __future__ import annotations
 
+import itertools
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,8 +17,10 @@ from typing import Protocol
 
 from tiergraph.semiring import TROPICAL, ProductSemiring
 
+from .._identity import identity_fingerprint
 from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..distance_model import DistanceModel
+from ..feature_sets import FeatureSets
 from ..features import IPAFeatures
 from ..finite_declaration import read_ternary_declaration
 from ..metric import GAP_COST
@@ -126,6 +129,8 @@ class CostPack:
     #: pack is inventory-relative. None for the portable packs.
     reference: str | None = None
     bridge: Bridge | None = None
+    #: A model may require explicit tokens to satisfy its own unit constructor.
+    validate_token: Callable[[str], object] | None = None
 
     @property
     def budget_ratio(self) -> float:
@@ -156,6 +161,14 @@ class ComparisonRow:
     reference: str | None = None
 
 
+def _validate_tokens(pack: CostPack, *sequences: Segmentation) -> None:
+    """Apply the model-owned admission contract before any alignment fold."""
+    if pack.validate_token is not None:
+        for sequence in sequences:
+            for token in sequence.tokens:
+                pack.validate_token(token)
+
+
 def align_under(
     ipa: IPAFeatures,
     pack: CostPack,
@@ -171,6 +184,7 @@ def align_under(
     substituting another algebra; running both would charge every comparison
     for two full grids merely to discard one result.
     """
+    _validate_tokens(pack, source, target)
     return ipa._align(
         list(source.tokens),
         list(target.tokens),
@@ -262,6 +276,7 @@ def semiring_alignment[Carrier](
     must impose and report a visible cap before materializing its result; this
     low-level fold does not silently truncate a carrier.
     """
+    _validate_tokens(pack, source, target)
     left, right = source.tokens, target.tokens
     deletes = tuple(
         encode(value) for value in _prices(pack.delete_cost, list(left), "delete_cost")
@@ -296,12 +311,31 @@ def compare(
     return_alignment: bool = False,
 ) -> ComparisonRow:
     """Score one word pair under one cost pack, drops and all."""
-    left, right = pack.tokenize(source), pack.tokenize(target)
+    return compare_tokens(
+        ipa,
+        pack,
+        pack.tokenize(source),
+        pack.tokenize(target),
+        strict=strict,
+        return_alignment=return_alignment,
+    )
+
+
+def compare_tokens(
+    ipa: IPAFeatures,
+    pack: CostPack,
+    left: Segmentation,
+    right: Segmentation,
+    *,
+    strict: bool = False,
+    return_alignment: bool = False,
+) -> ComparisonRow:
+    """Compare caller-delimited sequences with the same fold and readout."""
     dropped = left.dropped + right.dropped
     if dropped and strict:
         raise DroppedMaterial(
             f"{pack.name} discarded {''.join(dropped)!r} reading "
-            f"{source!r} and {target!r}; the score would be computed from "
+            f"{left.tokens!r} and {right.tokens!r}; the score would be computed from "
             "truncated input"
         )
     cost, alignment = align_under(
@@ -318,6 +352,119 @@ def compare(
         alignment=alignment,
         reference=pack.reference,
     )
+
+
+def set_feature_pack(
+    geometry: FeatureSets,
+    policy: CostPolicy = FAITHFUL,
+    *,
+    gap: float = 1.0,
+    tokenize: Callable[[str], Segmentation] | None = None,
+) -> CostPack:
+    """Jaccard-complement costs through the existing alignment interface.
+
+    Gap cost is an adapter choice, not part of a provider's sound similarity.
+    Free strings require a caller-selected tokenizer. Explicit Segmentation
+    values go directly through compare_tokens/align_under without reparsing.
+    """
+    if not math.isfinite(gap) or gap <= 0 or policy.indel_weight <= 0:
+        raise ValueError("the adapter gap cost must be positive and finite")
+    effective_gap = gap * policy.indel_weight
+    if not math.isfinite(effective_gap) or effective_gap <= 0:
+        raise ValueError("the effective adapter gap cost must be positive and finite")
+
+    def require_tokens(_: str) -> Segmentation:
+        raise ValueError(
+            "segmentation-required: supply explicit token sequences or a tokenizer"
+        )
+
+    def sub(left: str, right: str) -> float:
+        return (1.0 - geometry.similarity(left, right)) * policy.substitution_scale
+
+    def indel(token: str) -> float:
+        geometry.features(token)
+        return effective_gap
+
+    return CostPack(
+        name=f"set/{geometry.name}/jaccard;adapter-gap={gap!r}",
+        geometry=geometry.identity,
+        sub_cost=sub,
+        insert_cost=indel,
+        delete_cost=indel,
+        substitution_ceiling=policy.substitution_scale,
+        indel_ceiling=effective_gap,
+        tokenize=tokenize or require_tokens,
+        policy=policy,
+    )
+
+
+def compare_token_corpus(
+    ipa: IPAFeatures,
+    packs: list[CostPack],
+    corpus: list[list[str]],
+    *,
+    all_pairs: bool = False,
+) -> dict[str, object]:
+    """Systematically compare explicit tokens with one fold, recording refusals.
+
+    Token identity is caller-supplied; this does not establish cross-model
+    phonetic mapping fidelity or perceptual equivalence. No model tokenizes
+    or silently drops part of a supplied token in this path.
+    """
+    if not isinstance(corpus, list) or len(corpus) < 2 or not packs:
+        raise ValueError("supply at least two token sequences and one cost pack")
+    for tokens in corpus:
+        if not isinstance(tokens, list) or any(
+            not isinstance(t, str) or not t for t in tokens
+        ):
+            raise ValueError(
+                "each corpus entry must be an explicit array of nonempty token strings"
+            )
+    pairs = (
+        list(itertools.permutations(range(len(corpus)), 2))
+        if all_pairs
+        else list(zip(range(len(corpus) - 1), range(1, len(corpus)), strict=True))
+    )
+    rows: list[dict[str, object]] = []
+    for pack in packs:
+        for left, right in pairs:
+            row: dict[str, object] = {
+                "source_index": left,
+                "target_index": right,
+                "pack": pack.name,
+                "geometry": pack.geometry,
+                "policy": pack.policy.identity,
+                "budget_ratio": pack.budget_ratio,
+            }
+            try:
+                result = compare_tokens(
+                    ipa,
+                    pack,
+                    Segmentation(tuple(corpus[left])),
+                    Segmentation(tuple(corpus[right])),
+                    strict=True,
+                )
+                row.update(
+                    status="scored",
+                    edit_cost=result.edit_cost,
+                    normalized=result.normalized,
+                )
+            except (ValueError, KeyError) as exc:
+                row.update(
+                    status="refused",
+                    code=getattr(exc, "code", "unsupported-token"),
+                    message=str(exc),
+                )
+            rows.append(row)
+    return {
+        "schema": "ipakit-token-cost-comparison",
+        "version": 1,
+        "corpus": corpus,
+        "corpus_identity": identity_fingerprint(corpus),
+        "ordered_pairs_per_pack": len(pairs),
+        "interpretation": "model cost comparison, not phonetic mapping or perceptual validation",
+        "rows": rows,
+    }
 
 
 def house_pack(ipa: IPAFeatures, policy: CostPolicy = FAITHFUL) -> CostPack:
@@ -346,6 +493,7 @@ def house_pack(ipa: IPAFeatures, policy: CostPolicy = FAITHFUL) -> CostPack:
         indel_ceiling=2.0 * policy.indel_weight,
         tokenize=_house_segmentation(ipa),
         policy=policy,
+        validate_token=lambda token: ipa.segment(token, strict=True),
     )
 
 

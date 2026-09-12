@@ -7,11 +7,14 @@ import argparse
 import json
 import subprocess
 import sys
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from ipakit import clts  # noqa: E402
 from ipakit.extraction import (  # noqa: E402
     BuildResult,
     SourceError,
@@ -24,7 +27,6 @@ PENDING = {
     "espeak": "promote existing eSpeak extractor before registering an adapter",
     "panphon": "promote existing Panphon extractor before registering an adapter",
     "icu": "promote X-SAMPA extraction and identify consumed ICU data",
-    "clts": "frozen producer contract belongs to A2/C1",
     "inventory-cards": "existing script; downstream adapter pending",
     "cmudict": "local reader, no registered frozen-artifact producer",
     "phoible": "external provider; no automatic redistribution/acquisition",
@@ -32,6 +34,53 @@ PENDING = {
     "xrmb": "licensed research corpus; manual external input",
     "internal": "internal generators retain their Makefile ownership",
 }
+
+
+@dataclass(frozen=True)
+class _Producer:
+    """Script-side lifecycle wiring; source facts remain library-owned."""
+
+    revision: str
+    pin: str
+    origin: str
+    sparse_paths: tuple[str, ...]
+    validate: Callable[[Path], Mapping[str, str]]
+    build: Callable[[Path], BuildResult]
+
+
+def _validate_mfa(source: Path) -> Mapping[str, str]:
+    mfa.require_pin(source, dictionary=True)
+    return {
+        "metadata-sha256": mfa.META_SHA256,
+        "dictionary-sha256": mfa.DICTIONARY_SHA256,
+    }
+
+
+def _mfa_producer() -> _Producer:
+    return _Producer(
+        mfa.REVISION,
+        mfa.PIN,
+        mfa.ORIGIN,
+        ("/dictionary/*/*/*/meta.json", "/" + mfa.DICTIONARY.as_posix()),
+        _validate_mfa,
+        mfa.build,
+    )
+
+
+def _clts_producer() -> _Producer:
+    policy = clts.source_policy()
+    source = policy["source"]
+    return _Producer(
+        source["version"],
+        source["version"],
+        source["upstream-url"],
+        tuple("/" + name for name in sorted(policy["inputs"])),
+        lambda path: clts.validate_source(path).digests,
+        clts.build_core,
+    )
+
+
+PRODUCERS = {"mfa": _mfa_producer, "clts": _clts_producer}
 
 
 def git(source: Path | None, *arguments: str) -> str:
@@ -47,19 +96,24 @@ def git(source: Path | None, *arguments: str) -> str:
 
 
 def acquire_mfa(source: Path) -> None:
+    """Compatibility helper for the existing MFA command."""
+    _acquire(source, _mfa_producer())
+
+
+def _acquire(source: Path, producer: _Producer) -> None:
     """Populate only a newly created directory; existing sources are read-only."""
     source = source.absolute()
     if source.resolve() != source:
         raise ValueError(f"refusing acquisition through a symbolic link: {source}")
     if source.exists():
-        mfa.require_pin(source, dictionary=True)
+        producer.validate(source)
         return
     # mkdir without exist_ok claims this exact new destination; a concurrent
     # creator wins rather than having its work reset by the updater.
     source.parent.mkdir(parents=True, exist_ok=True)
     source.mkdir()
     git(None, "init", "-q", str(source))
-    git(source, "remote", "add", "origin", mfa.ORIGIN)
+    git(source, "remote", "add", "origin", producer.origin)
     git(
         source,
         "fetch",
@@ -68,18 +122,17 @@ def acquire_mfa(source: Path) -> None:
         "1",
         "--filter=blob:none",
         "origin",
-        mfa.REVISION,
+        producer.revision,
     )
     git(
         source,
         "sparse-checkout",
         "set",
         "--no-cone",
-        "/dictionary/*/*/*/meta.json",
-        "/" + mfa.DICTIONARY.as_posix(),
+        *producer.sparse_paths,
     )
     git(source, "checkout", "-q", "FETCH_HEAD")
-    mfa.require_pin(source, dictionary=True)
+    producer.validate(source)
 
 
 def publish(result: BuildResult, root: Path) -> None:
@@ -105,8 +158,13 @@ def publish(result: BuildResult, root: Path) -> None:
 
 
 def candidate() -> dict[str, str]:
+    """Compatibility helper for MFA candidate discovery."""
+    return _candidate(_mfa_producer())
+
+
+def _candidate(producer: _Producer) -> dict[str, str]:
     """Discover upstream HEAD without fetching objects or advancing the pin."""
-    value = git(None, "ls-remote", mfa.ORIGIN, "HEAD").split()
+    value = git(None, "ls-remote", producer.origin, "HEAD").split()
     if (
         len(value) != 2
         or value[1] != "HEAD"
@@ -116,33 +174,30 @@ def candidate() -> dict[str, str]:
         raise ValueError("upstream did not return one valid HEAD revision")
     return {
         "candidate": value[0],
-        "state": "unchanged" if value[0] == mfa.REVISION else "candidate",
-        "relationship": "same" if value[0] == mfa.REVISION else "unverified",
+        "state": "unchanged" if value[0] == producer.revision else "candidate",
+        "relationship": "same" if value[0] == producer.revision else "unverified",
     }
 
 
 def run(operation: str, name: str, source: Path, output: Path) -> dict[str, object]:
     """Report each requested operation; unsupported producers remain visible."""
     report: dict[str, object] = {"source": name, "operation": operation}
-    if name != "mfa":
+    if name not in PRODUCERS:
         return {**report, "state": "unsupported", "detail": PENDING[name]}
-    report.update(expected=mfa.PIN, path=str(source))
     try:
+        producer = PRODUCERS[name]()
+        report.update(expected=producer.pin, path=str(source))
         if operation == "discover":
-            report.update(candidate())
+            report.update(_candidate(producer))
             return report
         if operation == "fetch":
-            acquire_mfa(source)
-        mfa.require_pin(source, dictionary=True)
-        report["observed"] = mfa.PIN
-        report["consumed"] = {
-            "metadata-sha256": mfa.META_SHA256,
-            "dictionary-sha256": mfa.DICTIONARY_SHA256,
-        }
+            _acquire(source, producer)
+        report["consumed"] = dict(producer.validate(source))
+        report["observed"] = producer.pin
         if operation in {"status", "fetch"}:
             report["state"] = "available"
         else:
-            result = mfa.build(source)
+            result = producer.build(source)
             differences = result.stale(output)
             if operation == "build":
                 publish(result, output)
@@ -163,28 +218,36 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "operation", choices=("status", "fetch", "build", "check", "discover")
     )
-    parser.add_argument("sources", nargs="+", choices=("all", "mfa", *PENDING))
+    parser.add_argument("sources", nargs="+", choices=("all", *PRODUCERS, *PENDING))
     parser.add_argument(
         "--cache", type=Path, default=Path.home() / ".cache/ipakit/sources"
     )
     parser.add_argument(
         "--source",
         type=Path,
-        help="read an existing MFA source; forbidden for acquisition",
+        help="read one existing producer source; forbidden for acquisition",
     )
     parser.add_argument("--output", type=Path, default=ROOT)
     args = parser.parse_args(argv)
     if args.operation == "fetch" and args.source is not None:
         parser.error("fetch uses its managed revision cache; --source is read-only")
     selected = (
-        ("mfa", *PENDING)
+        (*PRODUCERS, *PENDING)
         if "all" in args.sources
         else tuple(dict.fromkeys(args.sources))
     )
-    source = (
-        args.source if args.source is not None else args.cache / "mfa" / mfa.REVISION
-    )
-    reports = [run(args.operation, name, source, args.output) for name in selected]
+    if args.source is not None and len(selected) != 1:
+        parser.error(
+            "--source requires exactly one source; use per-provider caches for multiple sources"
+        )
+    reports = []
+    for name in selected:
+        source = args.source
+        if source is None:
+            source = args.cache / name
+            if name in PRODUCERS:
+                source /= PRODUCERS[name]().revision
+        reports.append(run(args.operation, name, source, args.output))
     success = {"available", "unchanged", "candidate"}
     if args.operation == "build":
         success.add("changed")

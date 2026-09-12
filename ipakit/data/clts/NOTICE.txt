@@ -1,0 +1,29 @@
+CLTS core BIPA feature snapshot — attribution and license
+
+Derived data are licensed under Creative Commons Attribution 4.0 International
+(CC BY 4.0), not the BSD license governing IPAkit's original code.
+License and legal terms: https://creativecommons.org/licenses/by/4.0/
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+CLTS. Cross-Linguistic Transcription Systems
+Creators: Johann-Mattis List, Cormac Anderson, Tiago Tresoldi,
+Christoph Rzymski, Robert Forkel.
+Source DOI: https://doi.org/10.5281/zenodo.3515744
+Source: https://github.com/cldf-clts/clts
+Revision: 4da03b1d0bc2c96839df693d3123be72cfac8419
+Core inputs: pkg/transcriptionsystems/bipa and shared feature/metadata files.
+Exact inputs, content hashes, references and attribution are in source.json
+and repeated in the generated snapshot's source record.
+
+Changes: exact sound feature sets and canonical spellings were extracted with
+pyclts 4.0.2. Lookup keys retain core dictionary spellings and literal declared
+source aliases where actual resolution proves the same core sound. Unicode
+normalization and alias changes are recorded. Markers and unresolved literal
+source fields are reported but not scored. Unused fields, aggregated source
+datasets, productive resolution and phonetic mappings are not included.
+Keys and set labels are sorted and encoded in IPAkit's versioned JSON format.
+No endorsement by the original creators is implied.
+
+pyclts is a separate optional development dependency, Apache-2.0 licensed:
+https://github.com/cldf-clts/pyclts
+No pyclts implementation is copied into the snapshot or IPAkit runtime.

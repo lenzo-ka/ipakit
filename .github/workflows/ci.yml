@@ -192,6 +192,20 @@ jobs:
         run: pytest tests/test_xsampa.py
       - name: Panphon characterization tests (skipped in the matrix job)
         run: pytest tests/test_panphon_facts.py tests/test_panphon_live_geometry.py tests/tiergraph/test_j_panphon.py
+      - name: Read accepted CLTS source identity
+        id: clts-source
+        run: |
+          python -c 'from ipakit.clts import source_policy; s = source_policy()["source"]; print("repository=" + s["upstream-url"].removeprefix("https://github.com/")); print("revision=" + s["version"])' >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.clts-source.outputs.repository }}
+          ref: ${{ steps.clts-source.outputs.revision }}
+          path: .clts-source
+          persist-credentials: false
+      - name: CLTS snapshot regeneration and exhaustive scorer parity
+        env:
+          IPAKIT_CLTS_DIR: ${{ github.workspace }}/.clts-source
+        run: pytest tests/test_clts_snapshot.py
       - name: Comparison extras tests (partition check skips in the matrix job)
         run: pytest tests/test_comparison_example.py
 

@@ -1,8 +1,131 @@
 # CLTS/BIPA declaration census and comparisons
 
+## Native finite similarity
+
+The shipped core BIPA snapshot can be queried without pyclts, an upstream
+checkout, or network access:
+
+```python
+from ipakit.clts import read_snapshot
+
+bipa = read_snapshot()
+labels = bipa.features("p")
+similarity = bipa.similarity("p", "b")
+bipa.similarity("ç", "ç")  # 1.0
+```
+
+These are CLTS's raw feature-value labels, including its type labels, not
+native IPAkit feature mappings. Unweighted Jaccard similarity counts set
+intersection divided by union. `ipakit.feature_sets.FeatureSets` is the
+provider-independent finite geometry; its empty-union convention is explicit
+(zero similarity by default, matching CLTS). Distinct spellings can have the
+same feature set. Neither label overlap nor a score proves perceptual or
+articulatory equivalence.
+
+The finite domain consists of the accepted core BIPA Sound entries, declared
+aliases, and literal source spellings proven to resolve to the same core
+Sound as their normalized dictionary key. There is no runtime normalization:
+the NFC and NFD forms of `ç`, for example, are separately materialized lookup
+keys. Original declaration spelling, canonical spelling, alias and
+normalization metadata remain in `bipa.to_data()`.
+
+Markers and literal source fields that the resolver rejects (including
+whitespace-bearing TSV fields) are accounted for in `excluded`, not scored.
+Productive composites such as `ai` are outside the shipped core even when
+pyclts can resolve them. Missing keys raise `OutsideDomain` with code
+`outside-artifact-domain`; this is not a claim that CLTS rejects that sound.
+Inspect `requested`, `entries` and `excluded` for the exact generated
+population. The full CLTS-to-Form importer and semantic feature mapping remain
+separate work.
+
+### Substitute the cost model, not the aligner
+
+Explicit tokens remain subject to each model's domain: the native house pack
+validates each with IPAkit's strict single-unit constructor. A string such as
+`ai` is not silently treated as one native segment. Finite feature-set packs
+instead require an exact key in their own artifact; neither model reparses
+the corpus into a replacement sequence.
+
+```python
+from ipakit import load_ipa_features
+from ipakit.bridges.costmodel import (
+    Segmentation, compare_tokens, set_feature_pack,
+)
+
+pack = set_feature_pack(bipa.geometry, gap=1.0)
+row = compare_tokens(
+    load_ipa_features(), pack,
+    Segmentation(("p", "a")), Segmentation(("b", "a")),
+    return_alignment=True,
+)
+```
+
+The pack supplies `1 - similarity` substitutions to the existing
+`align_under` alignment fold. Gap cost is an explicitly named **adapter
+policy**, not part of CLTS's sound similarity; scaling and normalization use
+the existing `CostPolicy`. Unknown keys are validated for gaps as well as
+substitutions, including unknown-self and empty-side comparisons.
+
+Free strings are refused unless the caller supplies a tokenizer to the pack.
+No whitespace splitting, native IPA parsing or longest-match segmentation is
+silently substituted for CLTS token boundaries. The native default distance
+is unchanged.
+
+### Systematic explicit-token comparisons
+
+Given a JSON corpus such as `[["p", "a"], ["b", "a"], ["p", "i"]]`:
+
+```sh
+python scripts/costmodel_compare.py --tokens-json corpus.json \
+  --clts-snapshot --policy faithful --all-pairs --format json
+```
+
+This runs native, available declared Panphon, and selected CLTS costs through
+the same fold. The report retains the caller's exact token corpus and its
+identity, ordered-pair population, model/geometry/policy identities, scores,
+and individual refusals. Token correspondences are supplied by the caller;
+the comparison does not certify their phonetic equivalence. The reusable
+library consumer is `compare_token_corpus` in `ipakit.bridges.costmodel`.
+
+### Regeneration, verification and credits
+
+```sh
+python scripts/interop.py --clts /path/to/clts clts-snapshot --write
+python scripts/interop.py --clts /path/to/clts clts-snapshot --check
+python scripts/interop.py --clts /path/to/clts clts-parity
+```
+
+Library functions `extract_snapshot`, `build_core`, `validate_source`, and
+`validate_parity` own extraction and checks; scripts only orchestrate their
+results. `build_core` returns the shared `BuildResult` with relative artifact
+bytes. Extraction requires the accepted clean CLTS revision and content
+hashes, and the pinned pyclts version and module hashes. The single selected
+source policy is [source.json](../ipakit/data/clts/source.json). Missing source,
+missing resolver, wrong version, changed content and invalid artifact are
+distinct errors; extraction never installs or fetches dependencies.
+
+Parity checks every emitted key's exact set and every unordered unique-set
+pair including diagonal, reporting the actual denominator. Deterministic
+regeneration compares bytes, not just entry counts. `clts-snapshot
+--tokens-json tokens.json` emits a separate explicitly scoped research
+snapshot, including productive composites where the real resolver supports
+them; it cannot overwrite the shipped core with `--write`.
+
+The generated CLTS data remain **CC BY 4.0**, not IPAkit's BSD code license.
+Credit: Johann-Mattis List, Cormac Anderson, Tiago Tresoldi, Christoph Rzymski,
+and Robert Forkel, *CLTS. Cross-Linguistic Transcription Systems*.
+See the [dataset DOI](https://doi.org/10.5281/zenodo.3515744),
+[license](https://creativecommons.org/licenses/by/4.0/), and packaged
+[artifact notice](../ipakit/data/clts/NOTICE.txt) for source revision,
+transformations and attribution. pyclts is a separate Apache-2.0 development
+dependency; none of its implementation is vendored into the runtime.
+
+## Declaration census
+
 CLTS/BIPA interoperability starts with the two systems' declarations, not
 guessed symbol equivalences. The development instrument reads an external
-[CLTS checkout](https://github.com/cldf-clts/clts); no CLTS data is bundled.
+[CLTS checkout](https://github.com/cldf-clts/clts); this full master/catalog
+source is separate from the bounded shipped core snapshot above.
 
 ```sh
 python scripts/interop.py --clts /path/to/clts declarations
