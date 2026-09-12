@@ -1,115 +1,119 @@
 # ipakit documentation
 
-ipakit has four parts: the declaration-driven tier graph in
-[representation.md](representation.md), first-class collections and structural
-search in [corpus.md](corpus.md), recognition and rewriting in
-[rules.md](rules.md), and the measured articulatory model introduced in
-[tract-anatomy.md](tract-anatomy.md). Together they let symbolic accounts of
-speech be computed over, compared, and carried between external systems while
-recording conversion losses and source disagreements.
-
-Start with [basic use of ipakit](tutorial-basics.md), then use the task-based
-[tutorial](tutorial.md) when you want a wider tour. Everything else here is reference or
-design, and assumes you already know why you are reading it.
+Choose a task below. The tutorials introduce the public Python and CLI surfaces;
+the reference pages explain their contracts and limits. Generated exhibits supply
+checked examples and measurements. Dated design records preserve the reasoning,
+not a second account of current behavior.
 
 ## Start here
 
-| | |
+| Guide | Use it for |
 | --- | --- |
-| [capabilities.md](capabilities.md) | **Capabilities and comparisons.** The shared substrate, phonetic calculus, and house articulatory theory; [Pinyin as an existing different model](capabilities.md#pinyin-an-existing-different-model); comparisons with CLTS/BIPA, Panphon, and LingPy; implemented behavior versus integration plans. |
-| [glossary.md](glossary.md) | **Linguistics vocabulary.** Short definitions of the phonetics and phonology terms used throughout the documentation, with links to the guides that put each term to work. |
-| [tutorial-basics.md](tutorial-basics.md) | **Basic use.** Read one form, query its segments and classes, inspect declarations, apply a rule, and meet word boundaries. A short Python-first introduction whose values are executed by the documentation build. |
-| [tutorial.md](tutorial.md) | **Getting things done.** Organized by task — name a sound, compare two, search the inventory, convert notations, split a transcription, apply allophonic rules, write your own. Shows the CLI and the API side by side for each. Every value on the page is produced by running the call beside it. |
-
-The tutorials are **derived artifacts**: their prose lives in `tutorial-basics.src.md`
-and `tutorial.src.md`; `make tutorial-basics` and `make tutorial` regenerate the pages
-by executing every example. `make check` fails if a single byte differs, so the pages
-cannot drift away from what the library does.
-
-`ipakit notebook` writes the same material out as a Jupyter notebook, with the answers
-left out for you to produce. `make notebook` renders it from `tutorial.src.md` into
-`ipakit/notebooks/`, so it ships in the package and reaches a reader who has no
-checkout; its cells are the blocks the page executes, which is what keeps the two
-renderings from disagreeing.
+| [Basic use](tutorial-basics.md) | Read a form, inspect features, query classes and apply a rule. |
+| [Task-based tutorial](tutorial.md) | Side-by-side Python and CLI workflows, with executed examples. |
+| [Capabilities](capabilities.md) | What IPAkit implements, what remains planned, and how computation connects its representations. |
+| [Glossary](glossary.md) | Phonetics and phonology vocabulary used in the guides. |
 
 ## Reference — how the representation works
 
-Read in this order if you are working on the library itself; dip in by name if you are
-using it.
+Read, construct, navigate and exchange structured transcriptions.
 
-| | |
+| Guide | Use it for |
 | --- | --- |
-| [systems.md](systems.md) | **Comparative systems.** House theory, Pinyin, kana, CLTS/BIPA, Panphon, and future models: different organizing principles on a shared computational substrate. |
-| [clts-audit.md](clts-audit.md) | **CLTS/BIPA.** Frozen native feature-set/Jaccard scoring, shared cost comparisons, library and command-line census/extraction, source provenance and licensing, and unresolved semantic mappings. |
-| [model-operations.md](model-operations.md) | **Finite model operations.** Typed declarations, model-bound feature edits, exact realization candidates, and the shared ternary comparison reader; distinct from productive rewriting. |
-| [feature-transforms.md](feature-transforms.md) | **Feature transformations.** Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |
-| [pinyin.md](pinyin.md) | **Pinyin.** Existing syllable-primary profile, semantic tone attachment, orthographic placement, optional IPA realization, and library boundaries. |
-| [kana.md](kana.md) | **Kana.** Mora-tier rendering and the existing bounded attested-adaptation API/CLI; declared coverage and refusals. |
-| [house-style.md](house-style.md) | **Writing sound for computation.** Why ties name units, stress sits on nuclei, spaces remain word boundaries, unclaimed intervals stay open, wild input announces its reading, and the expression grammar speaks to both regex and phonological traditions. |
-| [ties.md](ties.md) | **The unit model.** Tie bars, diacritics, what a `Segment` is made of, and why prosodic features live on the unit rather than in the feature bag. The foundation the other documents assume. |
-| [representation.md](representation.md) | **The canonical representation.** The settled one-data-structure, two-view architecture; `Form` as the sole public graph-backed value; public construction and navigation; the tiergraph artifact; linear JSON; codecs; and deferred mechanisms. |
-| [form.md](form.md) | **Compatibility projections of the whole transcription.** `units`, `segments`, `phones`, boundaries, attributes, intervals, and the derived tier tree: what each view retains and drops from graph-backed `Form`. |
-| [textgrid.md](textgrid.md) | **Praat TextGrid interchange.** Named interval and point tier profiles, tick and physical clocks, tier-role maps, and the style seam. |
-| [syllabification.md](syllabification.md) | **Language-relative syllabification.** Declared constraints for English, Japanese, Mandarin, and Spanish; derived syllable and mora intervals; conflict reporting; and the command-line interface. |
-| [corpus.md](corpus.md) | **Collections and structural search.** Persistent named forms, the query DSL, Python and command-line workflows, validation, and explicit external-resource ingestion. |
-| [tone.md](tone.md) | **Pitch.** A contour is a *sequence of tone levels* rather than a value, so the diacritic and tone-letter spellings of one contour read as one thing; what a bare caron does not say; and where the IPA chart's tone-letter equivalents disagree with its own level column. |
-| [rules.md](rules.md) | **The rewrite notation.** `A -> B / C _ D` in full: feature queries, boundaries and tiers, insertion and deletion, the trace, and the known limits — which are a queue, not a disclaimer. |
-| [calculus.md](calculus.md) | **Form to *set* of forms.** What the optional arrow `A ~> B` opens: optionality per site, the closure and the identity, whether composition is associative and where the cap stops it, whether the set is finite, and how a truncation is reported. What the algebra cannot express is said near the top rather than in a footnote. |
-| [similarity.md](similarity.md) | **Why similarity has this shape.** The standing justification for the scoring commitments, their structural and external validation, and their stated costs beside neighboring approaches. |
-| [distance.md](distance.md) | **How distance is computed.** The operational mechanics, parameters, checked values, and — stated plainly — the failure of triangle inequality, with the uses that rules out. |
-| [inventories.md](inventories.md) | **Named inventories and styles.** The shipped IPA, MFA, eSpeak, aligner, and machine-notation vocabularies; strict reading and spelling; dictionary-derived inventories; and the registry used by TextGrid labels and phoneset comparison. |
-| [mfa-vocabularies.md](mfa-vocabularies.md) | **Generated MFA vocabulary inventory.** The pinned source revision, declarations, refusals, and generation inputs behind the shipped MFA registry members. |
-| [espeak-vocabularies.md](espeak-vocabularies.md) | **Generated eSpeak NG vocabulary inventory.** The source version, declaration coverage, and refusal classes behind the shipped language-scoped and union inventories. |
-| [supplements.md](supplements.md) | **Extending the inventory.** Registering a sound `ipa.xml` does not: what that buys that composition already gives you and what it does not, what a supplemental file may declare, how it merges, what it does to `to_phone`'s choice of winner and to the reference distribution, and how to carry your own derived matrix. |
+| [Canonical representation](representation.md) | Graph-backed Form, constructors, clocks, native persistence and linear JSON boundaries. |
+| [Form views](form.md) | Compatibility projections: units, segments, boundaries, intervals and derived trees. |
+| [House phonetic conventions](house-style.md) | The house model's spelling, composition, stress, boundaries and articulatory commitments. |
+| [Units, ties and diacritics](ties.md) | Constituent structure and the distinction between simultaneous, sequential and adjacent units. |
+| [Tone](tone.md) | Ordered contours, tone spellings and what individual marks assert. |
+| [Syllabification](syllabification.md) | Language-relative syllable/mora intervals, constraints and conflicts. |
+| [Corpus and structural search](corpus.md) | Persistent collections, structural queries and explicit external-resource ingestion. |
+| [TextGrid interchange](textgrid.md) | Interval/point tiers, structural and physical clocks, and declared inventory styles. |
+
+## Models and inventories
+
+Notation, phoneset, feature geometry and algebra are separate choices. The house
+model is one instance on the shared TierGraph substrate, developed alongside
+IPAkit and IRN; it is not a required pivot for every model. The comparison guides
+keep source distinctions, coverage and conversion losses explicit.
+
+| Guide | Use it for |
+| --- | --- |
+| [Comparative systems](systems.md) | Compare organizing principles and implemented boundaries across models. |
+| [Inventories and styles](inventories.md) | Named vocabularies, strict reading/spelling and dictionary-derived inventories. |
+| [Inventory supplements](supplements.md) | Extend the house declaration and understand the effects on realization and comparison. |
+| [Pinyin](pinyin.md) | Syllable-hosted tone, orthographic rendering and the internal graph-constructor boundary. |
+| [Kana](kana.md) | Mora-tier rendering and bounded attested-adaptation API/CLI support. |
+| [CLTS/BIPA](clts-audit.md) | Frozen native feature-set/Jaccard scoring, shared cost comparisons, source extraction and provenance; semantic mapping remains unresolved. |
+| [Finite model operations](model-operations.md) | Typed declarations, model-bound feature edits and exact realization candidates; distinct from productive rewriting. |
+| [Feature transformations](feature-transforms.md) | Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |
+| [MFA vocabulary exhibit](mfa-vocabularies.md) | Generated declarations, source pins and refusal classes. |
+| [eSpeak vocabulary exhibit](espeak-vocabularies.md) | Generated language-scoped and union vocabulary coverage. |
+| [House declaration exhibits](house-style-exhibits.md) | Generated tie, boundary and character-class inventories behind the house conventions. |
+
+## Rules and comparison
+
+| Guide | Use it for |
+| --- | --- |
+| [Rewrite notation](rules.md) | Feature queries, contexts, insertion/deletion, traces and supported syntax. |
+| [Variant calculus](calculus.md) | Optional rules, composition, enumeration caps and completeness reports. |
+| [Similarity rationale](similarity.md) | Scoring choices, validation and comparison with neighboring approaches. |
+| [Distance mechanics](distance.md) | Operational costs, normalization and the triangle-inequality limitation. |
+| [Perceptual validation exhibit](perceptual-validation-exhibits.md) | Generated Miller–Nicely comparison evidence. |
 
 ## Reference — the articulatory model
 
-| | |
+| Guide | Use it for |
 | --- | --- |
-| [tract-anatomy.md](tract-anatomy.md) | The declared vocal-tract geometry: articulators, constrictions, the nasal branch, the jaw, and what the posture does and does not carry. |
-| [tract-reference.md](tract-reference.md) | The labeled key to the mid-sagittal figures. |
-| [tract-figures.md](tract-figures.md) | The figures in [figures/](figures/), what each shows, how `make figures` draws them, and how to draw your own — from Python, from a notebook, or from the command line. |
-| [articulatory-data.md](articulatory-data.md) | The model measured against an external corpus (X-Ray Microbeam). What that corpus can ground, what it cannot see, and why its blind spots are facts about the instrument rather than about phonetics. |
-| [anchor-study.md](anchor-study.md) | The generated audio-to-pellet synchronization gate and target-timing measurements that support the articulatory comparison. |
-| [gestural-model.md](gestural-model.md) | The landed gesture and timed-target projection backend, its three-level animation fallback, and the larger dynamic gestural model that remains a design direction. |
-
-## Generated validation exhibits
-
-| | |
-| --- | --- |
-| [perceptual-validation-exhibits.md](perceptual-validation-exhibits.md) | The generated Miller–Nicely comparison behind the perceptual validation discussed in [similarity.md](similarity.md). |
+| [Tract anatomy](tract-anatomy.md) | Declared geometry, articulators and the posture model's limits. |
+| [Tract reference](tract-reference.md) | The labeled key to the mid-sagittal figures. |
+| [Figures and rendering](tract-figures.md) | Python, notebook and CLI drawing workflows and generated figures. |
+| [Articulatory data](articulatory-data.md) | External X-Ray Microbeam grounding and its measurement limits. |
+| [Anchor study](anchor-study.md) | Generated synchronization checks and target-timing measurements. |
+| [Gestural model](gestural-model.md) | Implemented gesture/target projection versus the proposed dynamic model. |
 
 ## The wider literature
 
-| | |
-| --- | --- |
-| [reading.md](reading.md) | **An annotated reading list.** What to read to build with this material or to teach from it — the rewrite calculus and its formal ground, phonological theory and features, phonetics and articulation, speech technology and grapheme-to-phoneme, historical and comparative work, the data catalogs. Every entry says what to read the work *for* and whether it is free, because for a class the second decides the first. It is not the union of what the design assessments rest on; those lists live with their own documents. |
+[Annotated reading](reading.md) connects the calculus, phonological theory,
+articulation, speech technology and comparative work to their literature.
+Historical assessments carry their own source lists.
 
 ## Working on ipakit
 
-| | |
+| Guide | Use it for |
 | --- | --- |
-| [state-of-the-work.md](state-of-the-work.md) | **What is settled, open and refused.** A generated index over the dated design records, with every entry pointing back to the verdict or superseded finding that supplies it. |
-| [reviewing.md](reviewing.md) | **Read this before changing anything.** How defects in this library have actually been found — every one a silent wrong answer under a green suite. Measure rather than predict; sweep rather than sample; make two things equal by construction. |
-| [releasing.md](releasing.md) | The release checklist. |
-| [development-sources.md](development-sources.md) | **External-source maintenance.** Shared library extraction contracts, pinned inputs, developer acquisition/build/check commands, and explicit unsupported producers. |
-| [cli-api-sync.md](cli-api-sync.md) | The generated cross-check of public Python reads against CLI reachability and explicit library-only decisions. |
-| [tiergraph-acceptance.md](tiergraph-acceptance.md) | The acceptance criteria for the tiergraph integration, with local witnesses, upstream contracts, and acknowledged coverage gaps. |
+| [Reviewing](reviewing.md) | Verification lessons and how to construct discriminating checks. |
+| [Release checklist](releasing.md) | Package and release procedures. |
+| [Developer sources](development-sources.md) | Shared extraction contracts, pinned sources and explicit update/build/check workflows. |
+| [API/CLI reachability](cli-api-sync.md) | Generated checks of public reads and explicit library-only decisions. |
+| [TierGraph acceptance](tiergraph-acceptance.md) | Implementation witnesses, upstream contracts and acknowledged coverage gaps. |
+| [Historical state of the work](state-of-the-work.md) | Generated verdicts and superseded findings from dated design records—not a live task queue. |
 
-The documents in `design/` are dated historical design records. They preserve the evidence and decisions that led to the implementation, but [representation.md](representation.md) supersedes them wherever they describe the stored representation.
+The records in [design/](design/) retain historical evidence and decisions.
+The canonical representation guide above supersedes their descriptions of the
+current store; do not rewrite historical findings to look like present-day claims.
+
+### Editing generated documentation
+
+Edit tutorial prose in `tutorial-basics.src.md` and `tutorial.src.md`, then run
+`make tutorial-basics` or `make tutorial`. Their rendered pages execute the
+examples; `make notebook` derives the packaged notebook from the same tutorial
+source. `ipakit notebook` makes that exercise notebook available without a checkout.
+
+Generated pages and figures are regenerated, not hand-edited. The Makefile owns
+the paths and commands for house/perceptual exhibits, vocabulary inventories,
+figures and the historical state-of-work index. Documentation checks execute
+examples, reconcile generated artifacts and check attributed quotations; each
+guard's scope remains distinct.
 
 ## The shape of the repository
 
-- `ipakit/` — the library. `ipakit/data/ipa.xml` is the feature declaration everything reads; `ipakit/data/rules/*.rules` are the shipped rule sets. Each XML document has a RELAX NG grammar beside it stating its shape — see [reviewing.md](reviewing.md).
-- `ipakit/cli/` — the `ipakit` command. One subcommand group per task area.
-- `ipakit/tract.py` — the tract model, read by the metric. `ipakit/tract_svg.py` draws it; they are separate so nothing that computes a distance can reach a stylesheet.
-- `scripts/` — the measurements, the generators, and the documentation guards. `sweep.py` is the canonical corpus, `invariants.py` the data guards, `tutorial.py` the artifact generator, `docexamples.py` checks every value quoted in the hand-written documents against what the library actually returns, and `docquotes.py` checks every sentence one document quotes out of another against the document it names. `tract_svg.py` here is a command line over the package module, which is where the drawing itself lives, because `scripts/` reaches nobody who installed ipakit.
-- `tests/` — the suite. `tests/corpus.py` is the one enumeration the sweeps share.
-
-Derived artifacts are **regenerated, never hand-edited**: `docs/figures/*.svg`
-(`make figures`), `docs/tutorial.md` (`make tutorial`),
-`docs/house-style-exhibits.md` (`make house-style`),
-`docs/state-of-the-work.md` (`make state-of-work`),
-`ipakit/notebooks/ipakit-tutorial.ipynb` (`make notebook`), `ipakit/data/confusion.json`
-and the X-SAMPA table. `make check` runs every gate a release runs, and validates each of
-those derivations still produces what is checked in.
+- `ipakit/` — the library. `ipakit/data/ipa.xml` declares the house inventory;
+  other models and imported vocabularies have their own declarations.
+  `ipakit/data/rules/*.rules` contains the shipped rule sets.
+- `ipakit/cli/` — command-line task groups over library operations.
+- `ipakit/tract.py` and `ipakit/tract_svg.py` — articulatory computation and
+  rendering, kept separate.
+- `scripts/` — measurements, generators and guards. Examples include
+  `tutorial.py`, `docexamples.py`, `docquotes.py` and `invariants.py`;
+  installed-library functionality belongs in the package.
+- `tests/` — behavioral tests and shared corpus fixtures.
