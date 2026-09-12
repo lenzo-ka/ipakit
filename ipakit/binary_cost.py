@@ -32,8 +32,8 @@ def binary_pack(
     if policy.indel_weight <= 0:
         raise ValueError("binary comparison requires positive effective gap pricing")
     effective_gap = gap * policy.indel_weight
-    if not math.isfinite(effective_gap):
-        raise ValueError("effective gap price must be finite")
+    if not math.isfinite(effective_gap) or effective_gap <= 0:
+        raise ValueError("effective gap price must be positive and finite")
     supplied = (
         dict(weights)
         if weights is not None

@@ -196,6 +196,50 @@ def test_gap_policy_is_validated(gap: float) -> None:
         binary_pack(binary(scalar_model()), gap=gap)
 
 
+@pytest.mark.parametrize(
+    "gap,scale",
+    [
+        (1e-300, 1e-300),
+        (float.fromhex("0x0.0000000000001p-1022"), 0.5),
+        (1e300, 1e300),
+        (float.fromhex("0x1.fffffffffffffp+1023"), 2.0),
+    ],
+)
+def test_effective_gap_refuses_underflow_and_overflow(gap: float, scale: float) -> None:
+    with pytest.raises(ValueError, match="effective gap"):
+        binary_pack(
+            binary(scalar_model()), gap=gap, policy=CostPolicy(indel_weight=scale)
+        )
+
+
+@pytest.mark.parametrize(
+    "gap,scale,expected",
+    [
+        (1e-200, 1e-100, 1e-300),
+        (
+            float.fromhex("0x0.0000000000001p-1022"),
+            1.0,
+            float.fromhex("0x0.0000000000001p-1022"),
+        ),
+        (1e150, 1e150, 1e300),
+    ],
+)
+def test_positive_finite_small_and_large_gap_products_remain_usable(
+    gap: float,
+    scale: float,
+    expected: float,
+) -> None:
+    pack = binary_pack(
+        binary(scalar_model()), gap=gap, policy=CostPolicy(indel_weight=scale)
+    )
+    assert price(pack.insert_cost, "POS") == pytest.approx(expected, rel=1e-15, abs=0)
+    assert pack.indel_ceiling > 0
+    score = semiring_alignment(
+        pack, Segmentation(("NEG",)), Segmentation(("POS",)), TROPICAL, encode=float
+    )
+    assert score > 0
+
+
 def test_weight_policy_identity_and_invalid_inputs() -> None:
     transform = binary(scalar_model())
     for weights in (
