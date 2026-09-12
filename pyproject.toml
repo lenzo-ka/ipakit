@@ -130,6 +130,10 @@ ipakit = [
     "data/*.json",
     "data/clts/*.json",
     "data/clts/*.txt",
+    "data/phoible/*.txt",
+    "data/phoible/*.json",
+    "data/phoible/data/*.gz",
+    "data/phoible/mappings/*.gz",
     "data/attested/*.json",
     "data/textgrid/*.json",
     # Attested data are read by validation rather than by the runtime. The

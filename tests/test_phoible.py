@@ -16,8 +16,8 @@ FIXTURE = Path(__file__).parent / "fixtures" / "phoible"
 
 
 def test_absent_checkout_has_one_clean_actionable_refusal(monkeypatch) -> None:
-    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
-    with pytest.raises(PhoibleDataUnavailable, match=PHOIBLE_ENV):
+    monkeypatch.setenv(PHOIBLE_ENV, "/absent/phoible-checkout")
+    with pytest.raises(PhoibleDataUnavailable, match="missing"):
         PhoibleBridge()
 
 
@@ -108,7 +108,7 @@ def test_cli_inventory_is_a_phoneset_file(tmp_path, monkeypatch, capsys) -> None
 
 
 def test_cli_without_mount_exits_cleanly(monkeypatch, capsys) -> None:
-    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
+    monkeypatch.setenv(PHOIBLE_ENV, "/absent/phoible-checkout")
     status, _, error = run(monkeypatch, capsys, "phoible", "language", "eng")
     assert status == 1
     assert "PHOIBLE data is unavailable" in error

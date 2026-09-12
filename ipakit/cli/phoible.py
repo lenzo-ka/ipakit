@@ -1,4 +1,4 @@
-"""Commands for the externally mounted PHOIBLE inventory provider."""
+"""Commands for shipped or explicitly mounted PHOIBLE inventories."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def _bridge(args: argparse.Namespace) -> PhoibleBridge:
 def _path_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--phoible",
-        help="PHOIBLE checkout or data/phoible.csv (else IPAKIT_PHOIBLE)",
+        help="PHOIBLE checkout or data/phoible.csv (else IPAKIT_PHOIBLE, then shipped snapshot)",
     )
 
 
