@@ -35,8 +35,11 @@ Productive composites such as `ai` are outside the shipped core even when
 pyclts can resolve them. Missing keys raise `OutsideDomain` with code
 `outside-artifact-domain`; this is not a claim that CLTS rejects that sound.
 Inspect `requested`, `entries` and `excluded` for the exact generated
-population. The full CLTS-to-Form importer and semantic feature mapping remain
-separate work.
+population. The full CLTS-to-Form importer and general semantic feature mapping
+remain separate work. The [bounded correspondence authority](clts-mapping.md)
+records four exact plain-stop witnesses, not a general converter; its
+[generated gap report](clts-gaps.md) accounts for master declarations while
+keeping unresolved mappings and pending structural-profile binding explicit.
 
 ### Substitute the cost model, not the aligner
 
