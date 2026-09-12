@@ -278,12 +278,22 @@ import itertools
 import re
 import unicodedata
 import warnings
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
+from . import _rule_model
+from ._rule_model import (
+    FeatureChanges,
+    FeatureConstraint,
+    LiteralTokens,
+    ModelRuleError,
+    TokenDerivation,
+    TokenOccurrence,
+)
 from .constants import DATA_DIR, ZERO_CLASS
+from .finite_model import FiniteModel
 from .form import (
     Form,
     Interval,
@@ -303,6 +313,8 @@ from .form import (
 if TYPE_CHECKING:  # pragma: no cover
     from .features import IPAFeatures
     from .models import Phoneset
+
+Occurrence = Unit | TokenOccurrence
 
 #: Spellings accepted for the empty string in a rule (insertion/deletion).
 #:
@@ -521,6 +533,9 @@ class Pattern:
     #: ``None`` means that the form length supplies the upper bound.
     repeat_min: int = 1
     repeat_max: int | None = 1
+    #: Typed finite constraints; native feature/prosody fields remain native.
+    constraints: tuple[FeatureConstraint, ...] = ()
+    _model: FiniteModel | None = field(default=None, repr=False, compare=False)
 
     @property
     def names_boundary(self) -> bool:
@@ -592,8 +607,8 @@ class Pattern:
 
     def matches(
         self,
-        unit: Unit,
-        features: IPAFeatures,
+        unit: Occurrence,
+        features: IPAFeatures | None,
         bindings: dict[str, str] | None = None,
     ) -> bool:
         """Whether ``unit`` satisfies this pattern.
@@ -610,6 +625,17 @@ class Pattern:
         well-formed wrong answer is the shape of every defect this
         library has had.
         """
+        if self._model is not None:
+            if features is not None:
+                raise ModelRuleError(
+                    "model-mismatch", "finite matching does not accept native features"
+                )
+            return _rule_model.matches(self, unit, self._model)
+        if self.constraints or isinstance(unit, TokenOccurrence):
+            raise ModelRuleError(
+                "model-mismatch", "finite patterns must be compiled for their model"
+            )
+        assert features is not None
         if self.tier is not None:
             raise RuleError(
                 f"{self.source!r} claims a position -- the "
@@ -1594,7 +1620,7 @@ class Site:
         return self.start == self.end
 
 
-def _run(items: Sequence[Unit], gap: int) -> tuple[int, int]:
+def _run(items: Sequence[Occurrence], gap: int) -> tuple[int, int]:
     """The maximal boundary run the gap ``gap`` sits in, as ``[lo, hi)``.
 
     Empty (``lo == hi == gap``) where neither neighbor is a boundary.
@@ -1609,7 +1635,10 @@ def _run(items: Sequence[Unit], gap: int) -> tuple[int, int]:
 
 
 def _target_end(
-    items: Sequence[Unit], start: int, pattern: Pattern, features: IPAFeatures
+    items: Sequence[Occurrence],
+    start: int,
+    pattern: Pattern,
+    features: IPAFeatures | None,
 ) -> int:
     """Where a target that matched ``items[start]`` stops.
 
@@ -1665,7 +1694,7 @@ def _target_end(
 
 
 def _anchors(
-    items: Sequence[Unit], gap: int, limit: int, left: tuple[int | None, ...]
+    items: Sequence[Occurrence], gap: int, limit: int, left: tuple[int | None, ...]
 ) -> bool:
     """Whether ``gap`` is the one gap its boundary run offers an insertion.
 
@@ -1747,6 +1776,7 @@ class Query:
     target: Pattern | None
     left: tuple[Pattern, ...] = ()
     right: tuple[Pattern, ...] = ()
+    _model: FiniteModel | None = field(default=None, repr=False, compare=False)
 
     @staticmethod
     def _widths(
@@ -1790,11 +1820,11 @@ class Query:
 
     def _side_readings(
         self,
-        items: Sequence[Unit],
+        items: Sequence[Occurrence],
         anchor: int,
         patterns: Sequence[Pattern],
         step: int,
-        features: IPAFeatures,
+        features: IPAFeatures | None,
         bindings: dict[str, str],
         intervals: Sequence[Interval],
     ) -> Iterator[tuple[tuple[int | None, ...], dict[str, str]]]:
@@ -1818,11 +1848,11 @@ class Query:
 
     def _side(
         self,
-        items: Sequence[Unit],
+        items: Sequence[Occurrence],
         anchor: int,
         patterns: Sequence[Pattern],
         step: int,
-        features: IPAFeatures,
+        features: IPAFeatures | None,
         bindings: dict[str, str] | None = None,
         intervals: Sequence[Interval] = (),
     ) -> tuple[int | None, ...] | None:
@@ -1930,8 +1960,18 @@ class Query:
                 # since the levels nest, so does any weaker level: the edge
                 # of a form is a syllable margin as well as a word margin.
                 edge = pattern.boundary
+                if edge is not None and features is None:
+                    raise ModelRuleError(
+                        "unsupported-operation",
+                        "finite boundary contexts are not declared",
+                    )
                 if edge is not None and (
-                    edge == "any" or _reaches(_edge_level(features), edge, features)
+                    edge == "any"
+                    or _reaches(
+                        _edge_level(cast("IPAFeatures", features)),
+                        edge,
+                        cast("IPAFeatures", features),
+                    )
                 ):
                     # None, not -1: -1 is a valid index, so a consumer
                     # reading items[site.right[0]] would be handed the
@@ -1948,8 +1988,8 @@ class Query:
 
     def sites(
         self,
-        items: Sequence[Unit],
-        features: IPAFeatures,
+        items: Sequence[Occurrence],
+        features: IPAFeatures | None,
         intervals: Sequence[Interval] = (),
     ) -> list[Site]:
         """Every non-overlapping position where this environment holds.
@@ -1969,6 +2009,22 @@ class Query:
         overlapping it, so the sites stay disjoint. ``_apply_edits``
         splices rightmost-first on that.
         """
+        if self._model is not None:
+            _rule_model.validate_query(self, self._model)
+            _rule_model.validate_occurrences(items, self._model)
+            if intervals or features is not None:
+                raise ModelRuleError(
+                    "unsupported-input",
+                    "finite queries have no native features or intervals",
+                )
+        elif any(
+            p.constraints or p._model is not None
+            for p in (self.target, *self.left, *self.right)
+            if p is not None
+        ):
+            raise ModelRuleError(
+                "model-mismatch", "finite query must be compiled before recognition"
+            )
         found: list[Site] = []
         index = 0
         limit = len(items)
@@ -2053,7 +2109,7 @@ class Edit:
     rule: str
     start: int
     end: int
-    replacement: tuple[Unit, ...]
+    replacement: tuple[Occurrence, ...]
     before: str
     after: str
     site: Site
@@ -2207,13 +2263,15 @@ class Action:
     before and this feature adds no case to any of them.
     """
 
-    becomes: Becomes
+    becomes: Becomes = None
+    finite: FeatureChanges | LiteralTokens | None = None
+    _model: FiniteModel | None = field(default=None, repr=False, compare=False)
 
     def edit(
         self,
         site: Site,
-        items: Sequence[Unit],
-        features: IPAFeatures,
+        items: Sequence[Occurrence],
+        features: IPAFeatures | None,
         rule: str = "",
         named: frozenset[str] = frozenset(),
     ) -> Edit | None:
@@ -2226,8 +2284,23 @@ class Action:
         still behaves -- it then carries every prosody across, which is
         the safe reading when nothing said otherwise.
         """
-        before = spell(items[site.start : site.end])
-        target = items[site.start] if site.start < site.end else None
+        if self._model is not None:
+            if features is not None or named:
+                raise ModelRuleError(
+                    "unsupported-operation",
+                    "finite realization does not accept native features or prosody",
+                )
+            return _rule_model.edit(self, site, items, self._model, rule)
+        if self.finite is not None or any(
+            isinstance(item, TokenOccurrence) for item in items
+        ):
+            raise ModelRuleError(
+                "model-mismatch", "finite action must be compiled before realization"
+            )
+        assert features is not None
+        native_items = cast("Sequence[Unit]", items)
+        before = spell(native_items[site.start : site.end])
+        target = native_items[site.start] if site.start < site.end else None
         replacement: tuple[Unit, ...]
 
         if self.becomes is None:
@@ -2372,6 +2445,66 @@ class Rule:
     #: the bridge takes its tier selection from :meth:`Derivation.to_form`.
     #: Setting it does not change what matches.
     source_tiers: tuple[str, ...] = ("segment",)
+    _model: FiniteModel | None = field(default=None, repr=False, compare=False)
+    binding: str | None = None
+
+    def bind(self, model: FiniteModel) -> Rule:
+        """Compile a finite AST with model, notation and realization identities."""
+        return _rule_model.bind(self, model)
+
+    def _finite_model(self, model: FiniteModel | None) -> FiniteModel:
+        if self._model is None or self.binding is None:
+            raise ModelRuleError(
+                "model-mismatch", "compile the rule with bind(model) first"
+            )
+        if model is not None and model != self._model:
+            raise ModelRuleError("model-mismatch", "rule belongs to another model")
+        compiled = _rule_model.bind(self, self._model)
+        if compiled.binding != self.binding:
+            raise ModelRuleError("model-mismatch", "compiled operation was changed")
+        return self._model
+
+    def _native_only(self) -> None:
+        if (
+            self._model is not None
+            or self.binding is not None
+            or self.query._model is not None
+            or self.action._model is not None
+            or self.action.finite is not None
+            or any(
+                p.constraints or p._model is not None
+                for p in (self.target, *self.query.left, *self.query.right)
+                if p is not None
+            )
+        ):
+            raise ModelRuleError(
+                "unsupported-operation",
+                "use the explicit token-projection entry points for finite rules",
+            )
+
+    def recognize_tokens(
+        self, tokens: object, *, model: FiniteModel | None = None
+    ) -> list[Site]:
+        selected = self._finite_model(model)
+        return self.query.sites(_rule_model.read_tokens(tokens, selected), None)
+
+    def rewrite_tokens(
+        self, tokens: object, *, model: FiniteModel | None = None
+    ) -> TokenDerivation:
+        selected = self._finite_model(model)
+        read = _rule_model.read_tokens(tokens, selected)
+        items, _, edits = self._rewritten(read, None)
+        before = tuple(item.text for item in read)
+        after = tuple(item.text for item in items)
+        step = Step(
+            self.name,
+            "".join(before),
+            "".join(after),
+            tuple(edits),
+            before_tokens=before,
+            after_tokens=after,
+        )
+        return TokenDerivation(before, after, (step,), selected.identity)
 
     @property
     def target(self) -> Pattern | None:
@@ -2387,7 +2520,11 @@ class Rule:
 
     @property
     def deletes(self) -> bool:
-        return self.action.becomes is None and self.query.target is not None
+        return (
+            self.action.becomes is None
+            and self.action.finite is None
+            and self.query.target is not None
+        )
 
     def invertibility(
         self, phoneset: Phoneset, features: IPAFeatures | None = None
@@ -2401,6 +2538,7 @@ class Rule:
         is returned as ``culprit`` and both colliding inputs are named in the
         teaching diagnostic.
         """
+        self._native_only()
         features = _default(features)
         if self.inserts or self.deletes:
             side = "left" if self.inserts else "right"
@@ -2440,21 +2578,23 @@ class Rule:
         self, form: Matchable, features: IPAFeatures | None = None
     ) -> list[Site]:
         """Where this rule's environment holds. No rewriting."""
+        self._native_only()
         features = _default(features)
         items, spans = _read(form, features)
         return self.query.sites(items, features, spans)
 
     def edits(self, form: Matchable, features: IPAFeatures | None = None) -> list[Edit]:
         """The edits this rule would make, without making them."""
+        self._native_only()
         features = _default(features)
         items, spans = _read(form, features)
         return self._edits(items, spans, features)
 
     def _edits(
         self,
-        items: Sequence[Unit],
+        items: Sequence[Occurrence],
         spans: Sequence[Interval],
-        features: IPAFeatures,
+        features: IPAFeatures | None,
     ) -> list[Edit]:
         """:meth:`edits` with the form already read, for :meth:`apply`."""
         # What the left half named is what the right half's silence is
@@ -2463,12 +2603,24 @@ class Rule:
         # it could not otherwise know, not the action reaching backwards.
         named = self.query.target.prosodic_keys if self.query.target else frozenset()
         out = []
-        seen: set[tuple[int, int, str, str]] = set()
+        seen: set[tuple[int, int, str, tuple[str, ...]]] = set()
         for site in self.query.sites(items, features, spans):
             edit = self.action.edit(site, items, features, rule=self.name, named=named)
             if (
                 edit is not None
-                and (key := (edit.start, edit.end, edit.before, edit.after)) not in seen
+                and (
+                    key := (
+                        edit.start,
+                        edit.end,
+                        edit.before,
+                        (
+                            tuple(item.text for item in edit.replacement)
+                            if self._model is not None
+                            else (edit.after,)
+                        ),
+                    )
+                )
+                not in seen
             ):
                 seen.add(key)
                 out.append(edit)
@@ -2497,9 +2649,10 @@ class Rule:
         :class:`RebaseError`, and this answers, because it is not carrying
         the span that has no answer.
         """
+        self._native_only()
         features = _default(features)
         items, _, found = self._rewritten(form, features)
-        return items, found
+        return cast("list[Unit]", items), found
 
     def rewrite(
         self, form: Matchable, features: IPAFeatures | None = None
@@ -2521,20 +2674,32 @@ class Rule:
         :meth:`apply` will hand them over; what has no answer is the span,
         and answering anyway is what this library does not do.
         """
+        self._native_only()
         features = _default(features)
         items, spans, found = self._rewritten(form, features)
-        return Form.of(items, rebase(spans, found, features)), found
+        return Form.of(cast("list[Unit]", items), rebase(spans, found, features)), found
 
     def _rewritten(
-        self, form: Matchable, features: IPAFeatures
-    ) -> tuple[list[Unit], tuple[Interval, ...], list[Edit]]:
+        self, form: Matchable | Sequence[TokenOccurrence], features: IPAFeatures | None
+    ) -> tuple[list[Occurrence], tuple[Interval, ...], list[Edit]]:
         """The units after this rule, the spans it was handed, its edits.
 
         One read and one splice, so :meth:`apply` and :meth:`rewrite`
         cannot come apart on what the rule did -- they differ only in
         whether the spans are rebased and returned.
         """
-        read, spans = _read(form, features)
+        if self._model is not None:
+            selected = self._finite_model(None)
+            if not isinstance(form, (tuple, list)):
+                raise ModelRuleError(
+                    "unsupported-input", "finite state must contain token occurrences"
+                )
+            _rule_model.validate_occurrences(form, selected)
+            read: Sequence[Occurrence] = cast("Sequence[TokenOccurrence]", form)
+            spans: tuple[Interval, ...] = ()
+        else:
+            assert features is not None
+            read, spans = _read(cast("Matchable", form), features)
         items = list(read)
         found = self._edits(items, spans, features)
         return _apply_edits(items, found), tuple(spans), found
@@ -2543,11 +2708,13 @@ class Rule:
         return self.source or self.name
 
 
-def _apply_edits(items: list[Unit], edits: Sequence[Edit]) -> list[Unit]:
+def _apply_edits[OccurrenceT: Occurrence](
+    items: list[OccurrenceT], edits: Sequence[Edit]
+) -> list[OccurrenceT]:
     """Splice edits into a sequence, rightmost first so indices hold."""
     out = list(items)
     for edit in sorted(edits, key=lambda e: e.start, reverse=True):
-        out[edit.start : edit.end] = list(edit.replacement)
+        out[edit.start : edit.end] = cast("list[OccurrenceT]", list(edit.replacement))
     return out
 
 
@@ -2663,7 +2830,9 @@ def rebase(
 # --------------------------------------------------------------------------
 
 
-def parse(text: str, features: IPAFeatures | None = None) -> Rule:
+def parse(
+    text: str, features: IPAFeatures | None = None, *, model: FiniteModel | None = None
+) -> Rule:
     """Build a :class:`Rule` from the notation.
 
     ::
@@ -2691,7 +2860,24 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     which is the read-only restriction stated at parse time; see
     :func:`_tier_term`.
     """
-    features = _default(features)
+    if model is not None and features is not None:
+        raise ModelRuleError(
+            "model-mismatch", "model= and features= are mutually exclusive"
+        )
+    if model is None:
+        features = _default(features)
+    elif any(char in text for char in "\"';"):
+        raise ModelRuleError(
+            "unsupported-notation",
+            "finite safe-bare DSL has no quoted literals or named suffix; use typed AST",
+        )
+
+    def read_pattern(value: str) -> Pattern:
+        if model is not None:
+            return _rule_model.pattern_from_text(value, model)
+        assert features is not None
+        return _pattern(value, features)
+
     source = text.strip()
     if not source:
         raise RuleError("empty rule")
@@ -2739,7 +2925,7 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     if not rhs:
         raise RuleError(f"{source!r} has nothing on the right of the arrow")
 
-    target = None if lhs in NULL else _pattern(lhs, features)
+    target = None if lhs in NULL else read_pattern(lhs)
     if target is not None and target.tier is not None:
         # THE READ-ONLY RESTRICTION, by construction and at parse time.
         # A rule's center is what it rewrites, and Kaplan & Kay's
@@ -2756,14 +2942,16 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
             "the rule rewrites; a tier term belongs in the context, where it "
             f"says where the target sits: '{lhs} -> {rhs} / {target.source} _'."
         )
-    becomes = _becomes(rhs, features)
-    if target is None and becomes is None:
+    finite = _rule_model.action_from_text(rhs, model) if model is not None else None
+    becomes = _becomes(rhs, cast("IPAFeatures", features)) if model is None else None
+    if target is None and becomes is None and finite is None:
         raise RuleError(f"{source!r} rewrites nothing as nothing")
-    if target is not None:
+    if model is None and target is not None:
+        assert features is not None
         _check_no_exchange(source, target, becomes, features)
         _check_zero_target(source, target, becomes, features)
         _check_no_change(source, target, becomes, features)
-    else:
+    elif model is None:
         _check_inserted_change(source, becomes)
     if target is not None and target.optional:
         raise RuleError(
@@ -2776,7 +2964,12 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
             f"{source!r} marks its target repeated at position 0, and a rule cannot rewrite "
             "a span it has not counted. Repetition is for context items."
         )
-    if target is None and isinstance(becomes, str) and becomes in features.zeros:
+    if (
+        target is None
+        and isinstance(becomes, str)
+        and features is not None
+        and becomes in features.zeros
+    ):
         raise RuleError(
             f"{source!r} inserts a zero. A zero records that a position had "
             "content and now has none; an insertion had none to lose, so "
@@ -2787,6 +2980,11 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
     left: tuple[Pattern, ...] = ()
     right: tuple[Pattern, ...] = ()
     if slash:
+        if model is not None and context.count("_") != 1:
+            raise ModelRuleError(
+                "unsupported-notation",
+                "finite context requires exactly one '_' separator",
+            )
         if "_" not in context:
             raise RuleError(
                 f"{source!r} has a context but no '_' marking where the target sits"
@@ -2803,9 +3001,12 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
                 "optional element '(X)'."
             )
         # Innermost first, so both sides read outward from the target.
-        left = tuple(reversed([_pattern(i, features) for i in _items(before)]))
-        right = tuple(_pattern(i, features) for i in _items(after))
+        left = tuple(reversed([read_pattern(i) for i in _items(before)]))
+        right = tuple(read_pattern(i) for i in _items(after))
         for spelling, patterns in ((before, left), (after, right)):
+            if model is not None:
+                continue
+            assert features is not None
             if any(item.strip() in NULL for item in _items(spelling)) or any(
                 pattern.literal in features.zeros for pattern in patterns
             ):
@@ -2823,15 +3024,17 @@ def parse(text: str, features: IPAFeatures | None = None) -> Rule:
                     "optional element '(X)'."
                 )
 
-    _check_variables(source, target, left, right, becomes)
+    if model is None:
+        _check_variables(source, target, left, right, becomes)
 
-    return Rule(
+    rule = Rule(
         name=name or source,
         query=Query(target=target, left=left, right=right),
-        action=Action(becomes=becomes),
+        action=Action(becomes=becomes, finite=finite),
         source=source,
         optional=optional,
     )
+    return rule.bind(model) if model is not None else rule
 
 
 def _check_variables(
@@ -3413,6 +3616,8 @@ class Step:
     #: whose environment failed, and a trace that spelled the two alike
     #: would be the first silent wrong answer this feature could tell.
     optional: bool = False
+    before_tokens: tuple[str, ...] | None = None
+    after_tokens: tuple[str, ...] | None = None
 
     @property
     def fired(self) -> bool:
@@ -3883,6 +4088,41 @@ def _is_comment(stripped: str, features: IPAFeatures) -> bool:
     return not any(rest.startswith(arrow) for arrow in OPTIONAL_ARROWS + ARROWS)
 
 
+def _cascade[StateT](
+    rules: Sequence[Rule],
+    held: StateT,
+    rewrite: Callable[[Rule, StateT], tuple[StateT, list[Edit]]],
+    render: Callable[[StateT], str],
+    cleanup: Sequence[Rule] = (),
+    token_key: Callable[[StateT], tuple[str, ...]] | None = None,
+) -> tuple[StateT, tuple[Step, ...]]:
+    """The shared feeding fold; state never comes back from display text."""
+    steps = []
+    for rule, is_cleanup in itertools.chain(
+        ((rule, False) for rule in rules), ((rule, True) for rule in cleanup)
+    ):
+        before = render(held)
+        before_tokens = token_key(held) if token_key is not None else None
+        if rule.optional and not is_cleanup:
+            edits: list[Edit] = []
+        else:
+            held, edits = rewrite(rule, held)
+        if is_cleanup and not edits:
+            continue
+        steps.append(
+            Step(
+                rule.name,
+                before,
+                render(held),
+                tuple(edits),
+                optional=rule.optional and not is_cleanup,
+                before_tokens=before_tokens,
+                after_tokens=token_key(held) if token_key is not None else None,
+            )
+        )
+    return held, tuple(steps)
+
+
 @dataclass(frozen=True)
 class RuleSet:
     """An ordered cascade of rules.
@@ -3896,10 +4136,48 @@ class RuleSet:
     rules: tuple[Rule, ...]
     name: str = ""
 
+    def bind(self, model: FiniteModel) -> RuleSet:
+        return RuleSet(tuple(rule.bind(model) for rule in self.rules), self.name)
+
+    def derive_tokens(
+        self, tokens: object, *, model: FiniteModel | None = None
+    ) -> TokenDerivation:
+        """Feed explicit finite token states through the shared cascade."""
+        selected = (
+            model if model is not None else self.rules[0]._model if self.rules else None
+        )
+        if selected is None:
+            raise ModelRuleError(
+                "model-mismatch", "an empty cascade still requires model identity"
+            )
+        for rule in self.rules:
+            rule._finite_model(selected)
+        initial = _rule_model.read_tokens(tokens, selected)
+
+        def rewrite(
+            rule: Rule, held: tuple[TokenOccurrence, ...]
+        ) -> tuple[tuple[TokenOccurrence, ...], list[Edit]]:
+            output, _, edits = rule._rewritten(held, None)
+            return cast("tuple[TokenOccurrence, ...]", tuple(output)), edits
+
+        def key(held: tuple[TokenOccurrence, ...]) -> tuple[str, ...]:
+            return tuple(item.text for item in held)
+
+        held, steps = _cascade(
+            self.rules,
+            initial,
+            rewrite,
+            lambda state: "".join(key(state)),
+            token_key=key,
+        )
+        return TokenDerivation(key(initial), key(held), steps, selected.identity)
+
     def invertibility(
         self, phoneset: Phoneset, features: IPAFeatures | None = None
     ) -> InvertibilityReport:
         """Report every rule and the backward-search regime for this set."""
+        for rule in self.rules:
+            rule._native_only()
         features = _default(features)
         return InvertibilityReport(
             self.name,
@@ -3908,7 +4186,12 @@ class RuleSet:
 
     @classmethod
     def parse(
-        cls, text: str, features: IPAFeatures | None = None, name: str = ""
+        cls,
+        text: str,
+        features: IPAFeatures | None = None,
+        name: str = "",
+        *,
+        model: FiniteModel | None = None,
     ) -> RuleSet:
         """Build a rule set from one rule per line.
 
@@ -3918,13 +4201,21 @@ class RuleSet:
         both the comment marker and the word edge, and :func:`_is_comment`
         is where the two are told apart.
         """
-        features = _default(features)
+        if model is not None and features is not None:
+            raise ModelRuleError(
+                "model-mismatch", "model= and features= are mutually exclusive"
+            )
+        features = _default(features) if model is None else None
         parsed = []
         for line in text.splitlines():
             stripped = line.strip()
-            if not stripped or _is_comment(stripped, features):
+            if not stripped or (
+                stripped.startswith("#")
+                if model is not None
+                else _is_comment(stripped, cast("IPAFeatures", features))
+            ):
                 continue
-            parsed.append(parse(stripped, features))
+            parsed.append(parse(stripped, features, model=model))
         return cls(rules=tuple(parsed), name=name)
 
     @classmethod
@@ -3974,6 +4265,8 @@ class RuleSet:
         rule quietly not firing, which is a wrong answer nothing reports.
         :func:`rebase` is the arithmetic and says what it refuses.
         """
+        for rule in self.rules:
+            rule._native_only()
         features = _default(features)
         read, spans = _read(form, features)
         held = Form.of(read, spans)
@@ -3982,43 +4275,14 @@ class RuleSet:
         # it accounts for a derivation that did not happen. See Derivation.
         current = held.to_ipa()
         start = current
-        steps: list[Step] = []
-        for rule in self.rules:
-            before = current
-            if rule.optional:
-                steps.append(
-                    Step(
-                        rule=rule.name,
-                        before=before,
-                        after=before,
-                        edits=(),
-                        optional=True,
-                    )
-                )
-                continue
-            held, edits = rule.rewrite(held, features)
-            current = held.to_ipa()
-            steps.append(
-                Step(rule=rule.name, before=before, after=current, edits=tuple(edits))
-            )
-        if not keep_zeros:
-            for rule in surface(features):
-                held, edits = rule.rewrite(held, features)
-                # Recorded only where it fires. It is not a rule of this
-                # set -- ``len(RuleSet)`` and ``all_steps`` answer for what
-                # the cascade declares -- so a derivation with no zero in
-                # it is the same derivation it was, line for line.
-                if not edits:
-                    continue
-                before, current = current, held.to_ipa()
-                steps.append(
-                    Step(
-                        rule=rule.name,
-                        before=before,
-                        after=current,
-                        edits=tuple(edits),
-                    )
-                )
+        held, steps = _cascade(
+            self.rules,
+            held,
+            lambda rule, state: rule.rewrite(state, features),
+            lambda state: state.to_ipa(),
+            cleanup=() if keep_zeros else surface(features).rules,
+        )
+        current = held.to_ipa()
         return Derivation(
             start=start,
             result=current,
@@ -4084,6 +4348,8 @@ class RuleSet:
         optionality and structure that no measurement here settles. So it
         refuses, and the limit stays known rather than assumed shut.
         """
+        for rule in self.rules:
+            rule._native_only()
         features = _default(features)
         if limit < 1:
             raise ValueError(f"limit must be at least 1, not {limit!r}")

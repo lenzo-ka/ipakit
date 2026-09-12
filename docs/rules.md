@@ -37,6 +37,81 @@ insertions anchor to an input boundary, deletions retain an empty-target
 earlier positions. The graph records the engine's deterministic phantom order;
 it is not a second rule scanner.
 
+## Finite token projections
+
+The notation below defaults to the house model. Finite foreign inventories have
+an explicit token-projection API using the **same** Pattern/Query/Action/Rule
+scanner, edit splicer and feeding cascade. They do not parse tokens as house IPA
+or run the native surface rules:
+
+```python
+from ipakit.finite_model import FeatureSchema, FiniteModel
+from ipakit.rules import RuleSet, parse
+
+model = FiniteModel(
+    "demo",
+    FeatureSchema({"spark": ("dim", "bright"), "host": ("gate", "body")}),
+    {"@D": ("dim", "body"), "@B": ("bright", "body"), "@G": ("bright", "gate")},
+)
+rule = parse("[spark=dim] -> [spark=bright] / _ [host=gate]", model=model)
+result = rule.rewrite_tokens(("@D", "@G", "@D", "@B"))
+assert result.tokens == ("@B", "@G", "@D", "@B")
+assert rule.recognize_tokens(("@D", "@G"))[0].right == (1,)
+feeding = parse("[spark=bright host=body] -> [host=gate]", model=model)
+assert RuleSet((rule, feeding)).derive_tokens(("@D", "@G")).tokens == ("@G", "@G")
+```
+
+These rules bind the finite model's content identity, operation, notation and
+`unique-or-refuse` realization policy. Supplying another `model=` to execution
+refuses even on empty input or when nothing would match. Every input token is
+validated before scanning. A feature edit invokes the finite provider's exact
+realization relation: no candidates raises `ModelRuleError` with code
+`unrealizable`; multiple candidates raises code `ambiguous`, retaining the full
+`candidates` tuple. A requested no-op on an aliased bundle is still ambiguous.
+An unknown token raises the provider's `MissingToken`; invalid feature/value
+constraints raise `InvalidFeature`. These are not successful no-match results.
+
+For typed values and punctuation-bearing tokens, construct the same AST and
+call `bind(model)`:
+
+```python
+from ipakit.rules import Action, FeatureChanges, FeatureConstraint, Pattern, Query, Rule
+
+rule = Rule(
+    "brighten",
+    Query(Pattern("dim", constraints=(FeatureConstraint("spark", ("dim",)),))),
+    Action(finite=FeatureChanges({"spark": "bright"})),
+).bind(model)
+assert rule.rewrite_tokens(("@D",)).tokens == ("@B",)
+```
+
+`FeatureConstraint` admits a tuple of typed alternatives; `exclude=True` negates
+that membership test. Booleans, integers and strings remain distinct, including
+in equality/hash keys. `None` explicitly tests or writes a missing cell; it is
+not zero or an omitted term. Exclusion matches a missing cell unless `None` is
+among the excluded values. `LiteralTokens((...))` is an alternative `Action`'s
+`finite=` payload for an exact replacement token sequence, including reserved
+punctuation. `Action()` deletes a matched token. Native `becomes=` and native
+pattern feature/prosody fields are not interchangeable with these finite AST
+fields; unsupported mixtures refuse during binding.
+
+The finite safe-bare DSL supports exact literals and explicit `feature=value`
+terms, fixed left/right contexts, and `∅` for deletion. Values decode against
+the declared domain; if `1` could mean integer `1` or string `"1"`, use the typed
+AST. Quoted literals, named `;` suffixes, agreement, quantifiers, optional rules,
+insertion, boundaries, natural classes and structural/prosodic terms are outside
+this finite slice and refuse. A feature named `stress` is an ordinary foreign
+feature, not native prosody. `model=` and native `features=` cannot be combined.
+
+Input must be an explicit tuple/list of token strings, not a concatenated
+string, Form, graph, or timing/attachment-bearing object. Results retain exact
+token tuples, and each Step has `before_tokens`/`after_tokens`; display joins
+are not used to reconstruct state. Native `variants` and `to_form` are not
+finite graph conversions. Graph-backed rewrites, source clocks, attachments,
+timing preservation, variant enumeration and public CLI integration remain
+separate work; this API does not claim full-representation fidelity. See
+[model-operations.md](model-operations.md) for the finite provider contract.
+
 ## Notation
 
 | Piece | Means |
