@@ -112,3 +112,22 @@ def test_cli_without_mount_exits_cleanly(monkeypatch, capsys) -> None:
     status, _, error = run(monkeypatch, capsys, "phoible", "language", "eng")
     assert status == 1
     assert "PHOIBLE data is unavailable" in error
+
+
+@pytest.mark.parametrize("command", ["language", "spread"])
+def test_language_code_cat_is_a_catalog_lookup_not_ipa(monkeypatch, capsys, command):
+    """The orthography guard must not call a successful ISO-code lookup IPA."""
+    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("language code lookup entered the house IPA parser")
+
+    monkeypatch.setattr("ipakit.bridges.phoible.IPAFeatures", forbidden)
+    status, out, error = run(monkeypatch, capsys, "phoible", command, "cat")
+    assert status == 0 and error == ""
+    assert out.splitlines() == [
+        "1138\tstan1289\tph\tcat_carbonell1992\tCatalan",
+        "2425\tstan1289\tea\tlloret2011fonologia\tCatalan (Southern Valencian)",
+        "2555\tstan1289\tea\tlloret2011fonologia\tCatalan (Central)",
+        "2594\tstan1289\tea\tlloret2011fonologia\tCatalan (Mallorcan)",
+    ]

@@ -105,7 +105,7 @@ class PhoibleGroup(CommandGroup):
 
     name = "phoible"
     aliases: ClassVar[list[str]] = []
-    help = "Read separately mounted PHOIBLE doculect inventories"
+    help = "Read shipped or explicitly mounted PHOIBLE doculect inventories"
     commands: ClassVar[list[type[Command]]] = [
         PhoibleLanguageCommand,
         PhoibleInventoryCommand,
