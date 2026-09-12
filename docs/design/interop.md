@@ -494,6 +494,14 @@ The brief's position was **emit, never consume** — a declared mapping computin
 
 **The direction is right and the artifact is wrong. Build the mapping as a measurement; do not ship a table.**
 
+Update, 2026-09-12: the no-shipping decision below is historical and superseded
+for the provider's own frozen declaration. The [finite model resource](../model-operations.md)
+now ships as an explicitly selected Panphon model, with provenance and its MIT
+notice—not as a house-derived mapping, primary inventory or ground-truth oracle.
+The disagreement measurements below remain the historical mapping analysis;
+shipping the independent model does not erase its ambiguities or make the two
+feature systems interchangeable.
+
 ipakit reads 6,215 of `ipa_all.csv`'s 6,367 rows as one segment, and the refusals are not inventory gaps at all: 142 are leading `ˀ`, which is §12(a), and 10 are bare tone letters, which correctly carry no segment. Over that overlap, a mapping derived from the declarations — no per-symbol table, every rule reading a declared natural class, a place's arc, a manner's offset — gives:
 
 ```

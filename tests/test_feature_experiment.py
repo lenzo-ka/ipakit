@@ -16,12 +16,13 @@ from ipakit.bridges.costmodel import (
     pack_from_ternary_declaration,
 )
 from ipakit.feature_experiment import compare_declaration_encodings
+from ipakit.feature_models import resource_path
 from ipakit.feature_transform import BinaryEncoding
 from ipakit.finite_declaration import read_ternary_declaration
 from ipakit.finite_model import FeatureSchema, FiniteModel
 
 ROOT = Path(__file__).parents[1]
-SOURCE = ROOT / "tests/panphon/panphon.xml"
+SOURCE = resource_path("panphon")
 
 
 @pytest.fixture(scope="module")

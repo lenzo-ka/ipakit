@@ -121,8 +121,8 @@ python scripts/costmodel_compare.py --tokens-json corpus.json --format json \
 ```
 
 Here `corpus.json` is an array of exact token arrays, for example
-`[["p"], ["b"], ["a"], []]`. The declaration defaults to the repository's frozen
-Panphon fixture; `--declaration` selects another compatible file. An explicitly
+`[["p"], ["b"], ["a"], []]`. The declaration defaults to the canonical shipped
+Panphon feature model; `--declaration` selects another compatible file. An explicitly
 selected missing or unreadable file refuses instead of producing house-only
 output. No Panphon runtime, download or inferred house conversion is needed. `--foreign-only`
 omits house scoring; without it the script preserves its usual house arm.
