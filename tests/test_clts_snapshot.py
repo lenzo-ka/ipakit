@@ -56,6 +56,26 @@ def test_composite_direction_is_retained_without_native_ipa_mapping() -> None:
     assert geometry.similarity("ai", "ia") == 1 / 5
 
 
+@pytest.mark.parametrize("gap,weight", [(1e-300, 1e-300), (1e308, 1e308)])
+def test_set_adapter_refuses_invalid_effective_gap(gap: float, weight: float) -> None:
+    geometry = FeatureSets("test", {"a": {"a"}, "b": {"b"}})
+    with pytest.raises(ValueError, match="positive and finite"):
+        set_feature_pack(geometry, CostPolicy(indel_weight=weight), gap=gap)
+
+
+@pytest.mark.parametrize(
+    "gap,weight,expected", [(2.0, 0.5, 1.0), (1e-300, 1.0, 1e-300)]
+)
+def test_set_adapter_preserves_valid_effective_gap(
+    gap: float, weight: float, expected: float
+) -> None:
+    pack = set_feature_pack(
+        FeatureSets("test", {"a": {"a"}}), CostPolicy(indel_weight=weight), gap=gap
+    )
+    assert pack.insert_cost("a") == pack.delete_cost("a") == expected
+    assert pack.indel_ceiling == expected
+
+
 @pytest.mark.parametrize(
     "left,right", [(("unknown",), ()), ((), ("unknown",)), (("unknown",), ("unknown",))]
 )

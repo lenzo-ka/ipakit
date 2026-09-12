@@ -369,6 +369,9 @@ def set_feature_pack(
     """
     if not math.isfinite(gap) or gap <= 0 or policy.indel_weight <= 0:
         raise ValueError("the adapter gap cost must be positive and finite")
+    effective_gap = gap * policy.indel_weight
+    if not math.isfinite(effective_gap) or effective_gap <= 0:
+        raise ValueError("the effective adapter gap cost must be positive and finite")
 
     def require_tokens(_: str) -> Segmentation:
         raise ValueError(
@@ -380,7 +383,7 @@ def set_feature_pack(
 
     def indel(token: str) -> float:
         geometry.features(token)
-        return gap * policy.indel_weight
+        return effective_gap
 
     return CostPack(
         name=f"set/{geometry.name}/jaccard;adapter-gap={gap!r}",
@@ -389,7 +392,7 @@ def set_feature_pack(
         insert_cost=indel,
         delete_cost=indel,
         substitution_ceiling=policy.substitution_scale,
-        indel_ceiling=gap * policy.indel_weight,
+        indel_ceiling=effective_gap,
         tokenize=tokenize or require_tokens,
         policy=policy,
     )
