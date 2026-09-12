@@ -2,6 +2,11 @@
 
 > Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
 
+For the current, task-oriented comparison, read [Capabilities and comparisons](../capabilities.md).
+It includes CLTS's own Jaccard similarity and separates shipped ipakit behavior
+from integration plans. The dated measurements, issue states, and broad survey
+claims below remain historical evidence, not current coverage or exclusivity claims.
+
 What do the people using the existing phonetics tools say goes wrong, and what should ipakit do differently as a result?
 
 **Verdict: the dominant complaint is a silent wrong answer at the string boundary, and the reason it never gets fixed upstream is that there is no "correct IPA" to appeal to.** A character a tool does not recognize gets dropped, and the caller is handed a well-formed result computed over less than they wrote. The instance that recurs most is the two `g`s — three separate projects have been asked to accept `U+0067` where `U+0261` was meant, and each declined on the grounds that it implements the standard strictly. Measured today, **the field's two flagship cross-linguistic catalogs normalize that character in opposite directions**: PHOIBLE to `U+0261`, CLTS to `U+0067`. Strictness is not available as a position. What is available is *saying which one you chose and why*, which is what `data/phonemaps/lookalikes.xml` is.

@@ -51,6 +51,7 @@ same model. See [the canonical representation](https://github.com/lenzo-ka/ipaki
 
 ## Documentation
 
+- **[Capabilities and comparisons](https://github.com/lenzo-ka/ipakit/blob/main/docs/capabilities.md)** — what the shared notation, algebra, structure, and articulation make possible, and how they complement CLTS/BIPA, Panphon, and LingPy.
 - **[docs/tutorial.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/tutorial.md)** — getting things done, from install to applying rule sets.
 - **[docs/README.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/README.md)** — index of every document, what it is for, and the order to read them.
 - Reference: [representation.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/representation.md) (the canonical graph), [ties.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/ties.md) (the unit model), [form.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/form.md) (compatibility projections), [rules.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/rules.md) (the rewrite notation), [distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) (what the metric does and does not claim).

@@ -16,6 +16,7 @@ design, and assumes you already know why you are reading it.
 
 | | |
 | --- | --- |
+| [capabilities.md](capabilities.md) | **Capabilities and comparisons.** The shared phonetic notation, algebra, structured comparison, and articulatory work; how they complement CLTS/BIPA, Panphon, and LingPy; implemented behavior versus integration plans. |
 | [glossary.md](glossary.md) | **Linguistics vocabulary.** Short definitions of the phonetics and phonology terms used throughout the documentation, with links to the guides that put each term to work. |
 | [tutorial-basics.md](tutorial-basics.md) | **Basic use.** Read one form, query its segments and classes, inspect declarations, apply a rule, and meet word boundaries. A short Python-first introduction whose values are executed by the documentation build. |
 | [tutorial.md](tutorial.md) | **Getting things done.** Organized by task — name a sound, compare two, search the inventory, convert notations, split a transcription, apply allophonic rules, write your own. Shows the CLI and the API side by side for each. Every value on the page is produced by running the call beside it. |
