@@ -44,7 +44,7 @@ keep source distinctions, coverage and conversion losses explicit.
 | [Pinyin](pinyin.md) | Syllable-hosted tone, orthographic rendering and the internal graph-constructor boundary. |
 | [Kana](kana.md) | Mora-tier rendering and bounded attested-adaptation API/CLI support. |
 | [CLTS/BIPA](clts-audit.md) | Frozen native feature-set/Jaccard scoring, shared cost comparisons, source extraction and provenance; semantic mapping remains unresolved. |
-| [Finite model operations](model-operations.md) | Typed declarations, model-bound feature edits and exact realization candidates; distinct from productive rewriting. |
+| [Finite model operations](model-operations.md) | Typed declarations, explicit model CLI selection, feature edits and exact realization candidates; links to finite rules and transforms. |
 | [Feature transformations](feature-transforms.md) | Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |
 | [MFA vocabulary exhibit](mfa-vocabularies.md) | Generated declarations, source pins and refusal classes. |
 | [eSpeak vocabulary exhibit](espeak-vocabularies.md) | Generated language-scoped and union vocabulary coverage. |

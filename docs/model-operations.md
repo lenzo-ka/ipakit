@@ -79,13 +79,42 @@ the finite model's inventory identity: a comparison must additionally identify
 its scoring policy and weight declaration. Bridge labels such as
 `external-to-house` are retained historical metadata, not a mandated model path.
 
+## Command line
+
+Select a model explicitly; the finite commands do not choose a primary inventory:
+
+```sh
+ipakit model list -j
+ipakit model inspect --model panphon -j
+ipakit model respell --model panphon --token p --changes-json '{"voi":1}' -j
+ipakit model inspect --model-declaration TABLE.xml --rows -j
+```
+
+`--model` and `--model-declaration` are mutually exclusive and one is required
+for inspection or respelling. `list` enumerates shipped feature models, not
+house Styles. Inspection includes ordered domains, token count, source metadata,
+content identity and codec policy; `--rows` adds the actual ordered inventory.
+Respelling takes one exact token without segmentation or Unicode normalization.
+Its report retains the input, edits, model identity, resulting values and all
+ordered candidates. Text output quotes tokens as JSON too. Both commands accept
+`-o` for output; `-j` selects JSON reports, not a new model serialization format.
+
+Edits must be a JSON object without duplicate keys. Integer `1`, boolean `true`
+and string `"1"` remain distinct; only declared ternary integers or missing-cell
+`null` are accepted by this codec. Unknown tokens, models, features and invalid
+values fail with exit 1, including with `--lax`. Zero or multiple realization
+candidates are successful answers, never a guessed first spelling. Missing or
+mixed selectors are command-line errors (exit 2). Producer packages, checkout
+fixtures and network access are not needed for named or supplied declarations.
+
 ## Scope and substrate
 
-This is finite lookup, query, edit and realization—not productive composition,
-context-sensitive rewrite, an audio model or a new occurrence representation.
-It does not make the native `Rule` parser accept foreign feature schemas.
-Validated cross-model transformations and reusable rewrite backends remain
-separate planned work.
+These methods provide finite lookup, query, edit and realization—not productive
+composition, an audio model or a new occurrence representation. Validated
+cross-model operations are described in [feature transforms](feature-transforms.md).
+The shared [rules engine](rules.md) also accepts explicitly bound finite models
+for supported context-sensitive operations; its typed library contracts and
+capability refusals remain distinct from the inspect/respell CLI slice above.
 
 These immutable tables describe schema and inventory data; they are not
 TierGraph instances. TierGraph is the shared computational substrate developed

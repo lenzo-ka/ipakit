@@ -1548,6 +1548,34 @@ def _delegates(node):
     return found
 
 
+def _finite_receiver_attribute(node, parents, aliases):
+    """Recognize explicitly annotated finite receivers in the enclosing scope."""
+    if not isinstance(node.value, ast.Name):
+        return False
+    scope = parents.get(node)
+    while scope is not None and not isinstance(
+        scope, (ast.FunctionDef, ast.AsyncFunctionDef)
+    ):
+        scope = parents.get(scope)
+    if scope is None:
+        return False
+    annotations = [
+        item.annotation
+        for item in scope.args.args + scope.args.kwonlyargs
+        if item.arg == node.value.id
+    ]
+    annotations.extend(
+        item.annotation
+        for item in ast.walk(scope)
+        if isinstance(item, ast.AnnAssign)
+        and isinstance(item.target, ast.Name)
+        and item.target.id == node.value.id
+    )
+    return any(
+        isinstance(item, ast.Name) and item.id in aliases for item in annotations
+    )
+
+
 def _cli_vocabulary():
     """Every identifier the CLI package actually references.
 
@@ -1560,8 +1588,26 @@ def _cli_vocabulary():
     vocabulary = set()
     imported: dict[str, set[str]] = {}
     for path in sorted((ROOT / "ipakit" / "cli").glob("*.py")):
-        for sub in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # A typed finite receiver is not the native flat wrapper, even where
+        # both deliberately use the operation name respell. Module operations
+        # have their own real-dispatch witnesses in test_cli_model.py.
+        finite_aliases = {
+            item.asname or item.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module == "finite_model"
+            for item in node.names
+            if item.name == "FiniteModel"
+        }
+        parents = {
+            child: node
+            for node in ast.walk(tree)
+            for child in ast.iter_child_nodes(node)
+        }
+        for sub in ast.walk(tree):
             if isinstance(sub, ast.Attribute):
+                if _finite_receiver_attribute(sub, parents, finite_aliases):
+                    continue
                 vocabulary.add(sub.attr)
             elif isinstance(sub, ast.Name):
                 vocabulary.add(sub.id)
@@ -1688,7 +1734,7 @@ LIBRARY_ONLY = {
     # Reads with no command yet. Not defended -- recorded, so the absence
     # is a known gap rather than an unnoticed one.
     "find": "no command runs a feature query over a transcription",
-    "respell": "no command applies a feature change to a phone",
+    "respell": "no command applies the native flat phone edit; model respell uses an explicitly selected FiniteModel",
     "to_phone": "no command realizes a feature bundle as a symbol",
 }
 
