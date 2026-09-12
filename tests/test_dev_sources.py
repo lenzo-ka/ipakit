@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from ipakit import clts
 from ipakit.extraction import (
     BuildResult,
     SourceContentError,
@@ -139,15 +140,19 @@ def test_status_missing_succeeds_without_claiming_readiness(
     report = json.loads(capsys.readouterr().out)
     assert report["complete"] is False
     assert report["results"][0]["state"] == "missing-data"
-    assert {row["source"] for row in report["results"]} == {"mfa", *dev_sources.PENDING}
-    assert all(row["state"] == "unsupported" for row in report["results"][1:])
+    assert report["results"][1]["state"] == "missing-data"
+    assert {row["source"] for row in report["results"]} == {
+        *dev_sources.PRODUCERS,
+        *dev_sources.PENDING,
+    }
+    assert all(row["state"] == "unsupported" for row in report["results"][2:])
 
 
 @pytest.mark.parametrize("operation", ["fetch", "build", "check", "discover"])
 def test_requested_unsupported_cannot_succeed(
     operation: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert dev_sources.main([operation, "clts"]) == 1
+    assert dev_sources.main([operation, "espeak"]) == 1
     assert json.loads(capsys.readouterr().out)["complete"] is False
 
 
@@ -212,7 +217,9 @@ def guarded(name, *args, **kwargs):
     return original(name, *args, **kwargs)
 builtins.__import__ = guarded
 from ipakit.extraction import mfa
+from scripts import dev_sources
 assert mfa.PIN
+assert "clts" in dev_sources.PRODUCERS
 """
     result = subprocess.run(
         [sys.executable, "-c", code],
@@ -235,3 +242,143 @@ def test_inventory_cards_uses_dictionary_validator(
     monkeypatch.setattr(mfa, "require_pin", reject)
     with pytest.raises(SourceContentError, match="dictionary control"):
         _mfa_metrics(tmp_path)
+
+
+@pytest.mark.parametrize("names", [("mfa", "clts"), ("all",)])
+def test_explicit_source_cannot_alias_providers(
+    names: tuple[str, ...], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        dev_sources, "run", lambda *args: pytest.fail("dispatched ambiguous source")
+    )
+    with pytest.raises(SystemExit) as error:
+        dev_sources.main(["status", *names, "--source", str(tmp_path)])
+    assert error.value.code == 2
+
+
+def test_clts_acquisition_and_discovery_derive_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    policy = clts.source_policy()
+    # Move test-only declarations so a duplicate accepted-pin constant fails.
+    policy["source"]["version"] = "b" * 40
+    policy["source"]["upstream-url"] = "https://example.invalid/test-clts"
+    policy["inputs"]["extra-credit.txt"] = "c" * 64
+    monkeypatch.setattr(clts, "source_policy", lambda: policy)
+    revision = policy["source"]["version"]
+    origin = policy["source"]["upstream-url"]
+    calls = []
+    validations = []
+
+    def git(*args: object) -> str:
+        calls.append(args)
+        return "a" * 40 + "\tHEAD" if args[1] == "ls-remote" else ""
+
+    def validate(path: Path):
+        from ipakit.extraction import SourceIdentity
+
+        validations.append((path, len(calls)))
+        return SourceIdentity(clts._source_metadata(policy), policy["inputs"])
+
+    monkeypatch.setattr(dev_sources, "git", git)
+    monkeypatch.setattr(clts, "validate_source", validate)
+    assert dev_sources.main(["fetch", "clts", "--cache", str(tmp_path)]) == 0
+    report = json.loads(capsys.readouterr().out)["results"][0]
+    destination = tmp_path / "clts" / revision
+    assert report["expected"] == revision and report["consumed"] == policy["inputs"]
+    assert calls[0] == (None, "init", "-q", str(destination))
+    assert (destination, "remote", "add", "origin", origin) in calls
+    assert (
+        destination,
+        "sparse-checkout",
+        "set",
+        "--no-cone",
+        *("/" + name for name in sorted(policy["inputs"])),
+    ) in calls
+    assert calls[-1] == (destination, "checkout", "-q", "FETCH_HEAD")
+    assert all(count == len(calls) for _, count in validations)
+    before = list(calls)
+    assert dev_sources.main(["fetch", "clts", "--cache", str(tmp_path)]) == 0
+    assert calls == before  # existing cache is validation-only
+    capsys.readouterr()
+    assert dev_sources.main(["discover", "clts"]) == 0
+    assert calls[-1] == (None, "ls-remote", origin, "HEAD")
+    assert (
+        json.loads(capsys.readouterr().out)["results"][0]["relationship"]
+        == "unverified"
+    )
+    assert clts.source_policy() == policy
+
+
+def test_clts_invalid_existing_cache_is_never_repaired(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    marker = tmp_path / "user-work.txt"
+    marker.write_text("uncommitted work")
+
+    def reject(path: Path):
+        raise SourceContentError("changed CLTS input")
+
+    monkeypatch.setattr(clts, "validate_source", reject)
+    monkeypatch.setattr(
+        dev_sources, "git", lambda *args: pytest.fail("mutated existing cache")
+    )
+    result = dev_sources.run("fetch", "clts", tmp_path, tmp_path / "out")
+    assert result["state"] == "content-mismatch"
+    assert marker.read_text() == "uncommitted work"
+
+
+def test_clts_mocked_build_and_missing_resolver(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    policy = clts.source_policy()
+    from ipakit.extraction import SourceIdentity
+
+    identity = SourceIdentity(clts._source_metadata(policy), policy["inputs"])
+    monkeypatch.setattr(clts, "validate_source", lambda path: identity)
+    result = BuildResult({Path("core.json"): b"core"}, source=identity)
+    with monkeypatch.context() as build_patch:
+        build_patch.setattr(clts, "build_core", lambda path: result)
+        argv = ["clts", "--source", str(tmp_path), "--output", str(tmp_path / "out")]
+        assert dev_sources.main(["check", *argv]) == 1
+        assert dev_sources.main(["build", *argv]) == 0
+        assert dev_sources.main(["check", *argv]) == 0
+    capsys.readouterr()
+
+    def missing(package: str) -> str:
+        raise clts.metadata.PackageNotFoundError(package)
+
+    monkeypatch.setattr(clts.metadata, "version", missing)
+    assert dev_sources.main(["build", *argv]) == 1
+    assert (
+        json.loads(capsys.readouterr().out)["results"][0]["state"]
+        == "resolver-unavailable"
+    )
+
+
+def test_multiple_producers_get_distinct_revision_caches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = []
+
+    def run(operation: str, name: str, source: Path, output: Path):
+        calls.append((name, source))
+        return {"state": "available"}
+
+    monkeypatch.setattr(dev_sources, "run", run)
+    assert dev_sources.main(["status", "mfa", "clts", "--cache", str(tmp_path)]) == 0
+    assert calls == [
+        (name, tmp_path / name / factory().revision)
+        for name, factory in dev_sources.PRODUCERS.items()
+    ]
+    capsys.readouterr()
+
+
+def test_clts_actual_existing_source_check(capsys: pytest.CaptureFixture[str]) -> None:
+    value = os.environ.get("IPAKIT_CLTS_DIR")
+    if not value:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for live runner check")
+    assert dev_sources.main(["check", "clts", "--source", value]) == 0
+    report = json.loads(capsys.readouterr().out)["results"][0]
+    assert report["state"] == "unchanged"
+    assert report["consumed"] == clts.source_policy()["inputs"]
