@@ -28,6 +28,12 @@ choices. They can be challenged and improved without making agreement with the
 house inventory a prerequisite for using the framework. Conversely, a shared
 substrate does not exempt an inventory from empirical evaluation.
 
+The calculus is grounded in established computer-science and category-theoretic
+operations. The contribution is their organization and application to phonetic
+representations and computation, not a claim to have invented those operations.
+Concrete implementations must state the contracts and laws they satisfy,
+including where bounded enumeration or other implementation choices limit them.
+
 The design separates those questions: what a representation asserts, which
 operations its algebra supports, and how shared computational machinery executes
 those operations. Reusing an algorithm requires an explicit compatible contract;
