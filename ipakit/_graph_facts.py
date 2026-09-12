@@ -36,9 +36,17 @@ class EndpointKind(StrEnum):
 @dataclass(frozen=True)
 class FeatureDeclaration:
     name: str
+    # Opt-in native JSON-value identity. Legacy IPA payloads retain their codec.
+    value_name: tuple[str, str] | None = None
 
     def __post_init__(self) -> None:
         _validate_name(self.name, "feature")
+        if self.value_name is not None:
+            from tiergraph import QualifiedName
+
+            if not isinstance(self.value_name, tuple) or len(self.value_name) != 2:
+                raise GraphValidationError("value_name must be a namespace/local pair")
+            QualifiedName(*self.value_name)
 
 
 @dataclass(frozen=True)
@@ -96,6 +104,11 @@ class Declarations:
     def __post_init__(self) -> None:
         _unique((item.name for item in self.tiers), "tier declaration")
         _unique((item.name for item in self.features), "feature declaration")
+        value_names = [
+            item.value_name for item in self.features if item.value_name is not None
+        ]
+        if len(value_names) != len(set(value_names)):
+            raise GraphValidationError("duplicate native feature identity")
         _unique((item.name for item in self.relations), "relation declaration")
         feature_names = {item.name for item in self.features}
         relation_names = {item.name for item in self.relations}

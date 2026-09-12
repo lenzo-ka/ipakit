@@ -14,9 +14,9 @@ import json
 import threading
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 
 import tiergraph as tg
 
@@ -91,6 +91,122 @@ def _name(local_name: str) -> tg.QualifiedName:
 def _json(value: object) -> str:
     """Encode an ordered primitive payload without reordering mappings."""
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _declared_values(
+    source: ContainmentProjectionInput,
+) -> tuple[tuple[str, tg.QualifiedName, tg.Graph, tg.ItemRef], ...]:
+    """Construct opted-in values with the native recursive JSON profile.
+
+    The default declaration keeps the legacy IPA codec. An explicit qualified
+    value identity opts into lossless JSON values, including null and containers;
+    native construction rejects opaque objects and nonfinite numbers.
+    """
+    values = []
+    for feature_index, declaration in enumerate(source.declarations.features):
+        if declaration.value_name is None:
+            continue
+        name = tg.QualifiedName(*declaration.value_name)
+        if name.namespace == _NAMESPACE or name.namespace.startswith(_NAMESPACE + "/"):
+            raise GraphValidationError(
+                "native feature identity uses reserved namespace"
+            )
+        for event_index, ref in enumerate(source.refs):
+            features = source.events[ref].features
+            if declaration.name not in features:
+                continue
+            tier = source.declarations.tier(source.event_tiers[ref])
+            if tier is None or declaration.name not in tier.features:
+                raise GraphValidationError("native value is not admitted on event tier")
+            namespace = f"{_NAMESPACE}/declared-values/v1/{feature_index}/{event_index}"
+            # The native constructor is the runtime validator for opaque facts.
+            graph, _, root = tg.json_value_graph(
+                cast(Any, features[declaration.name]), namespace
+            )
+            values.append((ref, name, graph, root))
+    return tuple(values)
+
+
+def _attach_declared_values(
+    graph: tg.Graph,
+    source: ContainmentProjectionInput,
+    event_refs: Mapping[str, tg.ItemRef],
+) -> tg.Graph:
+    """Compose native value graphs and qualified event-to-value relations."""
+    values = _declared_values(source)
+    if not values:
+        return graph
+    namespaces = list(graph.namespaces)
+    tiers = list(graph.tiers)
+    declarations = list(graph.relation_declarations)
+    attributes = list(graph.attribute_declarations)
+    relations = list(graph.polyadic_relations)
+    feature_names = tuple(dict.fromkeys(name for _, name, _, _ in values))
+    for name in feature_names:
+        if not any(ns.namespace == name.namespace for ns in namespaces):
+            namespaces.append(
+                tg.NamespaceDeclaration(
+                    f"ipakit-feature-{len(namespaces)}", name.namespace
+                )
+            )
+        declarations.append(
+            tg.PolyadicRelationDeclaration(
+                name,
+                tg.RelationSideDeclaration(
+                    (tg.RelationEndpointKind.ITEM,),
+                    tuple(
+                        dict.fromkeys(
+                            event_refs[ref].tier for ref, n, _, _ in values if n == name
+                        )
+                    ),
+                    1,
+                    1,
+                ),
+                tg.RelationSideDeclaration(
+                    (tg.RelationEndpointKind.ITEM,),
+                    tuple(root.tier for _, n, _, root in values if n == name),
+                    1,
+                    1,
+                ),
+                unique_sources=True,
+                single_parent=True,
+            )
+        )
+    for ref, name, value_graph, root in values:
+        namespaces.extend(
+            tg.NamespaceDeclaration(f"ipakit-value-{len(namespaces)}-{i}", ns.namespace)
+            for i, ns in enumerate(value_graph.namespaces)
+        )
+        tiers.extend(value_graph.tiers)
+        declarations.extend(value_graph.relation_declarations)
+        attributes.extend(value_graph.attribute_declarations)
+        relations.extend(value_graph.polyadic_relations)
+        relations.append(tg.PolyadicRelationInstance(name, (event_refs[ref],), (root,)))
+    return replace(
+        graph,
+        namespaces=tuple(namespaces),
+        tiers=tuple(tiers),
+        relation_declarations=tuple(declarations),
+        attribute_declarations=tuple(attributes),
+        polyadic_relations=tuple(relations),
+    )
+
+
+def declared_value(graph: tg.Graph, event: tg.ItemRef, name: tg.QualifiedName) -> Any:
+    """Read one opted-in value after native restoration; absence is not null."""
+    matches = [
+        relation
+        for relation in graph.polyadic_relations
+        if relation.declaration == name and relation.sources == (event,)
+    ]
+    if len(matches) != 1 or len(matches[0].targets) != 1:
+        raise GraphValidationError("expected exactly one declared feature value")
+    root = matches[0].targets[0]
+    if not isinstance(root, tg.ItemRef):
+        raise GraphValidationError("declared feature value must target an item")
+    # Derive conventional roles from the native constructor, not another schema.
+    _, template, _ = tg.json_value_graph(None, root.tier.namespace)
+    return replace(template, graph=graph).value(root)
 
 
 def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
@@ -408,6 +524,10 @@ def _projection_signature(
         tuple(node.gap_count for node in source.clock),
         source.roots,
         preserved_relation_names,
+        tuple(
+            (ref, name, tg.dump_bytes(graph))
+            for ref, name, graph, _ in _declared_values(source)
+        ),
     )
 
 
@@ -657,13 +777,7 @@ class ContainmentProjection:
             """Lower compatibility endpoint kinds without perturbing item-only sides."""
             kinds = getattr(declaration, f"{side}_kinds")
             if kinds == frozenset({EndpointKind.EVENT}):
-                return tg.RelationSideDeclaration(
-                    (tg.RelationEndpointKind.ITEM,),
-                    None,
-                    minimum=getattr(declaration, f"{side}_arity")[0],
-                    maximum=getattr(declaration, f"{side}_arity")[1],
-                    allow_empty=getattr(declaration, f"allow_empty_{side}"),
-                )
+                return item_side(declaration, side)
             endpoint_kinds = (
                 *(
                     (tg.RelationEndpointKind.ITEM,)
@@ -857,6 +971,7 @@ class ContainmentProjection:
             ),
         )
         projected = Program(opcodes).unroll().graph
+        projected = _attach_declared_values(projected, source, old_to_new)
         event_tiers = dict(source.event_tiers)
         admitted_sources = {
             declaration.name: (
