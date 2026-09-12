@@ -83,10 +83,10 @@ dependencies = [
 #          imported at runtime (ipakit ships the generated table in data/).
 #   interop - pyclts and panphon, the two libraries scripts/interop.py measures
 #          ipakit against. Same terms as icu: dev-only, NEVER imported at
-#          runtime, and read by one script rather than by the library. Neither
-#          generates anything ipakit ships -- the measurements they support are
-#          arguments in docs/design/interop.md, so the reason to pin them here
-#          is that a number nobody can reproduce is not evidence. pyclts also
+#          during frozen runtime use. Explicit library extraction uses pyclts
+#          as the pinned oracle for the shipped finite BIPA snapshot; its data
+#          retain their separate attribution/license. Live measurements are
+#          also reproducible against the selected resolver. pyclts also
 #          wants a clone of cldf-clts/clts, which is data under its own license
 #          and is not a Python dependency at all; the script says how to get it.
 #   compare - scipy, numpy and matplotlib; powers scripts/compare_inventories.py.
@@ -96,7 +96,7 @@ dependencies = [
 test = ["pytest>=9.1.1", "pytest-xdist>=3.8.0", "lxml>=6.1.2", "packaging>=24.2"]
 lint = ["ruff>=0.16.5", "mypy>=2.3.1", "black>=26.5.1,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
-interop = ["pyclts>=4.0.2", "panphon>=0.22.2"]
+interop = ["pyclts==4.0.2", "panphon>=0.22.2"]
 compare = ["scipy>=1.18.0", "numpy>=2.5.0", "matplotlib>=3.11.0"]
 align = ["pocketsphinx>=5.1.1,<6"]
 dev = ["ipakit[test,lint,icu,interop,compare,align]"]
@@ -133,6 +133,8 @@ ipakit = [
     "data/bridges/*.rng",
     "data/rules/*.rules",
     "data/*.json",
+    "data/clts/*.json",
+    "data/clts/*.txt",
     "data/attested/*.json",
     "data/textgrid/*.json",
     # Attested data are read by validation rather than by the runtime. The
@@ -214,7 +216,7 @@ files = ["ipakit"]
 # The interop extra is optional: panphon is untyped when installed and absent
 # in CI, and a per-module override is clean in both environments where an
 # inline ignore cannot be.
-module = "panphon.*"
+module = ["panphon.*", "pyclts.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

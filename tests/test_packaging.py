@@ -95,8 +95,8 @@ def test_no_declared_glob_is_dead():
 
 
 @pytest.fixture(scope="module")
-def built_wheel(tmp_path_factory) -> Path:
-    """A wheel built from a copy of the tree, offline and out of place.
+def package_source(tmp_path_factory) -> Path:
+    """Reusable minimal source tree for offline wheel and sdist tests.
 
     Built through ``setuptools.build_meta`` directly rather than ``python
     -m build`` so there is no build isolation and therefore no network:
@@ -107,7 +107,6 @@ def built_wheel(tmp_path_factory) -> Path:
     del setuptools
 
     src = tmp_path_factory.mktemp("src")
-    out = tmp_path_factory.mktemp("wheel")
 
     for name in BUILD_INPUTS:
         source = ROOT / name
@@ -125,6 +124,14 @@ def built_wheel(tmp_path_factory) -> Path:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
 
+    return src
+
+
+@pytest.fixture(scope="module")
+def built_wheel(package_source, tmp_path_factory) -> Path:
+    """Build the actual wheel, offline, from the shared source fixture."""
+    src = package_source
+    out = tmp_path_factory.mktemp("wheel")
     subprocess.run(
         [
             sys.executable,
