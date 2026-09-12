@@ -10,6 +10,13 @@ Card-bearing declaration roots state `upstream`, `upstream-url`, `artifact`, `ve
 
 Use `inventories()` to list the shipped names and `inventory(name)` to load one; an unknown name is refused with the available names.
 
+Independent finite feature models have their own declaration boundary:
+`ipakit.feature_models.available()` lists the shipped tables, and
+`ipakit.feature_models.read("panphon")` reads the frozen Panphon table through
+the same validated ternary codec used for supplied paths. Its data, provenance
+and license notice travel in the package; the producer library is development-only.
+This does not invent a house notation style or require a house feature mapping.
+
 `ipa` is the house notation and finite shipped inventory, while `wild` is the soft IPA reader and has no finite phoneset.
 
 CMUdict, PocketSphinx, TIMIT, MFA, bare `espeak`, and every declared eSpeak language are finite inventories; MFA has the union `mfa` and generated members `mfa:<name>`, while language-scoped eSpeak names have the form `espeak:en`.
@@ -50,7 +57,7 @@ The command prints a one-phone-per-line house-IPA phoneset by default and report
 
 ## Family cards
 
-The cards group registry entries by family. A language or variety is an instance of its family, not a separate scorecard. Panphon appears only as the development comparison declaration generated from the `[dev]` dependency; it is neither a shipped inventory nor a style.
+The cards group registry entries by family. A language or variety is an instance of its family, not a separate scorecard. Panphon is a shipped finite feature-model declaration with a development-only producer; it is not a house notation style.
 
 ## House IPA
 
@@ -304,33 +311,33 @@ The language and variety members carry the phone sets of freely shared MFA pronu
 - `ɱ` occurs in `1` dictionary entry and `1` token, as an alternate for *infection*; it is labiodental assimilation, not a xenophone. Recording that assimilation for one word is a reasonable lexicographic judgment, while its rarity measures how often the variant was written rather than whether English has the sound.
 - The `4` marker-only entries — `<cutoff>, <unk>, [bracketed], [laughter]` — serve the aligner rather than pronounce words, so dictionary ingestion excludes them from phone counts and reports each one.
 
-## Panphon (development comparison)
+## Panphon
 
 ### Declared source
 
 | Field | Value |
 | --- | --- |
-| Upstream | [Panphon](https://github.com/dmort27/panphon/tree/0.22.2) |
+| Upstream | [Panphon](https://github.com/dmort27/panphon) |
 | Artifact | ipa_all.csv and feature_weights.csv |
 | Pin | `0.22.2` |
 | License | `MIT` |
 | Kind | `phonetic-feature-table` |
-| Declarations | `tests/panphon/panphon.xml` (1) |
+| Declarations | `ipakit/data/feature-models/panphon.xml` (1) |
 
 ### Quantitative
 
 | Measure | Value |
 | --- | ---: |
-| Shipped registry entries | 0 — development comparison only |
+| Shipped feature models | 1 — named finite declaration; not a house style |
 | Declared segment rows | 6367 |
 | Declared features | 24 |
 | Supplied feature weights | 22 |
 
 ### Qualitative
 
-The dev-only declaration is a comparison target for running Panphon's feature geometry through the same declared machinery as the house system.
+The shipped finite declaration supports model-relative operations and comparisons using Panphon's own feature geometry, without a runtime Panphon dependency or a mandatory house pivot.
 
-**Conventions.** Its generated table preserves Panphon's ternary feature values, source spelling normalization, weight order, and declared round-trip losses without promoting it to a shipped style or inventory.
+**Conventions.** Its generated table preserves Panphon's ternary feature values, source spelling normalization, weight order, and declared round-trip losses. It is a named feature model, not a house notation style.
 
 **Good at.** Use it to compare feature systems and cost policies on common inputs while keeping Panphon's own data visible and reproducible.
 

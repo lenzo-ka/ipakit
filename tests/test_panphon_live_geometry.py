@@ -12,13 +12,14 @@ from pathlib import Path
 
 import pytest
 from ipakit.bridges.costmodel import compare, pack_from_declaration
+from ipakit.feature_models import resource_path
 from ipakit.features import IPAFeatures
 
 panphon = pytest.importorskip("panphon")
 panphon_distance = pytest.importorskip("panphon.distance")
 
 ROOT = Path(__file__).parent.parent
-DECLARATION = Path(__file__).parent / "panphon" / "panphon.xml"
+DECLARATION = resource_path("panphon")
 
 
 def _generator():  # type: ignore[no-untyped-def]

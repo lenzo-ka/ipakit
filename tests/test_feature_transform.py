@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from itertools import product
-from pathlib import Path
 
 import pytest
 from ipakit.binary_cost import binary_pack
@@ -16,6 +15,7 @@ from ipakit.bridges.costmodel import (
     semiring_alignment,
 )
 from ipakit.distance import price
+from ipakit.feature_models import resource_path
 from ipakit.feature_transform import (
     BinaryEncoding,
     FeatureMap,
@@ -37,7 +37,7 @@ from ipakit.finite_model import (
 )
 from tiergraph.semiring import TROPICAL
 
-DECLARATION = Path(__file__).parent / "panphon" / "panphon.xml"
+DECLARATION = resource_path("panphon")
 
 
 def scalar_model() -> FiniteModel:

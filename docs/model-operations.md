@@ -58,10 +58,17 @@ tokens, undeclared row features and non-ternary cell values are rejected.
 
 The XML codec maps `-`, `0`, `+` to integers `-1`, `0`, `1`; omitted attributes
 remain `None`. Generic finite schemas do not require this domain. For example,
-loading the repository's frozen `tests/panphon/panphon.xml` and calling
+loading the shipped model with `ipakit.feature_models.read("panphon")` and calling
 `declaration.model.respell("p", {"voi": 1})` returns `b`, `b̟`, `b̠`—without
-converting feature names or picking one spelling. That file is a repository
-fixture, not an installed default artifact; callers supply their own path.
+converting feature names or picking one spelling. `feature_models.available()`
+enumerates shipped declarations; `resource_path(name)` exposes their canonical
+package paths. Explicit caller paths still use `read_ternary_declaration(path)`.
+The frozen `ipakit/data/feature-models/panphon.xml` travels with its source
+version/hash receipts, attribution and MIT permission notice. Panphon itself is
+needed only to regenerate or validate the artifact, not to read or operate on it.
+These feature models are not automatically house notation styles or mappings.
+Import the module explicitly with `from ipakit import feature_models`; it is
+not an optional-provider import or a new overload of the native flat wrappers.
 
 The frozen table has 24 features but 22 separately declared weights. Reading
 and finite operations are valid independently of weighted scoring compatibility.

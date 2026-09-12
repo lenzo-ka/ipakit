@@ -30,11 +30,12 @@ from ipakit.bridges.costmodel import (
     semiring_alignment,
 )
 from ipakit.distance_model import DistanceModel
+from ipakit.feature_models import resource_path
 from ipakit.features import IPAFeatures
 from tiergraph.semiring import TROPICAL
 
 CORPUS = Path(__file__).parent / "panphon" / "shared-corpus.txt"
-DECLARATION = Path(__file__).parent / "panphon" / "panphon.xml"
+DECLARATION = resource_path("panphon")
 
 ROUND_TRIP = """  <round-trip>
     <external-to-house fidelity="lossless"/>

@@ -8,6 +8,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 from ipakit.bridges.costmodel import pack_from_declaration
+from ipakit.feature_models import resource_path
 from ipakit.finite_declaration import read_ternary_declaration
 from ipakit.finite_model import (
     FeatureBundle,
@@ -18,7 +19,7 @@ from ipakit.finite_model import (
     ModelMismatch,
 )
 
-DECLARATION = Path(__file__).parent / "panphon" / "panphon.xml"
+DECLARATION = resource_path("panphon")
 
 
 def fixture_model() -> FiniteModel:

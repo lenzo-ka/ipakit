@@ -8,6 +8,13 @@ Card-bearing declaration roots state `upstream`, `upstream-url`, `artifact`, `ve
 
 Use `inventories()` to list the shipped names and `inventory(name)` to load one; an unknown name is refused with the available names.
 
+Independent finite feature models have their own declaration boundary:
+`ipakit.feature_models.available()` lists the shipped tables, and
+`ipakit.feature_models.read("panphon")` reads the frozen Panphon table through
+the same validated ternary codec used for supplied paths. Its data, provenance
+and license notice travel in the package; the producer library is development-only.
+This does not invent a house notation style or require a house feature mapping.
+
 `ipa` is the house notation and finite shipped inventory, while `wild` is the soft IPA reader and has no finite phoneset.
 
 CMUdict, PocketSphinx, TIMIT, MFA, bare `espeak`, and every declared eSpeak language are finite inventories; MFA has the union `mfa` and generated members `mfa:<name>`, while language-scoped eSpeak names have the form `espeak:en`.
@@ -48,4 +55,4 @@ The command prints a one-phone-per-line house-IPA phoneset by default and report
 
 ## Family cards
 
-The cards group registry entries by family. A language or variety is an instance of its family, not a separate scorecard. Panphon appears only as the development comparison declaration generated from the `[dev]` dependency; it is neither a shipped inventory nor a style.
+The cards group registry entries by family. A language or variety is an instance of its family, not a separate scorecard. Panphon is a shipped finite feature-model declaration with a development-only producer; it is not a house notation style.

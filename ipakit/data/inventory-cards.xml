@@ -59,13 +59,13 @@
     <note origin="review-state.md: 2026-09-07 MFA en-US tail">`ɱ` occurs in `{labiodental_nasal_entries}` dictionary entry and `{labiodental_nasal_tokens}` token, as an alternate for *infection*; it is labiodental assimilation, not a xenophone. Recording that assimilation for one word is a reasonable lexicographic judgment, while its rarity measures how often the variant was written rather than whether English has the sound.</note>
     <note origin="review-state.md: 2026-09-09 marker-only placeholders">The `{mfa_en_us_placeholders}` marker-only entries — `{mfa_en_us_placeholder_names}` — serve the aligner rather than pronounce words, so dictionary ingestion excludes them from phone counts and reports each one.</note>
   </card>
-  <card family="panphon" title="Panphon (development comparison)">
-    <source path="tests/panphon/panphon.xml" />
-    <purpose>The dev-only declaration is a comparison target for running Panphon's feature geometry through the same declared machinery as the house system.</purpose>
-    <conventions>Its generated table preserves Panphon's ternary feature values, source spelling normalization, weight order, and declared round-trip losses without promoting it to a shipped style or inventory.</conventions>
+  <card family="panphon" title="Panphon">
+    <source path="ipakit/data/feature-models/panphon.xml" />
+    <purpose>The shipped finite declaration supports model-relative operations and comparisons using Panphon's own feature geometry, without a runtime Panphon dependency or a mandatory house pivot.</purpose>
+    <conventions>Its generated table preserves Panphon's ternary feature values, source spelling normalization, weight order, and declared round-trip losses. It is a named feature model, not a house notation style.</conventions>
     <strengths>Use it to compare feature systems and cost policies on common inputs while keeping Panphon's own data visible and reproducible.</strengths>
     <limitations>It is a compatibility target rather than a correctness oracle: unsupported segments can be dropped by Panphon, and a ternary zero does not distinguish several kinds of underspecification.</limitations>
     <note origin="scripts/panphon_geometry.py: normalized segment keys">The declaration contains `{panphon_segments}` segment rows over `{panphon_features}` features and `{panphon_weights}` supplied weights; generation normalizes every segment key to NFD and refuses a duplicate normalized key.</note>
-    <note origin="tests/panphon/panphon.xml: fidelity notes">Feature and weight order differ at the tail, and the generated declaration retains that order instead of quietly repairing the comparison target.</note>
+    <note origin="ipakit/data/feature-models/panphon.xml: fidelity notes">Feature and weight order differ at the tail, and the generated declaration retains that order instead of quietly repairing the comparison target.</note>
   </card>
 </inventory-cards>

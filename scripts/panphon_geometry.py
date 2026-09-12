@@ -44,9 +44,9 @@ Usage:
 
 ``describe`` prints the declared bridge -- both round-trip legs and every
 drop -- for the pack the declaration builds. It is the dev-side entry
-point to that pack: ``declared_pack()`` returns it, and lives here rather
-than in the package because the shipped surface takes a declaration by
-path and does not resolve one out of the repository.
+point to that pack: ``declared_pack()`` returns it. Runtime callers can read
+the shipped declaration with ``ipakit.feature_models.read('panphon')``;
+only regeneration and live validation require the optional producer package.
 """
 
 from __future__ import annotations
@@ -63,7 +63,12 @@ from typing import TYPE_CHECKING
 from xml.sax.saxutils import quoteattr
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "tests" / "panphon" / "panphon.xml"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from ipakit.feature_models import DATA  # noqa: E402
+
+OUTPUT = DATA / "panphon.xml"
 
 if TYPE_CHECKING:
     from ipakit.bridges.costmodel import CostPack
@@ -127,7 +132,9 @@ def render() -> str:
         )
 
     version = importlib.metadata.version("panphon")
-    upstream_url = f"https://github.com/dmort27/panphon/tree/{version}"
+    # Distribution versions are not necessarily Git tags. The project home is
+    # stated by installed metadata; the version and CSV hashes bind the data.
+    upstream_url = "https://github.com/dmort27/panphon"
     lines = [
         "<?xml version='1.0' encoding='utf-8'?>",
         (
@@ -203,7 +210,7 @@ def cmd_validate(_: argparse.Namespace) -> int:
             actual.splitlines(), expected.splitlines(), "declared", "generated", n=2
         )
     )
-    print("DRIFT: tests/panphon/panphon.xml differs from installed panphon.")
+    print(f"DRIFT: {OUTPUT} differs from installed panphon.")
     print("\n".join(diff[:80]))
     if len(diff) > 80:
         print(f"... {len(diff) - 80} additional diff lines omitted")

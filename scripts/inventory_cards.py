@@ -30,6 +30,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ipakit._provenance import SourceMetadata  # noqa: E402
+from ipakit.feature_models import resource_path  # noqa: E402
 from ipakit.inventories import (  # noqa: E402
     inventories,
     inventory,
@@ -205,7 +206,7 @@ def _mfa_metrics(source: Path) -> dict[str, object]:
 
 
 def _panphon_metrics() -> dict[str, object]:
-    root = ET.parse(ROOT / "tests" / "panphon" / "panphon.xml").getroot()
+    root = ET.parse(resource_path("panphon")).getroot()
     return {
         "panphon_segments": len(root.findall("segments/segment")),
         "panphon_features": len(root.findall("features/feature")),
@@ -218,7 +219,10 @@ def _quantitative(
 ) -> list[tuple[str, str]]:
     if family == "panphon":
         return [
-            ("Shipped registry entries", "0 — development comparison only"),
+            (
+                "Shipped feature models",
+                "1 — named finite declaration; not a house style",
+            ),
             ("Declared segment rows", str(metrics["panphon_segments"])),
             ("Declared features", str(metrics["panphon_features"])),
             ("Supplied feature weights", str(metrics["panphon_weights"])),

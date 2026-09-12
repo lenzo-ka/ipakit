@@ -56,12 +56,15 @@ Cartesian product. Choices can exist without any inventory spelling. A code
 outside the map's image, including `11` in the two-predicate encoding, raises
 `OutsideImage`; schema-invalid codes raise `InvalidFeature` instead.
 
-The repository's frozen Panphon fixture has 6,367 rows, all of which round-trip
+The shipped frozen Panphon declaration has 6,367 rows, all of which round-trip
 through the two-predicate construction. Positive-only projection has 214 observed
 collision groups of distinct complete vectors. These counts describe this pinned
-fixture, not every provider version or a universal linguistic equivalence.
-Loading uses the existing `read_ternary_declaration(path)`; no external package,
-installation, source update or new shipped data is needed.
+table, not every provider version or a universal linguistic equivalence.
+Load it with `from ipakit import feature_models` and
+`feature_models.read("panphon")`; supplied paths still use the existing
+`read_ternary_declaration(path)`. No external producer package, source update or
+development checkout is needed. The packaged declaration includes its source
+version/hash receipts and license/attribution notices.
 
 ## Binary comparison through the existing folds
 
@@ -118,8 +121,8 @@ python scripts/costmodel_compare.py --tokens-json corpus.json --format json \
 ```
 
 Here `corpus.json` is an array of exact token arrays, for example
-`[["p"], ["b"], ["a"], []]`. The declaration defaults to the repository's frozen
-Panphon fixture; `--declaration` selects another compatible file. An explicitly
+`[["p"], ["b"], ["a"], []]`. The declaration defaults to the canonical shipped
+Panphon feature model; `--declaration` selects another compatible file. An explicitly
 selected missing or unreadable file refuses instead of producing house-only
 output. No Panphon runtime, download or inferred house conversion is needed. `--foreign-only`
 omits house scoring; without it the script preserves its usual house arm.

@@ -1,11 +1,11 @@
 """Finite semantics use the existing scanner, splice and feeding cascade."""
 
 from dataclasses import replace
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from ipakit import load_ipa_features
+from ipakit.feature_models import resource_path
 from ipakit.finite_declaration import read_ternary_declaration
 from ipakit.finite_model import FeatureSchema, FiniteModel, InvalidFeature, MissingToken
 from ipakit.rules import (
@@ -254,9 +254,7 @@ def test_realization_none_and_ambiguity_are_distinct(model):
 
 
 def test_panphon_realization_is_not_first_candidate():
-    model = read_ternary_declaration(
-        Path(__file__).parent / "panphon" / "panphon.xml"
-    ).model
+    model = read_ternary_declaration(resource_path("panphon")).model
     with pytest.raises(ModelRuleError) as caught:
         change(model, "voi", 1).rewrite_tokens(("p",))
     assert caught.value.code == "ambiguous"

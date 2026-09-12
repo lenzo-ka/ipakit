@@ -19,8 +19,10 @@ only the present.
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tarfile
 import tomllib
 import zipfile
 from pathlib import Path
@@ -137,7 +139,8 @@ def built_wheel(package_source, tmp_path_factory) -> Path:
             sys.executable,
             "-c",
             "from setuptools import build_meta; "
-            f"build_meta.build_wheel({str(out)!r})",
+            f"build_meta.build_wheel({str(out)!r}); "
+            f"build_meta.build_sdist({str(out)!r})",
         ],
         cwd=src,
         check=True,
@@ -163,10 +166,106 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
-def test_the_wheel_does_not_carry_the_dev_only_panphon_declaration(built_wheel):
+def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wheel):
     with zipfile.ZipFile(built_wheel) as zf:
         names = zf.namelist()
-    assert not any(name.endswith("panphon.xml") for name in names)
+        prefix = "ipakit/data/feature-models/"
+        assert [n for n in names if n.endswith("panphon.xml")] == [
+            prefix + "panphon.xml"
+        ]
+        for filename in ("panphon.xml", "PANPHON-LICENSE.txt", "NOTICE.md"):
+            assert (
+                zf.read(prefix + filename)
+                == (PKG / "data/feature-models" / filename).read_bytes()
+            )
+
+
+def test_sdist_carries_one_canonical_panphon_declaration_and_credit(built_wheel):
+    archives = list(built_wheel.parent.glob("*.tar.gz"))
+    assert len(archives) == 1
+    with tarfile.open(archives[0]) as archive:
+        members = archive.getnames()
+        roots = {name.split("/")[0] for name in members}
+        assert len(roots) == 1
+        prefix = roots.pop() + "/ipakit/data/feature-models/"
+        assert [n for n in members if n.endswith("panphon.xml")] == [
+            prefix + "panphon.xml"
+        ]
+        for filename in ("panphon.xml", "PANPHON-LICENSE.txt", "NOTICE.md"):
+            stream = archive.extractfile(prefix + filename)
+            assert stream is not None
+            assert (
+                stream.read() == (PKG / "data/feature-models" / filename).read_bytes()
+            )
+
+
+@pytest.mark.parametrize("omit_timit", [False, True])
+def test_installed_inventory_census_and_models_need_no_checkout_or_provider(
+    built_wheel, tmp_path, omit_timit
+):
+    from ipakit import feature_models, inventories
+
+    import tiergraph
+
+    # Derive the expected census from the source, not the possibly incomplete
+    # installed wheel. No fixed inventory count constrains future declarations.
+    expected = {
+        "inventories": list(inventories()),
+        "models": list(feature_models.available()),
+    }
+    assert expected["inventories"] and expected["models"]
+    site = tmp_path / "site"
+    with zipfile.ZipFile(built_wheel) as zf:
+        zf.extractall(site)
+    if omit_timit:
+        # This registry member silently disappears if its resource is absent.
+        # The source-derived census must detect that incomplete installation.
+        (site / "ipakit/data/phonemaps/timit.xml").unlink()
+    # Supply only the declared runtime dependency, not development site-packages.
+    shutil.copytree(Path(tiergraph.__file__).parent, site / "tiergraph")
+    program = """
+import builtins, json, pathlib, socket, sys
+sys.path.insert(0, sys.argv[1])
+original = builtins.__import__
+def blocked(name, *args, **kwargs):
+    if name.split('.')[0] in {'panphon', 'pyclts', 'tests', 'scripts'}:
+        raise AssertionError('runtime provider/checkout import: ' + name)
+    return original(name, *args, **kwargs)
+builtins.__import__ = blocked
+socket.socket = lambda *a, **k: (_ for _ in ()).throw(AssertionError('network'))
+import ipakit
+from ipakit import feature_models
+from ipakit.finite_declaration import read_ternary_declaration
+assert pathlib.Path(ipakit.__file__).resolve().is_relative_to(pathlib.Path(sys.argv[1]))
+expected = json.load(sys.stdin)
+assert list(ipakit.inventories()) == expected['inventories'], 'installed inventory census differs'
+for name in expected['inventories']:
+    found = ipakit.inventory(name)
+    assert found.name == name
+assert list(feature_models.available()) == expected['models']
+for name in expected['models']:
+    assert feature_models.read(name).model.name == name
+assert 'panphon' in feature_models.available()
+declaration = feature_models.read('panphon')
+assert len(declaration.model.rows) == 6367
+assert declaration.model.respell('p', {'voi': 1}).candidates == ('b', 'b̟', 'b̠')
+assert read_ternary_declaration(feature_models.resource_path('panphon')).model == declaration.model
+assert (feature_models.resource_path('panphon').parent / 'PANPHON-LICENSE.txt').is_file()
+print(declaration.model.identity)
+"""
+    proc = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", program, str(site)],
+        cwd=tmp_path,
+        input=json.dumps(expected),
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+    )
+    if omit_timit:
+        assert proc.returncode != 0
+        assert "installed inventory census differs" in proc.stderr
+    else:
+        assert proc.returncode == 0, proc.stderr
 
 
 def test_the_wheel_carries_each_grammar_beside_its_data(built_wheel):
