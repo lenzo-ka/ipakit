@@ -373,3 +373,93 @@ def test_binding_freezes_input_and_detects_semantic_replacement(model):
         corrupted.rewrite_tokens(())
     with pytest.raises(ModelRuleError, match="compile"):
         ast.recognize_tokens(())
+
+
+def mixed_child(left, right, part):
+    if part in ("query", "action"):
+        return replace(left, **{part: getattr(right, part)})
+    if part == "target":
+        return replace(left, query=replace(left.query, target=right.query.target))
+    return replace(
+        left, query=replace(left.query, **{part: getattr(right.query, part)})
+    )
+
+
+@pytest.fixture
+def bound_pair():
+    schema = FeatureSchema({"x": (0, 1)})
+    first = FiniteModel("first", schema, {"a": (0,), "b": (1,)})
+    second = FiniteModel("second", schema, {"a": (0,), "b": (1,)})
+    text = "[x=0] -> [x=1] / [x=1] _ [x=1]"
+    return first, parse(text, model=first), parse(text, model=second)
+
+
+@pytest.mark.parametrize("part", ["query", "action", "target", "left", "right"])
+@pytest.mark.parametrize("tokens", [(), ("b",)])
+def test_nested_compiled_ownership_checked_before_every_scan(bound_pair, part, tokens):
+    model, left, right = bound_pair
+    mixed = mixed_child(left, right, part)
+    with patch.object(
+        Query, "sites", side_effect=AssertionError("ownership must precede scanning")
+    ):
+        for operation in (mixed.recognize_tokens, mixed.rewrite_tokens):
+            with pytest.raises(ModelRuleError) as caught:
+                operation(tokens)
+            assert caught.value.code == "model-mismatch"
+        with pytest.raises(ModelRuleError) as caught:
+            RuleSet((mixed,)).derive_tokens(tokens, model=model)
+        assert caught.value.code == "model-mismatch"
+
+
+@pytest.mark.parametrize("part", ["query", "action", "target", "left", "right"])
+def test_fresh_compilation_does_not_reassign_bound_children(bound_pair, part):
+    model, left, right = bound_pair
+    mixed = mixed_child(left, right, part)
+    fresh = Rule("fresh", mixed.query, mixed.action)
+    with pytest.raises(ModelRuleError) as caught:
+        fresh.bind(model)
+    assert caught.value.code == "model-mismatch"
+
+
+@pytest.mark.parametrize("part", ["query", "action", "target", "left", "right"])
+def test_compiled_rule_requires_children_to_keep_their_binding(bound_pair, part):
+    _, left, _ = bound_pair
+    if part in ("query", "action"):
+        broken = replace(left, **{part: replace(getattr(left, part), _model=None)})
+    elif part == "target":
+        broken = replace(
+            left, query=replace(left.query, target=replace(left.target, _model=None))
+        )
+    else:
+        broken = replace(
+            left,
+            query=replace(
+                left.query,
+                **{
+                    part: tuple(
+                        replace(p, _model=None) for p in getattr(left.query, part)
+                    )
+                },
+            ),
+        )
+    for operation in (broken.recognize_tokens, broken.rewrite_tokens):
+        with pytest.raises(ModelRuleError) as caught:
+            operation(())
+        assert caught.value.code == "model-mismatch"
+
+
+def test_genuine_unbound_ast_and_same_model_children_remain_reusable(bound_pair):
+    model, left, _ = bound_pair
+    assert Rule("same children", left.query, left.action).bind(model).rewrite_tokens(
+        ("b", "a", "b")
+    ).tokens == ("b", "b", "b")
+    unbound = Rule(
+        "unbound", Query(constrained("x", 0)), Action(finite=FeatureChanges({"x": 1}))
+    )
+    assert unbound.bind(model).rewrite_tokens(("a",)).tokens == ("b",)
+    # Mixing an unbound context with same-model compiled children is explicit
+    # compilation of a fresh AST, not reassignment of a foreign bound child.
+    fresh = Rule(
+        "mixed ownership", Query(left.target, right=(constrained("x", 1),)), left.action
+    ).bind(model)
+    assert fresh.rewrite_tokens(("a", "b")).tokens == ("b", "b")

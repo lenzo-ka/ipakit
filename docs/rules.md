@@ -64,7 +64,10 @@ assert RuleSet((rule, feeding)).derive_tokens(("@D", "@G")).tokens == ("@G", "@G
 These rules bind the finite model's content identity, operation, notation and
 `unique-or-refuse` realization policy. Supplying another `model=` to execution
 refuses even on empty input or when nothing would match. Every input token is
-validated before scanning. A feature edit invokes the finite provider's exact
+validated before scanning. Bound query, action, target and context children must
+retain the same model ownership; composing a fresh AST does not silently rebind
+a child compiled for another model. Genuinely unbound ASTs and same-model child
+reuse remain supported. A feature edit invokes the finite provider's exact
 realization relation: no candidates raises `ModelRuleError` with code
 `unrealizable`; multiple candidates raises code `ambiguous`, retaining the full
 `candidates` tuple. A requested no-op on an aliased bundle is still ambiguous.

@@ -215,14 +215,46 @@ def edit(
     )
 
 
+def _validate_ownership(rule: Rule, model: FiniteModel) -> None:
+    """Validate the original AST before copying can replace any owner.
+
+    Fresh ASTs may contain unbound nodes or reuse same-model compiled subtrees.
+    A compiled parent, however, requires its children to retain that binding.
+    This check is also used by execution's binding revalidation, including
+    empty/no-match paths where no pattern or action callback would run.
+    """
+
+    def check(owner: FiniteModel | None, label: str, required: bool = False) -> None:
+        if owner is None:
+            if required:
+                raise ModelRuleError(
+                    "model-mismatch", f"compiled {label} lost its model binding"
+                )
+        elif owner != model:
+            raise ModelRuleError("model-mismatch", f"{label} belongs to another model")
+
+    check(rule._model, "rule")
+    compiled = rule._model is not None
+    check(rule.query._model, "query", compiled)
+    check(rule.action._model, "action", compiled)
+    compiled_query = compiled or rule.query._model is not None
+    if rule.target is not None:
+        check(rule.target._model, "target", compiled_query)
+    for side, patterns in (
+        ("left context", rule.query.left),
+        ("right context", rule.query.right),
+    ):
+        for pattern in patterns:
+            check(pattern._model, side, compiled_query)
+
+
 def bind(rule: Rule, model: FiniteModel) -> Rule:
     """Compile/copy the public AST, including paths which might never match."""
     from dataclasses import replace
 
     from .rules import Query
 
-    if rule._model is not None and rule._model != model:
-        raise ModelRuleError("model-mismatch", "rule belongs to another model")
+    _validate_ownership(rule, model)
     if rule.optional or rule.source_tiers not in ((), ("segment",)):
         raise ModelRuleError(
             "unsupported-operation",
