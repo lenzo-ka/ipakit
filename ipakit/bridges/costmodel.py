@@ -161,6 +161,14 @@ class ComparisonRow:
     reference: str | None = None
 
 
+def _validate_tokens(pack: CostPack, *sequences: Segmentation) -> None:
+    """Apply the model-owned admission contract before any alignment fold."""
+    if pack.validate_token is not None:
+        for sequence in sequences:
+            for token in sequence.tokens:
+                pack.validate_token(token)
+
+
 def align_under(
     ipa: IPAFeatures,
     pack: CostPack,
@@ -176,9 +184,7 @@ def align_under(
     substituting another algebra; running both would charge every comparison
     for two full grids merely to discard one result.
     """
-    if pack.validate_token is not None:
-        for token in source.tokens + target.tokens:
-            pack.validate_token(token)
+    _validate_tokens(pack, source, target)
     return ipa._align(
         list(source.tokens),
         list(target.tokens),
@@ -270,6 +276,7 @@ def semiring_alignment[Carrier](
     must impose and report a visible cap before materializing its result; this
     low-level fold does not silently truncate a carrier.
     """
+    _validate_tokens(pack, source, target)
     left, right = source.tokens, target.tokens
     deletes = tuple(
         encode(value) for value in _prices(pack.delete_cost, list(left), "delete_cost")

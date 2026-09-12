@@ -148,6 +148,23 @@ def test_winner_semiring_keeps_the_count_belonging_to_the_winning_move() -> None
     assert result == (2.0, 9)
 
 
+@pytest.mark.parametrize("token", ["ai", "unknown", "a💡"])
+@pytest.mark.parametrize("side", ["both", "source", "target"])
+@pytest.mark.parametrize("consumer", ["production", "semiring"])
+def test_all_folds_enforce_the_models_token_contract(
+    token: str, side: str, consumer: str
+) -> None:
+    ipa = ipakit.load_ipa_features()
+    pack = house_pack(ipa)
+    source = Segmentation((token,) if side != "target" else ())
+    target = Segmentation((token,) if side != "source" else ())
+    with pytest.raises(ValueError):
+        if consumer == "production":
+            align_under(ipa, pack, source, target)
+        else:
+            semiring_alignment(pack, source, target, TROPICAL, encode=float)
+
+
 class _SymbolicSemiring:
     """A carrier with no numeric escape hatch for the fold-purity pin."""
 
