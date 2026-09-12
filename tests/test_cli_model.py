@@ -259,3 +259,26 @@ def local():
         _finite_receiver_attribute(node, parents, {"FiniteModel", "Alias"})
         for node in calls
     ] == [False, True, True]
+
+
+def test_receiver_guard_does_not_borrow_nested_annotations():
+    import ast
+
+    from tests.test_cli import _finite_receiver_attribute
+
+    tree = ast.parse("""
+def outer(model: IPAFeatures):
+    def inner():
+        model: FiniteModel = declaration.model
+        return model.respell("p", {})
+    return model.respell("p", {})
+""")
+    parents = {
+        child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)
+    }
+    calls = {
+        node.lineno: _finite_receiver_attribute(node, parents, {"FiniteModel"})
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr == "respell"
+    }
+    assert calls == {5: True, 6: False}

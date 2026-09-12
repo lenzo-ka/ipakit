@@ -1548,16 +1548,22 @@ def _delegates(node):
     return found
 
 
+def _binding_scope(node, parents):
+    scope = parents.get(node)
+    while scope is not None and not isinstance(
+        scope,
+        (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda, ast.Module),
+    ):
+        scope = parents.get(scope)
+    return scope
+
+
 def _finite_receiver_attribute(node, parents, aliases):
     """Recognize explicitly annotated finite receivers in the enclosing scope."""
     if not isinstance(node.value, ast.Name):
         return False
-    scope = parents.get(node)
-    while scope is not None and not isinstance(
-        scope, (ast.FunctionDef, ast.AsyncFunctionDef)
-    ):
-        scope = parents.get(scope)
-    if scope is None:
+    scope = _binding_scope(node, parents)
+    if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return False
     annotations = [
         item.annotation
@@ -1568,6 +1574,7 @@ def _finite_receiver_attribute(node, parents, aliases):
         item.annotation
         for item in ast.walk(scope)
         if isinstance(item, ast.AnnAssign)
+        and _binding_scope(item, parents) is scope
         and isinstance(item.target, ast.Name)
         and item.target.id == node.value.id
     )
