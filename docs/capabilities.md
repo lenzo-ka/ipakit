@@ -28,9 +28,11 @@ choices. They can be challenged and improved without making agreement with the
 house inventory a prerequisite for using the framework. Conversely, a shared
 substrate does not exempt an inventory from empirical evaluation.
 
-The calculus is grounded in established computer-science and category-theoretic
-operations. The contribution is their organization and application to phonetic
-representations and computation, not a claim to have invented those operations.
+TierGraph supplies the general computational and category-theoretic substrate.
+IPAkit constructs a phonetic compositional calculus on that foundation, and its
+house instance contributes a substantive phonetic theory, including articulatory
+attachment. The contribution includes that domain calculus, not merely connecting
+existing tools; it does not claim to have invented the underlying operations.
 Concrete implementations must state the contracts and laws they satisfy,
 including where bounded enumeration or other implementation choices limit them.
 
@@ -50,6 +52,46 @@ Here, *fair comparison* means exposing and controlling the assumptions, not
 assuming the models assert the same distinctions. Coverage, refusals, conversion
 losses, and source-specific features remain part of the result. Common machinery
 does not by itself make scores commensurate or establish phonetic equivalence.
+
+## Pinyin: an existing different model
+
+See the dedicated [Pinyin guide](pinyin.md), [kana guide](kana.md), and
+[comparative-systems discussion](systems.md) for the existing implementations,
+their different organizing principles, and their API boundaries.
+
+Pinyin already provides a concrete syllable-primary example, not just a future
+phoneset substitution. Its graph has syllable, constituent, tone, and optional
+phonetic-realization tiers. Tone associates with the **syllable**; the orthographic
+renderer separately chooses which vowel receives the written tone mark.
+Optional IPA realization does not define that semantic attachment.
+
+The declared library bridge is
+[`ipakit.bridges.pinyin.PINYIN`](../ipakit/bridges/pinyin.py). It owns the
+vocabulary declaration, keyboard aliases, and tone-mark rendering. The existing
+graph constructor is currently an **internal profile API**,
+[`ipakit._pinyin_graph.build`](../ipakit/_pinyin_graph.py), rather than a promised
+stable public constructor. This executable example demonstrates that profile:
+
+```python
+from ipakit._pinyin_graph import build as build_pinyin
+from ipakit.bridges.pinyin import PINYIN
+
+syllable = build_pinyin("shui", "sh", "ui", 3)
+PINYIN.render(syllable)  # 'shuǐ'
+```
+
+The constructor takes explicit spelling, onset, rhyme, and tone; this example
+does not claim automatic analysis of arbitrary Mandarin text. The
+[profile tests](../tests/tiergraph/test_j_profiles.py) check syllable attachment,
+optional referenced IPA realization, and native graph serialization round trips.
+The vocabulary bridge's grouping over house IPA and this syllable-primary profile
+are distinct views, not interchangeable claims about one flattened phoneset.
+
+Pinyin rendering is currently library-only: there is no dedicated CLI ingestion
+surface for its syllable/tone graph. See the
+[API/CLI boundary](cli-api-sync.md). This existing model demonstrates how a
+different unit and attachment choice can use the same substrate; it does not
+imply that every house computation already accepts every profile.
 
 ## The house instance: a spelling with computational meaning
 

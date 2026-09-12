@@ -4,6 +4,36 @@ A transcription is a set of claims. House style makes each claim at the smallest
 
 The declaration-backed inventories for this page are in the [generated exhibits](house-style-exhibits.md). They travel with the prose, while their values come from `ipa.xml` and are checked by `make check`.
 
+## One explicit model, not the substrate
+
+House style is more than formatting: it expresses IPAkit's own phonetic model,
+including choices about composition, feature interpretation, prosodic attachment,
+and articulation. It is one inventory-plus-algebra instance, not a requirement
+that every representation on the TierGraph substrate adopt those choices.
+The declarations are testable and revisable; shared computational machinery does
+not make them universal phonetic facts.
+
+The main commitments are collected here so that a reader need not infer the
+model from punctuation or scattered implementation details. The linked accounts
+give the rationale, operational boundaries, and evidence rather than defining a
+second copy of the rules.
+
+| Choice | Computational consequence | Account |
+| --- | --- | --- |
+| Over-tie, under-tie, and adjacency make different claims. | Simultaneous constituents, a bound sequence, and separate units remain distinguishable in reading and comparison. | [Ties](#ties-are-units), [unit model](ties.md) |
+| Stress attaches to the nucleus; syllable boundaries are separate claims. | Stress need not imply an inferred syllable margin. | [Stress](#stress-sits-on-the-nucleus), [syllabification](syllabification.md) |
+| Canonical Unicode handling and explicit input conventions are part of reading. | Code points are not the definition of a phonetic atom; imported conventions must identify their reading. | [Decomposition](#text-is-read-decomposed), [wild input](#wild-input-is-read-never-guessed-silently) |
+| Ordinary spaces express word boundaries; segmented input is a separate mode. | The same whitespace cannot silently alternate between a word edge and a token delimiter. | [Boundaries](#space-spells-the-word-boundary) |
+| An interval may carry no segmental claim. | Measured time need not introduce a placeholder phone or an invented word. | [Unclaimed intervals](#silence-carries-no-segment), [representation](representation.md) |
+| Features use descriptive phonetic terminology and declared references. | The inventory is answerable to explicit meanings, not just internally consistent labels. | [Features](#features-are-named-from-the-ipa-and-referenced), [generated declarations](house-style-exhibits.md) |
+| The house model attaches features to declared articulatory structure. | Geometry informs comparison and posture projection; these claims have their own empirical and rendering limits. | [Articulatory model](tract-anatomy.md), [validation](articulatory-data.md) |
+| Composition and rewriting operate on structured claims. | A composed unit need not have its own inventory row; rewrite alternatives and their completeness are explicit. | [Composition](ties.md), [calculus](calculus.md) |
+| Native comparison chooses particular costs and normalization. | Structural dissimilarity is not automatically a perceptual probability or a mathematical metric. | [Similarity rationale](similarity.md), [distance mechanics](distance.md) |
+
+[Comparative systems](systems.md) places these commitments beside Pinyin, kana,
+and external feature systems. Those comparisons should expose disagreements and
+losses, not treat house semantics as the unspoken definition of every model.
+
 ## Ties are units
 
 A tie names one unit and makes one claim about the timing inside it, and there are **two ties making two different claims** — the distinction is the mechanism, not a typographic variant. The **over-tie** `◌͡◌` (U+0361) reads its constituents *simultaneously*, in one shared timing slot: affricates and double articulations, `t͡s`, `k͡p`. The **under-tie** `◌͜◌` (U+035C) reads them *sequentially*, binding several timing slots into one unit: diphthongs and moraic chains, `e͜ɪ`, `a͜ɪ͜ə`. Standard IPA treats the two glyphs as interchangeable; here they are not, and [ties.md](ties.md) is the full account.
