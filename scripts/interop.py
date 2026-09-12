@@ -67,17 +67,12 @@ from ipakit import (
     to_phone,
 )
 from ipakit.clts import FEATURES_TSV, SOUNDS_TSV, declaration_audit
+from ipakit.metric import metric_fingerprint
 
 #: Environment variable naming a clone of cldf-clts/clts. No default path is
 #: baked in: the repository is a separate 54 MB checkout under its own
 #: license, and a path from one machine is noise in this one.
 CLTS_ENV = "IPAKIT_CLTS_DIR"
-
-#: BIPA's own sound table, which is what "BIPA's segment set" means here: the
-#: graphemes CLTS ships as resolved sounds, generated and explicit alike.
-#: `pkg/transcriptionsystems/bipa/*.tsv` is the source those are built from
-#: and `data/graphemes.tsv` is every spelling any source dataset used, which
-#: is a different and much noisier question.
 
 #: A floor, not an expected value: CLTS grows. Below this the clone is
 #: truncated or the path is wrong, and every count downstream is meaningless.
@@ -615,18 +610,29 @@ def cmd_similarity(clts: Clts, args: argparse.Namespace) -> int:
     """
     bipa = clts.bipa()
     ipa = load_ipa_features()
-    print(f"pyclts version: {metadata.version('pyclts')}")
+    try:
+        resolver_version = metadata.version("pyclts")
+    except metadata.PackageNotFoundError:
+        resolver_version = "unknown (distribution metadata unavailable)"
+    print(f"pyclts version: {resolver_version}")
     print(f"ipakit version: {ipakit_version}")
     print("CLTS score: 1 - Sound.similarity (unweighted feature-set Jaccard)")
     print("Native score: ipakit.distance with default configuration")
     print("These are model comparisons, not perceptual-equivalence measurements.")
-    for path in [clts.root.joinpath(*SOUNDS_TSV), ipa.xml_path]:
+    print(f"native metric fingerprint: {metric_fingerprint(ipa, ipa.phones)}")
+    print(
+        f"native declaration sha256 ipa.xml: {hashlib.sha256(ipa.xml_path.read_bytes()).hexdigest()}"
+    )
+    # Clts validates the catalog when loading; it does not supply pair scores.
+    for parts in (SOUNDS_TSV, FEATURES_TSV):
+        path = clts.root.joinpath(*parts)
         print(
-            f"source sha256 {path.name}: {hashlib.sha256(path.read_bytes()).hexdigest()}"
+            f"catalog-validation sha256 {'/'.join(parts)}: {hashlib.sha256(path.read_bytes()).hexdigest()}"
         )
-    # pyclts resolves from the transcription system, not data/sounds.tsv.
+    # CLTS.bipa initializes sibling systems too. Bind the entire loaded
+    # transcription-system tree, not just BIPA or selected file extensions.
     system_root = clts.root / "pkg" / "transcriptionsystems"
-    resolver_files = [*system_root.glob("*.json"), *(system_root / "bipa").rglob("*")]
+    resolver_files = system_root.rglob("*")
     for path in sorted(resolver_files):
         if path.is_file():
             relative = path.relative_to(clts.root).as_posix()

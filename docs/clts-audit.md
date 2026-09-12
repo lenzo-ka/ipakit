@@ -9,7 +9,8 @@ python scripts/interop.py --clts /path/to/clts declarations
 ```
 
 This emits deterministic JSON (`ipakit-clts-declaration-census`, version 1).
-The reusable library entry point is `ipakit.clts.declaration_audit(Path(...))`;
+Import the reusable library entry point with
+`from ipakit.clts import declaration_audit`, then call `declaration_audit(Path(...))`;
 the command delegates to it and only handles arguments, diagnostics, and JSON
 output. The library returns the same plain dictionary and raises `ValueError`
 for malformed input or `OSError` for inaccessible files.
@@ -27,6 +28,10 @@ a catalog witness remains present. A catalog feature absent from the master
 is explicitly marked `declared: false`; it is not silently promoted into a
 declaration. Missing inputs, malformed domains, duplicate identities, ragged
 tables, and dangling feature references fail nonzero without emitting a report.
+Featureless sound rows are outside this census and also refuse explicitly;
+they cannot turn an empty observation population into a successful audit.
+`cataloged` means membership in `data/features.tsv`, whereas `catalog.sounds`
+counts rows in `data/sounds.tsv`; neither substitutes for `observed_count`.
 Exit zero means the census ran, **not** that semantic correspondences passed.
 
 Every entry currently has `status: unclassified` and no targets. This is an
@@ -61,8 +66,11 @@ perceptual equivalence.
 
 The population is registered native phone spellings directly resolved by
 BIPA, with unknowns and markers excluded; it does not apply house spelling
-normalization. Output identifies the resolver version and hashes native data
-and CLTS transcription-system files, then reports pair counts, score
+normalization. Output identifies the resolver version, hashes `ipa.xml`, and
+uses the existing native metric fingerprint to identify the effective feature
+geometry. It hashes the whole CLTS transcription-system tree, including sibling
+systems initialized by the resolver. Catalog hashes are separately labeled as
+load-validation inputs, not sources of the pair scores. It then reports pair counts, score
 resolution, rank correlation, and nearest-neighbor agreement. Equal nearest
 scores use first native declaration order, not agreement between complete
 tie sets. These results are measurements of the supplied sources, not frozen
@@ -71,3 +79,6 @@ claims about every release or all possible phones.
 Upstream implementation: [pyclts sound models](https://github.com/cldf-clts/pyclts/blob/master/src/pyclts/models.py).
 CLTS's inventory-level similarity methods are a separate API; this command
 compares sound pairs, not inventories.
+
+See [comparative systems](systems.md) and [capabilities](capabilities.md) for
+the distinction between comparing models and establishing semantic fidelity.

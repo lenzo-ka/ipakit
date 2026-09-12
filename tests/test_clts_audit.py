@@ -189,8 +189,24 @@ def test_composite_repeated_features_are_occurrences_not_duplicate_sounds(
     assert row["witness_ids"] == ["1"]
 
 
+def test_featureless_sound_refuses_without_a_success_report(
+    source: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (source / "data/sounds.tsv").write_text(
+        "ID\tTYPE\tFEATURES\tGRAPHEME\ns1\tvowel\t\ti\n"
+    )
+    assert interop.main(["--clts", str(source), "declarations"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "featureless sound row" in captured.err
+
+
+@pytest.mark.parametrize("metadata_present", [True, False])
 def test_similarity_labels_and_fractional_rank_rendering(
-    source: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    source: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    metadata_present: bool,
 ) -> None:
     class Sound:
         def similarity(self, other: Sound) -> float:
@@ -199,12 +215,35 @@ def test_similarity_labels_and_fractional_rank_rendering(
     phones = {str(i): Sound() for i in range(101)}
     inventory = SimpleNamespace(phones=phones, xml_path=source / "data/features.tsv")
     clts = SimpleNamespace(root=source, bipa=lambda: phones)
+    sibling = source / "pkg/transcriptionsystems/sibling/sounds.tsv"
+    sibling.parent.mkdir()
+    sibling.write_text("a consumed sibling declaration")
     monkeypatch.setattr(interop, "load_ipa_features", lambda: inventory)
     monkeypatch.setattr(interop, "distance", lambda a, b: 0.25)
-    monkeypatch.setattr(interop.metadata, "version", lambda package: "test-version")
+    monkeypatch.setattr(
+        interop, "metric_fingerprint", lambda ipa, phones: "metric-test"
+    )
+
+    def resolver_version(package: str) -> str:
+        if not metadata_present:
+            raise interop.metadata.PackageNotFoundError(package)
+        return "test-version"
+
+    monkeypatch.setattr(interop.metadata, "version", resolver_version)
     assert interop.cmd_similarity(clts, SimpleNamespace(top=1)) == 0
     output = capsys.readouterr().out
-    assert "pyclts version: test-version" in output
+    expected_version = (
+        "test-version"
+        if metadata_present
+        else "unknown (distribution metadata unavailable)"
+    )
+    assert f"pyclts version: {expected_version}" in output
+    assert (
+        "source sha256 pkg/transcriptionsystems/sibling/sounds.tsv: "
+        + hashlib.sha256(sibling.read_bytes()).hexdigest()
+    ) in output
+    assert "native metric fingerprint: metric-test" in output
+    assert "catalog-validation sha256 data/sounds.tsv:" in output
     assert "not perceptual-equivalence" in output
     assert "pairs: 5050" in output
     assert "CLTS 1-Jaccard 0.5000 (rank  2525.5)" in output

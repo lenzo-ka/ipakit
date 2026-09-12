@@ -107,6 +107,10 @@ def declaration_audit(root: Path) -> dict[str, Any]:
         if not row["TYPE"].strip() or not row["GRAPHEME"].strip():
             raise ValueError(f"empty sound type or grapheme: {row['ID']}")
         refs = row["FEATURES"].split()
+        if not refs:
+            raise ValueError(
+                f"featureless sound row is outside this census: {row['ID']}"
+            )
         kinds[row["TYPE"]] += 1
         for ref in refs:
             if ref not in catalog_ids:
