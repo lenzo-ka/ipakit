@@ -59,6 +59,61 @@ def resolution(kind="consonant", values=None):
     }
 
 
+@pytest.mark.parametrize(
+    "wrapper", [lambda x: (x,), lambda x: [(x,)], lambda x: {"nested": (x,)}]
+)
+def test_profile_owns_every_native_json_container(wrapper):
+    leaf = []
+    schema = spec(domains={"claims": (wrapper(leaf),)})
+    before = metadata(schema)
+    before_identity = schema.identity
+    leaf.append(1)
+    assert metadata(schema) == before
+    assert schema.identity == before_identity == before["fingerprint"]
+
+
+def test_profile_identity_is_typed_and_hashable():
+    boolean = spec(domains={"claims": (False,)})
+    integer = spec(domains={"claims": (0,)})
+    assert boolean != integer
+    assert boolean == spec(domains={"claims": (False,)})
+    assert len({boolean, integer, spec(domains={"claims": (False,)})}) == 2
+
+
+def test_profile_normalizes_native_arrays_without_losing_json_types():
+    tuples = spec(domains={"claims": ((False, 0, None, ()),)})
+    lists = spec(domains={"claims": ([False, 0, None, []],)})
+    assert tuples == lists
+    assert metadata(tuples)["domains"] == {"claims": [[False, 0, None, []]]}
+    assert tuples != spec(domains={"claims": ([0, False, None, []],)})
+
+
+def test_profile_identity_includes_constructor_field_bindings():
+    first = spec(fields=(FeatureDeclaration("first", (NS, "same")),))
+    second = spec(fields=(FeatureDeclaration("second", (NS, "same")),))
+    assert first != second
+
+
+def test_profile_refuses_mutable_source_metadata():
+    with pytest.raises(ValueError, match="source metadata fields"):
+        spec(source=replace(spec().source, version=[]))
+
+
+def test_bound_profile_registry_names_are_distinct():
+    first = graph_profile(spec())
+    second = graph_profile(spec(provider_fingerprint="second-provider"))
+    assert first.name != second.name
+    registry = tg.ProfileRegistry()
+    registry.register(first)
+    registry.register(second)
+
+
+def test_unknown_sound_status_roundtrips():
+    record = {"provider": "fixture-provider", "status": "unknown-sound", "sounds": []}
+    schema = spec()
+    assert restore(construct(["?"], [record], schema), schema)[1] == (record,)
+
+
 def test_native_roundtrip_clock_children_times_hosts():
     schema = spec()
     doc = {
@@ -188,7 +243,7 @@ def test_host_kind_refusals(source, target):
         if kind is None:
             records[i] = {
                 "provider": "fixture-provider",
-                "status": "unknown",
+                "status": "unknown-sound",
                 "sounds": [],
             }
     doc = {
@@ -356,7 +411,7 @@ def test_clock_and_role_mutations_refuse():
         {},
         "x",
         [],
-        [{"provider": "other", "status": "unknown", "sounds": []}],
+        [{"provider": "other", "status": "unknown-sound", "sounds": []}],
         [{"provider": "fixture-provider", "status": "resolved", "sounds": []}],
     ],
 )

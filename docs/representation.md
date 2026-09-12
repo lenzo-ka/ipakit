@@ -11,6 +11,11 @@ source tone-host links. Complete qualified declarations and provider/profile
 bindings remain present even for empty input. Resolution outcomes are explicitly
 supplied and validated against the caller's declared source schema; this path
 does not run a resolver or infer claims from feature-set labels.
+The outcomes are `resolved`, `unknown-sound`, and `outside-artifact-domain`.
+Profile bindings own their accepted native JSON domain values and compare by
+their typed declaration fingerprint, including constructor field bindings.
+Native registry names include that identity so different provider bindings can
+coexist; the persisted profile family and version remain separately declared.
 
 This is a constructor-layout profile, not arbitrary graph adoption: restoration
 refuses changed declarations, stale bindings, extra content or other layouts

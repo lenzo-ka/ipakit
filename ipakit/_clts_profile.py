@@ -46,7 +46,13 @@ def name(local: str) -> tg.QualifiedName:
     return tg.QualifiedName(NAMESPACE, local)
 
 
-@dataclass(frozen=True)
+def _owned_json(value: Any) -> Any:
+    """Own every container accepted by the native JSON value constructor."""
+    _, profile, root = tg.json_value_graph(value)
+    return _freeze(profile.value(root))
+
+
+@dataclass(frozen=True, eq=False)
 class SourceProfileSpec:
     """Explicit supplied provider binding and complete qualified claim schema."""
 
@@ -56,10 +62,13 @@ class SourceProfileSpec:
     kinds: tuple[str, ...]
     fields: tuple[FeatureDeclaration, ...] = ()
     domains: Mapping[str, tuple[Any, ...]] = field(default_factory=dict)
+    identity: str = field(init=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, SourceMetadata):
             raise ValueError("source metadata must use the shared declaration")
+        if any(not isinstance(v, str) or not v for v in self.source.to_dict().values()):
+            raise ValueError("source metadata fields must be nonempty strings")
         object.__setattr__(self, "fields", tuple(self.fields))
         if any(
             not isinstance(v, str) or not v
@@ -77,19 +86,24 @@ class SourceProfileSpec:
         if any(f.value_name is None or f.name in reserved for f in self.fields):
             raise ValueError("source fields require distinct qualified identities")
         domains = {
-            key: tuple(_freeze(value) for value in values)
+            key: tuple(_owned_json(value) for value in values)
             for key, values in self.domains.items()
         }
         if domains.keys() - {f.name for f in self.fields} or any(
             not values for values in domains.values()
         ):
             raise ValueError("domains must name declared fields and be nonempty")
-        # The native JSON value constructor validates domain entries too.
-        for values in domains.values():
-            for value in values:
-                tg.json_value_graph(_thaw(value))
         object.__setattr__(self, "domains", MappingProxyType(domains))
         declarations(self)
+        object.__setattr__(self, "identity", metadata(self)["fingerprint"])
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SourceProfileSpec):
+            return NotImplemented
+        return self.identity == other.identity
+
+    def __hash__(self) -> int:
+        return hash(self.identity)
 
     def roles(self) -> dict[str, Any]:
         return {tier: name(tier) for tier in TIERS}
@@ -157,6 +171,7 @@ def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
         "version": 1,
         "roles": {key: value.to_data() for key, value in spec.roles().items()},
         "schema": _schema(spec),
+        "fields": {item.name: list(item.value_name or ()) for item in spec.fields},
         "domains": {
             key: [_thaw(v) for v in values] for key, values in spec.domains.items()
         },
@@ -201,7 +216,7 @@ def _resolutions(
             )
         status, sounds = value["status"], value["sounds"]
         if (
-            status not in ("resolved", "unknown", "outside-artifact-domain")
+            status not in ("resolved", "unknown-sound", "outside-artifact-domain")
             or not isinstance(sounds, (list, tuple))
             or bool(sounds) != (status == "resolved")
         ):
@@ -427,7 +442,7 @@ def graph_profile(spec: SourceProfileSpec) -> type[tg.GraphProfile]:
     """Create a native, explicitly partial profile bound to this declaration."""
 
     class SourceProfile(tg.GraphProfile):
-        name = PROFILE
+        name = f"{PROFILE}:{spec.identity}"
         required_roles = TIERS
         decides = DECIDES
         leaves_undecided = UNDECIDED
