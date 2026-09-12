@@ -1,0 +1,18 @@
+{
+  "english": {
+    "reductions": [["n̪", "n"]],
+    "notes": {"ɚ": "MFA rhotic-vowel unit"},
+    "exemplars": {
+      "p": "crip", "pʰ": "pampa", "b": "buys", "f": "frown",
+      "v": "vonda", "θ": "third", "t̪": "thick", "ð": "thou",
+      "d̪": "there", "t": "gut", "tʰ": "tuple", "d": "drama",
+      "ɾ": "dad", "tʃ": "chip", "dʒ": "jules", "ʃ": "shape",
+      "ʒ": "usual", "s": "slot", "z": "noisy", "ɹ": "tree",
+      "m": "mates", "m̩": "'em", "n": "shin", "ɲ": "sonya",
+      "ŋ": "sang", "ɟ": "mcgee", "ɡ": "rig", "c": "skin",
+      "cʷ": "quick", "cʰ": "cute", "k": "mink", "kʷ": "quart",
+      "kʰ": "cone", "ç": "hugh", "h": "habit", "aj": "mice",
+      "j": "yorke", "w": "will"
+    }
+  }
+}

@@ -166,12 +166,10 @@ def _family_names() -> dict[str, tuple[str, ...]]:
 
 
 def _mfa_metrics(source: Path) -> dict[str, object]:
-    from scripts.mfa_vocabularies import PIN, require_pin
+    from ipakit.extraction.mfa import DICTIONARY, PIN, require_pin
 
-    require_pin(source)
-    dictionary = source / "dictionary" / "english" / "us_mfa" / "english_us_mfa.dict"
-    if not dictionary.is_file():
-        raise ValueError(f"pinned MFA en-US dictionary is absent: {dictionary}")
+    require_pin(source, dictionary=True)
+    dictionary = source / DICTIONARY
     declared = inventory("mfa:english_us")
     if declared.version != PIN:
         raise ValueError(

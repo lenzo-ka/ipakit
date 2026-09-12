@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from .._provenance import SourceMetadata
 
@@ -44,6 +45,9 @@ class SourceIdentity:
     metadata: SourceMetadata
     digests: Mapping[str, str]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "digests", MappingProxyType(dict(self.digests)))
+
 
 @dataclass(frozen=True)
 class BuildResult:
@@ -54,6 +58,8 @@ class BuildResult:
     source: SourceIdentity | None = None
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "artifacts", MappingProxyType(dict(self.artifacts)))
+        object.__setattr__(self, "owned_globs", tuple(self.owned_globs))
         for path in (*self.artifacts, *self.owned_globs):
             if path.is_absolute() or ".." in path.parts or path == Path("."):
                 raise ValueError(

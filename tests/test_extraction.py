@@ -34,3 +34,10 @@ def test_source_failures_are_catchable_and_distinct() -> None:
     errors = (SourceMissingError, SourceVersionError, SourceContentError)
     assert len({error.code for error in errors}) == len(errors)
     assert all(issubclass(error, (SourceError, ValueError)) for error in errors)
+
+
+def test_result_copies_caller_owned_mapping() -> None:
+    artifacts = {Path("safe"): b"safe"}
+    result = BuildResult(artifacts)
+    artifacts[Path("../escape")] = b"unsafe"
+    assert dict(result.artifacts) == {Path("safe"): b"safe"}
