@@ -4,7 +4,8 @@ ipakit connects declared representations to structured composition, feature
 queries and rewrites, inspectable comparison, and articulatory visualization.
 Its central architectural distinction is a common computational substrate:
 representations can be brought onto shared structural and algebraic machinery
-while retaining their own declarations and assumptions. It is more than a lookup from IPA glyphs to vectors,
+while retaining their own declarations and assumptions. It is more than a lookup
+from IPA glyphs to vectors,
 but it is not a replacement for a cross-linguistic catalog, a historical
 linguistics toolkit, or a speech synthesizer.
 
@@ -19,6 +20,19 @@ units and tiers are separate choices. Shared structure and operations make those
 choices inspectable and allow controlled comparisons: hold the computation and
 policy fixed while varying the representation, or hold the representation fixed
 while varying the computation.
+
+The central contribution is the calculus, algebra, and unification of
+representation and computation, not a claim that one phonetic inventory is
+definitive. Inventories and feature assignments are testable, revisable model
+choices. They can be challenged and improved without making agreement with the
+house inventory a prerequisite for using the framework. Conversely, a shared
+substrate does not exempt an inventory from empirical evaluation.
+
+The design separates those questions: what a representation asserts, which
+operations its algebra supports, and how shared computational machinery executes
+those operations. Reusing an algorithm requires an explicit compatible contract;
+it does not require erasing differences between the models or assuming every
+algebra satisfies the same laws.
 
 The existing cost-pack interface makes this concrete for comparison: models
 supply their own costs to a shared alignment operation, with segmentation, gap
