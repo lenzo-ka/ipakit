@@ -256,6 +256,32 @@ def cmd_clts_snapshot(_: Clts | None, args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_clts_mappings(_: Clts | None, args: argparse.Namespace) -> int:
+    """Generate/check bounded reviewed correspondence and unresolved gap artifacts."""
+    from ipakit.clts_mapping import build_authority, build_mapping_artifacts
+
+    try:
+        if not args.clts:
+            raise ValueError(f"pass --clts or set {CLTS_ENV}")
+        source = Path(args.clts).expanduser()
+        if not args.check and not args.write:
+            print(build_authority(source).dumps(), end="")
+            return 0
+        result = build_mapping_artifacts(source)
+        root = Path(__file__).resolve().parent.parent
+        if args.check:
+            stale = result.stale(root)
+            for path in stale:
+                print(f"stale: {path}")
+            return int(bool(stale))
+        for relative, content in result.artifacts.items():
+            (root / relative).write_bytes(content)
+        return 0
+    except (OSError, ValueError) as exc:
+        print(f"clts-mappings: {exc}", file=sys.stderr)
+        return 1
+
+
 def cmd_clts_parity(_: Clts | None, args: argparse.Namespace) -> int:
     """Validate exact sets and exhaustive unique-set score parity against pyclts."""
     try:
@@ -282,8 +308,9 @@ def cmd_clts_parity(_: Clts | None, args: argparse.Namespace) -> int:
 # checked against the declarations at load, so a rename in ipa.xml breaks this
 # table loudly rather than quietly scoring every segment as a disagreement.
 #
-# `None` means ipakit declares nothing that says this. That is a finding, not
-# an omission, and `features` counts those separately from disagreements.
+# This historical dictionary is a heuristic instrument, not mapping authority.
+# `None` is an unimplemented candidate correspondence, not proof of native
+# inexpressibility. clts-mappings owns reviewed eligibility and gap dispositions.
 # A CLTS value in neither this table nor UNCOMPARED is an error: without that
 # check, a value CLTS adds later drops out of the comparison silently and the
 # agreement rate goes up for the wrong reason.
@@ -596,6 +623,13 @@ def cmd_ties(clts: Clts, args: argparse.Namespace) -> int:
 
 def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
     """Where the two systems say different things about the same sound."""
+    from ipakit.clts_mapping import build_authority
+
+    authority = build_authority(clts.root)
+    print(f"Reviewed mapping authority: {authority.identity}")
+    print(
+        "The following legacy candidate comparison does not establish complete semantic eligibility."
+    )
     problems = check_correspondence(clts)
     if problems:
         for problem in problems:
@@ -645,12 +679,12 @@ def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
     stated = sum(agree.values()) + sum(differ.values()) + sum(silent.values())
     print(f"segments both systems read as one: {compared}")
     print(
-        f"CLTS assertions ipakit can express: {stated}"
+        f"CLTS assertions with legacy candidate correspondences: {stated}"
         f"   agree {sum(agree.values())}"
         f"   differ {sum(differ.values())}"
         f"   ipakit silent {sum(silent.values())}"
     )
-    print(f"CLTS assertions ipakit declares nothing for: {sum(absent.values())}")
+    print(f"CLTS assertions without a legacy candidate: {sum(absent.values())}")
 
     print("\ndisagreements, worst first:")
     for value, n in differ.most_common(args.top):
@@ -658,7 +692,7 @@ def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
         shown = "  ".join(f"{g} ipakit {name}={m}" for g, _, m in cases[value][:3])
         print(f"  {n:5d}  CLTS {value:22s} {shown}")
 
-    print("\nCLTS says it, ipakit declares nothing that could:")
+    print("\nNo legacy candidate (not a proven house-model gap):")
     for value, n in absent.most_common(args.top):
         print(f"  {n:5d}  {value}")
     return 0
@@ -1664,16 +1698,18 @@ def main(argv: list[str] | None = None) -> int:
         "declarations": cmd_declarations,
         "clts-snapshot": cmd_clts_snapshot,
         "clts-parity": cmd_clts_parity,
+        "clts-mappings": cmd_clts_mappings,
     }.items():
         summary = ((func.__doc__ or name).strip().splitlines() or [name])[0]
         cmd = sub.add_parser(name, help=summary)
         cmd.set_defaults(
             func=func, needs_clts=name in COMMANDS, inventory=None, lexicon=None
         )
-        if name == "clts-snapshot":
+        if name in ("clts-snapshot", "clts-mappings"):
             action = cmd.add_mutually_exclusive_group()
             action.add_argument("--check", action="store_true")
             action.add_argument("--write", action="store_true")
+        if name == "clts-snapshot":
             cmd.add_argument(
                 "--tokens-json",
                 help="explicit research token array; never overwrites core",

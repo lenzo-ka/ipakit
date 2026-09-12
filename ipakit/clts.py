@@ -89,14 +89,16 @@ def _audit_tsv(
     return rows
 
 
-def declaration_audit(root: Path) -> dict[str, Any]:
+def declaration_audit(root: Path, *, include_catalog: bool = True) -> dict[str, Any]:
     """Census declarations, not semantic mappings; no pyclts required.
 
     Master domains are independent of the derived feature catalog and sound
     observations. Qualified triples retain context even when values share a
     spelling. Every queue entry is explicitly unclassified, in each direction.
     """
-    paths = [MASTER_FEATURES, FEATURES_TSV, SOUNDS_TSV]
+    paths: list[tuple[str, ...]] = [MASTER_FEATURES]
+    if include_catalog:
+        paths.extend([FEATURES_TSV, SOUNDS_TSV])
     inputs = {"/".join(p): root.joinpath(*p).read_bytes() for p in paths}
     master = json.loads(
         inputs["/".join(MASTER_FEATURES)], object_pairs_hook=_unique_object
@@ -118,11 +120,15 @@ def declaration_audit(root: Path) -> dict[str, Any]:
             if len(values) != len(set(values)):
                 raise ValueError(f"duplicate value: {kind}/{feature}")
             declared.update((kind, feature, value) for value in values)
-    catalog = _audit_tsv(
-        inputs["/".join(FEATURES_TSV)], {"ID", "TYPE", "FEATURE", "VALUE"}
+    catalog = (
+        _audit_tsv(inputs["/".join(FEATURES_TSV)], {"ID", "TYPE", "FEATURE", "VALUE"})
+        if include_catalog
+        else []
     )
-    sounds = _audit_tsv(
-        inputs["/".join(SOUNDS_TSV)], {"ID", "TYPE", "FEATURES", "GRAPHEME"}
+    sounds = (
+        _audit_tsv(inputs["/".join(SOUNDS_TSV)], {"ID", "TYPE", "FEATURES", "GRAPHEME"})
+        if include_catalog
+        else []
     )
     catalog_ids: dict[str, tuple[str, str, str]] = {}
     catalog_triples: set[tuple[str, str, str]] = set()
@@ -200,7 +206,7 @@ def declaration_audit(root: Path) -> dict[str, Any]:
                 "witness_ids": sorted(witnesses[triple])[:5],
             }
         )
-    return {
+    result: dict[str, Any] = {
         "schema": "ipakit-clts-declaration-census",
         "version": 1,
         "audit_status": "unclassified",
@@ -231,6 +237,114 @@ def declaration_audit(root: Path) -> dict[str, Any]:
         "clts_to_ipakit": records,
         "ipakit_to_clts": native,
     }
+    if not include_catalog:
+        del result["catalog"]
+        result["scope"] = {
+            "modeled": "finite master feature/value declarations only",
+            "outside": [*result["scope"]["outside"], "aggregated catalog observations"],
+        }
+        result["clts_to_ipakit"] = [
+            {
+                key: row[key]
+                for key in ("source", "status", "direction", "targets", "declared")
+            }
+            for row in records
+        ]
+    validate_declaration_census(result)
+    return result
+
+
+def validate_declaration_census(data: dict[str, Any]) -> None:
+    """Validate locally decidable census shape and cardinality coherence.
+
+    This does not authenticate a reauthored census against upstream data.
+    Declaration-only output contains no catalog counts or observation fields.
+    """
+    try:
+        _validate_declaration_census(data)
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"malformed declaration census: {exc}") from exc
+
+
+def _validate_declaration_census(data: dict[str, Any]) -> None:
+    def count(value: Any) -> int:
+        if type(value) is not int or value < 0:
+            raise ValueError(
+                "census cardinalities must be nonnegative integers, not booleans"
+            )
+        return value
+
+    if (
+        data["schema"] != "ipakit-clts-declaration-census"
+        or type(data["version"]) is not int
+        or data["version"] != 1
+    ):
+        raise ValueError("unsupported census schema/version")
+    count(data["semantic_correspondences_audited"])
+    if (
+        data["semantic_correspondences_audited"] != 0
+        or data["audit_status"] != "unclassified"
+    ):
+        raise ValueError("declaration census is not a semantic classification")
+    fields = {
+        "schema",
+        "version",
+        "audit_status",
+        "semantic_correspondences_audited",
+        "sources",
+        "scope",
+        "clts_to_ipakit",
+        "ipakit_to_clts",
+    }
+    if set(data) != fields | ({"catalog"} if "catalog" in data else set()):
+        raise ValueError("unexpected census fields")
+    rows = data["clts_to_ipakit"]
+    if not rows or not data["ipakit_to_clts"]:
+        raise ValueError("empty census declaration population")
+    for row in data["ipakit_to_clts"]:
+        count(row["context"]["value_index"])
+    if "catalog" not in data:
+        if any(
+            set(row) != {"source", "status", "direction", "targets", "declared"}
+            for row in rows
+        ):
+            raise ValueError("declaration-only census contains observation payload")
+        if set(data["sources"]["clts"]) != {"/".join(MASTER_FEATURES)}:
+            raise ValueError("declaration-only census has non-master inputs")
+        if set(data["scope"]) != {"modeled", "outside"} or any(
+            row["declared"] is not True for row in rows
+        ):
+            raise ValueError("invalid declaration-only scope")
+        return
+    catalog = data["catalog"]
+    total = count(catalog["sounds"])
+    if total != sum(count(value) for value in catalog["unit_kinds"].values()):
+        raise ValueError("catalog sound count differs from unit-kind counts")
+    limit = count(data["scope"]["witness_limit_per_declaration"])
+    for row in rows:
+        if type(row["declared"]) is not bool or type(row["cataloged"]) is not bool:
+            raise ValueError("census declaration flags must be booleans")
+        observed = count(row["observed_count"])
+        occurrences = count(row["observed_occurrences"])
+        if (
+            observed > total
+            or occurrences < observed
+            or (observed == 0 and occurrences != 0)
+        ):
+            raise ValueError("inconsistent census observation counts")
+        if observed != sum(
+            count(value) for value in row["observed_unit_kinds"].values()
+        ):
+            raise ValueError("observation count differs from unit-kind counts")
+        if any(
+            count(value) > catalog["unit_kinds"].get(kind, 0)
+            for kind, value in row["observed_unit_kinds"].items()
+        ):
+            raise ValueError("observation kind count exceeds catalog population")
+        if len(row["witness_ids"]) != min(observed, limit) or len(
+            set(row["witness_ids"])
+        ) != len(row["witness_ids"]):
+            raise ValueError("census witness count does not reconcile")
 
 
 def source_policy() -> dict[str, Any]:

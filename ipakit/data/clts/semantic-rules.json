@@ -1,0 +1,29 @@
+{
+  "schema": "ipakit-clts-reviewed-rules",
+  "version": 1,
+  "direction": "clts-to-ipakit",
+  "scope": "exact-plain-stop-witnesses-only",
+  "profile_binding": null,
+  "source_kind": "consonant",
+  "source_feature_model": "clts",
+  "target_feature_model": "ipakit",
+  "target_structure": {"constituents": 1, "modifiers": 0, "approach": 0, "junctures": 0, "prosody": 0},
+  "source_structure": "one resolved plain consonant; complete declared feature set equals the witness",
+  "absence_policy": "unasserted-is-not-negative",
+  "rules": [
+    {"id": "plain-p/1", "raw": "p", "target": "p", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "-"}},
+    {"id": "plain-b/1", "raw": "b", "target": "b", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "+"}},
+    {"id": "plain-t/1", "raw": "t", "target": "t", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "-"}},
+    {"id": "plain-d/1", "raw": "d", "target": "d", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "+"}}
+  ],
+  "evidence": [
+    "Pinned BIPA core rows: complete consonant, manner, place and phonation claims; contrasts p/b and t/d.",
+    "Native strict constructors: one bare constituent, no modifiers, approach, junctures or prosody; independent manner/place/voiced expectations.",
+    "Native defaults remain native claims; these witnesses establish no reverse rule."
+  ],
+  "enhancements": [
+    {"id": "nasal-approach", "decision": "rejected", "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing adapter support is not a missing feature.", "consequence": "Retain source-only claim until reviewed correspondence; do not infer a timed nasal child."},
+    {"id": "tie-conversion", "decision": "deferred", "reason": "CLTS collapses adjacency and both tie spellings; native already distinguishes their structures.", "consequence": "No unconditional inverse or new feature recovers erased tie evidence."},
+    {"id": "tone-host", "decision": "deferred", "reason": "Source tone association requires a declared host profile, not strict segment parsing.", "consequence": "Retain or refuse pending profile binding; never fabricate a nucleus or silence."}
+  ]
+}

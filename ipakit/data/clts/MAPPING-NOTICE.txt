@@ -1,0 +1,30 @@
+CLTS master declaration derivative — mapping authority scope
+
+The CLTS-derived master feature declarations in semantic-mapping.json and the
+generated docs/clts-gaps.md are licensed under Creative Commons Attribution
+4.0 International (CC BY 4.0), not IPAkit's original-code BSD license.
+https://creativecommons.org/licenses/by/4.0/
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+CLTS. Cross-Linguistic Transcription Systems
+Creators: Johann-Mattis List, Cormac Anderson, Tiago Tresoldi,
+Christoph Rzymski, Robert Forkel.
+Source DOI: https://doi.org/10.5281/zenodo.3515744
+Source: https://github.com/cldf-clts/clts
+The accepted revision and exact master input hash are in source.json, under
+inputs/pkg/transcriptionsystems/features.json; these are repeated in the
+mapping authority's source-policy receipts and declaration census.
+
+Changes: enumerate the master feature domains as qualified kind/feature/value
+records; pair them with separately attributed native IPAkit declarations;
+attach IPAkit-authored unresolved/conditional dispositions and four directional
+plain-stop witness rules; serialize deterministic JSON and a Markdown table.
+The four complete source claim sets are checked against the separately noticed
+core BIPA snapshot (NOTICE.txt), not against aggregated catalog observations.
+No endorsement by the original creators is implied.
+
+This derivative does not contain data/sounds.tsv or data/features.tsv, catalog
+observations, catalog-only declarations, witness IDs, or catalog counts. Their
+external-checkout research census remains separate and is not cleared for
+redistribution by this notice. Native declarations and authored correspondence
+rules retain IPAkit's repository license; those rules are not upstream mappings.

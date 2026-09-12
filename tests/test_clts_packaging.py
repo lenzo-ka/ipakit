@@ -21,9 +21,22 @@ def test_core_snapshot_and_credit_are_in_actual_wheel(built_wheel: Path) -> None
             "ipakit/data/clts/core.json",
             "ipakit/data/clts/source.json",
             "ipakit/data/clts/NOTICE.txt",
+            "ipakit/data/clts/MAPPING-NOTICE.txt",
         } <= set(archive.namelist())
         notice = archive.read("ipakit/data/clts/NOTICE.txt").decode()
         assert "CC BY 4.0" in notice and "Johann-Mattis List" in notice
+        mapping_notice = archive.read("ipakit/data/clts/MAPPING-NOTICE.txt").decode()
+        assert "features.json" in mapping_notice and "CC BY 4.0" in mapping_notice
+        authority = json.loads(archive.read("ipakit/data/clts/semantic-mapping.json"))
+        census = authority["census"]
+        assert "catalog" not in census
+        assert set(census["sources"]["clts"]) == {
+            "pkg/transcriptionsystems/features.json"
+        }
+        assert all(
+            set(row) == {"source", "status", "direction", "targets", "declared"}
+            for row in census["clts_to_ipakit"]
+        )
 
 
 def test_actual_sdist_contains_artifact_and_notices_not_untracked(
@@ -51,6 +64,7 @@ def test_actual_sdist_contains_artifact_and_notices_not_untracked(
             "ipakit/data/clts/core.json",
             "ipakit/data/clts/source.json",
             "ipakit/data/clts/NOTICE.txt",
+            "ipakit/data/clts/MAPPING-NOTICE.txt",
         } <= set(names)
         assert not any(name.startswith("untracked/") for name in names)
 
