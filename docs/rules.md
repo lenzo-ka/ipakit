@@ -110,11 +110,43 @@ Input must be an explicit tuple/list of token strings, not a concatenated
 string, Form, graph, or timing/attachment-bearing object. Results retain exact
 token tuples, and each Step has `before_tokens`/`after_tokens`; display joins
 are not used to reconstruct state. Native `variants` and `to_form` are not
-finite graph conversions. Graph-backed rewrites, source clocks, attachments,
-timing preservation and variant enumeration remain
-separate work; this API does not claim full-representation fidelity. See
+finite graph conversions. Variant enumeration remains
+separate work; this token API does not claim full-representation fidelity. See
 [model-operations.md](model-operations.md) for the finite provider contract.
 
+### Decorating an existing graph
+
+`ipakit.model_graph.GraphBinding` is a separate, explicit input contract for
+finite-model graph rewrites. Supply the native TierGraph `Graph`, `FiniteModel`,
+ordered unique source `ItemRef`s, qualified token/model value relations,
+`starts_at` relation, and clock tier. Optional `feature_values` maps model feature
+names to qualified value relations; claims must match both the typed schema and
+the exact token row. The values use native JSON value structure, not guessed
+house features. Caller order is retained, including selections across tiers.
+
+Call `binding.derive(rules)` to run the same token engine and trace traversal.
+The result exposes `graph`, `trace`, `final_refs`, and a content-based operation
+`identity`. The writer edits the actual source graph: all original facts,
+relations, document attributes and optional source timing remain intact. Derived
+events are appended in deterministic step/site/application/target order and
+anchor to actual original clock boundaries. Split children share their source
+anchor; deletions have explicit empty-target history. No new clock is created.
+Silence does not need a word parent. Original containment is retained as source
+history, not automatically copied onto target events.
+
+Target physical timing is unassigned, even for a one-to-one change. The only
+admitted migration policy is `preserve-source`; requested timing or attachment
+migration refuses. Finite insertion needs a separate explicit anchor policy and
+is not supplied here. No-match and empty selections validate their full binding
+before returning a byte-identical source graph.
+
+Use the native TierGraph codec to serialize the extended graph. Then
+`result.restore(decoded_graph)` validates it against the explicit bound source,
+model, selection and rules. Reconstructing equivalent binding and execution in
+a fresh process works; object identity is not authority. Graph facts persist
+independently, but a graph alone does not rediscover which operation produced it.
+This is bound-operation validation, not a new operation-profile reader or a
+conversion to house `Form`; other profiles keep their existing admission rules.
 ### Explicit finite rules on the command line
 
 `rules recognize`, `apply` and `trace` also accept the same explicitly selected
