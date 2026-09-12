@@ -44,6 +44,54 @@ def test_declared_but_unobserved_and_composite_context(source: Path) -> None:
         assert row["status"] == "unclassified" and row["targets"] == []
 
 
+def test_declarations_only_do_not_read_or_freeze_catalog(source: Path) -> None:
+    full = clts.declaration_audit(source)
+    for name in ("features.tsv", "sounds.tsv"):
+        (source / "data" / name).unlink()
+    narrow = clts.declaration_audit(source, include_catalog=False)
+    assert "catalog" not in narrow
+    assert set(narrow["sources"]["clts"]) == {"/".join(clts.MASTER_FEATURES)}
+    assert [r["source"] for r in narrow["clts_to_ipakit"]] == [
+        r["source"] for r in full["clts_to_ipakit"] if r["declared"]
+    ]
+    assert all(
+        set(row) == {"source", "status", "direction", "targets", "declared"}
+        for row in narrow["clts_to_ipakit"]
+    )
+
+
+@pytest.mark.parametrize("invalid", [True, -1, 1])
+def test_census_sound_cardinality_is_typed_and_coherent(
+    source: Path, invalid: object
+) -> None:
+    data = clts.declaration_audit(source)
+    data["catalog"]["sounds"] = invalid
+    with pytest.raises(ValueError):
+        clts.validate_declaration_census(data)
+
+
+@pytest.mark.parametrize("field", ["observed_count", "observed_occurrences"])
+def test_census_observation_counts_are_not_boolean(source: Path, field: str) -> None:
+    data = clts.declaration_audit(source)
+    data["clts_to_ipakit"][0][field] = True
+    with pytest.raises(ValueError):
+        clts.validate_declaration_census(data)
+
+
+def test_census_nested_cardinalities_and_schema_are_checked(source: Path) -> None:
+    mutations = (
+        lambda d: d.update(version=True),
+        lambda d: d["catalog"]["unit_kinds"].update(vowel=True),
+        lambda d: d["clts_to_ipakit"][0]["observed_unit_kinds"].update(vowel=-1),
+        lambda d: d["clts_to_ipakit"][0].update(witness_ids=[]),
+    )
+    for mutation in mutations:
+        data = clts.declaration_audit(source)
+        mutation(data)
+        with pytest.raises(ValueError):
+            clts.validate_declaration_census(data)
+
+
 def test_new_declaration_without_catalog_witness_is_not_lost(source: Path) -> None:
     path = source.joinpath(*clts.MASTER_FEATURES)
     master = json.loads(path.read_text())

@@ -137,6 +137,22 @@ def test_changed_population_refuses_until_reconciled() -> None:
         authority.validate_context(census, read_snapshot(), load_ipa_features())
 
 
+@pytest.mark.parametrize("payload", ["catalog", "witness_ids", "source", "cardinality"])
+def test_shipped_authority_refuses_catalog_payload_and_bad_counts(payload: str) -> None:
+    data = read_authority().to_data()
+    census = data["census"]
+    if payload == "catalog":
+        census["catalog"] = {"sounds": 0, "unit_kinds": {}}
+    elif payload == "witness_ids":
+        census["clts_to_ipakit"][0]["witness_ids"] = ["uncleared"]
+    elif payload == "source":
+        census["sources"]["clts"]["data/sounds.tsv"] = "uncleared"
+    else:
+        census["semantic_correspondences_audited"] = True
+    with pytest.raises(MappingInvalid):
+        MappingAuthority(reseal(data))
+
+
 def test_profile_pending_and_caller_mutation_do_not_change_authority() -> None:
     authority = read_authority()
     before = authority.identity

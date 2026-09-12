@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -20,9 +19,10 @@ from .clts import (
     declaration_audit,
     read_snapshot,
     source_policy,
+    validate_declaration_census,
     validate_source,
 )
-from .extraction import BuildResult, SourceContentError
+from .extraction import BuildResult
 from .features import IPAFeatures
 from .metric import metric_fingerprint
 
@@ -185,6 +185,11 @@ class MappingAuthority:
             raise ProfilePending(
                 "B2 binding is not implemented by this authority version"
             )
+        validate_declaration_census(data["census"])
+        if "catalog" in data["census"]:
+            raise MappingInvalid(
+                "catalog research payload is not admitted in shipped mapping authority"
+            )
         if identity_fingerprint(data["dispositions"]) != identity_fingerprint(
             _queues(data["census"], data["rules"])
         ):
@@ -286,7 +291,8 @@ class MappingAuthority:
             "B2 profile binding and structural mappings remain pending.",
             "",
             "Generated from the [reviewed mapping authority](clts-mapping.md). "
-            "CLTS data are CC BY 4.0; see the [source policy and attribution](../ipakit/data/clts/source.json) "
+            "Only master declarations are included; catalog observations remain external research. "
+            "CLTS master declarations are CC BY 4.0; see the [mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt), [source policy](../ipakit/data/clts/source.json) "
             "and [CLTS audit](clts-audit.md). Native declarations retain their repository license.",
             "",
             "| Direction | Qualified declaration | Disposition | Witness rules |",
@@ -317,22 +323,7 @@ def build_authority(
 ) -> MappingAuthority:
     """Validate pinned inputs and construct the bounded authority without writing."""
     source = validate_source(root)
-    census = declaration_audit(root)
-    # A1's catalog inputs extend beyond A2's resolver inputs. Derive that set
-    # from the actual census, and verify committed content at the accepted HEAD.
-    for name, digest in census["sources"]["clts"].items():
-        committed = subprocess.run(
-            ["git", "-C", str(root), "show", f"HEAD:{name}"],
-            capture_output=True,
-            check=False,
-        )
-        if (
-            committed.returncode
-            or hashlib.sha256(committed.stdout).hexdigest() != digest
-        ):
-            raise SourceContentError(
-                f"census input differs from accepted commit: {name}"
-            )
+    census = declaration_audit(root, include_catalog=False)
     snapshot = snapshot or read_snapshot()
     ipa = ipa or load_ipa_features()
     rules = reviewed_rules()

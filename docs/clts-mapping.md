@@ -35,8 +35,14 @@ binding. The `target` field is a research witness, not an imported Form.
 
 ## Declarations, rules, and token eligibility
 
-The [generated gap report](clts-gaps.md) accounts for every entry in the
-[declaration audit](clts-audit.md), including its declared/catalog/observed scope.
+The [generated gap report](clts-gaps.md) accounts for every master declaration
+and native declaration, using the same [declaration audit](clts-audit.md) parser
+with `include_catalog=False`. It contains no catalog observations, witness IDs,
+counts or catalog-only domains. The default full audit remains an explicitly
+external-checkout research operation; its catalog derivative is not shipped or
+cleared by the core-data notice. The
+[mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt) states the narrower
+artifact's sources, transformations and attribution.
 An entry with a conditional witness is not universally convertible; its rule
 applies only in the stated complete-token context. Unproven entries remain
 explicitly unresolved. Every reverse-direction entry remains unresolved.
