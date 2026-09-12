@@ -94,7 +94,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
     parser.add_argument("--corpus", type=Path, default=CORPUS)
-    parser.add_argument("--declaration", type=Path, default=DECLARATION)
+    parser.add_argument("--declaration", type=Path)
     from ipakit.feature_transform import BinaryEncoding
 
     parser.add_argument(
@@ -140,6 +140,14 @@ def main() -> int:
     )
     parser.add_argument("--format", choices=("table", "tsv", "json"), default="table")
     args = parser.parse_args()
+
+    if args.declaration is not None:
+        if not args.declaration.is_file():
+            parser.error(
+                f"selected declaration is not an available file: {args.declaration}"
+            )
+    else:
+        args.declaration = DECLARATION
 
     if args.binary_encoding:
         if not args.tokens_json or args.binary_gap is None:

@@ -320,3 +320,29 @@ def test_actual_script_binary_and_legacy_modes(tmp_path):
         capture_output=True,
     )
     assert result.returncode == 0 and len(result.stdout.splitlines()) == 3
+
+
+def test_explicit_missing_declaration_never_falls_back_to_house(tmp_path):
+    tokens = tmp_path / "tokens.json"
+    tokens.write_text('[["p"],["b"]]')
+    words = tmp_path / "words.txt"
+    words.write_text("p\nb\n")
+    selected = tmp_path / "missing.xml"
+    assert not selected.exists()
+    common = [
+        sys.executable,
+        str(ROOT / "scripts/costmodel_compare.py"),
+        "--declaration",
+        str(selected),
+        "--policy",
+        "faithful",
+    ]
+    modes = (
+        ["--tokens-json", str(tokens), "--format", "json"],
+        ["--corpus", str(words), "--format", "tsv"],
+    )
+    for mode in modes:
+        result = subprocess.run(common + mode, text=True, capture_output=True)
+        assert result.returncode != 0, result.stdout
+        assert result.stdout == ""
+        assert "declaration" in result.stderr
