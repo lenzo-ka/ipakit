@@ -106,3 +106,55 @@ This is finite scalar re-encoding and binary comparison—not general transform
 composition, context rewriting, productive phonetic composition or a new wire
 format. TierGraph remains the shared graph/semiring substrate developed alongside
 IPAkit and IRN; the existing alignment fold is reused without a parallel engine.
+
+## Repeatable original/binary experiments
+
+The existing comparison script can select binary encodings explicitly:
+
+```sh
+python scripts/costmodel_compare.py --tokens-json corpus.json --format json \
+  --policy faithful --binary-encoding two-predicate \
+  --binary-encoding positive-only --binary-gap 1 --foreign-only
+```
+
+Here `corpus.json` is an array of exact token arrays, for example
+`[["p"], ["b"], ["a"], []]`. The declaration defaults to the repository's frozen
+Panphon fixture; `--declaration` selects another compatible file. No Panphon
+runtime, download or inferred house conversion is needed. `--foreign-only`
+omits house scoring; without it the script preserves its usual house arm.
+Binary mode requires token JSON and a gap. It refuses combination with
+`--clts-snapshot`; the existing separate CLTS comparison mode remains available.
+Repeated identical encodings or policies refuse rather than duplicate arms or
+overwrite metadata. Existing text/table/TSV workflows are unchanged.
+
+The library entrypoint is
+`ipakit.feature_experiment.compare_declaration_encodings`. Pass an IPAFeatures
+alignment host, an already-read `TernaryDeclaration`, the token corpus, explicit
+`encodings`, `binary_gap` and `policies`. Its default is foreign-only. All arms
+use one `compare_token_corpus` call, retaining the same corpus identity, pair
+denominator and individual refusal rows. An unknown token is not discarded or
+retokenized. The host supplies alignment mechanics, not required house semantics.
+
+The report's `experiment` block records the declaration's model/content receipt,
+source and legacy bridge metadata, feature order, declared-but-unused weights,
+and each arm's actual policy, transform/target identities, bit basis and weights.
+Binary weights are explicitly all one in this bounded helper. Domain injectivity
+and observed collision counts remain separate; aliases are not collisions.
+The experiment identity names this configuration, while `corpus_identity` names
+the separate input population. Neither certifies phonetic equivalence.
+
+Source-dependent original indels and constant binary gaps are separately named.
+With the frozen fixture and faithful policy, deleting `a` costs 44/48 in the
+original arm and 1 with the selected binary gap above. Hamming-to-zero is 20/48
+for that binary vector, but is only a diagnostic—not a selected gap policy or
+an extra report arm. Matching substitution formulas do not imply matching
+sequence distances when indels differ.
+
+`pack_from_ternary_declaration` in `ipakit.bridges.costmodel` is the shared object
+factory; `pack_from_declaration(path)` remains its reader-plus-factory wrapper.
+The experiment parses no XML itself. Both paths validate the object contract,
+including typed ternary domains, NFD tokens, finite nonnegative weight metadata
+and consistent source receipts, before creating costs. Caller-built provenance
+is checked for internal consistency, not authenticated against an upstream.
+Incomplete weight metadata is still legal for the unweighted family; the
+weighted family retains its stricter refusal. No weights are silently repaired.

@@ -59,6 +59,66 @@ class TernaryDeclaration:
         return tuple(tokens), tuple(dropped)
 
 
+def validate_ternary_declaration(declaration: TernaryDeclaration) -> None:
+    """Validate the object entrance without serializing it through XML.
+
+    Source receipts must agree locally; this does not authenticate caller-owned
+    provenance. Incomplete weight metadata remains legal for unweighted costs.
+    """
+    if not isinstance(declaration, TernaryDeclaration):
+        raise ValueError("expected a TernaryDeclaration")
+    model = declaration.model
+    if not isinstance(model, FiniteModel) or not model.schema.features:
+        raise ValueError("a ternary declaration needs a finite feature model")
+    for domain in model.schema.domains.values():
+        if any(type(value) is not int for value in domain) or set(domain) != {-1, 0, 1}:
+            raise ValueError("ternary domains require integer -1, 0, 1")
+    if any(unicodedata.normalize("NFD", token) != token for token in model.rows):
+        raise ValueError("ternary declaration token keys must be NFD")
+    if len(declaration.weights) != len(declaration.weight_names):
+        raise ValueError("weight metadata names and values differ in length")
+    if any(
+        type(value) not in (int, float) or not math.isfinite(value) or value < 0
+        for value in declaration.weights
+    ):
+        raise ValueError("weights must be nonnegative finite numbers, not booleans")
+    if any(not isinstance(name, str) or not name for name in declaration.weight_names):
+        raise ValueError("weight names must be nonempty strings")
+    source = model.source
+    bridge = declaration.bridge
+    if not isinstance(source, SourceMetadata) or any(
+        not isinstance(value, str) or not value.strip()
+        for value in source.to_dict().values()
+    ):
+        raise ValueError("a ternary declaration requires complete source metadata")
+    if (
+        not isinstance(bridge, Bridge)
+        or bridge.source != source
+        or bridge.name != model.name
+        or bridge.version != source.version
+        or bridge.provenance != source.provenance
+    ):
+        raise ValueError("declaration model and bridge source receipts differ")
+    if not isinstance(bridge.round_trip, RoundTripReport):
+        raise ValueError("a declaration requires a round-trip report")
+    for leg, direction in (
+        (bridge.round_trip.external_to_house, "external-to-house"),
+        (bridge.round_trip.house_to_external, "house-to-external"),
+    ):
+        if (
+            not isinstance(leg, RoundTripLeg)
+            or leg.direction != direction
+            or not isinstance(leg.fidelity, Fidelity)
+        ):
+            raise ValueError("invalid declared round-trip leg")
+        if any(
+            type(values) is not tuple
+            or any(not isinstance(value, str) for value in values)
+            for values in (leg.drops, leg.tricks)
+        ):
+            raise ValueError("round-trip notes must be immutable string tuples")
+
+
 def read_ternary_declaration(path: str | PathLike[str]) -> TernaryDeclaration:
     """Read and validate a declaration without choosing a scoring family."""
     root = ET.parse(path).getroot()
@@ -165,4 +225,6 @@ def read_ternary_declaration(path: str | PathLike[str]) -> TernaryDeclaration:
         or (features[index] if index < len(features) else f"weight[{index}]")
         for index, item in enumerate(weight_items)
     )
-    return TernaryDeclaration(model, tuple(declared_weights), names, bridge)
+    declaration = TernaryDeclaration(model, tuple(declared_weights), names, bridge)
+    validate_ternary_declaration(declaration)
+    return declaration
