@@ -8,8 +8,6 @@ as separate, explicitly identified parts of every comparison cell.
 from __future__ import annotations
 
 import math
-import unicodedata
-import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -18,12 +16,12 @@ from typing import Protocol
 
 from tiergraph.semiring import TROPICAL, ProductSemiring
 
-from .._provenance import SourceMetadata
 from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..distance_model import DistanceModel
 from ..features import IPAFeatures
+from ..finite_declaration import read_ternary_declaration
 from ..metric import GAP_COST
-from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
+from .base import Bridge
 
 COSTMODEL_VERSION = "1.0"
 
@@ -494,92 +492,15 @@ def pack_from_declaration(
     ``compare`` is the only public route to a score, and it cannot lose the
     report on the way.
     """
-    root = ET.parse(path).getroot()
-    round_trip = root.find("round-trip")
-    if round_trip is None:
-        raise ValueError("a feature declaration requires a round-trip classification")
-    external = round_trip.find("external-to-house")
-    house = round_trip.find("house-to-external")
-    if external is None or house is None:
-        raise ValueError("a feature declaration must classify both directions")
-
-    def leg(element: ET.Element, direction: str) -> RoundTripLeg:
-        try:
-            fidelity = Fidelity(element.attrib["fidelity"])
-        except KeyError as error:
-            raise ValueError(f"{direction} requires a fidelity") from error
-        return RoundTripLeg(
-            direction,
-            fidelity,
-            tuple(item.attrib["name"] for item in element.findall("drop")),
-            tuple(item.attrib["name"] for item in element.findall("trick")),
-        )
-
-    identity = root.get("name", "declared")
-    source = SourceMetadata.from_root(root, path)
-    bridge = Bridge(
-        identity,
-        source.version,
-        source.provenance,
-        RoundTripReport(
-            leg(external, "external-to-house"),
-            leg(house, "house-to-external"),
-        ),
-        source,
-    )
-    feature_block = root.find("features")
-    segment_block = root.find("segments")
-    if feature_block is None or segment_block is None:
-        raise ValueError("a feature declaration requires features and segments blocks")
-    features = tuple(
-        name
-        for item in feature_block.findall("feature")
-        if (name := item.get("name")) is not None
-    )
-    if not features:
-        raise ValueError("a feature declaration must declare at least one feature")
-
-    vectors: dict[str, tuple[int | None, ...]] = {}
-    for item in segment_block:
-        name = item.get("name")
-        if name is None:
-            raise ValueError("every declared segment requires a name")
-        normalized = unicodedata.normalize("NFD", name)
-        if normalized != name:
-            raise ValueError(f"segment key is not NFD: {name!r}")
-        if normalized in vectors:
-            raise ValueError(f"duplicate segment key: {normalized!r}")
-        values: list[int | None] = []
-        for feature in features:
-            raw = item.get(feature)
-            if raw not in {None, "-", "0", "+"}:
-                raise ValueError(
-                    f"segment {name!r} feature {feature!r} is not ternary: {raw!r}"
-                )
-            values.append(None if raw is None else {"-": -1, "0": 0, "+": 1}[raw])
-        vectors[normalized] = tuple(values)
-
-    ordered = sorted(vectors, key=len, reverse=True)
-    weights_block = root.find("weights")
-    weight_items = tuple(weights_block) if weights_block is not None else ()
-    declared_weights: list[float] = []
-    for index, item in enumerate(weight_items):
-        feature = item.get("name") or (
-            features[index] if index < len(features) else f"weight[{index}]"
-        )
-        raw_weight = item.get("value")
-        try:
-            weight = float(raw_weight) if raw_weight is not None else math.nan
-        except ValueError as error:
-            raise ValueError(
-                f"weight for feature {feature!r} is not numeric: {raw_weight!r}"
-            ) from error
-        if not math.isfinite(weight) or weight < 0.0:
-            raise ValueError(
-                f"weight for feature {feature!r} must be non-negative and finite; "
-                f"got {raw_weight!r}"
-            )
-        declared_weights.append(weight)
+    declaration = read_ternary_declaration(path)
+    identity = declaration.model.name
+    source = declaration.bridge.source
+    assert source is not None
+    bridge = declaration.bridge
+    features = declaration.model.schema.features
+    vectors = declaration.vectors
+    weight_items = declaration.weight_names
+    declared_weights = declaration.weights
 
     weighted = family is DeclaredCostFamily.WEIGHTED_DIFFERENCE
     if weighted:
@@ -592,7 +513,7 @@ def pack_from_declaration(
             offending = (
                 features[len(weight_items)]
                 if len(weight_items) < len(features)
-                else weight_items[len(features)].get("name", f"weight[{len(features)}]")
+                else weight_items[len(features)]
             )
             raise ValueError(
                 "weighted difference requires one weight per feature; "
@@ -678,18 +599,7 @@ def pack_from_declaration(
         return raw_indel(token) * policy.indel_weight
 
     def tokenize(word: str) -> Segmentation:
-        remaining = unicodedata.normalize("NFD", word)
-        tokens: list[str] = []
-        dropped: list[str] = []
-        while remaining:
-            token = next((item for item in ordered if remaining.startswith(item)), None)
-            if token is None:
-                dropped.append(remaining[0])
-                remaining = remaining[1:]
-            else:
-                tokens.append(token)
-                remaining = remaining[len(token) :]
-        return Segmentation(tuple(tokens), tuple(dropped))
+        return Segmentation(*declaration.tokenize(word))
 
     geometry = f"{identity}/{source.version}"
     return CostPack(
