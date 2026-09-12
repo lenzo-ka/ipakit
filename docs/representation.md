@@ -54,21 +54,73 @@ a fabricated word.
 
 ## Tier-graph envelope
 
-The canonical graph envelope is plain JSON with `type: "tiergraph"` and version `v: 1`; readers require that exact version. `model` references the declaration contract by name and version or fingerprint. Bundled declarations need no embedded copy, and declaration snapshots are deferred. `tiers` fixes tier order, `relations` contains canonical default-omitting relation declarations, `roots` names traversal or delivery roots, `clock` contains the structural axis and its final boundary, and `links` contains ordered source/relation/target triples.
+The native store uses tiergraph's plain-JSON envelope with
+`format_version: "0.2.0"` and a `graph` member. Native namespace, tier, attribute
+and relation declarations travel with the graph. `tiergraph.dumps(graph)` and
+`tiergraph.loads(document)` are its serializer and reader; there is no second
+ipakit native graph serializer. The older `type: "tiergraph", v: 1` description
+was an earlier profile format, not the current authoritative native wire format.
 
-The serializer emits this CMU envelope:
+For example, the native constructor's namespace-only graph serializes as:
 
 ```json
-{"type":"tiergraph","v":1,"model":{"name":"cmudict","version":"base-1"},"tiers":["phone"],"relations":{},"roots":[],"clock":[{"gaps":[{}],"phone":[{"features":{"phone":"AH","stress":"primary"}}]},{"gaps":[{}]}],"links":[]}
+{"format_version":"0.2.0","graph":{"namespaces":[{"namespace":"urn:example","prefix":"example"}]}}
 ```
 
-One input phone produces two clock entries: its start and the mandatory final boundary. Every clock entry has `gaps`; non-consuming written occurrences refine one tick to additional stable gaps. Events appear under their tier at their start tick. Omitted `duration` means one structural span, explicit zero means a point, and `span: {"start": ..., "end": ...}` preserves refined endpoints. Optional physical timing is `timing: {"start": ..., "duration": ...}` and does not order structure.
+This is a minimal native wire example, not a populated Form. In the internal
+input-clock view, one input phone produces its start and a terminal boundary;
+non-consuming written occurrences refine a tick to additional stable gaps.
+Native lowering preserves those coordinates as clock boundaries, event
+incidence and attributes. Optional physical timing retains start + duration
+without ordering structural events or creating ticks.
 
-Internal references are canonical JSON Pointers such as `/clock/0/phone/0`; paths are document-revision-local. An application that needs durable cross-revision identity stores a declared label feature and resolves it anew after rebuilding. Arbitrary extension features participate normally and serialize in lexical key order.
+Internal navigation references such as `/clock/0/segment/0` are ipakit
+coordinates, not literal paths into the native JSON envelope. Native durable
+item references resolve these events; rebuilding requires a declared identity
+policy rather than assuming an array offset is a cross-revision identifier.
 
-Declaration fingerprints are SHA-256 over the declaration provider's canonical, compact, key-sorted JSON identity. The PanPhon profile pins `{"domain":[-1,0,1],"features":[...],"provider":"panphon"}`; feature sequence is declaration order and object keys are sorted. The envelope carries the resulting `sha256:` value as the model version.
+Full native restoration is distinct from restoring a public Form. The public
+Form JSON API remains the linear version 2 projection described below; native
+source-profile restoration, identity and complete-projection guards must be
+implemented before exposing incomplete foreign-source Forms.
 
 Only edges of the same relation declaration marked `acyclic` participate in one cycle check. A cycle formed by combining two separately acyclic relation types is allowed unless a future declaration explicitly gives that union a shared constraint.
+
+### Internal declared JSON values
+
+The internal `FeatureDeclaration` can opt into lossless native value storage
+with `value_name=(namespace, local_name)`. This is a qualified feature identity,
+not a prefix convention: identical local names in different namespaces remain
+different features, and duplicate qualified identities are refused. The event's
+tier must explicitly admit that feature. Declarations without this opt-in retain
+the existing IPA payload codec and do not promise arbitrary feature retention.
+
+Opted-in feature names are excluded from the unqualified legacy payload view,
+both when computing the graph cache key and when constructing the graph. Thus
+a foreign `arc` or `compatibility-unit` value has only its declared qualified
+meaning; its local name does not create a private IPA attribute or Unit. Real
+structural timing/spans and independently supplied legacy Units retain their
+own native meanings. An active legacy Unit still requires legacy `input` and
+`compatibility-index` declarations: opting those required support fields into
+foreign meanings in the same declaration context is refused, not silently read
+as legacy data. This is a mixed-context incompatibility, not a ban on those
+foreign names in source-only native graphs.
+
+Opted-in values use tiergraph's `json_value_graph` constructors and
+`JsonValueProfile`, including for scalar values. A qualified relation connects
+each event to its value root; native value nodes, membership relations and typed
+attributes retain nested objects and ordered arrays. Null, false and absence
+remain distinct. The internal `declared_value` reader uses the same native
+profile after graph restoration. Python objects, byte strings, non-string
+object keys and nonfinite numbers are refused instead of being stringified or
+dropped. This adds native structure, not embedded graph JSON or Python-object
+serialization. It is an internal storage prerequisite, not a CLTS import API or
+a change to ordinary IPA Form equality.
+
+Declared source/target tier restrictions on event-only relations are lowered
+to native relation-side declarations and enforced there. This does not infer
+sound-kind restrictions or a global maximum-one-host policy from per-instance
+arity; those require a specific profile's additional constraints.
 
 ## IPA values and linear JSON
 
