@@ -219,7 +219,11 @@ coverage.
 ## Integration status
 
 The shipped [inventory registry](inventories.md), [TextGrid profiles](textgrid.md),
-and comparison tooling are usable today. The CLTS source-preserving runtime
+and comparison tooling are usable today. The [CLTS/BIPA library](clts-audit.md)
+provides a frozen finite core feature snapshot, native Jaccard scoring, shared
+alignment cost packs, and a declaration census. Runtime scoring needs neither
+pyclts nor a source checkout; explicit development extraction remains separately
+pinned and validated. The CLTS source-preserving runtime
 bridge is separate work: the existing audit/approximation scripts do not yet
 constitute a public importer that retains source-only CLTS claims safely in
 `Form`. Full native graph persistence must be distinguished from the current
