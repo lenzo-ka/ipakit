@@ -77,6 +77,13 @@ the reading is rarely the spelling's: 'cat' is read as the palatal plosive
 
 #: The notation ipakit is written in, and the value most commands declare.
 IPA = "IPA"
+IPA_OR_MODEL = "IPA or finite model tokens"
+NOTATION_NOTES[IPA_OR_MODEL] = (
+    "Without --model/--model-declaration, the native input policy applies:\n"
+    + NOTATION_NOTES[IPA]
+    + "\nWith a finite model selector, --tokens-json supplies exact token arrays, "
+    "not IPA strings. No normalization or segmentation is inferred.\n"
+)
 
 
 class Command(ABC):

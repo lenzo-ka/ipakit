@@ -4220,15 +4220,23 @@ class RuleSet:
 
     @classmethod
     def from_file(
-        cls, path: str | Path, features: IPAFeatures | None = None, name: str = ""
+        cls,
+        path: str | Path,
+        features: IPAFeatures | None = None,
+        name: str = "",
+        *,
+        model: FiniteModel | None = None,
     ) -> RuleSet:
         """Load a rule set from a ``.rules`` file, one rule per line.
 
         Shipped sets live in ``ipakit/data/rules``; :func:`shipped` names
         them without a path.
+
+        ``model=`` forwards to the same finite parser as :meth:`parse`,
+        mutually exclusive with native ``features=``.
         """
         text = Path(path).read_text(encoding="utf-8")
-        return cls.parse(text, features, name=name or Path(path).stem)
+        return cls.parse(text, features, name=name or Path(path).stem, model=model)
 
     @property
     def optional(self) -> bool:

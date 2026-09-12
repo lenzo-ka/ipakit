@@ -173,27 +173,27 @@ def _preprocess_help(
         ['convert', 'help', 'to-cmu'] → ['convert', 'to-cmu', '--help']
         ['convert', 'to-cmu', 'help'] → ['convert', 'to-cmu', '--help']
     """
-    # Finite model tokens and paths are opaque, including the literal "help".
-    # Only command-position help is a help request in this command family.
-    if "model" in argv:
+    # A declared single-value option owns its value, including literal "help".
+    # Walk the existing parser tree, not a second model-specific argument parser.
+    protected: set[int] = set()
+    if "help" in argv:
         current = parser or create_parser()
-        root_parser = current
-        help_positions: set[int] = set()
-        model_command = False
         index = 0
         while index < len(argv):
             word = argv[index]
             if word == "help":
-                help_positions.add(index)
                 index += 1
                 continue
             action = current._option_string_actions.get(word.split("=", 1)[0])
             if action is not None:
-                # The framework's global selectors take one value; flags none.
                 # Leave unfamiliar arities to argparse, without guessing values.
                 if action.nargs not in (None, 0):
                     break
-                index += 1 + (action.nargs is None and "=" not in word)
+                if action.nargs is None and "=" not in word:
+                    protected.add(index + 1)
+                    index += 2
+                else:
+                    index += 1
                 continue
             subparsers = next(
                 (
@@ -203,24 +203,10 @@ def _preprocess_help(
                 ),
                 None,
             )
-            if subparsers is None or word not in subparsers.choices:
-                break
-            if current is root_parser and word == "model":
-                model_command = True
-            current = subparsers.choices[word]
+            if subparsers is not None and word in subparsers.choices:
+                current = subparsers.choices[word]
             index += 1
-            if model_command and not any(
-                isinstance(item, argparse._SubParsersAction)
-                for item in current._actions
-            ):
-                if argv[index : index + 1] == ["help"]:
-                    help_positions.add(index)
-                break
-        if model_command:
-            return [item for i, item in enumerate(argv) if i not in help_positions] + (
-                ["--help"] if help_positions else []
-            )
-    if "help" not in argv:
+    if not any(word == "help" and i not in protected for i, word in enumerate(argv)):
         # ``query`` predates the corpus DSL as an inventory-query group.
         # Keep those named subcommands while making the new form-level door
         # read naturally as ``ipakit query '<dsl>' IPA...``.
@@ -242,7 +228,7 @@ def _preprocess_help(
         return argv
 
     # Remove 'help' and collect non-help args
-    result = [a for a in argv if a != "help"]
+    result = [word for i, word in enumerate(argv) if word != "help" or i in protected]
 
     # Add --help at the end
     result.append("--help")

@@ -42,8 +42,11 @@ Finite-model module APIs have a separate measured witness in
 `tests/test_cli_model.py`: `model list`, `inspect` and `respell` reach the shipped
 resource accessor, ternary declaration codec and `FiniteModel.respell` directly.
 They require explicit selection and retain complete realization candidates.
-Generic typed schema construction and typed finite rule/transform construction
-remain library composition interfaces; this does not overload native wrappers
+`tests/test_cli_model_rules.py` additionally spies `Rule.recognize_tokens` and
+`RuleSet.derive_tokens` through finite `rules recognize/apply/trace`; installed
+entry-point tests exercise both named and supplied declarations. Generic typed
+schema/AST construction and transform construction remain library composition
+interfaces; this does not overload native wrappers
 or claim their flat-export reachability test measures every module method.
 
 The CLI exit contract applies to every reachable row: 0 for success, 1 for a

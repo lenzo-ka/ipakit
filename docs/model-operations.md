@@ -114,7 +114,10 @@ composition, an audio model or a new occurrence representation. Validated
 cross-model operations are described in [feature transforms](feature-transforms.md).
 The shared [rules engine](rules.md) also accepts explicitly bound finite models
 for supported context-sensitive operations; its typed library contracts and
-capability refusals remain distinct from the inspect/respell CLI slice above.
+capability refusals also govern the [finite rule commands](rules.md#explicit-finite-rules-on-the-command-line).
+Those commands share the explicit named/path selector above and receive token
+arrays via `--tokens-json`, never concatenated native forms. Generic typed AST
+construction and graph-preserving operations retain their separate boundaries.
 
 These immutable tables describe schema and inventory data; they are not
 TierGraph instances. TierGraph is the shared computational substrate developed
