@@ -251,6 +251,20 @@ assert len(declaration.model.rows) == 6367
 assert declaration.model.respell('p', {'voi': 1}).candidates == ('b', 'b̟', 'b̠')
 assert read_ternary_declaration(feature_models.resource_path('panphon')).model == declaration.model
 assert (feature_models.resource_path('panphon').parent / 'PANPHON-LICENSE.txt').is_file()
+# Load the actual installed console entry point, without a checkout script.
+import contextlib, importlib.metadata, io
+main = importlib.metadata.entry_points(group='console_scripts')['ipakit'].load()
+def command(args):
+    sys.argv = ['ipakit', 'model', *args, '-j']
+    stream = io.StringIO()
+    with contextlib.redirect_stdout(stream):
+        assert main() == 0
+    return json.loads(stream.getvalue())
+assert 'panphon' in command(['list'])
+assert command(['respell', '--model', 'panphon', '--token', 'p', '--changes-json', '{"voi":1}'])['candidates'] == ['b', 'b̟', 'b̠']
+table = pathlib.Path('supplied.xml')
+table.write_text('<model name="supplied" upstream="fixture" upstream-url="https://example.org" artifact="table" version="1" license="MIT" kind="features"><round-trip><external-to-house fidelity="lossy-with-report"/><house-to-external fidelity="lossy-with-report"/></round-trip><features><feature name="f"/></features><segments><s name="A/B #" f="-"/><s name="help" f="+"/></segments></model>', encoding='utf-8')
+assert command(['respell', '--model-declaration', str(table), '--token', 'A/B #', '--changes-json', '{"f":1}'])['candidates'] == ['help']
 print(declaration.model.identity)
 """
     proc = subprocess.run(
