@@ -16,6 +16,7 @@ design, and assumes you already know why you are reading it.
 
 | | |
 | --- | --- |
+| [capabilities.md](capabilities.md) | **Capabilities and comparisons.** The shared substrate, phonetic calculus, and house articulatory theory; [Pinyin as an existing different model](capabilities.md#pinyin-an-existing-different-model); comparisons with CLTS/BIPA, Panphon, and LingPy; implemented behavior versus integration plans. |
 | [glossary.md](glossary.md) | **Linguistics vocabulary.** Short definitions of the phonetics and phonology terms used throughout the documentation, with links to the guides that put each term to work. |
 | [tutorial-basics.md](tutorial-basics.md) | **Basic use.** Read one form, query its segments and classes, inspect declarations, apply a rule, and meet word boundaries. A short Python-first introduction whose values are executed by the documentation build. |
 | [tutorial.md](tutorial.md) | **Getting things done.** Organized by task — name a sound, compare two, search the inventory, convert notations, split a transcription, apply allophonic rules, write your own. Shows the CLI and the API side by side for each. Every value on the page is produced by running the call beside it. |
@@ -38,6 +39,9 @@ using it.
 
 | | |
 | --- | --- |
+| [systems.md](systems.md) | **Comparative systems.** House theory, Pinyin, kana, CLTS/BIPA, Panphon, and future models: different organizing principles on a shared computational substrate. |
+| [pinyin.md](pinyin.md) | **Pinyin.** Existing syllable-primary profile, semantic tone attachment, orthographic placement, optional IPA realization, and library boundaries. |
+| [kana.md](kana.md) | **Kana.** Mora-tier rendering and the existing bounded attested-adaptation API/CLI; declared coverage and refusals. |
 | [house-style.md](house-style.md) | **Writing sound for computation.** Why ties name units, stress sits on nuclei, spaces remain word boundaries, unclaimed intervals stay open, wild input announces its reading, and the expression grammar speaks to both regex and phonological traditions. |
 | [ties.md](ties.md) | **The unit model.** Tie bars, diacritics, what a `Segment` is made of, and why prosodic features live on the unit rather than in the feature bag. The foundation the other documents assume. |
 | [representation.md](representation.md) | **The canonical representation.** The settled one-data-structure, two-view architecture; `Form` as the sole public graph-backed value; public construction and navigation; the tiergraph artifact; linear JSON; codecs; and deferred mechanisms. |

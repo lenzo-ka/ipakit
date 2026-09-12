@@ -51,6 +51,9 @@ same model. See [the canonical representation](https://github.com/lenzo-ka/ipaki
 
 ## Documentation
 
+- **[Capabilities and comparisons](https://github.com/lenzo-ka/ipakit/blob/main/docs/capabilities.md)** — what the shared notation, algebra, structure, and articulation make possible, and how they complement CLTS/BIPA, Panphon, and LingPy.
+- **[Pinyin on the same substrate](docs/capabilities.md#pinyin-an-existing-different-model)** — an existing syllable-primary model with syllable-attached tone, separate orthographic rendering, and optional IPA realization.
+- **[Comparative systems](docs/systems.md)** — the house theory, [Pinyin](docs/pinyin.md), [kana](docs/kana.md), and external feature systems: different principles using common computational machinery.
 - **[docs/tutorial.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/tutorial.md)** — getting things done, from install to applying rule sets.
 - **[docs/README.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/README.md)** — index of every document, what it is for, and the order to read them.
 - Reference: [representation.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/representation.md) (the canonical graph), [ties.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/ties.md) (the unit model), [form.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/form.md) (compatibility projections), [rules.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/rules.md) (the rewrite notation), [distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) (what the metric does and does not claim).
