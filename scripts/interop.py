@@ -17,7 +17,9 @@ it.
     python scripts/interop.py all
 
 CLTS is external data under its own license and is NOT bundled: CI will not
-have it, so every subcommand exits 0 with a message when it is absent. Clone
+have it, so legacy measurements exit 0 with a message when it is absent.
+The declarations command instead exits nonzero on missing or malformed input.
+Clone
 <https://github.com/cldf-clts/clts> and point --clts at it, or set
 IPAKIT_CLTS_DIR. `pyclts` is a dev dependency (pip install -e ".[interop]")
 and is imported by this script only -- never by the library.
@@ -32,18 +34,24 @@ from __future__ import annotations
 import argparse
 import collections
 import csv
+import hashlib
 import itertools
+import json
 import os
 import statistics
 import sys
 import unicodedata
 import warnings
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
 # Make the package importable when run from a source checkout.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from ipakit import (
+    __version__ as ipakit_version,
+)
 from ipakit import (
     add_ties,
     distance,
@@ -58,19 +66,13 @@ from ipakit import (
     to_cmu,
     to_phone,
 )
+from ipakit.clts import FEATURES_TSV, SOUNDS_TSV, declaration_audit
+from ipakit.metric import metric_fingerprint
 
 #: Environment variable naming a clone of cldf-clts/clts. No default path is
 #: baked in: the repository is a separate 54 MB checkout under its own
 #: license, and a path from one machine is noise in this one.
 CLTS_ENV = "IPAKIT_CLTS_DIR"
-
-#: BIPA's own sound table, which is what "BIPA's segment set" means here: the
-#: graphemes CLTS ships as resolved sounds, generated and explicit alike.
-#: `pkg/transcriptionsystems/bipa/*.tsv` is the source those are built from
-#: and `data/graphemes.tsv` is every spelling any source dataset used, which
-#: is a different and much noisier question.
-SOUNDS_TSV = ("data", "sounds.tsv")
-FEATURES_TSV = ("data", "features.tsv")
 
 #: A floor, not an expected value: CLTS grows. Below this the clone is
 #: truncated or the path is wrong, and every count downstream is meaningless.
@@ -188,6 +190,19 @@ def open_clts(args: argparse.Namespace) -> Clts | None:
         print(f"CLTS not mounted: {root} has no {'/'.join(SOUNDS_TSV)}.")
         return None
     return Clts(root)
+
+
+def cmd_declarations(_: Clts | None, args: argparse.Namespace) -> int:
+    """Emit a strict, deterministic JSON declaration census (not mappings)."""
+    try:
+        if not args.clts:
+            raise ValueError(f"pass --clts or set {CLTS_ENV}")
+        result = declaration_audit(Path(args.clts).expanduser())
+    except (OSError, ValueError) as exc:
+        print(f"declarations: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -586,7 +601,7 @@ def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
 
 
 def cmd_similarity(clts: Clts, args: argparse.Namespace) -> int:
-    """CLTS has a similarity. Is it a metric?
+    """Compare CLTS feature-set similarity with native phonetic distance.
 
     `Sound.similarity` is an unweighted Jaccard over the set of feature-value
     *names*, so two sounds are as similar as the words they share. The
@@ -595,6 +610,41 @@ def cmd_similarity(clts: Clts, args: argparse.Namespace) -> int:
     """
     bipa = clts.bipa()
     ipa = load_ipa_features()
+    try:
+        resolver_version = metadata.version("pyclts")
+    except metadata.PackageNotFoundError:
+        resolver_version = "unknown (distribution metadata unavailable)"
+    print(f"pyclts version: {resolver_version}")
+    print(f"ipakit version: {ipakit_version}")
+    print("CLTS score: 1 - Sound.similarity (unweighted feature-set Jaccard)")
+    print("Native score: ipakit.distance with default configuration")
+    print("These are model comparisons, not perceptual-equivalence measurements.")
+    print(f"native metric fingerprint: {metric_fingerprint(ipa, ipa.phones)}")
+    print(
+        f"native declaration sha256 ipa.xml: {hashlib.sha256(ipa.xml_path.read_bytes()).hexdigest()}"
+    )
+    # Clts validates the catalog when loading; it does not supply pair scores.
+    for parts in (SOUNDS_TSV, FEATURES_TSV):
+        path = clts.root.joinpath(*parts)
+        print(
+            f"catalog-validation sha256 {'/'.join(parts)}: {hashlib.sha256(path.read_bytes()).hexdigest()}"
+        )
+    # CLTS.bipa initializes sibling systems too. Bind the entire loaded
+    # transcription-system tree, not just BIPA or selected file extensions.
+    system_root = clts.root / "pkg" / "transcriptionsystems"
+    resolver_files = system_root.rglob("*")
+    for path in sorted(resolver_files):
+        if path.is_file():
+            relative = path.relative_to(clts.root).as_posix()
+            print(
+                f"source sha256 {relative}: {hashlib.sha256(path.read_bytes()).hexdigest()}"
+            )
+    print(
+        "Population: registered native spellings resolved directly by BIPA; no house normalization."
+    )
+    print(
+        "Nearest-neighbor ties: first native declaration order (not tie-set agreement)."
+    )
     shared = []
     for phone in ipa.phones:
         sound = bipa[phone]
@@ -635,8 +685,8 @@ def cmd_similarity(clts: Clts, args: argparse.Namespace) -> int:
     for i in worst[: args.top]:
         (a, _), (b, _) = pairs[i]
         print(
-            f"  {a:4s} {b:4s}  ipakit {mine[i]:.4f} (rank {ranks_mine[i]:5d})"
-            f"   CLTS {theirs[i]:.4f} (rank {ranks_theirs[i]:5d})"
+            f"  {a:4s} {b:4s}  ipakit {mine[i]:.4f} (rank {ranks_mine[i]:7.1f})"
+            f"   CLTS 1-Jaccard {theirs[i]:.4f} (rank {ranks_theirs[i]:7.1f})"
         )
     return 0
 
@@ -1543,7 +1593,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name, func in {**COMMANDS, **PANPHON_COMMANDS, "all": cmd_all}.items():
+    for name, func in {
+        **COMMANDS,
+        **PANPHON_COMMANDS,
+        "all": cmd_all,
+        "declarations": cmd_declarations,
+    }.items():
         summary = ((func.__doc__ or name).strip().splitlines() or [name])[0]
         cmd = sub.add_parser(name, help=summary)
         cmd.set_defaults(

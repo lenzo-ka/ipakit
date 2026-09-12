@@ -1,5 +1,7 @@
 # Interoperating with the transcription ecosystem: assessment
 
+Current development tooling: [CLTS/BIPA declaration census and comparisons](../clts-audit.md).
+
 > Historical design record (2026-08-10). This assessment predates the completed tier-graph migration and is superseded as a description of the representation by [the canonical representation](../representation.md); its research findings and contemporaneous design reasoning are retained unchanged.
 
 Should ipakit interoperate with CLTS/BIPA, the speech-technology stack, external inventories and PanPhon — in which direction, and at what cost?
