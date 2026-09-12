@@ -1,13 +1,37 @@
 # What ipakit brings to an interoperability pipeline
 
-ipakit connects a declared phonetic notation to structured composition, feature
+ipakit connects declared representations to structured composition, feature
 queries and rewrites, inspectable comparison, and articulatory visualization.
-Its useful distinction is that these operations share a model of what the
-transcription asserts. It is more than a lookup from IPA glyphs to vectors,
+Its central architectural distinction is a common computational substrate:
+representations can be brought onto shared structural and algebraic machinery
+while retaining their own declarations and assumptions. It is more than a lookup from IPA glyphs to vectors,
 but it is not a replacement for a cross-linguistic catalog, a historical
 linguistics toolkit, or a speech synthesizer.
 
-## A spelling with computational meaning
+## Different representations, common computation
+
+The ipakit house system is one inventory-plus-algebra instance on this substrate,
+not the definition of the substrate itself. Its phonetic declarations and
+composition rules are one choice of semantics; other instances can retain their
+own. The aim is to raise representations onto common machinery, not to flatten
+them into the house feature inventory. A phoneset, a feature system, and a model of
+units and tiers are separate choices. Shared structure and operations make those
+choices inspectable and allow controlled comparisons: hold the computation and
+policy fixed while varying the representation, or hold the representation fixed
+while varying the computation.
+
+The existing cost-pack interface makes this concrete for comparison: models
+supply their own costs to a shared alignment operation, with segmentation, gap
+costs, and normalization identified separately. The tier-based representation
+provides the structural foundation for broader integration; source-preserving
+CLTS adaptation is still work in progress, as detailed below.
+
+Here, *fair comparison* means exposing and controlling the assumptions, not
+assuming the models assert the same distinctions. Coverage, refusals, conversion
+losses, and source-specific features remain part of the result. Common machinery
+does not by itself make scores commensurate or establish phonetic equivalence.
+
+## The house instance: a spelling with computational meaning
 
 The [house phonetic notation](house-style.md) gives ties, diacritics, stress,
 and boundaries explicit jobs. It deliberately distinguishes an over-tie
