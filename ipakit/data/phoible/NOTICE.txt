@@ -1,0 +1,39 @@
+PHOIBLE source-data aggregate — separate third-party terms
+
+PHOIBLE, Steven Moran, Daniel McCloy and upstream contributors.
+https://phoible.org/
+https://github.com/phoible/dev
+
+The exact revision and per-component SHA256 receipts are in manifest.json.
+This is a pinned development snapshot, not PHOIBLE 2.0 or a latest-data claim.
+All original CSV columns, inventory records, metadata mappings and bibliography
+are retained. The resources are not filtered by IPAkit's house IPA parser.
+
+File scopes:
+  data/phoible.csv.gz and data/phoible-references.bib.gz:
+    Current PHOIBLE dataset attribution and CC BY-SA 3.0 Unported terms apply.
+    See CC-BY-SA-3.0.txt and https://phoible.org/about.
+    The historical upstream data/LICENSE MIT notice is retained verbatim in
+    MIT-upstream.txt. This does not assert an OR-license grant for every file.
+  mappings/InventoryID-LanguageCodes.csv.gz and mappings/InventoryID-Bibtex.csv.gz:
+    Preserved unchanged under the extant upstream root GPLv3 notice;
+    see GPL-3.0.txt. No more-specific adopted mapping relicense is assumed.
+
+Upstream explains the historical/current notice discrepancy at
+https://github.com/phoible/dev/issues/384#issuecomment-3411788511.
+Its proposed future mapping relicense is not treated as an adopted grant.
+No donor raw-data/ files are included. The original bibliography and mapping
+tables retain source-level attribution; no replacement metadata is inferred.
+
+IPAkit packaging change, 2026-09-12: gzip transport only, empty filename and
+zero timestamp. Decompressed source bytes are unchanged. These are editable
+CSV/BibTeX sources, not compiled replacements. To recover any source file:
+  python3 -m gzip -d a-copy-of-the-file.csv.gz
+or use ipakit.phoible_source.read_source with an original upstream path.
+
+No endorsement is implied. Preserve this notice, original copyright/license
+and warranty notices, and the applicable license text when redistributing.
+This is a collection of separately licensed source components; IPAkit's BSD
+license for its original code does not relicense these resources. This notice
+does not make independent IPAkit code GPL or CC BY-SA, nor authorize a combined
+derivative to ignore the applicable component terms.

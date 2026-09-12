@@ -145,7 +145,16 @@ def test_status_missing_succeeds_without_claiming_readiness(
         *dev_sources.PRODUCERS,
         *dev_sources.PENDING,
     }
-    assert all(row["state"] == "unsupported" for row in report["results"][2:])
+    assert all(
+        row["state"] == "missing-data"
+        for row in report["results"]
+        if row["source"] in dev_sources.PRODUCERS
+    )
+    assert all(
+        row["state"] == "unsupported"
+        for row in report["results"]
+        if row["source"] in dev_sources.PENDING
+    )
 
 
 @pytest.mark.parametrize("operation", ["fetch", "build", "check", "discover"])
@@ -366,7 +375,10 @@ def test_multiple_producers_get_distinct_revision_caches(
         return {"state": "available"}
 
     monkeypatch.setattr(dev_sources, "run", run)
-    assert dev_sources.main(["status", "mfa", "clts", "--cache", str(tmp_path)]) == 0
+    assert (
+        dev_sources.main(["status", *dev_sources.PRODUCERS, "--cache", str(tmp_path)])
+        == 0
+    )
     assert calls == [
         (name, tmp_path / name / factory().revision)
         for name, factory in dev_sources.PRODUCERS.items()

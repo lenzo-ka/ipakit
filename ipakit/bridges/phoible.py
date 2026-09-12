@@ -1,16 +1,19 @@
-"""PHOIBLE doculect inventories, read from an external checkout in place."""
+"""PHOIBLE doculect inventories from shipped sources or an explicit checkout."""
 
 from __future__ import annotations
 
 import csv
+import io
 import os
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
 
 from ..features import IPAFeatures
 from ..models import Phoneset
+from ..phoible_source import read_source, source_policy
 from .base import Fidelity, RoundTripLeg, RoundTripReport
 from .provider import ProviderBridge
 
@@ -18,7 +21,7 @@ PHOIBLE_ENV = "IPAKIT_PHOIBLE"
 
 
 class PhoibleDataUnavailable(FileNotFoundError):
-    """The separately licensed PHOIBLE checkout was not mounted."""
+    """An explicitly selected PHOIBLE checkout is unavailable."""
 
 
 @dataclass(frozen=True)
@@ -92,13 +95,10 @@ class PhoibleAudit:
     refusal_reasons: tuple[tuple[str, int], ...]
 
 
-def _root(path: str | Path | None) -> Path:
+def _root(path: str | Path | None) -> Path | None:
     supplied = path if path is not None else os.environ.get(PHOIBLE_ENV)
     if supplied is None:
-        raise PhoibleDataUnavailable(
-            f"PHOIBLE data is unavailable; set {PHOIBLE_ENV} to its checkout "
-            "or pass path=..."
-        )
+        return None
     resolved = Path(supplied).expanduser()
     if resolved.name == "phoible.csv":
         resolved = resolved.parent.parent
@@ -123,12 +123,20 @@ class PhoibleBridge(ProviderBridge):
     """Provider for PHOIBLE inventories without merging rival doculects."""
 
     def __init__(self, path: str | Path | None = None) -> None:
-        """Open a PHOIBLE checkout named by ``path`` or :data:`PHOIBLE_ENV`."""
+        """Select explicit path, then environment, otherwise the shipped snapshot."""
         self.root = _root(path)
         super().__init__(
             "phoible",
-            "external-checkout",
-            f"generated from {self.root}",
+            (
+                "external-checkout"
+                if self.root is not None
+                else source_policy()["revision"]
+            ),
+            (
+                f"generated from {self.root}"
+                if self.root is not None
+                else "shipped PHOIBLE development snapshot (separately licensed source aggregate)"
+            ),
             RoundTripReport(
                 RoundTripLeg(
                     "external-to-house",
@@ -145,16 +153,23 @@ class PhoibleBridge(ProviderBridge):
         self._metadata = self._read_metadata()
         self._bibtex = self._read_bibtex()
 
+    def _open(self, name: str, *, encoding: str = "utf-8") -> TextIO:
+        if self.root is not None:
+            return (self.root / name).open(encoding=encoding, newline="")
+        return io.TextIOWrapper(
+            io.BytesIO(read_source(name)), encoding=encoding, newline=""
+        )
+
     def _read_metadata(self) -> dict[str, dict[str, str]]:
-        path = self.root / "mappings" / "InventoryID-LanguageCodes.csv"
-        with path.open(encoding="utf-8", newline="") as stream:
+        with self._open("mappings/InventoryID-LanguageCodes.csv") as stream:
             rows = list(csv.DictReader(stream))
         return {row["InventoryID"]: row for row in rows}
 
     def _read_bibtex(self) -> dict[str, tuple[str, ...]]:
         found: dict[str, list[str]] = defaultdict(list)
-        path = self.root / "mappings" / "InventoryID-Bibtex.csv"
-        with path.open(encoding="utf-8-sig", newline="") as stream:
+        with self._open(
+            "mappings/InventoryID-Bibtex.csv", encoding="utf-8-sig"
+        ) as stream:
             for row in csv.DictReader(stream):
                 key = row["BibtexKey"]
                 if key not in found[row["InventoryID"]]:
@@ -225,8 +240,7 @@ class PhoibleBridge(ProviderBridge):
         features = ipa or IPAFeatures()
         entries: list[PhoibleEntry] = []
         refusals: list[PhoibleRefusal] = []
-        path = self.root / "data" / "phoible.csv"
-        with path.open(encoding="utf-8", newline="") as stream:
+        with self._open("data/phoible.csv") as stream:
             for row_number, row in enumerate(csv.DictReader(stream), 2):
                 if row["InventoryID"] != key:
                     continue
@@ -275,8 +289,7 @@ class PhoibleBridge(ProviderBridge):
         inventory_ids: set[str] = set()
         refused_ids: set[str] = set()
         reasons: dict[str, int] = defaultdict(int)
-        path = self.root / "data" / "phoible.csv"
-        with path.open(encoding="utf-8", newline="") as stream:
+        with self._open("data/phoible.csv") as stream:
             for row_number, row in enumerate(csv.DictReader(stream), 2):
                 rows += 1
                 inventory_ids.add(row["InventoryID"])

@@ -19,6 +19,7 @@ from ipakit.extraction import (  # noqa: E402
     BuildResult,
     SourceError,
     mfa,  # noqa: E402
+    phoible,
 )
 
 # This is an operation-support census, not a second inventory/pin registry.
@@ -29,7 +30,6 @@ PENDING = {
     "icu": "promote X-SAMPA extraction and identify consumed ICU data",
     "inventory-cards": "existing script; downstream adapter pending",
     "cmudict": "local reader, no registered frozen-artifact producer",
-    "phoible": "external provider; no automatic redistribution/acquisition",
     "ipa-dict": "external provider; no automatic redistribution/acquisition",
     "xrmb": "licensed research corpus; manual external input",
     "internal": "internal generators retain their Makefile ownership",
@@ -80,7 +80,19 @@ def _clts_producer() -> _Producer:
     )
 
 
-PRODUCERS = {"mfa": _mfa_producer, "clts": _clts_producer}
+def _phoible_producer() -> _Producer:
+    policy = phoible.source_policy()
+    return _Producer(
+        policy["revision"],
+        policy["revision"],
+        policy["origin"],
+        tuple("/" + name for name in sorted(policy["inputs"])),
+        lambda path: phoible.validate_source(path).digests,
+        phoible.build,
+    )
+
+
+PRODUCERS = {"mfa": _mfa_producer, "clts": _clts_producer, "phoible": _phoible_producer}
 
 
 def git(source: Path | None, *arguments: str) -> str:

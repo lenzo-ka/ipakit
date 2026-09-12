@@ -283,6 +283,9 @@ class TestOrthographyIsNotIPA:
     NOT_A_NOTATION = {
         # 'cat' is a directory name here, not a transcription.
         ("corpus", "init"),
+        # 'cat' is Catalan's ISO 639-3 code, not a transcription.
+        ("phoible", "language"),
+        ("phoible", "spread"),
     }
 
     def test_the_sweep_is_not_vacuous(self):

@@ -319,3 +319,5 @@ table and the phone-distance matrix) against their generators in `scripts/`.
 ## License
 
 BSD 2-Clause — see [LICENSE](https://github.com/lenzo-ka/ipakit/blob/main/LICENSE).
+Third-party data retain their separate terms; the shipped PHOIBLE source
+aggregate carries [file-scoped notices and licenses](ipakit/data/phoible/NOTICE.txt).

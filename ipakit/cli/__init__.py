@@ -15,7 +15,7 @@ Organized into subcommands:
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
     ipakit inventory ...        Inspect named inventories and notation styles
-    ipakit phoible ...          Read mounted PHOIBLE doculect inventories
+    ipakit phoible ...          Read shipped or mounted PHOIBLE inventories
     ipakit textgrid ...         Read and write Praat TextGrid documents
     ipakit tract ...            Draw the mid-sagittal tract figure
     ipakit tiergraph ...        Render a form's tier graph as Graphviz DOT
@@ -126,7 +126,7 @@ Examples:
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
   ipakit info stress                   # Show the declared stress markers
-  ipakit phoible --help                # Mounted PHOIBLE inventory commands
+  ipakit phoible --help                # Shipped or mounted PHOIBLE inventories
   ipakit tract draw t -o t.svg         # Mid-sagittal figure for 't'
   ipakit tiergraph "kæt" -o kæt.dot    # Complete ordered tier graph
   ipakit tract heads                   # Head shapes a figure can be drawn on

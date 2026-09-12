@@ -41,3 +41,4 @@ recursive-include docs *.svg
 recursive-include ipakit/data/bridges *.xml *.rng
 recursive-include ipakit/data/textgrid *.json
 recursive-include ipakit/data/feature-models *.xml *.txt *.md
+recursive-include ipakit/data/phoible *.gz *.txt *.json

@@ -14,6 +14,8 @@ repos:
         exclude: ^tests/fixtures/textgrid/
       - id: end-of-file-fixer
         files: ^(ipakit|tests)/
+        # Verbatim upstream notice hashes are part of the PHOIBLE source pin.
+        exclude: ^ipakit/data/phoible/(MIT-upstream|GPL-3\.0)\.txt$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -22,7 +24,9 @@ repos:
         # and checked against the installed library. It is deliberately
         # committed and distributed with attribution and its MIT notice.
         # The guard stays at its default for everything else.
-        exclude: ^ipakit/data/feature-models/panphon\.xml$
+        # PHOIBLE's full original catalog compresses to 877 KB; its exact
+        # source/transport hashes and wheel/sdist contents are tested.
+        exclude: ^(ipakit/data/feature-models/panphon\.xml|ipakit/data/phoible/data/phoible\.csv\.gz)$
       - id: check-merge-conflict
 
   - repo: https://github.com/psf/black-pre-commit-mirror

@@ -1,0 +1,12 @@
+{
+  "revision": "b92abff4f4ca2544eece4d9eff5c707f8d508d0c",
+  "origin": "https://github.com/phoible/dev.git",
+  "inputs": {
+    "data/phoible.csv": "395e0977c3a5402af9cd5effd4ffdf0e47396336241fac534a4706e3cd8a7ecf",
+    "data/phoible-references.bib": "29da90c2b2b71ecc30cf8fab5fc6d194ada179909a57b3c65abc8e887c4d62f1",
+    "mappings/InventoryID-LanguageCodes.csv": "0b8bd77e1f8e84be4096a8c8c0332d6bc69b058a364664335440b910ac39fc06",
+    "mappings/InventoryID-Bibtex.csv": "fa4cf302b0c5df23c76849b70ec8719042709a2dec8c5715cf5f69469cb04f39",
+    "data/LICENSE": "1fd7aa5b633e044a8d9ca473a281d5e495a7186703b8c3b576344b20b910860e",
+    "LICENSE": "fe3eea6c599e23a00c08c5f5cb2320c30adc8f8687db5fcec9b79a662c53ff6b"
+  }
+}

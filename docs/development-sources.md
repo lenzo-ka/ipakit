@@ -41,6 +41,16 @@ the resolver. CLTS support here is not a productive or full semantic importer.
 
 ## Developer orchestration
 
+`ipakit.extraction.phoible.build(source)` builds the separately licensed frozen
+PHOIBLE source aggregate through the same `BuildResult`/`SourceIdentity`
+contract. `ipakit.phoible_source.source_policy()` owns its single revision/hash
+policy. Checkout revisions and every consumed data/notice hash are validated;
+archives require the same exact content. The builder preserves original source
+bytes in deterministic gzip transport, without parsing or filtering inventories.
+Its adapter supports status/fetch/build/check/discover with the same managed
+per-revision cache and read-only existing-destination behavior. See
+[PHOIBLE source scope and notices](phoible.md).
+
 Run these from a source checkout:
 
 ```sh
@@ -93,9 +103,10 @@ expected/observed identity where verified, diagnostics and an aggregate
 make build/check/fetch/discover exit nonzero. `check` also exits nonzero for
 artifact differences; a successful `build` may report `changed`.
 
-Lifecycle adapters currently support **MFA and the frozen CLTS core**. `all` includes explicit unsupported
+Lifecycle adapters currently support **MFA, the frozen CLTS core and PHOIBLE's
+accepted source aggregate**. `all` includes explicit unsupported
 entries for the census's eSpeak, Panphon, ICU, inventory-card, CMU-dictionary,
-PHOIBLE, ipa-dict, XRMB and internal-generator paths. Those entries are an
+ipa-dict, XRMB and internal-generator paths. Those entries are an
 operation-support boundary, not a duplicate inventory or dependency registry.
 Existing tools for these sources still work independently. A CLTS `status`
 result of `available` validates source inputs, not resolver installation or
