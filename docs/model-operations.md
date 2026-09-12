@@ -20,6 +20,9 @@ assert result.status == "ambiguous"
 
 Schemas preserve feature order and finite domains of strings, integers or
 booleans. Types are significant: integer zero and boolean false are distinct.
+Schema and bundle equality and hashing preserve those types; they can be used
+as dictionary/set keys without merging distinct values. Schema declaration
+order and inventory row order are significant, including in model identity.
 `None` always means a missing cell, distinct from an explicit domain zero; it is
 not permitted as a domain member. Rows have exactly one cell per feature.
 Directly constructed tokens are exact strings, without implicit normalization.

@@ -109,6 +109,54 @@ def test_boolean_domain_is_distinct_from_integer_domain() -> None:
     assert model.query({"f": 0}) == ("INT",)
 
 
+def test_typed_bundles_remain_distinct_dictionary_and_set_keys() -> None:
+    model = FiniteModel(
+        "typed",
+        FeatureSchema({"f": (False, 0)}),
+        {"BOOL": (False,), "INT": (0,)},
+    )
+    boolean, integer = model.read("BOOL"), model.read("INT")
+    assert boolean != integer
+    assert len({boolean, integer}) == 2
+    lookup = {boolean: "BOOL", integer: "INT"}
+    assert lookup[boolean] == "BOOL"
+    assert lookup[integer] == "INT"
+    assert model.read("BOOL") == boolean
+    assert hash(model.read("BOOL")) == hash(boolean)
+
+
+def test_schema_equality_hashing_preserve_types_and_order() -> None:
+    boolean = FeatureSchema({"f": (False,)})
+    integer = FeatureSchema({"f": (0,)})
+    assert boolean != integer
+    assert len({boolean, integer}) == 2
+    assert {boolean: "BOOL", integer: "INT"}[boolean] == "BOOL"
+    assert FeatureSchema({"f": (False,)}) == boolean
+    assert hash(FeatureSchema({"f": (False,)})) == hash(boolean)
+    assert FeatureSchema({"a": (0,), "b": (0,)}) != FeatureSchema(
+        {"b": (0,), "a": (0,)}
+    )
+    assert FeatureSchema({"f": (0, 1)}) != FeatureSchema({"f": (1, 0)})
+
+
+def test_related_value_objects_are_hashable_and_preserve_model_order() -> None:
+    first = fixture_model()
+    same = fixture_model()
+    reversed_rows = FiniteModel(
+        first.name, first.schema, dict(reversed(tuple(first.rows.items())))
+    )
+    assert first == same
+    assert first != reversed_rows
+    assert len({first, same, reversed_rows}) == 2
+    one, two = first.respell("TOKEN-1", {}), same.respell("TOKEN-1", {})
+    assert one == two
+    assert hash(one) == hash(two)
+    declaration = read_ternary_declaration(DECLARATION)
+    duplicate = read_ternary_declaration(DECLARATION)
+    assert declaration == duplicate
+    assert hash(declaration) == hash(duplicate)
+
+
 def test_row_and_domain_sequences_are_defensively_copied() -> None:
     domain = [0, 1]
     row = [0]

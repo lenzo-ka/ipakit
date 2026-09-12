@@ -33,7 +33,10 @@ class MissingToken(KeyError):
 class FeatureSchema:
     """Ordered finite domains; None denotes a missing cell, never domain zero."""
 
-    domains: Mapping[str, tuple[Scalar, ...]]
+    domains: Mapping[str, tuple[Scalar, ...]] = field(compare=False)
+    _key: tuple[tuple[str, tuple[tuple[type, Scalar], ...]], ...] = field(
+        init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         copied = {name: tuple(domain) for name, domain in self.domains.items()}
@@ -51,6 +54,14 @@ class FeatureSchema:
             if len({(type(value), value) for value in domain}) != len(domain):
                 raise InvalidFeature(f"feature {name!r} has duplicate domain values")
         object.__setattr__(self, "domains", MappingProxyType(copied))
+        object.__setattr__(
+            self,
+            "_key",
+            tuple(
+                (name, tuple((type(value), value) for value in domain))
+                for name, domain in copied.items()
+            ),
+        )
 
     @property
     def features(self) -> tuple[str, ...]:
@@ -73,10 +84,14 @@ class FeatureBundle:
     """A complete ordered bundle bound to a model's content identity."""
 
     model_id: str
-    values: tuple[Scalar | None, ...]
+    values: tuple[Scalar | None, ...] = field(compare=False)
+    _key: tuple[tuple[type, Scalar | None], ...] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "values", tuple(self.values))
+        object.__setattr__(
+            self, "_key", tuple((type(value), value) for value in self.values)
+        )
 
 
 @dataclass(frozen=True)
@@ -86,6 +101,9 @@ class Realization:
     bundle: FeatureBundle
     candidates: tuple[str, ...]
     source: SourceMetadata | None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "candidates", tuple(self.candidates))
 
     @property
     def status(self) -> Literal["none", "unique", "ambiguous"]:
@@ -102,10 +120,12 @@ class FiniteModel:
     one on its own input. Domain types participate in validation and identity.
     """
 
-    name: str
-    schema: FeatureSchema
-    rows: Mapping[str, tuple[Scalar | None, ...]]
-    source: SourceMetadata | None = None
+    # The content identity already includes types, declaration order and source.
+    # Mapping equality would discard order and equate Python's False with zero.
+    name: str = field(compare=False)
+    schema: FeatureSchema = field(compare=False)
+    rows: Mapping[str, tuple[Scalar | None, ...]] = field(compare=False)
+    source: SourceMetadata | None = field(default=None, compare=False)
     identity: str = field(init=False)
 
     def __post_init__(self) -> None:
