@@ -54,6 +54,12 @@ satisfies the same laws.
 
 ## Comparing the house theory with CLTS
 
+The [house expressivity goal](house-style.md#one-explicit-model-not-the-substrate)
+is to cover the other inventories' distinctions, with explicit exceptions.
+That goal motivates enhancement work; it does not make house primary or require
+foreign-to-foreign computation to pass through it. Coverage remains something
+to establish with constructive witnesses, not infer from token counts.
+
 The useful questions are directional: which distinctions correspond, which
 require interpretation, and which occur on only one side? A spelling match or
 matching feature label is not enough to establish the same articulatory
