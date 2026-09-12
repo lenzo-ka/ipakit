@@ -1,4 +1,4 @@
-"""The checked panphon declaration is complete, faithful, and dev-only."""
+"""The shipped Panphon declaration is complete and faithful to its source."""
 
 from __future__ import annotations
 
@@ -10,8 +10,9 @@ from pathlib import Path
 import pytest
 from ipakit.bridges.base import Fidelity
 from ipakit.bridges.costmodel import pack_from_declaration
+from ipakit.feature_models import resource_path
 
-DECLARATION = Path(__file__).parent / "panphon" / "panphon.xml"
+DECLARATION = resource_path("panphon")
 
 
 def _root() -> ET.Element:

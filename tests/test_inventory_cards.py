@@ -55,7 +55,7 @@ def test_every_declared_license_is_canonical_spdx() -> None:
     assert validate_spdx() > 170
 
 
-def test_cards_cover_registry_families_and_the_dev_comparison() -> None:
+def test_cards_cover_registry_families_and_the_shipped_feature_model() -> None:
     families = {name.partition(":")[0] for name in _registry()}
     declared = cards()
     assert {card.family for card in declared} == families | {"panphon"}

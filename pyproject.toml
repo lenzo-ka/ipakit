@@ -115,6 +115,9 @@ include = ["ipakit*"]
 ipakit = [
     "data/*.xml",
     "data/*.rng",
+    "data/feature-models/*.xml",
+    "data/feature-models/*.txt",
+    "data/feature-models/*.md",
     "data/phonemaps/*.xml",
     "data/phonemaps/*.rng",
     "data/supplements/*.xml",

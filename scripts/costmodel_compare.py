@@ -50,8 +50,9 @@ from ipakit.bridges.costmodel import (  # noqa: E402
     pack_from_declaration,
     set_feature_pack,
 )
+from ipakit.feature_models import resource_path  # noqa: E402
 
-DECLARATION = ROOT / "tests" / "panphon" / "panphon.xml"
+DECLARATION = resource_path("panphon")
 CORPUS = ROOT / "tests" / "panphon" / "shared-corpus.txt"
 
 #: The policies this script knows how to name. `faithful` is each model as
