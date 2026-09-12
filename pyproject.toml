@@ -55,19 +55,11 @@ dependencies = [
     # exported names says nothing about members. Migrating found them; diffing
     # could not.
     #
-    # 0.2.0 IS NOT ON PyPI YET. This stays a version requirement rather than a
-    # `git+https://` direct reference on purpose: PyPI refuses to accept a
-    # distribution whose metadata carries a direct URL, so pinning to a git sha
-    # here would make ipakit itself unpublishable -- the opposite of what the
-    # pin is for. Until tiergraph publishes, supply it out of band and this
-    # requirement resolves against what is installed:
-    #
-    #   pip install -e /path/to/tiergraph     # self-reports 0.2.0
-    #   pip install -e .
-    #
-    # Verified against the tiergraph checkout at main 6276260: tests/tiergraph
-    # is 151 passed, 2 failed, and both failures are goldens carrying the old
-    # wire values rather than code defects.
+    # Tiergraph 0.2.0 is published on PyPI (2026-09-05). Keep a version
+    # requirement rather than a direct Git URL so IPAkit remains publishable.
+    # Before that publication, development supplied the checkout out of band.
+    # Historical migration check at tiergraph main 6276260: tests/tiergraph
+    # reported 151 passed and 2 old-wire golden failures, not code defects.
     "tiergraph>=0.2.0,<0.3.0",
 ]
 

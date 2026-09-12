@@ -2,6 +2,28 @@
 
 `Form` is the sole public stored representation. IPA text, CMU tokens, JSON, rendering, rewriting, alignment, and gestures are projections around one validated tier graph; the kernel modules remain package-internal.
 
+## Internal source-profile boundary
+
+The internal CLTS source profile constructs and restores native TierGraph
+documents independently of house IPA. Its strict occurrence input preserves
+literal ordered tokens, optional `start` plus `duration` in seconds, and supplied
+source tone-host links. Complete qualified declarations and provider/profile
+bindings remain present even for empty input. Resolution outcomes are explicitly
+supplied and validated against the caller's declared source schema; this path
+does not run a resolver or infer claims from feature-set labels.
+
+This is a constructor-layout profile, not arbitrary graph adoption: restoration
+refuses changed declarations, stale bindings, extra content or other layouts
+instead of silently dropping them. It uses the native codec and constructors,
+not a second graph format. Its native profile report leaves external resolver
+truth, house coverage and public consumer admission explicitly undecided.
+
+Source-only or mixed public `Form` admission remains closed. This internal path
+does not change Form identity, IPA rendering, rewriting, distance or animation.
+The finite CLTS scoring artifact alone is not a full structured resolution
+record; integrating real source claims and linguistic hosts requires separately
+validated provider/mapping contracts.
+
 ## One data structure, two views
 
 The graph is the store: `Form` owns one validated graph-backed representation. The linear view—units, intervals, and the segmental spine—is computed from that store and is the computation surface read by rules, distance, and syllabification. The tiergraph format is the portable artifact, a serialization of the store rather than a third representation.
