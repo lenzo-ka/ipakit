@@ -47,6 +47,9 @@ repos:
     rev: v2.1.0
     hooks:
       - id: mypy
+        # Native GraphProfile subclasses need the same runtime types CI installs.
+        # tests/test_ci_contract.py keeps this requirement equal to pyproject.
+        additional_dependencies: ["tiergraph>=0.2.0,<0.3.0"]
         # NOT widened to match the others. `pyproject.toml` sets
         # `files = ["ipakit"]` deliberately, because the lint job installs
         # `.[lint]`, which has no pytest -- a scope reaching a test file

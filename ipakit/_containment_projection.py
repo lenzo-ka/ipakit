@@ -134,15 +134,23 @@ def _attach_declared_values(
 ) -> tg.Graph:
     """Compose native value graphs and qualified event-to-value relations."""
     values = _declared_values(source)
-    if not values:
+    features = tuple(
+        f for f in source.declarations.features if f.value_name is not None
+    )
+    if not features:
         return graph
     namespaces = list(graph.namespaces)
     tiers = list(graph.tiers)
     declarations = list(graph.relation_declarations)
     attributes = list(graph.attribute_declarations)
     relations = list(graph.polyadic_relations)
-    feature_names = tuple(dict.fromkeys(name for _, name, _, _ in values))
-    for name in feature_names:
+    for feature in features:
+        assert feature.value_name is not None
+        name = tg.QualifiedName(*feature.value_name)
+        if name.namespace == _NAMESPACE or name.namespace.startswith(_NAMESPACE + "/"):
+            raise GraphValidationError(
+                "native feature identity uses reserved namespace"
+            )
         if not any(ns.namespace == name.namespace for ns in namespaces):
             namespaces.append(
                 tg.NamespaceDeclaration(
@@ -155,16 +163,20 @@ def _attach_declared_values(
                 tg.RelationSideDeclaration(
                     (tg.RelationEndpointKind.ITEM,),
                     tuple(
-                        dict.fromkeys(
-                            event_refs[ref].tier for ref, n, _, _ in values if n == name
+                        (
+                            tg.QualifiedName(*tier.native_name)
+                            if tier.native_name is not None
+                            else _name(f"tier-{index}")
                         )
+                        for index, tier in enumerate(source.declarations.tiers)
+                        if feature.name in tier.features
                     ),
                     1,
                     1,
                 ),
                 tg.RelationSideDeclaration(
                     (tg.RelationEndpointKind.ITEM,),
-                    tuple(root.tier for _, n, _, root in values if n == name),
+                    None,
                     1,
                     1,
                 ),
@@ -676,7 +688,11 @@ class ContainmentProjection:
         refs = source.refs
         payloads = _legacy_payloads(source)
         tier_names = {
-            declaration.name: _name(f"tier-{index}")
+            declaration.name: (
+                tg.QualifiedName(*declaration.native_name)
+                if declaration.native_name is not None
+                else _name(f"tier-{index}")
+            )
             for index, declaration in enumerate(source.declarations.tiers)
         }
         by_tier = {
@@ -736,7 +752,11 @@ class ContainmentProjection:
                     "supports item endpoints only"
                 )
         containment_names = {
-            declaration.name: _name(f"contains-{index}")
+            declaration.name: (
+                tg.QualifiedName(*declaration.native_name)
+                if declaration.native_name is not None
+                else _name(f"contains-{index}")
+            )
             for index, declaration in enumerate(containment)
         }
         boundary_relation_names = {
@@ -749,12 +769,18 @@ class ContainmentProjection:
         }
         relation_names = {
             declaration.name: (
-                _name(declaration.name)
-                if declaration.name in boundary_relation_names
-                or declaration.name in preserved_relation_names
-                or declaration.choice
-                or declaration.member_of is not None
-                else containment_names.get(declaration.name, _name(f"relation-{index}"))
+                tg.QualifiedName(*declaration.native_name)
+                if declaration.native_name is not None
+                else (
+                    _name(declaration.name)
+                    if declaration.name in boundary_relation_names
+                    or declaration.name in preserved_relation_names
+                    or declaration.choice
+                    or declaration.member_of is not None
+                    else containment_names.get(
+                        declaration.name, _name(f"relation-{index}")
+                    )
+                )
             )
             for index, declaration in enumerate(source.declarations.relations)
         }
@@ -852,7 +878,9 @@ class ContainmentProjection:
                     relation_side(declaration, "source"),
                     relation_side(declaration, "target"),
                     unique_sources=(
-                        declaration.choice or declaration.member_of is not None
+                        declaration.unique_sources
+                        or declaration.choice
+                        or declaration.member_of is not None
                     ),
                     distinct_targets=declaration.choice,
                     acyclic=declaration.acyclic,
@@ -947,6 +975,18 @@ class ContainmentProjection:
 
         opcodes: tuple[Opcode, ...] = (
             DeclareNamespace(tg.NamespaceDeclaration(_PREFIX, _NAMESPACE)),
+            *(
+                DeclareNamespace(
+                    tg.NamespaceDeclaration(f"ipakit-declared-{index}", ns)
+                )
+                for index, ns in enumerate(
+                    dict.fromkeys(
+                        name.namespace
+                        for name in (*tier_names.values(), *relation_names.values())
+                        if name.namespace != _NAMESPACE
+                    )
+                )
+            ),
             *(DeclareTier(tier.declaration) for tier in tiers),
             DeclareTier(tg.TierDeclaration(clock_name, "clock")),
             *(DeclareRelation(declaration) for declaration in declarations),

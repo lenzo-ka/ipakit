@@ -53,9 +53,11 @@ class FeatureDeclaration:
 class TierDeclaration:
     name: str
     features: frozenset[str] = frozenset()
+    native_name: tuple[str, str] | None = None
 
     def __post_init__(self) -> None:
         _validate_name(self.name, "tier")
+        _validate_native_name(self.native_name)
 
 
 @dataclass(frozen=True)
@@ -75,9 +77,12 @@ class RelationDeclaration:
     containment: bool = False
     choice: bool = False
     member_of: str | None = None
+    native_name: tuple[str, str] | None = None
+    unique_sources: bool = False
 
     def __post_init__(self) -> None:
         _validate_name(self.name, "relation")
+        _validate_native_name(self.native_name)
         _validate_arity(self.source_arity, "source")
         _validate_arity(self.target_arity, "target")
         if self.containment and not self.acyclic:
@@ -109,6 +114,14 @@ class Declarations:
         ]
         if len(value_names) != len(set(value_names)):
             raise GraphValidationError("duplicate native feature identity")
+        native_tiers = [tier.native_name for tier in self.tiers if tier.native_name]
+        native_relations = value_names + [
+            relation.native_name for relation in self.relations if relation.native_name
+        ]
+        if len(native_tiers) != len(set(native_tiers)):
+            raise GraphValidationError("duplicate native tier identity")
+        if len(native_relations) != len(set(native_relations)):
+            raise GraphValidationError("duplicate native relation identity")
         _unique((item.name for item in self.relations), "relation declaration")
         feature_names = {item.name for item in self.features}
         relation_names = {item.name for item in self.relations}
@@ -232,6 +245,21 @@ class ResolvedReference:
 def _validate_name(name: str, kind: str) -> None:
     if not name:
         raise GraphValidationError(f"{kind} name must not be empty")
+
+
+def _validate_native_name(name: tuple[str, str] | None) -> None:
+    if name is None:
+        return
+    from tiergraph import QualifiedName
+
+    if not isinstance(name, tuple) or len(name) != 2:
+        raise GraphValidationError("native_name must be a namespace/local pair")
+    qualified = QualifiedName(*name)
+    reserved = "https://ipakit.dev/tiergraph/containment-projection/v1"
+    if qualified.namespace == reserved or qualified.namespace.startswith(
+        reserved + "/"
+    ):
+        raise GraphValidationError("native identity uses reserved namespace")
 
 
 def _validate_arity(arity: tuple[int, int | None], side: str) -> None:

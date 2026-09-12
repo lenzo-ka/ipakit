@@ -11,6 +11,47 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _mypy_runtime_requirement(config: str) -> str:
+    """Read the isolated hook's explicit dependency without adding a YAML dep."""
+    hook = re.search(r"(?m)^      - id: mypy\n(?P<body>(?:[ \t]+.*\n|\n)*)", config)
+    assert hook is not None, "mypy hook must be declared"
+    dependencies = re.search(r"additional_dependencies:\s*(\[[^\n]+])", hook["body"])
+    assert dependencies is not None, "mypy hook must install native runtime types"
+    values = ast.literal_eval(dependencies[1])
+    requirements = [
+        value for value in values if _requirement_name(value) == "tiergraph"
+    ]
+    assert len(requirements) == 1, "one native runtime requirement must be declared"
+    return requirements[0]
+
+
+def test_isolated_mypy_has_the_declared_native_runtime():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    expected = next(
+        value
+        for value in project["project"]["dependencies"]
+        if _requirement_name(value) == "tiergraph"
+    )
+    config = (ROOT / ".pre-commit-config.yaml").read_text()
+    assert _mypy_runtime_requirement(config) == expected
+
+
+def test_mypy_runtime_guard_distinguishes_missing_and_changed_requirement():
+    config = (ROOT / ".pre-commit-config.yaml").read_text()
+    declared = _mypy_runtime_requirement(config)
+    assert (
+        _mypy_runtime_requirement(config.replace(declared, "tiergraph==0.1.0"))
+        != declared
+    )
+    missing = re.sub(r"(?m)^\s*additional_dependencies:.*\n", "", config)
+    try:
+        _mypy_runtime_requirement(missing)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("missing runtime dependency was not detected")
+
+
 def _requirement_name(requirement: str) -> str:
     match = re.match(r"[A-Za-z0-9_.-]+", requirement)
     assert match is not None, requirement
