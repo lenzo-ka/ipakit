@@ -129,6 +129,8 @@ class CostPack:
     #: pack is inventory-relative. None for the portable packs.
     reference: str | None = None
     bridge: Bridge | None = None
+    #: A model may require explicit tokens to satisfy its own unit constructor.
+    validate_token: Callable[[str], object] | None = None
 
     @property
     def budget_ratio(self) -> float:
@@ -174,6 +176,9 @@ def align_under(
     substituting another algebra; running both would charge every comparison
     for two full grids merely to discard one result.
     """
+    if pack.validate_token is not None:
+        for token in source.tokens + target.tokens:
+            pack.validate_token(token)
     return ipa._align(
         list(source.tokens),
         list(target.tokens),
@@ -478,6 +483,7 @@ def house_pack(ipa: IPAFeatures, policy: CostPolicy = FAITHFUL) -> CostPack:
         indel_ceiling=2.0 * policy.indel_weight,
         tokenize=_house_segmentation(ipa),
         policy=policy,
+        validate_token=lambda token: ipa.segment(token, strict=True),
     )
 
 

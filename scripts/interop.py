@@ -226,6 +226,8 @@ def cmd_clts_snapshot(_: Clts | None, args: argparse.Namespace) -> int:
                     "research-token snapshots cannot replace the shipped core"
                 )
             tokens = json.loads(Path(args.tokens_json).read_text(encoding="utf-8"))
+            if not isinstance(tokens, list):
+                raise ValueError("research tokens must be a JSON array")
             print(extract_snapshot(source, tokens=tokens).dumps(), end="")
             return 0
         result = build_core(source)

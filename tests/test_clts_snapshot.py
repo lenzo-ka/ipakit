@@ -20,9 +20,15 @@ from ipakit.bridges.costmodel import (
     compare,
     compare_token_corpus,
     compare_tokens,
+    house_pack,
     set_feature_pack,
 )
-from ipakit.extraction import SourceContentError, SourceMissingError, SourceVersionError
+from ipakit.extraction import (
+    SourceContentError,
+    SourceError,
+    SourceMissingError,
+    SourceVersionError,
+)
 from ipakit.feature_sets import FeatureSets, OutsideDomain, jaccard
 
 
@@ -92,6 +98,45 @@ def test_explicit_tokens_use_actual_existing_fold(
     )
     with pytest.raises(ValueError, match="segmentation-required"):
         compare(ipa, pack, "a", "p")
+
+
+@pytest.mark.parametrize("token", ["ai", "unknown", "a💡"])
+@pytest.mark.parametrize("sides", ["source", "target", "both"])
+def test_house_explicit_tokens_use_strict_single_unit_constructor(
+    token: str, sides: str
+) -> None:
+    ipa = load_ipa_features()
+    source = Segmentation((token,) if sides != "target" else ())
+    target = Segmentation((token,) if sides != "source" else ())
+    with pytest.raises(ValueError):
+        align_under(ipa, house_pack(ipa), source, target)
+
+
+@pytest.mark.parametrize("tokens", [{"a": True}, 7, False, "a", [], ["a", "a"]])
+def test_research_token_container_refused_before_live_source(
+    tokens: object, tmp_path: Path
+) -> None:
+    with pytest.raises(SourceError, match="unique sequence"):
+        clts.extract_snapshot(tmp_path, tokens=tokens)
+
+
+@pytest.mark.parametrize("tokens", [{"a": True}, 7, False, None])
+def test_research_cli_container_errors_are_controlled(
+    tokens: object, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from scripts import interop
+
+    path = tmp_path / "tokens.json"
+    path.write_text(json.dumps(tokens))
+    assert (
+        interop.main(
+            ["--clts", str(tmp_path), "clts-snapshot", "--tokens-json", str(path)]
+        )
+        == 1
+    )
+    output = capsys.readouterr()
+    assert not output.out
+    assert "JSON array" in output.err
 
 
 def test_shipped_snapshot_keeps_literal_source_and_nfd_aliases() -> None:
@@ -240,6 +285,8 @@ def test_cli_comparison_uses_library_token_corpus(
     assert report["corpus"] == corpus
     clts_rows = [row for row in report["rows"] if row["pack"].startswith("set/clts/")]
     assert [row["status"] for row in clts_rows] == ["scored", "refused"]
+    house_rows = [row for row in report["rows"] if row["pack"] == "ipakit/house"]
+    assert [row["status"] for row in house_rows] == ["scored", "refused"]
 
 
 @pytest.fixture

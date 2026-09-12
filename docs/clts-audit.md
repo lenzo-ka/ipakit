@@ -40,6 +40,12 @@ separate work.
 
 ### Substitute the cost model, not the aligner
 
+Explicit tokens remain subject to each model's domain: the native house pack
+validates each with IPAkit's strict single-unit constructor. A string such as
+`ai` is not silently treated as one native segment. Finite feature-set packs
+instead require an exact key in their own artifact; neither model reparses
+the corpus into a replacement sequence.
+
 ```python
 from ipakit import load_ipa_features
 from ipakit.bridges.costmodel import (

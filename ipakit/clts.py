@@ -504,7 +504,8 @@ def extract_snapshot(root: Path, *, tokens: Sequence[str] | None = None) -> Snap
     renderings remain separate. Research extraction never enlarges shipping.
     """
     if tokens is not None and (
-        isinstance(tokens, str)
+        not isinstance(tokens, Sequence)
+        or isinstance(tokens, str)
         or not tokens
         or any(not isinstance(k, str) or not k for k in tokens)
         or len(tokens) != len(set(tokens))

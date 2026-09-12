@@ -82,7 +82,7 @@ dependencies = [
 #          scripts/xsampa_table.py and the X-SAMPA cross-check. Dev-only, NEVER
 #          imported at runtime (ipakit ships the generated table in data/).
 #   interop - pyclts and panphon, the two libraries scripts/interop.py measures
-#          ipakit against. Same terms as icu: dev-only, NEVER imported at
+#          ipakit against. Same terms as icu: dev-only, NEVER imported
 #          during frozen runtime use. Explicit library extraction uses pyclts
 #          as the pinned oracle for the shipped finite BIPA snapshot; its data
 #          retain their separate attribution/license. Live measurements are
