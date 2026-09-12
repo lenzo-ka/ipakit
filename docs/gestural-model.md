@@ -14,7 +14,7 @@ gesture = (articulator, location, degree)
 
 `arc`, `offset`, and `articulator` are read from the inventory's tract declarations. This is the tract-variable framing of articulatory phonology (Browman & Goldstein): tongue-tip constriction location and degree, tongue-body constriction location and degree, lip aperture and protrusion, each an independent gestural dimension.
 
-## What it unifies
+## Proposed unification
 
 Under the proposed larger model, a segment would be a **set of simultaneous gestures**, and several things still modeled by separate machinery would become one thing:
 
@@ -26,13 +26,13 @@ Under the proposed larger model, a segment would be a **set of simultaneous gest
 | `w` | tongue dorsum @ velar, approximation + lips, rounded |
 | `ʘ` | lower lip @ bilabial, closure + tongue dorsum @ velar, closure (the velaric mechanism) |
 
-So **secondary articulation and double articulation are not different mechanisms** — both are multiple simultaneous gestures, differing only in the degree of the second one (closure for a double articulation, approximation for a secondary). The current `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` is a fudge factor standing in for exactly this distinction; the gestural model derives it instead of asserting it.
+In this proposed model, **secondary articulation and double articulation would share a mechanism**: multiple simultaneous gestures, differing in the degree of the second one (closure for a double articulation, approximation for a secondary). The implemented metric still declares `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py`; deriving that weight from gesture structure remains a proposal, not a property of the landed projection backend.
 
-Clicks likewise stop being a special case: a click *is* two closure gestures with a velaric airstream between them, which is what the airstream correction already recorded featurally.
+The proposed account would likewise represent a click as two closure gestures with a velaric airstream between them, connecting the gestural account to distinctions already recorded featurally.
 
-## What it fixes in distance
+## Proposed distance change
 
-Today the metric best-matches place components by nearest neighbor, which is a heuristic. With articulators, gestures **match by articulator** — tongue tip against tongue tip, lips against lips — which is the natural key and needs no heuristic at all. Unmatched gestures (one segment has a lip gesture the other lacks) become gaps, exactly as constituents do now in the ordered alignment.
+The current metric best-matches place components by nearest neighbor. The proposal would instead match gestures **by articulator** — tongue tip against tongue tip, lips against lips — with unmatched gestures charged as gaps. The landed gesture projection does not implement that replacement distance algorithm.
 
 ## What it gives the renderer
 
@@ -50,9 +50,9 @@ A gesture says which articulator goes where, to what degree. Executing or drawin
 2. **Projection backend (landed)**: graph occurrences can carry gestures and timed targets, and animation consumes them with progressive fallback.
 3. **Dynamic gestural model (not implemented)**: segments carry gesture sets as identity, secondary and double articulation unify, distance matches by articulator, and phase relations become continuous.
 
-Step 1 is strictly a subset of what step 2 needs, so nothing done now has to be undone.
+The landed declaration and projection layers provide inputs for the proposed dynamic model; they do not settle its identity, distance or phase-relation contracts.
 
-## Open questions for step 2
+## Open questions for the dynamic model
 
 - Do gestures live on `Constituent` (one bundle, several gestures) or does a constituent *become* a gesture set? The former preserves the current structure; the latter is cleaner but rewrites composition.
 - Lip protrusion/rounding is currently a feature (`rounded`), not a gesture. Under the model it is a lip gesture — worth unifying, or worth leaving as a feature for compatibility?
