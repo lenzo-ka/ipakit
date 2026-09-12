@@ -223,3 +223,157 @@ def test_legacy_graph_is_not_opted_in():
     builder.append_input_atom("token", {"claims": "legacy omission"})
     graph = ContainmentProjection.from_input(builder.build_input()).graph
     assert not any("declared-values" in ns.namespace for ns in graph.namespaces)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "spelling",
+        "prominence",
+        "atom",
+        "output",
+        "exemplar",
+        "notes",
+        "kind",
+        "articulator",
+        "source-value",
+        "arc",
+        "offset",
+        "target-index",
+        "compatibility-unit",
+        "compatibility-interval",
+        "compatibility-index",
+        "input",
+    ],
+)
+@pytest.mark.parametrize(
+    "value", [True, False, 0, 0.74, "foreign", {"nested": [None, True, 3]}]
+)
+def test_foreign_names_do_not_inherit_private_payload_semantics(name, value):
+    builder = FactBuilder(declarations(FeatureDeclaration(name, ("urn:foreign", name))))
+    builder.append_input_atom("token", {name: value})
+    source = builder.build_input()
+    projection = ContainmentProjection.from_input(source)
+    graph = tg.loads(tg.dumps(projection.graph))
+    event = projection.old_to_new[source.refs[0]]
+    assert_json_value(
+        declared_value(graph, event, tg.QualifiedName("urn:foreign", name)), value
+    )
+    item = next(t for t in graph.tiers if t.declaration.name == event.tier).items[
+        event.index
+    ]
+    # Independent literal expectation: only the real structural span, never a
+    # private spelling, numeric attribute, or compatibility interpretation.
+    assert {a.name.local_name: a.lexical for a in item.attributes} == {
+        "structural-duration": "1"
+    }
+
+
+def test_foreign_names_do_not_override_actual_timing_and_span():
+    builder = FactBuilder(
+        declarations(
+            FeatureDeclaration("timing-start", ("urn:foreign", "timing-start")),
+            FeatureDeclaration(
+                "structural-duration", ("urn:foreign", "structural-duration")
+            ),
+        )
+    )
+    builder.append_input_atom(
+        "token",
+        {"timing-start": False, "structural-duration": {"claim": 99}},
+        timing=Timing(0.25, 0.1),
+    )
+    source = builder.build_input()
+    projection = ContainmentProjection.from_input(source)
+    graph = tg.loads(tg.dumps(projection.graph))
+    event = projection.old_to_new[source.refs[0]]
+    assert_json_value(
+        declared_value(graph, event, tg.QualifiedName("urn:foreign", "timing-start")),
+        False,
+    )
+    assert_json_value(
+        declared_value(
+            graph, event, tg.QualifiedName("urn:foreign", "structural-duration")
+        ),
+        {"claim": 99},
+    )
+    item = next(t for t in graph.tiers if t.declaration.name == event.tier).items[
+        event.index
+    ]
+    actual = {a.name.local_name: float(a.lexical) for a in item.attributes}
+    assert actual == {
+        "structural-duration": 1,
+        "timing-start": 0.25,
+        "timing-duration": 0.1,
+    }
+
+
+@pytest.mark.parametrize("foreign_support", ["input", "compatibility-index"])
+def test_active_legacy_unit_cannot_reinterpret_foreign_support(foreign_support):
+    from ipakit import IPAFeatures
+
+    names = ("compatibility-unit", "input", "compatibility-index")
+    builder = FactBuilder(
+        declarations(
+            *(
+                FeatureDeclaration(
+                    name, ("urn:foreign", name) if name == foreign_support else None
+                )
+                for name in names
+            )
+        )
+    )
+    builder.append_input_atom(
+        "token",
+        {
+            "compatibility-unit": IPAFeatures().read("a").units[0],
+            "input": True,
+            "compatibility-index": 0,
+        },
+    )
+    with pytest.raises(
+        GraphValidationError, match="requires legacy input and compatibility-index"
+    ):
+        ContainmentProjection.from_input(builder.build_input())
+
+
+def test_legacy_unit_and_independent_foreign_values_coexist():
+    from ipakit import IPAFeatures
+
+    builder = FactBuilder(
+        declarations(
+            FeatureDeclaration("compatibility-unit"),
+            FeatureDeclaration("input"),
+            FeatureDeclaration("compatibility-index"),
+            FeatureDeclaration("arc", ("urn:foreign", "arc")),
+            FeatureDeclaration("text", ("urn:foreign", "text")),
+        )
+    )
+    builder.append_input_atom(
+        "token",
+        {
+            "compatibility-unit": IPAFeatures().read("a").units[0],
+            "input": True,
+            "compatibility-index": 0,
+            "arc": True,
+            "text": "foreign",
+        },
+    )
+    source = builder.build_input()
+    projection = ContainmentProjection.from_input(source)
+    graph = tg.loads(tg.dumps(projection.graph))
+    event = projection.old_to_new[source.refs[0]]
+    assert_json_value(
+        declared_value(graph, event, tg.QualifiedName("urn:foreign", "arc")), True
+    )
+    assert_json_value(
+        declared_value(graph, event, tg.QualifiedName("urn:foreign", "text")), "foreign"
+    )
+    item = next(t for t in graph.tiers if t.declaration.name == event.tier).items[
+        event.index
+    ]
+    actual = {a.name.local_name: a.lexical for a in item.attributes}
+    assert actual["text"] == "a"
+    assert actual["input"] == "true"
+    assert actual["compatibility-index"] == "0"
+    assert "arc" not in actual

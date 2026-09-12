@@ -209,6 +209,40 @@ def declared_value(graph: tg.Graph, event: tg.ItemRef, name: tg.QualifiedName) -
     return replace(template, graph=graph).value(root)
 
 
+def _legacy_payloads(
+    source: ContainmentProjectionInput,
+) -> dict[str, tuple[tuple[str, tg.XsdType, str], ...]]:
+    """Dispatch foreign declared values away from unqualified IPA semantics.
+
+    Both cache identity and graph construction consume this same projection.
+    The native-value path continues to receive the original, complete facts.
+    """
+    foreign = frozenset(
+        declaration.name
+        for declaration in source.declarations.features
+        if declaration.value_name is not None
+    )
+    payloads = {}
+    for ref in source.refs:
+        event = source.events[ref]
+        if foreign:
+            features = {
+                name: value
+                for name, value in event.features.items()
+                if name not in foreign
+            }
+            if features.get("compatibility-unit") is not None and foreign & {
+                "input",
+                "compatibility-index",
+            }:
+                raise GraphValidationError(
+                    "legacy compatibility-unit requires legacy input and compatibility-index declarations"
+                )
+            event = replace(event, features=features)
+        payloads[ref] = _event_payload(event)
+    return payloads
+
+
 def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
     """Lower one compatibility event to scalar tiergraph item attributes."""
     unit = event.features.get("compatibility-unit")
@@ -511,12 +545,10 @@ def _projection_signature(
     the builder. The remaining fields are immutable structural facts consumed
     directly by ``_build_from_input``.
     """
+    payloads = _legacy_payloads(source)
     return (
         source.refs,
-        tuple(
-            (ref, source.event_tiers[ref], _event_payload(source.events[ref]))
-            for ref in source.refs
-        ),
+        tuple((ref, source.event_tiers[ref], payloads[ref]) for ref in source.refs),
         tuple(sorted(source.event_tiers.items())),
         source.declarations,
         source.relations,
@@ -642,7 +674,7 @@ class ContainmentProjection:
         )
 
         refs = source.refs
-        payloads = {ref: _event_payload(source.events[ref]) for ref in refs}
+        payloads = _legacy_payloads(source)
         tier_names = {
             declaration.name: _name(f"tier-{index}")
             for index, declaration in enumerate(source.declarations.tiers)
