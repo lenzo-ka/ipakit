@@ -89,6 +89,7 @@ using it.
 | [state-of-the-work.md](state-of-the-work.md) | **What is settled, open and refused.** A generated index over the dated design records, with every entry pointing back to the verdict or superseded finding that supplies it. |
 | [reviewing.md](reviewing.md) | **Read this before changing anything.** How defects in this library have actually been found — every one a silent wrong answer under a green suite. Measure rather than predict; sweep rather than sample; make two things equal by construction. |
 | [releasing.md](releasing.md) | The release checklist. |
+| [development-sources.md](development-sources.md) | **External-source maintenance.** Shared library extraction contracts, pinned inputs, developer acquisition/build/check commands, and explicit unsupported producers. |
 | [cli-api-sync.md](cli-api-sync.md) | The generated cross-check of public Python reads against CLI reachability and explicit library-only decisions. |
 | [tiergraph-acceptance.md](tiergraph-acceptance.md) | The acceptance criteria for the tiergraph integration, with local witnesses, upstream contracts, and acknowledged coverage gaps. |
 
