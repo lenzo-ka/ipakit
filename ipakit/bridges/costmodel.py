@@ -22,7 +22,11 @@ from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..distance_model import DistanceModel
 from ..feature_sets import FeatureSets
 from ..features import IPAFeatures
-from ..finite_declaration import read_ternary_declaration
+from ..finite_declaration import (
+    TernaryDeclaration,
+    read_ternary_declaration,
+    validate_ternary_declaration,
+)
 from ..metric import GAP_COST
 from .base import Bridge
 
@@ -640,7 +644,24 @@ def pack_from_declaration(
     ``compare`` is the only public route to a score, and it cannot lose the
     report on the way.
     """
-    declaration = read_ternary_declaration(path)
+    return pack_from_ternary_declaration(
+        read_ternary_declaration(path), policy, family=family, absent=absent
+    )
+
+
+def pack_from_ternary_declaration(
+    declaration: TernaryDeclaration,
+    policy: CostPolicy = FAITHFUL,
+    *,
+    family: DeclaredCostFamily = DeclaredCostFamily.SYMMETRIC_DIFFERENCE,
+    absent: AbsentCell = AbsentCell.HALF_COUNTED,
+) -> CostPack:
+    """Construct existing declared costs from one validated immutable subject.
+
+    This object entrance shares arithmetic with the path wrapper, not a second
+    scorer. Caller-built objects are validated before any closures are returned.
+    """
+    validate_ternary_declaration(declaration)
     identity = declaration.model.name
     source = declaration.bridge.source
     assert source is not None

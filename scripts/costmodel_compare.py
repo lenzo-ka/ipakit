@@ -63,13 +63,19 @@ POLICIES: dict[str, CostPolicy] = {
 }
 
 
-def _packs(ipa: ipakit.IPAFeatures, policy: CostPolicy) -> list[CostPack]:
+def _packs(
+    ipa: ipakit.IPAFeatures,
+    policy: CostPolicy,
+    *,
+    declaration: Path = DECLARATION,
+    include_house: bool = True,
+) -> list[CostPack]:
     """Both arms under one policy, or the house arm alone if the declared
     table is absent -- a checkout without the generated declaration should
     still be able to run half the comparison rather than none of it."""
-    packs = [house_pack(ipa, policy)]
-    if DECLARATION.exists():
-        packs.append(pack_from_declaration(DECLARATION, policy))
+    packs = [house_pack(ipa, policy)] if include_house else []
+    if declaration.exists():
+        packs.append(pack_from_declaration(declaration, policy))
     return packs
 
 
@@ -88,6 +94,22 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
     parser.add_argument("--corpus", type=Path, default=CORPUS)
+    parser.add_argument("--declaration", type=Path)
+    from ipakit.feature_transform import BinaryEncoding
+
+    parser.add_argument(
+        "--binary-encoding", action="append", choices=list(BinaryEncoding)
+    )
+    parser.add_argument(
+        "--binary-gap",
+        type=float,
+        help="required explicit constant binary gap; not source indels or Hamming-to-zero",
+    )
+    parser.add_argument(
+        "--foreign-only",
+        action="store_true",
+        help="omit house scoring in explicit-token mode",
+    )
     parser.add_argument(
         "--tokens-json",
         type=Path,
@@ -119,6 +141,26 @@ def main() -> int:
     parser.add_argument("--format", choices=("table", "tsv", "json"), default="table")
     args = parser.parse_args()
 
+    if args.declaration is not None:
+        if not args.declaration.is_file():
+            parser.error(
+                f"selected declaration is not an available file: {args.declaration}"
+            )
+    else:
+        args.declaration = DECLARATION
+
+    if args.binary_encoding:
+        if not args.tokens_json or args.binary_gap is None:
+            parser.error("binary experiments require --tokens-json and --binary-gap")
+        if args.clts_snapshot:
+            parser.error(
+                "combined binary and CLTS experiments are not supported; run separate explicit experiments"
+            )
+    elif args.binary_gap is not None:
+        parser.error("--binary-gap requires --binary-encoding")
+    if args.foreign_only and not args.tokens_json:
+        parser.error("--foreign-only requires --tokens-json")
+
     if args.tokens_json:
         if args.format != "json":
             parser.error("explicit-token comparison currently uses --format json")
@@ -127,6 +169,24 @@ def main() -> int:
         try:
             corpus = json.loads(args.tokens_json.read_text(encoding="utf-8"))
             ipa = ipakit.IPAFeatures()
+            if args.binary_encoding:
+                from ipakit.feature_experiment import compare_declaration_encodings
+                from ipakit.finite_declaration import read_ternary_declaration
+
+                report = compare_declaration_encodings(
+                    ipa,
+                    read_ternary_declaration(args.declaration),
+                    corpus,
+                    encodings=[BinaryEncoding(value) for value in args.binary_encoding],
+                    binary_gap=args.binary_gap,
+                    policies=[
+                        POLICIES[name] for name in args.policy or sorted(POLICIES)
+                    ],
+                    all_pairs=args.all_pairs,
+                    include_house=not args.foreign_only,
+                )
+                print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
+                return 0
             snapshot = (
                 read_snapshot(
                     None
@@ -139,7 +199,14 @@ def main() -> int:
             packs = []
             for name in args.policy or sorted(POLICIES):
                 policy = POLICIES[name]
-                packs.extend(_packs(ipa, policy))
+                packs.extend(
+                    _packs(
+                        ipa,
+                        policy,
+                        declaration=args.declaration,
+                        include_house=not args.foreign_only,
+                    )
+                )
                 if snapshot:
                     packs.append(
                         set_feature_pack(snapshot.geometry, policy, gap=args.clts_gap)
@@ -181,7 +248,7 @@ def main() -> int:
     rows: list[tuple[str, ...]] = []
     for name in names:
         policy = POLICIES[name]
-        for pack in _packs(ipa, policy):
+        for pack in _packs(ipa, policy, declaration=args.declaration):
             for source, target in pairs:
                 row = compare(ipa, pack, source, target)
                 rows.append(
