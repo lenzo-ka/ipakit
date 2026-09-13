@@ -13,21 +13,30 @@ from ..finite_model import FiniteModel
 from .base import Command, CommandGroup, add_format_arg, add_output_arg
 
 
-def _selection(parser: argparse.ArgumentParser) -> None:
-    selectors = parser.add_mutually_exclusive_group(required=True)
+def add_model_selector(
+    parser: argparse.ArgumentParser, *, required: bool = True
+) -> None:
+    """Declare the same named/path choice for model and finite-rule commands."""
+    selectors = parser.add_mutually_exclusive_group(required=required)
     selectors.add_argument("--model", help="Explicit shipped feature-model name")
     selectors.add_argument(
         "--model-declaration", type=Path, help="Caller-supplied ternary XML declaration"
     )
+
+
+def _selection(parser: argparse.ArgumentParser) -> None:
+    add_model_selector(parser)
     add_format_arg(parser)
     add_output_arg(parser)
 
 
-def _declaration(args: argparse.Namespace) -> TernaryDeclaration:
+def load_model_declaration(args: argparse.Namespace) -> TernaryDeclaration:
     if args.ipa_xml is not None or args.cmu_xml is not None:
         raise ValueError("native --ipa-xml/--cmu-xml cannot select a finite model")
     if args.model is not None:
         return feature_models.read(args.model)
+    if args.model_declaration is None:
+        raise ValueError("select a finite model with --model or --model-declaration")
     return read_ternary_declaration(args.model_declaration)
 
 
@@ -85,7 +94,7 @@ class ModelInspectCommand(Command):
         )
 
     def run(self) -> int:
-        declaration = _declaration(self.args)
+        declaration = load_model_declaration(self.args)
         model: FiniteModel = declaration.model
         data: dict[str, Any] = {
             "operation": "inspect",
@@ -132,7 +141,7 @@ class ModelRespellCommand(Command):
         )
 
     def run(self) -> int:
-        declaration = _declaration(self.args)
+        declaration = load_model_declaration(self.args)
         model: FiniteModel = declaration.model
         changes = _changes(self.args.changes_json)
         result = model.respell(self.args.token, changes)

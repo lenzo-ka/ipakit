@@ -13,6 +13,10 @@ parser.
 form, one form is read per line from stdin, which is what makes the group
 composable with the rest of the CLI.
 
+**Finite models are selected explicitly.** On recognize/apply/trace, --model
+or --model-declaration selects opaque token arrays via --tokens-json, not native
+forms. Those commands use the same finite rule parser and cascade as the library.
+
 **Recognition is not application.** ``recognize`` asks each rule of a set
 against the form *as given*, with no rewriting, so the ordering effects
 that ``apply`` and ``trace`` show are deliberately absent there. A rule
@@ -50,12 +54,15 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import json
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from .. import corpus as corpus_api
+from .._token_corpus import validate_token_corpus
 from ..experiment import Experiment
+from ..finite_model import FiniteModel
 from ..form import Unit, spell, units
 from ..models import Phoneset
 from ..rules import (
@@ -70,7 +77,14 @@ from ..rules import (
     parse,
     shipped,
 )
-from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
+from .base import (
+    IPA,
+    Command,
+    CommandGroup,
+    add_format_arg,
+    add_output_arg,
+)
+from .model import add_model_selector, load_model_declaration
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..features import IPAFeatures
@@ -121,6 +135,24 @@ def add_forms_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_finite_args(parser: argparse.ArgumentParser) -> None:
+    # Model selection is a dispatch mode, not another transcription alphabet.
+    # Registration appends the canonical IPA note after this qualification.
+    parser.description = (
+        (parser.description or "").rstrip()
+        + "\n\nWith a finite model selector, --tokens-json supplies exact token arrays, "
+        "not IPA strings. No normalization or segmentation is inferred.\n"
+        "Without --model/--model-declaration, the native input policy applies:\n"
+    )
+    add_model_selector(parser, required=False)
+    parser.add_argument(
+        "--tokens-json",
+        type=Path,
+        metavar="FILE",
+        help="Explicit token arrays for finite mode; '-' reads JSON from stdin",
+    )
+
+
 def add_zeros_arg(parser: argparse.ArgumentParser) -> None:
     """Add the switch that declines the final surface rewrite.
 
@@ -137,7 +169,9 @@ def add_zeros_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def load_file(path: Path, features: IPAFeatures) -> RuleSet:
+def load_file(
+    path: Path, features: IPAFeatures | None, *, model: FiniteModel | None = None
+) -> RuleSet:
     """Load a rule set from a path, reporting a missing file as a RuleError.
 
     So a mistyped path reads like every other rule problem instead of like
@@ -145,7 +179,7 @@ def load_file(path: Path, features: IPAFeatures) -> RuleSet:
     """
     if not path.is_file():
         raise RuleError(f"no rule file {str(path)!r}")
-    return RuleSet.from_file(path, features)
+    return RuleSet.from_file(path, features, model=model)
 
 
 # --------------------------------------------------------------------------
@@ -288,7 +322,7 @@ class RuleCommand(Command):
     letting it reach the caller as a traceback.
     """
 
-    def resolve_rules(self) -> RuleSet:
+    def resolve_rules(self, model: FiniteModel | None = None) -> RuleSet:
         """The rule set named on the command line."""
         named = [
             bool(self.args.rule),
@@ -300,17 +334,121 @@ class RuleCommand(Command):
                 "name exactly one source of rules: --rule NOTATION, "
                 "--set NAME or --file FILE"
             )
+        if model is not None and self.args.named_set:
+            raise ValueError(
+                "shipped native rule sets cannot select finite-model rules"
+            )
+        features = self.ipa if model is None else None
         if self.args.rule:
             # Parsed one at a time rather than joined into a block: a rule
             # cannot begin with '#' (a boundary is not a legal target), but
             # a joined block would drop such a line as a comment instead of
             # saying what was wrong with it.
             return RuleSet(
-                rules=tuple(parse(text, self.ipa) for text in self.args.rule)
+                rules=tuple(
+                    parse(text, features, model=model) for text in self.args.rule
+                )
             )
         if self.args.named_set:
-            return shipped(self.args.named_set, self.ipa)
-        return load_file(self.args.rules_file, self.ipa)
+            return shipped(self.args.named_set, features)
+        return load_file(self.args.rules_file, features, model=model)
+
+    def finite_requested(self) -> bool:
+        return any(
+            getattr(self.args, name, None) is not None
+            for name in ("model", "model_declaration", "tokens_json")
+        )
+
+    def run_finite(self, operation: str) -> int:
+        """Report finite engine results; never enter native form resolution."""
+        model = load_model_declaration(self.args).model
+        if self.args.forms or getattr(self.args, "keep_zeros", False):
+            raise ValueError(
+                "finite mode refuses native positional forms and --keep-zeros"
+            )
+        if self.args.tokens_json is None:
+            raise ValueError("finite rules require --tokens-json FILE (or '-')")
+        ruleset = self.resolve_rules(model)
+        source = self.args.tokens_json
+        content = (
+            sys.stdin.read()
+            if source == Path("-")
+            else source.read_text(encoding="utf-8")
+        )
+        corpus = validate_token_corpus(json.loads(content))
+        rows: list[dict[str, Any]] = []
+        status = 0
+        for tokens in corpus:
+            row: dict[str, Any] = {
+                "operation": operation,
+                "model_id": model.identity,
+                "name": model.name,
+                "input": tokens,
+            }
+            try:
+                if operation == "recognize":
+                    # Even an empty rule file must validate every input token.
+                    for token in tokens:
+                        model.read(token)
+                    row["rules"] = [
+                        {
+                            "rule": rule.name,
+                            "sites": [
+                                {
+                                    "start": site.start,
+                                    "end": site.end,
+                                    "target_tokens": tokens[site.start : site.end],
+                                    "left": list(site.left),
+                                    "right": list(site.right),
+                                }
+                                for site in rule.recognize_tokens(tokens, model=model)
+                            ],
+                        }
+                        for rule in ruleset
+                    ]
+                else:
+                    derivation = ruleset.derive_tokens(tokens, model=model)
+                    row["tokens"] = derivation.tokens
+                    if operation == "trace":
+                        row["steps"] = [
+                            {
+                                "rule": step.rule,
+                                "fired": step.fired,
+                                "before_tokens": step.before_tokens,
+                                "after_tokens": step.after_tokens,
+                                "edits": [
+                                    {
+                                        "rule": edit.rule,
+                                        "start": edit.start,
+                                        "end": edit.end,
+                                        "replacement_tokens": [
+                                            item.text for item in edit.replacement
+                                        ],
+                                        "deletion": edit.is_deletion,
+                                    }
+                                    for edit in step.edits
+                                ],
+                            }
+                            for step in derivation.steps
+                            if self.args.all_steps or step.fired
+                        ]
+                row["status"] = "ok"
+            except (ValueError, KeyError) as error:
+                status = 1
+                row["status"] = "error"
+                row["error"] = {
+                    "type": type(error).__name__,
+                    "message": str(error),
+                    "code": getattr(error, "code", None),
+                    "candidates": getattr(error, "candidates", ()),
+                }
+            rows.append(row)
+        if self.format == "json":
+            self.output_json(rows)
+        else:
+            for row in rows:
+                self.print(json.dumps(row, ensure_ascii=False))
+        return status
 
     def resolve_forms(self) -> list[str]:
         """The forms named on the command line, or stdin's lines."""
@@ -365,11 +503,14 @@ class ApplyCommand(RuleCommand):
 
         add_forms_arg(parser)
         add_rules_args(parser)
+        add_finite_args(parser)
         add_zeros_arg(parser)
         add_format_arg(parser)
         add_output_arg(parser)
 
     def run(self) -> int:
+        if self.finite_requested():
+            return self.run_finite("apply")
         try:
             ruleset = self.resolve_rules()
             forms = self.resolve_forms()
@@ -506,6 +647,7 @@ class TraceCommand(RuleCommand):
 
         add_forms_arg(parser)
         add_rules_args(parser)
+        add_finite_args(parser)
         parser.add_argument(
             "--all",
             "-a",
@@ -518,6 +660,8 @@ class TraceCommand(RuleCommand):
         add_output_arg(parser)
 
     def run(self) -> int:
+        if self.finite_requested():
+            return self.run_finite("trace")
         try:
             ruleset = self.resolve_rules()
             forms = self.resolve_forms()
@@ -694,9 +838,12 @@ class RecognizeCommand(RuleCommand):
 
         add_forms_arg(parser)
         add_rules_args(parser)
+        add_finite_args(parser)
         add_format_arg(parser)
 
     def run(self) -> int:
+        if self.finite_requested():
+            return self.run_finite("recognize")
         try:
             ruleset = self.resolve_rules()
             forms = self.resolve_forms()

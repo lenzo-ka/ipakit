@@ -111,9 +111,72 @@ string, Form, graph, or timing/attachment-bearing object. Results retain exact
 token tuples, and each Step has `before_tokens`/`after_tokens`; display joins
 are not used to reconstruct state. Native `variants` and `to_form` are not
 finite graph conversions. Graph-backed rewrites, source clocks, attachments,
-timing preservation, variant enumeration and public CLI integration remain
+timing preservation and variant enumeration remain
 separate work; this API does not claim full-representation fidelity. See
 [model-operations.md](model-operations.md) for the finite provider contract.
+
+### Explicit finite rules on the command line
+
+`rules recognize`, `apply` and `trace` also accept the same explicitly selected
+finite models. Without a model selector their native behavior is unchanged:
+
+Save this JSON document as `corpus.json`:
+
+```json
+[["p", "a"], []]
+```
+
+Then run the first two commands from that directory. For the third, paste the
+same document into stdin and finish with end-of-file (or redirect
+`corpus.json` into stdin). No external model or rule file is needed:
+
+```sh
+ipakit rules recognize --model panphon --tokens-json corpus.json -r 'p -> b' -j
+ipakit rules apply --model panphon --tokens-json corpus.json -r 'p -> b' -j
+ipakit rules trace --model panphon --tokens-json - -r 'p -> b' -j
+```
+
+The JSON input is an array of arrays of exact nonempty token strings, for
+example `[["p", "a"], []]`. `--tokens-json -` reads that same document from
+stdin. An outer `[]` is an empty corpus; an inner `[]` is an empty input. No
+Unicode normalization, segmentation, line stripping or house interpretation is
+performed. Input punctuation remains part of the token identity; punctuation
+that the safe-bare rule DSL cannot express still needs the typed library AST,
+not an invented CLI escape. Model selection is exactly one of `--model NAME`
+and `--model-declaration PATH`. The former uses the canonical installed resource;
+the latter uses the same validated ternary reader.
+
+Repeated `-r` rules form an ordered cascade. Rule files use the existing
+`RuleSet.from_file(model=...)` reader, including its comment handling. Every
+recognition rule sees the original input independently; apply/trace feed each
+rule's output into the next. The finite DSL retains the library's restrictions,
+including refusal of named `;` suffixes, quoted literals, optional rules,
+insertion, agreement and structural terms. Native `--set`, positional forms,
+`--keep-zeros` and native XML selectors cannot be mixed with finite mode;
+variants and graph inputs have no finite CLI route here.
+
+Each result includes operation, model identity, exact input and status.
+Recognition reports each rule's sites with exact target token slices and
+left/right indices. Apply reports the resulting token array; trace adds actual
+`before_tokens`, `after_tokens` and ordered `replacement_tokens` from the shared
+cascade. `--all` retains steps that did not fire. Text output uses JSON quoting
+too, so tokens never become an ambiguous concatenation.
+
+Unknown inputs and deterministic ambiguity/unrealizability remain per-row error
+records, with the actual exception type, code and complete candidate list.
+Other rows are not dropped; any refused row makes the command exit 1, including
+with `--lax`. A no-match or empty row is a successful result, but even an empty
+rule file validates every supplied token. Invalid document shapes and missing
+conditional configuration also exit 1; argparse syntax errors and mixed model
+selectors exit 2. This does not redefine exit 3's native dropped-input meaning.
+
+Declared single-value option arguments are literal, including a file named
+`help`, in both native and finite mode, including argparse's unambiguous option
+abbreviations. Compound short options and unsupported argument arities are left
+unchanged for argparse itself; use `--help` with those forms. Genuine help
+command tokens still work
+(`ipakit help rules apply`, `ipakit rules apply help`). This corrects the former
+help preprocessor's ambiguity without introducing another argument parser.
 
 ## Notation
 
