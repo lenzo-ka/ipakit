@@ -16,8 +16,10 @@
        https://en.wikipedia.org/wiki/Help:IPA/Mandarin . -->
   <atom spelling="a" /><atom spelling="ɤ" output="e" /><atom spelling="i" />
   <atom spelling="o" /><atom spelling="u" /><atom spelling="y" output="ü" />
-  <!-- The IPA members below are the strict phonetic syllabary used by the
-       Mandarin worked syllabifier. Tone is absent because it rides the
+  <!-- The IPA members below are curated demonstration spellings used by the
+       Mandarin worked syllabifier. They combine broad spellings with selected
+       phonetic detail; extensions should state their transcription convention.
+       Tone is absent because it rides the
        syllable and does not change membership. Additions belong here, at the
        Pinyin declaration boundary, rather than in Python.
 

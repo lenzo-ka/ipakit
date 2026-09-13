@@ -92,7 +92,7 @@ simple-vowel symbols into house IPA groupings:
 | `u` | `u` |
 | `ü` | `y` |
 
-These values follow [Lee and Zee (2003)](https://doi.org/10.1017/S0025100303001208)
+The `e` and `ü` values follow [Lee and Zee (2003)](https://doi.org/10.1017/S0025100303001208)
 and the [Mandarin IPA spelling key](https://en.wikipedia.org/wiki/Help:IPA/Mandarin).
 Pass a single symbol, space-separated symbols, or an explicit sequence:
 
@@ -110,8 +110,10 @@ arbitrary Pinyin words require an analysis before phonetic realization.
 
 The curated Mandarin membership list contains 24 IPA syllable shapes. Membership
 is tone-independent; lexical tone remains contrastive and associates with the
-syllable. Unlisted syllables are reported as uncovered. Extending this inventory
-is a separate curation operation with explicit pronunciation evidence.
+syllable. The rows combine broad spellings with selected phonetic detail as
+declared demonstration forms. Unlisted syllables are reported as uncovered.
+Extending this inventory is a separate curation operation with explicit
+transcription conventions and pronunciation evidence.
 
 ## Implemented boundaries
 
