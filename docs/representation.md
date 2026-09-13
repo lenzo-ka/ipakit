@@ -1,6 +1,10 @@
 # The canonical representation
 
-`Form` is the sole public stored representation. IPA text, CMU tokens, JSON, rendering, rewriting, alignment, and gestures are projections around one validated tier graph; the kernel modules remain package-internal.
+`Form` is the public stored representation for the house IPA model. IPA text,
+CMU tokens, JSON, rendering, rewriting, alignment, and gestures are projections
+around its validated tier graph. Model-relative operations can also retain an
+explicit native TierGraph without claiming admission to house `Form`; see
+[graph-preserving finite rewrites](rules.md#decorating-an-existing-graph).
 
 ## Internal source-profile boundary
 
@@ -35,7 +39,12 @@ The graph is the store: `Form` owns one validated graph-backed representation. T
 
 Engines read tier claims through declared predicates over the linear view; they never walk the graph. A rule context may test a tier interval, but graph traversal remains the store's concern. The [language-relative syllabifier](syllabification.md) is the first tier producer, and the rules engine's tier-reading context is the consumer surface.
 
-Tiers, their names, each language's inventory, and any phasing declared over them are language-relative; the feature space and `distance` are universal. [The ratified design record](design/tiers.md#7-what-is-deliberately-not-made-relative) owns the boundary and its metric rationale.
+In the house model, tiers, their names, each language's inventory, and any
+phasing declared over them are language-relative; its feature space and
+`distance` are shared across those languages. [The ratified design
+record](design/tiers.md#7-what-is-deliberately-not-made-relative) owns that model's
+boundary and metric rationale. Foreign finite models retain their own declared
+schemas and operations; this is not an implicit conversion through house IPA.
 
 ## Public construction and navigation
 

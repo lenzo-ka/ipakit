@@ -25,9 +25,11 @@ import sys
 import tarfile
 import tomllib
 import zipfile
+from email.parser import BytesParser
 from pathlib import Path
 
 import pytest
+from packaging.requirements import Requirement
 
 ROOT = Path(__file__).resolve().parent.parent
 PKG = ROOT / "ipakit"
@@ -164,6 +166,26 @@ def test_the_wheel_carries_every_data_file(built_wheel):
         f"these files are in the source tree but not in the built wheel, so "
         f"`pip install ipakit` does not get them: {missing}"
     )
+
+
+def test_wheel_requires_native_json_embedding_release(built_wheel):
+    """Installation must not admit a provider lacking model graph embedding."""
+    with zipfile.ZipFile(built_wheel) as archive:
+        metadata_paths = [
+            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+        ]
+        assert len(metadata_paths) == 1
+        metadata = BytesParser().parsebytes(archive.read(metadata_paths[0]))
+    requirements = [
+        Requirement(value) for value in metadata.get_all("Requires-Dist", [])
+    ]
+    native = [item for item in requirements if item.name == "tiergraph"]
+    assert len(native) == 1
+    requirement = native[0]
+    assert requirement.url is None and requirement.marker is None
+    assert "0.2.0" not in requirement.specifier
+    assert "0.2.1" in requirement.specifier
+    assert "0.3.0" not in requirement.specifier
 
 
 def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wheel):

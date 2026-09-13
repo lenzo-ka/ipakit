@@ -16,7 +16,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._fact_builder import EventHandle, EventSpec, FactBuilder, PositionHandle
+from ._fact_builder import (
+    EventHandle,
+    EventSpec,
+    FactBuilder,
+    LegacyCoordinates,
+    PositionHandle,
+)
 from ._graph_facts import (
     Declarations,
     EndpointKind,
@@ -128,9 +134,139 @@ def _bridge_declarations(inventory: Any, tier_names: Sequence[str]) -> Declarati
 
 @dataclass
 class _Token:
-    unit: Unit
-    handle: EventHandle
-    anchor: PositionHandle
+    unit: Any
+    handle: Any
+    anchor: Any
+
+
+def _walk_projection(
+    current: list[_Token], steps: Sequence[Any], writer: Any
+) -> list[_Token]:
+    """One trace-site traversal; writers own payloads, references and anchors."""
+    for step_index, step in enumerate(steps):
+        edits: dict[int, list[Any]] = {}
+        for edit in step.edits:
+            edits.setdefault(edit.start, []).append(edit)
+        output: list[_Token] = []
+        cursor = 0
+        site_order = 0
+        while cursor <= len(current):
+            at_site = edits.get(cursor)
+            if at_site is not None:
+                furthest = cursor
+                for edit in at_site:
+                    sources = current[edit.start : edit.end]
+                    anchor = (
+                        sources[0].anchor
+                        if sources
+                        else writer.insertion_anchor(edit.start)
+                    )
+                    targets = writer.emit(
+                        step_index, step, edit, sources, anchor, site_order
+                    )
+                    output.extend(
+                        _Token(unit, handle, anchor)
+                        for unit, handle in zip(edit.replacement, targets, strict=True)
+                    )
+                    furthest = max(furthest, edit.end)
+                    site_order += 1
+                edits.pop(cursor, None)
+                cursor = furthest
+                continue
+            if cursor == len(current):
+                break
+            old = current[cursor]
+            target = writer.carry(step_index, step, old, cursor)
+            output.append(_Token(old.unit, target, old.anchor))
+            cursor += 1
+        current = output
+    return current
+
+
+@dataclass
+class _NativeWriter:
+    builder: FactBuilder
+    coordinates: LegacyCoordinates
+    input_length: int
+    source_tiers: Sequence[str]
+    target_tiers: Sequence[str]
+
+    def insertion_anchor(self, index: int) -> PositionHandle:
+        return self.coordinates.to_graph(min(index, self.input_length))
+
+    def tier(self, step_index: int) -> str:
+        return (
+            self.target_tiers[min(step_index, len(self.target_tiers) - 1)]
+            if self.target_tiers
+            else self.source_tiers[-1]
+        )
+
+    def emit(
+        self,
+        step_index: int,
+        step: Any,
+        edit: Any,
+        sources: Sequence[_Token],
+        anchor: Any,
+        site_order: int,
+    ) -> Sequence[EventHandle]:
+        specs = tuple(
+            EventSpec(
+                {
+                    "value": unit.segment if unit.segment is not None else unit.text,
+                    "spelling": unit.text,
+                    "phantom": True,
+                    "rule": edit.rule,
+                    "trace": str(edit),
+                    "derivation-step": step_index,
+                    "source-site-order": site_order,
+                    "application-order": site_order,
+                    "target-index": target_index,
+                },
+                duration=0,
+            )
+            for target_index, unit in enumerate(edit.replacement)
+        )
+        targets = self.builder.add_ordered_sequence(
+            self.tier(step_index),
+            anchor,
+            specs,
+            derivation_step=step_index,
+            source_site_order=site_order,
+            application_order=site_order,
+        )
+        if sources:
+            self.builder.relate(
+                (token.handle for token in sources), "rewrites-to", targets
+            )
+        elif targets:
+            self.builder.relate((anchor,), "inserts", targets)
+        return targets
+
+    def carry(
+        self, step_index: int, step: Any, old: _Token, cursor: int
+    ) -> EventHandle:
+        targets = self.builder.add_ordered_sequence(
+            self.tier(step_index),
+            old.anchor,
+            (
+                EventSpec(
+                    {
+                        "value": old.unit.segment or old.unit.text,
+                        "spelling": old.unit.text,
+                        "phantom": True,
+                        "rule": step.rule,
+                        "trace": "no-op",
+                    },
+                    duration=0,
+                ),
+            ),
+            derivation_step=step_index,
+            source_site_order=cursor,
+            application_order=cursor,
+        )
+        self.builder.relate((old.handle,), "rewrites-to", targets)
+        return targets[0]
 
 
 @dataclass(frozen=True)
@@ -238,99 +374,13 @@ def project_derivation(
     current = _input(builder, start, source_tiers[0])
     coordinates = builder.compatibility_coordinates()
 
-    for step_index, step in enumerate(derivation.fired):
-        tier = (
-            target_tiers[min(step_index, len(target_tiers) - 1)]
-            if target_tiers
-            else source_tiers[-1]
-        )
-        edits: dict[int, list[Any]] = {}
-        for edit in step.edits:
-            edits.setdefault(edit.start, []).append(edit)
-        output: list[_Token] = []
-        cursor = 0
-        site_order = 0
-        while cursor <= len(current):
-            at_site = edits.get(cursor)
-            if at_site is not None:
-                furthest = cursor
-                for edit in at_site:
-                    sources = current[edit.start : edit.end]
-                    anchor = (
-                        sources[0].anchor
-                        if sources
-                        else coordinates.to_graph(min(edit.start, len(start.units)))
-                    )
-                    specs = tuple(
-                        EventSpec(
-                            {
-                                "value": (
-                                    unit.segment
-                                    if unit.segment is not None
-                                    else unit.text
-                                ),
-                                "spelling": unit.text,
-                                "phantom": True,
-                                "rule": edit.rule,
-                                "trace": str(edit),
-                                "derivation-step": step_index,
-                                "source-site-order": site_order,
-                                "application-order": site_order,
-                                "target-index": target_index,
-                            },
-                            duration=0,
-                        )
-                        for target_index, unit in enumerate(edit.replacement)
-                    )
-                    targets = builder.add_ordered_sequence(
-                        tier,
-                        anchor,
-                        specs,
-                        derivation_step=step_index,
-                        source_site_order=site_order,
-                        application_order=site_order,
-                    )
-                    if sources:
-                        builder.relate(
-                            (token.handle for token in sources), "rewrites-to", targets
-                        )
-                    elif targets:
-                        builder.relate((anchor,), "inserts", targets)
-                    output.extend(
-                        _Token(unit, handle, anchor)
-                        for unit, handle in zip(edit.replacement, targets, strict=True)
-                    )
-                    furthest = max(furthest, edit.end)
-                    site_order += 1
-                edits.pop(cursor, None)
-                cursor = furthest
-                continue
-            if cursor == len(current):
-                break
-            old = current[cursor]
-            targets = builder.add_ordered_sequence(
-                tier,
-                old.anchor,
-                (
-                    EventSpec(
-                        {
-                            "value": old.unit.segment or old.unit.text,
-                            "spelling": old.unit.text,
-                            "phantom": True,
-                            "rule": step.rule,
-                            "trace": "no-op",
-                        },
-                        duration=0,
-                    ),
-                ),
-                derivation_step=step_index,
-                source_site_order=cursor,
-                application_order=cursor,
-            )
-            builder.relate((old.handle,), "rewrites-to", targets)
-            output.append(_Token(old.unit, targets[0], old.anchor))
-            cursor += 1
-        current = output
+    current = _walk_projection(
+        current,
+        derivation.fired,
+        _NativeWriter(
+            builder, coordinates, len(start.units), source_tiers, target_tiers
+        ),
+    )
 
     analyses = derive_morae(tuple(t.unit for t in current), inventory)
     for index, analysis in enumerate(analyses):
