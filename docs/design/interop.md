@@ -565,7 +565,7 @@ Assessed on shipped demand — does a rule set, a doc example, the metric, or a 
 |---|---|---|
 | **Sonority scale** | PanPhon `sonority.py` | **Build.** §5: derivable at ρ = 0.938, and ipakit already has the consumers. |
 | **Numeric vector export** | PanPhon `word_to_vector_list`, `word_array`, `bag_of_features` | **Build, small.** `ipakit.__all__` contains nothing matching `vector`/`array`/`numeric`. For a library positioning itself under model pipelines this is the missing primitive; the order comes from `feature_order` and the values from the declared types. |
-| **Phone / feature error rate** | PanPhon distances | **Weak build.** PER and FER are the standard evaluation metrics for pronunciation output; `word_distance` returns `edit_cost` and `similarity` but no error rate. Small on top of the existing alignment. |
+| **Phone / feature error rate** | PanPhon distances | **Weak build.** PER and FER are the standard evaluation metrics for pronunciation output; `transcription_distance` returns `edit_cost` and `similarity` but no error rate. Small on top of the existing alignment. |
 | **Diacritic applicability guard** | PanPhon `diacritic_definitions.yml` `conditions` / `exclude` | **Worth stealing the idea, not the file.** `ipa.xml` already declares `applies="consonant"` and `applies="nucleus"`; making an inapplicable mark a refusal rather than a silent no-op is the same shape as §12(a) and §12(e). |
 | **Sound classes (SCA, DOLGO, ASJP)** | CLTS | **Refuse.** §5: not derivable, and no shipped or teaching demand inside ipakit. |
 | **`dolgo_prime_distance`** | PanPhon | **Refuse.** A 10-class historical metric — `d(d͡ɮ, ħ) = 0.0`. Nothing in the rule sets, docs or metric wants it. |

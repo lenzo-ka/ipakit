@@ -311,14 +311,14 @@ class ConfusabilityCommand(Command):
 
 
 class WordCommand(Command):
-    """Distance and similarity between two IPA words.
+    """Distance and similarity between two IPA transcription strings.
 
     Two measures, matching the two this group already offers for phones.
     By default this is the inventory-relative one -- the counterpart of
     'confusability' -- aligning the words with the DistanceModel's
     percentile substitution costs (weighted Levenshtein). --raw is the
     counterpart of 'pair': the plain feature-distance alignment, which is
-    what ipakit.word_distance() and ipakit.word_similarity() return.
+    what ipakit.transcription_distance() and ipakit.transcription_similarity() return.
 
     The two disagree, and are meant to: for kæt ~ kæd the model says
     0.9870 and the raw measure says 0.9841. Without --raw there was no
@@ -330,24 +330,24 @@ class WordCommand(Command):
     --threshold to also report a similar decision (with the model's
     length-ratio short-circuits applied).
 
-    Coverage -- the shorter word's token count over the longer's -- is
+    Coverage -- the shorter transcription's token count over the longer's -- is
     reported beside the similarity when the two differ in length, and is
     never folded into it. It is what separates "these differ throughout"
     from "one is a truncation of the other", two readings the score alone
     cannot tell apart.
 
     Examples:
-        ipakit distance word kæt kæd           # one segment differs
-        ipakit distance word kæt dɒɡ           # unrelated words
-        ipakit distance word kæt kæd --raw     # the raw feature-cost measure
-        ipakit d word kæt kæd --threshold 0.9  # also prints: similar=True
-        ipakit d word kæt kæd --phoneset eng.txt  # similarity within eng.txt
-        ipakit d word kæt kæd -j               # JSON (similarity + raw edit cost)
+        ipakit distance transcription kæt kæd           # one segment differs
+        ipakit distance transcription kæt dɒɡ           # unrelated words
+        ipakit distance transcription kæt kæd --raw     # the raw feature-cost measure
+        ipakit d transcription kæt kæd --threshold 0.9  # also prints: similar=True
+        ipakit d transcription kæt kæd --phoneset eng.txt  # similarity within eng.txt
+        ipakit d transcription kæt kæd -j               # JSON (similarity + raw edit cost)
     """
 
-    name = "word"
-    aliases: ClassVar[list[str]] = ["w"]
-    help = "Inventory-relative distance/similarity between two IPA words"
+    name = "transcription"
+    aliases: ClassVar[list[str]] = ["word", "w"]
+    help = "Inventory-relative distance/similarity between IPA transcriptions"
     reads_notation = IPA
 
     @classmethod
@@ -355,8 +355,12 @@ class WordCommand(Command):
         parser.description = cls.__doc__
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
-        parser.add_argument("word1", help="First IPA word")
-        parser.add_argument("word2", help="Second IPA word")
+        parser.add_argument(
+            "word1", metavar="TRANSCRIPTION1", help="First IPA transcription"
+        )
+        parser.add_argument(
+            "word2", metavar="TRANSCRIPTION2", help="Second IPA transcription"
+        )
         parser.add_argument(
             "--threshold",
             "-t",
@@ -367,7 +371,7 @@ class WordCommand(Command):
         parser.add_argument(
             "--raw",
             action="store_true",
-            help="Use the raw feature distance (ipakit.word_distance) instead "
+            help="Use the raw feature distance (ipakit.transcription_distance) instead "
             "of the inventory-relative model",
         )
         parser.add_argument(
@@ -380,7 +384,7 @@ class WordCommand(Command):
         add_format_arg(parser)
 
     def _run_raw(self) -> int:
-        """The raw feature-cost measure -- ipakit.word_distance's answer.
+        """The raw feature-cost measure -- ipakit.transcription_distance's answer.
 
         ``strict=False`` because the CLI reports a lossy read through the
         exit status rather than by failing (:mod:`ipakit.cli.policy`):
@@ -390,7 +394,7 @@ class WordCommand(Command):
         of the command line exits 3 on.
         """
         w1, w2 = self.args.word1, self.args.word2
-        result = self.ipa.word_distance(
+        result = self.ipa.transcription_distance(
             w1,
             w2,
             strict=False,
@@ -421,9 +425,9 @@ class WordCommand(Command):
         return 0
 
     def _run_explain(self) -> int:
-        """A per-position alignment trace -- ipakit.explain_word_distance."""
+        """A per-position alignment trace -- ipakit.explain_transcription_distance."""
         w1, w2 = self.args.word1, self.args.word2
-        steps = self.ipa.explain_word_distance(
+        steps = self.ipa.explain_transcription_distance(
             w1,
             w2,
             strict=False,
@@ -454,7 +458,7 @@ class WordCommand(Command):
         threshold = self.args.threshold
         model = build_model(self.ipa, self.args, threshold=threshold)
         w1, w2 = self.args.word1, self.args.word2
-        result = model.word_distance(w1, w2)
+        result = model.transcription_distance(w1, w2)
         name = model.reference_name
         size = len(model.reference_phones)
 
@@ -491,7 +495,7 @@ class DirectionalCommand(Command):
     Deletion prices apply to the reference (material omitted); insertion
     prices apply to the hypothesis (material supplied).  Giving the two sides
     different prices makes their roles observable.  The defaults match the
-    flat-cost ``distance word --raw`` calculation.
+    flat-cost ``distance transcription --raw`` calculation.
 
     Examples:
         ipakit distance directional kætə kæt
@@ -501,7 +505,7 @@ class DirectionalCommand(Command):
 
     name = "directional"
     aliases: ClassVar[list[str]] = ["dir"]
-    help = "Directional reference-to-hypothesis word distance"
+    help = "Directional reference-to-hypothesis transcription distance"
     reads_notation = IPA
 
     @classmethod
@@ -533,7 +537,7 @@ class DirectionalCommand(Command):
     def run(self) -> int:
         reference = self.args.reference
         hypothesis = self.args.hypothesis
-        result = self.ipa.directional_word_distance(
+        result = self.ipa.directional_transcription_distance(
             reference,
             hypothesis,
             insert_cost=self.args.insert_cost,
@@ -567,7 +571,7 @@ class NearestCommand(Command):
     Scores a form against a set of acceptable variants -- a lexicon's several
     pronunciations, a homograph's two readings -- and reports the best match
     and which member won. This is the "is this an acceptable pronunciation?"
-    question, and it is spelled apart from 'word' on purpose: a maximum over
+    question, and it is spelled apart from 'transcription' on purpose: a maximum over
     variants depends on how many are listed, so it must not be read as a
     word-to-word distance.
 
@@ -659,7 +663,7 @@ class SeqCommand(Command):
     """Distance/similarity between two PRE-TOKENIZED phone sequences.
 
     Each argument is a whitespace-separated list of phone tokens, aligned
-    exactly as given -- unlike 'word', which tokenizes a string and may join
+    exactly as given -- unlike 'transcription', which tokenizes a string and may join
     or split units. Use this when you already have phone tokens (each token one
     unit) and want their boundaries respected.
 
@@ -1237,11 +1241,11 @@ class CompareCommand(Command):
 
 
 class DistanceGroup(CommandGroup):
-    """Calculate phonetic distances between IPA phones, words, and phone sequences.
+    """Calculate phonetic distances between IPA phones, transcriptions, and phone sequences.
 
     Two flavors: 'pair'/'segment'/'matrix' give raw feature-distance magnitudes
     (0.0 identical to 1.0 maximal); 'confusability' gives complementary
-    percentile positions in a reference inventory, and 'word' aligns with
+    percentile positions in a reference inventory, and 'transcription' aligns with
     substitution costs derived from those positions. Positions are not raw
     distances and are not comparable across inventories (scope them with
     --phoneset).
@@ -1251,8 +1255,8 @@ class DistanceGroup(CommandGroup):
         segment        Feature distance between complex segments (diacritics)
         matrix         Pairwise feature-distance matrix for multiple phones
         confusability  Inventory-relative percentile positions (phones)
-        word           Inventory-relative distance/similarity (IPA words)
-        directional    Directional reference-to-hypothesis word distance
+        transcription  Inventory-relative distance/similarity (IPA strings; aliases word, w)
+        directional    Directional reference-to-hypothesis transcription distance
         nearest        Best match of a form against a set of acceptable variants
         map            Map one phoneset onto another
         compare        Compare phonesets as sets, mappings, and a matrix
@@ -1263,7 +1267,7 @@ class DistanceGroup(CommandGroup):
     Examples:
         ipakit distance pair p b               # Raw feature distance: ~0.05
         ipakit distance confusability p b      # inventory-relative
-        ipakit distance word kæt kæd           # word similarity
+        ipakit distance transcription kæt kæd           # word similarity
         ipakit distance matrix p t k           # 3x3 comparison matrix
     """
 
@@ -1271,7 +1275,7 @@ class DistanceGroup(CommandGroup):
     aliases: ClassVar[list[str]] = ["d"]
     help = (
         "Raw distances, inventory positions, and mapping (pair, segment, matrix, "
-        "confusability, word, directional, nearest, map, compare, seq, metrics, across)"
+        "confusability, transcription, directional, nearest, map, compare, seq, metrics, across)"
     )
     commands: ClassVar[list[type[Command]]] = [
         PairCommand,

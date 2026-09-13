@@ -1,6 +1,6 @@
 # Phonetic distance in ipakit
 
-How `distance`, `segment_distance`, `word_distance`, and the shipped confusion matrix compute their numbers: the representation they read, the comparison they perform, and what the results do and do not mean. [similarity.md](similarity.md) is the standing justification for these commitments and the record of what does and does not validate them.
+How `distance`, `segment_distance`, `transcription_distance`, and the shipped confusion matrix compute their numbers: the representation they read, the comparison they perform, and what the results do and do not mean. [similarity.md](similarity.md) is the standing justification for these commitments and the record of what does and does not validate them.
 
 ## Quick reference
 
@@ -21,6 +21,26 @@ How `distance`, `segment_distance`, `word_distance`, and the shipped confusion m
 | Regenerate after changes | `python scripts/confusion.py generate --write` |
 
 If you need perceptual confusability — which sounds listeners actually mistake for each other — this metric is a reasonable structural prior, not a substitute for confusion data. See [Implications](#implications-for-users).
+
+## Transcription strings and token sequences
+
+Use `transcription_distance` and `transcription_similarity` for IPA strings,
+including multiword transcriptions. `directional_transcription_distance` names
+the reference and hypothesis sides; `explain_transcription_distance` exposes the
+existing raw feature-cost trace. `IPAFeatures` offers all four, and
+`DistanceModel` offers distance, directional distance and similarity with its
+empirical costs and existing options.
+
+These operations currently align segment units: word and other tier boundaries
+remain transparent to scoring. Use `sequence_distance` for already-tokenized
+input whose supplied token divisions must be retained. This naming change adds
+no boundary-sensitive metric or new tokenization behavior.
+
+The `word_distance`, `word_similarity`, `directional_word_distance` and
+`explain_word_distance` spellings remain compatible. The result class retains
+its `WordDistanceResult` name and representation. On the CLI, prefer
+`distance transcription`; `distance word` and `d w` remain aliases of the same
+handler, including raw/model selection and existing output fields.
 
 ## 1. What a segment carries
 
@@ -117,7 +137,7 @@ The flat projection asks the same question of the same structure, so a pair scor
 
 **Junctures contribute one term each.** A juncture on one side aligns with one on the other when both flanking pairs are matched; aligned junctures score 0 when their senses agree and 1 when they do not, and unaligned junctures score 1. So `d(u͡i, u͜i) = 1/3` exactly: the same constituents in the same order, one juncture-sense mismatch over three terms.
 
-`explain_word_distance` exposes that arithmetic directly. Composite substitutions use flat qualified rows for matched parts, unmatched-part nearest comparisons and material, and junctures; they do not also include a parent `segmental` aggregate. A matched part remains one outer row even when its own atomic comparison can be explained one level down. Thus summing the row costs and dividing by their count never double-counts a parent beside its children. For `u͡i` / `u͜i`, the shipped rows are `matched part a[0]~b[0]: u/u = 0`, `matched part a[1]~b[1]: i/i = 0`, and `juncture a[0]~b[0]: fuse/seq = 1`, reconstructing `1/3`.
+`explain_transcription_distance` exposes that arithmetic directly. Composite substitutions use flat qualified rows for matched parts, unmatched-part nearest comparisons and material, and junctures; they do not also include a parent `segmental` aggregate. A matched part remains one outer row even when its own atomic comparison can be explained one level down. Thus summing the row costs and dividing by their count never double-counts a parent beside its children. For `u͡i` / `u͜i`, the shipped rows are `matched part a[0]~b[0]: u/u = 0`, `matched part a[1]~b[1]: i/i = 0`, and `juncture a[0]~b[0]: fuse/seq = 1`, reconstructing `1/3`.
 
 ### The declared mass budget
 
@@ -163,13 +183,13 @@ One budget question remains explicitly deferred. A fusion has no arity floor, so
 
 **Prosodic tiers ride on the unit clock, and stress rides the nucleus.** Where a stress mark sits is a notation decision with a metric consequence: house style writes stress immediately before the nucleus that bears it rather than at a syllable margin, because a margin-style mark states two things at once — that the syllable is stressed, and where it begins — and only the first is always available ([house-style.md](house-style.md#stress-sits-on-the-nucleus)). So a stress rider attaches to the vowel it marks, and comparing `ˈkat` with `kat` moves one term on one unit rather than shifting an alignment. Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit — unlike a break, which sits *between* units and is transparent to distance. Each rider adds one graded term to the unit it rides on, read via the ordinal `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one) at the same weight as a segmental feature. It is read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before. A tone *contour*, a sequence value like `mid>high`, is a trajectory rather than a point on the scale, so it stays out until a sequence comparison exists (`d(a, a᷅) = 0`).
 
-**A word comparison is inspectable.** `explain_word_distance(a, b)` returns one step per aligned position — `op` (match/sub/insert/delete), the two units, the position `cost`, and for a substitution the `(label, a, b, cost)` rows behind it, each comparable feature and every prosodic rider — so a score can be read term by term (`ˈk`~`ˌk` is `stress: primary vs secondary = 0.5`).
+**A word comparison is inspectable.** `explain_transcription_distance(a, b)` returns one step per aligned position — `op` (match/sub/insert/delete), the two units, the position `cost`, and for a substitution the `(label, a, b, cost)` rows behind it, each comparable feature and every prosodic rider — so a score can be read term by term (`ˈk`~`ˌk` is `stress: primary vs secondary = 0.5`).
 
 **A string of units is the same mean, one level up.** `segment_distance` compares its two arguments position by position: a position both sides reach costs the segment metric above, a position only one side reaches costs `GAP_COST`, and the answer is the mean over `max(len)` positions. Length is those positions and not a second quantity normalized beside them, so all three levels — parts within a unit, units within a string, tokens within a word — price a substitution against a gap in one currency. Two consequences worth stating: a pair scores the same alone as it does inside a longer string, so appending a unit identical on both sides leaves the summed cost untouched and only divides it over one more position; and an empty string against a spoken one is 1.0 because every position is unmatched, not because of a special case.
 
-**A word is that currency spent, not measured.** `word_distance` searches for the cheapest alignment instead of comparing position by position, so it needs prices rather than proportions, and the two are not the same number. A gap costs `GAP_COST`, exactly what an unmatched position costs one level down. A substitution costs the pair's dissimilarity — the [0, 1] answer from the level below — multiplied by `delete + insert`, because a position whose two tokens share nothing is a deletion and an insertion: the material on one side went, and different material arrived. That fixes the one relation the two scales need. The usual constraint `sub(a, b) <= delete(a) + insert(b)` is met with equality at the top rather than with room to spare, so a chain of substitutions is chosen over a pair of gaps exactly when the tokens along it really do share something, and an alignment can say *this was dropped and that was added* instead of reporting every pair of unlike tokens as a substitution.
+**A word is that currency spent, not measured.** `transcription_distance` searches for the cheapest alignment instead of comparing position by position, so it needs prices rather than proportions, and the two are not the same number. A gap costs `GAP_COST`, exactly what an unmatched position costs one level down. A substitution costs the pair's dissimilarity — the [0, 1] answer from the level below — multiplied by `delete + insert`, because a position whose two tokens share nothing is a deletion and an insertion: the material on one side went, and different material arrived. That fixes the one relation the two scales need. The usual constraint `sub(a, b) <= delete(a) + insert(b)` is met with equality at the top rather than with room to spare, so a chain of substitutions is chosen over a pair of gaps exactly when the tokens along it really do share something, and an alignment can say *this was dropped and that was added* instead of reporting every pair of unlike tokens as a substitution.
 
-**The normalizer is the cost of the null alignment**, `n · delete + m · insert` — deleting every token of the first word and inserting every token of the second. That path is one the search minimizes over, so it is also the most any alignment can cost, and `similarity = 1 − cost / that` reaches both ends: 1 on identity, 0 when the two words share nothing anywhere. `max(n, m)` is a different claim, and the difference is exactly on length mismatch: it charges a truncation once where this charges the material that went missing and the material that replaced it apart. Both word-distance paths — `IPAFeatures.word_distance` and `DistanceModel.word_distance` — read one function for this, so a caller who switches to the model to get empirical weights changes which substitution costs the alignment sees and not what a similarity means.
+**The normalizer is the cost of the null alignment**, `n · delete + m · insert` — deleting every token of the first word and inserting every token of the second. That path is one the search minimizes over, so it is also the most any alignment can cost, and `similarity = 1 − cost / that` reaches both ends: 1 on identity, 0 when the two words share nothing anywhere. `max(n, m)` is a different claim, and the difference is exactly on length mismatch: it charges a truncation once where this charges the material that went missing and the material that replaced it apart. Both word-distance paths — `IPAFeatures.transcription_distance` and `DistanceModel.transcription_distance` — read one function for this, so a caller who switches to the model to get empirical weights changes which substitution costs the alignment sees and not what a similarity means.
 
 **Length asymmetry is reported, never folded in.** `WordDistanceResult.coverage` is `min(n, m) / max(n, m)`, and it multiplies nothing. Length is already charged once, as the gaps the alignment pays for; a second multiplicative term would charge it twice, which is the mistake `segment_distance` used to make with its separate length penalty. What the ratio adds is a diagnosis rather than a magnitude — it is what separates "these differ throughout" from "one is a truncation of the other", two readings a single score cannot tell apart, and folding it in would destroy precisely that.
 
@@ -291,9 +311,9 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **The three scales are named apart.** `distance` is a structural magnitude and is bounded; `normalized_distance` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `WordDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
-**Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `word_distance("lez‿ami", "lezami") = 0`.
+**Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `transcription_distance("lez‿ami", "lezami") = 0`.
 
-**Score against a set of acceptable pronunciations with `nearest_pronunciation`, not a citation form.** Every real lexicon lists several transcriptions per word — free variants (`iːðɚ`/`aɪðɚ`), a homograph read two ways (`record` the noun and the verb) — and "is this an acceptable pronunciation?" is the best match over that set, with `PronunciationMatch` reporting which member won. It is deliberately *not* word-to-word distance: a maximum over variants depends on how many each side lists, a property of the lexicon and not of the pair, so the two are named apart. `word_distance` remains the symmetric pairwise measure.
+**Score against a set of acceptable pronunciations with `nearest_pronunciation`, not a citation form.** Every real lexicon lists several transcriptions per word — free variants (`iːðɚ`/`aɪðɚ`), a homograph read two ways (`record` the noun and the verb) — and "is this an acceptable pronunciation?" is the best match over that set, with `PronunciationMatch` reporting which member won. It is deliberately *not* word-to-word distance: a maximum over variants depends on how many each side lists, a property of the lexicon and not of the pair, so the two are named apart. `transcription_distance` remains the symmetric pairwise measure.
 
 **A low word similarity has two readings, and `coverage` is which.** Two words can score alike because they differ at every position or because one is half of the other. The score is the same question in both cases — how far apart — and the ratio beside it is the diagnosis. Read them together, and do not multiply them: the gaps already charged the length.
 
@@ -353,9 +373,9 @@ round(sum(s ** 3 > 0.5 for s in sims) / len(sims), 2)   # 0.21
 **Where gamma does real work is word alignment**, because there the transformed values are *summed* rather than compared. `sub_cost` runs through the same percentile as `confusability`, but insertion and deletion cost a flat `insert_cost` and `delete_cost` and gamma never touches them. Raising gamma therefore raises the price of a substitution against a fixed price for a gap, and that is a change of exchange rate, not a relabeling. It can change which alignment the dynamic program picks:
 
 ```python
-flat.word_distance("atə", "abt", return_alignment=True).alignment
+flat.transcription_distance("atə", "abt", return_alignment=True).alignment
 # [('a', 'a'), ('t', 'b'), ('ə', 't')]
-sharp.word_distance("atə", "abt", return_alignment=True).alignment
+sharp.transcription_distance("atə", "abt", return_alignment=True).alignment
 # [('a', 'a'), (None, 'b'), ('t', 't'), ('ə', None)]
 ```
 
@@ -363,16 +383,16 @@ At `gamma=1.0` substituting straight through is cheaper than a gap on each side 
 
 **There is no tuned default, and there will not be one.** Any specific value is a fit to whichever inventory and task produced it, and a number fitted to one source cannot be checked against anything — [docs/design/vowel-constriction.md](design/vowel-constriction.md) is the worked case of refusing exactly that, and concludes that "a table is refused on evidence, not on taste." `1.0` is the honest default precisely because it is the identity: it asserts nothing.
 
-To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `word_similarity` on that set, not over `confusability`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it. There is no upper bound: the transform stays in range and stays order-preserving however large the exponent gets, and how far up is useful is a fact about the caller's inventory rather than about the library.
+To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `transcription_similarity` on that set, not over `confusability`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it. There is no upper bound: the transform stays in range and stays order-preserving however large the exponent gets, and how far up is useful is a fact about the caller's inventory rather than about the library.
 
-**Gamma has no meaning on the plain `word_distance` path.** `ipakit.word_distance` and `IPAFeatures.word_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
+**Gamma has no meaning on the plain `transcription_distance` path.** `ipakit.transcription_distance` and `IPAFeatures.transcription_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
 
 ### Sweeping gamma, and choosing a threshold
 
 Gamma and any `is_similar` threshold are tuned **together, on data your task has labeled** — never hand-picked. The recipe:
 
 1. Collect labeled pairs: a `1` for pairs your task treats as the same, a `0` for pairs it does not.
-2. Sweep gamma. For each candidate value build a model at that gamma and score every pair with `word_similarity` (or `sequence_similarity`, below, for pre-tokenized input). Rank the gammas by a **threshold-independent** measure of separation — the probability a positive scores above a negative (ROC-AUC) is the honest one, since it smuggles in no threshold.
+2. Sweep gamma. For each candidate value build a model at that gamma and score every pair with `transcription_similarity` (or `sequence_similarity`, below, for pre-tokenized input). Rank the gammas by a **threshold-independent** measure of separation — the probability a positive scores above a negative (ROC-AUC) is the honest one, since it smuggles in no threshold.
 3. Fix the threshold **last**, on the winning gamma, to the false-negative/false-positive balance the task wants. A threshold is not portable across gammas, inventories, or versions (§8), so pin the gamma it was chosen under — `DistanceModel.scoring` records it.
 
 ```python
@@ -395,7 +415,7 @@ for g in (1, 2, 4, 8, 16):
     print(g, round(auc(scores, labels), 3))
 ```
 
-Sweep on `word_similarity` / `sequence_similarity`, **not** on `confusability` or `distance`: on the phone-level API a gamma is exactly a change of threshold (above), so a sweep there measures nothing a cut point could not. How far up is useful is a fact about your inventory and task, not the library — which is why the default stays `1.0` and there is no shipped calibration.
+Sweep on `transcription_similarity` / `sequence_similarity`, **not** on `confusability` or `distance`: on the phone-level API a gamma is exactly a change of threshold (above), so a sweep there measures nothing a cut point could not. How far up is useful is a fact about your inventory and task, not the library — which is why the default stays `1.0` and there is no shipped calibration.
 
 ## 10. Per-phone indel costs, and what they are relative to
 
@@ -405,7 +425,7 @@ Sweep on `word_similarity` / `sequence_similarity`, **not** on `confusability` o
 import ipakit
 
 drop = ipakit.CostSchedule("my-english/deletion", {"ə": 0.25}, default=1.0)
-r = ipakit.directional_word_distance("kætə", "kæt", delete_cost=drop)
+r = ipakit.directional_transcription_distance("kætə", "kæt", delete_cost=drop)
 r.costs        # 'insert=1.0 delete=my-english/deletion'
 ```
 
@@ -417,7 +437,7 @@ r.costs        # 'insert=1.0 delete=my-english/deletion'
 
 That reading only holds if the parameterization is nameable, which is why every result carries one. `WordDistanceResult.costs` is `insert=<name> delete=<name>`, a flat cost naming itself and a schedule naming what it is a schedule for. An unnamed lambda reports `<lambda>`, which is the honest answer and the reason to pass a schedule when the number is going anywhere a reader will see it.
 
-**Directional distance.** `word_distance` is symmetric and stays symmetric, and it is the code rather than the suite that makes it so: the two reductions that could introduce an order dependence — the arc distance and the weighted place distance — each take `max(direction(a, b), direction(b, a))`, and part-matching minimizes over matchings symmetrically. The tests probe that with a curated list covering the cross-arity cases where an asymmetry would surface, rather than quantifying over the inventory; the `max()` is what earns the guarantee. Callers rely on it — the shipped matrix stores only the upper triangle. `directional_word_distance(reference, hypothesis)` is the entry point that names its reference side: `delete_cost` prices the phones of the reference, which is the material an omission removes, and `insert_cost` prices the phones of the hypothesis, which is the material that was added. "Did the speaker omit something the target has" and "did the speaker add something the target lacks" are different questions and a symmetric score cannot express either. With equal flat costs the two functions agree exactly; the asymmetry comes from the schedule, not from the entry point.
+**Directional distance.** `transcription_distance` is symmetric and stays symmetric, and it is the code rather than the suite that makes it so: the two reductions that could introduce an order dependence — the arc distance and the weighted place distance — each take `max(direction(a, b), direction(b, a))`, and part-matching minimizes over matchings symmetrically. The tests probe that with a curated list covering the cross-arity cases where an asymmetry would surface, rather than quantifying over the inventory; the `max()` is what earns the guarantee. Callers rely on it — the shipped matrix stores only the upper triangle. `directional_transcription_distance(reference, hypothesis)` is the entry point that names its reference side: `delete_cost` prices the phones of the reference, which is the material an omission removes, and `insert_cost` prices the phones of the hypothesis, which is the material that was added. "Did the speaker omit something the target has" and "did the speaker add something the target lacks" are different questions and a symmetric score cannot express either. With equal flat costs the two functions agree exactly; the asymmetry comes from the schedule, not from the entry point.
 
 **The denominator sums over the phones.** `similarity` is `1 - edit_cost / denom`, where `denom` is the null alignment's cost: delete every phone of the first word, insert every phone of the second. That is a sum over the actual phones, not a token count times a price. The two agree whenever the price is flat and disagree as soon as it is not, and only the sum keeps `similarity` bounded below by 0 once prices vary.
 
@@ -465,7 +485,7 @@ This document states relations and invariants rather than measured values, delib
 
 ## 12. Pre-tokenized sequences, n-best, and local matching
 
-`word_distance` and `word_similarity` take IPA **strings** and tokenize them. When you already hold phone tokens — each element one unit, possibly multi-character like `d͡ʒ` — pass them to `sequence_distance` / `sequence_similarity` instead, and the boundaries you gave are kept:
+`transcription_distance` and `transcription_similarity` take IPA **strings** and tokenize them. When you already hold phone tokens — each element one unit, possibly multi-character like `d͡ʒ` — pass them to `sequence_distance` / `sequence_similarity` instead, and the boundaries you gave are kept:
 
 ```python
 ipakit.sequence_similarity(["t", "ʃ"], ["t͡ʃ"])   # < 1.0: two units, not the affricate
@@ -481,7 +501,7 @@ ipakit.rank_sequences(["b", "ʌ", "t", "ɚ"],
                       [["b", "ʌ", "t", "ɝ"], ["b", "ɪ", "t"]], n=2)
 ```
 
-**Local (fit) matching.** `mode="local"` scores the second sequence as a **target that must align fully** while the first sequence's ends are free — for a target embedded in a longer, noisier sequence. It is directional (the two sides are not interchangeable), which is why it is offered on the sequence and ranking methods and not on the symmetric `word_distance`. It is a specialized tool: on whole-to-whole comparison it over-accepts, because free ends stop charging the surrounding material, so reach for it only when the target really is embedded.
+**Local (fit) matching.** `mode="local"` scores the second sequence as a **target that must align fully** while the first sequence's ends are free — for a target embedded in a longer, noisier sequence. It is directional (the two sides are not interchangeable), which is why it is offered on the sequence and ranking methods and not on the symmetric `transcription_distance`. It is a specialized tool: on whole-to-whole comparison it over-accepts, because free ends stop charging the surrounding material, so reach for it only when the target really is embedded.
 
 On the command line: `distance seq` compares two pre-tokenized sequences (each argument a space-separated token list, `--local` for the fit), and `distance nearest -n K --local` ranks candidates.
 

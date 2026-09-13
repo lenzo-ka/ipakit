@@ -676,10 +676,33 @@ class DistanceModel:
             price(self._delete, t1),
         )
 
+    def transcription_distance(
+        self, ipa1: str, ipa2: str, *, return_alignment: bool = False
+    ) -> WordDistanceResult:
+        """Compare transcription strings using this model's empirical costs.
+
+        Current scoring aligns segment units and is boundary-transparent. Use
+        ``sequence_distance`` for already-tokenized inputs. The compatible
+        ``WordDistanceResult`` type and ``word_distance`` behavior are unchanged.
+        """
+        return self.word_distance(ipa1, ipa2, return_alignment=return_alignment)
+
+    def directional_transcription_distance(
+        self, reference: str, hypothesis: str, *, return_alignment: bool = False
+    ) -> WordDistanceResult:
+        """Compare transcription strings with the model's reference side named."""
+        return self.directional_word_distance(
+            reference, hypothesis, return_alignment=return_alignment
+        )
+
+    def transcription_similarity(self, ipa1: str, ipa2: str) -> float:
+        """Return this model's normalized similarity of transcription strings."""
+        return self.word_similarity(ipa1, ipa2)
+
     def word_distance(
         self, ipa1: str, ipa2: str, *, return_alignment: bool = False
     ) -> WordDistanceResult:
-        """Phonetic edit distance between two IPA words under this model.
+        """Compatibility entry point for :meth:`transcription_distance`.
 
         Uses the model's renormalized substitution costs (and indel costs) in a
         weighted-Levenshtein alignment. Returns a :class:`WordDistanceResult`;
@@ -704,7 +727,7 @@ class DistanceModel:
     def directional_word_distance(
         self, reference: str, hypothesis: str, *, return_alignment: bool = False
     ) -> WordDistanceResult:
-        """:meth:`word_distance` with the reference side named.
+        """Compatibility entry point for :meth:`directional_transcription_distance`.
 
         Identical in every value it computes; what it adds is that the
         argument names say which sequence the deletion costs are charged
@@ -719,7 +742,7 @@ class DistanceModel:
         )
 
     def word_similarity(self, ipa1: str, ipa2: str) -> float:
-        """The ``similarity`` field of :meth:`word_distance` (in [0, 1])."""
+        """Compatibility entry point for :meth:`transcription_similarity`."""
         return self.word_distance(ipa1, ipa2).similarity
 
     def sequence_distance(

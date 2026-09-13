@@ -840,6 +840,100 @@ class DistanceMixin(IPAFeaturesBase):
         tokenization for any word carrying no prosodic mark."""
         return [s.to_ipa() for s in self.read(text).segments]
 
+    def transcription_distance(
+        self,
+        ipa1: str,
+        ipa2: str,
+        *,
+        weighted: bool = True,
+        return_alignment: bool = False,
+        strict: bool = True,
+        applicable_only: bool = False,
+    ) -> WordDistanceResult:
+        """Compare IPA transcription strings using the existing segment alignment.
+
+        Inputs may contain multiple words. Current scoring is boundary-transparent:
+        it aligns segment units, not word or other tier boundaries. Use
+        ``sequence_distance`` for already-tokenized sequences. Options and the
+        compatibility result type ``WordDistanceResult`` match ``word_distance``.
+        """
+        return self.word_distance(
+            ipa1,
+            ipa2,
+            weighted=weighted,
+            return_alignment=return_alignment,
+            strict=strict,
+            applicable_only=applicable_only,
+        )
+
+    def directional_transcription_distance(
+        self,
+        reference: str,
+        hypothesis: str,
+        *,
+        insert_cost: PhoneCost | None = None,
+        delete_cost: PhoneCost | None = None,
+        weighted: bool = True,
+        return_alignment: bool = False,
+        strict: bool = True,
+        applicable_only: bool = False,
+    ) -> WordDistanceResult:
+        """Compare transcription strings with reference/hypothesis costs.
+
+        Deletion prices the reference; insertion prices the hypothesis. Delegates
+        to the compatible ``directional_word_distance`` with unchanged scoring.
+        """
+        return self.directional_word_distance(
+            reference,
+            hypothesis,
+            insert_cost=insert_cost,
+            delete_cost=delete_cost,
+            weighted=weighted,
+            return_alignment=return_alignment,
+            strict=strict,
+            applicable_only=applicable_only,
+        )
+
+    def transcription_similarity(
+        self,
+        ipa1: str,
+        ipa2: str,
+        *,
+        weighted: bool = True,
+        strict: bool = True,
+        applicable_only: bool = False,
+    ) -> float:
+        """Return the existing normalized similarity of transcription strings."""
+        return self.word_similarity(
+            ipa1,
+            ipa2,
+            weighted=weighted,
+            strict=strict,
+            applicable_only=applicable_only,
+        )
+
+    def explain_transcription_distance(
+        self,
+        ipa1: str,
+        ipa2: str,
+        *,
+        weighted: bool = True,
+        strict: bool = True,
+        applicable_only: bool = False,
+    ) -> list[dict[str, object]]:
+        """Explain the raw feature comparison of transcription strings.
+
+        Uses the existing ``explain_word_distance`` trace and its feature-cost
+        currency; this is not the empirical DistanceModel scoring path.
+        """
+        return self.explain_word_distance(
+            ipa1,
+            ipa2,
+            weighted=weighted,
+            strict=strict,
+            applicable_only=applicable_only,
+        )
+
     def word_distance(
         self,
         ipa1: str,
@@ -850,7 +944,7 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool = True,
         applicable_only: bool = False,
     ) -> WordDistanceResult:
-        """Compute phonetic edit distance between two IPA words.
+        """Compatibility entry point for :meth:`transcription_distance`.
 
         Uses Levenshtein-style dynamic programming with phonetic feature costs
         for substitutions when weighted=True.
@@ -895,9 +989,9 @@ class DistanceMixin(IPAFeaturesBase):
 
         Examples:
             >>> import ipakit
-            >>> ipakit.word_distance("kæt", "kæd").edit_cost
+            >>> ipakit.transcription_distance("kæt", "kæd").edit_cost
             0.09523809523809523
-            >>> round(ipakit.word_distance("kæt", "dɒɡ").edit_cost, 4)
+            >>> round(ipakit.transcription_distance("kæt", "dɒɡ").edit_cost, 4)
             0.6162
         """
         from .metric import GAP_COST
@@ -1059,7 +1153,7 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool = True,
         applicable_only: bool = False,
     ) -> WordDistanceResult:
-        """Edit distance from a **reference** to a **hypothesis**, named sides.
+        """Compatibility entry point for :meth:`directional_transcription_distance`.
 
         "Did the speaker omit something the target has" and "did the speaker
         add something the target lacks" are different questions, and a
@@ -1126,7 +1220,7 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool = True,
         applicable_only: bool = False,
     ) -> float:
-        """Compute phonetic similarity between two IPA words.
+        """Compatibility entry point for :meth:`transcription_similarity`.
 
         Returns a value from 0.0 (completely different) to 1.0 (identical):
         the alignment's cost against the cost of the null alignment, which
@@ -1140,9 +1234,9 @@ class DistanceMixin(IPAFeaturesBase):
 
         Examples:
             >>> import ipakit
-            >>> round(ipakit.word_similarity("kæt", "kæd"), 4)
+            >>> round(ipakit.transcription_similarity("kæt", "kæd"), 4)
             0.9841
-            >>> round(ipakit.word_similarity("kæt", "dɒɡ"), 4)
+            >>> round(ipakit.transcription_similarity("kæt", "dɒɡ"), 4)
             0.8973
 
         The second is what the normalizer does, and it is worth seeing
@@ -1177,7 +1271,7 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool = True,
         applicable_only: bool = False,
     ) -> list[dict[str, object]]:
-        """A per-position trace of a word comparison, for debugging and detail.
+        """Compatibility entry point for :meth:`explain_transcription_distance`.
 
         One step per aligned position of the two words' units, in order:
         ``op`` is ``match``/``sub``/``insert``/``delete``, ``a``/``b`` are the

@@ -1719,7 +1719,11 @@ LIBRARY_ONLY = {
     "to_phonemap": "generic; the CLI spells one subcommand per map",
     "from_phonemap": "generic; the CLI spells one subcommand per map",
     # A second spelling of a number the CLI already prints another way.
-    "word_similarity": "'distance word --raw' prints this value via word_distance",
+    "word_similarity": "compatibility name; distance transcription --raw prints its value",
+    "word_distance": "compatibility name for transcription_distance, reached by distance transcription",
+    "directional_word_distance": "compatibility name for directional_transcription_distance",
+    "explain_word_distance": "compatibility name for explain_transcription_distance",
+    "transcription_similarity": "distance transcription --raw prints this field of transcription_distance",
     "sequence_similarity": "the similarity of sequence_distance, which 'distance seq' spells",
     "rank_sequences": "the n-best over a set of pre-tokenized sequences; the CLI compares one sequence to one, not a set",
     "is_valid_ipa": "'analysis validate' prints the issues, not the boolean",

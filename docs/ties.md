@@ -13,7 +13,7 @@ A tie's *presence* is contrastive and is never added or removed by normalization
 
 A tie binds **units**, not bare letters. A base plus the modifiers written on it is one constituent, so `t̪͡s` (dental affricate) and `ã͜i` (nasalized diphthong) are single units exactly as `t͡s` and `a͜ɪ` are, and a modifier written before the tie stays on the constituent it was written on — `segment("kʷ͡p").bag()["labialized"]` is `('+', '-')`, not one value for the whole unit.
 
-The spacing undertie `‿` (U+203F) is a different symbol entirely: the IPA **linking** mark (absence of a break) between words — French liaison is one use. It is a separator-level mark, not a tie: it tokenizes as its own boundary token (`lez‿ami` → `l e z ‿ a m i`) so marked text round-trips faithfully, never glues onto a segment, never enters one, and is **transparent to distance** — `word_distance("lez‿ami", "lezami") = 0`; a boundary relation costs no alignment. (Its eventual structural home is a typed word-tier juncture, when a Word representation exists.)
+The spacing undertie `‿` (U+203F) is a different symbol entirely: the IPA **linking** mark (absence of a break) between words — French liaison is one use. It is a separator-level mark, not a tie: it tokenizes as its own boundary token (`lez‿ami` → `l e z ‿ a m i`) so marked text round-trips faithfully, never glues onto a segment, never enters one, and is **transparent to distance** — `transcription_distance("lez‿ami", "lezami") = 0`; a boundary relation costs no alignment. (Its eventual structural home is a typed word-tier juncture, when a Word representation exists.)
 
 ## Precedence
 
@@ -49,7 +49,7 @@ Two of these needed a judgment call, and both are documented rather than guessed
 
 ## Unknown characters are dropped audibly, never silently
 
-A character registered nowhere in the inventory cannot be represented as a segment, so tokenization drops it — but it says so. The default path warns, naming what it lost; `tokenize(text, strict=True)`, `segments(text, strict=True)` and `parse(text, strict=True)` raise `ValueError` instead, the same `strict=` policy the converters use. The tokenizer stays total by default, because callers like `distance` legitimately want a number for out-of-vocabulary input, and `word_distance`/`word_similarity` already reject lossy input at the measurement layer with `strict=True` as *their* default.
+A character registered nowhere in the inventory cannot be represented as a segment, so tokenization drops it — but it says so. The default path warns, naming what it lost; `tokenize(text, strict=True)`, `segments(text, strict=True)` and `parse(text, strict=True)` raise `ValueError` instead, the same `strict=` policy the converters use. The tokenizer stays total by default, because callers like `distance` legitimately want a number for out-of-vocabulary input, and `transcription_distance`/`transcription_similarity` already reject lossy input at the measurement layer with `strict=True` as *their* default.
 
 So the advertised round trip is either true or loud: `to_ipa(segments(x, strict=True)) == x` holds for house-style input and raises otherwise; without `strict` a stray character still produces a warning rather than a shorter, well-formed-looking string.
 

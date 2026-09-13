@@ -106,7 +106,9 @@ $ ipakit features kæt --short
 
 ## 2. Phonetic distance and nearest phones
 
-`distance` is an inventory-independent magnitude in `[0, 1]` over the feature bundles: 0 means the same phone, and larger is more different. A voicing contrast is small; a consonant against a vowel is large.
+`distance` reports a magnitude in `[0, 1]` under the selected scored projection.
+Zero means no difference in that score, not guaranteed identity of complete
+representations. A voicing contrast is small; a consonant against a vowel is large.
 
 ```python-run
 ipa.distance("p", "b")
@@ -140,28 +142,28 @@ ipa.confusability("f", "a")
 $ ipakit distance conf f θ
 ```
 
-For whole words there are two different measures, and it matters which one you get.
+For transcription strings there are two different measures, and it matters which one you get.
 
 ```python-run
-ipa.word_similarity("kæt", "kæd")      # raw weighted edit distance
-ipa.distance_model().word_distance("kæt", "kæd").similarity
+ipa.transcription_similarity("kæt", "kæd")      # raw weighted edit distance
+ipa.distance_model().transcription_distance("kæt", "kæd").similarity
 ```
 
-> **Word comparison scales.** `ipakit distance word` prints the
-> inventory-relative `distance_model().word_distance` score by default; add `--raw` to print `word_similarity`. Reach for `confusability`/`distance_model` when you want positions comparable across pairs under one stated reference inventory, and `word_similarity` or `distance word --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
+> **Transcription comparison scales.** `ipakit distance transcription` prints the
+> inventory-relative `distance_model().transcription_distance` score by default; add `--raw` to print `transcription_similarity`. Reach for `confusability`/`distance_model` when you want positions comparable across pairs under one stated reference inventory, and `transcription_similarity` or `distance transcription --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
 
 ```console-run
-$ ipakit distance word kæt kæd
-$ ipakit distance word --raw kæt kæd
+$ ipakit distance transcription kæt kæd
+$ ipakit distance transcription --raw kæt kæd
 ```
 
-A word comparison also reports `coverage`, the shorter token count over the longer.
+A transcription comparison also reports `coverage`, the shorter token count over the longer.
 This separate value helps distinguish a length mismatch from differences between
 similarly sized forms.
 
 ```python-run
-ipa.word_distance("kætəloɡ", "kæt").coverage
-ipa.word_distance("kætəloɡ", "ɡolətæk").coverage
+ipa.transcription_distance("kætəloɡ", "kæt").coverage
+ipa.transcription_distance("kætəloɡ", "ɡolətæk").coverage
 ```
 
 Two shapes come up often enough to name. **`nearest_pronunciation`** answers "is this an
@@ -186,10 +188,10 @@ triples violate the triangle inequality. Algorithms such as metric trees that re
 that inequality need `ipakit.closure.MetricClosure`. [distance.md](distance.md)
 describes these restrictions and the closure's inventory-relative behavior.
 
-When a score needs an explanation, `explain_word_distance` exposes the alignment operation at each position and, for a substitution, the feature and tract terms that contributed to its cost.
+When a score needs an explanation, `explain_transcription_distance` exposes the alignment operation at each position and, for a substitution, the feature and tract terms that contributed to its cost.
 
 ```python-run
-explanation = ipa.explain_word_distance("kæt", "kæd")
+explanation = ipa.explain_transcription_distance("kæt", "kæd")
 [(step["op"], step["a"], step["b"]) for step in explanation]
 [term["label"] for term in explanation[-1]["terms"] if term["cost"] != 0]
 sum(step["cost"] for step in explanation)
@@ -302,8 +304,11 @@ Prosody rides on a segment rather than being one, so it survives the same way:
 Form.parse("ˈaːkæt").attributes
 ```
 
-`a`, `ˈa` and `aː` are **one phone** — stress and length are not part of a phone's
-identity, which is why a rule written over `a` also matches `ˈa`:
+The `.phones` projection of `a`, `ˈa` and `aː` is equal because that view omits
+stress and length. Their complete units retain those distinctions. A house
+literal matcher written over `a` leaves prosody unconstrained, so it also
+matches `ˈa`; this is a matcher policy. Phonological identity depends on the
+language and model, rather than following from equality of this projection:
 
 ```python-run
 [Form.parse(x).phones for x in ("a", "ˈa", "aː")]
