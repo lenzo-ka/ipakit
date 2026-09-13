@@ -1,10 +1,9 @@
 # Library/API/CLI capability contract
 
 This table is the synchronization contract for the flat `ipakit` API and the
-codec/profile entry points relevant to a terminal. “Library-only” is a decision,
-not an omission: those rows either construct reusable objects, require a graph
-already assembled by Python, or would turn a bounded linguistic model into an
-unjustified text-to-text guesser. There is deliberately no third state.
+codec/profile entry points relevant to a terminal. Each capability is classified
+as CLI-reachable or library-only. Library-only entries construct reusable
+objects or require caller-supplied graph structure and linguistic choices.
 
 | Capability | Public/API entry points | Decision |
 |---|---|---|
@@ -48,13 +47,14 @@ entry-point tests exercise both named and supplied declarations. These commands
 use explicit model selection and exact JSON token arrays; see the
 [finite CLI contract](rules.md#explicit-finite-rules-on-the-command-line).
 Generic typed schema/AST and transform construction remain library composition
-interfaces; this does not overload native wrappers
-or claim their flat-export reachability test measures every module method.
+interfaces. Native wrappers retain their existing signatures, and the
+flat-export reachability test covers the flat API.
 
 `ipakit.model_graph.GraphBinding` is library-only: callers supply a native graph,
-qualified value relations, source references and clock binding. Its derivation
-and bound-operation restoration do not imply a CLI graph-input format or
-general house `Form` admission. See [graph decoration](rules.md#decorating-an-existing-graph).
+qualified value relations, source references and clock binding. Derivation
+and bound-operation restoration operate through this Python interface; CLI
+graph input and general house `Form` admission remain separate work.
+See [graph decoration](rules.md#decorating-an-existing-graph).
 
 The CLI exit contract applies to every reachable row: 0 for success, 1 for a
 command error, 2 for usage, and 3 when a soft read produced output after losing

@@ -7,19 +7,18 @@ rules differ, while structure and computation use the common substrate.
 
 ## What the renderer reads
 
-[`ipakit.bridges.kana.KANA`](../ipakit/bridges/kana.py) renders the `mora` tier,
-not a concatenation of segment spellings. Ordinary mora spellings use a declared
+[`ipakit.bridges.kana.KANA`](../ipakit/bridges/kana.py) reads the `mora` tier to
+render orthography. Ordinary mora spellings use a declared
 table. Special mora kinds render the geminate half as `ッ`, nasal mora as `ン`,
 and second long-vowel mora as `ー`.
 
-A mora can group an IPA sequence; it need not be a single IPA segment. Keeping
-that grouping makes the orthographic realization a computation over structure
-rather than an inference from adjacent characters.
+A mora can group an IPA sequence spanning several segments. The renderer uses
+that grouping directly to compute its orthographic realization.
 
 ## Public API and CLI
 
-Unlike the current Pinyin graph profile, the attested-adaptation workflow already
-has both a public convenience function and a CLI command:
+The attested-adaptation workflow has both a public convenience function and a
+CLI command:
 
 ```python
 import ipakit
@@ -38,12 +37,11 @@ mora sequence. Library callers with an appropriately constructed `Form` can use
 
 ## Scope and evidence
 
-This is a small, fixture-backed gairaigo codec, not a comprehensive kana reader,
-a productive Japanese loanword adaptation system, or an accent simulator.
-Unsupported convenience-function inputs are refused rather than approximated.
+This fixture-backed gairaigo codec covers the declared attested adaptations.
+Comprehensive kana reading, productive loanword adaptation and accent simulation
+are outside its scope. The convenience function refuses unlisted inputs.
 The [shipped declaration](../ipakit/data/bridges/kana/kana.xml) identifies the
-finite vocabulary and directional fidelity; it must not be advertised as the
-complete Japanese inventory.
+finite vocabulary and directional fidelity for this subset of Japanese.
 
 [Profile tests](../tests/tiergraph/test_j_profiles.py) check the attested
 adaptations and that special kana come from derived mora structure.

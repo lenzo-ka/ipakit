@@ -6,7 +6,7 @@ This tutorial begins with a transcription and follows it through questions and
 a sound change. It assumes some phonetics and enough Python to read a function
 call. Every value shown here comes from running the code beside it.
 
-## 1. Read a form
+## 1. Transcription and form structure
 
 `read` parses a transcription into a `Form`: the value ipakit uses to keep its
 spelling and structure together.
@@ -27,7 +27,7 @@ units](house-style.md#ties-are-units). `read` also canonicalizes the Unicode
 itself (decomposed form), so a precomposed `ã` typed at the keyboard comes
 back as `a` plus its combining mark — the same segments, spelled one way.
 
-## 2. Ask questions
+## 2. Structural queries
 
 Queries can name one segment, a class, or an environment. A match gives back
 the text of the unit as the form read it, so the answer keeps the input's
@@ -60,8 +60,8 @@ ipa.phones_matching(["plosive", "bilabial"])  # ['b', 'p', 'ɓ', 'ʘ']
 ```
 
 The inventory also documents the basis it computes from. Feature definitions
-carry descriptions, and phone declarations carry outbound references; these
-are data rather than parallel prose.
+carry descriptions, and phone declarations carry outbound references alongside
+the data they describe.
 
 ```python
 inventory = ipa.load_ipa_features()
@@ -73,7 +73,7 @@ ipa.wiki("t͡ʃ")
 The [self-documentation convention](house-style.md#self-documentation) explains
 why those descriptions and references live with the declarations.
 
-## 4. Rewrite
+## 4. Context-sensitive rewriting
 
 A rewrite uses the same bracketed class and the same environment notation. This
 rule voices a plosive between vowels. `derive` keeps the account of what it did.
@@ -106,10 +106,10 @@ phrase.to_ipa()  # 'ata aka'
 # ['a', 'a']
 ```
 
-The query finds the vowel at the end of each word. It stops at the boundary
-rather than treating the phrase as one uninterrupted segment sequence.
+The query finds the vowel at the end of each word, using each word boundary
+as the endpoint of the search environment.
 
-## 6. Where to go next
+## 6. Further reading
 
 The [house style](house-style.md) gives the reasons for the writing conventions
 used here. The [documentation index](README.md) leads to the representation,

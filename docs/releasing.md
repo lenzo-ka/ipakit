@@ -84,11 +84,12 @@ bytes, provenance and license notices when regenerating derived artifacts.
    python -m twine check /path/to/fresh/release-artifacts/*
    ```
 
-`check_hrefs.py` is separate from `make check` because it needs the network
-and Wikipedia's uptime: in the ordinary gate that would fail unrelated work
-for an unrelated reason. Here a human is already waiting, and a link that
-died since the last release is about to be published. It exits 2 rather than
-0 when it cannot reach the API — unchecked is not the same as clean.
+Run the gate and build sequentially in a shared source worktree. An sdist build
+creates a temporary staging tree that recursive test collection can discover;
+wait for the gate to finish before starting the build.
+
+`check_hrefs.py` checks the release's Wikipedia links over the network. It runs
+separately from the offline gate and exits 2 when the API is unreachable.
 
 Read actual gate conclusions and skipped populations. The default test selection
 and the full slow suite are different scopes; a skipped check is not a pass.
@@ -103,7 +104,7 @@ do not erase a shared build directory or stage unrelated files.
 Check collection and fixture-dependent tests from the unpacked source archive
 without a checkout on `PYTHONPATH`. Tests, scripts and documentation support files
 must travel with it. Git-provenance gates still require a real checkout: the
-absence of `.git` in a source archive is intentional, not a missing fixture.
+source archives omit `.git` by design.
 
 5. **Commit, land on green, then tag**:
    ```bash

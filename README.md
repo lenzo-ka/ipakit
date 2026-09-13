@@ -28,11 +28,9 @@ returns a witness, an exhaustive refusal, or a refusal qualified by work left
 unexplored. Invertibility classifies each rule against the inventory the caller
 declares while leaving the rule language whole.
 
-The symbolic representation bottoms out in articulation. The tract geometry
-that drives figures and animation has been measured against instrumental data,
-with the instrument's blind spots left visible. The symbols check the geometry,
-and the measurements check the symbolic claims; neither is a decorative view
-of the other.
+The articulatory model connects symbolic features to tract geometry for figures
+and animation. Its measurements and validation reports document comparisons
+with instrumental data, including the limits of each instrument.
 
 Corpora make collections part of the same computation. They store cited and
 derived forms, expose structural queries at the shell, and test rule systems

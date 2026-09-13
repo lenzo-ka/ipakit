@@ -1,11 +1,12 @@
 # PHOIBLE inventories and original source data
 
 `PhoibleBridge()` and `ipakit phoible` use the shipped development snapshot by
-default: `b92abff4f4ca2544eece4d9eff5c707f8d508d0c`, not PHOIBLE 2.0 or latest.
+default: `b92abff4f4ca2544eece4d9eff5c707f8d508d0c`. This development pin is
+distinct from the PHOIBLE 2.0 release and stays fixed as upstream advances.
 An explicit checkout path (including its `data/phoible.csv`) takes precedence
 over `IPAKIT_PHOIBLE`, which takes precedence over the shipped data. An invalid
-explicit path or environment setting refuses; it does not silently fall back.
-No provider installation, source checkout or network is needed for the default.
+explicit path or environment setting raises an error. The default reads local
+packaged resources, with no provider installation, checkout or network required.
 
 ```python
 from ipakit.bridges.phoible import PhoibleBridge
@@ -26,24 +27,25 @@ Missing or corrupted packaged resources raise typed extraction source errors.
 The independent original mapping tables and reference bibliography are included.
 The bridge's inventory provenance comes from those mappings; 782 InventoryIDs
 have literal metadata differences from the main CSV, including case and Unicode
-differences. Packaging does not reconcile or erase those discrepancies.
+differences. Both versions of that metadata are preserved as supplied upstream.
 
-`language` returns a spread rather than merging doculects. `inventory` retains
+`language` returns separate doculect inventories in a spread. `inventory` retains
 allophones, marginality and explicit refusal reports under the existing house
-parser. Shipped source completeness does not claim lossless house admission,
-single-segment preservation for every source member, a typed PHOIBLE feature
-scorer or full house expressivity. The raw source API is independent of those
-conversion limits. External inputs retain their own unverified provenance;
-they are not mislabeled with the shipped pin.
+parser. House conversion has explicit limits: source members may be refused or
+span multiple segments. Typed PHOIBLE feature scoring and full house expressivity
+remain outside this bridge's scope. The raw source API preserves the complete
+source independently of those conversion limits. External inputs carry their
+own unverified provenance, separate from the shipped pin.
 
 ## Separate data terms
 
-These resources are not relicensed by IPAkit's BSD original-code license.
+These resources retain their component licenses alongside IPAkit's BSD
+original-code license.
 The complete file-scoped notice and license texts ship in `data/phoible/`:
 historical upstream MIT data notice, current dataset CC BY-SA 3.0 terms, and
 the extant GPLv3 notice for unchanged mapping tables. This is a separately
-licensed source-data aggregate, not a single permissively licensed derivative.
-No donor `raw-data/` is included. See the [packaged notice](../ipakit/data/phoible/NOTICE.txt),
+licensed source-data aggregate; its component terms apply individually. The
+shipped scope excludes donor `raw-data/`. See the [packaged notice](../ipakit/data/phoible/NOTICE.txt),
 [PHOIBLE attribution](https://phoible.org/about) and
 [upstream notice discussion](https://github.com/phoible/dev/issues/384#issuecomment-3411788511).
 Reversible gzip is transport only; decompression recovers the original editable
