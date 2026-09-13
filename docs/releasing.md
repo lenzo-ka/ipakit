@@ -1,7 +1,6 @@
 # Releasing ipakit
 
-*Internal maintainer note — not part of the user-facing docs or the published
-package.*
+*Maintainer checklist, included in the source distribution.*
 
 Publishing is automated via `.github/workflows/publish.yml` using **PyPI Trusted
 Publishing (OIDC)** — no API tokens. You cut a GitHub Release; the workflow
@@ -9,39 +8,46 @@ builds, checks, and uploads. This doc is the operator checklist.
 
 ---
 
-## One-time setup (before the first release)
+## Publishing setup
 
-Do these once. The automation cannot run until they exist.
+GitHub and PyPI publication have already succeeded, including version 0.2.0 on
+2026-09-07. The first-release pending-publisher instructions are no longer the
+normal release path. Recheck these settings if repository ownership, workflows
+or environments change; past publication does not verify current settings.
 
 ### 1. GitHub repository
 
-- Create/confirm the repo at `github.com/lenzo-ka/ipakit` (the `[project.urls]`
+- Confirm the repo at `github.com/lenzo-ka/ipakit` (the `[project.urls]`
   in `pyproject.toml` already point there).
 - Push `main`.
 
-### 2. PyPI trusted publisher  ⚠️ pending-publisher gotcha
+### 2. PyPI trusted publisher
 
-`ipakit` does **not** exist on PyPI yet (first release). You cannot attach a
-trusted publisher to a project that doesn't exist, so use a **pending
-publisher**:
+`ipakit` exists on PyPI. Its trusted-publishing identity must match:
 
-- PyPI → account → **Publishing** → *Add a pending publisher*:
+- PyPI project → **Publishing**:
   - PyPI Project Name: `ipakit`
   - Owner: `lenzo-ka`   Repository: `ipakit`
   - Workflow name: `publish.yml`
   - Environment name: `pypi`
 
-After the first successful upload the pending publisher becomes a normal one
-automatically.
+Do not create a new pending publisher for an already-published project.
 
 ### 3. GitHub Environment
 
-Repo → **Settings → Environments** → create the `pypi` environment (the publish
+Repo → **Settings → Environments** → confirm the `pypi` environment (the publish
 job references it; the OIDC identity is scoped to it).
 
 ---
 
 ## Cutting a release
+
+Freeze the intended release scope first. Only landed, verified features belong
+in its changelog. Qualify dependency changes against installed published packages;
+a successful source-checkout test is not proof that a dependency release ships
+the required API. Inspect package, hook and contract-test dependency declarations
+together. Use a separate clean release worktree and preserve original source-data
+bytes, provenance and license notices when regenerating derived artifacts.
 
 1. **Set the version** — single source of truth is `ipakit/__init__.py`:
    ```python
@@ -72,12 +78,10 @@ job references it; the OIDC identity is scoped to it).
 
 4. **Verify locally** (all must be clean):
    ```bash
-   make check          # lint, suite, invariants, the data validators, the document guards
+   make check          # use the release worktree and required pinned live sources
    python scripts/check_hrefs.py   # the shipped hrefs still point at live articles
-   python -m build && twine check dist/*
-   python -c "import importlib.metadata as m, ipakit; \
-     assert m.version('ipakit') == ipakit.__version__"
-   rm -rf dist build
+   python -m build --outdir /path/to/fresh/release-artifacts
+   python -m twine check /path/to/fresh/release-artifacts/*
    ```
 
 `check_hrefs.py` is separate from `make check` because it needs the network
@@ -86,14 +90,29 @@ for an unrelated reason. Here a human is already waiting, and a link that
 died since the last release is about to be published. It exits 2 rather than
 0 when it cannot reach the API — unchecked is not the same as clean.
 
-5. **Commit + tag**:
+Read actual gate conclusions and skipped populations. The default test selection
+and the full slow suite are different scopes; a skipped check is not a pass.
+Install the built wheel in a fresh environment, then verify distribution metadata
+equals `ipakit.__version__`, the installed dependency version is correct, and
+imports resolve inside that environment rather than a source checkout. Exercise
+resource lookup and representative CLI commands there. Inspect both archives:
+filenames, metadata, expected resources, full source-test support and notices.
+Retain the verified artifacts or remove only the exact inspected output directory;
+do not erase a shared build directory or stage unrelated files.
+
+5. **Commit, land on green, then tag**:
    ```bash
-   git commit -am "Release vX.Y.Z"
-   git tag vX.Y.Z          # tag must equal ipakit.__version__ with a leading v
-   git push && git push --tags
+   git status --porcelain
    ```
 
-6. **Publish** — create a **GitHub Release** for tag `vX.Y.Z` (Releases → Draft
+Commit only the explicit release paths when they have changed; do not force an
+empty commit when a release-preparation PR already carries the complete change.
+Require the reviewed local gate and applicable exact-head CI to pass before
+landing. Confirm the resulting main commit and its version before creating and
+pushing only the intended `vX.Y.Z` tag. Do not push unrelated local tags. Tagging
+and publication require release authorization, not merely preparation approval.
+
+6. **Publish** — publish a **GitHub Release** for tag `vX.Y.Z` (Releases → Draft
    a new release). Publishing the release triggers `publish.yml`, which:
    - builds sdist + wheel,
    - runs `twine check`,
@@ -110,12 +129,16 @@ died since the last release is about to be published. It exits 2 rather than
 - **Tag ↔ version**: the release step compares `${TAG#v}` against
   `ipakit.__version__`. A mismatch fails the build — bump the version *and*
   tag together.
-- **Data files**: `to-cmu`/xsampa/phonemap XML and `confusion.json` ship via
-  `[tool.setuptools.package-data]`. Confirm they're in the sdist:
-  `tar -tzf dist/*.tar.gz | grep -E 'data/'`.
-- **Changelog**: `CHANGELOG.md` ships in the sdist via `MANIFEST.in`. Nothing else at the
-  repo root does — `TODO.md` and the docs stay out. Confirm with
-  `tar -tzf dist/*.tar.gz | grep -E '^[^/]+/[^/]+$'`.
+- **Data files and licenses**: inspect the source-derived inventory census in
+  the actual wheel/sdist, not merely whether a `data/` directory exists. Include
+  bridge declarations, canonical Panphon XML, finite CLTS artifacts and PHOIBLE
+  source resources with their hashes and separately scoped notices. The code's
+  BSD license does not relicense third-party data. Preserve the precise Panphon
+  and PHOIBLE large-file and verbatim-notice hook exceptions.
+- **Source distribution**: `MANIFEST.in` includes `CHANGELOG.md`, Makefile,
+  conftest, tests, scripts and documentation. This checklist itself ships there;
+  do not describe the sdist as package-only. The wheel has its separately declared
+  package resources. Use the packaging tests and inspect both actual archives.
 - **PEP 639 license**: `license = "BSD-2-Clause"` requires `setuptools>=77` (already the
   build-system floor). Don't lower it.
 - **CI must be green first**: `ci.yml` (lint / test 3.12–3.13 / ICU guards) runs
