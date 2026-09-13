@@ -116,7 +116,7 @@ The eight remaining families do not repeat for the same reason, and sorting them
 | spanish-accented | prothesis | 2 | right: `[-vowel -approximant]`, `[channel=lateral]` | two classes |
 | spanish-accented | `ɹ` → trill | 2 | left: `#`, the alveolar sonorants | **a boundary and a class** |
 
-Twelve of the 23 are the bolded rows. In those the disjunction is between a segment query and a boundary, and no single term can hold both: a boundary carries no feature bundle, and `docs/rules.md` records the refusal as a known limit — *"a bracketed `[level=phrase]` never matches, because a query is compared against a segment's feature bundle and a boundary has none."* The two are disjoint by construction, and measurably so:
+Twelve of the 23 are the bolded rows. In those the disjunction is between a segment query and a boundary, and no single term can hold both: a boundary carries no feature bundle, and `docs/rules.md` records the refusal as a known limit — *"A bracketed `[level=phrase]` cannot match a boundary because feature queries operate on segment bundles, which boundaries lack."* The two are disjoint by construction, and measurably so:
 
 ```
 a -> o / _ [level=word]       on 'a#' -> 'a#'    on 'at' -> 'at'
@@ -153,7 +153,7 @@ American nasalization, both right contexts replaced by one syllable margin
         tˈɛnθ       tʰˈɛ̃n̪θ      ->  tʰˈɛn̪θ
 ```
 
-Nothing is wrong with the repair; what is wrong is the input. `docs/rules.md` states the policy it fails on: *"A word written without interior dots leaves its interior margins **unspecified**, and a margin-conditioned rule does not fire there rather than guessing."* Not one of the 42 Japanese corpus words carries an interior dot, and neither the caller nor the library will supply them — the alternative, treating absence as "one syllable", invents structure the transcription never asserted, and that is a decision this library has already taken and defended.
+The repair requires more information in the input. `docs/rules.md` states the policy: *"A word written without interior dots leaves its interior margins **unspecified**. Margin-conditioned rules require a stated margin."* None of the 42 Japanese corpus words in this analysis carries an interior dot; applying the margin-conditioned repair requires a separate syllable analysis.
 
 The Japanese case is worse still, and it is Hayes's own difficulty rather than ipakit's. Epenthesis is what *creates* the syllable structure — *"the underlying representations that undergo Epenthesis are precisely the ones that could not be syllabified"* (p. 264) — so conditioning it on a margin is conditioning it on the rule's own output. Hayes reaches for syllabification as a derivational step; ipakit has no syllabification rule and a rule cannot read its own output by construction. The difficulty is stated at the moment the repair is proposed and by the people proposing it: *"if this analysis is accepted the syllable structure assignment rules will have to apply both before and after (64) since insertion of [i] creates a new syllable nucleus"* (Kenstowicz & Kisseberth 1979: 362). It is a cost the repair carries, not an objection anyone raised later.
 

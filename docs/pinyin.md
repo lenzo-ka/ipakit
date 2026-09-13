@@ -1,7 +1,7 @@
 # Pinyin: a syllable-primary representation
 
-Pinyin is an implemented example of different organizing principles on the
-shared substrate, not merely another spelling for the house phone inventory.
+Pinyin organizes syllables and tone on the shared substrate, with a profile
+distinct from the house phone inventory.
 See [comparative systems](systems.md) for the distinction between a notation,
 an inventory, and a model of structure and computation.
 
@@ -9,10 +9,9 @@ an inventory, and a model of structure and computation.
 
 The Pinyin profile declares syllable, constituent, tone, and optional phonetic
 tiers. A syllable contains its onset (when present) and rhyme constituent. Tone
-associates with the syllable, not the vowel that happens to carry its written
-mark. An optional IPA realization can be attached directly or referenced on the
-phonetic tier; it is not required to establish the syllable's identity or tone
-attachment.
+associates with the syllable. The written mark's vowel host is selected separately.
+An optional IPA realization can be attached directly or referenced on the
+phonetic tier; syllable identity and tone attachment are established independently.
 
 The spelling codec independently selects the vowel on which to write the tone.
 Thus `shui` with tone 3 renders as `shuǐ`, without moving the semantic tone
@@ -23,8 +22,7 @@ association to `i`.
 [`ipakit.bridges.pinyin.PINYIN`](../ipakit/bridges/pinyin.py) owns the shipped
 vocabulary declaration, keyboard aliases (`u:` and `v` for `ü`), and tone-mark
 renderer. The graph constructor is currently an internal profile API,
-[`ipakit._pinyin_graph.build`](../ipakit/_pinyin_graph.py), not a promised stable
-public constructor:
+[`ipakit._pinyin_graph.build`](../ipakit/_pinyin_graph.py), whose interface may change:
 
 ```python
 from ipakit._pinyin_graph import build as build_pinyin
@@ -34,10 +32,10 @@ syllable = build_pinyin("shui", "sh", "ui", 3)
 PINYIN.render(syllable)  # 'shuǐ'
 ```
 
-This call supplies spelling, onset, rhyme, and tone explicitly. It is not an
-automatic parser for arbitrary Mandarin text. The vocabulary bridge also offers
-groupings over house IPA sequences; that view must not be confused with the
-syllable-primary graph profile or treated as a flat phoneset.
+This call requires explicit spelling, onset, rhyme, and tone; automatic parsing
+of arbitrary Mandarin text is outside its scope. The vocabulary bridge also
+offers groupings over house IPA sequences. That sequence view and the
+syllable-primary graph profile have separate interfaces; neither is a flat phoneset.
 
 ## Implemented boundaries
 
@@ -47,8 +45,7 @@ round trips. [Codec tests](../tests/tiergraph/test_codecs.py) check orthographic
 placement without changing semantic attachment. The declared syllabary also
 supplies the membership domain for [Mandarin syllabification](syllabification.md).
 
-Rendering this graph is currently library-only; there is no dedicated CLI
-ingestion surface for the Pinyin syllable/tone profile. See the
-[API/CLI boundary](cli-api-sync.md). These capabilities do not imply that every
-house computation accepts every profile, or that the bridge is a general Chinese
-text-processing system.
+Rendering this graph is currently library-only, with CLI ingestion outside the
+implemented scope. See the [API/CLI boundary](cli-api-sync.md). Each house
+computation has its own profile admission rules; this bridge covers the declared
+syllabary and profile operations rather than general Chinese text processing.

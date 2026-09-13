@@ -1,9 +1,12 @@
 # Finite model operations
 
-`ipakit.finite_model` exposes finite schemas and inventories without making any
-inventory semantically primary. A token can be an opaque provider spelling;
-there is no fallback through house IPA. The native default remains a convenience
-elsewhere, not a required pivot for these operations.
+For executable lookup, `phones_matching`/query, respelling and multi-model
+comparison recipes, see [working with alternate feature inventories](inventory-operations.md).
+
+`ipakit.finite_model` provides lookup, query, editing and realization for explicitly
+selected finite schemas and inventories. Each model operates on its own feature
+domains and exact provider spellings. Models have equal standing in these
+operations; conversion through house IPA requires an explicit separate operation.
 
 ```python
 from ipakit.finite_model import FeatureSchema, FiniteModel
@@ -33,8 +36,8 @@ order. `edit(bundle, mapping)` validates the changed fields without inventing a
 spelling. `realize(bundle)` returns all exact complete-bundle candidates, in row
 order. `respell(token, mapping)` combines read, edit and realize.
 
-Realization status is `none`, `unique` or `ambiguous`; zero candidates is a valid
-but unrepresented bundle, not an invalid edit. `InvalidFeature` rejects unknown
+Realization status is `none`, `unique` or `ambiguous`; zero candidates identifies
+a valid bundle with no inventory spelling. `InvalidFeature` rejects unknown
 features, invalid values and wrong bundle widths. `MissingToken` rejects absent
 inputs. `ModelMismatch` rejects a bundle with another model identity, even if
 its feature names happen to match. Transformations between models require an
@@ -43,8 +46,8 @@ explicit contract; these methods do not perform one.
 Schemas and inventory rows are defensively copied and read-only. Model identity
 is a content fingerprint of name, ordered schema/domains, ordered rows and
 optional `SourceMetadata`. Bundles retain that identity; realization results
-also retain source metadata. Equal bundles can have many spellings, and no
-first-row inverse or canonical spelling is inferred.
+also retain source metadata. Equal bundles can have many spellings; realization
+returns every candidate in declaration order.
 
 ## Existing ternary declarations
 
@@ -66,9 +69,9 @@ package paths. Explicit caller paths still use `read_ternary_declaration(path)`.
 The frozen `ipakit/data/feature-models/panphon.xml` travels with its source
 version/hash receipts, attribution and MIT permission notice. Panphon itself is
 needed only to regenerate or validate the artifact, not to read or operate on it.
-These feature models are not automatically house notation styles or mappings.
-Import the module explicitly with `from ipakit import feature_models`; it is
-not an optional-provider import or a new overload of the native flat wrappers.
+These declarations expose finite feature models. House notation styles and
+mappings have separate interfaces. Import the module explicitly with
+`from ipakit import feature_models`.
 
 The frozen table has 24 features but 22 separately declared weights. Reading
 and finite operations are valid independently of weighted scoring compatibility.
@@ -77,27 +80,29 @@ the unweighted family, missing-cell policies and directional fidelity metadata
 retain their existing behavior. Weights and scoring policies are not part of
 the finite model's inventory identity: a comparison must additionally identify
 its scoring policy and weight declaration. Bridge labels such as
-`external-to-house` are retained historical metadata, not a mandated model path.
+`external-to-house` retain historical provenance; each operation selects its model path explicitly.
 
 ## Command line
 
-Select a model explicitly; the finite commands do not choose a primary inventory:
+Select the model to inspect, query or edit:
 
 ```sh
 ipakit model list -j
 ipakit model inspect --model panphon -j
+ipakit model query --model panphon --features-json '{"voi":1}' -j
 ipakit model respell --model panphon --token p --changes-json '{"voi":1}' -j
 ipakit model inspect --model-declaration TABLE.xml --rows -j
 ```
 
 `--model` and `--model-declaration` are mutually exclusive and one is required
-for inspection or respelling. `list` enumerates shipped feature models, not
-house Styles. Inspection includes ordered domains, token count, source metadata,
+for inspection, querying or respelling. `list` enumerates shipped feature models; house
+Styles have their own inventory. Inspection includes ordered domains, token count, source metadata,
 content identity and codec policy; `--rows` adds the actual ordered inventory.
 Respelling takes one exact token without segmentation or Unicode normalization.
 Its report retains the input, edits, model identity, resulting values and all
 ordered candidates. Text output quotes tokens as JSON too. Both commands accept
-`-o` for output; `-j` selects JSON reports, not a new model serialization format.
+`-o` for output; `-j` selects JSON reports. Declaration serialization remains
+with the model codec.
 
 Edits must be a JSON object without duplicate keys. Integer `1`, boolean `true`
 and string `"1"` remain distinct; only declared ternary integers or missing-cell
@@ -109,20 +114,25 @@ fixtures and network access are not needed for named or supplied declarations.
 
 ## Scope and substrate
 
-These methods provide finite lookup, query, edit and realization—not productive
-composition, an audio model or a new occurrence representation. Validated
+These methods provide finite lookup, query, edit and realization. Productive
+composition, audio modeling and occurrence representation are outside this finite provider. Validated
 cross-model operations are described in [feature transforms](feature-transforms.md).
 The shared [rules engine](rules.md) also accepts explicitly bound finite models
 for supported context-sensitive operations; its typed library contracts and
 capability refusals also govern the [finite rule commands](rules.md#explicit-finite-rules-on-the-command-line).
-Those commands share the explicit named/path selector above and receive token
-arrays via `--tokens-json`, never concatenated native forms. Generic typed AST
-construction and graph-preserving operations retain their separate boundaries.
+Those commands share the explicit named/path selector above and receive exact
+token arrays via `--tokens-json`. Typed AST
+construction and feature transforms remain library composition interfaces.
 
-These immutable tables describe schema and inventory data; they are not
-TierGraph instances. TierGraph is the shared computational substrate developed
+These immutable tables describe schema and inventory data. TierGraph provides
+occurrence graphs and is the shared computational substrate developed
 alongside IPAkit and IRN, including typed graphs and semiring machinery. The
-existing comparison factory continues to use its semiring fold. Future model
-occurrences and rewrite integration must reuse the graph and rule machinery
-with explicit domain validation; an integer graph attribute alone does not
-enforce a finite feature domain.
+existing comparison factory continues to use its semiring fold.
+[GraphBinding](rules.md#decorating-an-existing-graph) validates a model, ordered
+source references, declared value relations and the source clock before the
+shared rule engine decorates the existing graph. Original facts and optional
+source timing are preserved; target timing and containment are not inferred.
+Native codec round-trips retain the graph, while operation restoration requires
+the explicit binding and rules. House `Form` admission follows its own profile
+contract; operation discovery from a graph alone remains unsupported. Finite
+feature domains are enforced by the model binding in addition to graph attribute types.

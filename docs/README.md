@@ -2,8 +2,8 @@
 
 Choose a task below. The tutorials introduce the public Python and CLI surfaces;
 the reference pages explain their contracts and limits. Generated exhibits supply
-checked examples and measurements. Dated design records preserve the reasoning,
-not a second account of current behavior.
+checked examples and measurements. Dated design records preserve historical
+reasoning; the reference pages describe current behavior.
 
 ## Start here
 
@@ -33,7 +33,7 @@ Read, construct, navigate and exchange structured transcriptions.
 
 Notation, phoneset, feature geometry and algebra are separate choices. The house
 model is one instance on the shared TierGraph substrate, developed alongside
-IPAkit and IRN; it is not a required pivot for every model. The comparison guides
+IPAkit and IRN. Each model retains its own declarations. The comparison guides
 keep source distinctions, coverage and conversion losses explicit.
 
 | Guide | Use it for |
@@ -46,6 +46,7 @@ keep source distinctions, coverage and conversion losses explicit.
 | [Kana](kana.md) | Mora-tier rendering and bounded attested-adaptation API/CLI support. |
 | [CLTS/BIPA](clts-audit.md) | Frozen native feature-set/Jaccard scoring, shared cost comparisons, source extraction and provenance; semantic mapping remains unresolved. |
 | [Finite model operations](model-operations.md) | Typed declarations, explicit model CLI selection, feature edits and exact realization candidates; links to finite rules and transforms. |
+| [Operations across inventories](inventory-operations.md) | House and Panphon matching and respelling, custom declarations, and all-pairs comparisons across named cost models. |
 | [Feature transformations](feature-transforms.md) | Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |
 | [MFA vocabulary exhibit](mfa-vocabularies.md) | Generated declarations, source pins and refusal classes. |
 | [eSpeak vocabulary exhibit](espeak-vocabularies.md) | Generated language-scoped and union vocabulary coverage. |

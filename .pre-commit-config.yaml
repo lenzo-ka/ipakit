@@ -40,7 +40,7 @@ repos:
         files: ^(ipakit|tests|scripts)/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.18
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         args: ["--fix"]
@@ -48,7 +48,7 @@ repos:
         files: ^(ipakit|tests|scripts)/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
+    rev: v2.3.1
     hooks:
       - id: mypy
         # Native GraphProfile subclasses need the same runtime types CI installs.

@@ -53,11 +53,15 @@ def _constant(value: str) -> None:
     raise ValueError(f"invalid JSON constant: {value}")
 
 
-def _changes(text: str) -> dict[str, Any]:
+def _feature_object(text: str, option: str) -> dict[str, Any]:
     result = json.loads(text, object_pairs_hook=_object, parse_constant=_constant)
     if not isinstance(result, dict):
-        raise ValueError("--changes-json requires a JSON object of feature edits")
+        raise ValueError(f"{option} requires a JSON object of feature values")
     return result
+
+
+def _changes(text: str) -> dict[str, Any]:
+    return _feature_object(text, "--changes-json")
 
 
 class ModelListCommand(Command):
@@ -163,12 +167,48 @@ class ModelRespellCommand(Command):
         return 0
 
 
+class ModelQueryCommand(Command):
+    """Find every declared token satisfying typed feature constraints."""
+
+    name = "query"
+    help = "List phones matching features in an explicitly selected finite model"
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        _selection(parser)
+        parser.add_argument(
+            "--features-json",
+            required=True,
+            help="JSON feature constraints; {} lists all tokens",
+        )
+
+    def run(self) -> int:
+        from ..inventory_operations import FiniteInventory
+
+        model = load_model_declaration(self.args).model
+        constraints = _feature_object(self.args.features_json, "--features-json")
+        matches = FiniteInventory(model).phones_matching(constraints)
+        data = {
+            "operation": "phones_matching",
+            "name": model.name,
+            "model_id": model.identity,
+            "constraints": constraints,
+            "matches": matches,
+        }
+        if self.format == "json":
+            self.output_json(data)
+        else:
+            self.output_lines(list(matches))
+        return 0
+
+
 class ModelGroup(CommandGroup):
     name = "model"
     aliases: ClassVar[list[str]] = []
-    help = "Inspect and respell with explicitly selected finite feature models"
+    help = "Inspect, query and respell with explicitly selected finite feature models"
     commands: ClassVar[list[type[Command]]] = [
         ModelListCommand,
         ModelInspectCommand,
         ModelRespellCommand,
+        ModelQueryCommand,
     ]

@@ -304,7 +304,7 @@ So the family holds the position on purpose, and a wildcard is the one term that
 
 **That makes `[]` a narrowing of the language rather than a widening**, which is the argument for it. Every one of the fifteen is a rule whose meaning depends on a value continuing to be undeclarable by a segment: write `[-normal]` for *any segment* and it stops being one the day `length` gets a spelled `normal` mark, silently, in a rule file that says nothing about length. Adding `[]` costs one term, gives the intent one spelling, and turns fifteen accidental universals into a defect somebody can name — which is what the spin-off finding below does to the sharpest of them.
 
-**It is also the positive spelling of the one position negation ipakit needs.** [rules.md](../rules.md) records the policy: *"Classical SPE negates feature values, not context positions, so the positive statement is the idiomatic one. Feature-value negation (`[-voiced]`) is available; position negation is not, and this is why it has not been needed."* This family is where it is needed, and the wildcard is how the policy is kept: *a segment stands here* rather than *the word does not begin here*.
+**The wildcard states the presence of a segment.** [rules.md](../rules.md) records the policy: *"Feature-value negation such as `[-voiced]` is supported; negation of context positions is outside the notation."* This family needs a segment in that position, which the wildcard expresses directly.
 
 **The spelling should be `[]`, and that is Lexurgy's.** Its reference says of an empty feature matrix that *"the case of zero values (i.e. an empty pair of brackets) is called a 'wildcard', since it matches any sound"*, and its tutorial that *"the symbol `[]` matches any single sound"*. ipakit refuses that spelling today with a message that would become the definition. Nothing else is free and honest: `*` and `@` spell nothing the inventory registers and are refused loudly, so either is available, but a bracket is where ipakit says *described, not spelled*, and an empty description is the widest one. The refusal is currently the right refusal for the wrong reason — an empty query is not meaningless, it is the identically-true one.
 
@@ -606,7 +606,7 @@ rule("[vowel length=normal] -> e").recognize("ka")    []
 rule("[vowel length=normal] -> e").recognize("kaː")   []
 ```
 
-It parses, it finds no site, and it says nothing — a rule its author believes is firing, doing nothing and reporting nothing. That is the shape [reviewing.md](../reviewing.md) exists to catch, and it is the near neighbor of a defect [rules.md](../rules.md) already records: `[manner=obstruent]` *"used to build a constraint no phone can satisfy and match nothing, silently"*, and the repair was a message naming the spelling that works.
+It parses, it finds no site, and it says nothing — a rule its author believes is firing, doing nothing and reporting nothing. That is the shape [reviewing.md](../reviewing.md) exists to catch, and it resembles a defect [rules.md](../rules.md) already records: *"The invalid value expression `[manner=obstruent]` raises an error with that correction; older versions accepted it as an unsatisfiable constraint."* The correction names the spelling that works.
 
 **The other sign is the same cause.** Because no unit ever carries `length=normal`, its *negation* is satisfied by every unit — so `[-normal]` is a wildcard, and §3 measures it collapsing a shipped rule family with no corpus word moving:
 

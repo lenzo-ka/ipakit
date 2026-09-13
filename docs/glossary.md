@@ -14,7 +14,7 @@ that contrast. The shipped broad-to-narrow examples apply allophonic rules in
 
 A **distinctive feature** is one contrastive dimension of a sound, such as place,
 manner, or voicing. A **feature bundle** records several such dimensions together; the
-[tutorial](tutorial.md#1-what-is-this-sound) shows bundles returned by ipakit.
+[tutorial](tutorial.md#1-sound-descriptions-and-feature-bundles) shows bundles returned by ipakit.
 
 ## Natural class
 
@@ -27,7 +27,7 @@ declared class can be used in a query or rule.
 A **minimal pair** is a pair of words that differ in one sound and have different
 meanings, evidence that the differing sounds contrast in that language. ipakit also
 uses the term for phones separated by about one feature, as the
-[tutorial](tutorial.md#3-what-phones-match-a-description) explains.
+[tutorial](tutorial.md#3-feature-queries-and-natural-classes) explains.
 
 ## Onset, nucleus, coda, and margin
 

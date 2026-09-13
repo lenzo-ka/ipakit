@@ -8,11 +8,64 @@ import shlex
 import tomllib
 from pathlib import Path
 
+import pytest
+import yaml
+from packaging.requirements import Requirement
+from packaging.version import Version
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _assert_lint_hook_versions(project_text: str, config_text: str) -> None:
+    project = tomllib.loads(project_text)
+    requirements = {
+        requirement.name: requirement
+        for requirement in map(
+            Requirement, project["project"]["optional-dependencies"]["lint"]
+        )
+    }
+    repos = yaml.safe_load(config_text)["repos"]
+    for tool, repository in {
+        "black": "https://github.com/psf/black-pre-commit-mirror",
+        "ruff": "https://github.com/astral-sh/ruff-pre-commit",
+        "mypy": "https://github.com/pre-commit/mirrors-mypy",
+    }.items():
+        matches = [repo for repo in repos if repo["repo"] == repository]
+        assert len(matches) == 1, f"expected one {tool} hook repository"
+        version = Version(str(matches[0]["rev"]))
+        assert (
+            version in requirements[tool].specifier
+        ), f"{tool} hook {version} does not satisfy {requirements[tool]}"
+
+
+def test_lint_hook_versions_satisfy_declared_requirements():
+    _assert_lint_hook_versions(
+        (ROOT / "pyproject.toml").read_text(),
+        (ROOT / ".pre-commit-config.yaml").read_text(),
+    )
+
+
+@pytest.mark.parametrize(
+    ("tool", "revision"),
+    [
+        ("ruff", "v0.15.18"),
+        ("mypy", "v2.1.0"),
+        ("black", "26.5.0"),
+        ("black", "27.0.0"),
+    ],
+)
+def test_lint_hook_version_guard_rejects_incompatible_revision(tool, revision):
+    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text())
+    repo = next(repo for repo in config["repos"] if tool in repo["repo"])
+    repo["rev"] = revision
+    with pytest.raises(AssertionError, match=tool):
+        _assert_lint_hook_versions(
+            (ROOT / "pyproject.toml").read_text(), yaml.safe_dump(config)
+        )
+
+
 def _mypy_runtime_requirement(config: str) -> str:
-    """Read the isolated hook's explicit dependency without adding a YAML dep."""
+    """Read the isolated hook's explicit runtime dependency."""
     hook = re.search(r"(?m)^      - id: mypy\n(?P<body>(?:[ \t]+.*\n|\n)*)", config)
     assert hook is not None, "mypy hook must be declared"
     dependencies = re.search(r"additional_dependencies:\s*(\[[^\n]+])", hook["body"])

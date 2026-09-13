@@ -6,7 +6,7 @@ A rule is the classic generative statement:
 A  ->  B  /  C _ D
 ```
 
-*Rewrite `A` as `B` when it stands between `C` and `D`.* This document is the notation, what each part means, and the decisions that are not obvious. The engine is `ipakit.rules`; the representation it works over is `ipakit.form`, documented in [form.md](form.md).
+*Rewrite `A` as `B` when it stands between `C` and `D`.* This guide describes the notation, matching behavior, and supported operations. The engine is `ipakit.rules`; its representation is `ipakit.form`, documented in [form.md](form.md).
 
 ```python
 import ipakit as ipa
@@ -17,7 +17,7 @@ ipa.rewrite("bˈʌtɚ", "t -> ɾ / [vowel stress=primary] _ [vowel]")
 
 ## The two halves are separable
 
-The left of the arrow **recognizes**; the right **acts**. Both are reachable alone, because "where does a plosive stand between vowels" is a question with no rewrite attached.
+Recognition locates the target in its context; the action specifies its replacement. Both operations are available separately, so a caller can locate plosives between vowels before deciding whether to rewrite them.
 
 ```python
 r = ipa.rule("[manner=plosive] -> [voiced=+] / [vowel] _ [vowel] ; voicing")
@@ -28,14 +28,14 @@ ipa.rewrite("atapa", r)                 # 'adaba'
 ipa.derive("atapa", r).trace()          # the same, with an account
 ```
 
-A `Site` records *which* neighbors licensed it, not merely that some did, so a trace can explain itself. An entry is `None` where the context matched the virtual edge past the end of the form rather than a unit that is really there. `bindings` is the same kind of record for [agreement variables](#a-rule-may-bind-a-value-and-re-use-it), empty for a rule that names none.
+A `Site` records the neighbors that licensed the match. An entry is `None` where the context matched a virtual form edge. `bindings` records the values of [agreement variables](#a-rule-may-bind-a-value-and-re-use-it) and is empty for a rule without variables.
 
 The rule engine scans each changing linear derivation. When a derivation is
 projected into a tier graph, its original input clock remains the axis:
 insertions anchor to an input boundary, deletions retain an empty-target
 `rewrites-to` relation, and later broad/narrow/allophonic events do not rebase
-earlier positions. The graph records the engine's deterministic phantom order;
-it is not a second rule scanner.
+earlier positions. The graph records the order produced by that scanner,
+including deterministic phantom events.
 
 ## Finite token projections
 
@@ -121,8 +121,8 @@ finite-model graph rewrites. Supply the native TierGraph `Graph`, `FiniteModel`,
 ordered unique source `ItemRef`s, qualified token/model value relations,
 `starts_at` relation, and clock tier. Optional `feature_values` maps model feature
 names to qualified value relations; claims must match both the typed schema and
-the exact token row. The values use native JSON value structure, not guessed
-house features. Caller order is retained, including selections across tiers.
+the exact token row. Values retain their native JSON structure and model
+semantics. Caller order is retained, including selections across tiers.
 
 Call `binding.derive(rules)` to run the same token engine and trace traversal.
 The result exposes `graph`, `trace`, `final_refs`, and a content-based operation
@@ -130,9 +130,10 @@ The result exposes `graph`, `trace`, `final_refs`, and a content-based operation
 relations, document attributes and optional source timing remain intact. Derived
 events are appended in deterministic step/site/application/target order and
 anchor to actual original clock boundaries. Split children share their source
-anchor; deletions have explicit empty-target history. No new clock is created.
-Silence does not need a word parent. Original containment is retained as source
-history, not automatically copied onto target events.
+anchor; deletions have explicit empty-target history. All events use the original
+clock. Silence can be selected independently of word membership. Original
+containment remains in source history; target containment requires a separate
+explicit policy.
 
 Target physical timing is unassigned, even for a one-to-one change. The only
 admitted migration policy is `preserve-source`; requested timing or attachment
@@ -143,10 +144,12 @@ before returning a byte-identical source graph.
 Use the native TierGraph codec to serialize the extended graph. Then
 `result.restore(decoded_graph)` validates it against the explicit bound source,
 model, selection and rules. Reconstructing equivalent binding and execution in
-a fresh process works; object identity is not authority. Graph facts persist
-independently, but a graph alone does not rediscover which operation produced it.
-This is bound-operation validation, not a new operation-profile reader or a
-conversion to house `Form`; other profiles keep their existing admission rules.
+a fresh process works because validation uses content identity. Graph facts
+persist independently; restoring an operation also requires the bound source,
+model, selection and rules. This API validates bound operations. Operation-profile
+reading and house `Form` conversion remain outside its scope, and other profiles
+keep their existing admission rules.
+
 ### Explicit finite rules on the command line
 
 `rules recognize`, `apply` and `trace` also accept the same explicitly selected
@@ -173,8 +176,8 @@ example `[["p", "a"], []]`. `--tokens-json -` reads that same document from
 stdin. An outer `[]` is an empty corpus; an inner `[]` is an empty input. No
 Unicode normalization, segmentation, line stripping or house interpretation is
 performed. Input punctuation remains part of the token identity; punctuation
-that the safe-bare rule DSL cannot express still needs the typed library AST,
-not an invented CLI escape. Model selection is exactly one of `--model NAME`
+that the safe-bare rule DSL cannot express requires the typed library AST.
+Model selection is exactly one of `--model NAME`
 and `--model-declaration PATH`. The former uses the canonical installed resource;
 the latter uses the same validated ternary reader.
 
@@ -207,8 +210,8 @@ Declared single-value option arguments are literal, including a file named
 abbreviations. Compound short options and unsupported argument arities are left
 unchanged for argparse itself; use `--help` with those forms. Genuine help
 command tokens still work
-(`ipakit help rules apply`, `ipakit rules apply help`). This corrects the former
-help preprocessor's ambiguity without introducing another argument parser.
+(`ipakit help rules apply`, `ipakit rules apply help`). Option resolution uses
+the existing argparse parser.
 
 ## Notation
 
@@ -233,11 +236,11 @@ help preprocessor's ambiguity without introducing another argument parser.
 | `(X)*` | in a context: zero or more units matching `X` |
 | a bare glyph | that literal phone, with any prosody it wears |
 
-The name separator is `;` and **not** `|`, because `|` is a declared prosodic break and therefore a legal context item. Using `|` for both meant `t -> ʔ / _ |` silently became an unconditional rule.
+The name separator is `;`. The character `|` retains its declared meaning as a prosodic break, so `t -> ʔ / _ |` is conditioned on that break. Earlier use of `|` as a name separator incorrectly made this rule unconditional.
 
 ### Feature queries
 
-Bracketed items use the **same query language** as `phones_matching` and `find` — not a second dialect. Bare class terms and `key=value` terms may be mixed:
+Bracketed items use the query language shared by `phones_matching` and `find`. Bare class terms and `key=value` terms may be mixed:
 
 ```
 [vowel]                     manner=vowel
@@ -262,7 +265,7 @@ ipa.rule("t -> ɾ / [vowel] _ [vowel -stress]")
 # RuleError: '[vowel -stress]': '-stress' resolves to no feature term; feature 'stress' is not binary...; negate them individually instead, as '-none -primary -secondary'
 ```
 
-The value arm was the later of the two. `[manner=obstruent]` — the query a reader reaches for first — used to build a constraint no phone can satisfy and match nothing, silently, while this document already promised the opposite; the claim was prose rather than an executed example, which is how it survived a pass that verified thirty others. Values resolve through the alias table and `expand()` as on every other write path, so a spelled alias and a generative overlap (`bilabial^velar`) are still accepted. A class is not a value of the feature it groups, so this spelling stays an error; the message names the one that works.
+Values resolve through the alias table and `expand()`, including spelled aliases and generative overlaps such as `bilabial^velar`. Natural classes use bare terms: write `[obstruent]`. The invalid value expression `[manner=obstruent]` raises an error with that correction; older versions accepted it as an unsatisfiable constraint. The executable example above guards this refusal.
 
 **Every** term must resolve, at every arity: a bracket that mixes a good term with a bad one raises rather than dropping the bad one, since a dropped term is a narrower query silently widened. The message names what would have worked. `stress` has no `-` to take — its values are `none`, `secondary` and `primary` — so a query about stress negates the marked values, `[vowel -primary -secondary]`; `none` is the unspelled ordinal anchor and matches no unit on its own.
 
@@ -277,14 +280,14 @@ ipa.rewrite("anka", "n -> [place=α] / _ [place=α]")   # 'aŋka'
 
 That is one rule for a process that was otherwise one rule per place value — eleven or more in general, and two in the shipped English set, which enumerated the two places English happens to need and said in a comment that the general statement was not expressible.
 
-**Recognition binds; the action refers.** The left of the arrow is where a variable takes a value, from the target or from a context item; the right may only name one the left already bound. A variable on the right that nothing on the left binds is refused, rather than resolving at some sites and not at others:
+**Recognition binds; the action refers.** A variable takes its value from the target or a context item. The action may use only variables bound during recognition; an unbound variable is refused at parse time:
 
 ```python
 ipa.rule("n -> [place=α]")
 # RuleError: 'n -> [place=α]' writes the variable(s) α on the right of the arrow, and nothing on the left binds them...
 ```
 
-**Every occurrence in the recognition half must agree**, so which one "binds" is not a rule anybody has to remember: the site holds exactly where they read the same value. Either side may be the one carrying the information — this asks the *target* to agree with its right neighbor and changes something else:
+**Every occurrence in the recognition half must agree.** A site matches where all occurrences read the same value. This rule requires the target and its right neighbor to agree on place, then changes voicing:
 
 ```python
 ipa.rewrite("atta", "[place=α] -> [voiced=+] / _ [place=α]")   # 'adta'
@@ -327,7 +330,7 @@ ipa.rewrite("asta", "[manner=plosive] -> [voiced=-α] / [voiced=α] _")   # 'asd
 ipa.rewrite("azta", "[manner=plosive] -> [voiced=-α] / [voiced=α] _")   # 'azta'
 ```
 
-For an n-ary feature there is no opposite to mean — the opposite of `velar` is every other place the feature declares — so it is refused rather than guessed at. That is a real limit, statable, and not a fudge:
+An n-ary feature has multiple alternative values, so `-α` is refused for it. For example, `place` supplies several alternatives to `velar`:
 
 ```python
 ipa.rule("n -> [place=-α] / _ [place=α]")
@@ -367,7 +370,7 @@ The rule holds in both directions and the declaration always wins: declare `α` 
 ipa.rewrite("kˈat", "a -> ɑ")      # 'kˈɑt'  -- 'a' matches the stressed 'ˈa'
 ```
 
-That is what a rule about the vowel /a/ should do. Prosody is a second **namespace**, not a second phone, and in that namespace it is both askable and writable:
+Prosody has a separate **namespace** on the unit. Rules can query and modify it while matching the phone's identity independently:
 
 ```
 [vowel]                  any vowel, stressed or not
@@ -532,7 +535,7 @@ That last one is why `‿` carries a level. It stands between two words and says
 
 ### The edges of a form are word boundaries
 
-`_ #` fires at the end of a form without a `#` having been typed, and `# _` at the start. The level the edge asserts is the strongest one `level` declares, so it reaches every weaker one too.
+`_ #` fires at the end of a form without a `#` having been typed, and `# _` at the start. The edge asserts the strongest level declared by a separator (`word` in the shipped inventory), and also matches weaker levels.
 
 ### A boundary run is one boundary
 
@@ -628,7 +631,7 @@ glyph, or make an interval edge pretend that a glyph was written.
 
 ### Produce the tier, then read it
 
-American English aspiration is the honest process: a voiceless stop is
+American English aspiration provides an example: a voiceless stop is
 aspirated at the start of a stressed syllable. Its short statement and its
 written-boundary expansion can be put beside one another without changing the
 process. The shipped Spanish constraint declaration supplies the neutral
@@ -863,7 +866,7 @@ That read-back checks that nothing *else* moved, not only that the request lande
 
 ### A change modifies what the rule matched
 
-A bracketed right-hand side does not build a segment. It takes the unit the rule matched and changes what the rule named, so everything the rule said nothing about survives:
+A bracketed right-hand side modifies the matched unit's named features and preserves the remaining features:
 
 ```python
 ipa.rewrite("aʃa", "ʃ -> [voiced=+]")   # 'aʒa'  -- grooved, postalveolar, fricative kept
@@ -877,20 +880,20 @@ ipa.rule("∅ -> [manner=plosive] / a _ t")
 # RuleError: inserts a unit and then describes it with a feature change...
 ```
 
-The other reading — *insert the segment this bundle names* — is not available, and not because resolving it would be awkward. A query describes a class: `[manner=plosive]` holds every plosive the inventory registers, and narrowing it to a place and a voicing still holds several. Written out in full it is no better, because a tied diphthong states its first element's features and nothing separates the two, so a phone's own complete bundle need not pick that phone out again. A bundle does not determine a segment at any degree of specification, and an engine that picked one would be choosing rather than reading. The unit to insert is spelled, prosody and all:
+A query describes a class of matching units. `[manner=plosive]` includes every registered plosive, and specifying place and voicing can still leave several candidates. Even a complete feature bundle can be shared: a tied diphthong states its first element's features. Insertion therefore requires an explicit unit spelling, including any prosody:
 
 ```python
 ipa.rewrite("ata", "∅ -> t / a _ t")   # 'atta'
 ipa.rewrite("at",  "∅ -> ˈa / # _")    # 'ˈaat'
 ```
 
-Three refusals say the one thing between them, and it is worth reading as one: a modification needs a term to modify. A boundary has no bundle, a zero has no content, and an insertion has no matched unit at all.
+A feature modification requires a matched unit with a feature bundle. Boundaries, zeros, and insertion sites fail that requirement for their respective structural reasons.
 
 Not expressible, deliberately: **metathesis** (reordering) and **iterative within-rule spreading** (harmony as a single rule — an ordered cascade says the same thing). SPE's **agreement variables** used to stand third on that list, and [now they are notation](#a-rule-may-bind-a-value-and-re-use-it); the shipped English set states nasal place assimilation once as a result. Metathesis did **not** come with them, and the two are worth keeping apart because they rhyme: a variable copies a feature *value* between positions the rule matched one at a time, where metathesis reorders the positions themselves, which needs a target spanning more than one unit. A pattern constrains one unit, so `ab -> ba` is refused exactly as it was before. [calculus.md](calculus.md) states those as claims about the algebra's reach, and adds the two that optionality brings: no constraint on the *result* of several optional choices, and no ranking over the set.
 
 ## Rules are ordered
 
-Classically, and here. Each rule sees the previous rule's output, which is where feeding and bleeding live:
+Each rule sees the previous rule's output, allowing feeding and bleeding:
 
 ```python
 fed     = ipa.ruleset("a -> i / _ t ; raising\nt -> ʔ / i _ ; glottalling")
@@ -921,7 +924,7 @@ ipa.ruleset("french-liaison").variants("dəvəniʁ").forms
 # ('dəvəniʁ', 'dəvniʁ', 'dvəniʁ')
 ```
 
-**An optional rule does not fire under `rewrite`, `derive` or `rules apply`.** One form has to come out of those, so a choice has to be taken, and the null choice is the only defensible one — which makes `variants(f)[0]` exactly `apply(f)`, by construction rather than by agreement. A full trace says *not taken*, which is a different report from *no change*:
+**`rewrite`, `derive` and `rules apply` skip optional rules.** These operations return one form and consistently choose the branch where the optional rule is not taken. Thus `variants(f)[0]` equals `apply(f)`. A full trace records *not taken* separately from *no change*:
 
 ```python
 ipa.derive("kæt", "t ~> ʔ / _ #").trace(all_steps=True)
@@ -930,7 +933,7 @@ ipa.derive("kæt", "t ~> ʔ / _ #").trace(all_steps=True)
 
 The four spellings are one rule: `~` before any arrow makes it optional, and `~>` is the ASCII arrow with a wavy shaft. `~` spells nothing in the inventory — no phone, no diacritic, no separator, no break mark, and `ipa.xml` does not contain the character at all — so it collides with nothing that can appear in a rule.
 
-The set is always finite and always ordered deterministically, and it is bounded by a **visible** cap that a truncated answer reports rather than swallows. All of that, with the closure, composition and associativity claims and what the algebra cannot express, is [calculus.md](calculus.md).
+Variants are finite, deterministically ordered, and bounded by a reported cap. Truncated results identify their incompleteness. [calculus.md](calculus.md) describes the closure, composition, associativity, and expressivity limits.
 
 ## Rule sets
 
@@ -968,9 +971,9 @@ The shipped set takes a **broad** (phonemic) reading to a **narrow** (phonetic) 
 /pə.tˈe͜ɪ.to͜ʊ/   -> [pə.tʰˈe͜ɪ.ɾo͜ʊ] aspiration and tapping in one word
 ```
 
-Two things in there are worth copying.
+Two details affect these derivations.
 
-**Aspiration is stated positively.** Not "not after /s/" but "at a syllable margin" — in `spin` the margin is *occupied* by /s/, so /p/ is not at one. Classical SPE negates feature **values**, not context **positions**, so the positive statement is the idiomatic one. Feature-value negation (`[-voiced]`) is available; position negation is not, and this is why it has not been needed.
+**Aspiration requires a syllable margin.** In `spin`, /s/ occupies the margin and /p/ follows it, so the aspiration rule leaves /p/ unchanged. This environment uses the classical SPE treatment of contexts. Feature-value negation such as `[-voiced]` is supported; negation of context positions is outside the notation.
 
 **Tie your diphthongs.** Whether a diphthong is tied changes what a rule sees, because untied `eɪ` is two units and a stress mark lands on the first of them. Vowel nasalization is the clear case: `ˈkaɪn` nasalizes its second element to `ˈkaɪ̃n`, while the tied `ˈka͜ɪn` is one unit the composed mark does not read back on, and is left alone.
 
@@ -979,22 +982,22 @@ Two things in there are worth copying.
 /ˈka͜ɪn/    -> [ˈka͜ɪn]     tied: one unit, and the mark does not compose
 ```
 
-Tapping is not an example of this, because it asks nothing about stress on its left: `/pə.tˈeɪ.toʊ/` and `/pə.tˈe͜ɪ.to͜ʊ/` both flap.
+The tapping rule places no stress condition on its left context, so `/pə.tˈeɪ.toʊ/` and `/pə.tˈe͜ɪ.to͜ʊ/` both flap.
 
-Do **not** reach for `ipakit.add_ties()` to do it. Despite the name it ties *every* adjacent pair, not the registered ones: `add_ties("kæt")` is `k͡æ͡t`, and following that advice on the example above gives `p͡ə.tʰˈe͜ɪ.t͡o͜ʊ`, where tapping does **not** fire. Its docstring is accurate — it ties base phones *within a multi-phone segment* — but it is not a word-level tool. Tie the diphthongs you mean.
+Tie the intended diphthongs explicitly. `ipakit.add_ties()` operates within a multi-phone segment and ties every adjacent pair: `add_ties("kæt")` produces `k͡æ͡t`. Applying it to the word above produces `p͡ə.tʰˈe͜ɪ.t͡o͜ʊ`, where tapping no longer fires. It is unsuitable for selecting diphthongs in a word.
 
 ## Underspecification
 
-A word written without interior dots leaves its interior margins **unspecified**, and a margin-conditioned rule does not fire there rather than guessing:
+A word written without interior dots leaves its interior margins **unspecified**. Margin-conditioned rules require a stated margin:
 
 ```python
 ipa.rewrite("ə.tˈæk", asp)   # 'ə.tʰˈæk'  -- margin stated
 ipa.rewrite("ətˈæk",  asp)   # 'ətˈæk'    -- margin unspecified, so no claim
 ```
 
-This is deliberate. The alternative — treating absence as "one syllable" — invents structure the transcription never asserted.
+An undotted interior leaves the syllable count open.
 
-When a language has made the missing claims, the [syllabifier mechanism](syllabification.md) derives primary intervals and reports conflicts with written marks rather than making a margin-conditioned rewrite guess.
+Given a language's declarations, the [syllabifier mechanism](syllabification.md) derives primary intervals and reports conflicts with written marks. Subsequent rules can read those intervals.
 
 ## From a shell
 
@@ -1015,7 +1018,7 @@ $ ipakit rules apply -r 't -> ʔ / _ #' kæt
 kæʔ
 ```
 
-`trace` is the affordance a human wants, because a cascade's interesting output is not the answer but the account of it. Only the rules that fired are listed; `--all` adds the ones that did nothing, which is what you want when a rule you expected did not fire. Those are marked `(no change)` **after** the name — a trace is read by scanning down the names, so the marker cannot be a prefix that moves the column they sit in. Marking after the name is also what keeps the default listing byte-identical, since every step it shows has fired and writes no marker at all.
+`trace` shows the rules that fired and their intermediate results. `--all` also lists unchanged steps, helping diagnose an expected rule that did not fire. The `(no change)` marker follows the rule name, keeping names aligned and leaving the default listing unchanged.
 
 ```console
 $ ipakit rules trace -s american-english pə.tˈe͜ɪ.to͜ʊ
@@ -1028,7 +1031,7 @@ pə.tˈe͜ɪ.to͜ʊ
   = pə.tʰˈe͜ɪ.ɾo͜ʊ
 ```
 
-`variants` is `apply` for a set that marks a rule optional. The first line is what `apply` prints, and the count line says whether the answer is complete — a capped set of pronunciations reads exactly like an exhaustive one, so it is never left to the caller to wonder.
+`variants` enumerates the results of optional rules. Its first variant matches `apply`, and the count line reports whether enumeration is complete or capped.
 
 ```console
 $ ipakit rules variants -s french-liaison pətit dəvəniʁ
@@ -1081,19 +1084,19 @@ kʰˈæt̚
 
 ## Known limits
 
-Recorded so they are not discovered the hard way:
+The following constraints apply to the native rule engine:
 
-- **Boundaries are atomic separators, not a balanced bracketing.** An edge and a separator are one character doing two jobs, so nothing can be unbalanced and a balance check would have nothing to reject: `##kæt` and `kæt..dɒɡ` parse without complaint (`validate_ipa` warns `empty_constituent` on both; neither layer rejects them). They are also not *counted* — a run is one boundary (above) — so they derive as `#kæt` and `kæt.dɒɡ` do. `Form.tree()` records which delimiter supplied each end of a node's span (`Node.opened_by` / `closed_by`, `None` for the form edge, `Node.asserted` for "both were written"), but that is provenance on an already-atomic reading, not a bracketing the parser enforces. The reasoning, and what a bracketing would and would not buy, is in [form.md](form.md).
-- **A prosodic mark is not a position**, so `∅ -> ˈ`, `ˈ -> ∅` and a bare `ˈ` in a context are refused rather than expressible. Prosody rides on a unit, and `[stress=primary]` / `[stress=∅]` on the unit is how it is written (above).
-- **A prosodic composition that collides with a registered symbol declines.** `t` plus the rising-contour caron recomposes to `ť`, which is a different phone, so `t -> [contour=rising]` does not fire. The set is whatever the inventory makes it, because the check is a read-back rather than a list, and `tests/test_rules.py` sweeps every phone against every prosodic value and names each pair that declines.
-- **There is no notation for a phrase boundary by level.** `#` and `.` name a level; `|` and `‖` are matched as the literal marks they are. A bracketed `[level=phrase]` never matches, because a query is compared against a segment's feature bundle and a boundary has none.
-- **Variable width is recognition sugar only.** `(X)` and `(X)*` are refused in a rule target, nested variable-width elements are refused, and a change cannot use a variable bound only inside one. An absent element cannot supply a rewrite value. Parentheses in a rule's *name* are untouched, since the name is past the `;` and never reaches the context splitter.
-- **An agreement variable stands for a feature value, not for a segment.** `[place=α]` is expressible; "a copy of whatever consonant stood there" is not, so the shipped French set still writes one liaison rule per latent consonant. A variable also ranges over one feature, is refused where nothing binds it or where it occurs once, and `-α` is legal only for a binary feature (above). Every one of those is a parse-time refusal rather than a rule that fires at some sites and not others.
-- **The surface rewrite is applied per call**, like the cap, so splitting one cascade into two calls applies it twice and a zero written by the first half is gone before the second half can read it. `keep_zeros=True` on the inner call is the repair, and naming the intermediate as a derivation rather than a pronunciation is what it says.
-- **An insertion has no unit to modify.** A bracketed right-hand side changes the unit the rule matched, so `∅ -> [manner=plosive]` is refused: there is no match to change, and a query describes a class rather than naming a segment to place. Spell the unit — `∅ -> t`, or `∅ -> ˈa` where the prosody matters. This is the parse-time member of a family whose other two are just below; what a rule *cannot* be told at parse is whether a change it can express will be spellable at a given site, and that one declines per site.
-- **A zero cannot be inserted, and it has no bundle.** `∅ -> [zero]` is refused — a zero records that a position had content and now has none, and an insertion had none to lose — and so is `[zero] -> [voiced=+]`, for the reason a feature change on a boundary is refused. Filling one (`[zero] -> z`) and unwriting one (`[zero] -> ∅`) are the two things that work.
-- A `Derivation`'s `start` is the form **as the engine read it**, not the string handed in. Reading drops what the inventory does not register, with a warning, and a trace whose first line is not what the first rule saw would account for a derivation that did not happen.
-- `Form.rebuild` is an inverse up to spelling; `Boundary` equality is not object equality with the original. It does reproduce each boundary *unit* — text and declared features — from `Boundary.features`; rebuilding from `Boundary.level` alone put `‿` back as a plain word boundary with its `linking=+` gone, the same spelling describing a different unit.
-- `Boundary.level` falls back to `word` where a mark declares none. Every shipped glyph declares one, so only a hand-made `Boundary`, or a mark added without a level, reaches it.
-- **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it the level a form edge delimits (`form.edge_level()`, `word` today) rather than a literal. A space and the form's own end therefore assert the same level by construction, which is what stops a context from matching one and not the other.
-- The CLI parses a rule per invocation, so applying a set to a large corpus pays that parse once and the inventory load once; it is a filter, not a batch engine.
+- **Boundary runs are atomic.** Repeated marks count as one boundary, so `##kæt` and `kæt..dɒɡ` derive as `#kæt` and `kæt.dɒɡ` do. Both parse; `validate_ipa` reports `empty_constituent` warnings without rejecting them. Balanced-bracket validation is outside this separator model. `Form.tree()` preserves delimiter provenance through `Node.opened_by` and `closed_by` (`None` for a form edge), with `Node.asserted` recording that both ends were written. See [form.md](form.md) for the model and its alternatives.
+- **Prosody requires a unit.** Bare marks in targets, replacements, or contexts are refused, including `∅ -> ˈ` and `ˈ -> ∅`. Use `[stress=primary]` or `[stress=∅]` to modify the unit's prosody.
+- **Prosodic composition requires a faithful read-back.** Adding a rising-contour caron to `t` produces the registered phone `ť`, so `t -> [contour=rising]` leaves `t` unchanged. The check uses the inventory's declarations; `tests/test_rules.py` sweeps phone/prosody pairs and identifies those that decline.
+- **Phrase boundaries use literal marks.** `#` and `.` name levels; `|` and `‖` match their literal marks. A bracketed `[level=phrase]` cannot match a boundary because feature queries operate on segment bundles, which boundaries lack.
+- **Variable width is restricted to contexts.** Variable-width targets and nested variable-width elements are refused. A change also cannot use a variable bound only inside a variable-width element; an absent element cannot supply a rewrite value. Parentheses after the name separator `;` remain part of the rule name.
+- **Agreement variables range over feature values.** `[place=α]` copies a place value; whole-segment copying is unsupported, so the shipped French set has one liaison rule per latent consonant. Variables must range over one feature, be bound during recognition, and occur more than once. `-α` requires a binary feature. Violations are refused at parse time.
+- **Surface projection and caps apply per call.** Splitting a cascade into two calls applies the surface rewrite twice. Use `keep_zeros=True` on the inner call when the second part needs to read zeros in the intermediate derivation.
+- **Insertion requires a spelled unit.** Use `∅ -> t` or `∅ -> ˈa`. A feature change requires a matched unit, so `∅ -> [manner=plosive]` is refused at parse time. An otherwise valid feature change may still decline at a particular site if its result cannot be spelled faithfully.
+- **Zeros record emptied positions.** `∅ -> [zero]` is refused because an insertion has no preceding content to record. A zero also lacks a feature bundle, so `[zero] -> [voiced=+]` is refused. Supported operations fill the position (`[zero] -> z`) or remove it (`[zero] -> ∅`).
+- **Derivation traces start with the parsed form.** `Derivation.start` records what the engine read. Unregistered input is dropped with a warning, and the trace begins with the form the first rule actually received.
+- **Rebuilding preserves boundary spelling and declared features.** `Form.rebuild` provides an inverse up to spelling, without reproducing the original `Boundary` objects. It uses `Boundary.features`; a level alone would lose distinctions such as `‿`'s `linking=+`.
+- **An undeclared boundary level defaults to `word`.** Every shipped glyph declares its level. The fallback applies to hand-made boundaries and additions whose level is omitted.
+- **Whitespace inherits the form-edge level.** Because whitespace is undeclared in `ipa.xml`, `units()` assigns it `form.edge_level()` (`word` today). A space and the form's edge therefore assert the same level to a context.
+- **CLI parsing is per invocation.** Streaming forms through one invocation loads the inventory and parses the rules once. The CLI operates as a filter; batch orchestration is outside its scope.

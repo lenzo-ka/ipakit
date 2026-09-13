@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 from ..distance_model import DistanceModel
 from ..models import Phoneset
 from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
+from .metrics import AcrossCommand, MetricsCommand
 
 if TYPE_CHECKING:
     from ..features import IPAFeatures
@@ -1256,6 +1257,8 @@ class DistanceGroup(CommandGroup):
         map            Map one phoneset onto another
         compare        Compare phonesets as sets, mappings, and a matrix
         seq            Distance between two pre-tokenized phone sequences
+        metrics        Registered metric names
+        across         Exact-token comparisons across selected metrics
 
     Examples:
         ipakit distance pair p b               # Raw feature distance: ~0.05
@@ -1268,7 +1271,7 @@ class DistanceGroup(CommandGroup):
     aliases: ClassVar[list[str]] = ["d"]
     help = (
         "Raw distances, inventory positions, and mapping (pair, segment, matrix, "
-        "confusability, word, directional, nearest, map, compare, seq)"
+        "confusability, word, directional, nearest, map, compare, seq, metrics, across)"
     )
     commands: ClassVar[list[type[Command]]] = [
         PairCommand,
@@ -1281,4 +1284,6 @@ class DistanceGroup(CommandGroup):
         MapCommand,
         CompareCommand,
         SeqCommand,
+        MetricsCommand,
+        AcrossCommand,
     ]

@@ -3,7 +3,7 @@
 `Form` is the public stored representation for the house IPA model. IPA text,
 CMU tokens, JSON, rendering, rewriting, alignment, and gestures are projections
 around its validated tier graph. Model-relative operations can also retain an
-explicit native TierGraph without claiming admission to house `Form`; see
+explicit native TierGraph through a separate graph API; see
 [graph-preserving finite rewrites](rules.md#decorating-an-existing-graph).
 
 ## Internal source-profile boundary
@@ -21,10 +21,9 @@ their typed declaration fingerprint, including constructor field bindings.
 Native registry names include that identity so different provider bindings can
 coexist; the persisted profile family and version remain separately declared.
 
-This is a constructor-layout profile, not arbitrary graph adoption: restoration
-refuses changed declarations, stale bindings, extra content or other layouts
-instead of silently dropping them. It uses the native codec and constructors,
-not a second graph format. Its native profile report leaves external resolver
+Restoration validates the constructor layout and refuses changed declarations,
+stale bindings, extra content or other layouts. The profile uses TierGraph's
+native codec and constructors. Its native profile report leaves external resolver
 truth, house coverage and public consumer admission explicitly undecided.
 
 Source-only or mixed public `Form` admission remains closed. This internal path
@@ -35,7 +34,10 @@ validated provider/mapping contracts.
 
 ## One data structure, two views
 
-The graph is the store: `Form` owns one validated graph-backed representation. The linear view—units, intervals, and the segmental spine—is computed from that store and is the computation surface read by rules, distance, and syllabification. The tiergraph format is the portable artifact, a serialization of the store rather than a third representation.
+`Form` owns one validated graph-backed representation. Its linear view—units,
+intervals, and the segmental spine—is computed from that store and supplies
+rules, distance, and syllabification. The TierGraph format serializes the store
+for persistence and interchange.
 
 Engines read tier claims through declared predicates over the linear view; they never walk the graph. A rule context may test a tier interval, but graph traversal remains the store's concern. The [language-relative syllabifier](syllabification.md) is the first tier producer, and the rules engine's tier-reading context is the consumer surface.
 
@@ -44,7 +46,7 @@ phasing declared over them are language-relative; its feature space and
 `distance` are shared across those languages. [The ratified design
 record](design/tiers.md#7-what-is-deliberately-not-made-relative) owns that model's
 boundary and metric rationale. Foreign finite models retain their own declared
-schemas and operations; this is not an implicit conversion through house IPA.
+schemas and operations throughout computation.
 
 ## Public construction and navigation
 
@@ -72,21 +74,18 @@ Builder handles are opaque edit-time identities, while navigation returns canoni
 
 `append_ipa()` uses the same canonical scan and lowering as `read()`. For the
 same IPA input, a parser-built form and a builder containing only that append
-have byte-identical serialized JSON and equal authoritative graphs; construction
-does not maintain a second parser-shaped representation.
+have byte-identical serialized JSON and equal authoritative graphs.
 
 `ipakit.read()` populates a unit tier only where the transcription asserts a
 feature on that unit. In particular, its `word` tier currently contains only
-words with asserted prominence; it is not an inventory of the words in the
-input. Consumers that need every word must not infer them from the presence of
-word-tier events.
+words with asserted prominence. Consumers that need every word must supply
+complete word segmentation separately.
 
 Containment may be heterogeneous. A phrase can directly contain initial,
 medial, or final silence segments alongside word events. Filtering
 `direct_children(phrase, "word")` returns only lexical words, while
 `leaves(utterance)` expands the word children and retains the silence segments
-in their declared order. Silence therefore remains reachable without becoming
-a fabricated word.
+in their declared order. Silence remains directly reachable on the segment tier.
 
 ## Tier-graph envelope
 
@@ -103,7 +102,7 @@ For example, the native constructor's namespace-only graph serializes as:
 {"format_version":"0.2.0","graph":{"namespaces":[{"namespace":"urn:example","prefix":"example"}]}}
 ```
 
-This is a minimal native wire example, not a populated Form. In the internal
+This minimal example contains only a namespace declaration. In the internal
 input-clock view, one input phone produces its start and a terminal boundary;
 non-consuming written occurrences refine a tick to additional stable gaps.
 Native lowering preserves those coordinates as clock boundaries, event
@@ -125,8 +124,8 @@ Only edges of the same relation declaration marked `acyclic` participate in one 
 ### Internal declared JSON values
 
 The internal `FeatureDeclaration` can opt into lossless native value storage
-with `value_name=(namespace, local_name)`. This is a qualified feature identity,
-not a prefix convention: identical local names in different namespaces remain
+with `value_name=(namespace, local_name)`. The qualified identity distinguishes
+identical local names in different namespaces as
 different features, and duplicate qualified identities are refused. The event's
 tier must explicitly admit that feature. Declarations without this opt-in retain
 the existing IPA payload codec and do not promise arbitrary feature retention.
@@ -148,10 +147,9 @@ each event to its value root; native value nodes, membership relations and typed
 attributes retain nested objects and ordered arrays. Null, false and absence
 remain distinct. The internal `declared_value` reader uses the same native
 profile after graph restoration. Python objects, byte strings, non-string
-object keys and nonfinite numbers are refused instead of being stringified or
-dropped. This adds native structure, not embedded graph JSON or Python-object
-serialization. It is an internal storage prerequisite, not a CLTS import API or
-a change to ordinary IPA Form equality.
+object keys and nonfinite numbers are refused. Values are stored as native
+graph structure. This internal storage facility preserves ordinary IPA Form
+equality; CLTS import requires the additional source-profile contracts above.
 
 Declared source/target tier restrictions on event-only relations are lowered
 to native relation-side declarations and enforced there. This does not infer
@@ -170,8 +168,8 @@ A renderer selects transcription tiers through its explicit codec profile; it do
 
 The linear view supplies `units`, `intervals`, segment and boundary reads, rule sites and edits, pairwise `Alignment`, and rewrite traces. Capability negotiation, recognizer invocation, and rewrite-rule induction are intentionally deferred; version stamps identify the contract and do not negotiate it.
 
-Rewrite recognition scans the rule engine's changing linear derivation state,
-not the stored graph. Projection then records broad, narrow, and allophonic
+Rewrite recognition scans the rule engine's changing linear derivation state.
+Projection then records broad, narrow, and allophonic
 events on the immutable input clock. Insertions remain anchored to their input
 boundary, deletions retain an empty-target rewrite relation, and chained
 phantoms retain the engine's deterministic result order without adding clock

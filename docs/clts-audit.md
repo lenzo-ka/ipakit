@@ -14,13 +14,12 @@ similarity = bipa.similarity("p", "b")
 bipa.similarity("ç", "ç")  # 1.0
 ```
 
-These are CLTS's raw feature-value labels, including its type labels, not
-native IPAkit feature mappings. Unweighted Jaccard similarity counts set
+These are CLTS's raw feature-value labels, including its type labels. Native
+IPAkit feature mappings are a separate operation. Unweighted Jaccard similarity counts set
 intersection divided by union. `ipakit.feature_sets.FeatureSets` is the
 provider-independent finite geometry; its empty-union convention is explicit
 (zero similarity by default, matching CLTS). Distinct spellings can have the
-same feature set. Neither label overlap nor a score proves perceptual or
-articulatory equivalence.
+same feature set. Perceptual or articulatory equivalence requires separate evidence.
 
 The finite domain consists of the accepted core BIPA Sound entries, declared
 aliases, and literal source spellings proven to resolve to the same core
@@ -33,15 +32,18 @@ Markers and literal source fields that the resolver rejects (including
 whitespace-bearing TSV fields) are accounted for in `excluded`, not scored.
 Productive composites such as `ai` are outside the shipped core even when
 pyclts can resolve them. Missing keys raise `OutsideDomain` with code
-`outside-artifact-domain`; this is not a claim that CLTS rejects that sound.
+`outside-artifact-domain`, identifying the shipped artifact's boundary. The
+upstream resolver may support additional sounds.
 Inspect `requested`, `entries` and `excluded` for the exact generated
 population. The full CLTS-to-Form importer and general semantic feature mapping
 remain separate work. The [bounded correspondence authority](clts-mapping.md)
-records four exact plain-stop witnesses, not a general converter; its
+records four exact plain-stop witnesses; its
 [generated gap report](clts-gaps.md) accounts for master declarations while
 keeping unresolved mappings and pending structural-profile binding explicit.
 
-### Substitute the cost model, not the aligner
+<a id="substitute-the-cost-model-not-the-aligner"></a>
+
+### Cost models through a shared aligner
 
 Explicit tokens remain subject to each model's domain: the native house pack
 validates each with IPAkit's strict single-unit constructor. A string such as
@@ -65,7 +67,7 @@ row = compare_tokens(
 
 The pack supplies `1 - similarity` substitutions to the existing
 `align_under` alignment fold. Gap cost is an explicitly named **adapter
-policy**, not part of CLTS's sound similarity; scaling and normalization use
+policy** supplied separately from CLTS's sound similarity; scaling and normalization use
 the existing `CostPolicy`. Unknown keys are validated for gaps as well as
 substitutions, including unknown-self and empty-side comparisons.
 
@@ -114,7 +116,7 @@ regeneration compares bytes, not just entry counts. `clts-snapshot
 snapshot, including productive composites where the real resolver supports
 them; it cannot overwrite the shipped core with `--write`.
 
-The generated CLTS data remain **CC BY 4.0**, not IPAkit's BSD code license.
+The generated CLTS data retain their **CC BY 4.0** license. IPAkit code uses BSD.
 Credit: Johann-Mattis List, Cormac Anderson, Tiago Tresoldi, Christoph Rzymski,
 and Robert Forkel, *CLTS. Cross-Linguistic Transcription Systems*.
 See the [dataset DOI](https://doi.org/10.5281/zenodo.3515744),
@@ -125,8 +127,8 @@ dependency; none of its implementation is vendored into the runtime.
 
 ## Declaration census
 
-CLTS/BIPA interoperability starts with the two systems' declarations, not
-guessed symbol equivalences. The development instrument reads an external
+CLTS/BIPA interoperability starts with an inventory of both systems' declarations.
+The development instrument reads an external
 [CLTS checkout](https://github.com/cldf-clts/clts); this full master/catalog
 source is separate from the bounded shipped core snapshot above.
 
@@ -158,12 +160,12 @@ Featureless sound rows are outside this census and also refuse explicitly;
 they cannot turn an empty observation population into a successful audit.
 `cataloged` means membership in `data/features.tsv`, whereas `catalog.sounds`
 counts rows in `data/sounds.tsv`; neither substitutes for `observed_count`.
-Exit zero means the census ran, **not** that semantic correspondences passed.
+Exit zero confirms successful census generation. Semantic correspondences have
+their own validation requirements.
 
-Every entry currently has `status: unclassified` and no targets. This is an
-audit foundation, not a conversion map or a claim that the target cannot
-express a source distinction. Reviewed directional mappings, preconditions,
-loss accounting, and enhancement dispositions remain separate work.
+Every census entry has `status: unclassified` and no targets. It supplies inputs
+for reviewing directional mappings, preconditions, loss and enhancement needs.
+An unclassified entry leaves target expressivity unresolved.
 
 ## Population boundary
 
@@ -185,10 +187,10 @@ This existing comparison needs the optional `pyclts` development dependency
 (`pip install -e '.[interop]'`). CLTS's `Sound.similarity` is unweighted
 Jaccard similarity over feature-value names: intersection size divided by
 union size. The comparison uses `1 - similarity` so that smaller scores mean
-closer sounds on both axes. It does not replace native `ipakit.distance`,
-whose declared feature geometry distinguishes differences that a set overlap
-does not. Neither a correlation nor nearest-neighbor agreement establishes
-perceptual equivalence.
+closer sounds on both axes. Native `ipakit.distance` uses its declared feature
+geometry alongside the CLTS set-overlap measure. Correlation and nearest-neighbor
+agreement describe their computational relationship; perceptual equivalence
+requires separate evidence.
 
 The population is registered native phone spellings directly resolved by
 BIPA, with unknowns and markers excluded; it does not apply house spelling
@@ -196,15 +198,15 @@ normalization. Output identifies the resolver version, hashes `ipa.xml`, and
 uses the existing native metric fingerprint to identify the effective feature
 geometry. It hashes the whole CLTS transcription-system tree, including sibling
 systems initialized by the resolver. Catalog hashes are separately labeled as
-load-validation inputs, not sources of the pair scores. It then reports pair counts, score
+load-validation inputs; pair scores use the resolved feature sets. It then reports pair counts, score
 resolution, rank correlation, and nearest-neighbor agreement. Equal nearest
 scores use first native declaration order, not agreement between complete
 tie sets. These results are measurements of the supplied sources, not frozen
 claims about every release or all possible phones.
 
 Upstream implementation: [pyclts sound models](https://github.com/cldf-clts/pyclts/blob/master/src/pyclts/models.py).
-CLTS's inventory-level similarity methods are a separate API; this command
-compares sound pairs, not inventories.
+This command compares sound pairs. CLTS also provides separate inventory-level
+similarity methods.
 
 See [comparative systems](systems.md) and [capabilities](capabilities.md) for
 the distinction between comparing models and establishing semantic fidelity.

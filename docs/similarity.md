@@ -1,24 +1,24 @@
 # Why similarity has this shape
 
-This page is the justification for ipakit's similarity scoring: what is declared, why those declarations replace simpler alternatives, what has been checked, and what remains unvalidated. [distance.md](distance.md) is the operational reference and owns the formulas, parameter definitions, and current measured budget. This page does not restate its tables.
+This page explains ipakit's similarity scoring: its declarations, their rationale, validation results and open questions. [distance.md](distance.md) contains the formulas, parameter definitions and current measured budget.
 
 ## 1. The scoring claim
 
-ipakit computes a structural phonetic dissimilarity. Its feature space is declared in `ipa.xml`. Ordered dimensions use declared positions where phonetic geometry supplies them: place, backness, and constriction location share the tract arc, and height and manner use declared degrees of constriction. Those values are coordinates, not positions in an XML list. An ordinal dimension without such a ground states its declaration order as the model instead. Categorical dimensions state only equality and difference.
+ipakit computes a structural phonetic dissimilarity. Its feature space is declared in `ipa.xml`. Ordered dimensions use declared positions where phonetic geometry supplies them: place, backness, and constriction location share the tract arc, and height and manner use declared degrees of constriction. Those coordinates determine distance independently of XML list position. An ordinal dimension without such a ground uses its stated declaration order. Categorical dimensions state equality and difference.
 
 The comparison keeps the representation's structure. Atomic bundles compare their declared terms. Secondary articulations enter as declared places with their stated share of the place term. Tied material is divided into phase blocks: sequential ties preserve phase order, while constituents within one simultaneous phase compare without an order invented from spelling. A juncture is a typed binding term, distinct from its constituents. Stress, tone, and length ride on the unit and contribute one graded term per tier; they do not multiply their contribution by the number of segmental terms.
 
 Material present on only one side is charged by the same rule in every structural branch: compare it with the nearest material present opposite it. `MATERIAL_BUDGET` declares the kinds of comparison term once. The recent [mass-budget record](design/mass-budget.md) is the check on this discipline: before the declaration existed, an ordered gap acquired a flat price merely because one branch happened to count it that way.
 
-The segment score is structural and inventory-independent. A `DistanceModel` can place it on a percentile scale over a stated reference inventory; that normalized value is a rank in that inventory, not a second phonetic geometry, and is not comparable to a position from another inventory. At word level, `CostSchedule` lets a caller state named insertion and deletion prices, including phone-specific prices. Those schedules parameterize an alignment and do not alter segment distance. There is no universal schedule in the data because the cost of losing a phone is language- and task-relative.
+The segment score is structural and inventory-independent. A `DistanceModel` can place it on a percentile scale over a stated reference inventory. That rank is specific to the reference inventory, so comparisons between percentile positions require the same reference. At word level, `CostSchedule` lets a caller state named insertion and deletion prices, including phone-specific prices. Those schedules parameterize alignment while leaving segment distance unchanged. Callers choose a schedule for their language and task; the data supplies no universal one.
 
-Every returned comparison can be inspected. For an atomic pair, the `explain` path reports the named feature, tract, secondary-place, and prosodic terms. For a comparison involving a composite, it reports the selected matched-constituent comparisons, each unmatched constituent's nearest opposite part and material term, and every aligned or unaligned juncture. The rows are a flat outer decomposition: a matched constituent distance is one row because it is one term at this level, not that row plus its atomic children. This no-double-count rule means a consumer can reconstruct the distance by summing row costs and dividing by the row count. In particular, `u͡i` against `u͜i` reports `u`–`u` at `0`, `i`–`i` at `0`, and `fuse`–`seq` juncture at `1`, hence `(0 + 0 + 1) / 3 = 1/3`. Thus a quantity is either read from a declaration, supplied and named by the caller, or reported as a derived comparison. It is not fitted inside the metric, and it does not emerge accidentally from how many terms one implementation branch assembled.
+Every returned comparison can be inspected. For an atomic pair, the `explain` path reports the named feature, tract, secondary-place, and prosodic terms. For a comparison involving a composite, it reports the selected matched-constituent comparisons, each unmatched constituent's nearest opposite part and material term, and every aligned or unaligned juncture. The rows are a flat outer decomposition: each matched constituent contributes one row at this level, with its atomic children already accounted for. A consumer can reconstruct the distance by summing row costs and dividing by the row count. In particular, `u͡i` against `u͜i` reports `u`–`u` at `0`, `i`–`i` at `0`, and `fuse`–`seq` juncture at `1`, hence `(0 + 0 + 1) / 3 = 1/3`. Each quantity is read from a declaration, supplied and named by the caller, or reported as a derived comparison. These sources determine the score and its term budget; the metric uses no fitted parameters.
 
 ## 2. Material is charged what it is
 
-Three repairs have applied one recurring rule: **material is charged what it is, never a flat rate.**
+Three repairs apply a recurring rule: comparison prices reflect the declared material.
 
-An ordinal scale first used index distance. Inserting a new value then changed the price between old values even when nothing about either endpoint had changed. Declared anchors replaced list position where a physical axis is available. The small comparandum below implements the former convention, not a shipped ipakit API. It inserts one value between two old ones, then counts which old pairs move under index distance and under fixed anchors.
+An ordinal scale first used index distance. Inserting a new value then changed the price between old values even when nothing about either endpoint had changed. Declared anchors replaced list position where a physical axis is available. The standalone example below implements the former convention. It inserts one value between two old ones, then counts which old pairs move under index distance and under fixed anchors.
 
 ```python
 from itertools import combinations
@@ -47,7 +47,7 @@ The first repair prevents a vocabulary edit from changing old geometry. The seco
 
 ## 3. Structural validation
 
-The eigenspectrum is a diagnostic of what distinction dominates the distance matrix, not an external truth criterion. Before nearest-part charging, the leading axis correlated with compositeness. Afterward it correlated with the vowel–consonant contrast, and the shell separating phased composites from atomic phones dissolved into positions determined by their constituents. The checked record is:
+The eigenspectrum diagnoses which distinction dominates the distance matrix. Before nearest-part charging, the leading axis correlated with compositeness. Afterward it correlated with the vowel–consonant contrast, and the shell separating phased composites from atomic phones dissolved into positions determined by their constituents. The checked record is:
 
 ```python
 structural_measurements = {
@@ -60,11 +60,11 @@ structural_measurements
 # {'leading-axis/compositeness correlation before repair': 0.977, 'leading-axis/vowelhood correlation after repair': 0.922, 'negative eigenvalue mass before repair, silence excluded': '9.1%', 'negative eigenvalue mass after repair, silence excluded': '13.1%'}
 ```
 
-The rise in negative eigenvalue mass is not evidence that the repair failed. Phase families remain deliberately tight because typed ties say they share structure, while their distances to phones outside the family depend on which constituents they contain. Near points can therefore have different relations to the rest of the space.
+Negative eigenvalue mass rose after the repair. Phase families remain deliberately tight because typed ties say they share structure, while their distances to phones outside the family depend on which constituents they contain. Near points can therefore have different relations to the rest of the space; negative mass alone does not decide whether the repair succeeded.
 
-The resulting dissimilarity is not a metric, on purpose: triangle inequality is not one of its commitments. Callers whose algorithms require that inequality can construct `ipakit.closure.MetricClosure`, the declared shortest-path closure over a stated inventory. Closure changes some pairwise values and makes them inventory-relative, so it is explicit rather than the default.
+The resulting dissimilarity can violate triangle inequality. Callers whose algorithms require that inequality can construct `ipakit.closure.MetricClosure`, the declared shortest-path closure over a stated inventory. Closure changes some pairwise values and makes them inventory-relative, so callers select it explicitly.
 
-This structural consistency is necessary: a construction artifact should not become the leading phonetic distinction. It is not sufficient. An eigenspectrum can show that the declared structure survived computation; it cannot establish that listeners hear the resulting ordering.
+Structural validation checks that computation preserves the declared distinctions. Establishing how listeners hear the resulting ordering requires perceptual data in addition to the eigenspectrum.
 
 ## 4. External validation
 
@@ -100,7 +100,7 @@ panphon_rank_correlations
 # {'feature_edit_distance': 0.67, 'weighted_feature_edit_distance': 0.622, 'hamming_feature_edit_distance': 0.659}
 ```
 
-That is evidence of agreement where both systems encode phonetic distinctions and of divergence where their representations make different commitments. It is not perceptual validation. The same assessment found that CLTS similarity and sound classes serve catalog matching and historical comparison at a different resolution; those measurements are comparisons with neighboring objects, not substitutes for listener data.
+These results measure agreement and divergence between representations. The same assessment found that CLTS similarity and sound classes serve catalog matching and historical comparison at a different resolution. Listener data supplies the separate perceptual-validation evidence.
 
 ## 5. Neighboring commitments
 
@@ -110,21 +110,21 @@ That is evidence of agreement where both systems encode phonetic distinctions an
 
 Plain string edit distance compares symbol sequences with substitution, insertion, and deletion operations but no phonetic representation. It is inexpensive, defined for any strings, and makes its behavior easy to reproduce. It cannot distinguish a small articulatory substitution from an unrelated one unless the caller supplies that knowledge. Both ALINE and ipakit add phonetic structure; ipakit also pays for parsing, declaration maintenance, and cases where the declared structure withholds an answer that a character operation could always produce.
 
-These are different commitments with different costs. The comparisons above do not establish a ranking among the tools.
+These tradeoffs support choosing a tool for a stated task; the comparisons above leave an overall ranking open.
 
 ## 6. What stays open
 
-A difference that distinguishes nothing is not a difference the distance owes anything to. Ninety-one registered pairs differ in their feature bundle and score zero, and every one is a mark asserting what the base already carries: `ɡˠ` is a velar wearing a velar secondary, `d̺` states the articulator `d` already implies, `m̃` nasalizes a nasal. Those are not counterexamples to the metric — a bundle that differs where the distance does not is a defect only when the difference is **distinctive**, and these are not.
+Ninety-one registered pairs differ in their feature bundle and score zero. Each added mark restates a property of the base: `ɡˠ` repeats velarity as a secondary articulation, `d̺` states the articulator `d` already implies, and `m̃` nasalizes a nasal. The distance treats these vacuous additions as equivalent; a distinctive feature difference must receive a nonzero score.
 
 The reason the operator records them anyway is that respellings are operators: `compose_unit("ɡ", velarized="+")` is faithful to what it was asked and answers `ɡˠ`, while a value the base already carries comes back unchanged. The vacuity is a fact about the resulting segment's phonetics rather than about the operation, so it is stated here rather than repaired there. `tests/test_distinctive_difference.py` holds the boundary: no registered pair may differ in a non-vacuous feature while scoring zero, with vacuity derived from the declaration so a supplement is covered by the same rule.
 
 The fusion branch has no arity floor. Adding a second articulator can cost less than adding a smaller diacritic because the former receives the declared secondary share of a graded comparison. A floor is deferred and pinned; it needs its own derivation and measurement rather than a constant chosen to repair one example.
 
-External validation has begun with the Miller–Nicely ordering run above. One dataset is a hypothesis test, not a fit; a successor under different conditions remains queued. The inventory has no affricates, so the `t͡ʃ`–`ʃ` comparison remains the first stated affricate test, not a claimed result, for a lineage successor such as Wang and Bilger (1973).
+External validation has begun with the Miller–Nicely ordering test above. Validation under different conditions remains queued. Its inventory excludes affricates, so testing `t͡ʃ`–`ʃ` requires a successor dataset such as Wang and Bilger (1973).
 
 Prosodic riders remain one value-distance term per tier by design. That convention prevents the same rider from acquiring more mass merely because its host exposes more segmental terms. It remains a declared modeling choice to revisit only with evidence about the tier, not by changing the denominator locally.
 
-Which marks reach that term is worth stating, because the convention above says how a rider is priced and not which riders there are. Measured against `a`:
+The following measurements identify which marks reach that term and their contribution against `a`:
 
 ```python
 import ipakit
@@ -138,10 +138,29 @@ round(ipakit.distance("a", "a᷅"), 6)    # 0.0
 round(ipakit.distance("á", "à"), 6)     # 0.021739
 ```
 
-In order: primary stress, a high level tone, a low level tone, length, a rising contour, a falling one, and the two level tones against each other.
+In order: primary stress, a high level tone, a low level tone, length, a rising
+direction-only contour, a low-to-mid tone trajectory, and the two level tones
+against each other. These readings follow the house declarations in `ipa.xml`.
 
-Two things follow that a reader should not have to infer. **Equal distance from the unmarked vowel does not mean the riders are interchangeable.** `á` and `à` both sit 0.043478 from `a`, so the distance to an unmarked host says only that a rider is there; the two are still 0.021739 apart from each other, so tone identity is carried and simply is not what that first figure reports. And **contours do not reach the term at all**: ipakit models pitch levels, so a contour mark leaves the distance unchanged, which is a scope decision rather than a measurement. The declared `tone` feature, whose values are `bottom`, `high`, `low`, `mid` and `top`, is carried by no registered phone; tone reaches the comparison through the rider rather than through that feature.
+`á` and `à` each sit 0.043478 from `a`, and they sit 0.021739 apart from each
+other. The pairwise comparison therefore retains their tone distinction.
+Direction-only contour marks such as the caron in `ǎ` also contribute a term.
+Multi-level trajectories such as `a᷅` (`low>mid`) are retained in the
+representation but omitted from the scalar metric pending a trajectory
+comparison policy. Their zero contribution indicates an unscored tier.
+Single tone levels use the declared `bottom`, `low`, `mid`, `high`, `top`
+scale. See [tone declarations and trajectories](tone.md).
 
-Structure above the segment does not reach the comparison either. A syllable, word, phrase or utterance boundary leaves the distance unchanged, so two forms differing only in where a boundary falls score as identical. That is not a pricing of zero — the marks are dropped before the metric is entered — and the two are indistinguishable in a scalar while meaning different things. This is tracked as a release blocker rather than presented as a design position.
+Word alignment currently compares segment sequences. Differently placed or
+typed boundaries can therefore produce the same cost: `ka.tə`/`kat.ə`,
+`a|a`/`a‖a`, and `a.a`/`a#a` each have zero edit cost. The stored Forms retain
+those structural distinctions. Comparing claimed tier boundaries is separate
+planned work.
+Use the graph and structural queries when those distinctions matter, and
+interpret this scalar as a segment-sequence cost.
 
-One mark is a defect rather than a scope decision: `a̋`, extra-high, yields an empty feature bundle where the other tone marks yield a full one, so it reads as no segment at all. It is not that the contour is out of scope; nothing is read.
+The combining double acute U+030B in `a̋` is outside the house declaration.
+Strict parsing refuses it; permissive parsing warns and retains `a`.
+The declared spelling `a˥` supplies the top tone level. A raw feature lookup
+for the unregistered `a̋` spelling returns an empty bundle, while the parsed
+Form and its diagnostics report what the parser retained or refused.

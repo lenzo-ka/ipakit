@@ -1,4 +1,4 @@
-# Getting things done with ipakit
+# IPAkit task tutorial
 
 <!-- Generated from tutorial.src.md by scripts/tutorial.py. Do not edit: run `make tutorial`. -->
 
@@ -7,11 +7,10 @@ else is like it, how do I write it in some other notation, and what happens to i
 context.* This page walks through those tasks in that order. Every command and every
 value below was produced by running it.
 
-It is organized by what you want to do, not by module. Each section shows **the command
-line and the Python API side by side** for the same task, because most people arrive
-wanting one and later need the other.
+Each section covers a task through both the command line and the Python API,
+so you can use the same operation interactively or in a program.
 
-ipakit depends on tiergraph, installed from its pinned Git source; installing ipakit resolves it automatically:
+Installing ipakit also installs its published tiergraph dependency:
 
 ```bash
 pip install ipakit
@@ -21,8 +20,7 @@ That puts an `ipakit` command on your path and makes `import ipakit` work.
 
 To run this page rather than read it, `ipakit notebook` writes a Jupyter notebook of the
 same material into the current directory: the same examples as cells, with the answers
-left out for you to produce. It is rendered from the source this page is rendered from,
-so the two cannot come to disagree.
+left out for you to produce. The page and notebook are generated from the same source.
 
 Throughout, the Python examples assume:
 
@@ -32,13 +30,13 @@ import tempfile
 from pathlib import Path
 ```
 
-For the reference material this page deliberately does not duplicate, see
+For detailed reference material, see
 [docs/README.md](README.md) — in particular [distance.md](distance.md) for why the
 distance is not a metric, [ties.md](ties.md) for the tie model, [form.md](form.md) for
 the representation, and [rules.md](rules.md) for the full rule notation. The
 [glossary](glossary.md) introduces the linguistic terms used here.
 
-## 1. What is this sound?
+## 1. Sound descriptions and feature bundles
 
 The two basic reads are a **name** and a **feature bundle**. `describe` gives the name a
 phonetician would use; `features` gives the bundle the rest of the library computes over.
@@ -72,8 +70,8 @@ ipa.features("p", with_defaults=False)
 # 'Voiceless_bilabial_plosive', 'class': 'phone'}
 ```
 
-Diacritics compose, so you are not limited to the registered inventory. An aspirated /p/
-is not a separate entry in the data; it is /p/ plus what the mark declares:
+Diacritics compose with registered phones. An aspirated /p/ combines /p/ with
+the aspiration mark's declaration:
 
 ```python
 ipa.describe("pʰ")  # 'voiceless aspirated bilabial plosive'
@@ -83,7 +81,7 @@ ipa.features("pʰ", with_defaults=False)
 ipa.describe("ḁ")  # 'voiceless open front unrounded vowel'
 ```
 
-> **CLI and API differ here, deliberately but confusingly.** `features(phone)` returns
+> **Feature display defaults.** `features(phone)` returns
 > the *full* bundle — every feature, defaults included — and `with_defaults=False` gives
 > only what the phone states. `ipakit features p` is the other way round: it shows only
 > the stated features, and `--all` adds the defaults. So the two spellings of "the
@@ -105,7 +103,7 @@ k: plo vel
 t: plo alv
 ```
 
-## 2. How similar are two sounds, and what is near this one?
+## 2. Phonetic distance and nearest phones
 
 `distance` is an inventory-independent magnitude in `[0, 1]` over the feature bundles: 0 means the same phone, and larger is more different. A voicing contrast is small; a consonant against a vowel is large.
 
@@ -122,7 +120,7 @@ $ ipakit distance pair p a
 0.3230
 ```
 
-`nearest_phones` is usually the more useful question — not *how far* but *what is close*. Its numbers are raw structural-distance magnitudes. A query that belongs to the reference inventory appears first at 0.0 because it is the same phone, so it uses one of the requested result slots:
+`nearest_phones` finds the closest phones in a reference inventory and reports raw structural distances. A query that belongs to the reference inventory appears first at 0.0, using one of the requested result slots:
 
 ```python
 ipa.nearest_phones("p", n=5)
@@ -163,7 +161,7 @@ ipa.distance_model().word_distance("kæt", "kæd").similarity
 # 0.9870378092855157
 ```
 
-> **These are two numbers for one English phrase.** `ipakit distance word` prints the
+> **Word comparison scales.** `ipakit distance word` prints the
 > inventory-relative `distance_model().word_distance` score by default; add `--raw` to print `word_similarity`. Reach for `confusability`/`distance_model` when you want positions comparable across pairs under one stated reference inventory, and `word_similarity` or `distance word --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
 
 ```console
@@ -173,10 +171,9 @@ $ ipakit distance word --raw kæt kæd
 kæt ~ kæd: similarity=0.9841  [raw feature distance]
 ```
 
-A word comparison also reports `coverage`, the shorter token count over the longer. It
-is beside the score and never inside it, because a low similarity has two readings and
-the score cannot tell them apart on its own — these two are alike as numbers and are not
-alike as diagnoses.
+A word comparison also reports `coverage`, the shorter token count over the longer.
+This separate value helps distinguish a length mismatch from differences between
+similarly sized forms.
 
 ```python
 ipa.word_distance("kætəloɡ", "kæt").coverage  # 0.42857142857142855
@@ -201,10 +198,10 @@ ipa.sequence_distance(["k", "a", "t"], ["k", "æ", "t"]).similarity
 # 0.9969467401285583
 ```
 
-**Do not build a metric tree on `distance`.** It is symmetric and bounded and zero on
-identity, but about 0.5% of triples violate the triangle inequality. That is measured,
-not feared, and [distance.md](distance.md) documents which uses it rules out and offers
-`ipakit.closure.MetricClosure` when you genuinely need the inequality.
+`distance` is symmetric, bounded and zero on identity, but about 0.5% of measured
+triples violate the triangle inequality. Algorithms such as metric trees that require
+that inequality need `ipakit.closure.MetricClosure`. [distance.md](distance.md)
+describes these restrictions and the closure's inventory-relative behavior.
 
 When a score needs an explanation, `explain_word_distance` exposes the alignment operation at each position and, for a substitution, the feature and tract terms that contributed to its cost.
 
@@ -217,7 +214,7 @@ explanation = ipa.explain_word_distance("kæt", "kæd")
 sum(step["cost"] for step in explanation)  # 0.0476
 ```
 
-## 3. What phones match a description?
+## 3. Feature queries and natural classes
 
 `phones_matching` takes the same query language the rule engine uses, so a pattern you
 work out here transfers directly into a rule.
@@ -293,9 +290,9 @@ ipa.minimal_pairs("p")[:5]
 # 'fricative')]
 ```
 
-## 4. Converting between notations
+## 4. Notation conversion
 
-The supported ASCII and machine notations convert in both directions. The round trip is the thing worth checking, and it holds:
+The following examples convert supported ASCII and machine notations in both directions:
 
 ```python
 ipa.to_cmu("kˈæt")  # ['K', 'AE1', 'T']
@@ -319,9 +316,8 @@ $ ipakit convert from-xsampa t_S
 t͡ʃ
 ```
 
-Note where the CMU converter puts the stress mark: **before the vowel**, not at the
-syllable boundary. That is the convention the rule engine expects, and section 7 depends
-on it.
+The CMU converter places the stress mark immediately before the vowel. The rule
+engine uses that nucleus-leading convention in the examples in section 7.
 
 You can read features straight out of a non-IPA symbol without converting first:
 
@@ -340,18 +336,16 @@ ipa.to_cmu("k4t")  # ['K', 'T']   the '4' is dropped
 > dropped, and exits 3, just as `ipakit features "k4t"` does under the CLI's lossy-read
 > policy. Pass `--strict` to refuse the partial conversion instead.
 
-## 5. Splitting a transcription, and keeping what `segments()` drops
+## 5. Transcription units and structure
 
-`segments` answers *what sounds are in this?* — and to answer it, drops everything that
-is not a sound:
+`segments` extracts speech sounds, omitting boundary markers:
 
 ```python
 ipa.to_ipa(ipa.segments("#kæt.dɒɡ#"))  # 'kætdɒɡ'
 ```
 
-That is the right answer to that question and the wrong one to keep, because the word
-mark and the syllable break are gone and nothing said so. `Form` is the unprojected
-reading: it round-trips, and every narrower view is reachable by name.
+Use `Form` to retain the word marks and syllable break along with the sounds.
+It provides round-trip serialization and named views of its structure.
 
 ```python
 from ipakit.form import Form
@@ -392,11 +386,11 @@ $ ipakit rules units "#kæt.dɒɡ#"
 # k æ t . d ɒ ɡ #
 ```
 
-Carry the widest reading you can and collapse at the point of use.
-[form.md](form.md) has the full account, including what `Form.rebuild` does and does not
-promise.
+Keep a `Form` when later operations need its structure, and select narrower views
+at the point of use. [form.md](form.md) describes those views and the
+`Form.rebuild` contract.
 
-### Build, navigate, and serialize a form
+### Form construction, navigation and serialization
 
 `FormBuilder` constructs the same graph-backed `Form` without requiring an IPA string to express its hierarchy. Builder handles are temporary construction identities; after `build()`, navigation returns canonical graph paths.
 
@@ -431,7 +425,7 @@ lean_wire["type"], lean_wire["v"]  # ('ipakit.form', 2)
 ipa.read_json(built.to_json()).to_ipa()  # 'kæt'
 ```
 
-## 6. Is this transcription well formed?
+## 6. Transcription validation
 
 ```python
 ipa.validate_ipa("kæt")  # []
@@ -462,7 +456,7 @@ ipakit: warning: dropped 1 unregistered symbol(s) ['Q'] while parsing IPA: the r
 ipakit: input was not read in full; exiting 3. Rerun as 'ipakit --lax ...' to accept the lossy read and exit 0.
 ```
 
-## 7. Applying allophonic rules, broad to narrow
+## 7. Allophonic rule application
 
 A rule is the classical generative statement — rewrite `A` as `B` between `C` and `D`:
 
@@ -540,7 +534,7 @@ len(english)  # 14
 ipa.rewrite("pˈɪn", english)  # 'pʰˈɪ̃n'
 ```
 
-The trace is a first-class object, not just a printout — `derive` keeps every step:
+`derive` returns a derivation object that retains every step:
 
 ```python
 derivation = ipa.derive("pˈɪn", english)
@@ -567,16 +561,15 @@ features.normalize_stress_to_nucleus("ˈpɪn")  # 'pˈɪn'
 ipa.from_cmu(["P", "IH1", "N"])  # 'pˈɪn'
 ```
 
-Aspiration is conditioned on a **syllable margin**, stated positively, which is why
+Aspiration is conditioned on a syllable margin, which is why
 `spin` does not aspirate — the margin there is taken by /s/:
 
 ```python
 ipa.rewrite("spˈɪn", english)  # 'spˈɪ̃n'
 ```
 
-And an unspecified margin is not guessed at. A word written with no interior dot leaves
-its interior margins unstated, and a margin-conditioned rule declines to fire rather
-than inventing a syllabification:
+A margin-conditioned rule requires an explicit margin. A word written with no
+interior dot leaves its interior margins unstated, so the rule does not fire there:
 
 ```python
 ipa.rewrite("ə.tˈæk", english)  # 'ə.tʰˈæk̚'   margin written
@@ -609,9 +602,9 @@ ipa.rewrite("skul", ipa.shipped("spanish-accented-english"))  # 'eskul'
 ipa.rewrite("stap", ipa.shipped("spanish-accented-english"))  # 'estap'
 ```
 
-### English to katakana as attested loanword adaptation
+### Attested loanword adaptation to katakana
 
-The `japanese-moraic` rules model established gairaigo adaptations, not imitation of Japanese speech and not accent conversion. The rewrite bridge preserves the broad input, each fired derivation layer, and derived morae on one graph-backed `Form`; the katakana codec renders only those morae. This worked example uses the attested adaptation of English *hot* as ホット.
+The `japanese-moraic` rules cover established gairaigo adaptations. Accent conversion and general Japanese speech modeling are outside this set's scope. The rewrite bridge preserves the broad input, each fired derivation layer, and derived morae on one graph-backed `Form`; the katakana codec renders those morae. This worked example uses the attested adaptation of English *hot* as ホット.
 
 ```python
 japanese = ipa.shipped("japanese-moraic")
@@ -628,7 +621,7 @@ render_katakana(hot_form)  # 'ホット'
 
 The leading underscore on the codec module marks this as a backend surface rather than a stable top-level convenience API. Keeping the example executable still checks the complete rules → derivation → graph → derived morae → katakana path; applications should treat the attested fixture vocabulary as the codec's declared domain.
 
-## 8. Writing your own rule set
+## 8. Custom rule sets
 
 A rule set is one rule per line; `#` starts a comment and `;` names a rule. Order
 matters, and each rule sees the previous rule's output.
@@ -664,9 +657,8 @@ atapa: 2 sites
   [manner=plosive] -> [voiced=+] / [vowel] _ [vowel]  @3  p  a _ a
 ```
 
-A misspelled feature name or value fails loudly on both sides of the arrow, rather than
-quietly building a constraint nothing satisfies. Both arms matter: an undeclared *value*
-used to build a constraint no phone could meet and match nothing, in silence.
+A misspelled feature name or value raises an error on either side of the arrow.
+Validation covers both names and values:
 
 ```python
 def rule_error(text):
@@ -717,8 +709,8 @@ rule_error("n -> [place=-α] / _ [place=α]")
 # mean, or use the plain variable to say the two agree."
 ```
 
-The letter itself is checked against the inventory rather than taken on trust, because the
-second member of the traditional series is a registered phone:
+Variable letters are checked against the inventory: `β`, the second letter in the
+traditional series, is already a registered phone and is refused as a variable:
 
 ```python
 rule_error("n -> [place=β] / _ [place=β]")
@@ -736,10 +728,9 @@ $ ipakit rules apply --set german-final-devoicing taːɡ
 taːk
 ```
 
-[rules.md](rules.md) is the full notation — every operator, the tier model, and the
-known limits, which are a queue rather than a disclaimer.
+[rules.md](rules.md) describes the operators, tier model and supported syntax.
 
-## 9. When there is more than one right answer
+## 9. Optional rules and pronunciation variants
 
 Every rule so far has been obligatory: one form in, one form out. A great deal of
 pronunciation is not like that. French *petit* is [pəti] **and** [pti], from one speaker
@@ -770,9 +761,8 @@ combination — three consonants in a row — is not one of them:
 french.variants("dəvəniʁ").forms  # ('dəvəniʁ', 'dəvniʁ', 'dvəniʁ')
 ```
 
-The obligatory entry points are untouched. `rewrite` takes no optional choice, so it
-still answers with one form — and that form is always the first variant, by
-construction rather than by agreement:
+`rewrite` applies obligatory changes and returns one form. It follows the same
+execution path as the first variant:
 
 ```python
 ipa.rewrite("pətit", french)  # 'pəti'
@@ -799,8 +789,8 @@ dəvəniʁ: 3 variants
   dvəniʁ
 ```
 
-Optional rules multiply, so the enumeration is capped — and **the cap is never silent**.
-Ask `complete`, and on the command line the count line says it outright:
+Optional rules multiply, so enumeration has a configurable cap. `complete` reports
+whether enumeration finished; the CLI includes this status in its count line:
 
 ```python
 many = ipa.variants("aaaa", "[vowel] ~> [length=long]", limit=4)
@@ -809,12 +799,10 @@ many.unexplored  # 12   at least this many choices declined
 ipa.variants("aaaa", "[vowel] ~> [length=long]").complete  # True
 ```
 
-[calculus.md](calculus.md) is the algebra this opens: what is closed over the set, what
-the identity is, whether composition is associative and where the cap stops it, whether
-the set is always finite — and, said plainly rather than in a footnote, what it cannot
-express.
+[calculus.md](calculus.md) describes closure, identity, composition, finiteness and
+the limits of capped enumeration.
 
-## 10. Looking at the articulation
+## 10. Articulation visualization
 
 The feature data is backed by a declared vocal-tract geometry, and that geometry can be drawn. The checked-in mid-sagittal figures under [figures/](figures/) are regenerated with `make figures`:
 
@@ -822,8 +810,8 @@ The feature data is backed by a declared vocal-tract geometry, and that geometry
 make figures
 ```
 
-Each is drawn through `Head.project` by `ipakit.tract_svg`, which computes no
-geometry of its own — so a figure that looks wrong is the model being wrong, a route that has exposed defects invisible to the test suite.
+Each is drawn through `Head.project` by `ipakit.tract_svg`, using the declared
+geometry. Inspecting these figures has exposed model defects beyond the test suite's checks.
 
 ![Mid-sagittal reference](figures/tract-reference.svg)
 
@@ -886,7 +874,7 @@ tuple(dict.fromkeys(frame.level for frame in oral_tract_frames(partial_graph, ge
 
 These gesture modules are backend interfaces, so their underscore-prefixed imports are intentionally more specialized than the public `Form` and rewrite APIs above.
 
-## 11. Build and query a corpus
+## 11. Corpus construction and queries
 
 A directory corpus keeps canonical forms under named roles. The query notation is the
 left, recognizing half of a rewrite rule, so the same context can be searched and then
@@ -910,7 +898,7 @@ The command-line equivalents are `ipakit query '<dsl>' IPA...` for ephemeral str
 and the `ipakit corpus init`, `add`, `query`, and `derives` commands for a stored
 collection. See [corpus.md](corpus.md) for the grammar and stable record columns.
 
-## 12. Extending the inventory
+## 12. Inventory supplements
 
 The shipped inventory registers the phones on the IPA chart, and reads everything else by
 composing it. A composed unit works as **input** everywhere a registered one does, with no
@@ -922,10 +910,9 @@ round(ipa.distance("tʰ", "t"), 4)  # 0.0455
 [p for p, _ in ipa.nearest_phones("tʰ", n=3)]  # ['t', 'ȶ', 'p']
 ```
 
-So most of what "register this sound" sounds like it buys, you already have. What it buys
-is **membership**: a seat in the pools the library draws *answers* from, and a place in the
-distribution it normalizes against. Today `tʰ` is in neither, which is why the write side
-has nothing to say about it:
+Registration adds membership in the pools the library draws answers from and
+the distribution it normalizes against. The default inventory excludes `tʰ`
+from those pools, so respelling cannot select it:
 
 ```python
 ipa.respell("t", release="aspirated")  # no registered phone spells this
@@ -991,7 +978,7 @@ shipped matrix and every module-level call still answer for the bare inventory:
 merges, what it does to `to_phone`'s choice of winner, and how to carry your own derived
 data.
 
-## Where to go next
+## Further reading
 
 - [docs/README.md](README.md) — what every document is for, and the order to read them.
 - [rules.md](rules.md) — the rule notation in full.

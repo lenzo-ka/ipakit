@@ -38,6 +38,8 @@ PKG = ROOT / "ipakit"
 # also asserts that they are sufficient to build a wheel -- if the build
 # ever starts needing another top-level file, this list is where it shows.
 BUILD_INPUTS = ("pyproject.toml", "MANIFEST.in", "README.md", "LICENSE", "CHANGELOG.md")
+SOURCE_SUPPORT_FILES = ("Makefile", "conftest.py", ".pre-commit-config.yaml")
+SOURCE_SUPPORT_DIRS = ("tests", "scripts", "docs", ".github/workflows")
 
 
 def _package_data_globs() -> list[str]:
@@ -98,20 +100,7 @@ def test_no_declared_glob_is_dead():
     )
 
 
-@pytest.fixture(scope="module")
-def package_source(tmp_path_factory) -> Path:
-    """Reusable minimal source tree for offline wheel and sdist tests.
-
-    Built through ``setuptools.build_meta`` directly rather than ``python
-    -m build`` so there is no build isolation and therefore no network:
-    a classroom on institutional wifi is the case this whole file is
-    about, and CI should not need a package index to check packaging.
-    """
-    setuptools = pytest.importorskip("setuptools")
-    del setuptools
-
-    src = tmp_path_factory.mktemp("src")
-
+def _copy_build_inputs(src: Path) -> None:
     for name in BUILD_INPUTS:
         source = ROOT / name
         assert source.is_file(), f"build input {name} is missing from the tree"
@@ -128,29 +117,74 @@ def package_source(tmp_path_factory) -> Path:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
 
+
+@pytest.fixture(scope="module")
+def package_source(tmp_path_factory) -> Path:
+    """Minimal package build inputs, without tests or development support."""
+    pytest.importorskip("setuptools")
+    src = tmp_path_factory.mktemp("src")
+    _copy_build_inputs(src)
     return src
 
 
 @pytest.fixture(scope="module")
-def built_wheel(package_source, tmp_path_factory) -> Path:
-    """Build the actual wheel, offline, from the shared source fixture."""
-    src = package_source
-    out = tmp_path_factory.mktemp("wheel")
-    subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from setuptools import build_meta; "
-            f"build_meta.build_wheel({str(out)!r}); "
-            f"build_meta.build_sdist({str(out)!r})",
-        ],
-        cwd=src,
-        check=True,
-        capture_output=True,
+def complete_source(tmp_path_factory) -> Path:
+    """A source distribution additionally needs its verification support."""
+    pytest.importorskip("setuptools")
+    src = tmp_path_factory.mktemp("complete-src")
+    _copy_build_inputs(src)
+    # The sdist must carry the inputs its shipped tests read, not just their
+    # Python modules. Keep the expectation source-derived rather than asking
+    # the built archive what it thinks should have shipped.
+    for name in SOURCE_SUPPORT_FILES:
+        shutil.copyfile(ROOT / name, src / name)
+    for name in SOURCE_SUPPORT_DIRS:
+        shutil.copytree(
+            ROOT / name,
+            src / name,
+            ignore=shutil.ignore_patterns(
+                "__pycache__", "*.py[cod]", ".pytest_cache", ".DS_Store"
+            ),
+        )
+
+    return src
+
+
+def _build_archives(src: Path, out: Path, methods: tuple[str, ...]) -> None:
+    # Call the native backend offline; no second packaging implementation or
+    # network isolation environment is needed to test the declared inputs.
+    program = "from setuptools import build_meta; " + "; ".join(
+        f"build_meta.{method}({str(out)!r})" for method in methods
     )
+    subprocess.run(
+        [sys.executable, "-c", program], cwd=src, check=True, capture_output=True
+    )
+
+
+@pytest.fixture(scope="module")
+def built_wheel(package_source, tmp_path_factory) -> Path:
+    """Build the actual wheel from minimal inputs, without checkout support."""
+    out = tmp_path_factory.mktemp("wheel")
+    _build_archives(package_source, out, ("build_wheel", "build_sdist"))
     wheels = list(out.glob("*.whl"))
     assert len(wheels) == 1, f"expected one wheel, got {wheels}"
     return wheels[0]
+
+
+@pytest.fixture(scope="module")
+def built_sdist(complete_source, tmp_path_factory) -> Path:
+    out = tmp_path_factory.mktemp("sdist")
+    _build_archives(complete_source, out, ("build_sdist",))
+    archives = list(out.glob("*.tar.gz"))
+    assert len(archives) == 1
+    return archives[0]
+
+
+def test_wheel_build_inputs_exclude_verification_support(package_source):
+    assert all(
+        not (package_source / name).exists()
+        for name in (*SOURCE_SUPPORT_FILES, *SOURCE_SUPPORT_DIRS)
+    )
 
 
 def test_the_wheel_carries_every_data_file(built_wheel):
@@ -219,6 +253,61 @@ def test_sdist_carries_one_canonical_panphon_declaration_and_credit(built_wheel)
             assert (
                 stream.read() == (PKG / "data/feature-models" / filename).read_bytes()
             )
+
+
+def test_sdist_carries_source_verification_inputs(built_sdist, complete_source):
+    expected = [complete_source / name for name in SOURCE_SUPPORT_FILES]
+    for name in SOURCE_SUPPORT_DIRS:
+        expected.extend(
+            path for path in (complete_source / name).rglob("*") if path.is_file()
+        )
+    assert any(path.suffix == ".json" for path in expected)
+    assert any(path.suffix == ".dot" for path in expected)
+    with tarfile.open(built_sdist) as archive:
+        members = archive.getnames()
+        roots = {name.split("/")[0] for name in members}
+        assert len(roots) == 1
+        prefix = roots.pop() + "/"
+        missing = [
+            path.relative_to(complete_source).as_posix()
+            for path in expected
+            if prefix + path.relative_to(complete_source).as_posix() not in members
+        ]
+        assert not missing, f"source verification inputs missing from sdist: {missing}"
+        for path in expected:
+            stream = archive.extractfile(
+                prefix + path.relative_to(complete_source).as_posix()
+            )
+            assert stream is not None and stream.read() == path.read_bytes()
+        assert not any(
+            "__pycache__" in name or name.endswith(".pyc") for name in members
+        )
+
+
+def test_unpacked_sdist_collects_its_suite(built_sdist, tmp_path):
+    """The shipped verification tree can collect independently of the checkout."""
+    with tarfile.open(built_sdist) as archive:
+        archive.extractall(tmp_path, filter="data")
+    roots = [path for path in tmp_path.iterdir() if path.is_dir()]
+    assert len(roots) == 1
+    source = roots[0]
+    assert not (source / ".git").exists()
+    env = dict(os.environ)
+    env.pop("PYTHONPATH", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts="],
+        cwd=source,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (
+        "tests/test_packaging.py::test_unpacked_sdist_collects_its_suite"
+        in result.stdout
+    )
 
 
 @pytest.mark.parametrize("omit_timit", [False, True])

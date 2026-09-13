@@ -19,7 +19,14 @@ from tiergraph.semiring import TROPICAL, ProductSemiring
 
 from .._identity import identity_fingerprint
 from .._token_corpus import validate_token_corpus
-from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
+from ..distance import (
+    Alignment,
+    PhoneCost,
+    _checked_price,
+    _prices,
+    _substitution_cost,
+    price,
+)
 from ..distance_model import DistanceModel
 from ..feature_sets import FeatureSets
 from ..features import IPAFeatures
@@ -777,6 +784,7 @@ def pack_from_ternary_declaration(
         tokenize=tokenize,
         policy=policy,
         bridge=bridge,
+        validate_token=declaration.model.read,
     )
 
 
@@ -806,7 +814,11 @@ def normalized(
     algebra and the same expression decides, counts or scores" stops being
     true. When that lands, this computation most likely stays and gains a
     place to be declared; do not assume it will be replaced by a different one.
+
+    Comparison readouts require non-negative finite accumulated costs and finite
+    normalization budgets, even when each individual price is finite.
     """
+    raw = _checked_price(raw, "alignment", "accumulated cost")
     normalization = pack.policy.normalization
     if normalization is Normalization.RAW:
         return raw
@@ -816,4 +828,8 @@ def normalized(
     else:
         denominator = sum(price(pack.delete_cost, token) for token in source.tokens)
         denominator += sum(price(pack.insert_cost, token) for token in target.tokens)
+    if not math.isfinite(denominator):
+        raise ValueError(
+            "normalization denominator must be a finite accumulated budget"
+        )
     return raw / denominator if denominator else 0.0

@@ -1,10 +1,12 @@
 # Finite feature transformations
 
+[Working with alternate feature inventories](inventory-operations.md) combines
+house, Panphon, CLTS and custom cost packs in one explicit-token comparison.
+
 `ipakit.feature_transform` re-encodes features within explicitly declared finite
-domains. It uses the [finite model provider](model-operations.md), not a house-IPA
-pivot, rule engine or new occurrence graph. Source distinctions are preserved
-or reported as lost; equal vectors alone do not establish phonetic equivalence.
-The separate goal of improving house expressivity does not change that contract.
+domains using the [finite model provider](model-operations.md). Each transformation
+declares its source and target schemas directly and reports preserved or lost
+distinctions. Phonetic equivalence requires evidence beyond vector equality.
 
 ```python
 from ipakit.finite_model import FeatureSchema, FiniteModel
@@ -46,20 +48,20 @@ content is not accepted as the bound source.
 
 `injective` concerns the complete declared feature domains. `collisions()`
 reports only observed inventory groups with distinct source bundles mapped to
-one target bundle; spelling aliases alone are not collisions. These are different
-questions: a noninjective map can have no observed inventory collisions.
+one target bundle. Spelling aliases share an existing source bundle and are excluded
+from those collision groups. A noninjective map can have no observed inventory collisions.
 
 `decode(target_bundle)` returns a `Preimage`: independent per-feature choices,
 their product `count`, actual source-inventory spelling candidates, source model
-identity and operation identity. It does not pick one inverse or expand a huge
-Cartesian product. Choices can exist without any inventory spelling. A code
+identity and operation identity. It retains the factored choices and their count,
+including choices with no inventory spelling. A code
 outside the map's image, including `11` in the two-predicate encoding, raises
 `OutsideImage`; schema-invalid codes raise `InvalidFeature` instead.
 
 The shipped frozen Panphon declaration has 6,367 rows, all of which round-trip
 through the two-predicate construction. Positive-only projection has 214 observed
 collision groups of distinct complete vectors. These counts describe this pinned
-table, not every provider version or a universal linguistic equivalence.
+table. Other provider versions and phonetic equivalence require separate measurements.
 Load it with `from ipakit import feature_models` and
 `feature_models.read("panphon")`; supplied paths still use the existing
 `read_ternary_declaration(path)`. No external producer package, source update or
@@ -92,10 +94,10 @@ positive and finite. Existing final normalization policies remain separate from
 this per-substitution normalization.
 
 For equal bit weights the two-predicate substitution equals the source ternary
-formula `sum(abs(a-b)) / (2*n)` for complete bundles. This says nothing about
-source gap prices or other weighted formulas. In the frozen fixture, the naive
+formula `sum(abs(a-b)) / (2*n)` for complete bundles. Gap prices and other weighted
+formulas have separate contracts. In the frozen fixture, the naive
 Hamming-to-zero gap for `a` is `20/48`, while the declared source insertion price
-is `44/48`. This factory preserves neither by inference: callers choose the gap.
+is `44/48`. Callers explicitly choose the binary gap price.
 
 The pack text tokenizer accepts **one exact token**, or an empty sequence. It
 does not split concatenated foreign tokens, normalize their spelling, or route
@@ -105,10 +107,11 @@ through the target model, including self-comparisons and generic semiring folds.
 Pack identity binds transform, target model, ordered weights, gap, CostPolicy
 and exact-token input policy.
 
-This is finite scalar re-encoding and binary comparison—not general transform
-composition, context rewriting, productive phonetic composition or a new wire
-format. TierGraph remains the shared graph/semiring substrate developed alongside
-IPAkit and IRN; the existing alignment fold is reused without a parallel engine.
+These interfaces support finite scalar re-encoding and binary comparison.
+General transform composition, context rewriting and productive phonetic
+composition remain separate operations. TierGraph supplies the shared
+graph/semiring substrate developed alongside IPAkit and IRN; comparisons use
+its existing alignment fold.
 
 ## Repeatable original/binary experiments
 
@@ -137,7 +140,8 @@ alignment host, an already-read `TernaryDeclaration`, the token corpus, explicit
 `encodings`, `binary_gap` and `policies`. Its default is foreign-only. All arms
 use one `compare_token_corpus` call, retaining the same corpus identity, pair
 denominator and individual refusal rows. An unknown token is not discarded or
-retokenized. The host supplies alignment mechanics, not required house semantics.
+retokenized. The host supplies alignment mechanics; each selected model supplies
+its own feature semantics.
 
 The report's `experiment` block records the declaration's model/content receipt,
 source and legacy bridge metadata, feature order, declared-but-unused weights,
@@ -150,8 +154,8 @@ the separate input population. Neither certifies phonetic equivalence.
 Source-dependent original indels and constant binary gaps are separately named.
 With the frozen fixture and faithful policy, deleting `a` costs 44/48 in the
 original arm and 1 with the selected binary gap above. Hamming-to-zero is 20/48
-for that binary vector, but is only a diagnostic—not a selected gap policy or
-an extra report arm. Matching substitution formulas do not imply matching
+for that binary vector and is reported here as a diagnostic. The experiment uses
+the selected constant gap policy. Matching substitution formulas do not imply matching
 sequence distances when indels differ.
 
 `pack_from_ternary_declaration` in `ipakit.bridges.costmodel` is the shared object
@@ -159,6 +163,7 @@ factory; `pack_from_declaration(path)` remains its reader-plus-factory wrapper.
 The experiment parses no XML itself. Both paths validate the object contract,
 including typed ternary domains, NFD tokens, finite nonnegative weight metadata
 and consistent source receipts, before creating costs. Caller-built provenance
-is checked for internal consistency, not authenticated against an upstream.
+is checked for internal consistency; upstream authentication requires a separate
+source validation step.
 Incomplete weight metadata is still legal for the unweighted family; the
 weighted family retains its stricter refusal. No weights are silently repaired.

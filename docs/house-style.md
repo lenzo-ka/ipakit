@@ -4,54 +4,55 @@ A transcription is a set of claims. House style makes each claim at the smallest
 
 The declaration-backed inventories for this page are in the [generated exhibits](house-style-exhibits.md). They travel with the prose, while their values come from `ipa.xml` and are checked by `make check`.
 
-## One explicit model, not the substrate
+<a id="one-explicit-model-not-the-substrate"></a>
 
-House style is more than formatting: it expresses IPAkit's own phonetic model,
+## The house phonetic model
+
+House style expresses IPAkit's phonetic model,
 including choices about composition, feature interpretation, prosodic attachment,
-and articulation. It is one inventory-plus-algebra instance, not a requirement
-that every representation on the TierGraph substrate adopt those choices.
-The declarations are testable and revisable; shared computational machinery does
-not make them universal phonetic facts.
+and articulation. It provides an inventory and algebra on the shared TierGraph
+substrate. Other models can supply their own declarations and interpretations.
+House declarations are testable and revisable, with evidence and limits stated
+for each phonetic claim.
 
 The main commitments are collected here so that a reader need not infer the
 model from punctuation or scattered implementation details. The linked accounts
-give the rationale, operational boundaries, and evidence rather than defining a
-second copy of the rules.
+give the rationale, operational boundaries, and evidence for the declarations.
 
 | Choice | Computational consequence | Account |
 | --- | --- | --- |
 | Over-tie, under-tie, and adjacency make different claims. | Simultaneous constituents, a bound sequence, and separate units remain distinguishable in reading and comparison. | [Ties](#ties-are-units), [unit model](ties.md) |
 | Stress attaches to the nucleus; syllable boundaries are separate claims. | Stress need not imply an inferred syllable margin. | [Stress](#stress-sits-on-the-nucleus), [syllabification](syllabification.md) |
-| Canonical Unicode handling and explicit input conventions are part of reading. | Code points are not the definition of a phonetic atom; imported conventions must identify their reading. | [Decomposition](#text-is-read-decomposed), [wild input](#wild-input-is-read-never-guessed-silently) |
+| Canonical Unicode handling and explicit input conventions are part of reading. | Phonetic atoms follow declared composition rules; imported conventions identify their reading. | [Decomposition](#text-is-read-decomposed), [wild input](#wild-input-is-read-never-guessed-silently) |
 | Ordinary spaces express word boundaries; segmented input is a separate mode. | The same whitespace cannot silently alternate between a word edge and a token delimiter. | [Boundaries](#space-spells-the-word-boundary) |
 | An interval may carry no segmental claim. | Measured time need not introduce a placeholder phone or an invented word. | [Unclaimed intervals](#silence-carries-no-segment), [representation](representation.md) |
-| Features use descriptive phonetic terminology and declared references. | The inventory is answerable to explicit meanings, not just internally consistent labels. | [Features](#features-are-named-from-the-ipa-and-referenced), [generated declarations](house-style-exhibits.md) |
+| Features use descriptive phonetic terminology and declared references. | Declared meanings can be checked against their references. | [Features](#features-are-named-from-the-ipa-and-referenced), [generated declarations](house-style-exhibits.md) |
 | The house model attaches features to declared articulatory structure. | Geometry informs comparison and posture projection; these claims have their own empirical and rendering limits. | [Articulatory model](tract-anatomy.md), [validation](articulatory-data.md) |
 | Composition and rewriting operate on structured claims. | A composed unit need not have its own inventory row; rewrite alternatives and their completeness are explicit. | [Composition](ties.md), [calculus](calculus.md) |
 | Native comparison chooses particular costs and normalization. | Structural dissimilarity is not automatically a perceptual probability or a mathematical metric. | [Similarity rationale](similarity.md), [distance mechanics](distance.md) |
 
 [Comparative systems](systems.md) places these commitments beside Pinyin, kana,
-and external feature systems. Those comparisons should expose disagreements and
-losses, not treat house semantics as the unspoken definition of every model.
+and external feature systems. Those comparisons identify each model's semantics,
+disagreements, and conversion losses.
 
 An explicit development goal is for house to express every distinction available
 in the other inventories, subject to declared exceptions. This is an expressivity
-goal, not a claim of achieved coverage or a requirement to convert other models
-through house. Compositional and tier-structured expressions can provide coverage;
-merely retaining an opaque source label does not demonstrate a house interpretation.
+goal whose coverage is measured through audits. Other models can operate directly
+in their own feature systems. Compositional and tier-structured expressions can
+provide house coverage; an opaque source label still needs an explicit house interpretation.
 Coverage audits should distinguish demonstrated support, unresolved mappings,
 enhancement gaps, and deliberate exceptions with their rationale. Directional
 conversions must identify distinctions they merge or lose.
 
 ## Ties are units
 
-A tie names one unit and makes one claim about the timing inside it, and there are **two ties making two different claims** — the distinction is the mechanism, not a typographic variant. The **over-tie** `◌͡◌` (U+0361) reads its constituents *simultaneously*, in one shared timing slot: affricates and double articulations, `t͡s`, `k͡p`. The **under-tie** `◌͜◌` (U+035C) reads them *sequentially*, binding several timing slots into one unit: diphthongs and moraic chains, `e͜ɪ`, `a͜ɪ͜ə`. Standard IPA treats the two glyphs as interchangeable; here they are not, and [ties.md](ties.md) is the full account.
+A tie names one unit and specifies its internal timing. The **over-tie** `◌͡◌` (U+0361) reads its constituents *simultaneously*, in one shared timing slot: affricates and double articulations, `t͡s`, `k͡p`. The **under-tie** `◌͜◌` (U+035C) reads them *sequentially*, binding several timing slots into one unit: diphthongs and moraic chains, `e͜ɪ`, `a͜ɪ͜ə`. House style assigns these distinct meanings to glyphs that standard IPA treats as interchangeable; [ties.md](ties.md) gives the full account.
 
-Adjacency is a third thing rather than the sequential reading: `t͜s` is one unit read in sequence, `ts` is two units. So the three spellings say three things, and the metric prices them apart — `p͡w` and `p͜w` differ from each other, and both differ from `p` by more than `pʷ` does.
+Adjacency expresses separate units: `t͜s` is one unit read in sequence, and `ts` is two units. The metric distinguishes these structures: `p͡w` and `p͜w` differ from each other, and both differ from `p` by more than `pʷ` does.
 
-That is why `n͡d` and `ⁿd` are different phonological objects on purpose: one writes internal constituents in a shared timing slot, while the other writes a nasal approach on a stop.
+`n͡d` writes internal constituents in a shared timing slot; `ⁿd` writes a nasal approach on a stop.
 
-**This is also what lets an undelimited string decompose itself.** IPA is written without spaces between units, so something in the string has to say where a unit ends, and the tie is that something:
+The reader uses ties to determine unit boundaries in undelimited IPA strings:
 
 | written | units |
 | --- | --- |
@@ -60,9 +61,9 @@ That is why `n͡d` and `ⁿd` are different phonological objects on purpose: one
 | `a͜ɪt` | `a͜ɪ` `t` |
 | `aɪt` | `a` `ɪ` `t` |
 
-No lexicon is consulted and no language is assumed. The reader needs only the glyphs, because the writer already said which neighbors belong together — which is why the same string tokenizes the same way in a language nobody has told us about.
+Tokenization follows the declared glyphs and ties independently of a language or lexicon.
 
-**And it lets a unit be built rather than looked up.** The inventory names a finite set of bases; the tie composes them, so a unit the table never lists is still one unit with features derived from its constituents:
+Ties also compose the inventory's bases into units with features derived from their constituents:
 
 | written | in the inventory | units | place |
 | --- | --- | --- | --- |
@@ -70,9 +71,7 @@ No lexicon is consulted and no language is assumed. The reader needs only the gl
 | `b͡ɣ` | **no** | 1 | `bilabial`, `velar` |
 | `p͡ʈ` | **no** | 1 | `bilabial`, `alveolar` |
 
-That is the same property read from the other end. Writing composes bases into a unit the inventory did not anticipate; reading decomposes the result without being told where the boundaries are. A transcriber describing a language nobody has tabulated needs both, and neither costs a new entry.
-
-This lets tokenization preserve a distinction that matters to alignment and rewriting. Treating every tie as decoration would make the unit boundary depend on outside knowledge; treating every neighboring glyph as a compound would spend the contrast between a unit and a sequence. The glyph carries the claim at the point where the reader needs it.
+Writing and reading therefore support composed units beyond the listed inventory rows. Explicit unit boundaries carry through to alignment and rewriting.
 
 The spacing undertie stands between words. Its own declaration, reproduced in the [boundary exhibit](house-style-exhibits.md#boundary-vocabulary), calls it "absence of a pause, not absence of a boundary." It therefore preserves the word edge while saying how speech passes across it.
 
@@ -82,29 +81,31 @@ Stress belongs immediately before the nucleus that bears it. A margin-style mark
 
 House style writes only the available claim. `ˈa` is a complete statement. An unwritten margin is unclaimed, and the form may acquire explicit syllable structure later without revising where stress lives. This also gives a rule one local object to ask about: the nucleus and its prosody arrive together.
 
-Moving the stress mark does not spend the syllable boundary. The two are separate claims and both are writable: `ˈka.tə` says the nucleus `a` is stressed *and* that a syllable ends after it, while `ˈkatə` says only the first. The dot is not a casualty of putting stress on the nucleus — it is the claim you make when you have it, on a mark of its own.
+Stress and syllable boundaries are independently writable: `ˈka.tə` says the nucleus `a` is stressed *and* that a syllable ends after it, while `ˈkatə` says only the first. The dot records the explicit boundary claim.
 
 ## Text is read decomposed
 
 Input is canonicalized before anything reads it: NFD, and then the few symbols the inventory stores precomposed are recomposed so they match their keys — `ç`, `ä`, `ť` come back as one code point, while `ɛ̃` stays as base plus mark. The operation is idempotent.
 
-Decomposition first is what makes a mark findable. A precomposed character hides its diacritic inside one code point, so a reader looking for the nasal hook on `ɛ̃` would have to know every precomposed spelling in advance; decomposed, the base and its marks are separate positions and the same scan finds them everywhere. Recomposing the registered few afterwards is not a retreat from that — those are symbols the inventory names in precomposed form, so leaving them apart would make them unfindable in the other direction.
+Decomposition exposes a base and its marks to the same scan across spellings. Subsequent recomposition restores the registered precomposed inventory keys.
 
-It also means a caller's spelling does not decide the answer. The same sound typed precomposed or decomposed reads identically, which is a property worth having when transcriptions arrive from several sources and no two editors agree.
+Equivalent precomposed and decomposed spellings therefore receive the same reading across input sources and editors.
 
 ## Space spells the word boundary
 
 A space and the canonical boundary mark spell the same boundary unit. Equality and structural queries see that unit; exact emission remembers which spelling the source used. Human-facing text can therefore remain ordinary text while rule notation can remain explicit, with neither surface creating a second kind of word edge.
 
-Segmented input is a separate reading selected by the caller. There, whitespace delimits units rather than words, and each token belongs to the source vocabulary. A segmented stream is consequently an owned vocabulary, not a string from which ipakit infers atoms. Opting into that reading makes its contract clear at ingestion and keeps ordinary transcription free to use spaces as boundaries.
+Segmented input is a separate reading selected by the caller. Whitespace then delimits exact tokens in the declared source vocabulary. Ordinary transcription continues to use spaces as word boundaries.
 
 ## Silence carries no segment
 
-When a recording contains an interval for which the transcription makes no segmental claim, the form carries the interval and leaves its contents open. Duration then remains measured duration, rather than becoming a feature of a placeholder introduced to make the timeline look full.
+When a recording contains an interval for which the transcription makes no segmental claim, the form carries the interval and leaves its contents open. Its duration records the measured time independently of segment labels.
 
 That separation keeps analysis and presentation at their proper layers. A renderer may draw rest, blank space, or another visual treatment over the interval. The transcription continues to say exactly what was observed: time passed, and no segment was asserted there.
 
-## Wild input is read, never guessed silently
+<a id="wild-input-is-read-never-guessed-silently"></a>
+
+## Explicit wild-input reading
 
 Wild input is an explicit import mode. Its normalization is depth-aware, so phonetic material can be softened while expression vocabulary inside grouping punctuation keeps its grammar. The command-line echo reports the resulting reading before a query runs, and `--exact` bypasses the import reading when every glyph is already deliberate.
 
@@ -112,17 +113,15 @@ The house metacharacters are available precisely because IPA claims none of thos
 
 ## Features are named from the IPA, and referenced
 
-**The binder is the IPA itself.** `manner`, `place`, `voiced`, `airstream`, `height`, `backness`, `rounded` are the chart's own axes, and the values under them are the chart's own labels — plosive, alveolar, pulmonic, close-mid. Where the declaration goes past the chart it goes to the vocabulary the chart's own literature uses: `articulator`, `constriction-location`, `channel`, `phonation`. That consistency is what earns the name on the tin. A toolkit called IPAkit whose features were invented codes would be named after a standard it had left behind.
+Feature names follow IPA terminology. `manner`, `place`, `voiced`, `airstream`, `height`, `backness`, `rounded` describe the chart's axes, with values such as plosive, alveolar, pulmonic, and close-mid. Further distinctions use descriptive phonetic vocabulary: `articulator`, `constriction-location`, `channel`, `phonation`.
 
 `fortis` is the binary laryngeal feature written by U+0348 COMBINING DOUBLE VERTICAL LINE BELOW, extIPA's *strong articulation* mark, registered because Korean needs it for its tense obstruent series. It applies only to obstruents and makes no tract-position claim: the mark remains an annotation rather than a drawn constriction.
 
-Wikipedia is where each term is *referenced*, not where it comes from — it carries the IPA's vocabulary and is stable enough to link. Nearly every feature and phone names an `href`. The values that carry none are the ones that are not independent concepts: the polarities `+`, `-`, `0`, and scale points like `bottom`, `high`, `half-long`, whose meaning is the feature they sit on rather than an idea with a literature of its own; many of the remaining values name an `href`.
+Wikipedia links provide reference material for the IPA and phonetic terms. Nearly every feature and phone names an `href`, as do many values. Polarities such as `+`, `-`, `0`, and scale points such as `bottom`, `high`, `half-long` derive their meaning from their containing feature and may omit a separate reference.
 
-This was a choice and it has a cost: `constriction-location`, `tongue-blade` and `alveolo-palatal` are longer to type than an invented code would be, and the feature set is deliberately larger than a minimal contrastive one. The return is that a reader who knows phonetics already knows what a value means, and one who does not has somewhere to go. A feature nobody outside this repository can look up is a feature only this repository can check.
+Descriptive names such as `constriction-location`, `tongue-blade` and `alveolo-palatal` favor readable phonetic meanings. Their references support learning and checking the declaration against the literature.
 
-It also fixes what the declaration is answerable to. A name taken from the literature can be *wrong* against the literature — the `href` is what makes that checkable — where an invented name can only be inconsistent with itself.
-
-**The consequence is that ipakit's feature set is not panphon's, and the difference is one of kind.** The two sets are neither the same size nor nested, and both halves of that are checkable from what follows: panphon's names are enumerated below, and ipakit's are the ones [the generated exhibits](house-style-exhibits.md) list from `ipa.xml`, so a reader compares two enumerations rather than two remembered numbers. Set the names beside each other and the two traditions are visible:
+IPAkit and Panphon use different feature sets, with neither set contained in the other. Panphon's names appear below; [the generated exhibits](house-style-exhibits.md) list IPAkit's declarations from `ipa.xml`:
 
 - panphon: `syl son cons cont delrel lat nas strid voi sg cg ant cor distr lab hi lo back round velaric tense long hitone hireg` — binary distinctive features, values `+`, `-`, `0`
 - ipakit: `manner place articulator phonation airstream channel constriction-location height backness rounding …` — the IPA chart's descriptive axes, multi-valued
@@ -133,13 +132,13 @@ The zeros are the other clue, and they point to the later half of the same tradi
 
 Where the zeros fall recovers part of the conditioning: `cor−` implies *distributed* unvalued in 3,330 of 3,330 segments, and *tense* is unvalued for every consonant. It is applied unevenly, though — *anterior* is unvalued for vowels yet valued on `k` and `p`, which are `cor−`, so one Coronal dependent is conditioned in one context and not another; *delayed release* is valued on everything including `/a/`. The representation is not committed to a geometry so much as retaining an unstated fragment of one.
 
-The two sets are therefore answers to different questions. A distinctive-feature system asks what distinguishes one phoneme from another in a grammar, and is minimal by design. An articulatory description asks what the vocal tract is doing, and is larger because more is happening than any one language contrasts. That is why the comparison between them is a measurement rather than a translation ([interop.md](design/interop.md), [similarity.md](similarity.md)), and why cell-level agreement can be high while whole-segment agreement is not.
+Distinctive-feature systems describe phonological contrasts; articulatory descriptions record vocal-tract properties. Comparing these declarations therefore requires explicit correspondences and measurements ([interop.md](design/interop.md), [similarity.md](similarity.md)). Cell-level agreement and whole-segment agreement measure different aspects of that correspondence.
 
 ## For readers who know regex
 
 The expression grammar leans on PCRE because its reading habits are useful here. Quantifier spellings carry their familiar width claims as the grammar grows; recognition stands on the left and rewriting on the right, much as the two sides of `s///` divide matching from replacement; and application is global by default, in the spirit of `/g`.
 
-The atoms are phonological units rather than characters. A tied compound occupies one atom even though Unicode needs several code points to spell it, and a mark riding on a nucleus remains part of that unit. Character-oriented intuition still helps with grouping and repetition, while the unit model decides what one step consumes.
+Expression atoms are phonological units. A tied compound occupies one atom even though Unicode needs several code points to spell it, and a mark riding on a nucleus remains part of that unit. Familiar grouping and repetition operators act on those units.
 
 Bare parentheses mean optional context because phonological rule writing has used them that way since *The Sound Pattern of English*. PCRE gives parentheses a grouping role; SPE gives the same shape a concise statement about an optional environment. House style honors both traditions by keeping the familiar quantifier surface where it fits and letting the phonological tradition settle the bare form.
 
