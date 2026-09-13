@@ -5,6 +5,34 @@ attested Japanese loanword adaptations. It complements the
 [syllable-primary Pinyin example](pinyin.md): the organizing unit and rendering
 rules differ, while structure and computation use the common substrate.
 
+## Transcription and spelling conventions
+
+The bridge has three distinct contracts:
+
+| Surface | Adopted convention | Reference and scope |
+| --- | --- | --- |
+| Source and adapted IPA | Broad American English input with explicitly sequential vowel ties; adapted geminates use `tː` and affricates use house-style ties, such as `t͡ɕː`. | The [shipped adaptation rules](../ipakit/data/rules/japanese-moraic.rules) declare this local convention. [Okada's Japanese IPA illustration](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/EF0E01DD40A1B2779F3ADFF96B5D97E3/S002510030000445Xa.pdf/div-class-title-japanese-div.pdf), pp. 94–95, distinguishes broad `/u/` from its compressed-lip realization. |
+| Mora analysis | `(C)(j)V` plus special morae; a geminate closes the preceding syllable and supplies the following onset. Readable `ho | t | to` shares one `tː` occurrence. | [The Japanese declaration](../ipakit/data/syllables/japanese.xml) adopts the syllable-based analysis discussed in [Moraic reversal and realisation](https://www.cambridge.org/core/journals/phonology/article/moraic-reversal-and-realisation-analysis-of-a-japanese-language-game/083B743CFC770D79886F97F39F2ED67E), §2, which also describes alternative analyses. |
+| Kana output | Fullwidth katakana from the declared table, small `ッ` for obstruent gemination, `ン` for a nasal mora, and `ー` for vowel length. | [外来語の表記, detailed rules III.1–3](https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/gairai/honbun06.html) supplies the adopted orthographic conventions. The codec covers its shipped vocabulary; the reference also recognizes lexical exceptions. |
+
+The adapted fixtures use broad `u` (for example, `su` and `ku`). Their current
+house-IPA feature interpretation remains that of the written symbol; the
+bridge supplies no Japanese-specific phonetic reinterpretation of `u`.
+[Wikipedia's Japanese IPA key](https://en.wikipedia.org/wiki/Help:IPA/Japanese)
+uses `ɯ` and supplies its own phonetic conventions. Producing that spelling or
+a narrower compressed-vowel analysis requires a separately declared realization
+mapping. These fixtures therefore carry the broad adaptation convention above,
+with fine-grained vowel realization outside their scope.
+
+`morae()` and `to_katakana()` admit exact source strings from the shipped fixture
+set. They perform no spelling repair, Unicode-normalization admission, kana
+reading or language detection before that lookup. For example, `hɑt` is an
+accepted source and its adapted output `hotːo` is a different input to those
+convenience functions. General IPA parsing and `syllabify(text, "japanese")`
+are separate operations. The bars in readable mora examples mark the returned
+sequence; they are display separators, while the underlying `tː` remains one
+source unit.
+
 ## What the renderer reads
 
 [`ipakit.bridges.kana.KANA`](../ipakit/bridges/kana.py) reads the `mora` tier to
@@ -32,6 +60,11 @@ import ipakit
 
 ipakit.to_katakana("hɑt")  # 'ホット'
 ```
+
+The spelling and English source of this worked example are recorded by
+[Shogakukan's Digital Daijisen entry for ホット](https://kotobank.jp/word/%E3%81%BB%E3%81%A4%E3%81%A8-3218764).
+The dictionary attests the orthographic form and borrowing; the local fixture
+supplies the source and adapted broad IPA transcriptions.
 
 ```sh
 ipakit convert to-katakana "hɑt"

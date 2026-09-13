@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <vocabulary name="kana" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="attested gairaigo fixture bridge" license="BSD-2-Clause" kind="mora-transcription-bridge" tier="mora" source-style="segmented" separator=" ">
+  <!-- Local broad-IPA mora labels, fullwidth katakana output. Broad u remains
+       the written house IPA symbol; Japanese vowel realization is not inferred.
+       Small ッ, nasal ン and length ー adopt 外来語の表記, detailed rules III.1–3:
+       https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/gairai/honbun06.html
+       Canonical input, model, lexical evidence and limits: docs/kana.md.
+       The shipped vocabulary covers a subset of the official table. -->
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report"><drop name="forms outside the attested gairaigo inventory" /></house-to-external>
