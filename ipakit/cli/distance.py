@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 from ..distance_model import DistanceModel
 from ..models import Phoneset
 from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
+from .metrics import AcrossCommand, MetricsCommand
 
 if TYPE_CHECKING:
     from ..features import IPAFeatures
@@ -1281,4 +1282,6 @@ class DistanceGroup(CommandGroup):
         MapCommand,
         CompareCommand,
         SeqCommand,
+        MetricsCommand,
+        AcrossCommand,
     ]

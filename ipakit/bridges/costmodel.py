@@ -807,6 +807,9 @@ def normalized(
     algebra and the same expression decides, counts or scores" stops being
     true. When that lands, this computation most likely stays and gains a
     place to be declared; do not assume it will be replaced by a different one.
+
+    Normalization uses finite floating-point budgets. An accumulated denominator
+    outside that range is refused, even when each individual price is finite.
     """
     normalization = pack.policy.normalization
     if normalization is Normalization.RAW:
@@ -817,4 +820,8 @@ def normalized(
     else:
         denominator = sum(price(pack.delete_cost, token) for token in source.tokens)
         denominator += sum(price(pack.insert_cost, token) for token in target.tokens)
+    if not math.isfinite(denominator):
+        raise ValueError(
+            "normalization denominator must be a finite accumulated budget"
+        )
     return raw / denominator if denominator else 0.0

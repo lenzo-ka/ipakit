@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Shared inventory-operation protocols and adapters for finite feature tables,
+  house phonetic units and read-only set features. `model query` exposes typed
+  inventory matching, including complete declaration-order enumeration.
+- Named distance registries with explicit metric lists, `all` selection,
+  custom registrations and ordered all-pairs comparison. `distance metrics`
+  and `distance across` expose discovery and exact-token reports, retaining
+  unavailable metrics, refused inputs and configuration identities.
 - Explicit finite feature models with typed domains, model-relative query/edit
   and candidate realization, preserving ambiguity rather than choosing a spelling.
 - Finite feature-space transforms, binary encodings and comparison experiments

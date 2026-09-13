@@ -41,6 +41,9 @@ Finite-model module APIs have a separate measured witness in
 `tests/test_cli_model.py`: `model list`, `inspect` and `respell` reach the shipped
 resource accessor, ternary declaration codec and `FiniteModel.respell` directly.
 They require explicit selection and retain complete realization candidates.
+`tests/test_cli_model_query.py` checks `model query` delegation through
+`FiniteInventory.phones_matching` to `FiniteModel.query`, including typed
+refusals and complete declaration-order enumeration.
 `tests/test_cli_model_rules.py` additionally spies `Rule.recognize_tokens` and
 `RuleSet.derive_tokens` through finite `rules recognize/apply/trace`; installed
 entry-point tests exercise both named and supplied declarations. These commands
@@ -49,6 +52,16 @@ use explicit model selection and exact JSON token arrays; see the
 Generic typed schema/AST and transform construction remain library composition
 interfaces. Native wrappers retain their existing signatures, and the
 flat-export reachability test covers the flat API.
+
+`distance metrics` lists named registrations; `distance across` delegates to
+`DistanceRegistry.compare_corpus`. Repeated `--metric` names select arms and
+standalone `all` expands the registry. `--all-pairs` independently expands
+ordered input pairs. Supplied ternary declarations use `--metric-declaration
+NAME=PATH`; custom factory construction remains a library interface.
+`tests/test_cli_distance_registry.py` checks discovery, exact-token delegation
+and selector refusals. A completed report retains unavailable metrics and
+refused comparisons with their statuses; status0 means report production
+succeeded. See [inventory operations](inventory-operations.md#named-metric-selection).
 
 `ipakit.model_graph.GraphBinding` is library-only: callers supply a native graph,
 qualified value relations, source references and clock binding. Derivation

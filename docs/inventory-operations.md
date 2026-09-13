@@ -52,6 +52,38 @@ integer `-1`, `0`, `1`; generic finite models can declare strings or booleans.
 interpretation. `query({})` returns the complete finite inventory in declaration
 order. Exact token spelling and typed equality are preserved throughout.
 
+## Shared inventory interfaces
+
+Adapters give inventory operations common method names while retaining each
+model's feature types and realization policy:
+
+```python
+from ipakit.inventory_operations import FiniteInventory, HouseInventory
+
+finite = FiniteInventory(panphon)
+house = HouseInventory(ipakit.IPAFeatures())
+assert "b" in finite.phones_matching({"voi": 1})
+assert "b" in house.phones_matching({"voiced": "+"})
+assert finite.respell("p", {"voi": 1}).status == "ambiguous"
+assert house.respell("p", {"voiced": "+"}).spelling == "b"
+```
+
+The common read interface exposes `name`, `identity`, `declared_tokens`,
+`admission`, and `read(token)`. Observation values remain model-specific.
+Matching and respelling are additional capabilities. Finite respelling retains
+every exact-vector candidate; house respelling returns its canonical spelling.
+Keep a bound house `IPAFeatures` instance unchanged for the adapter's lifetime.
+
+The finite CLI exposes matching with typed JSON constraints:
+
+```sh
+ipakit model query --model panphon --features-json '{"voi":1}' -j
+ipakit model query --model panphon --features-json '{}' -j
+```
+
+An empty constraint object enumerates the model's declared tokens. Use
+`--model-declaration TABLE.xml` to select a supplied ternary declaration.
+
 ## A caller-defined declaration
 
 This illustrative two-feature table assigns values explicitly. Its labels and
@@ -206,8 +238,52 @@ be repeated explicitly. Binary experiments have their own flags described in
 [feature transforms](feature-transforms.md#repeatable-originalbinary-experiments).
 The script currently keeps binary and CLTS modes separate.
 
-The library's explicit pack list is the available way to compare all caller-selected
-models together. There is currently no universal `all` metric selector, and
-`--all-pairs` expands input pairs only. The installed `ipakit model` commands expose
-inspection and respelling; this multi-pack comparison interface currently lives
-in the library and checkout script.
+## Named metric selection
+
+The metric registry collects named configurations over inventories. Each
+inventory can support several metrics. The built-in registry includes house
+articulatory alignment, Panphon symmetric and weighted difference, and CLTS
+Jaccard-complement alignment. The weighted Panphon entry reports its incomplete
+weight basis as unavailable.
+
+```python
+from ipakit.distance_registry import builtin_registry
+
+registry = builtin_registry()
+all_distances = registry.distances(("p",), ("b",), metrics="all")
+selected_distances = registry.distances(
+    ("p",), ("b",),
+    metrics=["house/articulatory", "panphon/symmetric-difference"],
+)
+all_pairs = registry.compare_corpus(
+    [["p"], ["b"], ["a"], []], metrics="all", all_pairs=True,
+)
+```
+
+`metrics="all"` expands the registry's names in registration order. An explicit
+name list preserves caller order and rejects duplicate or unknown names.
+`all_pairs=True` separately compares every ordered pair of distinct corpus
+positions, producing quadratic output. Both directions are retained for
+asymmetric costs. Inputs are exact token sequences.
+
+Reports retain metric configuration and inventory identity, construction
+unavailability, and per-pair scoring refusals. A completed report can therefore
+include entries without a numeric score. Raw edit cost, normalization and
+reference distribution stay attached to the result.
+
+The installed CLI uses the same registry:
+
+```sh
+ipakit distance metrics -j
+ipakit distance across --tokens-json corpus.json --metric all --all-pairs -j
+ipakit distance across --tokens-json corpus.json \
+  --metric house/articulatory --metric panphon/symmetric-difference -j
+ipakit distance across --tokens-json corpus.json \
+  --metric-declaration custom/table=TABLE.xml --metric custom/table -j
+```
+
+`--metric-declaration NAME=PATH` registers a supplied ternary table with the
+symmetric-difference family. Custom library registrations can supply other
+existing cost packs and explicit configurations. The CLI returns status0 when
+it produces the complete report; inspect each metric and pair's status to
+distinguish scores, unavailability and refusals.

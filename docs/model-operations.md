@@ -84,17 +84,18 @@ its scoring policy and weight declaration. Bridge labels such as
 
 ## Command line
 
-Select the model to inspect or edit:
+Select the model to inspect, query or edit:
 
 ```sh
 ipakit model list -j
 ipakit model inspect --model panphon -j
+ipakit model query --model panphon --features-json '{"voi":1}' -j
 ipakit model respell --model panphon --token p --changes-json '{"voi":1}' -j
 ipakit model inspect --model-declaration TABLE.xml --rows -j
 ```
 
 `--model` and `--model-declaration` are mutually exclusive and one is required
-for inspection or respelling. `list` enumerates shipped feature models; house
+for inspection, querying or respelling. `list` enumerates shipped feature models; house
 Styles have their own inventory. Inspection includes ordered domains, token count, source metadata,
 content identity and codec policy; `--rows` adds the actual ordered inventory.
 Respelling takes one exact token without segmentation or Unicode normalization.

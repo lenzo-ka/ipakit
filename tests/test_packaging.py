@@ -284,6 +284,32 @@ def test_sdist_carries_source_verification_inputs(built_sdist, complete_source):
         )
 
 
+def test_unpacked_sdist_collects_its_suite(built_sdist, tmp_path):
+    """The shipped verification tree can collect independently of the checkout."""
+    with tarfile.open(built_sdist) as archive:
+        archive.extractall(tmp_path, filter="data")
+    roots = [path for path in tmp_path.iterdir() if path.is_dir()]
+    assert len(roots) == 1
+    source = roots[0]
+    assert not (source / ".git").exists()
+    env = dict(os.environ)
+    env.pop("PYTHONPATH", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts="],
+        cwd=source,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (
+        "tests/test_packaging.py::test_unpacked_sdist_collects_its_suite"
+        in result.stdout
+    )
+
+
 @pytest.mark.parametrize("omit_timit", [False, True])
 def test_installed_inventory_census_and_models_need_no_checkout_or_provider(
     built_wheel, tmp_path, omit_timit
