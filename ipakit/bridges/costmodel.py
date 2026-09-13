@@ -777,6 +777,7 @@ def pack_from_ternary_declaration(
         tokenize=tokenize,
         policy=policy,
         bridge=bridge,
+        validate_token=declaration.model.read,
     )
 
 
