@@ -15,9 +15,7 @@
        syllable and does not change membership. Additions belong here, at the
        Pinyin declaration boundary, rather than in Python.
 
-       This list is a declared demonstrator, not a partial copy of the real
-       syllabary. Hanyu Pinyin has on the order of four hundred syllables and
-       a dozen are declared here, which is a stance rather than neglect:
+       This list is a curated demonstrator with 24 declared syllables:
        syllabification is optional in this library, only the operations that
        need it depend on it, and most lexicons supply none at all. A syllable
        the list does not hold is REPORTED rather than guessed, so

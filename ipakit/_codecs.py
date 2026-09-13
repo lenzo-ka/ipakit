@@ -93,13 +93,17 @@ def ipa_profile(*, exact: bool = False) -> RenderProfile:
 
 
 def render_pinyin(
-    graph: tg.Graph, syllable_tier: str = "syllable", tone_tier: str = "tone"
+    graph: tg.Graph,
+    syllable_tier: str | tg.QualifiedName = "syllable",
+    tone_tier: str | tg.QualifiedName = "tone",
+    *,
+    namespace: str | None = None,
 ) -> str:
     """Place syllable-hosted tone on the nucleus selected by Pinyin spelling."""
 
     from .bridges.pinyin import PINYIN
 
-    return PINYIN.render(graph, syllable_tier, tone_tier)
+    return PINYIN.render(graph, syllable_tier, tone_tier, namespace=namespace)
 
 
 @dataclass(frozen=True)
