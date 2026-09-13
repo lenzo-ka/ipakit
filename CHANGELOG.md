@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-13
+
 ### Added
 
 - Explicit finite feature models with typed domains, model-relative query/edit
@@ -362,3 +364,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phone feature bundles are read-only; a write through `get_phone(...).features` corrupted the inventory (#18).
 - Precomposed characters (`ã`) were dropped at ingest; decomposed `ç` misparsed as bare `c` (#8).
 - `docs/distance.md` states plainly that `distance` is not a metric.
+
+[Unreleased]: https://github.com/lenzo-ka/ipakit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lenzo-ka/ipakit/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/lenzo-ka/ipakit/releases/tag/v0.2.0
