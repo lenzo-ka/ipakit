@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Source distributions include the fixtures, generated references and workflow
+  declarations needed by their shipped tests, with source-derived archive checks.
 - PHOIBLE reads default to the shipped source aggregate; explicit source overrides
   remain available. Original source distinctions and refusals are retained.
 - Explicit-token cost comparisons validate model admission rather than accepting
