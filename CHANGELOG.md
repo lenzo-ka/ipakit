@@ -9,12 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Explicit finite feature models with typed domains, model-relative query/edit
+  and candidate realization, preserving ambiguity rather than choosing a spelling.
+- Finite feature-space transforms, binary encodings and comparison experiments
+  with declared cost policies and loss/preimage information.
+- Finite-token rewrite recognition and derivation through the shared rule engine;
+  model selection does not make house features a mandatory semantic pivot.
+- `ipakit model list`, `inspect` and `respell` with explicit named or supplied
+  declarations and inspectable realization candidates.
+- Native finite CLTS/BIPA feature-set comparison and Jaccard similarity, pinned
+  development-time extraction, source audit and bounded directional correspondence
+  authority. These do not constitute full CLTS conversion or unrestricted import.
+- Native retention of explicitly declared foreign values and internal source
+  graph profiles, without implying general public Form admission.
+- Installed access to the canonical frozen Panphon XML and the pinned PHOIBLE
+  source aggregate, including provenance, source hashes and scoped license notices.
+- Shared external-source extraction contracts and pinned-source maintenance
+  commands, with producer packages remaining development-only.
+- Inventory-style transcoding with explicit admission and loss boundaries, plus
+  rationalized eSpeak inventory/comparison handling.
+- Dedicated house-style, Pinyin, kana and comparative-systems documentation, with
+  task-oriented navigation and explicit implemented-versus-proposed boundaries.
 - Declared inventory provenance and generated per-family inventory cards.
 - Dictionary-derived inventories carry token and entry counts and report optional `min_entries` tail drops.
 - `DistanceModel` warns when its reference inventory holds too few distinct-phone pairs to place a percentile position.
 
 ### Changed
 
+- PHOIBLE reads default to the shipped source aggregate; explicit source overrides
+  remain available. Original source distinctions and refusals are retained.
+- Explicit-token cost comparisons validate model admission rather than accepting
+  unsupported tokens through alignment shortcuts.
 - MFA dictionary inventories report marker-only placeholder entries; `refuse_unreadable` keeps them fatal.
 - Nearest-phone results include the query when it belongs to the reference inventory, and an open-upper empirical-CDF plotting position reserves distance 0 for identity; unregistered queries are not synthesized as answers.
 
