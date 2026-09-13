@@ -56,6 +56,7 @@ from .features import FeaturesCommand
 from .hierarchy import HierarchyGroup
 from .info import InfoGroup
 from .inventory import InventoryGroup
+from .model import ModelGroup
 from .notebook import NotebookCommand
 from .phoible import PhoibleGroup
 from .policy import report
@@ -78,6 +79,7 @@ GROUPS = [
     AnalyzeGroup,
     InfoGroup,
     InventoryGroup,
+    ModelGroup,
     PhoibleGroup,
     TextGridGroup,
     TractGroup,
@@ -159,7 +161,9 @@ Exit status (uniform across every subcommand):
     return parser
 
 
-def _preprocess_help(argv: list[str]) -> list[str]:
+def _preprocess_help(
+    argv: list[str], parser: argparse.ArgumentParser | None = None
+) -> list[str]:
     """Transform 'help' anywhere in args to --help in the right place.
 
     Examples:
@@ -169,6 +173,53 @@ def _preprocess_help(argv: list[str]) -> list[str]:
         ['convert', 'help', 'to-cmu'] → ['convert', 'to-cmu', '--help']
         ['convert', 'to-cmu', 'help'] → ['convert', 'to-cmu', '--help']
     """
+    # Finite model tokens and paths are opaque, including the literal "help".
+    # Only command-position help is a help request in this command family.
+    if "model" in argv:
+        current = parser or create_parser()
+        root_parser = current
+        help_positions: set[int] = set()
+        model_command = False
+        index = 0
+        while index < len(argv):
+            word = argv[index]
+            if word == "help":
+                help_positions.add(index)
+                index += 1
+                continue
+            action = current._option_string_actions.get(word.split("=", 1)[0])
+            if action is not None:
+                # The framework's global selectors take one value; flags none.
+                # Leave unfamiliar arities to argparse, without guessing values.
+                if action.nargs not in (None, 0):
+                    break
+                index += 1 + (action.nargs is None and "=" not in word)
+                continue
+            subparsers = next(
+                (
+                    item
+                    for item in current._actions
+                    if isinstance(item, argparse._SubParsersAction)
+                ),
+                None,
+            )
+            if subparsers is None or word not in subparsers.choices:
+                break
+            if current is root_parser and word == "model":
+                model_command = True
+            current = subparsers.choices[word]
+            index += 1
+            if model_command and not any(
+                isinstance(item, argparse._SubParsersAction)
+                for item in current._actions
+            ):
+                if argv[index : index + 1] == ["help"]:
+                    help_positions.add(index)
+                break
+        if model_command:
+            return [item for i, item in enumerate(argv) if i not in help_positions] + (
+                ["--help"] if help_positions else []
+            )
     if "help" not in argv:
         # ``query`` predates the corpus DSL as an inventory-query group.
         # Keep those named subcommands while making the new form-level door
@@ -201,9 +252,8 @@ def _preprocess_help(argv: list[str]) -> list[str]:
 def main() -> int:
     """Main entry point."""
     # Preprocess to handle 'help' anywhere in command
-    argv = _preprocess_help(sys.argv[1:])
-
     parser = create_parser()
+    argv = _preprocess_help(sys.argv[1:], parser)
     args = parser.parse_args(argv)
 
     if not args.command:

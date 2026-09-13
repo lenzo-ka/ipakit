@@ -38,6 +38,14 @@ unjustified text-to-text guesser. There is deliberately no third state.
 | Rendering profiles and delivery/signature codecs | codec/profile: `_codecs.RenderLane`, `_codecs.RenderProfile`, `_codecs.DeliveryProfile`, `_codecs.DeliveryRenderings`, `_codecs.DeliverySelectionError`, `_codecs.render_graph`, `_codecs.ipa_profile`, `_codecs.render_delivery`, `_codecs.SignatureEdit`, `_codecs.apply_signature` | **Library-only by decision:** these operate on caller-assembled graphs and selections; the CLI has no lossless graph-authoring grammar for them. |
 | Tract rendering, trajectories, tracks, and tutorial | `tract.Trajectory`, `tract.trajectory`, `tract.trajectory_from_track`, `tract_svg`, `notebook` | **CLI-reachable:** `notebook` writes the tutorial, and `tract draw` and `tract heads` render. Trajectories and their JSON tracks stay Python interchange objects: their timed Form construction has no CLI ingestion surface. |
 
+Finite-model module APIs have a separate measured witness in
+`tests/test_cli_model.py`: `model list`, `inspect` and `respell` reach the shipped
+resource accessor, ternary declaration codec and `FiniteModel.respell` directly.
+They require explicit selection and retain complete realization candidates.
+Generic typed schema construction and typed finite rule/transform construction
+remain library composition interfaces; this does not overload native wrappers
+or claim their flat-export reachability test measures every module method.
+
 The CLI exit contract applies to every reachable row: 0 for success, 1 for a
 command error, 2 for usage, and 3 when a soft read produced output after losing
 input (`--lax` accepts that partial read as status 0). Converters aggregate
