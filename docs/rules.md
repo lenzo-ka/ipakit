@@ -120,10 +120,20 @@ separate work; this API does not claim full-representation fidelity. See
 `rules recognize`, `apply` and `trace` also accept the same explicitly selected
 finite models. Without a model selector their native behavior is unchanged:
 
+Save this JSON document as `corpus.json`:
+
+```json
+[["p", "a"], []]
+```
+
+Then run the first two commands from that directory. For the third, paste the
+same document into stdin and finish with end-of-file (or redirect
+`corpus.json` into stdin). No external model or rule file is needed:
+
 ```sh
 ipakit rules recognize --model panphon --tokens-json corpus.json -r 'p -> b' -j
 ipakit rules apply --model panphon --tokens-json corpus.json -r 'p -> b' -j
-ipakit rules trace --model-declaration TABLE.xml --tokens-json - --file voice.rules -j
+ipakit rules trace --model panphon --tokens-json - -r 'p -> b' -j
 ```
 
 The JSON input is an array of arrays of exact nonempty token strings, for
@@ -161,7 +171,10 @@ conditional configuration also exit 1; argparse syntax errors and mixed model
 selectors exit 2. This does not redefine exit 3's native dropped-input meaning.
 
 Declared single-value option arguments are literal, including a file named
-`help`, in both native and finite mode. Genuine help command tokens still work
+`help`, in both native and finite mode, including argparse's unambiguous option
+abbreviations. Compound short options and unsupported argument arities are left
+unchanged for argparse itself; use `--help` with those forms. Genuine help
+command tokens still work
 (`ipakit help rules apply`, `ipakit rules apply help`). This corrects the former
 help preprocessor's ambiguity without introducing another argument parser.
 

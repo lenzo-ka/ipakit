@@ -185,11 +185,24 @@ def _preprocess_help(
                 index += 1
                 continue
             action = current._option_string_actions.get(word.split("=", 1)[0])
+            explicit_arg = word.partition("=")[2] if "=" in word else None
+            if action is None and len(word) > 1 and word[0] in current.prefix_chars:
+                # Use argparse's own abbreviation/attached-value resolution.
+                # Tuple layout differs across Python versions; action and the
+                # final explicit argument retain their positions.
+                options = current._get_option_tuples(word)
+                if len(options) != 1:
+                    return argv  # Preserve argparse's unknown/ambiguous error.
+                action = options[0][0]
+                explicit_arg = options[0][-1]
             if action is not None:
-                # Leave unfamiliar arities to argparse, without guessing values.
-                if action.nargs not in (None, 0):
-                    break
-                if action.nargs is None and "=" not in word:
+                # Compound short options and unfamiliar arities belong to
+                # argparse, not another implementation of its consumption rules.
+                if action.nargs not in (None, 0) or (
+                    action.nargs == 0 and explicit_arg is not None
+                ):
+                    return argv
+                if action.nargs is None and explicit_arg is None:
                     protected.add(index + 1)
                     index += 2
                 else:

@@ -256,14 +256,101 @@ def test_unsupported_modes_refuse(monkeypatch, capsys, declaration, args):
     assert code == 1 and rows is None and "Error:" in error
 
 
-def test_native_literal_help_file_is_not_a_help_request(monkeypatch, capsys, tmp_path):
+@pytest.mark.parametrize("option", ["--file", "--fil"])
+def test_native_literal_help_file_is_not_a_help_request(
+    monkeypatch, capsys, tmp_path, option
+):
     monkeypatch.chdir(tmp_path)
     Path("help").write_text("t -> ʔ / _ #", encoding="utf-8")
     monkeypatch.setattr(
-        sys, "argv", ["ipakit", "rules", "apply", "--file", "help", "kæt"]
+        sys, "argv", ["ipakit", "rules", "apply", option, "help", "kæt"]
     )
     assert cli.main() == 0
     assert capsys.readouterr().out == "kæʔ\n"
+
+
+@pytest.mark.parametrize("option", ["--model-declaration", "--model-decl"])
+def test_model_declaration_help_path(
+    monkeypatch, capsys, declaration, tmp_path, option
+):
+    monkeypatch.chdir(tmp_path)
+    Path("help").write_bytes(declaration.read_bytes())
+    argv = ["model", "inspect", option, "help", "-j"]
+    assert cli.create_parser().parse_args(argv).model_declaration == Path("help")
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    assert cli.main() == 0
+    assert json.loads(capsys.readouterr().out)["name"] == "opaque"
+
+
+@pytest.mark.parametrize("option", ["--tokens-json", "--tokens-j"])
+def test_token_document_help_path(monkeypatch, capsys, tmp_path, option):
+    monkeypatch.chdir(tmp_path)
+    Path("help").write_text('[["p"]]', encoding="utf-8")
+    argv = [
+        "rules",
+        "apply",
+        "--model",
+        "panphon",
+        option,
+        "help",
+        "-r",
+        "p -> b",
+        "-j",
+    ]
+    assert cli.create_parser().parse_args(argv).tokens_json == Path("help")
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    assert cli.main() == 0
+    assert json.loads(capsys.readouterr().out)[0]["tokens"] == ["b"]
+
+
+@pytest.mark.parametrize(
+    "tokens", [["--token", "help"], ["--tok", "help"], ["--tok=help"]]
+)
+def test_literal_help_token_resolution(monkeypatch, capsys, declaration, tokens):
+    argv = [
+        "model",
+        "respell",
+        "--model-declaration",
+        str(declaration),
+        *tokens,
+        "--changes-json",
+        "{}",
+        "-j",
+    ]
+    assert cli.create_parser().parse_args(argv).token == "help"
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    assert cli.main() == 0
+    assert json.loads(capsys.readouterr().out)["candidates"] == ["help"]
+
+
+@pytest.mark.parametrize(
+    "argv, diagnostic",
+    [
+        (["model", "inspect", "--mod", "help"], "ambiguous option"),
+        (
+            ["model", "inspect", "--model", "panphon", "--unknown", "help"],
+            "unrecognized arguments",
+        ),
+    ],
+)
+def test_invalid_options_keep_argparse_errors(monkeypatch, capsys, argv, diagnostic):
+    assert cli._preprocess_help(argv, cli.create_parser()) == argv
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+    assert error.value.code == 2
+    assert diagnostic in capsys.readouterr().err
+
+
+def test_compound_short_options_keep_literal_value(monkeypatch, capsys, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    argv = ["model", "inspect", "--model", "panphon", "-jo", "help"]
+    assert cli.create_parser().parse_args(argv).output == Path("help")
+    assert cli._preprocess_help(argv, cli.create_parser()) == argv
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    assert cli.main() == 0
+    assert not capsys.readouterr().out
+    assert json.loads(Path("help").read_text(encoding="utf-8"))["name"] == "panphon"
 
 
 @pytest.mark.parametrize(
