@@ -38,6 +38,8 @@ PKG = ROOT / "ipakit"
 # also asserts that they are sufficient to build a wheel -- if the build
 # ever starts needing another top-level file, this list is where it shows.
 BUILD_INPUTS = ("pyproject.toml", "MANIFEST.in", "README.md", "LICENSE", "CHANGELOG.md")
+SOURCE_SUPPORT_FILES = ("Makefile", "conftest.py", ".pre-commit-config.yaml")
+SOURCE_SUPPORT_DIRS = ("tests", "scripts", "docs", ".github/workflows")
 
 
 def _package_data_globs() -> list[str]:
@@ -100,7 +102,7 @@ def test_no_declared_glob_is_dead():
 
 @pytest.fixture(scope="module")
 def package_source(tmp_path_factory) -> Path:
-    """Reusable minimal source tree for offline wheel and sdist tests.
+    """Reusable package and verification inputs for offline artifact tests.
 
     Built through ``setuptools.build_meta`` directly rather than ``python
     -m build`` so there is no build isolation and therefore no network:
@@ -127,6 +129,20 @@ def package_source(tmp_path_factory) -> Path:
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
+
+    # The sdist must carry the inputs its shipped tests read, not just their
+    # Python modules. Keep the expectation source-derived rather than asking
+    # the built archive what it thinks should have shipped.
+    for name in SOURCE_SUPPORT_FILES:
+        shutil.copyfile(ROOT / name, src / name)
+    for name in SOURCE_SUPPORT_DIRS:
+        shutil.copytree(
+            ROOT / name,
+            src / name,
+            ignore=shutil.ignore_patterns(
+                "__pycache__", "*.py[cod]", ".pytest_cache", ".DS_Store"
+            ),
+        )
 
     return src
 
@@ -219,6 +235,37 @@ def test_sdist_carries_one_canonical_panphon_declaration_and_credit(built_wheel)
             assert (
                 stream.read() == (PKG / "data/feature-models" / filename).read_bytes()
             )
+
+
+def test_sdist_carries_source_verification_inputs(built_wheel, package_source):
+    archives = list(built_wheel.parent.glob("*.tar.gz"))
+    assert len(archives) == 1
+    expected = [package_source / name for name in SOURCE_SUPPORT_FILES]
+    for name in SOURCE_SUPPORT_DIRS:
+        expected.extend(
+            path for path in (package_source / name).rglob("*") if path.is_file()
+        )
+    assert any(path.suffix == ".json" for path in expected)
+    assert any(path.suffix == ".dot" for path in expected)
+    with tarfile.open(archives[0]) as archive:
+        members = archive.getnames()
+        roots = {name.split("/")[0] for name in members}
+        assert len(roots) == 1
+        prefix = roots.pop() + "/"
+        missing = [
+            path.relative_to(package_source).as_posix()
+            for path in expected
+            if prefix + path.relative_to(package_source).as_posix() not in members
+        ]
+        assert not missing, f"source verification inputs missing from sdist: {missing}"
+        for path in expected:
+            stream = archive.extractfile(
+                prefix + path.relative_to(package_source).as_posix()
+            )
+            assert stream is not None and stream.read() == path.read_bytes()
+        assert not any(
+            "__pycache__" in name or name.endswith(".pyc") for name in members
+        )
 
 
 @pytest.mark.parametrize("omit_timit", [False, True])

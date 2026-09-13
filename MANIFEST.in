@@ -19,7 +19,8 @@ include Makefile
 # test takes, and tests/__init__.py is what makes `tests.corpus` -- the one
 # canonical corpus enumeration -- importable as a module.
 include conftest.py
-recursive-include tests *.py
+# Tests read golden data and declaration fixtures as well as Python modules.
+graft tests
 
 # Not dev-only clutter. test_notation.py and test_zero.py put scripts/ on
 # sys.path and import from it; `make check` runs invariants.py, confusion.py,
@@ -28,14 +29,21 @@ recursive-include tests *.py
 # `make figures` runs tract_svg.py, which is a shim over ipakit.tract_svg --
 # the renderer itself ships in the package, because it has to reach an
 # installed user and nothing under scripts/ does.
-recursive-include scripts *.py
+graft scripts
 
 # docs/tutorial.md is where a newcomer is sent, and `make check` regenerates
 # it from tutorial.src.md and compares -- which needs both files present.
 # The figures are checked in so a reader gets them without running anything;
 # that should hold for a reader who unpacked the sdist too.
-recursive-include docs *.md
-recursive-include docs *.svg
+graft docs
+
+# Contract tests inspect the actual workflow and isolated-hook declarations.
+include .pre-commit-config.yaml
+recursive-include .github/workflows *.yml
+
+# A local build must not package interpreter or test-runner caches.
+global-exclude *.py[cod] .DS_Store
+prune tests/.pytest_cache
 
 # Bridge declarations and the grammars stating their shape.
 recursive-include ipakit/data/bridges *.xml *.rng

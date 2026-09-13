@@ -100,6 +100,11 @@ filenames, metadata, expected resources, full source-test support and notices.
 Retain the verified artifacts or remove only the exact inspected output directory;
 do not erase a shared build directory or stage unrelated files.
 
+Check collection and fixture-dependent tests from the unpacked source archive
+without a checkout on `PYTHONPATH`. Tests, scripts and documentation support files
+must travel with it. Git-provenance gates still require a real checkout: the
+absence of `.git` in a source archive is intentional, not a missing fixture.
+
 5. **Commit, land on green, then tag**:
    ```bash
    git status --porcelain
