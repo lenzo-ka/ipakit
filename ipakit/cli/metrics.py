@@ -48,6 +48,12 @@ def _selection(parser: argparse.ArgumentParser) -> None:
 
 
 class MetricsCommand(Command):
+    """List names available for explicit metric selection.
+
+    Include supplied ternary tables with --metric-declaration NAME=PATH.
+    Discovery lists registrations; comparison reports their availability.
+    """
+
     name = "metrics"
     help = "List registered distance metric names"
 
@@ -65,6 +71,13 @@ class MetricsCommand(Command):
 
 
 class AcrossCommand(Command):
+    """Compare a JSON corpus of exact token arrays under named metrics.
+
+    Repeat --metric NAME to select an ordered list, or use --metric all.
+    --all-pairs independently selects every ordered pair of corpus positions.
+    The report retains unavailable metrics and per-input refusals.
+    """
+
     name = "across"
     help = "Compare exact token sequences under selected named metrics"
 
