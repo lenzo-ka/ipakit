@@ -70,6 +70,19 @@ from external numeric notation using 0 for neutral tone. Pre-marked spellings
 require a separate retone operation. Multiple tone associations to one syllable
 raise `ValueError`, so rendering requires an explicitly selected analysis.
 
+Tone-mark generation currently covers the declared nuclei `a`, `e`, `i`, `o`,
+`u`, and `ü`. The Pinyin vowel `ê` and syllabic `m`/`n` are outside this generator's
+tone-host table: supplying tones 1–4 on those spellings raises `ValueError`.
+They remain valid subjects for a broader Pinyin profile. The presence of `ê`
+in Pinyin is documented by the
+[Ministry of Education](https://www.moe.gov.cn/moe_879/moe_1252/s8447/201412/t20141204_179468.html).
+The [Xinhua Dictionary publisher's explanation](https://www.cp.com.cn/Content/2026/06-29/1557482132.html)
+also identifies `m` and `n` as consonant-only interjection syllables.
+Neutral or unassociated items preserve supplied unmarked spelling, including
+spellings outside that table. Existing tone marks are refused in every case,
+including precomposed `ǹ` and decomposed `n` plus a combining grave accent.
+This boundary covers mark generation separately from syllable admission.
+
 Input is normalized to NFC. The declared `u:` and `v` keyboard aliases, including
 uppercase `U:` and `V`, become `ü` and `Ü`. The renderer preserves capitalization:
 
@@ -82,6 +95,8 @@ PINYIN.render(build_pinyin("lu\u0308", "l", "u\u0308", 3))  # 'lǚ'
 The selected syllable tier represents one orthographic word in item order.
 Rendering inserts ASCII apostrophes before subsequent syllables beginning with
 `a`, `e`, or `o`: supplied `xi` + `an` with tones 1 + 1 renders `xī'ān`.
+Separator selection uses the initial base letter, so an unmarked `ê` also
+receives the separator when supplied after another syllable.
 Word grouping, inter-word spaces, punctuation, and tone sandhi remain caller
 responsibilities. Case and tone placement follow
 [GB/T 16159–2012, §§6.3 and 6.5](https://wsb.sjz.gov.cn/atm/7/20210601162434276.pdf);

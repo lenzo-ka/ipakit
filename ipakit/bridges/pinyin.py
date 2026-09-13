@@ -145,11 +145,15 @@ class PinyinBridge(VocabularyBridge):
             spelling = self.decode_input(spelling_value.lexical)
             if not spelling:
                 raise ValueError("Pinyin syllable spelling must be nonempty")
-            if any(char.lower() in "".join(self.tones.values()) for char in spelling):
+            if any(
+                mark in "\u0304\u0301\u030c\u0300"
+                for mark in unicodedata.normalize("NFD", spelling)
+            ):
                 raise ValueError(
                     "Pinyin spelling must be unmarked; supply tone separately"
                 )
-            if index and spelling[0].lower() in "aeo":
+            initial = unicodedata.normalize("NFD", spelling[0])[0].lower()
+            if index and initial in "aeo":
                 rendered.append("'")
             selected_level = tones.get(tg.ItemRef(syllables.declaration.name, index))
             if selected_level is not None and selected_level != 5:

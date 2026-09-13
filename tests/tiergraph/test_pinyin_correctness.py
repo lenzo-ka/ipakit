@@ -188,6 +188,35 @@ def test_premarked_input_requires_an_explicit_retone_operation():
             render_pinyin(word_graph(("mǎ",), (level,)))
 
 
+@pytest.mark.parametrize(
+    "spelling", ["ǹ", "n\u0300", "ḿ", "m\u0301", "m\u0304", "N\u030c", "ế", "Ê\u0301"]
+)
+@pytest.mark.parametrize("level", [1, 5, None])
+def test_premarked_refusal_is_independent_of_declared_tone_hosts(spelling, level):
+    graph = word_graph(
+        (spelling,), () if level is None else (level,), () if level is None else (0,)
+    )
+    with pytest.raises(ValueError, match="unmarked"):
+        render_pinyin(graph)
+
+
+@pytest.mark.parametrize("spelling", ["ê", "Ê", "m", "n"])
+def test_explicitly_uncovered_tone_hosts_preserve_unmarked_facts(spelling):
+    for level in range(1, 5):
+        with pytest.raises(ValueError, match="cannot be placed"):
+            render_pinyin(word_graph((spelling,), (level,)))
+    assert render_pinyin(word_graph((spelling,), (5,))) == spelling
+    assert render_pinyin(word_graph((spelling,), (), ())) == spelling
+
+
+@pytest.mark.parametrize("spelling", ["ê", "Ê", "e\u0302"])
+def test_unmarked_circumflex_e_uses_its_base_letter_for_separation(spelling):
+    for levels, targets in (((1, 5), (0, 1)), ((1,), (0,))):
+        assert render_pinyin(
+            word_graph(("xi", spelling), levels, targets)
+        ) == "xī'" + unicodedata.normalize("NFC", spelling)
+
+
 def test_declared_vocabulary_atoms_preserve_grouping_and_spelling():
     # These six symbol atoms are distinct from the IPA syllable membership list.
     for atom in PINYIN.atoms:
