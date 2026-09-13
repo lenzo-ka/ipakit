@@ -1,0 +1,244 @@
+"""Pinyin rendering witnesses independent of the one-syllable constructor."""
+
+from __future__ import annotations
+
+import unicodedata
+
+import pytest
+from ipakit._codecs import render_pinyin
+from ipakit._pinyin_graph import build
+from ipakit.bridges.pinyin import PINYIN
+from ipakit.bridges.vocabulary import VocabularyResidueError
+from tiergraph.build import document, item
+
+import tiergraph as tg
+
+
+def word_graph(
+    spellings=("ma",),
+    levels=(1,),
+    targets=(0,),
+    *,
+    namespace="urn:ipakit:pinyin",
+    foreign_spelling=False,
+    foreign_relation=False,
+    foreign_tier=False,
+    foreign_value=False,
+    value_type=tg.XsdType.INTEGER,
+    spelling_type=tg.XsdType.STRING,
+):
+    builder = document(namespace, prefix="pinyin")
+    builder.namespace("urn:other", prefix="other")
+    spelling = builder.qname("spelling")
+    other = builder.qname("spelling", namespace="urn:other")
+    builder.attribute(spelling, spelling_type)
+    builder.attribute(other, tg.XsdType.STRING)
+    value_name = builder.qname(
+        "value", namespace="urn:other" if foreign_value else namespace
+    )
+    builder.attribute(value_name, value_type)
+    syllables = builder.tier(
+        "syllable",
+        tuple(
+            item(attrs={spelling: text, **({other: "sha"} if foreign_spelling else {})})
+            for text in spellings
+        ),
+        item_type="syllable",
+        membership="syllables",
+    )
+    if foreign_tier:
+        builder.tier(
+            builder.qname("syllable", namespace="urn:other"),
+            (item(attrs={other: "sha"}),),
+            item_type="other-syllable",
+            membership="other-syllables",
+        )
+    tones = builder.tier(
+        "tone",
+        tuple(item(attrs={value_name: level}) for level in levels),
+        item_type="tone",
+        membership="tones",
+    )
+    relation = builder.qname(
+        "associates-with", namespace="urn:other" if foreign_relation else namespace
+    )
+    side = (tg.RelationEndpointKind.ITEM,)
+    builder.declare(
+        tg.PolyadicRelationDeclaration(
+            relation,
+            tg.RelationSideDeclaration(side, (tones.name,), maximum=1),
+            tg.RelationSideDeclaration(side, (syllables.name,), maximum=1),
+        )
+    )
+    for index, target in enumerate(targets):
+        builder.relate(
+            tg.PolyadicRelationInstance(
+                relation,
+                (tones.ref(index),),
+                (syllables.ref(target),),
+            )
+        )
+    graph = builder.build()
+    assert tg.wire.loads(tg.wire.dumps(graph)) == graph
+    return graph
+
+
+@pytest.mark.parametrize(
+    ("spelling", "level", "expected"),
+    [
+        ("Ai", 4, "Ài"),
+        ("MA", 1, "MĀ"),
+        ("LU:", 4, "LǛ"),
+        ("LV", 4, "LǛ"),
+        ("lu\u0308", 3, "lǚ"),
+        ("lü", 3, "lǚ"),
+        ("shui", 3, "shuǐ"),
+        ("liu", 2, "liú"),
+        ("ou", 3, "ǒu"),
+        ("GUI", 4, "GUÌ"),
+        ("ma", 5, "ma"),
+    ],
+)
+def test_tone_spelling_preserves_case_and_canonical_vowels(spelling, level, expected):
+    # Test both the constructor boundary and externally supplied graph facts.
+    for graph in (
+        build(spelling, "", spelling, level),
+        word_graph((spelling,), (level,)),
+    ):
+        before = tg.wire.dumps(graph)
+        assert render_pinyin(graph) == expected
+        assert unicodedata.is_normalized("NFC", PINYIN.render(graph))
+        assert tg.wire.dumps(graph) == before
+
+
+@pytest.mark.parametrize("levels", [(1, 4), (4, 1), (1, 1)])
+def test_multiple_tones_require_explicit_selection(levels):
+    with pytest.raises(ValueError, match="multiple tone associations"):
+        render_pinyin(word_graph(levels=levels, targets=(0, 0)))
+
+
+@pytest.mark.parametrize("level", [0, 6, True, 1.0])
+def test_constructor_checks_internal_tone_category(level):
+    with pytest.raises(ValueError, match="integer from 1 through 5"):
+        build("ma", "m", "a", level)
+
+
+@pytest.mark.parametrize("level", [0, 6])
+def test_external_graph_tone_category_is_checked(level):
+    with pytest.raises(ValueError, match="integer from 1 through 5"):
+        render_pinyin(word_graph(levels=(level,)))
+
+
+def test_unrelated_namespaces_cannot_supply_spelling_or_tone():
+    assert render_pinyin(word_graph(foreign_spelling=True)) == "mā"
+    assert render_pinyin(word_graph(levels=(4,), foreign_relation=True)) == "ma"
+
+
+def test_tone_value_requires_the_selected_namespace_and_integer_type():
+    for graph in (
+        word_graph(foreign_value=True),
+        word_graph(levels=("1",), value_type=tg.XsdType.STRING),
+    ):
+        with pytest.raises(ValueError, match="qualified integer value"):
+            render_pinyin(graph)
+
+
+@pytest.mark.parametrize(
+    ("spelling", "value_type"), [(123, tg.XsdType.INTEGER), (True, tg.XsdType.BOOLEAN)]
+)
+def test_spelling_requires_a_string_attribute(spelling, value_type):
+    with pytest.raises(ValueError, match="qualified string spelling"):
+        render_pinyin(word_graph((spelling,), (5,), spelling_type=value_type))
+
+
+def test_namespace_selection_is_explicit_when_local_names_collide():
+    graph = word_graph(foreign_tier=True)
+    with pytest.raises(ValueError, match="unambiguous syllable tier"):
+        render_pinyin(graph)
+    assert render_pinyin(graph, namespace="urn:ipakit:pinyin") == "mā"
+    assert (
+        render_pinyin(
+            graph, syllable_tier=tg.QualifiedName("urn:ipakit:pinyin", "syllable")
+        )
+        == "mā"
+    )
+
+
+def test_custom_namespace_binds_attributes_and_relations_together():
+    assert render_pinyin(word_graph(namespace="urn:test:custom")) == "mā"
+
+
+@pytest.mark.parametrize(
+    ("spellings", "levels", "expected"),
+    [
+        (("xi", "an"), (1, 1), "xī'ān"),
+        (("Xi", "an"), (1, 1), "Xī'ān"),
+        (("tian", "e"), (1, 2), "tiān'é"),
+        (("hai", "ou"), (3, 1), "hǎi'ōu"),
+        (("liu", "shui"), (2, 3), "liúshuǐ"),
+    ],
+)
+def test_word_rendering_preserves_syllable_boundaries(spellings, levels, expected):
+    assert render_pinyin(word_graph(spellings, levels, (0, 1))) == expected
+
+
+def test_premarked_input_requires_an_explicit_retone_operation():
+    for level in (1, 5):
+        with pytest.raises(ValueError, match="unmarked"):
+            render_pinyin(word_graph(("mǎ",), (level,)))
+
+
+@pytest.mark.parametrize(
+    "spelling", ["ǹ", "n\u0300", "ḿ", "m\u0301", "m\u0304", "N\u030c", "ế", "Ê\u0301"]
+)
+@pytest.mark.parametrize("level", [1, 5, None])
+def test_premarked_refusal_is_independent_of_declared_tone_hosts(spelling, level):
+    graph = word_graph(
+        (spelling,), () if level is None else (level,), () if level is None else (0,)
+    )
+    with pytest.raises(ValueError, match="unmarked"):
+        render_pinyin(graph)
+
+
+@pytest.mark.parametrize("spelling", ["ê", "Ê", "m", "n"])
+def test_explicitly_uncovered_tone_hosts_preserve_unmarked_facts(spelling):
+    for level in range(1, 5):
+        with pytest.raises(ValueError, match="cannot be placed"):
+            render_pinyin(word_graph((spelling,), (level,)))
+    assert render_pinyin(word_graph((spelling,), (5,))) == spelling
+    assert render_pinyin(word_graph((spelling,), (), ())) == spelling
+
+
+@pytest.mark.parametrize("spelling", ["ê", "Ê", "e\u0302"])
+def test_unmarked_circumflex_e_uses_its_base_letter_for_separation(spelling):
+    for levels, targets in (((1, 5), (0, 1)), ((1,), (0,))):
+        assert render_pinyin(
+            word_graph(("xi", spelling), levels, targets)
+        ) == "xī'" + unicodedata.normalize("NFC", spelling)
+
+
+def test_declared_vocabulary_atoms_preserve_grouping_and_spelling():
+    # These six symbol atoms are distinct from the IPA syllable membership list.
+    for atom in PINYIN.atoms:
+        form = PINYIN.read(atom.output)
+        assert form.to_ipa() == atom.spelling
+        assert PINYIN.emit(form) == atom.output
+        declarations = form.__dict__["_tiergraph_index"].containment_input.declarations
+        assert (
+            len([tier for tier in declarations.tiers if tier.name == "syllable"]) == 1
+        )
+        assert tg.wire.loads(tg.wire.dumps(form._graph)) == form._graph
+
+
+def test_simple_vowels_have_declared_phonetic_values_and_explicit_boundaries():
+    expected = {"a": "a", "e": "ɤ", "i": "i", "o": "o", "u": "u", "ü": "y"}
+    assert {atom.output: atom.spelling for atom in PINYIN.atoms} == expected
+    for external, phonetic in expected.items():
+        assert PINYIN.read(external).to_ipa() == phonetic
+    form = PINYIN.read(("e", "ü"))
+    assert form.to_ipa() == "ɤy"
+    assert PINYIN.emit(form) == "e ü"
+    assert PINYIN.read(PINYIN.emit(form)).to_ipa() == "ɤy"
+    for spelling in ("ei", "ie", "ui", "ju", "ma"):
+        with pytest.raises(VocabularyResidueError):
+            PINYIN.read(spelling)

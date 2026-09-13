@@ -10,7 +10,7 @@ from tiergraph.build import item as graph_item
 
 import tiergraph as tg
 
-from .bridges.pinyin import PINYIN
+from .bridges.pinyin import PINYIN, decode_input
 
 
 @dataclass(frozen=True)
@@ -25,9 +25,7 @@ _NAMESPACE = "urn:ipakit:pinyin"
 
 
 def _decode_input(value: str, dialect: PinyinDialect) -> str:
-    for source, target in dialect.input_encodings:
-        value = value.replace(source, target)
-    return value
+    return decode_input(value, dialect.input_encodings)
 
 
 def declarations() -> tuple[tg.AttributeDeclaration, ...]:
@@ -69,6 +67,8 @@ def build(
     dialect: PinyinDialect = BASE_PINYIN,
 ) -> tg.Graph:
     """Build the native four-tier Pinyin graph and its declared relations."""
+    if type(tone) is not int or tone not in range(1, 6):
+        raise ValueError("Pinyin tone must be an integer from 1 through 5")
     spelling = _decode_input(spelling, dialect)
     onset = _decode_input(onset, dialect)
     rhyme = _decode_input(rhyme, dialect)

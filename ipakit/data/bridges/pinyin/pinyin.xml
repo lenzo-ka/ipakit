@@ -1,23 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<vocabulary name="pinyin" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="Hanyu Pinyin orthographic bridge" license="BSD-2-Clause" kind="orthographic-transcription-bridge" tier="syllable" source-style="text">
+<vocabulary name="pinyin" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="Hanyu Pinyin orthographic bridge" license="BSD-2-Clause" kind="orthographic-transcription-bridge" tier="syllable" source-style="text" separator=" ">
   <round-trip>
     <external-to-house fidelity="lossless-with-declared-tricks"><trick name="input spelling memory" /></external-to-house>
     <house-to-external fidelity="lossy-with-report"><drop name="phonetic detail not represented by Pinyin" /></house-to-external>
   </round-trip>
   <input source="u:" target="ü" /><input source="v" target="ü" />
+  <!-- Tone generation is bounded to the six declared vowel hosts below.
+       Valid Pinyin ê and syllabic m/n need an extended tone-host declaration;
+       tones 1-4 on those hosts are refused. Neutral/unassociated items preserve
+       supplied unmarked spelling. Existing macron/acute/caron/grave tone marks
+       are refused independently of host coverage, including marked m/n.
+       ê scope source: https://www.moe.gov.cn/moe_879/moe_1252/s8447/201412/t20141204_179468.html
+       m/n scope source: https://www.cp.com.cn/Content/2026/06-29/1557482132.html -->
   <tone vowel="a" marks="āáǎà" /><tone vowel="e" marks="ēéěè" />
   <tone vowel="i" marks="īíǐì" /><tone vowel="o" marks="ōóǒò" />
   <tone vowel="u" marks="ūúǔù" /><tone vowel="ü" marks="ǖǘǚǜ" />
-  <atom spelling="a" /><atom spelling="e" /><atom spelling="i" />
-  <atom spelling="o" /><atom spelling="u" /><atom spelling="ü" />
-  <!-- The IPA members below are the strict phonetic syllabary used by the
-       Mandarin worked syllabifier. Tone is absent because it rides the
+  <!-- Orthographic reference: GB/T 16159-2012, sections 6.3 and 6.5.
+       Codec output: NFC, marked vowels, preserved input case, ASCII apostrophe;
+       keyboard aliases are input conveniences. Internal neutral category 5
+       emits no mark (external numeric notation may use 0). Retone, sandhi,
+       and word segmentation require caller-supplied analysis.
+       https://wsb.sjz.gov.cn/atm/7/20210601162434276.pdf -->
+  <!-- Simple-vowel values only, with explicit boundaries between atoms.
+       Contextual letters in ie, ei, ju, etc. require syllable analysis.
+       e and yu in the syllabary below corroborate the corrected vowel values.
+       Sources: Lee and Zee (2003), Standard Chinese (Beijing), JIPA 33(1),
+       https://doi.org/10.1017/S0025100303001208 ; spelling/style table:
+       https://en.wikipedia.org/wiki/Help:IPA/Mandarin . -->
+  <atom spelling="a" /><atom spelling="ɤ" output="e" /><atom spelling="i" />
+  <atom spelling="o" /><atom spelling="u" /><atom spelling="y" output="ü" />
+  <!-- The IPA members below are curated demonstration spellings used by the
+       Mandarin worked syllabifier. They combine broad spellings with selected
+       phonetic detail; extensions should state their transcription convention.
+       The ipa attributes supply this profile's canonical membership forms.
+       Wikipedia's Mandarin IPA key guides symbol style; Lee and Zee (2003)
+       is a phonetic reference. Individual rows retain their declared choices,
+       including xau, ʂuei, kuɔ, and ʈ͡ʂʊŋ.
+       Tone is absent because it rides the
        syllable and does not change membership. Additions belong here, at the
        Pinyin declaration boundary, rather than in Python.
 
-       This list is a declared demonstrator, not a partial copy of the real
-       syllabary. Hanyu Pinyin has on the order of four hundred syllables and
-       a dozen are declared here, which is a stance rather than neglect:
+       This list is a curated demonstrator with 24 declared syllables:
        syllabification is optional in this library, only the operations that
        need it depend on it, and most lexicons supply none at all. A syllable
        the list does not hold is REPORTED rather than guessed, so

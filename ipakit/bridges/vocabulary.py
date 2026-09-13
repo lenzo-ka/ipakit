@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .._codecs import RenderLane, RenderProfile, render_graph
@@ -356,13 +356,19 @@ class VocabularyBridge(Bridge):
             for name in ("atom", "output", "exemplar", "notes")
             if name not in feature_names
         )
+        grouping_features = frozenset({"atom", "output", "exemplar", "notes"})
+        tiers = tuple(
+            (
+                replace(tier, features=tier.features | grouping_features)
+                if tier.name == self.tier
+                else tier
+            )
+            for tier in old.tiers
+        )
+        if not any(tier.name == self.tier for tier in tiers):
+            tiers += (TierDeclaration(self.tier, grouping_features),)
         declared = Declarations(
-            old.tiers
-            + (
-                TierDeclaration(
-                    self.tier, frozenset({"atom", "output", "exemplar", "notes"})
-                ),
-            ),
+            tiers,
             old.features + additions,
             old.relations
             + (
