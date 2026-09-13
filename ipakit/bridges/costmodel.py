@@ -18,6 +18,7 @@ from typing import Protocol
 from tiergraph.semiring import TROPICAL, ProductSemiring
 
 from .._identity import identity_fingerprint
+from .._token_corpus import validate_token_corpus
 from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
 from ..distance_model import DistanceModel
 from ..feature_sets import FeatureSets
@@ -417,13 +418,7 @@ def compare_token_corpus(
     """
     if not isinstance(corpus, list) or len(corpus) < 2 or not packs:
         raise ValueError("supply at least two token sequences and one cost pack")
-    for tokens in corpus:
-        if not isinstance(tokens, list) or any(
-            not isinstance(t, str) or not t for t in tokens
-        ):
-            raise ValueError(
-                "each corpus entry must be an explicit array of nonempty token strings"
-            )
+    validate_token_corpus(corpus)
     pairs = (
         list(itertools.permutations(range(len(corpus)), 2))
         if all_pairs

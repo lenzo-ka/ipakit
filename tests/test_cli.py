@@ -2076,10 +2076,30 @@ class TestEveryDocumentedRulesExampleRuns:
     @pytest.mark.parametrize(
         "argv", DOCUMENTED_EXAMPLES, ids=[" ".join(a) for a in DOCUMENTED_EXAMPLES]
     )
-    def test_the_example_runs(self, monkeypatch, capsys, argv):
+    def test_the_example_runs(self, monkeypatch, capsys, tmp_path, argv):
+        finite = "--tokens-json" in argv
+        if finite:
+            document = (ROOT / "docs" / "rules.md").read_text(encoding="utf-8")
+            section = document.split(
+                "### Explicit finite rules on the command line", 1
+            )[1]
+            corpus = re.search(r"```json\n(.*?)```", section, re.S).group(1)
+            assert json.loads(corpus) == [["p", "a"], []]
+            monkeypatch.chdir(tmp_path)
+            (tmp_path / "corpus.json").write_text(corpus, encoding="utf-8")
+            monkeypatch.setattr(sys, "stdin", io.StringIO(corpus))
         rc, out, err = run(monkeypatch, capsys, *argv)
         assert rc == 0, err
         assert out.strip(), "an example that prints nothing documents nothing"
+        if finite:
+            rows = json.loads(out)
+            assert [row["input"] for row in rows] == [["p", "a"], []]
+            assert all(row["status"] == "ok" for row in rows)
+            if argv[1] == "recognize":
+                assert rows[0]["rules"][0]["sites"][0]["target_tokens"] == ["p"]
+                assert rows[1]["rules"][0]["sites"] == []
+            else:
+                assert [row["tokens"] for row in rows] == [["b", "a"], []]
 
 
 def _console_blocks(path):
