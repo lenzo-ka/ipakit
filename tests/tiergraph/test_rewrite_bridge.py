@@ -90,7 +90,7 @@ def test_one_step_projection_keeps_same_start_edits():
 
 
 @pytest.mark.parametrize("name", japanese_moraic_fixtures())
-def test_attested_japanese_adaptations_use_the_rewrite_bridge(name):
+def test_curated_japanese_adaptations_use_the_rewrite_bridge(name):
     inventory = ipakit.load_ipa_features()
     fixture = japanese_moraic_fixtures()[name]
     form = japanese_moraic_fixture(name, inventory)

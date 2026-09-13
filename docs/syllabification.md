@@ -20,20 +20,52 @@ No boundary is rebuilt or replaced, so a dot beside a richer carrier keeps the c
 
 ## 3. Japanese: morae first
 
-The Japanese declaration restates the analysis in `japanese-moraic.rules`: `(C)(j)V`, an independent nasal mora, a geminate's first half, a second mora for a long vowel, and one unit for a tied diphthong.
+The Japanese declaration supplies local spans for `(C)(j)V`, an independent nasal mora,
+a geminate's first mora, and a second mora for a long vowel. Sequentially tied
+vowel constituents supply successive morae within one source unit.
 
-The syllable tier is grouped over the mora tier: a moraic syllable is a concatenation of morae, and material no declared mora licenses is reported rather than absorbed into a syllable.
+The graph records ordered syllable → mora → segment containment. A geminate
+shares one source segment across the preceding syllable's final mora and the
+following syllable's onset. Its readable mora spelling retains the consonant:
+`ho | t | to`, with syllables `hot | to`. Affricates retain their release in the
+following onset (`ma | t | t͡ɕa`), and nasal holds retain the nasal kind
+(`ho | n | na`). The interval spans can overlap; `marks()` refuses a flat
+boundary spelling when a source unit is shared across syllables.
 
 ```python
 import ipakit
 
 ja = ipakit.syllabifier("japanese")
 ja("pen").spelled(), len(ja("pen").morae)       # (("pen",), 2)
-ja("hotːo").spelled(), len(ja("hotːo").morae)   # (("ho", "tːo"), 3)
+ja("hotːo").spelled(), len(ja("hotːo").morae)   # (("hot", "to"), 3)
+ja("hotːo").spelled("mora")                    # ("ho", "t", "to")
+ja("ko͜i").spelled("mora")                     # ("ko", "i")
 ja("atɾa").spelled(), ja("atɾa").unsyllabified  # (("a", "ɾa"), ((1, 2),))
 ```
 
-The checked demonstration has 4 forms, 6 syllables, 9 morae, and 0 conflicts.
+The checked demonstration has 4 forms, 6 syllables, 10 morae, and 0 conflicts.
+
+This is a declared structural analysis. Its shared occurrence associations
+carry the full source features; labels expose the mora portions without
+assigning acoustic durations. Fused vowel compounds, length over a multiphase
+vowel, and long consonants lacking the modeled preceding nucleus/following
+onset are refused pending a declared policy. Ordinary material outside the
+declared mora spans is reported through `unsyllabified`. The rewrite bridge uses this same analysis
+when explicitly requested with `to_form(mora_language="japanese")`; generic
+`to_form()` preserves a rewrite trace without assigning Japanese structure.
+
+Local span coverage and whole-sequence phonotactics are separate checks.
+The current declaration has no rule limiting combinations of special morae:
+it covers `ann`, `antːa` and `aːn` with no residue. These are structural scope
+probes, and coverage supplies no lexical-attestation claim. Restrictions on
+such combinations require further explicit, linguistically supported profile
+constraints; an empty `unsyllabified` result alone establishes local coverage.
+
+The syllable grouping follows the CV-plus-special-mora analysis discussed in
+[Moraic reversal and realisation](https://www.cambridge.org/core/journals/phonology/article/moraic-reversal-and-realisation-analysis-of-a-japanese-language-game/083B743CFC770D79886F97F39F2ED67E),
+which also discusses alternative analyses. Closure/release and nasal/obstruent
+distinctions follow the phonetic distinctions examined in
+[Linguopalatal contact differences](https://www.cambridge.org/core/journals/journal-of-the-international-phonetic-association/article/linguopalatal-contact-differences-between-japanese-geminates-and-singletons-across-different-places-and-manners/12CD67E2C65D64EAFC7D0A3C442E76A2).
 
 ## 4. Mandarin: membership is the analysis
 

@@ -2138,7 +2138,11 @@ class Form:
         }
 
     def to_json(self, self_contained: bool = False) -> str:
-        """Return the complete, versioned representation as JSON."""
+        """Return the versioned units-and-intervals compatibility JSON.
+
+        Graph-only relations and derived event attributes require the native
+        tiergraph wire codec; this compatibility projection omits them.
+        """
         return json.dumps(
             self.to_dict(self_contained=self_contained), ensure_ascii=False
         )
@@ -2232,6 +2236,8 @@ class Form:
 
         A lean document derives all its views coherently from this restoring
         inventory. Self-contained JSON pins those views across inventories.
+        Graph-only relations and derived event labels are outside this
+        units-and-intervals format; use the native tiergraph wire codec for them.
         """
         return cls.from_dict(json.loads(data), features)
 

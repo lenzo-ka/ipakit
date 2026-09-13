@@ -346,11 +346,11 @@ class FromJsonCommand(Command):
 
 
 class ToKatakanaCommand(Command):
-    """Render an attested Japanese loanword adaptation in katakana.
+    """Render a curated Japanese loanword fixture in katakana.
 
-    This is a small, fixture-backed gairaigo codec, not a Japanese-accent
-    simulator.  Input must exactly match one of the attested IPA source forms;
-    an unmapped form is refused rather than approximated.
+    This small gairaigo codec accepts the curated IPA source forms exactly.
+    Unmapped forms are refused. General Japanese-accent simulation and exact
+    phonetic validation of the fixture population are separate obligations.
 
     Examples:
         ipakit convert to-katakana "hɑt"       # ホット
@@ -359,14 +359,14 @@ class ToKatakanaCommand(Command):
 
     name = "to-katakana"
     aliases: ClassVar[list[str]] = []
-    help = "Render an attested Japanese loanword adaptation (no approximation)"
+    help = "Render a curated Japanese loanword fixture (exact source match)"
     reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
         parser.description = cls.__doc__
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
-        parser.add_argument("ipa", help="Attested source IPA form")
+        parser.add_argument("ipa", help="Curated fixture source IPA form")
 
     def run(self) -> int:
         from .. import to_katakana
@@ -771,7 +771,7 @@ class ConvertGroup(CommandGroup):
         from-kirshenbaum Kirshenbaum → IPA
         to-json       IPA → versioned Form JSON
         from-json     versioned Form JSON → IPA
-        to-katakana   Attested Japanese loanword adaptation → katakana
+        to-katakana   Curated Japanese loanword fixture → katakana
         normalize      Canonicalize IPA (tie bars, ligatures)
         tokenize       Split IPA into segments
         add-ties       Create affricates/diphthongs with tie bars
@@ -779,7 +779,7 @@ class ConvertGroup(CommandGroup):
 
     name = "convert"
     aliases: ClassVar[list[str]] = ["c"]
-    help = "Convert notation, serialize forms, and render attested adaptations"
+    help = "Convert notation, serialize forms, and render curated adaptations"
     commands: ClassVar[list[type[Command]]] = [
         ToCmuCommand,
         FromCmuCommand,

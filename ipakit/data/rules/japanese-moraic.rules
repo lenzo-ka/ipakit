@@ -296,24 +296,25 @@ a͜ʊ -> au ; aʊ is a + u
 ∅ -> u / [-vowel -nasal] _ [-vowel -approximant] ; u elsewhere (cluster)
 ∅ -> u / [-vowel -nasal] _ # ; u elsewhere (final)
 
-# The one place a nasal does take a vowel: word-final /m/. The moraic
-# nasal word-final is [ɴ], which is a poor match for a labial, so 'ham'
-# is [hamu] and 'gum' [ɡamu] while 'pen' stays [pen]. This is an
-# observation about the mapping, not something derived from anything
-# above, and it is a single rule with no cluster twin on purpose --
+# The one place a nasal does take a vowel in these adaptations: final /m/.
+# 'Ham' is [hamu] and 'gum' [ɡamu] while 'pen' stays [pen]. This is a
+# declared adaptation pattern. Utterance-final moraic-nasal realization
+# varies with the preceding vowel (the rtMRI study cited in docs/kana.md).
+# The mapping is a single rule with no cluster twin on purpose --
 # /m/ BEFORE a consonant is the moraic nasal and takes nothing, which is
 # what makes 'camp' [kampu] rather than *[kamupu].
 ∅ -> u / [manner=nasal place=bilabial] _ # ; u after a final labial nasal
 
 # --- deliberately not modeled ------------------------------------------
-# * The moraic nasal's place assimilation. Japanese ン is [m] before a
-#   labial, [n] before a coronal, [ŋ] before a velar, [ɴ] finally. The
+# * The moraic nasal's place assimilation. Common broad realizations include
+#   [m] before a labial, [n] before a coronal, and [ŋ] before a velar.
+#   Utterance-final realization is variable; [ɴ] is one broad convention. The
 #   shipped american-english set shows how that would be written, and it
 #   is now ONE line -- 'n -> [place=α] / _ [place=α]', an agreement
 #   variable (docs/rules.md) -- where this note used to say it had to be
 #   one rule per place. It is left out here because this set is about the
-#   mora, and ン is one mora however it is pronounced. The word-final [ɴ]
-#   would still be a second line: nothing follows it to agree with.
+#   mora, and ン is one mora across those realizations. Fine-grained final
+#   realization would require its own context-sensitive phonetic model.
 # * Palatalisation before /æ/: 'cat' is [kʲatːo] and 'camp' [kʲampu]. A
 #   secondary articulation is expressible ('k -> [palatalized=+]'), but
 #   the conditioning is on the English source vowel, which the vowel

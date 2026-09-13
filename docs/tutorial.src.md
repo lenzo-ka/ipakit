@@ -488,14 +488,14 @@ ipa.rewrite("skul", ipa.shipped("spanish-accented-english"))
 ipa.rewrite("stap", ipa.shipped("spanish-accented-english"))
 ```
 
-### Attested loanword adaptation to katakana
+### Curated loanword fixture to katakana
 
-The `japanese-moraic` rules cover established gairaigo adaptations. Accent conversion and general Japanese speech modeling are outside this set's scope. The rewrite bridge preserves the broad input, each fired derivation layer, and derived morae on one graph-backed `Form`; the katakana codec renders those morae. This worked example uses the attested adaptation of English *hot* as ホット.
+The `japanese-moraic` rules demonstrate locally curated gairaigo adaptations. Accent conversion and general Japanese speech modeling are outside this set's scope. The rewrite bridge preserves the broad input, each fired derivation layer, and derived morae on one graph-backed `Form`; the katakana codec renders those morae. This worked example uses ホット, whose spelling and borrowing from English *hot* are recorded in [Digital Daijisen](https://kotobank.jp/word/%E3%81%BB%E3%81%A4%E3%81%A8-3218764). That dictionary evidence supports the orthography; the exact IPA mapping is a local demonstration fixture.
 
 ```python-run
 japanese = ipa.shipped("japanese-moraic")
 hot_derivation = japanese.derive("hɑt")
-hot_form = hot_derivation.to_form()
+hot_form = hot_derivation.to_form(mora_language="japanese")
 hot_derivation.result
 [event["value"] for event in hot_form.tier_events("mora")]
 
@@ -504,7 +504,7 @@ from ipakit._katakana_codec import render as render_katakana
 render_katakana(hot_form)
 ```
 
-The leading underscore on the codec module marks this as a backend surface rather than a stable top-level convenience API. Keeping the example executable still checks the complete rules → derivation → graph → derived morae → katakana path; applications should treat the attested fixture vocabulary as the codec's declared domain.
+The leading underscore on the codec module marks this as a backend surface rather than a stable top-level convenience API. Keeping the example executable still checks the complete rules → derivation → graph → derived morae → katakana path; applications should treat the curated fixture vocabulary as the codec's declared domain.
 
 ## 8. Custom rule sets
 

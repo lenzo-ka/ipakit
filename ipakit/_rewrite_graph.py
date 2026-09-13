@@ -31,6 +31,7 @@ from ._graph_facts import (
     TierDeclaration,
 )
 from ._ipa_graph import declarations
+from ._moraic import Mora
 from .form import Form, Unit
 
 
@@ -42,7 +43,7 @@ class MoraicFixture:
 
 
 def japanese_moraic_fixtures() -> Mapping[str, MoraicFixture]:
-    """The attested rules-output-equals-adaptation fixture set."""
+    """The curated rules-output-equals-adaptation demonstration fixture set."""
     return {
         "pen": MoraicFixture("pɛn", "pen", ("pe", "n")),
         "hot": MoraicFixture("hɑt", "hotːo", ("ho", "t", "to")),
@@ -269,64 +270,22 @@ class _NativeWriter:
         return targets[0]
 
 
-@dataclass(frozen=True)
-class _Mora:
-    spelling: str
-    children: tuple[int, ...]
-    kind: str = "ordinary"
+def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[Mora, ...]:
+    """Analyze Japanese morae using the same declaration as syllabify.
 
-
-def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[_Mora, ...]:
-    """Deterministically segment a derived narrow sequence into morae.
-
-    Classification is read from the inventory's ``manner`` declaration.
-    A consonant onset joins the following vowel; coda nasals, geminate first
-    halves, long-vowel second halves, and diphthong second vowels stand alone.
+    Material outside declared local mora spans is refused. Whole-sequence
+    phonotactics and lexical attestation are outside this profile. Boundaries
+    delimit regions and never silently carry an onset into the next word.
     """
-    morae: list[_Mora] = []
-    onset: list[tuple[int, str]] = []
-    for index, unit in enumerate(units):
-        segment = unit.segment
-        if segment is None:
-            continue
-        is_vowel = inventory.get_features(unit.text).get("manner") == "vowel"
-        if is_vowel:
-            phases = tuple(part.base for part in segment.constituents)
-            first = phases[0]
-            onset_spelling = "".join(spelling for _, spelling in onset)
-            children = tuple(child for child, _ in onset) + (index,)
-            morae.append(_Mora(onset_spelling + first, children))
-            for phase in phases[1:]:
-                morae.append(_Mora(phase, (index,), "diphthong-second"))
-            if "ː" in segment.prosody:
-                morae.append(_Mora(first, (index,), "long-vowel-second"))
-            onset.clear()
-            continue
+    from .syllable import syllabifier
 
-        base = segment.constituents[0].base
-        if "ː" in segment.prosody:
-            morae.append(_Mora(base, (index,), "geminate-half"))
-            onset = [(index, base)]
-            continue
-        manner = inventory.get_features(unit.text).get("manner")
-        next_is_vowel = index + 1 < len(units) and (
-            inventory.get_features(units[index + 1].text).get("manner") == "vowel"
+    engine = syllabifier("japanese", inventory)
+    _, _, residue, groups = engine._derive_moraic(units, True)
+    if residue:
+        raise ValueError(
+            f"derived mora segmentation has unlicensed material: {residue}"
         )
-        if manner == "nasal" and not next_is_vowel:
-            if onset:
-                # Settled Japanese fixtures have no non-nasal coda here;
-                # retain any pending material with the independently moraic nasal.
-                base = "".join(spelling for _, spelling in onset) + base
-                children = tuple(child for child, _ in onset) + (index,)
-                onset.clear()
-            else:
-                children = (index,)
-            morae.append(_Mora(base, children, "nasal"))
-        else:
-            onset.append((index, unit.text))
-    if onset:
-        raise ValueError("derived mora segmentation ended with a non-nasal coda")
-    return tuple(morae)
+    return tuple(mora for group in groups for mora in group)
 
 
 def _input(builder: FactBuilder, form: Form, source_tier: str) -> list[_Token]:
@@ -357,6 +316,7 @@ def project_derivation(
     *,
     source_tiers: Sequence[str] = ("broad",),
     target_tiers: Sequence[str] = ("narrow", "allophonic"),
+    mora_language: str | None = None,
 ) -> Form:
     """Project an existing :class:`~ipakit.rules.Derivation` onto one clock.
 
@@ -365,10 +325,14 @@ def project_derivation(
     emitted layer. Target names are clamped at the last supplied name, so an
     arbitrary number of fired passes remains representable without inventing
     tiers. Ordering within a layer is the builder's pinned total order.
+    ``mora_language="japanese"`` explicitly adds the declared mora analysis;
+    the default projects the trace without assigning a language.
     """
+    if mora_language not in {None, "japanese"}:
+        raise ValueError("rewrite mora projection supports only explicit 'japanese'")
     if not source_tiers:
         raise ValueError("a derivation projection requires an ordered source tier")
-    tiers = (*source_tiers, *target_tiers, "mora")
+    tiers = (*source_tiers, *target_tiers, *(("mora",) if mora_language else ()))
     builder = FactBuilder(_bridge_declarations(inventory, tiers))
     start = inventory.read(derivation.start, strict=True)
     current = _input(builder, start, source_tiers[0])
@@ -382,7 +346,11 @@ def project_derivation(
         ),
     )
 
-    analyses = derive_morae(tuple(t.unit for t in current), inventory)
+    analyses = (
+        derive_morae(tuple(t.unit for t in current), inventory)
+        if mora_language is not None
+        else ()
+    )
     for index, analysis in enumerate(analyses):
         spelling = analysis.spelling
         children = [current[child] for child in analysis.children]
@@ -414,7 +382,7 @@ def project_derivation(
 
 
 def japanese_moraic_fixture(name: str, inventory: Any) -> Form:
-    """Run one attested adaptation fixture through rules and the bridge."""
+    """Run one curated adaptation fixture through rules and the bridge."""
     from .rules import shipped
 
     fixture = japanese_moraic_fixtures()[name]
@@ -423,7 +391,7 @@ def japanese_moraic_fixture(name: str, inventory: Any) -> Form:
         raise AssertionError(
             f"japanese-moraic {name}: {derivation.result!r} != {fixture.output!r}"
         )
-    form = project_derivation(derivation, inventory)
+    form = project_derivation(derivation, inventory, mora_language="japanese")
     derived = tuple(event["value"] for event in form.tier_events("mora"))
     if derived != fixture.morae:
         raise AssertionError(

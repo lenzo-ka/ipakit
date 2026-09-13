@@ -14,7 +14,7 @@ def test_japanese_report_counts() -> None:
     forms = ("pen", "hotːo", "toːkjo", "ko͜i")
     results = [ipakit.syllabify(form, "japanese") for form in forms]
     assert (len(forms), sum(len(r.syllables) for r in results)) == (4, 6)
-    assert sum(len(r.morae) for r in results) == 9
+    assert sum(len(r.morae) for r in results) == 10
     assert sum(len(r.conflicts) for r in results) == 0
 
 

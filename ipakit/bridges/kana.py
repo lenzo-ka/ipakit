@@ -1,4 +1,4 @@
-"""Attested-only kana vocabulary bridge."""
+"""Curated-fixture kana vocabulary bridge."""
 
 from __future__ import annotations
 
@@ -16,18 +16,19 @@ _PATH = Path(__file__).parent.parent / "data" / "bridges" / "kana" / "kana.xml"
 
 
 class KanaBridge(VocabularyBridge):
-    """Katakana rendering of attested gairaigo adaptations on the mora tier.
+    """Katakana rendering of curated gairaigo fixtures on the mora tier.
 
-    This codec describes forms Japanese licenses; it is not an accent simulator.
+    The vocabulary supplies local demonstration spellings. Their phonetic
+    validation and whole-sequence phonotactics are separate profile obligations.
     """
 
     def __init__(self) -> None:
-        """Load the shipped attested gairaigo vocabulary declaration."""
+        """Load the shipped curated gairaigo vocabulary declaration."""
 
         super().__init__(_PATH)
 
     def render(self, form: Form) -> str:
-        """Render the graph's mora tier as attested katakana glyphs."""
+        """Render the graph's mora tier using the declared katakana glyphs."""
 
         outputs = {atom.spelling: atom.output for atom in self.atoms}
 
@@ -44,7 +45,7 @@ class KanaBridge(VocabularyBridge):
                 return outputs[spelling]
             except KeyError as error:
                 raise ValueError(
-                    f"no attested gairaigo mora spelling: {spelling!r}"
+                    f"no curated gairaigo mora spelling: {spelling!r}"
                 ) from error
 
         return render_graph(form, RenderProfile((RenderLane("mora", "value", glyph),)))

@@ -43,7 +43,7 @@ keep source distinctions, coverage and conversion losses explicit.
 | [PHOIBLE source inventories](phoible.md) | Shipped complete source catalog, explicit checkout overrides, doculect provenance and import refusals. |
 | [Inventory supplements](supplements.md) | Extend the house declaration and understand the effects on realization and comparison. |
 | [Pinyin](pinyin.md) | Syllable-hosted tone, orthographic rendering and the internal graph-constructor boundary. |
-| [Kana](kana.md) | Mora-tier rendering and bounded attested-adaptation API/CLI support. |
+| [Kana](kana.md) | Mora-tier rendering and bounded curated-adaptation API/CLI support. |
 | [CLTS/BIPA](clts-audit.md) | Frozen native feature-set/Jaccard scoring, shared cost comparisons, source extraction and provenance; semantic mapping remains unresolved. |
 | [Finite model operations](model-operations.md) | Typed declarations, explicit model CLI selection, feature edits and exact realization candidates; links to finite rules and transforms. |
 | [Operations across inventories](inventory-operations.md) | House and Panphon matching and respelling, custom declarations, and all-pairs comparisons across named cost models. |
