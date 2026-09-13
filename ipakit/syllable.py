@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from ._moraic import Mora, analyze_region
 from .constants import DATA_DIR
 from .features import IPAFeatures
 from .form import Form, Interval, Unit, tier_names
@@ -129,13 +130,29 @@ class Syllabification:
         return tuple(i for i in self.form.intervals if i.tier == "mora")
 
     def spelled(self, tier: str = "syllable") -> tuple[str, ...]:
+        source = self.form.__dict__["_tiergraph_index"].containment_input
+        spellings = {
+            event.features["compatibility-interval"]: event.features["spelling"]
+            for event in source.events.values()
+            if "compatibility-interval" in event.features
+            and "spelling" in event.features
+        }
         return tuple(
-            "".join(u.text for u in self.form.units[i.start : i.end])
-            for i in self.form.intervals
+            spellings.get(
+                index, "".join(u.text for u in self.form.units[i.start : i.end])
+            )
+            for index, i in enumerate(self.form.intervals)
             if i.tier == tier
         )
 
     def marks(self) -> str:
+        if any(
+            a.end > b.start
+            for a, b in zip(self.syllables, self.syllables[1:], strict=False)
+        ):
+            raise ValueError(
+                "shared syllable material requires graph associations; use spelled()"
+            )
         cuts = {i.start for i in self.syllables} | {i.end for i in self.syllables}
         out: list[str] = []
         for n, unit in enumerate(self.form.units):
@@ -278,15 +295,15 @@ class Syllabifier:
         if isinstance(form, str):
             form = Form.parse(form, self.features)
         if self.language.mode == "moraic":
-            honored, morae, empty = self._derive_moraic(form.units, True)
-            free, _, _ = self._derive_moraic(form.units, False)
-            intervals = [*honored, *morae]
+            honored, morae, empty, analyses = self._derive_moraic(form.units, True)
+            free, _, _, _ = self._derive_moraic(form.units, False)
+            output = self._moraic_form(form, honored, morae, analyses)
         else:
             honored, empty = self._derive(form.units, True)
             free, _ = self._derive(form.units, False)
-            intervals = honored
+            output = Form.of(form.units, [*form.intervals, *honored])
         return Syllabification(
-            Form.of(form.units, [*form.intervals, *intervals]),
+            output,
             self._conflicts(form.units, honored, free),
             tuple(empty),
         )
@@ -330,92 +347,151 @@ class Syllabifier:
 
     def _derive_moraic(
         self, units: Sequence[Unit], honor: bool
-    ) -> tuple[list[Interval], list[Interval], list[tuple[int, int]]]:
+    ) -> tuple[list[Interval], list[Interval], list[tuple[int, int]], list[list[Mora]]]:
         syllables: list[Interval] = []
         morae: list[Interval] = []
         empty: list[tuple[int, int]] = []
+        analyses: list[list[Mora]] = []
         start = 0
         for stop in [*self._delimiters(units, honor), len(units)]:
             if start < stop:
-                grouped, tiled, residue = self._moraic_region(units, start, stop)
-                syllables.extend(grouped)
-                morae.extend(tiled)
+                entries, residue = analyze_region(
+                    units, start, stop, self.language, self.features, self._is_nucleus
+                )
+                groups: list[list[Mora]] = []
+                for entry in entries:
+                    if entry.begins_syllable or not groups:
+                        groups.append([])
+                    groups[-1].append(entry)
+                for group in groups:
+                    children = [child for entry in group for child in entry.children]
+                    syllables.append(
+                        Interval(
+                            "syllable", min(children), max(children) + 1, self.features
+                        )
+                    )
+                morae.extend(
+                    Interval(
+                        "mora",
+                        min(entry.children),
+                        max(entry.children) + 1,
+                        self.features,
+                    )
+                    for entry in entries
+                )
+                analyses.extend(groups)
                 empty.extend(residue)
             start = stop + 1
-        return syllables, morae, empty
+        return syllables, morae, empty, analyses
 
-    def _moraic_region(
-        self, units: Sequence[Unit], start: int, stop: int
-    ) -> tuple[list[Interval], list[Interval], list[tuple[int, int]]]:
-        """Tile a region with morae, then group those morae into syllables."""
-        entries: list[tuple[Interval, bool]] = []
-        residue: list[tuple[int, int]] = []
-        at = start
-        have_nucleus = False
-        while at < stop:
-            unit = units[at]
-            if unit.segment is None:
-                at += 1
-                have_nucleus = False
-                continue
-            candidates: list[tuple[int, bool]] = []
-            for span in self.language.morae:
-                end = at + len(span.terms)
-                if end <= stop and span.matches(units[at:end], self.features):
-                    bears_nucleus = any(self._is_nucleus(u) for u in units[at:end])
-                    candidates.append((end, bears_nucleus))
-            weights = [candidate for candidate in candidates if not candidate[1]]
-            nuclei = [candidate for candidate in candidates if candidate[1]]
-            choices = weights if have_nucleus and weights else nuclei
-            if not choices:
-                residue.append((at, at + 1))
-                at += 1
-                have_nucleus = False
-                continue
-            end, bears_nucleus = max(choices, key=lambda candidate: candidate[0])
-            entries.append((Interval("mora", at, end, self.features), bears_nucleus))
-            if bears_nucleus:
-                nucleus = next(i for i in range(at, end) if self._is_nucleus(units[i]))
-                if units[nucleus].prosody.get("length") == "long":
-                    entries.append(
-                        (Interval("mora", nucleus, nucleus + 1, self.features), False)
+    def _moraic_form(
+        self,
+        form: Form,
+        syllables: Sequence[Interval],
+        morae: Sequence[Interval],
+        groups: Sequence[Sequence[Mora]],
+    ) -> Form:
+        """Write ordered syllable/mora containment, sharing source occurrences."""
+        from ._fact_builder import copy_fact_builder
+        from ._graph_facts import FeatureDeclaration
+
+        source = form.__dict__["_tiergraph_index"].containment_input
+        declared = source.declarations
+        if not any(feature.name == "mora-kind" for feature in declared.features):
+            declared = replace(
+                declared, features=(*declared.features, FeatureDeclaration("mora-kind"))
+            )
+        declared = replace(
+            declared,
+            tiers=tuple(
+                (
+                    replace(tier, features=tier.features | {"mora-kind"})
+                    if tier.name == "mora"
+                    else tier
+                )
+                for tier in declared.tiers
+            ),
+        )
+        builder, handles = copy_fact_builder(source, declared)
+        unit_handles = {
+            event.features["compatibility-index"]: handles[path]
+            for path, event in source.events.items()
+            if "compatibility-index" in event.features
+        }
+        # copy_fact_builder copies the source clock rather than its legacy
+        # occurrence list; recover interval anchors from the source coordinates.
+        from ._fact_builder import LegacyCoordinates, LegacyOccurrence
+
+        coordinates = LegacyCoordinates(
+            tuple(
+                LegacyOccurrence(
+                    consumes_span=bool(event.structural_duration),
+                    refines_tick=not bool(event.structural_duration),
+                )
+                for _, path, event in sorted(
+                    (event.features["compatibility-index"], path, event)
+                    for path, event in source.events.items()
+                    if "compatibility-index" in event.features
+                )
+            )
+        )
+        count = len(form.intervals)
+        mora_index = 0
+        memberships = [
+            set(child for entry in group for child in entry.children)
+            for group in groups
+        ]
+        for group_index, (span, group) in enumerate(
+            zip(syllables, groups, strict=True)
+        ):
+            spelling = []
+            for child in sorted(memberships[group_index]):
+                unit = form.units[child]
+                shared = sum(child in members for members in memberships) > 1
+                if shared:
+                    ending = next(
+                        (
+                            entry
+                            for entry in group
+                            if entry.children == (child,) and not entry.begins_syllable
+                        ),
+                        None,
                     )
-            have_nucleus = True
-            at = end
-
-        syllables: list[Interval] = []
-        opened: int | None = None
-        closed: int | None = None
-        pending_geminate = False
-        for mora, bears_nucleus in entries:
-            if bears_nucleus:
-                if pending_geminate:
-                    closed = mora.end
-                    pending_geminate = False
+                    spelling.append(
+                        ending.spelling if ending is not None else unit.core
+                    )
                 else:
-                    if opened is not None and closed is not None:
-                        syllables.append(
-                            Interval("syllable", opened, closed, self.features)
-                        )
-                    opened = mora.start
-                    closed = mora.end
-            elif (
-                mora.end == mora.start + 1
-                and units[mora.start].prosody.get("length") == "long"
-                and not self._is_nucleus(units[mora.start])
-            ):
-                if opened is not None and closed is not None:
-                    syllables.append(
-                        Interval("syllable", opened, closed, self.features)
-                    )
-                opened = mora.start
-                closed = mora.end
-                pending_geminate = True
-            elif opened is not None:
-                closed = max(closed or mora.end, mora.end)
-        if opened is not None and closed is not None:
-            syllables.append(Interval("syllable", opened, closed, self.features))
-        return syllables, [mora for mora, _ in entries], residue
+                    spelling.append(unit.text)
+            parent = builder.add_span(
+                "syllable",
+                coordinates.to_graph(span.start),
+                coordinates.to_graph(span.end),
+                {
+                    "compatibility-interval": count + group_index,
+                    "spelling": "".join(spelling),
+                },
+            )
+            children = []
+            for entry in group:
+                mora_span = morae[mora_index]
+                handle = builder.add_span(
+                    "mora",
+                    coordinates.to_graph(mora_span.start),
+                    coordinates.to_graph(mora_span.end),
+                    {
+                        "compatibility-interval": count + len(syllables) + mora_index,
+                        "spelling": entry.spelling,
+                        "value": entry.spelling,
+                        "mora-kind": entry.kind,
+                    },
+                )
+                builder.contain(
+                    handle, tuple(unit_handles[child] for child in entry.children)
+                )
+                children.append(handle)
+                mora_index += 1
+            builder.contain(parent, children)
+        return Form._from_projection_input(builder.build_input())
 
     def _within(
         self, units: Sequence[Unit], start: int, stop: int

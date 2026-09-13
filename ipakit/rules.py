@@ -3701,8 +3701,13 @@ class Derivation:
         *,
         source_tiers: Sequence[str] = ("broad",),
         target_tiers: Sequence[str] = ("narrow", "allophonic"),
+        mora_language: str | None = None,
     ) -> Form:
-        """Project this trace into the tier graph without re-deriving it."""
+        """Project this trace, optionally adding declared Japanese mora analysis.
+
+        ``mora_language="japanese"`` licenses mora spans in the output;
+        the default preserves the trace without assigning a language.
+        """
         from ._rewrite_graph import project_derivation
 
         return project_derivation(
@@ -3710,6 +3715,7 @@ class Derivation:
             _default(features),
             source_tiers=source_tiers,
             target_tiers=target_tiers,
+            mora_language=mora_language,
         )
 
     def __str__(self) -> str:
