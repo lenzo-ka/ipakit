@@ -43,7 +43,7 @@ class MoraicFixture:
 
 
 def japanese_moraic_fixtures() -> Mapping[str, MoraicFixture]:
-    """The attested rules-output-equals-adaptation fixture set."""
+    """The curated rules-output-equals-adaptation demonstration fixture set."""
     return {
         "pen": MoraicFixture("pɛn", "pen", ("pe", "n")),
         "hot": MoraicFixture("hɑt", "hotːo", ("ho", "t", "to")),
@@ -273,8 +273,9 @@ class _NativeWriter:
 def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[Mora, ...]:
     """Analyze Japanese morae using the same declaration as syllabify.
 
-    An unlicensed residue is refused. Boundaries delimit regions and never
-    silently carry a consonantal onset into the next word.
+    Material outside declared local mora spans is refused. Whole-sequence
+    phonotactics and lexical attestation are outside this profile. Boundaries
+    delimit regions and never silently carry an onset into the next word.
     """
     from .syllable import syllabifier
 
@@ -381,7 +382,7 @@ def project_derivation(
 
 
 def japanese_moraic_fixture(name: str, inventory: Any) -> Form:
-    """Run one attested adaptation fixture through rules and the bridge."""
+    """Run one curated adaptation fixture through rules and the bridge."""
     from .rules import shipped
 
     fixture = japanese_moraic_fixtures()[name]

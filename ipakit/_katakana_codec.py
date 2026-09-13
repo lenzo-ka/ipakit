@@ -1,6 +1,7 @@
-"""Katakana rendering of attested gairaigo adaptations on the mora tier.
+"""Katakana rendering of curated gairaigo fixtures on the mora tier.
 
-This codec describes forms Japanese licenses; it is not an accent simulator.
+The vocabulary supplies local demonstration spellings; phonetic attestation
+and whole-sequence phonotactics are separate profile obligations.
 """
 
 from __future__ import annotations

@@ -5,7 +5,9 @@
        Small ッ, nasal ン and length ー adopt 外来語の表記, detailed rules III.1–3:
        https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/gairai/honbun06.html
        Canonical input, model, lexical evidence and limits: docs/kana.md.
-       The shipped vocabulary covers a subset of the official table. -->
+       The shipped vocabulary covers a subset of the official table.
+       Exact broad IPA rows are locally curated demonstration data; external
+       phonetic attestation of each row is a separate open audit. -->
   <round-trip>
     <external-to-house fidelity="lossless" />
     <house-to-external fidelity="lossy-with-report"><drop name="forms outside the attested gairaigo inventory" /></house-to-external>

@@ -1,7 +1,7 @@
 # Kana: mora structure and orthographic realization
 
 The implemented kana work uses mora structure to render a bounded set of
-attested Japanese loanword adaptations. It complements the
+curated Japanese loanword adaptation fixtures. It complements the
 [syllable-primary Pinyin example](pinyin.md): the organizing unit and rendering
 rules differ, while structure and computation use the common substrate.
 
@@ -52,7 +52,7 @@ the obstruent geminate kind. These labels retain consonant identity directly;
 
 ## Public API and CLI
 
-The attested-adaptation workflow has both a public convenience function and a
+The fixture-backed adaptation workflow has both a public convenience function and a
 CLI command:
 
 ```python
@@ -78,7 +78,9 @@ mora sequence. Library callers with an appropriately constructed `Form` can use
 General rewrite traces acquire Japanese mora analysis through explicit
 `derivation.to_form(mora_language="japanese")`. The default `to_form()` retains
 the trace without assigning a language. The Japanese option uses the same
-declaration as `syllabify(text, "japanese")` and refuses unlicensed output.
+declaration as `syllabify(text, "japanese")` and refuses output with material
+outside its local mora spans. Whole-sequence phonotactics, including constraints
+on combinations of special morae, remain a separate profile obligation.
 
 ## Associations and serialization
 
@@ -106,18 +108,25 @@ geminate spans, readable projections and explicit timing-policy refusals.
 
 ## Scope and evidence
 
-This fixture-backed gairaigo codec covers the declared attested adaptations.
+This fixture-backed gairaigo codec covers the declared curated adaptations.
 Comprehensive kana reading, productive loanword adaptation and accent simulation
 are outside its scope. The convenience function refuses unlisted inputs.
 The [shipped declaration](../ipakit/data/bridges/kana/kana.xml) identifies the
 finite vocabulary and directional fidelity for this subset of Japanese.
+
+The exact source and adapted IPA strings are local demonstration choices.
+Tests establish that rules, graphs and glyphs agree with those choices. External
+orthographic evidence, such as the ホット dictionary entry above, supports the
+cited spelling and borrowing. An external phonetic source-to-row audit of the
+entire fixture population remains open; the general style references establish
+conventions and distinctions, with no claim to attest each exact IPA row.
 
 The broad adaptations retain their declared nasal realizations. Fine-grained
 nasal allophony is separate: utterance-final closure varies with the preceding
 vowel, as measured in
 [Production of the utterance-final moraic nasal](https://www.cambridge.org/core/journals/journal-of-the-international-phonetic-association/article/production-of-the-utterancefinal-moraic-nasal-in-japanese-a-realtime-mri-study/560B70DE7334F30F54E18D0486785E66).
 
-[Profile tests](../tests/tiergraph/test_j_profiles.py) check the attested
+[Profile tests](../tests/tiergraph/test_j_profiles.py) check the curated
 adaptations and that special kana come from derived mora structure.
 [CLI tests](../tests/test_cli.py) exercise both accepted adaptations and refusal
 of unlisted inputs. See [comparative systems](systems.md) for how this example

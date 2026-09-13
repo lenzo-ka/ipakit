@@ -54,6 +54,21 @@ def test_nasal_hold_retains_its_declared_kind():
     assert ipakit.syllabify("honːa", "japanese").spelled() == ("hon", "na")
 
 
+@pytest.mark.parametrize(
+    "text,morae",
+    [
+        ("ann", ("a", "n", "n")),
+        ("antːa", ("a", "n", "t", "ta")),
+        ("aːn", ("a", "a", "n")),
+    ],
+)
+def test_local_span_coverage_does_not_validate_special_mora_combinations(text, morae):
+    """These are structural scope probes, with no lexical-attestation claim."""
+    result = ipakit.syllabify(text, "japanese")
+    assert result.spelled("mora") == morae
+    assert result.unsyllabified == ()
+
+
 def _members(form):
     source = form.__dict__["_tiergraph_index"].containment_input
     return source, {

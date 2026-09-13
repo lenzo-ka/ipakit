@@ -21,7 +21,7 @@ def test_declared_moraic_analysis(form, syllables, morae) -> None:
     assert len(result.morae) == morae
 
 
-def test_the_rule_sets_attested_pair_is_measured_after_adaptation() -> None:
+def test_the_rule_sets_curated_pair_is_measured_after_adaptation() -> None:
     rules = ipakit.ruleset("japanese-moraic")
     for source, expected in (("pɛn", 2), ("hɑt", 3)):
         adapted = ipakit.rewrite(source, rules)
@@ -48,7 +48,7 @@ def test_unlicensed_obstruent_contrasts_with_geminate_half() -> None:
     assert geminate.unsyllabified == ()
 
 
-def test_every_moraic_syllable_is_tiled_by_morae_or_residue_is_reported() -> None:
+def test_sampled_forms_have_source_coverage_or_reported_residue() -> None:
     """Source occurrences are covered, with geminates shared across syllables."""
     for text in ("pen", "hotːo", "ɸɯdʑisaɴ", "kjoːto", "atɾa"):
         result = ipakit.syllabify(text, "japanese")

@@ -2,7 +2,9 @@
 <!-- Adopted syllable-based CV-plus-special-mora analysis and alternatives:
      https://www.cambridge.org/core/journals/phonology/article/moraic-reversal-and-realisation-analysis-of-a-japanese-language-game/083B743CFC770D79886F97F39F2ED67E
      IPA unit spellings, readable mora portions and katakana are distinct
-     contracts; docs/kana.md states their canonical conventions and sources. -->
+     contracts; docs/kana.md states their canonical conventions and sources.
+     These are local mora-span patterns, with no declared restriction on
+     sequences of special morae and no lexical-attestation validation. -->
 <syllabification language="japanese" version="1" mode="moraic" provenance="The moraic analysis in ipakit/data/rules/japanese-moraic.rules: (C)(j)V, moraic nasal, shared geminate coda/onset, and a second mora for vowel length. Sequential vowel constituents supply successive morae within one tied unit; fused vowel timing and length over multiple phases require an explicit further policy.">
   <nucleus span="[vowel]" />
   <onset span="[-vowel]" />

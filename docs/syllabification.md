@@ -20,7 +20,7 @@ No boundary is rebuilt or replaced, so a dot beside a richer carrier keeps the c
 
 ## 3. Japanese: morae first
 
-The Japanese declaration licenses `(C)(j)V`, an independent nasal mora,
+The Japanese declaration supplies local spans for `(C)(j)V`, an independent nasal mora,
 a geminate's first mora, and a second mora for a long vowel. Sequentially tied
 vowel constituents supply successive morae within one source unit.
 
@@ -49,10 +49,17 @@ This is a declared structural analysis. Its shared occurrence associations
 carry the full source features; labels expose the mora portions without
 assigning acoustic durations. Fused vowel compounds, length over a multiphase
 vowel, and long consonants lacking the modeled preceding nucleus/following
-onset are refused pending a declared policy. Unlicensed ordinary material is
-reported through `unsyllabified`. The rewrite bridge uses this same analysis
+onset are refused pending a declared policy. Ordinary material outside the
+declared mora spans is reported through `unsyllabified`. The rewrite bridge uses this same analysis
 when explicitly requested with `to_form(mora_language="japanese")`; generic
 `to_form()` preserves a rewrite trace without assigning Japanese structure.
+
+Local span coverage and whole-sequence phonotactics are separate checks.
+The current declaration has no rule limiting combinations of special morae:
+it covers `ann`, `antːa` and `aːn` with no residue. These are structural scope
+probes, and coverage supplies no lexical-attestation claim. Restrictions on
+such combinations require further explicit, linguistically supported profile
+constraints; an empty `unsyllabified` result alone establishes local coverage.
 
 The syllable grouping follows the CV-plus-special-mora analysis discussed in
 [Moraic reversal and realisation](https://www.cambridge.org/core/journals/phonology/article/moraic-reversal-and-realisation-analysis-of-a-japanese-language-game/083B743CFC770D79886F97F39F2ED67E),

@@ -865,7 +865,7 @@ def normalize_lookalikes(text: str) -> str:
 
 
 def _japanese_moraic_form(ipa: str) -> Form:
-    """Resolve an attested source and return its derived graph-backed form."""
+    """Resolve a curated fixture source and return its derived graph-backed form."""
     from ._rewrite_graph import japanese_moraic_fixture, japanese_moraic_fixtures
 
     name = next(
@@ -885,10 +885,11 @@ def _japanese_moraic_form(ipa: str) -> Form:
 
 
 def morae(ipa: str) -> tuple[str, ...]:
-    """Return the derived morae for an attested Japanese loanword adaptation.
+    """Return the derived morae for a curated Japanese loanword fixture.
 
-    This is the bounded fixture-backed model used by ``ipakit rules morae``,
-    not a general Japanese-accent simulator.  Unmapped input is refused.
+    This is the bounded fixture-backed model used by ``ipakit rules morae``.
+    Unmapped input is refused. The exact broad IPA rows are locally curated;
+    their external phonetic validation is separate from fixture conformance.
 
     >>> morae("hɑt")
     ('ho', 't', 'to')
@@ -899,10 +900,11 @@ def morae(ipa: str) -> tuple[str, ...]:
 
 
 def to_katakana(ipa: str) -> str:
-    """Render an attested Japanese loanword adaptation in katakana.
+    """Render a curated Japanese loanword fixture in katakana.
 
-    The input must be one of the codec's attested IPA sources; this function
-    refuses unknown forms rather than approximating them.
+    The input must exactly match one of the codec's curated IPA sources.
+    Unknown forms are refused. See docs/kana.md for orthographic references
+    and the separate scope of the locally curated broad IPA transcriptions.
 
     >>> to_katakana("hɑt")
     'ホット'

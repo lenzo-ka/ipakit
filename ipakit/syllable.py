@@ -286,7 +286,13 @@ def _segments_before(units: Sequence[Unit]) -> list[int]:
 
 @dataclass(frozen=True)
 class Syllabifier:
-    """A Form-to-Intervals syllabifier built from one language declaration."""
+    """A Form-to-Intervals syllabifier built from one language declaration.
+
+    Moraic mode checks local mora spans and constructs their containment.
+    An empty ``unsyllabified`` result means those spans cover the input; it
+    does not establish lexical attestation or full sequence phonotactics.
+    The Japanese profile has no constraint on combinations of special morae.
+    """
 
     language: Language
     features: IPAFeatures = field(repr=False)
