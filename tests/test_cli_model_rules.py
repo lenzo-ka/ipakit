@@ -9,7 +9,30 @@ from pathlib import Path
 
 import pytest
 from ipakit import cli
+from ipakit.cli.base import IPA, NOTATION_NOTES
 from ipakit.rules import Rule, RuleSet
+
+
+@pytest.mark.parametrize("operation", ["recognize", "apply", "trace"])
+def test_model_dispatch_qualifies_the_native_alphabet_note(operation):
+    args = cli.create_parser().parse_args(["rules", operation])
+    assert args.cmd_cls.reads_notation == IPA
+    root = cli.create_parser()
+    transformed = cli._preprocess_help(["rules", operation, "help"], root)
+    assert transformed == ["rules", operation, "--help"]
+
+
+@pytest.mark.parametrize("operation", ["recognize", "apply", "trace"])
+def test_actual_help_preserves_conditional_native_note(monkeypatch, capsys, operation):
+    monkeypatch.setattr(sys, "argv", ["ipakit", "rules", operation, "--help"])
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+    assert error.value.code == 0
+    help_text = capsys.readouterr().out
+    finite = help_text.index("With a finite model selector")
+    native = help_text.index("Without --model/--model-declaration")
+    alphabet = help_text.index(NOTATION_NOTES[IPA].strip())
+    assert finite < native < alphabet
 
 
 @pytest.fixture

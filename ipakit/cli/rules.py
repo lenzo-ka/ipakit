@@ -79,7 +79,6 @@ from ..rules import (
 )
 from .base import (
     IPA,
-    IPA_OR_MODEL,
     Command,
     CommandGroup,
     add_format_arg,
@@ -137,6 +136,14 @@ def add_forms_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def add_finite_args(parser: argparse.ArgumentParser) -> None:
+    # Model selection is a dispatch mode, not another transcription alphabet.
+    # Registration appends the canonical IPA note after this qualification.
+    parser.description = (
+        (parser.description or "").rstrip()
+        + "\n\nWith a finite model selector, --tokens-json supplies exact token arrays, "
+        "not IPA strings. No normalization or segmentation is inferred.\n"
+        "Without --model/--model-declaration, the native input policy applies:\n"
+    )
     add_model_selector(parser, required=False)
     parser.add_argument(
         "--tokens-json",
@@ -487,7 +494,7 @@ class ApplyCommand(RuleCommand):
     name = "apply"
     aliases: ClassVar[list[str]] = ["a"]
     help = "Apply rules to forms and print the derived forms"
-    reads_notation = IPA_OR_MODEL
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -631,7 +638,7 @@ class TraceCommand(RuleCommand):
     name = "trace"
     aliases: ClassVar[list[str]] = ["t"]
     help = "Show the derivation trace (which rule fired where)"
-    reads_notation = IPA_OR_MODEL
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -822,7 +829,7 @@ class RecognizeCommand(RuleCommand):
     name = "recognize"
     aliases: ClassVar[list[str]] = ["rec"]
     help = "Report where a rule's environment holds, with no rewriting"
-    reads_notation = IPA_OR_MODEL
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
