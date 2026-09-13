@@ -38,6 +38,29 @@ are authoritative: the constructor checks the tone category and normalizes
 spelling, while the caller supplies linguistically consistent onset and rhyme.
 Synthetic spellings remain useful for testing structural operations.
 
+## Canonical conventions and references
+
+The orthographic reference is
+[GB/T 16159–2012](https://wsb.sjz.gov.cn/atm/7/20210601162434276.pdf), particularly
+§6.3 for capitalization and §6.5 for tone placement. This codec's canonical
+output uses NFC Unicode, marked vowels, preserved input capitalization, and
+ASCII `'` for the syllable separator. Keyboard aliases are input conveniences;
+output uses `ü`/`Ü`. Internal tone category 5 denotes neutral tone, which renders
+unmarked; the standard's external numeric notation uses 0. Rendering operates
+on supplied syllables within one word; retone, sandhi, and word segmentation
+require separate caller-supplied analysis.
+
+The IPA realization reference is the shipped
+[`pinyin.xml`](../ipakit/data/bridges/pinyin/pinyin.xml) profile: its `syllable`
+records' `ipa` values are the canonical forms of this curated membership domain.
+These records combine broad spellings with selected phonetic detail.
+[Wikipedia's Mandarin IPA key](https://en.wikipedia.org/wiki/Help:IPA/Mandarin)
+guides symbol style, while
+[Lee and Zee (2003)](https://doi.org/10.1017/S0025100303001208) supplies a phonetic
+reference for the cited vowel and transcription choices. The profile preserves
+its explicit row choices, including `xau`, `ʂuei`, `kuɔ`, and `ʈ͡ʂʊŋ`;
+extensions should declare their transcription convention and evidence.
+
 ## Tone and orthographic rendering
 
 Supply an unmarked syllable spelling and an integer tone category from 1 through

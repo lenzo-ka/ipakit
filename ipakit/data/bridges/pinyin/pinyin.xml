@@ -8,6 +8,12 @@
   <tone vowel="a" marks="āáǎà" /><tone vowel="e" marks="ēéěè" />
   <tone vowel="i" marks="īíǐì" /><tone vowel="o" marks="ōóǒò" />
   <tone vowel="u" marks="ūúǔù" /><tone vowel="ü" marks="ǖǘǚǜ" />
+  <!-- Orthographic reference: GB/T 16159-2012, sections 6.3 and 6.5.
+       Codec output: NFC, marked vowels, preserved input case, ASCII apostrophe;
+       keyboard aliases are input conveniences. Internal neutral category 5
+       emits no mark (external numeric notation may use 0). Retone, sandhi,
+       and word segmentation require caller-supplied analysis.
+       https://wsb.sjz.gov.cn/atm/7/20210601162434276.pdf -->
   <!-- Simple-vowel values only, with explicit boundaries between atoms.
        Contextual letters in ie, ei, ju, etc. require syllable analysis.
        e and yu in the syllabary below corroborate the corrected vowel values.
@@ -19,6 +25,10 @@
   <!-- The IPA members below are curated demonstration spellings used by the
        Mandarin worked syllabifier. They combine broad spellings with selected
        phonetic detail; extensions should state their transcription convention.
+       The ipa attributes supply this profile's canonical membership forms.
+       Wikipedia's Mandarin IPA key guides symbol style; Lee and Zee (2003)
+       is a phonetic reference. Individual rows retain their declared choices,
+       including xau, ʂuei, kuɔ, and ʈ͡ʂʊŋ.
        Tone is absent because it rides the
        syllable and does not change membership. Additions belong here, at the
        Pinyin declaration boundary, rather than in Python.
