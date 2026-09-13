@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import unicodedata
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
 
 import tiergraph as tg
 
-from .vocabulary import VocabularyBridge
+from .vocabulary import Atom, VocabularyBridge
 
 _PATH = Path(__file__).parent.parent / "data" / "bridges" / "pinyin" / "pinyin.xml"
 
@@ -40,6 +41,14 @@ class PinyinBridge(VocabularyBridge):
         """Replace each declared keyboard spelling with its Pinyin spelling."""
 
         return decode_input(value, self.inputs)
+
+    def tokenize(self, text: str | Sequence[str]) -> tuple[Atom, ...]:
+        """Read explicitly separated simple-vowel symbols.
+
+        Multi-letter finals require contextual analysis; interpreting them as
+        adjacent isolated vowels would assign the wrong pronunciation.
+        """
+        return super().tokenize(text.split() if isinstance(text, str) else text)
 
     def tone_index(self, spelling: str) -> int:
         """Return the vowel position that Pinyin's tone-placement rules select."""
@@ -127,12 +136,15 @@ class PinyinBridge(VocabularyBridge):
 
         rendered = []
         for index, item in enumerate(syllables.items):
-            attributes = {value.name: value.lexical for value in item.attributes}
-            spelling = self.decode_input(attributes.get(qname("spelling"), ""))
-            if not spelling:
+            attributes = {value.name: value for value in item.attributes}
+            spelling_value = attributes.get(qname("spelling"))
+            if spelling_value is None or spelling_value.value_type != tg.XsdType.STRING:
                 raise ValueError(
-                    "Pinyin syllable requires a qualified spelling attribute"
+                    "Pinyin syllable requires a qualified string spelling attribute"
                 )
+            spelling = self.decode_input(spelling_value.lexical)
+            if not spelling:
+                raise ValueError("Pinyin syllable spelling must be nonempty")
             if any(char.lower() in "".join(self.tones.values()) for char in spelling):
                 raise ValueError(
                     "Pinyin spelling must be unmarked; supply tone separately"

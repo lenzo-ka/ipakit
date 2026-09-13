@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<vocabulary name="pinyin" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="Hanyu Pinyin orthographic bridge" license="BSD-2-Clause" kind="orthographic-transcription-bridge" tier="syllable" source-style="text">
+<vocabulary name="pinyin" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="Hanyu Pinyin orthographic bridge" license="BSD-2-Clause" kind="orthographic-transcription-bridge" tier="syllable" source-style="text" separator=" ">
   <round-trip>
     <external-to-house fidelity="lossless-with-declared-tricks"><trick name="input spelling memory" /></external-to-house>
     <house-to-external fidelity="lossy-with-report"><drop name="phonetic detail not represented by Pinyin" /></house-to-external>
@@ -8,8 +8,14 @@
   <tone vowel="a" marks="āáǎà" /><tone vowel="e" marks="ēéěè" />
   <tone vowel="i" marks="īíǐì" /><tone vowel="o" marks="ōóǒò" />
   <tone vowel="u" marks="ūúǔù" /><tone vowel="ü" marks="ǖǘǚǜ" />
-  <atom spelling="a" /><atom spelling="e" /><atom spelling="i" />
-  <atom spelling="o" /><atom spelling="u" /><atom spelling="ü" />
+  <!-- Simple-vowel values only, with explicit boundaries between atoms.
+       Contextual letters in ie, ei, ju, etc. require syllable analysis.
+       e and yu in the syllabary below corroborate the corrected vowel values.
+       Sources: Lee and Zee (2003), Standard Chinese (Beijing), JIPA 33(1),
+       https://doi.org/10.1017/S0025100303001208 ; spelling/style table:
+       https://en.wikipedia.org/wiki/Help:IPA/Mandarin . -->
+  <atom spelling="a" /><atom spelling="ɤ" output="e" /><atom spelling="i" />
+  <atom spelling="o" /><atom spelling="u" /><atom spelling="y" output="ü" />
   <!-- The IPA members below are the strict phonetic syllabary used by the
        Mandarin worked syllabifier. Tone is absent because it rides the
        syllable and does not change membership. Additions belong here, at the

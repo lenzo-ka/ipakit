@@ -8,6 +8,7 @@ import pytest
 from ipakit._codecs import render_pinyin
 from ipakit._pinyin_graph import build
 from ipakit.bridges.pinyin import PINYIN
+from ipakit.bridges.vocabulary import VocabularyResidueError
 from tiergraph.build import document, item
 
 import tiergraph as tg
@@ -22,14 +23,20 @@ def word_graph(
     foreign_spelling=False,
     foreign_relation=False,
     foreign_tier=False,
+    foreign_value=False,
+    value_type=tg.XsdType.INTEGER,
+    spelling_type=tg.XsdType.STRING,
 ):
     builder = document(namespace, prefix="pinyin")
     builder.namespace("urn:other", prefix="other")
     spelling = builder.qname("spelling")
     other = builder.qname("spelling", namespace="urn:other")
-    builder.attribute(spelling, tg.XsdType.STRING)
+    builder.attribute(spelling, spelling_type)
     builder.attribute(other, tg.XsdType.STRING)
-    builder.attribute("value", tg.XsdType.INTEGER)
+    value_name = builder.qname(
+        "value", namespace="urn:other" if foreign_value else namespace
+    )
+    builder.attribute(value_name, value_type)
     syllables = builder.tier(
         "syllable",
         tuple(
@@ -48,7 +55,7 @@ def word_graph(
         )
     tones = builder.tier(
         "tone",
-        tuple(item(value=level) for level in levels),
+        tuple(item(attrs={value_name: level}) for level in levels),
         item_type="tone",
         membership="tones",
     )
@@ -127,6 +134,23 @@ def test_unrelated_namespaces_cannot_supply_spelling_or_tone():
     assert render_pinyin(word_graph(levels=(4,), foreign_relation=True)) == "ma"
 
 
+def test_tone_value_requires_the_selected_namespace_and_integer_type():
+    for graph in (
+        word_graph(foreign_value=True),
+        word_graph(levels=("1",), value_type=tg.XsdType.STRING),
+    ):
+        with pytest.raises(ValueError, match="qualified integer value"):
+            render_pinyin(graph)
+
+
+@pytest.mark.parametrize(
+    ("spelling", "value_type"), [(123, tg.XsdType.INTEGER), (True, tg.XsdType.BOOLEAN)]
+)
+def test_spelling_requires_a_string_attribute(spelling, value_type):
+    with pytest.raises(ValueError, match="qualified string spelling"):
+        render_pinyin(word_graph((spelling,), (5,), spelling_type=value_type))
+
+
 def test_namespace_selection_is_explicit_when_local_names_collide():
     graph = word_graph(foreign_tier=True)
     with pytest.raises(ValueError, match="unambiguous syllable tier"):
@@ -175,3 +199,17 @@ def test_declared_vocabulary_atoms_preserve_grouping_and_spelling():
             len([tier for tier in declarations.tiers if tier.name == "syllable"]) == 1
         )
         assert tg.wire.loads(tg.wire.dumps(form._graph)) == form._graph
+
+
+def test_simple_vowels_have_declared_phonetic_values_and_explicit_boundaries():
+    expected = {"a": "a", "e": "ɤ", "i": "i", "o": "o", "u": "u", "ü": "y"}
+    assert {atom.output: atom.spelling for atom in PINYIN.atoms} == expected
+    for external, phonetic in expected.items():
+        assert PINYIN.read(external).to_ipa() == phonetic
+    form = PINYIN.read(("e", "ü"))
+    assert form.to_ipa() == "ɤy"
+    assert PINYIN.emit(form) == "e ü"
+    assert PINYIN.read(PINYIN.emit(form)).to_ipa() == "ɤy"
+    for spelling in ("ei", "ie", "ui", "ju", "ma"):
+        with pytest.raises(VocabularyResidueError):
+            PINYIN.read(spelling)
