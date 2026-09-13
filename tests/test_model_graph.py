@@ -75,15 +75,11 @@ def fixture(tokens=("a", "sil", "b"), *, claims=None):
     )
     clock = next(t for t in graph.tiers if t.declaration.name == _name("clock"))
     editor = graph.edit()
-    if not tokens:
-        editor.declare(tg.NamespaceDeclaration("source-values", NS))
-        item = tg.RelationSideDeclaration(
-            (tg.RelationEndpointKind.ITEM,), minimum=1, maximum=1
-        )
-        for name in ("token", "model"):
-            editor.declare(
-                tg.PolyadicRelationDeclaration(q(name), item, item, unique_sources=True)
-            )
+    # Declared source roles survive even when there are no occurrences.
+    assert sum(ns.namespace == NS for ns in graph.namespaces) == 1
+    assert {q(name) for name in names} <= {
+        declaration.name for declaration in graph.relation_declarations
+    }
     editor.declare(
         tg.AttributeDeclaration(
             q("extra"), tg.AttributeDomain.DOCUMENT, tg.XsdType.STRING
