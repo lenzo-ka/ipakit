@@ -19,7 +19,14 @@ from tiergraph.semiring import TROPICAL, ProductSemiring
 
 from .._identity import identity_fingerprint
 from .._token_corpus import validate_token_corpus
-from ..distance import Alignment, PhoneCost, _prices, _substitution_cost, price
+from ..distance import (
+    Alignment,
+    PhoneCost,
+    _checked_price,
+    _prices,
+    _substitution_cost,
+    price,
+)
 from ..distance_model import DistanceModel
 from ..feature_sets import FeatureSets
 from ..features import IPAFeatures
@@ -808,9 +815,10 @@ def normalized(
     true. When that lands, this computation most likely stays and gains a
     place to be declared; do not assume it will be replaced by a different one.
 
-    Normalization uses finite floating-point budgets. An accumulated denominator
-    outside that range is refused, even when each individual price is finite.
+    Comparison readouts require non-negative finite accumulated costs and finite
+    normalization budgets, even when each individual price is finite.
     """
+    raw = _checked_price(raw, "alignment", "accumulated cost")
     normalization = pack.policy.normalization
     if normalization is Normalization.RAW:
         return raw

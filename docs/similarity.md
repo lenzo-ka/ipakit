@@ -138,10 +138,29 @@ round(ipakit.distance("a", "a᷅"), 6)    # 0.0
 round(ipakit.distance("á", "à"), 6)     # 0.021739
 ```
 
-In order: primary stress, a high level tone, a low level tone, length, a rising contour, a falling one, and the two level tones against each other.
+In order: primary stress, a high level tone, a low level tone, length, a rising
+direction-only contour, a low-to-mid tone trajectory, and the two level tones
+against each other. These readings follow the house declarations in `ipa.xml`.
 
-Two things follow that a reader should not have to infer. **Equal distance from the unmarked vowel does not mean the riders are interchangeable.** `á` and `à` both sit 0.043478 from `a`, so the distance to an unmarked host says only that a rider is there; the two are still 0.021739 apart from each other, so tone identity is carried and simply is not what that first figure reports. And **contours do not reach the term at all**: ipakit models pitch levels, so a contour mark leaves the distance unchanged, which is a scope decision rather than a measurement. The declared `tone` feature, whose values are `bottom`, `high`, `low`, `mid` and `top`, is carried by no registered phone; tone reaches the comparison through the rider rather than through that feature.
+`á` and `à` each sit 0.043478 from `a`, and they sit 0.021739 apart from each
+other. The pairwise comparison therefore retains their tone distinction.
+Direction-only contour marks such as the caron in `ǎ` also contribute a term.
+Multi-level trajectories such as `a᷅` (`low>mid`) are retained in the
+representation but omitted from the scalar metric pending a trajectory
+comparison policy. Their zero contribution indicates an unscored tier.
+Single tone levels use the declared `bottom`, `low`, `mid`, `high`, `top`
+scale. See [tone declarations and trajectories](tone.md).
 
-Structure above the segment does not reach the comparison either. A syllable, word, phrase or utterance boundary leaves the distance unchanged, so two forms differing only in where a boundary falls score as identical. That is not a pricing of zero — the marks are dropped before the metric is entered — and the two are indistinguishable in a scalar while meaning different things. This is tracked as a release blocker rather than presented as a design position.
+Word alignment currently compares segment sequences. Differently placed or
+typed boundaries can therefore produce the same cost: `ka.tə`/`kat.ə`,
+`a|a`/`a‖a`, and `a.a`/`a#a` each have zero edit cost. The stored Forms retain
+those structural distinctions. Comparing claimed tier boundaries is separate
+planned work.
+Use the graph and structural queries when those distinctions matter, and
+interpret this scalar as a segment-sequence cost.
 
-One mark is a defect rather than a scope decision: `a̋`, extra-high, yields an empty feature bundle where the other tone marks yield a full one, so it reads as no segment at all. It is not that the contour is out of scope; nothing is read.
+The combining double acute U+030B in `a̋` is outside the house declaration.
+Strict parsing refuses it; permissive parsing warns and retains `a`.
+The declared spelling `a˥` supplies the top tone level. A raw feature lookup
+for the unregistered `a̋` spelling returns an empty bundle, while the parsed
+Form and its diagnostics report what the parser retained or refused.

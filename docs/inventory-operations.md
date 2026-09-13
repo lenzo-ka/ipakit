@@ -271,6 +271,13 @@ unavailability, and per-pair scoring refusals. A completed report can therefore
 include entries without a numeric score. Raw edit cost, normalization and
 reference distribution stay attached to the result.
 
+Arm IDs describe the recorded inventory and metric configuration. For custom
+callbacks, include the implementation version and every cost parameter in that
+configuration, and establish implementation provenance before sharing cached
+results across providers. Registration records the caller's declarations.
+Numeric comparisons require finite costs, accumulated totals and normalization
+budgets; values outside that range produce refusals.
+
 The installed CLI uses the same registry:
 
 ```sh
