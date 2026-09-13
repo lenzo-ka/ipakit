@@ -91,6 +91,10 @@ def analyze_region(
             else nuclei
         )
         if not choices:
+            if pending is not None:
+                raise ValueError(
+                    "long consonant requires a licensed following onset in this mora model"
+                )
             residue.append((at, at + 1))
             at += 1
             have_nucleus = False
@@ -99,9 +103,10 @@ def analyze_region(
         end, nucleus = max(choices, key=lambda item: item[0])
         children = tuple(range(candidate_start, end))
         if nucleus is not None:
-            if pending is None and any(
+            if any(
                 units[i].prosody.get("length") == "long"
                 for i in range(candidate_start, nucleus)
+                if i != pending
             ):
                 raise ValueError(
                     "long consonant requires a preceding nucleus in this mora model"

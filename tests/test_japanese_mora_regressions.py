@@ -34,7 +34,7 @@ def test_shared_mora_analysis_retains_material(text, expected):
     assert result.form.to_ipa() == form.to_ipa()
 
 
-@pytest.mark.parametrize("text", ["ka͡i", "ka͜iː", "tːa", "atː"])
+@pytest.mark.parametrize("text", ["ka͡i", "ka͜iː", "tːa", "atː", "atːjːa", "atːɾa"])
 def test_undeclared_phase_timing_is_refused(text):
     features = ipakit.IPAFeatures()
     with pytest.raises(ValueError, match="mora"):

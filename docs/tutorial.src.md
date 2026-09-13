@@ -495,7 +495,7 @@ The `japanese-moraic` rules cover established gairaigo adaptations. Accent conve
 ```python-run
 japanese = ipa.shipped("japanese-moraic")
 hot_derivation = japanese.derive("hɑt")
-hot_form = hot_derivation.to_form()
+hot_form = hot_derivation.to_form(mora_language="japanese")
 hot_derivation.result
 [event["value"] for event in hot_form.tier_events("mora")]
 

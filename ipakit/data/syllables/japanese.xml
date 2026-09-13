@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<syllabification language="japanese" version="1" mode="moraic" provenance="The moraic analysis in ipakit/data/rules/japanese-moraic.rules: (C)(j)V, moraic nasal, geminate first half, and a second mora for vowel length; a tied diphthong remains one unit.">
+<syllabification language="japanese" version="1" mode="moraic" provenance="The moraic analysis in ipakit/data/rules/japanese-moraic.rules: (C)(j)V, moraic nasal, shared geminate coda/onset, and a second mora for vowel length. Sequential vowel constituents supply successive morae within one tied unit; fused vowel timing and length over multiple phases require an explicit further policy.">
   <nucleus span="[vowel]" />
   <onset span="[-vowel]" />
   <onset span="[-vowel] [manner=approximant place=palatal]" />

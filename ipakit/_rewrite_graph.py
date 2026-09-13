@@ -31,6 +31,7 @@ from ._graph_facts import (
     TierDeclaration,
 )
 from ._ipa_graph import declarations
+from ._moraic import Mora
 from .form import Form, Unit
 
 
@@ -269,7 +270,7 @@ class _NativeWriter:
         return targets[0]
 
 
-def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[Any, ...]:
+def derive_morae(units: Sequence[Unit], inventory: Any) -> tuple[Mora, ...]:
     """Analyze Japanese morae using the same declaration as syllabify.
 
     An unlicensed residue is refused. Boundaries delimit regions and never
@@ -323,6 +324,8 @@ def project_derivation(
     emitted layer. Target names are clamped at the last supplied name, so an
     arbitrary number of fired passes remains representable without inventing
     tiers. Ordering within a layer is the builder's pinned total order.
+    ``mora_language="japanese"`` explicitly adds the declared mora analysis;
+    the default projects the trace without assigning a language.
     """
     if mora_language not in {None, "japanese"}:
         raise ValueError("rewrite mora projection supports only explicit 'japanese'")
