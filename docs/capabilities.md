@@ -175,6 +175,13 @@ inventing a word for a pause. Tiers keep segmental and prosodic claims at their
 appropriate levels; derived rewrite events remain relative to the input
 clock. See [construction and navigation](representation.md#public-construction-and-navigation).
 
+Explicit finite models can also [decorate an existing native graph](rules.md#decorating-an-existing-graph)
+through `GraphBinding`, using the same rule engine and retaining source facts,
+relationships and optional timing. Derived events anchor to the input clock;
+target timing and containment are not invented. This operates without requiring
+house `Form` admission, and restoring an operation requires its explicit binding
+and rules rather than inferring them from the serialized graph alone.
+
 The gesture projection reads articulator, location, and constriction degree
 from declarations. Its traversal prefers complete timed targets, then
 gestures, then structural segments. Timing is optional start plus duration;
