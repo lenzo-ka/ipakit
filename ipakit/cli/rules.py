@@ -942,11 +942,12 @@ class UnitsCommand(RuleCommand):
 
 
 class MoraeCommand(Command):
-    """Show the morae derived for an attested Japanese loanword adaptation.
+    """Show the morae derived for a curated Japanese loanword fixture.
 
     The view uses the same rewrite/graph bridge as ``convert to-katakana``.
-    It is fixture-backed evidence about attested gairaigo patterns, not a
-    general Japanese-accent simulator; unmapped input is refused.
+    It demonstrates the declared gairaigo fixture mappings and refuses unmapped
+    input. General Japanese-accent simulation and exact phonetic validation of
+    the fixture population are separate obligations.
 
     Examples:
         ipakit rules morae "hɑt"          # ho t to
@@ -955,14 +956,14 @@ class MoraeCommand(Command):
 
     name = "morae"
     aliases: ClassVar[list[str]] = []
-    help = "Show morae for an attested Japanese loanword adaptation"
+    help = "Show morae for a curated Japanese loanword fixture"
     reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
         parser.description = cls.__doc__
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
-        parser.add_argument("ipa", help="Attested source IPA form")
+        parser.add_argument("ipa", help="Curated fixture source IPA form")
         add_format_arg(parser)
 
     def run(self) -> int:
@@ -980,7 +981,7 @@ class MoraeCommand(Command):
         )
         if found is None:
             return self.error(
-                f"no attested Japanese loanword adaptation for {self.args.ipa!r}; "
+                f"no curated Japanese loanword fixture for {self.args.ipa!r}; "
                 "input is not approximated"
             )
         _, fixture = found
@@ -1136,7 +1137,7 @@ class RulesGroup(CommandGroup):
         trace      Show which rule fired where, and what it changed
         recognize  Where an environment holds, with no rewriting
         units      Split a form the way rules see it (boundaries kept)
-        morae      Show morae for an attested Japanese loanword adaptation
+        morae      Show morae for a curated Japanese loanword fixture
         list       The shipped rule sets, or the rules in one
         invertibility  Classify rules against a declared inventory
 

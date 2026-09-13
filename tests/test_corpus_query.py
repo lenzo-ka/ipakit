@@ -88,7 +88,7 @@ def test_empty_query_does_not_restore_an_unqueried_role(tmp_path: Path, monkeypa
     assert list(Q.query(corpus, "[nasal]", role="broad")) == []
 
 
-def test_all_attested_japanese_pairs_have_deterministic_witnesses():
+def test_all_curated_japanese_pairs_have_deterministic_witnesses():
     grammar = rules.shipped("japanese-moraic", FEATURES)
     for fixture in japanese_moraic_fixtures().values():
         answer = Q.derives(grammar, fixture.source, fixture.output, features=FEATURES)

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<vocabulary name="kana" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="attested gairaigo fixture bridge" license="BSD-2-Clause" kind="mora-transcription-bridge" tier="mora" source-style="segmented" separator=" ">
+<vocabulary name="kana" version="unpinned" upstream="ipakit" upstream-url="https://github.com/lenzo-ka/ipakit" artifact="curated gairaigo fixture bridge" license="BSD-2-Clause" kind="mora-transcription-bridge" tier="mora" source-style="segmented" separator=" ">
   <!-- Local broad-IPA mora labels, fullwidth katakana output. Broad u remains
        the written house IPA symbol; Japanese vowel realization is not inferred.
        Small ッ, nasal ン and length ー adopt 外来語の表記, detailed rules III.1–3:
@@ -10,7 +10,7 @@
        phonetic attestation of each row is a separate open audit. -->
   <round-trip>
     <external-to-house fidelity="lossless" />
-    <house-to-external fidelity="lossy-with-report"><drop name="forms outside the attested gairaigo inventory" /></house-to-external>
+    <house-to-external fidelity="lossy-with-report"><drop name="forms outside the curated gairaigo fixture inventory" /></house-to-external>
   </round-trip>
   <atom spelling="pe" output="ペ" /><atom spelling="ho" output="ホ" />
   <atom spelling="to" output="ト" /><atom spelling="be" output="ベ" />

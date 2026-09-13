@@ -215,7 +215,7 @@ WITNESSES = [
 ]
 
 #: The IPA-reading routes that refuse an orthographic word for a reason of
-#: their own -- neither has an attested Japanese adaptation for it -- so no
+#: their own -- neither has a curated Japanese fixture for it -- so no
 #: witness can be written for them.
 REFUSERS = [
     ["convert", "to-katakana", "pin"],
@@ -364,7 +364,7 @@ class TestOrthographyIsNotIPA:
     def test_the_route_that_refuses_an_orthographic_word_still_does(
         self, monkeypatch, tmp_path, argv
     ):
-        """Two routes answer no word they have no attestation for, so
+        """Two routes refuse words outside their curated fixture sources, so
         orthography bounces off them for a reason that has nothing to do
         with the note. Pinned, not skipped: if one starts answering, the
         note is the thing that then has to carry the warning, and this

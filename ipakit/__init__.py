@@ -878,7 +878,7 @@ def _japanese_moraic_form(ipa: str) -> Form:
     )
     if name is None:
         raise ValueError(
-            f"no attested Japanese loanword adaptation for {ipa!r}; "
+            f"no curated Japanese loanword fixture for {ipa!r}; "
             "input is not approximated"
         )
     return japanese_moraic_fixture(name, _get_ipa())

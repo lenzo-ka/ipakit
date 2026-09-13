@@ -817,10 +817,8 @@ class TestRepresentationCommands:
         assert (rc, out, err) == (0, "kæt\n", "")
 
 
-class TestAttestedJapaneseAdaptationCommands:
-    def test_katakana_renders_an_attested_loanword_adaptation(
-        self, monkeypatch, capsys
-    ):
+class TestCuratedJapaneseAdaptationCommands:
+    def test_katakana_renders_a_curated_loanword_fixture(self, monkeypatch, capsys):
         assert run(monkeypatch, capsys, "convert", "to-katakana", "hɑt") == (
             0,
             "ホット\n",
@@ -850,7 +848,7 @@ class TestAttestedJapaneseAdaptationCommands:
         rc, out, err = run(monkeypatch, capsys, *argv)
         assert rc == 1
         assert out == ""
-        assert "no attested Japanese loanword adaptation" in err
+        assert "no curated Japanese loanword fixture" in err
         assert "not approximated" in err
 
 

@@ -45,7 +45,7 @@ class KanaBridge(VocabularyBridge):
                 return outputs[spelling]
             except KeyError as error:
                 raise ValueError(
-                    f"no attested gairaigo mora spelling: {spelling!r}"
+                    f"no curated gairaigo mora spelling: {spelling!r}"
                 ) from error
 
         return render_graph(form, RenderProfile((RenderLane("mora", "value", glyph),)))

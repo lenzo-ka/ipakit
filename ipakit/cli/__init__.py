@@ -114,12 +114,12 @@ Examples:
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert from-cmu K AE1 T        # CMU to IPA: kˈæt
   ipakit convert to-json "kæt"          # Versioned graph-backed Form JSON
-  ipakit convert to-katakana "hɑt"      # Attested loanword adaptation: ホット
+  ipakit convert to-katakana "hɑt"      # Curated loanword fixture: ホット
   ipakit query match plosive bilabial  # Find: b p ɓ ʘ
   ipakit query match +voi plo bil      # Voiced bilabial plosives: b ɓ
   ipakit rules apply -s american-english pˈɪn   # broad to narrow: pʰˈɪ̃n
   ipakit rules trace -s american-english bˈʌtɚ  # which rule fired, and where
-  ipakit rules morae "hɑt"              # Attested adaptation morae: ho t to
+  ipakit rules morae "hɑt"              # Curated fixture morae: ho t to
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Raw feature distance: ~0.04
