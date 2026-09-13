@@ -14,10 +14,10 @@ from ipakit import feature_models
 
 declaration = feature_models.read("panphon")
 panphon = declaration.model
-values = dict(zip(panphon.schema.features, panphon.read("p").values, strict=True))
+values = panphon.features("p")
 assert values["voi"] == -1
 
-voiced = panphon.query({"voi": 1})
+voiced = panphon.phones_matching({"voi": 1})
 assert "b" in voiced and "p" not in voiced
 changed = panphon.respell("p", {"voi": 1})
 assert changed.candidates == ("b", "b̟", "b̠")
@@ -28,14 +28,19 @@ assert "p" in house_matches and "b" in house_matches
 assert "p" in ipakit.phones_matching(["+plo", "-voi"])
 ```
 
+`features(token)` returns a fresh dictionary in feature declaration order,
+preserving scalar types and missing cells (`None`). It is convenient for
+inspection; `read(token)` returns the identity-bound bundle used by `edit` and
+`realize`. The dictionary itself carries no model identity or provenance.
+
 The respelling result retains all spellings with the edited complete vector.
 Applications can present those candidates or apply their own explicit selection
 policy. A valid vector can also have no spelling in the selected inventory.
 
 | Operation | House inventory | Finite feature model |
 | --- | --- | --- |
-| Read features | `ipakit.get_features(token)` projects the house unit's features. | `model.read(token)` returns the exact row with its model identity. |
-| Find matching inventory phones | `ipakit.phones_matching(query)` accepts a house feature dictionary or a collection of long/short names, including signed terms. | `model.query(mapping)` performs typed partial equality and returns matching tokens in declaration order. |
+| Read features | `ipakit.get_features(token)` projects the house unit's features. | `model.features(token)` returns a fresh named mapping; `model.read(token)` retains the row's model identity. |
+| Find matching inventory phones | `ipakit.phones_matching(query)` accepts a house feature dictionary or a collection of long/short names, including signed terms. | `model.phones_matching(mapping)` performs typed partial equality and returns matching tokens in declaration order; `query(mapping)` remains available. |
 | Change features and spell | `IPAFeatures.respell(token, **changes)` uses house composition and returns one spelling or `None`; see [phonological rules](rules.md). | `model.respell(token, changes)` returns every complete-vector spelling candidate. |
 | Compare | House segment geometry and alignment costs have separate interfaces. | A declared or custom cost pack supplies costs to the shared alignment fold. |
 
@@ -49,7 +54,8 @@ Finite queries use each model's own feature names and value types: Panphon uses
 integer `-1`, `0`, `1`; generic finite models can declare strings or booleans.
 `None` queries a missing cell. Unknown features or invalid values raise
 `InvalidFeature`. House shortcuts such as `+plo` have no implicit finite-model
-interpretation. `query({})` returns the complete finite inventory in declaration
+interpretation. `phones_matching` delegates to the existing `query` operation.
+`phones_matching({})` returns the complete finite inventory in declaration
 order. Exact token spelling and typed equality are preserved throughout.
 
 ## Shared inventory interfaces
@@ -114,7 +120,7 @@ with TemporaryDirectory() as directory:
     path.write_text(xml, encoding="utf-8")
     custom = read_ternary_declaration(path)
 
-assert custom.model.query({"voice": 1}) == ("b", "a")
+assert custom.model.phones_matching({"voice": 1}) == ("b", "a")
 assert custom.model.respell("p", {"voice": 1}).candidates == ("b",)
 ```
 

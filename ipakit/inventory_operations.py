@@ -96,7 +96,7 @@ class FiniteInventory:
         return self.model.read(token)
 
     def phones_matching(self, query: Mapping[str, Scalar | None]) -> tuple[str, ...]:
-        return self.model.query(query)
+        return self.model.phones_matching(query)
 
     def respell(self, token: str, changes: Mapping[str, Scalar | None]) -> Realization:
         _token(token)
