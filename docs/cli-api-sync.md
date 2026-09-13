@@ -44,10 +44,17 @@ resource accessor, ternary declaration codec and `FiniteModel.respell` directly.
 They require explicit selection and retain complete realization candidates.
 `tests/test_cli_model_rules.py` additionally spies `Rule.recognize_tokens` and
 `RuleSet.derive_tokens` through finite `rules recognize/apply/trace`; installed
-entry-point tests exercise both named and supplied declarations. Generic typed
-schema/AST construction and transform construction remain library composition
+entry-point tests exercise both named and supplied declarations. These commands
+use explicit model selection and exact JSON token arrays; see the
+[finite CLI contract](rules.md#explicit-finite-rules-on-the-command-line).
+Generic typed schema/AST and transform construction remain library composition
 interfaces; this does not overload native wrappers
 or claim their flat-export reachability test measures every module method.
+
+`ipakit.model_graph.GraphBinding` is library-only: callers supply a native graph,
+qualified value relations, source references and clock binding. Its derivation
+and bound-operation restoration do not imply a CLI graph-input format or
+general house `Form` admission. See [graph decoration](rules.md#decorating-an-existing-graph).
 
 The CLI exit contract applies to every reachable row: 0 for success, 1 for a
 command error, 2 for usage, and 3 when a soft read produced output after losing

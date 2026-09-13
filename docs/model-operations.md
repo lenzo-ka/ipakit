@@ -116,13 +116,18 @@ The shared [rules engine](rules.md) also accepts explicitly bound finite models
 for supported context-sensitive operations; its typed library contracts and
 capability refusals also govern the [finite rule commands](rules.md#explicit-finite-rules-on-the-command-line).
 Those commands share the explicit named/path selector above and receive token
-arrays via `--tokens-json`, never concatenated native forms. Generic typed AST
-construction and graph-preserving operations retain their separate boundaries.
+arrays via `--tokens-json`, never concatenated native forms. Typed AST
+construction and feature transforms remain library composition interfaces.
 
 These immutable tables describe schema and inventory data; they are not
 TierGraph instances. TierGraph is the shared computational substrate developed
 alongside IPAkit and IRN, including typed graphs and semiring machinery. The
-existing comparison factory continues to use its semiring fold. Future model
-occurrences and rewrite integration must reuse the graph and rule machinery
-with explicit domain validation; an integer graph attribute alone does not
+existing comparison factory continues to use its semiring fold.
+[GraphBinding](rules.md#decorating-an-existing-graph) validates a model, ordered
+source references, declared value relations and the source clock before the
+shared rule engine decorates the existing graph. Original facts and optional
+source timing are preserved; target timing and containment are not inferred.
+Native codec round-trips retain the graph, while operation restoration requires
+the explicit binding and rules. This is not general house `Form` admission or
+graph-only operation discovery. An integer graph attribute alone does not
 enforce a finite feature domain.

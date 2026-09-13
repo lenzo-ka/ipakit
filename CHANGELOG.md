@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with declared cost policies and loss/preimage information.
 - Finite-token rewrite recognition and derivation through the shared rule engine;
   model selection does not make house features a mandatory semantic pivot.
+- Explicit `GraphBinding` rewrites decorate an existing native TierGraph while
+  retaining its source facts, relationships, clock and optional source timing.
+  Restoration validates the explicit bound operation; target timing and general
+  graph-to-Form admission are not inferred.
+- `rules recognize`, `apply` and `trace` accept explicit finite-model selection
+  and exact JSON token arrays without routing them through house IPA parsing.
 - `ipakit model list`, `inspect` and `respell` with explicit named or supplied
   declarations and inspectable realization candidates.
 - Native finite CLTS/BIPA feature-set comparison and Jaccard similarity, pinned
