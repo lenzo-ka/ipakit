@@ -60,7 +60,8 @@ dependencies = [
     # Before that publication, development supplied the checkout out of band.
     # Historical migration check at tiergraph main 6276260: tests/tiergraph
     # reported 151 passed and 2 old-wire golden failures, not code defects.
-    "tiergraph>=0.2.0,<0.3.0",
+    # Model graph decoration requires embed_json_value, added in 0.2.1.
+    "tiergraph>=0.2.1,<0.3.0",
 ]
 
 [project.optional-dependencies]
