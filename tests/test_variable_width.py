@@ -31,7 +31,7 @@ class TestOptionalElements:
         assert ipakit.rewrite("aat", "t -> d / (a) a _") == "aad"
 
     def test_corpus_query_uses_the_same_readings(self):
-        query = corpus_query.context("t / (a) a _", FEATURES)
+        query = corpus_query.parse_query("t / (a) a _", FEATURES)
         assert query.sites(FEATURES.read("aat").units, FEATURES) == ipakit.rule(
             "t -> d / (a) a _"
         ).recognize("aat")
@@ -64,7 +64,7 @@ class TestOptionalElements:
             rules.parse("n -> [place=α] / _ ([place=α])", FEATURES)
 
     def test_optional_binding_is_absent_only_on_the_absent_reading(self):
-        query = corpus_query.context("a / _ ([place=α])", FEATURES)
+        query = corpus_query.parse_query("a / _ ([place=α])", FEATURES)
         sites = query.sites(FEATURES.read("ap").units, FEATURES)
         assert [site.bindings for site in sites] == [(), (("α", "bilabial"),)]
 
@@ -83,7 +83,7 @@ class TestBoundedSpans:
         assert ipakit.rewrite("tta", "a -> e / # (t{place=alveolar})* _") == "tte"
 
     def test_repeated_agreement_checks_every_present_unit(self):
-        query = corpus_query.context("a / # ([place=α])* _ [place=α]", FEATURES)
+        query = corpus_query.parse_query("a / # ([place=α])* _ [place=α]", FEATURES)
         assert len(query.sites(FEATURES.read("ppap").units, FEATURES)) == 1
         assert query.sites(FEATURES.read("ptap").units, FEATURES) == []
 
@@ -223,6 +223,6 @@ def test_rules_and_queries_refuse_null_environments(null: str):
     with pytest.raises(rules.RuleError, match=rf"position \d+.*{message}"):
         rules.parse(f"a -> b / {null} _ #", FEATURES)
     with pytest.raises(corpus_query.QueryParseError) as caught:
-        corpus_query.context(f"a / {null} _ #", FEATURES)
+        corpus_query.parse_query(f"a / {null} _ #", FEATURES)
     assert caught.value.position == f"a / {null} _ #".index(null)
     assert message in str(caught.value)

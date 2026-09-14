@@ -20,7 +20,7 @@ class TestContextCompilerVariables:
         )
         form = ipakit.read("ˈɪnpʊt")
 
-        compiled = Q.context("n / _ [place=α]", FEATURES)
+        compiled = Q.parse_query("n / _ [place=α]", FEATURES)
         found = tuple(compiled.sites(form.units, FEATURES, form.intervals))
         recognized = tuple(assimilation.recognize(form, FEATURES))
 
@@ -29,14 +29,14 @@ class TestContextCompilerVariables:
 
     def test_lone_target_variable_is_also_a_bind_only_query(self):
         form = ipakit.read("pa")
-        query = Q.context("[place=α]", FEATURES)
+        query = Q.parse_query("[place=α]", FEATURES)
 
         sites = tuple(query.sites(form.units, FEATURES, form.intervals))
 
         assert [site.bindings for site in sites] == [(("α", "bilabial"),)]
 
     def test_two_occurrences_still_require_agreement(self):
-        query = Q.context("a / [place=α] _ [place=α]", FEATURES)
+        query = Q.parse_query("a / [place=α] _ [place=α]", FEATURES)
         agreeing = ipakit.read("pap")
         disagreeing = ipakit.read("pat")
 
@@ -49,7 +49,7 @@ class TestContextCompilerVariables:
     )
     def test_one_variable_still_cannot_name_two_features(self, spec: str):
         with pytest.raises(rules.RuleError, match="on two features"):
-            Q.context(spec, FEATURES)
+            Q.parse_query(spec, FEATURES)
 
 
 @pytest.mark.parametrize("target", ["∅", "[zero]", "0", "Ø"])
@@ -57,7 +57,7 @@ def test_context_refuses_null_and_zero_targets_loudly(target: str):
     with pytest.raises(
         rules.RuleError, match="insertion sites are not recognizable patterns"
     ):
-        Q.context(f"{target} / _ [manner=nasal]", FEATURES)
+        Q.parse_query(f"{target} / _ [manner=nasal]", FEATURES)
 
 
 def test_feature_context_returns_exact_resolvable_graph_paths(tmp_path: Path):
@@ -68,10 +68,17 @@ def test_feature_context_returns_exact_resolvable_graph_paths(tmp_path: Path):
 
     found = list(Q.query(corpus, "[vowel] / _ [nasal]", role="broad"))
 
-    assert [entry_id for entry_id, _ in found] == ["tin"]
+    assert [record.fileid for record in found] == ["tin"]
+    assert found[0].role == "broad"
     restored = corpus.read("tin").forms["broad"]
-    assert len(found[0][1]) == 1
-    assert restored.at(found[0][1][0]) is not None
+    assert len(found[0].paths) == 1
+    assert restored.at(found[0].paths[0]) is not None
+    assert found[0].text == "ɪ"
+    assert found[0].match.paths == found[0].paths
+    with pytest.raises(TypeError):
+        tuple(found[0])
+    with pytest.raises(TypeError):
+        found[0][0]
 
 
 def test_empty_query_does_not_restore_an_unqueried_role(tmp_path: Path, monkeypatch):
@@ -142,5 +149,5 @@ def test_thousand_entry_query_yields_before_restoring_the_tail(
 
     monkeypatch.setattr(Form, "from_dict", classmethod(count))
     stream = Q.query(corpus, "[vowel]", role="broad")
-    assert next(stream)[0] == "e0000"
+    assert next(stream).fileid == "e0000"
     assert restored == 1
