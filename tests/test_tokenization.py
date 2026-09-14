@@ -57,7 +57,7 @@ class TestParseStrict:
         # no unit. They are not "unknown symbols" and must not trip strict.
         assert ipa.parse("kæ.t", strict=True) == ipa.parse("kæt", strict=True)
         assert ipa.tokenize("kæt dɒɡ", strict=True) == list("kætdɒɡ")
-        assert ipakit.word_distance("kæ.t", "kæt").edit_cost == 0.0
+        assert ipakit.transcription_distance("kæ.t", "kæt").edit_cost == 0.0
 
     def test_parse_strict_raises_on_unknown(self, ipa: IPAFeatures) -> None:
         with pytest.raises(ValueError, match="4"):

@@ -73,11 +73,13 @@ def test_a_bad_policy_is_refused_before_the_fold_prices_a_phone() -> None:
     assert "phone" not in str(error.value)
 
 
-def test_house_pack_reproduces_word_distance_exactly_over_the_shared_corpus() -> None:
+def test_house_pack_reproduces_transcription_distance_exactly_over_the_shared_corpus() -> (
+    None
+):
     ipa = IPAFeatures()
     for source, target in combinations_with_replacement(_words(), 2):
         actual = compare(ipa, house_pack(ipa), source, target).edit_cost
-        assert actual == ipa.word_distance(source, target).edit_cost
+        assert actual == ipa.transcription_distance(source, target).edit_cost
 
 
 def test_indel_weight_scales_indels_and_never_the_substitution() -> None:
@@ -96,12 +98,12 @@ def test_the_house_arm_never_drops_and_raises_on_unconvertible_input() -> None:
         tokenize("☃")
 
 
-def test_div_null_alignment_reproduces_word_distance_similarity() -> None:
+def test_div_null_alignment_reproduces_transcription_distance_similarity() -> None:
     ipa = IPAFeatures()
     policy = CostPolicy(normalization=Normalization.DIV_NULL_ALIGNMENT)
     for source, target in combinations_with_replacement(_words(), 2):
         row = compare(ipa, house_pack(ipa, policy), source, target)
-        result = ipa.word_distance(source, target)
+        result = ipa.transcription_distance(source, target)
         assert 1.0 - row.normalized == result.similarity
 
 

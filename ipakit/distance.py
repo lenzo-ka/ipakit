@@ -280,7 +280,7 @@ class CostSchedule:
 
     The mechanism, with no table. ``prices`` is what the caller says it
     is, ``default`` is what an unlisted phone costs, and ``name`` is what
-    a :class:`WordDistanceResult` reports so a score can say what produced
+    a :class:`TranscriptionDistanceResult` reports so a score can say what produced
     it. Nothing here is fitted, because nothing here is supplied.
 
     **A schedule is language-relative, and a score computed under one is
@@ -415,8 +415,8 @@ class CostSchedule:
 
 
 @dataclass
-class WordDistanceResult:
-    """Result of a word-level comparison.
+class TranscriptionDistanceResult:
+    """Result of a transcription comparison.
 
     ``edit_cost`` is the summed alignment cost and is **not** bounded to
     [0, 1] -- it grows with word length. ``similarity`` is the normalized
@@ -475,14 +475,14 @@ def _substitution_cost(
     return (insert_cost + delete_cost) * dissimilarity
 
 
-def _word_result(
+def _transcription_result(
     tokens1: list[str],
     tokens2: list[str],
     edit_cost: float,
     alignment: Alignment | None,
     insert_cost: PhoneCost,
     delete_cost: PhoneCost,
-) -> WordDistanceResult:
+) -> TranscriptionDistanceResult:
     """Normalize an alignment cost -- one read for both word-distance paths.
 
     The denominator is the cost of the null alignment, which deletes every
@@ -508,7 +508,7 @@ def _word_result(
         _prices(insert_cost, tokens2, "insert_cost")
     )
     similarity = 1.0 - edit_cost / denom if denom else 1.0
-    result = WordDistanceResult(
+    result = TranscriptionDistanceResult(
         edit_cost=edit_cost,
         similarity=similarity,
         coverage=(min(n, m) / max(n, m)) if max(n, m) else 1.0,
@@ -530,7 +530,7 @@ def _empty_pair_result(
     return_alignment: bool,
     insert_cost: PhoneCost = 1.0,
     delete_cost: PhoneCost = 1.0,
-) -> WordDistanceResult:
+) -> TranscriptionDistanceResult:
     """Result for two empty token sequences: identical, zero cost.
 
     The costs still travel: two empty words are identical under every
@@ -538,7 +538,7 @@ def _empty_pair_result(
     caller collecting results does not get one row that reports no
     parameterization.
     """
-    return WordDistanceResult(
+    return TranscriptionDistanceResult(
         edit_cost=0.0,
         similarity=1.0,
         coverage=1.0,
@@ -565,14 +565,14 @@ class PronunciationMatch:
     over variants makes the answer depend on how many each side happens to
     list, which is a property of the lexicon and not of the pair -- a word
     with more listed variants would look closer for no phonetic reason. Use
-    :meth:`DistanceMixin.word_distance` for the symmetric pairwise question,
+    :meth:`DistanceMixin.transcription_distance` for the symmetric pairwise question,
     which is why that one is named for distance and this one for acceptability.
     """
 
     similarity: float
     form: str
     accepted: str
-    result: WordDistanceResult
+    result: TranscriptionDistanceResult
 
 
 @dataclass(frozen=True)
@@ -589,7 +589,7 @@ class SequenceMatch:
     similarity: float
     observed: tuple[str, ...]
     candidate: tuple[str, ...]
-    result: WordDistanceResult
+    result: TranscriptionDistanceResult
 
 
 class DistanceMixin(IPAFeaturesBase):
@@ -634,7 +634,7 @@ class DistanceMixin(IPAFeaturesBase):
         Both arguments must be a single unit. Multi-unit input raises
         rather than returning the sentinel: reporting two identical words
         as maximally different is worse than refusing to answer. Use
-        :meth:`word_distance` for words, :meth:`segment_distance` for
+        :meth:`transcription_distance` for words, :meth:`segment_distance` for
         segment strings.
 
         An input the metric cannot read is maximally different from
@@ -650,7 +650,7 @@ class DistanceMixin(IPAFeaturesBase):
             if len(units) > 1:
                 raise ValueError(
                     f"distance() compares single units; {arg!r} is "
-                    f"{len(units)} units. Use word_distance() for words, "
+                    f"{len(units)} units. Use transcription_distance() for words, "
                     "or segment_distance() for segment strings."
                 )
         try:
@@ -683,8 +683,8 @@ class DistanceMixin(IPAFeaturesBase):
         applied one level up, and it is what keeps the three costs in
         one currency: a substitution prices the same whether the pair
         stands alone or sits inside a longer string, and an unmatched
-        unit prices exactly what a gap costs in :meth:`word_distance`.
-        This is a dissimilarity, in [0, 1]; :meth:`word_distance` takes
+        unit prices exactly what a gap costs in :meth:`transcription_distance`.
+        This is a dissimilarity, in [0, 1]; :meth:`transcription_distance` takes
         it as its substitution *cost* by pricing it as the delete and
         the insert it stands in for, so a maximally different pair costs
         both and an identical one costs neither.
@@ -748,7 +748,7 @@ class DistanceMixin(IPAFeaturesBase):
         return_alignment: bool = False,
         term_fn: Callable[[str, str], tuple[Mapping[str, object], ...]] | None = None,
     ) -> tuple[float, Alignment | None]:
-        """Weighted-Levenshtein DP shared by word_distance and DistanceModel.
+        """Weighted-Levenshtein DP shared by transcription_distance and DistanceModel.
 
         Costs are parameterized so callers choose unit indel (default) or a
         weighted/di-mode policy. Returns (distance, alignment).
@@ -832,12 +832,11 @@ class DistanceMixin(IPAFeaturesBase):
         for text in texts:
             self.read(text, strict=True)
 
-    def _word_units(self, text: str) -> list[str]:
-        """The units a word aligns over: one per segment, each with its prosody
+    def _transcription_units(self, text: str) -> list[str]:
+        """The units a transcription aligns over: one per segment, with prosody
         (stress, tone, length) bound to it, so a prosodic mark rides on the
         unit it scopes rather than floating as its own token. Boundaries are
-        dropped -- transparent to distance. Identical to the former glyph
-        tokenization for any word carrying no prosodic mark."""
+        dropped -- transparent to distance."""
         return [s.to_ipa() for s in self.read(text).segments]
 
     def transcription_distance(
@@ -849,102 +848,8 @@ class DistanceMixin(IPAFeaturesBase):
         return_alignment: bool = False,
         strict: bool = True,
         applicable_only: bool = False,
-    ) -> WordDistanceResult:
-        """Compare IPA transcription strings using the existing segment alignment.
-
-        Inputs may contain multiple words. Current scoring is boundary-transparent:
-        it aligns segment units, not word or other tier boundaries. Use
-        ``sequence_distance`` for already-tokenized sequences. Options and the
-        compatibility result type ``WordDistanceResult`` match ``word_distance``.
-        """
-        return self.word_distance(
-            ipa1,
-            ipa2,
-            weighted=weighted,
-            return_alignment=return_alignment,
-            strict=strict,
-            applicable_only=applicable_only,
-        )
-
-    def directional_transcription_distance(
-        self,
-        reference: str,
-        hypothesis: str,
-        *,
-        insert_cost: PhoneCost | None = None,
-        delete_cost: PhoneCost | None = None,
-        weighted: bool = True,
-        return_alignment: bool = False,
-        strict: bool = True,
-        applicable_only: bool = False,
-    ) -> WordDistanceResult:
-        """Compare transcription strings with reference/hypothesis costs.
-
-        Deletion prices the reference; insertion prices the hypothesis. Delegates
-        to the compatible ``directional_word_distance`` with unchanged scoring.
-        """
-        return self.directional_word_distance(
-            reference,
-            hypothesis,
-            insert_cost=insert_cost,
-            delete_cost=delete_cost,
-            weighted=weighted,
-            return_alignment=return_alignment,
-            strict=strict,
-            applicable_only=applicable_only,
-        )
-
-    def transcription_similarity(
-        self,
-        ipa1: str,
-        ipa2: str,
-        *,
-        weighted: bool = True,
-        strict: bool = True,
-        applicable_only: bool = False,
-    ) -> float:
-        """Return the existing normalized similarity of transcription strings."""
-        return self.word_similarity(
-            ipa1,
-            ipa2,
-            weighted=weighted,
-            strict=strict,
-            applicable_only=applicable_only,
-        )
-
-    def explain_transcription_distance(
-        self,
-        ipa1: str,
-        ipa2: str,
-        *,
-        weighted: bool = True,
-        strict: bool = True,
-        applicable_only: bool = False,
-    ) -> list[dict[str, object]]:
-        """Explain the raw feature comparison of transcription strings.
-
-        Uses the existing ``explain_word_distance`` trace and its feature-cost
-        currency; this is not the empirical DistanceModel scoring path.
-        """
-        return self.explain_word_distance(
-            ipa1,
-            ipa2,
-            weighted=weighted,
-            strict=strict,
-            applicable_only=applicable_only,
-        )
-
-    def word_distance(
-        self,
-        ipa1: str,
-        ipa2: str,
-        *,
-        weighted: bool = True,
-        return_alignment: bool = False,
-        strict: bool = True,
-        applicable_only: bool = False,
-    ) -> WordDistanceResult:
-        """Compatibility entry point for :meth:`transcription_distance`.
+    ) -> TranscriptionDistanceResult:
+        """Compare IPA transcription strings using segment alignment.
 
         Uses Levenshtein-style dynamic programming with phonetic feature costs
         for substitutions when weighted=True.
@@ -968,7 +873,7 @@ class DistanceMixin(IPAFeaturesBase):
         **Symmetric, and it takes no cost schedule so that it stays that
         way.** ``d(x, y) == d(y, x)`` is property-tested here and callers
         rely on it; per-phone prices are what would break it, so they live
-        on :meth:`directional_word_distance`, which names its reference
+        on :meth:`directional_transcription_distance`, which names its reference
         side and promises nothing about symmetry.
 
         Args:
@@ -983,8 +888,8 @@ class DistanceMixin(IPAFeaturesBase):
                 whatever survives tokenization.
 
         Returns:
-            WordDistanceResult with the summed edit cost, the similarity
-            normalized by :func:`_word_result`, the length coverage, and an
+            TranscriptionDistanceResult with the summed edit cost, the similarity
+            normalized by :func:`_transcription_result`, the length coverage, and an
             optional alignment.
 
         Examples:
@@ -998,9 +903,9 @@ class DistanceMixin(IPAFeaturesBase):
 
         if strict:
             self._reject_unconvertible(ipa1, ipa2)
-        tokens1 = self._word_units(ipa1)
-        tokens2 = self._word_units(ipa2)
-        return self._aligned_words(
+        tokens1 = self._transcription_units(ipa1)
+        tokens2 = self._transcription_units(ipa2)
+        return self._aligned_transcriptions(
             tokens1,
             tokens2,
             weighted,
@@ -1010,7 +915,7 @@ class DistanceMixin(IPAFeaturesBase):
             applicable_only=applicable_only,
         )
 
-    def _aligned_words(
+    def _aligned_transcriptions(
         self,
         tokens1: list[str],
         tokens2: list[str],
@@ -1020,10 +925,10 @@ class DistanceMixin(IPAFeaturesBase):
         delete_cost: PhoneCost,
         mode: str = "global",
         applicable_only: bool = False,
-    ) -> WordDistanceResult:
+    ) -> TranscriptionDistanceResult:
         """Align two token sequences under one indel parameterization.
 
-        The body :meth:`word_distance` and :meth:`directional_word_distance`
+        The body :meth:`transcription_distance` and :meth:`directional_transcription_distance`
         share, so the symmetric entry point and the directional one cannot
         answer the same question two ways. The only thing that differs
         between them is what they pass here, and what they promise about it.
@@ -1087,7 +992,7 @@ class DistanceMixin(IPAFeaturesBase):
             return_alignment,
             term_fn,
         )
-        return _word_result(
+        return _transcription_result(
             tokens1, tokens2, distance, alignment, insert_cost, delete_cost
         )
 
@@ -1098,7 +1003,7 @@ class DistanceMixin(IPAFeaturesBase):
         cost_fn: Callable[[str, str], float],
         insert_cost: PhoneCost,
         delete_cost: PhoneCost,
-    ) -> WordDistanceResult:
+    ) -> TranscriptionDistanceResult:
         """Semi-global FIT: ``needle`` must align fully, but leading and
         trailing material on the ``haystack`` side is free, so a target
         embedded in a longer, noisier sequence is scored on how well it is
@@ -1108,7 +1013,7 @@ class DistanceMixin(IPAFeaturesBase):
         needle matching nothing -- so it reads as "how much of the needle is
         present". Directional by construction: the two sides are not
         interchangeable, which is why this is not offered on the symmetric
-        :meth:`word_distance`.
+        :meth:`transcription_distance`.
         """
         n, m = len(haystack), len(needle)
         ins = _prices(insert_cost, needle, "insert_cost")
@@ -1133,7 +1038,7 @@ class DistanceMixin(IPAFeaturesBase):
             best = min(dp[i][m] for i in range(n + 1))  # free trailing gap
             similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
         coverage = m / max(n, m) if max(n, m) else 1.0
-        return WordDistanceResult(
+        return TranscriptionDistanceResult(
             edit_cost=best,
             similarity=similarity,
             coverage=coverage,
@@ -1141,7 +1046,7 @@ class DistanceMixin(IPAFeaturesBase):
             alignment=None,
         )
 
-    def directional_word_distance(
+    def directional_transcription_distance(
         self,
         reference: str,
         hypothesis: str,
@@ -1152,8 +1057,8 @@ class DistanceMixin(IPAFeaturesBase):
         return_alignment: bool = False,
         strict: bool = True,
         applicable_only: bool = False,
-    ) -> WordDistanceResult:
-        """Compatibility entry point for :meth:`directional_transcription_distance`.
+    ) -> TranscriptionDistanceResult:
+        """Compare IPA transcriptions with reference and hypothesis gap costs.
 
         "Did the speaker omit something the target has" and "did the speaker
         add something the target lacks" are different questions, and a
@@ -1167,12 +1072,12 @@ class DistanceMixin(IPAFeaturesBase):
         use has a reference.
 
         This is a separate entry point rather than an option on
-        :meth:`word_distance` on purpose. ``word_distance``'s symmetry is
+        :meth:`transcription_distance` on purpose. ``transcription_distance``'s symmetry is
         property-tested and callers rely on it; a function that is symmetric
         on Tuesday and not on Wednesday is worse than two honest functions.
 
         The costs default to the flat ``GAP_COST`` both sides, under which
-        this **is** :meth:`word_distance` -- a directional reading of a
+        this **is** :meth:`transcription_distance` -- a directional reading of a
         symmetric measurement, which is an honest thing to want and is what
         makes the schedule, not the entry point, the thing that introduces
         the asymmetry. Pass a :class:`CostSchedule` to say what a loss is
@@ -1192,16 +1097,16 @@ class DistanceMixin(IPAFeaturesBase):
             strict: Reject input the tokenizer cannot convert (the default).
 
         Returns:
-            A :class:`WordDistanceResult` whose ``costs`` names the
+            A :class:`TranscriptionDistanceResult` whose ``costs`` names the
             parameterization the score was computed under.
         """
         from .metric import GAP_COST
 
         if strict:
             self._reject_unconvertible(reference, hypothesis)
-        tokens1 = self._word_units(reference)
-        tokens2 = self._word_units(hypothesis)
-        return self._aligned_words(
+        tokens1 = self._transcription_units(reference)
+        tokens2 = self._transcription_units(hypothesis)
+        return self._aligned_transcriptions(
             tokens1,
             tokens2,
             weighted,
@@ -1211,7 +1116,7 @@ class DistanceMixin(IPAFeaturesBase):
             applicable_only=applicable_only,
         )
 
-    def word_similarity(
+    def transcription_similarity(
         self,
         ipa1: str,
         ipa2: str,
@@ -1220,12 +1125,12 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool = True,
         applicable_only: bool = False,
     ) -> float:
-        """Compatibility entry point for :meth:`transcription_similarity`.
+        """Return normalized similarity for IPA transcription strings.
 
         Returns a value from 0.0 (completely different) to 1.0 (identical):
         the alignment's cost against the cost of the null alignment, which
         deletes every token of one word and inserts every token of the
-        other. See :func:`_word_result`.
+        other. See :func:`_transcription_result`.
 
         Args:
             ipa1: First IPA string
@@ -1254,7 +1159,7 @@ class DistanceMixin(IPAFeaturesBase):
         back-close. Read this figure against the 0.9841 above, never
         against zero.
         """
-        return self.word_distance(
+        return self.transcription_distance(
             ipa1,
             ipa2,
             weighted=weighted,
@@ -1262,7 +1167,7 @@ class DistanceMixin(IPAFeaturesBase):
             applicable_only=applicable_only,
         ).similarity
 
-    def explain_word_distance(
+    def explain_transcription_distance(
         self,
         ipa1: str,
         ipa2: str,
@@ -1271,7 +1176,7 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool = True,
         applicable_only: bool = False,
     ) -> list[dict[str, object]]:
-        """Compatibility entry point for :meth:`explain_transcription_distance`.
+        """Explain transcription alignment in raw feature-cost terms.
 
         One step per aligned position of the two words' units, in order:
         ``op`` is ``match``/``sub``/``insert``/``delete``, ``a``/``b`` are the
@@ -1281,9 +1186,9 @@ class DistanceMixin(IPAFeaturesBase):
         tract coordinates, and every prosodic rider (stress, tone, length). A
         substitution's ``cost`` is the segment metric between the two units,
         not the price the edit DP paid for that position, so the reported
-        costs do not sum to :attr:`WordDistanceResult.edit_cost`.
+        costs do not sum to :attr:`TranscriptionDistanceResult.edit_cost`.
         """
-        result = self.word_distance(
+        result = self.transcription_distance(
             ipa1,
             ipa2,
             weighted=weighted,
@@ -1323,7 +1228,7 @@ class DistanceMixin(IPAFeaturesBase):
         lexicon lists for the word: free variants (``iːðɚ``/``aɪðɚ``, the flap
         or not), or a homograph's readings (``record`` the noun ``ˈɹɛkɚd`` and
         the verb ``ɹɪˈkɔɹd``, ``wind`` the breeze ``wɪnd`` and the turn
-        ``waɪnd``). Returns the nearest pair by :meth:`word_similarity`, and
+        ``waɪnd``). Returns the nearest pair by :meth:`transcription_similarity`, and
         *which* pair: a caller learns their form matched the ``aɪ`` variant,
         not only how close it was.
 
@@ -1352,12 +1257,12 @@ class DistanceMixin(IPAFeaturesBase):
         mode: str = "global",
         return_alignment: bool = False,
         applicable_only: bool = False,
-    ) -> WordDistanceResult:
+    ) -> TranscriptionDistanceResult:
         """Distance between two **pre-tokenized** phone sequences.
 
         Each element of ``seq1``/``seq2`` is one phone unit (possibly
         multi-character, like ``d͡ʒ`` or ``o͡ʊ``). The sequences are aligned
-        exactly as given -- unlike :meth:`word_distance`, which tokenizes a
+        exactly as given -- unlike :meth:`transcription_distance`, which tokenizes a
         string and so may join or split units -- so a caller who already has
         phone tokens keeps their boundaries.
 
@@ -1368,7 +1273,7 @@ class DistanceMixin(IPAFeaturesBase):
         """
         from .metric import GAP_COST
 
-        return self._aligned_words(
+        return self._aligned_transcriptions(
             list(seq1),
             list(seq2),
             weighted,
@@ -1447,17 +1352,17 @@ class DistanceMixin(IPAFeaturesBase):
         strict: bool,
         mode: str,
         applicable_only: bool,
-    ) -> WordDistanceResult:
+    ) -> TranscriptionDistanceResult:
         if mode == "global":
-            return self.word_distance(
+            return self.transcription_distance(
                 form,
                 candidate,
                 weighted=weighted,
                 strict=strict,
                 applicable_only=applicable_only,
             )
-        t1 = self._word_units(form)
-        t2 = self._word_units(candidate)
+        t1 = self._transcription_units(form)
+        t2 = self._transcription_units(candidate)
         return self.sequence_distance(
             t1,
             t2,

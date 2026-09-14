@@ -99,14 +99,14 @@ def test_align_base_row_is_the_running_sum_of_per_token_delete_prices() -> None:
     ) == (2.75, None)
 
 
-def test_word_distance_kat_kot_is_unchanged_by_the_lift() -> None:
+def test_transcription_distance_kat_kot_is_unchanged_by_the_lift() -> None:
     ipa = IPAFeatures()
-    result = ipa.word_distance("kat", "kot")
+    result = ipa.transcription_distance("kat", "kot")
     assert result.edit_cost == 0.3088154269972452
     assert result.similarity == 0.9485307621671258
     assert result.coverage == 1.0
     assert result.costs == "insert=1.0 delete=1.0"
-    assert ipa.word_distance("mbanda", "banda").edit_cost == 1.0
+    assert ipa.transcription_distance("mbanda", "banda").edit_cost == 1.0
 
 
 class TestSegmentDistance:
@@ -278,7 +278,7 @@ class TestOneCurrency:
 
     def test_an_unmatched_unit_costs_exactly_a_gap(self, ipa: IPAFeatures) -> None:
         """A position only one side reaches costs ``GAP_COST``, which is what
-        an indel costs in ``word_distance`` and what a gap costs inside
+        an indel costs in ``transcription_distance`` and what a gap costs inside
         :func:`~ipakit.metric.segment_metric`. So one unmatched unit against
         nothing is exactly ``GAP_COST``, and n of them still are: length is
         positions, not a second normalized quantity summed beside them.
@@ -335,7 +335,7 @@ class TestTheWordScaleIsOneCurrency:
         checked = 0
         for left, right in zip(phones, phones[1:], strict=False):
             d = ipa.segment_distance(left, right)
-            cost = ipa.word_distance(left, right).edit_cost
+            cost = ipa.transcription_distance(left, right).edit_cost
             assert cost == pytest.approx(2 * indel * d), (left, right)
             assert cost <= 2 * indel + 1e-12, (left, right)
             checked += 1
@@ -351,7 +351,9 @@ class TestTheWordScaleIsOneCurrency:
         checked = 0
         for phone in phones:
             assert ipa.segment_distance(phone, "␣") == 1.0, phone
-            assert ipa.word_distance(phone, "␣").edit_cost == pytest.approx(2 * indel)
+            assert ipa.transcription_distance(phone, "␣").edit_cost == pytest.approx(
+                2 * indel
+            )
             checked += 1
         assert_swept(checked, phones + ["␣"])
 
@@ -369,7 +371,7 @@ class TestTheWordScaleIsOneCurrency:
         phones = [p for p in self_spelling_phones() if p != "␣"]
         checked = 0
         for phone in phones:
-            alignment = ipa.word_distance(
+            alignment = ipa.transcription_distance(
                 phone + "␣", "␣" + phone, return_alignment=True
             ).alignment
             assert alignment is not None
@@ -398,12 +400,14 @@ class TestTheWordScaleIsOneCurrency:
             for word, other in ((phone * 3, phone * 3), (phone * 3, "␣␣␣")):
                 n, m = len(ipa.segments(word)), len(ipa.segments(other))
                 denom = (n + m) * indel
-                r = ipa.word_distance(word, other)
+                r = ipa.transcription_distance(word, other)
                 assert r.edit_cost <= denom + 1e-12, (word, other)
                 assert r.similarity == pytest.approx(1.0 - r.edit_cost / denom)
                 assert 0.0 <= r.similarity <= 1.0, (word, other)
-            assert ipa.word_similarity(phone * 3, phone * 3) == 1.0, phone
-            assert ipa.word_similarity(phone * 3, "␣␣␣") == pytest.approx(0.0), phone
+            assert ipa.transcription_similarity(phone * 3, phone * 3) == 1.0, phone
+            assert ipa.transcription_similarity(phone * 3, "␣␣␣") == pytest.approx(
+                0.0
+            ), phone
             checked += 1
         assert_swept(checked, phones + ["␣"])
 
@@ -428,11 +432,11 @@ class TestTheWordScaleIsOneCurrency:
                 word = phone * count
                 if len(ipa.segments(word)) != count:
                     continue
-                r = ipa.word_distance(word, "")
+                r = ipa.transcription_distance(word, "")
                 assert r.edit_cost == pytest.approx(count * indel), word
                 assert r.similarity == pytest.approx(0.0), word
                 assert r.coverage == 0.0, word
-            one = ipa.word_distance(phone, "")
+            one = ipa.transcription_distance(phone, "")
             assert one.edit_cost == pytest.approx(
                 ipa.segment_distance(phone, "")
             ), phone
@@ -462,7 +466,7 @@ class TestTheWordScaleIsOneCurrency:
                 if len(ipa.segments(word)) != 2:
                     continue
                 n, m = len(ipa.segments(word)), len(ipa.segments(other))
-                r = ipa.word_distance(word, other)
+                r = ipa.transcription_distance(word, other)
                 assert r.coverage == pytest.approx(min(n, m) / max(n, m))
                 assert r.similarity == pytest.approx(
                     1.0 - r.edit_cost / ((n + m) * indel)
@@ -481,8 +485,8 @@ class TestTheWordScaleIsOneCurrency:
         one of them a prefix of the other and one of them different
         throughout, and coverage is what tells them apart.
         """
-        truncated = ipa.word_distance("kætəloɡ", "kæt")
-        differing = ipa.word_distance("kætəloɡ", "␣␣␣␣␣␣␣")
+        truncated = ipa.transcription_distance("kætəloɡ", "kæt")
+        differing = ipa.transcription_distance("kætəloɡ", "␣␣␣␣␣␣␣")
         assert truncated.coverage < 0.5 < differing.coverage
         assert differing.coverage == 1.0
         assert truncated.similarity > differing.similarity
@@ -506,8 +510,8 @@ class TestIdentityHolds:
         for unit in [*bare, *single_mark_units()]:
             assert ipa.distance(unit, unit) == 0.0, unit
             assert ipa.segment_distance(unit, unit) == 0.0, unit
-            assert ipa.word_distance(unit, unit).edit_cost == 0.0, unit
-            assert ipa.word_similarity(unit, unit) == 1.0, unit
+            assert ipa.transcription_distance(unit, unit).edit_cost == 0.0, unit
+            assert ipa.transcription_similarity(unit, unit) == 1.0, unit
             checked += 1
         assert_swept(checked, bare)
 
@@ -523,10 +527,10 @@ class TestIdentityHolds:
         for text in ("", "@", "X"):
             assert ipa.distance(text, text) == 0.0, repr(text)
             assert ipa.segment_distance(text, text) == 0.0, repr(text)
-            assert ipa.word_distance(text, text, strict=False).edit_cost == 0.0
+            assert ipa.transcription_distance(text, text, strict=False).edit_cost == 0.0
         for text in ("kat", "aps", "a"):
             assert ipa.segment_distance(text, text) == 0.0, text
-            assert ipa.word_distance(text, text).edit_cost == 0.0, text
+            assert ipa.transcription_distance(text, text).edit_cost == 0.0, text
 
     def test_the_bundle_metric_is_zero_on_a_repeated_constituent(
         self, ipa: IPAFeatures

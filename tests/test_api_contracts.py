@@ -29,7 +29,7 @@ class TestDistanceRefusesWords:
             ipakit.distance("kat", "kat")
 
     def test_error_names_the_right_tool(self) -> None:
-        with pytest.raises(ValueError, match="word_distance"):
+        with pytest.raises(ValueError, match="transcription_distance"):
             ipakit.distance("kæt", "dɒɡ")
 
     def test_single_units_still_work(self) -> None:
@@ -38,7 +38,11 @@ class TestDistanceRefusesWords:
         assert ipakit.distance("t͡s͜a", "t͡s͜a") == 0.0  # one unit, several parts
 
     def test_word_level_tools_are_exported(self) -> None:
-        for name in ("word_distance", "segment_distance", "pairwise_distances"):
+        for name in (
+            "transcription_distance",
+            "segment_distance",
+            "pairwise_distances",
+        ):
             assert name in ipakit.__all__, name
 
     def test_segment_distance_accepts_multiple_units(self) -> None:
@@ -68,21 +72,23 @@ class TestQueriesRefuseToMatchEverything:
 
 
 class TestMeasurementRejectsUnconvertibleInput:
-    """Conversion may be lossy; measurement may not. word_distance used to
+    """Conversion may be lossy; measurement may not. transcription_distance used to
     drop unknown symbols and return a plausible number from what was left
     -- comparing 'kæt' against 'kt'."""
 
     def test_unknown_symbol_raises(self) -> None:
         with pytest.raises(ValueError, match="unknown symbol"):
-            ipakit.word_distance("kæt", "k4t")
+            ipakit.transcription_distance("kæt", "k4t")
         with pytest.raises(ValueError, match="unknown symbol"):
-            ipakit.word_similarity("kæt", "k4t")
+            ipakit.transcription_similarity("kæt", "k4t")
 
     def test_lossy_measurement_is_opt_in(self) -> None:
-        assert ipakit.word_distance("kæt", "k4t", strict=False).edit_cost >= 0.0
+        assert (
+            ipakit.transcription_distance("kæt", "k4t", strict=False).edit_cost >= 0.0
+        )
 
     def test_clean_input_unaffected(self) -> None:
-        assert ipakit.word_similarity("kæt", "kæd") > 0.9
+        assert ipakit.transcription_similarity("kæt", "kæd") > 0.9
 
 
 class TestInventoryIsImmutable:

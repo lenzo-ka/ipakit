@@ -98,8 +98,8 @@ class TestFlatCostsAreUnchanged:
         moved = 0
         checked = 0
         for a, b in _pairs(ipa):
-            plain = ipa.word_distance(a, b, strict=False)
-            named = ipa.directional_word_distance(
+            plain = ipa.transcription_distance(a, b, strict=False)
+            named = ipa.directional_transcription_distance(
                 a, b, insert_cost=flat, delete_cost=flat, strict=False
             )
             if (plain.edit_cost, plain.similarity, plain.coverage) != (
@@ -126,8 +126,8 @@ class TestFlatCostsAreUnchanged:
         moved = 0
         checked = 0
         for a, b in _pairs(ipa):
-            plain = ipa.word_distance(a, b, strict=False)
-            named = ipa.directional_word_distance(
+            plain = ipa.transcription_distance(a, b, strict=False)
+            named = ipa.directional_transcription_distance(
                 a, b, insert_cost=off, delete_cost=off, strict=False
             )
             if (plain.edit_cost, plain.similarity, plain.coverage) != (
@@ -151,8 +151,8 @@ class TestFlatCostsAreUnchanged:
         )
         checked = 0
         for a, b in _pairs(ipa):
-            x = scalar.word_distance(a, b)
-            y = schedule.word_distance(a, b)
+            x = scalar.transcription_distance(a, b)
+            y = schedule.transcription_distance(a, b)
             assert x.edit_cost == pytest.approx(y.edit_cost), (a, b)
             assert x.similarity == pytest.approx(y.similarity), (a, b)
             checked += 1
@@ -189,7 +189,7 @@ class TestTheNormalizerSumsOverPhones:
         discriminating = 0
         for a, b in _pairs(ipa):
             t1, t2 = _tokens(ipa, a), _tokens(ipa, b)
-            r = ipa.directional_word_distance(
+            r = ipa.directional_transcription_distance(
                 a, b, insert_cost=ins, delete_cost=dele, strict=False
             )
             summed = sum(dele(t) for t in t1) + sum(ins(t) for t in t2)
@@ -237,7 +237,9 @@ class TestTheNormalizerSumsOverPhones:
         varying = 0
         for word in _words(ipa):
             t1 = _tokens(ipa, word)
-            r = ipa.directional_word_distance(word, "", delete_cost=dele, strict=False)
+            r = ipa.directional_transcription_distance(
+                word, "", delete_cost=dele, strict=False
+            )
             assert r.edit_cost == pytest.approx(sum(dele(t) for t in t1)), word
             assert r.similarity == pytest.approx(0.0), word
             if len({dele(t) for t in t1}) > 1:
@@ -253,7 +255,9 @@ class TestTheNormalizerSumsOverPhones:
         checked = 0
         for word in _words(ipa):
             t2 = _tokens(ipa, word)
-            r = ipa.directional_word_distance("", word, insert_cost=ins, strict=False)
+            r = ipa.directional_transcription_distance(
+                "", word, insert_cost=ins, strict=False
+            )
             assert r.edit_cost == pytest.approx(sum(ins(t) for t in t2)), word
             checked += 1
         assert checked > 150, f"sweep checked only {checked} words"
@@ -266,7 +270,7 @@ class TestTheNormalizerSumsOverPhones:
         ins = _varied(ipa, "test/insert", 2.0, 0.05)
         checked = 0
         for a, b in _pairs(ipa):
-            r = ipa.directional_word_distance(
+            r = ipa.directional_transcription_distance(
                 a, b, insert_cost=ins, delete_cost=dele, strict=False
             )
             assert -1e-9 <= r.similarity <= 1.0 + 1e-9, (a, b, r.similarity)
@@ -287,10 +291,10 @@ class TestDirection:
         for a, b in _pairs(ipa):
             if a == b:
                 continue
-            fwd = ipa.directional_word_distance(
+            fwd = ipa.directional_transcription_distance(
                 a, b, insert_cost=ins, delete_cost=dele, strict=False
             )
-            rev = ipa.directional_word_distance(
+            rev = ipa.directional_transcription_distance(
                 b, a, insert_cost=ins, delete_cost=dele, strict=False
             )
             if fwd.edit_cost != pytest.approx(rev.edit_cost):
@@ -301,20 +305,20 @@ class TestDirection:
             asymmetric > 100
         ), f"only {asymmetric} of {checked} pairs were directional"
 
-    def test_word_distance_stays_symmetric_on_the_same_pairs(
+    def test_transcription_distance_stays_symmetric_on_the_same_pairs(
         self, ipa: IPAFeatures
     ) -> None:
         """The promise the separate entry point exists to keep.
 
         The same corpus that the directional score splits on, measured
-        through ``word_distance``, which takes no schedule and must not
+        through ``transcription_distance``, which takes no schedule and must not
         have acquired one. If this ever fails while the test above passes,
         the asymmetry has leaked into the symmetric function.
         """
         checked = 0
         for a, b in _pairs(ipa):
-            fwd = ipa.word_distance(a, b, strict=False)
-            rev = ipa.word_distance(b, a, strict=False)
+            fwd = ipa.transcription_distance(a, b, strict=False)
+            rev = ipa.transcription_distance(b, a, strict=False)
             assert fwd.edit_cost == pytest.approx(rev.edit_cost), (a, b)
             assert fwd.similarity == pytest.approx(rev.similarity), (a, b)
             checked += 1
@@ -324,8 +328,8 @@ class TestDirection:
         """The asymmetry comes from the schedule, not from the entry point."""
         checked = 0
         for a, b in _pairs(ipa):
-            plain = ipa.word_distance(a, b, strict=False)
-            directional = ipa.directional_word_distance(a, b, strict=False)
+            plain = ipa.transcription_distance(a, b, strict=False)
+            directional = ipa.directional_transcription_distance(a, b, strict=False)
             assert plain.edit_cost == pytest.approx(directional.edit_cost), (a, b)
             assert plain.similarity == pytest.approx(directional.similarity), (a, b)
             checked += 1
@@ -339,19 +343,19 @@ class TestDirection:
         schedule says nothing about supplying one, so ``kæt`` -> ``kætə``
         stays expensive."""
         drop = CostSchedule("test/schwa-drops", {"ə": 0.1}, default=1.0)
-        lost = ipa.directional_word_distance("kætə", "kæt", delete_cost=drop)
-        gained = ipa.directional_word_distance("kæt", "kætə", delete_cost=drop)
+        lost = ipa.directional_transcription_distance("kætə", "kæt", delete_cost=drop)
+        gained = ipa.directional_transcription_distance("kæt", "kætə", delete_cost=drop)
         assert lost.edit_cost == pytest.approx(0.1)
         assert gained.edit_cost == pytest.approx(1.0)
         assert lost.similarity > gained.similarity
 
     def test_the_model_names_its_reference_side(self, ipa: IPAFeatures) -> None:
         model = DistanceModel.global_(ipa, insert_cost=1.5, delete_cost=0.25)
-        a = model.directional_word_distance("kætəloɡ", "kæt")
-        b = model.word_distance("kætəloɡ", "kæt")
+        a = model.directional_transcription_distance("kætəloɡ", "kæt")
+        b = model.transcription_distance("kætəloɡ", "kæt")
         assert a.edit_cost == pytest.approx(b.edit_cost)
         assert a.edit_cost != pytest.approx(
-            model.directional_word_distance("kæt", "kætəloɡ").edit_cost
+            model.directional_transcription_distance("kæt", "kætəloɡ").edit_cost
         )
 
 
@@ -361,14 +365,16 @@ class TestTheResultSaysWhatProducedIt:
     def test_every_path_reports_a_parameterization(self, ipa: IPAFeatures) -> None:
         named = CostSchedule("test/named", {"a": 0.5}, default=1.0)
         results = [
-            ipa.word_distance("kæt", "kæd"),
-            ipa.word_distance("", ""),
-            ipa.directional_word_distance("kæt", "kæd"),
-            ipa.directional_word_distance("", ""),
-            ipa.directional_word_distance("kæt", "kæd", delete_cost=named),
-            DistanceModel.global_(ipa).word_distance("kæt", "kæd"),
-            DistanceModel.global_(ipa).word_distance("", ""),
-            DistanceModel.global_(ipa, delete_cost=named).word_distance("kæt", "kæd"),
+            ipa.transcription_distance("kæt", "kæd"),
+            ipa.transcription_distance("", ""),
+            ipa.directional_transcription_distance("kæt", "kæd"),
+            ipa.directional_transcription_distance("", ""),
+            ipa.directional_transcription_distance("kæt", "kæd", delete_cost=named),
+            DistanceModel.global_(ipa).transcription_distance("kæt", "kæd"),
+            DistanceModel.global_(ipa).transcription_distance("", ""),
+            DistanceModel.global_(ipa, delete_cost=named).transcription_distance(
+                "kæt", "kæd"
+            ),
         ]
         for r in results:
             assert r.costs, r
@@ -377,11 +383,13 @@ class TestTheResultSaysWhatProducedIt:
 
     def test_a_schedule_travels_by_name(self, ipa: IPAFeatures) -> None:
         named = CostSchedule("french-ish/deletion", {"ə": 0.2}, default=1.0)
-        r = ipa.directional_word_distance("kætə", "kæt", delete_cost=named)
+        r = ipa.directional_transcription_distance("kætə", "kæt", delete_cost=named)
         assert r.costs == "insert=1.0 delete=french-ish/deletion"
 
     def test_an_unnamed_callable_says_it_is_unnamed(self, ipa: IPAFeatures) -> None:
-        r = ipa.directional_word_distance("kætə", "kæt", delete_cost=lambda p: 0.5)
+        r = ipa.directional_transcription_distance(
+            "kætə", "kæt", delete_cost=lambda p: 0.5
+        )
         assert "<lambda>" in r.costs
 
     def test_identity_distinguishes_the_schedules_it_names(self) -> None:
@@ -415,7 +423,9 @@ class TestRefusals:
         the argument and the phone, because a caller with a schedule of
         hundreds of phones has nothing else to find it by."""
         with pytest.raises(ValueError, match="delete_cost"):
-            ipa.directional_word_distance("kæt", "kæd", delete_cost=lambda p: bad)
+            ipa.directional_transcription_distance(
+                "kæt", "kæd", delete_cost=lambda p: bad
+            )
 
 
 class TestSchedulesDerivedFromRuleSets:
@@ -518,8 +528,8 @@ class TestSchedulesDerivedFromRuleSets:
         unexplained = 0
         checked = 0
         for a, b in _pairs(ipa):
-            flat = ipa.word_distance(a, b, strict=False)
-            under = ipa.directional_word_distance(
+            flat = ipa.transcription_distance(a, b, strict=False)
+            under = ipa.directional_transcription_distance(
                 a, b, delete_cost=schedule, strict=False
             )
             if flat.edit_cost != pytest.approx(under.edit_cost) or flat.similarity != (
@@ -631,8 +641,8 @@ class TestLengthGating:
         unequal = 0
         for a, b in _pairs(ipa):
             t1, t2 = _tokens(ipa, a), _tokens(ipa, b)
-            bound = model._max_word_similarity(t1, t2)
-            actual = model.word_similarity(a, b)
+            bound = model._max_transcription_similarity(t1, t2)
+            actual = model.transcription_similarity(a, b)
             assert actual <= bound + 1e-12, (a, b, actual, bound)
             if len(t1) != len(t2):
                 unequal += 1
@@ -641,13 +651,13 @@ class TestLengthGating:
         assert unequal > 100, f"only {unequal} pairs differed in length"
 
     def test_a_structural_mark_is_not_charged_a_length(self, ipa: IPAFeatures) -> None:
-        """``word_distance("lez‿ami", "lezami")`` is 0, and the gate in front
+        """``transcription_distance("lez‿ami", "lezami")`` is 0, and the gate in front
         of it must agree. It counted every token the tokenizer emitted, so
         the linking undertie made the two forms differ in length and the
         short circuit refused the pair at any threshold above 12/13 --
         for two forms the aligner scores identical."""
         model = DistanceModel.global_(ipa)
-        assert model.word_similarity("lez‿ami", "lezami") == pytest.approx(1.0)
+        assert model.transcription_similarity("lez‿ami", "lezami") == pytest.approx(1.0)
         assert model.is_similar("lez‿ami", "lezami", threshold=0.999) is True
         assert (
             model.is_similar("lez‿ami", "lezami", threshold=0.999, max_length_ratio=1.0)
@@ -658,7 +668,7 @@ class TestLengthGating:
 class TestTheDocumentedExample:
     def test_the_readme_and_docs_example_runs(self) -> None:
         drop = ipakit.CostSchedule("my-english/deletion", {"ə": 0.25}, default=1.0)
-        r = ipakit.directional_word_distance("kætə", "kæt", delete_cost=drop)
+        r = ipakit.directional_transcription_distance("kætə", "kæt", delete_cost=drop)
         assert r.costs == "insert=1.0 delete=my-english/deletion"
         assert r.edit_cost == pytest.approx(0.25)
         assert price(drop, "ə") == 0.25

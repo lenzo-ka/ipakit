@@ -310,7 +310,7 @@ class ConfusabilityCommand(Command):
         return 0
 
 
-class WordCommand(Command):
+class TranscriptionCommand(Command):
     """Distance and similarity between two IPA transcription strings.
 
     Two measures, matching the two this group already offers for phones.
@@ -356,10 +356,10 @@ class WordCommand(Command):
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
         parser.add_argument(
-            "word1", metavar="TRANSCRIPTION1", help="First IPA transcription"
+            "transcription1", metavar="TRANSCRIPTION1", help="First IPA transcription"
         )
         parser.add_argument(
-            "word2", metavar="TRANSCRIPTION2", help="Second IPA transcription"
+            "transcription2", metavar="TRANSCRIPTION2", help="Second IPA transcription"
         )
         parser.add_argument(
             "--threshold",
@@ -393,7 +393,7 @@ class WordCommand(Command):
         here would make this one command exit 1 on input that the rest
         of the command line exits 3 on.
         """
-        w1, w2 = self.args.word1, self.args.word2
+        w1, w2 = self.args.transcription1, self.args.transcription2
         result = self.ipa.transcription_distance(
             w1,
             w2,
@@ -401,8 +401,8 @@ class WordCommand(Command):
             applicable_only=self.args.applicable_only,
         )
         data: dict[str, object] = {
-            "word1": w1,
-            "word2": w2,
+            "transcription1": w1,
+            "transcription2": w2,
             "edit_cost": round(result.edit_cost, 4),
             "similarity": round(result.similarity, 4),
             "coverage": round(result.coverage, 4),
@@ -426,7 +426,7 @@ class WordCommand(Command):
 
     def _run_explain(self) -> int:
         """A per-position alignment trace -- ipakit.explain_transcription_distance."""
-        w1, w2 = self.args.word1, self.args.word2
+        w1, w2 = self.args.transcription1, self.args.transcription2
         steps = self.ipa.explain_transcription_distance(
             w1,
             w2,
@@ -434,7 +434,9 @@ class WordCommand(Command):
             applicable_only=self.args.applicable_only,
         )
         if self.format == "json":
-            self.output_json({"word1": w1, "word2": w2, "steps": steps})
+            self.output_json(
+                {"transcription1": w1, "transcription2": w2, "steps": steps}
+            )
             return 0
         print(f"{w1} ~ {w2}")
         for step in steps:
@@ -457,14 +459,14 @@ class WordCommand(Command):
             return self._run_raw()
         threshold = self.args.threshold
         model = build_model(self.ipa, self.args, threshold=threshold)
-        w1, w2 = self.args.word1, self.args.word2
+        w1, w2 = self.args.transcription1, self.args.transcription2
         result = model.transcription_distance(w1, w2)
         name = model.reference_name
         size = len(model.reference_phones)
 
         data: dict[str, object] = {
-            "word1": w1,
-            "word2": w2,
+            "transcription1": w1,
+            "transcription2": w2,
             "edit_cost": round(result.edit_cost, 4),
             "similarity": round(result.similarity, 4),
             "coverage": round(result.coverage, 4),
@@ -1282,7 +1284,7 @@ class DistanceGroup(CommandGroup):
         SegmentCommand,
         MatrixCommand,
         ConfusabilityCommand,
-        WordCommand,
+        TranscriptionCommand,
         DirectionalCommand,
         NearestCommand,
         MapCommand,

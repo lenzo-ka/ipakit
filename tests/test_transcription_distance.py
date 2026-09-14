@@ -1,6 +1,5 @@
-"""Transcription spellings retain established computation and dispatch."""
+"""Canonical transcription operations and convenience CLI spellings."""
 
-import inspect
 import json
 import sys
 
@@ -10,10 +9,10 @@ import pytest
 from ipakit.distance_model import DistanceModel
 
 NAMES = (
-    ("transcription_distance", "word_distance"),
-    ("transcription_similarity", "word_similarity"),
-    ("directional_transcription_distance", "directional_word_distance"),
-    ("explain_transcription_distance", "explain_word_distance"),
+    "transcription_distance",
+    "transcription_similarity",
+    "directional_transcription_distance",
+    "explain_transcription_distance",
 )
 
 
@@ -22,59 +21,27 @@ def ipa():
     return ipakit.IPAFeatures()
 
 
-@pytest.mark.parametrize("new,old", NAMES)
-def test_exports_and_exact_signatures(new, old):
-    assert new in ipakit.__all__ and old in ipakit.__all__
-    assert inspect.signature(getattr(ipakit, new)) == inspect.signature(
-        getattr(ipakit, old)
-    )
-    assert inspect.signature(getattr(ipakit.IPAFeatures, new)) == inspect.signature(
-        getattr(ipakit.IPAFeatures, old)
-    )
+@pytest.mark.parametrize("name", NAMES)
+def test_canonical_export_and_strict_refusal(ipa, name):
+    assert name in ipakit.__all__
+    for surface in (ipa, ipakit):
+        with pytest.raises(ValueError):
+            getattr(surface, name)("a☃", "a")
 
 
-@pytest.mark.parametrize(
-    "left,right", [("kæt kæd", "kæt kæ"), ("a|a", "a‖a"), ("ka.tə", "kat.ə"), ("", "")]
-)
-@pytest.mark.parametrize("new,old", NAMES)
-def test_raw_old_new_parity(ipa, left, right, new, old):
-    options = {"weighted": False, "applicable_only": True}
-    if new.endswith("distance") and not new.startswith("explain"):
-        options["return_alignment"] = True
-    for surface in (ipakit, ipa):
-        assert getattr(surface, new)(left, right, **options) == getattr(surface, old)(
-            left, right, **options
-        )
+def test_transcription_boundaries_are_transparent(ipa):
+    result = ipa.transcription_distance("a|a", "a‖a", return_alignment=True)
+    assert isinstance(result, ipakit.TranscriptionDistanceResult)
+    assert result.edit_cost == 0
+    assert result.coverage == 1
 
 
-@pytest.mark.parametrize("new,old", NAMES)
-def test_new_mixin_methods_forward_every_option(ipa, monkeypatch, new, old):
-    signature = inspect.signature(getattr(ipa, new))
-    options = {
-        name: False
-        for name, parameter in signature.parameters.items()
-        if parameter.kind == parameter.KEYWORD_ONLY
-    }
-    if "insert_cost" in options:
-        options.update(insert_cost=0.25, delete_cost=0.5)
-    seen = []
-    sentinel = object()
-
-    def existing(*args, **kwargs):
-        seen.append((args, kwargs))
-        return sentinel
-
-    monkeypatch.setattr(ipa, old, existing)
-    assert getattr(ipa, new)("a a", "a", **options) is sentinel
-    assert seen == [(("a a", "a"), options)]
-
-
-def test_directional_custom_costs_and_model_parity(ipa):
+def test_directional_custom_costs_and_model(ipa):
     schedule = ipakit.CostSchedule("drops", {"ə": 0.25}, 1.0)
-    options = dict(delete_cost=schedule, insert_cost=2.0, return_alignment=True)
-    assert ipa.directional_transcription_distance(
-        "kæt ə", "kæt", **options
-    ) == ipa.directional_word_distance("kæt ə", "kæt", **options)
+    result = ipa.directional_transcription_distance(
+        "kæt ə", "kæt", delete_cost=schedule, insert_cost=2.0, return_alignment=True
+    )
+    assert result.edit_cost == 0.25
     model = DistanceModel(
         ipa,
         "custom",
@@ -85,24 +52,18 @@ def test_directional_custom_costs_and_model_parity(ipa):
         insert_cost=2.0,
         delete_cost=0.25,
     )
-    for new, old in NAMES[:3]:
-        assert inspect.signature(getattr(model, new)) == inspect.signature(
-            getattr(model, old)
-        )
-        options = {} if new.endswith("similarity") else {"return_alignment": True}
-        assert getattr(model, new)("a a", "a", **options) == getattr(model, old)(
-            "a a", "a", **options
-        )
     assert model.directional_transcription_distance("a a", "a").edit_cost == 0.25
     assert model.directional_transcription_distance("a", "a a").edit_cost == 2.0
 
 
-@pytest.mark.parametrize("new,old", NAMES)
-def test_flat_forwarding_uses_preferred_instance_method(monkeypatch, new, old):
-    signature = inspect.signature(getattr(ipakit, new))
+@pytest.mark.parametrize("name", NAMES)
+def test_flat_forwarding_uses_canonical_instance_method(monkeypatch, name):
+    import inspect
+
+    signature = inspect.signature(getattr(ipakit, name))
     options = {
-        name: False
-        for name, parameter in signature.parameters.items()
+        key: False
+        for key, parameter in signature.parameters.items()
         if parameter.kind == parameter.KEYWORD_ONLY
     }
     if "insert_cost" in options:
@@ -115,27 +76,18 @@ def test_flat_forwarding_uses_preferred_instance_method(monkeypatch, new, old):
 
     receiver = Receiver()
 
-    def preferred(*args, **kwargs):
+    def operation(*args, **kwargs):
         seen.append((args, kwargs))
         return sentinel
 
-    monkeypatch.setattr(receiver, new, preferred, raising=False)
+    monkeypatch.setattr(receiver, name, operation, raising=False)
     monkeypatch.setattr(ipakit, "_get_ipa", lambda: receiver)
-    assert getattr(ipakit, new)("a a", "a", **options) is sentinel
+    assert getattr(ipakit, name)("a a", "a", **options) is sentinel
     assert seen == [(("a a", "a"), options)]
 
 
-@pytest.mark.parametrize("new,old", NAMES)
-def test_strict_refusal_preserved(ipa, new, old):
-    for surface in (ipa, ipakit):
-        with pytest.raises(ValueError):
-            getattr(surface, new)("a☃", "a")
-        with pytest.raises(ValueError):
-            getattr(surface, old)("a☃", "a")
-
-
 @pytest.mark.parametrize("extra", [[], ["--raw"], ["--explain"]])
-def test_cli_new_name_and_old_aliases_share_output(monkeypatch, capsys, extra):
+def test_cli_convenience_names_share_output(monkeypatch, capsys, extra):
     outputs = []
     for group, command in [
         ("distance", "transcription"),
@@ -148,5 +100,8 @@ def test_cli_new_name_and_old_aliases_share_output(monkeypatch, capsys, extra):
         assert ipakit.cli.main() == 0
         captured = capsys.readouterr()
         assert not captured.err
-        outputs.append(json.loads(captured.out))
+        value = json.loads(captured.out)
+        assert value["transcription1"] == "a a"
+        assert value["transcription2"] == "a"
+        outputs.append(value)
     assert outputs[0] == outputs[1] == outputs[2]

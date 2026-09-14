@@ -31,8 +31,11 @@ def test_every_named_public_read_carries_the_choice() -> None:
     ipa = ipakit.IPAFeatures()
     expected = ipa.distance("a", "e", applicable_only=True)
     assert ipa.segment_distance("a", "e", applicable_only=True) == expected
-    assert ipa.word_distance("a", "e", applicable_only=True).edit_cost == 2 * expected
-    assert ipa.word_similarity("a", "e", applicable_only=True) == 1 - expected
+    assert (
+        ipa.transcription_distance("a", "e", applicable_only=True).edit_cost
+        == 2 * expected
+    )
+    assert ipa.transcription_similarity("a", "e", applicable_only=True) == 1 - expected
     assert (
         ipakit.phoneset_mapping(["a"], ["e"], ipa=ipa, applicable_only=True)
         .correspondences[0]
@@ -91,7 +94,7 @@ def test_every_distance_returning_wrapper_forwards_the_choice() -> None:
     ipa = ipakit.IPAFeatures()
     expected = ipa.distance("a", "e", applicable_only=True)
     assert (
-        ipa.directional_word_distance("a", "e", applicable_only=True).edit_cost
+        ipa.directional_transcription_distance("a", "e", applicable_only=True).edit_cost
         == 2 * expected
     )
     assert (
@@ -111,6 +114,6 @@ def test_every_distance_returning_wrapper_forwards_the_choice() -> None:
         ipa.rank_pronunciations("a", ["e"], applicable_only=True)[0].result.edit_cost
         == 2 * expected
     )
-    assert ipakit.explain_word_distance("a", "e", applicable_only=True)[-1][
+    assert ipakit.explain_transcription_distance("a", "e", applicable_only=True)[-1][
         "cost"
     ] == round(expected, 4)

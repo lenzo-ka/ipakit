@@ -793,7 +793,7 @@ def _house_segmentation(ipa: IPAFeatures) -> Callable[[str], Segmentation]:
 
     def read(word: str) -> Segmentation:
         ipa._reject_unconvertible(word)
-        return Segmentation(tuple(ipa._word_units(word)), ())
+        return Segmentation(tuple(ipa._transcription_units(word)), ())
 
     return read
 

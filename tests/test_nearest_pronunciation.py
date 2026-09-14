@@ -63,7 +63,9 @@ class TestDeterminismAndRefusal:
     def test_a_tie_keeps_the_earliest_listed(self) -> None:
         # "a" vs "ab" and "a" vs "ba" are both one insertion of the same
         # phone, so they tie; the earliest listed wins, deterministically.
-        assert ipakit.word_similarity("a", "ab") == ipakit.word_similarity("a", "ba")
+        assert ipakit.transcription_similarity(
+            "a", "ab"
+        ) == ipakit.transcription_similarity("a", "ba")
         m = ipakit.nearest_pronunciation("a", ["ab", "ba"])
         assert m.accepted == "ab"
 

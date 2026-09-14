@@ -461,7 +461,7 @@ def capture_distances(_: argparse.Namespace) -> None:
     ]
     rows = []
     for name, left, right in pairs:
-        result = features.word_distance(left, right, return_alignment=True)
+        result = features.transcription_distance(left, right, return_alignment=True)
         result_data = dataclasses.asdict(result)
         # The rich in-memory Alignment deliberately retains the historical
         # pair sequence.  Captures are that stable public surface, not the
@@ -476,9 +476,13 @@ def capture_distances(_: argparse.Namespace) -> None:
                 "id": name,
                 "left": left,
                 "right": right,
-                "word_distance": result_data,
-                "explain_word_distance": features.explain_word_distance(left, right),
-                "word_similarity": features.word_similarity(left, right),
+                "transcription_distance": result_data,
+                "explain_transcription_distance": features.explain_transcription_distance(
+                    left, right
+                ),
+                "transcription_similarity": features.transcription_similarity(
+                    left, right
+                ),
                 "segment_distance": features.segment_distance(left, right),
             }
         )

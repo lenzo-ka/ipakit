@@ -179,17 +179,20 @@ class TestTheConverterLanes:
         assert ipakit.to_xsampa(alias) == ipakit.to_xsampa(canonical) != ""
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
-    def test_word_distance_reads_the_two_spellings_as_one_word(
+    def test_transcription_distance_reads_the_two_spellings_as_one_word(
         self, ipa: IPAFeatures, alias: str
     ) -> None:
         canonical = ipa.ligature_map[alias]
-        assert ipakit.word_distance(f"a{alias}a", f"a{canonical}a").edit_cost == 0.0
+        assert (
+            ipakit.transcription_distance(f"a{alias}a", f"a{canonical}a").edit_cost
+            == 0.0
+        )
 
     def test_the_word_that_lost_its_affricate(self) -> None:
         # to_cmu("ʧe͜ɪnd͡ʒ") returned ['EY0', 'N', 'JH']: no error, no CH.
         assert ipakit.to_cmu("ʧe͜ɪnd͡ʒ") == ipakit.to_cmu("t͡ʃe͜ɪnd͡ʒ")
         assert ipakit.to_cmu("ʧe͜ɪnd͡ʒ") == ["CH", "EY0", "N", "JH"]
-        assert ipakit.word_distance("ʧe͜ɪnd͡ʒ", "t͡ʃe͜ɪnd͡ʒ").edit_cost == 0.0
+        assert ipakit.transcription_distance("ʧe͜ɪnd͡ʒ", "t͡ʃe͜ɪnd͡ʒ").edit_cost == 0.0
 
 
 class TestAnAliasCarryingDiacritics:
@@ -270,7 +273,7 @@ class TestStrictAgreesWithItself:
         assert [u.to_ipa() for u in ipa.segments(text, strict=True)] == [
             u.to_ipa() for u in ipa.segments(ipa.expand_ligatures(text), strict=True)
         ]
-        assert ipakit.word_distance(text, text, strict=True).edit_cost == 0.0
+        assert ipakit.transcription_distance(text, text, strict=True).edit_cost == 0.0
 
     @pytest.mark.parametrize("alias", CONSONANT_ALIASES)
     def test_the_converters_reject_neither_more_nor_less(
@@ -310,7 +313,7 @@ class TestAGenuinelyUnknownSymbolIsUnchanged:
         with pytest.raises(ValueError, match="unknown symbols"):
             ipa.tokenize(text, strict=True)
         with pytest.raises(ValueError, match="unknown symbols"):
-            ipakit.word_distance(text, "ta")
+            ipakit.transcription_distance(text, "ta")
 
     def test_an_unbound_tie_is_still_reported(self, ipa: IPAFeatures) -> None:
         with pytest.raises(ValueError, match="malformed tie"):

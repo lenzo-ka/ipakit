@@ -7,7 +7,7 @@ How `distance`, `segment_distance`, `transcription_distance`, and the shipped co
 | | |
 |---|---|
 | Raw distance range | `[0, 1]`; 0 is the magnitude for identical phones, 1 is maximally different |
-| Three scales, three names | `distance` (structural magnitude, `[0,1]`), `normalized_distance` (complementary percentile position in a reference inventory, `[0,1]`), `WordDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
+| Three scales, three names | `distance` (structural magnitude, `[0,1]`), `normalized_distance` (complementary percentile position in a reference inventory, `[0,1]`), `TranscriptionDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
 | Basis | Articulatory structure — where a constriction is, what makes it, how close it is |
 | Claim | Structural consistency; **not** a model of perceptual confusability |
 | Symmetry | `d(x, y) == d(y, x)`, by construction: each directional reduction is wrapped in `max(a→b, b→a)` |
@@ -16,7 +16,7 @@ How `distance`, `segment_distance`, `transcription_distance`, and the shipped co
 | Weighting | None; every dimension contributes equally at maximal difference |
 | Denominator | The whole declared space by default; pass `applicable_only=True` or `--applicable-only` to omit a term when either host cannot carry it |
 | Word alignment | a gap costs `GAP_COST`, a substitution costs `(delete + insert) ×` the pair's dissimilarity, and `similarity` is normalized by the null alignment's cost |
-| Length asymmetry | reported as `WordDistanceResult.coverage`, never folded into the score |
+| Length asymmetry | reported as `TranscriptionDistanceResult.coverage`, never folded into the score |
 | Parameters | Word gaps use `GAP_COST = 1.0`; segment material uses the declared `MATERIAL_BUDGET`; secondary place sharing uses `SECONDARY_WEIGHT = 0.5` in `ipakit/metric.py` |
 | Regenerate after changes | `python scripts/confusion.py generate --write` |
 
@@ -36,11 +36,11 @@ remain transparent to scoring. Use `sequence_distance` for already-tokenized
 input whose supplied token divisions must be retained. This naming change adds
 no boundary-sensitive metric or new tokenization behavior.
 
-The `word_distance`, `word_similarity`, `directional_word_distance` and
-`explain_word_distance` spellings remain compatible. The result class retains
-its `WordDistanceResult` name and representation. On the CLI, prefer
-`distance transcription`; `distance word` and `d w` remain aliases of the same
-handler, including raw/model selection and existing output fields.
+`TranscriptionDistanceResult` reports edit cost, similarity, coverage, cost
+identity and optional alignment. The CLI command is `distance transcription`;
+`distance word` and `d w` offer convenient spellings for word-sized inputs
+using the same handler. JSON labels the inputs `transcription1` and
+`transcription2`.
 
 ## 1. What a segment carries
 
@@ -191,7 +191,7 @@ One budget question remains explicitly deferred. A fusion has no arity floor, so
 
 **The normalizer is the cost of the null alignment**, `n · delete + m · insert` — deleting every token of the first word and inserting every token of the second. That path is one the search minimizes over, so it is also the most any alignment can cost, and `similarity = 1 − cost / that` reaches both ends: 1 on identity, 0 when the two words share nothing anywhere. `max(n, m)` is a different claim, and the difference is exactly on length mismatch: it charges a truncation once where this charges the material that went missing and the material that replaced it apart. Both word-distance paths — `IPAFeatures.transcription_distance` and `DistanceModel.transcription_distance` — read one function for this, so a caller who switches to the model to get empirical weights changes which substitution costs the alignment sees and not what a similarity means.
 
-**Length asymmetry is reported, never folded in.** `WordDistanceResult.coverage` is `min(n, m) / max(n, m)`, and it multiplies nothing. Length is already charged once, as the gaps the alignment pays for; a second multiplicative term would charge it twice, which is the mistake `segment_distance` used to make with its separate length penalty. What the ratio adds is a diagnosis rather than a magnitude — it is what separates "these differ throughout" from "one is a truncation of the other", two readings a single score cannot tell apart, and folding it in would destroy precisely that.
+**Length asymmetry is reported, never folded in.** `TranscriptionDistanceResult.coverage` is `min(n, m) / max(n, m)`, and it multiplies nothing. Length is already charged once, as the gaps the alignment pays for; a second multiplicative term would charge it twice, which is the mistake `segment_distance` used to make with its separate length penalty. What the ratio adds is a diagnosis rather than a magnitude — it is what separates "these differ throughout" from "one is a truncation of the other", two readings a single score cannot tell apart, and folding it in would destroy precisely that.
 
 **Identity is checked before any "nothing comparable" sentinel.** The metric returns 1.0 where it has no basis for comparison — an unreadable symbol, a bundle with no key the other side shares — and that is a claim about the pair, not about either side alone: it cannot hold of a thing against itself. So `d(x, x) = 0` for every `x`, including the empty string and including input no inventory can read. The sentinel is reachable only when the two sides genuinely differ.
 
@@ -309,7 +309,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **Silence is maximally different from every speech sound.** `d(␣, X) = 1.0`, so a position where one word has a phone and the other has silence costs a delete and an insert: the phone went, and a silence arrived. Silence is a token that fills a position, not the absence of one — a word that drops the segment outright is a token shorter, pays a single gap, and scores as the nearer of the two.
 
-**The three scales are named apart.** `distance` is a structural magnitude and is bounded; `normalized_distance` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `WordDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
+**The three scales are named apart.** `distance` is a structural magnitude and is bounded; `normalized_distance` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `TranscriptionDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `transcription_distance("lez‿ami", "lezami") = 0`.
 
@@ -435,7 +435,7 @@ r.costs        # 'insert=1.0 delete=my-english/deletion'
 
 **This does not make `distance` relative.** [design/tiers.md](design/tiers.md) §7 commits that "tiers, their names, their inventory per language, and any phasing declared over them are language-relative. The feature space, the comparison bundle, and therefore `distance` are not." That commitment stands. A cost schedule parameterizes a comparison; it is not a term in the feature space. It declares no feature, enters no bundle, and moves no value `distance`, `segment_distance` or the shipped matrix returns — measured, and the measurement is in the test suite. What the caller supplies is how much a loss is worth to them. A word similarity is a function of the universal feature space **given** a stated parameterization, and the line between the two is the line between a term in the comparison and a price on it.
 
-That reading only holds if the parameterization is nameable, which is why every result carries one. `WordDistanceResult.costs` is `insert=<name> delete=<name>`, a flat cost naming itself and a schedule naming what it is a schedule for. An unnamed lambda reports `<lambda>`, which is the honest answer and the reason to pass a schedule when the number is going anywhere a reader will see it.
+That reading only holds if the parameterization is nameable, which is why every result carries one. `TranscriptionDistanceResult.costs` is `insert=<name> delete=<name>`, a flat cost naming itself and a schedule naming what it is a schedule for. An unnamed lambda reports `<lambda>`, which is the honest answer and the reason to pass a schedule when the number is going anywhere a reader will see it.
 
 **Directional distance.** `transcription_distance` is symmetric and stays symmetric, and it is the code rather than the suite that makes it so: the two reductions that could introduce an order dependence — the arc distance and the weighted place distance — each take `max(direction(a, b), direction(b, a))`, and part-matching minimizes over matchings symmetrically. The tests probe that with a curated list covering the cross-arity cases where an asymmetry would surface, rather than quantifying over the inventory; the `max()` is what earns the guarantee. Callers rely on it — the shipped matrix stores only the upper triangle. `directional_transcription_distance(reference, hypothesis)` is the entry point that names its reference side: `delete_cost` prices the phones of the reference, which is the material an omission removes, and `insert_cost` prices the phones of the hypothesis, which is the material that was added. "Did the speaker omit something the target has" and "did the speaker add something the target lacks" are different questions and a symmetric score cannot express either. With equal flat costs the two functions agree exactly; the asymmetry comes from the schedule, not from the entry point.
 

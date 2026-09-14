@@ -138,13 +138,13 @@ class TestEmptyInputs:
 
     def test_every_entry_point_calls_two_empties_identical(self) -> None:
         # These three used to disagree: distance and segment_distance
-        # answered 1.0 while word_distance answered 0.0, so the two public
+        # answered 1.0 while transcription_distance answered 0.0, so the two public
         # entry points gave opposite answers to one question. "Nothing
         # comparable" and "maximally far apart" are different claims, and
         # only the first is true of two empty inputs.
         assert ipakit.distance("", "") == 0.0
         assert ipakit.segment_distance("", "") == 0.0
-        r = ipakit.word_distance("", "")
+        r = ipakit.transcription_distance("", "")
         assert r.edit_cost == 0.0
         assert r.similarity == 1.0
 
