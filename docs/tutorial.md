@@ -141,17 +141,17 @@ p (voiceless bilabial plosive)
   ȶ  0.032  voiceless alveolo-palatal plosive
 ```
 
-Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`confusability` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary model distance reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
+Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`similarity_position` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary `distance_position` reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
 
 ```python
-ipa.confusability("f", "θ")  # the most-confused English pair
+ipa.similarity_position("f", "θ")  # the most-confused English pair
 # 0.9961426188490409
-ipa.confusability("f", "a")  # 0.2939949958298582
+ipa.similarity_position("f", "a")  # 0.2939949958298582
 ```
 
 ```console
-$ ipakit distance conf f θ
-f ~ θ: confusability=0.9961 distance=0.0039  [reference: ipa, 139 phones]
+$ ipakit distance pos f θ
+f ~ θ: similarity_position=0.9961 distance_position=0.0039  [reference: ipa, 139 phones]
 ```
 
 For transcription strings there are two different measures, and it matters which one you get.
@@ -164,7 +164,7 @@ ipa.distance_model().transcription_distance("kæt", "kæd").similarity
 ```
 
 > **Transcription comparison scales.** `ipakit distance transcription` prints the
-> inventory-relative `distance_model().transcription_distance` score by default; add `--raw` to print `transcription_similarity`. Reach for `confusability`/`distance_model` when you want positions comparable across pairs under one stated reference inventory, and `transcription_similarity` or `distance transcription --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
+> alignment `distance_model().transcription_distance` score with position-derived substitutions by default; add `--raw` to print `transcription_similarity`. Reach for `similarity_position`/`distance_position` when you want positions comparable across pairs under one stated reference inventory, and `transcription_similarity` or `distance transcription --raw` when you want the raw edit path. Neither scale is comparable to the other, and model positions are not comparable across inventories.
 
 ```console
 $ ipakit distance transcription kæt kæd
@@ -958,7 +958,7 @@ reading and the composed reading are one fact rather than two copies of it:
 ipa.features("tʰ") == inventory.get_features("tʰ")  # True
 ```
 
-The raw distance is inventory-independent and does not move. The *normalized* reads do,
+The raw distance is inventory-independent and does not move. The position reads do,
 because they are percentiles within a reference inventory and the reference just gained
 three phones — so a supplemented inventory needs its own derived matrix, which
 `DistanceModel.derive` builds and `save` keeps:
@@ -967,8 +967,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.confusability("tʰ", "t"), 4)  # 0.9655
-round(ipa.confusability("tʰ", "t"), 4)  # 0.9642
+round(model.similarity_position("tʰ", "t"), 4)  # 0.9655
+round(ipa.similarity_position("tʰ", "t"), 4)  # 0.9642
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the

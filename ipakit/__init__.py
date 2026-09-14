@@ -65,6 +65,7 @@ from .distance import (
 from .distance import (
     CostSchedule,
     PhoneCost,
+    PhonePosition,
     PronunciationMatch,
     ScoringParameters,
     SequenceMatch,
@@ -547,7 +548,7 @@ def rank_sequences(
     )
 
 
-def normalized_distance(
+def distance_position(
     phone1: str, phone2: str, *, applicable_only: bool = False
 ) -> float:
     """Complementary percentile position in the bundled IPA inventory.
@@ -557,26 +558,28 @@ def normalized_distance(
     identity; the closest distinct pair sits just above it.
     """
     model = _get_scoped_model() if applicable_only else _get_default_model()
-    return model.distance(phone1, phone2)
+    return model.distance_position(phone1, phone2)
 
 
-def confusability(phone1: str, phone2: str, *, applicable_only: bool = False) -> float:
+def similarity_position(
+    phone1: str, phone2: str, *, applicable_only: bool = False
+) -> float:
     """Similarity percentile position in the bundled IPA inventory.
 
-    The complement of :func:`normalized_distance`; 1.0 is reserved for
+    The complement of :func:`distance_position`; 1.0 is reserved for
     identical phones. This is an inventory-relative rank, not a magnitude
     comparable to :func:`segment_distance` or to a model over another
     inventory. For an inventory-scoped model, build one with
     :func:`distance_model`.
 
     Examples:
-        >>> round(ipakit.confusability("p", "b"), 3)
+        >>> round(ipakit.similarity_position("p", "b"), 3)
         0.961
-        >>> ipakit.confusability("p", "p")
+        >>> ipakit.similarity_position("p", "p")
         1.0
     """
     model = _get_scoped_model() if applicable_only else _get_default_model()
-    return model.confusability(phone1, phone2)
+    return model.similarity_position(phone1, phone2)
 
 
 def distance_model(
@@ -1772,6 +1775,7 @@ __all__ = [
     "PhonesetMapping",
     "CostSchedule",
     "PhoneCost",
+    "PhonePosition",
     "Alignment",
     "AlignmentStep",
     "TranscriptionDistanceResult",
@@ -1798,7 +1802,6 @@ __all__ = [
     # Functions
     "add_ties",
     "available_supplements",
-    "confusability",
     "describe",
     "distance",
     "distance_model",
@@ -1834,11 +1837,12 @@ __all__ = [
     "normalize",
     "normalize_lookalikes",
     "notebook",
-    "normalized_distance",
+    "distance_position",
     "from_phonemap",
     "phones_matching",
     "respell",
     "segment",
+    "similarity_position",
     "shorts_to_features",
     "stress_markers",
     "supplement_path",

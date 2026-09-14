@@ -119,8 +119,8 @@ This is the part that has to land regardless of the verdict, because the failure
 
 ```
 bridged inventory reading the shipped matrix: warnings=0
-  confusability(s, ʃ):  shipped matrix 0.9982   own derived matrix 0.9447
-  confusability(ʂ, s):  shipped matrix 0.9561   own derived matrix 0.9590
+  similarity_position(s, ʃ):  shipped matrix 0.9982   own derived matrix 0.9447
+  similarity_position(ʂ, s):  shipped matrix 0.9561   own derived matrix 0.9590
 ```
 
 Two plausible numbers, no diagnostic, and no way for the caller to tell which one they got. This is the defect shape [reviewing.md](../reviewing.md) exists to catch, and `DistanceModel.derive` plus `.save()` already make the *right* answer available — what is missing is the refusal of the wrong one.

@@ -243,27 +243,27 @@ class MatrixCommand(Command):
         return 0
 
 
-class ConfusabilityCommand(Command):
+class PositionsCommand(Command):
     """Inventory-relative percentile positions for two phones.
 
     Unlike 'pair' (raw feature distance), this uses the distribution-aware
-    DistanceModel. Confusability is the pair's similarity percentile in the
-    reference inventory; distance is its complementary position. Neither is a
+    DistanceModel. Similarity position is the pair's percentile in the
+    reference inventory; distance position is its complement. Neither is a
     structural magnitude comparable to 'pair', and neither is comparable across
-    inventories. Distance 0.0 means identity; the closest distinct pair sits
+    inventories. Distance position 0.0 means identity; the closest distinct pair sits
     just above it. Scope the inventory with --phoneset (default: full bundled
     IPA).
 
     Examples:
-        ipakit distance confusability p b      # confusability and its complement
-        ipakit distance conf p t               # a nearer pair scores higher
-        ipakit d conf p b --phoneset eng.txt   # percentile within eng.txt's phones
-        ipakit d conf p b --gamma 2            # same ranking, spacing stretched
-        ipakit d conf p b -j                   # JSON with reference info
+        ipakit distance positions p b          # two complementary positions
+        ipakit distance pos p t                # a nearer pair scores higher
+        ipakit d pos p b --phoneset eng.txt    # positions within eng.txt's phones
+        ipakit d pos p b --gamma 2             # same ranking, spacing stretched
+        ipakit d pos p b -j                    # JSON with reference info
     """
 
-    name = "confusability"
-    aliases: ClassVar[list[str]] = ["conf"]
+    name = "positions"
+    aliases: ClassVar[list[str]] = ["pos"]
     help = "Inventory-relative percentile positions between two phones"
     reads_notation = IPA
 
@@ -285,8 +285,8 @@ class ConfusabilityCommand(Command):
 
         model = build_model(self.ipa, self.args)
         a, b = self.args.phone1, self.args.phone2
-        conf = model.confusability(a, b)
-        dist = model.distance(a, b)
+        similarity_position = model.similarity_position(a, b)
+        distance_position = model.distance_position(a, b)
         name = model.reference_name
         size = len(model.reference_phones)
 
@@ -295,8 +295,8 @@ class ConfusabilityCommand(Command):
                 {
                     "phone1": a,
                     "phone2": b,
-                    "confusability": round(conf, 4),
-                    "distance": round(dist, 4),
+                    "similarity_position": round(similarity_position, 4),
+                    "distance_position": round(distance_position, 4),
                     "reference": name,
                     "reference_size": size,
                     "gamma": model.gamma,
@@ -304,7 +304,8 @@ class ConfusabilityCommand(Command):
             )
         else:
             print(
-                f"{a} ~ {b}: confusability={conf:.4f} distance={dist:.4f}"
+                f"{a} ~ {b}: similarity_position={similarity_position:.4f} "
+                f"distance_position={distance_position:.4f}"
                 f"  [reference: {name}, {size} phones]"
             )
         return 0
@@ -314,9 +315,8 @@ class TranscriptionCommand(Command):
     """Distance and similarity between two IPA transcription strings.
 
     Two measures, matching the two this group already offers for phones.
-    By default this is the inventory-relative one -- the counterpart of
-    'confusability' -- aligning the words with the DistanceModel's
-    percentile substitution costs (weighted Levenshtein). --raw is the
+    By default this aligns the words with the DistanceModel's position-derived
+    substitution costs (weighted Levenshtein). --raw is the
     counterpart of 'pair': the plain feature-distance alignment, which is
     what ipakit.transcription_distance() and ipakit.transcription_similarity() return.
 
@@ -347,7 +347,7 @@ class TranscriptionCommand(Command):
 
     name = "transcription"
     aliases: ClassVar[list[str]] = ["word", "w"]
-    help = "Inventory-relative distance/similarity between IPA transcriptions"
+    help = "Alignment cost/similarity with position-derived substitutions"
     reads_notation = IPA
 
     @classmethod
@@ -1246,7 +1246,7 @@ class DistanceGroup(CommandGroup):
     """Calculate phonetic distances between IPA phones, transcriptions, and phone sequences.
 
     Two flavors: 'pair'/'segment'/'matrix' give raw feature-distance magnitudes
-    (0.0 identical to 1.0 maximal); 'confusability' gives complementary
+    (0.0 identical to 1.0 maximal); 'positions' gives complementary
     percentile positions in a reference inventory, and 'transcription' aligns with
     substitution costs derived from those positions. Positions are not raw
     distances and are not comparable across inventories (scope them with
@@ -1256,8 +1256,8 @@ class DistanceGroup(CommandGroup):
         pair           Feature distance between two base phones
         segment        Feature distance between complex segments (diacritics)
         matrix         Pairwise feature-distance matrix for multiple phones
-        confusability  Inventory-relative percentile positions (phones)
-        transcription  Inventory-relative distance/similarity (IPA strings; aliases word, w)
+        positions      Inventory-relative percentile positions (phones; alias pos)
+        transcription  Alignment cost/similarity with position-derived substitutions
         directional    Directional reference-to-hypothesis transcription distance
         nearest        Best match of a form against a set of acceptable variants
         map            Map one phoneset onto another
@@ -1268,7 +1268,7 @@ class DistanceGroup(CommandGroup):
 
     Examples:
         ipakit distance pair p b               # Raw feature distance: ~0.05
-        ipakit distance confusability p b      # inventory-relative
+        ipakit distance positions p b          # inventory-relative
         ipakit distance transcription kæt kæd           # word similarity
         ipakit distance matrix p t k           # 3x3 comparison matrix
     """
@@ -1277,13 +1277,13 @@ class DistanceGroup(CommandGroup):
     aliases: ClassVar[list[str]] = ["d"]
     help = (
         "Raw distances, inventory positions, and mapping (pair, segment, matrix, "
-        "confusability, transcription, directional, nearest, map, compare, seq, metrics, across)"
+        "positions, transcription, directional, nearest, map, compare, seq, metrics, across)"
     )
     commands: ClassVar[list[type[Command]]] = [
         PairCommand,
         SegmentCommand,
         MatrixCommand,
-        ConfusabilityCommand,
+        PositionsCommand,
         TranscriptionCommand,
         DirectionalCommand,
         NearestCommand,

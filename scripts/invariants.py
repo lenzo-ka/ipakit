@@ -192,13 +192,13 @@ def check_distance_model(
     phones = list(ipa.phones) if phones is None else list(phones)
     model = DistanceModel.derive(ipa, phones=phones, applicable_only=applicable_only)
     label = "scoped derived model " if applicable_only else "derived model "
-    identity = [p for p in phones if model.distance(p, p) != 0.0]
+    identity = [p for p in phones if model.distance_position(p, p) != 0.0]
     asymmetric, out_of_range, collisions = [], [], []
     pairs = 0
     for a, b in itertools.combinations(phones, 2):
         pairs += 1
-        forward = model.distance(a, b)
-        back = model.distance(b, a)
+        forward = model.distance_position(a, b)
+        back = model.distance_position(b, a)
         if abs(forward - back) > TOLERANCE:
             asymmetric.append(f"d({a},{b})={forward} but d({b},{a})={back}")
         if not 0.0 <= forward <= 1.0:

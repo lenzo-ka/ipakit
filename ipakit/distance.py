@@ -7,7 +7,7 @@ import unicodedata
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, NamedTuple, overload
 
 from ._base import IPAFeaturesBase
 from .constants import METADATA_ATTRS
@@ -15,6 +15,13 @@ from .constants import METADATA_ATTRS
 if TYPE_CHECKING:
     from .features import IPAFeatures
     from .rules import RuleSet
+
+
+class PhonePosition(NamedTuple):
+    """A reference phone and its complementary percentile position."""
+
+    phone: str
+    distance_position: float
 
 
 @dataclass(frozen=True)
@@ -422,7 +429,7 @@ class TranscriptionDistanceResult:
     [0, 1] -- it grows with word length. ``similarity`` is the normalized
     [0, 1] figure and is what compares across word pairs. The unbounded
     quantity is named distinctly because the [0, 1] ``distance`` of
-    :func:`distance` and the percentile of :func:`normalized_distance`
+    :func:`distance` and the percentile of :func:`distance_position`
     already share that word.
 
     ``coverage`` is ``min(n, m) / max(n, m)`` over the two token counts.

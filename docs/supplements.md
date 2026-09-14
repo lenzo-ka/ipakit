@@ -15,7 +15,7 @@ ipakit.available_supplements()
 
 A supplement of your own is passed as a path. `ipakit.supplement_path("aspirated-stops")` is where the shipped one landed in your copy — to read, or to copy as a starting point.
 
-The instance that comes back is the caller's own. The module-level functions (`ipakit.distance`, `ipakit.confusability`, `ipakit.describe`), the shipped distance matrix, and every derived artifact in the package are built from the bare inventory and never see a supplement.
+The instance that comes back is the caller's own. The module-level functions (`ipakit.distance`, `ipakit.similarity_position`, `ipakit.describe`), the shipped distance matrix, and every derived artifact in the package are built from the bare inventory and never see a supplement.
 
 ## What registering buys, and what it does not
 
@@ -26,7 +26,7 @@ ipakit.describe("tʰ")
 # 'voiceless aspirated alveolar plosive'
 round(ipakit.distance("tʰ", "t"), 4)
 # 0.0455
-round(ipakit.confusability("tʰ", "t"), 4)
+round(ipakit.similarity_position("tʰ", "t"), 4)
 # 0.9642
 [p for p, _ in ipakit.nearest_phones("tʰ", n=3)]
 # ['t', 'ȶ', 'p']
@@ -34,7 +34,7 @@ round(ipakit.confusability("tʰ", "t"), 4)
 
 What registering adds is **membership** — being one of the phones the library counts, ranks and normalizes against. Concretely, four things.
 
-**The reference distribution.** `confusability`, `normalized_distance` and the phone-level `DistanceModel` methods return *percentile positions within a reference inventory*, and that inventory is a set of registered phones. Those positions are ranks, not magnitudes comparable to `segment_distance`, and positions from different inventories are not comparable. `distance_model(reference=[...])` re-slices the shipped matrix, so a member that matrix has no row for is dropped from the reference CDF, with a warning:
+**The reference distribution.** `similarity_position`, `distance_position` and the phone-level `DistanceModel` methods return *percentile positions within a reference inventory*, and that inventory is a set of registered phones. Those positions are ranks, not magnitudes comparable to `segment_distance`, and positions from different inventories are not comparable. `distance_model(reference=[...])` re-slices the shipped matrix, so a member that matrix has no row for is dropped from the reference CDF, with a warning:
 
 ```python
 narrow = ipakit.distance_model(reference=["p", "t", "k", "tʰ", "s", "a"])
@@ -141,7 +141,7 @@ It also means a supplement cannot be used to *re-spell* the base inventory. `č`
 
 `distance` is inventory-independent — it compares two feature bundles and does not consult the inventory — so it does not move.
 
-Everything **normalized** does move, by design. `confusability`, `normalized_distance`, and `DistanceModel.confusability`, `.distance`, and `.nearest` return positions within a reference distribution, and a supplemented inventory has a different distribution: three extra phones are three phones' worth of new pairs in the CDF. The same raw distance therefore occupies a different position. That is the point of registering, and it is also why a supplemented inventory must carry **its own derived data**. The flat `nearest_phones` method remains on the raw structural-distance scale.
+Everything **positioned** does move, by design. `similarity_position`, `distance_position`, and `DistanceModel.similarity_position`, `.distance_position`, and `.nearest_positions` return positions within a reference distribution, and a supplemented inventory has a different distribution: three extra phones are three phones' worth of new pairs in the CDF. The same raw distance therefore occupies a different position. That is the point of registering, and it is also why a supplemented inventory must carry **its own derived data**. The flat `nearest_phones` method remains on the raw structural-distance scale.
 
 The shipped `data/confusion.json` is the bare inventory's matrix and stays that way. `DistanceModel.global_` reads it; `DistanceModel.for_phoneset` re-slices it and cannot help, since a supplemented phone has no row in it. The constructor for a supplemented inventory is `derive`:
 
@@ -152,7 +152,7 @@ model.reference_name
 # 'ipa+aspirated-stops'
 "tʰ" in model.reference_phones
 # True
-model.confusability("tʰ", "t") == ipakit.confusability("tʰ", "t")
+model.similarity_position("tʰ", "t") == ipakit.similarity_position("tʰ", "t")
 # False
 ```
 

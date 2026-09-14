@@ -483,7 +483,7 @@ out = {
     # heads.xml
     "head": head("adult-male").name,
     # confusion.json
-    "confusable": ipakit.confusability("p", "b") is not None,
+    "positioned": ipakit.similarity_position("p", "b") is not None,
 }
 print(json.dumps(out))
 """
