@@ -217,7 +217,7 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
 
 @dataclass(frozen=True)
 class _NativeContainment:
-    """Present tiergraph containment with the reference oracle.s combined semantics."""
+    """Present tiergraph containment with the combined reference semantics."""
 
     graph: tiergraph.Graph
     refs: dict[str, tiergraph.ItemRef]
