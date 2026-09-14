@@ -204,11 +204,6 @@ def parse_query(
         raise QueryParseError(spec, str(exc)) from exc
 
 
-# K2's spelling remains a compatibility alias; K3's public name says what it
-# does and exposes wild-input policy explicitly.
-context = parse_query
-
-
 def query_rule(
     spec: str | Query,
     replacement: str,
@@ -270,16 +265,6 @@ class CorpusMatch:
     @property
     def offset(self) -> int:
         return self.match.offset
-
-    # Transitional tuple projection for K2 callers.  The record remains the
-    # public shape, while unpacking/indexing old streams still reaches their
-    # former ``(fileid, paths)`` view.
-    def __iter__(self) -> Iterator[str | tuple[str, ...]]:
-        yield self.fileid
-        yield self.paths
-
-    def __getitem__(self, index: int) -> str | tuple[str, ...]:
-        return (self.fileid, self.paths)[index]
 
 
 def _check_query_variables(source: str, patterns: Sequence[rules.Pattern]) -> None:
@@ -353,7 +338,7 @@ def query(
 ) -> Iterator[CorpusMatch]:
     """Yield form matches paired with entry and role identity."""
     inventory = _default(features)
-    compiled = context(pattern, inventory) if isinstance(pattern, str) else pattern
+    compiled = parse_query(pattern, inventory) if isinstance(pattern, str) else pattern
     for entry_id in corpus.ids():
         entry = corpus.read_roles(entry_id, iter((role,)))
         form = entry.forms.get(role)
