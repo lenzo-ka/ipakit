@@ -110,9 +110,9 @@ class TestGammaIsRefusedOutsideItsDomain:
 
     def test_a_large_gamma_is_deliberately_not_refused(self, ipa):
         """There is no upper bound, and this pins that as a decision. The
-        transform stays in range and stays order-preserving however large the
-        exponent is, so nothing about a large one is malformed; how far up is
-        useful is a fact about the caller's inventory. If a ceiling is ever
+        transform stays in range, and gamma 50 preserves this sample's order;
+        larger exponents eventually collapse positions in binary64. How far up
+        is useful is a fact about the caller's inventory. If a ceiling is ever
         added, this fails and the reasoning above needs revisiting.
         """
         phones = _core_phones(ipa)
@@ -145,13 +145,24 @@ class TestPercentile:
 
     def test_bounds_identity_unknown(self, ipa):
         m = _model(ipa, _core_phones(ipa))
+        steep = _model(ipa, _core_phones(ipa), gamma=3.0)
+        cases = [
+            ("identity", m, "p", "p"),
+            ("ordinary", m, "p", "b"),
+            ("OOV", m, "t͡ʃ", "s"),
+            ("underivable", m, "p", "ZZZ"),
+            ("custom gamma", steep, "p", "a"),
+        ]
+        for label, model, a, b in cases:
+            similarity = model.similarity_position(a, b)
+            distance = model.distance_position(a, b)
+            assert 0.0 <= similarity <= 1.0, label
+            assert 0.0 <= distance <= 1.0, label
+            assert distance == 1.0 - similarity, label
         assert m.distance_position("p", "p") == 0.0
         assert m.similarity_position("p", "p") == 1.0
         assert 0.0 < m.distance_position("p", "a") <= 1.0
         assert m.distance_position("p", "ZZZ") == 1.0
-        assert m.distance_position("p", "b") == pytest.approx(
-            1.0 - m.similarity_position("p", "b")
-        )
 
     @pytest.mark.slow
     def test_monotone_in_raw_distance(self, ipa):
@@ -482,10 +493,10 @@ class TestPublicApi:
     def test_similarity_position_complements_distance_position(self):
         import ipakit
 
-        assert ipakit.similarity_position("p", "p") == 1.0
-        c = ipakit.similarity_position("p", "b")
-        d = ipakit.distance_position("p", "b")
-        assert c == pytest.approx(1.0 - d)
+        for a, b in [("p", "p"), ("p", "b"), ("q͡χ", "s"), ("p", "ZZZ")]:
+            assert ipakit.distance_position(a, b) == (
+                1.0 - ipakit.similarity_position(a, b)
+            )
         assert "similarity_position" in ipakit.__all__
         assert "distance_position" in ipakit.__all__
         assert "PhonePosition" in ipakit.__all__
