@@ -907,9 +907,7 @@ class ContainmentProjection:
                     minimum=0,
                     allow_empty=True,
                 ),
-                # No distinct_targets: the declared roots list did not forbid a
-                # repeated root, so requiring distinctness here would refuse a
-                # duplicate-root graph the old Form.roots returned verbatim.
+                # Repeated roots are admitted and preserved in declaration order.
             ),
         )
         relations = tuple(

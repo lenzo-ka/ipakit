@@ -104,13 +104,13 @@ def test_curated_japanese_adaptations_use_the_rewrite_bridge(name):
     authoritative = {
         relation.declaration for relation in form._graph.polyadic_relations
     }
-    compatibility = {
+    unit_view = {
         link.name
         for link in form.__dict__["_tiergraph_index"].containment_input.relations
     }
     assert names["rewrites-to"] in authoritative
     if len(fixture.output) > len(fixture.source):
-        assert "inserts" in compatibility
+        assert "inserts" in unit_view
         assert names["inserts"] in authoritative
         declaration = next(
             item
@@ -140,7 +140,7 @@ def test_curated_japanese_adaptations_use_the_rewrite_bridge(name):
         )
 
 
-def test_phantoms_do_not_corrupt_the_compatibility_surface():
+def test_phantoms_do_not_corrupt_the_unit_surface():
     inventory = ipakit.load_ipa_features()
     form = japanese_moraic_fixture("strike", inventory)
     assert tuple(unit.text for unit in form.units) == tuple(
@@ -218,7 +218,7 @@ def test_insertion_then_deletion_keeps_cross_tier_input_clock_positions():
     ) in links
 
 
-def test_malformed_compatibility_graph_has_a_typed_failure():
+def test_malformed_unit_projection_graph_has_a_typed_failure():
     inventory = ipakit.load_ipa_features()
     source = inventory.read("p")
     from ipakit._ipa_graph import declarations

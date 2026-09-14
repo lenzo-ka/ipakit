@@ -218,9 +218,9 @@ def test_valid_event_relation_survives_native_codec():
     assert declaration.targets.tiers == (p.tier_names["sound"],)
 
 
-def test_legacy_graph_is_not_opted_in():
+def test_unqualified_graph_values_are_not_opted_in():
     builder = FactBuilder(declarations(FeatureDeclaration("claims")))
-    builder.append_input_atom("token", {"claims": "legacy omission"})
+    builder.append_input_atom("token", {"claims": "unqualified omission"})
     graph = ContainmentProjection.from_input(builder.build_input()).graph
     assert not any("declared-values" in ns.namespace for ns in graph.namespaces)
 
@@ -263,7 +263,7 @@ def test_foreign_names_do_not_inherit_private_payload_semantics(name, value):
         event.index
     ]
     # Independent literal expectation: only the real structural span, never a
-    # private spelling, numeric attribute, or compatibility interpretation.
+    # private spelling, numeric attribute, or unit interpretation.
     assert {a.name.local_name: a.lexical for a in item.attributes} == {
         "structural-duration": "1"
     }

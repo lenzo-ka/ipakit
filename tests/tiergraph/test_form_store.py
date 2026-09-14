@@ -166,7 +166,7 @@ def test_integer_timing_normalizes_to_float_so_units_round_trip() -> None:
     )
 
 
-def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
+def test_parsed_form_owns_graph_and_projects_unit_views() -> None:
     form = Form.parse("#a..b#", FEATURES)
 
     assert "units" not in form.__dict__
@@ -212,7 +212,7 @@ def test_at_resolves_only_the_requested_public_event() -> None:
     assert "_events" not in index.__dict__
 
 
-def test_compatibility_projection_is_memoized_across_form_surface(
+def test_unit_projection_is_memoized_across_form_surface(
     monkeypatch,
 ) -> None:
     constructions: dict[int, int] = {}
