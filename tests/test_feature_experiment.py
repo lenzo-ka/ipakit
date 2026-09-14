@@ -266,7 +266,7 @@ def test_duplicate_selections_refuse(declaration):
         )
 
 
-def test_actual_script_binary_and_legacy_modes(tmp_path):
+def test_actual_script_binary_and_ternary_modes(tmp_path):
     corpus = tmp_path / "tokens.json"
     corpus.write_text('[["a"],[]]')
     command = [

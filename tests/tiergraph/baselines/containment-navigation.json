@@ -1,6 +1,6 @@
 {
   "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/containment_oracle.py generate",
-  "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. Navigation is identical to the legacy implementation on every accepted graph.",
+  "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. Navigation is identical to the reference semantics on every accepted graph.",
   "fixtures": {
     "fixture:canonical-relation-order": {
       "answers": {
@@ -11592,7 +11592,7 @@
   "population": {
     "boundary": "the named fixtures in this artifact",
     "kind": "fixture-derived structural classes, derived and checked, with constructor/validator drift guard",
-    "outside_member_example": "boundary-owns: legacy direct_children(root) returns the coarse-tick boundary; projection refuses boundary-owns by name",
+    "outside_member_example": "boundary-owns: reference direct_children(root) returns the coarse-tick boundary; projection refuses boundary-owns by name",
     "surface": {
       "constructor_validator_sha256": "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa",
       "relation_declaration_fields": [
@@ -11620,10 +11620,10 @@
   },
   "refused_constructions": {
     "boundary-owns": {
-      "legacy_direct_children": [
+      "projection": "refused by relation name",
+      "reference_direct_children": [
         "/clock/1"
-      ],
-      "projection": "refused by relation name"
+      ]
     }
   },
   "routing": {

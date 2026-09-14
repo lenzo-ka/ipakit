@@ -62,7 +62,7 @@ def test_clock_cardinality_and_gap_counts_are_internally_consistent() -> None:
     clock = _load("clock_and_ordering.json")["cases"]
     n_plus_one = next(case for case in clock if case["id"] == "n-plus-one-clock")
     assert n_plus_one["expected"]["clock_entries"] == len(n_plus_one["input_atoms"]) + 1
-    cases = _load("compatibility_coordinates.json")["cases"]
+    cases = _load("unit_coordinates.json")["cases"]
     dots = next(case for case in cases if case["id"] == "a-dot-dot-b-mora")
     assert dots["expected"]["clock_entries"] == len(dots["clock_atoms"]) + 1
     for tick, refiners in dots["tick_refiners"].items():

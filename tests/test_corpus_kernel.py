@@ -72,9 +72,11 @@ def test_role_provenance_and_corpus_declaration_identity_are_additive(tmp_path: 
     assert reopened.declaration_fingerprint == identity_fingerprint(identity)
     assert reopened.read("word").provenance == {"aligned": provenance}
 
-    legacy = json.loads((tmp_path / "corpus" / "entries" / "word.json").read_text())
-    legacy.pop("provenance")
-    (tmp_path / "corpus" / "entries" / "word.json").write_text(json.dumps(legacy))
+    unannotated = json.loads(
+        (tmp_path / "corpus" / "entries" / "word.json").read_text()
+    )
+    unannotated.pop("provenance")
+    (tmp_path / "corpus" / "entries" / "word.json").write_text(json.dumps(unannotated))
     assert _corpus.open(tmp_path / "corpus").read("word").provenance == {}
 
 
