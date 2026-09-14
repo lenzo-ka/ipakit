@@ -47,6 +47,23 @@ def test_renderer_only_emits_codec_declared_tiers() -> None:
     assert render_graph(form, RenderProfile((RenderLane("atoms", "spelling"),))) == "a"
 
 
+@pytest.mark.parametrize("foreign_index", [0, True, "foreign", [0]])
+def test_explicit_qualified_render_labels_keep_input_order(foreign_index) -> None:
+    declared = Declarations(
+        (TierDeclaration("token", frozenset({"label", "unit-index"})),),
+        (
+            FeatureDeclaration("label", ("urn:custom", "label")),
+            FeatureDeclaration("unit-index", ("urn:custom", "unit-index")),
+        ),
+        (),
+    )
+    builder = FactBuilder(declared)
+    builder.append_input_atom("token", {"label": "a", "unit-index": 9})
+    builder.append_input_atom("token", {"label": "b", "unit-index": foreign_index})
+    form = Form._from_projection_input(builder.build_input())
+    assert render_graph(form, RenderProfile((RenderLane("token", "label"),))) == "ab"
+
+
 def test_pinyin_tone_surface_does_not_move_semantic_attachment() -> None:
     graph = build_pinyin("shui", "sh", "ui", 3)
     assert render_pinyin(graph) == "shuǐ"
