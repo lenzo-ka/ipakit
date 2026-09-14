@@ -45,6 +45,23 @@ def test_orphan_unit_index_cannot_redirect_a_corpus_match():
         _ = Form._from_projection_input(builder.build_input()).units
 
 
+def test_native_root_relation_retains_repeated_occurrences():
+    from dataclasses import replace
+
+    from ipakit import IPAFeatures
+
+    form = IPAFeatures().read("ab")
+    source = form.__dict__["_tiergraph_index"].containment_input
+    roots = (source.refs[0], source.refs[1], source.refs[0])
+    projection = ContainmentProjection.from_input(replace(source, roots=roots))
+    relation = next(
+        relation
+        for relation in projection.graph.polyadic_relations
+        if relation.declaration == projection.roots_name
+    )
+    assert relation.targets == tuple(projection.old_to_new[path] for path in roots)
+
+
 @pytest.mark.parametrize("consumer", ["occurrences", "lowering", "form", "query"])
 @pytest.mark.parametrize("orphan_unit", [False, True])
 def test_unit_support_admission_is_shared(consumer, orphan_unit):

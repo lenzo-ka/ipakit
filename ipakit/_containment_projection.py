@@ -439,7 +439,7 @@ def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
 
 @dataclass(frozen=True)
 class ContainmentProjectionInput:
-    """Scaffold-free facts needed to build the authoritative projection."""
+    """Declaration and input-clock facts for the authoritative projection."""
 
     refs: tuple[str, ...]
     declarations: Declarations

@@ -560,9 +560,9 @@ def _render() -> str:
             "After declaration and profile payload admission, containment "
             "instances require one event source and "
             "only event targets (including a declared empty target side); across "
-            "multiple relations, repeated incidence is retained. The named fixtures "
-            "record navigation audited at source commit "
-            "485f7a7c631001b58acfffc2884011081e0bcd19."
+            "multiple relations, repeated incidence is retained. The named current "
+            "fixtures record native regression observations; their historical "
+            "reference audit provenance is described separately."
         ),
         "refusals": {
             "source_cardinality_other_than_one": (
@@ -596,8 +596,7 @@ def _render() -> str:
         },
         "population": {
             "kind": (
-                "fixture-derived structural classes, derived and checked, with "
-                "constructor/validator drift guard"
+                "fixture-derived structural classes checked against committed golden"
             ),
             "boundary": "the named fixtures in this artifact",
             "outside_member_example": (
@@ -605,6 +604,15 @@ def _render() -> str:
                 "coarse-tick boundary; projection refuses boundary-owns by name"
             ),
             "surface": {
+                "scope": "historical reference constructor/validator source receipt",
+                "source_commit": "485f7a7c631001b58acfffc2884011081e0bcd19",
+                "source_symbols": [
+                    "ipakit._tiergraph.RelationDeclaration.__post_init__",
+                    "ipakit._tiergraph.Graph._validate_relation",
+                    "ipakit._tiergraph.Graph._validate_endpoints",
+                    "ipakit._tiergraph.Graph._validate_acyclic",
+                    "ipakit._tiergraph_builder.GraphBuilder.contain",
+                ],
                 "relation_declaration_fields": [
                     "name",
                     "ordered",
@@ -622,7 +630,7 @@ def _render() -> str:
                     "choice",
                     "member_of",
                 ],
-                "tiergraph_relation_declaration_source_sha256": (
+                "reference_constructor_validator_source_sha256": (
                     "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa"
                 ),
             },
