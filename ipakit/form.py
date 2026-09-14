@@ -450,8 +450,9 @@ class Unit:
     def core(self) -> str:
         """The spelling without prosody glyphs: ``ˈa`` has core ``a``.
 
-        This is the phone's identity name. Stress and length are not
-        part of it, which is why ``a``, ``ˈa`` and ``aː`` share one.
+        This lossy segmental-name projection maps ``a``, ``ˈa`` and
+        ``aː`` to ``a``. Their full segments retain stress and length;
+        equal projected names do not establish phonological equivalence.
 
         Spelled by the segment itself rather than by joining its
         constituents: a tie bar lives in ``junctures``, so hand-joining
@@ -2255,10 +2256,10 @@ class Form:
 
     @property
     def phones(self) -> tuple[str, ...]:
-        """Phone identity names; boundaries and prosody dropped.
+        """Segmental-name projection; boundaries and prosody dropped.
 
-        ``ˈa`` and ``aː`` both read as ``a``, because prosody is not
-        part of a phone's identity.
+        ``ˈa`` and ``aː`` both read as ``a`` in this lossy view. Full
+        segments retain their differences. Tie spelling is preserved.
 
         Filtered on carrying a segment rather than on not being a
         boundary, so a structural zero drops out here too: it is a
@@ -2272,7 +2273,7 @@ class Form:
 
         The counterpart of :attr:`boundaries`. :attr:`segments` keeps
         these -- prosody rides on the ``Segment`` -- so this is the
-        record of what the *identity* projection lets go.
+        record of what the lossy segmental-name projection lets go.
         """
         out: list[Attribute] = []
         index = 0

@@ -240,7 +240,7 @@ def test_malformed_compatibility_graph_has_a_typed_failure():
 
 def test_alignment_is_rich_but_retains_the_pair_surface():
     inventory = ipakit.load_ipa_features()
-    result = inventory.word_distance("kæt", "kæd", return_alignment=True)
+    result = inventory.transcription_distance("kæt", "kæd", return_alignment=True)
     assert result.alignment is not None
     assert list(result.alignment) == [("k", "k"), ("æ", "æ"), ("t", "d")]
     assert [step.op for step in result.alignment.steps] == ["match", "match", "sub"]
@@ -253,23 +253,23 @@ def test_distance_alignment_capture_is_the_live_oracle():
     inventory = ipakit.load_ipa_features()
     captured = json.loads((HERE / "baselines" / "distance-alignments.json").read_text())
     for case in captured["pairs"]:
-        result = inventory.word_distance(
+        result = inventory.transcription_distance(
             case["left"], case["right"], return_alignment=True
         )
         assert result.alignment is not None
-        expected = case["word_distance"]
+        expected = case["transcription_distance"]
         assert [list(pair) for pair in result.alignment] == expected["alignment"]
         assert result.edit_cost == expected["edit_cost"]
         assert result.similarity == expected["similarity"]
         assert result.coverage == expected["coverage"]
         assert result.costs == expected["costs"]
         assert (
-            inventory.word_similarity(case["left"], case["right"])
-            == case["word_similarity"]
+            inventory.transcription_similarity(case["left"], case["right"])
+            == case["transcription_similarity"]
         )
         assert (
-            inventory.explain_word_distance(case["left"], case["right"])
-            == case["explain_word_distance"]
+            inventory.explain_transcription_distance(case["left"], case["right"])
+            == case["explain_transcription_distance"]
         )
 
 

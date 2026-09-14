@@ -78,7 +78,7 @@ def measurements() -> dict[str, Any]:
 
 
 def _terms(pair: dict[str, Any]) -> str:
-    explanation = ipakit.explain_word_distance(pair["left"], pair["right"])[0]
+    explanation = ipakit.explain_transcription_distance(pair["left"], pair["right"])[0]
     terms = []
     for term in explanation["terms"]:
         if term["cost"]:

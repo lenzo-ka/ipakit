@@ -1,6 +1,6 @@
 """Scoring pre-tokenized phone sequences, n-best, and a local fit mode.
 
-``word_distance`` tokenizes a string and may join or split units; the sequence
+``transcription_distance`` tokenizes a string and may join or split units; the sequence
 methods take phone-token lists and align them as given. ``mode="local"`` fits
 one sequence as a target embedded in another. No lexicon is involved -- the
 candidates are the sequences the caller supplies.
@@ -25,10 +25,10 @@ class TestPreTokenizedIsAlignedAsGiven:
         # stays two units, so it is not identical to the one-unit affricate.
         assert ipa.sequence_similarity(["t", "ʃ"], ["t͡ʃ"]) < 1.0
 
-    def test_it_agrees_with_word_distance_on_the_same_tokens(self, ipa):
+    def test_it_agrees_with_transcription_distance_on_the_same_tokens(self, ipa):
         toks1 = [t for t in ipa.tokenize("kæt") if not ipa.is_structural_token(t)]
         toks2 = [t for t in ipa.tokenize("kæd") if not ipa.is_structural_token(t)]
-        assert ipa.sequence_similarity(toks1, toks2) == ipa.word_similarity(
+        assert ipa.sequence_similarity(toks1, toks2) == ipa.transcription_similarity(
             "kæt", "kæd"
         )
 

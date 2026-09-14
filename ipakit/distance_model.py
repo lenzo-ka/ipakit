@@ -30,11 +30,11 @@ from .distance import (
     PhoneCost,
     ScoringParameters,
     SequenceMatch,
-    WordDistanceResult,
+    TranscriptionDistanceResult,
     _empty_pair_result,
     _prices,
     _substitution_cost,
-    _word_result,
+    _transcription_result,
     price,
 )
 from .metric import metric_fingerprint
@@ -644,7 +644,7 @@ class DistanceModel:
         ds.sort(key=lambda x: x[1])
         return ds[:n]
 
-    # -- word-level API -------------------------------------------------------
+    # -- transcription API ----------------------------------------------------
 
     def sub_cost(self, t1: str, t2: str) -> float:
         """Substitution cost between two tokens for the edit-distance DP.
@@ -676,35 +676,37 @@ class DistanceModel:
             price(self._delete, t1),
         )
 
-    def word_distance(
+    def transcription_distance(
         self, ipa1: str, ipa2: str, *, return_alignment: bool = False
-    ) -> WordDistanceResult:
-        """Phonetic edit distance between two IPA words under this model.
+    ) -> TranscriptionDistanceResult:
+        """Compare IPA transcription strings with this model's selected costs.
 
         Uses the model's renormalized substitution costs (and indel costs) in a
-        weighted-Levenshtein alignment. Returns a :class:`WordDistanceResult`;
+        weighted-Levenshtein alignment. Returns a :class:`TranscriptionDistanceResult`;
         pass ``return_alignment=True`` to include the aligned token pairs.
 
-        The normalizer is :func:`~ipakit.distance._word_result`, the same
-        function :meth:`IPAFeatures.word_distance` calls, so switching from
-        the plain path to this one to get empirical weights changes which
+        The normalizer is :func:`~ipakit.distance._transcription_result`, the same
+        function :meth:`IPAFeatures.transcription_distance` calls, so switching from
+        the plain path to this one to get inventory-relative weights changes which
         substitution costs the alignment sees and not what a similarity
         means.
         """
-        t1 = self._ipa._word_units(ipa1)
-        t2 = self._ipa._word_units(ipa2)
+        t1 = self._ipa._transcription_units(ipa1)
+        t2 = self._ipa._transcription_units(ipa2)
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
             return _empty_pair_result(return_alignment, self._insert, self._delete)
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
         )
-        return _word_result(t1, t2, dist, alignment, self._insert, self._delete)
+        return _transcription_result(
+            t1, t2, dist, alignment, self._insert, self._delete
+        )
 
-    def directional_word_distance(
+    def directional_transcription_distance(
         self, reference: str, hypothesis: str, *, return_alignment: bool = False
-    ) -> WordDistanceResult:
-        """:meth:`word_distance` with the reference side named.
+    ) -> TranscriptionDistanceResult:
+        """Compare transcriptions with the reference's deletion costs.
 
         Identical in every value it computes; what it adds is that the
         argument names say which sequence the deletion costs are charged
@@ -714,13 +716,13 @@ class DistanceModel:
         per-phone schedule on either side the score is not symmetric, and
         this spelling is the one that says which way round it runs.
         """
-        return self.word_distance(
+        return self.transcription_distance(
             reference, hypothesis, return_alignment=return_alignment
         )
 
-    def word_similarity(self, ipa1: str, ipa2: str) -> float:
-        """The ``similarity`` field of :meth:`word_distance` (in [0, 1])."""
-        return self.word_distance(ipa1, ipa2).similarity
+    def transcription_similarity(self, ipa1: str, ipa2: str) -> float:
+        """Return this model's normalized transcription similarity."""
+        return self.transcription_distance(ipa1, ipa2).similarity
 
     def sequence_distance(
         self,
@@ -729,8 +731,8 @@ class DistanceModel:
         *,
         mode: str = "global",
         return_alignment: bool = False,
-    ) -> WordDistanceResult:
-        """:meth:`word_distance` over pre-tokenized phone sequences, under this
+    ) -> TranscriptionDistanceResult:
+        """:meth:`transcription_distance` over pre-tokenized phone sequences, under this
         model's renormalized (gamma-aware) costs. The tokens are aligned as
         given; ``mode="local"`` fits ``seq2`` as a target inside ``seq1`` (see
         :meth:`~ipakit.distance.DistanceMixin.sequence_distance`)."""
@@ -744,7 +746,9 @@ class DistanceModel:
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
         )
-        return _word_result(t1, t2, dist, alignment, self._insert, self._delete)
+        return _transcription_result(
+            t1, t2, dist, alignment, self._insert, self._delete
+        )
 
     def sequence_similarity(
         self, seq1: Sequence[str], seq2: Sequence[str], *, mode: str = "global"
@@ -780,7 +784,7 @@ class DistanceModel:
         scored.sort(key=lambda x: -x.similarity)
         return scored if n is None else scored[:n]
 
-    def _max_word_similarity(self, t1: list[str], t2: list[str]) -> float:
+    def _max_transcription_similarity(self, t1: list[str], t2: list[str]) -> float:
         """True content-independent upper bound: only |n-m| forced indels.
 
         A bound over the **tokens**, because the prices are read per phone.
@@ -816,7 +820,7 @@ class DistanceModel:
         length ratio exceeds ``max_length_ratio``, or that cannot reach the
         threshold given an upper-bound check, short-circuit before the DP runs.
 
-        The gates count the tokens :meth:`word_distance` aligns, structural
+        The gates count the tokens :meth:`transcription_distance` aligns, structural
         marks excluded. They counted every token the tokenizer emitted,
         which charged a linking undertie a length and a price that the
         alignment never pays: ``lez‿ami`` against ``lezami`` is one token
@@ -831,16 +835,18 @@ class DistanceModel:
         mr = (
             max_length_ratio if max_length_ratio is not None else self._max_length_ratio
         )
-        t1 = self._ipa._word_units(ipa1)
-        t2 = self._ipa._word_units(ipa2)
+        t1 = self._ipa._transcription_units(ipa1)
+        t2 = self._ipa._transcription_units(ipa2)
         n, m = len(t1), len(t2)
         if n == 0 or m == 0:
             return n == m
         if mr is not None and max(n, m) / min(n, m) > mr:
             return False
-        if self._max_word_similarity(t1, t2) < th:  # skip DP: can't reach threshold
+        if (
+            self._max_transcription_similarity(t1, t2) < th
+        ):  # skip DP: can't reach threshold
             return False
-        return self.word_similarity(ipa1, ipa2) >= th
+        return self.transcription_similarity(ipa1, ipa2) >= th
 
     def __repr__(self) -> str:
         return (

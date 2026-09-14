@@ -31,17 +31,17 @@ class TestTheStressFeatureIsAGradedOrdinal:
 class TestStressIsRead:
     def test_the_reported_bug_is_fixed(self, ipa):
         # #190: these were 1.0 (identical) before.
-        assert ipa.word_similarity("ˈkɛt", "ˌkɛt") < 1.0
+        assert ipa.transcription_similarity("ˈkɛt", "ˌkɛt") < 1.0
 
     def test_a_level_change_is_smaller_than_stressed_vs_unstressed(self, ipa):
         # primary vs secondary is half a step; primary vs unstressed is a full
         # step, so ˈkɛt is nearer ˌkɛt than it is kɛt.
-        near = ipa.word_similarity("ˈkɛt", "ˌkɛt")
-        far = ipa.word_similarity("ˈkɛt", "kɛt")
-        assert near > far > ipa.word_similarity("ˈkɛt", "ˈdɔɡ")
+        near = ipa.transcription_similarity("ˈkɛt", "ˌkɛt")
+        far = ipa.transcription_similarity("ˈkɛt", "kɛt")
+        assert near > far > ipa.transcription_similarity("ˈkɛt", "ˈdɔɡ")
 
     def test_the_mark_rides_on_its_unit_in_the_alignment(self, ipa):
-        r = ipa.word_distance("ˈkɛt", "ˌkɛt", return_alignment=True)
+        r = ipa.transcription_distance("ˈkɛt", "ˌkɛt", return_alignment=True)
         assert ("ˈɛ", "ˌɛ") in r.alignment
 
 
@@ -80,7 +80,7 @@ class TestItIsMetricOnlyAndContained:
 
 class TestExplainTrace:
     def test_it_traces_each_position_with_the_prosodic_term(self, ipa):
-        steps = ipa.explain_word_distance("ˈkɛt", "ˌkɛt")
+        steps = ipa.explain_transcription_distance("ˈkɛt", "ˌkɛt")
         sub = next(s for s in steps if s["op"] == "sub")
         assert sub["a"] == "ˈɛ" and sub["b"] == "ˌɛ"
         stress = next(t for t in sub["terms"] if t["label"].startswith("stress"))
@@ -88,14 +88,14 @@ class TestExplainTrace:
         assert stress["cost"] == 0.5
 
     def test_matches_have_zero_cost(self, ipa):
-        steps = ipa.explain_word_distance("ˈkɛt", "ˌkɛt")
+        steps = ipa.explain_transcription_distance("ˈkɛt", "ˌkɛt")
         matches = [s for s in steps if s["op"] == "match"]
         assert matches and all(s["cost"] == 0.0 for s in matches)
 
     def test_the_module_level_wrapper_traces_too(self):
         import ipakit
 
-        steps = ipakit.explain_word_distance("ˈkɛt", "ˌkɛt")
+        steps = ipakit.explain_transcription_distance("ˈkɛt", "ˌkɛt")
         sub = next(s for s in steps if s["op"] == "sub")
         stress = next(t for t in sub["terms"] if t["label"].startswith("stress"))
         assert stress["a"] == "primary" and stress["b"] == "secondary"

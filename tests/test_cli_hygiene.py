@@ -174,7 +174,7 @@ class TestEveryCommandSaysWhatItIs:
 #: unconditional sweep below can only hand a leaf one word, and a command
 #: wanting two forms or a rule set is never reached that way.
 WITNESSES = [
-    ["distance", "word", "cat", "cad"],
+    ["distance", "transcription", "cat", "cad"],
     ["distance", "seq", "cat", "cad"],
     ["distance", "nearest", "cat", "cad", "cat"],
     ["distance", "segment", "c", "t"],

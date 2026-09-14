@@ -68,7 +68,7 @@ from .distance import (
     PronunciationMatch,
     ScoringParameters,
     SequenceMatch,
-    WordDistanceResult,
+    TranscriptionDistanceResult,
 )
 from .distance_model import DistanceModel
 from .experiment import Experiment as Experiment
@@ -226,7 +226,7 @@ def distance(phone1: str, phone2: str, *, applicable_only: bool = False) -> floa
     """Compute raw phonetic-distance magnitude (0.0 identical, 1.0 maximal).
 
     Each argument is one unit: a phone with any diacritics, but not a word.
-    Multi-unit input raises ``ValueError`` -- use :func:`word_distance` for a
+    Multi-unit input raises ``ValueError`` -- use :func:`transcription_distance` for a
     string of units. An unknown phone scores 1.0 (maximally far); two empty
     inputs are identical (0.0).
     """
@@ -259,7 +259,7 @@ def pairwise_distances(
     return _get_ipa().pairwise_distances(phones, applicable_only=applicable_only)
 
 
-def word_distance(
+def transcription_distance(
     ipa1: str,
     ipa2: str,
     *,
@@ -267,8 +267,8 @@ def word_distance(
     return_alignment: bool = False,
     strict: bool = True,
     applicable_only: bool = False,
-) -> WordDistanceResult:
-    """Compute phonetic edit distance between two IPA words.
+) -> TranscriptionDistanceResult:
+    """Compare IPA transcription strings using segment alignment.
 
     Uses Levenshtein-style dynamic programming with phonetic feature costs.
 
@@ -281,17 +281,17 @@ def word_distance(
             ``False`` to measure over whatever survives, warning instead.
 
     Returns:
-        WordDistanceResult with the summed edit cost, the normalized
+        TranscriptionDistanceResult with the summed edit cost, the normalized
         similarity, the length coverage, the cost identity, and an optional
         alignment.
 
     Examples:
-        >>> ipakit.word_distance("kæt", "kæd")
-        WordDistanceResult(edit_cost=0.095..., similarity=0.984..., coverage=1.0, costs='insert=1.0 delete=1.0', alignment=None)
-        >>> ipakit.word_distance("kæt", "kæ").coverage
+        >>> ipakit.transcription_distance("kæt", "kæd")
+        TranscriptionDistanceResult(edit_cost=0.095..., similarity=0.984..., coverage=1.0, costs='insert=1.0 delete=1.0', alignment=None)
+        >>> ipakit.transcription_distance("kæt", "kæ").coverage
         0.666...
     """
-    return _get_ipa().word_distance(
+    return _get_ipa().transcription_distance(
         ipa1,
         ipa2,
         weighted=weighted,
@@ -301,7 +301,7 @@ def word_distance(
     )
 
 
-def directional_word_distance(
+def directional_transcription_distance(
     reference: str,
     hypothesis: str,
     *,
@@ -311,25 +311,25 @@ def directional_word_distance(
     return_alignment: bool = False,
     strict: bool = True,
     applicable_only: bool = False,
-) -> WordDistanceResult:
-    """Edit distance from a reference form to a hypothesis, sides named.
+) -> TranscriptionDistanceResult:
+    """Compare IPA transcriptions with reference and hypothesis gap costs.
 
     ``delete_cost`` prices the phones of ``reference`` -- what went missing
     -- and ``insert_cost`` the phones of ``hypothesis`` -- what was
     supplied. Give either one a :class:`CostSchedule` and the score stops
     being symmetric, which is the point: a reference and a hypothesis are
     not interchangeable. See
-    :meth:`IPAFeatures.directional_word_distance`.
+    :meth:`IPAFeatures.directional_transcription_distance`.
 
     Examples:
         >>> drop = ipakit.CostSchedule("example/schwa-drops", {"ə": 0.25}, 1.0)
-        >>> r = ipakit.directional_word_distance("kætə", "kæt", delete_cost=drop)
+        >>> r = ipakit.directional_transcription_distance("kætə", "kæt", delete_cost=drop)
         >>> r.costs
         'insert=1.0 delete=example/schwa-drops'
-        >>> r.edit_cost < ipakit.word_distance("kætə", "kæt").edit_cost
+        >>> r.edit_cost < ipakit.transcription_distance("kætə", "kæt").edit_cost
         True
     """
-    return _get_ipa().directional_word_distance(
+    return _get_ipa().directional_transcription_distance(
         reference,
         hypothesis,
         insert_cost=insert_cost,
@@ -341,7 +341,7 @@ def directional_word_distance(
     )
 
 
-def word_similarity(
+def transcription_similarity(
     ipa1: str,
     ipa2: str,
     *,
@@ -349,7 +349,7 @@ def word_similarity(
     strict: bool = True,
     applicable_only: bool = False,
 ) -> float:
-    """Compute phonetic similarity between two IPA words.
+    """Return normalized similarity for IPA transcription strings.
 
     Returns a value from 0.0 (completely different) to 1.0 (identical):
     the alignment cost against the cost of the null alignment, which
@@ -361,12 +361,12 @@ def word_similarity(
         weighted: If True, use feature distance for substitution costs.
 
     Examples:
-        >>> ipakit.word_similarity("kæt", "kæd")
+        >>> ipakit.transcription_similarity("kæt", "kæd")
         0.98...
-        >>> ipakit.word_similarity("kæt", "dɒɡ")  # weighted subs are cheap (shared features)
+        >>> ipakit.transcription_similarity("kæt", "dɒɡ")  # weighted subs are cheap (shared features)
         0.8...
     """
-    return _get_ipa().word_similarity(
+    return _get_ipa().transcription_similarity(
         ipa1,
         ipa2,
         weighted=weighted,
@@ -375,7 +375,7 @@ def word_similarity(
     )
 
 
-def explain_word_distance(
+def explain_transcription_distance(
     ipa1: str,
     ipa2: str,
     *,
@@ -383,20 +383,20 @@ def explain_word_distance(
     strict: bool = True,
     applicable_only: bool = False,
 ) -> list[dict[str, object]]:
-    """A per-position trace of a word comparison, for debugging and detail.
+    """Explain transcription alignment in raw feature-cost terms.
 
     One step per aligned position: ``op`` (match/sub/insert/delete), the two
     units, the position ``cost``, and for a substitution the ``(label, a, b,
     cost)`` term rows behind it -- each comparable feature, the tract
     coordinates, and every prosodic rider (stress, tone, length). The raw
-    feature-distance path, the one :func:`word_distance` reads.
+    feature-distance path, the one :func:`transcription_distance` reads.
 
     Examples:
-        >>> steps = ipakit.explain_word_distance("kæt", "kæd")
+        >>> steps = ipakit.explain_transcription_distance("kæt", "kæd")
         >>> steps[-1]["op"], steps[-1]["a"], steps[-1]["b"]
         ('sub', 't', 'd')
     """
-    return _get_ipa().explain_word_distance(
+    return _get_ipa().explain_transcription_distance(
         ipa1,
         ipa2,
         weighted=weighted,
@@ -478,7 +478,7 @@ def sequence_distance(
     mode: str = "global",
     return_alignment: bool = False,
     applicable_only: bool = False,
-) -> WordDistanceResult:
+) -> TranscriptionDistanceResult:
     """Distance between two pre-tokenized phone sequences (each element one
     phone unit), aligned as given -- see
     :meth:`~ipakit.distance.DistanceMixin.sequence_distance`.
@@ -1774,7 +1774,7 @@ __all__ = [
     "PhoneCost",
     "Alignment",
     "AlignmentStep",
-    "WordDistanceResult",
+    "TranscriptionDistanceResult",
     "ScoringParameters",
     "PronunciationMatch",
     "SequenceMatch",
@@ -1854,12 +1854,12 @@ __all__ = [
     "wiki",
     "wiki_ref",
     "wiki_refs",
-    "word_distance",
-    "directional_word_distance",
+    "transcription_distance",
+    "directional_transcription_distance",
+    "transcription_similarity",
+    "explain_transcription_distance",
     "segment_distance",
     "pairwise_distances",
-    "word_similarity",
-    "explain_word_distance",
     "nearest_pronunciation",
     "rank_pronunciations",
     "sequence_distance",

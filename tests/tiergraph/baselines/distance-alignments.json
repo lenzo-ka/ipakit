@@ -1,10 +1,10 @@
 {
   "format": 1,
-  "ipakit": "0.1.0",
+  "ipakit": "0.3.0",
   "kind": "distance-alignments",
   "pairs": [
     {
-      "explain_word_distance": [
+      "explain_transcription_distance": [
         {
           "a": "k",
           "b": "k",
@@ -31,7 +31,7 @@
       "left": "kæt",
       "right": "kæt",
       "segment_distance": 0.0,
-      "word_distance": {
+      "transcription_distance": {
         "alignment": [
           [
             "k",
@@ -51,10 +51,10 @@
         "edit_cost": 0.0,
         "similarity": 1.0
       },
-      "word_similarity": 1.0
+      "transcription_similarity": 1.0
     },
     {
-      "explain_word_distance": [
+      "explain_transcription_distance": [
         {
           "a": "k",
           "b": "k",
@@ -208,7 +208,7 @@
       "left": "kæt",
       "right": "kæd",
       "segment_distance": 0.015873015873015872,
-      "word_distance": {
+      "transcription_distance": {
         "alignment": [
           [
             "k",
@@ -228,10 +228,10 @@
         "edit_cost": 0.09523809523809523,
         "similarity": 0.9841269841269842
       },
-      "word_similarity": 0.9841269841269842
+      "transcription_similarity": 0.9841269841269842
     },
     {
-      "explain_word_distance": [
+      "explain_transcription_distance": [
         {
           "a": "k",
           "b": "k",
@@ -265,7 +265,7 @@
       "left": "kæt",
       "right": "kæts",
       "segment_distance": 0.25,
-      "word_distance": {
+      "transcription_distance": {
         "alignment": [
           [
             "k",
@@ -289,10 +289,10 @@
         "edit_cost": 1.0,
         "similarity": 0.8571428571428572
       },
-      "word_similarity": 0.8571428571428572
+      "transcription_similarity": 0.8571428571428572
     },
     {
-      "explain_word_distance": [
+      "explain_transcription_distance": [
         {
           "a": "k",
           "b": "k",
@@ -326,7 +326,7 @@
       "left": "kæts",
       "right": "kæt",
       "segment_distance": 0.25,
-      "word_distance": {
+      "transcription_distance": {
         "alignment": [
           [
             "k",
@@ -350,10 +350,10 @@
         "edit_cost": 1.0,
         "similarity": 0.8571428571428572
       },
-      "word_similarity": 0.8571428571428572
+      "transcription_similarity": 0.8571428571428572
     },
     {
-      "explain_word_distance": [
+      "explain_transcription_distance": [
         {
           "a": "s",
           "b": "s",
@@ -574,7 +574,7 @@
       "left": "stɹa͜ɪk",
       "right": "sutoɾaiku",
       "segment_distance": 0.5408109908134612,
-      "word_distance": {
+      "transcription_distance": {
         "alignment": [
           [
             "s",
@@ -618,10 +618,10 @@
         "edit_cost": 4.612965203987931,
         "similarity": 0.6705024854294335
       },
-      "word_similarity": 0.6705024854294335
+      "transcription_similarity": 0.6705024854294335
     },
     {
-      "explain_word_distance": [
+      "explain_transcription_distance": [
         {
           "a": "k",
           "b": "k",
@@ -787,7 +787,7 @@
       "left": "kˈæt",
       "right": "kˌæt",
       "segment_distance": 0.007246376811594203,
-      "word_distance": {
+      "transcription_distance": {
         "alignment": [
           [
             "k",
@@ -807,7 +807,7 @@
         "edit_cost": 0.043478260869565216,
         "similarity": 0.9927536231884058
       },
-      "word_similarity": 0.9927536231884058
+      "transcription_similarity": 0.9927536231884058
     }
   ],
   "python_hash_seed": 0

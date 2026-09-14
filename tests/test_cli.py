@@ -854,7 +854,7 @@ class TestCuratedJapaneseAdaptationCommands:
 
 class TestDirectionalDistanceCommand:
     def test_flat_costs_match_the_public_function(self, monkeypatch, capsys):
-        expected = ipakit.directional_word_distance("kætə", "kæt")
+        expected = ipakit.directional_transcription_distance("kætə", "kæt")
         rc, out, err = run(
             monkeypatch, capsys, "distance", "directional", "kætə", "kæt", "-j"
         )
@@ -969,10 +969,12 @@ class TestCapabilityInventoryContract:
 
     def test_leaving_out_a_sibling_read_fails_the_gate(self):
         contract = (ROOT / "docs" / "cli-api-sync.md").read_text(encoding="utf-8")
-        head, found, tail = contract.rpartition("`directional_word_distance`, ")
+        head, found, tail = contract.rpartition(
+            "`directional_transcription_distance`, "
+        )
         assert found
         incomplete = head + tail
-        with pytest.raises(AssertionError, match="directional_word_distance"):
+        with pytest.raises(AssertionError, match="directional_transcription_distance"):
             _assert_scoped_reads_are_inventoried(_contract_rows(incomplete))
 
     @pytest.mark.parametrize("name", ["directional", "nearest", "seq"])
@@ -1586,7 +1588,7 @@ def _cli_vocabulary():
 
     Read from the AST, not the text: a name occurring only in a docstring
     or a help string is prose *about* the library, not a call into it.
-    ``ipakit/cli/distance.py`` names ``ipakit.word_similarity()`` in its
+    ``ipakit/cli/distance.py`` names ``ipakit.transcription_similarity()`` in its
     help exactly so a reader knows what --raw computes, and that must not
     make the function count as spelled.
     """
@@ -1719,7 +1721,7 @@ LIBRARY_ONLY = {
     "to_phonemap": "generic; the CLI spells one subcommand per map",
     "from_phonemap": "generic; the CLI spells one subcommand per map",
     # A second spelling of a number the CLI already prints another way.
-    "word_similarity": "'distance word --raw' prints this value via word_distance",
+    "transcription_similarity": "distance transcription --raw prints this field of transcription_distance",
     "sequence_similarity": "the similarity of sequence_distance, which 'distance seq' spells",
     "rank_sequences": "the n-best over a set of pre-tokenized sequences; the CLI compares one sequence to one, not a set",
     "is_valid_ipa": "'analysis validate' prints the issues, not the boolean",
@@ -1894,7 +1896,7 @@ class TestTheDeliberateApiCliDifferences:
 
     def test_both_word_measures_have_a_command_line_spelling(self, monkeypatch, capsys):
         """'distance word' is the inventory-relative measure and 'pair' is
-        the raw one, which left the API's word_distance with no CLI
+        the raw one, which left the API's transcription_distance with no CLI
         spelling at all -- so the two surfaces looked like they disagreed
         (0.9870 against 0.9841) where they were computing different
         things. --raw is the missing spelling.
@@ -1909,61 +1911,38 @@ class TestTheDeliberateApiCliDifferences:
         never part of that.
         """
         rc, model_out, _ = run(monkeypatch, capsys, "distance", "word", "kæt", "kæd")
-        modeled = ipakit.distance_model().word_distance("kæt", "kæd")
+        modeled = ipakit.distance_model().transcription_distance("kæt", "kæd")
         assert rc == 0 and f"{modeled.similarity:.4f}" in model_out
 
         rc, raw_out, _ = run(
             monkeypatch, capsys, "distance", "word", "kæt", "kæd", "--raw"
         )
         assert rc == 0
-        expected = ipakit.word_similarity("kæt", "kæd")
+        expected = ipakit.transcription_similarity("kæt", "kæd")
         assert f"{expected:.4f}" in raw_out
         assert model_out != raw_out, "the two measures must stay distinguishable"
 
-    def test_the_docs_claim_about_strict_word_measures_does_not_cover_the_model(self):
-        """A documented invariant that does not hold. Pinned, not fixed.
-
-        docs/ties.md says word_distance/word_similarity "already reject
-        lossy input at the measurement layer with strict=True as *their*
-        default". That is true of ipakit.word_distance and of
-        IPAFeatures.word_distance -- and not of
-        DistanceModel.word_distance, which is the one 'ipakit distance
-        word' calls and which has no strict parameter at all. It reads
-        softly, warns, and answers.
-
-        The CLI is covered either way: the warning reaches the exit status
-        as 3 (see LOSSY_INVOCATIONS). What is not covered is a caller
-        using DistanceModel directly on the strength of that sentence.
-        Changing the default is a DistanceModel decision, not this lane's,
-        so the state of affairs is asserted instead of assumed -- when the
-        method grows a strict= this fails, and the doc becomes true.
-        """
-        import inspect as _inspect
-
-        from ipakit.distance_model import DistanceModel
-
-        model_sig = _inspect.signature(DistanceModel.word_distance)
-        assert "strict" not in model_sig.parameters, (
-            "DistanceModel.word_distance grew a strict parameter; "
-            "docs/ties.md's claim may now hold -- check its default and "
-            "update this test and the doc together"
+    def test_raw_and_model_transcription_loss_policies_are_explicit(self):
+        """Raw comparisons refuse loss; models warn and measure surviving units."""
+        assert (
+            inspect.signature(ipakit.transcription_distance)
+            .parameters["strict"]
+            .default
+            is True
         )
-        assert ipakit.word_distance.__kwdefaults__ is not None
-        flat_sig = _inspect.signature(ipakit.word_distance)
-        assert flat_sig.parameters["strict"].default is True
-
-        # The measurable consequence: the model measures over what
-        # survived tokenization; the flat function refuses to measure.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
-            assert ipakit.distance_model().word_distance("k@t", "kæt").similarity > 0
-        with pytest.raises(ValueError):
-            ipakit.word_distance("k@t", "kæt")
-
-        claim = "reject lossy input at the measurement layer"
-        assert claim in (ROOT / "docs" / "ties.md").read_text(encoding="utf-8"), (
-            "docs/ties.md no longer makes the claim this test scopes; "
-            "if it was corrected, this test can go"
+        for surface in (ipakit, ipakit.IPAFeatures()):
+            with pytest.raises(ValueError):
+                surface.transcription_distance("k@t", "kæt")
+        with pytest.warns(UserWarning):
+            assert (
+                ipakit.distance_model().transcription_distance("k@t", "kæt").similarity
+                > 0
+            )
+        contract = (ROOT / "docs" / "ties.md").read_text(encoding="utf-8")
+        assert "`DistanceModel` transcription comparisons warn" in contract
+        assert (
+            "module-level and `IPAFeatures` transcription comparisons reject"
+            in contract
         )
 
 

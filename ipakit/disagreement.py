@@ -92,7 +92,7 @@ def _pair(
     insert_cost: PhoneCost | None,
     delete_cost: PhoneCost | None,
 ) -> FormComparison:
-    result = features.directional_word_distance(
+    result = features.directional_transcription_distance(
         reference.to_ipa(),
         source.to_ipa(),
         insert_cost=insert_cost,

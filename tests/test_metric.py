@@ -278,7 +278,9 @@ class TestSecondaryArticulation:
         assert readings[1:] == readings[:-1]
 
     def test_explanation_reports_secondary_tract_x(self, ipa: IPAFeatures) -> None:
-        step = next(s for s in ipa.explain_word_distance("l", "ɫ") if s["op"] == "sub")
+        step = next(
+            s for s in ipa.explain_transcription_distance("l", "ɫ") if s["op"] == "sub"
+        )
         tract_x = next(t for t in step["terms"] if t["label"] == "tract-x")
         assert tract_x["cost"] > 0.0
 

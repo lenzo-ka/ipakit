@@ -1,6 +1,6 @@
 # Forms: the transcription before anything is projected away
 
-`ipakit.segments` answers *what sounds are in this?* — and to answer it, drops what is not a sound: the word mark, the syllable break, the space.
+`ipakit.segments` returns the segment sequence, including each segment's associated prosody and tie senses. It omits boundary positions such as word marks, syllable breaks and spaces.
 
 ```python
 import ipakit as ipa
@@ -8,7 +8,7 @@ import ipakit as ipa
 ipa.to_ipa(ipa.segments("#kæt.dɒɡ#"))   # 'kætdɒɡ'
 ```
 
-That is the right answer to that question. The problem is that it is a **projection** and does not say so, and a caller who needed the whole transcription has already lost it by the time they notice. `ipakit.form.Form` is the unprojected reading: every position the transcription had, sounds and boundaries alike, spelling back out byte-identical for well-formed input. Everything narrower is reachable from it *by name*, and each name says what it drops.
+This is an explicit projection of the transcription. `ipakit.form.Form` retains segment and boundary positions together; its named projections let callers choose which information to use. Keep the Form when later operations need distinctions that a narrower view omits.
 
 The canonical stored representation is the tier graph documented in [representation.md](representation.md). This page documents `Form`'s compatibility projections—`units`, boundaries, attributes, intervals, and the derived tree—which remain public views over that graph and are still consumed by the rule API.
 
@@ -27,20 +27,23 @@ form.phones                            # ('k', 'æ', 't', 'd', 'ɒ', 'ɡ')
 | projection | drops | keeps |
 | --- | --- | --- |
 | `to_ipa()` | nothing of what was **spelled** — round-trips | every position in `units` |
-| `segments` | boundaries | prosody, which rides on each `Segment` |
-| `phones` | boundaries **and** attributes | the phone's identity name |
+| `segments` | boundaries | segment structure, associated prosody and tie senses |
+| `phones` | boundaries and prosodic attributes | segmental-name projection, including tie spelling |
 
 `to_ipa()` says *spelled* rather than *everything* because a `Form` has a second field and it is not spelled. `units` is the sequence all three of the above read; [`intervals`](#an-interval-is-carried-because-no-glyph-delimits-one) is a span on a declared tier, carried beside the units because nothing in the string delimits one. Round-tripping through `to_ipa()` gives back the units and no intervals, which is a fact about the notation and not a loss here — there is no agreed way to write a mora interval into a transcription, and inventing one would put a claim in the string that nothing reads.
 
-`phones` is identity, and prosody is not part of an identity. `a`, `ˈa` and `aː` are one phone, for the reason [ties.md](ties.md) gives: the `mode="prosodic"` features live on the unit, outside the feature bag.
+`phones` is a lossy segmental-name projection. It maps `a`, `ˈa` and `aː` to the same name while `segments` and segment-bearing `units` retain their distinct stress and length information. The `mode="prosodic"` declaration describes where those features are stored ([ties.md](ties.md)); tier placement does not authorize ignoring a distinction. Equal projected names establish neither complete phonetic equality nor language- or model-dependent phonological equivalence.
 
-**Tie sense survives `segments` and not `phones`.** Which of the two ties joined a compound is a claim about timing inside the unit — the over-tie reads its constituents simultaneously, the under-tie in sequence ([house-style.md](house-style.md#ties-are-units)) — and it is carried on `Segment.junctures`, not in any feature bag. So `t͡s` and `t͜s` are two `Segment`s that differ, and one `phones` entry that does not: identity is what the unit *is*, and the timing inside it is what the unit *does*. A caller comparing timing reads `segments`; a caller counting sounds reads `phones` and is right not to see it.
+Tie sense survives both projections: `segments` carries it in `Segment.junctures`, and `phones` retains the corresponding tie spelling. The over-tie specifies simultaneous constituents and the under-tie specifies a sequence ([house-style.md](house-style.md#ties-are-units)). Thus `t͡s` and `t͜s` have different segment structures and different projected names. Callers comparing or counting sounds must state which distinctions their task preserves; neither tier placement nor a counting task justifies discarding tie sense.
 
 ```python
 [Form.parse(x).phones for x in ("a", "ˈa", "aː")]   # [('a',), ('a',), ('a',)]
+[Form.parse(x).phones for x in ("t͡s", "t͜s")]      # [('t͡s',), ('t͜s',)]
 ```
 
-That is the same fact the rule engine relies on when the pattern `a` matches a stressed `ˈa`. It is stated once, in the data, and read here rather than restated.
+The first set of equal tuples demonstrates the projection's information loss; the second preserves the tie distinction. Similarly, a rule whose pattern `a` matches stressed `ˈa` has left stress unconstrained; a match does not assert that the two complete representations are equal.
+
+Estonian illustrates why quantity needs an explicit linguistic account. It has three contrastive quantity degrees, conventionally Q1, Q2 and Q3, whose realization involves duration relations between syllables and pitch within the foot. A segmental-name projection cannot establish equivalence across those contrasts. See Asu and Teras (2009), [Estonian, Journal of the International Phonetic Association](https://www.cambridge.org/core/journals/journal-of-the-international-phonetic-association/article/estonian/629DFE570A2E6606733B29A0145B4512), “Quantity system”.
 
 Carry the widest projection you can and collapse at the point of use.
 

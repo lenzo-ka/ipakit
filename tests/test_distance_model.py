@@ -332,8 +332,8 @@ class TestPhoneLevelOOVFallback:
 
 class TestWord:
     def test_identical_and_minimal_pair(self, full):
-        assert full.word_similarity("kæt", "kæt") == 1.0
-        assert full.word_similarity("kæt", "kæd") > 0.85
+        assert full.transcription_similarity("kæt", "kæt") == 1.0
+        assert full.transcription_similarity("kæt", "kæd") > 0.85
 
     def test_a_substitution_never_costs_more_than_the_gap_pair_it_replaces(
         self, ipa, full_inputs
@@ -376,7 +376,7 @@ class TestWord:
             assert m.sub_cost(a, b) <= 1.75 + 1e-12, (a, b)
             checked += 1
         assert checked > 100, f"sweep checked only {checked} pairs"
-        r = m.word_distance("kæt", "kætəloɡ")
+        r = m.transcription_distance("kæt", "kætəloɡ")
         assert r.similarity == pytest.approx(1.0 - r.edit_cost / (3 * 0.25 + 7 * 1.5))
 
     def test_both_word_paths_read_one_normalizer(self, ipa, full):
@@ -402,8 +402,8 @@ class TestWord:
             ("pataka", "pat"),
             ("kæt", "kæt"),
         ):
-            plain = ipa.word_distance(word, prefix)
-            model = full.word_distance(word, prefix)
+            plain = ipa.transcription_distance(word, prefix)
+            model = full.transcription_distance(word, prefix)
             assert plain.edit_cost == pytest.approx(model.edit_cost), word
             assert plain.similarity == pytest.approx(model.similarity), word
             assert plain.coverage == pytest.approx(model.coverage), word
@@ -506,7 +506,7 @@ class TestDistanceCli:
         rc, out = self._run(monkeypatch, capsys, "distance", "word", "kæt", "kæd", "-j")
         assert rc == 0
         data = json.loads(out)
-        assert data["word1"] == "kæt" and 0.0 <= data["similarity"] <= 1.0
+        assert data["transcription1"] == "kæt" and 0.0 <= data["similarity"] <= 1.0
         assert data["reference"] == "ipa"
 
     def test_word_threshold(self, monkeypatch, capsys):

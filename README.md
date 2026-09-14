@@ -89,7 +89,7 @@ ipakit.respell("t", manner="nasal") # None  (unattested — no phone spells it)
 ipakit.distance("p", "b")       # small: differ only in voicing
 ipakit.distance("p", "b", applicable_only=True)  # omit features either host cannot carry
 ipakit.nearest_phones("p", n=3) # [(phone, distance), ...] closest first
-ipakit.word_similarity("kæt", "kæd")   # near 1.0: a minimal pair
+ipakit.transcription_similarity("kæt", "kæd")   # near 1.0: a minimal pair
 ipakit.sequence_distance(["k", "a", "t"], ["k", "æ", "t"])  # over pre-tokenized phones
 ipakit.nearest_pronunciation("kat", ["kæt", "kɑt"])   # best-matching acceptable variant
 
@@ -228,7 +228,7 @@ eng = ipakit.distance_model(
 )
 eng.distance("p", "b")                       # complementary position in THIS inventory
 eng.nearest("p", n=3)                        # (phone, position), from this inventory
-eng.word_similarity("kæt", "kæd")
+eng.transcription_similarity("kæt", "kæd")
 eng.is_similar("kæt", "kæd", threshold=0.8)  # True
 ```
 
@@ -236,7 +236,7 @@ Raw distances are **structural**: two segments are close when they are made simi
 
 `distance_model()` also accepts `gamma` (an exponent on the percentile; it reorders no phone pair, and its real effect is to reprice substitutions against gaps in word alignment — [docs/distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) §9 is what it is and is not good for), `insert_cost` / `delete_cost` for word alignment, and `threshold` / `max_length_ratio` defaults for `is_similar`. The raw pairwise matrix ships as `ipakit/data/confusion.json`; per-inventory models reuse it and only re-slice the percentile distribution.
 
-`insert_cost` and `delete_cost` may be a flat price or a `CostSchedule`, which prices each phone on its own — because a schwa and a released stop are not the same kind of loss. Which phones are droppable is a fact about a language, so a schedule is language-relative and no default one ships; `directional_word_distance(reference, hypothesis)` is the entry point that names its reference side, and every result reports the schedule it was computed under. [docs/distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) §10 is what a schedule is and is not comparable across.
+`insert_cost` and `delete_cost` may be a flat price or a `CostSchedule`, which prices each phone on its own — because a schwa and a released stop are not the same kind of loss. Which phones are droppable is a fact about a language, so a schedule is language-relative and no default one ships; `directional_transcription_distance(reference, hypothesis)` is the entry point that names its reference side, and every result reports the schedule it was computed under. [docs/distance.md](https://github.com/lenzo-ka/ipakit/blob/main/docs/distance.md) §10 is what a schedule is and is not comparable across.
 
 A word comparison reports `coverage` — the shorter token count over the longer — beside its `similarity`, and never inside it. Length is charged once, by the gaps the alignment pays for; a length ratio multiplied into the score would charge it twice and would destroy the one thing the ratio says, which is whether a low score means "different throughout" or "one is a truncation".
 
@@ -268,7 +268,7 @@ ipakit analysis natural-class p t k  # Shared features of a set
 ipakit analysis minimal-pairs p      # Find similar phones
 ipakit distance pair p b             # Raw structural distance
 ipakit distance confusability p b    # Inventory-relative percentile positions
-ipakit distance word kæt kæd         # Word similarity
+ipakit distance transcription kæt kæd         # Word similarity
 ipakit distance seq "k a t" "k æ t" # Distance over pre-tokenized phone sequences
 ipakit distance nearest kat kæt kɑt  # Best-matching acceptable variant
 ipakit distance map en.phones es.phones        # Map one inventory onto another
@@ -283,7 +283,7 @@ ipakit tract draw t -o t.svg         # Mid-sagittal figure for one phone
 ipakit tract heads                   # Head shapes a figure can be drawn on
 ```
 
-The `distance confusability` command prints inventory-relative percentile positions, and `distance word` derives its substitution costs from them; neither output is the raw `distance pair` magnitude. Scope the model to a reference inventory with `--phoneset FILE` (one phone per line), and do not compare its positions across inventories.
+The `distance confusability` command prints inventory-relative percentile positions, and `distance transcription` derives its substitution costs from them; neither output is the raw `distance pair` magnitude. Scope the model to a reference inventory with `--phoneset FILE` (one phone per line), and do not compare its positions across inventories.
 
 `ipakit rules` applies context-sensitive rewrite rules (`A -> B / C _ D`): a
 shipped set with `-s`, notation with `-r` (repeatable, and an ordered cascade), a

@@ -124,7 +124,7 @@ Examples:
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Raw feature distance: ~0.04
   ipakit distance confusability p b    # inventory-relative
-  ipakit distance word kæt kæd         # word similarity
+  ipakit distance transcription kæt kæd  # transcription similarity
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML
   ipakit info stress                   # Show the declared stress markers
