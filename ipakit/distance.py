@@ -1037,7 +1037,7 @@ class DistanceMixin(IPAFeaturesBase):
                     )
             best = min(dp[i][m] for i in range(n + 1))  # free trailing gap
             similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
-        coverage = m / max(n, m) if max(n, m) else 1.0
+        coverage = min(n, m) / max(n, m) if max(n, m) else 1.0
         return TranscriptionDistanceResult(
             edit_cost=best,
             similarity=similarity,

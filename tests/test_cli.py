@@ -1922,53 +1922,27 @@ class TestTheDeliberateApiCliDifferences:
         assert f"{expected:.4f}" in raw_out
         assert model_out != raw_out, "the two measures must stay distinguishable"
 
-    def test_the_docs_claim_about_strict_word_measures_does_not_cover_the_model(self):
-        """A documented invariant that does not hold. Pinned, not fixed.
-
-        docs/ties.md says transcription_distance/transcription_similarity "already reject
-        lossy input at the measurement layer with strict=True as *their*
-        default". That is true of ipakit.transcription_distance and of
-        IPAFeatures.transcription_distance -- and not of
-        DistanceModel.transcription_distance, which is the one 'ipakit distance
-        word' calls and which has no strict parameter at all. It reads
-        softly, warns, and answers.
-
-        The CLI is covered either way: the warning reaches the exit status
-        as 3 (see LOSSY_INVOCATIONS). What is not covered is a caller
-        using DistanceModel directly on the strength of that sentence.
-        Changing the default is a DistanceModel decision, not this lane's,
-        so the state of affairs is asserted instead of assumed -- when the
-        method grows a strict= this fails, and the doc becomes true.
-        """
-        import inspect as _inspect
-
-        from ipakit.distance_model import DistanceModel
-
-        model_sig = _inspect.signature(DistanceModel.transcription_distance)
-        assert "strict" not in model_sig.parameters, (
-            "DistanceModel.transcription_distance grew a strict parameter; "
-            "docs/ties.md's claim may now hold -- check its default and "
-            "update this test and the doc together"
+    def test_raw_and_model_transcription_loss_policies_are_explicit(self):
+        """Raw comparisons refuse loss; models warn and measure surviving units."""
+        assert (
+            inspect.signature(ipakit.transcription_distance)
+            .parameters["strict"]
+            .default
+            is True
         )
-        assert ipakit.transcription_distance.__kwdefaults__ is not None
-        flat_sig = _inspect.signature(ipakit.transcription_distance)
-        assert flat_sig.parameters["strict"].default is True
-
-        # The measurable consequence: the model measures over what
-        # survived tokenization; the flat function refuses to measure.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
+        for surface in (ipakit, ipakit.IPAFeatures()):
+            with pytest.raises(ValueError):
+                surface.transcription_distance("k@t", "kæt")
+        with pytest.warns(UserWarning):
             assert (
                 ipakit.distance_model().transcription_distance("k@t", "kæt").similarity
                 > 0
             )
-        with pytest.raises(ValueError):
-            ipakit.transcription_distance("k@t", "kæt")
-
-        claim = "reject lossy input at the measurement layer"
-        assert claim in (ROOT / "docs" / "ties.md").read_text(encoding="utf-8"), (
-            "docs/ties.md no longer makes the claim this test scopes; "
-            "if it was corrected, this test can go"
+        contract = (ROOT / "docs" / "ties.md").read_text(encoding="utf-8")
+        assert "`DistanceModel` transcription comparisons warn" in contract
+        assert (
+            "module-level and `IPAFeatures` transcription comparisons reject"
+            in contract
         )
 
 

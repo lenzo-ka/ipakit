@@ -679,7 +679,7 @@ class DistanceModel:
     def transcription_distance(
         self, ipa1: str, ipa2: str, *, return_alignment: bool = False
     ) -> TranscriptionDistanceResult:
-        """Compare IPA transcription strings with this model's empirical costs.
+        """Compare IPA transcription strings with this model's selected costs.
 
         Uses the model's renormalized substitution costs (and indel costs) in a
         weighted-Levenshtein alignment. Returns a :class:`TranscriptionDistanceResult`;
@@ -687,7 +687,7 @@ class DistanceModel:
 
         The normalizer is :func:`~ipakit.distance._transcription_result`, the same
         function :meth:`IPAFeatures.transcription_distance` calls, so switching from
-        the plain path to this one to get empirical weights changes which
+        the plain path to this one to get inventory-relative weights changes which
         substitution costs the alignment sees and not what a similarity
         means.
         """

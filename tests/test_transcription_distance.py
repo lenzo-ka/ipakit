@@ -36,6 +36,12 @@ def test_transcription_boundaries_are_transparent(ipa):
     assert result.coverage == 1
 
 
+@pytest.mark.parametrize("haystack,target", [(["a"], ["a", "a"]), (["a", "a"], ["a"])])
+def test_local_sequence_coverage_is_shorter_over_longer(ipa, haystack, target):
+    result = ipa.sequence_distance(haystack, target, mode="local")
+    assert result.coverage == 0.5
+
+
 def test_directional_custom_costs_and_model(ipa):
     schedule = ipakit.CostSchedule("drops", {"ə": 0.25}, 1.0)
     result = ipa.directional_transcription_distance(
