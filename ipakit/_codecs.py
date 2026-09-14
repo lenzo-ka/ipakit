@@ -8,7 +8,7 @@ lanes and the structured field each lane permits this codec to expose.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import tiergraph as tg
@@ -63,11 +63,14 @@ def render_graph(form: Form, profile: RenderProfile) -> str:
         tier = containment.event_tiers[path]
         lane = lane_by_tier.get(tier)
         if lane is not None:
+            event = replace(
+                event, features=index.containment_input.house_features(event)
+            )
             tick = int(path.split("/")[2])
             unit_index = event.features.get("unit-index")
             key = (
-                (int(unit_index) if isinstance(unit_index, int) else tick),
-                (0 if isinstance(unit_index, int) else lane_order[tier]),
+                (int(unit_index) if type(unit_index) is int else tick),
+                (0 if type(unit_index) is int else lane_order[tier]),
                 fallback,
             )
             events.append((key, event, lane))

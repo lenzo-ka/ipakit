@@ -382,16 +382,19 @@ class VocabularyBridge(Bridge):
             ),
         )
         builder, handles = copy_fact_builder(projection_input, declared)
-        units = [
-            (ref, handles[ref])
-            for ref in sorted(
-                handles,
-                key=lambda ref: (
-                    projection_input.events[ref].features.get("unit-index", 10**9),
-                    ref,
+        unit_indices = {
+            ref: index
+            for ref in handles
+            for index in (
+                projection_input.house_features(projection_input.events[ref]).get(
+                    "unit-index"
                 ),
             )
-            if isinstance(projection_input.events[ref].features.get("unit-index"), int)
+            if type(index) is int
+        }
+        units = [
+            (ref, handles[ref])
+            for ref in sorted(unit_indices, key=lambda ref: (unit_indices[ref], ref))
         ]
         cursor = 0
         prefixes: list[Atom] = []
@@ -581,16 +584,19 @@ class VocabularyBridge(Bridge):
             ),
         )
         builder, handles = copy_fact_builder(projection_input, declared)
-        unit_handles = [
-            handles[ref]
-            for ref in sorted(
-                handles,
-                key=lambda ref: (
-                    projection_input.events[ref].features.get("unit-index", 10**9),
-                    ref,
+        unit_indices = {
+            ref: index
+            for ref in handles
+            for index in (
+                projection_input.house_features(projection_input.events[ref]).get(
+                    "unit-index"
                 ),
             )
-            if isinstance(projection_input.events[ref].features.get("unit-index"), int)
+            if type(index) is int
+        }
+        unit_handles = [
+            handles[ref]
+            for ref in sorted(unit_indices, key=lambda ref: (unit_indices[ref], ref))
         ]
         for start, end, atom in matches:
             parent = builder.add_event(

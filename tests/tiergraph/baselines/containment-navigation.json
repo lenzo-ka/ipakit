@@ -1,6 +1,6 @@
 {
   "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/containment_oracle.py generate",
-  "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. Navigation is identical to the reference semantics on every accepted graph.",
+  "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. The named fixtures record navigation audited at source commit 485f7a7c631001b58acfffc2884011081e0bcd19.",
   "fixtures": {
     "fixture:canonical-relation-order": {
       "answers": {

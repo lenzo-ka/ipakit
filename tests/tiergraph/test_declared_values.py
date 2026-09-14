@@ -308,11 +308,11 @@ def test_foreign_names_do_not_override_actual_timing_and_span():
     }
 
 
-@pytest.mark.parametrize("foreign_support", ["input", "unit-index"])
+@pytest.mark.parametrize("foreign_support", ["input", "unit-index", "interval-index"])
 def test_active_unit_cannot_reinterpret_foreign_support(foreign_support):
-    from ipakit import IPAFeatures
+    from ipakit import Form, IPAFeatures
 
-    names = ("unit", "input", "unit-index")
+    names = ("unit", "input", "unit-index", "interval-index")
     builder = FactBuilder(
         declarations(
             *(
@@ -329,10 +329,49 @@ def test_active_unit_cannot_reinterpret_foreign_support(foreign_support):
             "unit": IPAFeatures().read("a").units[0],
             "input": True,
             "unit-index": 0,
+            "interval-index": 0,
         },
     )
-    with pytest.raises(GraphValidationError, match="requires input and unit-index"):
-        ContainmentProjection.from_input(builder.build_input())
+    source = builder.build_input()
+    for admit in (
+        ContainmentProjection.from_input,
+        lambda source: Form._from_projection_input(source).units,
+        lambda source: Form._from_projection_input(source).intervals,
+    ):
+        with pytest.raises(
+            GraphValidationError, match="house unit requires unqualified"
+        ):
+            admit(source)
+
+
+@pytest.mark.parametrize("name", ["unit", "unit-index", "interval-index"])
+@pytest.mark.parametrize("value", [True, False, 0, "foreign", [0], {"index": 0}])
+def test_foreign_unit_roles_are_ignored_by_form_consumers(name, value):
+    from ipakit import Form
+    from ipakit._corpus_query import _unit_paths
+    from ipakit.bridges import VocabularyResidueError
+    from ipakit.bridges.kana import KANA
+    from ipakit.syllable import Syllabification
+
+    builder = FactBuilder(
+        declarations(
+            FeatureDeclaration(name, ("urn:foreign", name)),
+            FeatureDeclaration("spelling"),
+        )
+    )
+    builder.append_input_atom("token", {name: value, "spelling": "foreign"})
+    source = builder.build_input()
+    form = Form._from_projection_input(source)
+    assert form.units == ()
+    assert form.intervals == ()
+    assert _unit_paths(form) == {}
+    assert Syllabification(form).spelled("token") == ()
+    with pytest.raises(VocabularyResidueError, match="span \\[0:0\\]"):
+        KANA.map(form)
+    ref = form._containment.old_to_new[source.refs[0]]
+    assert_json_value(
+        declared_value(form._graph, ref, tg.QualifiedName("urn:foreign", name)), value
+    )
 
 
 def test_unit_and_independent_foreign_values_coexist():

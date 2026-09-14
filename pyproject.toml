@@ -26,7 +26,8 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    # Native declared JSON values require tiergraph 0.2.1; stay within its minor series.
+    # Native declared JSON values require tiergraph 0.2.1. Use a publishable version
+    # requirement; alpha minor releases may break APIs, so stay within 0.2.x.
     "tiergraph>=0.2.1,<0.3.0",
 ]
 
