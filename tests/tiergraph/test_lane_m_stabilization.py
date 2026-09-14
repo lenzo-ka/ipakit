@@ -67,7 +67,7 @@ def test_public_builder_returns_form_and_navigation_stays_on_form() -> None:
     assert form.leaves(form.roots[0]) == form.direct_children(form.roots[0])
 
 
-def test_public_builder_renumbers_compatibility_units_across_raw_appends() -> None:
+def test_public_builder_renumbers_units_across_raw_appends() -> None:
     builder = FormBuilder()
     builder.append_ipa("ka")
     builder.append_ipa("ta")
