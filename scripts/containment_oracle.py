@@ -217,7 +217,7 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
 
 @dataclass(frozen=True)
 class _NativeContainment:
-    """Present tiergraph containment with the legacy oracle's combined semantics."""
+    """Present tiergraph containment with the reference oracle.s combined semantics."""
 
     graph: tiergraph.Graph
     refs: dict[str, tiergraph.ItemRef]
@@ -548,7 +548,7 @@ def _render() -> str:
             "Exactly graphs whose containment instances have one event source and "
             "only event targets (including a declared empty target side); across "
             "multiple relations, repeated incidence is retained. Navigation is "
-            "identical to the legacy implementation on every accepted graph."
+            "identical to the reference semantics on every accepted graph."
         ),
         "refusals": {
             "source_cardinality_other_than_one": (
@@ -565,7 +565,7 @@ def _render() -> str:
         },
         "refused_constructions": {
             "boundary-owns": {
-                "legacy_direct_children": ["/clock/1"],
+                "reference_direct_children": ["/clock/1"],
                 "projection": "refused by relation name",
             },
         },
@@ -587,7 +587,7 @@ def _render() -> str:
             ),
             "boundary": "the named fixtures in this artifact",
             "outside_member_example": (
-                "boundary-owns: legacy direct_children(root) returns the "
+                "boundary-owns: reference direct_children(root) returns the "
                 "coarse-tick boundary; projection refuses boundary-owns by name"
             ),
             "surface": {

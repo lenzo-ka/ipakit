@@ -1,8 +1,7 @@
 """Streaming structural and derivational questions over stored forms.
 
-Private with the corpus kernel until the public surface settles in K3.
-Recognition is the rewrite engine's :class:`rules.Query`; this module only
-compiles its familiar context notation and translates legacy sites to graph
+Recognition uses the rewrite engine's :class:`rules.Query`; this module
+compiles its familiar context notation and translates unit sites to graph
 paths.
 """
 

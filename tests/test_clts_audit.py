@@ -221,7 +221,7 @@ def test_cli_missing_source_is_failure_not_empty_success(
     assert capsys.readouterr().out == ""
 
 
-def test_legacy_missing_source_behavior_preserved(tmp_path: Path) -> None:
+def test_unconfigured_source_is_reported(tmp_path: Path) -> None:
     assert interop.main(["--clts", str(tmp_path), "features"]) == 0
 
 

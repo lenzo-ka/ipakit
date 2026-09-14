@@ -265,7 +265,7 @@ ipa.rule("t -> ɾ / [vowel] _ [vowel -stress]")
 # RuleError: '[vowel -stress]': '-stress' resolves to no feature term; feature 'stress' is not binary...; negate them individually instead, as '-none -primary -secondary'
 ```
 
-Values resolve through the alias table and `expand()`, including spelled aliases and generative overlaps such as `bilabial^velar`. Natural classes use bare terms: write `[obstruent]`. The invalid value expression `[manner=obstruent]` raises an error with that correction; older versions accepted it as an unsatisfiable constraint. The executable example above guards this refusal.
+Values resolve through the alias table and `expand()`, including spelled aliases and generative overlaps such as `bilabial^velar`. Natural classes use bare terms: write `[obstruent]`. The invalid value expression `[manner=obstruent]` raises an error with that correction. The executable example above guards this refusal.
 
 **Every** term must resolve, at every arity: a bracket that mixes a good term with a bad one raises rather than dropping the bad one, since a dropped term is a narrower query silently widened. The message names what would have worked. `stress` has no `-` to take — its values are `none`, `secondary` and `primary` — so a query about stress negates the marked values, `[vowel -primary -secondary]`; `none` is the unspelled ordinal anchor and matches no unit on its own.
 
@@ -652,7 +652,7 @@ long.rewrite(ipa.Form.parse(made.marks()))[0].to_ipa()  # 'a.tʰa'
 The syllabifier is the producer: it writes `[0, 1)` and `[1, 3)` on the
 `syllable` tier. The short rule reads that claim directly, so it needs no dot
 and leaves none behind. The long form materializes the same margin as `.`,
-then uses the older boundary-unit context. After boundary marks are projected
+then uses the boundary-unit context. After boundary marks are projected
 away the two outputs are the same segmental form. The ordering is semantic,
 not presentation: **syllabify, then apply**. Applying the short rule to the
 bare string `ata` finds no claimed margin and changes nothing.
