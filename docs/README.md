@@ -20,7 +20,8 @@ Read, construct, navigate and exchange structured transcriptions.
 
 | Guide | Use it for |
 | --- | --- |
-| [Canonical representation](representation.md) | Graph-backed Form, constructors, clocks, native persistence and linear JSON boundaries. |
+| [Canonical representation](representation.md) | Graph-backed Form, constructors, clocks and native persistence. |
+| [Native graph JSON](graph-json.md) | Complete Form persistence, explicit admission, native graph readers and CLI commands. |
 | [Form views](form.md) | Compatibility projections: units, segments, boundaries, intervals and derived trees. |
 | [House phonetic conventions](house-style.md) | The house model's spelling, composition, stress, boundaries and articulatory commitments. |
 | [Units, ties and diacritics](ties.md) | Constituent structure and the distinction between simultaneous, sequential and adjacent units. |

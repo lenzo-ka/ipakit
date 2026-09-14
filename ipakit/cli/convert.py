@@ -318,12 +318,11 @@ class ToJsonCommand(Command):
 
 
 class FromJsonCommand(Command):
-    """Restore a JSON representation and emit its IPA spelling.
+    """Restore a current native Form graph and emit its IPA spelling.
 
     Pass ``-`` to read JSON from standard input.
 
     Examples:
-        ipakit convert from-json '{"v": 1, ...}'
         ipakit convert to-json "kæt" | ipakit convert from-json -
     """
 

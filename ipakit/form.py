@@ -1174,6 +1174,8 @@ class _UnitProjection:
         self,
         projection_input: ContainmentProjectionInput,
         inventory: IPAFeatures | None = None,
+        *,
+        graph: Any = None,
     ) -> None:
         from tiergraph import DurableItemRef
 
@@ -1183,7 +1185,8 @@ class _UnitProjection:
         self._inventory = inventory
         from ._containment_projection import ContainmentProjection
 
-        graph = ContainmentProjection.from_input(projection_input).graph
+        if graph is None:
+            graph = ContainmentProjection.from_input(projection_input).graph
         indexed: list[tuple[int, Unit, str]] = []
         for path in projection_input.refs:
             event = projection_input.events[path]
@@ -1460,7 +1463,11 @@ class _FormGraphIndex:
     def unit_projection(self) -> _UnitProjection:
         return self._memo(
             "_unit_projection",
-            lambda: _UnitProjection(self.containment_input, self.inventory),
+            lambda: _UnitProjection(
+                self.containment_input,
+                self.inventory,
+                graph=self.__dict__.get("_native_graph"),
+            ),
         )
 
     @property
@@ -2156,6 +2163,7 @@ class Form:
             raise FormProjectionError(f"invalid current Form profile: {exc}") from exc
         object.__setattr__(form, "_tiergraph_graph", graph)
         object.__setattr__(form, "_tiergraph_containment", containment)
+        object.__setattr__(form.__dict__["_tiergraph_index"], "_native_graph", graph)
         return form
 
     # -- projections, each named for what it drops -------------------------

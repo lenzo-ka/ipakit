@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import fields, replace
 from typing import Any
@@ -102,23 +103,43 @@ def _plain(value: Any) -> Any:
     return value
 
 
-def _schema(source: ContainmentProjectionInput) -> dict[str, Any]:
-    return {
-        "closed": source.declarations.closed,
-        **{
-            key: [
-                {
-                    field.name: _plain(getattr(item, field.name))
-                    for field in fields(item)
-                }
-                for item in getattr(source.declarations, key)
-            ]
-            for key in ("tiers", "features", "relations")
-        },
-    }
+def _schema(source: ContainmentProjectionInput, inventory: Any) -> Any:
+    """Bind house declarations explicitly and store only declaration differences."""
+    from ._ipa_graph import declarations
+
+    base = declarations(inventory)
+    if source.declarations == base:
+        return "house"
+    result: dict[str, Any] = {"closed": source.declarations.closed}
+    for key in ("tiers", "features", "relations"):
+        baseline = {item.name: item for item in getattr(base, key)}
+        records = []
+        for item in getattr(source.declarations, key):
+            default = baseline.get(item.name, type(item)(item.name))
+            changes = {}
+            for field in fields(item):
+                value, previous = getattr(item, field.name), getattr(
+                    default, field.name
+                )
+                if value != previous:
+                    if isinstance(value, frozenset) and isinstance(previous, frozenset):
+                        changes[field.name] = {
+                            "add": sorted(value - previous),
+                            "remove": sorted(previous - value),
+                        }
+                    else:
+                        changes[field.name] = _plain(value)
+            records.append([item.name, changes])
+        result[key] = records
+    return result
 
 
-def _declarations(schema: Any) -> Declarations:
+def _declarations(schema: Any, inventory: Any) -> Declarations:
+    from ._ipa_graph import declarations
+
+    base = declarations(inventory)
+    if schema == "house":
+        return base
     if (
         not isinstance(schema, dict)
         or set(schema) != {"closed", "tiers", "features", "relations"}
@@ -131,24 +152,54 @@ def _declarations(schema: Any) -> Declarations:
         ("features", FeatureDeclaration),
         ("relations", RelationDeclaration),
     ):
-        names = {field.name for field in fields(cls)}
+        baseline = {item.name: item for item in getattr(base, key)}
+        names = {field.name for field in fields(cls)} - {"name"}
         restored = []
+        if not isinstance(schema[key], list):
+            raise ValueError("Form declaration order must be a sequence")
         for raw in schema[key]:
-            if not isinstance(raw, dict) or set(raw) != names:
-                raise ValueError(f"malformed Form {key} declaration")
-            item = dict(raw)
-            for name in (
-                "features",
-                "source_tiers",
-                "target_tiers",
-                "source_kinds",
-                "target_kinds",
+            if (
+                not isinstance(raw, list)
+                or len(raw) != 2
+                or not isinstance(raw[0], str)
+                or not isinstance(raw[1], dict)
+                or not set(raw[1]) <= names
             ):
-                if name in item and item[name] is not None:
-                    item[name] = frozenset(item[name])
-            for name in ("native_name", "value_name", "source_arity", "target_arity"):
-                if name in item and item[name] is not None:
-                    item[name] = tuple(item[name])
+                raise ValueError(f"malformed Form {key} declaration")
+            default = baseline.get(raw[0], cls(raw[0]))
+            item: dict[str, Any] = {
+                field.name: getattr(default, field.name) for field in fields(default)
+            }
+            for name, value in raw[1].items():
+                previous = item[name]
+                if isinstance(previous, frozenset) and isinstance(value, dict):
+                    if set(value) != {"add", "remove"}:
+                        raise ValueError("malformed Form declaration set difference")
+                    item[name] = (previous - frozenset(value["remove"])) | frozenset(
+                        value["add"]
+                    )
+                elif (
+                    name
+                    in {
+                        "features",
+                        "source_tiers",
+                        "target_tiers",
+                        "source_kinds",
+                        "target_kinds",
+                    }
+                    and value is not None
+                ):
+                    item[name] = frozenset(value)
+                elif (
+                    name
+                    in {"native_name", "value_name", "source_arity", "target_arity"}
+                    and value is not None
+                ):
+                    item[name] = tuple(value)
+                else:
+                    if type(previous) is bool and type(value) is not bool:
+                        raise ValueError("Form declaration flags must be booleans")
+                    item[name] = value
             restored.append(cls(**item))
         result[key] = tuple(restored)
     return Declarations(**result, closed=schema["closed"])
@@ -178,6 +229,20 @@ def _attach(
         )
     editor.add_relation(tg.PolyadicRelationInstance(relation, (owner,), (root,)))
     return editor.freeze()
+
+
+def _attribute_fact(
+    graph: tg.Graph, owner: tg.ItemRef, name: str, kind: tg.XsdType, lexical: str
+) -> tuple[tg.Graph, tg.QualifiedName]:
+    """Use native scalar attributes for scalar/known structured domain facts."""
+    qualified = tg.QualifiedName(NS, f"fact-{name}-{kind.value}")
+    editor = graph.edit()
+    if not any(a.name == qualified for a in graph.attribute_declarations):
+        editor.declare(
+            tg.AttributeDeclaration(qualified, tg.AttributeDomain.ITEM, kind)
+        )
+    editor.set_attribute(owner, tg.AttributeValue(qualified, kind, lexical))
+    return editor.freeze(), qualified
 
 
 def construct(
@@ -256,7 +321,21 @@ def construct(
             if declaration.value_name is not None:
                 encoded[name] = ["declared", list(declaration.value_name)]
                 continue
-            if name == "compatibility-unit" and isinstance(value, Unit):
+            unit_time = (
+                (value.timing.start, value.timing.duration)
+                if isinstance(value, Unit) and value.timing is not None
+                else None
+            )
+            event_time = (
+                (event.timing.start, event.timing.duration)
+                if event.timing is not None
+                else None
+            )
+            if (
+                name == "compatibility-unit"
+                and isinstance(value, Unit)
+                and unit_time == event_time
+            ):
                 encoded[name] = ["unit"]
                 continue
             if (
@@ -280,7 +359,11 @@ def construct(
                 continue
             payload: Any
             if isinstance(value, Segment):
-                payload = {"kind": "segment", "data": value.to_dict()}
+                graph, qualified = _attribute_fact(
+                    graph, owner, name + "-segment", tg.XsdType.STRING, value.to_json()
+                )
+                encoded[name] = ["segment", qualified.to_data()]
+                continue
             elif isinstance(value, Unit):
                 held = _event_payload(
                     Event(
@@ -300,6 +383,21 @@ def construct(
                     "kind": "unit",
                     "data": {k: lexical for k, _, lexical in held},
                 }
+            elif type(value) in (str, bool, int, float):
+                kind = {
+                    str: tg.XsdType.STRING,
+                    bool: tg.XsdType.BOOLEAN,
+                    int: tg.XsdType.INTEGER,
+                    float: tg.XsdType.DOUBLE,
+                }[type(value)]
+                lexical = (
+                    ("true" if value else "false")
+                    if type(value) is bool
+                    else str(value)
+                )
+                graph, qualified = _attribute_fact(graph, owner, name, kind, lexical)
+                encoded[name] = ["scalar", qualified.to_data()]
+                continue
             else:
                 payload = {"kind": "json", "data": _thaw(value)}
             relation_name = tg.QualifiedName(NS, f"fact-{len(codecs)}-{len(encoded)}")
@@ -314,7 +412,7 @@ def construct(
         codecs[path] = encoded
     metadata = {
         "profile": "ipakit-form",
-        "schema": _schema(source),
+        "schema": _schema(source, inventory),
         "inventory": provider_identity(inventory),
         "spelling": spelling,
         "tiers": {k: v.to_data() for k, v in core.tier_names.items()},
@@ -363,7 +461,7 @@ def restore(
     spelling = metadata["spelling"]
     if spelling is not None and not isinstance(spelling, str):
         raise ValueError("Form source spelling must be string or null")
-    declarations = _declarations(metadata["schema"])
+    declarations = _declarations(metadata["schema"], inventory)
     refs = {
         path: graph.resolve_item(tg.DurableItemRef(path)) for path in metadata["events"]
     }
@@ -429,6 +527,25 @@ def restore(
                 )
             elif kind == "declared":
                 value = declared_value(graph, owner, tg.QualifiedName(*codec[1]))
+            elif kind in ("scalar", "segment"):
+                qualified = tg.QualifiedName(**codec[1])
+                attribute = next(a for a in item.attributes if a.name == qualified)
+                if kind == "segment":
+                    if attribute.value_type != tg.XsdType.STRING:
+                        raise ValueError("Form Segment codec requires string attribute")
+                    value = Segment.from_dict(json.loads(attribute.lexical), inventory)
+                else:
+                    raw = attribute.lexical
+                    if attribute.value_type == tg.XsdType.STRING:
+                        value = raw
+                    elif attribute.value_type == tg.XsdType.BOOLEAN:
+                        value = {"true": True, "false": False}[raw]
+                    elif attribute.value_type == tg.XsdType.INTEGER:
+                        value = int(raw)
+                    elif attribute.value_type == tg.XsdType.DOUBLE:
+                        value = float(raw)
+                    else:
+                        raise ValueError("unsupported Form scalar domain")
             elif kind == "native":
                 payload = declared_value(graph, owner, tg.QualifiedName(**codec[1]))
                 if not isinstance(payload, dict) or set(payload) != {"kind", "data"}:
@@ -447,6 +564,8 @@ def restore(
             else:
                 raise ValueError("unsupported Form feature codec")
             features[name] = value
+            if name == "compatibility-unit":
+                unit = value
         span = (
             RefinedSpan(attrs["span-start"], attrs["span-end"])
             if "span-start" in attrs
@@ -559,3 +678,41 @@ def restore(
     if tg.to_data(expected) != tg.to_data(graph):
         raise ValueError("native graph is outside the current Form constructor profile")
     return source, spelling
+
+
+def graph_profile(inventory: Any) -> type[tg.GraphProfile]:
+    """Bind a native profile check to an explicit restoring inventory."""
+
+    class FormProfile(tg.GraphProfile):
+        name = "ipakit-form:" + provider_identity(inventory)
+        required_roles = ("metadata",)
+        decides = (
+            "current constructor profile and typed role incidence",
+            "complete reconstructible Form coordinates and source order",
+            "restoring inventory identity and projection consistency",
+        )
+        leaves_undecided = (
+            "linguistic validity of supplied assertions",
+            "external provider and alignment truth",
+        )
+
+        @classmethod
+        def check(cls, graph: tg.Graph, roles: tg.RoleBinding) -> None:
+            try:
+                if roles["metadata"] != POINT:
+                    raise ValueError("Form metadata role binding mismatch")
+                restore(graph, inventory)
+            except (KeyError, TypeError, IndexError, StopIteration) as exc:
+                raise ValueError(f"invalid current Form profile: {exc}") from exc
+
+        @classmethod
+        def satisfaction_witness(cls) -> tuple[tg.Graph, tg.RoleBinding]:
+            from .form import Form
+
+            return Form.parse("a", inventory).graph, {"metadata": POINT}
+
+        @classmethod
+        def refusal_witness(cls) -> tuple[tg.Graph, tg.RoleBinding]:
+            return tg.Graph((), (), ()), {"metadata": POINT}
+
+    return FormProfile

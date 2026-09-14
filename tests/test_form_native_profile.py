@@ -136,3 +136,55 @@ def test_pretty_and_compact_are_same_native_document():
     assert len(compact) < len(pretty)
     assert wire.to_data(wire.loads(compact)) == wire.to_data(wire.loads(pretty))
     assert compact == wire.dump_compact(original.graph)
+
+
+def test_opaque_value_refuses_with_source_context():
+    builder = FormBuilder()
+    builder.add_event("analysis", {"value": object()}, duration=0)
+    with pytest.raises(ValueError, match="unrepresentable Form feature 'value'"):
+        builder.build().to_json()
+
+
+def test_conflicting_derived_scalar_payload_refuses():
+    declarations = Declarations(
+        (TierDeclaration("target", frozenset({"arc"})),),
+        (FeatureDeclaration("arc"),),
+        (),
+    )
+    source = ContainmentProjectionInput.from_facts(
+        declarations,
+        (
+            ClockNode(
+                groups=(EventGroup("target", (Event({"arc": 1.0}, duration=0),)),)
+            ),
+        ),
+    )
+    form = Form._from_projection_input(source)
+    owner = form.graph.resolve_item(tg.DurableItemRef("/clock/0/target/0"))
+    altered = (
+        form.graph.edit()
+        .set_attribute(
+            owner,
+            tg.AttributeValue(
+                tg.QualifiedName(
+                    "https://ipakit.dev/tiergraph/containment-projection/v1", "arc"
+                ),
+                tg.XsdType.DOUBLE,
+                "2",
+            ),
+        )
+        .freeze()
+    )
+    with pytest.raises(ValueError, match="constructor profile"):
+        Form.from_json(wire.dump_compact(altered))
+
+
+def test_native_profile_registry_reports_its_partial_scope():
+    from ipakit._form_profile import graph_profile
+
+    profile = graph_profile(IPAFeatures())
+    registry = tg.ProfileRegistry()
+    registry.register(profile)
+    graph, roles = profile.satisfaction_witness()
+    reports = registry.reports(graph, roles)
+    assert any(report.unconfirmed for report in reports)

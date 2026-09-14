@@ -114,10 +114,10 @@ coordinates, not literal paths into the native JSON envelope. Native durable
 item references resolve these events; rebuilding requires a declared identity
 policy rather than assuming an array offset is a cross-revision identifier.
 
-Full native restoration is distinct from restoring a public Form. The public
-Form JSON API remains the linear version 2 projection described below; native
-source-profile restoration, identity and complete-projection guards must be
-implemented before exposing incomplete foreign-source Forms.
+Native graph reading and Form admission are distinct checks. The public Form
+reader validates its explicit current constructor profile, restoring inventory,
+typed values and complete projection layout. Other native profiles remain
+readable as native Graphs without inventing house Form bindings.
 
 Only edges of the same relation declaration marked `acyclic` participate in one cycle check. A cycle formed by combining two separately acyclic relation types is allowed unless a future declaration explicitly gives that union a shared constraint.
 
@@ -156,11 +156,20 @@ to native relation-side declarations and enforced there. This does not infer
 sound-kind restrictions or a global maximum-one-host policy from per-instance
 arity; those require a specific profile's additional constraints.
 
-## IPA values and linear JSON
+## IPA values and native Form admission
 
-Structured IPA segment events carry exact spelling and a versioned `ipa-segment` value containing constituents, approaches, modifiers, junctures, and prosody. The lean IPA mode derives resolved features and provenance from that source value; a self-contained snapshot is opt-in and restoration validates it against the structured source. CMU and Pinyin facts are already their profiles' authoritative values and are serialized directly.
+Structured IPA segment events retain constituents, approaches, modifiers,
+junctures and prosody. Native Form profile bindings distinguish those typed
+values from spelling strings. Resolved views derive from the explicitly bound
+restoring inventory unless supplied as native facts. CMU and Pinyin retain their
+own profile facts.
 
-`Form.to_json()` and `ipakit.read_json()` expose the `ipakit.form` version 2 linear projection in unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Tiergraph durable item IDs are authoritative for event identity; canonical `/clock/...` paths are the versioned ipakit coordinate projected from them. Every projected unit and interval endpoint round-trips through the compatibility adapter.
+`Form.to_json()` writes the complete current native graph, compact by default;
+`ipakit.read_json()` validates its profile and reconstructs an actual Form.
+`to_json(pretty=True)` uses the same codec with indentation. Historical linear
+documents are refused. Native durable IDs identify events; unit coordinates
+remain public computed views. See [native graph JSON](graph-json.md) for bindings,
+typed facts, native Graph readers, and CLI commands.
 
 ## Rendering and deferred mechanisms
 
