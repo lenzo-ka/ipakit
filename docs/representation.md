@@ -132,7 +132,7 @@ the existing IPA payload codec and do not promise arbitrary feature retention.
 
 Opted-in feature names are excluded from the unqualified house payload view,
 when computing the graph cache key, constructing the graph, and resolving
-the house Form, syllable, vocabulary, query and rendering views. Thus
+house roles in Form, syllable, vocabulary, query and rendering order. Thus
 a foreign `arc` or `unit` value has only its declared qualified
 meaning; its local name does not create a private IPA attribute or Unit. Real
 structural timing/spans and independently supplied Units retain their
@@ -141,6 +141,8 @@ own native meanings. A context with active house Units keeps `input`,
 names a foreign meaning in that context produces a named validation refusal.
 Source-only native graphs may declare these foreign names and preserve their
 qualified JSON values independently of the house views.
+An explicitly selected custom render lane may read its declared qualified
+values; the renderer's event ordering still uses qualified house-role checks.
 
 Opted-in values use tiergraph's `json_value_graph` constructors and
 `JsonValueProfile`, including for scalar values. A qualified relation connects
