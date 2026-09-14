@@ -132,10 +132,10 @@ class Syllabification:
     def spelled(self, tier: str = "syllable") -> tuple[str, ...]:
         source = self.form.__dict__["_tiergraph_index"].containment_input
         spellings = {
-            event.features["compatibility-interval"]: event.features["spelling"]
+            features["interval-index"]: features["spelling"]
             for event in source.events.values()
-            if "compatibility-interval" in event.features
-            and "spelling" in event.features
+            for features in (source.house_features(event),)
+            if type(features.get("interval-index")) is int and "spelling" in features
         }
         return tuple(
             spellings.get(
@@ -420,25 +420,20 @@ class Syllabifier:
         )
         builder, handles = copy_fact_builder(source, declared)
         unit_handles = {
-            event.features["compatibility-index"]: handles[path]
-            for path, event in source.events.items()
-            if "compatibility-index" in event.features
+            index: handles[path] for index, _, path in source.unit_occurrences()
         }
-        # copy_fact_builder copies the source clock rather than its legacy
+        # copy_fact_builder copies the source clock rather than its unit
         # occurrence list; recover interval anchors from the source coordinates.
-        from ._fact_builder import LegacyCoordinates, LegacyOccurrence
+        from ._fact_builder import UnitCoordinates, UnitOccurrence
 
-        coordinates = LegacyCoordinates(
+        coordinates = UnitCoordinates(
             tuple(
-                LegacyOccurrence(
+                UnitOccurrence(
                     consumes_span=bool(event.structural_duration),
                     refines_tick=not bool(event.structural_duration),
                 )
-                for _, path, event in sorted(
-                    (event.features["compatibility-index"], path, event)
-                    for path, event in source.events.items()
-                    if "compatibility-index" in event.features
-                )
+                for _, _, path in source.unit_occurrences()
+                for event in (source.events[path],)
             )
         )
         count = len(form.intervals)
@@ -473,7 +468,7 @@ class Syllabifier:
                 coordinates.to_graph(span.start),
                 coordinates.to_graph(span.end),
                 {
-                    "compatibility-interval": count + group_index,
+                    "interval-index": count + group_index,
                     "spelling": "".join(spelling),
                 },
             )
@@ -485,7 +480,7 @@ class Syllabifier:
                     coordinates.to_graph(mora_span.start),
                     coordinates.to_graph(mora_span.end),
                     {
-                        "compatibility-interval": count + len(syllables) + mora_index,
+                        "interval-index": count + len(syllables) + mora_index,
                         "spelling": entry.spelling,
                         "value": entry.spelling,
                         "mora-kind": entry.kind,

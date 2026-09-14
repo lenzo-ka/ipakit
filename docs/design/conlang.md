@@ -606,7 +606,7 @@ rule("[vowel length=normal] -> e").recognize("ka")    []
 rule("[vowel length=normal] -> e").recognize("kaː")   []
 ```
 
-It parses, it finds no site, and it says nothing — a rule its author believes is firing, doing nothing and reporting nothing. That is the shape [reviewing.md](../reviewing.md) exists to catch, and it resembles a defect [rules.md](../rules.md) already records: *"The invalid value expression `[manner=obstruent]` raises an error with that correction; older versions accepted it as an unsatisfiable constraint."* The correction names the spelling that works.
+It parses, it finds no site, and it says nothing — a rule its author believes is firing, doing nothing and reporting nothing. That is the shape [reviewing.md](../reviewing.md) exists to catch. Explicit invalid constraints receive a correction, as [rules.md](../rules.md) describes: *"The invalid value expression `[manner=obstruent]` raises an error with that correction."* The correction names the spelling that works.
 
 **The other sign is the same cause.** Because no unit ever carries `length=normal`, its *negation* is satisfied by every unit — so `[-normal]` is a wildcard, and §3 measures it collapsing a shipped rule family with no corpus word moving:
 

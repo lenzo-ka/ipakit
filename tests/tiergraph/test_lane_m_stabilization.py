@@ -67,7 +67,7 @@ def test_public_builder_returns_form_and_navigation_stays_on_form() -> None:
     assert form.leaves(form.roots[0]) == form.direct_children(form.roots[0])
 
 
-def test_public_builder_renumbers_compatibility_units_across_raw_appends() -> None:
+def test_public_builder_renumbers_units_across_raw_appends() -> None:
     builder = FormBuilder()
     builder.append_ipa("ka")
     builder.append_ipa("ta")
@@ -77,11 +77,11 @@ def test_public_builder_renumbers_compatibility_units_across_raw_appends() -> No
     assert form.to_ipa() == "kata"
     assert json.loads(form.to_json())["units"]
     assert [
-        event.features["compatibility-index"]
+        event.features["unit-index"]
         for node in form.__dict__["_tiergraph_index"].clock
         for group in node.groups
         for event in group.events
-        if "compatibility-index" in event.features
+        if "unit-index" in event.features
     ] == [0, 1, 2, 3]
 
 

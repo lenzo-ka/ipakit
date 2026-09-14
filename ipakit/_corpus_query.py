@@ -1,8 +1,7 @@
 """Streaming structural and derivational questions over stored forms.
 
-Private with the corpus kernel until the public surface settles in K3.
-Recognition is the rewrite engine's :class:`rules.Query`; this module only
-compiles its familiar context notation and translates legacy sites to graph
+Recognition uses the rewrite engine's :class:`rules.Query`; this module
+compiles its familiar context notation and translates unit sites to graph
 paths.
 """
 
@@ -291,13 +290,11 @@ def _check_query_variables(source: str, patterns: Sequence[rules.Pattern]) -> No
 
 
 def _unit_paths(form: Form) -> dict[int, str]:
-    paths: dict[int, str] = {}
     graph_index = form.__dict__["_tiergraph_index"]
-    for pointer, (_, event) in graph_index.events.items():
-        unit_index = event.features.get("compatibility-index")
-        if isinstance(unit_index, int):
-            paths[unit_index] = pointer
-    return paths
+    return {
+        index: pointer
+        for index, _, pointer in graph_index.containment_input.unit_occurrences()
+    }
 
 
 def find(

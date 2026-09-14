@@ -221,8 +221,11 @@ def test_cli_missing_source_is_failure_not_empty_success(
     assert capsys.readouterr().out == ""
 
 
-def test_legacy_missing_source_behavior_preserved(tmp_path: Path) -> None:
+def test_unconfigured_source_is_reported(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     assert interop.main(["--clts", str(tmp_path), "features"]) == 0
+    assert "not mounted" in capsys.readouterr().out
 
 
 def test_composite_repeated_features_are_occurrences_not_duplicate_sounds(

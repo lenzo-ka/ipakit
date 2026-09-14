@@ -92,7 +92,7 @@ _T = TypeVar("_T")
 
 
 class FormProjectionError(ValueError):
-    """A stored graph cannot reproduce Form's compatibility coordinates."""
+    """A valid graph cannot reproduce a requested Form projection."""
 
 
 class FormBuilder:
@@ -108,7 +108,7 @@ class FormBuilder:
 
         self.features = _default(features)
         self._builder = FactBuilder(declarations(self.features))
-        self._compatibility_unit_count = 0
+        self._unit_count = 0
 
     def begin(
         self,
@@ -149,18 +149,20 @@ class FormBuilder:
         """Scan IPA once and append its input occurrences to the shared clock."""
         parsed = self.features.read(text, strict=strict)
         index_view = parsed.__dict__["_tiergraph_index"]
-        by_index: dict[int, tuple[int, str, Any]] = {}
-        for tick, node in enumerate(index_view.clock):
-            for group in node.groups:
-                for event in group.events:
-                    index = event.features.get("compatibility-index")
-                    if isinstance(index, int):
-                        by_index[index] = (tick, group.tier, event)
+        source = index_view.containment_input
+        by_index = {
+            index: (
+                int(path.split("/")[2]),
+                source.event_tiers[path],
+                source.events[path],
+            )
+            for index, _, path in source.unit_occurrences()
+        }
         handles = []
         for index in range(len(parsed.units)):
             tick, tier, event = by_index[index]
             values = dict(event.features)
-            values["compatibility-index"] = self._compatibility_unit_count
+            values["unit-index"] = self._unit_count
             if event.structural_duration == 1:
                 handles.append(self._builder.append_input_atom(tier, values))
             else:
@@ -171,7 +173,7 @@ class FormBuilder:
                         refines_tick=index_view.clock[tick].gap_count > 1,
                     )
                 )
-            self._compatibility_unit_count += 1
+            self._unit_count += 1
         return tuple(handles)
 
     def contain(
@@ -1168,7 +1170,7 @@ def spell(items: Sequence[Unit]) -> str:
     return "".join(u.spelling if u.spelling is not None else u.text for u in items)
 
 
-class _CompatibilityProjection:
+class _UnitProjection:
     """Map the graph's input-owned positions to the frozen public coordinates."""
 
     def __init__(
@@ -1178,26 +1180,14 @@ class _CompatibilityProjection:
     ) -> None:
         from tiergraph import DurableItemRef
 
-        from ._fact_builder import LegacyCoordinates, LegacyOccurrence
+        from ._fact_builder import UnitCoordinates, UnitOccurrence
 
         self.projection_input = projection_input
         self._inventory = inventory
         from ._containment_projection import ContainmentProjection
 
         graph = ContainmentProjection.from_input(projection_input).graph
-        indexed: list[tuple[int, Unit, str]] = []
-        for path in projection_input.refs:
-            event = projection_input.events[path]
-            unit = event.features.get("compatibility-unit")
-            index = event.features.get("compatibility-index")
-            if isinstance(unit, Unit) and isinstance(index, int):
-                indexed.append((index, unit, path))
-        indexed.sort(key=lambda item: item[0])
-        if [index for index, _, _ in indexed] != list(range(len(indexed))):
-            raise FormProjectionError(
-                "graph compatibility unit order is not contiguous"
-            )
-        self._indexed = tuple(indexed)
+        self._indexed = projection_input.unit_occurrences()
         self._units: tuple[Unit, ...] | None = None
         self._intervals: tuple[Interval, ...] | None = None
         self._attributes = {
@@ -1214,22 +1204,20 @@ class _CompatibilityProjection:
             for path in projection_input.refs
             for resolved in (graph.resolve_item(DurableItemRef(path)),)
         }
-        self.coordinates = LegacyCoordinates(
+        self.coordinates = UnitCoordinates(
             tuple(
-                LegacyOccurrence(
+                UnitOccurrence(
                     consumes_span=not unit.is_boundary,
                     refines_tick=unit.is_boundary,
                 )
-                for _, unit, _ in indexed
+                for _, unit, _ in self._indexed
             )
         )
         # The adapter is required to be bidirectional.  Check every position,
         # not merely interval endpoints that happen to exist on this form.
-        for index in range(len(indexed) + 1):
-            if self.coordinates.to_legacy(self.coordinates.to_graph(index)) != index:
-                raise FormProjectionError(
-                    "graph compatibility coordinates are not lossless"
-                )
+        for index in range(len(self._indexed) + 1):
+            if self.coordinates.to_unit(self.coordinates.to_graph(index)) != index:
+                raise FormProjectionError("graph unit coordinates are not lossless")
 
     @property
     def units(self) -> tuple[Unit, ...]:
@@ -1238,7 +1226,7 @@ class _CompatibilityProjection:
         from ._containment_projection import _unit_from_attributes
 
         if self._inventory is None:
-            raise FormProjectionError("compatibility unit inventory is not available")
+            raise FormProjectionError("unit inventory is not available")
         out = [
             _unit_from_attributes(self._attributes[path], self._inventory)
             for _index, _stored, path in self._indexed
@@ -1250,9 +1238,9 @@ class _CompatibilityProjection:
     def intervals(self) -> tuple[Interval, ...]:
         if self._intervals is not None:
             return self._intervals
-        # Adjacent ticks share their boundary position, so a legacy coordinate
+        # Adjacent ticks share their boundary position, so a unit coordinate
         # is the intra-tick gap plus the running gap total of every earlier
-        # tick — the same mapping the builder's to_legacy computed.
+        # tick — the same mapping the builder's to_unit computed.
         gap_prefix = [0]
         for node in self.projection_input.clock:
             gap_prefix.append(gap_prefix[-1] + node.gap_count)
@@ -1267,8 +1255,10 @@ class _CompatibilityProjection:
         for tick, node in enumerate(self.projection_input.clock):
             for group in node.groups:
                 for event in group.events:
-                    index = event.features.get("compatibility-interval")
-                    if not isinstance(index, int):
+                    index = self.projection_input.house_features(event).get(
+                        "interval-index"
+                    )
+                    if type(index) is not int:
                         continue
                     path = next(
                         path
@@ -1291,9 +1281,7 @@ class _CompatibilityProjection:
                         start = gap_prefix[tick]
                         end = gap_prefix[tick + int(attributes["structural-duration"])]
                     else:
-                        raise FormProjectionError(
-                            "compatibility interval has no exact span"
-                        )
+                        raise FormProjectionError("interval has no exact span")
                     interval = Interval.__new__(Interval)
                     object.__setattr__(interval, "tier", group.tier)
                     object.__setattr__(interval, "start", start)
@@ -1302,9 +1290,7 @@ class _CompatibilityProjection:
                     indexed.append((index, interval))
         indexed.sort(key=lambda item: item[0])
         if [index for index, _ in indexed] != list(range(len(indexed))):
-            raise FormProjectionError(
-                "graph compatibility interval order is not contiguous"
-            )
+            raise FormProjectionError("graph interval order is not contiguous")
         self._intervals = tuple(interval for _, interval in indexed)
         return self._intervals
 
@@ -1466,19 +1452,19 @@ class _FormGraphIndex:
         return self._memo("_events", build)
 
     @property
-    def compatibility(self) -> _CompatibilityProjection:
+    def unit_projection(self) -> _UnitProjection:
         return self._memo(
-            "_compatibility",
-            lambda: _CompatibilityProjection(self.containment_input, self.inventory),
+            "_unit_projection",
+            lambda: _UnitProjection(self.containment_input, self.inventory),
         )
 
     @property
     def units(self) -> tuple[Unit, ...]:
-        return self._memo("_units", lambda: self.compatibility.units)
+        return self._memo("_units", lambda: self.unit_projection.units)
 
     @property
     def intervals(self) -> tuple[Interval, ...]:
-        return self._memo("_intervals", lambda: self.compatibility.intervals)
+        return self._memo("_intervals", lambda: self.unit_projection.intervals)
 
     def at(self, containment: Any, graph: Any, path: str) -> Any:
         """Parse ipakit spelling, but resolve event identity in ``graph``."""
@@ -1520,9 +1506,7 @@ class _FormGraphIndex:
         return tuple(out)
 
 
-def _graph_from_compatibility(
-    units: Sequence[Unit], intervals: Sequence[Interval]
-) -> Any:
+def _graph_from_units(units: Sequence[Unit], intervals: Sequence[Interval]) -> Any:
     """Build constructed/edited forms from units once, without lexical scanning."""
     from ._fact_builder import FactBuilder
     from ._graph_facts import Declarations, TierDeclaration
@@ -1536,9 +1520,7 @@ def _graph_from_compatibility(
         dict.fromkeys(span.tier for span in intervals if span.tier not in known)
     )
     if extras:
-        permitted = frozenset(
-            {"compatibility-interval", "compatibility-unit", "compatibility-index"}
-        )
+        permitted = frozenset({"interval-index", "unit", "unit-index"})
         declared = Declarations(
             tuple(TierDeclaration(name, permitted) for name in extras) + declared.tiers,
             declared.features,
@@ -1551,11 +1533,11 @@ def _graph_from_compatibility(
         base = {
             "spelling": unit.text,
             "input": True,
-            # Keep the caller's frozen Unit as the compatibility projection.
+            # Keep the caller's frozen Unit as the unit projection.
             # Timing also lives structurally on the event, and the projection
             # only replaces this object when that structural value differs.
-            "compatibility-unit": unit,
-            "compatibility-index": index,
+            "unit": unit,
+            "unit-index": index,
         }
         timing = (
             GraphTiming(unit.timing.start, unit.timing.duration)
@@ -1614,7 +1596,7 @@ def _graph_from_compatibility(
                 refines_tick=True,
                 timing=timing,
             )
-    coordinates = builder.compatibility_coordinates()
+    coordinates = builder.unit_coordinates()
     for index, span in enumerate(intervals):
         timing = (
             GraphTiming(span.timing.start, span.timing.duration)
@@ -1625,7 +1607,7 @@ def _graph_from_compatibility(
             span.tier,
             coordinates.to_graph(span.start),
             coordinates.to_graph(span.end),
-            {"compatibility-interval": index},
+            {"interval-index": index},
             timing=timing,
         )
     return builder.build_input()
@@ -1669,11 +1651,9 @@ class Form:
                 raise ValueError(
                     f"{span!r} runs past the {len(held_units)} units of the form"
                 )
-        object.__setattr__(self, "_compatibility_units", held_units)
-        object.__setattr__(self, "_compatibility_intervals", held_intervals)
-        self._install_projection_input(
-            _graph_from_compatibility(held_units, held_intervals)
-        )
+        object.__setattr__(self, "_source_units", held_units)
+        object.__setattr__(self, "_source_intervals", held_intervals)
+        self._install_projection_input(_graph_from_units(held_units, held_intervals))
         # These names stay dataclass fields so the constructor,
         # dataclasses.fields/replace, equality, and hash behavior retain their
         # public coordinates.  The instance values are deliberately removed:
@@ -1690,8 +1670,8 @@ class Form:
 
     def _identity(self) -> tuple[Any, ...]:
         namespace = object.__getattribute__(self, "__dict__")
-        held_units = namespace.get("_compatibility_units")
-        held_intervals = namespace.get("_compatibility_intervals")
+        held_units = namespace.get("_source_units")
+        held_intervals = namespace.get("_source_intervals")
         return (
             held_units if held_units is not None else self.units,
             held_intervals if held_intervals is not None else self.intervals,
@@ -1733,7 +1713,9 @@ class Form:
                 for node in projection_input.clock
                 for group in node.groups
                 for event in group.events
-                if isinstance((unit := event.features.get("compatibility-unit")), Unit)
+                if isinstance(
+                    (unit := projection_input.house_features(event).get("unit")), Unit
+                )
                 and unit.segment is not None
                 and unit.__dict__.get("_inventory") is not None
             ),
@@ -1898,8 +1880,8 @@ class Form:
                     "value": segment,
                     "spelling": token,
                     "input": True,
-                    "compatibility-unit": unit,
-                    "compatibility-index": len(out) - 1,
+                    "unit": unit,
+                    "unit-index": len(out) - 1,
                 }
                 handle = builder.append_input_atom(
                     SEGMENT_TIER,
@@ -1928,8 +1910,8 @@ class Form:
                         "symbol": token,
                         "spelling": token,
                         "input": True,
-                        "compatibility-unit": dataclasses.replace(out[-1], timing=None),
-                        "compatibility-index": len(out) - 1,
+                        "unit": dataclasses.replace(out[-1], timing=None),
+                        "unit-index": len(out) - 1,
                     },
                 )
             elif token in features.separators:
@@ -1940,8 +1922,8 @@ class Form:
                     "symbol": token,
                     "spelling": token,
                     "input": True,
-                    "compatibility-unit": dataclasses.replace(out[-1], timing=None),
-                    "compatibility-index": len(out) - 1,
+                    "unit": dataclasses.replace(out[-1], timing=None),
+                    "unit-index": len(out) - 1,
                     **dict(declared.features or {}),
                 }
                 builder.append_input_occurrence(
@@ -1969,8 +1951,8 @@ class Form:
                     "symbol": token,
                     "spelling": token,
                     "input": True,
-                    "compatibility-unit": dataclasses.replace(out[-1], timing=None),
-                    "compatibility-index": len(out) - 1,
+                    "unit": dataclasses.replace(out[-1], timing=None),
+                    "unit-index": len(out) - 1,
                     **dict(marks[token]),
                 }
                 builder.append_input_occurrence(
@@ -2009,8 +1991,8 @@ class Form:
                         "spelling": token,
                         "input": True,
                         "level": edge,
-                        "compatibility-unit": dataclasses.replace(out[-1], timing=None),
-                        "compatibility-index": len(out) - 1,
+                        "unit": dataclasses.replace(out[-1], timing=None),
+                        "unit-index": len(out) - 1,
                     },
                     refines_tick=treatment.refines_tick,
                 )
@@ -2139,10 +2121,10 @@ class Form:
         }
 
     def to_json(self, self_contained: bool = False) -> str:
-        """Return the versioned units-and-intervals compatibility JSON.
+        """Return the versioned units-and-intervals projection JSON.
 
         Graph-only relations and derived event attributes require the native
-        tiergraph wire codec; this compatibility projection omits them.
+        tiergraph wire codec; this unit projection omits them.
         """
         return json.dumps(
             self.to_dict(self_contained=self_contained), ensure_ascii=False

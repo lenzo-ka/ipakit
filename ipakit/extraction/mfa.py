@@ -2,7 +2,7 @@
 
 The source is a dev-only git checkout, not a package or runtime dependency.
 This module validates and renders without acquisition or output writes.
-Developer scripts own fetching and publication. Curated compatibility inputs
+Developer scripts own fetching and publication. Curated mapping inputs
 live in data/mfa-curation.json and are checked against each source inventory.
 """
 

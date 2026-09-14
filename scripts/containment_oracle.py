@@ -46,7 +46,7 @@ from ipakit._rewrite_graph import (  # noqa: E402
     japanese_moraic_fixture,
     japanese_moraic_fixtures,
 )
-from ipakit.form import _graph_from_compatibility  # noqa: E402
+from ipakit.form import _graph_from_units  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -169,7 +169,7 @@ def corpus() -> tuple[tuple[str, object], ...]:
         ("profile:mora", build_mora(("to", "o"), "high")),
     ]
     native_form = Form.parse("ata", inventory)
-    native = _graph_from_compatibility(native_form.units, native_form.intervals)
+    native = _graph_from_units(native_form.units, native_form.intervals)
     graphs.append(("profile:gesture", project_gestures(native, inventory)))
     panphon_builder = document("urn:ipakit:panphon", prefix="panphon")
     for declaration in panphon_declaration(()):
@@ -217,7 +217,7 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
 
 @dataclass(frozen=True)
 class _NativeContainment:
-    """Present tiergraph containment with the legacy oracle's combined semantics."""
+    """Present combined native tiergraph containment navigation."""
 
     graph: tiergraph.Graph
     refs: dict[str, tiergraph.ItemRef]
@@ -544,11 +544,25 @@ def _render() -> str:
     payload = {
         "_generated": GENERATED,
         "source_commit": "485f7a7c631001b58acfffc2884011081e0bcd19",
+        "reference_audit": {
+            "repository": "https://github.com/lenzo-ka/ipakit",
+            "module": "ipakit._tiergraph",
+            "symbol": "Graph",
+            "procedure": "scripts/containment_oracle.py::verify",
+            "scope": (
+                "The reference commit ran a named-sample differential between "
+                "Graph navigation and ContainmentProjection. This golden now "
+                "checks the current native corpus; agreement is bounded by its "
+                "named fixtures and observations."
+            ),
+        },
         "accepted_domain": (
-            "Exactly graphs whose containment instances have one event source and "
+            "After declaration and profile payload admission, containment "
+            "instances require one event source and "
             "only event targets (including a declared empty target side); across "
-            "multiple relations, repeated incidence is retained. Navigation is "
-            "identical to the legacy implementation on every accepted graph."
+            "multiple relations, repeated incidence is retained. The named current "
+            "fixtures record native regression observations; their historical "
+            "reference audit provenance is described separately."
         ),
         "refusals": {
             "source_cardinality_other_than_one": (
@@ -565,7 +579,7 @@ def _render() -> str:
         },
         "refused_constructions": {
             "boundary-owns": {
-                "legacy_direct_children": ["/clock/1"],
+                "reference_direct_children": ["/clock/1"],
                 "projection": "refused by relation name",
             },
         },
@@ -582,15 +596,23 @@ def _render() -> str:
         },
         "population": {
             "kind": (
-                "fixture-derived structural classes, derived and checked, with "
-                "constructor/validator drift guard"
+                "fixture-derived structural classes checked against committed golden"
             ),
             "boundary": "the named fixtures in this artifact",
             "outside_member_example": (
-                "boundary-owns: legacy direct_children(root) returns the "
+                "boundary-owns: reference direct_children(root) returns the "
                 "coarse-tick boundary; projection refuses boundary-owns by name"
             ),
             "surface": {
+                "scope": "historical reference constructor/validator source receipt",
+                "source_commit": "485f7a7c631001b58acfffc2884011081e0bcd19",
+                "source_symbols": [
+                    "ipakit._tiergraph.RelationDeclaration.__post_init__",
+                    "ipakit._tiergraph.Graph._validate_relation",
+                    "ipakit._tiergraph.Graph._validate_endpoints",
+                    "ipakit._tiergraph.Graph._validate_acyclic",
+                    "ipakit._tiergraph_builder.GraphBuilder.contain",
+                ],
                 "relation_declaration_fields": [
                     "name",
                     "ordered",
@@ -608,7 +630,7 @@ def _render() -> str:
                     "choice",
                     "member_of",
                 ],
-                "constructor_validator_sha256": (
+                "reference_constructor_validator_source_sha256": (
                     "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa"
                 ),
             },

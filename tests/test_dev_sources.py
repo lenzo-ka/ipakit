@@ -165,7 +165,7 @@ def test_requested_unsupported_cannot_succeed(
     assert json.loads(capsys.readouterr().out)["complete"] is False
 
 
-def test_runner_build_check_and_legacy_wrapper_share_builder(
+def test_runner_build_check_and_script_wrapper_share_builder(
     source: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -58,7 +58,7 @@ returns every candidate in declaration order.
 `ipakit.finite_declaration.read_ternary_declaration(path)` is the single XML
 reader also used by `ipakit.bridges.costmodel.pack_from_declaration(path)`.
 Its returned `TernaryDeclaration` exposes `.model`, ordered `.weights`,
-`.weight_names`, legacy directional `.bridge` metadata and `.tokenize(text)`.
+`.weight_names`, directional `.bridge` metadata and `.tokenize(text)`.
 The latter returns `(tokens, dropped)` with NFD longest-match tokenization.
 Declaration keys must already be nonempty NFD strings. Duplicate features or
 tokens, undeclared row features and non-ternary cell values are rejected.

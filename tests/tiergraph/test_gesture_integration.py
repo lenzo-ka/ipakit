@@ -10,7 +10,7 @@ from ipakit._gesture_graph import (
     project,
 )
 from ipakit._graph_facts import Timing
-from ipakit.form import _graph_from_compatibility
+from ipakit.form import _graph_from_units
 from ipakit.tract import constrictions
 
 import tiergraph
@@ -19,7 +19,7 @@ import tiergraph
 def _inventory_and_graph(text: str = "ata"):
     inventory = IPAFeatures()
     form = Form.parse(text, inventory)
-    return inventory, _graph_from_compatibility(form.units, form.intervals)
+    return inventory, _graph_from_units(form.units, form.intervals)
 
 
 def _timings(*values: tuple[float, float]):

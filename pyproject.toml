@@ -26,41 +26,8 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    # Capped at the minor because tiergraph is pre-1.0 and each 0.X.0 breaks
-    # deliberately -- an alpha minor is effectively a major, so `<0.3.0` is the
-    # honest bound rather than a cautious one.
-    #
-    # The comment that stood here was measured, checked, and cleared the wrong
-    # three things: it named the `star` member on the Semiring protocol, the
-    # 24-to-18 selection cut and `to_jsonl`'s version key, said ipakit used none
-    # of them -- all true -- and listed `tiergraph`, `tiergraph.build`,
-    # `tiergraph.machine` and `tiergraph.path` as the exposed surface. None of
-    # that is what broke. A comment that reads as reassurance is worse than one
-    # nobody checked, so what actually broke is recorded instead:
-    #
-    #   five renames        ClockPosition->ClockCoordinate, PositionRef->
-    #                       BoundaryRef, PositionBinding->BoundaryBinding,
-    #                       ResolvedPosition->ResolvedBoundary, and
-    #                       POSITION_NOT_IN_PARENT->BOUNDARY_NOT_IN_PARENT
-    #   one dropped value   AttributeDomain.POSITION, replaced by BOUNDARY --
-    #                       a wire change, not a rename
-    #   one more rename     DurablePositionRef->DurableBoundaryRef
-    #   four MEMBERS        ClockProfile.from_position_values, and on Graph:
-    #                       position_values, resolve_position, promote_position
-    #   the wire version    "format_version": "6" became "0.2.0"
-    #
-    # Thirteen, where the handover list named nine. The four member renames are
-    # the reason to distrust a name-level diff: `hasattr(tiergraph,
-    # 'ClockProfile')` is true whether or not its methods moved, so checking
-    # exported names says nothing about members. Migrating found them; diffing
-    # could not.
-    #
-    # Tiergraph 0.2.0 is published on PyPI (2026-09-05). Keep a version
-    # requirement rather than a direct Git URL so IPAkit remains publishable.
-    # Before that publication, development supplied the checkout out of band.
-    # Historical migration check at tiergraph main 6276260: tests/tiergraph
-    # reported 151 passed and 2 old-wire golden failures, not code defects.
-    # Model graph decoration requires embed_json_value, added in 0.2.1.
+    # Native declared JSON values require tiergraph 0.2.1. Use a publishable version
+    # requirement; alpha minor releases may break APIs, so stay within 0.2.x.
     "tiergraph>=0.2.1,<0.3.0",
 ]
 

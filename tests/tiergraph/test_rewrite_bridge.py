@@ -104,13 +104,13 @@ def test_curated_japanese_adaptations_use_the_rewrite_bridge(name):
     authoritative = {
         relation.declaration for relation in form._graph.polyadic_relations
     }
-    compatibility = {
+    unit_view = {
         link.name
         for link in form.__dict__["_tiergraph_index"].containment_input.relations
     }
     assert names["rewrites-to"] in authoritative
     if len(fixture.output) > len(fixture.source):
-        assert "inserts" in compatibility
+        assert "inserts" in unit_view
         assert names["inserts"] in authoritative
         declaration = next(
             item
@@ -140,7 +140,7 @@ def test_curated_japanese_adaptations_use_the_rewrite_bridge(name):
         )
 
 
-def test_phantoms_do_not_corrupt_the_compatibility_surface():
+def test_phantoms_do_not_corrupt_the_unit_surface():
     inventory = ipakit.load_ipa_features()
     form = japanese_moraic_fixture("strike", inventory)
     assert tuple(unit.text for unit in form.units) == tuple(
@@ -218,7 +218,7 @@ def test_insertion_then_deletion_keeps_cross_tier_input_clock_positions():
     ) in links
 
 
-def test_malformed_compatibility_graph_has_a_typed_failure():
+def test_malformed_unit_projection_graph_has_a_typed_failure():
     inventory = ipakit.load_ipa_features()
     source = inventory.read("p")
     from ipakit._ipa_graph import declarations
@@ -229,12 +229,14 @@ def test_malformed_compatibility_graph_has_a_typed_failure():
         "value": unit.segment,
         "spelling": unit.text,
         "input": True,
-        "compatibility-unit": unit,
-        "compatibility-index": 1,
+        "unit": unit,
+        "unit-index": 1,
     }
     builder.append_input_atom("segment", facts)
     malformed = ipakit.Form._from_projection_input(builder.build_input())
-    with pytest.raises(ipakit.FormProjectionError, match="not contiguous"):
+    from ipakit._graph_facts import GraphValidationError
+
+    with pytest.raises(GraphValidationError, match="not contiguous"):
         _ = malformed.units
 
 
@@ -273,51 +275,125 @@ def test_distance_alignment_capture_is_the_live_oracle():
         )
 
 
-def _bridge_fixture_data(form):
-    """The complete topology plus stable, JSON-native bridge event facts."""
-    return {
-        "clock": [
-            {
-                "gaps": node.gap_count,
-                "groups": [
-                    {
-                        "tier": group.tier,
-                        "events": [
-                            {
-                                "features": {
-                                    name: (
-                                        event.features.get("spelling", str(value))
-                                        if name == "value"
-                                        else value
-                                    )
-                                    for name, value in event.features.items()
-                                    if name != "compatibility-unit"
-                                },
-                                "duration": event.structural_duration,
-                            }
-                            for event in group.events
-                        ],
-                    }
-                    for group in node.groups
-                ],
-            }
-            for node in form.__dict__["_tiergraph_index"].clock
-        ],
-        "roots": list(form.roots),
-        "links": [
-            [list(link.sources), link.name, list(link.targets)]
-            for link in form.__dict__["_tiergraph_index"].containment_input.relations
-        ],
-    }
-
-
 def test_hot_bridge_projection_matches_serialized_fixture():
+    from tiergraph.wire import to_data
+
     inventory = ipakit.load_ipa_features()
-    live = _bridge_fixture_data(japanese_moraic_fixture("hot", inventory))
+    live = to_data(japanese_moraic_fixture("hot", inventory)._graph)
     expected = json.loads(
         (HERE / "fixtures" / "hot_bridge_projection.json").read_text()
     )
     assert live == expected
+
+
+def _assert_hot_provenance(source):
+    events = source.events
+    assert [
+        (path, events[path].features["phantom"])
+        for path in source.refs
+        if "phantom" in events[path].features
+    ] == [
+        ("/clock/0/narrow/0", True),
+        ("/clock/0/allophonic/0", True),
+        ("/clock/0/allophonic/1", True),
+        ("/clock/0/mora/0", True),
+        ("/clock/1/narrow/0", True),
+        ("/clock/1/allophonic/0", True),
+        ("/clock/1/allophonic/1", True),
+        ("/clock/2/narrow/0", True),
+        ("/clock/2/allophonic/0", True),
+        ("/clock/2/allophonic/1", True),
+        ("/clock/2/mora/0", True),
+        ("/clock/2/mora/1", True),
+        ("/clock/3/allophonic/0", True),
+    ]
+    assert [
+        (path, event.features["rule"], event.features["trace"])
+        for path in source.refs
+        for event in (events[path],)
+        if "rule" in event.features
+    ] == [
+        ("/clock/0/narrow/0", "ɑ is short o", "no-op"),
+        ("/clock/0/allophonic/0", "gemination (after a consonant)", "no-op"),
+        ("/clock/0/allophonic/1", "o after a coronal stop (final)", "no-op"),
+        ("/clock/1/narrow/0", "ɑ is short o", "ɑ is short o: ɑ -> o @1"),
+        ("/clock/1/allophonic/0", "gemination (after a consonant)", "no-op"),
+        ("/clock/1/allophonic/1", "o after a coronal stop (final)", "no-op"),
+        ("/clock/2/narrow/0", "ɑ is short o", "no-op"),
+        (
+            "/clock/2/allophonic/0",
+            "gemination (after a consonant)",
+            "gemination (after a consonant): t -> tː @2",
+        ),
+        ("/clock/2/allophonic/1", "o after a coronal stop (final)", "no-op"),
+        (
+            "/clock/3/allophonic/0",
+            "o after a coronal stop (final)",
+            "o after a coronal stop (final): ∅ -> o @3",
+        ),
+    ]
+    assert [
+        (path, event.features["mora-kind"])
+        for path in source.refs
+        for event in (events[path],)
+        if "mora-kind" in event.features
+    ] == [
+        ("/clock/0/mora/0", "ordinary"),
+        ("/clock/2/mora/0", "geminate-half"),
+        ("/clock/2/mora/1", "ordinary"),
+    ]
+    assert [
+        (
+            path,
+            event.features["derivation-step"],
+            event.features["application-order"],
+            event.features["source-site-order"],
+        )
+        for path in source.refs
+        for event in (events[path],)
+        if "derivation-step" in event.features
+    ] == [
+        ("/clock/1/narrow/0", 0, 0, 0),
+        ("/clock/2/allophonic/0", 1, 0, 0),
+        ("/clock/3/allophonic/0", 2, 0, 0),
+    ]
+
+
+def test_hot_bridge_keeps_prelowering_provenance():
+    form = japanese_moraic_fixture("hot", ipakit.load_ipa_features())
+    _assert_hot_provenance(form.__dict__["_tiergraph_index"].containment_input)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "rule",
+        "trace",
+        "mora-kind",
+        "derivation-step",
+        "application-order",
+        "source-site-order",
+        "phantom",
+    ],
+)
+def test_hot_provenance_witness_detects_each_field_mutation(field):
+    from dataclasses import replace
+
+    form = japanese_moraic_fixture("hot", ipakit.load_ipa_features())
+    source = form.__dict__["_tiergraph_index"].containment_input
+    path = "/clock/2/mora/0" if field == "mora-kind" else "/clock/1/narrow/0"
+    event = source.events[path]
+    value = event.features[field]
+    mutated = replace(
+        event,
+        features={
+            **event.features,
+            field: value + 1 if type(value) is int else "changed",
+        },
+    )
+    changed = replace(source, events={**source.events, path: mutated})
+    with pytest.raises(AssertionError):
+        _assert_hot_provenance(changed)
 
 
 def test_only_fired_steps_materialize_projection_events():

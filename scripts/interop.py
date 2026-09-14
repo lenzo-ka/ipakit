@@ -17,7 +17,7 @@ it.
     python scripts/interop.py all
 
 The complete CLTS checkout is external data under its own license: CI may not
-have it, so legacy measurements exit 0 with a message when it is absent.
+have it, so candidate measurements exit 0 with a message when it is absent.
 The separately attributed finite core snapshot ships for native comparisons.
 The declarations command instead exits nonzero on missing or malformed input.
 Clone
@@ -628,7 +628,7 @@ def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
     authority = build_authority(clts.root)
     print(f"Reviewed mapping authority: {authority.identity}")
     print(
-        "The following legacy candidate comparison does not establish complete semantic eligibility."
+        "The following candidate comparison does not establish complete semantic eligibility."
     )
     problems = check_correspondence(clts)
     if problems:
@@ -679,12 +679,12 @@ def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
     stated = sum(agree.values()) + sum(differ.values()) + sum(silent.values())
     print(f"segments both systems read as one: {compared}")
     print(
-        f"CLTS assertions with legacy candidate correspondences: {stated}"
+        f"CLTS assertions with candidate correspondences: {stated}"
         f"   agree {sum(agree.values())}"
         f"   differ {sum(differ.values())}"
         f"   ipakit silent {sum(silent.values())}"
     )
-    print(f"CLTS assertions without a legacy candidate: {sum(absent.values())}")
+    print(f"CLTS assertions without a candidate: {sum(absent.values())}")
 
     print("\ndisagreements, worst first:")
     for value, n in differ.most_common(args.top):
@@ -692,7 +692,7 @@ def cmd_features(clts: Clts, args: argparse.Namespace) -> int:
         shown = "  ".join(f"{g} ipakit {name}={m}" for g, _, m in cases[value][:3])
         print(f"  {n:5d}  CLTS {value:22s} {shown}")
 
-    print("\nNo legacy candidate (not a proven house-model gap):")
+    print("\nNo candidate (not a proven house-model gap):")
     for value, n in absent.most_common(args.top):
         print(f"  {n:5d}  {value}")
     return 0

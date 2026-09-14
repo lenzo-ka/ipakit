@@ -39,8 +39,8 @@ def test_item_payload_round_trips_events_and_units_in_declared_order() -> None:
             attribute.name.local_name: attribute.lexical
             for attribute in items[ref].attributes
         }
-        if "compatibility-index" in attributes:
-            original = event.features["compatibility-unit"]
+        if "unit-index" in attributes:
+            original = event.features["unit"]
             assert isinstance(original, Unit)
             timing = (
                 None
@@ -87,20 +87,14 @@ def test_item_payload_round_trips_events_and_units_in_declared_order() -> None:
             assert attributes["input"] == (
                 "true" if event.features["input"] else "false"
             )
-            assert (
-                int(attributes["compatibility-index"])
-                == event.features["compatibility-index"]
-            )
+            assert int(attributes["unit-index"]) == event.features["unit-index"]
             assert rebuilt == original
             assert dict(rebuilt.features) == dict(original.features)
             assert dict(rebuilt.prosody) == dict(original.prosody)
             assert rebuilt.provenance == original.provenance
             assert repr(rebuilt) == repr(original)
-        elif "compatibility-interval" in attributes:
-            assert (
-                int(attributes["compatibility-interval"])
-                == event.features["compatibility-interval"]
-            )
+        elif "interval-index" in attributes:
+            assert int(attributes["interval-index"]) == event.features["interval-index"]
         else:
             assert attributes == {}
 
@@ -172,7 +166,7 @@ def test_integer_timing_normalizes_to_float_so_units_round_trip() -> None:
     )
 
 
-def test_parsed_form_owns_graph_and_projects_compatibility_fields() -> None:
+def test_parsed_form_owns_graph_and_projects_unit_views() -> None:
     form = Form.parse("#a..b#", FEATURES)
 
     assert "units" not in form.__dict__
@@ -198,7 +192,7 @@ def test_form_graph_index_defers_every_public_projection(monkeypatch) -> None:
     def forbidden(*args, **kwargs):
         raise AssertionError("eager public projection")
 
-    monkeypatch.setattr(form_module._CompatibilityProjection, "__init__", forbidden)
+    monkeypatch.setattr(form_module._UnitProjection, "__init__", forbidden)
     form = Form.parse("#a.b#", FEATURES)
     index = form.__dict__["_tiergraph_index"]
 
@@ -218,18 +212,18 @@ def test_at_resolves_only_the_requested_public_event() -> None:
     assert "_events" not in index.__dict__
 
 
-def test_compatibility_projection_is_memoized_across_form_surface(
+def test_unit_projection_is_memoized_across_form_surface(
     monkeypatch,
 ) -> None:
     constructions: dict[int, int] = {}
-    original_init = form_module._CompatibilityProjection.__init__
+    original_init = form_module._UnitProjection.__init__
 
     def counted_init(self, graph, inventory=None) -> None:
         graph_id = id(graph)
         constructions[graph_id] = constructions.get(graph_id, 0) + 1
         original_init(self, graph, inventory)
 
-    monkeypatch.setattr(form_module._CompatibilityProjection, "__init__", counted_init)
+    monkeypatch.setattr(form_module._UnitProjection, "__init__", counted_init)
     form = Form.parse("#a.b#", FEATURES)
     peer = Form.parse("#a.b#", FEATURES)
 

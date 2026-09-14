@@ -382,20 +382,12 @@ class VocabularyBridge(Bridge):
             ),
         )
         builder, handles = copy_fact_builder(projection_input, declared)
+        unit_indices = {
+            ref: index for index, _, ref in projection_input.unit_occurrences()
+        }
         units = [
             (ref, handles[ref])
-            for ref in sorted(
-                handles,
-                key=lambda ref: (
-                    projection_input.events[ref].features.get(
-                        "compatibility-index", 10**9
-                    ),
-                    ref,
-                ),
-            )
-            if isinstance(
-                projection_input.events[ref].features.get("compatibility-index"), int
-            )
+            for ref in sorted(unit_indices, key=lambda ref: (unit_indices[ref], ref))
         ]
         cursor = 0
         prefixes: list[Atom] = []
@@ -585,20 +577,12 @@ class VocabularyBridge(Bridge):
             ),
         )
         builder, handles = copy_fact_builder(projection_input, declared)
+        unit_indices = {
+            ref: index for index, _, ref in projection_input.unit_occurrences()
+        }
         unit_handles = [
             handles[ref]
-            for ref in sorted(
-                handles,
-                key=lambda ref: (
-                    projection_input.events[ref].features.get(
-                        "compatibility-index", 10**9
-                    ),
-                    ref,
-                ),
-            )
-            if isinstance(
-                projection_input.events[ref].features.get("compatibility-index"), int
-            )
+            for ref in sorted(unit_indices, key=lambda ref: (unit_indices[ref], ref))
         ]
         for start, end, atom in matches:
             parent = builder.add_event(

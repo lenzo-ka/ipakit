@@ -20,7 +20,7 @@ class TernaryDeclaration:
     """Codec metadata is separate from the model's feature/inventory identity.
 
     Weight order is retained even when it is not a complete feature basis.
-    The directional bridge labels are legacy metadata, not a required pivot.
+    The directional bridge labels are directional metadata, not a required pivot.
     """
 
     model: FiniteModel

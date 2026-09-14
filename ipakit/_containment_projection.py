@@ -16,7 +16,10 @@ from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from .form import Unit
 
 import tiergraph as tg
 
@@ -63,8 +66,8 @@ _PAYLOAD_DECLARATIONS = (
     ("exemplar", tg.XsdType.STRING),
     ("notes", tg.XsdType.STRING),
     ("input", tg.XsdType.BOOLEAN),
-    ("compatibility-index", tg.XsdType.INTEGER),
-    ("compatibility-interval", tg.XsdType.INTEGER),
+    ("unit-index", tg.XsdType.INTEGER),
+    ("interval-index", tg.XsdType.INTEGER),
     ("timing-start", tg.XsdType.DOUBLE),
     ("timing-duration", tg.XsdType.DOUBLE),
     ("span-start", tg.XsdType.STRING),
@@ -98,7 +101,7 @@ def _declared_values(
 ) -> tuple[tuple[str, tg.QualifiedName, tg.Graph, tg.ItemRef], ...]:
     """Construct opted-in values with the native recursive JSON profile.
 
-    The default declaration keeps the legacy IPA codec. An explicit qualified
+    The default declaration keeps the house IPA codec. An explicit qualified
     value identity opts into lossless JSON values, including null and containers;
     native construction rejects opaque objects and nonfinite numbers.
     """
@@ -221,7 +224,7 @@ def declared_value(graph: tg.Graph, event: tg.ItemRef, name: tg.QualifiedName) -
     return replace(template, graph=graph).value(root)
 
 
-def _legacy_payloads(
+def _profile_payloads(
     source: ContainmentProjectionInput,
 ) -> dict[str, tuple[tuple[str, tg.XsdType, str], ...]]:
     """Dispatch foreign declared values away from unqualified IPA semantics.
@@ -229,6 +232,7 @@ def _legacy_payloads(
     Both cache identity and graph construction consume this same projection.
     The native-value path continues to receive the original, complete facts.
     """
+    source.unit_occurrences()
     foreign = frozenset(
         declaration.name
         for declaration in source.declarations.features
@@ -238,32 +242,22 @@ def _legacy_payloads(
     for ref in source.refs:
         event = source.events[ref]
         if foreign:
-            features = {
-                name: value
-                for name, value in event.features.items()
-                if name not in foreign
-            }
-            if features.get("compatibility-unit") is not None and foreign & {
-                "input",
-                "compatibility-index",
-            }:
-                raise GraphValidationError(
-                    "legacy compatibility-unit requires legacy input and compatibility-index declarations"
-                )
-            event = replace(event, features=features)
+            event = replace(event, features=source.house_features(event))
         payloads[ref] = _event_payload(event)
     return payloads
 
 
 def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
-    """Lower one compatibility event to scalar tiergraph item attributes."""
-    unit = event.features.get("compatibility-unit")
-    interval = event.features.get("compatibility-interval")
+    """Lower one unit event to scalar tiergraph item attributes."""
+    unit = event.features.get("unit")
+    interval = event.features.get("interval-index")
     if unit is not None:
         from .form import Unit, _DerivedMapping, _DerivedProvenance
 
         if not isinstance(unit, Unit):
-            raise TypeError("compatibility-unit must be a Unit")
+            raise GraphValidationError("house unit must be a Unit")
+        if type(event.features.get("unit-index")) is not int:
+            raise GraphValidationError("house unit-index must be an integer")
         values: list[tuple[str, tg.XsdType, str]] = [
             ("text", tg.XsdType.STRING, unit.text),
         ]
@@ -277,9 +271,9 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
                     "true" if event.features["input"] is True else "false",
                 ),
                 (
-                    "compatibility-index",
+                    "unit-index",
                     tg.XsdType.INTEGER,
-                    str(event.features["compatibility-index"]),
+                    str(event.features["unit-index"]),
                 ),
             )
         )
@@ -342,9 +336,9 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
                     ),
                 )
             )
-    elif isinstance(interval, int):
+    elif type(interval) is int:
         values = [
-            ("compatibility-interval", tg.XsdType.INTEGER, str(interval)),
+            ("interval-index", tg.XsdType.INTEGER, str(interval)),
         ]
     else:
         values = []
@@ -385,7 +379,7 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
 
 
 def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
-    """Raise one compatibility Unit from its lowered attribute payload."""
+    """Raise one Unit from its lowered attribute payload."""
     from .form import Timing, Unit
     from .segment import Constituent, Segment, Sense
 
@@ -445,7 +439,7 @@ def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
 
 @dataclass(frozen=True)
 class ContainmentProjectionInput:
-    """Scaffold-free facts needed to build the authoritative projection."""
+    """Declaration and input-clock facts for the authoritative projection."""
 
     refs: tuple[str, ...]
     declarations: Declarations
@@ -455,6 +449,60 @@ class ContainmentProjectionInput:
     endpoint_kinds: dict[str, EndpointKind]
     clock: tuple[ClockNode, ...]
     roots: tuple[str, ...]
+
+    def house_features(self, event: Event) -> Mapping[str, Any]:
+        """Resolve private IPA roles only from unqualified declarations.
+
+        Qualified values remain complete in ``events`` and in native declared
+        JSON values; their local spelling carries no private role.
+        """
+        foreign = {
+            declaration.name
+            for declaration in self.declarations.features
+            if declaration.value_name is not None
+        }
+        return {
+            name: value for name, value in event.features.items() if name not in foreign
+        }
+
+    def unit_occurrences(self) -> tuple[tuple[int, Unit, str], ...]:
+        """Admit the house Unit sequence and its support roles together.
+
+        An unqualified index supports an actual Unit; it cannot identify an
+        event on its own. Qualified values remain ordinary declared values.
+        Consumers share this validation and the same contiguous sequence.
+        """
+        from .form import Unit
+
+        foreign = {
+            declaration.name
+            for declaration in self.declarations.features
+            if declaration.value_name is not None
+        }
+        indexed = []
+        for path in self.refs:
+            features = self.house_features(self.events[path])
+            unit = features.get("unit")
+            if unit is None:
+                if "unit-index" in features:
+                    raise GraphValidationError("unit-index requires a house Unit")
+                continue
+            if not isinstance(unit, Unit):
+                raise GraphValidationError("house unit must be a Unit")
+            if foreign & {"input", "unit-index", "interval-index"}:
+                raise GraphValidationError(
+                    "house unit requires unqualified input, unit-index and interval-index declarations"
+                )
+            if type(features.get("input")) is not bool:
+                raise GraphValidationError("house input must be a boolean")
+            index = features.get("unit-index")
+            if type(index) is not int:
+                raise GraphValidationError("house unit-index must be an integer")
+            indexed.append((index, unit, path))
+        indexed.sort(key=lambda occurrence: occurrence[0])
+        if [index for index, _, _ in indexed] != list(range(len(indexed))):
+            raise GraphValidationError("graph unit order is not contiguous")
+        return tuple(indexed)
 
     @classmethod
     def from_facts(
@@ -557,7 +605,7 @@ def _projection_signature(
     the builder. The remaining fields are immutable structural facts consumed
     directly by ``_build_from_input``.
     """
-    payloads = _legacy_payloads(source)
+    payloads = _profile_payloads(source)
     return (
         source.refs,
         tuple((ref, source.event_tiers[ref], payloads[ref]) for ref in source.refs),
@@ -605,7 +653,7 @@ def _projection_cache_info() -> tuple[int, int, int, int, int]:
 class ContainmentProjection:
     """Single-source ordered containment view with lossless event identity.
 
-    Navigation preserves the compatibility contract on every accepted graph.
+    Navigation combines ordered parent incidence across declared relations.
     Accepted containment instances have exactly one event source and
     only event targets (including a declared empty target side).  Source
     cardinalities other than one and boundary endpoints are refused by name.
@@ -686,7 +734,7 @@ class ContainmentProjection:
         )
 
         refs = source.refs
-        payloads = _legacy_payloads(source)
+        payloads = _profile_payloads(source)
         tier_names = {
             declaration.name: (
                 tg.QualifiedName(*declaration.native_name)
@@ -832,7 +880,7 @@ class ContainmentProjection:
             )
 
         def relation_side(declaration: object, side: str) -> tg.RelationSideDeclaration:
-            """Lower compatibility endpoint kinds without perturbing item-only sides."""
+            """Lower unit endpoint kinds without perturbing item-only sides."""
             kinds = getattr(declaration, f"{side}_kinds")
             if kinds == frozenset({EndpointKind.EVENT}):
                 return item_side(declaration, side)
@@ -907,9 +955,7 @@ class ContainmentProjection:
                     minimum=0,
                     allow_empty=True,
                 ),
-                # No distinct_targets: the legacy roots list did not forbid a
-                # repeated root, so requiring distinctness here would refuse a
-                # duplicate-root graph the old Form.roots returned verbatim.
+                # No distinct-target constraint: repeated roots preserve occurrence order.
             ),
         )
         relations = tuple(
@@ -1131,7 +1177,7 @@ class ContainmentProjection:
             if side == "source"
             else self.admitted_targets[relation_name]
         )
-        # The compatibility traversal returns an empty fiber for a non-admitted
+        # The unit projection traversal returns an empty fiber for a non-admitted
         # origin, so skipping it preserves that answer. Admitted origins are
         # unchanged,
         # and Graph construction already rejects non-admitted stored endpoints.
@@ -1180,7 +1226,7 @@ class ContainmentProjection:
                         frontier.append(descendant)
 
         # OrderedContainment owns transitive reachability.  This consumer-side
-        # pass composes its per-relation answer into the legacy canonical
+        # pass composes its per-relation answer into the canonical
         # cross-relation depth-first order and cycle de-duplication.
         result: list[str] = []
         pending = list(self.direct_children(parent))
@@ -1262,7 +1308,7 @@ class ContainmentProjection:
                         frontier.append(ancestor)
 
         # Kernel inverse reachability is set-valued.  Parent incidence carries
-        # the relation identity needed to restore legacy breadth-first order.
+        # the relation identity needed for breadth-first parent-incidence order.
         result: list[str] = []
         pending = list(self.parents(child))
         while pending:

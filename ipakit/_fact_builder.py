@@ -78,8 +78,8 @@ class _PendingRelation:
 
 
 @dataclass(frozen=True)
-class LegacyOccurrence:
-    """Record whether a compatibility unit advances or refines the input clock."""
+class UnitOccurrence:
+    """Record whether a unit advances or refines the input clock."""
 
     consumes_span: bool
     refines_tick: bool = False
@@ -88,13 +88,13 @@ class LegacyOccurrence:
         if self.consumes_span and self.refines_tick:
             raise ValueError("an occurrence cannot both consume and refine a tick")
         if not self.consumes_span and not self.refines_tick:
-            raise ValueError("a compatibility unit must consume or refine the clock")
+            raise ValueError("a unit must consume or refine the clock")
 
 
-class LegacyCoordinates:
-    """Provide lossless position math for the Form compatibility adapter."""
+class UnitCoordinates:
+    """Provide lossless position math for the Form unit projection."""
 
-    def __init__(self, occurrences: Sequence[LegacyOccurrence]) -> None:
+    def __init__(self, occurrences: Sequence[UnitOccurrence]) -> None:
         refiners: dict[int, int] = {}
         tick = 0
         for occurrence in occurrences:
@@ -117,7 +117,7 @@ class LegacyCoordinates:
         self._positions = tuple(positions)
         self._indices = {position: index for index, position in enumerate(positions)}
         if len(self._indices) != len(self._positions):
-            raise ValueError("legacy occurrences do not have unique graph positions")
+            raise ValueError("unit occurrences do not have unique graph positions")
 
     @staticmethod
     def _position(tick: int, gap: int, refiners: Mapping[int, int]) -> PositionHandle:
@@ -125,21 +125,21 @@ class LegacyCoordinates:
             PositionHandle(tick, gap) if refiners.get(tick, 0) else PositionHandle(tick)
         )
 
-    def to_graph(self, legacy_gap_index: int) -> PositionHandle:
-        """Map a compatibility unit gap to its exact coarse or refined position."""
-        if legacy_gap_index < 0:
-            raise ValueError("legacy gap index is out of range")
+    def to_graph(self, unit_gap_index: int) -> PositionHandle:
+        """Map a unit gap to its exact coarse or refined position."""
+        if unit_gap_index < 0:
+            raise ValueError("unit gap index is out of range")
         try:
-            return self._positions[legacy_gap_index]
+            return self._positions[unit_gap_index]
         except IndexError as error:
-            raise ValueError("legacy gap index is out of range") from error
+            raise ValueError("unit gap index is out of range") from error
 
-    def to_legacy(self, position: PositionHandle) -> int:
-        """Recover the identical compatibility gap index from a graph position."""
+    def to_unit(self, position: PositionHandle) -> int:
+        """Recover the identical unit gap index from a graph position."""
         try:
             return self._indices[position]
         except KeyError as error:
-            raise ValueError("graph position is not a legacy unit gap") from error
+            raise ValueError("graph position is not a unit gap") from error
 
 
 class FactBuilder:
@@ -152,7 +152,7 @@ class FactBuilder:
         self._relations: list[_PendingRelation] = []
         self._roots: list[EventHandle] = []
         self._refiners: dict[int, list[EventHandle]] = {}
-        self._input_occurrences: list[LegacyOccurrence] = []
+        self._input_occurrences: list[UnitOccurrence] = []
         self._input_tick = 0
         self._serial = 0
         self._durable_ids: set[str] = set()
@@ -178,7 +178,7 @@ class FactBuilder:
     ) -> EventHandle:
         """Append the only kind of occurrence that advances the base clock."""
         handle = self.add_event(tier, self.tick(), features, duration=1, timing=timing)
-        self._input_occurrences.append(LegacyOccurrence(consumes_span=True))
+        self._input_occurrences.append(UnitOccurrence(consumes_span=True))
         self._input_tick += 1
         return handle
 
@@ -195,7 +195,7 @@ class FactBuilder:
         if refines_tick:
             self._refiners.setdefault(self._input_tick, []).append(handle)
             self._input_occurrences.append(
-                LegacyOccurrence(consumes_span=False, refines_tick=True)
+                UnitOccurrence(consumes_span=False, refines_tick=True)
             )
         return handle
 
@@ -359,9 +359,9 @@ class FactBuilder:
             )
         )
 
-    def compatibility_coordinates(self) -> LegacyCoordinates:
+    def unit_coordinates(self) -> UnitCoordinates:
         """Expose only the lossless input units recorded by this builder."""
-        return LegacyCoordinates(self._input_occurrences)
+        return UnitCoordinates(self._input_occurrences)
 
     def _build_facts(
         self,
