@@ -387,22 +387,22 @@ aaaa: 4 variants -- INCOMPLETE: cut at rule 1 ([vowel] ~> [length=long]), at lea
   aaaːa
 ```
 
-## The set has a distance to a target
+## The set has an edit cost to a target
 
-Which is the operation that makes this useful outside a classroom, and it needs no new API — it is the metric composed with the set:
+Which is the operation that makes this useful outside a classroom, and it needs no new API — it is the transcription metric composed with the set:
 
 ```python
 target = "pti"
 min(
-    ipa.distance_model().distance_position(target, v)
+    ipa.distance_model().transcription_distance(target, v).edit_cost
     for v in french.variants("pətit").forms
 )
 # 0.0
 ```
 
-**Minimum over the set** is the definition that matches the question pronunciation assessment asks: *is what the learner said a possible pronunciation of this word?* A speaker who produces any licensed variant has produced the word, and scoring them against a single citation form penalizes them for a variation the grammar itself licenses. The minimum is the natural reading and it is what a caller should reach for first.
+**Minimum transcription edit cost over the set** is the definition that matches the question pronunciation assessment asks: *is what the learner said a possible pronunciation of this word?* A speaker who produces any licensed variant has produced the word, and scoring them against a single citation form penalizes them for a variation the grammar itself licenses. The minimum is the natural reading and it is what a caller should reach for first.
 
-Two things that minimum is not. It is not a distance between a *pronunciation* and a *word* in any distributional sense — an unranked set has no center and no spread, so a mean over the set would be an average over forms that are not equally likely, and would not mean anything. And it inherits the metric's limits wholesale, including that `distance` does not satisfy the triangle inequality ([distance.md](distance.md)), so this is a score, not a position in a space.
+Two things that minimum edit cost is not. It is not a distance between a *pronunciation* and a *word* in any distributional sense — an unranked set has no center and no spread, so a mean over the set would be an average over forms that are not equally likely, and would not mean anything. It is also not a percentile position: `edit_cost` sums phone substitution and gap costs along an alignment and can grow with transcription length ([distance.md](distance.md)), so this is an alignment score, not a position in a space.
 
 It is deliberately *not* a method on `VariantSet`. Making it one would put a dependency on the metric inside the rule engine to save a caller one line, and the line above says what it does more clearly than a name would.
 

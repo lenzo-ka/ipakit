@@ -228,7 +228,9 @@ class DistanceModel:
             space: ``"distance"`` or ``"similarity"`` -- how to read ``matrix``.
             ref_phones: Sub-inventory the CDF is built over (default: ``phones``).
             gamma: Exponent applied to the percentile; ``1.0`` is the identity.
-                Must be greater than zero, and has no upper bound.
+                Must be greater than zero. No upper bound is imposed, although
+                extreme values can collapse positions through floating-point
+                underflow and subtraction rounding.
             insert_cost: What supplying a token costs in word alignment: a
                 flat price, or a :class:`~ipakit.distance.CostSchedule` (or
                 any callable) read per phone. A schedule is
@@ -250,12 +252,11 @@ class DistanceModel:
             # unusual choice, both are malformed, and both answer with a
             # well-formed float a caller would go on to average or threshold.
             #
-            # There is no upper bound, deliberately. p**g stays in [0, 1] and
-            # stays order-preserving however large g is, so nothing about a
-            # large exponent is ill-formed; it only concentrates the scale at
-            # the top, and how far is worth going is a property of the caller's
-            # inventory and task. A ceiling here would be a taste, not a
-            # constraint. NaN fails this test as written, which is intended.
+            # There is deliberately no upper bound: how far is useful depends
+            # on the caller's inventory and task. Extreme exponents can collapse
+            # distinct positions through binary64 underflow and subtraction
+            # rounding, so callers must check the numerical resolution of a
+            # candidate sweep. NaN fails this test as written, which is intended.
             raise ValueError(f"gamma must be greater than 0, got {gamma!r}")
         self._ipa = ipa
         self._name = reference_name
