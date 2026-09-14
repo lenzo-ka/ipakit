@@ -30,7 +30,12 @@ class GraphJsonCommand(Command):
         source.add_argument(
             "document", nargs="?", help="Native JSON text, or - for stdin"
         )
-        source.add_argument("--from-file", type=Path, metavar="PATH")
+        source.add_argument(
+            "--from-file",
+            type=Path,
+            metavar="PATH",
+            help="Read native Graph JSON from a file",
+        )
         parser.add_argument("--pretty", action="store_true", help="Indent output")
         parser.add_argument(
             "--validate", action="store_true", help="Validate without output"
