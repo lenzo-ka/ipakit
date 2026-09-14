@@ -1,1 +1,1275 @@
-{"clock":[{"gaps":1,"groups":[{"events":[{"duration":1,"features":{"compatibility-index":0,"input":true,"spelling":"h","value":"h"}}],"tier":"broad"},{"events":[{"duration":0,"features":{"phantom":true,"rule":"ɑ is short o","spelling":"h","trace":"no-op","value":"h"}}],"tier":"narrow"},{"events":[{"duration":0,"features":{"phantom":true,"rule":"gemination (after a consonant)","spelling":"h","trace":"no-op","value":"h"}},{"duration":0,"features":{"phantom":true,"rule":"o after a coronal stop (final)","spelling":"h","trace":"no-op","value":"h"}}],"tier":"allophonic"},{"events":[{"duration":0,"features":{"mora-kind":"ordinary","phantom":true,"spelling":"ho","value":"ho"}}],"tier":"mora"}]},{"gaps":1,"groups":[{"events":[{"duration":1,"features":{"compatibility-index":1,"input":true,"spelling":"ɑ","value":"ɑ"}}],"tier":"broad"},{"events":[{"duration":0,"features":{"application-order":0,"derivation-step":0,"phantom":true,"rule":"ɑ is short o","source-site-order":0,"spelling":"o","target-index":0,"trace":"ɑ is short o: ɑ -> o @1","value":"o"}}],"tier":"narrow"},{"events":[{"duration":0,"features":{"phantom":true,"rule":"gemination (after a consonant)","spelling":"o","trace":"no-op","value":"o"}},{"duration":0,"features":{"phantom":true,"rule":"o after a coronal stop (final)","spelling":"o","trace":"no-op","value":"o"}}],"tier":"allophonic"}]},{"gaps":1,"groups":[{"events":[{"duration":1,"features":{"compatibility-index":2,"input":true,"spelling":"t","value":"t"}}],"tier":"broad"},{"events":[{"duration":0,"features":{"phantom":true,"rule":"ɑ is short o","spelling":"t","trace":"no-op","value":"t"}}],"tier":"narrow"},{"events":[{"duration":0,"features":{"application-order":0,"derivation-step":1,"phantom":true,"rule":"gemination (after a consonant)","source-site-order":0,"spelling":"tː","target-index":0,"trace":"gemination (after a consonant): t -> tː @2","value":"tː"}},{"duration":0,"features":{"phantom":true,"rule":"o after a coronal stop (final)","spelling":"tː","trace":"no-op","value":"tː"}}],"tier":"allophonic"},{"events":[{"duration":0,"features":{"mora-kind":"geminate-half","phantom":true,"spelling":"t","value":"t"}},{"duration":0,"features":{"mora-kind":"ordinary","phantom":true,"spelling":"to","value":"to"}}],"tier":"mora"}]},{"gaps":1,"groups":[{"events":[{"duration":0,"features":{"application-order":0,"derivation-step":2,"phantom":true,"rule":"o after a coronal stop (final)","source-site-order":0,"spelling":"o","target-index":0,"trace":"o after a coronal stop (final): ∅ -> o @3","value":"o"}}],"tier":"allophonic"}]}],"links":[[["/clock/0/allophonic/0"],"rewrites-to",["/clock/0/allophonic/1"]],[["/clock/0/broad/0"],"rewrites-to",["/clock/0/narrow/0"]],[["/clock/0/mora/0"],"contains",["/clock/0/allophonic/1","/clock/1/allophonic/1"]],[["/clock/0/narrow/0"],"rewrites-to",["/clock/0/allophonic/0"]],[["/clock/1/allophonic/0"],"rewrites-to",["/clock/1/allophonic/1"]],[["/clock/1/broad/0"],"rewrites-to",["/clock/1/narrow/0"]],[["/clock/1/narrow/0"],"rewrites-to",["/clock/1/allophonic/0"]],[["/clock/2/allophonic/0"],"rewrites-to",["/clock/2/allophonic/1"]],[["/clock/2/broad/0"],"rewrites-to",["/clock/2/narrow/0"]],[["/clock/2/mora/0"],"contains",["/clock/2/allophonic/1"]],[["/clock/2/mora/1"],"contains",["/clock/2/allophonic/1","/clock/3/allophonic/0"]],[["/clock/2/narrow/0"],"rewrites-to",["/clock/2/allophonic/0"]],[["/clock/3"],"inserts",["/clock/3/allophonic/0"]]],"roots":[]}
+{
+  "format_version": "0.2.0",
+  "graph": {
+    "attribute_declarations": [
+      {
+        "domain": "item",
+        "name": "ipakit-containment:arc",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:articulator",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:atom",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:exemplar",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:features-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "boundary",
+        "name": "ipakit-containment:gap",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:input",
+        "value_type": "boolean"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:interval-index",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:kind",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:notes",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:offset",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:output",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:prominence",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:prosody-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:provenance-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:segment-json",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:source-value",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:span-end",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:span-start",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:spelling",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:structural-duration",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:symbol",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:target-index",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:text",
+        "value_type": "string"
+      },
+      {
+        "domain": "boundary",
+        "name": "ipakit-containment:tick",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:timing-duration",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:timing-start",
+        "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:unit-index",
+        "value_type": "integer"
+      }
+    ],
+    "namespaces": [
+      {
+        "namespace": "https://ipakit.dev/tiergraph/containment-projection/v1",
+        "prefix": "ipakit-containment"
+      }
+    ],
+    "position_values": [
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 0,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 1,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 2,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 3,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "2",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 4,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "2",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 5,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "3",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 6,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "3",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 7,
+          "tier": "ipakit-containment:clock"
+        }
+      }
+    ],
+    "relation_declarations": [
+      {
+        "acyclic": false,
+        "distinct_targets": true,
+        "kind": "polyadic",
+        "name": "ipakit-containment:alternatives",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "unique_sources": true
+      },
+      {
+        "acyclic": true,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:contains-0",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "unique_sources": true
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:inserts",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "boundary"
+          ],
+          "maximum": 1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "unique_sources": false
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-0",
+        "tier": "ipakit-containment:tier-0"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-1",
+        "tier": "ipakit-containment:tier-1"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-10",
+        "tier": "ipakit-containment:tier-10"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-11",
+        "tier": "ipakit-containment:tier-11"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-12",
+        "tier": "ipakit-containment:tier-12"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-13",
+        "tier": "ipakit-containment:tier-13"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-14",
+        "tier": "ipakit-containment:tier-14"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-15",
+        "tier": "ipakit-containment:tier-15"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-2",
+        "tier": "ipakit-containment:tier-2"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-3",
+        "tier": "ipakit-containment:tier-3"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-4",
+        "tier": "ipakit-containment:tier-4"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-5",
+        "tier": "ipakit-containment:tier-5"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-6",
+        "tier": "ipakit-containment:tier-6"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-7",
+        "tier": "ipakit-containment:tier-7"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-8",
+        "tier": "ipakit-containment:tier-8"
+      },
+      {
+        "item_type": "ipakit-containment:event",
+        "kind": "simple",
+        "name": "ipakit-containment:members-9",
+        "tier": "ipakit-containment:tier-9"
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:relation-1",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1,
+          "tiers": [
+            "ipakit-containment:tier-13"
+          ]
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1,
+          "tiers": [
+            "ipakit-containment:tier-10",
+            "ipakit-containment:tier-13",
+            "ipakit-containment:tier-3",
+            "ipakit-containment:tier-4",
+            "ipakit-containment:tier-5",
+            "ipakit-containment:tier-6",
+            "ipakit-containment:tier-9"
+          ]
+        },
+        "unique_sources": false
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:relation-2",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "unique_sources": false
+      },
+      {
+        "acyclic": true,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:relation-3",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "unique_sources": false
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:relation-7",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": true,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 0
+        },
+        "unique_sources": false
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:roots",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": true,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 0,
+          "minimum": 0
+        },
+        "targets": {
+          "allow_empty": true,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 0,
+          "tiers": []
+        },
+        "unique_sources": false
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-containment:selects",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1
+        },
+        "targets_subset_of": [
+          "ipakit-containment:alternatives"
+        ],
+        "unique_sources": true
+      }
+    ],
+    "relations": [
+      {
+        "declaration": "ipakit-containment:contains-0",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-7"
+          }
+        ],
+        "targets": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 3,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:contains-0",
+        "sources": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-7"
+          }
+        ],
+        "targets": [
+          {
+            "index": 5,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:contains-0",
+        "sources": [
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-7"
+          }
+        ],
+        "targets": [
+          {
+            "index": 5,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 6,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ],
+        "targets": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-0"
+          }
+        ],
+        "targets": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ],
+        "targets": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ],
+        "targets": [
+          {
+            "index": 3,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-0"
+          }
+        ],
+        "targets": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ],
+        "targets": [
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 4,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ],
+        "targets": [
+          {
+            "index": 5,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-0"
+          }
+        ],
+        "targets": [
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:relation-7",
+        "sources": [
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-1"
+          }
+        ],
+        "targets": [
+          {
+            "index": 4,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:inserts",
+        "sources": [
+          {
+            "anchor": {
+              "durable_id": "ipakit-clockcell-6",
+              "kind": "item"
+            },
+            "side": "before"
+          }
+        ],
+        "targets": [
+          {
+            "index": 6,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "ipakit-containment:roots"
+      }
+    ],
+    "tiers": [
+      {
+        "declaration": {
+          "long_name": "broad",
+          "name": "ipakit-containment:tier-0"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "true",
+                "name": "ipakit-containment:input",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "{\"constituents\":[{\"base\":\"h\",\"modifiers\":[],\"approach\":[]}],\"junctures\":[],\"prosody\":[]}",
+                "name": "ipakit-containment:segment-json",
+                "value_type": "string"
+              },
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "h",
+                "name": "ipakit-containment:text",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:unit-index",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/broad/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "true",
+                "name": "ipakit-containment:input",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "{\"constituents\":[{\"base\":\"ɑ\",\"modifiers\":[],\"approach\":[]}],\"junctures\":[],\"prosody\":[]}",
+                "name": "ipakit-containment:segment-json",
+                "value_type": "string"
+              },
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "ɑ",
+                "name": "ipakit-containment:text",
+                "value_type": "string"
+              },
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:unit-index",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/1/broad/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "true",
+                "name": "ipakit-containment:input",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "{\"constituents\":[{\"base\":\"t\",\"modifiers\":[],\"approach\":[]}],\"junctures\":[],\"prosody\":[]}",
+                "name": "ipakit-containment:segment-json",
+                "value_type": "string"
+              },
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "t",
+                "name": "ipakit-containment:text",
+                "value_type": "string"
+              },
+              {
+                "lexical": "2",
+                "name": "ipakit-containment:unit-index",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/2/broad/0"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "narrow",
+          "name": "ipakit-containment:tier-1"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "h",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/narrow/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "o",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:target-index",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/1/narrow/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "t",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/2/narrow/0"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "allophonic",
+          "name": "ipakit-containment:tier-2"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "h",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/allophonic/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "h",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/allophonic/1"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "o",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/1/allophonic/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "o",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/1/allophonic/1"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "tː",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:target-index",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/2/allophonic/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "tː",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/2/allophonic/1"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "o",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:target-index",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/3/allophonic/0"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "syllable",
+          "name": "ipakit-containment:tier-3"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "word",
+          "name": "ipakit-containment:tier-4"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "phrase",
+          "name": "ipakit-containment:tier-5"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "utterance",
+          "name": "ipakit-containment:tier-6"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "mora",
+          "name": "ipakit-containment:tier-7"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "ho",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/0/mora/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "t",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/2/mora/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "to",
+                "name": "ipakit-containment:spelling",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/2/mora/1"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "morph",
+          "name": "ipakit-containment:tier-8"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "foot",
+          "name": "ipakit-containment:tier-9"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "segment",
+          "name": "ipakit-containment:tier-10"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "zero",
+          "name": "ipakit-containment:tier-11"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "boundary",
+          "name": "ipakit-containment:tier-12"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "prosody",
+          "name": "ipakit-containment:tier-13"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "delivery",
+          "name": "ipakit-containment:tier-14"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "analysis",
+          "name": "ipakit-containment:tier-15"
+        }
+      },
+      {
+        "declaration": {
+          "long_name": "clock",
+          "name": "ipakit-containment:clock"
+        },
+        "items": [
+          {
+            "durable_id": "ipakit-clockcell-0"
+          },
+          {
+            "durable_id": "ipakit-clockcell-1"
+          },
+          {
+            "durable_id": "ipakit-clockcell-2"
+          },
+          {
+            "durable_id": "ipakit-clockcell-3"
+          },
+          {
+            "durable_id": "ipakit-clockcell-4"
+          },
+          {
+            "durable_id": "ipakit-clockcell-5"
+          },
+          {
+            "durable_id": "ipakit-clockcell-6"
+          }
+        ]
+      }
+    ]
+  }
+}

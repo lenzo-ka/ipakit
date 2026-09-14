@@ -144,7 +144,7 @@ retokenized. The host supplies alignment mechanics; each selected model supplies
 its own feature semantics.
 
 The report's `experiment` block records the declaration's model/content receipt,
-source and legacy bridge metadata, feature order, declared-but-unused weights,
+source and directional bridge metadata, feature order, declared-but-unused weights,
 and each arm's actual policy, transform/target identities, bit basis and weights.
 Binary weights are explicitly all one in this bounded helper. Domain injectivity
 and observed collision counts remain separate; aliases are not collisions.

@@ -46,7 +46,7 @@ from ipakit._rewrite_graph import (  # noqa: E402
     japanese_moraic_fixture,
     japanese_moraic_fixtures,
 )
-from ipakit.form import _graph_from_compatibility  # noqa: E402
+from ipakit.form import _graph_from_units  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -169,7 +169,7 @@ def corpus() -> tuple[tuple[str, object], ...]:
         ("profile:mora", build_mora(("to", "o"), "high")),
     ]
     native_form = Form.parse("ata", inventory)
-    native = _graph_from_compatibility(native_form.units, native_form.intervals)
+    native = _graph_from_units(native_form.units, native_form.intervals)
     graphs.append(("profile:gesture", project_gestures(native, inventory)))
     panphon_builder = document("urn:ipakit:panphon", prefix="panphon")
     for declaration in panphon_declaration(()):

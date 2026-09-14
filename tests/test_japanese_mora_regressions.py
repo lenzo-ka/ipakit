@@ -103,7 +103,7 @@ def test_geminate_graph_shares_one_occurrence_across_two_syllables():
         assert len(members[syllables[1]]) == 1
         held = members[morae[1]][0]
         assert held == members[morae[2]][0]
-        assert source.events[held].features["compatibility-unit"].text == "tː"
+        assert source.events[held].features["unit"].text == "tː"
         assert source.events[held].timing is None
 
 

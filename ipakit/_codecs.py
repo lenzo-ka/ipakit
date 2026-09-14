@@ -64,14 +64,10 @@ def render_graph(form: Form, profile: RenderProfile) -> str:
         lane = lane_by_tier.get(tier)
         if lane is not None:
             tick = int(path.split("/")[2])
-            compatibility_index = event.features.get("compatibility-index")
+            unit_index = event.features.get("unit-index")
             key = (
-                (
-                    int(compatibility_index)
-                    if isinstance(compatibility_index, int)
-                    else tick
-                ),
-                (0 if isinstance(compatibility_index, int) else lane_order[tier]),
+                (int(unit_index) if isinstance(unit_index, int) else tick),
+                (0 if isinstance(unit_index, int) else lane_order[tier]),
                 fallback,
             )
             events.append((key, event, lane))
@@ -132,7 +128,7 @@ class DeliverySelectionError(ValueError):
 
 
 def _native_event_relations(graph: Form) -> tuple[Relation, ...]:
-    """Expose authoritative native item relations in compatibility coordinates."""
+    """Expose authoritative native item relations in unit coordinates."""
     projection = graph._containment
     names = {native: old for old, native in projection.relation_names.items()}
     return tuple(

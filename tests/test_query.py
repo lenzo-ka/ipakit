@@ -6,7 +6,7 @@ import warnings
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR
-from ipakit.features import _Query
+from ipakit.features import FeatureQuery
 from ipakit.form import Unit
 from ipakit.form import units as form_units
 from ipakit.segment import takes_defaults
@@ -827,8 +827,8 @@ class TestEveryQueryEntryPointRefusesInOneVocabulary:
                     continue
                 asked = params.get("query")
                 if asked is None or asked.annotation not in (
-                    "_Query",
-                    _Query,
+                    "FeatureQuery",
+                    FeatureQuery,
                     "FeatureQuery",
                     ipakit.FeatureQuery,
                 ):

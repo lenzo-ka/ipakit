@@ -77,11 +77,11 @@ def test_public_builder_renumbers_compatibility_units_across_raw_appends() -> No
     assert form.to_ipa() == "kata"
     assert json.loads(form.to_json())["units"]
     assert [
-        event.features["compatibility-index"]
+        event.features["unit-index"]
         for node in form.__dict__["_tiergraph_index"].clock
         for group in node.groups
         for event in group.events
-        if "compatibility-index" in event.features
+        if "unit-index" in event.features
     ] == [0, 1, 2, 3]
 
 

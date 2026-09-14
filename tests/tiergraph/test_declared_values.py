@@ -240,9 +240,9 @@ def test_legacy_graph_is_not_opted_in():
         "arc",
         "offset",
         "target-index",
-        "compatibility-unit",
-        "compatibility-interval",
-        "compatibility-index",
+        "unit",
+        "interval-index",
+        "unit-index",
         "input",
     ],
 )
@@ -308,11 +308,11 @@ def test_foreign_names_do_not_override_actual_timing_and_span():
     }
 
 
-@pytest.mark.parametrize("foreign_support", ["input", "compatibility-index"])
-def test_active_legacy_unit_cannot_reinterpret_foreign_support(foreign_support):
+@pytest.mark.parametrize("foreign_support", ["input", "unit-index"])
+def test_active_unit_cannot_reinterpret_foreign_support(foreign_support):
     from ipakit import IPAFeatures
 
-    names = ("compatibility-unit", "input", "compatibility-index")
+    names = ("unit", "input", "unit-index")
     builder = FactBuilder(
         declarations(
             *(
@@ -326,25 +326,23 @@ def test_active_legacy_unit_cannot_reinterpret_foreign_support(foreign_support):
     builder.append_input_atom(
         "token",
         {
-            "compatibility-unit": IPAFeatures().read("a").units[0],
+            "unit": IPAFeatures().read("a").units[0],
             "input": True,
-            "compatibility-index": 0,
+            "unit-index": 0,
         },
     )
-    with pytest.raises(
-        GraphValidationError, match="requires legacy input and compatibility-index"
-    ):
+    with pytest.raises(GraphValidationError, match="requires input and unit-index"):
         ContainmentProjection.from_input(builder.build_input())
 
 
-def test_legacy_unit_and_independent_foreign_values_coexist():
+def test_unit_and_independent_foreign_values_coexist():
     from ipakit import IPAFeatures
 
     builder = FactBuilder(
         declarations(
-            FeatureDeclaration("compatibility-unit"),
+            FeatureDeclaration("unit"),
             FeatureDeclaration("input"),
-            FeatureDeclaration("compatibility-index"),
+            FeatureDeclaration("unit-index"),
             FeatureDeclaration("arc", ("urn:foreign", "arc")),
             FeatureDeclaration("text", ("urn:foreign", "text")),
         )
@@ -352,9 +350,9 @@ def test_legacy_unit_and_independent_foreign_values_coexist():
     builder.append_input_atom(
         "token",
         {
-            "compatibility-unit": IPAFeatures().read("a").units[0],
+            "unit": IPAFeatures().read("a").units[0],
             "input": True,
-            "compatibility-index": 0,
+            "unit-index": 0,
             "arc": True,
             "text": "foreign",
         },
@@ -375,5 +373,5 @@ def test_legacy_unit_and_independent_foreign_values_coexist():
     actual = {a.name.local_name: a.lexical for a in item.attributes}
     assert actual["text"] == "a"
     assert actual["input"] == "true"
-    assert actual["compatibility-index"] == "0"
+    assert actual["unit-index"] == "0"
     assert "arc" not in actual
