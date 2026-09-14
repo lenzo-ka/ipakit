@@ -92,7 +92,7 @@ _T = TypeVar("_T")
 
 
 class FormProjectionError(ValueError):
-    """A stored graph cannot reproduce Form's unit coordinates."""
+    """A valid graph cannot reproduce a requested Form projection."""
 
 
 class FormBuilder:
@@ -2121,7 +2121,7 @@ class Form:
         }
 
     def to_json(self, self_contained: bool = False) -> str:
-        """Return the versioned units-and-intervals compatibility JSON.
+        """Return the versioned units-and-intervals projection JSON.
 
         Graph-only relations and derived event attributes require the native
         tiergraph wire codec; this unit projection omits them.

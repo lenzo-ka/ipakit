@@ -142,7 +142,7 @@ names a foreign meaning in that context produces a named validation refusal.
 Source-only native graphs may declare these foreign names and preserve their
 qualified JSON values independently of the house views.
 An explicitly selected custom render lane may read its declared qualified
-values; the renderer's event ordering still uses qualified house-role checks.
+values.
 
 Opted-in values use tiergraph's `json_value_graph` constructors and
 `JsonValueProfile`, including for scalar values. A qualified relation connects
