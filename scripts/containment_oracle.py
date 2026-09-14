@@ -544,8 +544,21 @@ def _render() -> str:
     payload = {
         "_generated": GENERATED,
         "source_commit": "485f7a7c631001b58acfffc2884011081e0bcd19",
+        "reference_audit": {
+            "repository": "https://github.com/lenzo-ka/ipakit",
+            "module": "ipakit._tiergraph",
+            "symbol": "Graph",
+            "procedure": "scripts/containment_oracle.py::verify",
+            "scope": (
+                "The reference commit ran a named-sample differential between "
+                "Graph navigation and ContainmentProjection. This golden now "
+                "checks the current native corpus; agreement is bounded by its "
+                "named fixtures and observations."
+            ),
+        },
         "accepted_domain": (
-            "Exactly graphs whose containment instances have one event source and "
+            "After declaration and profile payload admission, containment "
+            "instances require one event source and "
             "only event targets (including a declared empty target side); across "
             "multiple relations, repeated incidence is retained. The named fixtures "
             "record navigation audited at source commit "
@@ -609,7 +622,7 @@ def _render() -> str:
                     "choice",
                     "member_of",
                 ],
-                "constructor_validator_sha256": (
+                "tiergraph_relation_declaration_source_sha256": (
                     "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa"
                 ),
             },

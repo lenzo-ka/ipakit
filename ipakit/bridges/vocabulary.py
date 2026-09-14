@@ -383,14 +383,7 @@ class VocabularyBridge(Bridge):
         )
         builder, handles = copy_fact_builder(projection_input, declared)
         unit_indices = {
-            ref: index
-            for ref in handles
-            for index in (
-                projection_input.house_features(projection_input.events[ref]).get(
-                    "unit-index"
-                ),
-            )
-            if type(index) is int
+            ref: index for index, _, ref in projection_input.unit_occurrences()
         }
         units = [
             (ref, handles[ref])
@@ -585,14 +578,7 @@ class VocabularyBridge(Bridge):
         )
         builder, handles = copy_fact_builder(projection_input, declared)
         unit_indices = {
-            ref: index
-            for ref in handles
-            for index in (
-                projection_input.house_features(projection_input.events[ref]).get(
-                    "unit-index"
-                ),
-            )
-            if type(index) is int
+            ref: index for index, _, ref in projection_input.unit_occurrences()
         }
         unit_handles = [
             handles[ref]

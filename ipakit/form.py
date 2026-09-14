@@ -149,15 +149,15 @@ class FormBuilder:
         """Scan IPA once and append its input occurrences to the shared clock."""
         parsed = self.features.read(text, strict=strict)
         index_view = parsed.__dict__["_tiergraph_index"]
-        by_index: dict[int, tuple[int, str, Any]] = {}
-        for tick, node in enumerate(index_view.clock):
-            for group in node.groups:
-                for event in group.events:
-                    index = index_view.containment_input.house_features(event).get(
-                        "unit-index"
-                    )
-                    if type(index) is int:
-                        by_index[index] = (tick, group.tier, event)
+        source = index_view.containment_input
+        by_index = {
+            index: (
+                int(path.split("/")[2]),
+                source.event_tiers[path],
+                source.events[path],
+            )
+            for index, _, path in source.unit_occurrences()
+        }
         handles = []
         for index in range(len(parsed.units)):
             tick, tier, event = by_index[index]
@@ -1187,18 +1187,7 @@ class _UnitProjection:
         from ._containment_projection import ContainmentProjection
 
         graph = ContainmentProjection.from_input(projection_input).graph
-        indexed: list[tuple[int, Unit, str]] = []
-        for path in projection_input.refs:
-            event = projection_input.events[path]
-            features = projection_input.house_features(event)
-            unit = features.get("unit")
-            index = features.get("unit-index")
-            if isinstance(unit, Unit) and type(index) is int:
-                indexed.append((index, unit, path))
-        indexed.sort(key=lambda item: item[0])
-        if [index for index, _, _ in indexed] != list(range(len(indexed))):
-            raise FormProjectionError("graph unit order is not contiguous")
-        self._indexed = tuple(indexed)
+        self._indexed = projection_input.unit_occurrences()
         self._units: tuple[Unit, ...] | None = None
         self._intervals: tuple[Interval, ...] | None = None
         self._attributes = {
@@ -1221,12 +1210,12 @@ class _UnitProjection:
                     consumes_span=not unit.is_boundary,
                     refines_tick=unit.is_boundary,
                 )
-                for _, unit, _ in indexed
+                for _, unit, _ in self._indexed
             )
         )
         # The adapter is required to be bidirectional.  Check every position,
         # not merely interval endpoints that happen to exist on this form.
-        for index in range(len(indexed) + 1):
+        for index in range(len(self._indexed) + 1):
             if self.coordinates.to_unit(self.coordinates.to_graph(index)) != index:
                 raise FormProjectionError("graph unit coordinates are not lossless")
 

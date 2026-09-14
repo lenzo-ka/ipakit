@@ -420,10 +420,7 @@ class Syllabifier:
         )
         builder, handles = copy_fact_builder(source, declared)
         unit_handles = {
-            features["unit-index"]: handles[path]
-            for path, event in source.events.items()
-            for features in (source.house_features(event),)
-            if type(features.get("unit-index")) is int
+            index: handles[path] for index, _, path in source.unit_occurrences()
         }
         # copy_fact_builder copies the source clock rather than its unit
         # occurrence list; recover interval anchors from the source coordinates.
@@ -435,12 +432,8 @@ class Syllabifier:
                     consumes_span=bool(event.structural_duration),
                     refines_tick=not bool(event.structural_duration),
                 )
-                for _, path, event in sorted(
-                    (features["unit-index"], path, event)
-                    for path, event in source.events.items()
-                    for features in (source.house_features(event),)
-                    if type(features.get("unit-index")) is int
-                )
+                for _, _, path in source.unit_occurrences()
+                for event in (source.events[path],)
             )
         )
         count = len(form.intervals)

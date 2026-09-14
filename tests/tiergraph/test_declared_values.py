@@ -24,6 +24,92 @@ def declared_value(*args):
     return read(*args)
 
 
+def test_orphan_unit_index_cannot_redirect_a_corpus_match():
+    from ipakit import IPAFeatures
+    from ipakit.form import Form
+
+    builder = FactBuilder(
+        declarations(
+            *(
+                FeatureDeclaration(name)
+                for name in ("unit", "input", "unit-index", "spelling")
+            )
+        )
+    )
+    builder.append_input_atom(
+        "token",
+        {"unit": IPAFeatures().read("a").units[0], "input": True, "unit-index": 0},
+    )
+    builder.append_input_atom("token", {"unit-index": 0, "spelling": "x"})
+    with pytest.raises(GraphValidationError, match="unit-index requires a house Unit"):
+        _ = Form._from_projection_input(builder.build_input()).units
+
+
+@pytest.mark.parametrize("consumer", ["occurrences", "lowering", "form", "query"])
+@pytest.mark.parametrize("orphan_unit", [False, True])
+def test_unit_support_admission_is_shared(consumer, orphan_unit):
+    from ipakit import corpus
+    from ipakit.form import Form
+
+    names = ("unit", "input", "unit-index")
+    features = tuple(
+        FeatureDeclaration(
+            name, ("urn:foreign", name) if orphan_unit and name == "unit" else None
+        )
+        for name in names
+    )
+    builder = FactBuilder(declarations(*features))
+    values = {"input": True, "unit-index": 0}
+    if orphan_unit:
+        values["unit"] = "foreign unit"
+    builder.append_input_atom("token", values)
+    source = builder.build_input()
+    with pytest.raises(GraphValidationError, match="unit-index requires a house Unit"):
+        if consumer == "occurrences":
+            source.unit_occurrences()
+        elif consumer == "lowering":
+            ContainmentProjection.from_input(source)
+        elif consumer == "form":
+            _ = Form._from_projection_input(source).units
+        else:
+            list(corpus.find(Form._from_projection_input(source), "a"))
+
+
+@pytest.mark.parametrize("input_value", [None, 0, 1, "true"])
+def test_house_unit_input_is_a_required_boolean(input_value):
+    from ipakit import IPAFeatures
+
+    builder = FactBuilder(
+        declarations(
+            *(FeatureDeclaration(name) for name in ("unit", "input", "unit-index"))
+        )
+    )
+    values = {"unit": IPAFeatures().read("a").units[0], "unit-index": 0}
+    if input_value is not None:
+        values["input"] = input_value
+    builder.append_input_atom("token", values)
+    with pytest.raises(GraphValidationError, match="house input must be a boolean"):
+        builder.build_input().unit_occurrences()
+
+
+@pytest.mark.parametrize("indices", [(0, 0), (0, 2), (-1, 0)])
+def test_house_unit_sequence_is_unique_and_contiguous(indices):
+    from ipakit import IPAFeatures
+
+    builder = FactBuilder(
+        declarations(
+            *(FeatureDeclaration(name) for name in ("unit", "input", "unit-index"))
+        )
+    )
+    unit = IPAFeatures().read("a").units[0]
+    for index in indices:
+        builder.append_input_atom(
+            "token", {"unit": unit, "unit-index": index, "input": True}
+        )
+    with pytest.raises(GraphValidationError, match="not contiguous"):
+        builder.build_input().unit_occurrences()
+
+
 def assert_json_value(actual, expected):
     assert type(actual) is type(expected)
     assert actual == expected

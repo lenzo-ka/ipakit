@@ -234,7 +234,9 @@ def test_malformed_unit_projection_graph_has_a_typed_failure():
     }
     builder.append_input_atom("segment", facts)
     malformed = ipakit.Form._from_projection_input(builder.build_input())
-    with pytest.raises(ipakit.FormProjectionError, match="not contiguous"):
+    from ipakit._graph_facts import GraphValidationError
+
+    with pytest.raises(GraphValidationError, match="not contiguous"):
         _ = malformed.units
 
 
@@ -287,8 +289,28 @@ def test_hot_bridge_projection_matches_serialized_fixture():
 def _assert_hot_provenance(source):
     events = source.events
     assert [
+        (path, events[path].features["phantom"])
+        for path in source.refs
+        if "phantom" in events[path].features
+    ] == [
+        ("/clock/0/narrow/0", True),
+        ("/clock/0/allophonic/0", True),
+        ("/clock/0/allophonic/1", True),
+        ("/clock/0/mora/0", True),
+        ("/clock/1/narrow/0", True),
+        ("/clock/1/allophonic/0", True),
+        ("/clock/1/allophonic/1", True),
+        ("/clock/2/narrow/0", True),
+        ("/clock/2/allophonic/0", True),
+        ("/clock/2/allophonic/1", True),
+        ("/clock/2/mora/0", True),
+        ("/clock/2/mora/1", True),
+        ("/clock/3/allophonic/0", True),
+    ]
+    assert [
         (path, event.features["rule"], event.features["trace"])
-        for path, event in events.items()
+        for path in source.refs
+        for event in (events[path],)
         if "rule" in event.features
     ] == [
         ("/clock/0/narrow/0", "ɑ is short o", "no-op"),
@@ -312,7 +334,8 @@ def _assert_hot_provenance(source):
     ]
     assert [
         (path, event.features["mora-kind"])
-        for path, event in events.items()
+        for path in source.refs
+        for event in (events[path],)
         if "mora-kind" in event.features
     ] == [
         ("/clock/0/mora/0", "ordinary"),
@@ -326,7 +349,8 @@ def _assert_hot_provenance(source):
             event.features["application-order"],
             event.features["source-site-order"],
         )
-        for path, event in events.items()
+        for path in source.refs
+        for event in (events[path],)
         if "derivation-step" in event.features
     ] == [
         ("/clock/1/narrow/0", 0, 0, 0),
@@ -349,6 +373,7 @@ def test_hot_bridge_keeps_prelowering_provenance():
         "derivation-step",
         "application-order",
         "source-site-order",
+        "phantom",
     ],
 )
 def test_hot_provenance_witness_detects_each_field_mutation(field):

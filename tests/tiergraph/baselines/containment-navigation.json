@@ -1,6 +1,6 @@
 {
   "_generated": "Generated; never hand-edit. Regenerate with PYTHONHASHSEED=0 python scripts/containment_oracle.py generate",
-  "accepted_domain": "Exactly graphs whose containment instances have one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. The named fixtures record navigation audited at source commit 485f7a7c631001b58acfffc2884011081e0bcd19.",
+  "accepted_domain": "After declaration and profile payload admission, containment instances require one event source and only event targets (including a declared empty target side); across multiple relations, repeated incidence is retained. The named fixtures record navigation audited at source commit 485f7a7c631001b58acfffc2884011081e0bcd19.",
   "fixtures": {
     "fixture:canonical-relation-order": {
       "answers": {
@@ -11594,7 +11594,6 @@
     "kind": "fixture-derived structural classes, derived and checked, with constructor/validator drift guard",
     "outside_member_example": "boundary-owns: reference direct_children(root) returns the coarse-tick boundary; projection refuses boundary-owns by name",
     "surface": {
-      "constructor_validator_sha256": "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa",
       "relation_declaration_fields": [
         "name",
         "ordered",
@@ -11611,8 +11610,16 @@
         "containment",
         "choice",
         "member_of"
-      ]
+      ],
+      "tiergraph_relation_declaration_source_sha256": "fe2a623f20a477943ba645b7672380e2abb505eb3072bc218667e0aac49e60fa"
     }
+  },
+  "reference_audit": {
+    "module": "ipakit._tiergraph",
+    "procedure": "scripts/containment_oracle.py::verify",
+    "repository": "https://github.com/lenzo-ka/ipakit",
+    "scope": "The reference commit ran a named-sample differential between Graph navigation and ContainmentProjection. This golden now checks the current native corpus; agreement is bounded by its named fixtures and observations.",
+    "symbol": "Graph"
   },
   "refusals": {
     "boundary_endpoint_relation": "Refused by relation name because tiergraph OrderedContainment is item-only; lift when tiergraph supports boundary containment traversal. No mainline ipakit profile or named fixture constructs this shape.",

@@ -16,7 +16,10 @@ from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from .form import Unit
 
 import tiergraph as tg
 
@@ -229,6 +232,7 @@ def _profile_payloads(
     Both cache identity and graph construction consume this same projection.
     The native-value path continues to receive the original, complete facts.
     """
+    source.unit_occurrences()
     foreign = frozenset(
         declaration.name
         for declaration in source.declarations.features
@@ -238,16 +242,7 @@ def _profile_payloads(
     for ref in source.refs:
         event = source.events[ref]
         if foreign:
-            features = source.house_features(event)
-            if features.get("unit") is not None and foreign & {
-                "input",
-                "unit-index",
-                "interval-index",
-            }:
-                raise GraphValidationError(
-                    "house unit requires unqualified input, unit-index and interval-index declarations"
-                )
-            event = replace(event, features=features)
+            event = replace(event, features=source.house_features(event))
         payloads[ref] = _event_payload(event)
     return payloads
 
@@ -470,6 +465,45 @@ class ContainmentProjectionInput:
             name: value for name, value in event.features.items() if name not in foreign
         }
 
+    def unit_occurrences(self) -> tuple[tuple[int, Unit, str], ...]:
+        """Admit the house Unit sequence and its support roles together.
+
+        An unqualified index supports an actual Unit; it cannot identify an
+        event on its own. Qualified values remain ordinary declared values.
+        Consumers share this validation and the same contiguous sequence.
+        """
+        from .form import Unit
+
+        foreign = {
+            declaration.name
+            for declaration in self.declarations.features
+            if declaration.value_name is not None
+        }
+        indexed = []
+        for path in self.refs:
+            features = self.house_features(self.events[path])
+            unit = features.get("unit")
+            if unit is None:
+                if "unit-index" in features:
+                    raise GraphValidationError("unit-index requires a house Unit")
+                continue
+            if not isinstance(unit, Unit):
+                raise GraphValidationError("house unit must be a Unit")
+            if foreign & {"input", "unit-index", "interval-index"}:
+                raise GraphValidationError(
+                    "house unit requires unqualified input, unit-index and interval-index declarations"
+                )
+            if type(features.get("input")) is not bool:
+                raise GraphValidationError("house input must be a boolean")
+            index = features.get("unit-index")
+            if type(index) is not int:
+                raise GraphValidationError("house unit-index must be an integer")
+            indexed.append((index, unit, path))
+        indexed.sort(key=lambda occurrence: occurrence[0])
+        if [index for index, _, _ in indexed] != list(range(len(indexed))):
+            raise GraphValidationError("graph unit order is not contiguous")
+        return tuple(indexed)
+
     @classmethod
     def from_facts(
         cls,
@@ -619,7 +653,7 @@ def _projection_cache_info() -> tuple[int, int, int, int, int]:
 class ContainmentProjection:
     """Single-source ordered containment view with lossless event identity.
 
-    Navigation preserves the unit projection contract on every accepted graph.
+    Navigation combines ordered parent incidence across declared relations.
     Accepted containment instances have exactly one event source and
     only event targets (including a declared empty target side).  Source
     cardinalities other than one and boundary endpoints are refused by name.
@@ -921,7 +955,7 @@ class ContainmentProjection:
                     minimum=0,
                     allow_empty=True,
                 ),
-                # Repeated root occurrences are admitted and preserved in list order.
+                # No distinct-target constraint: repeated roots preserve occurrence order.
             ),
         )
         relations = tuple(
@@ -1274,7 +1308,7 @@ class ContainmentProjection:
                         frontier.append(ancestor)
 
         # Kernel inverse reachability is set-valued.  Parent incidence carries
-        # the relation identity needed to restore declared breadth-first order.
+        # the relation identity needed for breadth-first parent-incidence order.
         result: list[str] = []
         pending = list(self.parents(child))
         while pending:
