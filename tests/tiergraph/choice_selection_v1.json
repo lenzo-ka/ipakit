@@ -19,16 +19,6 @@
       },
       {
         "domain": "item",
-        "name": "ipakit-containment:compatibility-index",
-        "value_type": "integer"
-      },
-      {
-        "domain": "item",
-        "name": "ipakit-containment:compatibility-interval",
-        "value_type": "integer"
-      },
-      {
-        "domain": "item",
         "name": "ipakit-containment:exemplar",
         "value_type": "string"
       },
@@ -46,6 +36,11 @@
         "domain": "item",
         "name": "ipakit-containment:input",
         "value_type": "boolean"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:interval-index",
+        "value_type": "integer"
       },
       {
         "domain": "item",
@@ -141,6 +136,11 @@
         "domain": "item",
         "name": "ipakit-containment:timing-start",
         "value_type": "double"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-containment:unit-index",
+        "value_type": "integer"
       }
     ],
     "namespaces": [

@@ -699,11 +699,11 @@ The animation backend chooses the most specific complete description available: 
 from ipakit._gesture_backend import oral_tract_frames
 from ipakit._gesture_graph import project as project_gestures
 from ipakit import Timing
-from ipakit.form import _graph_from_compatibility
+from ipakit.form import _graph_from_units
 
 gesture_inventory = ipa.IPAFeatures()
 segment_form = Form.parse("at", gesture_inventory)
-segment_graph = _graph_from_compatibility(segment_form.units, ())
+segment_graph = _graph_from_units(segment_form.units, ())
 gesture_graph = project_gestures(segment_graph, gesture_inventory)
 timed_graph = project_gestures(segment_graph, gesture_inventory, target_timing={"/clock/0/segment/0": (Timing(0.0, 0.1),), "/clock/1/segment/0": (Timing(0.1, 0.1),)})
 partial_graph = project_gestures(segment_graph, gesture_inventory, target_timing={"/clock/0/segment/0": (Timing(0.0, 0.1),)})
