@@ -257,7 +257,7 @@ class DisagreementSpread:
             "inputs": [
                 {
                     "provenance": item.provenance,
-                    "form": item.form.to_dict(self_contained=True),
+                    "form": item.form.to_dict(),
                 }
                 for item in self.inputs
             ],

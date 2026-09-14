@@ -496,7 +496,9 @@ class Syllabifier:
                 children.append(handle)
                 mora_index += 1
             builder.contain(parent, children)
-        return Form._from_projection_input(builder.build_input())
+        return Form._from_projection_input(
+            builder.build_input(), features=self.features
+        )
 
     def _within(
         self, units: Sequence[Unit], start: int, stop: int

@@ -272,10 +272,10 @@ class TokenizeCommand(Command):
 
 
 class ToJsonCommand(Command):
-    """Parse IPA into the lean, versioned internal representation.
+    """Parse IPA into the current native graph representation.
 
-    Pass ``--self-contained`` to include resolved feature/prosody views and
-    provenance for readers that do not carry the IPA inventory.
+    The graph includes its explicit restoring inventory and Form role bindings.
+    Output is compact; pass --pretty for indentation using the same native codec.
 
     Examples:
         ipakit convert to-json "#kæt.dɒɡ#"
@@ -298,19 +298,21 @@ class ToJsonCommand(Command):
         )
         parser.add_argument("--wild", action="store_true", help="normalize wild IPA")
         parser.add_argument(
-            "--self-contained",
-            action="store_true",
-            help="embed resolved segment views",
+            "--pretty", action="store_true", help="Write indented native JSON"
         )
+        from .base import add_output_arg
+
+        add_output_arg(parser)
 
     def run(self) -> int:
-        self.output_json(
+        self.print(
             self.ipa.read(
                 self.args.ipa,
                 strict=self.args.strict,
                 segmented=self.args.segmented,
                 wild=self.args.wild,
-            ).to_dict(self_contained=self.args.self_contained)
+            ).to_json(pretty=self.args.pretty),
+            end="",
         )
         return 0
 

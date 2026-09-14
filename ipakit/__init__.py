@@ -98,6 +98,7 @@ from .form import (
     FormProjectionError as FormProjectionError,
 )
 from .form import declared_prosody as _declared_prosody
+from .graph_json import read_graph_json, write_graph_json
 from .inventories import (
     Inventory,
     Style,
@@ -1881,6 +1882,8 @@ __all__ = [
     "Timing",
     "read",
     "read_json",
+    "read_graph_json",
+    "write_graph_json",
     "levels",
     "tier_names",
     # Rewrite rules

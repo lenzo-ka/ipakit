@@ -85,7 +85,7 @@ class VocabularyProjection:
     def to_dict(self, self_contained: bool = False) -> dict[str, object]:
         """Serialize the grouped form and its report beside one another."""
         return {
-            "form": self.form.to_dict(self_contained=self_contained),
+            "form": self.form.to_dict(),
             "report": self.report.to_dict(),
         }
 
@@ -442,7 +442,9 @@ class VocabularyBridge(Bridge):
             prior_group = parent
             cursor += width
             prefixes.clear()
-        return Form._from_projection_input(builder.build_input(), spelling=ipa)
+        return Form._from_projection_input(
+            builder.build_input(), spelling=ipa, features=self.ipa
+        )
 
     def emit(
         self, form: Form | VocabularyProjection, *, separator: str | None = None
@@ -606,6 +608,6 @@ class VocabularyBridge(Bridge):
             )
             builder.contain(parent, unit_handles[start:end], relation="groups")
         mapped = Form._from_projection_input(
-            builder.build_input(), spelling=form.spelling
+            builder.build_input(), spelling=form.spelling, features=self.ipa
         )
         return VocabularyProjection(mapped, ProjectionReport(tuple(drops)))

@@ -375,7 +375,7 @@ def project_derivation(
             builder.contain(mora, (child.handle for child in children))
 
     return Form._from_projection_input(
-        builder.build_input(), spelling=derivation.result
+        builder.build_input(), spelling=derivation.result, features=inventory
     )
 
 

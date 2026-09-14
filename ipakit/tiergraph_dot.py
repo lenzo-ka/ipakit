@@ -41,7 +41,13 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
     import tiergraph_dot as sibling
     from tiergraph import ClockCoordinate, ItemRef, QualifiedName
 
+    from ._form_profile import NS
     from .segment import Constituent, Segment, Sense
+
+    # Profile/value concerns have independent structural axes, not phonetic
+    # clock spans. The generic renderer retains them and their links.
+    if any(ns.namespace == NS for ns in graph.namespaces):
+        return sibling.dumps(graph, include_empty_tiers=include_empty_tiers)
 
     inventory = None  # resolved lazily; only segment labels need it
 
