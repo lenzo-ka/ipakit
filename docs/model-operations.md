@@ -30,8 +30,12 @@ order and inventory row order are significant, including in model identity.
 not permitted as a domain member. Rows have exactly one cell per feature.
 Directly constructed tokens are exact strings, without implicit normalization.
 
-`read(token)` returns a complete, model-bound `FeatureBundle`. `query(mapping)`
-is a partial equality query; an empty mapping matches every row in declaration
+`features(token)` returns a fresh dictionary in feature declaration order,
+preserving scalar types and missing cells (`None`). `read(token)` returns a
+complete, model-bound `FeatureBundle` for editing and realization; the convenience
+dictionary carries no model identity or provenance. `phones_matching(mapping)`
+delegates to `query(mapping)`, the compatible partial equality query; an empty
+mapping matches every row in declaration
 order. `edit(bundle, mapping)` validates the changed fields without inventing a
 spelling. `realize(bundle)` returns all exact complete-bundle candidates, in row
 order. `respell(token, mapping)` combines read, edit and realize.

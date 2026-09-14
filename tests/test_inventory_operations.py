@@ -63,6 +63,20 @@ def test_finite_schema_errors_remain_errors(finite):
             finite.respell("zero", query)
 
 
+def test_finite_matching_delegates_to_named_model_operation(finite, monkeypatch):
+    constraints = {"f": 0}
+    seen = []
+
+    def phones_matching(self, supplied):
+        seen.append((self, supplied))
+        return ("delegated",)
+
+    monkeypatch.setattr(FiniteModel, "phones_matching", phones_matching, raising=False)
+    assert finite.phones_matching(constraints) == ("delegated",)
+    assert seen == [(finite.model, constraints)]
+    assert seen[0][1] is constraints
+
+
 def test_finite_unicode_keys_are_not_normalized():
     model = FiniteModel(
         "unicode", FeatureSchema({"f": (0, 1)}), {"é": (0,), "e\u0301": (1,)}

@@ -173,6 +173,20 @@ class FiniteModel:
             raise MissingToken(token) from error
         return FeatureBundle(self.identity, values)
 
+    def features(self, token: str) -> dict[str, Scalar | None]:
+        """Return a fresh declaration-ordered mapping for one exact token.
+
+        Scalar types and missing cells (None) are preserved. Use ``read`` when
+        the result must retain model identity for editing or realization.
+        """
+        return dict(zip(self.schema.features, self.read(token).values, strict=True))
+
+    def phones_matching(
+        self, constraints: Mapping[str, Scalar | None]
+    ) -> tuple[str, ...]:
+        """Find declaration-ordered tokens using the existing typed partial query."""
+        return self.query(constraints)
+
     def query(self, constraints: Mapping[str, Scalar | None]) -> tuple[str, ...]:
         """Return declaration-ordered tokens satisfying partial constraints."""
         constraints = dict(constraints)

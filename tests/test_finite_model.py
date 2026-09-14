@@ -50,6 +50,98 @@ def test_opaque_read_query_edit_and_relation() -> None:
     assert model.read("TOKEN-1").values == ("low", 0)
 
 
+def test_named_features_preserve_order_types_and_missing_cells() -> None:
+    model = FiniteModel(
+        "named",
+        FeatureSchema(
+            {"z_bool": (False,), "a_int": (0,), "text": ("0",), "missing": (1,)}
+        ),
+        {"A/B #": (False, 0, "0", None)},
+    )
+    features = model.features("A/B #")
+    assert list(features) == ["z_bool", "a_int", "text", "missing"]
+    assert list(features.values()) == [False, 0, "0", None]
+    assert [type(value) for value in features.values()] == [bool, int, str, type(None)]
+
+
+def test_named_features_are_fresh_and_do_not_mutate_model() -> None:
+    model = fixture_model()
+    identity = model.identity
+    bundle = model.read("TOKEN-1")
+    first = model.features("TOKEN-1")
+    second = model.features("TOKEN-1")
+    assert first is not second
+    first["register"] = "changed"
+    first.pop("beat")
+    first["invented"] = False
+    assert second == model.features("TOKEN-1") == {"register": "low", "beat": 0}
+    assert model.read("TOKEN-1") == bundle
+    assert model.identity == identity
+
+
+def test_named_features_use_exact_token_admission() -> None:
+    model = FiniteModel(
+        "exact", FeatureSchema({"f": (0, 1)}), {"é": (0,), "e\u0301": (1,)}
+    )
+    assert model.features("é") == {"f": 0}
+    assert model.features("e\u0301") == {"f": 1}
+    for token in ("p", "", " é"):
+        with pytest.raises(MissingToken):
+            model.features(token)
+
+
+def test_named_panphon_features_match_full_declared_row() -> None:
+    model = read_ternary_declaration(DECLARATION).model
+    features = model.features("p")
+    assert len(features) == 24
+    assert tuple(features) == model.schema.features
+    assert tuple(features.values()) == model.read("p").values
+    assert features["voi"] == -1
+
+
+@pytest.mark.parametrize(
+    "constraints,expected",
+    [
+        ({"f": False}, ("BOOL",)),
+        ({"f": 0}, ("INT", "ALIAS")),
+        ({"f": "0"}, ()),
+        ({"f": None}, ("ABSENT",)),
+        ({}, ("BOOL", "INT", "ALIAS", "ABSENT")),
+    ],
+)
+def test_phones_matching_preserves_typed_partial_query(constraints, expected):
+    model = FiniteModel(
+        "matching",
+        FeatureSchema({"f": (False, 0, "0")}),
+        {"BOOL": (False,), "INT": (0,), "ALIAS": (0,), "ABSENT": (None,)},
+    )
+    assert model.phones_matching(constraints) == model.query(constraints) == expected
+
+
+@pytest.mark.parametrize("constraints", [{"unknown": 0}, {"beat": False}, {"beat": 2}])
+def test_phones_matching_preserves_query_refusals(constraints):
+    model = fixture_model()
+    with pytest.raises(InvalidFeature):
+        model.phones_matching(constraints)
+    with pytest.raises(InvalidFeature):
+        model.query(constraints)
+
+
+def test_phones_matching_delegates_to_existing_query(monkeypatch):
+    model = fixture_model()
+    constraints = {"beat": 0}
+    seen = []
+
+    def query(self, supplied):
+        seen.append((self, supplied))
+        return ("delegated",)
+
+    monkeypatch.setattr(FiniteModel, "query", query)
+    assert model.phones_matching(constraints) == ("delegated",)
+    assert seen == [(model, constraints)]
+    assert seen[0][1] is constraints
+
+
 @pytest.mark.parametrize("changes", [{"unknown": 0}, {"beat": 2}, {"beat": False}])
 def test_invalid_queries_and_edits_are_not_empty_relations(changes: dict) -> None:
     model = fixture_model()
