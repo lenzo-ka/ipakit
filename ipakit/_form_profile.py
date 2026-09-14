@@ -309,7 +309,7 @@ def construct(
             )
             graph = editor.freeze()
         encoded: dict[str, Any] = {}
-        unit = event.features.get("compatibility-unit")
+        unit = event.features.get("unit")
         attributes = dict(
             (name, (kind, lexical)) for name, kind, lexical in _event_payload(event)
         )
@@ -331,11 +331,7 @@ def construct(
                 if event.timing is not None
                 else None
             )
-            if (
-                name == "compatibility-unit"
-                and isinstance(value, Unit)
-                and unit_time == event_time
-            ):
+            if name == "unit" and isinstance(value, Unit) and unit_time == event_time:
                 encoded[name] = ["unit"]
                 continue
             if (
@@ -368,9 +364,9 @@ def construct(
                 held = _event_payload(
                     Event(
                         {
-                            "compatibility-unit": value,
+                            "unit": value,
                             "input": True,
-                            "compatibility-index": 0,
+                            "unit-index": 0,
                         },
                         timing=(
                             Timing(value.timing.start, value.timing.duration)
@@ -564,7 +560,7 @@ def restore(
             else:
                 raise ValueError("unsupported Form feature codec")
             features[name] = value
-            if name == "compatibility-unit":
+            if name == "unit":
                 unit = value
         span = (
             RefinedSpan(attrs["span-start"], attrs["span-end"])
