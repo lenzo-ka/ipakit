@@ -49,7 +49,7 @@ def slug(text: str) -> str:
 def findings() -> tuple[list[Finding], list[Finding]]:
     verdicts: list[Finding] = []
     superseded: list[Finding] = []
-    for path in sorted(DESIGN.glob("*.md")):
+    for path in sorted(DESIGN.rglob("*.md")):
         heading = path.stem
         anchor = slug(heading)
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -65,17 +65,27 @@ def findings() -> tuple[list[Finding], list[Finding]]:
             match = VERDICT.match(line)
             if match:
                 verdicts.append(
-                    Finding(path.name, heading, anchor, match.group(1).strip())
+                    Finding(
+                        path.relative_to(DESIGN).as_posix(),
+                        heading,
+                        anchor,
+                        match.group(1).strip(),
+                    )
                 )
             match = SUPERSEDED.match(line)
             if match:
                 superseded.append(
-                    Finding(path.name, heading, anchor, match.group(1).strip())
+                    Finding(
+                        path.relative_to(DESIGN).as_posix(),
+                        heading,
+                        anchor,
+                        match.group(1).strip(),
+                    )
                 )
     return verdicts, superseded
 
 
-def rebase(match: re.Match[str]) -> str:
+def rebase(match: re.Match[str], base: str = "design") -> str:
     """Rewrite one quoted link from a design record's frame into this page's.
 
     A design record links relative to ``docs/design``; this page sits in
@@ -86,12 +96,15 @@ def rebase(match: re.Match[str]) -> str:
     if target.startswith(("http://", "https://", "#")):
         return match.group(0)
     path, sep, anchor = target.partition("#")
-    return f"]({posixpath.normpath(posixpath.join('design', path))}{sep}{anchor})"
+    return f"]({posixpath.normpath(posixpath.join(base, path))}{sep}{anchor})"
 
 
 def row(item: Finding) -> str:
     label = f"{Path(item.document).stem} — {item.heading}"
-    statement = re.sub(r"\]\(([^)]+)\)", rebase, item.statement)
+    base = posixpath.join("design", posixpath.dirname(item.document))
+    statement = re.sub(
+        r"\]\(([^)]+)\)", lambda match: rebase(match, base), item.statement
+    )
     return f"| [{label}]({item.link}) | {statement} |"
 
 

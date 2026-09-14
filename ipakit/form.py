@@ -153,8 +153,10 @@ class FormBuilder:
         for tick, node in enumerate(index_view.clock):
             for group in node.groups:
                 for event in group.events:
-                    index = event.features.get("unit-index")
-                    if isinstance(index, int):
+                    index = index_view.containment_input.house_features(event).get(
+                        "unit-index"
+                    )
+                    if type(index) is int:
                         by_index[index] = (tick, group.tier, event)
         handles = []
         for index in range(len(parsed.units)):
@@ -1187,9 +1189,10 @@ class _UnitProjection:
         indexed: list[tuple[int, Unit, str]] = []
         for path in projection_input.refs:
             event = projection_input.events[path]
-            unit = event.features.get("unit")
-            index = event.features.get("unit-index")
-            if isinstance(unit, Unit) and isinstance(index, int):
+            features = projection_input.house_features(event)
+            unit = features.get("unit")
+            index = features.get("unit-index")
+            if isinstance(unit, Unit) and type(index) is int:
                 indexed.append((index, unit, path))
         indexed.sort(key=lambda item: item[0])
         if [index for index, _, _ in indexed] != list(range(len(indexed))):
@@ -1262,8 +1265,10 @@ class _UnitProjection:
         for tick, node in enumerate(self.projection_input.clock):
             for group in node.groups:
                 for event in group.events:
-                    index = event.features.get("interval-index")
-                    if not isinstance(index, int):
+                    index = self.projection_input.house_features(event).get(
+                        "interval-index"
+                    )
+                    if type(index) is not int:
                         continue
                     path = next(
                         path
@@ -1718,7 +1723,9 @@ class Form:
                 for node in projection_input.clock
                 for group in node.groups
                 for event in group.events
-                if isinstance((unit := event.features.get("unit")), Unit)
+                if isinstance(
+                    (unit := projection_input.house_features(event).get("unit")), Unit
+                )
                 and unit.segment is not None
                 and unit.__dict__.get("_inventory") is not None
             ),

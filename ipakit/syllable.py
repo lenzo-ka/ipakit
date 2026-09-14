@@ -132,9 +132,10 @@ class Syllabification:
     def spelled(self, tier: str = "syllable") -> tuple[str, ...]:
         source = self.form.__dict__["_tiergraph_index"].containment_input
         spellings = {
-            event.features["interval-index"]: event.features["spelling"]
+            features["interval-index"]: features["spelling"]
             for event in source.events.values()
-            if "interval-index" in event.features and "spelling" in event.features
+            for features in (source.house_features(event),)
+            if type(features.get("interval-index")) is int and "spelling" in features
         }
         return tuple(
             spellings.get(
@@ -419,9 +420,10 @@ class Syllabifier:
         )
         builder, handles = copy_fact_builder(source, declared)
         unit_handles = {
-            event.features["unit-index"]: handles[path]
+            features["unit-index"]: handles[path]
             for path, event in source.events.items()
-            if "unit-index" in event.features
+            for features in (source.house_features(event),)
+            if type(features.get("unit-index")) is int
         }
         # copy_fact_builder copies the source clock rather than its unit
         # occurrence list; recover interval anchors from the source coordinates.
@@ -434,9 +436,10 @@ class Syllabifier:
                     refines_tick=not bool(event.structural_duration),
                 )
                 for _, path, event in sorted(
-                    (event.features["unit-index"], path, event)
+                    (features["unit-index"], path, event)
                     for path, event in source.events.items()
-                    if "unit-index" in event.features
+                    for features in (source.house_features(event),)
+                    if type(features.get("unit-index")) is int
                 )
             )
         )

@@ -284,6 +284,93 @@ def test_hot_bridge_projection_matches_serialized_fixture():
     assert live == expected
 
 
+def _assert_hot_provenance(source):
+    events = source.events
+    assert [
+        (path, event.features["rule"], event.features["trace"])
+        for path, event in events.items()
+        if "rule" in event.features
+    ] == [
+        ("/clock/0/narrow/0", "ɑ is short o", "no-op"),
+        ("/clock/0/allophonic/0", "gemination (after a consonant)", "no-op"),
+        ("/clock/0/allophonic/1", "o after a coronal stop (final)", "no-op"),
+        ("/clock/1/narrow/0", "ɑ is short o", "ɑ is short o: ɑ -> o @1"),
+        ("/clock/1/allophonic/0", "gemination (after a consonant)", "no-op"),
+        ("/clock/1/allophonic/1", "o after a coronal stop (final)", "no-op"),
+        ("/clock/2/narrow/0", "ɑ is short o", "no-op"),
+        (
+            "/clock/2/allophonic/0",
+            "gemination (after a consonant)",
+            "gemination (after a consonant): t -> tː @2",
+        ),
+        ("/clock/2/allophonic/1", "o after a coronal stop (final)", "no-op"),
+        (
+            "/clock/3/allophonic/0",
+            "o after a coronal stop (final)",
+            "o after a coronal stop (final): ∅ -> o @3",
+        ),
+    ]
+    assert [
+        (path, event.features["mora-kind"])
+        for path, event in events.items()
+        if "mora-kind" in event.features
+    ] == [
+        ("/clock/0/mora/0", "ordinary"),
+        ("/clock/2/mora/0", "geminate-half"),
+        ("/clock/2/mora/1", "ordinary"),
+    ]
+    assert [
+        (
+            path,
+            event.features["derivation-step"],
+            event.features["application-order"],
+            event.features["source-site-order"],
+        )
+        for path, event in events.items()
+        if "derivation-step" in event.features
+    ] == [
+        ("/clock/1/narrow/0", 0, 0, 0),
+        ("/clock/2/allophonic/0", 1, 0, 0),
+        ("/clock/3/allophonic/0", 2, 0, 0),
+    ]
+
+
+def test_hot_bridge_keeps_prelowering_provenance():
+    form = japanese_moraic_fixture("hot", ipakit.load_ipa_features())
+    _assert_hot_provenance(form.__dict__["_tiergraph_index"].containment_input)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "rule",
+        "trace",
+        "mora-kind",
+        "derivation-step",
+        "application-order",
+        "source-site-order",
+    ],
+)
+def test_hot_provenance_witness_detects_each_field_mutation(field):
+    from dataclasses import replace
+
+    form = japanese_moraic_fixture("hot", ipakit.load_ipa_features())
+    source = form.__dict__["_tiergraph_index"].containment_input
+    path = "/clock/2/mora/0" if field == "mora-kind" else "/clock/1/narrow/0"
+    event = source.events[path]
+    value = event.features[field]
+    mutated = replace(
+        event,
+        features={
+            **event.features,
+            field: value + 1 if type(value) is int else "changed",
+        },
+    )
+    changed = replace(source, events={**source.events, path: mutated})
+    with pytest.raises(AssertionError):
+        _assert_hot_provenance(changed)
+
+
 def test_only_fired_steps_materialize_projection_events():
     inventory = ipakit.load_ipa_features()
     fixture = japanese_moraic_fixtures()["hot"]

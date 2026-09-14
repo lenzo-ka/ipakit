@@ -238,17 +238,14 @@ def _profile_payloads(
     for ref in source.refs:
         event = source.events[ref]
         if foreign:
-            features = {
-                name: value
-                for name, value in event.features.items()
-                if name not in foreign
-            }
+            features = source.house_features(event)
             if features.get("unit") is not None and foreign & {
                 "input",
                 "unit-index",
+                "interval-index",
             }:
                 raise GraphValidationError(
-                    "unit requires input and unit-index declarations"
+                    "house unit requires unqualified input, unit-index and interval-index declarations"
                 )
             event = replace(event, features=features)
         payloads[ref] = _event_payload(event)
@@ -263,7 +260,9 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
         from .form import Unit, _DerivedMapping, _DerivedProvenance
 
         if not isinstance(unit, Unit):
-            raise TypeError("unit must be a Unit")
+            raise GraphValidationError("house unit must be a Unit")
+        if type(event.features.get("unit-index")) is not int:
+            raise GraphValidationError("house unit-index must be an integer")
         values: list[tuple[str, tg.XsdType, str]] = [
             ("text", tg.XsdType.STRING, unit.text),
         ]
@@ -342,7 +341,7 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
                     ),
                 )
             )
-    elif isinstance(interval, int):
+    elif type(interval) is int:
         values = [
             ("interval-index", tg.XsdType.INTEGER, str(interval)),
         ]
@@ -455,6 +454,21 @@ class ContainmentProjectionInput:
     endpoint_kinds: dict[str, EndpointKind]
     clock: tuple[ClockNode, ...]
     roots: tuple[str, ...]
+
+    def house_features(self, event: Event) -> Mapping[str, Any]:
+        """Resolve private IPA roles only from unqualified declarations.
+
+        Qualified values remain complete in ``events`` and in native declared
+        JSON values; their local spelling carries no private role.
+        """
+        foreign = {
+            declaration.name
+            for declaration in self.declarations.features
+            if declaration.value_name is not None
+        }
+        return {
+            name: value for name, value in event.features.items() if name not in foreign
+        }
 
     @classmethod
     def from_facts(
@@ -907,7 +921,7 @@ class ContainmentProjection:
                     minimum=0,
                     allow_empty=True,
                 ),
-                # Repeated roots are admitted and preserved in declaration order.
+                # Repeated root occurrences are admitted and preserved in list order.
             ),
         )
         relations = tuple(

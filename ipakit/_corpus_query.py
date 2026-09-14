@@ -308,8 +308,10 @@ def _unit_paths(form: Form) -> dict[int, str]:
     paths: dict[int, str] = {}
     graph_index = form.__dict__["_tiergraph_index"]
     for pointer, (_, event) in graph_index.events.items():
-        unit_index = event.features.get("unit-index")
-        if isinstance(unit_index, int):
+        unit_index = graph_index.containment_input.house_features(event).get(
+            "unit-index"
+        )
+        if type(unit_index) is int:
             paths[unit_index] = pointer
     return paths
 

@@ -217,7 +217,7 @@ def _routes(graph: object, child: str) -> tuple[tuple[str, ...], ...]:
 
 @dataclass(frozen=True)
 class _NativeContainment:
-    """Present tiergraph containment with the combined reference semantics."""
+    """Present combined native tiergraph containment navigation."""
 
     graph: tiergraph.Graph
     refs: dict[str, tiergraph.ItemRef]
@@ -547,8 +547,9 @@ def _render() -> str:
         "accepted_domain": (
             "Exactly graphs whose containment instances have one event source and "
             "only event targets (including a declared empty target side); across "
-            "multiple relations, repeated incidence is retained. Navigation is "
-            "identical to the reference semantics on every accepted graph."
+            "multiple relations, repeated incidence is retained. The named fixtures "
+            "record navigation audited at source commit "
+            "485f7a7c631001b58acfffc2884011081e0bcd19."
         ),
         "refusals": {
             "source_cardinality_other_than_one": (

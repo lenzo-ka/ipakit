@@ -570,9 +570,10 @@ def render(name: str, inventory: OrderedDict[str, Phone]) -> tuple[bytes, Counte
 def curated_english_bytes(inventory: OrderedDict[str, Phone]) -> bytes:
     """Return the landed English declaration after checking its source atoms.
 
-    English uses a curated mapping and explanatory layout. Validate its output
-    mnemonics against the pinned source inventory and render the source receipt
-    in its opening element; preserve the curated mapping content.
+    Read the curated XML from git HEAD rather than reconstructing its mappings
+    from the source inventory. Validate its output mnemonics against the supplied
+    inventory and update the opening element's source receipt. The curated
+    mapping content and explanatory layout remain intact.
     """
     content = subprocess.run(
         ["git", "show", "HEAD:ipakit/data/bridges/espeak/en.xml"],

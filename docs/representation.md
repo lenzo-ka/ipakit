@@ -131,15 +131,16 @@ tier must explicitly admit that feature. Declarations without this opt-in retain
 the existing IPA payload codec and do not promise arbitrary feature retention.
 
 Opted-in feature names are excluded from the unqualified house payload view,
-both when computing the graph cache key and when constructing the graph. Thus
+when computing the graph cache key, constructing the graph, and resolving
+the house Form, syllable, vocabulary, query and rendering views. Thus
 a foreign `arc` or `unit` value has only its declared qualified
 meaning; its local name does not create a private IPA attribute or Unit. Real
 structural timing/spans and independently supplied Units retain their
-own native meanings. An active Unit still requires `input` and
-`unit-index` declarations: opting those required support fields into
-foreign meanings in the same declaration context is refused, not silently read
-as house data. This is a mixed-context incompatibility, not a ban on those
-foreign names in source-only native graphs.
+own native meanings. A context with active house Units keeps `input`,
+`unit-index` and `interval-index` unqualified: giving any of these support
+names a foreign meaning in that context produces a named validation refusal.
+Source-only native graphs may declare these foreign names and preserve their
+qualified JSON values independently of the house views.
 
 Opted-in values use tiergraph's `json_value_graph` constructors and
 `JsonValueProfile`, including for scalar values. A qualified relation connects
