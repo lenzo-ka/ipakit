@@ -406,6 +406,15 @@ def construct(
             value_index += 1
             encoded[name] = ["native", relation_name.to_data()]
         codecs[path] = encoded
+    codec_table: list[dict[str, Any]] = []
+    codec_indices: list[int] = []
+    codec_keys: dict[str, int] = {}
+    for encoded in codecs.values():
+        key = identity_fingerprint(encoded)
+        if key not in codec_keys:
+            codec_keys[key] = len(codec_table)
+            codec_table.append(encoded)
+        codec_indices.append(codec_keys[key])
     metadata = {
         "profile": "ipakit-form",
         "schema": _schema(source, inventory),
@@ -414,7 +423,7 @@ def construct(
         "tiers": {k: v.to_data() for k, v in core.tier_names.items()},
         "relations": {k: v.to_data() for k, v in core.relation_names.items()},
         "events": list(source.refs),
-        "codecs": codecs,
+        "codecs": {"table": codec_table, "indices": codec_indices},
         "endpoint-kinds": [
             [source.endpoint_kinds[p].value for p in (*r.sources, *r.targets)]
             for r in source.relations
@@ -461,7 +470,20 @@ def restore(
     refs = {
         path: graph.resolve_item(tg.DurableItemRef(path)) for path in metadata["events"]
     }
-    if len(refs) != len(metadata["events"]) or set(refs) != set(metadata["codecs"]):
+    codec_data = metadata["codecs"]
+    if not isinstance(codec_data, dict) or set(codec_data) != {"table", "indices"}:
+        raise ValueError("Form codec table requires descriptors and event indices")
+    table, indices = codec_data["table"], codec_data["indices"]
+    if (
+        not isinstance(table, list)
+        or not all(isinstance(entry, dict) for entry in table)
+        or not isinstance(indices, list)
+        or len(indices) != len(refs)
+        or any(type(i) is not int or i < 0 or i >= len(table) for i in indices)
+    ):
+        raise ValueError("Form codec indices are not valid and complete")
+    codecs = {path: table[i] for path, i in zip(refs, indices, strict=True)}
+    if len(refs) != len(metadata["events"]):
         raise ValueError("Form event identity/codecs are not unique and complete")
     reverse = {item: path for path, item in refs.items()}
     clock_name = tg.QualifiedName(
@@ -500,7 +522,7 @@ def restore(
         }
         unit = None
         features = {}
-        for name, codec in metadata["codecs"][path].items():
+        for name, codec in codecs[path].items():
             kind = codec[0]
             if kind in ("unit", "unit-value"):
                 if unit is None:

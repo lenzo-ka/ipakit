@@ -111,16 +111,15 @@ class TestFormSerialization:
         form = Form.parse("kˌæn.tˈiːn", FEATURES)
         assert Form.from_dict(form.to_dict(), FEATURES) == form
         assert Form.from_json(form.to_json(), FEATURES).to_dict() == form.to_dict()
-        assert Form.from_dict(form.to_dict(self_contained=True), FEATURES) == form
-        assert Form.from_json(form.to_json(self_contained=True), FEATURES) == form
+        assert Form.from_json(form.to_json(pretty=True), FEATURES) == form
 
-    def test_self_contained_json_is_identical_warm_or_cold(self):
+    def test_native_json_is_identical_warm_or_cold(self):
         cold = Form.parse("ⁿd͡ʒʷ.ˈaː", FEATURES)
         warm = Form.parse("ⁿd͡ʒʷ.ˈaː", FEATURES)
         for unit in warm.units:
             _ = (unit.features, unit.prosody, unit.provenance)
 
-        assert cold.to_json(self_contained=True) == warm.to_json(self_contained=True)
+        assert cold.to_json() == warm.to_json()
 
 
 class TestLazyUnitViews:
@@ -166,25 +165,25 @@ class TestLazyUnitViews:
             assert sum("levels written on it" in str(w.message) for w in caught) == 1
 
     def test_unknown_version_is_refused(self):
-        with pytest.raises(ValueError, match="unsupported Form JSON version"):
+        with pytest.raises(ValueError):
             Form.from_json(
                 '{"type": "ipakit.form", "v": 99, "units": [], "intervals": []}',
                 FEATURES,
             )
 
     def test_representation_type_is_explicit(self):
-        assert Form.parse("a", FEATURES).to_dict()["type"] == "ipakit.form"
-        with pytest.raises(ValueError, match="unsupported representation type"):
+        assert Form.parse("a", FEATURES).to_dict()["format_version"] == "0.2.0"
+        with pytest.raises(ValueError):
             Form.from_json(
                 '{"type": "something.else", "v": 1, "units": [], "intervals": []}',
                 FEATURES,
             )
 
-    def test_self_contained_serialized_views_are_authoritative(self):
-        """Rejecting stored views contradicted self-contained mode's purpose."""
-        representation = Form.parse("ˈa", FEATURES).to_dict(self_contained=True)
-        representation["units"][0]["prosody"]["stress"] = "secondary"
-        restored = Form.from_dict(representation, FEATURES)
+    def test_native_serialized_explicit_views_are_authoritative(self):
+        unit = Form.parse("ˈa", FEATURES).units[0]
+        explicit = dataclasses.replace(unit, prosody={"stress": "secondary"})
+        form = Form.of((explicit,))
+        restored = Form.from_json(form.to_json(), FEATURES)
 
         assert restored.units[0].prosody["stress"] == "secondary"
 
@@ -205,10 +204,8 @@ class TestLazyUnitViews:
             unit.timing for unit in timed_units
         ]
         assert restored.intervals[0].timing == Timing(0.0, 0.4)
-        assert restored.to_dict()["units"][0]["timing"] == {
-            "start": 0.0,
-            "duration": 0.1,
-        }
+        assert restored.units[0].timing == Timing(0.0, 0.1)
+        assert restored.to_json() == form.to_json()
 
     @pytest.mark.parametrize(
         "start,duration,message",

@@ -4,7 +4,7 @@ import pytest
 from scripts.piece1_oracle import CONTRACT_MUTATIONS, OracleMismatch, capture, check
 
 
-def test_piece1_oracle_matches_pre_cutover_bytes_and_contracts() -> None:
+def test_piece1_oracle_matches_current_bytes_and_contracts() -> None:
     check()
     contracts = capture()["contracts"]
     assert all(
@@ -31,7 +31,7 @@ def test_piece1_oracle_matches_pre_cutover_bytes_and_contracts() -> None:
     assert contracts["at_identity_matrix"][-1][-2]
     assert all(contracts["at_repeat_identity"])
     assert contracts["root_spelling"] == "/clock/0/utterance/0"
-    assert contracts["wire_type_version"] == ["ipakit.form", 2]
+    assert contracts["wire_format_version"] == "0.2.0"
 
 
 @pytest.mark.parametrize("contract", CONTRACT_MUTATIONS)

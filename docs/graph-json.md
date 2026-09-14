@@ -43,7 +43,7 @@ external provider/alignment truth remain supplied caller claims.
 
 ## Commands
 
-```console
+```bash
 ipakit convert to-json "kæt" -o form.json
 ipakit convert to-json "kæt" --pretty
 ipakit convert to-json "kæt" | ipakit convert from-json -

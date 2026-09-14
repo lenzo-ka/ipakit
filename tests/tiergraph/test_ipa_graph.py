@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from ipakit import Form, FormBuilder, IPAFeatures, Segment, rules
+from ipakit import Form, FormBuilder, IPAFeatures, Segment, Unit, rules
 from ipakit._ipa_graph import (
     CLOCK_TREATMENTS,
     OccurrenceKind,
@@ -40,25 +41,18 @@ def test_structured_segment_fixture_restores_without_tokenizing(
     assert [sense.value for sense in segment.junctures] == ["fuse"]
     assert segment.prosody == ("ː",)
     assert segment.to_ipa() == fixture["spelling"]
-    unit = Form.from_dict(
-        {
-            "type": "ipakit.form",
-            "v": 2,
-            "units": [
-                {
-                    "text": fixture["spelling"],
-                    "segment": fixture["value"],
-                    "features": fixture["features"],
-                    "prosody": fixture["prosody"],
-                    "provenance": fixture["provenance"],
-                    "timing": None,
-                }
-            ],
-            "intervals": [],
-            "spelling": fixture["spelling"],
-        },
-        inventory,
-    ).units[0]
+    original = Form.of(
+        (
+            Unit(
+                fixture["spelling"],
+                segment,
+                fixture["features"],
+                fixture["prosody"],
+                tuple(tuple(item) for item in fixture["provenance"]),
+            ),
+        )
+    )
+    unit = Form.from_json(original.to_json(), inventory).units[0]
     assert dict(unit.features) == fixture["features"]
     assert dict(unit.prosody) == fixture["prosody"]
     assert [list(item) for item in unit.provenance] == fixture["provenance"]
@@ -79,14 +73,14 @@ def test_parsed_and_programmatic_construction_are_byte_identical() -> None:
 
 @pytest.mark.parametrize("view", ["features", "prosody", "provenance"])
 def test_structured_segment_embedded_views_are_authoritative(view: str) -> None:
-    """Rejecting stored views contradicted self-contained mode's purpose."""
+    """Explicit constructor views remain typed source facts in native JSON."""
     inventory = IPAFeatures()
-    form = Form.parse("ⁿd͡ʒʷː", inventory).to_dict(self_contained=True)
-    if view == "provenance":
-        form["units"][0][view] = []
-    else:
-        form["units"][0][view]["wrong"] = "value"
-    restored = Form.from_dict(form, inventory)
+    original = Form.parse("ⁿd͡ʒʷː", inventory).units[0]
+    value = (
+        () if view == "provenance" else {**getattr(original, view), "wrong": "value"}
+    )
+    form = Form.of((replace(original, **{view: value}),))
+    restored = Form.from_json(form.to_json(), inventory)
 
     expected = () if view == "provenance" else "value"
     actual = (

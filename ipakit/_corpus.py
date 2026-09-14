@@ -681,7 +681,7 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 except (KeyError, TypeError, ValueError) as exc:
                     code = (
                         "form_version"
-                        if "unsupported Form JSON version" in str(exc)
+                        if "format_version" in str(exc) and "unsupported" in str(exc)
                         else "form_restore"
                     )
                     findings.append(

@@ -89,16 +89,16 @@ The rewrite bridge adds mora → derived-segment containment on the input clock;
 its phantom events carry structural ordering without measured acoustic time.
 The shared source event preserves the original affricate, modifiers and length.
 
-The native graph wire codec preserves these associations. The current backend
-graph accessor is private; the public `Form.to_json()` compatibility format
-stores units and intervals and omits graph-only relations and event labels.
+`Form.to_json()` preserves these associations and event labels in the native
+graph wire format. `Form.graph` exposes the complete native graph, while
+`Form.from_json()` validates the restoring inventory and Form profile.
 
 ```python
 import ipakit
 import tiergraph
 
 analysis = ipakit.syllabify("hotːo", "japanese")
-graph = analysis.form._graph
+graph = analysis.form.graph
 restored = tiergraph.wire.loads(tiergraph.wire.dumps(graph))
 restored == graph  # True
 ```

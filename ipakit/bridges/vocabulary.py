@@ -82,16 +82,16 @@ class VocabularyProjection:
     form: Form
     report: ProjectionReport
 
-    def to_dict(self, self_contained: bool = False) -> dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         """Serialize the grouped form and its report beside one another."""
         return {
             "form": self.form.to_dict(),
             "report": self.report.to_dict(),
         }
 
-    def to_json(self, self_contained: bool = False) -> str:
+    def to_json(self) -> str:
         """Serialize the grouped form and report as Unicode JSON."""
-        return json.dumps(self.to_dict(self_contained), ensure_ascii=False)
+        return json.dumps(self.to_dict(), ensure_ascii=False)
 
 
 def _leg(element: ET.Element, direction: str) -> RoundTripLeg:

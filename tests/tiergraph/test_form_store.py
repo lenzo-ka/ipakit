@@ -161,9 +161,7 @@ def test_integer_timing_normalizes_to_float_so_units_round_trip() -> None:
     form = Form.of(timed, ())
 
     assert repr(form.units[0]) == repr(timed[0])
-    assert form.to_json(self_contained=True) == Form.of(timed, ()).to_json(
-        self_contained=True
-    )
+    assert form.to_json() == Form.of(timed, ()).to_json()
 
 
 def test_parsed_form_owns_graph_and_projects_unit_views() -> None:
@@ -218,10 +216,10 @@ def test_unit_projection_is_memoized_across_form_surface(
     constructions: dict[int, int] = {}
     original_init = form_module._UnitProjection.__init__
 
-    def counted_init(self, graph, inventory=None) -> None:
-        graph_id = id(graph)
+    def counted_init(self, projection_input, inventory=None, *, graph=None) -> None:
+        graph_id = id(projection_input)
         constructions[graph_id] = constructions.get(graph_id, 0) + 1
-        original_init(self, graph, inventory)
+        original_init(self, projection_input, inventory, graph=graph)
 
     monkeypatch.setattr(form_module._UnitProjection, "__init__", counted_init)
     form = Form.parse("#a.b#", FEATURES)
@@ -324,7 +322,7 @@ def test_form_read_paths_use_only_the_authoritative_tiergraph_graph() -> None:
     assert hierarchy.leaves(root)
     assert hierarchy.parents(child)
     assert hierarchy.ancestors(child)
-    assert json.loads(form.to_json())["type"] == "ipakit.form"
+    assert json.loads(form.to_json())["format_version"] == "0.2.0"
     assert form.to_dot().startswith("digraph tiergraph")
 
 
