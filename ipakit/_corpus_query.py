@@ -294,7 +294,7 @@ def _unit_paths(form: Form) -> dict[int, str]:
     paths: dict[int, str] = {}
     graph_index = form.__dict__["_tiergraph_index"]
     for pointer, (_, event) in graph_index.events.items():
-        unit_index = event.features.get("compatibility-index")
+        unit_index = event.features.get("unit-index")
         if isinstance(unit_index, int):
             paths[unit_index] = pointer
     return paths

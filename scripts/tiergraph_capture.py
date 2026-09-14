@@ -290,6 +290,18 @@ def capture_perturbation_proof(_: argparse.Namespace) -> None:
     )
 
 
+def capture_bridges(_: argparse.Namespace) -> None:
+    """Capture the current Japanese bridge graph with the native wire codec."""
+    from ipakit._rewrite_graph import japanese_moraic_fixture
+    from tiergraph.wire import to_data
+
+    form = japanese_moraic_fixture("hot", ipakit.load_ipa_features())
+    _write(
+        ROOT / "tests" / "tiergraph" / "fixtures" / "hot_bridge_projection.json",
+        to_data(form._graph),
+    )
+
+
 def capture_coordinates(_: argparse.Namespace) -> None:
     features = ipakit.load_ipa_features()
     cases = [
@@ -602,6 +614,7 @@ def capture_all(args: argparse.Namespace) -> None:
     for function in (
         capture_sweep,
         capture_coordinates,
+        capture_bridges,
         capture_rules,
         capture_distances,
         capture_artifacts,
@@ -618,6 +631,7 @@ def main() -> int:
     functions = {
         "sweep": capture_sweep,
         "coordinates": capture_coordinates,
+        "bridges": capture_bridges,
         "rules": capture_rules,
         "distances": capture_distances,
         "artifacts": capture_artifacts,

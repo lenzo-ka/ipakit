@@ -108,7 +108,7 @@ def git(source: Path | None, *arguments: str) -> str:
 
 
 def acquire_mfa(source: Path) -> None:
-    """Compatibility helper for the existing MFA command."""
+    """Acquire the pinned MFA source."""
     _acquire(source, _mfa_producer())
 
 
@@ -170,7 +170,7 @@ def publish(result: BuildResult, root: Path) -> None:
 
 
 def candidate() -> dict[str, str]:
-    """Compatibility helper for MFA candidate discovery."""
+    """Discover MFA update candidates."""
     return _candidate(_mfa_producer())
 
 

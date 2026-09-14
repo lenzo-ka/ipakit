@@ -229,8 +229,8 @@ def test_malformed_compatibility_graph_has_a_typed_failure():
         "value": unit.segment,
         "spelling": unit.text,
         "input": True,
-        "compatibility-unit": unit,
-        "compatibility-index": 1,
+        "unit": unit,
+        "unit-index": 1,
     }
     builder.append_input_atom("segment", facts)
     malformed = ipakit.Form._from_projection_input(builder.build_input())
@@ -273,47 +273,11 @@ def test_distance_alignment_capture_is_the_live_oracle():
         )
 
 
-def _bridge_fixture_data(form):
-    """The complete topology plus stable, JSON-native bridge event facts."""
-    return {
-        "clock": [
-            {
-                "gaps": node.gap_count,
-                "groups": [
-                    {
-                        "tier": group.tier,
-                        "events": [
-                            {
-                                "features": {
-                                    name: (
-                                        event.features.get("spelling", str(value))
-                                        if name == "value"
-                                        else value
-                                    )
-                                    for name, value in event.features.items()
-                                    if name != "compatibility-unit"
-                                },
-                                "duration": event.structural_duration,
-                            }
-                            for event in group.events
-                        ],
-                    }
-                    for group in node.groups
-                ],
-            }
-            for node in form.__dict__["_tiergraph_index"].clock
-        ],
-        "roots": list(form.roots),
-        "links": [
-            [list(link.sources), link.name, list(link.targets)]
-            for link in form.__dict__["_tiergraph_index"].containment_input.relations
-        ],
-    }
-
-
 def test_hot_bridge_projection_matches_serialized_fixture():
+    from tiergraph.wire import to_data
+
     inventory = ipakit.load_ipa_features()
-    live = _bridge_fixture_data(japanese_moraic_fixture("hot", inventory))
+    live = to_data(japanese_moraic_fixture("hot", inventory)._graph)
     expected = json.loads(
         (HERE / "fixtures" / "hot_bridge_projection.json").read_text()
     )

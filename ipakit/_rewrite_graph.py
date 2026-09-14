@@ -20,8 +20,8 @@ from ._fact_builder import (
     EventHandle,
     EventSpec,
     FactBuilder,
-    LegacyCoordinates,
     PositionHandle,
+    UnitCoordinates,
 )
 from ._graph_facts import (
     Declarations,
@@ -76,8 +76,8 @@ def _bridge_declarations(inventory: Any, tier_names: Sequence[str]) -> Declarati
             "spelling",
             "phantom",
             "input",
-            "compatibility-unit",
-            "compatibility-index",
+            "unit",
+            "unit-index",
             *bridge_features,
         }
     )
@@ -187,7 +187,7 @@ def _walk_projection(
 @dataclass
 class _NativeWriter:
     builder: FactBuilder
-    coordinates: LegacyCoordinates
+    coordinates: UnitCoordinates
     input_length: int
     source_tiers: Sequence[str]
     target_tiers: Sequence[str]
@@ -295,8 +295,8 @@ def _input(builder: FactBuilder, form: Form, source_tier: str) -> list[_Token]:
             "value": unit.segment if unit.segment is not None else unit.text,
             "spelling": unit.text,
             "input": True,
-            "compatibility-unit": dataclasses.replace(unit, timing=None),
-            "compatibility-index": index,
+            "unit": dataclasses.replace(unit, timing=None),
+            "unit-index": index,
         }
         if unit.is_boundary:
             handle = builder.append_input_occurrence(
@@ -304,9 +304,7 @@ def _input(builder: FactBuilder, form: Form, source_tier: str) -> list[_Token]:
             )
         else:
             handle = builder.append_input_atom(source_tier, facts)
-        tokens.append(
-            _Token(unit, handle, builder.compatibility_coordinates().to_graph(index))
-        )
+        tokens.append(_Token(unit, handle, builder.unit_coordinates().to_graph(index)))
     return tokens
 
 
@@ -320,7 +318,7 @@ def project_derivation(
 ) -> Form:
     """Project an existing :class:`~ipakit.rules.Derivation` onto one clock.
 
-    ``source_tiers`` is explicit and ordered.  The first is the compatibility
+    ``source_tiers`` is explicit and ordered.  The first is the unit projection
     input sequence. Only fired passes emit a layer; each reads the preceding
     emitted layer. Target names are clamped at the last supplied name, so an
     arbitrary number of fired passes remains representable without inventing
@@ -336,7 +334,7 @@ def project_derivation(
     builder = FactBuilder(_bridge_declarations(inventory, tiers))
     start = inventory.read(derivation.start, strict=True)
     current = _input(builder, start, source_tiers[0])
-    coordinates = builder.compatibility_coordinates()
+    coordinates = builder.unit_coordinates()
 
     current = _walk_projection(
         current,

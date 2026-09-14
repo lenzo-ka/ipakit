@@ -111,7 +111,7 @@ def _form_from_alignment(
 
         word = builder.begin(
             "word",
-            {"spelling": label, "compatibility-interval": word_index},
+            {"spelling": label, "interval-index": word_index},
             start=(PositionHandle(builder.current_tick, 1) if word_index else None),
         )
         children = []

@@ -33,12 +33,12 @@ _PROFILE_FEATURES = frozenset(
         "input",
         "phantom",
         "class",
-        # Private profile values used by Form's compatibility projection.
+        # Private profile values used by Form's unit projection.
         # The kernel deliberately permits immutable domain values; the IPA
         # value codec remains responsible for their eventual wire shape.
-        "compatibility-unit",
-        "compatibility-index",
-        "compatibility-interval",
+        "unit",
+        "unit-index",
+        "interval-index",
     }
 )
 
@@ -98,9 +98,9 @@ def _derive_declarations(inventory: IPAFeatures) -> Declarations:
             "provenance",
             "input",
             "phantom",
-            "compatibility-unit",
-            "compatibility-index",
-            "compatibility-interval",
+            "unit",
+            "unit-index",
+            "interval-index",
         }
     )
     unit_structural = frozenset(

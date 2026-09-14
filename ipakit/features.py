@@ -78,10 +78,6 @@ _Terms = tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]
 FeatureQuery = Mapping[str, str] | Iterable[str]
 """A feature-to-value mapping or an iterable of feature query terms."""
 
-# Backward-compatible internal spelling.  Some package modules and downstream
-# annotations used this before the query shape became part of the public API.
-_Query = FeatureQuery
-
 
 def available_supplements() -> list[str]:
     """The shipped supplements, by the name ``supplements=`` accepts."""
@@ -1480,7 +1476,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             {k: v for k, v in terms.items() if k in prosodic},
         )
 
-    def _query_constraints(self, query: _Query) -> tuple[_Terms, _Terms]:
+    def _query_constraints(self, query: FeatureQuery) -> tuple[_Terms, _Terms]:
         """Resolve a query and split it into (segmental, prosodic) halves.
 
         One resolution and one split, so :meth:`phones_matching`,
@@ -1589,7 +1585,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ]
 
     def _resolve_query(
-        self, query: _Query
+        self, query: FeatureQuery
     ) -> tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]:
         """Resolve a query into (required, included, excluded) constraints.
 

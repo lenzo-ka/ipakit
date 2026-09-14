@@ -130,15 +130,15 @@ different features, and duplicate qualified identities are refused. The event's
 tier must explicitly admit that feature. Declarations without this opt-in retain
 the existing IPA payload codec and do not promise arbitrary feature retention.
 
-Opted-in feature names are excluded from the unqualified legacy payload view,
+Opted-in feature names are excluded from the unqualified house payload view,
 both when computing the graph cache key and when constructing the graph. Thus
-a foreign `arc` or `compatibility-unit` value has only its declared qualified
+a foreign `arc` or `unit` value has only its declared qualified
 meaning; its local name does not create a private IPA attribute or Unit. Real
-structural timing/spans and independently supplied legacy Units retain their
-own native meanings. An active legacy Unit still requires legacy `input` and
-`compatibility-index` declarations: opting those required support fields into
+structural timing/spans and independently supplied Units retain their
+own native meanings. An active Unit still requires `input` and
+`unit-index` declarations: opting those required support fields into
 foreign meanings in the same declaration context is refused, not silently read
-as legacy data. This is a mixed-context incompatibility, not a ban on those
+as house data. This is a mixed-context incompatibility, not a ban on those
 foreign names in source-only native graphs.
 
 Opted-in values use tiergraph's `json_value_graph` constructors and
@@ -173,7 +173,7 @@ Projection then records broad, narrow, and allophonic
 events on the immutable input clock. Insertions remain anchored to their input
 boundary, deletions retain an empty-target rewrite relation, and chained
 phantoms retain the engine's deterministic result order without adding clock
-positions or changing compatibility-unit indices.
+positions or changing unit indices.
 ## Draw the tier graph
 
 Every `Form` can render its complete graph as Graphviz DOT:

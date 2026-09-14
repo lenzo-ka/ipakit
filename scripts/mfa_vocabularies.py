@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility CLI for the library-owned MFA artifact builder."""
+"""CLI for the library-owned MFA artifact builder."""
 
 from __future__ import annotations
 
@@ -33,12 +33,12 @@ DEFAULT_SOURCE = Path(
 
 
 def generate(source: Path) -> dict[Path, bytes]:
-    """Retain the legacy script's repository-absolute artifact mapping."""
+    """Return repository-absolute artifact paths."""
     return {ROOT / path: content for path, content in build(source).artifacts.items()}
 
 
 def stale(artifacts: Mapping[Path, bytes], root: Path) -> list[Path]:
-    """Retain the legacy checker while using the shared result implementation."""
+    """Check artifacts with the shared result implementation."""
     from ipakit.extraction.mfa import OUT
 
     relative = {path.relative_to(ROOT): content for path, content in artifacts.items()}

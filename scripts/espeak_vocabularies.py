@@ -567,12 +567,12 @@ def render(name: str, inventory: OrderedDict[str, Phone]) -> tuple[bytes, Counte
     return ("\n".join(lines) + "\n").encode(), Counter(reason for _, reason in refused)
 
 
-def english_compatibility_bytes(inventory: OrderedDict[str, Phone]) -> bytes:
+def curated_english_bytes(inventory: OrderedDict[str, Phone]) -> bytes:
     """Return the landed English declaration after checking its source atoms.
 
-    English is the byte-level compatibility witness for this generator.  Its
-    deliberately explanatory layout predates the uniform renderer, so the
-    committed parent version is retained rather than reformatted.
+    English uses a curated mapping and explanatory layout. Validate its output
+    mnemonics against the pinned source inventory and render the source receipt
+    in its opening element; preserve the curated mapping content.
     """
     content = subprocess.run(
         ["git", "show", "HEAD:ipakit/data/bridges/espeak/en.xml"],
@@ -609,7 +609,7 @@ def generate(source: Path) -> tuple[dict[Path, bytes], Counter[str]]:
         if table.name in INTERNAL:
             continue
         if table.name == "en":
-            content = english_compatibility_bytes(inventories[table.name])
+            content = curated_english_bytes(inventories[table.name])
             reasons: Counter[str] = Counter()
         else:
             content, reasons = render(table.name, inventories[table.name])
