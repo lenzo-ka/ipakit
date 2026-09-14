@@ -4,8 +4,9 @@ One canonical object -- a symmetric phone x phone matrix of pairwise values --
 underlies everything. The matrix is inventory-independent (feature-derived, or
 an empirical confusion matrix); the empirical CDF is the inventory-relative view
 derived from whichever sub-matrix a reference inventory selects. Output is a
-PERCENTILE within that reference (a normalized confusability / its complementary
-distance), not an absolute distance, and is not comparable across inventories.
+percentile position within that reference, in either the similarity or
+complementary distance direction. It is not an absolute distance and is not
+comparable across inventories.
 
 The global matrix is built at dev time and shipped (data/confusion.json, guarded
 by scripts/confusion.py). Per-phoneset models reuse the shipped values and only
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING, Self
 from .constants import DEFAULT_CONFUSION
 from .distance import (
     PhoneCost,
+    PhonePosition,
     ScoringParameters,
     SequenceMatch,
     TranscriptionDistanceResult,
@@ -160,7 +162,7 @@ def _check_fingerprint(
     answer is well formed and the caller has nothing to notice it by: a
     percentile from another inventory's reference distribution is a
     perfectly reasonable-looking number, and both readings of ``s``/``ʃ``
-    look like a confusability.
+    look like a similarity.
     """
     if recorded is None:
         return
@@ -592,8 +594,8 @@ class DistanceModel:
         """Whether the wrapped IPAFeatures can derive features for ``token``."""
         return bool(self._ipa.compose(token, with_defaults=False))
 
-    def confusability(self, a: str, b: str) -> float:
-        """Normalized confusability of two phones, in [0, 1].
+    def similarity_position(self, a: str, b: str) -> float:
+        """Similarity-direction percentile position of two phones, in [0, 1].
 
         The percentile of the pair's raw similarity within the reference
         inventory's distribution (then raised to ``gamma``). Distinct phones
@@ -613,35 +615,26 @@ class DistanceModel:
             return 0.0
         return self._norm_conf(1.0 - self._ipa.segment_distance(a, b))
 
-    def similarity(self, a: str, b: str) -> float:
-        """Inventory-relative similarity percentile; alias for :meth:`confusability`.
+    def distance_position(self, a: str, b: str) -> float:
+        """Complementary percentile position; 0.0 is reserved for identity."""
+        return 1.0 - self.similarity_position(a, b)
 
-        This is a position in this reference inventory's distribution, not a
-        magnitude comparable to ``segment_distance`` or to a model over
-        another inventory.
-        """
-        return self.confusability(a, b)
-
-    def distance(self, a: str, b: str) -> float:
-        """Renormalized phone distance; 0.0 is reserved for identity."""
-        return 1.0 - self.confusability(a, b)
-
-    def nearest(self, phone: str, n: int = 10) -> list[tuple[str, float]]:
+    def nearest_positions(self, phone: str, n: int = 10) -> list[PhonePosition]:
         """The ``n`` reference phones closest to ``phone``.
 
-        Returns ``(phone, distance_position)`` pairs sorted by the complementary
+        Returns :class:`~ipakit.distance.PhonePosition` records sorted by the complementary
         similarity percentile within this reference inventory. These positions
         are not structural distance magnitudes and are not comparable across
         inventories. The query appears first at 0.0 when it belongs to the
         reference set: that zero means the same phone. The closest distinct pair
         sits above zero. A phone outside the model's matrix is scored against the
-        reference inventory via the :meth:`confusability` fallback but does not
+        reference inventory via the :meth:`similarity_position` fallback but does not
         become a reference phone; empty if its features cannot be derived at all.
         """
         if phone not in self._index and not self._resolves(phone):
             return []
-        ds = [(p, self.distance(phone, p)) for p in self._ref]
-        ds.sort(key=lambda x: x[1])
+        ds = [PhonePosition(p, self.distance_position(phone, p)) for p in self._ref]
+        ds.sort(key=lambda item: item.distance_position)
         return ds[:n]
 
     # -- transcription API ----------------------------------------------------
@@ -649,7 +642,7 @@ class DistanceModel:
     def sub_cost(self, t1: str, t2: str) -> float:
         """Substitution cost between two tokens for the edit-distance DP.
 
-        ``1 - confusability`` for in-inventory pairs, falling back to the
+        The distance-direction position for in-inventory pairs, falling back to the
         feature distance for out-of-inventory tokens, priced as an edit cost
         by :func:`~ipakit.distance._substitution_cost` -- so a pair with
         nothing in common costs this model's delete plus its insert, and the

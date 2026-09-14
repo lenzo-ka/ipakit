@@ -393,7 +393,10 @@ Which is the operation that makes this useful outside a classroom, and it needs 
 
 ```python
 target = "pti"
-min(ipa.distance_model().distance(target, v) for v in french.variants("pətit").forms)
+min(
+    ipa.distance_model().distance_position(target, v)
+    for v in french.variants("pətit").forms
+)
 # 0.0
 ```
 

@@ -72,9 +72,9 @@ class TestItIsMetricOnlyAndContained:
 
     def test_the_confusion_triangle_is_unmoved(self, ipa):
         # No shipped phone carries a rider, so the phone matrix is identical
-        # -- confusability (a percentile over it) is stable.
-        assert ipakit.confusability("s", "ʃ") == pytest.approx(
-            ipakit.confusability("s", "ʃ")
+        # -- the similarity position (a percentile over it) is stable.
+        assert ipakit.similarity_position("s", "ʃ") == pytest.approx(
+            ipakit.similarity_position("s", "ʃ")
         )
 
 

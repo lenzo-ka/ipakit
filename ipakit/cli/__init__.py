@@ -123,7 +123,7 @@ Examples:
   ipakit analysis natural-class p t k  # Find shared features
   ipakit analysis minimal-pairs p      # Find similar phones
   ipakit distance pair p b             # Raw feature distance: ~0.04
-  ipakit distance confusability p b    # inventory-relative
+  ipakit distance positions p b        # inventory-relative
   ipakit distance transcription kæt kæd  # transcription similarity
   ipakit hierarchy text                # Text hierarchy
   ipakit analyze validate              # Validate XML

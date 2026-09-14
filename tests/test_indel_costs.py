@@ -560,7 +560,7 @@ class TestTheBoundaryWithTheFeatureSpace:
         moved = 0
         checked = 0
         for a, b in itertools.combinations(phones, 2):
-            if flat.distance(a, b) != scheduled.distance(a, b):
+            if flat.distance_position(a, b) != scheduled.distance_position(a, b):
                 moved += 1
             if ipa.distance(a, b) != ipa.distance(b, a):
                 moved += 1
@@ -581,7 +581,7 @@ class TestTheBoundaryWithTheFeatureSpace:
         moved = 0
         checked = 0
         for a, b in itertools.combinations(phones, 2):
-            if flat.distance(a, b) != sharp.distance(a, b):
+            if flat.distance_position(a, b) != sharp.distance_position(a, b):
                 moved += 1
             checked += 1
         assert checked > 1000, f"sweep checked only {checked} pairs"

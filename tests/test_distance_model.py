@@ -103,7 +103,7 @@ class TestGammaIsRefusedOutsideItsDomain:
         gamma 0 every derivable pair is maximally confusable, and at gamma -1
         the answer leaves [0, 1]."""
         m = _model(ipa, _core_phones(ipa))
-        p = m.confusability("p", "a")
+        p = m.similarity_position("p", "a")
         assert 0.0 < p < 1.0
         assert p**0.0 == 1.0
         assert p**-1.0 > 1.0
@@ -121,10 +121,10 @@ class TestGammaIsRefusedOutsideItsDomain:
         pairs = [(a, b) for a in phones for b in phones if a < b]
         assert len(pairs) > 100
         for a, b in pairs:
-            assert 0.0 <= steep.confusability(a, b) <= 1.0, (a, b)
+            assert 0.0 <= steep.similarity_position(a, b) <= 1.0, (a, b)
 
         def rank(m):
-            return sorted(pairs, key=lambda ab: m.confusability(*ab))
+            return sorted(pairs, key=lambda ab: m.similarity_position(*ab))
 
         assert rank(flat) == rank(steep)
 
@@ -138,18 +138,20 @@ class TestPercentile:
             [0.2, 0.3, 0.0],
         ]
         m = DistanceModel(ipa, "three", phones, matrix, "distance")
-        assert m.confusability("p", "b") == 3 / 4
-        assert m.confusability("p", "t") == 2 / 4
-        assert m.confusability("b", "t") == 1 / 4
-        assert m.confusability("p", "p") == 1.0
+        assert m.similarity_position("p", "b") == 3 / 4
+        assert m.similarity_position("p", "t") == 2 / 4
+        assert m.similarity_position("b", "t") == 1 / 4
+        assert m.similarity_position("p", "p") == 1.0
 
     def test_bounds_identity_unknown(self, ipa):
         m = _model(ipa, _core_phones(ipa))
-        assert m.distance("p", "p") == 0.0
-        assert m.confusability("p", "p") == 1.0
-        assert 0.0 < m.distance("p", "a") <= 1.0
-        assert m.distance("p", "ZZZ") == 1.0
-        assert m.distance("p", "b") == pytest.approx(1.0 - m.confusability("p", "b"))
+        assert m.distance_position("p", "p") == 0.0
+        assert m.similarity_position("p", "p") == 1.0
+        assert 0.0 < m.distance_position("p", "a") <= 1.0
+        assert m.distance_position("p", "ZZZ") == 1.0
+        assert m.distance_position("p", "b") == pytest.approx(
+            1.0 - m.similarity_position("p", "b")
+        )
 
     @pytest.mark.slow
     def test_monotone_in_raw_distance(self, ipa):
@@ -159,12 +161,14 @@ class TestPercentile:
         for a1, b1 in pairs:
             for a2, b2 in pairs:
                 if ipa.distance(a1, b1) < ipa.distance(a2, b2):
-                    assert m.distance(a1, b1) <= m.distance(a2, b2) + 1e-12
+                    assert m.distance_position(a1, b1) <= (
+                        m.distance_position(a2, b2) + 1e-12
+                    )
 
     def test_uniformized_range(self, ipa):
         phones = _core_phones(ipa)
         m = _model(ipa, phones)
-        ds = [m.distance(a, b) for a in phones for b in phones if a < b]
+        ds = [m.distance_position(a, b) for a in phones for b in phones if a < b]
         assert max(ds) - min(ds) > 0.8  # CDF spreads bunched raw values
 
     def test_equal_place_swap_magnitudes_keep_one_nonzero_position(self, ipa):
@@ -172,7 +176,7 @@ class TestPercentile:
         raw = [ipa.distance(a, b) for a, b in pairs]
         assert raw == pytest.approx([0.018571429] * 3)
         model = DistanceModel.global_(ipa)
-        positions = [model.distance(a, b) for a, b in pairs]
+        positions = [model.distance_position(a, b) for a, b in pairs]
         assert positions == pytest.approx([positions[0]] * 3)
         assert positions[0] > 0.0
 
@@ -186,9 +190,9 @@ class TestReferenceSizeWarning:
             "CDF; at least 3 are required for usable percentile positions, so "
             "positions from this reference are not usable."
         )
-        assert model.distance("p", "t") == 1.0
-        assert model.distance("p", "a") == 1.0
-        assert model.nearest("t") == [("p", 1.0)]
+        assert model.distance_position("p", "t") == 1.0
+        assert model.distance_position("p", "a") == 1.0
+        assert model.nearest_positions("t") == [("p", 1.0)]
 
     def test_three_pairs_are_the_first_silent_reference(self, ipa):
         phones = ["p", "t", "a"]
@@ -225,13 +229,17 @@ class TestGamma:
         base = _model(ipa, phones)
         sharp = _model(ipa, phones, gamma=2.0)
         for a, b in [("p", "k"), ("s", "f"), ("p", "a")]:
-            assert sharp.distance(a, b) >= base.distance(a, b) - 1e-12  # 1-p**2 >= 1-p
-        assert sharp.distance("p", "p") == base.distance("p", "p") == 0.0
+            assert sharp.distance_position(a, b) >= (
+                base.distance_position(a, b) - 1e-12
+            )  # 1-p**2 >= 1-p
+        assert (
+            sharp.distance_position("p", "p") == base.distance_position("p", "p") == 0.0
+        )
 
     def test_rounding_a_tiny_gamma_cannot_give_a_distinct_pair_identity(self, ipa):
         m = _model(ipa, _core_phones(ipa), gamma=5e-324)
-        assert m.confusability("p", "t") < 1.0
-        assert m.distance("p", "t") > 0.0
+        assert m.similarity_position("p", "t") < 1.0
+        assert m.distance_position("p", "t") > 0.0
 
 
 class TestInventoryRelativity:
@@ -242,7 +250,7 @@ class TestInventoryRelativity:
         sub = [p for p in ["p", "b", "t", "d", "k", "ɡ"] if p in phones]
         sub_ref = DistanceModel(ipa, "sub", phones, M, "distance", ref_phones=sub)
         assert any(
-            full_ref.distance(a, b) != sub_ref.distance(a, b)
+            full_ref.distance_position(a, b) != sub_ref.distance_position(a, b)
             for a in sub
             for b in sub
             if a < b
@@ -253,10 +261,13 @@ class TestNearest:
     def test_sorted_restricted_includes_self(self, ipa):
         phones = _core_phones(ipa)
         m = _model(ipa, phones)
-        near = m.nearest("p", n=3)
+        near = m.nearest_positions("p", n=3)
         assert len(near) == 3
         assert near[0] == ("p", 0.0)
-        assert m.nearest("p", n=1) == [("p", 0.0)]
+        assert near[0] == ipakit.PhonePosition("p", 0.0)
+        assert near[0].phone == "p"
+        assert near[0].distance_position == 0.0
+        assert m.nearest_positions("p", n=1) == [("p", 0.0)]
         assert [d for _, d in near] == sorted(d for _, d in near)
         assert all(p in phones for p, _ in near)
 
@@ -279,10 +290,13 @@ class TestNearest:
             "u",
         ]
         m = _model(ipa, phones)
-        near = m.nearest("i")
+        near = m.nearest_positions("i")
         assert near[0] == ("i", 0.0)
         assert all(distance > 0.0 for _, distance in near[1:])
-        assert all(m.distance(a, b) > 0.0 for a, b in itertools.combinations(phones, 2))
+        assert all(
+            m.distance_position(a, b) > 0.0
+            for a, b in itertools.combinations(phones, 2)
+        )
 
 
 class TestPhoneLevelOOVFallback:
@@ -295,15 +309,15 @@ class TestPhoneLevelOOVFallback:
         m = _model(ipa, _core_phones(ipa))  # t͡ʃ not in the core inventory
         # Structural metric: an affricate sits near segments that share its
         # phase structure, not near its bare fricative component.
-        assert m.confusability("t͡ʃ", "t") >= 0.0
-        assert m.distance("t͡ʃ", "s") == pytest.approx(
-            1.0 - m.confusability("t͡ʃ", "s")
+        assert m.similarity_position("t͡ʃ", "t") >= 0.0
+        assert m.distance_position("t͡ʃ", "s") == pytest.approx(
+            1.0 - m.similarity_position("t͡ʃ", "s")
         )
         assert ipa.distance("t͡ʃ", "t͡s") < ipa.distance("t͡ʃ", "s")
 
     def test_composed_tie_sequence(self, ipa, full):
         assert "q͡χ" not in ipa.phones  # composable, not registered
-        near = full.nearest("q͡χ", n=3)
+        near = full.nearest_positions("q͡χ", n=3)
         assert len(near) == 3
         # Under the structural metric an unregistered affricate's nearest
         # neighbors are other affricates (shared phase structure), not its
@@ -314,17 +328,17 @@ class TestPhoneLevelOOVFallback:
 
     def test_both_sides_oov(self, ipa):
         m = _model(ipa, _core_phones(ipa))
-        assert m.confusability("t͡ʃ", "q͡χ") > 0.0
+        assert m.similarity_position("t͡ʃ", "q͡χ") > 0.0
 
     def test_underivable_keeps_sentinels(self, ipa):
         m = _model(ipa, _core_phones(ipa))
-        assert m.confusability("p", "ZZZ") == 0.0
-        assert m.distance("p", "ZZZ") == 1.0
-        assert m.nearest("ZZZ") == []
+        assert m.similarity_position("p", "ZZZ") == 0.0
+        assert m.distance_position("p", "ZZZ") == 1.0
+        assert m.nearest_positions("ZZZ") == []
 
     def test_oov_nearest_sorted_and_does_not_synthesize_query(self, ipa):
         m = _model(ipa, _core_phones(ipa))
-        near = m.nearest("t͡ʃ", n=5)
+        near = m.nearest_positions("t͡ʃ", n=5)
         assert len(near) == 5
         assert [d for _, d in near] == sorted(d for _, d in near)
         assert "t͡ʃ" not in [p for p, _ in near]
@@ -465,14 +479,16 @@ class TestLoaders:
 
 
 class TestPublicApi:
-    def test_confusability_complements_normalized_distance(self):
+    def test_similarity_position_complements_distance_position(self):
         import ipakit
 
-        assert ipakit.confusability("p", "p") == 1.0
-        c = ipakit.confusability("p", "b")
-        d = ipakit.normalized_distance("p", "b")
+        assert ipakit.similarity_position("p", "p") == 1.0
+        c = ipakit.similarity_position("p", "b")
+        d = ipakit.distance_position("p", "b")
         assert c == pytest.approx(1.0 - d)
-        assert "confusability" in ipakit.__all__
+        assert "similarity_position" in ipakit.__all__
+        assert "distance_position" in ipakit.__all__
+        assert "PhonePosition" in ipakit.__all__
 
     def test_introspection_properties(self, ipa):
         from ipakit.models import Phoneset
@@ -495,10 +511,28 @@ class TestDistanceCli:
         rc = ipakit.cli.main()
         return rc, capsys.readouterr().out
 
-    def test_confusability_command(self, monkeypatch, capsys):
-        rc, out = self._run(monkeypatch, capsys, "distance", "confusability", "p", "b")
+    def test_positions_command(self, monkeypatch, capsys):
+        rc, out = self._run(monkeypatch, capsys, "distance", "positions", "p", "b")
         assert rc == 0
-        assert "confusability=" in out and "reference: ipa" in out
+        assert "similarity_position=" in out
+        assert "distance_position=" in out
+        assert "reference: ipa" in out
+
+    def test_positions_command_json(self, monkeypatch, capsys):
+        rc, out = self._run(
+            monkeypatch, capsys, "distance", "positions", "p", "b", "-j"
+        )
+        assert rc == 0
+        data = json.loads(out)
+        assert set(data) == {
+            "phone1",
+            "phone2",
+            "similarity_position",
+            "distance_position",
+            "reference",
+            "reference_size",
+            "gamma",
+        }
 
     def test_word_command_json(self, monkeypatch, capsys):
         import json
@@ -516,11 +550,11 @@ class TestDistanceCli:
         assert rc == 0
         assert "similar=True" in out
 
-    def test_confusability_phoneset(self, tmp_path, monkeypatch, capsys):
+    def test_positions_phoneset(self, tmp_path, monkeypatch, capsys):
         pf = tmp_path / "tiny.txt"
         pf.write_text("p\nb\nt\nd\nk\n")
         rc, out = self._run(
-            monkeypatch, capsys, "distance", "conf", "p", "b", "--phoneset", str(pf)
+            monkeypatch, capsys, "distance", "pos", "p", "b", "--phoneset", str(pf)
         )
         assert rc == 0
         assert "reference: tiny" in out
@@ -587,7 +621,7 @@ class TestFeatureSpaceFingerprint:
         reloaded = DistanceModel.from_matrix_file(ipa, model.save(tmp_path / "c.json"))
         assert reloaded.reference_phones == model.reference_phones
         for a, b in itertools.combinations(model.reference_phones, 2):
-            assert reloaded.confusability(a, b) == model.confusability(a, b)
+            assert reloaded.similarity_position(a, b) == model.similarity_position(a, b)
 
     def test_a_supplemented_inventory_round_trips(self, tmp_path):
         # The direction the fingerprint must not break: a supplement adds
@@ -662,7 +696,7 @@ class TestTheShippedMatrixIsCheckedWhereItIsRead:
     """The acceptance case, over the public entry points.
 
     ``data/confusion.json`` is read by ``global_`` -- which
-    ``ipakit.distance_model()`` and ``ipakit.confusability`` build on --
+    ``ipakit.distance_model()`` and ``ipakit.similarity_position`` build on --
     and by ``for_phoneset``, which re-slices the same values without
     coming through ``global_``. Someone who edits an installed
     ``ipa.xml`` and does not regenerate reaches the shipped matrix by
@@ -704,15 +738,17 @@ class TestTheShippedMatrixIsCheckedWhereItIsRead:
         phones, m, space, _ = _global_matrix()
         shipped = DistanceModel(bridged, "ipa", phones, m, space)
         own = DistanceModel.derive(bridged)
-        assert shipped.confusability("s", "ʃ") != own.confusability("s", "ʃ")
+        assert shipped.similarity_position("s", "ʃ") != own.similarity_position(
+            "s", "ʃ"
+        )
 
     def test_distance_model_refuses(self, as_the_module_inventory):
         with pytest.raises(ValueError, match="different feature space"):
             ipakit.distance_model()
 
-    def test_confusability_refuses(self, as_the_module_inventory):
+    def test_similarity_position_refuses(self, as_the_module_inventory):
         with pytest.raises(ValueError, match="different feature space"):
-            ipakit.confusability("s", "ʃ")
+            ipakit.similarity_position("s", "ʃ")
 
     def test_a_phoneset_reference_refuses(self, as_the_module_inventory):
         # for_phoneset re-slices the shipped values and does not come

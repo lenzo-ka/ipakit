@@ -179,7 +179,7 @@ WITNESSES = [
     ["distance", "nearest", "cat", "cad", "cat"],
     ["distance", "segment", "c", "t"],
     ["distance", "pair", "c", "t"],
-    ["distance", "confusability", "c", "t"],
+    ["distance", "positions", "c", "t"],
     ["distance", "directional", "cat", "cad"],
     ["distance", "matrix", "cat"],
     ["rules", "apply", "-s", "american-english", "pin"],

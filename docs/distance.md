@@ -7,7 +7,7 @@ How `distance`, `segment_distance`, `transcription_distance`, and the shipped co
 | | |
 |---|---|
 | Raw distance range | `[0, 1]`; 0 is the magnitude for identical phones, 1 is maximally different |
-| Three scales, three names | `distance` (structural magnitude, `[0,1]`), `normalized_distance` (complementary percentile position in a reference inventory, `[0,1]`), `TranscriptionDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
+| Three scales, three names | `distance` (structural magnitude, `[0,1]`), `distance_position` (complementary percentile position in a reference inventory, `[0,1]`), `TranscriptionDistanceResult.edit_cost` (summed alignment cost, **unbounded**) |
 | Basis | Articulatory structure — where a constriction is, what makes it, how close it is |
 | Claim | Structural consistency; **not** a model of perceptual confusability |
 | Symmetry | `d(x, y) == d(y, x)`, by construction: each directional reduction is wrapped in `max(a→b, b→a)` |
@@ -240,7 +240,7 @@ If weights are ever wanted, the only defensible source is empirical confusion da
 
 `get_features` resolves registered phones first, then composes tie-barred sequences of known phones. Distance follows: any composable segment has a distance, whether or not it is in the inventory.
 
-`DistanceModel` places a pair in a reference inventory's similarity distribution. Its phone-level values are inventory-relative percentile positions, not magnitudes comparable to `segment_distance`, and positions from different inventories are not comparable. Phones absent from its matrix fall back to feature-derived similarity routed through the same CDF; phones whose features cannot be derived at all keep the explicit sentinels (`confusability` 0.0, `distance` 1.0, `nearest` empty). A phoneset whose members are absent from the matrix is reported, not silently dropped — see `import_phoneset` if the members are spelled in another tie convention. A reference with fewer than three distinct-phone pairs warns that its positions are not usable; the raw `segment_distance` path remains available for such a small inventory.
+`DistanceModel` places a pair in a reference inventory's similarity distribution. Its phone-level values are inventory-relative percentile positions, not magnitudes comparable to `segment_distance`, and positions from different inventories are not comparable. Phones absent from its matrix fall back to feature-derived similarity routed through the same CDF; phones whose features cannot be derived at all keep the explicit sentinels (`similarity_position` 0.0, `distance_position` 1.0, `nearest_positions` empty). A phoneset whose members are absent from the matrix is reported, not silently dropped — see `import_phoneset` if the members are spelled in another tie convention. A reference with fewer than three distinct-phone pairs warns that its positions are not usable; the raw `segment_distance` path remains available for such a small inventory.
 
 ## Not a metric in the mathematical sense
 
@@ -309,7 +309,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **Silence is maximally different from every speech sound.** `d(␣, X) = 1.0`, so a position where one word has a phone and the other has silence costs a delete and an insert: the phone went, and a silence arrived. Silence is a token that fills a position, not the absence of one — a word that drops the segment outright is a token shorter, pays a single gap, and scores as the nearer of the two.
 
-**The three scales are named apart.** `distance` is a structural magnitude and is bounded; `normalized_distance` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `TranscriptionDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
+**The three scales are named apart.** `distance` is a structural magnitude and is bounded; `distance_position` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `TranscriptionDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
 **Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `transcription_distance("lez‿ami", "lezami") = 0`.
 
@@ -328,7 +328,7 @@ import ipakit
 
 model = ipakit.distance_model()
 ref = model.reference_phones
-sims = [model.confusability(a, b) for i, a in enumerate(ref) for b in ref[i + 1 :]]
+sims = [model.similarity_position(a, b) for i, a in enumerate(ref) for b in ref[i + 1 :]]
 round(sum(s > 0.5 for s in sims) / len(sims), 1)   # 0.5
 ```
 
@@ -344,7 +344,7 @@ import ipakit
 flat = ipakit.distance_model()
 sharp = ipakit.distance_model(gamma=3.0)
 pairs = [("p", "b"), ("p", "k"), ("s", "ʃ"), ("p", "a")]
-rank = lambda m: sorted(pairs, key=lambda ab: m.confusability(*ab))
+rank = lambda m: sorted(pairs, key=lambda ab: m.similarity_position(*ab))
 rank(flat) == rank(sharp)   # True
 ```
 
@@ -352,15 +352,15 @@ rank(flat) == rank(sharp)   # True
 
 ```python
 cut = 0.5
-({ab for ab in pairs if sharp.confusability(*ab) >= cut}
- == {ab for ab in pairs if flat.confusability(*ab) >= cut ** (1 / 3)})   # True
+({ab for ab in pairs if sharp.similarity_position(*ab) >= cut}
+ == {ab for ab in pairs if flat.similarity_position(*ab) >= cut ** (1 / 3)})   # True
 ```
 
-So on `DistanceModel.confusability`, `.distance` and `.nearest`, gamma buys no decision that moving the threshold could not. What it buys there is legibility. A power above 1 stretches the scale near 1.0 and compresses it near 0 — the slope of `p ** g` is `g * p ** (g - 1)`, which is above 1 at the top and below it at the bottom — and the top is the crowded end. So it spreads the pairs worth telling apart and squeezes together the ones that were never in question:
+So on `DistanceModel.similarity_position`, `.distance_position` and `.nearest_positions`, gamma buys no decision that moving the threshold could not. What it buys there is legibility. A power above 1 stretches the scale near 1.0 and compresses it near 0 — the slope of `p ** g` is `g * p ** (g - 1)`, which is above 1 at the top and below it at the bottom — and the top is the crowded end. So it spreads the pairs worth telling apart and squeezes together the ones that were never in question:
 
 ```python
-near = lambda m: m.confusability("s", "ʃ") - m.confusability("p", "b")
-far = lambda m: m.confusability("k", "i") - m.confusability("p", "a")
+near = lambda m: m.similarity_position("s", "ʃ") - m.similarity_position("p", "b")
+far = lambda m: m.similarity_position("k", "i") - m.similarity_position("p", "a")
 near(sharp) > near(flat), far(sharp) < far(flat)   # (True, True)
 ```
 
@@ -370,7 +370,7 @@ Calling this *spreading the dissimilar pairs apart* invites the opposite reading
 round(sum(s ** 3 > 0.5 for s in sims) / len(sims), 2)   # 0.21
 ```
 
-**Where gamma does real work is word alignment**, because there the transformed values are *summed* rather than compared. `sub_cost` runs through the same percentile as `confusability`, but insertion and deletion cost a flat `insert_cost` and `delete_cost` and gamma never touches them. Raising gamma therefore raises the price of a substitution against a fixed price for a gap, and that is a change of exchange rate, not a relabeling. It can change which alignment the dynamic program picks:
+**Where gamma does real work is word alignment**, because there the transformed values are *summed* rather than compared. `sub_cost` runs through the same percentile as `similarity_position`, but insertion and deletion cost a flat `insert_cost` and `delete_cost` and gamma never touches them. Raising gamma therefore raises the price of a substitution against a fixed price for a gap, and that is a change of exchange rate, not a relabeling. It can change which alignment the dynamic program picks:
 
 ```python
 flat.transcription_distance("atə", "abt", return_alignment=True).alignment
@@ -383,9 +383,9 @@ At `gamma=1.0` substituting straight through is cheaper than a gap on each side 
 
 **There is no tuned default, and there will not be one.** Any specific value is a fit to whichever inventory and task produced it, and a number fitted to one source cannot be checked against anything — [docs/design/vowel-constriction.md](design/vowel-constriction.md) is the worked case of refusing exactly that, and concludes that "a table is refused on evidence, not on taste." `1.0` is the honest default precisely because it is the identity: it asserts nothing.
 
-To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `transcription_similarity` on that set, not over `confusability`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it. There is no upper bound: the transform stays in range and stays order-preserving however large the exponent gets, and how far up is useful is a fact about the caller's inventory rather than about the library.
+To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `transcription_similarity` on that set, not over `similarity_position`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it. There is no upper bound: the transform stays in range and stays order-preserving however large the exponent gets, and how far up is useful is a fact about the caller's inventory rather than about the library.
 
-**Gamma has no meaning on the plain `transcription_distance` path.** `ipakit.transcription_distance` and `IPAFeatures.transcription_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.confusability` and `ipakit.normalized_distance` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
+**Gamma has no meaning on the plain `transcription_distance` path.** `ipakit.transcription_distance` and `IPAFeatures.transcription_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.similarity_position` and `ipakit.distance_position` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
 
 ### Sweeping gamma, and choosing a threshold
 
@@ -415,7 +415,7 @@ for g in (1, 2, 4, 8, 16):
     print(g, round(auc(scores, labels), 3))
 ```
 
-Sweep on `transcription_similarity` / `sequence_similarity`, **not** on `confusability` or `distance`: on the phone-level API a gamma is exactly a change of threshold (above), so a sweep there measures nothing a cut point could not. How far up is useful is a fact about your inventory and task, not the library — which is why the default stays `1.0` and there is no shipped calibration.
+Sweep on `transcription_similarity` / `sequence_similarity`, **not** on `similarity_position` or `distance_position`: on the phone-level API a gamma is exactly a change of threshold (above), so a sweep there measures nothing a cut point could not. How far up is useful is a fact about your inventory and task, not the library — which is why the default stays `1.0` and there is no shipped calibration.
 
 ## 10. Per-phone indel costs, and what they are relative to
 
@@ -475,7 +475,7 @@ python scripts/confusion.py generate --write   # rewrite data/confusion.json
 python scripts/confusion.py validate           # CI guard: shipped == derived
 ```
 
-A saved matrix records the space it was derived in. `metric` in the matrix format is a digest of what the metric reads — every comparison bundle over the phones the file itself lists, and every declared feature's value scale — and every reader compares it against the inventory in hand and refuses a disagreement: `from_matrix_file` for a file you name, and `global_` and `for_phoneset` for the shipped one, which is the path `distance_model()` and `confusability` take and so the path an edit to `ipa.xml` is actually read on. `phones` cannot stand in for it: a bridge adds a term to the denominator of every distance in the inventory and leaves the phone list byte-identical, so it detects membership drift and nothing else. It is a refusal rather than a warning because the wrong answer is a well-formed percentile from another inventory's reference distribution, and nothing about such a number looks wrong. A file recording no `metric` is read without comment — an empirical TSV grid is not derived from this metric and has nothing to agree with. The bare `DistanceModel(...)` constructor is the deliberate escape: it takes a matrix as an argument and makes no claim about where it came from.
+A saved matrix records the space it was derived in. `metric` in the matrix format is a digest of what the metric reads — every comparison bundle over the phones the file itself lists, and every declared feature's value scale — and every reader compares it against the inventory in hand and refuses a disagreement: `from_matrix_file` for a file you name, and `global_` and `for_phoneset` for the shipped one, which is the path `distance_model()` and `similarity_position` take and so the path an edit to `ipa.xml` is actually read on. `phones` cannot stand in for it: a bridge adds a term to the denominator of every distance in the inventory and leaves the phone list byte-identical, so it detects membership drift and nothing else. It is a refusal rather than a warning because the wrong answer is a well-formed percentile from another inventory's reference distribution, and nothing about such a number looks wrong. A file recording no `metric` is read without comment — an empirical TSV grid is not derived from this metric and has nothing to agree with. The bare `DistanceModel(...)` constructor is the deliberate escape: it takes a matrix as an argument and makes no claim about where it came from.
 
 Keying the digest to the phone list the file carries is what keeps it independent of membership. A supplement adds phones and declares nothing, so a supplemented inventory reading a matrix derived before the supplement gets the same digest, correctly: the space did not move. Membership is `phones`' question, and the two keys do not overlap.
 

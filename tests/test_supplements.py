@@ -5,7 +5,7 @@
 The motivating case is registering a composed segment as a first-class
 phone -- ``tʰ``, ``ɪ̃``, ``t̚`` -- and most of what that sounds like it
 buys, it does not: a composed unit is already accepted as *input* by
-``features``, ``distance``, ``describe``, ``confusability`` and
+``features``, ``distance``, ``describe``, ``similarity_position`` and
 ``nearest_phones``. What registering actually buys is membership: a place
 in the reference distribution the metric normalizes against, an answer
 from ``to_phone``/``respell``, and a seat in the pools that
@@ -13,7 +13,7 @@ from ``to_phone``/``respell``, and a seat in the pools that
 from. So these tests are about membership and its two hazards.
 
 The first hazard is the metric. ``ipakit.phones`` is the reference
-distribution for ``confusability``, ``normalized_distance`` and
+distribution for ``similarity_position``, ``distance_position`` and
 ``DistanceModel.global_``, and ``data/confusion.json`` is that
 distribution shipped. A supplement that reached it would move numbers for
 every caller in the process, so the shipped artifacts are pinned here to
@@ -545,8 +545,8 @@ class TestToPhoneOnlyGainsAnswers:
 class TestTheShippedMetricDoesNotMove:
     """The distribution the package normalizes against is the bare inventory's.
 
-    ``f.phones`` is the reference for ``confusability``,
-    ``normalized_distance``, ``nearest_phones`` and
+    ``f.phones`` is the reference for ``similarity_position``,
+    ``distance_position``, ``nearest_phones`` and
     ``DistanceModel.global_``; ``data/confusion.json`` is that reference
     shipped, and ``scripts/confusion.py validate`` guards it. A supplement
     is opt-in per instance, so none of that can see one -- asserted here
@@ -594,10 +594,13 @@ class TestTheShippedMetricDoesNotMove:
     ) -> None:
         """The module-level reads share one cached inventory; building
         another must not reach it."""
-        before = (ipakit.distance("p", "b"), ipakit.confusability("p", "b"))
+        before = (ipakit.distance("p", "b"), ipakit.similarity_position("p", "b"))
         loaded = ipakit.load_ipa_features(supplements=[aspirated])
         assert "tʰ" in loaded.phones
-        assert (ipakit.distance("p", "b"), ipakit.confusability("p", "b")) == before
+        assert (
+            ipakit.distance("p", "b"),
+            ipakit.similarity_position("p", "b"),
+        ) == before
         assert "tʰ" not in ipakit.distance_model().reference_phones
 
     def test_the_shipped_model_still_refuses_a_composed_reference(
@@ -615,7 +618,9 @@ class TestTheShippedMetricDoesNotMove:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             without = ipakit.distance_model(reference=["p", "t", "k", "s", "a"])
-        assert model.confusability("tʰ", "t") == without.confusability("tʰ", "t")
+        assert model.similarity_position("tʰ", "t") == without.similarity_position(
+            "tʰ", "t"
+        )
 
 
 class TestASupplementCarriesItsOwnDerivedData:
@@ -642,8 +647,8 @@ class TestASupplementCarriesItsOwnDerivedData:
         assert derived.reference_phones == shipped.reference_phones
         for a in ("p", "t", "k", "s", "a", "i", "t͡ʃ"):
             for b in ("b", "d", "ɡ", "z", "u", "m"):
-                assert derived.confusability(a, b) == pytest.approx(
-                    shipped.confusability(a, b), abs=1e-9
+                assert derived.similarity_position(a, b) == pytest.approx(
+                    shipped.similarity_position(a, b), abs=1e-9
                 )
 
     def test_a_saved_matrix_reads_back(
@@ -653,7 +658,9 @@ class TestASupplementCarriesItsOwnDerivedData:
         path = model.save(tmp_path / "confusion.json")
         reloaded = DistanceModel.from_matrix_file(supplemented, path)
         assert reloaded.reference_phones == model.reference_phones
-        assert reloaded.confusability("tʰ", "t") == model.confusability("tʰ", "t")
+        assert reloaded.similarity_position("tʰ", "t") == model.similarity_position(
+            "tʰ", "t"
+        )
 
     def test_the_percentile_moves_because_the_yardstick_did(
         self, ipa: IPAFeatures, supplemented: IPAFeatures
@@ -661,7 +668,7 @@ class TestASupplementCarriesItsOwnDerivedData:
         """What registering buys, in one number.
 
         ``distance`` is inventory-independent and does not move.
-        ``confusability`` is a percentile within the reference
+        ``similarity_position`` is a percentile within the reference
         distribution, and three aspirated stops are three phones' worth of
         new pairs in it -- so the same raw distance reads differently, by
         design. That is the whole reason a supplemented instance needs its
@@ -670,4 +677,6 @@ class TestASupplementCarriesItsOwnDerivedData:
         assert ipa.distance("tʰ", "t") == supplemented.distance("tʰ", "t")
         shipped = DistanceModel.global_(ipa)
         own = DistanceModel.derive(supplemented)
-        assert own.confusability("tʰ", "t") != shipped.confusability("tʰ", "t")
+        assert own.similarity_position("tʰ", "t") != shipped.similarity_position(
+            "tʰ", "t"
+        )

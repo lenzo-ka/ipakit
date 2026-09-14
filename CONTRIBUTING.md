@@ -120,7 +120,7 @@ So **composition already covers the long tail, and registering a compound is not
 Two things to know before you add one:
 
 - **A registered tied entry carries no feature attributes.** Its features are derived at load, by the same composer that serves unregistered chains, under the entry's tie sense. Registration is a *cache* of composition, so the two cannot drift; `tests/test_tie_convergence.py` fails if you hand-encode features onto a tied entry. Give it a spelling, its aliases and its `href`, and let the loader do the rest.
-- **Registering changes the inventory, so it is a measured change.** `distance()` is absolute and inventory-independent, and will not move. `normalized_distance()`, `confusability()` and every model built on them are **percentiles within the loaded inventory**, so adding a single phone moves them for *every* pair. `ipakit/data/confusion.json` must be regenerated in the same commit, and a sweep before/after belongs in the pull request.
+- **Registering changes the inventory, so it is a measured change.** `distance()` is absolute and inventory-independent, and will not move. `distance_position()`, `similarity_position()` and every model built on them are **percentiles within the loaded inventory**, so adding a single phone moves them for *every* pair. `ipakit/data/confusion.json` must be regenerated in the same commit, and a sweep before/after belongs in the pull request.
 
 ### 3. Derived artifacts are regenerated, never hand-edited
 

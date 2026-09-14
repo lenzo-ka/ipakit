@@ -420,7 +420,7 @@ class TestAnInventoryRelativePackIsNotAPortableOne:
 
     def test_gamma_raises_realized_cost_toward_the_budget(self) -> None:
         """The direction matters and is easy to get backwards. A
-        `DistanceModel` ranks *confusability*, so a larger gamma pushes
+        `DistanceModel` ranks *similarity position*, so a larger gamma pushes
         realized substitution costs UP toward the indel budget -- which is
         the whole reason the parameter exists, since a budget-correct
         ceiling nothing reaches leaves the aligner preferring
