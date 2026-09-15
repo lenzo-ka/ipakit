@@ -83,8 +83,9 @@ ipa.describe("ḁ")  # 'voiceless open front unrounded vowel'
 
 `features()` is a scalar projection. It warns when that projection omits a
 sequential-tie constituent or a prosodic mark, naming the omitted material;
-`feature_values()` retains the constituent values and unit prosody. Plain phones,
-segmental diacritics such as `pʰ`, and composing simultaneous ties stay silent.
+`feature_values()` is the constituent `bag()` plus unit prosody, with the first
+mark winning when prosodic marks contradict. Plain phones, represented segmental
+diacritics such as `pʰ`, and composing simultaneous ties stay silent.
 
 > **Feature display defaults.** `features(phone)` returns
 > the *full* bundle — every feature, defaults included — and `with_defaults=False` gives

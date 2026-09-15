@@ -103,7 +103,7 @@ class IPAFeaturesBase:
 
     def _get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
         """Internal read; concrete inventories override this warning-free path."""
-        return self.get_features(phone, with_defaults=with_defaults)
+        raise NotImplementedError
 
     def expand_ligatures(self, ipa: str) -> str:
         raise NotImplementedError

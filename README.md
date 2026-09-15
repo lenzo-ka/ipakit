@@ -125,10 +125,10 @@ ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', .
 ```
 
 `features()` warns when its scalar bundle omits information, including a
-sequential-tie constituent or a prosodic mark. `feature_values()` is the
-lossless feature read for those units. Plain phones, segmental diacritics, and
-composing simultaneous ties are represented in the scalar bundle and stay
-silent.
+sequential-tie constituent or a prosodic mark, and names a read that retains
+each omission. `feature_values()` combines a constituent `bag()` with unit
+prosody, keeping the first mark when prosodic marks contradict. Plain phones,
+represented segmental diacritics, and composing simultaneous ties stay silent.
 
 ### Conversions
 

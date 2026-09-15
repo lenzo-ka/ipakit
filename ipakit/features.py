@@ -966,10 +966,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         bag, so ``eː`` reads the features of ``e`` and carries its length
         as prosody. This scalar projection warns whenever it omits such a
         mark, a sequential-tie constituent, or material the reader cannot
-        place. The warning names the omission and points to
-        :meth:`feature_values`, the lossless feature read. Segmental
-        diacritics, simultaneous ties, and semantically redundant marks are
-        represented without narrowing and stay silent.
+        place. The warning names each omission and a read that retains it.
+        Represented segmental diacritics, simultaneous ties, and semantically
+        redundant marks stay silent.
 
         What holds for one shape of base holds for the other. A mark the
         parse cannot place is refused whether the base is atomic or a tie
@@ -993,10 +992,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             feats = self._get_features(phone, with_defaults=with_defaults)
             omissions = self._feature_omissions(phone)
         if omissions:
+            recommendations: dict[str, list[str]] = {}
+            for omission, reader in omissions:
+                recommendations.setdefault(reader, []).append(omission)
             warnings.warn(
                 f"features() narrowed {phone!r}: dropped "
-                + "; ".join(omissions)
-                + "; use feature_values() for the lossless read",
+                + "; ".join(omission for omission, _ in omissions)
+                + "; "
+                + "; ".join(
+                    f"use {reader} for {', '.join(items)}"
+                    for reader, items in recommendations.items()
+                ),
                 FeatureNarrowingWarning,
                 stacklevel=stacklevel,
             )
@@ -1015,8 +1021,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             fill_defaults(self, feats)
         return feats
 
-    def _feature_omissions(self, phone: str) -> list[str]:
-        """Describe input information that cannot enter one scalar bundle.
+    def _feature_omissions(self, phone: str) -> list[tuple[str, str]]:
+        """Pair each scalar omission with a read that retains it.
 
         This follows the representation's construction: prosody is beside a
         Segment's bundle, a sequential juncture cuts ``flat_projection`` at
@@ -1030,25 +1036,40 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             return []
         form = self.read(source)
         segments = list(form.segments)
-        reports: list[str] = []
+        reports: list[tuple[str, str]] = []
 
         represented = Counter("".join(segment.to_ipa() for segment in segments))
         residual = list((Counter(source) - represented).elements())
 
         if len(segments) > 1:
-            reports.append(f"multiple units {[s.to_ipa() for s in segments]!r}")
+            reports.append(
+                (f"multiple units {[s.to_ipa() for s in segments]!r}", "segments()")
+            )
         elif not segments and not residual:
-            reports.append(f"non-segmental material {list(source)!r}")
+            reports.append((f"non-segmental material {list(source)!r}", "read()"))
 
         for segment in segments:
+            repeated = len(set(map(str, segment.constituents))) < len(
+                segment.constituents
+            )
+            with warnings.catch_warnings(record=True) as prosody_warnings:
+                warnings.simplefilter("always")
+                _prosodic_features(segment, self)
+            dropped_marks = self._unrepresented_marks(segment)
+            structured = repeated or bool(prosody_warnings) or bool(dropped_marks)
+            unit_reader = "read() / segments()" if structured else "feature_values()"
             if segment.prosody:
-                reports.append(f"prosodic mark(s) {list(segment.prosody)!r}")
+                reports.append(
+                    (f"prosodic mark(s) {list(segment.prosody)!r}", unit_reader)
+                )
             if Sense.SEQ in segment.junctures:
                 cut = list(segment.junctures).index(Sense.SEQ) + 1
                 dropped = [str(c) for c in segment.constituents[cut:]]
-                reports.append(f"sequential constituent(s) {dropped!r}")
-            if dropped_marks := self._unrepresented_marks(segment):
-                reports.append(f"diacritic mark(s) {dropped_marks!r}")
+                reports.append((f"sequential constituent(s) {dropped!r}", unit_reader))
+            if dropped_marks:
+                reports.append(
+                    (f"diacritic mark(s) {dropped_marks!r}", "read() / segments()")
+                )
 
         if residual:
             grouped: dict[str, list[str]] = {
@@ -1078,9 +1099,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 else:
                     label = "unregistered symbol(s)"
                 grouped[label].append(symbol)
-            reports.extend(
-                f"{label} {symbols!r}" for label, symbols in grouped.items() if symbols
-            )
+            for label, symbols in grouped.items():
+                if not symbols:
+                    continue
+                if label == "unregistered symbol(s)":
+                    reader = "strict=True / from_wild()"
+                elif label in {
+                    "unplaced diacritic mark(s)",
+                    "unrepresented phone symbol(s)",
+                }:
+                    reader = "strict=True"
+                elif label == "structural mark(s)" and any(
+                    symbol in self.tie_bars for symbol in symbols
+                ):
+                    reader = "strict=True"
+                else:
+                    reader = "read()"
+                reports.append((f"{label} {symbols!r}", reader))
         return reports
 
     def _unrepresented_marks(self, segment: Segment) -> list[str]:
@@ -1164,7 +1199,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return unit.scalar(with_defaults=with_defaults)
 
     def feature_values(self, unit: str) -> dict[str, tuple[str, ...]]:
-        """Every value each feature takes across one unit's constituents.
+        """A constituent feature bag plus first-wins unit prosody.
 
         The multi-valued companion of :meth:`get_features`, and the named
         bridge from the flat string API to the structured reads: the flat
@@ -1173,10 +1208,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ``backness`` reads ``back`` and the ``front`` is only recoverable
         from the token. This read keeps both, in constituent order.
 
-        The three shapes on :class:`Segment` are the same three:
-        ``scalar()`` is what :meth:`get_features` returns, ``bag()`` is this,
-        and ``disagreements()`` is this filtered to the features holding
-        more than one value. Prosody is retained here as well: where
+        This is :meth:`Segment.bag` plus unit prosody. Like the mark-stack
+        reads themselves, prosody is first-mark-wins when two marks
+        contradict on a single-valued feature. Where
         ``get_features("d̆")`` projects the base's default length,
         ``feature_values("d̆")`` reports ``("extra-short",)``.
 

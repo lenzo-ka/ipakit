@@ -640,20 +640,19 @@ def features(phone: str, with_defaults: bool = True) -> dict[str, str]:
     The scalar read: one value per feature. It warns with
     :class:`FeatureNarrowingWarning` when a sequential constituent, prosodic
     mark, or unread symbol cannot enter the flat bundle. Simultaneous ties
-    and segmental diacritics compose into the bundle and stay silent.
-    :func:`feature_values` is the lossless companion.
+    and represented segmental diacritics compose into the bundle and stay
+    silent. The warning points to the structured or multi-valued read that
+    retains each omission.
     """
     return _get_ipa()._reported_features(phone, with_defaults, stacklevel=3)
 
 
 def feature_values(unit: str) -> dict[str, tuple[str, ...]]:
-    """Every value each feature takes across one unit's constituents.
+    """A constituent feature bag plus first-wins unit prosody.
 
-    The bridge from the flat string API to the structured reads on
-    ``Segment``: ``scalar()`` is what :func:`features` returns, ``bag()`` is
-    this, and ``disagreements()`` is this filtered to the multi-valued
-    features. Unit prosody is included. Raises ``ValueError`` unless the text
-    is exactly one unit.
+    This is ``Segment.bag()`` plus unit prosody. Contradictory marks on a
+    single-valued prosodic feature follow the documented first-mark-wins rule.
+    Raises ``ValueError`` unless the text is exactly one unit.
 
     Examples:
         >>> feature_values("u͜i")["backness"]

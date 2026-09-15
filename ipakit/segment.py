@@ -992,7 +992,7 @@ class Segment:
         deduplicated. Bases are default-filled per constituent before the
         union (so ``u͜i`` carries rounded=(+, −)); modifier projections stay
         sparse. Unit prosody is beside this constituent-only read;
-        :meth:`IPAFeatures.feature_values` adds it for the lossless string API.
+        :meth:`IPAFeatures.feature_values` adds it for the flat string API.
         """
         features = self._require_features()
         out: dict[str, list[str]] = {}
