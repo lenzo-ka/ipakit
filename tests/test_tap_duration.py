@@ -10,6 +10,7 @@ import ipakit
 import pytest
 from ipakit import IPAFeatures
 from ipakit.metric import segment_terms
+from ipakit.tract import constrictions, posture
 from scripts.invariants import INHERENTLY_BRIEF, check_inherent_duration
 
 
@@ -47,12 +48,44 @@ def test_taps_are_complete_closures_and_the_trill_is_untouched(
     assert manner.coordinates["trill"]["offset"] == 0.70
 
 
+@pytest.mark.parametrize("phone", sorted(INHERENTLY_BRIEF))
+def test_each_tap_reaches_the_same_complete_contact_as_a_plosive(
+    ipa: IPAFeatures, phone: str
+) -> None:
+    tap = posture(ipa, phone).constrictions
+    plosive_bundle = ipa.get_features(phone)
+    plosive_bundle["manner"] = "plosive"
+    plosive_bundle.pop("inherent-duration")
+    plosive = constrictions(ipa, plosive_bundle)
+
+    assert tap == plosive
+    assert len(tap) == 1
+    assert tap[0].offset == 1.0
+
+
 def test_tap_query_still_selects_all_four(ipa: IPAFeatures) -> None:
     assert set(ipa.phones_matching({"manner": "tap"})) == INHERENTLY_BRIEF
 
 
 def test_public_features_show_inherent_duration() -> None:
     assert ipakit.features("ɾ")["inherent-duration"] == "brief"
+
+
+def test_derived_taps_preserve_inherent_duration(ipa: IPAFeatures) -> None:
+    for phone in ("ɾʲ", "ɾ̃", "ɾˠ", "ɾʷ"):
+        assert ipakit.features(phone, with_defaults=False)["inherent-duration"] == (
+            "brief"
+        )
+        assert ipa.segment(phone).scalar(with_defaults=False)["inherent-duration"] == (
+            "brief"
+        )
+
+    mfa = ipakit.inventory("mfa")
+    mfa_tap = mfa.style.read(mfa.style.spell("ɾʲ"))
+    assert mfa_tap == "ɾʲ"
+    assert ipakit.features(mfa_tap, with_defaults=False)["inherent-duration"] == (
+        "brief"
+    )
 
 
 def test_written_and_inherent_brevity_remain_distinct(ipa: IPAFeatures) -> None:
@@ -62,15 +95,59 @@ def test_written_and_inherent_brevity_remain_distinct(ipa: IPAFeatures) -> None:
     assert "inherent-duration" not in written
     assert "length" not in tap and "length" not in written
     assert ipa.segment("d̆").prosody == ("̆",)
-    assert ipa.distance("ɾ", "d̆") > 0.0
+    terms = segment_terms(ipa, ipa.segment("ɾ"), ipa.segment("d̆"))
+    assert [row for row in terms if row[0] == "inherent-duration"] == [
+        ("inherent-duration", "brief", None, 1.0)
+    ]
+    assert [row for row in terms if row[0] == "length (prosodic)"] == [
+        ("length (prosodic)", "normal", "extra-short", 1.0 / 3.0)
+    ]
+    assert ipa.distance("ɾ", "d̆") == sum(row[3] for row in terms) / len(terms)
 
 
-def test_explain_names_the_segmental_term_without_calling_it_length(
+def test_live_inherent_duration_has_one_conditional_term_of_mass(
     ipa: IPAFeatures,
 ) -> None:
-    labels = [row[0] for row in segment_terms(ipa, ipa.segment("ɾ"), ipa.segment("d"))]
-    assert labels.count("inherent-duration") == 1
-    assert "inherent-duration (prosodic)" not in labels
+    tap_stop = segment_terms(ipa, ipa.segment("ɾ"), ipa.segment("d"))
+    ordinary = segment_terms(ipa, ipa.segment("d"), ipa.segment("t"))
+    shared = segment_terms(ipa, ipa.segment("ɾ"), ipa.segment("ɽ"))
+
+    assert [row for row in tap_stop if row[0] == "inherent-duration"] == [
+        ("inherent-duration", "brief", None, 1.0)
+    ]
+    assert not [row for row in ordinary if row[0] == "inherent-duration"]
+    assert len(ordinary) == len(segment_terms(ipa, ipa.segment("d"), ipa.segment("d")))
+    assert float(len(tap_stop) - len(ordinary)) == 1.0
+    assert [row for row in shared if row[0] == "inherent-duration"] == [
+        ("inherent-duration", "brief", "brief", 0.0)
+    ]
+    assert float(len(shared) - len(ordinary)) == 1.0
+
+    for left, right, terms in (
+        ("ɾ", "d", tap_stop),
+        ("d", "t", ordinary),
+        ("ɾ", "ɽ", shared),
+    ):
+        assert ipa.distance(left, right) == sum(row[3] for row in terms) / len(terms)
+
+
+def test_public_explanation_keeps_segmental_and_written_brevity_separate() -> None:
+    steps = ipakit.explain_transcription_distance("ɾ", "d̆")
+    assert len(steps) == 1
+    assert (steps[0]["op"], steps[0]["a"], steps[0]["b"]) == ("sub", "ɾ", "d̆")
+    rows = steps[0]["terms"]
+    assert isinstance(rows, list)
+    assert [row for row in rows if row["label"] == "inherent-duration"] == [
+        {"label": "inherent-duration", "a": "brief", "b": None, "cost": 1.0}
+    ]
+    assert [row for row in rows if row["label"] == "length (prosodic)"] == [
+        {
+            "label": "length (prosodic)",
+            "a": "normal",
+            "b": "extra-short",
+            "cost": 0.3333,
+        }
+    ]
 
 
 def test_written_vowel_length_distance_is_unchanged(ipa: IPAFeatures) -> None:
