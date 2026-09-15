@@ -93,7 +93,7 @@
       <value name="vowel" offset="0.40" short="vow" href="Vowel"/>
       <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
       <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
-      <value name="tap" offset="0.75" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
+      <value name="tap" offset="1.00" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
       <value name="nasal" offset="1.00" short="nas" bare="+" href="Nasal_consonant"/>
       <value name="fricative" offset="0.80" short="fri" natural-class="obstruent" href="Fricative"/>
       <value name="plosive" offset="1.00" short="plo" alias="stop" natural-class="obstruent" href="Plosive"/>
@@ -243,6 +243,21 @@
       <value name="normal" short="nml"/>
       <value name="half-long" short="hlg"/>
       <value name="long" short="lng"/>
+    </feature>
+
+    <!-- Inherent duration is segmental material, not a written length mark.
+         `ordinary` is the unfilled comparison center: declaring it makes the
+         other endpoint and its full-step distance explicit without putting a
+         zero-cost key into every ordinary phone and diluting unrelated pairs.
+         A stated `brief` therefore enters only comparisons containing an
+         inherently brief phone. It has the mass of one ordinary feature term,
+         matching the conditional mass of one written prosodic rider while
+         remaining in the phone's own bundle on its own time axis. This scale
+         and mass follow the one-declared-dimension/one-term rule; neither is
+         fitted to a tap's neighbors or to an external inventory mapping. -->
+    <feature name="inherent-duration" axis="+intrinsic-t" short="idt" center="ordinary" desc="Inherent segment duration" href="Tap_and_flap_consonants">
+      <value name="brief" short="brf" label="inherently brief"/>
+      <value name="ordinary" short="ord"/>
     </feature>
 
     <!-- Diacritic features -->
@@ -720,12 +735,12 @@
     <phone name="ɶ" manner="vowel" height="open" backness="front" rounded="+" voiced="+" href="Open_front_rounded_vowel"/>
     <phone name="ɸ" manner="fricative" place="bilabial" href="Voiceless_bilabial_fricative"/>
     <phone name="ɹ" manner="approximant" place="alveolar" voiced="+" href="Voiced_alveolar_approximant"/>
-    <phone name="ɺ" manner="tap" place="alveolar" voiced="+" channel="lateral" href="Voiced_alveolar_lateral_flap"/>
+    <phone name="ɺ" manner="tap" place="alveolar" voiced="+" channel="lateral" inherent-duration="brief" href="Voiced_alveolar_lateral_flap"/>
     <phone name="ɻ" manner="approximant" place="postalveolar" voiced="+" retroflex="+" href="Voiced_retroflex_approximant"/>
 
-    <phone name="ɽ" manner="tap" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_flap"/>
-    <phone name="ɾ" manner="tap" place="alveolar" voiced="+" href="Voiced_alveolar_flap"/>
-    <phone name="ⱱ" manner="tap" place="labiodental" voiced="+" href="Voiced_labiodental_flap"/>
+    <phone name="ɽ" manner="tap" place="alveolar" voiced="+" retroflex="+" inherent-duration="brief" href="Voiced_retroflex_flap"/>
+    <phone name="ɾ" manner="tap" place="alveolar" voiced="+" inherent-duration="brief" href="Voiced_alveolar_flap"/>
+    <phone name="ⱱ" manner="tap" place="labiodental" voiced="+" inherent-duration="brief" href="Voiced_labiodental_flap"/>
     <phone name="ʀ" manner="trill" place="uvular" voiced="+" href="Voiced_uvular_trill"/>
     <phone name="ʁ" manner="fricative" place="uvular" voiced="+" href="Voiced_uvular_fricative"/>
     <phone name="ʂ" channel="grooved" manner="fricative" place="alveolar" retroflex="+" href="Voiceless_retroflex_fricative"/>
