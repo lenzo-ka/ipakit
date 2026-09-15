@@ -131,22 +131,78 @@ def test_live_inherent_duration_has_one_conditional_term_of_mass(
         assert ipa.distance(left, right) == sum(row[3] for row in terms) / len(terms)
 
 
-def test_public_explanation_keeps_segmental_and_written_brevity_separate() -> None:
-    steps = ipakit.explain_transcription_distance("ɾ", "d̆")
+@pytest.mark.parametrize(
+    ("left", "right", "expected_brevity_rows"),
+    (
+        (
+            "ɾ",
+            "d̆",
+            [
+                {
+                    "label": "inherent-duration",
+                    "a": "brief",
+                    "b": None,
+                    "cost": 1.0,
+                },
+                {
+                    "label": "length (prosodic)",
+                    "a": "normal",
+                    "b": "extra-short",
+                    "cost": 0.3333,
+                },
+            ],
+        ),
+        (
+            "d̆",
+            "ɾ",
+            [
+                {
+                    "label": "inherent-duration",
+                    "a": None,
+                    "b": "brief",
+                    "cost": 1.0,
+                },
+                {
+                    "label": "length (prosodic)",
+                    "a": "extra-short",
+                    "b": "normal",
+                    "cost": 0.3333,
+                },
+            ],
+        ),
+    ),
+)
+def test_public_explanation_keeps_segmental_and_written_brevity_separate(
+    left: str,
+    right: str,
+    expected_brevity_rows: list[dict[str, object]],
+) -> None:
+    steps = ipakit.explain_transcription_distance(left, right)
     assert len(steps) == 1
-    assert (steps[0]["op"], steps[0]["a"], steps[0]["b"]) == ("sub", "ɾ", "d̆")
+    assert (steps[0]["op"], steps[0]["a"], steps[0]["b"]) == (
+        "sub",
+        left,
+        right,
+    )
     rows = steps[0]["terms"]
     assert isinstance(rows, list)
-    assert [row for row in rows if row["label"] == "inherent-duration"] == [
-        {"label": "inherent-duration", "a": "brief", "b": None, "cost": 1.0}
+    duration_and_length_rows = [
+        row
+        for row in rows
+        if "duration" in str(row["label"]) or "length" in str(row["label"])
     ]
-    assert [row for row in rows if row["label"] == "length (prosodic)"] == [
-        {
-            "label": "length (prosodic)",
-            "a": "normal",
-            "b": "extra-short",
-            "cost": 0.3333,
-        }
+    assert duration_and_length_rows == [
+        expected_brevity_rows[0],
+        {"label": "length", "a": "normal", "b": "normal", "cost": 0.0},
+        expected_brevity_rows[1],
+    ]
+    assert [row for row in duration_and_length_rows if row["cost"] != 0.0] == (
+        expected_brevity_rows
+    )
+    assert not [
+        row
+        for row in rows
+        if "inherent-duration" in str(row["label"]) and "prosodic" in str(row["label"])
     ]
 
 
