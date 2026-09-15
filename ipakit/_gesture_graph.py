@@ -97,7 +97,7 @@ def project(
                 value = segment_event.features.get("value")
                 if not isinstance(value, Segment):
                     continue
-                bundle = inventory.get_features(value.to_ipa())
+                bundle = inventory._get_features(value.to_ipa())
                 points = constrictions(inventory, bundle)
                 for target_index, point in enumerate(points):
                     facts = _point_features(point, value.to_ipa(), target_index)

@@ -8,6 +8,7 @@ import re
 import unicodedata
 import warnings
 import xml.etree.ElementTree as ET
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -77,6 +78,10 @@ _Terms = tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]
 #: ``AttributeError`` out of a public method (#148).
 FeatureQuery = Mapping[str, str] | Iterable[str]
 """A feature-to-value mapping or an iterable of feature query terms."""
+
+
+class FeatureNarrowingWarning(UserWarning):
+    """A flat feature read omitted information carried by its input unit."""
 
 
 def available_supplements() -> list[str]:
@@ -922,7 +927,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                composed = self.get_features(symbol, with_defaults=False)
+                composed = self._get_features(symbol, with_defaults=False)
             if not composed or not set(composed) - METADATA_ATTRS:
                 raise ValueError(
                     f"supplement {supplement!r} declares {symbol!r} with no "
@@ -957,9 +962,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         A base carrying diacritics (``tʲ``, ``ã``, ``tʰ``) is neither
         registered nor a tie chain; it reads through the same parse the
         structured level uses, so the two levels cannot disagree about
-        one string. Prosodic marks are the documented exception: they
-        belong to the unit, not to its feature bag, so ``eː`` reads the
-        features of ``e`` and carries its length as prosody.
+        one string. Prosodic marks belong to the unit, not to its feature
+        bag, so ``eː`` reads the features of ``e`` and carries its length
+        as prosody. This scalar projection warns whenever it omits such a
+        mark, a sequential-tie constituent, or material the reader cannot
+        place. The warning names the omission and points to
+        :meth:`feature_values`, the lossless feature read. Segmental
+        diacritics, simultaneous ties, and semantically redundant marks are
+        represented without narrowing and stay silent.
 
         What holds for one shape of base holds for the other. A mark the
         parse cannot place is refused whether the base is atomic or a tie
@@ -970,6 +980,30 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         Returns ``{}`` when nothing resolves.
         """
+        return self._reported_features(phone, with_defaults, stacklevel=3)
+
+    def _reported_features(
+        self, phone: str, with_defaults: bool, *, stacklevel: int
+    ) -> dict[str, str]:
+        """Public scalar read, with exactly one narrowing report."""
+        with warnings.catch_warnings():
+            # The parser reports malformed pieces individually. A flat read
+            # reports its complete omission once, under the public category.
+            warnings.simplefilter("ignore")
+            feats = self._get_features(phone, with_defaults=with_defaults)
+            omissions = self._feature_omissions(phone)
+        if omissions:
+            warnings.warn(
+                f"features() narrowed {phone!r}: dropped "
+                + "; ".join(omissions)
+                + "; use feature_values() for the lossless read",
+                FeatureNarrowingWarning,
+                stacklevel=stacklevel,
+            )
+        return feats
+
+    def _get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
+        """Scalar feature read for package internals, without API warnings."""
         phone = self._resolve_token(phone)
         if phone in self.phones:
             feats = dict(self.phones[phone].features)
@@ -981,13 +1015,113 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             fill_defaults(self, feats)
         return feats
 
+    def _feature_omissions(self, phone: str) -> list[str]:
+        """Describe input information that cannot enter one scalar bundle.
+
+        This follows the representation's construction: prosody is beside a
+        Segment's bundle, a sequential juncture cuts ``flat_projection`` at
+        its first sequential boundary, and a constituent mark is redundant
+        only when removing it changes no bundle and its claims already hold.
+        Anything not attached to a Segment remains after the represented
+        spellings are subtracted from the canonical input.
+        """
+        source = self.canonicalize_unicode(self.expand_ligatures(phone))
+        if not source:
+            return []
+        form = self.read(source)
+        segments = list(form.segments)
+        reports: list[str] = []
+
+        represented = Counter("".join(segment.to_ipa() for segment in segments))
+        residual = list((Counter(source) - represented).elements())
+
+        if len(segments) > 1:
+            reports.append(f"multiple units {[s.to_ipa() for s in segments]!r}")
+        elif not segments and not residual:
+            reports.append(f"non-segmental material {list(source)!r}")
+
+        for segment in segments:
+            if segment.prosody:
+                reports.append(f"prosodic mark(s) {list(segment.prosody)!r}")
+            if Sense.SEQ in segment.junctures:
+                cut = list(segment.junctures).index(Sense.SEQ) + 1
+                dropped = [str(c) for c in segment.constituents[cut:]]
+                reports.append(f"sequential constituent(s) {dropped!r}")
+            if dropped_marks := self._unrepresented_marks(segment):
+                reports.append(f"diacritic mark(s) {dropped_marks!r}")
+
+        if residual:
+            grouped: dict[str, list[str]] = {
+                "prosodic mark(s)": [],
+                "structural mark(s)": [],
+                "unplaced diacritic mark(s)": [],
+                "non-segmental symbol(s)": [],
+                "unrepresented phone symbol(s)": [],
+                "unregistered symbol(s)": [],
+            }
+            for symbol in residual:
+                if symbol in self.diacritics:
+                    mode = modifier_mode(self, symbol)
+                    label = (
+                        "prosodic mark(s)"
+                        if mode == "prosodic"
+                        else (
+                            "structural mark(s)"
+                            if mode == "structural"
+                            else "unplaced diacritic mark(s)"
+                        )
+                    )
+                elif symbol.isspace() or symbol in self.carries_no_segment:
+                    label = "non-segmental symbol(s)"
+                elif symbol in self.phones:
+                    label = "unrepresented phone symbol(s)"
+                else:
+                    label = "unregistered symbol(s)"
+                grouped[label].append(symbol)
+            reports.extend(
+                f"{label} {symbols!r}" for label, symbols in grouped.items() if symbols
+            )
+        return reports
+
+    def _unrepresented_marks(self, segment: Segment) -> list[str]:
+        """Return non-redundant constituent marks omitted by composition."""
+        dropped: list[str] = []
+        for constituent in segment.constituents:
+            for marks, approach in (
+                (constituent.approach, True),
+                (constituent.modifiers, False),
+            ):
+                for index, mark in enumerate(marks):
+                    if modifier_mode(self, mark) in {"prosodic", "structural"}:
+                        continue
+                    remaining = marks[:index] + marks[index + 1 :]
+                    without = (
+                        dataclasses.replace(constituent, approach=remaining)
+                        if approach
+                        else dataclasses.replace(constituent, modifiers=remaining)
+                    )
+                    full = constituent.bundle(self, with_defaults=False)
+                    reduced = without.bundle(self, with_defaults=False)
+                    if full != reduced:
+                        continue
+                    claims = {
+                        key: self.diacritics[mark].features[key]
+                        for key in phase_keys(self, mark, approach)
+                    }
+                    # No change plus an already-held claim is redundancy.
+                    if claims and any(
+                        full.get(key) != value for key, value in claims.items()
+                    ):
+                        dropped.append(mark)
+        return dropped
+
     def _modified_features(
         self, phone: str, with_defaults: bool = True
     ) -> dict[str, str]:
         """Features of a base carrying diacritics, via the structured parse.
 
         :meth:`Segment.scalar` is the modifier overlay over the unit's
-        bare chain, and it calls back into :meth:`get_features` with that
+        bare chain, and it calls back into :meth:`_get_features` with that
         chain. That is the recursion this guards: when the chain is the
         string itself, nothing was stripped, so the overlay has nothing
         to add and the chain is the string we already failed to resolve.
@@ -1042,11 +1176,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         The three shapes on :class:`Segment` are the same three:
         ``scalar()`` is what :meth:`get_features` returns, ``bag()`` is this,
         and ``disagreements()`` is this filtered to the features holding
-        more than one value.
+        more than one value. Prosody is retained here as well: where
+        ``get_features("d̆")`` projects the base's default length,
+        ``feature_values("d̆")`` reports ``("extra-short",)``.
 
         Raises ``ValueError`` if ``unit`` is not exactly one unit.
         """
-        return self.segment(unit).bag()
+        segment = self.segment(unit)
+        values = segment.bag()
+        values.update(
+            {key: (value,) for key, value in _prosodic_features(segment, self).items()}
+        )
+        return values
 
     def _resolve_token(self, token: str) -> str:
         """Canonicalize a token: Unicode form, then alias -> registered name.
@@ -1836,7 +1977,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             symbol
             for symbol in self.phones
             if self._satisfies(
-                self.get_features(symbol, with_defaults=with_defaults),
+                self._get_features(symbol, with_defaults=with_defaults),
                 {},
                 segmental,
                 prosodic,
@@ -1963,7 +2104,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         best: tuple[int, int, int, int] | None = None
         winner: str | None = None
         for order, symbol in enumerate(self.phones):
-            feats = self.get_features(symbol)
+            feats = self._get_features(symbol)
             if any(feats.get(k) != v for k, v in query.items()):
                 continue
             supplemented = 1 if symbol in self.supplement_of else 0
@@ -2002,7 +2143,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         differ here, so it cannot change an answer that existed. A change
         that *names* the borrowing writes it, like any other.
         """
-        feats = self.get_features(symbol)
+        feats = self._get_features(symbol)
         if not feats:
             return None
         feats.update(changes)
@@ -2056,7 +2197,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         feature has to fail loudly rather than quietly leave the phone as
         it was.
         """
-        if not self.get_features(phone):
+        if not self._get_features(phone):
             raise ValueError(f"cannot resolve phone {phone!r}")
         wanted: dict[str, str] = {}
         for name, value in changes.items():
@@ -2391,7 +2532,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             )
 
         try:
-            was = self.get_features(base)
+            was = self._get_features(base)
             unit = self.segment(base, strict=True)
         except (ValueError, KeyError):
             return None
@@ -2503,7 +2644,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             ).to_ipa()
             if self.segment(candidate).to_ipa() != candidate:
                 return None
-            got = self.get_features(candidate)
+            got = self._get_features(candidate)
         except (ValueError, KeyError):
             return None
         if any(got.get(key) != value for key, value in wanted.items()):

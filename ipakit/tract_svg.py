@@ -674,7 +674,7 @@ def drawing(
     caption: dict[str, Any] | None = None
     active: dict[str, str] | None = None
     if phone is not None:
-        stated = ipa.get_features(phone, with_defaults=False)
+        stated = ipa._get_features(phone, with_defaults=False)
         caption = {
             "phone": phone,
             # Asked of the inventory this drawing is being made against,
@@ -686,7 +686,7 @@ def drawing(
                 (k, v) for k, v in sorted(stated.items()) if k not in ("href", "class")
             ],
         }
-        bundle = ipa.get_features(phone)
+        bundle = ipa._get_features(phone)
         point = tract_point(ipa, bundle)
         # A vowel states backness and height, not place, so its place set is
         # empty rather than absent -- absent would mean "label them all".

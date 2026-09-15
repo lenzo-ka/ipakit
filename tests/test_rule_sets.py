@@ -1036,7 +1036,7 @@ class TestTheUnitIsTheMoraNotTheSyllable:
             for word in CORPUS[JAPANESE]
             for unit in R.units(rs.apply(word), FEATURES)
             if unit.segment is not None
-            and FEATURES.get_features(unit.core).get("place") == "postalveolar"
+            and FEATURES._get_features(unit.core).get("place") == "postalveolar"
         }
         assert left == set(), f"postalveolars survive: {sorted(left)}"
 
@@ -1502,7 +1502,7 @@ class TestGermanFinalDevoicingDerivesTheseForms:
                 continue
             if pattern.matches(units[0], FEATURES):
                 matched.add(phone)
-            if FEATURES.get_features(phone).get("manner") in obstruent_manners:
+            if FEATURES._get_features(phone).get("manner") in obstruent_manners:
                 expected.add(phone)
         assert expected, "no obstruents in the inventory; the test is vacuous"
         assert (

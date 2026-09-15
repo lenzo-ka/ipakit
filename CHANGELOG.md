@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
 - Renamed `confusability`/`normalized_distance` to `similarity_position`/`distance_position`; `DistanceModel.confusability`/`.similarity` to `.similarity_position`, `.distance` to `.distance_position`, and `.nearest` to `.nearest_positions` returning `PhonePosition`; and CLI `distance confusability` (`conf`) to `distance positions` (`pos`) with matching output labels.
 
 ## [0.3.0] - 2026-09-13

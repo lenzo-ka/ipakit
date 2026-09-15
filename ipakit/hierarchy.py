@@ -26,7 +26,7 @@ class HierarchyMixin(IPAFeaturesBase):
 
         # Compose each phone's full feature dict once, rather than recomputing it
         # at every recursion level and for every candidate split feature.
-        feats = {p: self.get_features(p, with_defaults=True) for p in phones}
+        feats = {p: self._get_features(p, with_defaults=True) for p in phones}
 
         def build_node(phone_set: list[str], remaining: list[str]) -> HierarchyNode:
             if not phone_set:

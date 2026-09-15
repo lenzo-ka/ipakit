@@ -582,7 +582,7 @@ def declared(extra: Sequence[str] = ()) -> dict[str, float | None]:
     features = IPAFeatures()
     out: dict[str, float | None] = {}
     for symbol in [sym for sym, _, _ in SHAPES] + list(extra):
-        bundle = features.get_features(symbol)
+        bundle = features._get_features(symbol)
         out[symbol] = tract_point(features, bundle).arc if bundle else None
     return out
 
@@ -602,7 +602,7 @@ def backness_only(extra: Sequence[str] = ()) -> dict[str, float | None]:
     coordinates = features.features["backness"].coordinates
     out: dict[str, float | None] = {}
     for symbol in [sym for sym, _, _ in SHAPES] + list(extra):
-        bundle = features.get_features(symbol)
+        bundle = features._get_features(symbol)
         value = bundle.get("backness") if bundle else None
         out[symbol] = coordinates.get(value, {}).get("arc") if value else None
     return out
@@ -1266,7 +1266,7 @@ def _chart_cells() -> dict[str, tuple[str, str]]:
     for symbol in sorted({*VOWELS, *BOTH_SESSIONS, *(v for v, _ in JAPANESE)}):
         if symbol in CHART_SKIP:
             continue
-        bundle = ipa.get_features(symbol)
+        bundle = ipa._get_features(symbol)
         cells[symbol] = (bundle["height"], bundle["backness"])
     return cells
 
@@ -1433,7 +1433,7 @@ def cmd_replicate(table: Table, args: argparse.Namespace) -> int:
     proportional = wood_proportional()
     features = IPAFeatures()
     arcs = {
-        vowel: tract_point(features, features.get_features(vowel)).arc
+        vowel: tract_point(features, features._get_features(vowel)).arc
         for vowel, _ in JAPANESE
     }
 

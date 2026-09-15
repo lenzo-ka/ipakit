@@ -114,7 +114,7 @@ class TestNaturalClassTerms:
         members = ipa.features["manner"].value_classes["obstruent"]
         assert members, "the obstruent natural class must be declared"
         expected = {
-            p for p in ipa.phones if ipa.get_features(p).get("manner") in members
+            p for p in ipa.phones if ipa._get_features(p).get("manner") in members
         }
         assert expected, "no obstruents in the inventory; the test is vacuous"
         assert set(ipa.phones_matching(["obstruent"])) == expected
@@ -131,7 +131,7 @@ class TestNaturalClassTerms:
         assert narrowed == {
             p
             for p in ipa.phones_matching(["obstruent"])
-            if ipa.get_features(p).get("manner") != "fricative"
+            if ipa._get_features(p).get("manner") != "fricative"
         }
         assert narrowed < set(ipa.phones_matching(["obstruent"]))
 

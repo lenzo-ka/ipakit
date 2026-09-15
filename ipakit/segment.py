@@ -991,7 +991,9 @@ class Segment:
         """Union feature bag: per-feature value tuples in constituent order,
         deduplicated. Bases are default-filled per constituent before the
         union (so ``u͜i`` carries rounded=(+, −)); modifier projections stay
-        sparse."""
+        sparse. Unit prosody is beside this constituent-only read;
+        :meth:`IPAFeatures.feature_values` adds it for the lossless string API.
+        """
         features = self._require_features()
         out: dict[str, list[str]] = {}
         for constituent in self.constituents:
@@ -1026,7 +1028,7 @@ class Segment:
         """
         features = self._require_features()
         if not any(c.modifiers or c.approach for c in self.constituents):
-            return features.get_features(self.spelling, with_defaults=with_defaults)
+            return features._get_features(self.spelling, with_defaults=with_defaults)
         feats = flat_projection(
             features,
             [part_bundle(features, c) for c in self.constituents],

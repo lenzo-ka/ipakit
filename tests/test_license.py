@@ -83,6 +83,6 @@ class TestTheLicenseCostsTheInventoryNothing:
         ipa = ipakit.load_ipa_features()
         assert "license" not in ipa.classes
         for phone in ipa.phones:
-            bundle = ipakit.features(phone)
+            bundle = ipa._get_features(phone)
             assert "spdx" not in bundle
             assert "license" not in bundle

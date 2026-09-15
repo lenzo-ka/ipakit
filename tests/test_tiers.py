@@ -45,7 +45,7 @@ class TestTheTierVocabularyIsDeclaredAndNominal:
         structural feature is excluded from every phone bundle.
         """
         assert ipa.features["tier"].mode == "structural"
-        assert not any("tier" in ipa.get_features(p) for p in ipa.phones)
+        assert not any("tier" in ipa._get_features(p) for p in ipa.phones)
 
     def test_declaring_the_tier_vocabulary_moved_no_distance(self) -> None:
         """Measured over every pair, against the inventory without it.

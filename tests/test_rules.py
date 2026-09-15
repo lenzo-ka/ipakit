@@ -760,7 +760,7 @@ class TestAnInsertionHasNoUnitToModify:
         for phone in _phones():
             bundle = {
                 key: value
-                for key, value in FEATURES.get_features(phone).items()
+                for key, value in FEATURES._get_features(phone).items()
                 if key in FEATURES.features
                 and FEATURES.features[key].mode != "prosodic"
             }
@@ -1628,7 +1628,11 @@ class TestNamingProsodyOnALiteralDoesNotJoinIdentity:
 
     def test_the_bundles_are_still_one(self):
         """If this ever fails, the fix went the wrong way round."""
-        assert ipakit.features("a") == ipakit.features("ˈa") == ipakit.features("aː")
+        assert (
+            FEATURES._get_features("a")
+            == FEATURES._get_features("ˈa")
+            == FEATURES._get_features("aː")
+        )
 
     def test_the_split_reads_the_declaration_not_a_glyph_table(self):
         assert split_prosody("aː", FEATURES) == ("a", ("ː",))
@@ -1753,7 +1757,7 @@ class TestAssigningThenClearingProsodyReturnsTheSpelling:
         non_nuclei = {
             phone
             for phone in phones
-            if not FEATURES.is_nucleus(FEATURES.get_features(phone))
+            if not FEATURES.is_nucleus(FEATURES._get_features(phone))
         }
         expected_declined = {"t contour=rising"} | {
             f"{phone} stress={level}"

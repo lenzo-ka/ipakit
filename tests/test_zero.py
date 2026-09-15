@@ -263,7 +263,7 @@ class TestTheFlatApiReadsTheDeclaration:
         # It carries no phonetic features, and the description must not
         # supply any: that empty bag is what keeps the zero out of the
         # metric by construction.
-        assert FEATURES.get_features("∅") == {}
+        assert FEATURES._get_features("∅") == {}
         said = ipakit.describe("∅")
         values = {
             v

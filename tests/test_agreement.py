@@ -470,7 +470,7 @@ class TestTheCollapsedNasalRule:
         named = {"bilabial", "velar", "alveolar"}
         checked = 0
         for phone in (p for p in FEATURES.phones if FEATURES.segment(p).to_ipa() == p):
-            place = FEATURES.get_features(phone).get("place")
+            place = FEATURES._get_features(phone).get("place")
             for frame in ("ˈan{}a", "an{}#", "ˈɪn{}ət"):
                 form = frame.format(phone)
                 got = collapsed.apply(form, FEATURES)
@@ -496,7 +496,7 @@ class TestTheCollapsedNasalRule:
         moved: dict[str, int] = {}
         checked = 0
         for phone in (p for p in FEATURES.phones if FEATURES.segment(p).to_ipa() == p):
-            place = FEATURES.get_features(phone).get("place")
+            place = FEATURES._get_features(phone).get("place")
             for frame in ("ˈan{}a", "an{}#", "ˈɪn{}ət"):
                 form = frame.format(phone)
                 checked += 1

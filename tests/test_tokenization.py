@@ -405,8 +405,8 @@ class TestTieBindsTheWholeUnit:
         assert len(ipa.segments(text, strict=True)) == 1
         assert _nfc(ipa.segment(text, strict=True).to_ipa()) == _nfc(text)
         assert text in ipa
-        assert ipa.get_features(text)
-        assert ipa.compose(text) == [ipa.get_features(text)]
+        assert ipa._get_features(text)
+        assert ipa.compose(text) == [ipa._get_features(text)]
 
     def test_the_modifier_stays_on_its_own_constituent(self, ipa: IPAFeatures) -> None:
         unit = ipa.segment("kʷ͡p", strict=True)

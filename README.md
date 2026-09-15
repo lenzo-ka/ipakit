@@ -124,6 +124,12 @@ ipakit.validate_ipa("kæt")      # []  (valid)
 ipakit.validate_ipa("k4t")      # [{'type': 'error', 'code': 'unknown_symbol', ...}]
 ```
 
+`features()` warns when its scalar bundle omits information, including a
+sequential-tie constituent or a prosodic mark. `feature_values()` is the
+lossless feature read for those units. Plain phones, segmental diacritics, and
+composing simultaneous ties are represented in the scalar bundle and stay
+silent.
+
 ### Conversions
 
 ```python

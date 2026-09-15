@@ -364,7 +364,7 @@ The rule holds in both directions and the declaration always wins: declare `α` 
 
 ## Stress is not part of a phone's identity
 
-`features("a")`, `features("ˈa")` and `features("aː")` are one bundle: the `mode="prosodic"` features live on the unit, outside the feature bag (see [ties.md](ties.md)). So:
+`features("a")`, `features("ˈa")` and `features("aː")` return one scalar bundle: the `mode="prosodic"` features live on the unit, outside that bundle (see [ties.md](ties.md)). The two marked reads warn about the omitted prosody and point to `feature_values()`. So:
 
 ```python
 ipa.rewrite("kˈat", "a -> ɑ")      # 'kˈɑt'  -- 'a' matches the stressed 'ˈa'

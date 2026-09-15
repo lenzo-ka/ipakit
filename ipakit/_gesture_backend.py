@@ -65,7 +65,7 @@ def oral_tract_frames(
         value = event.features.get("value")
         if not isinstance(value, Segment):
             continue
-        for point in constrictions(inventory, inventory.get_features(value.to_ipa())):
+        for point in constrictions(inventory, inventory._get_features(value.to_ipa())):
             frames.append(
                 ArticulatoryFrame(
                     "segments", reference, point, drawing_head.project(point), None

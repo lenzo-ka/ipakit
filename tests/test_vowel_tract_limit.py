@@ -127,7 +127,7 @@ def ipa() -> IPAFeatures:
 
 def _vowels(ipa: IPAFeatures) -> list[str]:
     return [
-        p for p in sorted(ipa.phones) if ipa.get_features(p).get("manner") == "vowel"
+        p for p in sorted(ipa.phones) if ipa._get_features(p).get("manner") == "vowel"
     ]
 
 
@@ -144,7 +144,7 @@ class TestTheLimitAsItStands:
         spread: dict[str, set[float | None]] = {}
         unsourced: dict[str, set[float | None]] = {}
         for phone in _vowels(ipa):
-            bundle = ipa.get_features(phone)
+            bundle = ipa._get_features(phone)
             arc = tract_point(ipa, bundle).arc
             spread.setdefault(bundle["backness"], set()).add(arc)
             if "constriction-location" not in bundle:
@@ -169,10 +169,10 @@ class TestTheLimitAsItStands:
         a location, and three arcs remain: `ʌ` shares `o` and `ɔ`'s,
         which is what its family says and what its own 0.65 says.
         """
-        arcs = {p: tract_point(ipa, ipa.get_features(p)).arc for p in "uoɑɔʌ"}
+        arcs = {p: tract_point(ipa, ipa._get_features(p)).arc for p in "uoɑɔʌ"}
         assert arcs == {"u": 0.45, "o": 0.56, "ɑ": 0.74, "ɔ": 0.56, "ʌ": 0.56}
         assert len(set(arcs.values())) == 3
-        stated = {p for p in arcs if "constriction-location" in ipa.get_features(p)}
+        stated = {p for p in arcs if "constriction-location" in ipa._get_features(p)}
         assert stated == {"u", "o", "ɑ", "ɔ", "ʌ"}
 
     def test_the_pharyngeal_anchor_is_reached_only_by_a_stated_location(
@@ -183,14 +183,14 @@ class TestTheLimitAsItStands:
         reached now, and only through a stated location: `a ɑ æ` are
         Wood's `[ɑ-a-æ]`-like family and nothing else gets there."""
         places = ipa.features["place"].coordinates
-        arcs = {p: tract_point(ipa, ipa.get_features(p)).arc for p in _vowels(ipa)}
+        arcs = {p: tract_point(ipa, ipa._get_features(p)).arc for p in _vowels(ipa)}
         backness = ipa.features["backness"].coordinates
         assert max(c["arc"] for c in backness.values()) == places["uvular"]["arc"]
         assert places["pharyngeal"]["arc"] == 0.74
         past = {p for p, a in arcs.items() if a is not None and a > 0.56}
         assert past, "nothing reaches past uvular: the fix did not land"
         for phone in past:
-            assert ipa.get_features(phone)["constriction-location"] == "pharyngeal"
+            assert ipa._get_features(phone)["constriction-location"] == "pharyngeal"
             assert arcs[phone] == places["pharyngeal"]["arc"]
 
     def test_a_secondary_articulation_cannot_reach_a_vowel(
@@ -205,7 +205,7 @@ class TestTheLimitAsItStands:
         consonant mechanism by construction.
         """
         approximant = ipa.features["manner"].coordinates["approximant"]["offset"]
-        degrees = {tract_point(ipa, ipa.get_features(p)).offset for p in _vowels(ipa)}
+        degrees = {tract_point(ipa, ipa._get_features(p)).offset for p in _vowels(ipa)}
         assert degrees, "sweep did not run"
         assert all(d is not None and d < approximant for d in degrees), sorted(degrees)
 
@@ -236,7 +236,7 @@ class TestTheLimitAsItStands:
         assert len(vowels) > 20, f"only {len(vowels)} vowels: the sweep is vacuous"
         approximate, sourced = 0, 0
         for phone in vowels:
-            stated = ipa.get_features(phone, with_defaults=False)
+            stated = ipa._get_features(phone, with_defaults=False)
             reading = tract_reading(ipa, stated)
             assert "height" in reading.read, phone
             kinds = {m.feature: m.kind for m in unmodeled(ipa, stated)}

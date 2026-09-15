@@ -19,7 +19,8 @@ obvious implementation is wrong. They are counted by their headings and
 not in this sentence, which said "three" while there were four.
 
 **Stress is not part of a phone's identity.** ``features("a")``,
-``features("ˈa")`` and ``features("aː")`` are the same bundle: the six
+``features("ˈa")`` and ``features("aː")`` return the same bundle, with the
+marked scalar reads warning that they omit prosody: the six
 ``mode="prosodic"`` features live on the unit, outside the feature bag
 (docs/ties.md). So the pattern ``a`` matches a stressed ``ˈa``, which is
 what a rule about the vowel /a/ should do. Prosody is a second

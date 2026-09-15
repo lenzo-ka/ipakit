@@ -23,7 +23,7 @@ MODIFIED = ["tʲ", "ã", "tʰ", "n̩", "eː", "á", "t̪", "kʷ"]
 class TestModifiedUnitsRead:
     def test_diacritic_bearing_units_have_features(self, ipa: IPAFeatures) -> None:
         for unit in MODIFIED:
-            assert ipa.get_features(unit), unit
+            assert ipa._get_features(unit), unit
 
     def test_the_modifier_reaches_the_bundle(self, ipa: IPAFeatures) -> None:
         assert ipa.get_features("tʲ")["palatalized"] == "+"
@@ -69,12 +69,12 @@ class TestLevelsAgree:
                 except ValueError:
                     continue
                 checked += 1
-                assert ipa.get_features(unit) == structured, unit
+                assert ipa._get_features(unit) == structured, unit
         assert checked > 5_000, "sweep did not run"
 
     def test_agreement_over_the_registered_inventory(self, ipa: IPAFeatures) -> None:
         for symbol in ipa.phones:
-            assert ipa.get_features(symbol) == ipa.segment(symbol).scalar(), symbol
+            assert ipa._get_features(symbol) == ipa.segment(symbol).scalar(), symbol
 
 
 class TestUnresolvableStaysUnresolvable:
@@ -82,22 +82,22 @@ class TestUnresolvableStaysUnresolvable:
 
     def test_unknown_input_is_still_empty(self, ipa: IPAFeatures) -> None:
         for junk in ["4", "Q", "NOTAPHONE", ""]:
-            assert ipa.get_features(junk) == {}, junk
+            assert ipa._get_features(junk) == {}, junk
 
     def test_a_parse_that_drops_input_is_refused(self, ipa: IPAFeatures) -> None:
         # Tokenization discards characters it does not know, so "q͡X"
         # parses to "q". Accepting that would report the features of a
         # different unit than the caller wrote.
-        assert ipa.get_features("q͡X") == {}
+        assert ipa._get_features("q͡X") == {}
         assert "q͡X" not in ipa
-        assert ipa.get_features("q͡χ"), "the real composed unit still reads"
+        assert ipa._get_features("q͡χ"), "the real composed unit still reads"
 
     def test_containment_matches_what_can_be_read(self, ipa: IPAFeatures) -> None:
         # __contains__ documents itself as "what get_features resolves";
         # nearest_phones gates on it, so drift here silently refuses
         # input the rest of the API accepts.
         for unit in [*MODIFIED, "t", "q͡χ", "4", "q͡X", "NOTAPHONE"]:
-            assert (unit in ipa) == bool(ipa.get_features(unit)), unit
+            assert (unit in ipa) == bool(ipa._get_features(unit)), unit
 
 
 class TestDownstreamNoLongerLies:
@@ -129,8 +129,10 @@ class TestProsodyIsTheDocumentedException:
     """Prosodic marks belong to the unit, not to its feature bag."""
 
     def test_a_prosodic_unit_reads_its_base_features(self, ipa: IPAFeatures) -> None:
-        assert ipa.get_features("eː")["manner"] == "vowel"
-        assert ipa.get_features("eː") == ipa.get_features("e")
+        with pytest.warns(ipakit.FeatureNarrowingWarning):
+            marked = ipa.get_features("eː")
+        assert marked["manner"] == "vowel"
+        assert marked == ipa.get_features("e")
 
     def test_the_mark_is_carried_as_prosody(self, ipa: IPAFeatures) -> None:
         assert ipa.segment("eː").prosody == ("ː",)

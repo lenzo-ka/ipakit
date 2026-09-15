@@ -76,6 +76,7 @@ from .experiment import Experiment as Experiment
 from .experiment import ExperimentReport as ExperimentReport
 from .experiment import Movement as Movement
 from .experiment import Residue as Residue
+from .features import FeatureNarrowingWarning as FeatureNarrowingWarning
 from .features import (
     FeatureQuery,
     IPAFeatures,
@@ -636,10 +637,13 @@ def distance_model(
 def features(phone: str, with_defaults: bool = True) -> dict[str, str]:
     """Get phonetic features for an IPA phone.
 
-    The scalar read: one value per feature. :func:`feature_values` is the
-    multi-valued companion, for units whose constituents disagree.
+    The scalar read: one value per feature. It warns with
+    :class:`FeatureNarrowingWarning` when a sequential constituent, prosodic
+    mark, or unread symbol cannot enter the flat bundle. Simultaneous ties
+    and segmental diacritics compose into the bundle and stay silent.
+    :func:`feature_values` is the lossless companion.
     """
-    return _get_ipa().get_features(phone, with_defaults=with_defaults)
+    return _get_ipa()._reported_features(phone, with_defaults, stacklevel=3)
 
 
 def feature_values(unit: str) -> dict[str, tuple[str, ...]]:
@@ -648,11 +652,10 @@ def feature_values(unit: str) -> dict[str, tuple[str, ...]]:
     The bridge from the flat string API to the structured reads on
     ``Segment``: ``scalar()`` is what :func:`features` returns, ``bag()`` is
     this, and ``disagreements()`` is this filtered to the multi-valued
-    features. Raises ``ValueError`` unless the text is exactly one unit.
+    features. Unit prosody is included. Raises ``ValueError`` unless the text
+    is exactly one unit.
 
     Examples:
-        >>> features("u͜i")["backness"]  # scalar: the first element
-        'back'
         >>> feature_values("u͜i")["backness"]
         ('back', 'front')
     """
