@@ -642,7 +642,8 @@ def features(phone: str, with_defaults: bool = True) -> dict[str, str]:
     mark, or unread symbol cannot enter the flat bundle. Simultaneous ties
     and represented segmental diacritics compose into the bundle and stay
     silent. The warning points to the structured or multi-valued read that
-    retains each omission.
+    retains each omission when one exists, and says plainly when no read
+    retains it. ``strict=True`` is refusal, not recovery.
     """
     return _get_ipa()._reported_features(phone, with_defaults, stacklevel=3)
 

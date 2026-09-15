@@ -977,6 +977,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         none of these gives it one. ``t͡sˈ`` used to answer with ``t͡s``'s
         bundle and say nothing.
 
+        Each warning names a read that retains the omitted material when
+        one exists.  Material no representation keeps, such as an orphan
+        tie, is instead reported as having no retaining read; ``strict=True``
+        is named only as the way to refuse that input.
+
         Returns ``{}`` when nothing resolves.
         """
         return self._reported_features(phone, with_defaults, stacklevel=3)
@@ -993,16 +998,27 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             omissions = self._feature_omissions(phone)
         if omissions:
             recommendations: dict[str, list[str]] = {}
+            unretained: list[str] = []
             for omission, reader in omissions:
-                recommendations.setdefault(reader, []).append(omission)
+                if reader is None:
+                    unretained.append(omission)
+                else:
+                    recommendations.setdefault(reader, []).append(omission)
+            advice = [
+                f"use {reader} for {', '.join(items)}"
+                for reader, items in recommendations.items()
+            ]
+            if unretained:
+                advice.append(
+                    "no read retains "
+                    + ", ".join(unretained)
+                    + "; use strict=True to refuse instead"
+                )
             warnings.warn(
                 f"features() narrowed {phone!r}: dropped "
                 + "; ".join(omission for omission, _ in omissions)
                 + "; "
-                + "; ".join(
-                    f"use {reader} for {', '.join(items)}"
-                    for reader, items in recommendations.items()
-                ),
+                + "; ".join(advice),
                 FeatureNarrowingWarning,
                 stacklevel=stacklevel,
             )
@@ -1021,8 +1037,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             fill_defaults(self, feats)
         return feats
 
-    def _feature_omissions(self, phone: str) -> list[tuple[str, str]]:
-        """Pair each scalar omission with a read that retains it.
+    def _feature_omissions(self, phone: str) -> list[tuple[str, str | None]]:
+        """Pair each scalar omission with its retaining read, if one exists.
 
         This follows the representation's construction: prosody is beside a
         Segment's bundle, a sequential juncture cuts ``flat_projection`` at
@@ -1036,7 +1052,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             return []
         form = self.read(source)
         segments = list(form.segments)
-        reports: list[tuple[str, str]] = []
+        reports: list[tuple[str, str | None]] = []
 
         represented = Counter("".join(segment.to_ipa() for segment in segments))
         residual = list((Counter(source) - represented).elements())
@@ -1049,15 +1065,23 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             reports.append((f"non-segmental material {list(source)!r}", "read()"))
 
         for segment in segments:
-            repeated = len(set(map(str, segment.constituents))) < len(
-                segment.constituents
-            )
+            # ``feature_values`` is the constituent ``bag`` plus prosody,
+            # and ``bag`` deduplicates values.  Distinct spellings can still
+            # have the same default-filled bundle (for example ``b̥`` and
+            # ``p̥``), so spelling equality is not the loss boundary.
+            # If two constituents have the same bundle, only a structured
+            # read can witness that both and which two occurred.
+            constituent_bundles = [
+                frozenset(constituent.bundle(self, with_defaults=True).items())
+                for constituent in segment.constituents
+            ]
+            repeated = len(set(constituent_bundles)) < len(constituent_bundles)
             with warnings.catch_warnings(record=True) as prosody_warnings:
                 warnings.simplefilter("always")
                 _prosodic_features(segment, self)
             dropped_marks = self._unrepresented_marks(segment)
             structured = repeated or bool(prosody_warnings) or bool(dropped_marks)
-            unit_reader = "read() / segments()" if structured else "feature_values()"
+            unit_reader = "segments()" if structured else "feature_values()"
             if segment.prosody:
                 reports.append(
                     (f"prosodic mark(s) {list(segment.prosody)!r}", unit_reader)
@@ -1067,19 +1091,18 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 dropped = [str(c) for c in segment.constituents[cut:]]
                 reports.append((f"sequential constituent(s) {dropped!r}", unit_reader))
             if dropped_marks:
-                reports.append(
-                    (f"diacritic mark(s) {dropped_marks!r}", "read() / segments()")
-                )
+                reports.append((f"diacritic mark(s) {dropped_marks!r}", "segments()"))
 
         if residual:
-            grouped: dict[str, list[str]] = {
-                "prosodic mark(s)": [],
-                "structural mark(s)": [],
-                "unplaced diacritic mark(s)": [],
-                "non-segmental symbol(s)": [],
-                "unrepresented phone symbol(s)": [],
-                "unregistered symbol(s)": [],
-            }
+            labels = (
+                "prosodic mark(s)",
+                "structural mark(s)",
+                "unplaced diacritic mark(s)",
+                "non-segmental symbol(s)",
+                "unrepresented phone symbol(s)",
+                "unregistered symbol(s)",
+            )
+            classified: list[tuple[str, str]] = []
             for symbol in residual:
                 if symbol in self.diacritics:
                     mode = modifier_mode(self, symbol)
@@ -1098,24 +1121,42 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     label = "unrepresented phone symbol(s)"
                 else:
                     label = "unregistered symbol(s)"
-                grouped[label].append(symbol)
-            for label, symbols in grouped.items():
-                if not symbols:
-                    continue
-                if label == "unregistered symbol(s)":
-                    reader = "strict=True / from_wild()"
-                elif label in {
-                    "unplaced diacritic mark(s)",
-                    "unrepresented phone symbol(s)",
-                }:
-                    reader = "strict=True"
-                elif label == "structural mark(s)" and any(
-                    symbol in self.tie_bars for symbol in symbols
-                ):
-                    reader = "strict=True"
+                classified.append((label, symbol))
+
+            # ``from_wild`` is a retaining route only when it actually
+            # changes this input into something the strict reader accepts.
+            # It deliberately leaves ambiguous and unknown symbols alone.
+            wild = self.from_wild(source)
+            wild_recovers = False
+            if wild != source:
+                try:
+                    self.read(wild, strict=True)
+                except ValueError:
+                    pass
                 else:
+                    wild_recovers = True
+
+            grouped: dict[tuple[str, str | None], list[str]] = {}
+            for label, symbol in classified:
+                if label == "unregistered symbol(s)":
+                    reader = (
+                        "read(from_wild(...), strict=True)" if wild_recovers else None
+                    )
+                elif label == "structural mark(s)" and symbol in self.tie_bars:
+                    # Orphan ties belong to neither a Form position nor a
+                    # Segment.  The strict option rejects them; it does not
+                    # recover them.
+                    reader = None
+                else:
+                    # Form's exact spelling retains unitless positions and
+                    # unplaced registered marks even when its segment
+                    # projection warns that they attach to no Segment.
                     reader = "read()"
-                reports.append((f"{label} {symbols!r}", reader))
+                grouped.setdefault((label, reader), []).append(symbol)
+            for label in labels:
+                for (group_label, reader), symbols in grouped.items():
+                    if group_label == label:
+                        reports.append((f"{label} {symbols!r}", reader))
         return reports
 
     def _unrepresented_marks(self, segment: Segment) -> list[str]:

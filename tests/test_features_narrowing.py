@@ -1,4 +1,4 @@
-"""Scalar feature warnings name omitted material and a retaining read."""
+"""Scalar warnings name omissions and a retaining read when one exists."""
 
 from __future__ import annotations
 
@@ -23,6 +23,162 @@ def _one_warning(call, text: str) -> str:
     message = str(narrowed[0].message)
     assert repr(text) in message
     return message
+
+
+POINTER_CASES = [
+    pytest.param(
+        "u͜i",
+        "sequential constituent(s) ['i']",
+        "feature_values()",
+        "feature",
+        ("backness", "front"),
+        id="distinct sequential value",
+    ),
+    pytest.param(
+        "aː",
+        "prosodic mark(s) ['ː']",
+        "feature_values()",
+        "feature",
+        ("length", "long"),
+        id="unit prosody",
+    ),
+    pytest.param(
+        "a͜a",
+        "sequential constituent(s) ['a']",
+        "segments()",
+        "constituents",
+        ["a", "a"],
+        id="repeated spelling",
+    ),
+    pytest.param(
+        "b̥͜p̥",
+        "sequential constituent(s) ['p̥']",
+        "segments()",
+        "constituents",
+        ["b̥", "p̥"],
+        id="distinct equal-bundle constituents",
+    ),
+    pytest.param(
+        "aː̆",
+        "prosodic mark(s) ['ː', '̆']",
+        "segments()",
+        "prosody",
+        ("ː", "̆"),
+        id="contradictory prosody",
+    ),
+    pytest.param(
+        "a̺̻",
+        "diacritic mark(s) ['̻']",
+        "segments()",
+        "modifiers",
+        ("̺", "̻"),
+        id="contradictory constituent marks",
+    ),
+    pytest.param(
+        "a a",
+        "multiple units ['a', 'a']",
+        "segments()",
+        "units",
+        ["a", "a"],
+        id="multiple units",
+    ),
+    pytest.param(
+        "ː",
+        "prosodic mark(s) ['ː']",
+        "read()",
+        "form",
+        "ː",
+        id="standalone registered prosodic mark",
+    ),
+    pytest.param(
+        "a|",
+        "structural mark(s) ['|']",
+        "read()",
+        "form",
+        "a|",
+        id="form boundary",
+    ),
+    pytest.param(
+        "̃a",
+        "unplaced diacritic mark(s) ['̃']",
+        "read()",
+        "form",
+        "̃a",
+        id="unplaced registered mark",
+    ),
+    pytest.param(
+        "∅",
+        "non-segmental symbol(s) ['∅']",
+        "read()",
+        "form",
+        "∅",
+        id="registered zero",
+    ),
+    pytest.param(
+        "g",
+        "unregistered symbol(s) ['g']",
+        "read(from_wild(...), strict=True)",
+        "wild-form",
+        "ɡ",
+        id="recoverable wild spelling",
+    ),
+]
+
+
+def _assert_pointer_retains(
+    ipa: IPAFeatures,
+    text: str,
+    omission: str,
+    reader: str,
+    witness: str,
+    expected: object,
+) -> None:
+    """Couple warning advice to executing the exact reader it names."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert (omission, reader) in ipa._feature_omissions(text)
+    message = _one_warning(lambda: ipa.get_features(text), text)
+    assert f"use {reader} for {omission}" in message
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if reader == "feature_values()":
+            key, value = expected
+            assert value in ipa.feature_values(text)[key]
+        elif reader == "segments()":
+            segments = ipa.segments(text)
+            if witness == "constituents":
+                assert [str(part) for part in segments[0].constituents] == expected
+            elif witness == "prosody":
+                assert segments[0].prosody == expected
+            elif witness == "modifiers":
+                assert segments[0].constituents[0].modifiers == expected
+            elif witness == "units":
+                assert [segment.to_ipa() for segment in segments] == expected
+            else:  # pragma: no cover - guarded by the table above
+                raise AssertionError(f"unknown segments() witness {witness!r}")
+        elif reader == "read()":
+            assert ipa.read(text).to_ipa() == expected
+        elif reader == "read(from_wild(...), strict=True)":
+            converted = ipa.from_wild(text)
+            assert converted == expected
+            assert ipa.read(converted, strict=True).to_ipa() == expected
+        else:  # pragma: no cover - a newly advertised reader needs an executor
+            raise AssertionError(f"no test executor for warning reader {reader!r}")
+
+
+@pytest.mark.parametrize(
+    ("text", "omission", "reader", "witness", "expected"), POINTER_CASES
+)
+def test_every_pointer_executes_and_retains_its_named_omission(
+    ipa: IPAFeatures,
+    text: str,
+    omission: str,
+    reader: str,
+    witness: str,
+    expected: object,
+) -> None:
+    _assert_pointer_retains(ipa, text, omission, reader, witness, expected)
 
 
 class TestNarrowingByConstruction:
@@ -94,16 +250,33 @@ class TestNarrowingByConstruction:
     ) -> None:
         text = "a͜a"
         message = _one_warning(lambda: ipa.get_features(text), text)
-        assert "read() / segments()" in message
+        assert "segments()" in message
         (unit,) = ipa.segments(text, strict=True)
         assert [str(part) for part in unit.constituents] == ["a", "a"]
+
+    def test_distinct_equal_bundle_constituents_point_to_the_structured_read(
+        self, ipa: IPAFeatures
+    ) -> None:
+        text = "b̥͜p̥"
+        unit = ipa.segment(text, strict=True)
+        first, second = unit.constituents
+        assert {first.base, second.base} <= ipa.phones.keys()
+        assert "̥" in ipa.diacritics
+        assert str(first) != str(second)
+        assert first.bundle(ipa, with_defaults=True) == second.bundle(
+            ipa, with_defaults=True
+        )
+        assert unit.bag() == ipa.segment("b̥", strict=True).bag()
+        message = _one_warning(lambda: ipa.get_features(text), text)
+        assert "segments()" in message
+        assert [str(part) for part in unit.constituents] == ["b̥", "p̥"]
 
     def test_contradictory_prosody_points_to_the_structured_read(
         self, ipa: IPAFeatures
     ) -> None:
         text = "aː̆"
         message = _one_warning(lambda: ipa.get_features(text), text)
-        assert "read() / segments()" in message
+        assert "segments()" in message
         with pytest.warns(UserWarning, match="two marks state 'length'"):
             (unit,) = ipa.segments(text, strict=True)
         assert unit.prosody == ("ː", "̆")
@@ -114,19 +287,36 @@ class TestNarrowingByConstruction:
         text = "a̺̻"
         message = _one_warning(lambda: ipa.get_features(text), text)
         assert "diacritic mark(s) ['̻']" in message
-        assert "read() / segments()" in message
+        assert "segments()" in message
         with pytest.warns(UserWarning, match="two marks state 'articulator'"):
             (unit,) = ipa.segments(text, strict=True)
         assert unit.constituents[0].modifiers == ("̺", "̻")
 
-    def test_unregistered_symbol_points_to_refusal_or_import(
+    def test_unregistered_symbol_with_no_wild_read_points_only_to_refusal(
         self, ipa: IPAFeatures
     ) -> None:
         text = "X"
         message = _one_warning(lambda: ipa.get_features(text), text)
         assert "unregistered symbol(s) ['X']" in message
-        assert "strict=True / from_wild()" in message
+        assert "no read retains unregistered symbol(s) ['X']" in message
+        assert "use strict=True to refuse instead" in message
+        assert "from_wild" not in message
+        assert ipa.from_wild(text) == text
         with pytest.raises(ValueError, match="unknown symbols"):
+            ipa.read(text, strict=True)
+
+    @pytest.mark.parametrize("text", ["͜", "͡"])
+    def test_orphan_tie_has_no_retaining_read(
+        self, ipa: IPAFeatures, text: str
+    ) -> None:
+        message = _one_warning(lambda: ipa.get_features(text), text)
+        omission = f"structural mark(s) {[text]!r}"
+        assert f"no read retains {omission}" in message
+        assert "use strict=True to refuse instead" in message
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            assert text not in ipa.read(text).to_ipa()
+        with pytest.raises(ValueError, match="bind nothing"):
             ipa.read(text, strict=True)
 
     def test_multiple_units_point_to_a_read_that_keeps_both(
@@ -232,13 +422,50 @@ class TestCallBoundary:
             ipa.get_features("a͜ɪ")
         assert caught[0].filename == __file__
 
-    def test_internal_feature_consumers_do_not_spray(self, ipa: IPAFeatures) -> None:
+    def test_representative_internal_consumers_do_not_call_the_warning_path(
+        self, ipa: IPAFeatures
+    ) -> None:
+        operations = {
+            "analysis tied": lambda: ipa.describe("a͜ɪ"),
+            "analysis marked": lambda: ipa.describe("d̆"),
+            "metric tied": lambda: ipa.distance("a͜ɪ", "a͜ʊ"),
+            "metric marked": lambda: ipa.distance("d", "d̆"),
+            "query": lambda: ipa.find("ˈa͜ɪd̆", ["vow"]),
+            "rules": lambda: ipakit.rewrite("ˈa͜ɪd̆", "d̆ -> t"),
+            "respelling tied": lambda: ipa.respell("a͜ɪ", voiced="+"),
+            "respelling marked": lambda: ipa.respell("d̆", voiced="-"),
+            "mapping": lambda: ipakit.phoneset_mapping(
+                ["a͜ɪ", "d̆"], ["a͜ʊ", "d"], ipa=ipa
+            ),
+        }
         with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            assert ipa.segment("d̆").scalar()["manner"] == "plosive"
-            assert ipa.describe("a͜ɪ")
-            assert ipa.natural_class(["d̆", "d"])
-            assert ipa.distance("d", "d̆") > 0
+            warnings.simplefilter("error", FeatureNarrowingWarning)
+            results = {name: operation() for name, operation in operations.items()}
+        assert all(result is not None for result in results.values())
+
+    def test_runtime_guard_catches_an_aliased_internal_call(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # Compile the fault with a package filename: the direct-call AST scan
+        # cannot see the alias call, but the warning-as-error runtime boundary
+        # observes the public scalar read regardless of how it was reached.
+        package_file = Path(ipakit.__file__).resolve().parent / "features.py"
+        namespace: dict[str, object] = {}
+        exec(
+            compile(
+                "def injected(inventory):\n"
+                "    scalar_read = inventory.get_features\n"
+                "    return scalar_read('a͜ɪ')\n",
+                str(package_file),
+                "exec",
+            ),
+            namespace,
+        )
+        injected = namespace["injected"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FeatureNarrowingWarning)
+            with pytest.raises(FeatureNarrowingWarning):
+                injected(ipa)
 
 
 class TestTheWarningGuardIsCausal:
@@ -255,8 +482,36 @@ class TestTheWarningGuardIsCausal:
         }
         assert missing, "the warning witness did not actually lose a feature value"
 
+    def test_fault_injected_bag_pointer_fails_the_pointer_check(
+        self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        original = IPAFeatures._feature_omissions
+
+        def point_prosody_at_bag(
+            inventory: IPAFeatures, text: str
+        ) -> list[tuple[str, str | None]]:
+            return [
+                (omission, "bag()" if reader == "feature_values()" else reader)
+                for omission, reader in original(inventory, text)
+            ]
+
+        monkeypatch.setattr(IPAFeatures, "_feature_omissions", point_prosody_at_bag)
+        message = _one_warning(lambda: ipa.get_features("aː"), "aː")
+        assert "use bag() for prosodic mark(s) ['ː']" in message
+        assert ipa.segment("aː").bag()["length"] == ("normal",)
+        with pytest.raises(AssertionError):
+            _assert_pointer_retains(
+                ipa,
+                "aː",
+                "prosodic mark(s) ['ː']",
+                "feature_values()",
+                "feature",
+                ("length", "long"),
+            )
+
 
 def test_package_internals_do_not_call_the_public_scalar_read() -> None:
+    """Fast syntactic tripwire; the runtime sweep covers aliases it misses."""
     root = Path(ipakit.__file__).resolve().parent
     violations: list[str] = []
     for path in root.rglob("*.py"):
@@ -280,7 +535,7 @@ def test_package_internals_do_not_call_the_public_scalar_read() -> None:
     assert violations == []
 
 
-@pytest.mark.parametrize("text", ["a͜ɪ", "aː"])
+@pytest.mark.parametrize("text", ["a͜ɪ", "aː", "d̆"])
 def test_features_cli_is_quiet_and_successful(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], text: str
 ) -> None:
