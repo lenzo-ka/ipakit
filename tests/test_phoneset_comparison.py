@@ -88,6 +88,8 @@ def test_english_us_pair_invariants() -> None:
     assert result.backward.collapses["ɑ"] == ("ɑ", "ɑː")
     assert result.backward.collapses["ɔ"] == ("ɒ", "ɒː")
     assert result.backward.collapses["ʊ"] == ("ʉ", "ʉː", "ʊ")
+    assert result.backward.collapses["d"] == ("d", "dʲ", "d̪", "ɟʷ", "ɾ", "ɾʲ")
+    assert "ð" not in result.backward.collapses
     assert set(result.intersection) <= set(result.union)
     assert set(result.only_a).isdisjoint(result.only_b)
     assert result.forward.source is result.a

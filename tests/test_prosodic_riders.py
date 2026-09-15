@@ -70,10 +70,10 @@ class TestItIsMetricOnlyAndContained:
         assert ipa.read("ˈkɛt").to_ipa() == "ˈkɛt"
         assert "stress" not in ipa.get_features("ˈɛ")
 
-    def test_the_confusion_triangle_is_unmoved(self, ipa):
-        # No shipped phone carries a rider, so the phone matrix is identical
-        # -- the similarity position (a percentile over it) is stable.
-        assert ipakit.similarity_position("s", "ʃ") == 0.9981234361968306
+    def test_the_prosodic_feature_adds_no_phone_term(self, ipa):
+        # No shipped phone carries a rider. The exact position is repinned
+        # when another segmental declaration moves the reference matrix.
+        assert ipakit.similarity_position("s", "ʃ") == 0.9984361968306923
 
 
 class TestExplainTrace:

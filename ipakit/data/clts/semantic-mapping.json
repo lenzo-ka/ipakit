@@ -1,6 +1,6 @@
 {
   "bindings": {
-    "native_metric": "846e8d2e10fe5b13",
+    "native_metric": "02cb89f901fa7e92",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
     "source_inputs": {
       ".zenodo.json": "74cccea55b3ce72643e12bd873cc03d3d51ff548ebc777e134c11b6a082cc9ae",
@@ -3452,6 +3452,52 @@
       {
         "context": {
           "applies": [],
+          "axis": "+intrinsic-t",
+          "center": "ordinary",
+          "default": null,
+          "locus": null,
+          "mode": null,
+          "offscale": false,
+          "sequence": false,
+          "type": "ordinal",
+          "value_index": 0,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "inherent-duration",
+          "brief"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": "+intrinsic-t",
+          "center": "ordinary",
+          "default": null,
+          "locus": null,
+          "mode": null,
+          "offscale": false,
+          "sequence": false,
+          "type": "ordinal",
+          "value_index": 1,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "inherent-duration",
+          "ordinary"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
           "axis": null,
           "center": null,
           "default": "-",
@@ -5637,7 +5683,7 @@
         "pkg/transcriptionsystems/features.json": "4a2964f6ccdfde87625b7adccc63323996bbf28ce469f62bcc08f437fde03211"
       },
       "ipakit": {
-        "ipa.xml": "3c676543cea56e73967005277739aee8ec27ecc4db734e1e6f98983d4342cf0e"
+        "ipa.xml": "21c5cc7fe35423ea2c05bcdc1798253db48b49b656dadec04a864bc8a23a95ea"
       }
     },
     "version": 1
@@ -9311,6 +9357,54 @@
       {
         "context": {
           "applies": [],
+          "axis": "+intrinsic-t",
+          "center": "ordinary",
+          "default": null,
+          "locus": null,
+          "mode": null,
+          "offscale": false,
+          "sequence": false,
+          "type": "ordinal",
+          "value_index": 0,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "inherent-duration",
+          "brief"
+        ],
+        "status": "unresolved",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": "+intrinsic-t",
+          "center": "ordinary",
+          "default": null,
+          "locus": null,
+          "mode": null,
+          "offscale": false,
+          "sequence": false,
+          "type": "ordinal",
+          "value_index": 1,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "inherent-duration",
+          "ordinary"
+        ],
+        "status": "unresolved",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
           "axis": null,
           "center": null,
           "default": "-",
@@ -11574,7 +11668,7 @@
       }
     ]
   },
-  "identity": "sha256:395daa0f8327b9924fd21eb71b682781e6c2e4d66689f18906ee07db4a992baa",
+  "identity": "sha256:9616872a4f6c938639d74818ed33d49a91bf0fd193d55dc2fa5b9f7d0251bbff",
   "native_witnesses": {
     "plain-b/1": {
       "additional_native_claims": {
