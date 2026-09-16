@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import ast
+import builtins
 import importlib.util
+import runpy
 import sys
 import warnings
 from pathlib import Path
@@ -525,34 +527,31 @@ class TestCallBoundary:
         Running a package module as a script sets ``__name__`` to
         ``__main__`` while its spec keeps the name it was imported by.  The
         boundary is about where the code lives, so the spec decides.
+
+        This drives ``runpy`` itself rather than a hand-built namespace, so
+        import discovery and the loader's own spec are what the classifier
+        sees.  The module is reached by extending the package's search path
+        into a temporary directory, leaving the installed tree alone.
         """
-        package = tmp_path / "ipakit"
-        package.mkdir()
-        source = package / "_boundary_main.py"
+        extra = tmp_path / "package_path"
+        extra.mkdir()
+        source = extra / "_boundary_main.py"
         source.write_text(
-            "inventory.get_features('a\u02d0')\n",
+            "import builtins\n"
+            "builtins._boundary_inventory.get_features('a\u02d0')\n",
             encoding="utf-8",
         )
+        monkeypatch.setattr(
+            ipakit, "__path__", [*ipakit.__path__, str(extra)], raising=False
+        )
+        monkeypatch.setattr(builtins, "_boundary_inventory", ipa, raising=False)
         module_name = f"{ipakit.__name__}._boundary_main"
-        spec = importlib.util.spec_from_file_location(module_name, source)
-        assert spec is not None
-        features_module = sys.modules[IPAFeatures.__module__]
-        monkeypatch.setattr(features_module, "__file__", package / "features.py")
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
 
-        # Exactly what ``-m`` produces: run as ``__main__`` with the spec
-        # still naming the package module it was loaded from.
-        namespace = {
-            "__name__": "__main__",
-            "__spec__": spec,
-            "inventory": ipa,
-        }
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             with pytest.raises(RuntimeError, match="internal code called"):
-                exec(  # noqa: S102
-                    compile(source.read_text(encoding="utf-8"), str(source), "exec"),
-                    namespace,
-                )
+                runpy.run_module(module_name, run_name="__main__")
         assert caught == []
 
     def test_loaded_package_module_stays_internal_after_source_is_removed(
