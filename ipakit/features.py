@@ -1003,9 +1003,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # boundary: warning the eventual user would hide our programming
             # error behind somebody else's call site.
             caller = sys._getframe(stacklevel - 1)
-            package = Path(__file__).resolve().parent
-            caller_path = Path(caller.f_code.co_filename)
-            if caller_path.is_file() and caller_path.resolve().is_relative_to(package):
+            package_name = __name__.partition(".")[0]
+            caller_module = caller.f_globals.get("__name__")
+            # Code that deliberately presents a package-prefixed module name
+            # is internal here; that is impersonation rather than misclassification.
+            if isinstance(caller_module, str) and (
+                caller_module == package_name
+                or caller_module.startswith(f"{package_name}.")
+            ):
                 raise RuntimeError(
                     "ipakit internal code called the warning-emitting scalar "
                     f"feature read for {phone!r}"

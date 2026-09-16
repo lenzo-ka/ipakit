@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import sys
 import warnings
 from pathlib import Path
@@ -495,9 +496,16 @@ class TestCallBoundary:
         assert caught[0].filename == __file__
 
     def test_pseudo_filename_is_external_inside_package_cwd(
-        self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
+        self,
+        ipa: IPAFeatures,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ) -> None:
-        package = Path(ipakit.__file__).resolve().parent
+        package = tmp_path / "ipakit"
+        package.mkdir()
+        (package / "<string>").write_text("", encoding="utf-8")
+        features_module = sys.modules[IPAFeatures.__module__]
+        monkeypatch.setattr(features_module, "__file__", package / "features.py")
         monkeypatch.chdir(package)
         with pytest.warns(FeatureNarrowingWarning) as caught:
             exec(
@@ -505,6 +513,35 @@ class TestCallBoundary:
                 {"inventory": ipa},
             )
         assert caught[0].filename == "<string>"
+
+    def test_loaded_package_module_stays_internal_after_source_is_removed(
+        self,
+        ipa: IPAFeatures,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "ipakit"
+        package.mkdir()
+        source = package / "_boundary_probe.py"
+        source.write_text(
+            "def scalar_read(inventory):\n" "    return inventory.get_features('aː')\n",
+            encoding="utf-8",
+        )
+        module_name = f"{ipakit.__name__}._boundary_probe"
+        spec = importlib.util.spec_from_file_location(module_name, source)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        monkeypatch.setitem(sys.modules, module_name, module)
+        spec.loader.exec_module(module)
+        source.unlink()
+
+        features_module = sys.modules[IPAFeatures.__module__]
+        monkeypatch.setattr(features_module, "__file__", package / "features.py")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with pytest.raises(RuntimeError, match="internal code called"):
+                module.scalar_read(ipa)
+        assert caught == []
 
     def test_representative_internal_consumers_do_not_call_the_warning_path(
         self, ipa: IPAFeatures
@@ -531,11 +568,13 @@ class TestCallBoundary:
         self, ipa: IPAFeatures
     ) -> None:
         """Emission-site enforcement catches what syntax cannot enumerate."""
-        # Compile the fault with a package filename: the direct-call AST scan
-        # cannot see the alias call, while the emission site observes the
-        # package caller regardless of how the public read was reached.
+        # The direct-call AST scan cannot see the alias call, while the
+        # emission site observes the package caller regardless of how the
+        # public read was reached.
         package_file = Path(ipakit.__file__).resolve().parent / "features.py"
-        namespace: dict[str, object] = {}
+        namespace: dict[str, object] = {
+            "__name__": f"{ipakit.__name__}._boundary_probe"
+        }
         source = (
             "def injected(inventory):\n"
             "    scalar_read = inventory.get_features\n"
