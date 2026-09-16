@@ -65,7 +65,7 @@ the data they describe.
 
 ```python
 inventory = ipa.load_ipa_features()
-inventory.features["manner"].desc  # 'How airflow is constricted'
+inventory.features["manner"].desc  # 'Stricture achieved'
 ipa.wiki("t͡ʃ")
 # 'https://en.wikipedia.org/wiki/Voiceless_postalveolar_affricate'
 ```

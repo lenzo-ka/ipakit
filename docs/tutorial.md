@@ -152,7 +152,7 @@ Raw distances are hard to interpret on their own, because the range that actuall
 ```python
 ipa.similarity_position("f", "θ")  # the most-confused English pair
 # 0.9966638865721434
-ipa.similarity_position("f", "a")  # 0.30327356130108424
+ipa.similarity_position("f", "a")  # 0.298790658882402
 ```
 
 ```console
@@ -166,7 +166,7 @@ For transcription strings there are two different measures, and it matters which
 ipa.transcription_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9841269841269842
 ipa.distance_model().transcription_distance("kæt", "kæd").similarity
-# 0.9879760911871004
+# 0.9881498470948012
 ```
 
 > **Transcription comparison scales.** `ipakit distance transcription` prints the
@@ -174,7 +174,7 @@ ipa.distance_model().transcription_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance transcription kæt kæd
-kæt ~ kæd: similarity=0.9880  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9881  [reference: ipa, 139 phones]
 $ ipakit distance transcription --raw kæt kæd
 kæt ~ kæd: similarity=0.9841  [raw feature distance]
 ```
@@ -973,8 +973,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.similarity_position("tʰ", "t"), 4)  # 0.9681
-round(ipa.similarity_position("tʰ", "t"), 4)  # 0.967
+round(model.similarity_position("tʰ", "t"), 4)  # 0.9689
+round(ipa.similarity_position("tʰ", "t"), 4)  # 0.9678
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the

@@ -49,10 +49,17 @@ def test_every_named_public_read_carries_the_choice() -> None:
 
 def test_explicit_out_of_class_value_survives_scoping() -> None:
     ipa = ipakit.IPAFeatures()
-    for marked, plain in (("sʴ", "s"), ("r˞", "r"), ("wʴ", "w")):
+    # A trill carries the conditional intrinsic-timing term, so its added
+    # rhoticity is one term over 21 rather than one over the 20-term bundles
+    # of the other two phones.
+    for marked, plain, expected in (
+        ("sʴ", "s", 0.05),
+        ("r˞", "r", 1.0 / 21.0),
+        ("wʴ", "w", 0.05),
+    ):
         assert ipa.is_valid_ipa(marked)
         assert ipa.describe(marked) != ipa.describe(plain)
-        assert ipa.segment_distance(marked, plain) == 0.05
+        assert ipa.segment_distance(marked, plain) == expected
         assert ipa.segment_distance(marked, plain, applicable_only=True) > 0.0
 
 

@@ -1,6 +1,6 @@
 {
   "bindings": {
-    "native_metric": "d3f48742d152ffe8",
+    "native_metric": "4148b433ba46493d",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
     "source_inputs": {
       ".zenodo.json": "74cccea55b3ce72643e12bd873cc03d3d51ff548ebc777e134c11b6a082cc9ae",
@@ -3466,7 +3466,7 @@
         "direction": "ipakit-to-clts",
         "source": [
           "ipakit",
-          "inherent-duration",
+          "intrinsic-timing",
           "brief"
         ],
         "status": "unclassified",
@@ -3489,8 +3489,31 @@
         "direction": "ipakit-to-clts",
         "source": [
           "ipakit",
-          "inherent-duration",
+          "intrinsic-timing",
           "ordinary"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": "+intrinsic-t",
+          "center": "ordinary",
+          "default": null,
+          "locus": null,
+          "mode": null,
+          "offscale": false,
+          "sequence": false,
+          "type": "ordinal",
+          "value_index": 2,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "intrinsic-timing",
+          "repeated"
         ],
         "status": "unclassified",
         "targets": []
@@ -5683,7 +5706,7 @@
         "pkg/transcriptionsystems/features.json": "4a2964f6ccdfde87625b7adccc63323996bbf28ce469f62bcc08f437fde03211"
       },
       "ipakit": {
-        "ipa.xml": "21c5cc7fe35423ea2c05bcdc1798253db48b49b656dadec04a864bc8a23a95ea"
+        "ipa.xml": "bb5302101b07780d2b8ae47ba18cde8790442e2a0d8b17921d0c96218108b08f"
       }
     },
     "version": 1
@@ -9470,7 +9493,7 @@
         "rule_ids": [],
         "source": [
           "ipakit",
-          "inherent-duration",
+          "intrinsic-timing",
           "brief"
         ],
         "status": "unresolved",
@@ -9494,8 +9517,32 @@
         "rule_ids": [],
         "source": [
           "ipakit",
-          "inherent-duration",
+          "intrinsic-timing",
           "ordinary"
+        ],
+        "status": "unresolved",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": "+intrinsic-t",
+          "center": "ordinary",
+          "default": null,
+          "locus": null,
+          "mode": null,
+          "offscale": false,
+          "sequence": false,
+          "type": "ordinal",
+          "value_index": 2,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "intrinsic-timing",
+          "repeated"
         ],
         "status": "unresolved",
         "targets": []
@@ -11766,7 +11813,7 @@
       }
     ]
   },
-  "identity": "sha256:852827a690ab8fca4c813174f6f7001726c784b0210744110e1456cfca786840",
+  "identity": "sha256:e86f24267c3546fd9ca99642d20a3f724b1d114c22a74ae0b7d4a5d22b9625d3",
   "native_witnesses": {
     "plain-b/1": {
       "additional_native_claims": {

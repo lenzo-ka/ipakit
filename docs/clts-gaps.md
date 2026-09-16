@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:852827a690ab8fca4c813174f6f7001726c784b0210744110e1456cfca786840`.
+Mapping identity: `sha256:e86f24267c3546fd9ca99642d20a3f724b1d114c22a74ae0b7d4a5d22b9625d3`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
@@ -233,8 +233,9 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | ipakit_to_clts | ipakit / height-mod / - | unresolved |  |
 | ipakit_to_clts | ipakit / height-mod / 0 | unresolved |  |
 | ipakit_to_clts | ipakit / height-mod / + | unresolved |  |
-| ipakit_to_clts | ipakit / inherent-duration / brief | unresolved |  |
-| ipakit_to_clts | ipakit / inherent-duration / ordinary | unresolved |  |
+| ipakit_to_clts | ipakit / intrinsic-timing / brief | unresolved |  |
+| ipakit_to_clts | ipakit / intrinsic-timing / ordinary | unresolved |  |
+| ipakit_to_clts | ipakit / intrinsic-timing / repeated | unresolved |  |
 | ipakit_to_clts | ipakit / labialized / - | unresolved |  |
 | ipakit_to_clts | ipakit / labialized / + | unresolved |  |
 | ipakit_to_clts | ipakit / labio-palatized / - | unresolved |  |
