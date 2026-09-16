@@ -152,7 +152,8 @@ class TestFeatureValuesBridgesTheLevels:
     def test_the_scalar_read_summarizes_where_the_bag_keeps_both(
         self, ipa: IPAFeatures
     ) -> None:
-        assert ipa.get_features("u͜i")["backness"] == "back"
+        with pytest.warns(ipakit.FeatureNarrowingWarning):
+            assert ipa.get_features("u͜i")["backness"] == "back"
         assert ipa.feature_values("u͜i")["backness"] == ("back", "front")
 
     def test_it_is_the_segment_bag(self, ipa: IPAFeatures) -> None:
@@ -210,7 +211,9 @@ class TestProsodicTermsAreAskedOfTheProsody:
     ) -> None:
         # `aː` and `a` share a feature bag, so nothing in it can tell them
         # apart; the mark rides on the unit and that is where it is read.
-        assert ipa.get_features("aː") == ipa.get_features("a")
+        with pytest.warns(ipakit.FeatureNarrowingWarning):
+            marked = ipa.get_features("aː")
+        assert marked == ipa.get_features("a")
         assert [u.to_ipa() for _, u in ipa.find("aː a", ["long"])] == ["aː"]
 
     def test_both_namespaces_in_one_query(self, ipa: IPAFeatures) -> None:

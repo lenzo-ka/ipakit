@@ -94,7 +94,7 @@ class TestNoUnitContradictsAProjection:
         contradicting = []
         checked = 0
         for unit in corpus:
-            bundle = FEATURES.get_features(unit)
+            bundle = FEATURES._get_features(unit)
             for (fine, value), (coarse, reads) in FEATURES.projections.items():
                 if bundle.get(fine) != value:
                     continue
@@ -151,10 +151,10 @@ class TestWhatTheFixDidNotChange:
         devoiced = [
             unit
             for unit in _corpus(FEATURES)
-            if FEATURES.get_features(unit).get("phonation") == "devoiced"
+            if FEATURES._get_features(unit).get("phonation") == "devoiced"
         ]
         assert len(devoiced) == 131
-        assert all(FEATURES.get_features(u).get("voiced") == "-" for u in devoiced)
+        assert all(FEATURES._get_features(u).get("voiced") == "-" for u in devoiced)
         assert ipakit.describe("d̥") == "voiceless alveolar plosive"
         assert ipakit.describe("ɹ̥") == "voiceless alveolar approximant"
 

@@ -1322,9 +1322,9 @@ def landmarks(features: IPAFeatures, head_name: str | None = None) -> Landmarks:
     every = arcs("articulator")
     median = {v: a for v, a in every.items() if apertures.get(v) == "median"}
     frication = {
-        features.get_features(phone).get("place")
+        features._get_features(phone).get("place")
         for phone in features.phones
-        if features.get_features(phone).get("manner") in ("fricative", "affricate")
+        if features._get_features(phone).get("manner") in ("fricative", "affricate")
     }
     return Landmarks(
         places=arcs("place"),
@@ -1962,8 +1962,8 @@ def posture(
             unmodeled=(),
         )
     h = head_shape if head_shape is not None else head()
-    bundle = features.get_features(phone)
-    stated = features.get_features(phone, with_defaults=False)
+    bundle = features._get_features(phone)
+    stated = features._get_features(phone, with_defaults=False)
     aperture_width, protrusion = _lip_posture(features, bundle)
     controls = constrictions(features, bundle)
     reading = tract_point(features, bundle)

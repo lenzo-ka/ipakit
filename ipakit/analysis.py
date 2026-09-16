@@ -97,7 +97,7 @@ class AnalysisMixin(IPAFeaturesBase):
         if (declared := self.zeros.get(phone)) is not None:
             return f"{declared.features['class']}: a position with no segment"
 
-        feats = self.get_features(phone, with_defaults=with_defaults)
+        feats = self._get_features(phone, with_defaults=with_defaults)
         if not feats:
             return f"unknown phone: {phone}"
 
@@ -280,7 +280,7 @@ class AnalysisMixin(IPAFeaturesBase):
         exclude = exclude_features or set(METADATA_ATTRS)
 
         # Get features for all phones
-        all_feats = [self.get_features(p, with_defaults=with_defaults) for p in phones]
+        all_feats = [self._get_features(p, with_defaults=with_defaults) for p in phones]
 
         # A member that does not resolve cannot be dropped: the shared
         # features of the rest are not the shared features of the set,
@@ -326,7 +326,7 @@ class AnalysisMixin(IPAFeaturesBase):
             with_defaults: Include default feature values in comparison
             max_distance: Maximum distance to consider (default 0.3 ≈ 1-2 features)
         """
-        ref_feats = self.get_features(phone, with_defaults=with_defaults)
+        ref_feats = self._get_features(phone, with_defaults=with_defaults)
         if not ref_feats:
             return []
 
@@ -335,7 +335,7 @@ class AnalysisMixin(IPAFeaturesBase):
             if candidate == phone:
                 continue
 
-            cand_feats = self.get_features(candidate, with_defaults=with_defaults)
+            cand_feats = self._get_features(candidate, with_defaults=with_defaults)
             if not cand_feats:
                 continue
 

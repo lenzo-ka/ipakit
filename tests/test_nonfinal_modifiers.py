@@ -80,7 +80,7 @@ class TestLeadingConstituentMarks:
     def test_both_levels_agree(
         self, ipa: IPAFeatures, unit: str, feature: str, expected: str
     ) -> None:
-        assert ipa.get_features(unit)[feature] == ipa.segment(unit).scalar()[feature]
+        assert ipa._get_features(unit)[feature] == ipa.segment(unit).scalar()[feature]
 
     @pytest.mark.parametrize(("unit", "feature", "expected"), ALL_MARKED)
     def test_the_third_read_agrees_too(

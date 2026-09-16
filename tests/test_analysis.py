@@ -130,9 +130,13 @@ class TestDescribe:
         voicing would silently turn the read-out on for its whole column.
         """
         default = ipa.features["voiced"].default
-        vowels = [s for s in ipa.phones if ipa.get_features(s).get("manner") == "vowel"]
+        vowels = [
+            s for s in ipa.phones if ipa._get_features(s).get("manner") == "vowel"
+        ]
         assert len(vowels) > 30, "sweep did not run"
-        assert [s for s in vowels if ipa.get_features(s).get("voiced") == default] == []
+        assert [
+            s for s in vowels if ipa._get_features(s).get("voiced") == default
+        ] == []
 
     def test_no_two_phones_share_a_description(self, ipa: IPAFeatures) -> None:
         """Distinct registered phones get distinct names.

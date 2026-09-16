@@ -28,12 +28,12 @@ import ipakit
 ipakit.to_ipa(ipakit.segments("ˈa᷈ː"))   # 'ˈa᷈ː'
 ```
 
-## Prosody stays outside the feature bag
+## Prosody stays outside the scalar feature bag
 
-Nothing here is in a feature bundle. Tone is `mode="prosodic"` and prosody lives on the unit ([ties.md](ties.md)), so it is invisible to `features()`. A **level** tone now rides on the unit and adds a term to `distance()` ([distance.md](distance.md)); a **contour** — a sequence of levels, like `a᷈` — is a trajectory rather than a point on the scale, so it stays deferred and scores 0:
+Nothing here is in the scalar bundle. Tone is `mode="prosodic"` and prosody lives on the unit ([ties.md](ties.md)), so `features()` returns the base bundle and warns that it omitted the mark. `feature_values()` retains the prosodic values. A **level** tone rides on the unit and adds a term to `distance()` ([distance.md](distance.md)); a **contour** — a sequence of levels, like `a᷈` — is a trajectory rather than a point on the scale, so it stays deferred and scores 0:
 
 ```python
-ipa.features("a") == ipa.features("a᷈")   # True
+ipa.feature_values("a᷈")["tone"]          # ('low>high>low',)
 ipa.distance("a", "a᷈")                   # 0.0 -- a᷈ is a contour, still deferred
 ```
 

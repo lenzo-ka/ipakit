@@ -246,7 +246,7 @@ class TestProvenanceIsNotADeclaration:
 
     def test_no_bundle_carries_it(self, supplemented: IPAFeatures) -> None:
         for phone in supplemented.phones:
-            bundle = supplemented.get_features(phone)
+            bundle = supplemented._get_features(phone)
             assert "supplement" not in bundle
             assert "name" not in bundle
         assert "supplement" not in supplemented.features
@@ -496,7 +496,7 @@ class TestToPhoneOnlyGainsAnswers:
         for unit in units:
             bundle = {
                 k: v
-                for k, v in ipa.get_features(unit).items()
+                for k, v in ipa._get_features(unit).items()
                 if k not in METADATA_ATTRS
             }
             if bundle:

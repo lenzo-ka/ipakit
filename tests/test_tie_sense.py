@@ -36,11 +36,11 @@ class TestStrictGlyphAuthority:
         # object, not an alias of the canonical entry.
         for canonical, variant in WILD_VARIANTS:
             assert ipa.get_phone(variant) is None
-            assert ipa.get_features(variant) != ipa.get_features(canonical)
+            assert ipa._get_features(variant) != ipa._get_features(canonical)
 
     def test_under_tie_variant_reads_sequential(self, ipa: IPAFeatures) -> None:
         # t͜s is a sequential chain: first-element projection.
-        assert ipa.get_features("t͜s", with_defaults=False)["manner"] == "plosive"
+        assert ipa._get_features("t͜s", with_defaults=False)["manner"] == "plosive"
         assert ipa.segment("t͜s").sense.value == "seq"
 
     def test_over_tie_variant_reads_simultaneous(self, ipa: IPAFeatures) -> None:
@@ -111,26 +111,26 @@ class TestUnderTieSequences:
     def test_sequential_scalar_projects_first_element(self, ipa: IPAFeatures) -> None:
         # The flat projection of a sequential chain is its first element,
         # matching how the registered diphthongs are encoded.
-        u = ipa.get_features("u", with_defaults=False)
-        seq = ipa.get_features("u͜i", with_defaults=False)
+        u = ipa._get_features("u", with_defaults=False)
+        seq = ipa._get_features("u͜i", with_defaults=False)
         assert seq == {k: v for k, v in u.items() if k != "href"}
 
     def test_sequential_chain_is_n_ary(self, ipa: IPAFeatures) -> None:
         assert ipa.tokenize("a͜ɪ͜ə") == ["a͜ɪ͜ə"]
-        a = ipa.get_features("a", with_defaults=False)
-        assert ipa.get_features("a͜ɪ͜ə", with_defaults=False) == {
+        a = ipa._get_features("a", with_defaults=False)
+        assert ipa._get_features("a͜ɪ͜ə", with_defaults=False) == {
             k: v for k, v in a.items() if k != "href"
         }
 
     def test_over_tie_composition_unchanged(self, ipa: IPAFeatures) -> None:
-        feats = ipa.get_features("q͡χ")
+        feats = ipa._get_features("q͡χ")
         assert feats["manner"] == "affricate"
         assert feats["place"] == "uvular"
 
     def test_under_tie_consonant_chain_projects_first(self, ipa: IPAFeatures) -> None:
         # q͜χ is a sequential unit now (it was globally rewritten to the
         # over-tie before): first-element projection, not an affricate merge.
-        feats = ipa.get_features("q͜χ", with_defaults=False)
+        feats = ipa._get_features("q͜χ", with_defaults=False)
         assert feats["manner"] == "plosive"
         assert "q͜χ" in ipa
 
@@ -140,14 +140,14 @@ class TestMixedChains:
         # t͡s͜a: the over-tie binds tighter; the unit's flat projection is
         # its first top-level part, the registered affricate.
         assert ipa.tokenize("t͡s͜a") == ["t͡s͜a"]
-        feats = ipa.get_features("t͡s͜a", with_defaults=False)
+        feats = ipa._get_features("t͡s͜a", with_defaults=False)
         assert feats["manner"] == "affricate"
         assert feats["place"] == "alveolar"
         assert "t͡s͜a" in ipa
 
     def test_alias_spelled_fused_onset(self, ipa: IPAFeatures) -> None:
         # The first part may itself arrive as an alias spelling.
-        feats = ipa.get_features("t͡s͜a")
+        feats = ipa._get_features("t͡s͜a")
         assert feats["manner"] == "affricate"
 
 
@@ -379,6 +379,6 @@ class TestAnEnumeratedCompoundStillDerives:
         whose constituents no longer compose would otherwise be a name and
         an href with nothing behind them."""
         for phone in self._tied(ipa):
-            bundle = ipa.get_features(phone)
+            bundle = ipa._get_features(phone)
             assert bundle, phone
             assert "manner" in bundle, (phone, sorted(bundle))

@@ -202,7 +202,7 @@ def project(ipa: IPAFeatures, unit: str, base: str, mark: str) -> dict[str, Any]
         "mark": mark,
         "kind": ipa.segment(unit).kind.value,
         "describe": ipa.describe(unit),
-        "features": dict(sorted(ipa.get_features(unit).items())),
+        "features": dict(sorted(ipa._get_features(unit).items())),
         "d_from_base": ipa.distance(unit, base),
     }
 

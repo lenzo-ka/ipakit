@@ -57,7 +57,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-from ipakit import IPAFeatures
+from ipakit import FeatureNarrowingWarning, IPAFeatures
 from ipakit.constants import METADATA_ATTRS
 from ipakit.features import Feature
 from ipakit.tract import tract_point, tract_reading, unmodeled
@@ -85,7 +85,7 @@ def ipa() -> IPAFeatures:
 
 def _vowels(ipa: IPAFeatures) -> list[str]:
     return [
-        p for p in sorted(ipa.phones) if ipa.get_features(p).get("manner") == "vowel"
+        p for p in sorted(ipa.phones) if ipa._get_features(p).get("manner") == "vowel"
     ]
 
 
@@ -241,7 +241,9 @@ class TestWhichVowelsStateOne:
         assert tied, "no tied vowels: this check is vacuous"
         for unit in tied:
             first = str(ipa.segment(unit).constituents[0])
-            assert ipa.get_features(unit).get(SLOT) == ipa.get_features(first).get(SLOT)
+            with pytest.warns(FeatureNarrowingWarning, match="sequential"):
+                tied_bundle = ipa.get_features(unit)
+            assert tied_bundle.get(SLOT) == ipa.get_features(first).get(SLOT)
 
     def test_the_arc_of_a_classified_vowel_is_its_familys_place_arc(
         self, ipa: IPAFeatures
@@ -289,7 +291,7 @@ class TestTheUnstatedCaseIsReported:
         assert len(units) > 5000, f"only {len(units)} units: the sweep is vacuous"
         seen = 0
         for unit in units:
-            reading = tract_reading(ipa, ipa.get_features(unit))
+            reading = tract_reading(ipa, ipa._get_features(unit))
             assert reading.approximated <= reading.read, unit
             seen += bool(reading.approximated)
         assert seen, "nothing is ever approximated: the sweep is vacuous"
@@ -407,8 +409,8 @@ class TestTheBranchReadsAStatedLocation:
         The guard against a fix that reaches further than its own case."""
         located = _inventory(ipa, tmp_path, _hypothetical("ⱺ", **{SLOT: "pharyngeal"}))
         for phone in _vowels(ipa):
-            assert tract_point(located, located.get_features(phone)) == tract_point(
-                ipa, ipa.get_features(phone)
+            assert tract_point(located, located._get_features(phone)) == tract_point(
+                ipa, ipa._get_features(phone)
             ), phone
 
 
@@ -538,7 +540,7 @@ class TestTheLocationWinsWholeOrNotAtAll:
         assert len(units) > 5000, f"only {len(units)} units: the sweep is vacuous"
         checked = 0
         for unit in units:
-            bundle = ipa.get_features(unit)
+            bundle = ipa._get_features(unit)
             reading = tract_reading(ipa, bundle)
             organ = reading.point.articulator
             if organ is None or bundle.get("articulator") is not None:
@@ -611,13 +613,13 @@ class TestWhyNotThePlaceSlot:
         placed = [
             u
             for u in units
-            if (b := ipa.get_features(u)).get("manner") == "vowel" and b.get("place")
+            if (b := ipa._get_features(u)).get("manner") == "vowel" and b.get("place")
         ]
         assert placed, "no vowel states a place: the argument below is vacuous"
         arcs = ipa.features[SOURCE].coordinates
         backness = ipa.features["backness"].coordinates
         for unit in placed:
-            bundle = ipa.get_features(unit)
+            bundle = ipa._get_features(unit)
             here = tract_point(ipa, bundle).arc
             # Wherever the body is, it is not read out of the place slot.
             want = (

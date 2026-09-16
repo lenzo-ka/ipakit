@@ -20,7 +20,7 @@ import warnings
 from unittest import mock
 
 import pytest
-from ipakit import IPAFeatures, Phone, Segment
+from ipakit import FeatureNarrowingWarning, IPAFeatures, Phone, Segment
 from ipakit.analysis import _VOWEL_SLOTS as VOWEL_SLOTS
 from ipakit.constants import METADATA_ATTRS
 
@@ -70,7 +70,7 @@ class TestTheSweep:
         self, ipa: IPAFeatures, units: list[tuple[str, Segment]]
     ) -> None:
         for text, unit in units:
-            flat = ipa.get_features(text)
+            flat = ipa._get_features(text)
             if not flat:
                 continue
             assert _phonetic(flat) == _phonetic(unit.scalar()), text
@@ -161,13 +161,13 @@ class TestAnUnboundTieDoesNotCrashTheFlatRead:
     def test_it_reads_rather_than_raising(self, ipa: IPAFeatures, unit: str) -> None:
         # get_features documents "{} when nothing resolves"; raising is
         # neither that nor an answer.
-        ipa.get_features(unit)
+        ipa._get_features(unit)
 
     @pytest.mark.parametrize("unit", UNBOUND)
     def test_it_agrees_with_compose(self, ipa: IPAFeatures, unit: str) -> None:
         # parse treats a tie that binds nothing as no juncture at all, so
         # the flat read composes it away and lands where compose does.
-        flat = ipa.get_features(unit)
+        flat = ipa._get_features(unit)
         composed = ipa.compose(unit)
         if not composed or not flat:
             return
@@ -178,7 +178,8 @@ class TestAnUnboundTieDoesNotCrashTheFlatRead:
 
     def test_the_marks_that_do_bind_are_unaffected(self, ipa: IPAFeatures) -> None:
         assert ipa.get_features("t͡s")["manner"] == "affricate"
-        assert ipa.get_features("a͜ɪ")["manner"] == "vowel"
+        with pytest.warns(FeatureNarrowingWarning, match="sequential constituent"):
+            assert ipa.get_features("a͜ɪ")["manner"] == "vowel"
         assert ipa.get_features("kʷ͡p")["labialized"] == "+"
 
 
@@ -234,7 +235,7 @@ class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
             warnings.simplefilter("ignore")
             for unit, base, mark in marked:
                 key = (mark, _is_tied(base))
-                taken.setdefault(key, set()).add(bool(ipa.get_features(unit)))
+                taken.setdefault(key, set()).add(bool(ipa._get_features(unit)))
         for mark in ipa.diacritics:
             atomic, tied = taken[(mark, False)], taken[(mark, True)]
             assert atomic == tied, (mark, atomic, tied)
@@ -252,7 +253,7 @@ class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for unit, _, _ in marked:
-                assert bool(ipa.get_features(unit)) == _accounted(ipa, unit), unit
+                assert bool(ipa._get_features(unit)) == _accounted(ipa, unit), unit
 
     def test_it_holds_for_chains_the_inventory_does_not_register(
         self, ipa: IPAFeatures
@@ -270,7 +271,7 @@ class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
                     for tie in sorted(TIES):
                         for mark in ("", *ipa.stress_markers, "ː", "̃", "ʰ", "|"):
                             unit = head + tie + tail + mark
-                            assert bool(ipa.get_features(unit)) == _accounted(
+                            assert bool(ipa._get_features(unit)) == _accounted(
                                 ipa, unit
                             ), unit
                             checked += 1
@@ -284,7 +285,8 @@ class TestAMarkIsTakenTheSameWhateverTheBaseIsMadeOf:
                 warnings.simplefilter("always")
                 assert ipa.get_features(unit) == {}, unit
             assert caught, unit
-            assert "stress mark" in str(caught[0].message), unit
+            assert caught[0].category is FeatureNarrowingWarning, unit
+            assert "prosodic mark" in str(caught[0].message), unit
             assert ipa.describe(unit) == f"unknown phone: {unit}"
 
 
@@ -464,4 +466,5 @@ class TestAPrimarySlotCannotLeakAcrossTheMerge:
         # outranks the atom matching it equally well. An assessment
         # refuted the claim that this one is broken; it is pinned here so
         # the fix above cannot be widened onto it by mistake.
-        assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"
+        with pytest.warns(FeatureNarrowingWarning, match="sequential constituent"):
+            assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"

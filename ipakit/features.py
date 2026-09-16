@@ -5,9 +5,11 @@ from __future__ import annotations
 import dataclasses
 import functools
 import re
+import sys
 import unicodedata
 import warnings
 import xml.etree.ElementTree as ET
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -77,6 +79,10 @@ _Terms = tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]
 #: ``AttributeError`` out of a public method (#148).
 FeatureQuery = Mapping[str, str] | Iterable[str]
 """A feature-to-value mapping or an iterable of feature query terms."""
+
+
+class FeatureNarrowingWarning(UserWarning):
+    """A flat feature read omitted information carried by its input unit."""
 
 
 def available_supplements() -> list[str]:
@@ -930,7 +936,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                composed = self.get_features(symbol, with_defaults=False)
+                composed = self._get_features(symbol, with_defaults=False)
             if not composed or not set(composed) - METADATA_ATTRS:
                 raise ValueError(
                     f"supplement {supplement!r} declares {symbol!r} with no "
@@ -965,9 +971,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         A base carrying diacritics (``tʲ``, ``ã``, ``tʰ``) is neither
         registered nor a tie chain; it reads through the same parse the
         structured level uses, so the two levels cannot disagree about
-        one string. Prosodic marks are the documented exception: they
-        belong to the unit, not to its feature bag, so ``eː`` reads the
-        features of ``e`` and carries its length as prosody.
+        one string. Prosodic marks belong to the unit, not to its feature
+        bag, so ``eː`` reads the features of ``e`` and carries its length
+        as prosody. This scalar projection warns whenever it omits such a
+        mark, a sequential-tie constituent, or material the reader cannot
+        place. The warning names each omission and a read that retains it.
+        Represented segmental diacritics, simultaneous ties, and semantically
+        redundant marks stay silent.
 
         What holds for one shape of base holds for the other. A mark the
         parse cannot place is refused whether the base is atomic or a tie
@@ -976,8 +986,78 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         none of these gives it one. ``t͡sˈ`` used to answer with ``t͡s``'s
         bundle and say nothing.
 
+        Each warning names a read that retains the omitted material when
+        one exists.  Material no representation keeps, such as an orphan
+        tie, is instead reported as having no retaining read; ``strict=True``
+        is named only as the way to refuse that input.
+
         Returns ``{}`` when nothing resolves.
         """
+        return self._reported_features(phone, with_defaults, stacklevel=3)
+
+    def _reported_features(
+        self, phone: str, with_defaults: bool, *, stacklevel: int
+    ) -> dict[str, str]:
+        """Public scalar read, with exactly one narrowing report."""
+        with warnings.catch_warnings():
+            # The parser reports malformed pieces individually. A flat read
+            # reports its complete omission once, under the public category.
+            warnings.simplefilter("ignore")
+            feats = self._get_features(phone, with_defaults=with_defaults)
+            omissions = self._feature_omissions(phone)
+        if omissions:
+            # ``stacklevel`` names the public entry point's caller.  A package
+            # frame there means library code crossed the public scalar-read
+            # boundary: warning the eventual user would hide our programming
+            # error behind somebody else's call site.
+            caller = sys._getframe(stacklevel - 1)
+            package_name = __name__.partition(".")[0]
+            # ``python -m ipakit.x`` runs a package module under the name
+            # ``__main__``; its spec still carries the name it was imported
+            # by, which is the identity the boundary is about.
+            spec = caller.f_globals.get("__spec__")
+            caller_module = getattr(spec, "name", None) or caller.f_globals.get(
+                "__name__"
+            )
+            # Code that deliberately presents a package-prefixed module name
+            # is internal here; that is impersonation rather than misclassification.
+            if isinstance(caller_module, str) and (
+                caller_module == package_name
+                or caller_module.startswith(f"{package_name}.")
+            ):
+                raise RuntimeError(
+                    "ipakit internal code called the warning-emitting scalar "
+                    f"feature read for {phone!r}"
+                )
+            recommendations: dict[str, list[str]] = {}
+            unretained: list[str] = []
+            for omission, reader in omissions:
+                if reader is None:
+                    unretained.append(omission)
+                else:
+                    recommendations.setdefault(reader, []).append(omission)
+            advice = [
+                f"use {reader} for {', '.join(items)}"
+                for reader, items in recommendations.items()
+            ]
+            if unretained:
+                advice.append(
+                    "no read retains "
+                    + ", ".join(unretained)
+                    + "; use strict=True to refuse instead"
+                )
+            warnings.warn(
+                f"features() narrowed {phone!r}: dropped "
+                + "; ".join(omission for omission, _ in omissions)
+                + "; "
+                + "; ".join(advice),
+                FeatureNarrowingWarning,
+                stacklevel=stacklevel,
+            )
+        return feats
+
+    def _get_features(self, phone: str, with_defaults: bool = True) -> dict[str, str]:
+        """Scalar feature read for package internals, without API warnings."""
         phone = self._resolve_token(phone)
         if phone in self.phones:
             feats = dict(self.phones[phone].features)
@@ -989,13 +1069,170 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             fill_defaults(self, feats)
         return feats
 
+    def _feature_omissions(self, phone: str) -> list[tuple[str, str | None]]:
+        """Pair each scalar omission with its retaining read, if one exists.
+
+        This follows the representation's construction: prosody is beside a
+        Segment's bundle, a sequential juncture cuts ``flat_projection`` at
+        its first sequential boundary, and a constituent mark is redundant
+        only when removing it changes no bundle and its claims already hold.
+        Anything not attached to a Segment remains after the represented
+        spellings are subtracted from the canonical input.
+        """
+        source = self.canonicalize_unicode(self.expand_ligatures(phone))
+        if not source:
+            return []
+        form = self.read(source)
+        segments = list(form.segments)
+        reports: list[tuple[str, str | None]] = []
+
+        represented = Counter("".join(segment.to_ipa() for segment in segments))
+        residual = list((Counter(source) - represented).elements())
+
+        if len(segments) > 1:
+            reports.append(
+                (f"multiple units {[s.to_ipa() for s in segments]!r}", "segments()")
+            )
+        elif not segments and not residual:
+            reports.append((f"non-segmental material {list(source)!r}", "read()"))
+
+        for segment in segments:
+            # ``feature_values`` is the constituent ``bag`` plus prosody.
+            # A constituent is observable there only if removing it changes
+            # that merge.  Equality between whole constituent bundles is too
+            # weak: its values can already occur across several other parts.
+            bag = segment.bag()
+            constituent_vanishes = any(
+                segment._bag(
+                    segment.constituents[:index] + segment.constituents[index + 1 :]
+                )
+                == bag
+                for index in range(len(segment.constituents))
+            )
+            with warnings.catch_warnings(record=True) as prosody_warnings:
+                warnings.simplefilter("always")
+                _prosodic_features(segment, self)
+            dropped_marks = self._unrepresented_marks(segment)
+            structured = (
+                constituent_vanishes or bool(prosody_warnings) or bool(dropped_marks)
+            )
+            unit_reader = "segments()" if structured else "feature_values()"
+            if segment.prosody:
+                reports.append(
+                    (f"prosodic mark(s) {list(segment.prosody)!r}", unit_reader)
+                )
+            if Sense.SEQ in segment.junctures:
+                cut = list(segment.junctures).index(Sense.SEQ) + 1
+                dropped = [str(c) for c in segment.constituents[cut:]]
+                reports.append((f"sequential constituent(s) {dropped!r}", unit_reader))
+            if dropped_marks:
+                reports.append((f"diacritic mark(s) {dropped_marks!r}", "segments()"))
+
+        if residual:
+            labels = (
+                "prosodic mark(s)",
+                "structural mark(s)",
+                "unplaced diacritic mark(s)",
+                "non-segmental symbol(s)",
+                "unrepresented phone symbol(s)",
+                "unregistered symbol(s)",
+            )
+            classified: list[tuple[str, str]] = []
+            for symbol in residual:
+                if symbol in self.diacritics:
+                    mode = modifier_mode(self, symbol)
+                    label = (
+                        "prosodic mark(s)"
+                        if mode == "prosodic"
+                        else (
+                            "structural mark(s)"
+                            if mode == "structural"
+                            else "unplaced diacritic mark(s)"
+                        )
+                    )
+                elif symbol.isspace() or symbol in self.carries_no_segment:
+                    label = "non-segmental symbol(s)"
+                elif symbol in self.phones:
+                    label = "unrepresented phone symbol(s)"
+                else:
+                    label = "unregistered symbol(s)"
+                classified.append((label, symbol))
+
+            # ``from_wild`` is a retaining route only when it actually
+            # changes this input into something the strict reader accepts.
+            # It deliberately leaves ambiguous and unknown symbols alone.
+            wild = self.from_wild(source)
+            wild_recovers = False
+            if wild != source:
+                try:
+                    self.read(wild, strict=True)
+                except ValueError:
+                    pass
+                else:
+                    wild_recovers = True
+
+            grouped: dict[tuple[str, str | None], list[str]] = {}
+            for label, symbol in classified:
+                if label == "unregistered symbol(s)":
+                    reader = (
+                        "read(from_wild(...), strict=True)" if wild_recovers else None
+                    )
+                elif label == "structural mark(s)" and symbol in self.tie_bars:
+                    # Orphan ties belong to neither a Form position nor a
+                    # Segment.  The strict option rejects them; it does not
+                    # recover them.
+                    reader = None
+                else:
+                    # Form's exact spelling retains unitless positions and
+                    # unplaced registered marks even when its segment
+                    # projection warns that they attach to no Segment.
+                    reader = "read()"
+                grouped.setdefault((label, reader), []).append(symbol)
+            for label in labels:
+                for (group_label, reader), symbols in grouped.items():
+                    if group_label == label:
+                        reports.append((f"{label} {symbols!r}", reader))
+        return reports
+
+    def _unrepresented_marks(self, segment: Segment) -> list[str]:
+        """Return non-redundant constituent marks omitted by composition."""
+        dropped: list[str] = []
+        for constituent in segment.constituents:
+            for marks, approach in (
+                (constituent.approach, True),
+                (constituent.modifiers, False),
+            ):
+                for index, mark in enumerate(marks):
+                    if modifier_mode(self, mark) in {"prosodic", "structural"}:
+                        continue
+                    remaining = marks[:index] + marks[index + 1 :]
+                    without = (
+                        dataclasses.replace(constituent, approach=remaining)
+                        if approach
+                        else dataclasses.replace(constituent, modifiers=remaining)
+                    )
+                    full = constituent.bundle(self, with_defaults=False)
+                    reduced = without.bundle(self, with_defaults=False)
+                    if full != reduced:
+                        continue
+                    claims = {
+                        key: self.diacritics[mark].features[key]
+                        for key in phase_keys(self, mark, approach)
+                    }
+                    # No change plus an already-held claim is redundancy.
+                    if claims and any(
+                        full.get(key) != value for key, value in claims.items()
+                    ):
+                        dropped.append(mark)
+        return dropped
+
     def _modified_features(
         self, phone: str, with_defaults: bool = True
     ) -> dict[str, str]:
         """Features of a base carrying diacritics, via the structured parse.
 
         :meth:`Segment.scalar` is the modifier overlay over the unit's
-        bare chain, and it calls back into :meth:`get_features` with that
+        bare chain, and it calls back into :meth:`_get_features` with that
         chain. That is the recursion this guards: when the chain is the
         string itself, nothing was stripped, so the overlay has nothing
         to add and the chain is the string we already failed to resolve.
@@ -1038,7 +1275,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         return unit.scalar(with_defaults=with_defaults)
 
     def feature_values(self, unit: str) -> dict[str, tuple[str, ...]]:
-        """Every value each feature takes across one unit's constituents.
+        """A constituent feature bag plus first-wins unit prosody.
 
         The multi-valued companion of :meth:`get_features`, and the named
         bridge from the flat string API to the structured reads: the flat
@@ -1047,14 +1284,20 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         ``backness`` reads ``back`` and the ``front`` is only recoverable
         from the token. This read keeps both, in constituent order.
 
-        The three shapes on :class:`Segment` are the same three:
-        ``scalar()`` is what :meth:`get_features` returns, ``bag()`` is this,
-        and ``disagreements()`` is this filtered to the features holding
-        more than one value.
+        This is :meth:`Segment.bag` plus unit prosody. Like the mark-stack
+        reads themselves, prosody is first-mark-wins when two marks
+        contradict on a single-valued feature. Where
+        ``get_features("d̆")`` projects the base's default length,
+        ``feature_values("d̆")`` reports ``("extra-short",)``.
 
         Raises ``ValueError`` if ``unit`` is not exactly one unit.
         """
-        return self.segment(unit).bag()
+        segment = self.segment(unit)
+        values = segment.bag()
+        values.update(
+            {key: (value,) for key, value in _prosodic_features(segment, self).items()}
+        )
+        return values
 
     def _resolve_token(self, token: str) -> str:
         """Canonicalize a token: Unicode form, then alias -> registered name.
@@ -1844,7 +2087,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             symbol
             for symbol in self.phones
             if self._satisfies(
-                self.get_features(symbol, with_defaults=with_defaults),
+                self._get_features(symbol, with_defaults=with_defaults),
                 {},
                 segmental,
                 prosodic,
@@ -1971,7 +2214,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         best: tuple[int, int, int, int] | None = None
         winner: str | None = None
         for order, symbol in enumerate(self.phones):
-            feats = self.get_features(symbol)
+            feats = self._get_features(symbol)
             if any(feats.get(k) != v for k, v in query.items()):
                 continue
             supplemented = 1 if symbol in self.supplement_of else 0
@@ -2010,7 +2253,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         differ here, so it cannot change an answer that existed. A change
         that *names* the borrowing writes it, like any other.
         """
-        feats = self.get_features(symbol)
+        feats = self._get_features(symbol)
         if not feats:
             return None
         feats.update(changes)
@@ -2064,7 +2307,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         feature has to fail loudly rather than quietly leave the phone as
         it was.
         """
-        if not self.get_features(phone):
+        if not self._get_features(phone):
             raise ValueError(f"cannot resolve phone {phone!r}")
         wanted: dict[str, str] = {}
         for name, value in changes.items():
@@ -2399,7 +2642,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             )
 
         try:
-            was = self.get_features(base)
+            was = self._get_features(base)
             unit = self.segment(base, strict=True)
         except (ValueError, KeyError):
             return None
@@ -2511,7 +2754,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             ).to_ipa()
             if self.segment(candidate).to_ipa() != candidate:
                 return None
-            got = self.get_features(candidate)
+            got = self._get_features(candidate)
         except (ValueError, KeyError):
             return None
         if any(got.get(key) != value for key, value in wanted.items()):

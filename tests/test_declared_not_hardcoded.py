@@ -262,7 +262,7 @@ class TestTheDataSaysWhatThePythonUsedTo:
             for mark in ("̤", "̰")
             if (unit := phone + mark)
             and ipa.segment(unit).to_ipa() == unit
-            and (bundle := ipa.get_features(unit))
+            and (bundle := ipa._get_features(unit))
             and (
                 target := ipa.projections.get(
                     ("phonation", bundle.get("phonation", ""))
@@ -341,7 +341,7 @@ def _reads_back(ipa: IPAFeatures, text: str) -> bool:
 
 
 def _bag(ipa: IPAFeatures, text: str) -> dict[str, str]:
-    return {k: v for k, v in ipa.get_features(text).items() if k not in METADATA_ATTRS}
+    return {k: v for k, v in ipa._get_features(text).items() if k not in METADATA_ATTRS}
 
 
 @pytest.fixture(scope="module")

@@ -74,7 +74,7 @@ class TestRecomposition:
                 except ValueError:
                     continue
                 checked += 1
-                assert ipa.get_features(unit) == structured, unit
+                assert ipa._get_features(unit) == structured, unit
         assert checked > 100, "sweep did not run"
 
 

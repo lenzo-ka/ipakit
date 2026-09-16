@@ -68,7 +68,8 @@ class TestItIsMetricOnlyAndContained:
         # The rider is read for the metric; it does not enter the unit's
         # feature bundle, so a form still spells back unchanged.
         assert ipa.read("ˈkɛt").to_ipa() == "ˈkɛt"
-        assert "stress" not in ipa.get_features("ˈɛ")
+        with pytest.warns(ipakit.FeatureNarrowingWarning):
+            assert "stress" not in ipa.get_features("ˈɛ")
 
     def test_the_prosodic_feature_adds_no_phone_term(self, ipa):
         # No shipped phone carries a rider. The exact position is repinned
