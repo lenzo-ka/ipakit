@@ -521,7 +521,7 @@ print(json.dumps(out))
     assert "aspirated-stops" in got["supplements"], got
     assert got["registered"] == ["kʰ", "pʰ", "tʰ"], got
     assert got["head"] == "adult-male", got
-    assert got["confusable"], got
+    assert got["positioned"], got
 
 
 def test_the_installed_package_carries_the_tutorial_notebook(built_wheel, tmp_path):

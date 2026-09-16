@@ -1004,7 +1004,8 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # error behind somebody else's call site.
             caller = sys._getframe(stacklevel - 1)
             package = Path(__file__).resolve().parent
-            if Path(caller.f_code.co_filename).resolve().is_relative_to(package):
+            caller_path = Path(caller.f_code.co_filename)
+            if caller_path.is_file() and caller_path.resolve().is_relative_to(package):
                 raise RuntimeError(
                     "ipakit internal code called the warning-emitting scalar "
                     f"feature read for {phone!r}"

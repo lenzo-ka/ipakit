@@ -308,6 +308,41 @@ class TestNarrowingByConstruction:
         assert "segments()" in message
         assert "feature_values()" not in message
 
+    def test_constituent_observability_includes_value_order(
+        self, ipa: IPAFeatures
+    ) -> None:
+        text = "t͜d͜p"
+        unit = ipa.segment(text, strict=True)
+        bag = unit.bag()
+        assert all(
+            unit._bag(unit.constituents[:index] + unit.constituents[index + 1 :]) != bag
+            for index in range(len(unit.constituents))
+        )
+
+        without_t = unit._bag(unit.constituents[1:])
+        assert bag["voiced"] == ("-", "+")
+        assert without_t["voiced"] == ("+", "-")
+        assert {key for key in bag if bag[key] != without_t[key]} == {"voiced"}
+        assert {key: set(values) for key, values in bag.items()} == {
+            key: set(values) for key, values in without_t.items()
+        }
+        assert ipa.feature_values(text)["voiced"] == ("-", "+")
+        assert ipa.feature_values("d͜p")["voiced"] == ("+", "-")
+        message = _one_warning(lambda: ipa.get_features(text), text)
+        assert (
+            "use feature_values() for sequential constituent(s) ['d', 'p']" in message
+        )
+
+        structured_text = "p͜d͜t"
+        structured = ipa.segment(structured_text, strict=True)
+        without_t = structured._bag(structured.constituents[:-1])
+        assert without_t == structured.bag()
+        message = _one_warning(
+            lambda: ipa.get_features(structured_text), structured_text
+        )
+        assert "use segments() for sequential constituent(s) ['d', 't']" in message
+        assert "feature_values()" not in message
+
     def test_contradictory_prosody_points_to_the_structured_read(
         self, ipa: IPAFeatures
     ) -> None:
@@ -458,6 +493,18 @@ class TestCallBoundary:
         with pytest.warns(FeatureNarrowingWarning) as caught:
             ipa.get_features("a͜ɪ")
         assert caught[0].filename == __file__
+
+    def test_pseudo_filename_is_external_inside_package_cwd(
+        self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        package = Path(ipakit.__file__).resolve().parent
+        monkeypatch.chdir(package)
+        with pytest.warns(FeatureNarrowingWarning) as caught:
+            exec(
+                compile("inventory.get_features('aː')", "<string>", "exec"),
+                {"inventory": ipa},
+            )
+        assert caught[0].filename == "<string>"
 
     def test_representative_internal_consumers_do_not_call_the_warning_path(
         self, ipa: IPAFeatures
