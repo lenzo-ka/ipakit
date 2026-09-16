@@ -350,6 +350,14 @@ class Feature:
             return max(direction(c1, c2), direction(c2, c1))
         if v1 == v2:
             return 0.0
+        # A declared center is the unfilled value of the scale. It stays out
+        # of feature bundles, but comparison must still read an absent side at
+        # that position: otherwise adding values around the center re-spaces
+        # the declared domain while stated-vs-unstated phone comparisons keep
+        # paying a categorical full step.
+        if self.center is not None:
+            v1 = self.center if v1 is None else v1
+            v2 = self.center if v2 is None else v2
         if v1 is None or v2 is None:
             return 1.0
         # Anchored features measure distance in physical tract space
