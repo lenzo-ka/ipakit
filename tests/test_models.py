@@ -37,6 +37,26 @@ class TestFeatureModel:
         assert f.value_distance("-", "+") == 1.0
         assert f.value_distance("+", "+") == 0.0
 
+    def test_sequence_value_distance_preserves_order_and_grading(self) -> None:
+        f = Feature(
+            name="tone",
+            values=["bottom", "low", "mid", "high", "top"],
+            sequence=True,
+        )
+        assert f.value_distance("mid>top", "mid>top") == 0.0
+        assert f.value_distance("top>bottom", "bottom>top") > 0.0
+        assert f.value_distance("mid>high", "mid>top") < f.value_distance(
+            "mid>high", "mid>bottom"
+        )
+
+    def test_sequence_value_distance_charges_an_unmatched_step(self) -> None:
+        f = Feature(
+            name="tone",
+            values=["bottom", "low", "mid", "high", "top"],
+            sequence=True,
+        )
+        assert f.value_distance("mid>top", "mid>top>mid") == 1 / 3
+
     def test_feature_with_description(self) -> None:
         f = Feature(
             name="manner", values=["plosive"], desc="How airflow is constricted"

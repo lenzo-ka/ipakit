@@ -134,7 +134,7 @@ round(ipakit.distance("a", "á"), 6)     # 0.043478
 round(ipakit.distance("a", "à"), 6)     # 0.043478
 round(ipakit.distance("a", "aː"), 6)    # 0.028986
 round(ipakit.distance("a", "ǎ"), 6)     # 0.021739
-round(ipakit.distance("a", "a᷅"), 6)    # 0.0
+round(ipakit.distance("a", "a᷅"), 6)    # 0.0625
 round(ipakit.distance("á", "à"), 6)     # 0.021739
 ```
 
@@ -146,8 +146,10 @@ against each other. These readings follow the house declarations in `ipa.xml`.
 other. The pairwise comparison therefore retains their tone distinction.
 Direction-only contour marks such as the caron in `ǎ` also contribute a term.
 Multi-level trajectories such as `a᷅` (`low>mid`) are retained in the
-representation but omitted from the scalar metric pending a trajectory
-comparison policy. Their zero contribution indicates an unscored tier.
+representation and compared as ordered sequences. Each aligned substitution
+uses the declared scalar value distance, an unmatched step costs one, and the
+edit cost is divided by the longer trajectory. The same rule prices the
+derived `contour` sequence, so both levels and direction remain observable.
 Single tone levels use the declared `bottom`, `low`, `mid`, `high`, `top`
 scale. See [tone declarations and trajectories](tone.md).
 
