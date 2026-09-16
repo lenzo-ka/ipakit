@@ -1,8 +1,9 @@
 # Reviewed CLTS correspondences
 
 The `ipakit.clts_mapping` library provides a bounded, directional correspondence
-authority for the exact plain-stop witnesses `p`, `b`, `t`, and `d`, from CLTS
-to IPAkit. Its rules establish eligibility in the declared direction and context.
+authority for the exact plain-stop witnesses `p`, `b`, `t`, and `d`, and for the
+seven CLTS consonant-release declarations, from CLTS to IPAkit. Its token rules
+establish eligibility in the declared direction and context.
 Reverse conversion and TierGraph/Form import require separate reviewed bindings.
 Each inventory retains its own semantics.
 
@@ -21,9 +22,10 @@ This works offline with shipped artifacts; it does not load pyclts. Eligibility
 requires the complete source claim set, exact source spelling, and the reviewed
 native structural context. Every extra claim participates in the eligibility check.
 Native defaults absent from CLTS claims are recorded with their native provenance.
-Other tokens remain unresolved, including affricates, approach/release forms,
-vowels, and tone. Exact source recovery is a separate operation from reverse
-phonetic conversion.
+Other tokens remain unresolved, including affricates, approach/release token
+forms, vowels, and tone. The declaration-level release adjudications do not make
+those tokens import-ready. Exact source recovery is a separate operation from
+reverse phonetic conversion.
 
 The authority binds the accepted CLTS policy, source input hashes, frozen core
 identity, native declaration hash, effective native metric fingerprint, and its
@@ -44,8 +46,13 @@ cleared by the core-data notice. The
 [mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt) states the narrower
 artifact's sources, transformations and attribution.
 A conditional-witness rule applies only in its stated complete-token context.
-Unproven entries remain
-explicitly unresolved. Every reverse-direction entry remains unresolved.
+The release rows are narrower declaration correspondences: unreleased, lateral,
+nasal and schwa-colored release map to existing `release` values, while sibilant,
+trilled and uvular release name constituent-sequence forms. A segmental release
+is a constituent; a manner or phonation quality can remain a `release` value.
+No new value is introduced to flatten a segment into that feature. Unproven
+entries remain explicitly unresolved. Every reverse-direction entry remains
+unresolved.
 
 The reviewed authored rules live in
 [semantic-rules.json](../ipakit/data/clts/semantic-rules.json). The generated
