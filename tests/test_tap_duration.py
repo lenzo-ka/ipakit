@@ -56,6 +56,25 @@ def test_all_and_only_taps_and_trills_state_intrinsic_timing(
     } == INTRINSICALLY_REPEATED
 
 
+@pytest.mark.parametrize(
+    "declaration",
+    (
+        '<phone name="d̬" manner="tap" place="alveolar" voiced="+"/>',
+        '<phone name="d̬" manner="plosive" place="alveolar" voiced="+" '
+        'intrinsic-timing="brief"/>',
+    ),
+)
+def test_intrinsic_timing_check_is_derived_from_manner(
+    tmp_path: Path, declaration: str
+) -> None:
+    path = tmp_path / "mistimed.xml"
+    path.write_text(
+        '<supplement name="mistimed"><phones>' + declaration + "</phones></supplement>",
+        encoding="utf-8",
+    )
+    assert not check_intrinsic_timing(IPAFeatures(supplements=[path]))
+
+
 def test_taps_and_trills_are_complete_closures(
     ipa: IPAFeatures,
 ) -> None:
@@ -276,22 +295,27 @@ def test_written_vowel_length_distance_is_unchanged(ipa: IPAFeatures) -> None:
 
 
 def test_every_pair_lacking_a_tap_or_trill_is_unchanged() -> None:
+    """Unmarked cells equal their values in the previously shipped matrix.
+
+    The digest was computed from the pre-change matrix shipped at ``0baa193``;
+    it is an external baseline, not a restatement of the regenerated output.
+    """
     matrix = json.loads(
         (
             Path(__file__).parent.parent / "ipakit" / "data" / "confusion.json"
         ).read_text()
     )
     values = []
-    index = 0
+    n = len(matrix["phones"])
     for i, left in enumerate(matrix["phones"]):
-        for right in matrix["phones"][i + 1 :]:
+        for j, right in enumerate(matrix["phones"][i + 1 :], start=i + 1):
+            index = i * n - i * (i + 1) // 2 + (j - i - 1)
             value = matrix["triangle"][index]
-            index += 1
             marked = INTRINSICALLY_BRIEF | INTRINSICALLY_REPEATED
             if left not in marked and right not in marked:
                 values.append(value)
     digest = hashlib.sha256(
-        json.dumps(values, separators=(",", ":")).encode()
+        "".join(repr(value) for value in values).encode()
     ).hexdigest()
     assert len(values) == 8646
-    assert digest == "2c33c9ac1e74ed29d16517396a9f86026ba70df565a9b564743141b9ee0ef4ae"
+    assert digest == "cf375efc4ee9836f004a41e0294ab94f3662b9373b65f2eac72871a108c996dc"

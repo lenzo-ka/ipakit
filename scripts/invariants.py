@@ -1242,8 +1242,16 @@ def check_intrinsic_timing(ipa: IPAFeatures) -> bool:
     }
     failures = []
     expected = {
-        "brief": INTRINSICALLY_BRIEF,
-        "repeated": INTRINSICALLY_REPEATED,
+        "brief": {
+            phone
+            for phone in ipa.phones
+            if ipa.get_features(phone, with_defaults=False).get("manner") == "tap"
+        },
+        "repeated": {
+            phone
+            for phone in ipa.phones
+            if ipa.get_features(phone, with_defaults=False).get("manner") == "trill"
+        },
     }
     if stated != expected:
         failures.append(

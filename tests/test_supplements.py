@@ -289,6 +289,38 @@ class TestFeaturesAreEqualByConstruction:
 
 
 class TestASupplementMayOnlyExtend:
+    def test_every_declared_center_is_refused_in_a_bundle(
+        self, tmp_path: Path, ipa: IPAFeatures
+    ) -> None:
+        """A center is the unfilled value, so explicitly stating it says nothing.
+
+        The intrinsic-timing case is the reported defect: registering this
+        exact ``d̬`` bundle used to add a zero-cost term to its comparisons,
+        making it distance zero from ``d`` but a different distance from ``t``.
+        Iterating the declarations also covers prominence and every centered
+        feature added later, rather than making that invariant timing-specific.
+        """
+        centered = {
+            name: feature.center
+            for name, feature in ipa.features.items()
+            if feature.center is not None
+        }
+        assert centered
+        for name, center in centered.items():
+            path = write(
+                tmp_path,
+                f"center-{name}.xml",
+                '<supplement name="stated-center"><phones>'
+                f'<phone name="d̬" manner="plosive" place="alveolar" '
+                f'voiced="+" {name}="{center}"/>'
+                "</phones></supplement>",
+            )
+            with pytest.raises(
+                ValueError,
+                match="the center is the unfilled value, and stating it says nothing",
+            ):
+                IPAFeatures(supplements=[path])
+
     def test_a_redeclared_symbol_is_refused(self, tmp_path: Path) -> None:
         """Which file wins is a question this repository has answered wrong
         by declaration order before. It is refused rather than answered."""

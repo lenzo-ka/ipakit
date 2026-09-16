@@ -781,6 +781,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             for k, v in elem.attrib.items()
             if k not in ("name", "alias", "desc")
         }
+        for name, value in features.items():
+            feature = self.features.get(name)
+            if feature is not None and feature.center == value:
+                raise ValueError(
+                    f"{element_type} {symbol!r} states {name}={value!r}, but "
+                    f"that is feature {name!r}'s center: the center is the "
+                    "unfilled value, and stating it says nothing"
+                )
         features["class"] = element_type
         phone = Phone(symbol=symbol, features=MappingProxyType(features))
 
