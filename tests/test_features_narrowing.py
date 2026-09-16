@@ -514,6 +514,47 @@ class TestCallBoundary:
             )
         assert caught[0].filename == "<string>"
 
+    def test_a_package_module_run_as_main_stays_internal(
+        self,
+        ipa: IPAFeatures,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """``python -m ipakit.x`` renames the module, not its identity.
+
+        Running a package module as a script sets ``__name__`` to
+        ``__main__`` while its spec keeps the name it was imported by.  The
+        boundary is about where the code lives, so the spec decides.
+        """
+        package = tmp_path / "ipakit"
+        package.mkdir()
+        source = package / "_boundary_main.py"
+        source.write_text(
+            "inventory.get_features('a\u02d0')\n",
+            encoding="utf-8",
+        )
+        module_name = f"{ipakit.__name__}._boundary_main"
+        spec = importlib.util.spec_from_file_location(module_name, source)
+        assert spec is not None
+        features_module = sys.modules[IPAFeatures.__module__]
+        monkeypatch.setattr(features_module, "__file__", package / "features.py")
+
+        # Exactly what ``-m`` produces: run as ``__main__`` with the spec
+        # still naming the package module it was loaded from.
+        namespace = {
+            "__name__": "__main__",
+            "__spec__": spec,
+            "inventory": ipa,
+        }
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with pytest.raises(RuntimeError, match="internal code called"):
+                exec(  # noqa: S102
+                    compile(source.read_text(encoding="utf-8"), str(source), "exec"),
+                    namespace,
+                )
+        assert caught == []
+
     def test_loaded_package_module_stays_internal_after_source_is_removed(
         self,
         ipa: IPAFeatures,

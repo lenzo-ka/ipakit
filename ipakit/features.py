@@ -1004,7 +1004,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # error behind somebody else's call site.
             caller = sys._getframe(stacklevel - 1)
             package_name = __name__.partition(".")[0]
-            caller_module = caller.f_globals.get("__name__")
+            # ``python -m ipakit.x`` runs a package module under the name
+            # ``__main__``; its spec still carries the name it was imported
+            # by, which is the identity the boundary is about.
+            spec = caller.f_globals.get("__spec__")
+            caller_module = getattr(spec, "name", None) or caller.f_globals.get(
+                "__name__"
+            )
             # Code that deliberately presents a package-prefixed module name
             # is internal here; that is impersonation rather than misclassification.
             if isinstance(caller_module, str) and (
