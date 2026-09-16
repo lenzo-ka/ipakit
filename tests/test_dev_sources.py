@@ -14,7 +14,7 @@ from ipakit.extraction import (
     SourceVersionError,
     mfa,
 )
-from scripts import dev_sources, mfa_vocabularies
+from scripts import dev_sources, espeak_vocabularies, mfa_vocabularies
 
 
 @pytest.fixture
@@ -113,6 +113,34 @@ def test_fresh_acquisition_uses_one_pin_and_validates_after(
     assert calls[0] == (None, "init", "-q", str(source))
     assert any(call[-1] == mfa.REVISION for call in calls)
     assert calls[-1] == ("validate", source, {"dictionary": True})
+
+
+def test_espeak_acquisition_uses_generator_pin_and_phsource_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "espeak-ng"
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(dev_sources, "git", lambda *args: calls.append(args) or "")
+    monkeypatch.setattr(
+        espeak_vocabularies,
+        "require_pin",
+        lambda path: calls.append(("validate", path)),
+    )
+    dev_sources.acquire_espeak(source)
+    assert source.is_dir()
+    assert calls[0] == (None, "init", "-q", str(source))
+    assert (
+        source,
+        "fetch",
+        "-q",
+        "--depth",
+        "1",
+        "--filter=blob:none",
+        "origin",
+        espeak_vocabularies.REVISION,
+    ) in calls
+    assert (source, "sparse-checkout", "set", "--no-cone", "/phsource/") in calls
+    assert calls[-1] == ("validate", source)
 
 
 def test_candidate_is_discovery_not_repin(monkeypatch: pytest.MonkeyPatch) -> None:
