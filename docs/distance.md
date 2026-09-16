@@ -31,10 +31,11 @@ existing raw feature-cost trace. `IPAFeatures` offers all four, and
 `DistanceModel` offers distance, directional distance and similarity with its
 selected costs and existing options.
 
-These operations currently align segment units: word and other tier boundaries
-remain transparent to scoring. Use `sequence_distance` for already-tokenized
-input whose supplied token divisions must be retained. This naming change adds
-no boundary-sensitive metric or new tokenization behavior.
+These operations align segment units and compare the boundary claims retained
+at their segment-clock margins. Boundaries remain relations rather than phone
+tokens, so they do not change phone coverage or a length-ratio gate. Use
+`sequence_distance` for already-tokenized phone input; it carries no boundary
+claims because its caller supplied only phone tokens.
 
 `TranscriptionDistanceResult` reports edit cost, similarity, coverage, cost
 identity and optional alignment. The CLI command is `distance transcription`;
@@ -202,7 +203,9 @@ The previous ordered-path flat gap made every phased second constituent cost `0.
 
 One budget question remains explicitly deferred. A fusion has no arity floor, so adding the whole second articulator in `ɡ͡b` (`0.034`) is cheaper than adding aspiration to `t` (`0.048`). A floor may be defensible, but it must be measured separately; changing fusion arity in this repair would make neither mover class independently explainable. The test suite pins the live inversion so this limit stays visible.
 
-**Prosodic tiers ride on the unit clock, and stress rides the nucleus.** Where a stress mark sits is a notation decision with a metric consequence: house style writes stress immediately before the nucleus that bears it rather than at a syllable margin, because a margin-style mark states two things at once — that the syllable is stressed, and where it begins — and only the first is always available ([house-style.md](house-style.md#stress-sits-on-the-nucleus)). So a stress rider attaches to the vowel it marks, and comparing `ˈkat` with `kat` moves one term on one unit rather than shifting an alignment. Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit — unlike a break, which sits *between* units and is transparent to distance. Each rider adds one graded term to the unit it rides on, read via the ordinal `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one) at the same weight as a segmental feature. It is read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before. A tone *contour*, a sequence value like `mid>high`, is a trajectory rather than a point on the scale, so it stays out until a sequence comparison exists (`d(a, a᷅) = 0`).
+**Prosodic tiers ride on the unit clock, and stress rides the nucleus.** Where a stress mark sits is a notation decision with a metric consequence: house style writes stress immediately before the nucleus that bears it rather than at a syllable margin, because a margin-style mark states two things at once — that the syllable is stressed, and where it begins — and only the first is always available ([house-style.md](house-style.md#stress-sits-on-the-nucleus)). So a stress rider attaches to the vowel it marks, and comparing `ˈkat` with `kat` moves one term on one unit rather than shifting an alignment. Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit. Each rider adds one graded term to the unit it rides on, read via the ordinal `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one) at the same weight as a segmental feature. It is read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before. A tone *contour*, a sequence value like `mid>high`, is a trajectory rather than a point on the scale, so it stays out until a sequence comparison exists (`d(a, a᷅) = 0`).
+
+**Boundary claims sit between units and carry the same one-term mass.** They do not become phone tokens. Their segment-clock margin supplies position, and the declared ordinal `level` supplies type: a syllable-to-word change is one step while syllable-to-utterance is three. An unmarked margin stays unclaimed; it acquires no synthesized boundary, but comparing it with a claimed margin costs the claim's one-sided mass. Two glyphs resolving to the same level at the same margin compare equal.
 
 **A word comparison is inspectable.** `explain_transcription_distance(a, b)` returns one step per aligned position — `op` (match/sub/insert/delete), the two units, the position `cost`, and for a substitution the `(label, a, b, cost)` rows behind it, each comparable feature and every prosodic rider — so a score can be read term by term (`ˈk`~`ˌk` is `stress: primary vs secondary = 0.5`).
 
@@ -332,7 +335,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **The three scales are named apart.** `distance` is a structural magnitude and is bounded; `distance_position` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `TranscriptionDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
-**Word-level distance is an alignment over token distances.** Structural marks — the linking undertie, breaks — are transparent: `transcription_distance("lez‿ami", "lezami") = 0`.
+**Word-level distance is a phone alignment plus asserted boundary claims.** The linking undertie and breaks remain relations rather than phone tokens, but a marked relation is no longer free against an unclaimed margin. The shipped confusion matrix remains phone-only.
 
 **Score against a set of acceptable pronunciations with `nearest_pronunciation`, not a citation form.** Every real lexicon lists several transcriptions per word — free variants (`iːðɚ`/`aɪðɚ`), a homograph read two ways (`record` the noun and the verb) — and "is this an acceptable pronunciation?" is the best match over that set, with `PronunciationMatch` reporting which member won. It is deliberately *not* word-to-word distance: a maximum over variants depends on how many each side lists, a property of the lexicon and not of the pair, so the two are named apart. `transcription_distance` remains the symmetric pairwise measure.
 

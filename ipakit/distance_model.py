@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Self
 
 from .constants import DEFAULT_CONFUSION
 from .distance import (
+    Alignment,
     PhoneCost,
     PhonePosition,
     ScoringParameters,
@@ -685,16 +686,33 @@ class DistanceModel:
         substitution costs the alignment sees and not what a similarity
         means.
         """
-        t1 = self._ipa._transcription_units(ipa1)
-        t2 = self._ipa._transcription_units(ipa2)
+        t1, boundaries1 = self._ipa._transcription_structure(ipa1)
+        t2, boundaries2 = self._ipa._transcription_structure(ipa2)
+        boundary = self._ipa._boundary_comparison(boundaries1, boundaries2)
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
-            return _empty_pair_result(return_alignment, self._insert, self._delete)
+            if not boundary.null_cost:
+                return _empty_pair_result(return_alignment, self._insert, self._delete)
+            return _transcription_result(
+                t1,
+                t2,
+                boundary.edit_cost,
+                Alignment(()) if return_alignment else None,
+                self._insert,
+                self._delete,
+                extra_null_cost=boundary.null_cost,
+            )
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
         )
         return _transcription_result(
-            t1, t2, dist, alignment, self._insert, self._delete
+            t1,
+            t2,
+            dist + boundary.edit_cost,
+            alignment,
+            self._insert,
+            self._delete,
+            extra_null_cost=boundary.null_cost,
         )
 
     def directional_transcription_distance(

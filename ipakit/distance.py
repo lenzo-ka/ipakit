@@ -454,6 +454,22 @@ class TranscriptionDistanceResult:
     alignment: Alignment | None = None
 
 
+@dataclass(frozen=True)
+class _BoundaryComparison:
+    """The structural-claim share of a transcription comparison.
+
+    ``edit_cost`` is what the asserted margins add to the alignment;
+    ``null_cost`` is the price of deleting every claim on the left and
+    inserting every claim on the right, for the same normalization used by
+    phone tokens.  ``rows`` keeps the comparison inspectable without turning
+    a boundary relation into a phone-alignment position.
+    """
+
+    edit_cost: float
+    null_cost: float
+    rows: tuple[tuple[int, str | None, str | None, float], ...] = ()
+
+
 def _substitution_cost(
     dissimilarity: float, insert_cost: float, delete_cost: float
 ) -> float:
@@ -489,18 +505,21 @@ def _transcription_result(
     alignment: Alignment | None,
     insert_cost: PhoneCost,
     delete_cost: PhoneCost,
+    *,
+    extra_null_cost: float = 0.0,
 ) -> TranscriptionDistanceResult:
     """Normalize an alignment cost -- one read for both word-distance paths.
 
-    The denominator is the cost of the null alignment, which deletes every
-    token of the first word and inserts every token of the second: the sum
-    of ``delete`` over ``tokens1`` plus the sum of ``insert`` over
-    ``tokens2``. That path is one the DP minimizes over, so it is also the
-    most any alignment can cost, and ``similarity`` spans [0, 1] with both
-    ends attainable -- 1 on identity, 0 when the two words share nothing
-    at any position. ``max(n, m)`` was the other reading, and it is a
-    different claim: it charges a truncation once, where this charges the
-    material that went missing and the material that replaced it apart.
+    The denominator is the cost of the null comparison: delete every phone
+    token and boundary claim on the first side, then insert every one on the
+    second. Phone prices are the sum of ``delete`` over ``tokens1`` plus the
+    sum of ``insert`` over ``tokens2``; ``extra_null_cost`` carries the
+    separately aligned structural claims. That path is always available, so
+    it is also the most any comparison can cost, and ``similarity`` spans
+    [0, 1] with both ends attainable -- 1 on identity, 0 when the two forms
+    share nothing. ``max(n, m)`` was the other reading, and it is a different
+    claim: it charges a truncation once, where this charges the material that
+    went missing and the material that replaced it apart.
 
     **It is a sum over the actual tokens and not a length times a price.**
     ``n * delete + m * insert`` is the same number whenever the price is
@@ -511,8 +530,10 @@ def _transcription_result(
     below, and the null alignment pays for the phones it actually removes.
     """
     n, m = len(tokens1), len(tokens2)
-    denom = sum(_prices(delete_cost, tokens1, "delete_cost")) + sum(
-        _prices(insert_cost, tokens2, "insert_cost")
+    denom = (
+        sum(_prices(delete_cost, tokens1, "delete_cost"))
+        + sum(_prices(insert_cost, tokens2, "insert_cost"))
+        + extra_null_cost
     )
     similarity = 1.0 - edit_cost / denom if denom else 1.0
     result = TranscriptionDistanceResult(
@@ -842,9 +863,71 @@ class DistanceMixin(IPAFeaturesBase):
     def _transcription_units(self, text: str) -> list[str]:
         """The units a transcription aligns over: one per segment, with prosody
         (stress, tone, length) bound to it, so a prosodic mark rides on the
-        unit it scopes rather than floating as its own token. Boundaries are
-        dropped -- transparent to distance."""
-        return [s.to_ipa() for s in self.read(text).segments]
+        unit it scopes rather than floating as its own token. Boundary
+        relations are priced separately from the phone alignment by
+        :meth:`_transcription_structure`."""
+        return self._transcription_structure(text)[0]
+
+    def _transcription_structure(self, text: str) -> tuple[list[str], dict[int, str]]:
+        """Phone tokens and the strongest boundary claim at each margin.
+
+        A margin is the number of segment tokens before the boundary.  The
+        claim is the boundary's declared ``level``, not its glyph, so two
+        notations for the same claim compare equal.  A run that repeats or
+        nests claims at one margin resolves to its strongest declared level;
+        the ordinal declaration itself supplies that choice.
+        """
+        form = self.read(text)
+        tokens = [segment.to_ipa() for segment in form.segments]
+        level = self.features.get("level")
+        if level is None:
+            return tokens, {}
+        rank = {value: index for index, value in enumerate(level.values)}
+        claims: dict[int, str] = {}
+        for boundary in form.boundaries:
+            claimed = boundary.level
+            if claimed not in rank:
+                continue
+            previous = claims.get(boundary.at)
+            if previous is None or rank[claimed] > rank[previous]:
+                claims[boundary.at] = claimed
+        return tokens, claims
+
+    def _boundary_comparison(
+        self,
+        left: Mapping[int, str],
+        right: Mapping[int, str],
+        *,
+        applicable_only: bool = False,
+    ) -> _BoundaryComparison:
+        """Price asserted boundary levels, leaving absent margins unclaimed.
+
+        Each claim has one ordinary atomic comparison term's mass.  Two
+        claims at one margin substitute along the declared ordinal ``level``
+        scale; a claim present on only one side pays its one-sided null price.
+        Positions neither form claims never enter either cost.
+        """
+        from .metric import _arity_base
+
+        feature = self.features.get("level")
+        if feature is None or not left and not right:
+            return _BoundaryComparison(0.0, 0.0)
+        mass = _arity_base(self, applicable_only)
+        edit_cost = 0.0
+        rows: list[tuple[int, str | None, str | None, float]] = []
+        for position in sorted(set(left) | set(right)):
+            a, b = left.get(position), right.get(position)
+            if a is None or b is None:
+                cost = mass
+            else:
+                # Like a phone substitution, a type change spends against
+                # both claims' null prices and discounts them by what the two
+                # declared levels share.
+                cost = 2.0 * mass * feature.value_distance(a, b)
+            edit_cost += cost
+            rows.append((position, a, b, cost))
+        null_cost = mass * (len(left) + len(right))
+        return _BoundaryComparison(edit_cost, null_cost, tuple(rows))
 
     def transcription_distance(
         self,
@@ -910,8 +993,8 @@ class DistanceMixin(IPAFeaturesBase):
 
         if strict:
             self._reject_unconvertible(ipa1, ipa2)
-        tokens1 = self._transcription_units(ipa1)
-        tokens2 = self._transcription_units(ipa2)
+        tokens1, boundaries1 = self._transcription_structure(ipa1)
+        tokens2, boundaries2 = self._transcription_structure(ipa2)
         return self._aligned_transcriptions(
             tokens1,
             tokens2,
@@ -920,6 +1003,8 @@ class DistanceMixin(IPAFeaturesBase):
             GAP_COST,
             GAP_COST,
             applicable_only=applicable_only,
+            boundaries1=boundaries1,
+            boundaries2=boundaries2,
         )
 
     def _aligned_transcriptions(
@@ -932,6 +1017,8 @@ class DistanceMixin(IPAFeaturesBase):
         delete_cost: PhoneCost,
         mode: str = "global",
         applicable_only: bool = False,
+        boundaries1: Mapping[int, str] | None = None,
+        boundaries2: Mapping[int, str] | None = None,
     ) -> TranscriptionDistanceResult:
         """Align two token sequences under one indel parameterization.
 
@@ -941,6 +1028,11 @@ class DistanceMixin(IPAFeaturesBase):
         between them is what they pass here, and what they promise about it.
         """
         n, m = len(tokens1), len(tokens2)
+        boundary = self._boundary_comparison(
+            boundaries1 or {},
+            boundaries2 or {},
+            applicable_only=applicable_only,
+        )
 
         def raw_cost(t1: str, t2: str) -> float:
             if t1 == t2:
@@ -985,7 +1077,17 @@ class DistanceMixin(IPAFeaturesBase):
             )
 
         if n == 0 and m == 0:
-            return _empty_pair_result(return_alignment, insert_cost, delete_cost)
+            if not boundary.null_cost:
+                return _empty_pair_result(return_alignment, insert_cost, delete_cost)
+            return _transcription_result(
+                tokens1,
+                tokens2,
+                boundary.edit_cost,
+                Alignment(()) if return_alignment else None,
+                insert_cost,
+                delete_cost,
+                extra_null_cost=boundary.null_cost,
+            )
 
         if mode == "local":
             return self._fit_result(tokens1, tokens2, cost_fn, insert_cost, delete_cost)
@@ -1000,7 +1102,13 @@ class DistanceMixin(IPAFeaturesBase):
             term_fn,
         )
         return _transcription_result(
-            tokens1, tokens2, distance, alignment, insert_cost, delete_cost
+            tokens1,
+            tokens2,
+            distance + boundary.edit_cost,
+            alignment,
+            insert_cost,
+            delete_cost,
+            extra_null_cost=boundary.null_cost,
         )
 
     def _fit_result(
@@ -1111,8 +1219,8 @@ class DistanceMixin(IPAFeaturesBase):
 
         if strict:
             self._reject_unconvertible(reference, hypothesis)
-        tokens1 = self._transcription_units(reference)
-        tokens2 = self._transcription_units(hypothesis)
+        tokens1, boundaries1 = self._transcription_structure(reference)
+        tokens2, boundaries2 = self._transcription_structure(hypothesis)
         return self._aligned_transcriptions(
             tokens1,
             tokens2,
@@ -1121,6 +1229,8 @@ class DistanceMixin(IPAFeaturesBase):
             GAP_COST if insert_cost is None else insert_cost,
             GAP_COST if delete_cost is None else delete_cost,
             applicable_only=applicable_only,
+            boundaries1=boundaries1,
+            boundaries2=boundaries2,
         )
 
     def transcription_similarity(
@@ -1190,10 +1300,12 @@ class DistanceMixin(IPAFeaturesBase):
         units (one is ``None`` for a gap), ``cost`` is that position's
         contribution, and for a substitution ``terms`` lists the
         ``(label, a, b, cost)`` rows behind it -- each comparable feature, the
-        tract coordinates, and every prosodic rider (stress, tone, length). A
-        substitution's ``cost`` is the segment metric between the two units,
-        not the price the edit DP paid for that position, so the reported
-        costs do not sum to :attr:`TranscriptionDistanceResult.edit_cost`.
+        tract coordinates, and every prosodic rider (stress, tone, length).
+        Boundary claims follow as relation steps with their segment-clock
+        ``at`` margin and declared ``level`` term. A phone substitution's
+        ``cost`` is the segment metric between the two units, not the price the
+        edit DP paid for that position, so the reported costs do not sum to
+        :attr:`TranscriptionDistanceResult.edit_cost`.
         """
         result = self.transcription_distance(
             ipa1,
@@ -1216,6 +1328,45 @@ class DistanceMixin(IPAFeaturesBase):
                 else step.cost
             )
             explained.append({**step.to_data(), "cost": round(metric_cost, 4)})
+        _, boundaries1 = self._transcription_structure(ipa1)
+        _, boundaries2 = self._transcription_structure(ipa2)
+        comparison = self._boundary_comparison(
+            boundaries1,
+            boundaries2,
+            applicable_only=applicable_only,
+        )
+        level = self.features.get("level")
+        for position, left, right, cost in comparison.rows:
+            term_cost = (
+                1.0
+                if left is None or right is None or level is None
+                else level.value_distance(left, right)
+            )
+            explained.append(
+                {
+                    "op": (
+                        "insert"
+                        if left is None
+                        else (
+                            "delete"
+                            if right is None
+                            else "match" if left == right else "sub"
+                        )
+                    ),
+                    "a": left,
+                    "b": right,
+                    "at": position,
+                    "cost": round(cost, 4),
+                    "terms": [
+                        {
+                            "label": "level (boundary)",
+                            "a": left,
+                            "b": right,
+                            "cost": round(term_cost, 4),
+                        }
+                    ],
+                }
+            )
         return explained
 
     def nearest_pronunciation(

@@ -650,17 +650,19 @@ class TestLengthGating:
         assert checked > 150, f"sweep checked only {checked} pairs"
         assert unequal > 100, f"only {unequal} pairs differed in length"
 
-    def test_a_structural_mark_is_not_charged_a_length(self, ipa: IPAFeatures) -> None:
-        """``transcription_distance("lez‿ami", "lezami")`` is 0, and the gate in front
-        of it must agree. It counted every token the tokenizer emitted, so
-        the linking undertie made the two forms differ in length and the
-        short circuit refused the pair at any threshold above 12/13 --
-        for two forms the aligner scores identical."""
+    def test_a_structural_mark_is_not_charged_a_phone_length(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """A boundary claim costs, but remains a relation rather than a phone.
+
+        The length-ratio gate therefore agrees with the ungated result: it
+        does not reject the pair merely because the linking mark is present.
+        """
         model = DistanceModel.global_(ipa)
-        assert model.transcription_similarity("lez‿ami", "lezami") == pytest.approx(1.0)
-        assert model.is_similar("lez‿ami", "lezami", threshold=0.999) is True
+        assert model.transcription_similarity("lez‿ami", "lezami") < 1.0
+        assert model.is_similar("lez‿ami", "lezami", threshold=0.995) is True
         assert (
-            model.is_similar("lez‿ami", "lezami", threshold=0.999, max_length_ratio=1.0)
+            model.is_similar("lez‿ami", "lezami", threshold=0.995, max_length_ratio=1.0)
             is True
         )
 
