@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import re
+import sys
 import unicodedata
 import warnings
 import xml.etree.ElementTree as ET
@@ -997,6 +998,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             feats = self._get_features(phone, with_defaults=with_defaults)
             omissions = self._feature_omissions(phone)
         if omissions:
+            # ``stacklevel`` names the public entry point's caller.  A package
+            # frame there means library code crossed the public scalar-read
+            # boundary: warning the eventual user would hide our programming
+            # error behind somebody else's call site.
+            caller = sys._getframe(stacklevel - 1)
+            package = Path(__file__).resolve().parent
+            if Path(caller.f_code.co_filename).resolve().is_relative_to(package):
+                raise RuntimeError(
+                    "ipakit internal code called the warning-emitting scalar "
+                    f"feature read for {phone!r}"
+                )
             recommendations: dict[str, list[str]] = {}
             unretained: list[str] = []
             for omission, reader in omissions:
@@ -1065,22 +1077,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             reports.append((f"non-segmental material {list(source)!r}", "read()"))
 
         for segment in segments:
-            # ``feature_values`` is the constituent ``bag`` plus prosody,
-            # and ``bag`` deduplicates values.  Distinct spellings can still
-            # have the same default-filled bundle (for example ``b̥`` and
-            # ``p̥``), so spelling equality is not the loss boundary.
-            # If two constituents have the same bundle, only a structured
-            # read can witness that both and which two occurred.
-            constituent_bundles = [
-                frozenset(constituent.bundle(self, with_defaults=True).items())
-                for constituent in segment.constituents
-            ]
-            repeated = len(set(constituent_bundles)) < len(constituent_bundles)
+            # ``feature_values`` is the constituent ``bag`` plus prosody.
+            # A constituent is observable there only if removing it changes
+            # that merge.  Equality between whole constituent bundles is too
+            # weak: its values can already occur across several other parts.
+            bag = segment.bag()
+            constituent_vanishes = any(
+                segment._bag(
+                    segment.constituents[:index] + segment.constituents[index + 1 :]
+                )
+                == bag
+                for index in range(len(segment.constituents))
+            )
             with warnings.catch_warnings(record=True) as prosody_warnings:
                 warnings.simplefilter("always")
                 _prosodic_features(segment, self)
             dropped_marks = self._unrepresented_marks(segment)
-            structured = repeated or bool(prosody_warnings) or bool(dropped_marks)
+            structured = (
+                constituent_vanishes or bool(prosody_warnings) or bool(dropped_marks)
+            )
             unit_reader = "segments()" if structured else "feature_values()"
             if segment.prosody:
                 reports.append(

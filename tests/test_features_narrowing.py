@@ -59,6 +59,22 @@ POINTER_CASES = [
         id="distinct equal-bundle constituents",
     ),
     pytest.param(
+        "p͜d͜t",
+        "sequential constituent(s) ['d', 't']",
+        "segments()",
+        "constituents",
+        ["p", "d", "t"],
+        id="constituent covered across other bundles",
+    ),
+    pytest.param(
+        "a͜p͜b",
+        "sequential constituent(s) ['p', 'b']",
+        "segments()",
+        "constituents",
+        ["a", "p", "b"],
+        id="inventory-found covered constituent",
+    ),
+    pytest.param(
         "aː̆",
         "prosodic mark(s) ['ː', '̆']",
         "segments()",
@@ -271,6 +287,27 @@ class TestNarrowingByConstruction:
         assert "segments()" in message
         assert [str(part) for part in unit.constituents] == ["b̥", "p̥"]
 
+    @pytest.mark.parametrize(
+        ("text", "hidden"),
+        [("p͜d͜t", "t"), ("a͜p͜b", "b")],
+    )
+    def test_a_constituent_covered_across_other_bundles_needs_structure(
+        self, ipa: IPAFeatures, text: str, hidden: str
+    ) -> None:
+        """The bag loses a part even when no two whole bundles are equal."""
+        unit = ipa.segment(text, strict=True)
+        bundles = [
+            frozenset(part.bundle(ipa, with_defaults=True).items())
+            for part in unit.constituents
+        ]
+        assert len(set(bundles)) == len(bundles)
+        index = [str(part) for part in unit.constituents].index(hidden)
+        remaining = unit.constituents[:index] + unit.constituents[index + 1 :]
+        assert unit._bag(remaining) == unit.bag()
+        message = _one_warning(lambda: ipa.get_features(text), text)
+        assert "segments()" in message
+        assert "feature_values()" not in message
+
     def test_contradictory_prosody_points_to_the_structured_read(
         self, ipa: IPAFeatures
     ) -> None:
@@ -446,26 +483,35 @@ class TestCallBoundary:
     def test_runtime_guard_catches_an_aliased_internal_call(
         self, ipa: IPAFeatures
     ) -> None:
+        """Emission-site enforcement catches what syntax cannot enumerate."""
         # Compile the fault with a package filename: the direct-call AST scan
-        # cannot see the alias call, but the warning-as-error runtime boundary
-        # observes the public scalar read regardless of how it was reached.
+        # cannot see the alias call, while the emission site observes the
+        # package caller regardless of how the public read was reached.
         package_file = Path(ipakit.__file__).resolve().parent / "features.py"
         namespace: dict[str, object] = {}
+        source = (
+            "def injected(inventory):\n"
+            "    scalar_read = inventory.get_features\n"
+            "    return scalar_read('aː')\n"
+        )
+        tree = ast.parse(source, filename=str(package_file))
+        assert not [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get_features"
+        ]
         exec(
-            compile(
-                "def injected(inventory):\n"
-                "    scalar_read = inventory.get_features\n"
-                "    return scalar_read('a͜ɪ')\n",
-                str(package_file),
-                "exec",
-            ),
+            compile(source, str(package_file), "exec"),
             namespace,
         )
         injected = namespace["injected"]
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", FeatureNarrowingWarning)
-            with pytest.raises(FeatureNarrowingWarning):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with pytest.raises(RuntimeError, match="internal code called"):
                 injected(ipa)
+        assert caught == []
 
 
 class TestTheWarningGuardIsCausal:
@@ -511,7 +557,12 @@ class TestTheWarningGuardIsCausal:
 
 
 def test_package_internals_do_not_call_the_public_scalar_read() -> None:
-    """Fast syntactic tripwire; the runtime sweep covers aliases it misses."""
+    """Fast syntactic tripwire, not proof of the boundary.
+
+    No test can prove every internal call absent, and this enumerated AST
+    sweep cannot see aliases.  The emission-site check is the enforcement;
+    this remains a cheap extra check for direct calls.
+    """
     root = Path(ipakit.__file__).resolve().parent
     violations: list[str] = []
     for path in root.rglob("*.py"):

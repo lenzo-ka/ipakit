@@ -987,6 +987,17 @@ class Segment:
         """
         return phase_ordered(self._part_bundles(), self.junctures)
 
+    def _bag(self, constituents: Iterable[Constituent]) -> dict[str, tuple[str, ...]]:
+        """The :meth:`bag` merge over exactly ``constituents``."""
+        features = self._require_features()
+        out: dict[str, list[str]] = {}
+        for constituent in constituents:
+            for k, v in constituent.bundle(features, with_defaults=True).items():
+                values = out.setdefault(k, [])
+                if v not in values:
+                    values.append(v)
+        return {k: tuple(v) for k, v in out.items()}
+
     def bag(self) -> dict[str, tuple[str, ...]]:
         """Union feature bag: per-feature value tuples in constituent order,
         deduplicated. Bases are default-filled per constituent before the
@@ -994,14 +1005,7 @@ class Segment:
         sparse. Unit prosody is beside this constituent-only read;
         :meth:`IPAFeatures.feature_values` adds it for the flat string API.
         """
-        features = self._require_features()
-        out: dict[str, list[str]] = {}
-        for constituent in self.constituents:
-            for k, v in constituent.bundle(features, with_defaults=True).items():
-                values = out.setdefault(k, [])
-                if v not in values:
-                    values.append(v)
-        return {k: tuple(v) for k, v in out.items()}
+        return self._bag(self.constituents)
 
     def scalar(self, with_defaults: bool = True) -> dict[str, str]:
         """Flat projection: one value per key (design spec section 6).
