@@ -33,7 +33,9 @@ selected costs and existing options.
 
 These operations align segment units and compare the boundary claims retained
 at their segment-clock margins. Boundaries remain relations rather than phone
-tokens, so they do not change phone coverage or a length-ratio gate. Use
+tokens, so they do not change phone coverage or a length-ratio gate. U+203F
+UNDERTIE is the liaison exception: it retains its declared word level for rule
+matching while deleting that prosodic boundary claim for distance. Use
 `sequence_distance` for already-tokenized phone input; it carries no boundary
 claims because its caller supplied only phone tokens.
 
@@ -205,7 +207,7 @@ One budget question remains explicitly deferred. A fusion has no arity floor, so
 
 **Prosodic tiers ride on the unit clock, and stress rides the nucleus.** Where a stress mark sits is a notation decision with a metric consequence: house style writes stress immediately before the nucleus that bears it rather than at a syllable margin, because a margin-style mark states two things at once — that the syllable is stressed, and where it begins — and only the first is always available ([house-style.md](house-style.md#stress-sits-on-the-nucleus)). So a stress rider attaches to the vowel it marks, and comparing `ˈkat` with `kat` moves one term on one unit rather than shifting an alignment. Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit. Each rider adds one graded term to the unit it rides on, read via the ordinal `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one) at the same weight as a segmental feature. It is read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before. A tone *contour*, a sequence value like `mid>high`, is a trajectory rather than a point on the scale, so it stays out until a sequence comparison exists (`d(a, a᷅) = 0`).
 
-**Boundary claims sit between units and carry the same one-term mass.** They do not become phone tokens. Their segment-clock margin supplies position, and the declared ordinal `level` supplies type: a syllable-to-word change is one step while syllable-to-utterance is three. An unmarked margin stays unclaimed; it acquires no synthesized boundary, but comparing it with a claimed margin costs the claim's one-sided mass. Two glyphs resolving to the same level at the same margin compare equal.
+**Boundary claims sit between units and carry the same one-term mass.** They do not become phone tokens. Their segment-clock margin supplies position, and the declared ordinal `level` supplies type: a syllable-to-word change is one step while syllable-to-utterance is three. An unmarked margin stays unclaimed; it acquires no synthesized boundary, but comparing it with a claimed margin costs the claim's one-sided mass. Two glyphs resolving to the same level at the same margin compare equal. U+203F UNDERTIE is deliberately different: it marks liaison, which deletes the prosodic word boundary at the distance layer, so `lez‿ami` and `lezami` have the same distance claim. Its `level="word"` declaration remains intact because rules still need to see the morphological division.
 
 **A word comparison is inspectable.** `explain_transcription_distance(a, b)` returns one step per aligned position — `op` (match/sub/insert/delete), the two units, the position `cost`, and for a substitution the `(label, a, b, cost)` rows behind it, each comparable feature and every prosodic rider — so a score can be read term by term (`ˈk`~`ˌk` is `stress: primary vs secondary = 0.5`).
 
@@ -335,7 +337,7 @@ The claim the metric makes is structural consistency, and the operations it is b
 
 **The three scales are named apart.** `distance` is a structural magnitude and is bounded; `distance_position` is a complementary percentile position within a reference inventory and is also bounded, but the two are *not* comparable; `TranscriptionDistanceResult.edit_cost` is a summed alignment cost that grows with word length and is not bounded at all. Compare word pairs with `.similarity`, which is normalized.
 
-**Word-level distance is a phone alignment plus asserted boundary claims.** The linking undertie and breaks remain relations rather than phone tokens, but a marked relation is no longer free against an unclaimed margin. The shipped confusion matrix remains phone-only.
+**Word-level distance is a phone alignment plus asserted boundary claims.** Breaks remain relations rather than phone tokens, but an asserted break is no longer free against an unclaimed margin. U+203F UNDERTIE instead deletes the prosodic word-boundary claim for distance while remaining a word edge for rules. The shipped confusion matrix remains phone-only.
 
 **Score against a set of acceptable pronunciations with `nearest_pronunciation`, not a citation form.** Every real lexicon lists several transcriptions per word — free variants (`iːðɚ`/`aɪðɚ`), a homograph read two ways (`record` the noun and the verb) — and "is this an acceptable pronunciation?" is the best match over that set, with `PronunciationMatch` reporting which member won. It is deliberately *not* word-to-word distance: a maximum over variants depends on how many each side lists, a property of the lexicon and not of the pair, so the two are named apart. `transcription_distance` remains the symmetric pairwise measure.
 
@@ -528,6 +530,13 @@ ipakit.rank_sequences(["b", "ʌ", "t", "ɚ"],
 ```
 
 **Local (fit) matching.** `mode="local"` scores the second sequence as a **target that must align fully** while the first sequence's ends are free — for a target embedded in a longer, noisier sequence. It is directional (the two sides are not interchangeable), which is why it is offered on the sequence and ranking methods and not on the symmetric `transcription_distance`. It is a specialized tool: on whole-to-whole comparison it over-accepts, because free ends stop charging the surrounding material, so reach for it only when the target really is embedded.
+
+For IPA-string pronunciation ranking, the selected local window also bounds
+boundary evidence. A claim strictly outside the window is free context and is
+ignored; a claim at either window edge or inside it participates, with its
+margin rebased to the window. Phone and in-window boundary cost select the fit
+together. Pre-tokenized `sequence_distance` still has no boundary claims to
+carry.
 
 On the command line: `distance seq` compares two pre-tokenized sequences (each argument a space-separated token list, `--local` for the fit), and `distance nearest -n K --local` ranks candidates.
 

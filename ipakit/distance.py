@@ -885,6 +885,11 @@ class DistanceMixin(IPAFeaturesBase):
         rank = {value: index for index, value in enumerate(level.values)}
         claims: dict[int, str] = {}
         for boundary in form.boundaries:
+            # U+203F UNDERTIE marks liaison: for distance it deletes the
+            # prosodic word-boundary claim, although its declared word level
+            # remains available to the rule engine as a morphological edge.
+            if boundary.text == "\u203f":
+                continue
             claimed = boundary.level
             if claimed not in rank:
                 continue
@@ -1028,11 +1033,6 @@ class DistanceMixin(IPAFeaturesBase):
         between them is what they pass here, and what they promise about it.
         """
         n, m = len(tokens1), len(tokens2)
-        boundary = self._boundary_comparison(
-            boundaries1 or {},
-            boundaries2 or {},
-            applicable_only=applicable_only,
-        )
 
         def raw_cost(t1: str, t2: str) -> float:
             if t1 == t2:
@@ -1076,6 +1076,24 @@ class DistanceMixin(IPAFeaturesBase):
                 )
             )
 
+        if mode == "local":
+            return self._fit_result(
+                tokens1,
+                tokens2,
+                cost_fn,
+                insert_cost,
+                delete_cost,
+                boundaries1=boundaries1,
+                boundaries2=boundaries2,
+                applicable_only=applicable_only,
+            )
+
+        boundary = self._boundary_comparison(
+            boundaries1 or {},
+            boundaries2 or {},
+            applicable_only=applicable_only,
+        )
+
         if n == 0 and m == 0:
             if not boundary.null_cost:
                 return _empty_pair_result(return_alignment, insert_cost, delete_cost)
@@ -1088,9 +1106,6 @@ class DistanceMixin(IPAFeaturesBase):
                 delete_cost,
                 extra_null_cost=boundary.null_cost,
             )
-
-        if mode == "local":
-            return self._fit_result(tokens1, tokens2, cost_fn, insert_cost, delete_cost)
 
         distance, alignment = self._align(
             tokens1,
@@ -1118,14 +1133,24 @@ class DistanceMixin(IPAFeaturesBase):
         cost_fn: Callable[[str, str], float],
         insert_cost: PhoneCost,
         delete_cost: PhoneCost,
+        *,
+        boundaries1: Mapping[int, str] | None = None,
+        boundaries2: Mapping[int, str] | None = None,
+        applicable_only: bool = False,
     ) -> TranscriptionDistanceResult:
         """Semi-global FIT: ``needle`` must align fully, but leading and
         trailing material on the ``haystack`` side is free, so a target
         embedded in a longer, noisier sequence is scored on how well it is
         realized rather than penalized for the surrounding tokens. The needle
-        is not free-ended, so a truncated target is still penalized. The score
-        is normalized by the needle's own insertion cost -- the cost of the
-        needle matching nothing -- so it reads as "how much of the needle is
+        is not free-ended, so a truncated target is still penalized.
+
+        Boundary claims strictly outside the selected haystack span belong to
+        the free context and are ignored. Claims at either edge are part of
+        the span, as are claims inside it; their margins are rebased to the
+        span before comparison with the needle. The fit minimizes phone and
+        in-span boundary cost together. The score is normalized by the
+        needle's own insertion cost plus the selected claims' null cost, so it
+        reads as "how much of the target and its fitted boundary evidence is
         present". Directional by construction: the two sides are not
         interchangeable, which is why this is not offered on the symmetric
         :meth:`transcription_distance`.
@@ -1133,25 +1158,55 @@ class DistanceMixin(IPAFeaturesBase):
         n, m = len(haystack), len(needle)
         ins = _prices(insert_cost, needle, "insert_cost")
         dels = _prices(delete_cost, haystack, "delete_cost")
-        denom = sum(ins)
-        if m == 0:
-            similarity = 1.0
-            best = 0.0
-        else:
-            dp = [[0.0] * (m + 1) for _ in range(n + 1)]
+        left_claims = boundaries1 or {}
+        right_claims = boundaries2 or {}
+        candidates: list[tuple[float, int, int, _BoundaryComparison]] = []
+
+        # A semi-global fit is the cheapest global alignment against any
+        # contiguous haystack span. Running one small DP per start keeps the
+        # selected span explicit, which the boundary policy needs.
+        for start in range(n + 1):
+            width = n - start
+            dp = [[0.0] * (m + 1) for _ in range(width + 1)]
             for j in range(1, m + 1):
                 dp[0][j] = dp[0][j - 1] + ins[j - 1]
-            for i in range(1, n + 1):
-                dp[i][0] = 0.0  # free leading gap on the haystack
-                hi = haystack[i - 1]
+            for i in range(1, width + 1):
+                dp[i][0] = dp[i - 1][0] + dels[start + i - 1]
+                hi = haystack[start + i - 1]
                 for j in range(1, m + 1):
                     dp[i][j] = min(
-                        dp[i - 1][j] + dels[i - 1],
+                        dp[i - 1][j] + dels[start + i - 1],
                         dp[i][j - 1] + ins[j - 1],
                         dp[i - 1][j - 1] + cost_fn(hi, needle[j - 1]),
                     )
-            best = min(dp[i][m] for i in range(n + 1))  # free trailing gap
-            similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
+                end = start + i
+                scoped = {
+                    position - start: claim
+                    for position, claim in left_claims.items()
+                    if start <= position <= end
+                }
+                boundary = self._boundary_comparison(
+                    scoped,
+                    right_claims,
+                    applicable_only=applicable_only,
+                )
+                candidates.append((dp[i][m] + boundary.edit_cost, start, end, boundary))
+
+            # The empty span is a legitimate fit (and the only one when the
+            # haystack is empty). A claim at that margin is an edge claim.
+            scoped = {0: left_claims[start]} if start in left_claims else {}
+            boundary = self._boundary_comparison(
+                scoped,
+                right_claims,
+                applicable_only=applicable_only,
+            )
+            candidates.append((dp[0][m] + boundary.edit_cost, start, start, boundary))
+
+        best, _start, _end, boundary = min(
+            candidates, key=lambda item: (item[0], item[1], item[2])
+        )
+        denom = sum(ins) + boundary.null_cost
+        similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
         coverage = min(n, m) / max(n, m) if max(n, m) else 1.0
         return TranscriptionDistanceResult(
             edit_cost=best,
@@ -1519,14 +1574,21 @@ class DistanceMixin(IPAFeaturesBase):
                 strict=strict,
                 applicable_only=applicable_only,
             )
-        t1 = self._transcription_units(form)
-        t2 = self._transcription_units(candidate)
-        return self.sequence_distance(
+        t1, boundaries1 = self._transcription_structure(form)
+        t2, boundaries2 = self._transcription_structure(candidate)
+        from .metric import GAP_COST
+
+        return self._aligned_transcriptions(
             t1,
             t2,
             weighted=weighted,
+            return_alignment=False,
+            insert_cost=GAP_COST,
+            delete_cost=GAP_COST,
             mode=mode,
             applicable_only=applicable_only,
+            boundaries1=boundaries1,
+            boundaries2=boundaries2,
         )
 
     def rank_pronunciations(

@@ -653,13 +653,14 @@ class TestLengthGating:
     def test_a_structural_mark_is_not_charged_a_phone_length(
         self, ipa: IPAFeatures
     ) -> None:
-        """A boundary claim costs, but remains a relation rather than a phone.
+        """A boundary remains a relation rather than a phone.
 
         The length-ratio gate therefore agrees with the ungated result: it
-        does not reject the pair merely because the linking mark is present.
+        does not reject the pair merely because U+203F UNDERTIE is present,
+        and liaison deletes that mark's distance-layer boundary claim.
         """
         model = DistanceModel.global_(ipa)
-        assert model.transcription_similarity("lez‿ami", "lezami") < 1.0
+        assert model.transcription_similarity("lez‿ami", "lezami") == 1.0
         assert model.is_similar("lez‿ami", "lezami", threshold=0.995) is True
         assert (
             model.is_similar("lez‿ami", "lezami", threshold=0.995, max_length_ratio=1.0)

@@ -369,11 +369,11 @@ class TestTheFlatApiReadsTheDeclaration:
     def test_the_metric_still_cannot_see_it(self) -> None:
         # Accepting the zero at the parse gate must not let it reach a
         # distance: it carries no features, so a word containing one
-        # measures as the word without it. A linking mark is different: it
-        # asserts a word-level boundary and therefore has structural cost.
+        # measures as the word without it. U+203F UNDERTIE likewise has no
+        # distance claim: liaison deletes the prosodic word boundary.
         assert len(FEATURES.phones) == 139
         assert ipakit.transcription_distance("le∅ami", "leami").edit_cost == 0.0
-        assert ipakit.transcription_distance("lez‿ami", "lezami").edit_cost > 0.0
+        assert ipakit.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0
 
 
 class TestDeletionStillWritesNothing:
