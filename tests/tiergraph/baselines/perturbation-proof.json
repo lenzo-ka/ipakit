@@ -5,18 +5,18 @@
     "proof": "Changing any captured derivation trace, edit coordinate, distance operation, per-feature term, round-trip JSON, or derived artifact byte changes its recorded digest and makes tiergraph_capture.py verify fail."
   },
   "format": 1,
-  "ipakit": "0.1.0",
+  "ipakit": "0.3.0",
   "kind": "capture-sensitivity-proofs",
   "python_hash_seed": 0,
   "sweep": {
     "command": "PYTHONHASHSEED=0 python scripts/sweep.py diff captures/sweep-before-perturbation.json captures/sweep-after-perturbation.json --require-monotone",
     "comparison_failed": true,
-    "corpus_after": 9250,
-    "corpus_before": 9250,
-    "description_movers": 128,
-    "distance_from_base_movers": 14,
-    "feature_movers": 128,
-    "movers": 132,
+    "corpus_after": 9317,
+    "corpus_before": 9317,
+    "description_movers": 130,
+    "distance_from_base_movers": 16,
+    "feature_movers": 130,
+    "movers": 134,
     "perturbation": "temporarily changed phone p place from bilabial to labiodental in ipakit/data/ipa.xml",
     "perturbation_reverted": true
   }

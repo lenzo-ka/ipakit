@@ -154,6 +154,7 @@ The budget names each kind of material and derives its price from declarations a
 | unmatched phased constituent | nearest-part comparison plus one material term | graded | `t` against `t͡s`; `e` against `e͜ɪ` |
 | juncture | one binding-sense term | categorical | agreement `0`, disagreement or unaligned `1` |
 | prosodic rider | one declared `value_distance` term per tier | graded | one term on the unit clock |
+| inherent duration | one conditionally present `value_distance` term | graded | one term in an inherently brief phone's bundle |
 
 The exemplars are checked rather than quoted, so a change that moves them
 fails here rather than going stale in prose:
@@ -176,6 +177,26 @@ The fusion figure is no longer `d(ɡ,b)/2`. It was, until the fusion branch
 began charging constituent arity: the difference is exactly that charge,
 `d(ɡ,ɡ͡b) - d(ɡ,b)/2 = 0.05`, and the identity in this table outlived the
 change that broke it.
+
+**Inherent duration is a segmental axis with conditional mass.** `inherent-duration`
+has the two ordinal values `brief` and `ordinary` on its own `+intrinsic-t`
+axis. `ordinary` is the declared comparison center, not a default: an ordinary
+phone states no duration key, so a pair of ordinary phones gains neither a
+zero-cost term nor a larger denominator. A comparison containing one of the
+four inherently brief phones (`ɾ ɽ ɺ ⱱ`) gains exactly one full endpoint step.
+That is the same one-term conditional-mass rule as a written prosodic rider,
+and the same weight as any other ordinal feature step; the difference is
+ownership. Inherent duration is in the phone bundle, while written `length`
+is an attribute on the unit clock. Thus `ɾ` and `d̆` make different claims and
+remain a nonzero distance apart. `explain_transcription_distance` names the
+segmental row `inherent-duration`; it reserves `length (prosodic)` for the
+written rider.
+
+The tap's `manner` coordinate is complete closure (`1.00`), while
+`[manner=tap]` remains the category selecting those four phones. Trills remain
+at their declared `0.70` coordinate. Whether their repeated contacts likewise
+need a distinct temporal representation is open; no trill declaration is
+changed by analogy.
 
 The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md). [design/mass-budget.md](design/mass-budget.md) is the dated record of the divergence, its measured geometry, and the repair.
 
@@ -569,10 +590,10 @@ comparison.intersection  # ('i', 'ɪ', 'ɛ', 'æ', 'ɑ', 'ʊ', 'ə', 'ɚ', 'ɝ',
 comparison.only_a  # ('ɔ', 'u', 'ʌ', 'e͜ɪ', 'o͜ʊ', 'a͜ɪ', 'a͜ʊ', 'ɔ͜ɪ')
 comparison.only_b  # ('a͜j', 'a͜w', 'bʲ', 'c', 'cʰ', 'cʷ', 'dʲ', 'd̪', 'e͜j', 'fʲ', 'iː', 'kʰ', 'kʷ', 'mʲ', 'm̩', 'n̩', 'o͜w', 'pʰ', 'pʲ', 'pʷ', 'tʰ', 'tʲ', 'tʷ', 't̪', 'vʲ', 'ç', 'ɐ', 'ɑː', 'ɒ', 'ɒː', 'ɔ͜j', 'ɟ', 'ɟʷ', 'ɡʷ', 'ɫ', 'ɫ̩', 'ɱ', 'ɲ', 'ɾ', 'ɾʲ', 'ɾ̃', 'ʉ', 'ʉː', 'ʎ', 'ʔ')
 comparison.stripped  # ()
-comparison.backward.collapses  # {'b': ('b', 'bʲ'), 'k': ('c', 'cʰ', 'k', 'kʰ', 'kʷ'), 't': ('cʷ', 't', 'tʰ', 'tʲ', 'tʷ', 't̪'), 'd': ('d', 'dʲ', 'd̪', 'ɟʷ'), 'f': ('f', 'fʲ'), 'h': ('h', 'ʔ'), 'i': ('i', 'iː'), 'l': ('l', 'ɫ', 'ɫ̩', 'ʎ'), 'm': ('m', 'mʲ', 'm̩', 'ɱ'), 'n': ('n', 'n̩', 'ɾ̃'), 'p': ('p', 'pʰ', 'pʲ', 'pʷ'), 'v': ('v', 'vʲ'), 'θ': ('ç', 'θ'), 'ð': ('ð', 'ɾ', 'ɾʲ'), 'ŋ': ('ŋ', 'ɲ'), 'ə': ('ɐ', 'ə'), 'ɑ': ('ɑ', 'ɑː'), 'ɔ': ('ɒ', 'ɒː'), 'ɡ': ('ɟ', 'ɡ', 'ɡʷ'), 'ʊ': ('ʉ', 'ʉː', 'ʊ')}
+comparison.backward.collapses  # {'b': ('b', 'bʲ'), 'k': ('c', 'cʰ', 'k', 'kʰ', 'kʷ'), 't': ('cʷ', 't', 'tʰ', 'tʲ', 'tʷ', 't̪'), 'd': ('d', 'dʲ', 'd̪', 'ɟʷ', 'ɾ', 'ɾʲ'), 'f': ('f', 'fʲ'), 'h': ('h', 'ʔ'), 'i': ('i', 'iː'), 'l': ('l', 'ɫ', 'ɫ̩', 'ʎ'), 'm': ('m', 'mʲ', 'm̩', 'ɱ'), 'n': ('n', 'n̩', 'ɾ̃'), 'p': ('p', 'pʰ', 'pʲ', 'pʷ'), 'v': ('v', 'vʲ'), 'θ': ('ç', 'θ'), 'ŋ': ('ŋ', 'ɲ'), 'ə': ('ɐ', 'ə'), 'ɑ': ('ɑ', 'ɑː'), 'ɔ': ('ɒ', 'ɒː'), 'ɡ': ('ɟ', 'ɡ', 'ɡʷ'), 'ʊ': ('ʉ', 'ʉː', 'ʊ')}
 ```
 
-The MFA-to-ARPAbet report shows the aspirated and plain dorsal stops collapsing onto `K`, the plain and aspirated or articulated coronals collapsing onto `T`, MFA `ɾ` and `ɾʲ` joining `ð` at `DH`, and `ʔ` joining `h` at `HH`; in the other direction PocketSphinx `UW` joins `ʊ`, while `AY` maps to MFA `aj` rather than being an exact spelling match.
+The MFA-to-ARPAbet report shows the aspirated and plain dorsal stops collapsing onto `K`, the plain and aspirated or articulated coronals collapsing onto `T`, MFA `ɾ` and `ɾʲ` joining `d` at `D`, and `ʔ` joining `h` at `HH`; in the other direction PocketSphinx `UW` joins `ʊ`, while `AY` maps to MFA `aj` rather than being an exact spelling match.
 
 The phone metric is symmetric but nearest mapping is directional, so both mappings are reported; `matrix` has A rows and B columns, and the B-by-A matrix is its transpose.
 

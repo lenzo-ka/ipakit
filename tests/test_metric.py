@@ -579,6 +579,7 @@ class TestReferenceFrame:
         "+constriction": {"manner"},
         "+f0": {"tone"},
         "+glottal-aperture": {"phonation"},
+        "+intrinsic-t": {"inherent-duration"},
         "+t": {"length"},
         "+x": {"place", "backness", "constriction-location", "articulator"},
         "+y": {"height"},

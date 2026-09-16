@@ -61,6 +61,12 @@ CHART = "chart"
 #: appearing in ``<notations>`` fails this.
 NON_CHART = frozenset({"␣", "#", "∅"})
 
+#: The complete extension of inherent brevity in the house inventory. This
+#: intentionally restates the four declarations: the declaration says what
+#: each phone is, and this validation set prevents one of those independent
+#: attributes from being dropped or copied to another phone unnoticed.
+INHERENTLY_BRIEF = frozenset({"ɾ", "ɽ", "ɺ", "ⱱ"})
+
 #: Midline vertices whose ``arc`` names no value declared in ``ipa.xml``.
 #: A head's midline is a hand-traced polyline whose vertices sit at the
 #: declared places, so the arc column is a second copy of numbers
@@ -1232,6 +1238,37 @@ def check_no_symbol_states_an_inapplicable_feature(ipa: IPAFeatures) -> bool:
     )
 
 
+def check_inherent_duration(ipa: IPAFeatures) -> bool:
+    """All and only inherently brief phones state the segmental feature."""
+    stated = {
+        phone
+        for phone in ipa.phones
+        if ipa.get_features(phone, with_defaults=False).get("inherent-duration")
+        == "brief"
+    }
+    failures = []
+    if stated != INHERENTLY_BRIEF:
+        failures.append(
+            f"declared brief={sorted(stated)!r}, expected "
+            f"{sorted(INHERENTLY_BRIEF)!r}"
+        )
+    ordinary = {
+        phone
+        for phone in ipa.phones
+        if "inherent-duration" in ipa.get_features(phone) and phone not in stated
+    }
+    if ordinary:
+        failures.append(
+            f"unstated phones acquired a filled inherent-duration: "
+            f"{sorted(ordinary)!r}"
+        )
+    return _report(
+        "all and only inherently brief phones state inherent-duration",
+        failures,
+        len(ipa.phones),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1264,6 +1301,7 @@ def main(argv: list[str] | None = None) -> int:
         check_borrowed_vocabulary(ipa),
         check_no_locus_feature_admits_its_own_exponent(ipa),
         check_no_symbol_states_an_inapplicable_feature(ipa),
+        check_inherent_duration(ipa),
         check_fusion_arity(ipa),
         check_derived_artifacts(),
     ]
