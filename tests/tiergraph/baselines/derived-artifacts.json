@@ -1,9 +1,9 @@
 {
   "artifacts": [
     {
-      "bytes": 184952,
+      "bytes": 184718,
       "path": "ipakit/data/confusion.json",
-      "sha256": "120fd89899311e5c8e92ebe7c0e6f672c468c4f30f64fcc6d0fc992b932088f8"
+      "sha256": "8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e"
     },
     {
       "bytes": 5843,
@@ -11,9 +11,9 @@
       "sha256": "0f7594d3e3aae1160321145cefd0c543bd5932db94d146e48007a20c655bb799"
     },
     {
-      "bytes": 38016,
+      "bytes": 38015,
       "path": "docs/tutorial.md",
-      "sha256": "efe71c11c3f9cd4a2afd25c83de7e2353664cb703ad5d77380f49f2f94870643"
+      "sha256": "15aa4d4b7af1db4a2834b8c2cbcc55c4cbb8aa80ca0870def97907b7b4c2f2ae"
     },
     {
       "bytes": 48500,

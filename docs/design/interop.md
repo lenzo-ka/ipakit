@@ -298,11 +298,16 @@ Neither the axis nor the listing order in `ipa.xml` supplies one. The listing or
 
 ```
 manner axis="+constriction", by declared offset, most open first:
-  vowel 0.40   approximant 0.50   trill 0.70   tap 0.75
-  fricative 0.80   affricate 0.95   nasal 1.00   plosive 1.00
+  vowel 0.40   approximant 0.50   fricative 0.80   affricate 0.95
+  trill 1.00   tap 1.00   nasal 1.00   plosive 1.00
 ```
 
-`nasal` and `plosive` both declare `offset="1.00"`, so `value_distance("nasal", "plosive")` is **0.0** and constriction alone ranks nasals below fricatives. That is correct for a nasal's oral tract and wrong for its sonority, which is precisely why the axis is named `+constriction` and not `+sonority`. The declaration is honest; anything reading a sonority ordering off it is reading it for more than it says.
+`trill`, `tap`, `nasal`, and `plosive` all declare `offset="1.00"`, so
+`value_distance("nasal", "plosive")` is **0.0** and constriction alone ranks
+nasals below fricatives. That is correct for a nasal's oral tract and wrong for
+its sonority, which is precisely why the axis is named `+constriction` and not
+`+sonority`. The declaration is honest; anything reading a sonority ordering
+off it is reading it for more than it says.
 
 A scale that does hold falls out of the declarations without a table: the `obstruent` natural class, the same `offset`, and nasal airflow read together score **ρ = 0.938** against PanPhon's over 115 shared phones, with 97.4% of pairs ordered concordantly. That satisfies the house rule — nothing hand-maintained, and it moves when `ipa.xml` moves.
 
