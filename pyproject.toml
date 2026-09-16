@@ -35,8 +35,8 @@ dependencies = [
 # Split so each CI job installs only what it needs:
 #   test - run the suite. lxml is the RELAX NG validator tests/test_schema.py
 #          checks the shipped XML with, and xdist runs the suite across cores
-#          (PYTEST_WORKERS=0 makes it serial). Nothing else in the suite needs
-#          a third-party package, and the ICU cross-check self-skips.
+#          (PYTEST_WORKERS=0 makes it serial). setuptools lets the packaging
+#          guard build the wheel it checks, and the ICU cross-check self-skips.
 #   lint - ruff / black / mypy (pinned to the pre-commit style year)
 #   icu  - icukit-pyicu (bundled ICU + PyICU wheel, `import icu`); powers
 #          scripts/xsampa_table.py and the X-SAMPA cross-check. Dev-only, NEVER
@@ -53,7 +53,7 @@ dependencies = [
 #          Dev-only, NEVER imported at runtime: the library supplies the metric,
 #          while this one reader-run example clusters and draws its result.
 #   dev  - everything, for local development.
-test = ["pytest>=9.1.1", "pytest-xdist>=3.8.0", "lxml>=6.1.2", "packaging>=24.2", "PyYAML>=6.0.3,<7"]
+test = ["pytest>=9.1.1", "pytest-xdist>=3.8.0", "lxml>=6.1.2", "packaging>=24.2", "PyYAML>=6.0.3,<7", "setuptools>=84.0.0"]
 lint = ["ruff>=0.16.5", "mypy>=2.3.1", "black>=26.5.1,<27"]
 icu = ["icukit-pyicu>=78.3.0"]
 interop = ["pyclts==4.0.2", "panphon>=0.22.2"]
