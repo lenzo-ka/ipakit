@@ -1,8 +1,8 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:9616872a4f6c938639d74818ed33d49a91bf0fd193d55dc2fa5b9f7d0251bbff`.
+Mapping identity: `sha256:852827a690ab8fca4c813174f6f7001726c784b0210744110e1456cfca786840`.
 
-Finite declaration accounting is not complete semantic conversion. B2 profile binding and structural mappings remain pending.
+Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
 Generated from the [reviewed mapping authority](clts-mapping.md). Only master declarations are included; catalog observations remain external research. CLTS master declarations are CC BY 4.0; see the [mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt), [source policy](../ipakit/data/clts/source.json) and [CLTS audit](clts-audit.md). Native declarations retain their repository license.
 
@@ -82,13 +82,13 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | clts_to_ipakit | clts / consonant / relative_articulation / centralized | unresolved |  |
 | clts_to_ipakit | clts / consonant / relative_articulation / mid-centralized | unresolved |  |
 | clts_to_ipakit | clts / consonant / relative_articulation / retracted | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / unreleased | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / with-lateral-release | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / with-mid-central-vowel-release | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / with-nasal-release | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / with-sibilant-release | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / with-trilled-release | unresolved |  |
-| clts_to_ipakit | clts / consonant / release / with-uvular-release | unresolved |  |
+| clts_to_ipakit | clts / consonant / release / unreleased | resolved | release-unreleased/1 |
+| clts_to_ipakit | clts / consonant / release / with-lateral-release | resolved | release-lateral/1 |
+| clts_to_ipakit | clts / consonant / release / with-mid-central-vowel-release | resolved | release-schwa/1 |
+| clts_to_ipakit | clts / consonant / release / with-nasal-release | resolved | release-nasal/1 |
+| clts_to_ipakit | clts / consonant / release / with-sibilant-release | resolved | release-sibilant-sequence/1 |
+| clts_to_ipakit | clts / consonant / release / with-trilled-release | resolved | release-trilled-sequence/1 |
+| clts_to_ipakit | clts / consonant / release / with-uvular-release | resolved | release-uvular-sequence/1 |
 | clts_to_ipakit | clts / consonant / stress / primary-stress | unresolved |  |
 | clts_to_ipakit | clts / consonant / stress / secondary-stress | unresolved |  |
 | clts_to_ipakit | clts / consonant / syllabicity / syllabic | unresolved |  |
@@ -329,6 +329,18 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | ipakit_to_clts | ipakit / velarized / + | unresolved |  |
 | ipakit_to_clts | ipakit / voiced / - | unresolved |  |
 | ipakit_to_clts | ipakit / voiced / + | unresolved |  |
+
+## Release adjudication
+
+A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.
+
+- `clts / consonant / release / unreleased` → ipakit / release / no-audible (release-unreleased/1).
+- `clts / consonant / release / with-lateral-release` → ipakit / release / lateral (release-lateral/1).
+- `clts / consonant / release / with-mid-central-vowel-release` → ipakit / release / schwa (release-schwa/1).
+- `clts / consonant / release / with-nasal-release` → ipakit / release / nasal (release-nasal/1).
+- `clts / consonant / release / with-sibilant-release` → plosive + sibilant fricative (`t͡s`) (release-sibilant-sequence/1).
+- `clts / consonant / release / with-trilled-release` → plosive + trill (`d͡r`) (release-trilled-sequence/1).
+- `clts / consonant / release / with-uvular-release` → plosive + uvular fricative (`d͡ʁ`) (release-uvular-sequence/1).
 
 ## Structural and enhancement dispositions
 

@@ -1,6 +1,6 @@
 {
   "bindings": {
-    "native_metric": "02cb89f901fa7e92",
+    "native_metric": "d3f48742d152ffe8",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
     "source_inputs": {
       ".zenodo.json": "74cccea55b3ce72643e12bd873cc03d3d51ff548ebc777e134c11b6a082cc9ae",
@@ -6672,93 +6672,191 @@
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-unreleased/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "unreleased"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "no-audible"
+            ],
+            "witness": "t̚"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-lateral/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "with-lateral-release"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "lateral"
+            ],
+            "witness": "tˡ"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-schwa/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "with-mid-central-vowel-release"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "schwa"
+            ],
+            "witness": "tᵊ"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-nasal/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "with-nasal-release"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "nasal"
+            ],
+            "witness": "tⁿ"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-sibilant-sequence/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "with-sibilant-release"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "constituents": [
+              {
+                "manner": "plosive"
+              },
+              {
+                "channel": "grooved",
+                "manner": "fricative"
+              }
+            ],
+            "form": "sequence",
+            "name": "plosive + sibilant fricative",
+            "witness": "t͡s"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-trilled-sequence/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "with-trilled-release"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "constituents": [
+              {
+                "manner": "plosive"
+              },
+              {
+                "manner": "trill"
+              }
+            ],
+            "form": "sequence",
+            "name": "plosive + trill",
+            "witness": "d͡r"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "release-uvular-sequence/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "release",
           "with-uvular-release"
         ],
-        "status": "unresolved",
-        "targets": []
+        "status": "resolved",
+        "targets": [
+          {
+            "constituents": [
+              {
+                "manner": "plosive"
+              },
+              {
+                "manner": "fricative",
+                "place": "uvular"
+              }
+            ],
+            "form": "sequence",
+            "name": "plosive + uvular fricative",
+            "witness": "d͡ʁ"
+          }
+        ]
       },
       {
         "declared": true,
@@ -11668,7 +11766,7 @@
       }
     ]
   },
-  "identity": "sha256:9616872a4f6c938639d74818ed33d49a91bf0fd193d55dc2fa5b9f7d0251bbff",
+  "identity": "sha256:852827a690ab8fca4c813174f6f7001726c784b0210744110e1456cfca786840",
   "native_witnesses": {
     "plain-b/1": {
       "additional_native_claims": {
@@ -11817,10 +11915,233 @@
         "modifiers": 0,
         "prosody": 0
       }
+    },
+    "release-lateral/1": {
+      "constituents": 1,
+      "form": "feature",
+      "target": [
+        "ipakit",
+        "release",
+        "lateral"
+      ],
+      "witness": "tˡ"
+    },
+    "release-nasal/1": {
+      "constituents": 1,
+      "form": "feature",
+      "target": [
+        "ipakit",
+        "release",
+        "nasal"
+      ],
+      "witness": "tⁿ"
+    },
+    "release-schwa/1": {
+      "constituents": 1,
+      "form": "feature",
+      "target": [
+        "ipakit",
+        "release",
+        "schwa"
+      ],
+      "witness": "tᵊ"
+    },
+    "release-sibilant-sequence/1": {
+      "constituents": [
+        {
+          "manner": "plosive"
+        },
+        {
+          "channel": "grooved",
+          "manner": "fricative"
+        }
+      ],
+      "form": "sequence",
+      "name": "plosive + sibilant fricative",
+      "witness": "t͡s"
+    },
+    "release-trilled-sequence/1": {
+      "constituents": [
+        {
+          "manner": "plosive"
+        },
+        {
+          "manner": "trill"
+        }
+      ],
+      "form": "sequence",
+      "name": "plosive + trill",
+      "witness": "d͡r"
+    },
+    "release-unreleased/1": {
+      "constituents": 1,
+      "form": "feature",
+      "target": [
+        "ipakit",
+        "release",
+        "no-audible"
+      ],
+      "witness": "t̚"
+    },
+    "release-uvular-sequence/1": {
+      "constituents": [
+        {
+          "manner": "plosive"
+        },
+        {
+          "manner": "fricative",
+          "place": "uvular"
+        }
+      ],
+      "form": "sequence",
+      "name": "plosive + uvular fricative",
+      "witness": "d͡ʁ"
     }
   },
   "rules": {
     "absence_policy": "unasserted-is-not-negative",
+    "declaration_rules": [
+      {
+        "id": "release-unreleased/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "unreleased"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "no-audible"
+          ],
+          "witness": "t̚"
+        }
+      },
+      {
+        "id": "release-lateral/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "with-lateral-release"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "lateral"
+          ],
+          "witness": "tˡ"
+        }
+      },
+      {
+        "id": "release-schwa/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "with-mid-central-vowel-release"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "schwa"
+          ],
+          "witness": "tᵊ"
+        }
+      },
+      {
+        "id": "release-nasal/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "with-nasal-release"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "nasal"
+          ],
+          "witness": "tⁿ"
+        }
+      },
+      {
+        "id": "release-sibilant-sequence/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "with-sibilant-release"
+        ],
+        "target": {
+          "constituents": [
+            {
+              "manner": "plosive"
+            },
+            {
+              "channel": "grooved",
+              "manner": "fricative"
+            }
+          ],
+          "form": "sequence",
+          "name": "plosive + sibilant fricative",
+          "witness": "t͡s"
+        }
+      },
+      {
+        "id": "release-trilled-sequence/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "with-trilled-release"
+        ],
+        "target": {
+          "constituents": [
+            {
+              "manner": "plosive"
+            },
+            {
+              "manner": "trill"
+            }
+          ],
+          "form": "sequence",
+          "name": "plosive + trill",
+          "witness": "d͡r"
+        }
+      },
+      {
+        "id": "release-uvular-sequence/1",
+        "source": [
+          "clts",
+          "consonant",
+          "release",
+          "with-uvular-release"
+        ],
+        "target": {
+          "constituents": [
+            {
+              "manner": "plosive"
+            },
+            {
+              "manner": "fricative",
+              "place": "uvular"
+            }
+          ],
+          "form": "sequence",
+          "name": "plosive + uvular fricative",
+          "witness": "d͡ʁ"
+        }
+      }
+    ],
     "direction": "clts-to-ipakit",
     "enhancements": [
       {
@@ -11845,9 +12166,12 @@
     "evidence": [
       "Pinned BIPA core rows: complete consonant, manner, place and phonation claims; contrasts p/b and t/d.",
       "Native strict constructors: one bare constituent, no modifiers, approach, junctures or prosody; independent manner/place/voiced expectations.",
-      "Native defaults remain native claims; these witnesses establish no reverse rule."
+      "Native defaults remain native claims; these witnesses establish no reverse rule.",
+      "Pinned BIPA release declarations use ̚, ˡ, ᵊ and ⁿ for the four feature-valued releases; the same marks strictly read as native release values no-audible, lateral, schwa and nasal.",
+      "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively."
     ],
     "profile_binding": null,
+    "release_adjudication": "A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.",
     "rules": [
       {
         "id": "plain-p/1",
@@ -11911,7 +12235,7 @@
       }
     ],
     "schema": "ipakit-clts-reviewed-rules",
-    "scope": "exact-plain-stop-witnesses-only",
+    "scope": "exact-plain-stop-witnesses-and-release-declarations",
     "source_feature_model": "clts",
     "source_kind": "consonant",
     "source_structure": "one resolved plain consonant; complete declared feature set equals the witness",
@@ -11923,7 +12247,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 1
+    "version": 2
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 1
