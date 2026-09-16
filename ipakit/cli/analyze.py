@@ -193,7 +193,7 @@ class PhonesCommand(Command):
 
         if self.format == "json":
             data = {
-                symbol: self.ipa.get_features(symbol, with_defaults=with_defaults)
+                symbol: self.ipa._get_features(symbol, with_defaults=with_defaults)
                 for symbol in sorted(self.ipa.phones.keys())
             }
             self.output_json(data)
@@ -204,20 +204,20 @@ class PhonesCommand(Command):
         if self.format == "tsv":
             print("phone\t" + "\t".join(feat_names))
             for symbol in sorted(self.ipa.phones.keys()):
-                feats = self.ipa.get_features(symbol, with_defaults=with_defaults)
+                feats = self.ipa._get_features(symbol, with_defaults=with_defaults)
                 values = [feats.get(f, "") for f in feat_names]
                 print(f"{symbol}\t" + "\t".join(values))
 
         elif self.format == "csv":
             print("phone," + ",".join(feat_names))
             for symbol in sorted(self.ipa.phones.keys()):
-                feats = self.ipa.get_features(symbol, with_defaults=with_defaults)
+                feats = self.ipa._get_features(symbol, with_defaults=with_defaults)
                 values = [feats.get(f, "") for f in feat_names]
                 print(f"{symbol}," + ",".join(values))
 
         else:
             for symbol in sorted(self.ipa.phones.keys()):
-                feats = self.ipa.get_features(symbol, with_defaults=with_defaults)
+                feats = self.ipa._get_features(symbol, with_defaults=with_defaults)
                 print(f"\n{symbol}:")
                 for f in feat_names:
                     if val := feats.get(f):

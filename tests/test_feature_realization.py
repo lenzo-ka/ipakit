@@ -7,7 +7,7 @@ inverse deterministic, and the errors that must not pass silently.
 """
 
 import pytest
-from ipakit import IPAFeatures, Kind
+from ipakit import FeatureNarrowingWarning, IPAFeatures, Kind
 from ipakit.constants import METADATA_ATTRS
 
 
@@ -18,7 +18,7 @@ class TestInverse:
         # projection of the first constituent (docs/ties.md), so the atom is
         # the honest answer -- and the one the tie rule must pick.
         for symbol in ipa.phones:
-            realized = ipa.to_phone(ipa.get_features(symbol))
+            realized = ipa.to_phone(ipa._get_features(symbol))
             expected = symbol.split(ipa.seq_tie)[0]
             assert realized == expected, symbol
 
@@ -53,7 +53,8 @@ class TestTieResolution:
         assert ipa.to_phone({"manner": "plosive", "place": "alveolar"}) == "t"
 
     def test_atom_outranks_compound(self, ipa: IPAFeatures) -> None:
-        assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"
+        with pytest.warns(FeatureNarrowingWarning):
+            assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"
 
     def test_result_is_independent_of_key_order(self, ipa: IPAFeatures) -> None:
         bundle = ipa.get_features("e")
@@ -279,8 +280,8 @@ class TestToPhoneIsACanonicalizerAndNotAnInverse:
     """
 
     def test_the_inverse_claim_fails_on_a_tied_unit(self, ipa: IPAFeatures) -> None:
-        assert ipa.to_phone(ipa.get_features("a͜ɪ")) == "a"
-        flat, atom = ipa.get_features("a͜ɪ"), ipa.get_features("a")
+        assert ipa.to_phone(ipa._get_features("a͜ɪ")) == "a"
+        flat, atom = ipa._get_features("a͜ɪ"), ipa.get_features("a")
         assert {k: v for k, v in flat.items() if k not in METADATA_ATTRS} == {
             k: v for k, v in atom.items() if k not in METADATA_ATTRS
         }
@@ -289,7 +290,7 @@ class TestToPhoneIsACanonicalizerAndNotAnInverse:
     def test_it_is_idempotent_over_the_inventory(self, ipa: IPAFeatures) -> None:
         checked = 0
         for symbol in ipa.phones:
-            once = ipa.to_phone(ipa.get_features(symbol))
+            once = ipa.to_phone(ipa._get_features(symbol))
             assert once is not None, symbol
             assert ipa.to_phone(ipa.get_features(once)) == once, symbol
             checked += 1

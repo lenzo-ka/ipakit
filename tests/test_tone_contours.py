@@ -324,9 +324,11 @@ class TestTheWrongValueCouldNotReachTheMetric:
 
     @pytest.mark.parametrize("mark", sorted(set(UNICODE_SERIES) | set(ABBREVIATIONS)))
     def test_the_feature_bag_never_carries_it(self, mark: str) -> None:
-        assert ipakit.features("a") == ipakit.features(f"a{mark}")
-        assert "contour" not in ipakit.features(f"a{mark}")
-        assert "tone" not in ipakit.features(f"a{mark}")
+        with pytest.warns(ipakit.FeatureNarrowingWarning):
+            marked = ipakit.features(f"a{mark}")
+        assert ipakit.features("a") == marked
+        assert "contour" not in marked
+        assert "tone" not in marked
 
     def test_the_distance_is_zero_either_way(self) -> None:
         assert ipakit.distance("a", "a᷅") == 0.0

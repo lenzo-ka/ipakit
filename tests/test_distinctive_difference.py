@@ -74,7 +74,7 @@ def _registered_pairs(features: IPAFeatures):
     """Every base and mark the inventory accepts, with both bundles."""
     declared = set(features.features)
     for base in features.phones:
-        left = {k: v for k, v in features.get_features(base).items() if k in declared}
+        left = {k: v for k, v in features._get_features(base).items() if k in declared}
         for mark in features.diacritics:
             spelled = base + mark
             if features.validate_ipa(spelled):
@@ -82,7 +82,7 @@ def _registered_pairs(features: IPAFeatures):
             try:
                 right = {
                     k: v
-                    for k, v in features.get_features(spelled).items()
+                    for k, v in features._get_features(spelled).items()
                     if k in declared
                 }
             except Exception:  # noqa: BLE001 - unreadable spellings are not pairs

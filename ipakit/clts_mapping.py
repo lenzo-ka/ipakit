@@ -66,7 +66,7 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
             rules["target_structure"]
         ):
             raise MappingInvalid("native witness structure changed")
-        features = ipa.get_features(rule["target"])
+        features = ipa._get_features(rule["target"])
         if any(features.get(k) != v for k, v in rule["target_predicates"].items()):
             raise MappingInvalid("native witness predicates changed")
         results[rule["id"]] = {

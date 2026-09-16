@@ -76,7 +76,7 @@ def declared_pairs(features: IPAFeatures = FEATURES) -> list[tuple[str, str]]:
 
 def _bundle(features: IPAFeatures, unit: str) -> dict[str, str]:
     return {
-        k: v for k, v in features.get_features(unit).items() if k not in METADATA_ATTRS
+        k: v for k, v in features._get_features(unit).items() if k not in METADATA_ATTRS
     }
 
 
@@ -202,7 +202,7 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         assert {c.split()[0] for c in already} == {
             p
             for p in self_spelling_phones()
-            if FEATURES.get_features(p).get("place") == "bilabial"
+            if FEATURES._get_features(p).get("place") == "bilabial"
         }
         assert already, "the no-op class went empty; this test would be vacuous"
 

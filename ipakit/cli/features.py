@@ -147,7 +147,7 @@ class FeaturesCommand(Command):
 
         # Single base phone (no diacritics)
         if len(phone) == 1 or phone in self.ipa.phones:
-            feats = self.ipa.get_features(phone, with_defaults=with_defaults)
+            feats = self.ipa._get_features(phone, with_defaults=with_defaults)
             if not feats:
                 return self.error(f"Unknown phone: {phone}")
             data = self._build_entry(phone, feats, is_composed=False)

@@ -229,7 +229,7 @@ class MatchCommand(Command):
             self.output_json(phones)
         elif self.args.verbose:
             for p in sorted(phones):
-                feats = self.ipa.get_features(p, with_defaults=with_defaults)
+                feats = self.ipa._get_features(p, with_defaults=with_defaults)
                 shorts = self.ipa.features_to_shorts(feats)
                 print(f"{p}: {' '.join(shorts)}")
         else:

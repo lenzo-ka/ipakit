@@ -987,19 +987,25 @@ class Segment:
         """
         return phase_ordered(self._part_bundles(), self.junctures)
 
-    def bag(self) -> dict[str, tuple[str, ...]]:
-        """Union feature bag: per-feature value tuples in constituent order,
-        deduplicated. Bases are default-filled per constituent before the
-        union (so ``u͜i`` carries rounded=(+, −)); modifier projections stay
-        sparse."""
+    def _bag(self, constituents: Iterable[Constituent]) -> dict[str, tuple[str, ...]]:
+        """The :meth:`bag` merge over exactly ``constituents``."""
         features = self._require_features()
         out: dict[str, list[str]] = {}
-        for constituent in self.constituents:
+        for constituent in constituents:
             for k, v in constituent.bundle(features, with_defaults=True).items():
                 values = out.setdefault(k, [])
                 if v not in values:
                     values.append(v)
         return {k: tuple(v) for k, v in out.items()}
+
+    def bag(self) -> dict[str, tuple[str, ...]]:
+        """Union feature bag: per-feature value tuples in constituent order,
+        deduplicated. Bases are default-filled per constituent before the
+        union (so ``u͜i`` carries rounded=(+, −)); modifier projections stay
+        sparse. Unit prosody is beside this constituent-only read;
+        :meth:`IPAFeatures.feature_values` adds it for the flat string API.
+        """
+        return self._bag(self.constituents)
 
     def scalar(self, with_defaults: bool = True) -> dict[str, str]:
         """Flat projection: one value per key (design spec section 6).
@@ -1026,7 +1032,7 @@ class Segment:
         """
         features = self._require_features()
         if not any(c.modifiers or c.approach for c in self.constituents):
-            return features.get_features(self.spelling, with_defaults=with_defaults)
+            return features._get_features(self.spelling, with_defaults=with_defaults)
         feats = flat_projection(
             features,
             [part_bundle(features, c) for c in self.constituents],

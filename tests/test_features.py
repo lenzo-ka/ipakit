@@ -1,6 +1,7 @@
 """Tests for IPAFeatures class - loading and basic operations."""
 
-from ipakit import IPAFeatures
+import pytest
+from ipakit import FeatureNarrowingWarning, IPAFeatures
 
 
 class TestLoading:
@@ -115,7 +116,8 @@ class TestGetFeatures:
         assert "qχ" not in ipa  # no tie bar
 
     def test_get_features_unknown(self, ipa: IPAFeatures) -> None:
-        assert ipa.get_features("X") == {}
+        with pytest.warns(FeatureNarrowingWarning, match="unregistered symbol"):
+            assert ipa.get_features("X") == {}
 
     def test_get_features_with_defaults(self, ipa: IPAFeatures) -> None:
         feats_with = ipa.get_features("p", with_defaults=True)

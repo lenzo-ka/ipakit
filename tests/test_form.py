@@ -425,7 +425,7 @@ class TestTheTreeIsGeneratedFromTheDeclarations:
         carriers = [
             unit
             for unit in self_spelling_phones()
-            for key in FEATURES.get_features(unit)
+            for key in FEATURES._get_features(unit)
             if key == "level"
         ]
         assert carriers == [], f"{len(carriers)} phones carry a level"

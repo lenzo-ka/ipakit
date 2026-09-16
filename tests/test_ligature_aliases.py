@@ -206,7 +206,7 @@ class TestAnAliasCarryingDiacritics:
         unit = alias + mark
         scalar = ipa.segment(unit).scalar()
         assert scalar
-        assert ipakit.features(unit) == scalar or unit.endswith("ː")
+        assert ipa._get_features(unit) == scalar or unit.endswith("ː")
         assert ipa.compose(unit)[0] == ipa.compose(ipa.expand_ligatures(unit))[0]
 
     def test_it_is_not_read_as_an_unknown_phone(self, ipa: IPAFeatures) -> None:

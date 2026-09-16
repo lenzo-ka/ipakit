@@ -324,7 +324,7 @@ The convergence is worth stating on its own because it is the one thing every sy
 
 The surrounding sentence concedes that non-linear representations "hold the upper hand" here, and the section opens by saying the goal "was not to implement a state-of-the-art feature system (from the standpoint of linguistic theory) but to develop a methodologically solid resource that would be useful for NLP researchers". **A limitation a project states about itself in its own paper is a design boundary, and criticizing it as a defect would be a misreading.**
 
-PHOIBLE has no tone features, which is why all 41 of its tone marks share one vector. ipakit has tone and contour and deliberately keeps them off the feature bundle, so its prosodic marks collide there too — 3,624 corpus units, below. **Three systems, three different mechanisms, one shared consequence: a caller comparing segmental feature vectors alone will conflate things that differ in tone.** For ipakit the mitigation is that the information exists on the unit and the metric is not the only reader; for the other two it does not exist at all. That difference is worth stating in interop material, because a round trip through either will lose it.
+PHOIBLE has no tone features, which is why all 41 of its tone marks share one vector. ipakit has tone and contour and deliberately keeps them off the scalar feature bundle, so its prosodic marks collide there too — 3,624 corpus units, below. **Three systems, three different mechanisms, one shared consequence: a caller comparing segmental feature vectors alone will conflate things that differ in tone.** For ipakit the scalar read warns, the information exists in `feature_values()` and on the unit, and the metric is not the only reader; for the other two it does not exist at all. That difference is worth stating in interop material, because a round trip through either will lose it.
 
 ### Does ipakit have this problem?
 
@@ -344,7 +344,7 @@ feature_values("a͜ɪ") == feature_values("a͜ʊ")  False
 distance("a͜ɪ", "a͜ʊ")  0.0265
 ```
 
-Every chained diphthong shares a description with its own nucleus, so `describe("o͜ʊ")` and `describe("o")` are one sentence. **This is deliberate, documented and guarded**, which the first draft of this section got wrong: `scripts/invariants.py:check_descriptions` asserts that no two distinct phones share a description, with a stated exception — "an atomic vowel and the diphthongs built on it, whose flat projection is that vowel by design". The flat read is the nucleus on purpose, the tuple read and the metric distinguish the diphthongs, and `make check` holds the line. Not a defect.
+Every chained diphthong shares a description with its own nucleus, so `describe("o͜ʊ")` and `describe("o")` are one sentence. **This is deliberate, documented and guarded**, which the first draft of this section got wrong: `scripts/invariants.py:check_descriptions` asserts that no two distinct phones share a description, with a stated exception — "an atomic vowel and the diphthongs built on it, whose flat projection is that vowel by design". The flat read is the nucleus on purpose and warns about the omitted constituent; the tuple read and the metric distinguish the diphthongs, and `make check` holds the line. Not a defect.
 
 **The defect is in the exception, and it is the shape [reviewing.md](../reviewing.md) calls a guard that no longer guards.** The predicate is much wider than the sentence describing it. Reproduced by evaluating it directly:
 

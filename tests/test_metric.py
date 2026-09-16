@@ -183,8 +183,8 @@ class TestMaterialBudget:
         checked = 0
         for left, right in itertools.combinations(ipa.phones, 2):
             x, y = ipa.segment(left), ipa.segment(right)
-            x_speech = ipa.get_features(left).get("manner") != "silence"
-            y_speech = ipa.get_features(right).get("manner") != "silence"
+            x_speech = ipa._get_features(left).get("manner") != "silence"
+            y_speech = ipa._get_features(right).get("manner") != "silence"
             if (
                 not x_speech
                 or not y_speech
@@ -233,8 +233,8 @@ class TestMaterialBudget:
             x = ipa.segment(left)
             for right in phones[i + 1 :]:
                 y = ipa.segment(right)
-                x_speech = ipa.get_features(left).get("manner") != "silence"
-                y_speech = ipa.get_features(right).get("manner") != "silence"
+                x_speech = ipa._get_features(left).get("manner") != "silence"
+                y_speech = ipa._get_features(right).get("manner") != "silence"
                 is_expected = (
                     x_speech
                     and y_speech
@@ -259,7 +259,7 @@ class TestSecondaryArticulation:
 
     def test_plain_phone_tract_entries_keep_unit_weight(self, ipa: IPAFeatures) -> None:
         for phone in ipa.phones:
-            bundle = ipa.get_features(phone)
+            bundle = ipa._get_features(phone)
             if any(bundle.get(name) == "+" for name in ipa.secondary_places):
                 continue
             reading = _tract_x(ipa, bundle)
@@ -887,7 +887,7 @@ class TestDataIntegrity:
         for symbol, phone in ipa.phones.items():
             if symbol in ipa.derived_phones:
                 continue  # composed from constituents that declare it
-            value = ipa.get_features(symbol).get("manner")
+            value = ipa._get_features(symbol).get("manner")
             if value is None or value in obstruent or value in manner.offscale:
                 continue
             assert "voiced" in phone.features, symbol
@@ -1074,8 +1074,8 @@ class TestMetricFingerprint:
                 (self.DECLARED, self.DECLARED + ' type="categorical"'),
             ),
         ):
-            assert [variant.get_features(p) for p in ipa.phones] == [
-                ipa.get_features(p) for p in ipa.phones
+            assert [variant._get_features(p) for p in ipa.phones] == [
+                ipa._get_features(p) for p in ipa.phones
             ]
             assert list(variant.phones) == list(ipa.phones)
 

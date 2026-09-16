@@ -187,7 +187,7 @@ def test_a_shut_mouth_leaks_only_at_the_glottis(phone: str, head_name: str) -> N
     assert (
         min(gap(v, floor_pts[0]) for v in lips[1]) < 0.5
     ), "floor adrift of the lower lip"
-    if velic_aperture(IPAFeatures(), IPAFeatures().get_features(phone)) <= 0.01:
+    if velic_aperture(IPAFeatures(), IPAFeatures()._get_features(phone)) <= 0.01:
         assert len(walls) == 1, "a sealed velum must leave the roof unbroken"
 
 
@@ -402,7 +402,7 @@ def test_an_articulator_reaches_its_target(head_name: str) -> None:
         if not surface:
             continue
         rows = {round(row["arc"], 6): row for row in current["rows"]}
-        for point in constrictions(ipa, ipa.get_features(phone)):
+        for point in constrictions(ipa, ipa._get_features(phone)):
             if point.arc is None or point.offset is None:
                 continue
             if not surface[0][0] <= point.arc <= surface[-1][0]:
@@ -491,7 +491,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         ported = {p for ports in ipa.bridge_apertures.values() for p in ports}
         checked, wrong, approximate = 0, [], 0
         for phone in sorted(ipa.phones):
-            stated = ipa.get_features(phone, with_defaults=False)
+            stated = ipa._get_features(phone, with_defaults=False)
             reading = tract_reading(ipa, stated)
             drawn = reading.read - reading.approximated
             for mark in unmodeled(ipa, stated):
@@ -522,12 +522,12 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         vowels = [
             p
             for p in sorted(ipa.phones)
-            if ipa.get_features(p).get("manner") == "vowel"
+            if ipa._get_features(p).get("manner") == "vowel"
         ]
         assert len(vowels) > 20, f"only {len(vowels)} vowels: the sweep is vacuous"
         stated_location, approximated = [], []
         for phone in vowels:
-            stated = ipa.get_features(phone, with_defaults=False)
+            stated = ipa._get_features(phone, with_defaults=False)
             kinds = {(m.feature, m.kind) for m in unmodeled(ipa, stated)}
             if "constriction-location" in stated:
                 stated_location.append(phone)
@@ -559,7 +559,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         assert len(manners) > 3, "no manner scale: the sweep is vacuous"
         checked, silent = 0, []
         for phone in sorted(ipa.phones):
-            base = ipa.get_features(phone, with_defaults=False)
+            base = ipa._get_features(phone, with_defaults=False)
             for manner in manners:
                 bundle = {**base, "manner": manner}
                 read = tract_reading(ipa, bundle).read
@@ -603,12 +603,12 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
             ("backness", "unread"),
         }
 
-        composed = {**ipa.get_features("a"), "manner": "stop"}
+        composed = {**ipa._get_features("a"), "manner": "stop"}
         assert not tract_point(ipa, composed).placed, "it is the unplaced case"
         assert {"height", "backness"} <= {m.feature for m in unmodeled(ipa, composed)}
 
         # And the other direction: a vowel manner reads no place.
-        vocalic = {**ipa.get_features("t", with_defaults=False), "manner": "vowel"}
+        vocalic = {**ipa._get_features("t", with_defaults=False), "manner": "vowel"}
         assert ("place", "unread") in {
             (m.feature, m.kind) for m in unmodeled(ipa, vocalic)
         }
@@ -643,7 +643,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         ipa = IPAFeatures()
         checked = 0
         for phone in sorted(ipa.phones):
-            stated = ipa.get_features(phone, with_defaults=False)
+            stated = ipa._get_features(phone, with_defaults=False)
             for mark in unmodeled(ipa, stated):
                 checked += 1
                 declared = ipa.features[mark.feature].labels.get(mark.value)
@@ -666,7 +666,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         ipa = IPAFeatures()
         kinds: dict[str, set[tuple[str, str]]] = {}
         for phone in sorted(ipa.phones):
-            stated = ipa.get_features(phone, with_defaults=False)
+            stated = ipa._get_features(phone, with_defaults=False)
             bundles = [stated] + [
                 {**stated, "manner": m} for m in ipa.features["manner"].values
             ]
@@ -705,7 +705,7 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         approximant = ipa.features["manner"].coordinates["approximant"]["offset"]
         seen = set()
         for phone in sorted(ipa.phones):
-            bundle = ipa.get_features(phone)
+            bundle = ipa._get_features(phone)
             for mark in secondary_marks(ipa, bundle):
                 seen.add(mark.feature)
                 target = ipa.secondary_places[mark.feature]
@@ -735,10 +735,10 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         # The coarse spelling commits only to the center of what it covers.
         voiced = glottal_aperture(ipa, {"voiced": "+", "manner": "vowel"})
         assert voiced == glottal_aperture(ipa, {"phonation": "modal"})
-        assert glottal_aperture(ipa, ipa.get_features("t")) > voiced
+        assert glottal_aperture(ipa, ipa._get_features("t")) > voiced
         # A complete closure at the folds is theirs, whatever else is said.
-        assert glottal_aperture(ipa, ipa.get_features("ʔ")) == 0.0
-        assert glottal_aperture(ipa, ipa.get_features("h")) == 1.0
+        assert glottal_aperture(ipa, ipa._get_features("ʔ")) == 0.0
+        assert glottal_aperture(ipa, ipa._get_features("h")) == 1.0
         assert glottal_aperture(ipa, {}) is None
 
     def test_the_layer_states_what_it_cannot_see(self) -> None:
@@ -760,9 +760,9 @@ class TestTheAnnotationLayerIsReadOffTheDeclarations:
         ipa = IPAFeatures()
         prosodic = {n for n, f in ipa.features.items() if f.mode == "prosodic"}
         assert prosodic, "no prosodic features declared"
-        bare = ipa.get_features("a", with_defaults=False)
+        bare = ipa._get_features("a", with_defaults=False)
         for unit in ("aː", "ˈa", "aˑ"):
-            stated = ipa.get_features(unit, with_defaults=False)
+            stated = ipa._get_features(unit, with_defaults=False)
             assert not (set(stated) & prosodic), unit
             assert stated == bare, unit
             assert unmodeled(ipa, stated) == unmodeled(ipa, bare), unit
@@ -879,7 +879,7 @@ class TestADrawingFollowsTheInventoryItIsMadeAgainst:
         frication = ("fricative", "affricate")
         hosts: dict[str, list[str]] = {}
         for phone in sorted(ipa.phones):
-            bundle = ipa.get_features(phone)
+            bundle = ipa._get_features(phone)
             if bundle.get("manner") in frication and bundle.get("place"):
                 hosts.setdefault(bundle["place"], []).append(phone)
         assert hosts, "no place hosts a fricative: the perturbation is vacuous"
@@ -944,12 +944,12 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
         annotated = {
             mark.feature
             for phone in ipa.phones
-            for mark in unmodeled(ipa, ipa.get_features(phone, with_defaults=False))
+            for mark in unmodeled(ipa, ipa._get_features(phone, with_defaults=False))
         }
         assert set(candidates) & annotated, "no candidate reaches the annotations"
 
         was = {
-            p: glottal_aperture(ipa, ipa.get_features(p)) for p in sorted(ipa.phones)
+            p: glottal_aperture(ipa, ipa._get_features(p)) for p in sorted(ipa.phones)
         }
         assert len({v for v in was.values() if v is not None}) > 1, "one aperture only"
 
@@ -969,7 +969,7 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
             assert fine in {f for f, _ in custom.projections}, "it did not land"
             assert glottal_scale(custom) is not None
             now = {
-                p: glottal_aperture(custom, custom.get_features(p))
+                p: glottal_aperture(custom, custom._get_features(p))
                 for p in sorted(custom.phones)
             }
             moved = [p for p in was if was[p] != now[p]]
@@ -977,7 +977,7 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
             # The same declaration decides what the annotation layer treats
             # as already drawn, so a projection must not silence a mark.
             for phone in sorted(ipa.phones):
-                stated = ipa.get_features(phone, with_defaults=False)
+                stated = ipa._get_features(phone, with_defaults=False)
                 assert [m.feature for m in unmodeled(ipa, stated)] == [
                     m.feature for m in unmodeled(custom, stated)
                 ], f"{fine} silenced a mark on {phone}"
@@ -1037,7 +1037,7 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
 
         custom = _inventory(tmp_path, duplicate)
         with pytest.raises(ValueError, match=re.escape(GLOTTAL_AXIS)) as raised:
-            glottal_aperture(custom, custom.get_features("a"))
+            glottal_aperture(custom, custom._get_features("a"))
         assert scale.name in str(raised.value) and other in str(raised.value)
 
     def test_an_inventory_declaring_no_axis_draws_no_glottal_state(
@@ -1060,7 +1060,7 @@ class TestTheGlottalScaleIsDeclaredAndNotDiscovered:
         custom = _inventory(tmp_path, drop)
         assert glottal_scale(custom) is None
         assert all(
-            glottal_aperture(custom, custom.get_features(p)) is None
+            glottal_aperture(custom, custom._get_features(p)) is None
             for p in custom.phones
         )
         stated = tract_svg.figure("h", "adult-male")
@@ -1093,7 +1093,7 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
         ipa = IPAFeatures()
         by_posture: dict[tuple[Any, ...], list[str]] = {}
         for phone in sorted(ipa.phones):
-            bundle = ipa.get_features(phone)
+            bundle = ipa._get_features(phone)
             point = tract_point(ipa, bundle)
             key = (point.arc, point.offset, velic_aperture(ipa, bundle))
             by_posture.setdefault(key, []).append(phone)
@@ -1103,7 +1103,7 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
         for group in by_posture.values():
             for i, one in enumerate(group):
                 for other in group[i + 1 :]:
-                    a, b = ipa.get_features(one), ipa.get_features(other)
+                    a, b = ipa._get_features(one), ipa._get_features(other)
                     differ = {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
                     differ -= set(METADATA_ATTRS)
                     # Two units may share a bundle outright -- a diphthong
@@ -1140,7 +1140,7 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
                 tuple(
                     sorted(
                         (k, v)
-                        for k, v in ipa.get_features(unit).items()
+                        for k, v in ipa._get_features(unit).items()
                         if k not in METADATA_ATTRS and k != "rounded"
                     )
                 )
@@ -1178,7 +1178,7 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
                 units |= {u.to_ipa() for u in ipa.segments(ruleset.apply(word))}
 
         def bundle(unit: str) -> tuple[tuple[str, str], ...]:
-            stated = ipa.get_features(unit)
+            stated = ipa._get_features(unit)
             return tuple(
                 sorted(
                     (k, v)
@@ -1903,7 +1903,7 @@ def test_the_metric_point_is_a_closure_unless_the_place_combines() -> None:
     combining: list[str] = []
     simple = 0
     for phone in sorted(ipa.phones):
-        bundle = ipa.get_features(phone)
+        bundle = ipa._get_features(phone)
         summary = tract_point(ipa, bundle)
         points = constrictions(ipa, bundle)
         if summary.arc is None or not points:
@@ -1932,11 +1932,11 @@ def test_a_click_closes_twice() -> None:
     """
     ipa = IPAFeatures()
     clicks = [
-        p for p in ipa.phones if ipa.get_features(p).get("airstream") == "velaric"
+        p for p in ipa.phones if ipa._get_features(p).get("airstream") == "velaric"
     ]
     assert clicks, "no clicks in the inventory to check"
     for phone in clicks:
-        points = constrictions(ipa, ipa.get_features(phone))
+        points = constrictions(ipa, ipa._get_features(phone))
         arcs = sorted(q.arc for q in points if q.arc is not None)
         assert len(points) >= 2, f"{phone}: only {len(points)} constriction(s)"
         assert arcs[-1] >= 0.45 - 1e-9, f"{phone}: no velar closure, arcs {arcs}"
@@ -1956,7 +1956,7 @@ def test_a_secondary_articulation_adds_its_constriction() -> None:
         "tˤ": (("alveolar", "pharyngeal"), "pharyngeal"),
     }
     for phone, (names, secondary_name) in cases.items():
-        points = constrictions(ipa, ipa.get_features(phone))
+        points = constrictions(ipa, ipa._get_features(phone))
         assert [point.arc for point in points] == sorted(
             place[name]["arc"] for name in names
         )
@@ -1964,21 +1964,21 @@ def test_a_secondary_articulation_adds_its_constriction() -> None:
         secondary = next(point for point in points if point.arc == secondary_arc)
         assert secondary.offset == approximant
 
-    assert len(constrictions(ipa, ipa.get_features("kˠ"))) == 1
+    assert len(constrictions(ipa, ipa._get_features("kˠ"))) == 1
 
 
 def test_combining_places_and_clicks_share_coincident_constrictions() -> None:
     ipa = IPAFeatures()
-    assert constrictions(ipa, ipa.get_features("pᶣ")) == constrictions(
-        ipa, ipa.get_features("pʲ")
+    assert constrictions(ipa, ipa._get_features("pᶣ")) == constrictions(
+        ipa, ipa._get_features("pʲ")
     )
     assert [
         (point.arc, point.offset)
-        for point in constrictions(ipa, ipa.get_features("wˤ"))
+        for point in constrictions(ipa, ipa._get_features("wˤ"))
     ] == [(0.0, 0.5), (0.45, 0.5), (0.74, 0.5)]
     assert [
         (point.arc, point.offset)
-        for point in constrictions(ipa, ipa.get_features("ǀˠ"))
+        for point in constrictions(ipa, ipa._get_features("ǀˠ"))
     ] == [(0.08, 1.0), (0.45, 1.0)]
 
 
@@ -1987,7 +1987,7 @@ def test_constrictions_carry_their_kind() -> None:
 
     def kinds(phone: str) -> tuple[str, ...]:
         return tuple(
-            point.kind for point in constrictions(ipa, ipa.get_features(phone))
+            point.kind for point in constrictions(ipa, ipa._get_features(phone))
         )
 
     assert kinds("ǀˠ") == ("primary", "closure")
@@ -2009,15 +2009,15 @@ def test_a_coincident_secondary_never_displaces_a_vowel_primary() -> None:
         ("i", "iʲ"),
         ("e", "eʲ"),
     ):
-        (own,) = constrictions(ipa, ipa.get_features(vowel))
-        (kept,) = constrictions(ipa, ipa.get_features(marked))
+        (own,) = constrictions(ipa, ipa._get_features(vowel))
+        (kept,) = constrictions(ipa, ipa._get_features(marked))
         assert (kept.arc, kept.offset, kept.kind) == (
             own.arc,
             own.offset,
             "primary",
         ), marked
     # A non-coincident secondary on a vowel is a second point.
-    assert [p.kind for p in constrictions(ipa, ipa.get_features("oˤ"))] == [
+    assert [p.kind for p in constrictions(ipa, ipa._get_features("oˤ"))] == [
         "primary",
         "secondary",
     ]
@@ -2037,7 +2037,7 @@ def test_missing_approximant_coordinate_silently_omits_secondaries(
     path = tmp_path / "ipa.xml"
     tree.write(path, encoding="utf-8", xml_declaration=True)
     patched = IPAFeatures(path)
-    assert len(constrictions(patched, patched.get_features("tʲ"))) == 1
+    assert len(constrictions(patched, patched._get_features("tʲ"))) == 1
 
 
 def _draw(*argv: str, out: Path) -> str:

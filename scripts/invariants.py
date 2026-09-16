@@ -31,11 +31,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ipakit import IPAFeatures
+from ipakit import FeatureNarrowingWarning, IPAFeatures
 from ipakit.constants import METADATA_ATTRS
 from ipakit.distance_model import DistanceModel
 
 TOLERANCE = 1e-9
+
+
+def _flat_features(
+    ipa: IPAFeatures, phone: str, with_defaults: bool = True
+) -> dict[str, str]:
+    """Read a scalar bundle for a sweep without reporting expected narrowing."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FeatureNarrowingWarning)
+        return ipa.get_features(phone, with_defaults=with_defaults)
+
 
 #: What ``<notations default=...>`` says today. Asserted below rather
 #: than trusted, so the read and the data cannot drift apart.
@@ -136,7 +146,7 @@ def check_metric(ipa: IPAFeatures, *, applicable_only: bool = False) -> bool:
     if applicable_only:
         transcribed = []
         for base in ipa.phones:
-            host = ipa.get_features(base, with_defaults=False)
+            host = _flat_features(ipa, base, with_defaults=False)
             for mark, declaration in ipa.diacritics.items():
                 stated = set(declaration.features) - METADATA_ATTRS
                 if not stated or all(
@@ -165,8 +175,8 @@ def check_metric(ipa: IPAFeatures, *, applicable_only: bool = False) -> bool:
         # reading them with defaults disabled never consults applicability.
         if forward == 0.0 and (
             not applicable_only
-            or ipa.get_features(a, with_defaults=False)
-            != ipa.get_features(b, with_defaults=False)
+            or _flat_features(ipa, a, with_defaults=False)
+            != _flat_features(ipa, b, with_defaults=False)
         ):
             collisions.append(f"d({a},{b})=0 but they are different phones")
     return all(
@@ -262,7 +272,7 @@ def check_one_flat_read(ipa: IPAFeatures, quick: bool) -> bool:
                         structured = ipa.segment(unit).scalar()
                     except ValueError:
                         continue
-                    flat = ipa.get_features(unit)
+                    flat = _flat_features(ipa, unit)
                     if not flat or not structured:
                         continue
                     checked += 1
@@ -406,11 +416,11 @@ def _nucleus_and_its_diphthongs(ipa: IPAFeatures, members: list[str]) -> bool:
     if len(nuclei) != 1:
         return False
     nucleus = nuclei[0]
-    bundle = _phonetic(ipa.get_features(nucleus))
+    bundle = _phonetic(_flat_features(ipa, nucleus))
     return all(
         s.kind is Kind.DIPHTHONG
         and s.constituents[0].base == nucleus
-        and _phonetic(ipa.get_features(m)) == bundle
+        and _phonetic(_flat_features(ipa, m)) == bundle
         for m, s in segments.items()
         if m != nucleus
     )
@@ -538,7 +548,7 @@ def check_projection_coherence(ipa: IPAFeatures, quick: bool = False) -> bool:
                         continue
                 except ValueError:
                     continue
-                bundle = ipa.get_features(unit)
+                bundle = _flat_features(ipa, unit)
                 if not bundle:
                     continue
                 checked += 1
@@ -590,7 +600,7 @@ def check_classes_are_total(ipa: IPAFeatures) -> bool:
             missing = [
                 phone
                 for phone in ipa.phones
-                if name not in ipa.get_features(phone, with_defaults=with_defaults)
+                if name not in _flat_features(ipa, phone, with_defaults=with_defaults)
             ]
             checked += 1
             if missing:
@@ -854,8 +864,8 @@ def check_fusion_arity(ipa: IPAFeatures) -> bool:
         x = ipa.segment(left)
         for right in phones[i + 1 :]:
             y = ipa.segment(right)
-            x_speech = ipa.get_features(left).get("manner") != "silence"
-            y_speech = ipa.get_features(right).get("manner") != "silence"
+            x_speech = _flat_features(ipa, left).get("manner") != "silence"
+            y_speech = _flat_features(ipa, right).get("manner") != "silence"
             if (
                 not x_speech
                 or not y_speech
@@ -1152,7 +1162,7 @@ def check_no_locus_feature_admits_its_own_exponent(ipa: IPAFeatures) -> bool:
             continue
         candidates: list[tuple[str, dict[str, str]]] = []
         for symbol in ipa.phones:
-            bundle = ipa.get_features(symbol)
+            bundle = _flat_features(ipa, symbol)
             if not ipa.feature_applies(name, bundle):
                 continue
             primary_arcs = [
@@ -1212,8 +1222,8 @@ def check_no_symbol_states_an_inapplicable_feature(ipa: IPAFeatures) -> bool:
     failures: list[str] = []
     checked = 0
     for symbol in ipa.phones:
-        bundle = ipa.get_features(symbol)
-        for name, value in ipa.get_features(symbol, with_defaults=False).items():
+        bundle = _flat_features(ipa, symbol)
+        for name, value in _flat_features(ipa, symbol, with_defaults=False).items():
             if name not in ipa.features:
                 continue
             checked += 1
