@@ -27,6 +27,7 @@ SUMMARY = ROOT / "docs" / "espeak-vocabularies.md"
 DEFAULT_SOURCE = Path.home() / "dev" / "other" / "espeak-ng"
 REVISION = "4870adfa25b1a32b4361592f1be8a40337c58d6c"
 VERSION = "espeak-ng-1.52.0"
+ORIGIN = "https://github.com/espeak-ng/espeak-ng.git"
 UPSTREAM = "eSpeak NG"
 UPSTREAM_URL = f"https://github.com/espeak-ng/espeak-ng/tree/{REVISION}/phsource"
 PIN = f"espeak-ng@{REVISION}"
@@ -640,15 +641,25 @@ def generate(source: Path) -> tuple[dict[Path, bytes], Counter[str]]:
     return artifacts, states
 
 
+def fetch(source: Path) -> None:
+    """Acquire into an absent path, or validate an existing source unchanged."""
+    from scripts.dev_sources import acquire_espeak
+
+    acquire_espeak(source)
+
+
 def main() -> int:
     """Write generated data or check it byte for byte."""
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=("generate", "check"))
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--fetch", action="store_true")
     args = parser.parse_args()
     try:
+        if args.fetch:
+            fetch(args.source)
         artifacts, _ = generate(args.source)
-    except ValueError as error:
+    except (OSError, ValueError) as error:
         print(f"espeak-vocabularies: {error}", file=sys.stderr)
         return 2
     stale = []

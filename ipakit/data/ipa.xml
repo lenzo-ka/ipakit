@@ -88,11 +88,11 @@
        position. The combiner is "^", kept distinct from the "+" that is
        the positive value of a binary feature. -->
   <features>
-    <feature name="manner" axis="+constriction" short="mnr" mode="overriding" desc="How airflow is constricted" href="Manner_of_articulation">
+    <feature name="manner" axis="+constriction" short="mnr" mode="overriding" desc="Stricture achieved" href="Manner_of_articulation">
       <value name="silence" short="sil" offscale="+" href="Pausa"/>  <!-- no position: absence of signal, equidistant from every manner -->
       <value name="vowel" offset="0.40" short="vow" href="Vowel"/>
       <value name="approximant" offset="0.50" short="apr" href="Approximant"/>
-      <value name="trill" offset="0.70" short="tri" href="Trill_consonant"/>
+      <value name="trill" offset="1.00" short="tri" href="Trill_consonant"/>
       <value name="tap" offset="1.00" short="tap" alias="flap" href="Tap_and_flap_consonants"/>
       <value name="nasal" offset="1.00" short="nas" bare="+" href="Nasal_consonant"/>
       <value name="fricative" offset="0.80" short="fri" natural-class="obstruent" href="Fricative"/>
@@ -245,19 +245,20 @@
       <value name="long" short="lng"/>
     </feature>
 
-    <!-- Inherent duration is segmental material, not a written length mark.
+    <!-- Intrinsic timing is segmental organization, not a written length mark.
          `ordinary` is the unfilled comparison center: declaring it makes the
-         other endpoint and its full-step distance explicit without putting a
-         zero-cost key into every ordinary phone and diluting unrelated pairs.
-         A stated `brief` therefore enters only comparisons containing an
-         inherently brief phone. It has the mass of one ordinary feature term,
-         matching the conditional mass of one written prosodic rider while
-         remaining in the phone's own bundle on its own time axis. This scale
-         and mass follow the one-declared-dimension/one-term rule; neither is
-         fitted to a tap's neighbors or to an external inventory mapping. -->
-    <feature name="inherent-duration" axis="+intrinsic-t" short="idt" center="ordinary" desc="Inherent segment duration" href="Tap_and_flap_consonants">
-      <value name="brief" short="brf" label="inherently brief"/>
+         two marked values symmetric without putting a zero-cost key into every
+         ordinary phone and diluting unrelated pairs. A stated `brief` or
+         `repeated` therefore enters only comparisons containing a tap or trill.
+         It has the mass of one ordinary feature term, matching the conditional
+         mass of one written prosodic rider while remaining in the phone's own
+         bundle on its own time axis. This scale and mass follow the
+         one-declared-dimension/one-term rule; neither is fitted to a phone's
+         neighbors or to an external inventory mapping. -->
+    <feature name="intrinsic-timing" axis="+intrinsic-t" short="itm" center="ordinary" desc="Intrinsic temporal organization of a closure" href="Tap_and_flap_consonants">
+      <value name="brief" short="brf" label="brief closure"/>
       <value name="ordinary" short="ord"/>
+      <value name="repeated" short="rep" label="repeated closure"/>
     </feature>
 
     <!-- Diacritic features -->
@@ -670,7 +671,7 @@
     <phone name="o" manner="vowel" height="close-mid" backness="back" constriction-location="uvular" rounded="+" voiced="+" href="Close-mid_back_rounded_vowel"/>
     <phone name="p" manner="plosive" place="bilabial" href="Voiceless_bilabial_plosive"/>
     <phone name="q" manner="plosive" place="uvular" href="Voiceless_uvular_plosive"/>
-    <phone name="r" manner="trill" place="alveolar" voiced="+" href="Voiced_alveolar_trill"/>
+    <phone name="r" manner="trill" place="alveolar" voiced="+" intrinsic-timing="repeated" href="Voiced_alveolar_trill"/>
     <phone name="s" channel="grooved" manner="fricative" place="alveolar" href="Voiceless_alveolar_fricative"/>
     <phone name="t" manner="plosive" place="alveolar" href="Voiceless_alveolar_plosive"/>
     <phone name="u" manner="vowel" height="close" backness="back" constriction-location="velar" rounded="+" voiced="+" href="Close_back_rounded_vowel"/>
@@ -735,13 +736,13 @@
     <phone name="ɶ" manner="vowel" height="open" backness="front" rounded="+" voiced="+" href="Open_front_rounded_vowel"/>
     <phone name="ɸ" manner="fricative" place="bilabial" href="Voiceless_bilabial_fricative"/>
     <phone name="ɹ" manner="approximant" place="alveolar" voiced="+" href="Voiced_alveolar_approximant"/>
-    <phone name="ɺ" manner="tap" place="alveolar" voiced="+" channel="lateral" inherent-duration="brief" href="Voiced_alveolar_lateral_flap"/>
+    <phone name="ɺ" manner="tap" place="alveolar" voiced="+" channel="lateral" intrinsic-timing="brief" href="Voiced_alveolar_lateral_flap"/>
     <phone name="ɻ" manner="approximant" place="postalveolar" voiced="+" retroflex="+" href="Voiced_retroflex_approximant"/>
 
-    <phone name="ɽ" manner="tap" place="alveolar" voiced="+" retroflex="+" inherent-duration="brief" href="Voiced_retroflex_flap"/>
-    <phone name="ɾ" manner="tap" place="alveolar" voiced="+" inherent-duration="brief" href="Voiced_alveolar_flap"/>
-    <phone name="ⱱ" manner="tap" place="labiodental" voiced="+" inherent-duration="brief" href="Voiced_labiodental_flap"/>
-    <phone name="ʀ" manner="trill" place="uvular" voiced="+" href="Voiced_uvular_trill"/>
+    <phone name="ɽ" manner="tap" place="alveolar" voiced="+" retroflex="+" intrinsic-timing="brief" href="Voiced_retroflex_flap"/>
+    <phone name="ɾ" manner="tap" place="alveolar" voiced="+" intrinsic-timing="brief" href="Voiced_alveolar_flap"/>
+    <phone name="ⱱ" manner="tap" place="labiodental" voiced="+" intrinsic-timing="brief" href="Voiced_labiodental_flap"/>
+    <phone name="ʀ" manner="trill" place="uvular" voiced="+" intrinsic-timing="repeated" href="Voiced_uvular_trill"/>
     <phone name="ʁ" manner="fricative" place="uvular" voiced="+" href="Voiced_uvular_fricative"/>
     <phone name="ʂ" channel="grooved" manner="fricative" place="alveolar" retroflex="+" href="Voiceless_retroflex_fricative"/>
     <phone name="ʃ" channel="grooved" manner="fricative" place="postalveolar" href="Voiceless_postalveolar_fricative"/>
@@ -763,7 +764,7 @@
     <phone name="ʔ" manner="plosive" place="glottal" href="Glottal_stop"/>
     <phone name="ʕ" manner="fricative" place="pharyngeal" voiced="+" href="Voiced_pharyngeal_fricative"/>
     <phone name="ʘ" manner="plosive" airstream="velaric" place="bilabial" href="Bilabial_click"/>
-    <phone name="ʙ" manner="trill" place="bilabial" voiced="+" href="Voiced_bilabial_trill"/>
+    <phone name="ʙ" manner="trill" place="bilabial" voiced="+" intrinsic-timing="repeated" href="Voiced_bilabial_trill"/>
     <phone name="ʛ" manner="plosive" place="uvular" voiced="+" airstream="implosive" href="Voiced_uvular_implosive"/>
     <phone name="ʜ" manner="fricative" place="epiglottal" href="Voiceless_epiglottal_fricative"/>
     <phone name="ʝ" manner="fricative" place="palatal" voiced="+" href="Voiced_palatal_fricative"/>

@@ -157,7 +157,7 @@ The budget names each kind of material and derives its price from declarations a
 | unmatched phased constituent | nearest-part comparison plus one material term | graded | `t` against `t͡s`; `e` against `e͜ɪ` |
 | juncture | one binding-sense term | categorical | agreement `0`, disagreement or unaligned `1` |
 | prosodic rider | one declared `value_distance` term per tier | graded | one term on the unit clock |
-| inherent duration | one conditionally present `value_distance` term | graded | one term in an inherently brief phone's bundle |
+| intrinsic timing | one conditionally present `value_distance` term | graded | one term in a tap or trill's bundle |
 
 The exemplars are checked rather than quoted, so a change that moves them
 fails here rather than going stale in prose:
@@ -181,25 +181,50 @@ began charging constituent arity: the difference is exactly that charge,
 `d(ɡ,ɡ͡b) - d(ɡ,b)/2 = 0.05`, and the identity in this table outlived the
 change that broke it.
 
-**Inherent duration is a segmental axis with conditional mass.** `inherent-duration`
-has the two ordinal values `brief` and `ordinary` on its own `+intrinsic-t`
-axis. `ordinary` is the declared comparison center, not a default: an ordinary
-phone states no duration key, so a pair of ordinary phones gains neither a
-zero-cost term nor a larger denominator. A comparison containing one of the
-four inherently brief phones (`ɾ ɽ ɺ ⱱ`) gains exactly one full endpoint step.
-That is the same one-term conditional-mass rule as a written prosodic rider,
-and the same weight as any other ordinal feature step; the difference is
-ownership. Inherent duration is in the phone bundle, while written `length`
-is an attribute on the unit clock. Thus `ɾ` and `d̆` make different claims and
-remain a nonzero distance apart. `explain_transcription_distance` names the
-segmental row `inherent-duration`; it reserves `length (prosodic)` for the
-written rider.
+**Intrinsic timing is a segmental axis with conditional mass.**
+`intrinsic-timing` has three ordinal values on its own `+intrinsic-t` axis:
+`brief`, `ordinary`, and `repeated`. `ordinary` is the declared comparison
+center, not a default: an ordinary phone states no timing key, so a pair of
+ordinary phones gains neither a zero-cost term nor a larger denominator. The
+four taps (`ɾ ɽ ɺ ⱱ`) state `brief`; the three trills (`r ʀ ʙ`) state
+`repeated`. Adding the third value re-spaces each marked-to-center comparison
+to half a feature step. The two marked endpoints remain one full feature step
+apart:
 
-The tap's `manner` coordinate is complete closure (`1.00`), while
-`[manner=tap]` remains the category selecting those four phones. Trills remain
-at their declared `0.70` coordinate. Whether their repeated contacts likewise
-need a distinct temporal representation is open; no trill declaration is
-changed by analogy.
+```python
+import ipakit
+
+timing = ipakit.IPAFeatures().features["intrinsic-timing"]
+[
+    timing.value_distance("brief", "ordinary"),
+    timing.value_distance("ordinary", "repeated"),
+    timing.value_distance("brief", "repeated"),
+]  # [0.5, 0.5, 1.0]
+```
+
+The conditional-mass rule still contributes one term whenever either phone
+states the feature. An unfilled side reads at the declared center, so the same
+one-step/two-step geometry survives normalization in the phone domain:
+
+```python
+ipa = ipakit.IPAFeatures()
+{
+    "tap-stop": round(ipa.distance("ɾ", "d"), 4),
+    "trill-stop": round(ipa.distance("r", "d"), 4),
+    "tap-trill": round(ipa.distance("ɾ", "r"), 4),
+}  # {'tap-stop': 0.0227, 'trill-stop': 0.0227, 'tap-trill': 0.0455}
+```
+
+Intrinsic timing belongs to the phone bundle, while written `length` is an
+attribute on the unit clock. Thus `ɾ` and `d̆` make different claims and remain
+a nonzero distance apart. `explain_transcription_distance` names the segmental
+row `intrinsic-timing`; it reserves `length (prosodic)` for the written rider.
+
+The tap and trill `manner` coordinates both express complete closure (`1.00`),
+as do nasal and plosive, while `[manner=tap]` and `[manner=trill]` remain the
+categories selecting their respective phones. A trill's repeated contacts are
+represented by `intrinsic-timing=repeated`, not by weakening its achieved
+stricture.
 
 The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md). [design/mass-budget.md](design/mass-budget.md) is the dated record of the divergence, its measured geometry, and the repair.
 

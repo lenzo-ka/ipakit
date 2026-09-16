@@ -385,7 +385,7 @@
         {
           "a": "ɹ",
           "b": "ɾ",
-          "cost": 0.1061,
+          "cost": 0.0833,
           "op": "sub",
           "terms": [
             {
@@ -433,8 +433,8 @@
             {
               "a": null,
               "b": "brief",
-              "cost": 1.0,
-              "label": "inherent-duration"
+              "cost": 0.5,
+              "label": "intrinsic-timing"
             },
             {
               "a": "-",
@@ -579,7 +579,7 @@
       "id": "mixed",
       "left": "stɹa͜ɪk",
       "right": "sutoɾaiku",
-      "segment_distance": 0.5418627785319156,
+      "segment_distance": 0.5393375260066631,
       "transcription_distance": {
         "alignment": [
           [
@@ -621,10 +621,10 @@
         ],
         "costs": "insert=1.0 delete=1.0",
         "coverage": 0.5555555555555556,
-        "edit_cost": 4.761594352617079,
-        "similarity": 0.6598861176702087
+        "edit_cost": 4.716139807162534,
+        "similarity": 0.6631328709169618
       },
-      "transcription_similarity": 0.6598861176702087
+      "transcription_similarity": 0.6631328709169618
     },
     {
       "explain_transcription_distance": [

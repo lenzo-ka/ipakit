@@ -69,14 +69,17 @@ def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
         assert [r["source"] for r in rows] == [
             r["source"] for r in data["census"][direction]
         ]
-        assert all(r["status"] in ("unresolved", "conditional-witness") for r in rows)
+        assert all(
+            r["status"] in ("unresolved", "conditional-witness", "resolved")
+            for r in rows
+        )
     assert all(
         r["status"] == "unresolved" for r in data["dispositions"]["ipakit_to_clts"]
     )
     reviewed = {
         tuple(r["source"])
         for r in data["dispositions"]["clts_to_ipakit"]
-        if r["rule_ids"]
+        if r["status"] == "conditional-witness"
     }
     assert reviewed == {
         ("clts", "consonant", "manner", "stop"),
@@ -85,6 +88,42 @@ def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
         ("clts", "consonant", "phonation", "voiced"),
         ("clts", "consonant", "phonation", "voiceless"),
     }
+
+
+def test_release_declarations_resolve_to_values_or_constituent_sequences() -> None:
+    data = read_authority().to_data()
+    rows = {
+        row["source"][-1]: row
+        for row in data["dispositions"]["clts_to_ipakit"]
+        if row["source"][1:3] == ["consonant", "release"]
+    }
+    expected = {
+        "unreleased": ("feature", ["ipakit", "release", "no-audible"]),
+        "with-lateral-release": ("feature", ["ipakit", "release", "lateral"]),
+        "with-mid-central-vowel-release": (
+            "feature",
+            ["ipakit", "release", "schwa"],
+        ),
+        "with-nasal-release": ("feature", ["ipakit", "release", "nasal"]),
+        "with-sibilant-release": ("sequence", "plosive + sibilant fricative"),
+        "with-trilled-release": ("sequence", "plosive + trill"),
+        "with-uvular-release": ("sequence", "plosive + uvular fricative"),
+    }
+    assert set(rows) == set(expected)
+    for source, (form, target) in expected.items():
+        row = rows[source]
+        assert row["status"] == "resolved"
+        assert len(row["targets"]) == 1
+        assert row["targets"][0]["form"] == form
+        key = "path" if form == "feature" else "name"
+        assert row["targets"][0][key] == target
+        assert len(row["rule_ids"]) == 1
+    assert "another segment" in data["rules"]["release_adjudication"]
+    assert all(
+        row["status"] == "unresolved"
+        for row in data["dispositions"]["ipakit_to_clts"]
+        if row["source"][1] == "release"
+    )
 
 
 def test_extra_claim_absence_and_wrong_voicing_refuse_even_when_resealed() -> None:

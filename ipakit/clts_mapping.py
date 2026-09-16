@@ -1,7 +1,8 @@
 """Reviewed directional predicates, distinct from declaration census and import.
 
-The initial authority is deliberately bounded to complete plain-stop witnesses.
-Other declarations remain explicitly unresolved; B2 structural binding is pending.
+The authority is deliberately bounded to complete plain-stop witnesses and the
+adjudicated release declarations. Other declarations remain explicitly unresolved;
+B2 structural binding is pending.
 """
 
 from __future__ import annotations
@@ -76,7 +77,56 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
                 k: v for k, v in features.items() if k not in rule["target_predicates"]
             },
         }
+    for rule in rules["declaration_rules"]:
+        target = rule["target"]
+        witness = target["witness"]
+        form = ipa.read(witness, strict=True)
+        if len(form.units) != 1 or form.units[0].segment is None:
+            raise MappingInvalid("release witness is not one segment")
+        segment = form.units[0].segment
+        if target["form"] == "feature":
+            path = target["path"]
+            if (
+                len(path) != 3
+                or path[:2] != ["ipakit", "release"]
+                or len(segment.constituents) != 1
+                or segment.constituents[0].bundle(ipa).get(path[1]) != path[2]
+            ):
+                raise MappingInvalid("native release-value witness changed")
+            results[rule["id"]] = {
+                "form": "feature",
+                "target": path,
+                "witness": witness,
+                "constituents": 1,
+            }
+        elif target["form"] == "sequence":
+            expected = target["constituents"]
+            if len(segment.constituents) != len(expected):
+                raise MappingInvalid("native release sequence structure changed")
+            observed = []
+            for constituent, predicates in zip(
+                segment.constituents, expected, strict=True
+            ):
+                bundle = constituent.bundle(ipa)
+                if any(bundle.get(name) != value for name, value in predicates.items()):
+                    raise MappingInvalid("native release sequence predicates changed")
+                observed.append(predicates)
+            results[rule["id"]] = {
+                "form": "sequence",
+                "name": target["name"],
+                "witness": witness,
+                "constituents": observed,
+            }
+        else:
+            raise MappingInvalid("unknown release target form")
     return results
+
+
+def _native_phones(rules: dict[str, Any]) -> tuple[str, ...]:
+    """Return every native spelling whose semantics bind this authority."""
+    return tuple(rule["target"] for rule in rules["rules"]) + tuple(
+        rule["target"]["witness"] for rule in rules["declaration_rules"]
+    )
 
 
 def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
@@ -98,21 +148,42 @@ def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
             for name, value in rule["target_predicates"].items()
         ):
             raise MappingInvalid("reviewed target predicate is no longer declared")
+    declaration_rules: dict[tuple[str, ...], dict[str, Any]] = {}
+    for rule in rules["declaration_rules"]:
+        source = tuple(rule["source"])
+        if source in declaration_rules:
+            raise MappingInvalid("duplicate declaration rule")
+        declaration_rules[source] = rule
+        if source not in declared:
+            raise MappingInvalid("reviewed declaration source is no longer declared")
+        target = rule["target"]
+        if target["form"] == "feature" and tuple(target["path"]) not in native:
+            raise MappingInvalid("reviewed declaration target is no longer declared")
     queues: dict[str, Any] = {}
     for direction in ("clts_to_ipakit", "ipakit_to_clts"):
         records = []
         for row in census[direction]:
-            ids = (
+            witness_ids = (
                 supported.get(tuple(row["source"]), [])
                 if direction == "clts_to_ipakit"
                 else []
             )
+            declaration = (
+                declaration_rules.get(tuple(row["source"]))
+                if direction == "clts_to_ipakit"
+                else None
+            )
+            ids = [*witness_ids, *([declaration["id"]] if declaration else [])]
             records.append(
                 {
                     **row,
-                    "status": "conditional-witness" if ids else "unresolved",
+                    "status": (
+                        "resolved"
+                        if declaration
+                        else "conditional-witness" if witness_ids else "unresolved"
+                    ),
                     "rule_ids": ids,
-                    "targets": [],
+                    "targets": [declaration["target"]] if declaration else [],
                 }
             )
         queues[direction] = records
@@ -219,7 +290,7 @@ class MappingAuthority:
     ) -> None:
         """Refuse stale declarations, geometry and provider artifact identity."""
         data = self.to_data()
-        phones = tuple(rule["target"] for rule in data["rules"]["rules"])
+        phones = _native_phones(data["rules"])
         if identity_fingerprint(census) != identity_fingerprint(data["census"]):
             raise MappingInvalid(
                 "declaration population or source inputs changed; reconcile first"
@@ -288,7 +359,7 @@ class MappingAuthority:
             f"Mapping identity: `{self.identity}`.",
             "",
             "Finite declaration accounting is not complete semantic conversion. "
-            "B2 profile binding and structural mappings remain pending.",
+            "B2 profile binding and token-level structural import remain pending.",
             "",
             "Generated from the [reviewed mapping authority](clts-mapping.md). "
             "Only master declarations are included; catalog observations remain external research. "
@@ -303,6 +374,25 @@ class MappingAuthority:
                 lines.append(
                     f"| {direction} | {' / '.join(row['source'])} | {row['status']} | {', '.join(row['rule_ids'])} |"
                 )
+        lines.extend(
+            [
+                "",
+                "## Release adjudication",
+                "",
+                data["rules"]["release_adjudication"],
+                "",
+            ]
+        )
+        for rule in data["rules"]["declaration_rules"]:
+            target = rule["target"]
+            rendered = (
+                " / ".join(target["path"])
+                if target["form"] == "feature"
+                else f"{target['name']} (`{target['witness']}`)"
+            )
+            lines.append(
+                f"- `{' / '.join(rule['source'])}` → {rendered} ({rule['id']})."
+            )
         lines.extend(["", "## Structural and enhancement dispositions", ""])
         for item in data["rules"]["enhancements"]:
             lines.append(
@@ -329,7 +419,7 @@ def build_authority(
     rules = reviewed_rules()
     _source_witnesses(rules, snapshot)
     native = _native_witnesses(rules, ipa)
-    phones = tuple(rule["target"] for rule in rules["rules"])
+    phones = _native_phones(rules)
     data = {
         "schema": "ipakit-clts-semantic-authority",
         "version": 1,

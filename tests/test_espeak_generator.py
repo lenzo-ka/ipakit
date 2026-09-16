@@ -1,8 +1,42 @@
 """Pins eSpeak NG's source-level mnemonic-to-IPA rules."""
 
+import sys
 from collections import OrderedDict
+from pathlib import Path
 
+import pytest
+from scripts import espeak_vocabularies
 from scripts.espeak_vocabularies import Phone, default_ipa, spelling, tone_spellings
+
+
+def test_fetch_precedes_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, Path]] = []
+    monkeypatch.setattr(
+        espeak_vocabularies,
+        "fetch",
+        lambda source: calls.append(("fetch", source)),
+    )
+    monkeypatch.setattr(
+        espeak_vocabularies,
+        "generate",
+        lambda source: (calls.append(("generate", source)) or ({}, {})),
+    )
+    monkeypatch.setattr(espeak_vocabularies, "OUT", tmp_path / "out")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "espeak_vocabularies.py",
+            "check",
+            "--fetch",
+            "--source",
+            str(tmp_path),
+        ],
+    )
+    assert espeak_vocabularies.main() == 0
+    assert calls == [("fetch", tmp_path), ("generate", tmp_path)]
 
 
 def test_default_ipa_matches_pinned_write_ph_mnemonic_rules() -> None:

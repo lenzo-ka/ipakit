@@ -770,13 +770,13 @@ class TestNoTermIsTrueOfEverything:
             ):
                 universal.append(term)
         resolved = {ipa._resolve_query_term(t.lstrip("-"))[0] for t in universal}
-        # ``articulator`` (above), ``stress`` and ``inherent-duration`` have
+        # ``articulator`` (above), ``stress`` and ``intrinsic-timing`` have
         # declared anchors carried by no unit. Stress's ``none`` is spelled by
-        # no mark; inherent duration's ``ordinary`` is deliberately unfilled,
+        # no mark; intrinsic timing's ``ordinary`` is deliberately unfilled,
         # including on the taps that state ``brief``. Their negations are true
         # of everything -- the same projection shape, a value carried by
         # nothing rather than a term decided by a missing key.
-        assert resolved == {"articulator", "inherent-duration", "stress"}, sorted(
+        assert resolved == {"articulator", "intrinsic-timing", "stress"}, sorted(
             universal
         )
         assert len(universal) >= 5, sorted(universal)
