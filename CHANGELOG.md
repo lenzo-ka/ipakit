@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
+- Sequence-valued features compare by ordered edit distance over their declared values: ordinal substitutions stay graded, insertions and deletions cost one step, and normalization by the longer sequence makes an extra step one share of that trajectory. Tone and its derived contour now contribute prosodic terms without sorting away time order; scalar tone costs and the phone-only confusion matrix are unchanged.
 - Taps and trills are complete closures with distinct intrinsic timing.
 - Renamed `confusability`/`normalized_distance` to `similarity_position`/`distance_position`; `DistanceModel.confusability`/`.similarity` to `.similarity_position`, `.distance` to `.distance_position`, and `.nearest` to `.nearest_positions` returning `PhonePosition`; and CLI `distance confusability` (`conf`) to `distance positions` (`pos`) with matching output labels.
 

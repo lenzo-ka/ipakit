@@ -317,10 +317,41 @@ class Feature:
         Otherwise ordinal features use scale distance based on declaration
         order, and categorical/binary features return 0 if same, 1 if
         different.
+        A feature declaring ``sequence`` compares trajectories by ordered
+        edit distance over their steps. Substitution uses this feature's
+        scalar value distance, insertion and deletion cost one, and the
+        result is capped at one. This unit-truncated weighted Levenshtein
+        metric leaves the scalar, single-step distances unchanged, keeps all
+        feature values in the ordinary range, and does not give each pair a
+        different scale. Order remains load-bearing and ordinal substitutions
+        remain graded; longer trajectories simply saturate once their edit
+        cost reaches one. Truncating a metric at a constant is itself a metric.
+
         Either side may be a tuple of values (a multi-valued feature, e.g. a
         double articulation's places): the distance is then the directional
         best-match mean, max of the two directions.
         """
+        if (
+            self.sequence
+            and isinstance(v1, str)
+            and isinstance(v2, str)
+            and (self.SEQUENCER in v1 or self.SEQUENCER in v2)
+        ):
+            s1, s2 = self.steps(v1), self.steps(v2)
+            previous = [float(j) for j in range(len(s2) + 1)]
+            for i, left in enumerate(s1, start=1):
+                current = [float(i)]
+                for j, right in enumerate(s2, start=1):
+                    current.append(
+                        min(
+                            previous[j] + 1.0,
+                            current[j - 1] + 1.0,
+                            previous[j - 1] + self.value_distance(left, right),
+                        )
+                    )
+                previous = current
+            return min(previous[-1], 1.0)
+
         # A combining spelling (and an empty one, which is malformed) goes
         # through expand, which carries the per-component alias resolution
         # and the structure check: a malformed value is refused rather

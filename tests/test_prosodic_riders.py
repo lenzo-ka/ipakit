@@ -1,11 +1,11 @@
 """Prosodic tiers ride on the unit clock and bear graded distance (#190).
 
-Stress, a plain tone, and length are ``mode="prosodic"`` features whose marks
+Stress, tone, and length are ``mode="prosodic"`` features whose marks
 attach to a unit rather than sitting between units. They were invisible to the
 metric -- ``ˈkɛt`` and ``ˌkɛt`` scored identical. Now each such rider adds one
 graded term to the unit it rides on, read via the ordinal ``value_distance``,
 metric-only so the stored features and round-trips are untouched. Sequence
-values (tone contours) stay out until a sequence comparison exists.
+values use ordered, graded edit distance over their declared steps.
 """
 
 import ipakit
@@ -53,10 +53,42 @@ class TestToneAndLengthAlsoRide:
     def test_length_is_read(self, ipa):
         assert ipa.distance("a", "aː") > 0.0
 
-    def test_a_tone_contour_stays_out(self, ipa):
-        # A sequence value is a trajectory, not a scale point -- deferred.
-        assert ipa.distance("a", "a᷅") == 0.0
-        assert ipa.distance("a᷄", "a᷅") == 0.0
+    def test_a_tone_contour_is_read(self, ipa):
+        assert ipa.distance("a", "a᷅") > 0.0
+        assert ipa.distance("a᷄", "a᷅") > 0.0
+
+    def test_contour_sequences_price_without_a_tone_term(self, ipa):
+        terms = ipa.explain_transcription_distance("ǎ̂", "â̌")[0]["terms"]
+        contour = [term for term in terms if term["label"] == "contour (prosodic)"]
+        assert contour and contour[0]["cost"] > 0.0
+        assert not [term for term in terms if term["label"] == "tone (prosodic)"]
+
+
+class TestSequenceValuedProsody:
+    @staticmethod
+    def word_distance(ipa, left, right):
+        return ipa.transcription_distance(left, right).edit_cost
+
+    def test_different_levels_are_not_identical(self, ipa):
+        assert self.word_distance(ipa, "ma˧˥", "ma˧˩") > 0.0
+
+    def test_order_alone_is_not_normalized_away(self, ipa):
+        assert self.word_distance(ipa, "ma˥˩", "ma˩˥") > 0.0
+
+    def test_level_differences_are_graded(self, ipa):
+        assert ipa.distance("a˧˥", "a˧˦") < ipa.distance("a˧˥", "a˧˩")
+        assert ipa.distance("a˩˨", "a˩˧") < ipa.distance("a˩˨", "a˩˥")
+
+    def test_unequal_lengths_compare(self, ipa):
+        assert ipa.distance("a˧˥", "a˧˥˧") > 0.0
+
+    def test_identity_is_exactly_zero(self, ipa):
+        assert ipa.distance("a˧˥˧", "a˧˥˧") == 0.0
+
+    def test_single_level_cost_is_unchanged(self, ipa):
+        terms = ipa.explain_transcription_distance("a˥", "a˧")[0]["terms"]
+        tone = next(term for term in terms if term["label"] == "tone (prosodic)")
+        assert (tone["a"], tone["b"], tone["cost"]) == ("top", "mid", 0.5)
 
 
 class TestItIsMetricOnlyAndContained:
