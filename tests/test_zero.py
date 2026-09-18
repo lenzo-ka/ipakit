@@ -370,7 +370,7 @@ class TestTheFlatApiReadsTheDeclaration:
         # Accepting the zero at the parse gate must not let it reach a
         # distance: it carries no features, so a word containing one
         # measures as the word without it. U+203F UNDERTIE likewise has no
-        # distance claim: liaison deletes the prosodic word boundary.
+        # distance claim: liaison suppresses only the claim it makes.
         assert len(FEATURES.phones) == 139
         assert ipakit.transcription_distance("le∅ami", "leami").edit_cost == 0.0
         assert ipakit.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0

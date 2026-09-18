@@ -32,8 +32,8 @@ class TestStructuralMarksStandAlone:
     def test_breaks_make_boundary_claims_but_u203f_deletes_its_claim(
         self, ipa: IPAFeatures
     ) -> None:
-        # U+203F UNDERTIE is liaison and deletes the prosodic word-boundary
-        # claim at the distance layer. Break marks still assert boundaries.
+        # U+203F UNDERTIE is liaison and suppresses only its own distance
+        # claim. Break marks at the same margin still assert boundaries.
         import ipakit
 
         assert ipa.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0

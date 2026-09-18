@@ -158,8 +158,9 @@ the ordinal `level` ladder declared in `ipa.xml`. Thus `a.a` is nearer `a#a`
 than `a‖a`, while `ka.tə` and `kat.ə` differ because the same syllable claim
 occupies different margins. Glyph choice is not a term: `#` and a space both
 state the same word-boundary claim and compare equal. U+203F UNDERTIE is the
-liaison exception: distance reads it as deleting the prosodic word-boundary
-claim, while rules retain its declared word level as a morphological edge.
+liaison exception: it suppresses only the word claim the mark itself would
+make, while rules retain its declared word level as a morphological edge. It
+does not erase an explicitly written break at the same margin.
 
 The combining double acute U+030B in `a̋` is outside the house declaration.
 Strict parsing refuses it; permissive parsing warns and retains `a`.

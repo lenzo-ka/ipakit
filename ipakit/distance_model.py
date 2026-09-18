@@ -691,7 +691,7 @@ class DistanceModel:
         boundary = self._ipa._boundary_comparison(boundaries1, boundaries2)
         n, m = len(t1), len(t2)
         if n == 0 and m == 0:
-            if not boundary.null_cost:
+            if not boundary.edit_cost:
                 return _empty_pair_result(return_alignment, self._insert, self._delete)
             return _transcription_result(
                 t1,
@@ -700,7 +700,7 @@ class DistanceModel:
                 Alignment(()) if return_alignment else None,
                 self._insert,
                 self._delete,
-                extra_null_cost=boundary.null_cost,
+                normalization_floor=boundary.normalization_floor,
             )
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
@@ -712,7 +712,6 @@ class DistanceModel:
             alignment,
             self._insert,
             self._delete,
-            extra_null_cost=boundary.null_cost,
         )
 
     def directional_transcription_distance(

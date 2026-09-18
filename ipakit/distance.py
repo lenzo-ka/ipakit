@@ -458,15 +458,15 @@ class TranscriptionDistanceResult:
 class _BoundaryComparison:
     """The structural-claim share of a transcription comparison.
 
-    ``edit_cost`` is what the asserted margins add to the alignment;
-    ``null_cost`` is the price of deleting every claim on the left and
-    inserting every claim on the right, for the same normalization used by
-    phone tokens.  ``rows`` keeps the comparison inspectable without turning
-    a boundary relation into a phone-alignment position.
+    ``edit_cost`` is what the asserted margins add to the alignment.
+    ``normalization_floor`` is a fixed two-claim scale for the degenerate
+    zero-phone case; unlike a sum over present claims, it does not vary with
+    the pair. ``rows`` keeps the comparison inspectable without turning a
+    boundary relation into a phone-alignment position.
     """
 
     edit_cost: float
-    null_cost: float
+    normalization_floor: float
     rows: tuple[tuple[int, str | None, str | None, float], ...] = ()
 
 
@@ -506,34 +506,31 @@ def _transcription_result(
     insert_cost: PhoneCost,
     delete_cost: PhoneCost,
     *,
-    extra_null_cost: float = 0.0,
+    normalization_floor: float = 0.0,
 ) -> TranscriptionDistanceResult:
     """Normalize an alignment cost -- one read for both word-distance paths.
 
-    The denominator is the cost of the null comparison: delete every phone
-    token and boundary claim on the first side, then insert every one on the
-    second. Phone prices are the sum of ``delete`` over ``tokens1`` plus the
-    sum of ``insert`` over ``tokens2``; ``extra_null_cost`` carries the
-    separately aligned structural claims. That path is always available, so
-    it is also the most any comparison can cost, and ``similarity`` spans
-    [0, 1] with both ends attainable -- 1 on identity, 0 when the two forms
-    share nothing. ``max(n, m)`` was the other reading, and it is a different
-    claim: it charges a truncation once, where this charges the material that
-    went missing and the material that replaced it apart.
+    The denominator is the phone null alignment: delete every phone token on
+    the first side, then insert every phone token on the second. Boundary
+    claims contribute to ``edit_cost`` on that invariant phone scale; adding
+    the null cost of whichever claims happen to be present would give each
+    pair a different unit and destroy the triangle inequality. The fixed
+    ``normalization_floor`` supplies the unit for comparisons made entirely of
+    boundary marks; callers leave it at zero when either side has a phone.
 
     **It is a sum over the actual tokens and not a length times a price.**
     ``n * delete + m * insert`` is the same number whenever the price is
     flat and a different number as soon as it is not, and the version that
     multiplies would quietly charge every word its token count at whatever
-    price the last caller happened to pass. The denominator has to be the
-    null alignment's cost or ``similarity`` is not bounded by 1 from
-    below, and the null alignment pays for the phones it actually removes.
+    price the last caller happened to pass. The phone null alignment pays for
+    the phones it actually removes; separately aligned boundary evidence must
+    not change that unit from pair to pair.
     """
     n, m = len(tokens1), len(tokens2)
-    denom = (
+    denom = max(
         sum(_prices(delete_cost, tokens1, "delete_cost"))
-        + sum(_prices(insert_cost, tokens2, "insert_cost"))
-        + extra_null_cost
+        + sum(_prices(insert_cost, tokens2, "insert_cost")),
+        normalization_floor,
     )
     similarity = 1.0 - edit_cost / denom if denom else 1.0
     result = TranscriptionDistanceResult(
@@ -885,9 +882,10 @@ class DistanceMixin(IPAFeaturesBase):
         rank = {value: index for index, value in enumerate(level.values)}
         claims: dict[int, str] = {}
         for boundary in form.boundaries:
-            # U+203F UNDERTIE marks liaison: for distance it deletes the
-            # prosodic word-boundary claim, although its declared word level
-            # remains available to the rule engine as a morphological edge.
+            # U+203F UNDERTIE marks liaison: it suppresses only the distance
+            # claim it would itself make. Any explicit break at this margin
+            # remains, and the undertie's declared word level stays available
+            # to the rule engine as a morphological edge.
             if boundary.text == "\u203f":
                 continue
             claimed = boundary.level
@@ -915,9 +913,12 @@ class DistanceMixin(IPAFeaturesBase):
         from .metric import _arity_base
 
         feature = self.features.get("level")
-        if feature is None or not left and not right:
+        if feature is None:
             return _BoundaryComparison(0.0, 0.0)
         mass = _arity_base(self, applicable_only)
+        normalization_floor = 2.0 * mass
+        if not left and not right:
+            return _BoundaryComparison(0.0, normalization_floor)
         edit_cost = 0.0
         rows: list[tuple[int, str | None, str | None, float]] = []
         for position in sorted(set(left) | set(right)):
@@ -931,8 +932,7 @@ class DistanceMixin(IPAFeaturesBase):
                 cost = 2.0 * mass * feature.value_distance(a, b)
             edit_cost += cost
             rows.append((position, a, b, cost))
-        null_cost = mass * (len(left) + len(right))
-        return _BoundaryComparison(edit_cost, null_cost, tuple(rows))
+        return _BoundaryComparison(edit_cost, normalization_floor, tuple(rows))
 
     def transcription_distance(
         self,
@@ -1095,7 +1095,7 @@ class DistanceMixin(IPAFeaturesBase):
         )
 
         if n == 0 and m == 0:
-            if not boundary.null_cost:
+            if not boundary.edit_cost:
                 return _empty_pair_result(return_alignment, insert_cost, delete_cost)
             return _transcription_result(
                 tokens1,
@@ -1104,7 +1104,7 @@ class DistanceMixin(IPAFeaturesBase):
                 Alignment(()) if return_alignment else None,
                 insert_cost,
                 delete_cost,
-                extra_null_cost=boundary.null_cost,
+                normalization_floor=boundary.normalization_floor,
             )
 
         distance, alignment = self._align(
@@ -1123,7 +1123,6 @@ class DistanceMixin(IPAFeaturesBase):
             alignment,
             insert_cost,
             delete_cost,
-            extra_null_cost=boundary.null_cost,
         )
 
     def _fit_result(
@@ -1149,9 +1148,10 @@ class DistanceMixin(IPAFeaturesBase):
         the span, as are claims inside it; their margins are rebased to the
         span before comparison with the needle. The fit minimizes phone and
         in-span boundary cost together. The score is normalized by the
-        needle's own insertion cost plus the selected claims' null cost, so it
-        reads as "how much of the target and its fitted boundary evidence is
-        present". Directional by construction: the two sides are not
+        needle's own insertion cost for every candidate window, so minimizing
+        the cost and maximizing the similarity are the same objective. The
+        fixed boundary floor matters only for a zero-phone needle. Directional
+        by construction: the two sides are not
         interchangeable, which is why this is not offered on the symmetric
         :meth:`transcription_distance`.
         """
@@ -1205,7 +1205,7 @@ class DistanceMixin(IPAFeaturesBase):
         best, _start, _end, boundary = min(
             candidates, key=lambda item: (item[0], item[1], item[2])
         )
-        denom = sum(ins) + boundary.null_cost
+        denom = sum(ins) if ins else boundary.normalization_floor
         similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
         coverage = min(n, m) / max(n, m) if max(n, m) else 1.0
         return TranscriptionDistanceResult(

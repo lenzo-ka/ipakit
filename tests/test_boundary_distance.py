@@ -63,16 +63,22 @@ class TestBoundaryTypesUseTheDeclaredHierarchy:
 
 
 class TestBoundaryNormalization:
-    def test_one_sided_claim_adds_one_claim_mass(self, ipa):
+    def test_one_sided_claim_uses_the_phone_null_scale(self, ipa):
         mass = _arity_base(ipa, False)
         result = ipa.transcription_distance("a.a", "aa")
         assert result.edit_cost == mass
-        assert result.similarity == 1.0 - mass / (4 + mass)
+        assert result.similarity == 1.0 - mass / 4
 
-    def test_two_sided_claims_add_two_claim_masses(self, ipa):
-        mass = _arity_base(ipa, False)
+    def test_two_sided_claims_do_not_enlarge_the_scale(self, ipa):
         result = ipa.transcription_distance("a.a", "a#a")
-        assert result.similarity == 1.0 - result.edit_cost / (4 + 2 * mass)
+        assert result.similarity == 1.0 - result.edit_cost / 4
+
+    def test_boundary_only_forms_use_a_fixed_scale(self, ipa):
+        mass = _arity_base(ipa, False)
+        assert 1.0 - ipa.transcription_distance(".", "").similarity == 0.5
+        assert 1.0 - ipa.transcription_distance(".", "‖").similarity == pytest.approx(
+            2 * mass / (2 * mass)
+        )
 
 
 class TestClaimIdentity:
@@ -130,10 +136,16 @@ def test_inventory_model_also_prices_boundary_claims(ipa):
     assert model.transcription_distance("a#a", "a a").edit_cost == 0.0
 
 
-class TestLiaisonDeletesOnlyItsDistanceClaim:
+class TestLiaisonSuppressesOnlyItsDistanceClaim:
     def test_u203f_deletes_the_word_boundary_claim(self, ipa):
         assert ipa.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0
         assert ipa.transcription_distance("lez#ami", "lez‿ami").edit_cost > 0.0
+
+    @pytest.mark.parametrize("mixed", ["a#‿a", "a‿#a"])
+    def test_liaison_suppresses_only_its_own_claim(self, ipa, mixed):
+        mass = _arity_base(ipa, False)
+        assert ipa.transcription_distance(mixed, "a#a").edit_cost == 0.0
+        assert ipa.transcription_distance(mixed, "aa").edit_cost == mass
 
     def test_the_two_ipakit_tie_senses_are_unchanged(self, ipa):
         # U+0361 COMBINING DOUBLE INVERTED BREVE is FUSE; U+035C COMBINING
@@ -156,6 +168,14 @@ class TestLocalBoundaryPolicy:
     def test_claim_inside_the_fitted_span_counts(self, ipa):
         assert self.fit(ipa, "b|c").edit_cost == _arity_base(ipa, False)
 
+    def test_free_context_cannot_lower_an_available_fit(self, ipa):
+        target = ".abc"
+        fitted = ipa.rank_pronunciations(".abc.", [target], mode="local")[0].result
+        extended = ipa.rank_pronunciations("abcx.abc.", [target], mode="local")[
+            0
+        ].result
+        assert extended.similarity >= fitted.similarity
+
 
 def test_boundary_claim_edit_cost_is_a_metric_on_a_small_exhaustive_corpus(ipa):
     marks = ("", ".", "#", "|", "‖")
@@ -167,10 +187,19 @@ def test_boundary_claim_edit_cost_is_a_metric_on_a_small_exhaustive_corpus(ipa):
         for left in forms
         for right in forms
     }
+    normalized = {
+        (left, right): 1.0 - ipa.transcription_distance(left, right).similarity
+        for left in forms
+        for right in forms
+    }
     for left in forms:
         for right in forms:
             assert distances[left, right] == distances[right, left]
+            assert normalized[left, right] == normalized[right, left]
             for middle in forms:
                 assert distances[left, right] <= (
                     distances[left, middle] + distances[middle, right] + 1e-12
+                )
+                assert normalized[left, right] <= (
+                    normalized[left, middle] + normalized[middle, right] + 1e-12
                 )
