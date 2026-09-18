@@ -121,6 +121,9 @@ def test_every_distance_returning_wrapper_forwards_the_choice() -> None:
         ipa.rank_pronunciations("a", ["e"], applicable_only=True)[0].result.edit_cost
         == 2 * expected
     )
-    assert ipakit.explain_transcription_distance("a", "e", applicable_only=True)[-1][
-        "cost"
-    ] == round(expected, 4)
+    assert (
+        ipakit.explain_transcription_distance("a", "e", applicable_only=True)[-1][
+            "cost"
+        ]
+        == expected
+    )

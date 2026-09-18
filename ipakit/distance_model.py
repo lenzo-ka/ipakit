@@ -37,6 +37,7 @@ from .distance import (
     _prices,
     _substitution_cost,
     _transcription_result,
+    _validate_mode,
     price,
 )
 from .metric import metric_fingerprint
@@ -614,7 +615,10 @@ class DistanceModel:
             return self._norm_conf(self._cell_sim(i, j))
         if not (self._resolves(a) and self._resolves(b)):
             return 0.0
-        return self._norm_conf(1.0 - self._ipa.segment_distance(a, b))
+        return self._norm_conf(
+            1.0
+            - self._ipa.segment_distance(a, b, applicable_only=self._applicable_only)
+        )
 
     def distance_position(self, a: str, b: str) -> float:
         """Complementary percentile position; 0.0 is reserved for identity."""
@@ -663,7 +667,9 @@ class DistanceModel:
         if i is not None and j is not None:
             sim = self._cell_sim(i, j)
         else:
-            sim = 1.0 - self._ipa.segment_distance(t1, t2)
+            sim = 1.0 - self._ipa.segment_distance(
+                t1, t2, applicable_only=self._applicable_only
+            )
         return _substitution_cost(
             1.0 - self._norm_conf(sim),
             price(self._insert, t2),
@@ -671,13 +677,20 @@ class DistanceModel:
         )
 
     def transcription_distance(
-        self, ipa1: str, ipa2: str, *, return_alignment: bool = False
+        self,
+        ipa1: str,
+        ipa2: str,
+        *,
+        return_alignment: bool = False,
+        strict: bool = True,
     ) -> TranscriptionDistanceResult:
         """Compare IPA transcription strings with this model's selected costs.
 
         Uses the model's renormalized substitution costs (and indel costs) in a
         weighted-Levenshtein alignment. Returns a :class:`TranscriptionDistanceResult`;
-        pass ``return_alignment=True`` to include the aligned token pairs.
+        pass ``return_alignment=True`` to include the aligned token pairs. Strict
+        measurement rejects symbols tokenization would drop by default; pass
+        ``strict=False`` to measure the retained material deliberately.
 
         The normalizer is :func:`~ipakit.distance._transcription_result`, the same
         function :meth:`IPAFeatures.transcription_distance` calls, so switching from
@@ -685,6 +698,8 @@ class DistanceModel:
         substitution costs the alignment sees and not what a similarity
         means.
         """
+        if strict:
+            self._ipa._reject_unconvertible(ipa1, ipa2)
         t1 = self._ipa._transcription_units(ipa1)
         t2 = self._ipa._transcription_units(ipa2)
         n, m = len(t1), len(t2)
@@ -698,7 +713,12 @@ class DistanceModel:
         )
 
     def directional_transcription_distance(
-        self, reference: str, hypothesis: str, *, return_alignment: bool = False
+        self,
+        reference: str,
+        hypothesis: str,
+        *,
+        return_alignment: bool = False,
+        strict: bool = True,
     ) -> TranscriptionDistanceResult:
         """Compare transcriptions with the reference's deletion costs.
 
@@ -711,12 +731,17 @@ class DistanceModel:
         this spelling is the one that says which way round it runs.
         """
         return self.transcription_distance(
-            reference, hypothesis, return_alignment=return_alignment
+            reference,
+            hypothesis,
+            return_alignment=return_alignment,
+            strict=strict,
         )
 
-    def transcription_similarity(self, ipa1: str, ipa2: str) -> float:
+    def transcription_similarity(
+        self, ipa1: str, ipa2: str, *, strict: bool = True
+    ) -> float:
         """Return this model's normalized transcription similarity."""
-        return self.transcription_distance(ipa1, ipa2).similarity
+        return self.transcription_distance(ipa1, ipa2, strict=strict).similarity
 
     def sequence_distance(
         self,
@@ -730,12 +755,18 @@ class DistanceModel:
         model's renormalized (gamma-aware) costs. The tokens are aligned as
         given; ``mode="local"`` fits ``seq2`` as a target inside ``seq1`` (see
         :meth:`~ipakit.distance.DistanceMixin.sequence_distance`)."""
+        _validate_mode(mode)
         t1, t2 = list(seq1), list(seq2)
         if not t1 and not t2:
             return _empty_pair_result(return_alignment, self._insert, self._delete)
         if mode == "local":
             return self._ipa._fit_result(
-                t1, t2, self.sub_cost, self._insert, self._delete
+                t1,
+                t2,
+                self.sub_cost,
+                self._insert,
+                self._delete,
+                return_alignment,
             )
         dist, alignment = self._ipa._align(
             t1, t2, self.sub_cost, self._insert, self._delete, return_alignment
@@ -762,6 +793,7 @@ class DistanceModel:
         this model's costs; best first, ``n`` truncates to the n-best. A tie
         keeps the earliest-listed. ``mode="local"`` fits each candidate as a
         target inside ``observed``."""
+        _validate_mode(mode)
         obs = list(observed)
         cands = [list(c) for c in candidates]
         if not cands:
@@ -806,6 +838,7 @@ class DistanceModel:
         *,
         threshold: float | None = None,
         max_length_ratio: float | None = None,
+        strict: bool = True,
     ) -> bool:
         """Whether two words' similarity meets ``threshold``.
 
@@ -821,6 +854,8 @@ class DistanceModel:
         longer by that count, and the short-circuit answered ``False`` at
         any threshold above 12/13 for two forms whose distance is zero.
         """
+        if strict:
+            self._ipa._reject_unconvertible(ipa1, ipa2)
         th = threshold if threshold is not None else self._threshold
         if th is None:
             raise ValueError(
@@ -840,7 +875,7 @@ class DistanceModel:
             self._max_transcription_similarity(t1, t2) < th
         ):  # skip DP: can't reach threshold
             return False
-        return self.transcription_similarity(ipa1, ipa2) >= th
+        return self.transcription_similarity(ipa1, ipa2, strict=False) >= th
 
     def __repr__(self) -> str:
         return (

@@ -219,7 +219,7 @@ explanation = ipa.explain_transcription_distance("kæt", "kæd")
 # [('match', 'k', 'k'), ('match', 'æ', 'æ'), ('sub', 't', 'd')]
 [term["label"] for term in explanation[-1]["terms"] if term["cost"] != 0]
 # ['voiced']
-sum(step["cost"] for step in explanation)  # 0.0476
+sum(step["cost"] for step in explanation)  # 0.047619047619047616
 ```
 
 ## 3. Feature queries and natural classes

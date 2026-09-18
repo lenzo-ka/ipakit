@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import math
 import warnings
 from typing import TYPE_CHECKING
 
@@ -894,30 +895,51 @@ def segment_terms(
     y: Segment,
     *,
     applicable_only: bool = False,
-) -> list[tuple[str, str | None, str | None, float]]:
+) -> list[tuple[str, str | None, str | None, float, float]]:
     """The flat, non-overlapping term breakdown behind ``segment_metric``.
 
     Atomic pairs expose their named bundle terms. Composite pairs expose the
     selected outer comparisons, unmatched-material charges, and junctures;
     matched parts remain one row because the metric weights their own distance
-    as one outer term. Consequently ``sum(cost) / len(rows)`` reconstructs the
-    metric without counting a parent aggregate beside children.
+    as one outer term. The fifth value is the row's weight. Consequently
+    ``sum(cost * weight) / sum(weight)`` reconstructs the metric without
+    counting a parent aggregate beside children. Most rows have weight 1.0;
+    ordered-composite segmental rows share the fold's segmental weight when
+    prosodic riders are present.
     """
     rows: list[tuple[str, str | None, str | None, float]] = []
     distance = segment_metric(
         features, x, y, applicable_only=applicable_only, _rows=rows
     )
-    if rows and sum(row[3] for row in rows) / len(rows) != distance:
-        # The metric deliberately groups its three ordered subtotals before
-        # adding them. Preserve that last-bit result in a flat report: absorb
-        # only the binary-addition residue into the first non-categorical row.
-        # (Rendered costs round to four decimals, so this is never a phonetic
-        # charge; it is solely what makes the public reconstruction exact.)
-        index = next((i for i, row in enumerate(rows) if "juncture" not in row[0]), 0)
-        others = sum(row[3] for i, row in enumerate(rows) if i != index)
-        label, a, b, _ = rows[index]
-        rows[index] = (label, a, b, distance * len(rows) - others)
-    return rows
+    composite = len(x.constituents) > 1 or len(y.constituents) > 1
+    segmental_count = sum(not label.endswith(" (prosodic)") for label, *_ in rows)
+    segmental_weight = (
+        max(len(_parts(x)), len(_parts(y))) / segmental_count
+        if composite
+        and segmental_count
+        and any(label.endswith(" (prosodic)") for label, *_ in rows)
+        else 1.0
+    )
+    weighted_rows = [
+        (
+            label,
+            a,
+            b,
+            cost,
+            1.0 if label.endswith(" (prosodic)") else segmental_weight,
+        )
+        for label, a, b, cost in rows
+    ]
+    if weighted_rows:
+        numerator = math.fsum(cost * weight for *_, cost, weight in weighted_rows)
+        denominator = math.fsum(weight for *_, weight in weighted_rows)
+        reconstructed = numerator / denominator
+        tolerance = 8 * max(math.ulp(distance), math.ulp(reconstructed))
+        assert abs(reconstructed - distance) <= tolerance, (
+            f"segment trace disagrees with metric by "
+            f"{abs(reconstructed - distance)!r} (tolerance {tolerance!r})"
+        )
+    return weighted_rows
 
 
 #: Bytes of digest a fingerprint carries. Sixty-four bits, because the

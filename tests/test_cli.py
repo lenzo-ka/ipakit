@@ -1923,27 +1923,26 @@ class TestTheDeliberateApiCliDifferences:
         assert model_out != raw_out, "the two measures must stay distinguishable"
 
     def test_raw_and_model_transcription_loss_policies_are_explicit(self):
-        """Raw comparisons refuse loss; models warn and measure surviving units."""
+        """Every library comparison refuses loss unless explicitly made lax."""
         assert (
             inspect.signature(ipakit.transcription_distance)
             .parameters["strict"]
             .default
             is True
         )
-        for surface in (ipakit, ipakit.IPAFeatures()):
+        for surface in (ipakit, ipakit.IPAFeatures(), ipakit.distance_model()):
             with pytest.raises(ValueError):
                 surface.transcription_distance("k@t", "kæt")
         with pytest.warns(UserWarning):
             assert (
-                ipakit.distance_model().transcription_distance("k@t", "kæt").similarity
+                ipakit.distance_model()
+                .transcription_distance("k@t", "kæt", strict=False)
+                .similarity
                 > 0
             )
         contract = (ROOT / "docs" / "ties.md").read_text(encoding="utf-8")
-        assert "`DistanceModel` transcription comparisons warn" in contract
-        assert (
-            "module-level and `IPAFeatures` transcription comparisons reject"
-            in contract
-        )
+        assert "all transcription comparison surfaces reject" in contract
+        assert "`strict=False` is the explicit opt-in" in contract
 
 
 class TestTheLossyReadGuardIsWrittenAsAPredicate:
