@@ -29,17 +29,19 @@ class TestStructuralMarksStandAlone:
         assert [s.to_ipa() for s in segs] == ["l", "e", "z", "a", "m", "i"]
         assert all(not s.prosody for s in segs)
 
-    def test_structural_marks_are_transparent_to_distance(
+    def test_breaks_make_boundary_claims_but_u203f_deletes_its_claim(
         self, ipa: IPAFeatures
     ) -> None:
-        # A boundary relation must never cost alignment: liaison-marked
-        # and unmarked spellings are the same word, at both distance layers.
+        # U+203F UNDERTIE suppresses only its own distance claim. Break marks
+        # at the same margin still assert boundaries.
         import ipakit
 
         assert ipa.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0
-        assert ipa.transcription_distance("a|b", "ab").edit_cost == 0.0
+        assert ipa.transcription_distance("lez#ami", "lez‿ami").edit_cost > 0.0
+        assert ipa.transcription_distance("a|b", "ab").edit_cost > 0.0
         model = ipakit.distance_model()
         assert model.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0
+        assert model.transcription_distance("lez#ami", "lez‿ami").edit_cost > 0.0
 
     def test_prosodic_marks_still_attach(self, ipa: IPAFeatures) -> None:
         # The fix is scoped to structural marks; stress/length keep their

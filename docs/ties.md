@@ -13,7 +13,7 @@ A tie's *presence* is contrastive and is never added or removed by normalization
 
 A tie binds **units**, not bare letters. A base plus the modifiers written on it is one constituent, so `t̪͡s` (dental affricate) and `ã͜i` (nasalized diphthong) are single units exactly as `t͡s` and `a͜ɪ` are, and a modifier written before the tie stays on the constituent it was written on — `segment("kʷ͡p").bag()["labialized"]` is `('+', '-')`, not one value for the whole unit.
 
-The spacing undertie `‿` (U+203F) is a different symbol entirely: the IPA **linking** mark (absence of a break) between words — French liaison is one use. It is a separator-level mark, not a tie: it tokenizes as its own boundary token (`lez‿ami` → `l e z ‿ a m i`) so marked text round-trips faithfully, never glues onto a segment, never enters one, and is **transparent to distance** — `transcription_distance("lez‿ami", "lezami") = 0`; a boundary relation costs no alignment. (Its eventual structural home is a typed word-tier juncture, when a Word representation exists.)
+U+203F UNDERTIE `‿` is a different symbol entirely: the IPA **linking** mark between words — French liaison is one use. It is a separator-level mark, not a tie: it tokenizes as its own boundary token (`lez‿ami` → `l e z ‿ a m i`) so marked text round-trips faithfully, never glues onto a segment, and never enters one. Its declared word level remains available to rules as a morphological division. At the distance layer, the liaison mark suppresses only its own word claim; it does not erase an explicitly written break at the same margin. U+203F therefore contributes no separate comparison mass and is not counted as a phone or folded into phone coverage.
 
 ## Precedence
 

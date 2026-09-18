@@ -153,13 +153,16 @@ derived `contour` sequence, so both levels and direction remain observable.
 Single tone levels use the declared `bottom`, `low`, `mid`, `high`, `top`
 scale. See [tone declarations and trajectories](tone.md).
 
-Word alignment currently compares segment sequences. Differently placed or
-typed boundaries can therefore produce the same cost: `ka.tə`/`kat.ə`,
-`a|a`/`a‖a`, and `a.a`/`a#a` each have zero edit cost. The stored Forms retain
-those structural distinctions. Comparing claimed tier boundaries is separate
-planned work.
-Use the graph and structural queries when those distinctions matter, and
-interpret this scalar as a segment-sequence cost.
+Word alignment compares segment sequences and separately prices the boundary
+claims retained on their segment-clock margins. A claim against an unclaimed
+margin has one atomic comparison term's mass; claims at the same margin use
+the ordinal `level` ladder declared in `ipa.xml`. Thus `a.a` is nearer `a#a`
+than `a‖a`, while `ka.tə` and `kat.ə` differ because the same syllable claim
+occupies different margins. Glyph choice is not a term: `#` and a space both
+state the same word-boundary claim and compare equal. U+203F UNDERTIE is the
+liaison exception: it suppresses only the word claim the mark itself would
+make, while rules retain its declared word level as a morphological edge. It
+does not erase an explicitly written break at the same margin.
 
 The combining double acute U+030B in `a̋` is outside the house declaration.
 Strict parsing refuses it; permissive parsing warns and retains `a`.
