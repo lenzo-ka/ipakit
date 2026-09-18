@@ -987,7 +987,7 @@ class DistanceMixin(IPAFeaturesBase):
                     "label": label,
                     "a": a,
                     "b": b,
-                    "cost": round(cost, 4),
+                    "cost": cost,
                     **({"weight": weight} if weight != 1.0 else {}),
                 }
                 for label, a, b, cost, weight in segment_terms(
@@ -1290,7 +1290,7 @@ class DistanceMixin(IPAFeaturesBase):
                 if step.op == "sub" and step.left is not None and step.right is not None
                 else step.cost
             )
-            explained.append({**step.to_data(), "cost": round(metric_cost, 4)})
+            explained.append({**step.to_data(), "cost": metric_cost})
         return explained
 
     def nearest_pronunciation(

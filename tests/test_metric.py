@@ -123,6 +123,20 @@ class TestMaterialBudget:
                 checked += 1
         assert checked == 2944
 
+    def test_public_explanation_reconstructs_substitution_cost(
+        self, ipa: IPAFeatures
+    ) -> None:
+        """Consumers can recover each published substitution from its rows."""
+        for left, right in (("d", "d̆"), ("a͜ʊ", "áː")):
+            public = ipa.explain_transcription_distance(left, right)
+            substitution = next(step for step in public if step["op"] == "sub")
+            terms = substitution["terms"]
+            assert isinstance(terms, list)
+            reconstructed = sum(
+                term["cost"] * term.get("weight", 1.0) for term in terms
+            ) / sum(term.get("weight", 1.0) for term in terms)
+            assert reconstructed == substitution["cost"]
+
     def test_composite_prosody_reports_the_fold_weight_without_repricing(
         self, ipa: IPAFeatures
     ) -> None:
@@ -142,7 +156,7 @@ class TestMaterialBudget:
         published = next(
             term for term in terms if term["label"].startswith("matched part")
         )
-        assert published["cost"] == round(matched[3], 4)
+        assert published["cost"] == matched[3]
         assert published["weight"] == matched[4]
 
     def test_composites_are_nearer_their_own_atomic_constituents(
