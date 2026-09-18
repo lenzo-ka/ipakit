@@ -1,8 +1,8 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 1,
+  "version": 2,
   "direction": "clts-to-ipakit",
-  "scope": "exact-plain-stop-witnesses-only",
+  "scope": "exact-plain-stop-witnesses-and-release-declarations",
   "profile_binding": null,
   "source_kind": "consonant",
   "source_feature_model": "clts",
@@ -16,10 +16,22 @@
     {"id": "plain-t/1", "raw": "t", "target": "t", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "-"}},
     {"id": "plain-d/1", "raw": "d", "target": "d", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "+"}}
   ],
+  "release_adjudication": "A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.",
+  "declaration_rules": [
+    {"id": "release-unreleased/1", "source": ["clts", "consonant", "release", "unreleased"], "target": {"form": "feature", "path": ["ipakit", "release", "no-audible"], "witness": "t̚"}},
+    {"id": "release-lateral/1", "source": ["clts", "consonant", "release", "with-lateral-release"], "target": {"form": "feature", "path": ["ipakit", "release", "lateral"], "witness": "tˡ"}},
+    {"id": "release-schwa/1", "source": ["clts", "consonant", "release", "with-mid-central-vowel-release"], "target": {"form": "feature", "path": ["ipakit", "release", "schwa"], "witness": "tᵊ"}},
+    {"id": "release-nasal/1", "source": ["clts", "consonant", "release", "with-nasal-release"], "target": {"form": "feature", "path": ["ipakit", "release", "nasal"], "witness": "tⁿ"}},
+    {"id": "release-sibilant-sequence/1", "source": ["clts", "consonant", "release", "with-sibilant-release"], "target": {"form": "sequence", "name": "plosive + sibilant fricative", "witness": "t͡s", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "channel": "grooved"}]}},
+    {"id": "release-trilled-sequence/1", "source": ["clts", "consonant", "release", "with-trilled-release"], "target": {"form": "sequence", "name": "plosive + trill", "witness": "d͡r", "constituents": [{"manner": "plosive"}, {"manner": "trill"}]}},
+    {"id": "release-uvular-sequence/1", "source": ["clts", "consonant", "release", "with-uvular-release"], "target": {"form": "sequence", "name": "plosive + uvular fricative", "witness": "d͡ʁ", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "place": "uvular"}]}}
+  ],
   "evidence": [
     "Pinned BIPA core rows: complete consonant, manner, place and phonation claims; contrasts p/b and t/d.",
     "Native strict constructors: one bare constituent, no modifiers, approach, junctures or prosody; independent manner/place/voiced expectations.",
-    "Native defaults remain native claims; these witnesses establish no reverse rule."
+    "Native defaults remain native claims; these witnesses establish no reverse rule.",
+    "Pinned BIPA release declarations use ̚, ˡ, ᵊ and ⁿ for the four feature-valued releases; the same marks strictly read as native release values no-audible, lateral, schwa and nasal.",
+    "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively."
   ],
   "enhancements": [
     {"id": "nasal-approach", "decision": "rejected", "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing adapter support is not a missing feature.", "consequence": "Retain source-only claim until reviewed correspondence; do not infer a timed nasal child."},

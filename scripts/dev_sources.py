@@ -112,20 +112,58 @@ def acquire_mfa(source: Path) -> None:
     _acquire(source, _mfa_producer())
 
 
+def acquire_espeak(source: Path) -> None:
+    """Acquire the pinned eSpeak source owned by its generator script."""
+    # Keep the source facts with the existing generator rather than copying a
+    # second revision registry into this acquisition-only module.  The import
+    # is intentionally local: espeak_vocabularies imports this helper.
+    from scripts import espeak_vocabularies
+
+    def validate(path: Path) -> Mapping[str, str]:
+        espeak_vocabularies.require_pin(path)
+        return {}
+
+    _acquire_git(
+        source,
+        revision=espeak_vocabularies.REVISION,
+        origin=espeak_vocabularies.ORIGIN,
+        sparse_paths=("/phsource/",),
+        validate=validate,
+    )
+
+
 def _acquire(source: Path, producer: _Producer) -> None:
+    """Acquire a registered producer's pinned source."""
+    _acquire_git(
+        source,
+        revision=producer.revision,
+        origin=producer.origin,
+        sparse_paths=producer.sparse_paths,
+        validate=producer.validate,
+    )
+
+
+def _acquire_git(
+    source: Path,
+    *,
+    revision: str,
+    origin: str,
+    sparse_paths: tuple[str, ...],
+    validate: Callable[[Path], Mapping[str, str]],
+) -> None:
     """Populate only a newly created directory; existing sources are read-only."""
     source = source.absolute()
     if source.resolve() != source:
         raise ValueError(f"refusing acquisition through a symbolic link: {source}")
     if source.exists():
-        producer.validate(source)
+        validate(source)
         return
     # mkdir without exist_ok claims this exact new destination; a concurrent
     # creator wins rather than having its work reset by the updater.
     source.parent.mkdir(parents=True, exist_ok=True)
     source.mkdir()
     git(None, "init", "-q", str(source))
-    git(source, "remote", "add", "origin", producer.origin)
+    git(source, "remote", "add", "origin", origin)
     git(
         source,
         "fetch",
@@ -134,17 +172,17 @@ def _acquire(source: Path, producer: _Producer) -> None:
         "1",
         "--filter=blob:none",
         "origin",
-        producer.revision,
+        revision,
     )
     git(
         source,
         "sparse-checkout",
         "set",
         "--no-cone",
-        *producer.sparse_paths,
+        *sparse_paths,
     )
     git(source, "checkout", "-q", "FETCH_HEAD")
-    producer.validate(source)
+    validate(source)
 
 
 def publish(result: BuildResult, root: Path) -> None:
