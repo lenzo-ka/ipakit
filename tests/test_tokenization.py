@@ -54,10 +54,11 @@ class TestParseStrict:
 
     def test_separators_are_known_not_unknown(self, ipa: IPAFeatures) -> None:
         # The syllable break and whitespace are registered marks that carry
-        # no unit. They are not "unknown symbols" and must not trip strict.
+        # no phone unit. They are not "unknown symbols" and must not trip
+        # strict, while their boundary claim remains visible to distance.
         assert ipa.parse("kæ.t", strict=True) == ipa.parse("kæt", strict=True)
         assert ipa.tokenize("kæt dɒɡ", strict=True) == list("kætdɒɡ")
-        assert ipakit.transcription_distance("kæ.t", "kæt").edit_cost == 0.0
+        assert ipakit.transcription_distance("kæ.t", "kæt").edit_cost > 0.0
 
     def test_parse_strict_raises_on_unknown(self, ipa: IPAFeatures) -> None:
         with pytest.raises(ValueError, match="4"):
