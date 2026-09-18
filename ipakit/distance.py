@@ -12,6 +12,14 @@ from typing import TYPE_CHECKING, NamedTuple, overload
 from ._base import IPAFeaturesBase
 from .constants import METADATA_ATTRS
 
+_ALIGNMENT_MODES = frozenset({"global", "local"})
+
+
+def _validate_mode(mode: str) -> None:
+    if mode not in _ALIGNMENT_MODES:
+        raise ValueError(f"mode must be 'global' or 'local', got {mode!r}")
+
+
 if TYPE_CHECKING:
     from .features import IPAFeatures
     from .rules import RuleSet
@@ -975,8 +983,14 @@ class DistanceMixin(IPAFeaturesBase):
 
             s1, s2 = self.segment(t1), self.segment(t2)  # type: ignore[attr-defined]
             return tuple(
-                {"label": label, "a": a, "b": b, "cost": round(cost, 4)}
-                for label, a, b, cost in segment_terms(
+                {
+                    "label": label,
+                    "a": a,
+                    "b": b,
+                    "cost": round(cost, 4),
+                    **({"weight": weight} if weight != 1.0 else {}),
+                }
+                for label, a, b, cost, weight in segment_terms(
                     self,  # type: ignore[arg-type]
                     s1,
                     s2,
@@ -984,11 +998,20 @@ class DistanceMixin(IPAFeaturesBase):
                 )
             )
 
+        _validate_mode(mode)
         if n == 0 and m == 0:
             return _empty_pair_result(return_alignment, insert_cost, delete_cost)
 
         if mode == "local":
-            return self._fit_result(tokens1, tokens2, cost_fn, insert_cost, delete_cost)
+            return self._fit_result(
+                tokens1,
+                tokens2,
+                cost_fn,
+                insert_cost,
+                delete_cost,
+                return_alignment,
+                term_fn,
+            )
 
         distance, alignment = self._align(
             tokens1,
@@ -1010,6 +1033,8 @@ class DistanceMixin(IPAFeaturesBase):
         cost_fn: Callable[[str, str], float],
         insert_cost: PhoneCost,
         delete_cost: PhoneCost,
+        return_alignment: bool = False,
+        term_fn: Callable[[str, str], tuple[Mapping[str, object], ...]] | None = None,
     ) -> TranscriptionDistanceResult:
         """Semi-global FIT: ``needle`` must align fully, but leading and
         trailing material on the ``haystack`` side is free, so a target
@@ -1026,9 +1051,12 @@ class DistanceMixin(IPAFeaturesBase):
         ins = _prices(insert_cost, needle, "insert_cost")
         dels = _prices(delete_cost, haystack, "delete_cost")
         denom = sum(ins)
+        alignment: Alignment | None = None
         if m == 0:
             similarity = 1.0
             best = 0.0
+            if return_alignment:
+                alignment = Alignment(())
         else:
             dp = [[0.0] * (m + 1) for _ in range(n + 1)]
             for j in range(1, m + 1):
@@ -1042,16 +1070,62 @@ class DistanceMixin(IPAFeaturesBase):
                         dp[i][j - 1] + ins[j - 1],
                         dp[i - 1][j - 1] + cost_fn(hi, needle[j - 1]),
                     )
-            best = min(dp[i][m] for i in range(n + 1))  # free trailing gap
+            end = min(range(n + 1), key=lambda i: dp[i][m])
+            best = dp[end][m]  # free trailing gap
             similarity = max(0.0, 1.0 - best / denom) if denom else 1.0
+            if return_alignment:
+                aligned_steps: list[AlignmentStep] = []
+                i, j = end, m
+                while j > 0:
+                    if i > 0 and dp[i][j] == dp[i - 1][j - 1] + cost_fn(
+                        haystack[i - 1], needle[j - 1]
+                    ):
+                        left, right = haystack[i - 1], needle[j - 1]
+                        step_cost = cost_fn(left, right)
+                        aligned_steps.append(
+                            AlignmentStep(
+                                "match" if left == right else "sub",
+                                left,
+                                right,
+                                step_cost,
+                                (
+                                    ()
+                                    if left == right or term_fn is None
+                                    else term_fn(left, right)
+                                ),
+                            )
+                        )
+                        i -= 1
+                        j -= 1
+                    elif i > 0 and dp[i][j] == dp[i - 1][j] + dels[i - 1]:
+                        aligned_steps.append(
+                            AlignmentStep("delete", haystack[i - 1], None, dels[i - 1])
+                        )
+                        i -= 1
+                    else:
+                        aligned_steps.append(
+                            AlignmentStep("insert", None, needle[j - 1], ins[j - 1])
+                        )
+                        j -= 1
+                aligned_steps.reverse()
+                alignment = Alignment(tuple(aligned_steps))
         coverage = min(n, m) / max(n, m) if max(n, m) else 1.0
-        return TranscriptionDistanceResult(
+        result = TranscriptionDistanceResult(
             edit_cost=best,
             similarity=similarity,
             coverage=coverage,
             costs=costs_identity(insert_cost, delete_cost),
-            alignment=None,
+            alignment=alignment,
         )
+        if alignment is not None:
+            result.alignment = replace(
+                alignment,
+                edit_cost=best,
+                similarity=similarity,
+                coverage=coverage,
+                costs=result.costs,
+            )
+        return result
 
     def directional_transcription_distance(
         self,
@@ -1189,8 +1263,9 @@ class DistanceMixin(IPAFeaturesBase):
         ``op`` is ``match``/``sub``/``insert``/``delete``, ``a``/``b`` are the
         units (one is ``None`` for a gap), ``cost`` is that position's
         contribution, and for a substitution ``terms`` lists the
-        ``(label, a, b, cost)`` rows behind it -- each comparable feature, the
-        tract coordinates, and every prosodic rider (stress, tone, length). A
+        ``(label, a, b, cost)`` rows behind it -- plus ``weight`` when it is
+        not the default 1.0 -- for each comparable feature, the tract
+        coordinates, and every prosodic rider (stress, tone, length). A
         substitution's ``cost`` is the segment metric between the two units,
         not the price the edit DP paid for that position, so the reported
         costs do not sum to :attr:`TranscriptionDistanceResult.edit_cost`.
@@ -1327,6 +1402,7 @@ class DistanceMixin(IPAFeaturesBase):
         :meth:`sequence_distance`). No lexicon is involved -- the candidates
         are simply the phone sequences the caller supplies.
         """
+        _validate_mode(mode)
         obs = list(observed)
         cands = [list(c) for c in candidates]
         if not cands:
@@ -1360,6 +1436,7 @@ class DistanceMixin(IPAFeaturesBase):
         mode: str,
         applicable_only: bool,
     ) -> TranscriptionDistanceResult:
+        _validate_mode(mode)
         if mode == "global":
             return self.transcription_distance(
                 form,
@@ -1368,6 +1445,8 @@ class DistanceMixin(IPAFeaturesBase):
                 strict=strict,
                 applicable_only=applicable_only,
             )
+        if strict:
+            self._reject_unconvertible(form, candidate)
         t1 = self._transcription_units(form)
         t2 = self._transcription_units(candidate)
         return self.sequence_distance(
@@ -1396,6 +1475,7 @@ class DistanceMixin(IPAFeaturesBase):
         each acceptable pronunciation as a target embedded in the form. A tie
         keeps the earliest-listed, so the order is deterministic.
         """
+        _validate_mode(mode)
         fs = [forms] if isinstance(forms, str) else list(forms)
         accs = [acceptable] if isinstance(acceptable, str) else list(acceptable)
         if not fs or not accs:

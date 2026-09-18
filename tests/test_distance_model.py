@@ -8,6 +8,7 @@ import ipakit
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import DATA_DIR, DEFAULT_CONFUSION
+from ipakit.distance import _substitution_cost, price
 from ipakit.distance_model import (
     DistanceModel,
     _global_matrix,
@@ -341,6 +342,21 @@ class TestPhoneLevelOOVFallback:
         m = _model(ipa, _core_phones(ipa))
         assert m.similarity_position("t͡ʃ", "q͡χ") > 0.0
 
+    def test_applicability_scoped_model_keeps_its_denominator_for_oov(self, ipa):
+        model = DistanceModel.derive(ipa, applicable_only=True)
+        assert "tˤ" not in model.reference_phones
+        assert "õ" not in model.reference_phones
+        raw_similarity = 1.0 - ipa.segment_distance(
+            "tˤ", "õ", applicable_only=model.applicable_only
+        )
+        expected_position = model._norm_conf(raw_similarity)
+        assert model.similarity_position("tˤ", "õ") == expected_position
+        assert model.sub_cost("tˤ", "õ") == _substitution_cost(
+            1.0 - expected_position,
+            price(model.insert_cost, "õ"),
+            price(model.delete_cost, "tˤ"),
+        )
+
     def test_underivable_keeps_sentinels(self, ipa):
         m = _model(ipa, _core_phones(ipa))
         assert m.similarity_position("p", "ZZZ") == 0.0
@@ -359,6 +375,24 @@ class TestWord:
     def test_identical_and_minimal_pair(self, full):
         assert full.transcription_similarity("kæt", "kæt") == 1.0
         assert full.transcription_similarity("kæt", "kæd") > 0.85
+
+    @pytest.mark.parametrize(
+        "method,kwargs",
+        [
+            ("transcription_distance", {}),
+            ("directional_transcription_distance", {}),
+            ("transcription_similarity", {}),
+            ("is_similar", {"threshold": 0.99}),
+        ],
+    )
+    def test_model_measurements_reject_dropped_input(self, full, method, kwargs):
+        with pytest.raises(ValueError, match=r"unknown symbols \['\?'\]"):
+            getattr(full, method)("kæt?", "kæt", **kwargs)
+
+    def test_plain_and_model_paths_agree_that_lossy_input_is_rejected(self, ipa, full):
+        for scorer in (ipa, full):
+            with pytest.raises(ValueError, match=r"unknown symbols \['\?'\]"):
+                scorer.transcription_distance("kæt?", "kæt")
 
     def test_a_substitution_never_costs_more_than_the_gap_pair_it_replaces(
         self, ipa, full_inputs

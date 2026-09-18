@@ -144,12 +144,14 @@ def test_written_and_intrinsic_brevity_remain_distinct(ipa: IPAFeatures) -> None
     assert ipa.segment("d̆").prosody == ("̆",)
     terms = segment_terms(ipa, ipa.segment("ɾ"), ipa.segment("d̆"))
     assert [row for row in terms if row[0] == "intrinsic-timing"] == [
-        ("intrinsic-timing", "brief", None, 0.5)
+        ("intrinsic-timing", "brief", None, 0.5, 1.0)
     ]
     assert [row for row in terms if row[0] == "length (prosodic)"] == [
-        ("length (prosodic)", "normal", "extra-short", 1.0 / 3.0)
+        ("length (prosodic)", "normal", "extra-short", 1.0 / 3.0, 1.0)
     ]
-    assert ipa.distance("ɾ", "d̆") == sum(row[3] for row in terms) / len(terms)
+    assert ipa.distance("ɾ", "d̆") == sum(row[3] * row[4] for row in terms) / sum(
+        row[4] for row in terms
+    )
 
 
 def test_live_intrinsic_timing_has_one_conditional_term_of_mass(
@@ -160,13 +162,13 @@ def test_live_intrinsic_timing_has_one_conditional_term_of_mass(
     shared = segment_terms(ipa, ipa.segment("ɾ"), ipa.segment("ɽ"))
 
     assert [row for row in tap_stop if row[0] == "intrinsic-timing"] == [
-        ("intrinsic-timing", "brief", None, 0.5)
+        ("intrinsic-timing", "brief", None, 0.5, 1.0)
     ]
     assert not [row for row in ordinary if row[0] == "intrinsic-timing"]
     assert len(ordinary) == len(segment_terms(ipa, ipa.segment("d"), ipa.segment("d")))
     assert float(len(tap_stop) - len(ordinary)) == 1.0
     assert [row for row in shared if row[0] == "intrinsic-timing"] == [
-        ("intrinsic-timing", "brief", "brief", 0.0)
+        ("intrinsic-timing", "brief", "brief", 0.0, 1.0)
     ]
     assert float(len(shared) - len(ordinary)) == 1.0
 
@@ -175,7 +177,9 @@ def test_live_intrinsic_timing_has_one_conditional_term_of_mass(
         ("d", "t", ordinary),
         ("ɾ", "ɽ", shared),
     ):
-        assert ipa.distance(left, right) == sum(row[3] for row in terms) / len(terms)
+        assert ipa.distance(left, right) == sum(row[3] * row[4] for row in terms) / sum(
+            row[4] for row in terms
+        )
 
 
 def test_spanish_tap_trill_contrast_is_two_phone_distance_steps(
@@ -196,10 +200,10 @@ def test_trill_and_plosive_agree_in_stricture_and_explain_timing(
 ) -> None:
     terms = segment_terms(ipa, ipa.segment("r"), ipa.segment("d"))
     assert [row for row in terms if row[0] == "manner"] == [
-        ("manner", "trill", "plosive", 0.0)
+        ("manner", "trill", "plosive", 0.0, 1.0)
     ]
     assert [row for row in terms if row[0] == "intrinsic-timing"] == [
-        ("intrinsic-timing", "repeated", None, 0.5)
+        ("intrinsic-timing", "repeated", None, 0.5, 1.0)
     ]
 
     public = ipakit.explain_transcription_distance("r", "d")

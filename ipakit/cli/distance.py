@@ -460,7 +460,10 @@ class TranscriptionCommand(Command):
         threshold = self.args.threshold
         model = build_model(self.ipa, self.args, threshold=threshold)
         w1, w2 = self.args.transcription1, self.args.transcription2
-        result = model.transcription_distance(w1, w2)
+        # The library model is strict by default. The CLI deliberately uses
+        # its shared soft-read policy: warn, print the qualified answer, and
+        # let the policy layer turn the warning into exit status 3.
+        result = model.transcription_distance(w1, w2, strict=False)
         name = model.reference_name
         size = len(model.reference_phones)
 
@@ -476,7 +479,7 @@ class TranscriptionCommand(Command):
         }
         if threshold is not None:
             data["threshold"] = threshold
-            data["similar"] = model.is_similar(w1, w2)
+            data["similar"] = model.is_similar(w1, w2, strict=False)
 
         if self.format == "json":
             self.output_json(data)

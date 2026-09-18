@@ -50,6 +50,54 @@ class TestLocalFit:
         s = ipa.sequence_similarity(["k", "æ", "t"], ["d", "ɒ", "ɡ"], mode="local")
         assert 0.0 <= s <= 1.0
 
+    @pytest.mark.parametrize("surface", ["plain", "model"])
+    def test_requested_alignment_describes_the_fitted_window(self, ipa, surface):
+        scorer = ipa if surface == "plain" else ipakit.distance_model()
+        result = scorer.sequence_distance(
+            ["x", "k", "æ", "d", "y"],
+            ["k", "æ", "t"],
+            mode="local",
+            return_alignment=True,
+        )
+        assert result.alignment is not None
+        assert list(result.alignment) == [("k", "k"), ("æ", "æ"), ("d", "t")]
+        assert result.alignment.edit_cost == result.edit_cost
+        if surface == "plain":
+            substitution = next(
+                step for step in result.alignment.steps if step.op == "sub"
+            )
+            assert substitution.terms
+
+
+class TestModeIsClosed:
+    @pytest.mark.parametrize("mode", ["global", "local"])
+    def test_declared_modes_are_accepted(self, ipa, mode):
+        assert ipa.sequence_distance(["k"], ["k"], mode=mode).similarity == 1.0
+        assert (
+            ipakit.distance_model()
+            .sequence_distance(["k"], ["k"], mode=mode)
+            .similarity
+            == 1.0
+        )
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda ipa: ipa.sequence_distance(["k"], ["k"], mode="typo"),
+            lambda _ipa: ipakit.sequence_distance(["k"], ["k"], mode="typo"),
+            lambda _ipa: ipakit.distance_model().sequence_distance(
+                ["k"], ["k"], mode="typo"
+            ),
+            lambda ipa: ipa.nearest_pronunciation("k", "k", mode="typo"),
+            lambda _ipa: ipakit.nearest_pronunciation("k", "k", mode="typo"),
+            lambda ipa: ipa.rank_pronunciations("k", "k", mode="typo"),
+            lambda _ipa: ipakit.rank_pronunciations("k", "k", mode="typo"),
+        ],
+    )
+    def test_unrecognized_mode_is_refused(self, ipa, call):
+        with pytest.raises(ValueError, match="mode must be 'global' or 'local'"):
+            call(ipa)
+
 
 class TestNbestRanking:
     def test_rank_sequences_is_best_first(self, ipa):

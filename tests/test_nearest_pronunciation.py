@@ -60,6 +60,17 @@ class TestBothSidesMayBeSets:
 
 
 class TestDeterminismAndRefusal:
+    @pytest.mark.parametrize("mode", ["global", "local"])
+    @pytest.mark.parametrize("name", ["nearest_pronunciation", "rank_pronunciations"])
+    @pytest.mark.parametrize("surface", ["instance", "module"])
+    def test_strict_rejects_dropped_input_on_every_surface_and_mode(
+        self, mode: str, name: str, surface: str
+    ) -> None:
+        owner = ipakit.IPAFeatures() if surface == "instance" else ipakit
+        call = getattr(owner, name)
+        with pytest.raises(ValueError, match=r"unknown symbols \['\?'\]"):
+            call("kæt?", "kæt", mode=mode, strict=True)
+
     def test_a_tie_keeps_the_earliest_listed(self) -> None:
         # "a" vs "ab" and "a" vs "ba" are both one insertion of the same
         # phone, so they tie; the earliest listed wins, deterministically.
