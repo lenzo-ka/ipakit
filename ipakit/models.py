@@ -320,9 +320,12 @@ class Feature:
         A feature declaring ``sequence`` compares trajectories by ordered
         edit distance over their steps. Substitution uses this feature's
         scalar value distance, insertion and deletion cost one, and the
-        result is divided by the longer sequence length. Thus order remains
-        load-bearing, ordinal steps remain graded, and one extra step costs
-        one share of the longer trajectory.
+        result is capped at one. This unit-truncated weighted Levenshtein
+        metric leaves the scalar, single-step distances unchanged, keeps all
+        feature values in the ordinary range, and does not give each pair a
+        different scale. Order remains load-bearing and ordinal substitutions
+        remain graded; longer trajectories simply saturate once their edit
+        cost reaches one. Truncating a metric at a constant is itself a metric.
 
         Either side may be a tuple of values (a multi-valued feature, e.g. a
         double articulation's places): the distance is then the directional
@@ -347,7 +350,7 @@ class Feature:
                         )
                     )
                 previous = current
-            return previous[-1] / max(len(s1), len(s2))
+            return min(previous[-1], 1.0)
 
         # A combining spelling (and an empty one, which is malformed) goes
         # through expand, which carries the per-component alias resolution

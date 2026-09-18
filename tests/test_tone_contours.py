@@ -368,7 +368,22 @@ class TestAContourSpelledAcrossMarksIsPricedWhole:
         assert ipakit.distance("a˩˥", "a˥˩") > 0.0
 
     def test_packed_and_expanded_spellings_are_priced_alike(self):
-        assert ipakit.distance("a", "a˨˧") == ipakit.distance("a", "a᷅")
+        expanded, packed, higher_finish = "a˨˧", "a᷅", "a˨˦"
+        assert ipakit.distance(expanded, packed) == 0.0
+        expanded_to_third = ipakit.distance(expanded, higher_finish)
+        packed_to_third = ipakit.distance(packed, higher_finish)
+        assert expanded_to_third == packed_to_third
+        assert expanded_to_third > 0.0
+
+    def test_unequal_length_triangle_inequality_and_symmetry(self):
+        left, middle, right = "a˥˩", "a˥˩˥", "a˩˥"
+        direct = ipakit.distance(left, right)
+        first_leg = ipakit.distance(left, middle)
+        second_leg = ipakit.distance(middle, right)
+
+        assert direct <= first_leg + second_leg
+        for a, b in ((left, right), (left, middle), (middle, right)):
+            assert ipakit.distance(a, b) == ipakit.distance(b, a)
 
     def test_a_single_level_still_rides(self):
         """The narrowing is only for sequences. One mark declaring one
