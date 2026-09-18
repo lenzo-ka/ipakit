@@ -37,6 +37,54 @@ class TestFeatureModel:
         assert f.value_distance("-", "+") == 1.0
         assert f.value_distance("+", "+") == 0.0
 
+    def test_sequence_value_distance_preserves_order_and_grading(self) -> None:
+        f = Feature(
+            name="tone",
+            values=["bottom", "low", "mid", "high", "top"],
+            sequence=True,
+        )
+        assert f.value_distance("mid>top", "mid>top") == 0.0
+        assert f.value_distance("top>bottom", "bottom>top") > 0.0
+        assert f.value_distance("mid>high", "mid>top") < f.value_distance(
+            "mid>high", "mid>bottom"
+        )
+
+    def test_sequence_value_distance_charges_an_unmatched_step(self) -> None:
+        f = Feature(
+            name="tone",
+            values=["bottom", "low", "mid", "high", "top"],
+            sequence=True,
+        )
+        assert f.value_distance("mid>top", "mid>top>mid") == 1.0
+
+    def test_sequence_value_distance_is_a_metric_across_unequal_lengths(
+        self,
+    ) -> None:
+        f = Feature(
+            name="tone",
+            values=["bottom", "low", "mid", "high", "top"],
+            sequence=True,
+        )
+        left, middle, right = "top>bottom", "top>bottom>top", "bottom>top"
+        direct = f.value_distance(left, right)
+        first_leg = f.value_distance(left, middle)
+        second_leg = f.value_distance(middle, right)
+
+        assert direct == 1.0
+        assert first_leg == second_leg == 1.0
+        assert direct <= first_leg + second_leg
+        for a, b in ((left, right), (left, middle), (middle, right)):
+            assert f.value_distance(a, b) == f.value_distance(b, a)
+        assert f.value_distance(middle, middle) == 0.0
+
+    def test_a_sequence_longer_than_the_fixed_scale_stays_bounded(self) -> None:
+        f = Feature(
+            name="tone",
+            values=["bottom", "low", "mid", "high", "top"],
+            sequence=True,
+        )
+        assert f.value_distance("top", "bottom>top>bottom>top>bottom") == 1.0
+
     def test_feature_with_description(self) -> None:
         f = Feature(
             name="manner", values=["plosive"], desc="How airflow is constricted"

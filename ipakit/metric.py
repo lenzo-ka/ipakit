@@ -28,7 +28,6 @@ import warnings
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
-from .models import Feature
 from .segment import Constituent, Segment, Sense
 from .tract import constrictions, tract_point
 
@@ -425,36 +424,14 @@ def _segment_prosodic(features: IPAFeatures, segment: Segment) -> dict[str, str]
     Read for the metric only -- the unit's stored features are untouched, so
     round-trips are unaffected. Empty when the unit carries no prosodic mark,
     which is every shipped phone."""
-    out: dict[str, str] = {}
-    spelled_twice: set[str] = set()
-    prosodic = features.features_by_mode.get("prosodic", frozenset())
-    for mark in getattr(segment, "prosody", ()) or ():
-        decl = features.diacritics.get(mark)
-        if decl is None:
-            continue
-        for feat, val in decl.features.items():
-            # A sequence value is a trajectory (a tone contour, ``mid>high``),
-            # not a point on the scale, so ``value_distance`` has no honest
-            # answer for it; those stay out of the metric until a sequence
-            # comparison exists. Single-level riders (stress, a plain tone,
-            # length) ride here.
-            if feat not in prosodic or Feature.SEQUENCER in val:
-                continue
-            # The same trajectory can be spelled across several marks
-            # instead of inside one: ``a˩˥`` is two Chao letters, each
-            # declaring a level of the one contour. Assigning here would
-            # keep whichever came last, so ``a˩˥`` and ``a˧˥`` would ride
-            # as ``top`` alike and score 0 against each other -- a
-            # silently truncated contour, where the packed spelling
-            # ``a᷅`` withholds honestly. A feature claimed by more than
-            # one mark is therefore a sequence too, and is withheld the
-            # same way, so the two spellings of one contour agree.
-            if feat in out and out[feat] != val:
-                spelled_twice.add(feat)
-            out[feat] = val
-    for feat in spelled_twice:
-        del out[feat]
-    return out
+    # This is the same resolved reading used by queries and ``Unit.prosody``:
+    # asserted marks compose in written order for a sequence feature, then
+    # dependent features such as ``contour`` are derived from that sequence.
+    # ``Feature.value_distance`` can price those trajectories, so the metric
+    # no longer needs a narrower, scalar-only reconstruction of the marks.
+    from .form import _prosodic_features
+
+    return _prosodic_features(segment, features)
 
 
 def _prosodic_terms(

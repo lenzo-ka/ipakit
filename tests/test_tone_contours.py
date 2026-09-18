@@ -4,13 +4,10 @@
 low and macron is mid -- `ipa.xml` says so itself, on the simplex marks --
 and low then mid is a **rise**.
 
-The wrong value was invisible to everything that measures. `tone` and
-`contour` are `mode="prosodic"`, so they live on the unit and never enter
-the feature bag (docs/ties.md): `features("a")` and `features("a᷅")` are
-equal and `distance("a", "a᷅")` is 0.0. It surfaced at exactly one read --
-`units("a᷅")[0].prosody` -- which is why no sweep over features or
-distances could have found it and why the guard below is over the
-*declaration* rather than over any computed value.
+`tone` and `contour` are `mode="prosodic"`, so they live on the unit and never
+enter the feature bag (docs/ties.md): `features("a")` and `features("a᷅")`
+are equal. The metric reads those unit-level values separately, including
+their ordered trajectories, without putting them into the scalar bundle.
 
 The same read had a larger defect under it: a run of prosodic marks
 merged last-writer-wins, so **only the final tone letter survived**.
@@ -311,13 +308,7 @@ class TestWhatIsReportedInsteadOfDropped:
         assert [str(w.message) for w in caught] == []
 
 
-class TestTheWrongValueCouldNotReachTheMetric:
-    """Why no sweep found this, pinned as the reason.
-
-    Prosody sits on the unit rather than in the feature bag, so a wrong
-    contour is invisible to `features`, to `distance` and to the shipped
-    matrix. It is also why fixing it moves none of them.
-    """
+class TestProsodyStaysOutOfTheFeatureBagButReachesTheMetric:
 
     def test_tone_and_contour_are_prosodic(self) -> None:
         assert {"tone", "contour"} <= set(FEATURES.features_by_mode["prosodic"])
@@ -330,10 +321,10 @@ class TestTheWrongValueCouldNotReachTheMetric:
         assert "contour" not in marked
         assert "tone" not in marked
 
-    def test_the_distance_is_zero_either_way(self) -> None:
-        assert ipakit.distance("a", "a᷅") == 0.0
-        assert ipakit.distance("a᷄", "a᷅") == 0.0
-        assert ipakit.distance("a᷈", "a᷉") == 0.0
+    def test_the_distance_reads_sequence_valued_prosody(self) -> None:
+        assert ipakit.distance("a", "a᷅") > 0.0
+        assert ipakit.distance("a᷄", "a᷅") > 0.0
+        assert ipakit.distance("a᷈", "a᷉") > 0.0
 
     def test_the_description_never_said_it(self) -> None:
         # `contour` declares no labels, so no description reads it out.
@@ -366,42 +357,33 @@ class TestWhichMarksAreDeclared:
             assert found is not None and found[1] == letter
 
 
-class TestAContourSpelledAcrossMarksIsWithheldNotTruncated:
-    """One contour has two spellings, and they used to disagree.
-
-    ``a᷅`` packs the trajectory into one mark declaring ``tone="low>mid"``,
-    and the metric withholds it: a sequence is a trajectory rather than a
-    point, so ``value_distance`` has no honest answer and the rider is
-    excluded by construction. That is stated in ``metric.py`` and it is
-    right.
-
-    ``a˩˥`` spells the same contour as two Chao letters, each declaring
-    one level. The rider map is keyed by feature, so the second mark
-    overwrote the first and the unit rode as its FINAL level alone. The
-    consequence was a silent wrong answer rather than a withheld one:
-    ``a˩˥`` and ``a˧˥`` are different tones and scored 0 against each
-    other, while ``a˩˥`` against ``a˩˧`` scored, because there only the
-    endpoint differed. Which pairs the truncation happened to separate
-    was an accident of where the contours ended.
-
-    A feature claimed by more than one mark is a sequence spelled the long
-    way, so it is withheld the same way. The two spellings now agree, and
-    the honest limitation replaces the quiet one.
-    """
+class TestAContourSpelledAcrossMarksIsPricedWhole:
+    """Both spellings reach the same ordered, graded trajectory metric."""
 
     def test_two_contours_sharing_an_endpoint_are_not_called_identical(self):
-        """The case that was wrong: these differ, and the truncation could
-        not see it because it kept only the last level."""
-        assert ipakit.distance("a˩˥", "a˧˥") == 0.0
-        assert ipakit.distance("a˩˥", "a˩˧") == 0.0
-        assert ipakit.distance("a˩˥", "a˥˩") == 0.0
+        assert ipakit.distance("a˩˥", "a˧˥") > 0.0
+        assert ipakit.distance("a˩˥", "a˩˧") > 0.0
 
-    def test_it_withholds_rather_than_scoring_from_a_fragment(self):
-        """Withheld, not scored: a contour contributes no tone term at
-        all, the same as the packed spelling. Both are 0 against a bare
-        vowel because neither rides."""
-        assert ipakit.distance("a", "a˩˥") == 0.0
-        assert ipakit.distance("a", "a᷅") == 0.0
+    def test_order_alone_is_a_difference(self):
+        assert ipakit.distance("a˩˥", "a˥˩") > 0.0
+
+    def test_packed_and_expanded_spellings_are_priced_alike(self):
+        expanded, packed, higher_finish = "a˨˧", "a᷅", "a˨˦"
+        assert ipakit.distance(expanded, packed) == 0.0
+        expanded_to_third = ipakit.distance(expanded, higher_finish)
+        packed_to_third = ipakit.distance(packed, higher_finish)
+        assert expanded_to_third == packed_to_third
+        assert expanded_to_third > 0.0
+
+    def test_unequal_length_triangle_inequality_and_symmetry(self):
+        left, middle, right = "a˥˩", "a˥˩˥", "a˩˥"
+        direct = ipakit.distance(left, right)
+        first_leg = ipakit.distance(left, middle)
+        second_leg = ipakit.distance(middle, right)
+
+        assert direct <= first_leg + second_leg
+        for a, b in ((left, right), (left, middle), (middle, right)):
+            assert ipakit.distance(a, b) == ipakit.distance(b, a)
 
     def test_a_single_level_still_rides(self):
         """The narrowing is only for sequences. One mark declaring one
@@ -411,16 +393,7 @@ class TestAContourSpelledAcrossMarksIsWithheldNotTruncated:
         assert ipakit.distance("a˥", "a˩") > ipakit.distance("a˥", "a˧")
 
     def test_no_registered_phone_can_reach_this_path(self):
-        """Why the shipped matrix is untouched, stated as the reason
-        rather than as the outcome.
-
-        The rider path only narrows where one unit carries two marks
-        declaring the same prosodic feature. No phone in the inventory
-        carries a prosodic mark at all, so nothing in `confusion.json`
-        can reach it -- which is what makes this change safe for a
-        shipped artifact, and is checkable here rather than only in the
-        derived-artifact guard.
-        """
+        """No matrix phone has prosody, so sequence pricing cannot move it."""
         for phone in FEATURES.phones:
             segment = ipakit.segments(phone, strict=True)[0]
             assert not segment.prosody, (phone, segment.prosody)

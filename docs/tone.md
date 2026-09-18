@@ -30,11 +30,11 @@ ipakit.to_ipa(ipakit.segments("ˈa᷈ː"))   # 'ˈa᷈ː'
 
 ## Prosody stays outside the scalar feature bag
 
-Nothing here is in the scalar bundle. Tone is `mode="prosodic"` and prosody lives on the unit ([ties.md](ties.md)), so `features()` returns the base bundle and warns that it omitted the mark. `feature_values()` retains the prosodic values. A **level** tone rides on the unit and adds a term to `distance()` ([distance.md](distance.md)); a **contour** — a sequence of levels, like `a᷈` — is a trajectory rather than a point on the scale, so it stays deferred and scores 0:
+Nothing here is in the scalar bundle. Tone is `mode="prosodic"` and prosody lives on the unit ([ties.md](ties.md)), so `features()` returns the base bundle and warns that it omitted the mark. `feature_values()` retains the prosodic values. Both a level tone and a trajectory ride on the unit and add terms to `distance()` ([distance.md](distance.md)). A trajectory is compared in written order by graded edit distance over its levels: a substitution costs the graded distance between the two levels, an extra level costs one edit, and the total is capped at one. Dividing by the longer trajectory would give each pair of forms its own scale, which does not satisfy the triangle inequality; capping at a constant does:
 
 ```python
 ipa.feature_values("a᷈")["tone"]          # ('low>high>low',)
-ipa.distance("a", "a᷈")                   # 0.0 -- a᷈ is a contour, still deferred
+round(ipa.distance("a˧˥", "a˧˥˧"), 6)  # 0.083333
 ```
 
 ## `contour` is derived from the sequence, and asserted only where there is none
