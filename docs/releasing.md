@@ -145,8 +145,16 @@ and publication require release authorization, not merely preparation approval.
   conftest, tests, scripts and documentation. This checklist itself ships there;
   do not describe the sdist as package-only. The wheel has its separately declared
   package resources. Use the packaging tests and inspect both actual archives.
-- **PEP 639 license**: `license = "BSD-2-Clause"` requires `setuptools>=77` (already the
-  build-system floor). Don't lower it.
+- **PEP 639 license**: this project's build configuration requires
+  `setuptools>=84.0.0` (already the build-system floor). Don't lower it.
+
+  ```python
+  import tomllib
+  from pathlib import Path
+
+  build_requires = tomllib.loads(Path("pyproject.toml").read_text())["build-system"]["requires"]
+  build_requires  # ['setuptools>=84.0.0']
+  ```
 - **CI must be green first**: `ci.yml` (lint / test 3.12–3.13 / ICU guards) runs
   on the push; only cut the release once it passes.
 - **Dev-only ICU**: the X-SAMPA table guard needs `icukit-pyicu` (`import icu`),

@@ -7,7 +7,7 @@ documents are written by hand with executed examples pasted in, and
 nothing was keeping them true: ``pytest --doctest-modules`` covers
 docstrings inside the package, and ``tests/test_cli.py`` replays the
 ``console`` blocks in ``docs/rules.md``, but a ``python`` block in
-``README.md`` or ``docs/form.md`` was checked by whoever last edited it
+``CHANGELOG.md``, ``CONTRIBUTING.md``, ``README.md``, or ``docs/form.md`` was checked by whoever last edited it
 and never again.
 
 Documentation drifting away from behavior is a first-class recurring
@@ -208,7 +208,11 @@ def main() -> int:
     parser.add_argument("--floor", type=int, default=FLOOR)
     args = parser.parse_args()
 
-    paths = [ROOT / "README.md"] + sorted(
+    paths = [
+        ROOT / "CHANGELOG.md",
+        ROOT / "CONTRIBUTING.md",
+        ROOT / "README.md",
+    ] + sorted(
         path for path in (ROOT / "docs").rglob("*.md") if path.name not in GENERATED
     )
     total = failures = skipped_total = 0

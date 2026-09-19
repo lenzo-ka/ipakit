@@ -45,6 +45,8 @@ keep source distinctions, coverage and conversion losses explicit.
 | [Pinyin](pinyin.md) | Syllable-hosted tone, orthographic rendering and the internal graph-constructor boundary. |
 | [Kana](kana.md) | Mora-tier rendering and bounded curated-adaptation API/CLI support. |
 | [CLTS/BIPA](clts-audit.md) | Frozen native feature-set/Jaccard scoring, shared cost comparisons, source extraction and provenance; semantic mapping remains unresolved. |
+| [CLTS/BIPA coverage gaps](clts-gaps.md) | Generated coverage and refusal counts for the frozen CLTS/BIPA snapshot. |
+| [CLTS mapping table](clts-mapping.md) | Generated directional mapping evidence for the bounded CLTS correspondence. |
 | [Finite model operations](model-operations.md) | Typed declarations, explicit model CLI selection, feature edits and exact realization candidates; links to finite rules and transforms. |
 | [Operations across inventories](inventory-operations.md) | House and Panphon matching and respelling, custom declarations, and all-pairs comparisons across named cost models. |
 | [Feature transformations](feature-transforms.md) | Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |

@@ -1,6 +1,16 @@
 # Vocal tract anatomy: contours, articulators, constraints
 
-*Specification, not implemented. The current model (`ipakit/tract.py`) carries a tract midline and a constriction point per phone — enough to place a segment in space, not enough to draw a tract or move an articulator. This document specifies the geometry that a renderer, an animator, or a derived-anchor pipeline would need: every contour, every joint, every attachment, and the constraints that relate them.*
+*Specification with a partial implementation. `ipakit/tract.py` now carries
+the head geometry, jaw carriage, articulator surfaces, postures, and
+trajectories; `ipakit.tract_svg` draws them and exports still and animated
+views. The sections below remain the specification for both the implemented
+geometry and the explicitly named gaps.*
+
+```python
+from ipakit import tract_svg
+
+(callable(tract_svg.figure), callable(tract_svg.animate))  # (True, True)
+```
 
 ## 1. Scope
 
@@ -226,7 +236,15 @@ The figures also carry an **annotation layer** for what a posture of two paramet
 - **The port is not declared as an acoustic junction, so this geometry cannot be simulated as it stands.** The tract now declares the sagittal boundary and its edge-to-wall aperture, but a 2D gap is not a waveguide coupling: nothing declares which oral and nasal areas meet or at what sections the three are sampled together. A waveguide synthesizer needs area functions and a junction, not merely a watertight outline. Pink Trombone (Neil Thapen, 2017, MIT) is the worked example — 44 oral sections and 28 nasal ones as 1D area arrays, meeting at a three-port scattering junction where exactly three areas sum, `A[noseStart] + A[noseStart+1] + noseA[0]`, with the velum represented acoustically by `noseDiameter[0]`, moving between 0.01 closed and 0.4 open.
 
 Read that way this model is closer than it looks. `diameter` along `arc` already is an aperture function; the nasal branch already carries its own; and `velic_aperture` already yields the coupling number from the nasality bridge. What is missing is the **junction declared as such** — an arc at which the oral and nasal apertures meet, so the three can be sampled together. The 2D seam can stay open, because in that reading it was never a boundary. Still prior to acoustic use is the pharyngeal geometry noted in [docs/articulatory-data.md](articulatory-data.md), which no instrument here measures.
-- **Sources.** The contours here are described qualitatively. Turning them into numbers wants a specific published mid-sagittal reference, cited in the data, rather than composite recollection. One is now in hand for part of the geometry: [docs/articulatory-data.md](articulatory-data.md) measures the palate, the tongue-to-palate aperture, the mandibular hinge and the jaw-to-tongue carrier relation against the X-Ray Microbeam database, and `heads.xml` now carries the measured aperture over arc 0.20-0.40. It also says plainly what that instrument cannot see: no velum, no larynx, nothing behind arc 0.44, and nothing off the mid-sagittal plane.
+- **Sources.** The contours here are described qualitatively. Turning them into numbers wants a specific published mid-sagittal reference, cited in the data, rather than composite recollection. One is now in hand for part of the geometry: [docs/articulatory-data.md](articulatory-data.md) measures the palate, the tongue-to-palate aperture, the mandibular hinge and the jaw-to-tongue carrier relation against the X-Ray Microbeam database. `heads.xml` carries a measured midline run over arc 0.11–0.40 plus a separate seven-point measured roof. The source also says plainly what that instrument cannot see: no velum, no larynx, nothing behind arc 0.44, and nothing off the mid-sagittal plane.
+
+  ```python
+  from ipakit.tract import head
+
+  measured = [point.arc for point in head("adult-male").midline
+              if point.provenance == "measured"]
+  (min(measured), max(measured), len(head("adult-male").roof))  # (0.11, 0.4, 7)
+  ```
 
 ## Related
 

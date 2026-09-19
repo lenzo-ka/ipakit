@@ -18,7 +18,9 @@ a / c (d) _ e
 ```
 
 The first three mean “an intervocalic nasal”, “word-final `t`”, and “a close
-syllabic unit anywhere”. `*` consumes exactly one arbitrary segment; it is
+non-syllabic vowel anywhere”. The close vowel `i` carries `syllabic="-"`,
+while the syllabic nasal `n̩` carries `syllabic="+"` and does not match that
+query. `*` consumes exactly one arbitrary segment; it is
 legal in a context but refused as the entire query. A postfix brace is a
 conjunction of feature constraints with the element before it. Thus
 `a{stress=primary}`, `a{+nasalized}`, and `t{release=no-audible}` are the
@@ -26,6 +28,13 @@ conjunctions on those literal bases. They match `ˈa`, `ã`, and `t̚`, but are
 not exact-spelling equivalents: for example, `a{stress=primary}` also matches
 `ˈã`, while the literal `ˈa` does not. `n{place=α}` additionally exposes the
 captured place value in `Match.bindings`.
+
+```python
+import ipakit
+
+(ipakit.features("i")["syllabic"], ipakit.features("n̩")["syllabic"])
+# ('-', '+')
+```
 
 An environment element wrapped in parentheses has these width readings:
 
@@ -218,11 +227,18 @@ canonical, sorted-key JSON embeds every provenance identity and self-contained
 form and round-trips byte-identically.
 
 The checked CMUdict ∥ ipa-dict en_US demonstration is
-`scripts/disagreement_demo.py`. Four shared-word rows first produce 5 feature
+`scripts/disagreement_demo.py`. Four shared-word rows first produce 1 feature
 and 6 structure disagreements. Its explicit recorded transform mirrors the
 English normalization shape: move leading stress from the consonant to the
-nucleus and tie adjacent vowel units. This removes 4 feature and all 6
-structure disagreements attributable to those conventions, leaving 1 feature
-disagreement and no structure or timing disagreement as substantive. These
-values are executed in `tests/test_disagreement.py`; normalization is confined
+nucleus and tie adjacent vowel units. This removes all 6 structure
+disagreements and no feature disagreement, leaving 1 feature disagreement and
+no structure or timing disagreement as substantive. Normalization is confined
 to the demonstration and never hidden in the comparison object.
+
+```python
+from scripts.disagreement_demo import report
+
+demo = report()
+demo["raw"]  # {'feature': 1, 'structure': 6, 'timing': 0}
+demo["convention_removed"]  # {'feature': 0, 'structure': 6, 'timing': 0}
+```

@@ -76,10 +76,20 @@ The spectrum was then remeasured with the instrument that produced §3's figures
 
 The fusion branch charges the absolute constituent-count difference at `arity_base = 1 / 21`, derived from the smallest complete speech-atom term count. The graded sharing term remains additive, so a whole second articulator in `ɡ͡b` costs `0.0798`, above aspiration on `t` at `0.0455`. The invariant checks that ordering over every unordered one-to-two constituent pair in the shipped inventory.
 
-The residual triangle violation is not an arity-magnitude problem: `d(ɡ, b͡v) = 0.2897` still exceeds `d(ɡ, ɡ͡b) + d(ɡ͡b, b͡v) = 0.1161`. Closing that gap through arity alone would require `arity_base` of about `0.224`, roughly four and a half times the derived value, and would still add nothing to the equal-arity `ɡ͡b`–`b͡v` leg. The follow-up is the sharing rule that seats a composite beside a constituent at `d(sharers) / 2`, not a larger arity base.
+The residual triangle violation is not an arity-magnitude problem: `d(ɡ, b͡v) = 0.2878` still exceeds `d(ɡ, ɡ͡b) + d(ɡ͡b, b͡v) = 0.1106`. Closing that gap through arity alone would still add nothing to the equal-arity `ɡ͡b`–`b͡v` leg. The follow-up is the sharing rule that seats a composite beside a constituent at `d(sharers) / 2`, not a larger arity base.
+
+```python
+round(ipa.distance("ɡ", "b͡v"), 4), round(
+    ipa.distance("ɡ", "ɡ͡b") + ipa.distance("ɡ͡b", "b͡v"), 4
+)  # (0.2878, 0.1106)
+```
 
 Charging only the arity difference is also a latent limitation: two equal-arity fusions pay no structural charge. The shipped inventory cannot exhibit a wrong ordering because it has at most two constituents and its three double articulations are phonetically close. The limitation would surface with equal high-arity units that share no constituent, or with three-articulator units; that inventory extension is the follow-up measurement.
 
-External validation against perceptual confusion data remains the empirical question. The repair makes a concrete prediction: `t͡ʃ`–`ʃ` now lands at `0.2652`, and that pair is the first comparison to hold against such data.
+External validation against perceptual confusion data remains the empirical question. The repair makes a concrete prediction: `t͡ʃ`–`ʃ` now lands at `0.2644`, and that pair is the first comparison to hold against such data.
+
+```python
+round(ipa.distance("t͡ʃ", "ʃ"), 4)  # 0.2644
+```
 
 Prosodic riders are the fourth material kind in the operational comparison: one graded value-distance term per tier, folded after segmental comparison. They remain one term by design and are recorded as such in the declared budget.

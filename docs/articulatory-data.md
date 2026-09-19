@@ -167,7 +167,15 @@ Re-express every pellet in a frame fixed to the mandible — origin at MNI, x-ax
 
 The upper lip is the control, and it behaves as it must: it is on the maxilla, rides on nothing, and subtracting mandible motion can only *add* to its variance. If that number came out positive the frame would be wrong.
 
-What the ordering says is worth more than any single figure. The mandible carries two thirds of the lower lip's motion, about a quarter of the tongue tip's, and — with the median at 1.3% and the range straddling zero — **none of the tongue back's**. So a renderer that hangs the whole tongue off the jaw is wrong at the back, and one that moves the tongue independently of the jaw is wrong at the front. `ipakit/tract.py` has no jaw at all, so it is neither; what this measures is the chain such a renderer would have to build.
+What the ordering says is worth more than any single figure. The mandible carries two thirds of the lower lip's motion, about a quarter of the tongue tip's, and — with the median at 1.3% and the range straddling zero — **none of the tongue back's**. So a renderer that hangs the whole tongue off the jaw is wrong at the back, and one that moves the tongue independently of the jaw is wrong at the front. The declared jaw chain follows that split with a graded carriage profile, from 0.66 at the lips through 0.28 at the tongue-tip arc to 0.013 at the tongue back.
+
+```python
+from ipakit.tract import head
+
+chain_head = head("adult-male")
+tuple(round(chain_head.jaw_carriage(arc), 3)
+      for arc in (0.0, 0.13, 0.60))  # (0.66, 0.28, 0.013)
+```
 
 ### 6. The diameter profile
 
@@ -227,14 +235,25 @@ Carried into the model's aperture, holding the floor at the vault level forward 
 | arc | male | female | roof drop from peak (M / F) |
 |---|---|---|---|
 | 0.11 | 0.098 | 0.099 | 13.9 mm / 11.4 mm |
-| 0.13 | 0.108 | 0.107 | 12.2 mm / 10.1 mm |
-| 0.15 | 0.118 | 0.117 | 10.5 mm / 8.5 mm |
-| 0.19 | 0.145 | 0.141 | 6.0 mm / 4.6 mm |
+| 0.13 | 0.1105 | 0.1104 | 12.2 mm / 10.1 mm |
+| 0.15 | 0.126 | 0.1231 | 10.5 mm / 8.5 mm |
+| 0.17 | 0.1436 | 0.1386 | — |
+| 0.19 | 0.1575 | 0.1537 | 6.0 mm / 4.6 mm |
+| 0.21 | 0.1716 | 0.1629 | — |
 | 0.24 | 0.18 | 0.17 | 0 (the peak) |
 
 Both sexes land on the same front diameters, for the same reason section 6 gives: the shorter female tract has a smaller peak clearance *and* a smaller peak diameter, and the two cancel. The aperture is sampled at 0.11, 0.13, 0.15, 0.17, 0.19, 0.21 and 0.24; the separate roof outline passes through the measured low ridge and rounds over at its own apex near arc 0.30. This separation matters visually: projecting the wall as `midline + aperture` forced the low ridge and the aperture peak into a triangular wedge, although `PAL.DAT` measures a continuous palatal dome. Arc 0.13, 0.19 and 0.24 are the declared alveolar, postalveolar and alveolo-palatal; the extra samples name no phonetic place and are stated in `UNDECLARED_VERTEX_ARCS`. `adult-male` and `adult-female` now carry a measured alveolar ridge and roof; the child head is left hand-placed for the reason section 6 already gives.
 
 One thing the outline says that the aperture does not: the roof's own vault apex sits near arc 0.30, *behind* the aperture peak at arc 0.24. Forward of 0.30 the roof descends toward the ridge; behind it the roof stays high while the tongue dorsum rises into it, so the aperture falls though the roof does not. The aperture peak and the roof apex are different landmarks, and only the aperture is what `diameter` declares.
+
+```python
+from ipakit.tract import head
+
+front_midline = [(point.arc, point.diameter)
+                 for point in head("adult-male").midline
+                 if 0.11 <= point.arc <= 0.24]
+front_midline  # [(0.11, 0.098), (0.13, 0.1105), (0.15, 0.126), (0.17, 0.1436), (0.19, 0.1575), (0.21, 0.1716), (0.24, 0.18)]
+```
 
 A couple of speakers sit apart from the aggregate. Spanning-frame peak clearance runs 17.8 to 39.0 mm across the females and 27.2 to 33.5 mm across the males; the low female (JW48, 17.8 mm) and JW63 (the worst palate-recovery speaker at 5.4 mm rms, section 1) are the ones to distrust. The median front-edge shape is stable without them, since it is aggregated over the outline itself, not the clearance.
 
@@ -256,7 +275,9 @@ Nothing in `ipa.xml` was changed for this. See "The deferred respacing" below.
 
 ## What the geometry declares
 
-`heads.xml` is read only by `Head.project`, which places a tract point in 2D. `arc` and `offset` come from per-value coordinates in `ipa.xml` and are what `ipakit.metric` reads, so nothing in `heads.xml` can reach a distance. That separation is checked rather than assumed: over all 8060 units and 9591 pairs, no distance moves and `confusion.json` regenerates byte-identical.
+`heads.xml` supplies the renderer's geometry, rest posture, and kinematic
+carriage. `arc` and `offset` for the segment metric come from per-value
+coordinates in `ipa.xml`, so changing head geometry does not change distance.
 
 The adult midline, each point marked in the file with where its number came from:
 
@@ -264,9 +285,11 @@ The adult midline, each point marked in the file with where its number came from
 |---|---|---|
 | 0.00 | 0.16 | extrapolated — the lip aperture, which `PAL.DAT` does not reach |
 | 0.11 | 0.098 | **measured** — the outline's front edge, the alveolar ridge |
-| 0.13 | 0.108 | **measured** — the flat-low alveolar shelf, toward the teeth |
-| 0.15 | 0.118 | **measured** — the knee, where the shelf turns up |
-| 0.19 | 0.145 | **measured** — the steep arc up to the vault |
+| 0.13 | 0.1105 | **measured** — the flat-low alveolar shelf, toward the teeth |
+| 0.15 | 0.126 | **measured** — the knee, where the shelf turns up |
+| 0.17 | 0.1436 | **measured** — the steepest mid-flank sample |
+| 0.19 | 0.1575 | **measured** — the flank easing toward the vault |
+| 0.21 | 0.1716 | **measured** — the vault shoulder |
 | 0.24 | 0.18 | **measured** — the peak |
 | 0.32 | 0.16 | **measured** — 0.90 of the peak |
 | 0.40 | 0.13 | **measured** — 0.73 of the peak |
@@ -288,11 +311,33 @@ Everything else in the file — the nasal branch, both dentitions, the tongue's 
 
 Three gaps this measurement made visible. They are **placeholders to make real**, not dead code to delete — each names something XRMB cannot measure, which is why it is still a placeholder.
 
-`RestPosture` in `ipakit/tract.py` declares `lips`, `jaw` and `velum` as strings. They are loaded from `heads.xml` and **never read**. The velum in particular has no pellet in this corpus, so nothing here could ground it either way.
+`RestPosture` in `ipakit/tract.py` declares `lips`, `jaw` and `velum` as strings.
+They are loaded from `heads.xml` and read by posture construction and both
+rendering projections: rest controls velic aperture, closed-jaw blending, and
+closed-lip contact.
 
-There is **no jaw articulator, no upper lip articulator and no larynx** in the model. Findings 4 and 5 are precisely about the jaw: it has two degrees of freedom rather than one, and it carries two thirds of the lower lip and a quarter of the tongue tip. That is a kinematic chain the representation currently has no place to put.
+The model declares a jaw hinge, rotation, and seven-point carriage profile and
+implements `jaw_carriage`, `jaw_close`, and `rotate_jaw`. It still has no
+separate upper-lip articulator or larynx geometry. Findings 4 and 5 motivate
+the implemented jaw chain while also recording that the observed motion has
+more freedom than a single rotation.
 
-`tract_point` returns a single `(arc, offset)`. That is a **constriction locator, not an articulatory pose** — it says where the narrowest point is, not where each organ sits. Animating from it would need the chain from finding 5 and a jaw with the freedom from finding 4. `docs/tract-anatomy.md` specifies both; this is measurement supporting that specification, not a new one.
+```python
+import ipakit
+from ipakit.tract import posture
+
+adult = head("adult-male")
+(adult.rest.lips, adult.rest.jaw, adult.rest.velum)  # ('closed', 'closed', 'lowered')
+(adult.hinge is not None, round(adult.jaw_rotation, 3), len(adult.carriage))
+# (True, -6.124, 7)
+resting = posture(ipakit.IPAFeatures(), "␣", adult)
+(resting.velic, resting.rest_weight)  # (1.0, 1.0)
+```
+
+That is a **constriction locator, not an articulatory pose** — it says where
+the narrowest point is, not where each organ sits. `posture` adds the head's
+rest state and kinematic chain, and the animation path interpolates those
+postures into complete rendered frames.
 
 ## Synthesis feasibility
 

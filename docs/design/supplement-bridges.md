@@ -113,9 +113,24 @@ That is the answer to "is it acceptable, or does it need a guard": it needs a gu
 
 ## 3. The fingerprint
 
-This is the part that has to land regardless of the verdict, because the failure it prevents exists today.
+The matrix format records a metric fingerprint, and every JSON matrix reader
+checks it against the inventory in hand. `from_matrix_file`, `global_`, and
+`for_phoneset` refuse a mismatch; an empirical TSV without a derived metric
+fingerprint remains readable.
 
-`confusion.json` records `version`, `reference`, `space`, `phones`, `triangle`. Nothing in that says which feature space the triangle was derived from, and `from_matrix_file` checks nothing against the inventory in hand. So:
+```python
+import json
+from pathlib import Path
+import ipakit
+from ipakit.distance_model import _check_fingerprint
+
+matrix = json.loads(Path("ipakit/data/confusion.json").read_text())
+("metric" in matrix, len(matrix["phones"]))  # (True, 139)
+_check_fingerprint(ipakit.IPAFeatures(), matrix["phones"], "not-the-metric", Path("confusion.json"))
+# ValueError: confusion.json was derived in a different feature space
+```
+
+The experiment that motivated the guard produced:
 
 ```
 bridged inventory reading the shipped matrix: warnings=0
@@ -123,11 +138,17 @@ bridged inventory reading the shipped matrix: warnings=0
   similarity_position(ʂ, s):  shipped matrix 0.9561   own derived matrix 0.9590
 ```
 
-Two plausible numbers, no diagnostic, and no way for the caller to tell which one they got. This is the defect shape [reviewing.md](../reviewing.md) exists to catch, and `DistanceModel.derive` plus `.save()` already make the *right* answer available — what is missing is the refusal of the wrong one.
+Those were two plausible numbers with no diagnostic and no way for the caller
+to tell which one they got. The fingerprint check above now refuses that wrong
+read, while `DistanceModel.derive` plus `.save()` supplies a matching matrix.
 
 **Does `phones` already half-do the job?** No. Under all three experiments the phone list is byte-identical: same 139 entries, same order. `phones` detects membership drift, which is the supplement-of-symbols case; it is blind to the bridge case by construction, because a bridge changes no membership.
 
-**What has to be recorded.** A digest of what the metric actually reads off each phone — the `_metric_bundle` output, features and place components — taken over **the phone list the file itself carries**. Deriving it that way rather than listing "the declarations the metric depends on" keeps it in the repository's idiom: it calls the metric, so it cannot go stale against a change to `metric.py`, and nobody has to maintain a list of what counts.
+**What is recorded.** `metric` is a digest of what the metric actually reads
+off each phone — the comparison bundle, features, and place components — taken
+over **the phone list the file itself carries**. Deriving it that way rather
+than listing declarations calls the metric itself, so no second dependency list
+can drift.
 
 ```
 digest over the file's own 139 phones:  9c3ec3e8d710601c   (1.9 ms)
@@ -140,9 +161,11 @@ digest over the file's own 139 phones:  9c3ec3e8d710601c   (1.9 ms)
 
 Keying it to the file's own phone list is what makes it membership-independent: a supplemented inventory reading a matrix derived before the supplement gets the *same* digest, correctly, because the extra phones are not in the file's list and `phones` is already the check for those. The two fields then answer two questions and do not overlap.
 
-**Where it goes.** One more key beside `phones` in the matrix format, written by `DistanceModel.save` and by `scripts/confusion.py derive`, so the shipped file and a caller's derived file carry it on the same terms. `space` is taken (`distance` / `similarity`); `metric` is free and says what it is.
+**Where it lives.** The `metric` key sits beside `phones` in the matrix format
+and is written by `DistanceModel.save` and `scripts/confusion.py derive`, so the
+shipped file and a caller's derived file carry it on the same terms.
 
-**What `from_matrix_file` does on mismatch: refuse.** A percentile from the wrong reference distribution is a well-formed wrong answer, and the caller has nothing to notice it by — 0.9982 and 0.9447 are both perfectly reasonable-looking confusabilities for /s/ and /ʃ/. A warning is the right strength only where the caller can act without it; here they cannot.
+**What `from_matrix_file` does on mismatch: refuse.** A percentile from the wrong reference distribution is a well-formed wrong answer, and the caller has nothing to notice it by — 0.9982 and 0.9447 are both perfectly reasonable-looking confusabilities for /s/ and /ʃ/.
 
 **Absence is not mismatch.** A file with no `metric` key is accepted without comment. `from_matrix_file` also reads TSV grids of empirical confusion data, which are not derived from the metric at all and have nothing to agree with; refusing those would be refusing the mechanism's main external use. Every matrix ipakit writes carries the key, so the silent case is exactly the case that should be silent.
 

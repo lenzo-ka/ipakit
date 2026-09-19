@@ -130,7 +130,19 @@ Most of panphon's names are the standard generative distinctive features — *de
 
 The zeros are the other clue, and they point to the later half of the same tradition. Feature geometry organizes features under nodes, so a dependent is defined only when its dominating node is active: *distributed* and *anterior* under Coronal, *high* and *low* under Dorsal, *delayed release* under stricture, *tense* on vowel-hood. A fixed-width vector cannot say that, so panphon's third value carries the load, conflating three states — geometrically inapplicable, contrastively underspecified, and genuinely intermediate.
 
-Where the zeros fall recovers part of the conditioning: `cor−` implies *distributed* unvalued in 3,330 of 3,330 segments, and *tense* is unvalued for every consonant. It is applied unevenly, though — *anterior* is unvalued for vowels yet valued on `k` and `p`, which are `cor−`, so one Coronal dependent is conditioned in one context and not another; *delayed release* is valued on everything including `/a/`. The representation is not committed to a geometry so much as retaining an unstated fragment of one.
+Where the zeros fall recovers part of the conditioning: `cor−` implies *distributed* unvalued in 3,330 of 3,330 segments, and *tense* is unvalued for every consonant. It is applied unevenly, though — *anterior* is unvalued for vowels yet valued on `k` and `p`, which are `cor−`, so one Coronal dependent is conditioned in one context and not another. *Delayed release* is unvalued on 966 of 6,367 segments, while `/a/` is among the segments on which it is valued. The representation is not committed to a geometry so much as retaining an unstated fragment of one.
+
+```python
+import xml.etree.ElementTree as ET
+
+panphon_segments = ET.parse(
+    "ipakit/data/feature-models/panphon.xml"
+).getroot().findall(".//segment")
+(len(panphon_segments),
+ sum(segment.get("delrel") == "0" for segment in panphon_segments))  # (6367, 966)
+next(segment.get("delrel") for segment in panphon_segments
+     if segment.get("name") == "a") in {"+", "-"}  # True
+```
 
 Distinctive-feature systems describe phonological contrasts; articulatory descriptions record vocal-tract properties. Comparing these declarations therefore requires explicit correspondences and measurements ([interop.md](design/interop.md), [similarity.md](similarity.md)). Cell-level agreement and whole-segment agreement measure different aspects of that correspondence.
 

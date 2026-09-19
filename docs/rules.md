@@ -967,7 +967,7 @@ The shipped set takes a **broad** (phonemic) reading to a **narrow** (phonetic) 
 /kˈæt/          -> [kʰˈæt̚]      aspiration and an unreleased coda
 /klˈin/         -> [kl̥ˈĩn]      approximant devoicing after a voiceless stop
 /fˈʊl/          -> [fˈʊɫ]       dark l
-/ˈbʌ.tn/        -> [ˈbʌ.tⁿn̩]    nasal release, syllabic nasal
+/ˈbʌ.tn/        -> [bˈʌ.tⁿn̩]    stress seated on the nucleus; nasal release, syllabic nasal
 /pə.tˈe͜ɪ.to͜ʊ/   -> [pə.tʰˈe͜ɪ.ɾo͜ʊ] aspiration and tapping in one word
 ```
 
@@ -975,16 +975,25 @@ Two details affect these derivations.
 
 **Aspiration requires a syllable margin.** In `spin`, /s/ occupies the margin and /p/ follows it, so the aspiration rule leaves /p/ unchanged. This environment uses the classical SPE treatment of contexts. Feature-value negation such as `[-voiced]` is supported; negation of context positions is outside the notation.
 
-**Tie your diphthongs.** Whether a diphthong is tied changes what a rule sees, because untied `eɪ` is two units and a stress mark lands on the first of them. Vowel nasalization is the clear case: `ˈkaɪn` nasalizes its second element to `ˈkaɪ̃n`, while the tied `ˈka͜ɪn` is one unit the composed mark does not read back on, and is left alone.
+**Tie your diphthongs.** Whether a diphthong is tied changes what a rule sees, because untied `eɪ` is two units and a stress mark lands on the first of them. Vowel nasalization is the clear case: `ˈkaɪn` derives as `kʰˈaɪ̃n`, while the tied `ˈka͜ɪn` derives as `kʰˈa͜ɪn`; aspiration applies in both and only the untied second vowel is nasalized.
 
 ```
-/ˈkaɪn/    -> [ˈkaɪ̃n]     untied: the rule reaches the second unit
-/ˈka͜ɪn/    -> [ˈka͜ɪn]     tied: one unit, and the mark does not compose
+/ˈkaɪn/    -> [kʰˈaɪ̃n]     untied: the rule reaches the second unit
+/ˈka͜ɪn/    -> [kʰˈa͜ɪn]     tied: one unit, and the mark does not compose
 ```
 
 The tapping rule places no stress condition on its left context, so `/pə.tˈeɪ.toʊ/` and `/pə.tˈe͜ɪ.to͜ʊ/` both flap.
 
-Tie the intended diphthongs explicitly. `ipakit.add_ties()` operates within a multi-phone segment and ties every adjacent pair: `add_ties("kæt")` produces `k͡æ͡t`. Applying it to the word above produces `p͡ə.tʰˈe͜ɪ.t͡o͜ʊ`, where tapping no longer fires. It is unsuitable for selecting diphthongs in a word.
+Tie the intended diphthongs explicitly. `ipakit.add_ties()` operates within a multi-phone segment and ties every adjacent pair with U+035C: `add_ties("kæt")` produces `k͜æ͜t`. Applied to the untied word it produces `p͜ə.tˈe͜ɪ.t͜o͜ʊ`. The already tied word above is unchanged, and its tapping rule still fires. `add_ties` is unsuitable for selecting only diphthongs in a word.
+
+```python
+rs.apply("ˈbʌ.tn")  # 'bˈʌ.tⁿn̩'
+rs.apply("ˈkaɪn"), rs.apply("ˈka͜ɪn")  # ('kʰˈaɪ̃n', 'kʰˈa͜ɪn')
+ipa.add_ties("kæt")  # 'k͜æ͜t'
+ipa.add_ties("pə.tˈeɪ.toʊ")  # 'p͜ə.tˈe͜ɪ.t͜o͜ʊ'
+ipa.add_ties("pə.tˈe͜ɪ.to͜ʊ")  # 'pə.tˈe͜ɪ.to͜ʊ'
+rs.apply("pə.tˈe͜ɪ.to͜ʊ")  # 'pə.tʰˈe͜ɪ.ɾo͜ʊ'
+```
 
 ## Underspecification
 
@@ -1080,7 +1089,18 @@ bˈʌɾɚ
 kʰˈæt̚
 ```
 
-`-j` gives every subcommand a machine-readable form: one row per input form for `apply`, `trace`, `recognize` and `units`, so the shape does not change with the number of forms. A malformed rule is reported as `Error: ...` on stderr with exit status 1, never a traceback.
+`-j` gives `apply`, `trace`, `recognize`, and `units` one machine-readable row per input form, so the shape does not change with the number of forms. `rules derives` instead requires `--report PATH` for its full per-entry JSON record. A malformed rule is reported as `Error: ...` on stderr with exit status 1, never a traceback.
+
+```python
+import subprocess
+import sys
+
+derives_help = subprocess.run(
+    [sys.executable, "-m", "ipakit.cli", "rules", "derives", "--help"],
+    capture_output=True, text=True, check=True,
+).stdout
+("-j" in derives_help, "--report" in derives_help)  # (False, True)
+```
 
 ## Known limits
 

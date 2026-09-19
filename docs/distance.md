@@ -229,7 +229,15 @@ stricture.
 
 The previous ordered-path flat gap made every phased second constituent cost `0.667`, above the complete atomic range, while the unordered path already charged nearest-part distance. The shared function removes that divergent implementation. The juncture charge deliberately remains: making an absent juncture free as well would put an affricate about `0.013` from its own stop and destroy the phase-clustering intent documented in [ties.md](ties.md). [design/mass-budget.md](design/mass-budget.md) is the dated record of the divergence, its measured geometry, and the repair.
 
-One budget question remains explicitly deferred. A fusion has no arity floor, so adding the whole second articulator in `ɡ͡b` (`0.034`) is cheaper than adding aspiration to `t` (`0.048`). A floor may be defensible, but it must be measured separately; changing fusion arity in this repair would make neither mover class independently explainable. The test suite pins the live inversion so this limit stays visible.
+Fusion has an arity floor: adding a constituent pays the derived `1 / 21`
+base before the graded sharing term. Adding the second articulator in `ɡ͡b`
+therefore costs more than adding aspiration to `t`, and the invariant sweep checks
+that ordering over every shipped one-to-two constituent comparison.
+
+```python
+round(ipa.distance("ɡ", "ɡ͡b"), 6), round(ipa.distance("t", "tʰ"), 6)
+# (0.079762, 0.045455)
+```
 
 **Prosodic tiers ride on the unit clock, and stress rides the nucleus.** Where a stress mark sits is a notation decision with a metric consequence: house style writes stress immediately before the nucleus that bears it rather than at a syllable margin, because a margin-style mark states two things at once — that the syllable is stressed, and where it begins — and only the first is always available ([house-style.md](house-style.md#stress-sits-on-the-nucleus)). So a stress rider attaches to the vowel it marks, and comparing `ˈkat` with `kat` moves one term on one unit rather than shifting an alignment. Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit, unlike a boundary claim, which sits *between* units and is compared at its margin. Each rider adds one graded term to the unit it rides on at the same weight as a segmental feature. A scalar rider uses ordinary `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one). A feature declaring `sequence="+"` uses ordered edit distance over its values: scalar value distance prices a substitution, insertion and deletion each cost one, and the total is capped at one. Dividing instead by the longer sequence would give each pair of forms its own scale, which does not satisfy the triangle inequality; capping at a constant does. Thus levels remain graded and `top>bottom` differs from `bottom>top`; time order is never sorted away. The riders are read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before.
 
@@ -437,7 +445,14 @@ At `gamma=1.0` substituting straight through is cheaper than a gap on each side 
 
 To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `transcription_similarity` on that set, not over `similarity_position`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it.
 
-No upper bound is imposed because a useful ceiling depends on the caller's inventory and task, but binary64 arithmetic does impose a practical one: underflow and subtraction rounding eventually collapse distinct positions. Among the four pairs above, the first tie appears at integer gamma `10088`, when `(p, k)` joins `(p, a)` at similarity `0.0`, and all four similarities are `0.0` at gamma `1e6`. Across the full bundled reference, gamma `1e6` leaves only seven of 9,591 pair entries nonzero and only three numeric positions; at `sys.float_info.max`, all 9,591 are `0.0`. The complementary distance loses distinctions sooner: `(p, a)` first rounds to the underivable-pair sentinel `1.0` at integer gamma `24`, and `(p, b)`, `(p, k)`, and `(p, a)` are all `1.0` at gamma `1000`. Treat an extreme gamma as numerically degenerate and verify that the values in any candidate sweep remain distinct enough for the task.
+No upper bound is imposed because a useful ceiling depends on the caller's inventory and task, but binary64 arithmetic does impose a practical one: underflow and subtraction rounding eventually collapse distinct positions. Among the four pairs above, the first tie appears at integer gamma `10862`, when `(p, k)` joins `(p, a)` at similarity `0.0`; at gamma `10088`, `(p, k)` is still about `2.67e-301`. All four similarities are `0.0` at gamma `1e6`. Across the full bundled reference, gamma `1e6` leaves only seven of 9,591 pair entries nonzero and only three numeric positions; at `sys.float_info.max`, all 9,591 are `0.0`. The complementary distance loses distinctions sooner: `(p, a)` first rounds to the underivable-pair sentinel `1.0` at integer gamma `24`, and `(p, b)`, `(p, k)`, and `(p, a)` are all `1.0` at gamma `1000`. Treat an extreme gamma as numerically degenerate and verify that the values in any candidate sweep remain distinct enough for the task.
+
+```python
+pk, pa = (flat.similarity_position(*pair) for pair in (("p", "k"), ("p", "a")))
+next(g for g in range(1, 20_000) if pk ** g == pa ** g)  # 10862
+ipakit.distance_model(gamma=10088).similarity_position("p", "k")
+# 2.6741186064958466e-301
+```
 
 **Gamma has no meaning on the plain `transcription_distance` path.** `ipakit.transcription_distance` and `IPAFeatures.transcription_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.similarity_position` and `ipakit.distance_position` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.
 
@@ -533,7 +548,15 @@ A saved matrix records the space it was derived in. `metric` in the matrix forma
 
 Keying the digest to the phone list the file carries is what keeps it independent of membership. A supplement adds phones and declares nothing, so a supplemented inventory reading a matrix derived before the supplement gets the same digest, correctly: the space did not move. Membership is `phones`' question, and the two keys do not overlap.
 
-The test suite pins the metric's exact properties — `d(ɡ, ɡ͡b) = d_b(ɡ,b)/2`, `d(u͡i, u͜i) = 1/3`, the cross-class orderings, symmetry and range over a probe set. A parameter change that breaks one of those is a semantic change, not a tuning change.
+The test suite pins the metric's exact properties — `d(ɡ, ɡ͡b) = 1/21 +
+d_b(ɡ,b)/2`, `d(u͡i, u͜i) = 1/3`, the cross-class orderings, symmetry and
+range over a probe set. A parameter change that breaks one of those is a semantic
+change, not a tuning change.
+
+```python
+round(ipa.distance("ɡ", "ɡ͡b") - ipa.distance("ɡ", "b") / 2, 12)
+# 0.047619047619
+```
 
 This document states relations and invariants rather than measured values, deliberately: exact numbers belong in the test suite, where a change that moves them fails loudly. Prose that quotes them goes stale in silence.
 

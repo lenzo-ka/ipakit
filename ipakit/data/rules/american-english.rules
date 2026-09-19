@@ -368,15 +368,11 @@ l -> [velarized=+] / [vowel] _ ; dark l
 # and the composed mark on a tied pair does not read back. So do not
 # conclude from the paragraph above that ties may be dropped.
 #
-# TIE THEM BY HAND. This file used to say "ipakit.add_ties() does it for
-# registered pairs", and that is false: MEASURED, add_ties ties EVERY
-# adjacent pair of base phones -- add_ties('kæt') is 'k͡æ͡t' -- so applied
-# to the word above it gives 'p͡ə.tʰˈe͜ɪ.t͡o͜ʊ', where tapping does not fire
-# at all. Its own docstring is accurate and says "within a multi-phone
-# SEGMENT"; it is a segment tool, and it was this file that mis-sold it as
-# a word tool. docs/rules.md and japanese-moraic.rules both warn about it,
-# which is how the claim survived here for as long as it did: the warning
-# was somewhere else.
+# TIE THEM BY HAND. add_ties ties every adjacent pair of base phones with
+# U+035C inside a multi-phone segment: add_ties('kæt') is 'k͜æ͜t', and
+# add_ties('pə.tˈeɪ.toʊ') is 'p͜ə.tˈe͜ɪ.t͜o͜ʊ'. It is therefore a
+# segment tool, not a way to select only a word's diphthongs. An already tied
+# spelling is unchanged, and the tapping behavior described above still fires.
 
 # --- recorded rather than fixed, and deliberately not modeled ----------
 # Named so the gaps are known rather than discovered. This set shipped

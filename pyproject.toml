@@ -1,5 +1,5 @@
 [build-system]
-# setuptools>=77 is required for the PEP 639 SPDX `license = "BSD-2-Clause"` string form below.
+# setuptools>=84.0.0 is the project's build floor and supports the PEP 639 SPDX license form below.
 requires = ["setuptools>=84.0.0"]
 build-backend = "setuptools.build_meta"
 

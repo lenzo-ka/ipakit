@@ -25,7 +25,7 @@ The assessment is read-only. Nothing in this lane changed code, data, or tests.
 | Does the star topology unwind into finite-state machinery? | **Yes as descriptions, no as relations, and the boundary is structure-modification.** Tiers read: regular. Tiers written: beyond regular, and the sources say so in those words. |
 | Is anything relying on the level ladder meaning nesting? | **One function.** `Form.tree()` uses the ladder as recursion depth. Every other consumer is a scalar `>=` or plain string equality. |
 | How much of the ladder is exercised? | **Half.** 4 levels declared; `phrase` and `utterance` are named by **0 of 86** shipped rules. The ladder's whole live weight is that `.` also matches `#` and the form edge, used by **2** rules. |
-| What does the metric pay? | **Nothing.** `level` is `mode="structural"`, so it is in no phone bundle, and `metric.py`, `distance.py` and `distance_model.py` contain zero references to it. |
+| What does the metric pay? | `level` remains outside phone bundles, while transcription distance prices an asserted boundary level as one structural term at its margin. |
 | What must be rebased, and how often? | Interval endpoints, on **27 of 86** shipped rules — the ones that change the length of the unit sequence. `Edit` already carries `start`, `end` and `replacement`, so the arithmetic needs no new information from any rule. |
 | What can be stated today only by workaround? | Moraic weight. `japanese-moraic.rules` names the mora **20 times in its prose and 0 times in its rules**; all 35 rules are segmental. |
 | What cannot be stated as a generalization? | **Tone stability and compensatory lengthening** — the two founding arguments for autosegmental representation. Measured below: an ordered pair of segmental rules does reach `pta˦` and `kaːs`, so it is the generalization that has no statement here, not the output. Written per environment and in advance, or the tone and the weight go in silence. |
@@ -202,9 +202,12 @@ sum(1 for name in available() for r in shipped(name, F).rules if delta(r))
 # {'american-english': 0, 'french-liaison': 12, 'german-final-devoicing': 0, 'japanese-moraic': 11, 'spanish-accented-english': 4}
 ```
 
-**Read the block, not the sentence, and the block is pinned elsewhere.** `Rule.becomes` is a `str`, a feature change, or `None` — never a sequence — so six of the twenty-seven are invisible to any count that takes the right-hand side for a unit instead of tokenizing it: `ŋ -> ŋɡ`, the three Japanese untying rules `a͜ɪ -> ai`, `a͜ʊ -> au` and `ɔ͜ɪ -> oi`, and the two Spanish r-colored decompositions `ɚ -> eɹ` and `ɝ -> eɹ` each write two units over one. A sentence cannot catch that, so `tests/test_rule_sets.py` carries the count — the totals above, the six literals by name, and a cross-check that the delta reckoned from a rule's notation equals the delta measured on the `Edit` it actually produces, over every edit the shipped corpora provoke. Nothing sweeps the `python` blocks under `docs/design/` the way `scripts/docexamples.py` sweeps the ones in `docs/*.md`, which is why the test and not the fence is the guard.
+**Read the block, not the sentence, and the block is pinned elsewhere.** `Rule.becomes` is a `str`, a feature change, or `None` — never a sequence — so six of the twenty-seven are invisible to any count that takes the right-hand side for a unit instead of tokenizing it: `ŋ -> ŋɡ`, the three Japanese untying rules `a͜ɪ -> ai`, `a͜ʊ -> au` and `ɔ͜ɪ -> oi`, and the two Spanish r-colored decompositions `ɚ -> eɹ` and `ɝ -> eɹ` each write two units over one. A sentence cannot catch that, so `tests/test_rule_sets.py` carries the count — the totals above, the six literals by name, and a cross-check that the delta reckoned from a rule's notation equals the delta measured on the `Edit` it actually produces, over every edit the shipped corpora provoke. `scripts/docexamples.py` also sweeps `python` blocks recursively under `docs/`, including this document.
 
-**What stays untouched.** The metric, entirely. `level` is `mode="structural"` and so appears in no phone bundle, and `metric.py`, `distance.py` and `distance_model.py` contain zero references to it. A tier declared the same way inherits that by construction, which is `morph-boundary.md`'s measurement — 0 of 8,616 bundles, 0 of 9,591 distances — arriving for the same structural reason. The tract model, the renderer, the supplements, the phone maps and X-SAMPA are all untouched: none of them reads a boundary level today.
+**What stays untouched.** A boundary `level` remains absent from every phone
+bundle, so it does not alter the segment metric. The transcription metric reads
+that structural claim separately at its margin. The tract model, supplements,
+phone maps and X-SAMPA do not use boundary levels.
 
 **What becomes two reads instead of one.** `Form.rebuild`, which gains a tier argument. `Pattern`, which gains a tier term beside `boundary` and `mark`. And `Form.tree()`, which does not have to change but stops being the answer to "what structure does this form have" and becomes one answer among several — the nested reading, which [form.md](../form.md) already documents as the read that cannot state enchaînement.
 
@@ -244,7 +247,19 @@ Four pieces. Each is small, each is checkable, and a richer model extends them r
 
 #136's counterweight, addressed rather than deferred: the metric is universal and feature-based, and if a tier vocabulary becomes language-relative, something must say what does not.
 
-**Distance does not become relative, and the mechanism that guarantees it is already load-bearing.** A tier is declared `mode="structural"`, and a structural feature is excluded by construction from every phone bundle — verified: `level` appears in no bundle, and no distance module references it. So a language declaring a syllable tier, a mora tier, or a gestural tier moves no distance, in the same way and for the same reason that a supplement adding three phones moves none while a three-line bridge moves up to 98% of them ([supplement-bridges.md](supplement-bridges.md)). The line is between a term in the comparison and a term in the structure, and a tier is on the far side of it.
+**Distance does not become language-relative.** A tier is declared
+`mode="structural"` and remains excluded from every phone bundle. Boundary
+claims are nevertheless compared at their margins: their declared ordinal
+`level` determines the one structural term's value. Changing a language's
+inventory of interval tiers therefore does not change segment distance, while
+writing a different boundary level can change transcription distance.
+
+```python
+[
+    round(ipa.transcription_distance(left, right).edit_cost, 6)
+    for left, right in (("a.b", "a#b"), ("a#b", "a‖b"), ("a.b", "a‖b"))
+]  # [0.031746, 0.063492, 0.095238]
+```
 
 Stated as the commitment: **tiers, their names, their inventory per language, and any phasing declared over them are language-relative. The feature space, the comparison bundle, and therefore `distance` are not.** If a later change would put a tier name into a comparison bundle, that is the boundary eroding, and the check that catches it is the one supplement-bridges.md asks for — a fingerprint, so a perturbed inventory reading the shipped matrix is refused rather than answering.
 

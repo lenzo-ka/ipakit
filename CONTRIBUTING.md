@@ -26,31 +26,27 @@ make check
 
 `make check` is the gate. It runs the style tools (`ruff`, `black --check`, `mypy --strict`), the test suite, the invariants, both data validators, the tutorial regeneration check, and the check on values quoted in the documentation. `.github/workflows/ci.yml` runs the suite across Python 3.12 and 3.13, and the style tools and the derived-artifact guards on 3.12.
 
-The tiergraph revision is declared once, by the Git dependency in
-`pyproject.toml`. The gate reads that pin and the paths Python actually
-imported. It requires ipakit to resolve inside this checkout. When tiergraph is
-an editable development checkout, the gate requires its full Git HEAD to match
-the full 40-character lowercase commit pin exactly and its working tree to be
-clean. It prints those paths, commits, and dirty states before the gate and
-again immediately after pytest's count. A dependency move during that run
-therefore fails expected-versus-actual.
+Tiergraph is a published runtime dependency declared by a compatible version
+range in `pyproject.toml`. The gate verifies that ipakit imports from this
+checkout and reports the resolved tiergraph path and installed version; it does
+not require or inspect a Git commit pin. The executable acceptance witnesses
+for the integration live in [docs/tiergraph-acceptance.md](docs/tiergraph-acceptance.md).
 
-When tiergraph resolves under a Python `site-packages` or `dist-packages`
-location, there is no Git checkout to re-verify. The gate loudly reports that
-skip instead of silently passing; pip has already resolved that isolated
-install from the exact dependency spec. Any other location is treated as a
-source/editable checkout and must have readable Git state containing the
-resolved module source.
+```python
+import tomllib
+from pathlib import Path
 
-The editable check is run-time proof, not isolation. It makes a fresh run
-honest and catches movement during it; it cannot invalidate or rewrite a green
-report that was already emitted before somebody later changed the sibling
-checkout. A command that dies before producing output has supplied no passing
-result.
+project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+next(dep for dep in project["project"]["dependencies"] if dep.startswith("tiergraph"))  # 'tiergraph>=0.2.1,<0.3.0'
+gate_source = Path("scripts/gate_subject.py").read_text(encoding="utf-8")
+("tiergraph_path=" in gate_source, "tiergraph_version=" in gate_source,
+ "tiergraph_commit" in gate_source)  # (True, True, False)
+```
 
 Run `make check` **before** you start as well as after. If it is already red on a clean tree, that is a finding in itself — please open an issue rather than working around it.
 
-tiergraph is a runtime dependency. Until it is published, install or otherwise expose a tiergraph checkout before installing ipakit. The `dev` extra pulls a bundled ICU only so `scripts/xsampa_table.py` can re-derive the X-SAMPA table; `ipakit` itself never imports ICU.
+The `dev` extra pulls a bundled ICU only so `scripts/xsampa_table.py` can
+re-derive the X-SAMPA table; `ipakit` itself never imports ICU.
 
 ## The method, in the two commands you will actually run
 
@@ -76,7 +72,7 @@ Paste the diff summary into the pull request. A measurement showing that **nothi
 
 Named cases test what the author thought of. Where you can, prefer a sweep over generated input, and assert the size of what you swept so a silent collapse cannot make the test vacuous:
 
-```python
+```python no-run
 assert checked > 500, "sweep did not run"
 ```
 
@@ -101,6 +97,9 @@ This is the working rule for *when to add XML at all*.
 **Reading** resolves a registered symbol first, and composes on the fly otherwise. `q͡χ` is not in `ipa.xml`, and `describe("q͡χ")` is still "voiceless uvular affricate", because a tie-joined sequence of known phones composes. **Writing** does the same in the same order — the rule engine tries `respell`, which only ever returns a registered symbol, before `compose_unit`, which builds a spelling out of the marks that declare the value:
 
 ```python
+import ipakit
+
+f = ipakit.IPAFeatures()
 f.respell("l", velarized="+")             # 'ɫ'    -- registered wins
 f.compose_unit("l", velarized="+")        # 'lˠ'   -- what composition would have said
 f.respell("t", release="aspirated")       # None   -- tʰ is not registered
@@ -136,7 +135,10 @@ Several files in the tree are outputs. Editing one by hand produces a change tha
 
 The tutorial deserves a note of its own, because it is the page a newcomer is most likely to want to fix. **Every value on it is produced by executing the call beside it**, and the byte-identical comparison *is* the test. So a correction goes in `docs/tutorial.src.md` and then `make tutorial`; a hand-edit to `docs/tutorial.md` will be overwritten and will fail the gate on the way.
 
-Values quoted in the hand-written documents (`README.md` and `docs/*.md`) are checked too, by `scripts/docexamples.py`. Documentation drifting away from behavior is a recurring failure mode here, not a hypothetical one.
+Values quoted in the hand-written documents (`CHANGELOG.md`, `CONTRIBUTING.md`,
+`README.md`, and `docs/*.md`) are checked too, by `scripts/docexamples.py`.
+Documentation drifting away from behavior is a recurring failure mode here,
+not a hypothetical one.
 
 Sentences quoted from one document in another are checked by `scripts/docquotes.py`, over every `.md` in the tree. It binds a quotation to the nearest document named before it in the same sentence, so put quotation marks around what the sibling says and nothing else: if you are giving the gist, drop the marks and the check leaves you alone. A quotation from a book, a handout or a URL is not something it can read, and it says how many of those it left alone rather than pretending to have checked them.
 

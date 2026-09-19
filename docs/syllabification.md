@@ -133,9 +133,25 @@ strict("ŋtˈɑ").spelled(), strict("ŋtˈɑ").unsyllabified
 
 The stressed `/ɑ/` is a nucleus in both demonstrations, and the final control shows the same no-absorption property as the other languages: the unlicensed initial `/ŋ/` is reported rather than folded into the following syllable.
 
-The ipa-dict en_US cross-check used commit `43c3570eb3553bdd19fccd2bd0091534889af023`: all 125,927 entries were shared.  The comparison re-seated syllable-initial stress on the following nucleus in 128,670 pronunciation forms, without changing the bridge's stored forms.  After that explicit normalization, 35,977 words agree and 89,950 disagree.  `normalize()` is not a word-level diphthong detector—its whitespace groups assert whole units—so no diphthong tying was applied; that remains the normalize tie-report follow-up.
+The ipa-dict en_US cross-check used commit `43c3570eb3553bdd19fccd2bd0091534889af023`: all 125,927 entries were shared. The ordinary read path seated leading stress on the following nucleus in 126,451 forms; no comparison-only stress normalization was applied. The result has 37,488 agreements and 88,439 disagreements. Registered-diphthong tying was likewise not applied because `normalize()` treats whitespace as asserted unit grouping rather than as a word-level diphthong detector.
 
-The residual disagreements are separated by cause.  Stress-seat contributes 0 after normalization.  Untied-diphthong nucleation contributes 18,966: for example *'bout* is `bˈa͜ʊt` against `bˈa.ʊt`, and diagnostic tying of the registered vowel pair removes the difference.  Genuine boundary differences contribute 1,511: *aardvark* is `ˈɑɹ.dvˌɑɹk` against `ˈɑɹd.vˌɑɹk` with otherwise identical forms.  The other 69,473 retain a segmental, prosodic, or unclassified transcription difference; examples include *'til* (`tˈɪl` against `tˈɪɫ`) and *'twas* (`twˈʌz` against `twˈəz`).  Thus the boundary bucket, rather than the old convention-dominated total, is the syllabification evidence exposed by this cross-check.
+The residual disagreements are separated by cause. Stress-seat and genuine-boundary buckets are both empty. Untied-diphthong nucleation contributes 19,843: for example *'bout* is `bˈa͜ʊt` against `bˈa.ʊt`, and diagnostic tying of the registered vowel pair removes the difference. The other 68,596 retain a segmental, prosodic, or unclassified transcription difference; examples include *'til* (`tˈɪl` against `tˈɪɫ`) and *'twas* (`twˈʌz` against `twˈəz`). The cross-check currently supplies no genuine-boundary examples.
+
+```python
+import json
+from pathlib import Path
+
+cross_check = json.loads(
+    Path("docs/data/english-syllable-curation-2026-08-11.json").read_text()
+)["cross_check"]
+(cross_check["agreements"], cross_check["disagreements"],
+ cross_check["read_stress_seating"]["changed_forms"])
+# (37488, 88439, 126451)
+bucket_counts = cross_check["disagreement_buckets"]
+tuple(bucket_counts[name]["count"] for name in
+      ("genuine_boundary_difference", "other", "stress_seat",
+       "untied_diphthong_nucleation"))  # (0, 68596, 0, 19843)
+```
 
 ## 7. Disagreement is the evidence
 

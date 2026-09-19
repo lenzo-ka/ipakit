@@ -37,7 +37,17 @@ Inventory order is declaration order: XML atom order for bridges, phonemap row o
 
 Finite inventories contain sounds. Their construction applies the declared silence-spelling rule `Phoneset.from_file()` applies.
 
-The registry discovers its eSpeak, MFA, phonemap and bridge members from the declaration directories, so an added eSpeak or MFA declaration becomes visible without a name being written anywhere else.
+The registry discovers eSpeak and MFA members from their declaration
+directories. CMUdict, PocketSphinx, the bare eSpeak union, and TIMIT (when its
+declaration is available) are explicit registry entries; phonemap and bridge
+files do not all become named inventories merely by appearing on disk.
+
+```python
+from pathlib import Path
+
+registry_source = Path("ipakit/inventories.py").read_text(encoding="utf-8")
+all(name in registry_source for name in ('"cmudict"', '"pocketsphinx"', '"espeak"', '"timit"'))  # True
+```
 
 [Praat TextGrid interchange](textgrid.md#label-styles) applies a named style strictly to segment labels and tier labels derived from them while retaining point marks in house notation.
 
