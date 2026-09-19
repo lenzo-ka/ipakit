@@ -148,8 +148,15 @@ Direction-only contour marks such as the caron in `ǎ` also contribute a term.
 Multi-level trajectories such as `a᷅` (`low>mid`) are retained in the
 representation and compared as ordered sequences. Each aligned substitution
 uses the declared scalar value distance, an unmatched step costs one, and the
-edit cost is divided by the longer trajectory. The same rule prices the
-derived `contour` sequence, so both levels and direction remain observable.
+edit cost is capped at one. Dividing by the longer trajectory would give each
+pair of forms its own scale, which does not satisfy the triangle inequality;
+capping at a constant does. The same rule prices the derived `contour`
+sequence, so both levels and direction remain observable:
+
+```python
+round(ipakit.distance("a˧˥", "a˧˥˧"), 6)  # 0.083333
+round(ipakit.distance("a˥˩", "a˩˥"), 6)   # 0.083333
+```
 Single tone levels use the declared `bottom`, `low`, `mid`, `high`, `top`
 scale. See [tone declarations and trajectories](tone.md).
 
