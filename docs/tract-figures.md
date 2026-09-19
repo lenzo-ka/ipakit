@@ -55,7 +55,17 @@ That is also where a filmstrip attaches when one is built: `figure()` is one fra
 
 The figures draw the adult male head. That is a presentation choice, not a claim about the geometry: the properties a drawing has to satisfy — labels that do not collide, a tongue that stays inside the tract, an articulator that reaches its target, a shut mouth that leaks only at the glottis — are checked on **every declared head**, in `tests/test_tract_figures.py`. Drawing all three here would add pictures without adding a check.
 
-What *is* adult-only is the measurement. The X-Ray Microbeam corpus is 48 American English adults, median age 21, so the aperture over arc 0.20-0.40 and the jaw carriage are theirs. The female head takes the same normalized shape against its own tract length, on the evidence in [articulatory-data.md](articulatory-data.md); the child head is hand-placed throughout, because a child's tract is not a scaled adult's and this corpus has nothing to say about one.
+What *is* adult-only is the measurement. The X-Ray Microbeam corpus is 48 American English adults, median age 21, so the measured midline run from arc 0.11 through 0.40, the separate seven-point measured roof, and the jaw carriage are theirs. The female head takes the same normalized shape against its own tract length, on the evidence in [articulatory-data.md](articulatory-data.md); the child head is hand-placed throughout, because a child's tract is not a scaled adult's and this corpus has nothing to say about one.
+
+```python
+from ipakit.tract import head
+
+adult = head("adult-male")
+measured_arcs = [point.arc for point in adult.midline
+                 if point.provenance == "measured"]
+measured_arcs  # [0.11, 0.13, 0.15, 0.17, 0.19, 0.21, 0.24, 0.32, 0.4]
+len(adult.roof)  # 7
+```
 
 ## The reference
 
@@ -147,6 +157,6 @@ Vowels state backness and height rather than place, so no place is named. The to
 
 ## What the figures are not
 
-They are a projection of a model, not a measurement. Only the aperture over arc 0.20–0.40 is measured, from the X-Ray Microbeam database; the nasal branch, the teeth, the tongue's falloff and the whole child head are hand-placed, and each point in `heads.xml` says which it is. See [articulatory-data.md](articulatory-data.md) for what that corpus can and cannot ground, and [tract-anatomy.md](tract-anatomy.md) for the specification these figures are an incomplete implementation of.
+They are a projection of a model, not a measurement. The adult midline over arc 0.11–0.40 and the separate seven-point roof are measured from the X-Ray Microbeam database; the nasal branch, the teeth, the tongue's falloff and the whole child head are hand-placed, and each point in `heads.xml` says which it is. See [articulatory-data.md](articulatory-data.md) for what that corpus can and cannot ground, and [tract-anatomy.md](tract-anatomy.md) for the specification these figures partially implement.
 
 Two limits worth knowing before reading anything into them. The posture still carries only place and degree, so any two phones agreeing on those two resolve to one posture, and everything that separates them in the figure is either the glottis, a secondary constriction, or an annotation that is deliberately not drawn as anatomy. And the geometry is not simulable as it stands — see §11 of the anatomy document.

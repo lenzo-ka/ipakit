@@ -215,7 +215,17 @@ is the division of labor: a transcription says where the structure is, and a bui
 what the transcription cannot, which here is which orthographic word each run of phones
 spells and that one of them is emphatic.
 
-Nothing above `word` appears in the first figure, and that is correct rather than missing.
-One phrase filling one utterance writes no break, and an unwritten mark asserts nothing,
-so a reading of it has words and stops. Regenerate both figures with
-`python scripts/tiergraph_example.py`.
+Nothing above `word` is read from that transcription alone: one phrase filling
+one utterance writes no break, and an unwritten mark asserts nothing. The first
+figure nevertheless carries the one phrase and one utterance events that its
+builder supplied explicitly, around its six words.
+
+```python
+from pathlib import Path
+
+worked_dot = Path("docs/figures/perhaps-i-am-a-bad-man.dot").read_text()
+(worked_dot.count("subgraph tier_phrase"),
+ worked_dot.count("subgraph tier_utterance"))  # (1, 1)
+```
+
+Regenerate both figures with `python scripts/tiergraph_example.py`.

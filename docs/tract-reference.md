@@ -47,7 +47,12 @@ The glottis closes toward the tract axis rather than toward a wall — the folds
 | arc | aperture | provenance |
 |---|---|---|
 | 0.00 | 0.160 | extrapolated |
-| 0.13 | 0.170 | extrapolated |
+| 0.11 | 0.098 | measured |
+| 0.13 | 0.1105 | measured |
+| 0.15 | 0.126 | measured |
+| 0.17 | 0.1436 | measured |
+| 0.19 | 0.1575 | measured |
+| 0.21 | 0.1716 | measured |
 | 0.24 | 0.180 | measured |
 | 0.32 | 0.160 | measured |
 | 0.40 | 0.130 | measured |
@@ -56,6 +61,15 @@ The glottis closes toward the tract axis rather than toward a wall — the folds
 | 0.74 | 0.108 | extrapolated |
 | 0.87 | 0.094 | extrapolated |
 | 1.00 | 0.079 | extrapolated |
+
+```python
+from ipakit.tract import head
+
+midline = [(point.arc, point.diameter, point.provenance)
+           for point in head("adult-male").midline]
+midline[:8]  # [(0.0, 0.16, 'extrapolated'), (0.11, 0.098, 'measured'), (0.13, 0.1105, 'measured'), (0.15, 0.126, 'measured'), (0.17, 0.1436, 'measured'), (0.19, 0.1575, 'measured'), (0.21, 0.1716, 'measured'), (0.24, 0.18, 'measured')]
+midline[8:]  # [(0.32, 0.16, 'measured'), (0.4, 0.13, 'measured'), (0.45, 0.13, 'extrapolated'), (0.56, 0.123, 'extrapolated'), (0.74, 0.108, 'extrapolated'), (0.87, 0.094, 'extrapolated'), (1.0, 0.079, 'extrapolated')]
+```
 
 `adult-female` takes the same shape against its own peak; the child head is hand-placed throughout.
 

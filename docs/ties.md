@@ -114,7 +114,12 @@ The flat projection is deliberately a summary, not the whole story. The structur
 
 ## Normalizing tieless input
 
-`normalize` treats whitespace-separated groups as asserted units and inserts ties by a documented heuristic: adjacent vowels bind sequentially (`"eɪ"` → `e͜ɪ`), anything else fuses (`"ts"` → `t͡s`). An explicitly written tie always wins. The heuristic output round-trips: `e͜ɪ` resolves to the registered `e͡ɪ` through its alias.
+`normalize` treats whitespace-separated groups as asserted units and inserts ties by a documented heuristic: adjacent vowels bind sequentially (`"eɪ"` → `e͜ɪ`), anything else fuses (`"ts"` → `t͡s`). An explicitly written tie always wins. The sequential `e͜ɪ` is the registered diphthong; the fused `e͡ɪ` is unregistered and has no alias to it.
+
+```python
+features = ipakit.IPAFeatures()
+("e͜ɪ" in features.phones, "e͡ɪ" in features.phones)  # (True, False)
+```
 
 ## Agreement is reported, never refereed
 
@@ -128,7 +133,13 @@ Composition is intent-driven: a voicing-disagreeing tie like `t͡ɮ` is a legiti
 
 - **Constituents compare as whole bundles** — `ɡ͡p` and `k͡b` have identical per-feature value sets but stay apart, because which constituent is voiced matters.
 - **Alignment mode follows the phase structure**: a fusion in one timing slot at one manner has no phase to put first, so its notation is unordered (`k͡p` ≈ `p͡k`, `u͡i` ≈ `i͡u`, `b͡ǀ` ≈ `ǀ͡b`); phased units and sequences are ordered (`n͡d` ≠ `d͡n`, trajectories keep direction). Asked of `Segment.phased`, off the structure, so what a fusion is *called* cannot change how it aligns. N-ary fusions align their phase blocks in order, unordered within (`ŋ͡m͡ɡ͡b` ≈ `m͡ŋ͡b͡ɡ` ≠ `ɡ͡b͡ŋ͡m`).
-- **Sharing an articulation is half the distance of not sharing it**: `D(ɡ, ɡ͡b) = d(ɡ,b)/2`, symmetric between the sharers.
+- **Sharing an articulation retains a graded term beside the arity floor**:
+  `D(ɡ, ɡ͡b) = 1/21 + d(ɡ,b)/2`, symmetric between the sharers.
+
+```python
+round(ipakit.distance("ɡ", "ɡ͡b") - ipakit.distance("ɡ", "b") / 2, 12)
+# 0.047619047619
+```
 - **The binding sense is one term**: `D(u͡i, u͜i) = 1/3` — same constituents, different timing claim.
 - **Secondary articulations are weighted place components** (σ = 0.5): `tʲ` sits strictly between `t` and `c`.
 - **Bridge features** unify one dimension spelled different ways: `ã` (nasalized) is nearer `n` (nasal manner) than plain `a` is; `tˡ` (lateral release) nearer `l` than `t` is.

@@ -59,7 +59,18 @@ git switch my-lane && python scripts/sweep.py capture -o /tmp/after.json
 python scripts/sweep.py diff /tmp/before.json /tmp/after.json
 ```
 
-`diff` accounts for every mover — appeared, disappeared, gained a word, lost a word, altered a word, features moved, distance-from-base moved — and checks the predicate two lanes wanted independently: no pre-existing word is lost or altered, only added. `--require-monotone` makes that gate the exit status. `sweep.py corpus` prints the definition, the counts, and the seven prosodic marks that compose with nothing, so that blind spot stays known rather than assumed shut.
+`diff` accounts for every mover — appeared, disappeared, gained a word, lost a word, altered a word, features moved, distance-from-base moved — and checks the predicate two lanes wanted independently: no pre-existing word is lost or altered, only added. `--require-monotone` makes that gate the exit status. `sweep.py corpus` prints the definition, the counts, and the six marks that compose with nothing. Three of those marks (`^`, `|`, and `‖`) are prosodic, so that blind spot stays known rather than assumed shut.
+
+```python
+from scripts.sweep import corpus
+import ipakit
+
+sweep_ipa = ipakit.IPAFeatures()
+sweep_units = corpus(sweep_ipa)
+sweep_used = {mark for _, _, mark in sweep_units}
+[mark for mark in sweep_ipa.diacritics if mark not in sweep_used]  # ['͡', '͜', '‿', '^', '|', '‖']
+len(sweep_units)  # 9317
+```
 
 The corpus total is deliberately not hardcoded: it has legitimately moved three times in this repo's history as the inventory changed. What the script asserts is shape — a floor, every phone contributing its bare unit, every phone contributing at least one marked unit, most marks contributing something — so a sweep cannot go quietly vacuous. The exact totals live in the capture, and a change in them is the first line `diff` prints.
 
@@ -76,7 +87,20 @@ The same applies to data invariants. "No vowel may carry `retroflex`" is a class
 
 The most durable fixes in this codebase did not correct a value — they removed the possibility of disagreement.
 
-Three independent copies of the secondary-articulation set lived in three modules and agreed only by habit; one of them drifted and `l` and `ɫ` came out identical. They are now one declaration in the data, read twice, so the mode partition and the metric's place table *cannot* disagree. Likewise `_SECONDARY_KEYS` is derived from `SECONDARY_PLACE` rather than maintained beside it, and the flat projection is one function rather than three implementations.
+The secondary-articulation set is one declaration in the data, read for both
+the mode partition and the metric's place comparison. There are no
+`_SECONDARY_KEYS` or `SECONDARY_PLACE` constants to maintain beside it, so the
+two consumers cannot drift through duplicated Python tables. The flat
+projection is likewise one function rather than three implementations.
+
+```python
+from pathlib import Path
+
+package_source = "\n".join(
+    path.read_text(encoding="utf-8") for path in Path("ipakit").rglob("*.py")
+)
+any(name in package_source for name in ("_SECONDARY_KEYS", "SECONDARY_PLACE"))  # False
+```
 
 Prefer this to any amount of vigilance.
 
@@ -100,13 +124,27 @@ In each case correcting the data fixed the metric, and a weight or a special cas
 
 ### Say what shape the data is in
 
-Every XML document under `ipakit/data` has a RELAX NG grammar beside it — `ipa.rng`, `heads.rng`, `phonemaps/phonemap.rng`, `supplements/supplement.rng` — and `tests/test_schema.py` validates each document against its own. The grammars are co-located rather than gathered into a schemas directory because `ipa.xml` travels on its own, and a copy of it should carry what states its shape.
+Seven RELAX NG grammars under `ipakit/data` claim documents by root element,
+and `tests/test_schema.py` validates each claimed document. This permits shared
+grammars such as `phonemaps/phonemap.rng` and
+`supplements/supplement.rng`. The Panphon finite-feature declaration uses its
+own model codec and has no adjacent `panphon.rng`.
+
+```python
+data_dir = Path("ipakit/data")
+len(list(data_dir.rglob("*.rng")))  # 7
+(data_dir / "feature-models" / "panphon.rng").exists()  # False
+```
 
 They describe **structure, never vocabulary**. Adding a phone, a diacritic, a feature or a feature value must not require touching a `.rng` file; only a new *kind* of declaration should. So a symbol element requires `name` and then admits any other attribute by shape, because those attribute names are the feature names declared elsewhere in the same document, and a schema listing them would be the second copy of the inventory that `test_declared_not_hardcoded.py` exists to prevent. Two tests hold that line: one asserts no grammar names a declared feature on a symbol element, the other that no grammar enumerates a declared name anywhere.
 
 Cross-references are the acknowledged gap. `<spelling feature= value=>`, `<projection from= to=>`, `<feature over=>` and every `default` point at names declared elsewhere in the document, and RELAX NG has no key/keyref. Enumerating the legal targets would be exactly the drift the grammars avoid, so those attributes are text and `scripts/invariants.py` is what checks they resolve.
 
-A new data file with no grammar fails the suite, and the failure names the convention rather than only the file: a grammar named after the document claims it, a grammar named after no document in its directory claims the rest.
+A new schema-governed data file with no grammar claim fails the suite, and the
+failure names the convention rather than only the file: a grammar named after
+the document claims it, while a grammar named after no document in its
+directory claims the other matching roots. Data read through a separate model
+codec is tested under that codec's contract instead.
 
 ### State what a measure does not claim
 

@@ -1,5 +1,10 @@
 # D1 frontal-view report
 
+> Historical implementation report. The parameter counts and declaration
+> paths below record D1 as it was reviewed; they are not a description of the
+> current API. See [Figures and rendering](../tract-figures.md) for current
+> behavior.
+
 The frontal drawing is a second projection of the same `Posture` and
 `Trajectory` as the mid-sagittal drawing. Shape lives on `Head`; the renderer
 projects and strokes. It introduces no phone lookup, view-only posture, or

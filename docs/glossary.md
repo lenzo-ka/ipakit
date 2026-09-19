@@ -81,6 +81,17 @@ examples.
 
 ## Over-tie and under-tie
 
-An **over-tie** (`͡`) and an **under-tie** (`͜`) join written phases into one unit;
-their position differs typographically, not semantically. [ties.md](ties.md) describes
-the normalization and the typed ties used for affricates and diphthongs.
+An **over-tie** (`͡`) and an **under-tie** (`͜`) join written phases into one unit
+with different house semantics. The over-tie fuses constituents simultaneously;
+the under-tie binds a sequential trajectory. That distinction changes both the
+description and the distance of otherwise identical constituents.
+
+```python
+import ipakit
+
+ipakit.describe("t͡s")  # 'voiceless sibilant alveolar affricate'
+ipakit.describe("t͜s")  # 'voiceless alveolar plosive'
+ipakit.distance("t͡s", "t͜s")  # 0.3333333333333333
+```
+
+[ties.md](ties.md) describes the typed ties used for affricates and diphthongs.

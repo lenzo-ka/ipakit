@@ -312,4 +312,13 @@ held.without_boundaries()
 - **`rebuild` is the inverse of the two projections it is handed, and neither of them carries a zero.** `segments` keeps sounds and `boundaries` keeps relations; `∅` is neither, so a form containing one rebuilds without it and the claim above is an inverse of the *sounds and the relations*, not of every position. Carrying zeros through would mean a third projection to put beside those two, which is a decision rather than a repair. What must hold either way is that nothing else moves: `Boundary.at` counts the segments before the mark, so a zero does not push a later boundary along the sequence it indexes into.
 - **`Boundary.level` falls back to `word` where a mark declares none.** Every shipped glyph declares one, so only a hand-made `Boundary`, or a mark added without a level, reaches it.
 - **Whitespace is not declared in `ipa.xml`**, so `units()` assigns it `edge_level()` rather than a declared literal. That is a code-side convention, and it is stated here so it stays known.
-- **A stress mark standing before a separator is read two ways.** `segments("kæt.ˈ.dɒɡ")` binds the mark to `d`; `Form.parse` flushes at the separator, is handed a bare mark, calls it unbound and drops it — so that form does not spell itself back out, which is the one thing `Form` advertises. Pinned by a test that fails when it is fixed.
+- **A stress mark standing before a separator binds to the following nucleus.**
+  `Form.parse("kæt.ˈ.dɒɡ")` seats the mark on `ɒ` and spells the input back
+  byte-identically.
+
+```python
+between_breaks = Form.parse("kæt.ˈ.dɒɡ")
+between_breaks.to_ipa()  # 'kæt.ˈ.dɒɡ'
+[(attribute.feature, attribute.value, attribute.at) for attribute in between_breaks.attributes]
+# [('stress', 'primary', 4)]
+```

@@ -137,7 +137,22 @@ ipa.nearest_phones("p", n=5)
 $ ipakit analysis nearest p -n 5
 ```
 
-Raw distances are hard to interpret on their own, because the range that actually occurs is narrow — the median over the inventory is about 0.19 and the top half of `[0, 1]` is unreachable. **`similarity_position` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary `distance_position` reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
+Raw distances are hard to interpret on their own. Over the 9,591 distinct
+pairs in the shipped 139-phone inventory, the median is about 0.2429 and the
+maximum is 1.0; 225 pairs (2.35%) are above 0.5.
+
+```python-run
+import itertools
+import statistics
+
+phones = list(ipa.IPAFeatures().phones)
+pair_distances = [ipa.distance(a, b) for a, b in itertools.combinations(phones, 2)]
+(len(pair_distances), round(statistics.median(pair_distances), 4),
+ max(pair_distances), sum(d > 0.5 for d in pair_distances),
+ round(100 * sum(d > 0.5 for d in pair_distances) / len(pair_distances), 2))
+```
+
+**`similarity_position` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary `distance_position` reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
 
 ```python-run
 ipa.similarity_position("f", "θ")            # the most-confused English pair
@@ -189,10 +204,32 @@ without re-tokenizing, so boundaries you drew (`d͡ʒ` as one token) are kept as
 ipa.sequence_distance(["k", "a", "t"], ["k", "æ", "t"]).similarity
 ```
 
-`distance` is symmetric, bounded and zero on identity, but about 0.5% of measured
-triples violate the triangle inequality. Algorithms such as metric trees that require
-that inequality need `ipakit.closure.MetricClosure`. [distance.md](distance.md)
-describes these restrictions and the closure's inventory-relative behavior.
+`distance` is symmetric, bounded and zero on identity. Exhaustively, 3,971 of
+437,989 unordered triples (0.907%) violate one triangle inequality; equivalently,
+3,971 of the 1,313,967 ordered inequalities (0.302%) fail. Algorithms such as
+metric trees that require that inequality need `ipakit.closure.MetricClosure`.
+[distance.md](distance.md) describes these restrictions and the closure's
+inventory-relative behavior.
+
+```python-run
+def triangle_summary():
+    matrix = [[0.0] * len(phones) for _ in phones]
+    for i, a in enumerate(phones):
+        for j in range(i + 1, len(phones)):
+            matrix[i][j] = matrix[j][i] = ipa.distance(a, phones[j])
+    triples = violations = 0
+    for i, j, k in itertools.combinations(range(len(phones)), 3):
+        failures = (
+            matrix[i][k] > matrix[i][j] + matrix[j][k] + 1e-15,
+            matrix[i][j] > matrix[i][k] + matrix[k][j] + 1e-15,
+            matrix[j][k] > matrix[j][i] + matrix[i][k] + 1e-15,
+        )
+        triples += 1
+        violations += sum(failures)
+    return triples, violations, round(100 * violations / triples, 3), round(100 * violations / (3 * triples), 3)
+
+triangle_summary()
+```
 
 When a score needs an explanation, `explain_transcription_distance` exposes the alignment operation at each position and, for a substitution, the feature and tract terms that contributed to its cost.
 

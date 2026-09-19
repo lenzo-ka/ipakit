@@ -118,7 +118,17 @@ Ninety-one registered pairs differ in their feature bundle and score zero. Each 
 
 The reason the operator records them anyway is that respellings are operators: `compose_unit("ɡ", velarized="+")` is faithful to what it was asked and answers `ɡˠ`, while a value the base already carries comes back unchanged. The vacuity is a fact about the resulting segment's phonetics rather than about the operation, so it is stated here rather than repaired there. `tests/test_distinctive_difference.py` holds the boundary: no registered pair may differ in a non-vacuous feature while scoring zero, with vacuity derived from the declaration so a supplement is covered by the same rule.
 
-The fusion branch has no arity floor. Adding a second articulator can cost less than adding a smaller diacritic because the former receives the declared secondary share of a graded comparison. A floor is deferred and pinned; it needs its own derivation and measurement rather than a constant chosen to repair one example.
+The fusion branch has a derived arity floor of `1 / 21`. Adding a second
+articulator pays that base plus the declared graded sharing term, so the
+shipped one-to-two constituent comparisons all cost at least as much as a
+release phase.
+
+```python
+import ipakit
+
+ipa = ipakit.IPAFeatures()
+round(ipa.distance("ɡ", "ɡ͡b"), 6) > round(ipa.distance("t", "tʰ"), 6)  # True
+```
 
 External validation has begun with the Miller–Nicely ordering test above. Validation under different conditions remains queued. Its inventory excludes affricates, so testing `t͡ʃ`–`ʃ` requires a successor dataset such as Wang and Bilger (1973).
 
