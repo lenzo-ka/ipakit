@@ -331,7 +331,20 @@ class AnalysisMixin(IPAFeaturesBase):
     def _natural_class_features(
         self, phone: str, *, with_defaults: bool
     ) -> dict[str, str]:
-        """Features one unit states throughout its trajectory."""
+        """What one unit states, as it states it.
+
+        A sequential unit's value for a feature is its phase sequence, in
+        the same spelling the feature layer uses for one: the phases
+        joined by ``Feature.SEQUENCER``. So two trajectories share a
+        feature when they move the same way through it, and differ when
+        they do not -- ``a͜ɪ`` and ``a͜ʊ`` share ``open>near-close`` and
+        part on backness. Collapsing a disagreement to nothing instead
+        would lose a real agreement; collapsing it to the first phase
+        would claim of the whole unit something true only of its start.
+
+        A feature some phase does not state is left out: the unit does
+        not carry it throughout, so the set cannot be told it does.
+        """
         feats = self._get_features(phone, with_defaults=with_defaults)
         if not feats:
             return {}
@@ -343,12 +356,15 @@ class AnalysisMixin(IPAFeaturesBase):
             segment.features_at(index, with_defaults=with_defaults)
             for index in range(len(segment.children))
         ]
-        first = phases[0]
-        return {
-            feature: value
-            for feature, value in first.items()
-            if all(phase.get(feature) == value for phase in phases[1:])
-        }
+        trajectory: dict[str, str] = {}
+        for feature in phases[0]:
+            if not all(feature in phase for phase in phases[1:]):
+                continue
+            values = [phase[feature] for phase in phases]
+            trajectory[feature] = (
+                values[0] if len(set(values)) == 1 else Feature.SEQUENCER.join(values)
+            )
+        return trajectory
 
     def minimal_pairs(
         self,
