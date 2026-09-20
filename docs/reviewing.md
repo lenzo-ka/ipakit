@@ -108,7 +108,7 @@ Prefer this to any amount of vigilance.
 
 When a guard cannot cover something, assert that it cannot, so the limit stays known rather than assumed shut:
 
-```python
+```python no-run
 def test_the_guard_states_what_it_cannot_see(...):
     """If one of these starts being caught, this fails and the
     documented limits need updating."""

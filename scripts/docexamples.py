@@ -13,12 +13,16 @@ and never again.
 Documentation drifting away from behavior is a first-class recurring
 failure here, so this closes that hole from the same direction: every
 expression in a ``python`` fence is evaluated, and where the document
-quotes a value beside or beneath it, the two must agree.
+quotes a value beside or beneath it, the two must agree. An assignment
+to a plain name is read back and compared the same way.
 
 What counts as a quoted value is deliberately conservative -- a comment
 that does not parse as a Python literal is prose, and prose is not
-checked. The count of what *was* checked is printed and asserted against
-a floor, so this cannot go quietly vacuous.
+checked. Every fence lands in exactly one of four tallies -- checked,
+wrong, deliberately skipped, or ran-but-quotes-nothing -- and all four
+are printed, because a fence that falls through them all is coverage the
+count claims and does not have. The checked total is asserted against a
+floor as well, so this cannot go quietly vacuous.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ import contextlib
 import io
 import re
 import sys
+import textwrap
 import warnings
 from pathlib import Path
 
@@ -45,6 +50,11 @@ FENCE = re.compile(r"```(python|console)([^\n]*)\n(.*?)```", re.S)
 #: self-contained example with a value to check. It still highlights as
 #: Python (renderers key on the first word), but this reader skips it and
 #: says how many it skipped, so the exemption cannot go quietly.
+#:
+#: A block that does not parse and is *not* tagged is reported as wrong.
+#: The tag is how a document declares a fragment deliberate, so an untagged
+#: block that will not parse is a broken example, and passing over it is how
+#: a corrected value goes ungated while the count still reads as coverage.
 NO_RUN = "no-run"
 EXC = re.compile(
     r"^([A-Za-z_][A-Za-z_0-9]*(?:Error|Warning|Exception))\b:?\s*(.*)$", re.S
@@ -134,12 +144,28 @@ def check_block(
     block: str, env: dict, report: list, unchecked: list
 ) -> tuple[int, int]:
     checked = failed = 0
+    # A fence inside a list item carries the list's indentation, and Python
+    # reads that as an unexpected indent. The indentation is markdown's, not
+    # the example's, so take it off before reading the block as code.
+    block = textwrap.dedent(block)
     lines = block.split("\n")
     try:
         tree = ast.parse(block)
-    except SyntaxError:
-        # An illustrative fragment, not a runnable example.
-        return 0, 0
+    except SyntaxError as error:
+        # ``no-run`` is how a document says a block is deliberately not
+        # runnable, and this block did not use it. A fence that simply does
+        # not parse is a broken example: passing over it silently is how a
+        # corrected value goes ungated while the count still reads as
+        # coverage of it.
+        first = next((line for line in block.split("\n") if line.strip()), "")
+        report.append(
+            (
+                first,
+                "a block that parses",
+                f"SyntaxError: {error.msg} (line {error.lineno})",
+            )
+        )
+        return 0, 1
     for stmt in tree.body:
         if isinstance(stmt, ast.Assert):
             # A document quoting an assertion is quoting test source, not
@@ -160,7 +186,23 @@ def check_block(
                         module = ast.Module([stmt], [])
                         ast.fix_missing_locations(module)
                         exec(compile(module, "<doc>", "exec"), env)
-                        continue
+                        # A statement has no value of its own, but an
+                        # assignment to one plain name does: the document
+                        # quoted it, so read it back and compare. Anything
+                        # else that quotes a value ran without being
+                        # checked, and says so rather than disappearing.
+                        bound = (
+                            stmt.targets[0].id
+                            if isinstance(stmt, ast.Assign)
+                            and len(stmt.targets) == 1
+                            and isinstance(stmt.targets[0], ast.Name)
+                            else None
+                        )
+                        if not want or bound is None:
+                            if want:
+                                unchecked.append(want.strip()[:70])
+                            continue
+                        value = env[bound]
         except Exception as error:
             if expecting and type(error).__name__ == expecting.group(1):
                 checked += 1
