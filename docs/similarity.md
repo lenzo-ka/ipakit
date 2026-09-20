@@ -47,17 +47,15 @@ The first repair prevents a vocabulary edit from changing old geometry. The seco
 
 ## 3. Structural validation
 
-The eigenspectrum diagnoses which distinction dominates the distance matrix. Before nearest-part charging, the leading axis correlated with compositeness. Afterward it correlated with the vowel–consonant contrast, and the shell separating phased composites from atomic phones dissolved into positions determined by their constituents. The checked record is:
+The eigenspectrum diagnoses which distinction dominates the distance matrix. Before nearest-part charging, the leading axis correlated with compositeness. Afterward it correlated with the vowel–consonant contrast, and the shell separating phased composites from atomic phones dissolved into positions determined by their constituents.
 
-```python
-structural_measurements = {
-    "leading-axis/compositeness correlation before repair": 0.977,
-    "leading-axis/vowelhood correlation after repair": 0.922,
-    "negative eigenvalue mass before repair, silence excluded": "9.1%",
-    "negative eigenvalue mass after repair, silence excluded": "13.1%",
-}
-structural_measurements
-# {'leading-axis/compositeness correlation before repair': 0.977, 'leading-axis/vowelhood correlation after repair': 0.922, 'negative eigenvalue mass before repair, silence excluded': '9.1%', 'negative eigenvalue mass after repair, silence excluded': '13.1%'}
+The before-repair figures describe a matrix that no longer exists and cannot be recomputed. The after-repair figures are a reading of one commit, reproduced by `scripts/geometry.py` rather than by any gate; [distance.md](distance.md) names the commit and states the predicates the correlations are taken against:
+
+```text
+leading-axis/compositeness correlation   before repair  0.977
+leading-axis/vowelhood correlation       after repair   0.917
+negative eigenvalue mass, silence out    before repair  9.1%
+negative eigenvalue mass, silence out    after repair   12.3%
 ```
 
 Negative eigenvalue mass rose after the repair. Phase families remain deliberately tight because typed ties say they share structure, while their distances to phones outside the family depend on which constituents they contain. Near points can therefore have different relations to the rest of the space; negative mass alone does not decide whether the repair succeeded.

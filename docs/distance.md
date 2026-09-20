@@ -313,31 +313,33 @@ d(b͡v, ɡ͡b) + d(ɡ͡b, ɡ)  an order of magnitude closer
 
 This is structural rather than accidental. `ɡ͡b` is a double articulation that shares one constituent with `b͡v` and a *different* one with `ɡ`, so it sits near both, while `b͡v` and `ɡ` are compared as a phased unit against an atom and carry unmatched material. A composite can be close to two things that are far from each other, because closeness is being measured against different parts of it.
 
-The pre-repair geometry was measured at the flat-gap diagnosis. Over the full 139-phone matrix, negative eigenvalues carried **8.7%** of total eigenvalue mass and **94.8%** of triangle violations routed through a composite hub; with silence excluded (138 phones), the leading axis carried **60.3%** of positive variance and correlated **0.977** with compositeness. These are the concrete cost of treating the dissimilarity as Euclidean or metric, rather than only a warning that the inequality can fail. They are checked values, kept together so none can drift independently:
+The pre-repair geometry was measured at the flat-gap diagnosis. Over the full 139-phone matrix, negative eigenvalues carried **8.7%** of total eigenvalue mass and **94.8%** of triangle violations routed through a composite hub; with silence excluded (138 phones), the leading axis carried **60.3%** of positive variance and correlated **0.977** with compositeness. These are the concrete cost of treating the dissimilarity as Euclidean or metric, rather than only a warning that the inequality can fail.
 
-```python
-diagnosed_geometry = {
-    "negative eigenvalue mass (139 phones)": "8.7%",
-    "violations through composite hubs (139 phones)": "94.8%",
-    "leading positive variance (silence excluded)": "60.3%",
-    "leading-axis/compositeness correlation (silence excluded)": 0.977,
-}
-diagnosed_geometry
-# {'negative eigenvalue mass (139 phones)': '8.7%', 'violations through composite hubs (139 phones)': '94.8%', 'leading positive variance (silence excluded)': '60.3%', 'leading-axis/compositeness correlation (silence excluded)': 0.977}
+**These four describe a matrix that no longer exists**, so no instrument can recompute them; they are the record of what the repair was a repair *of*:
+
+```text
+negative eigenvalue mass (139 phones)                      8.7%
+violations through composite hubs (139 phones)             94.8%
+leading positive variance (silence excluded)               60.3%
+leading-axis/compositeness correlation (silence excluded)  0.977
 ```
 
-The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.063`, from `0.977`); it correlates `0.922` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.273` against `0.321` from composites to atomics, no longer a constant, and the leading positive axis carries `43.4%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `13.1%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
+The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.077`, from `0.977`); it correlates `0.917` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.268` against `0.323` from composites to atomics, no longer a constant, and the leading positive axis carries `43.5%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `12.3%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
 
-```python
-repaired_geometry = {
-    "negative eigenvalue mass (silence excluded)": "13.1%",
-    "leading positive variance (silence excluded)": "43.4%",
-    "leading-axis/compositeness correlation (silence excluded)": 0.063,
-    "leading-axis/vowelhood correlation (silence excluded)": 0.922,
-}
-repaired_geometry
-# {'negative eigenvalue mass (silence excluded)': '13.1%', 'leading positive variance (silence excluded)': '43.4%', 'leading-axis/compositeness correlation (silence excluded)': 0.063, 'leading-axis/vowelhood correlation (silence excluded)': 0.922}
+`scripts/geometry.py` prints these. They are a measurement of one commit, not a live invariant, and **nothing in `make check` recomputes them**: the eigendecomposition needs numpy, which is declared in the `compare` extra so the test jobs stay lean, and a gate no CI job can run is not a gate. So the reading below names the commit it was taken at, and the next reader re-takes it rather than trusting it:
+
+```text
+$ pip install -e ".[compare]" && python scripts/geometry.py   # at 2378c91
+phones                                  138
+negative eigenvalue mass                12.3%
+leading positive variance               43.5%
+leading-axis/compositeness correlation  0.077
+leading-axis/vowelhood correlation      0.917
+mean distance within composites         0.268
+mean distance composites to atomics     0.323
 ```
+
+A distance change moves every one of these, so a reading taken at a different commit will differ. The script states the two predicates the correlations are taken against — a phone is composite when its segment reports more than one constituent, and a vowel when its description ends in the word — because a correlation against an unstated predicate cannot be reproduced at all.
 
 ### If you need a metric
 
