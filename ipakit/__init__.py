@@ -1079,6 +1079,8 @@ def describe(phone: str, with_defaults: bool = True) -> str:
         'voiced velarized lateral alveolar approximant'
         >>> ipakit.describe("ã")
         'nasalized open front unrounded vowel'
+        >>> ipakit.describe("a͜ʊ")
+        'open front unrounded vowel > near-close near-back rounded vowel'
     """
     return _get_ipa().describe(phone, with_defaults=with_defaults)
 
@@ -1089,6 +1091,9 @@ def natural_class(
     exclude_features: set[str] | None = None,
 ) -> dict[str, str]:
     """Find features shared by all phones in a set (natural class).
+
+    A sequential phone contributes a feature only when all its phases
+    state the same value.
 
     Examples:
         >>> ipakit.natural_class(["p", "t", "k"])  # shared features (incl. defaults)
@@ -1111,6 +1116,7 @@ def minimal_pairs(
     Returns list of (phone, differing_feature, differing_value) tuples.
     Unlike :func:`nearest_phones`, this function excludes the query because a
     phone differs from itself by no features.
+    Sequential chains are rejected because the result cannot identify a phase.
 
     Examples:
         >>> ipakit.minimal_pairs("p")

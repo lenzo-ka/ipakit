@@ -90,7 +90,9 @@ description and the distance of otherwise identical constituents.
 import ipakit
 
 ipakit.describe("t͡s")  # 'voiceless sibilant alveolar affricate'
-ipakit.describe("t͜s")  # 'voiceless alveolar plosive'
+ipakit.describe("t͜s")  # 'voiceless alveolar plosive > voiceless sibilant alveolar fricative'
+ipakit.describe("a͜ʊ")  # 'open front unrounded vowel > near-close near-back rounded vowel'
+ipakit.natural_class(["a͜ɪ", "a͜ʊ"]).get("backness")  # None
 ipakit.distance("t͡s", "t͜s")  # 0.3333333333333333
 ```
 

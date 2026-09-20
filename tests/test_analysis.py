@@ -1,13 +1,11 @@
 """Tests for analysis functions: describe, natural_class, minimal_pairs, validate_ipa."""
 
 import warnings
-from collections import defaultdict
 
 import ipakit
 import pytest
 from ipakit import IPAFeatures
 from ipakit.analysis import _PRIMARY_SLOTS
-from ipakit.segment import Kind
 
 
 def _reads_back(ipa: IPAFeatures, text: str) -> bool:
@@ -138,30 +136,6 @@ class TestDescribe:
             s for s in vowels if ipa._get_features(s).get("voiced") == default
         ] == []
 
-    def test_no_two_phones_share_a_description(self, ipa: IPAFeatures) -> None:
-        """Distinct registered phones get distinct names.
-
-        The guard for the whole class of bug that l/ɫ and a/ã were in: a
-        feature the metric can see but the description drops leaves two
-        sounds sharing one name. The one standing exception is structural
-        and separately tracked -- describe reads the flat projection,
-        which collapses a diphthong onto its first element, so each
-        registered diphthong still shares its nucleus's description. That
-        is a lost constituent, not a lost feature, so a collision group is
-        allowed only when it is exactly one nucleus and its diphthongs.
-        """
-        groups: dict[str, list[str]] = defaultdict(list)
-        for phone in ipa.phones:
-            groups[ipa.describe(phone)].append(phone)
-        for desc, group in groups.items():
-            if len(group) == 1:
-                continue
-            kinds = [ipa.segment(phone).kind for phone in group]
-            assert kinds.count(Kind.ATOMIC) == 1 and set(kinds) == {
-                Kind.ATOMIC,
-                Kind.DIPHTHONG,
-            }, f"{desc!r} names more than one distinct phone: {group}"
-
     def test_no_slot_goes_unread_because_of_the_segment_class(
         self, ipa: IPAFeatures
     ) -> None:
@@ -216,6 +190,33 @@ class TestDescribe:
         assert "bilabial" in desc
         assert "plosive" in desc
 
+    @pytest.mark.parametrize(
+        ("phone", "sentence"),
+        [
+            (
+                "a͜ɪ",
+                "open front unrounded vowel > near-close near-front unrounded vowel",
+            ),
+            (
+                "a͜ʊ",
+                "open front unrounded vowel > near-close near-back rounded vowel",
+            ),
+            (
+                "t͜s",
+                "voiceless alveolar plosive > voiceless sibilant alveolar fricative",
+            ),
+            (
+                "k͜p",
+                "voiceless velar plosive > voiceless bilabial plosive",
+            ),
+        ],
+    )
+    def test_sequential_trajectory_witness(
+        self, ipa: IPAFeatures, phone: str, sentence: str
+    ) -> None:
+        """Literal oracle for the phases a regenerated sweep must preserve."""
+        assert ipa.describe(phone) == sentence
+
 
 class TestNaturalClass:
     """Tests for natural_class() function."""
@@ -234,6 +235,15 @@ class TestNaturalClass:
         shared = ipa.natural_class(["i", "e", "ɛ"])
         assert shared.get("manner") == "vowel"
         assert shared.get("backness") == "front"
+
+    def test_sequential_members_state_only_phase_invariants(
+        self, ipa: IPAFeatures
+    ) -> None:
+        shared = ipa.natural_class(["a͜ɪ", "a͜ʊ"])
+        assert shared.get("manner") == "vowel"
+        assert "height" not in shared
+        assert "backness" not in shared
+        assert "rounded" not in shared
 
     def test_nasals(self, ipa: IPAFeatures) -> None:
         shared = ipa.natural_class(["m", "n", "ŋ"])
@@ -287,6 +297,18 @@ class TestMinimalPairs:
     def test_minimal_pairs_unknown_phone(self, ipa: IPAFeatures) -> None:
         pairs = ipa.minimal_pairs("X")
         assert pairs == []
+
+    def test_sequential_query_is_refused_plainly(self, ipa: IPAFeatures) -> None:
+        with pytest.raises(ValueError, match="does not handle sequential chains"):
+            ipa.minimal_pairs("a͜ɪ")
+
+    def test_scalar_query_does_not_report_sequential_candidates(
+        self, ipa: IPAFeatures
+    ) -> None:
+        assert all(
+            ipa.segment(candidate).sense != "seq"
+            for candidate, _, _ in ipa.minimal_pairs("a")
+        )
 
     def test_module_function(self) -> None:
         pairs = ipakit.minimal_pairs("p")

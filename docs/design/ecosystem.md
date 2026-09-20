@@ -11,7 +11,7 @@ What do the people using the existing phonetics tools say goes wrong, and what s
 
 **Verdict: the dominant complaint is a silent wrong answer at the string boundary, and the reason it never gets fixed upstream is that there is no "correct IPA" to appeal to.** A character a tool does not recognize gets dropped, and the caller is handed a well-formed result computed over less than they wrote. The instance that recurs most is the two `g`s — three separate projects have been asked to accept `U+0067` where `U+0261` was meant, and each declined on the grounds that it implements the standard strictly. Measured today, **the field's two flagship cross-linguistic catalogs normalize that character in opposite directions**: PHOIBLE to `U+0261`, CLTS to `U+0067`. Strictness is not available as a position. What is available is *saying which one you chose and why*, which is what `data/phonemaps/lookalikes.xml` is.
 
-Two of the complaints land on ipakit as well, and they are the most useful findings here. It cannot read the IPA's own raised-diacritic variants — `U+030A` and `U+030D`, the forms prescribed on glyphs with descenders — so `ŋ̊` loses its voicelessness. *(Since closed — these are now declared as `alias` spellings in the inventory; §5.)* And chasing PHOIBLE's "two segments, one feature vector" complaint into ipakit turned up not the collapse itself, which is deliberate and documented, but **a guard that has stopped guarding**: the exception in `check_descriptions` that excuses a vowel and its diphthongs in fact excuses any two atomic phones, consonants included, and one of its two conjuncts is tautological. Both are reported here with a reproducing case, not fixed; this lane changed no code, data or tests, and `make check` exits 0.
+Two of the complaints land on ipakit as well, and they are the most useful findings here. It cannot read the IPA's own raised-diacritic variants — `U+030A` and `U+030D`, the forms prescribed on glyphs with descenders — so `ŋ̊` loses its voicelessness. *(Since closed — these are now declared as `alias` spellings in the inventory; §5.)* And chasing PHOIBLE's "two segments, one feature vector" complaint into ipakit exposed a second defect: `describe()` silently stated only the first phase of a sequential chain, and `natural_class()` could promote that projection into a false claim about the whole unit. *(Since closed — sequential descriptions now render every phase, phase-disagreeing features are absent from a natural class, and the description-collision exception has been deleted; §6.)*
 
 The articulatory hole is real. Nothing surveyed maps IPA to constriction location and degree. The symbolic toolkits emit distinctive features, which are phonological rather than geometric; the articulatory tools infer measured traces from audio or drive a synthesizer from a gestural score, and none of them takes IPA in.
 
@@ -25,10 +25,10 @@ The articulatory hole is real. Nothing surveyed maps IPA to constriction locatio
 | Is the confusion recognized outside linguistics? | **Yes.** Unicode UTS #39 `confusables.txt` v17.0.0 lists `ɡ→g`, `ː→:`, `ˈ→'`, `ʼ→'`, `ɑ→a`, `ə→ǝ`, `ǃ→!`, `ʔ→?`. |
 | Does ipakit have that problem? | **No, and by an explicit decision.** Strict reads report `unknown_symbol` and name the character; substitution lives behind `from_wild`. |
 | Does ipakit have a *different* Unicode gap? | **It did; now closed.** `U+030A` and `U+030D` were unregistered, so `ŋ̊` tokenized to `ŋ` under one warning; they are now `alias` spellings in the inventory and `ŋ̊` reads `['ŋ̥']`. PHOIBLE ships segments spelled that way. §5. |
-| Do distinct segments collapse to one feature vector? | **Yes, everywhere, and worst where the table is largest.** panphon: 4,769 of 6,367 (74.9%). PHOIBLE: 839 of 2,162 (38.8%). ipakit: 4 of 139, all diphthongs, by design. |
+| Do distinct segments collapse to one feature vector? | **Yes, everywhere, and worst where the table is largest.** panphon: 4,769 of 6,367 (74.9%). PHOIBLE: 839 of 2,162 (38.8%). ipakit's scalar read: 4 of 139, all diphthongs, by design; its structured description and metric distinguish them. |
 | Is enumeration-versus-composition a real published critique? | **Yes.** SCiL 2024: fixed sound sets lack "a dynamic component", and meeting an unlisted sound is "rather the rule than the exception". |
 | What is panphon actually used for? | **69 of 96 engaged papers use it as model input; 30 use it as an error metric.** The metric use was not anticipated by the brief and has stricter stability requirements. |
-| Did chasing that into ipakit find anything? | **Yes, a defect.** `check_descriptions`' vowel exception excuses any two atomic phones, `['p','t']` included; its second conjunct is always true. |
+| Did chasing that into ipakit find anything? | **Yes, a defect, since closed.** Sequential descriptions discarded every phase after the first, making the description collision and a false natural-class claim possible. The describer now walks the phases and `check_descriptions` has no exception. |
 | Is a rewrite trace a voiced need? | **In sound-change appliers, yes. In g2p, no — the incumbent already ships one** (`espeak-ng -X`). This contradicts the brief. |
 | What do g2p users ask for that nobody answers? | **"What is the phone set?"** — 10 issues across three projects, 2019–2025. |
 | What does the conlang world work around by hand? | **The absence of a shipped IPA feature inventory.** Hand-maintained codepoint lists stand in for natural classes. |
@@ -330,45 +330,22 @@ PHOIBLE has no tone features, which is why all 41 of its tone marks share one ve
 
 **Partly, and the honest answer needs two measurements rather than one.**
 
-Over the 139 registered phones, **4 phones fall into 2 groups sharing an identical `get_features()` bundle**: `a͜ɪ`/`a͜ʊ` and `e͜ɪ`/`e͜ə`. Over all pairs of registered phones, **0 pairs are at distance 0.0**. The metric separates everything the inventory registers; the collapse is confined to the flat scalar read, and `describe` reads the same projection — where it is wider, covering **6 groups and 14 phones**:
+Over the 139 registered phones, **4 phones fall into 2 groups sharing an identical `get_features()` bundle**: `a͜ɪ`/`a͜ʊ` and `e͜ɪ`/`e͜ə`. That scalar collapse remains deliberate: rules and feature queries read the documented first-phase projection. Over all pairs of registered phones, **0 pairs are at distance 0.0**, because the metric reads the structure rather than that projection.
 
-```
-['a',  'a͜ɪ', 'a͜ʊ']  'open front unrounded vowel'
-['e',  'e͜ɪ', 'e͜ə']  'close-mid front unrounded vowel'
-['o',  'o͜ʊ']         'close-mid back rounded vowel'
-['ɔ',  'ɔ͜ɪ']         'open-mid back rounded vowel'
-['ɪ',  'ɪ͜ə']         'near-close near-front unrounded vowel'
-['ʊ',  'ʊ͜ə']         'near-close near-back rounded vowel'
-
-feature_values("a͜ɪ") == feature_values("a͜ʊ")  False
-distance("a͜ɪ", "a͜ʊ")  0.0265
-```
-
-Every chained diphthong shares a description with its own nucleus, so `describe("o͜ʊ")` and `describe("o")` are one sentence. **This is deliberate, documented and guarded**, which the first draft of this section got wrong: `scripts/invariants.py:check_descriptions` asserts that no two distinct phones share a description, with a stated exception — "an atomic vowel and the diphthongs built on it, whose flat projection is that vowel by design". The flat read is the nucleus on purpose and warns about the omitted constituent; the tuple read and the metric distinguish the diphthongs, and `make check` holds the line. Not a defect.
-
-**The defect is in the exception, and it is the shape [reviewing.md](../reviewing.md) calls a guard that no longer guards.** The predicate is much wider than the sentence describing it. Reproduced by evaluating it directly:
-
-```
-members        kinds                     exception excuses them?
-['a', 'a͜ɪ']    {'atomic', 'diphthong'}   True     <- intended
-['a͜ɪ', 'ɔ͜ɪ']   {'diphthong'}             True     <- two diphthongs, no shared nucleus
-['a', 'e']     {'atomic'}                True     <- two plain vowels
-['p', 't']     {'atomic'}                True     <- two consonants
-```
-
-The second conjunct is tautological — it compares the member count against the members whose kind is in a set built from those same members, so it is `True` for every input — leaving the test as `kinds <= {"atomic", "diphthong"}`. Since a plain consonant is `atomic`, **two consonants sharing a description would be excused by an exception written for vowels**, and the guard would report success. Nothing in the inventory triggers it today, which is exactly why it reads as protection.
-
-Reproducing case, for whoever picks it up:
+The defect was letting a sentence about a whole unit inherit the scalar projection. `describe()` now walks `Segment.features_at(i)` and joins its phase descriptions with `>`; it does not warn, because it omits nothing. `natural_class()` keeps a feature from a sequential member only when every phase agrees on its value. The values are gated here rather than stated only in prose:
 
 ```python
-from ipakit.features import IPAFeatures
-ipa = IPAFeatures()
-members = ["p", "t"]                                  # neither is a vowel
-kinds = {ipa.segment(m).kind.value for m in members}  # {'atomic'}
-kinds <= {"atomic", "diphthong"}                      # True -- excused
+import ipakit
+
+ipakit.describe("a͜ɪ")  # 'open front unrounded vowel > near-close near-front unrounded vowel'
+ipakit.describe("a͜ʊ")  # 'open front unrounded vowel > near-close near-back rounded vowel'
+ipakit.describe("a͜ɪ") == ipakit.describe("a")  # False
+ipakit.feature_values("a͜ɪ") == ipakit.feature_values("a͜ʊ")  # False
+ipakit.distance("a͜ɪ", "a͜ʊ")  # 0.027297979797979797
+ipakit.natural_class(["a͜ɪ", "a͜ʊ"]).get("backness")  # None
 ```
 
-The fix is the one that document prescribes: state the shape of the mistake rather than today's offenders. The exception wants to say *a group is excused only when exactly one member is atomic and every other member is a diphthong whose nucleus is that member* — which is checkable from the segment structure, and which no group of consonants can satisfy. Reported, not applied; `ipakit/` and `scripts/` are read-only to this lane.
+`scripts/invariants.py:check_descriptions` still asserts that no two distinct registered phones share a sentence, now without an exception. A sequential unit no longer collides with its nucleus, so retaining the old nucleus-and-diphthongs carve-out would make the guard vacuous.
 
 The corpus-scale number needs its qualification in the same breath or it misleads. Over the canonical corpus (8,616 units), **4,648 units share a flat bundle with another unit** — 53.9%, worse than PHOIBLE's 38.8% if the two are set side by side. They should not be. Decomposing:
 
@@ -544,7 +521,7 @@ Seven things, in the order they should be considered. None was applied here.
 
 **(a) Register the raised diacritic variants. — Done.** §5. `U+030A` and `U+030D`, declared in the inventory as `alias` spellings rather than mapped in `lookalikes.xml`. This was the one place the survey found ipakit refusing chart-proper IPA, and a PHOIBLE inventory it could not read; `ŋ̊` now reads `['ŋ̥']`.
 
-**(b) Narrow `check_descriptions`' exception to what its docstring says.** §6. Its second conjunct is tautological and the first admits every atomic phone, so an exception written for a vowel and its diphthongs currently excuses `['p', 't']`. State the shape instead: exactly one atomic member, every other member a diphthong whose nucleus is that member. This is the only outright defect the survey found in ipakit, and it was found by cross-checking a measurement against the suite rather than by reading either.
+**(b) Make sequential descriptions structural and delete `check_descriptions`' exception. — Done.** §6. A sequential unit now renders every phase with `>`, and a natural class drops any feature on which those phases disagree. Diphthongs therefore no longer collide with their nuclei, and the old carve-out has nothing to excuse.
 
 **(c) Describe `from_wild` as choosing a convention, not as being lenient.** §3. PHOIBLE and CLTS normalize `g` in opposite directions and CLTS deletes tie bars outright, so the question a caller actually has is which normalization they are in. A door named for leniency answers the wrong question, and a caller who does not know their corpus is BIPA will get `t͡s` as two segments with no diagnostic — correctly, and disastrously.
 
