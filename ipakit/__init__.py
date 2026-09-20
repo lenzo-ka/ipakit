@@ -1092,8 +1092,13 @@ def natural_class(
 ) -> dict[str, str]:
     """Find features shared by all phones in a set (natural class).
 
-    A sequential phone contributes a feature only when all its phases
-    state the same value.
+    A sequential phone states a feature as its phase sequence, so two
+    trajectories share one when they move the same way through it.
+
+        >>> ipakit.natural_class(["a͜ɪ", "a͜ʊ"])["height"]
+        'open>near-close'
+        >>> "backness" in ipakit.natural_class(["a͜ɪ", "a͜ʊ"])
+        False
 
     Examples:
         >>> ipakit.natural_class(["p", "t", "k"])  # shared features (incl. defaults)

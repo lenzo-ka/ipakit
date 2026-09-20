@@ -136,7 +136,8 @@ Several files in the tree are outputs. Editing one by hand produces a change tha
 The tutorial deserves a note of its own, because it is the page a newcomer is most likely to want to fix. **Every value on it is produced by executing the call beside it**, and the byte-identical comparison *is* the test. So a correction goes in `docs/tutorial.src.md` and then `make tutorial`; a hand-edit to `docs/tutorial.md` will be overwritten and will fail the gate on the way.
 
 Values quoted in the hand-written documents (`CHANGELOG.md`, `CONTRIBUTING.md`,
-`README.md`, and `docs/*.md`) are checked too, by `scripts/docexamples.py`.
+`README.md`, and every `.md` under `docs/`, including `docs/design/`) are
+checked too, by `scripts/docexamples.py`.
 Documentation drifting away from behavior is a recurring failure mode here,
 not a hypothetical one.
 
@@ -190,7 +191,7 @@ Two specific warnings from that document. A guard that lists today's offenders d
 
 ### A documentation change
 
-Prose fixes are welcome and need no measurement — with the exceptions above: `docs/tutorial.md` is generated from `docs/tutorial.src.md`, any value you quote in `README.md` or `docs/*.md` will be executed and compared by `scripts/docexamples.py`, and any sentence you quote from a sibling document will be looked up in it by `scripts/docquotes.py`.
+Prose fixes are welcome and need no measurement — with the exceptions above: `docs/tutorial.md` is generated from `docs/tutorial.src.md`, any value you quote in `README.md` or anywhere under `docs/` will be executed and compared by `scripts/docexamples.py`, and any sentence you quote from a sibling document will be looked up in it by `scripts/docquotes.py`.
 
 `docs/design/*.md` are the exception to all of that. They are **dated assessments**, and closing a defect one of them raised does not mean editing it: put a `**Superseded by …**` line above that finding saying what closed it, and leave the finding's own words alone. [docs/reviewing.md](docs/reviewing.md) says why, and when a statement should be corrected in place instead.
 

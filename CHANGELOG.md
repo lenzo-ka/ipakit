@@ -8,15 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
-- A sequential tie describes as the trajectory it is, naming every phase; `natural_class` drops a feature whose phases disagree, and `minimal_pairs` rejects a sequential query rather than answering about its first phase.
-- Sequence-valued features compare by ordered edit distance over their declared values: ordinal substitutions stay graded, insertions and deletions cost one step, and the total is capped at `1.0`. Tone and its derived contour contribute prosodic terms without sorting away time order; scalar tone costs and the phone-only confusion matrix are unchanged.
-
-```python
-import ipakit
-tone = ipakit.IPAFeatures().features["tone"]
-tone.value_distance("mid>high", "mid>top")  # 0.25
-tone.value_distance("low>top", "top>low>top")  # 1.0
-```
+- A sequential tie describes as the trajectory it is, naming every phase; `natural_class` states a sequential member's feature as its phase sequence, so trajectories share one where they move alike; and `minimal_pairs` rejects a sequential query rather than answering about its first phase.
+- A sequence-valued feature compares as a sequence, so tone and its derived contour price a difference in time order. Scalar tone costs and the phone-only confusion matrix are unchanged.
 - Taps and trills are complete closures with distinct intrinsic timing.
 - Renamed `confusability`/`normalized_distance` to `similarity_position`/`distance_position`; `DistanceModel.confusability`/`.similarity` to `.similarity_position`, `.distance` to `.distance_position`, and `.nearest` to `.nearest_positions` returning `PhonePosition`; and CLI `distance confusability` (`conf`) to `distance positions` (`pos`) with matching output labels.
 

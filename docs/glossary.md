@@ -92,8 +92,15 @@ import ipakit
 ipakit.describe("t͡s")  # 'voiceless sibilant alveolar affricate'
 ipakit.describe("t͜s")  # 'voiceless alveolar plosive > voiceless sibilant alveolar fricative'
 ipakit.describe("a͜ʊ")  # 'open front unrounded vowel > near-close near-back rounded vowel'
+ipakit.natural_class(["a͜ɪ", "a͜ʊ"]).get("height")  # 'open>near-close'
 ipakit.natural_class(["a͜ɪ", "a͜ʊ"]).get("backness")  # None
 ipakit.distance("t͡s", "t͜s")  # 0.3333333333333333
 ```
+
+A sequential unit states a feature as its phase sequence, so a set of them
+shares a feature where they move the same way through it. Both diphthongs
+above open and then close, so they share that height; one fronts and the
+other backs, so they share no backness. The nucleus alone states `open`,
+which is a different claim from `open>near-close` and not shared with either.
 
 [ties.md](ties.md) describes the typed ties used for affricates and diphthongs.

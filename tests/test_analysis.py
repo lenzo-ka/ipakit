@@ -236,14 +236,33 @@ class TestNaturalClass:
         assert shared.get("manner") == "vowel"
         assert shared.get("backness") == "front"
 
-    def test_sequential_members_state_only_phase_invariants(
+    def test_sequential_members_share_a_trajectory_or_nothing(
         self, ipa: IPAFeatures
     ) -> None:
+        # Both diphthongs open and then close, so the height they share is
+        # that move, not either endpoint. They part on backness, one
+        # fronting and one backing, so the set states no backness at all.
         shared = ipa.natural_class(["a͜ɪ", "a͜ʊ"])
         assert shared.get("manner") == "vowel"
-        assert "height" not in shared
+        assert shared.get("height") == "open>near-close"
         assert "backness" not in shared
         assert "rounded" not in shared
+
+    def test_a_trajectory_and_its_own_starting_point_share_no_height(
+        self, ipa: IPAFeatures
+    ) -> None:
+        # The nucleus states one height; the diphthong states a move. That
+        # the move begins there does not make them the same claim, and the
+        # first-phase read is exactly the collapse this must not perform.
+        shared = ipa.natural_class(["a", "a͜ɪ"])
+        assert "height" not in shared
+        assert ipa.natural_class(["a"])["height"] == "open"
+
+    def test_two_trajectories_moving_alike_share_that_move(
+        self, ipa: IPAFeatures
+    ) -> None:
+        shared = ipa.natural_class(["e͜ɪ", "a͜ɪ"])
+        assert shared.get("backness") == "front>near-front"
 
     def test_nasals(self, ipa: IPAFeatures) -> None:
         shared = ipa.natural_class(["m", "n", "ŋ"])

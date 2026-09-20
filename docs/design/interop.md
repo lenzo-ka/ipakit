@@ -141,7 +141,7 @@ resegmentations (CLTS one sound, ipakit more than one):
 
 Every example shares a shape, and it is not a model difference:
 
-```python
+```python no-run
 >>> ipakit.add_ties("dɮ")     # 'd͡ɮ'
 >>> ipakit.add_ties("d̪ɮ")    # 'd̪ɮ'   -- unchanged, silently
 >>> ipakit.add_ties("ea")     # 'e͜a'
@@ -150,7 +150,7 @@ Every example shares a shape, and it is not a model difference:
 
 A diacritic on the first element blocks the tie, and `add_ties` returns its input with no warning and nothing in its docstring saying it can decline. The same function fails the other way on a whole word:
 
-```python
+```python no-run
 >>> ipakit.add_ties("tʃˈeɪndʒ")   # 't͡ʃˈe͜ɪ͡n͡d͡ʒ'
 ```
 
@@ -184,7 +184,7 @@ Here CLTS resolves — lowered `e` *is* mid — and ipakit records the base plus
 
 **(c) The ejective click — 33 assertions, and it is an ipakit defect.** CLTS says `ǂʼ` is `click` and `ejective`; ipakit's `airstream` is single-valued and answers `velaric`. That much looked like a declared model choice pressed on by outside data. It is worse than that, and the PanPhon measurement found the same 40 segments independently:
 
-```python
+```python no-run
 >>> ipakit.features("ǂʼ") == ipakit.features("ǂ")   # True
 >>> ipakit.distance("ǂʼ", "ǂ")                      # 0.0
 ```
@@ -197,7 +197,7 @@ The ejective mark is not held in second place, it is **discarded**. `airstream` 
 
 **(e) Composition order — 61 assertions, and it is an ipakit defect.** `l̥ˠʱ` is breathy to CLTS and devoiced to ipakit; `ɛ̥̤` is devoiced to CLTS and breathy to ipakit. The cause is that ipakit's answer depends on the order the marks are written in:
 
-```python
+```python no-run
 >>> ipakit.load_ipa_features().compose_segments("ɛ̥̤")[0][1]["phonation"]  # 'breathy'
 >>> ipakit.load_ipa_features().compose_segments("ɛ̤̥")[0][1]["phonation"]  # 'devoiced'
 ```
@@ -359,7 +359,7 @@ every one of the 39 base phones round-trips individually
 
 That is a usable number, and the per-symbol table is perfect. The 31 failures are one mechanism in three classes, and it is a defect: **ipakit contains two tokenizers that disagree with each other.**
 
-```python
+```python no-run
 >>> ipakit.from_cmu(["N", "AO1", "IH0", "NG"])
 'nˈɔɪŋ'
 >>> len(ipakit.segments("nˈɔɪŋ", strict=True))   # 4 -- correct
@@ -371,7 +371,7 @@ That is a usable number, and the per-symbol table is perfect. The 31 failures ar
 
 And there is a second, sharper one in the same function, which inverts the safety ordering:
 
-```python
+```python no-run
 >>> ipakit.to_cmu("ˈe͡ɪt", strict=True)   # U+0361 -- what phonemizer(tie=True) emits
 ValueError: Cannot convert to CMU ARPABET: unknown symbols ['e', '͡']
 >>> ipakit.to_cmu("ˈe͜ɪt", strict=True)   # U+035C
@@ -396,7 +396,7 @@ Worth recording plainly, because it is checkable and someone should decide about
 
 `espeak -x` emits something that looks like X-SAMPA and is not:
 
-```python
+```python no-run
 >>> ipakit.features_from_xsampa("tS'eIndZ")   # via xsampa; espeak -x output
 't͡ʃʲeɪndʒ'
 ```
@@ -420,7 +420,7 @@ Zero broken ties across all 158 modes, and 117 of them are completely clean. A r
 
 **So the recipe would be one line, and one line of it would be wrong.** The confident short version says "if a string fails, run `from_wild`". Four languages write the ejective or the glottal with a quote character, and `lookalikes.xml` declares `'` as primary stress:
 
-```python
+```python no-run
 >>> ipakit.from_wild("t͡s'unt͡s'u")   # Hausa tsuntsu, 'bird'
 't͡sˈunt͡sˈu'                          # two ejectives -> two stress marks, no error
 ```
@@ -532,7 +532,7 @@ Eight of the 22 live features agree on all 6,215 segments; `hitone` and `hireg` 
 
 **"Never consume" is right, and for a stronger reason than the brief gives.** Not merely that PanPhon is coarse:
 
-```python
+```python no-run
 >>> panphon.FeatureTable().word_to_vector_list("bɚd", numeric=True)
 [<b>, <d>]        # two vectors. the vowel is gone. no exception.
 >>> panphon.FeatureTable().validate_word("bɚd")
@@ -603,7 +603,7 @@ Each of these that later work has closed carries a superseded line saying what c
 
 **Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed ([#95](https://github.com/lenzo-ka/ipakit/issues/95)). A mark reaching no unit is reported: `segments("ʷk", strict=True)` raises, naming the unplaced mark, and the lenient read warns. Superseded again by [#131](https://github.com/lenzo-ka/ipakit/issues/131): the four marks an outside source actually writes before a base are read there rather than refused, so `segments("ⁿd", strict=True)` is one unit spelling `ⁿd`, with `approach="nasal"`.**
 
-```python
+```python no-run
 >>> ipakit.segments("ⁿd", strict=True)     # one Segment, to_ipa() == 'd'
 >>> ipakit.features("ⁿd")                  # {}
 >>> ipakit.distance("ⁿd", "d")             # 0.0
@@ -631,7 +631,7 @@ Whether ipakit should *model* a pre-modifier is a separate and larger question �
 
 **Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed ([#98](https://github.com/lenzo-ka/ipakit/issues/98)). It now ties across an intervening diacritic and ties the junction the chain asks for: `add_ties("d̪ɮ")` is `d̪͡ɮ` and `add_ties("d̠ʒxʼ")` is `d̠͡ʒ͡xʼ`. This is the fix §1's counts predate.**
 
-```python
+```python no-run
 >>> ipakit.add_ties("dɮ")     # 'd͡ɮ'
 >>> ipakit.add_ties("d̪ɮ")    # 'd̪ɮ'  -- unchanged
 >>> ipakit.add_ties("e̞a")    # 'e̞a'  -- unchanged
@@ -655,7 +655,7 @@ U+030A COMBINING RING ABOVE is the ring the IPA prints for symbols with a descen
 
 **Superseded by [#118](https://github.com/lenzo-ka/ipakit/pull/118), and closed. An airstream mark states the segment's airstream rather than being discarded against a base that already declares one, so `features("ǂʼ")` and `features("ǂ")` differ and `distance("ǂʼ", "ǂ")` is `0.05`.**
 
-```python
+```python no-run
 >>> ipakit.features("ǂʼ") == ipakit.features("ǂ")   # True
 >>> ipakit.distance("ǂʼ", "ǂ")                      # 0.0
 >>> ipakit.features("kʼ", with_defaults=False)["airstream"]   # 'ejective'
@@ -667,7 +667,7 @@ Found twice independently, from CLTS (33 segments) and from PanPhon (40). The me
 
 **Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed ([#99](https://github.com/lenzo-ka/ipakit/issues/99)). `to_phone(features("u͡i"))` no longer answers with a phone that is no constituent of the input.**
 
-```python
+```python no-run
 >>> ipakit.to_phone(ipakit.features("u͡i"))    # 'y'
 >>> ipakit.to_phone(ipakit.features("a͡ɪ"))    # 'ɪ'
 ```
@@ -678,7 +678,7 @@ This one needs care, because the neighboring case is documented and correct. `to
 
 **Superseded by [#129](https://github.com/lenzo-ka/ipakit/pull/129), and closed ([#97](https://github.com/lenzo-ka/ipakit/issues/97)). `to_cmu` reads the segments the tokenizer read rather than matching the table's own keys, so it answers `['N', 'AO1', 'IH0', 'NG']` here and the two agree.**
 
-```python
+```python no-run
 >>> ipakit.from_cmu(["N", "AO1", "IH0", "NG"])
 'nˈɔɪŋ'
 >>> len(ipakit.segments("nˈɔɪŋ", strict=True))   # 4
@@ -703,7 +703,7 @@ Opposite directions for affricates and diphthongs, and the rejected diphthong sp
 
 ### (i) Three symbols are dropped where the docstring promises they cannot be
 
-```python
+```python no-run
 >>> ipakit.segments("‖", strict=True)                          # []
 >>> ipakit.to_ipa(ipakit.segments("ˈhɛ.loʊ", strict=True))     # 'ˈhɛloʊ'
 >>> ipakit.from_kirshenbaum("g'Ud T'IN")                       # 'ɡˈʊdθˈɪŋ'
