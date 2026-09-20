@@ -28,7 +28,7 @@ import warnings
 import pytest
 from ipakit import IPAFeatures
 from ipakit.constants import METADATA_ATTRS
-from ipakit.segment import modifier_mode
+from ipakit.segment import modifier_mode, redundant_statement
 
 #: Modes whose marks describe something other than the segment's own
 #: value for a key -- a phase of it, a constriction added beside the
@@ -202,17 +202,23 @@ class TestTheReportedCases:
             assert len(ipa.segments("a‿b")) == 2
 
 
-class TestNoMarkIsOverruledByItsBase:
-    """The other half of the same silence: a mark that parses, is placed,
-    and then states nothing the unit reads back.
+class TestNoNonredundantMarkIsOverruledByItsBase:
+    """The other half of the same silence: a nonredundant mark that parses,
+    is placed, and then states nothing the unit reads back.
 
     ``ǂʼ`` spelled itself, parsed to one unit and carried the mark -- and
     read as ``ǂ`` anyway, because ``airstream`` sat in the additive
     default and the click declares its own. Nothing was dropped and the
     answer was still wrong by exactly one feature.
+
+    A redundant statement is deliberately different: ``m̃`` keeps the
+    tilde in its spelling while the bundle keeps the base's ``nasalized``
+    value, because ``manner=nasal`` already supplies that bridge.  The
+    production helper decides that exception so this sweep cannot grow a
+    second phonetic rule.
     """
 
-    def test_every_mark_that_states_the_segments_own_value_lands(
+    def test_every_nonredundant_mark_that_states_the_segments_own_value_lands(
         self, ipa: IPAFeatures
     ) -> None:
         overruled: list[tuple[str, str, str, str]] = []
@@ -220,6 +226,7 @@ class TestNoMarkIsOverruledByItsBase:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for phone in ipa.phones:
+                base = ipa.segment(phone).scalar(with_defaults=False)
                 for mark, declared in ipa.diacritics.items():
                     if modifier_mode(ipa, mark) in _NOT_THE_SEGMENTS_OWN:
                         continue
@@ -242,7 +249,9 @@ class TestNoMarkIsOverruledByItsBase:
                     for key, value in declared.features.items():
                         if key in METADATA_ATTRS:
                             continue
-                        if read.get(key) != value:
+                        if read.get(key) != value and not redundant_statement(
+                            ipa, base, key, value
+                        ):
                             overruled.append((unit, key, value, read.get(key, "")))
         assert checked > 2000, "sweep did not run"
         assert overruled == [], (

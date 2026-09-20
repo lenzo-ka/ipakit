@@ -29,7 +29,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from .constants import METADATA_ATTRS
-from .segment import Constituent, Segment, Sense
+from .segment import Constituent, Segment, Sense, bridge_supplied, expanded_place
 from .tract import constrictions, tract_point
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -141,18 +141,15 @@ def _metric_bundle(
     excluded = excluded_keys(features)
     feats = {k: v for k, v in bundle.items() if k not in excluded}
 
-    place_feature = features.features.get("place")
-
-    def expand(value: str) -> tuple[str, ...]:
-        return place_feature.expand(value) if place_feature is not None else (value,)
-
     components: list[tuple[str, float]] = []
     place = bundle.get("place")
     if place is not None:
-        components.extend((comp, 1.0) for comp in expand(place))
+        components.extend((comp, 1.0) for comp in expanded_place(features, place))
     for key, secondary in features.secondary_places.items():
         if bundle.get(key) == "+":
-            components.extend((comp, SECONDARY_WEIGHT) for comp in expand(secondary))
+            components.extend(
+                (comp, SECONDARY_WEIGHT) for comp in expanded_place(features, secondary)
+            )
 
     # Bridge features (metric-only): the same phonetic dimension spelled
     # as manner, property, or release compares as one derived binary. The
@@ -173,7 +170,7 @@ def _metric_bundle(
     if resolved is not None:
         feats["articulator"] = resolved
     for bridge, spellings in features.bridges.items():
-        feats[bridge] = "+" if any(bundle.get(f) == v for f, v in spellings) else "-"
+        feats[bridge] = "+" if bridge_supplied(bundle, spellings) else "-"
     return feats, tuple(components)
 
 

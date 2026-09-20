@@ -54,6 +54,7 @@ from .segment import (
     modifier_mode,
     part_bundle,
     phase_keys,
+    redundant_statement,
     takes_defaults,
 )
 from .validation import ValidationMixin
@@ -1219,9 +1220,14 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         key: self.diacritics[mark].features[key]
                         for key in phase_keys(self, mark, approach)
                     }
-                    # No change plus an already-held claim is redundancy.
+                    # No change plus a claim the reduced bundle already
+                    # supplies is semantic redundancy.  Use the modifier
+                    # fold's bridge/place read so a nasal ``ŋ̃`` and a
+                    # repeated literal ``ã̃`` cannot be classified
+                    # differently here.
                     if claims and any(
-                        full.get(key) != value for key, value in claims.items()
+                        not redundant_statement(self, reduced, key, value)
+                        for key, value in claims.items()
                     ):
                         dropped.append(mark)
         return dropped
