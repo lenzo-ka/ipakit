@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
+- A sequential tie describes as the trajectory it is, naming every phase; `natural_class` drops a feature whose phases disagree, and `minimal_pairs` rejects a sequential query rather than answering about its first phase.
 - Sequence-valued features compare by ordered edit distance over their declared values: ordinal substitutions stay graded, insertions and deletions cost one step, and the total is capped at `1.0`. Tone and its derived contour contribute prosodic terms without sorting away time order; scalar tone costs and the phone-only confusion matrix are unchanged.
 
 ```python

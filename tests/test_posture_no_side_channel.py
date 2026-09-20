@@ -10,11 +10,13 @@ reach the glyph through the picture.
 
 This file gates the *post-integration* result. It asserts three things:
 
-1. **Behavior is preserved.** For every registered phone (and the reference),
-   ``render(drawing(head, phone))`` still equals the byte-for-byte golden
-   captured from the pre-refactor code in ``tests/fixtures/posture_golden.json``
-   (see ``tests/fixtures/_capture_posture_golden.py``). This runs *now*, on the
-   current code, and stays green only if the refactor is byte-identical.
+1. **The posture rendering is preserved.** For every registered phone (and the
+   reference), ``render(drawing(head, phone))`` still equals the byte-for-byte
+   golden captured from the pre-refactor code in
+   ``tests/fixtures/posture_golden.json`` (see
+   ``tests/fixtures/_capture_posture_golden.py``), apart from the separately
+   guarded human-readable description caption. This runs *now*, on the current
+   code, and stays green only if the refactor is otherwise byte-identical.
 
 2. **No symbol side-channel, structurally.** ``build_geometry`` takes a
    ``Posture`` (plus head and landmarks) and has no ``phone``/``bundle``/symbol
@@ -36,6 +38,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -84,6 +87,18 @@ HEAD_NAME = head().name
 
 GOLDEN_KEYS = sorted(GOLDEN)
 
+# The golden guards the posture rendering, not the human-readable sentence
+# drawn above it. Description changes are independently visible through the
+# caption contract and must not force a geometry artifact to move.
+CAPTION = re.compile(
+    r'(<text x="734" y="64" class="lbl caption" text-anchor="end">).*?(</text>)'
+)
+
+
+def _without_caption(svg: str) -> str:
+    """Replace the description text while preserving every surrounding byte."""
+    return CAPTION.sub(r"\1<description>\2", svg, count=1)
+
 
 @pytest.fixture(scope="module")
 def ipa() -> IPAFeatures:
@@ -95,14 +110,21 @@ def ipa() -> IPAFeatures:
 # --------------------------------------------------------------------------
 @pytest.mark.parametrize("key", GOLDEN_KEYS)
 def test_render_matches_golden(key: str) -> None:
-    """Every phone (and the reference) redraws to its captured bytes.
+    """Every phone (and the reference) redraws its captured posture.
 
     This is the drift gate for the refactor: ``drawing`` stays the one entry
-    every caller reaches a picture through, so if the split changes a single
-    byte of any drawing, this fails.
+    every caller reaches a picture through, so if the split changes a byte
+    outside the separately guarded description caption, this fails.
     """
     phone = _phone_for(key)
-    assert render(drawing(HEAD_NAME, phone)) == GOLDEN[key]
+    assert _without_caption(render(drawing(HEAD_NAME, phone))) == _without_caption(
+        GOLDEN[key]
+    )
+
+
+def test_sequential_caption_uses_the_structured_description() -> None:
+    rendered = render(drawing(HEAD_NAME, "a͜ʊ"))
+    assert "open front unrounded vowel > near-close near-back rounded vowel" in rendered
 
 
 # --------------------------------------------------------------------------

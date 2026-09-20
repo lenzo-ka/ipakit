@@ -9,8 +9,10 @@ from ._base import IPAFeaturesBase
 from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS
 from .form import units
+from .models import Feature
 from .segment import (
     ModifierHostError,
+    Sense,
     approach_run,
     check_modifier_hosts,
     modifier_mode,
@@ -82,6 +84,8 @@ class AnalysisMixin(IPAFeaturesBase):
             'voiceless open front unrounded vowel'
             >>> ipakit.describe("a̪")
             'dental open front unrounded vowel'
+            >>> ipakit.describe("a͜ʊ")
+            'open front unrounded vowel > near-close near-back rounded vowel'
             >>> ipakit.describe("∅")
             'zero: a position with no segment'
         """
@@ -101,6 +105,19 @@ class AnalysisMixin(IPAFeaturesBase):
         if not feats:
             return f"unknown phone: {phone}"
 
+        segment = cast(Any, self).segment(phone)
+        if segment.sense is Sense.SEQ:
+            return f" {Feature.SEQUENCER} ".join(
+                self._describe_features(
+                    segment.features_at(index, with_defaults=with_defaults)
+                )
+                for index in range(len(segment.children))
+            )
+
+        return self._describe_features(feats)
+
+    def _describe_features(self, feats: dict[str, str]) -> str:
+        """Render one scalar phase as a conventional description."""
         manner = feats.get("manner", "")
         if manner == "silence":
             return "silence"
@@ -261,7 +278,9 @@ class AnalysisMixin(IPAFeaturesBase):
     ) -> dict[str, str]:
         """Find features shared by all phones in a set (natural class).
 
-        Returns the intersection of features that all phones share.
+        Returns the intersection of features that all phones share. A
+        sequential phone contributes a feature only when all its phases
+        state the same value.
 
         Examples:
             >>> ipakit.natural_class(["p", "t", "k"])  # shared features (incl. defaults)
@@ -279,8 +298,13 @@ class AnalysisMixin(IPAFeaturesBase):
 
         exclude = exclude_features or set(METADATA_ATTRS)
 
-        # Get features for all phones
-        all_feats = [self._get_features(p, with_defaults=with_defaults) for p in phones]
+        # A sequential unit contributes only the claims true of every one
+        # of its phases. Its scalar projection is deliberately the first
+        # phase, but a set operation over the unit may not turn that
+        # projection into a claim about the whole trajectory.
+        all_feats = [
+            self._natural_class_features(p, with_defaults=with_defaults) for p in phones
+        ]
 
         # A member that does not resolve cannot be dropped: the shared
         # features of the rest are not the shared features of the set,
@@ -304,6 +328,28 @@ class AnalysisMixin(IPAFeaturesBase):
 
         return shared
 
+    def _natural_class_features(
+        self, phone: str, *, with_defaults: bool
+    ) -> dict[str, str]:
+        """Features one unit states throughout its trajectory."""
+        feats = self._get_features(phone, with_defaults=with_defaults)
+        if not feats:
+            return {}
+        segment = cast(Any, self).segment(phone)
+        if segment.sense is not Sense.SEQ:
+            return feats
+
+        phases = [
+            segment.features_at(index, with_defaults=with_defaults)
+            for index in range(len(segment.children))
+        ]
+        first = phases[0]
+        return {
+            feature: value
+            for feature, value in first.items()
+            if all(phase.get(feature) == value for phase in phases[1:])
+        }
+
     def minimal_pairs(
         self,
         phone: str,
@@ -317,6 +363,10 @@ class AnalysisMixin(IPAFeaturesBase):
         Unlike :meth:`nearest_phones`, this method excludes the query because
         a phone differs from itself by no features.
 
+        Sequential chains are rejected because this result shape cannot name
+        which aligned phase differs. They are likewise excluded as candidates
+        for scalar queries.
+
         Examples:
             >>> ipakit.minimal_pairs("p")
             [('t', 'place', 'alveolar'), ('ɸ', 'manner', 'fricative'), ...]
@@ -329,10 +379,18 @@ class AnalysisMixin(IPAFeaturesBase):
         ref_feats = self._get_features(phone, with_defaults=with_defaults)
         if not ref_feats:
             return []
+        if cast(Any, self).segment(phone).sense is Sense.SEQ:
+            raise ValueError(
+                "minimal_pairs() does not handle sequential chains: "
+                "a phase-aware difference cannot be represented by its "
+                "single-feature result"
+            )
 
         results = []
         for candidate in self.phones:
             if candidate == phone:
+                continue
+            if cast(Any, self).segment(candidate).sense is Sense.SEQ:
                 continue
 
             cand_feats = self._get_features(candidate, with_defaults=with_defaults)
