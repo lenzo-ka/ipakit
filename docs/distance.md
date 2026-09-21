@@ -330,6 +330,7 @@ The same instrument over the repaired matrix reads differently, and the differen
 
 ```text
 $ pip install -e ".[compare]" && python scripts/geometry.py   # at 2378c91
+confusion.json SHA-256                   8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e
 phones                                  138
 negative eigenvalue mass                12.3%
 leading positive variance               43.5%
@@ -337,6 +338,18 @@ leading-axis/compositeness correlation  0.077
 leading-axis/vowelhood correlation      0.917
 mean distance within composites         0.268
 mean distance composites to atomics     0.323
+```
+
+A separate, stdlib-only fingerprint makes staleness gateable without claiming
+to check the figures themselves. If the matrix changes, the documentation gate
+fails here and says that the numpy-dependent figures above need to be re-taken:
+
+```python
+from hashlib import sha256
+from pathlib import Path
+
+sha256(Path("ipakit/data/confusion.json").read_bytes()).hexdigest()
+# '8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e'
 ```
 
 A distance change moves every one of these, so a reading taken at a different commit will differ. The script states the two predicates the correlations are taken against — a phone is composite when its segment reports more than one constituent, and a vowel when its description ends in the word — because a correlation against an unstated predicate cannot be reproduced at all.

@@ -26,6 +26,7 @@ constituent, and a VOWEL when its description ends in the word.
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -74,6 +75,9 @@ def measure() -> dict[str, object]:
     across = distances[np.ix_(mask, ~mask)]
 
     return {
+        "confusion.json SHA-256": hashlib.sha256(
+            (ipakit.DATA_DIR / "confusion.json").read_bytes()
+        ).hexdigest(),
         "phones": size,
         "negative eigenvalue mass": _pct(
             abs(values[values < 0].sum()) / np.abs(values).sum()
