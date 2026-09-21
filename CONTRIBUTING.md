@@ -141,6 +141,19 @@ checked too, by `scripts/docexamples.py`.
 Documentation drifting away from behavior is a recurring failure mode here,
 not a hypothetical one.
 
+**So a sentence that states a comparison rule quotes a value the rule determines, in a `python` fence.** The checker reads fences; it cannot read prose. A rule written as prose alone is unchecked for as long as it survives, and that is not hypothetical either: `docs/similarity.md` described a normalizer that had been replaced for breaking the triangle inequality, and shipped that way because the sentence quoted nothing. Three documents stated the same rule; the two that were caught each quoted a value, and the one that was not did not.
+
+The rule and the value go together, so neither can drift alone:
+
+```python no-run
+# A sequence-valued feature's edit cost is capped at one rather than
+# divided by the longer sequence, which would give each pair of forms
+# its own scale.
+round(ipa.distance("a˧˥", "a˧˥˧"), 6)   # 0.083333
+```
+
+Two things this does not claim. It does not make an arbitrary prose sentence checkable — "every", "only", "never" and "cannot" quantify over a space, and no value settles those. And a fence is only gated if it parses and is not tagged `no-run`: confirm with `python3 scripts/docexamples.py` that the file's checked count *rises*, then falsify one value and confirm the checker reports it wrong. A fence that does not fail when falsified is decoration.
+
 Sentences quoted from one document in another are checked by `scripts/docquotes.py`, over every `.md` in the tree. It binds a quotation to the nearest document named before it in the same sentence, so put quotation marks around what the sibling says and nothing else: if you are giving the gist, drop the marks and the check leaves you alone. A quotation from a book, a handout or a URL is not something it can read, and it says how many of those it left alone rather than pretending to have checked them.
 
 ## What you might be contributing
