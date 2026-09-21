@@ -250,8 +250,62 @@ def takes_defaults(features: IPAFeatures, feats: Mapping[str, str]) -> bool:
     return feats.get("manner") is not None and not _is_non_speech(features, dict(feats))
 
 
+def expanded_place(features: IPAFeatures, value: str) -> tuple[str, ...]:
+    """Declared components of one place value.
+
+    Combining places carry their decomposition in the place vocabulary;
+    readers use that declaration rather than knowing which labels happen to
+    contain more than one constriction.
+    """
+    place_feature = features.features.get("place")
+    return place_feature.expand(value) if place_feature is not None else (value,)
+
+
+def bridge_supplied(
+    bundle: Mapping[str, str], spellings: Iterable[tuple[str, str]]
+) -> bool:
+    """Whether a bundle satisfies one declared phonetic bridge."""
+    return any(bundle.get(feature) == value for feature, value in spellings)
+
+
+def place_supplied(
+    features: IPAFeatures, bundle: Mapping[str, str], target: str
+) -> bool:
+    """Whether the base place already contains every target component."""
+    place = bundle.get("place")
+    if place is None:
+        return False
+    return set(expanded_place(features, target)) <= set(expanded_place(features, place))
+
+
+def redundant_statement(
+    features: IPAFeatures, bundle: Mapping[str, str], key: str, value: str
+) -> bool:
+    """Whether a mark's declaration adds no phonetic component to a base.
+
+    The equivalences come from the inventory's bridges, and secondary
+    articulation targets come from the feature's declared place.  A bridge
+    has no value on non-speech, matching the metric's treatment of an
+    off-scale manner, so a mark cannot add that dimension to silence.
+    """
+    if bundle.get(key) == value:
+        return True
+    spelling = (key, value)
+    components: list[bool] = []
+    for spellings in features.bridges.values():
+        if spelling not in spellings:
+            continue
+        components.append(
+            _is_non_speech(features, dict(bundle)) or bridge_supplied(bundle, spellings)
+        )
+    target = features.secondary_places.get(key)
+    if value == "+" and target is not None:
+        components.append(place_supplied(features, bundle, target))
+    return bool(components) and all(components)
+
+
 def state_mark_value(
-    features: IPAFeaturesBase,
+    features: IPAFeatures,
     feats: dict[str, str],
     stated: dict[str, str],
     key: str,
@@ -285,6 +339,15 @@ def state_mark_value(
     devoiced assigns a phonation off an order that means nothing, and
     ``compose_unit`` will not spell either.
 
+    A first statement that the assembled base already supplies is retained
+    in ``stated`` (so a later contradictory mark is still reported) but does
+    not replace or add a bundle value.  The test is
+    :func:`redundant_statement`: bridges make nasality, protrusion and
+    laterality one dimension across their declared spellings, while a
+    secondary feature's declared target is compared with the expanded base
+    place.  The spelling remains on the constituent; only its feature read is
+    absorbed.
+
     ``stated`` is what the marks of *this* stack have said so far, kept
     apart from ``feats`` because the base's own value is not a competing
     mark: a mark overriding what the phone declares is the ordinary case,
@@ -294,6 +357,8 @@ def state_mark_value(
     feature = features.features.get(key)
     if key not in stated:
         stated[key] = value
+        if redundant_statement(features, feats, key, value):
+            return
         if overriding or key not in feats:
             feats[key] = value
         return

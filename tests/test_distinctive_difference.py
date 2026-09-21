@@ -3,28 +3,21 @@
 The principle is that a feature which distinguishes nothing is not
 distinctive, so a pair whose bundles differ while their distance is zero
 attacks the feature system itself. Stated bare, that is false here, and
-measurably: 91 registered pairs differ in a bundle and score zero.
+measurably: 47 registered pairs differ in a bundle and score zero.
 
-Every one of them is a mark asserting what the base already carries --
-``ɡˠ`` is a velar wearing a velar secondary, ``d̺`` states the articulator
-``d`` already implies, ``m̃`` nasalizes a nasal. Those are not
-counterexamples to the principle. They are cases where the *difference*
-is not distinctive, and the principle was always about distinctive ones.
-
-Respellings are operators, which is why the code is right as it stands.
-``compose_unit`` is faithful to what it is asked -- ``compose_unit("ɡ",
-velarized="+")`` is ``ɡˠ`` -- and returns its input where the base already
-carries the value. The vacuity is a fact about the resulting segment's
-phonetics, not about the operation, so the narrowing belongs in the
-principle rather than in the operator.
+Secondary-place and bridge restatements are absorbed by the feature read, so
+``ɡˠ`` and ``m̃`` no longer need exceptions here.  The spelling remains on
+the structured segment.  The remaining free bundle differences are marks
+which make an imputed articulator explicit: ``d̺`` states the tongue-tip
+articulator that ``d`` already gets from its place.
 
 What this gate says, then: no registered pair differs in a NON-VACUOUS
 feature while scoring zero. That still catches the regression the
 principle exists to catch -- a real contrast collapsing to zero -- while
-not reporting the 91 as defects every time somebody measures.
+not reporting the 47 as defects every time somebody measures.
 
-Vacuity is derived from declared data, never enumerated, so a supplement
-declaring a combination nobody anticipated is covered by the same rule.
+That remaining exemption is derived from the absence of an explicit
+articulator, not a list of phones.
 """
 
 from __future__ import annotations
@@ -34,35 +27,9 @@ import pytest
 from ipakit.features import IPAFeatures
 
 
-def _vacuous(features: IPAFeatures, base: dict[str, str], key: str, value: str) -> bool:
-    """Whether a mark stating ``key=value`` tells this base something new.
-
-    Three shapes, each read from the declaration:
-
-    * A SECONDARY whose declared place the base already constricts at.
-      ``ipa.xml`` gives each secondary a ``place`` and
-      :attr:`IPAFeatures.secondary_places` reads it back, so ``ɡˠ`` is a
-      velar asked to be velar. Combined places expand first, so a
-      secondary targeting ``bilabial^palatal`` is vacuous only where the
-      base makes both.
-    * An ARTICULATOR the base leaves imputed. ``d`` states no
-      articulator and ``d̺`` states ``tongue-tip``; the sound is the same
-      one, described in more words.
-    * NASALIZATION where the base is already nasal, or is silence and so
-      has no airflow to route.
-    """
-    if key == "articulator":
-        return base.get("articulator") is None
-    if key == "nasalized" and value == "+":
-        return base.get("manner") in {"nasal", "silence"}
-    if value != "+":
-        return False
-    target = features.secondary_places.get(key)
-    place = base.get("place")
-    place_feature = features.features.get("place")
-    if target is None or place is None or place_feature is None:
-        return False
-    return set(place_feature.expand(target)) <= set(place_feature.expand(place))
+def _imputed_articulator(base: dict[str, str], key: str) -> bool:
+    """Whether a mark only states the articulator the base leaves imputed."""
+    return key == "articulator" and base.get("articulator") is None
 
 
 @pytest.fixture(scope="module")
@@ -108,15 +75,15 @@ def test_a_distinctive_difference_is_never_free(ipa: IPAFeatures) -> None:
         for key in right:
             if left.get(key) == right.get(key):
                 continue
-            if _vacuous(ipa, left, key, str(right.get(key))):
+            if _imputed_articulator(left, key):
                 continue
             offenders.append((base, spelled, key))
     assert compared > 500, f"the sweep compared only {compared} pairs"
     assert offenders == [], offenders
 
 
-def test_the_vacuous_cases_are_still_there_and_still_vacuous(ipa: IPAFeatures) -> None:
-    """The exemption describes real pairs, not a hypothetical class.
+def test_only_imputed_articulator_restatements_remain_free(ipa: IPAFeatures) -> None:
+    """The narrower exemption describes real pairs, not a hypothetical class.
 
     If this drops to zero the exemption has stopped applying to anything
     and should be deleted rather than left standing -- an exemption for a
@@ -127,9 +94,9 @@ def test_the_vacuous_cases_are_still_there_and_still_vacuous(ipa: IPAFeatures) -
         for base, spelled, left, right in _registered_pairs(ipa)
         if ipakit.distance(base, spelled) == 0.0
         for key in right
-        if left.get(key) != right.get(key)
-        and _vacuous(ipa, left, key, str(right.get(key)))
+        if left.get(key) != right.get(key) and _imputed_articulator(left, key)
     ]
-    assert len(exempted) > 50, f"only {len(exempted)} vacuous pairs found"
+    assert len(exempted) > 20, f"only {len(exempted)} imputed pairs found"
     spellings = {spelled for _, spelled, _ in exempted}
-    assert {"ɡˠ", "cʲ", "d̺", "m̃"} <= spellings, sorted(spellings)[:12]
+    assert "d̺" in spellings
+    assert not {"ɡˠ", "cʲ", "m̃"} & spellings
