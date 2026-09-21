@@ -19,7 +19,7 @@ from pathlib import Path
 import ipakit
 import ipakit.cli
 import pytest
-from ipakit.cli.policy import LOSSY, input_reports
+from ipakit.cli.policy import DEGRADED, LOSSY, input_reports
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -1372,6 +1372,44 @@ class TestInputThatWasNotReadInFullReachesTheExitStatus:
         )
         assert len(lines) == 2
 
+    def test_an_unusable_reference_has_its_own_status(
+        self, monkeypatch, capsys, tmp_path
+    ):
+        phoneset = tmp_path / "two.phones"
+        phoneset.write_text("p\nb\n", encoding="utf-8")
+
+        rc, out, err = run(
+            monkeypatch,
+            capsys,
+            "distance",
+            "transcription",
+            "--phoneset",
+            str(phoneset),
+            "kæt",
+            "kæd",
+        )
+
+        assert rc == DEGRADED == 4
+        assert out == "kæt ~ kæd: similarity=0.8333  [reference: two, 2 phones]\n"
+        assert "reference inventory 'two'" in err
+        assert "answer is degraded because the reference is unusable" in err
+        assert "input was not read in full" not in err
+        assert "--lax" not in err
+
+        rc, _, err = run(
+            monkeypatch,
+            capsys,
+            "--lax",
+            "distance",
+            "transcription",
+            "--phoneset",
+            str(phoneset),
+            "kæt",
+            "kæd",
+        )
+        assert rc == DEGRADED, "--lax accepts input loss, not a bad reference"
+        assert "--lax" not in err
+
     def test_the_sweep_covers_more_than_the_group_it_was_reported_against(self):
         """The policy is the whole CLI, so the evidence has to be too."""
         groups = {argv[0] for argv in LOSSY_INVOCATIONS}
@@ -1968,6 +2006,14 @@ class TestTheLossyReadGuardIsWrittenAsAPredicate:
 
     def test_a_category_that_is_not_a_user_warning_does_not(self):
         assert input_reports([self._entry(ipakit.__file__, DeprecationWarning)]) == []
+
+    def test_a_declared_non_input_warning_does_not(self):
+        assert (
+            input_reports(
+                [self._entry(ipakit.__file__, ipakit.UnusableReferenceWarning)]
+            )
+            == []
+        )
 
     def test_distinct_messages_are_all_kept(self):
         inside = ipakit.__file__

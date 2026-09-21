@@ -18,11 +18,11 @@ to a plain name is read back and compared the same way.
 
 What counts as a quoted value is deliberately conservative -- a comment
 that does not parse as a Python literal is prose, and prose is not
-checked. Every fence lands in exactly one of four tallies -- checked,
-wrong, deliberately skipped, or ran-but-quotes-nothing -- and all four
-are printed, because a fence that falls through them all is coverage the
-count claims and does not have. The checked total is asserted against a
-floor as well, so this cannot go quietly vacuous.
+checked. Every checkable value in a runnable Python fence is either checked
+or reported wrong; none is silently dropped. Deliberately skipped fences
+and values that ran but quote nothing comparable are tallied and printed.
+The checked total is asserted against a floor as well, so this cannot go
+quietly vacuous.
 """
 
 from __future__ import annotations
