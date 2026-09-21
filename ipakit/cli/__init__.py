@@ -140,6 +140,7 @@ Exit status (uniform across every subcommand):
   2  the command line was not understood
   3  ran, but part of the input could not be read and was dropped;
      what was dropped is named on stderr. --lax reports 0 instead.
+  4  ran, but the answer is degraded because its reference is unusable
 """,
     )
 

@@ -61,25 +61,44 @@ import warnings
 from collections.abc import Iterable
 from pathlib import Path
 
+from ..distance_model import UnusableReferenceWarning
+
 #: Exit status for a run that produced output from input it could not read
 #: in full. Distinct from 0 (clean), 1 (the command failed) and argparse's
 #: 2 (the command line was not understood).
 LOSSY = 3
 
-#: Warnings raised from inside this directory are reports about the input.
+#: Exit status for a run whose answer is degraded because its reference
+#: inventory cannot provide usable percentile positions. ``--lax`` does not
+#: suppress this status: that flag accepts input loss, and no input was lost.
+DEGRADED = 4
+
+#: Unclassified user warnings raised from inside this directory report input.
 _PACKAGE = Path(__file__).resolve().parent.parent
+
+
+def _fold(caught: Iterable[warnings.WarningMessage]) -> list[str]:
+    """Fold repeated warning messages while preserving their first order."""
+    counts: dict[str, int] = {}
+    for entry in caught:
+        text = str(entry.message)
+        counts[text] = counts.get(text, 0) + 1
+    return [
+        text if count == 1 else f"{text} [{count} times]"
+        for text, count in counts.items()
+    ]
 
 
 def input_reports(caught: Iterable[warnings.WarningMessage]) -> list[str]:
     """The messages saying part of the input did not survive the read.
 
     The test is the *shape* of the report rather than a list of today's
-    messages: a ``UserWarning`` raised from inside ipakit is the library
-    telling its caller that something it was handed could not be carried.
-    All four such sites are that -- an unregistered symbol, an unbound
-    tie, a stress mark that reached no unit, a phoneset member outside
-    the distance matrix -- and a fifth would be caught without this
-    function being touched.
+    messages: except for explicitly typed non-input warnings, a
+    ``UserWarning`` raised from inside ipakit is the library telling its
+    caller that something it was handed could not be carried. All four such
+    sites are that -- an unregistered symbol, an unbound tie, a stress mark
+    that reached no unit, a phoneset member outside the distance matrix --
+    and a fifth would be caught without this function being touched.
 
     Anything raised from outside the package says nothing about the
     input and must not move the exit status: a ``DeprecationWarning``
@@ -90,9 +109,11 @@ def input_reports(caught: Iterable[warnings.WarningMessage]) -> list[str]:
     them; the count is kept, since "this happened 900 times" is the
     part a reader acts on.
     """
-    counts: dict[str, int] = {}
+    reports = []
     for entry in caught:
         if not issubclass(entry.category, UserWarning):
+            continue
+        if issubclass(entry.category, UnusableReferenceWarning):
             continue
         try:
             inside = Path(entry.filename).resolve().is_relative_to(_PACKAGE)
@@ -100,29 +121,50 @@ def input_reports(caught: Iterable[warnings.WarningMessage]) -> list[str]:
             inside = False
         if not inside:
             continue
-        text = str(entry.message)
-        counts[text] = counts.get(text, 0) + 1
-    return [
-        text if count == 1 else f"{text} [{count} times]"
-        for text, count in counts.items()
-    ]
+        reports.append(entry)
+    return _fold(reports)
+
+
+def degraded_reports(caught: Iterable[warnings.WarningMessage]) -> list[str]:
+    """Messages saying an answer's reference cannot support usable positions."""
+    return _fold(
+        entry
+        for entry in caught
+        if issubclass(entry.category, UnusableReferenceWarning)
+    )
 
 
 def report(caught: Iterable[warnings.WarningMessage], status: int, lax: bool) -> int:
-    """Print what the read lost, and give the run its exit status.
+    """Print policy warnings and give the run its most specific status.
 
     A status the command already set is left alone: a command that failed
     has said something more specific than "the input was lossy", and
     :data:`LOSSY` must not overwrite it.
+
+    Input loss takes precedence when both conditions occur, because status 3
+    must continue to mean that something was dropped. ``--lax`` suppresses
+    only that promotion; it never suppresses :data:`DEGRADED`, which describes
+    the answer's unusable reference rather than an accepted lossy read.
     """
-    messages = input_reports(caught)
-    for message in messages:
+    caught = list(caught)
+    input_messages = input_reports(caught)
+    degraded_messages = degraded_reports(caught)
+    for message in [*input_messages, *degraded_messages]:
         print(f"ipakit: warning: {message}", file=sys.stderr)
-    if not messages or status != 0 or lax:
+    if status != 0:
         return status
-    print(
-        f"ipakit: input was not read in full; exiting {LOSSY}. "
-        "Rerun as 'ipakit --lax ...' to accept the lossy read and exit 0.",
-        file=sys.stderr,
-    )
-    return LOSSY
+    if input_messages and not lax:
+        print(
+            f"ipakit: input was not read in full; exiting {LOSSY}. "
+            "Rerun as 'ipakit --lax ...' to accept the lossy read and exit 0.",
+            file=sys.stderr,
+        )
+        return LOSSY
+    if degraded_messages:
+        print(
+            f"ipakit: answer is degraded because the reference is unusable; "
+            f"exiting {DEGRADED}.",
+            file=sys.stderr,
+        )
+        return DEGRADED
+    return status

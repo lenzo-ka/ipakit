@@ -71,7 +71,7 @@ from .distance import (
     SequenceMatch,
     TranscriptionDistanceResult,
 )
-from .distance_model import DistanceModel
+from .distance_model import DistanceModel, UnusableReferenceWarning
 from .experiment import Experiment as Experiment
 from .experiment import ExperimentReport as ExperimentReport
 from .experiment import Movement as Movement
@@ -1769,6 +1769,7 @@ __all__ = [
     "CMUMapper",
     "Correspondence",
     "DistanceModel",
+    "UnusableReferenceWarning",
     "Feature",
     "FormBuilder",
     "IPAFeatures",

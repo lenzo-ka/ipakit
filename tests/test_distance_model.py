@@ -11,6 +11,7 @@ from ipakit.constants import DATA_DIR, DEFAULT_CONFUSION
 from ipakit.distance import _substitution_cost, price
 from ipakit.distance_model import (
     DistanceModel,
+    UnusableReferenceWarning,
     _global_matrix,
     _load_matrix_json,
     _load_matrix_tsv,
@@ -195,7 +196,7 @@ class TestPercentile:
 
 class TestReferenceSizeWarning:
     def test_a_reference_with_no_pairs_warns_and_keeps_the_declared_scale(self, ipa):
-        with pytest.warns(UserWarning) as caught:
+        with pytest.warns(UnusableReferenceWarning) as caught:
             model = DistanceModel(ipa, "one-phone", ["p"], [[0.0]], "distance")
         assert str(caught[0].message) == (
             "reference inventory 'one-phone' has 0 distinct-phone pairs in its "

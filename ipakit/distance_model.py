@@ -61,6 +61,10 @@ _MIN_USABLE_REFERENCE_PAIRS = 3
 MATRIX_VERSION = "1.0"
 
 
+class UnusableReferenceWarning(UserWarning):
+    """A reference inventory cannot provide usable percentile positions."""
+
+
 def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str, str | None]:
     """Shipped/derived model: phones + upper triangle -> full symmetric matrix.
 
@@ -281,6 +285,7 @@ class DistanceModel:
                 f"{_MIN_USABLE_REFERENCE_PAIRS} are required for usable "
                 "percentile positions, so positions from this reference are "
                 "not usable.",
+                UnusableReferenceWarning,
                 stacklevel=3,
             )
 
