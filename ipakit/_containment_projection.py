@@ -10,13 +10,12 @@ keyed by content signature, so equal inputs reuse a single built projection.
 
 from __future__ import annotations
 
-import json
 import threading
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .form import Unit
@@ -33,6 +32,7 @@ from ._graph_facts import (
     ResolvedReference,
     _escape,
     _pointer_parts,
+    _thaw,
 )
 
 _NAMESPACE = "https://ipakit.dev/tiergraph/containment-projection/v1"
@@ -57,7 +57,7 @@ _projection_cache_hits = 0
 _projection_cache_misses = 0
 _projection_cache_evictions = 0
 
-_PAYLOAD_DECLARATIONS = (
+_PAYLOAD_DECLARATIONS: tuple[tuple[str, tg.XsdType | tg.JsonType], ...] = (
     ("text", tg.XsdType.STRING),
     ("spelling", tg.XsdType.STRING),
     ("prominence", tg.XsdType.STRING),
@@ -73,11 +73,11 @@ _PAYLOAD_DECLARATIONS = (
     ("span-start", tg.XsdType.STRING),
     ("span-end", tg.XsdType.STRING),
     ("structural-duration", tg.XsdType.INTEGER),
-    ("segment-json", tg.XsdType.STRING),
+    ("segment-json", tg.JsonType.JSON),
     ("symbol", tg.XsdType.STRING),
-    ("features-json", tg.XsdType.STRING),
-    ("prosody-json", tg.XsdType.STRING),
-    ("provenance-json", tg.XsdType.STRING),
+    ("features-json", tg.JsonType.JSON),
+    ("prosody-json", tg.JsonType.JSON),
+    ("provenance-json", tg.JsonType.JSON),
     ("kind", tg.XsdType.STRING),
     ("arc", tg.XsdType.DOUBLE),
     ("offset", tg.XsdType.DOUBLE),
@@ -91,22 +91,17 @@ def _name(local_name: str) -> tg.QualifiedName:
     return tg.QualifiedName(_NAMESPACE, local_name)
 
 
-def _json(value: object) -> str:
-    """Encode an ordered primitive payload without reordering mappings."""
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-
-
 def _declared_values(
     source: ContainmentProjectionInput,
-) -> tuple[tuple[str, tg.QualifiedName, tg.Graph, tg.ItemRef], ...]:
-    """Construct opted-in values with the native recursive JSON profile.
+) -> tuple[tuple[str, tg.QualifiedName, Any], ...]:
+    """Construct opted-in values as native JSON attributes.
 
     The default declaration keeps the house IPA codec. An explicit qualified
     value identity opts into lossless JSON values, including null and containers;
     native construction rejects opaque objects and nonfinite numbers.
     """
     values = []
-    for feature_index, declaration in enumerate(source.declarations.features):
+    for declaration in source.declarations.features:
         if declaration.value_name is None:
             continue
         name = tg.QualifiedName(*declaration.value_name)
@@ -114,19 +109,17 @@ def _declared_values(
             raise GraphValidationError(
                 "native feature identity uses reserved namespace"
             )
-        for event_index, ref in enumerate(source.refs):
+        for ref in source.refs:
             features = source.events[ref].features
             if declaration.name not in features:
                 continue
             tier = source.declarations.tier(source.event_tiers[ref])
             if tier is None or declaration.name not in tier.features:
                 raise GraphValidationError("native value is not admitted on event tier")
-            namespace = f"{_NAMESPACE}/declared-values/v1/{feature_index}/{event_index}"
+            value = _thaw(features[declaration.name])
             # The native constructor is the runtime validator for opaque facts.
-            graph, _, root = tg.json_value_graph(
-                cast(Any, features[declaration.name]), namespace
-            )
-            values.append((ref, name, graph, root))
+            tg.JsonAttributeValue(name, value)
+            values.append((ref, name, value))
     return tuple(values)
 
 
@@ -135,7 +128,7 @@ def _attach_declared_values(
     source: ContainmentProjectionInput,
     event_refs: Mapping[str, tg.ItemRef],
 ) -> tg.Graph:
-    """Compose native value graphs and qualified event-to-value relations."""
+    """Attach qualified declared values directly to their event items."""
     values = _declared_values(source)
     features = tuple(
         f for f in source.declarations.features if f.value_name is not None
@@ -143,10 +136,7 @@ def _attach_declared_values(
     if not features:
         return graph
     namespaces = list(graph.namespaces)
-    tiers = list(graph.tiers)
-    declarations = list(graph.relation_declarations)
     attributes = list(graph.attribute_declarations)
-    relations = list(graph.polyadic_relations)
     for feature in features:
         assert feature.value_name is not None
         name = tg.QualifiedName(*feature.value_name)
@@ -160,73 +150,37 @@ def _attach_declared_values(
                     f"ipakit-feature-{len(namespaces)}", name.namespace
                 )
             )
-        declarations.append(
-            tg.PolyadicRelationDeclaration(
-                name,
-                tg.RelationSideDeclaration(
-                    (tg.RelationEndpointKind.ITEM,),
-                    tuple(
-                        (
-                            tg.QualifiedName(*tier.native_name)
-                            if tier.native_name is not None
-                            else _name(f"tier-{index}")
-                        )
-                        for index, tier in enumerate(source.declarations.tiers)
-                        if feature.name in tier.features
-                    ),
-                    1,
-                    1,
-                ),
-                tg.RelationSideDeclaration(
-                    (tg.RelationEndpointKind.ITEM,),
-                    None,
-                    1,
-                    1,
-                ),
-                unique_sources=True,
-                single_parent=True,
-            )
+        attributes.append(
+            tg.AttributeDeclaration(name, tg.AttributeDomain.ITEM, tg.JsonType.JSON)
         )
-    for ref, name, value_graph, root in values:
-        namespaces.extend(
-            tg.NamespaceDeclaration(f"ipakit-value-{len(namespaces)}-{i}", ns.namespace)
-            for i, ns in enumerate(value_graph.namespaces)
-        )
-        tiers.extend(value_graph.tiers)
-        declarations.extend(value_graph.relation_declarations)
-        attributes.extend(value_graph.attribute_declarations)
-        relations.extend(value_graph.polyadic_relations)
-        relations.append(tg.PolyadicRelationInstance(name, (event_refs[ref],), (root,)))
-    return replace(
+    graph = replace(
         graph,
         namespaces=tuple(namespaces),
-        tiers=tuple(tiers),
-        relation_declarations=tuple(declarations),
         attribute_declarations=tuple(attributes),
-        polyadic_relations=tuple(relations),
     )
+    editor = graph.edit()
+    for ref, name, value in values:
+        editor.set_attribute(event_refs[ref], tg.JsonAttributeValue(name, value))
+    return editor.freeze()
 
 
 def declared_value(graph: tg.Graph, event: tg.ItemRef, name: tg.QualifiedName) -> Any:
     """Read one opted-in value after native restoration; absence is not null."""
-    matches = [
-        relation
-        for relation in graph.polyadic_relations
-        if relation.declaration == name and relation.sources == (event,)
+    resolved = graph.resolve_item(event)
+    item = next(t for t in graph.tiers if t.declaration.name == resolved.tier).items[
+        resolved.index
     ]
-    if len(matches) != 1 or len(matches[0].targets) != 1:
+    matches = [attribute for attribute in item.attributes if attribute.name == name]
+    if len(matches) != 1:
         raise GraphValidationError("expected exactly one declared feature value")
-    root = matches[0].targets[0]
-    if not isinstance(root, tg.ItemRef):
-        raise GraphValidationError("declared feature value must target an item")
-    # Derive conventional roles from the native constructor, not another schema.
-    _, template, _ = tg.json_value_graph(None, root.tier.namespace)
-    return replace(template, graph=graph).value(root)
+    if not isinstance(matches[0], tg.JsonAttributeValue):
+        raise GraphValidationError("declared feature value must be JSON")
+    return matches[0].to_value()
 
 
 def _profile_payloads(
     source: ContainmentProjectionInput,
-) -> dict[str, tuple[tuple[str, tg.XsdType, str], ...]]:
+) -> dict[str, tuple[tuple[str, tg.XsdType | tg.JsonType, Any], ...]]:
     """Dispatch foreign declared values away from unqualified IPA semantics.
 
     Both cache identity and graph construction consume this same projection.
@@ -247,8 +201,10 @@ def _profile_payloads(
     return payloads
 
 
-def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
-    """Lower one unit event to scalar tiergraph item attributes."""
+def _event_payload(
+    event: Event,
+) -> tuple[tuple[str, tg.XsdType | tg.JsonType, Any], ...]:
+    """Lower one unit event to typed tiergraph item attributes."""
     unit = event.features.get("unit")
     interval = event.features.get("interval-index")
     if unit is not None:
@@ -258,7 +214,7 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
             raise GraphValidationError("house unit must be a Unit")
         if type(event.features.get("unit-index")) is not int:
             raise GraphValidationError("house unit-index must be an integer")
-        values: list[tuple[str, tg.XsdType, str]] = [
+        values: list[tuple[str, tg.XsdType | tg.JsonType, Any]] = [
             ("text", tg.XsdType.STRING, unit.text),
         ]
         if unit.spelling is not None:
@@ -281,21 +237,21 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
             values.append(
                 (
                     "segment-json",
-                    tg.XsdType.STRING,
-                    _json(
-                        {
-                            "constituents": [
-                                {
-                                    "base": constituent.base,
-                                    "modifiers": list(constituent.modifiers),
-                                    "approach": list(constituent.approach),
-                                }
-                                for constituent in unit.segment.constituents
-                            ],
-                            "junctures": list(unit.segment.junctures),
-                            "prosody": list(unit.segment.prosody),
-                        }
-                    ),
+                    tg.JsonType.JSON,
+                    {
+                        "constituents": [
+                            {
+                                "base": constituent.base,
+                                "modifiers": list(constituent.modifiers),
+                                "approach": list(constituent.approach),
+                            }
+                            for constituent in unit.segment.constituents
+                        ],
+                        "junctures": [
+                            juncture.value for juncture in unit.segment.junctures
+                        ],
+                        "prosody": list(unit.segment.prosody),
+                    },
                 )
             )
             namespace = unit.__dict__
@@ -308,18 +264,18 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
                     (
                         (
                             "features-json",
-                            tg.XsdType.STRING,
-                            _json(dict(unit.features)),
+                            tg.JsonType.JSON,
+                            dict(unit.features),
                         ),
                         (
                             "prosody-json",
-                            tg.XsdType.STRING,
-                            _json(dict(unit.prosody)),
+                            tg.JsonType.JSON,
+                            dict(unit.prosody),
                         ),
                         (
                             "provenance-json",
-                            tg.XsdType.STRING,
-                            _json(unit.provenance),
+                            tg.JsonType.JSON,
+                            [list(value) for value in unit.provenance],
                         ),
                     )
                 )
@@ -327,12 +283,12 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
             values.extend(
                 (
                     ("symbol", tg.XsdType.STRING, unit.text),
-                    ("features-json", tg.XsdType.STRING, _json(dict(unit.features))),
-                    ("prosody-json", tg.XsdType.STRING, _json(dict(unit.prosody))),
+                    ("features-json", tg.JsonType.JSON, dict(unit.features)),
+                    ("prosody-json", tg.JsonType.JSON, dict(unit.prosody)),
                     (
                         "provenance-json",
-                        tg.XsdType.STRING,
-                        _json(unit.provenance),
+                        tg.JsonType.JSON,
+                        [list(value) for value in unit.provenance],
                     ),
                 )
             )
@@ -378,7 +334,7 @@ def _event_payload(event: Event) -> tuple[tuple[str, tg.XsdType, str], ...]:
     return tuple(values)
 
 
-def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
+def _unit_from_attributes(attributes: dict[str, Any], inventory: Any) -> Any:
     """Raise one Unit from its lowered attribute payload."""
     from .form import Timing, Unit
     from .segment import Constituent, Segment, Sense
@@ -392,7 +348,7 @@ def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
         else None
     )
     if "segment-json" in attributes:
-        encoded = json.loads(attributes["segment-json"])
+        encoded = attributes["segment-json"]
         segment = Segment(
             tuple(
                 Constituent(
@@ -408,10 +364,10 @@ def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
         )
         views = (
             {
-                "features": json.loads(attributes["features-json"]),
-                "prosody": json.loads(attributes["prosody-json"]),
+                "features": attributes["features-json"],
+                "prosody": attributes["prosody-json"],
                 "provenance": tuple(
-                    tuple(value) for value in json.loads(attributes["provenance-json"])
+                    tuple(value) for value in attributes["provenance-json"]
                 ),
             }
             if "features-json" in attributes
@@ -427,11 +383,9 @@ def _unit_from_attributes(attributes: dict[str, str], inventory: Any) -> Any:
         )
     return Unit(
         attributes["symbol"],
-        features=json.loads(attributes["features-json"]),
-        prosody=json.loads(attributes["prosody-json"]),
-        provenance=tuple(
-            tuple(value) for value in json.loads(attributes["provenance-json"])
-        ),
+        features=attributes["features-json"],
+        prosody=attributes["prosody-json"],
+        provenance=tuple(tuple(value) for value in attributes["provenance-json"]),
         timing=timing,
         spelling=attributes.get("spelling"),
     )
@@ -608,7 +562,21 @@ def _projection_signature(
     payloads = _profile_payloads(source)
     return (
         source.refs,
-        tuple((ref, source.event_tiers[ref], payloads[ref]) for ref in source.refs),
+        tuple(
+            (
+                ref,
+                source.event_tiers[ref],
+                tuple(
+                    (
+                        tg.JsonAttributeValue(_name(name), value)
+                        if isinstance(value_type, tg.JsonType)
+                        else tg.AttributeValue(_name(name), value_type, value)
+                    )
+                    for name, value_type, value in payloads[ref]
+                ),
+            )
+            for ref in source.refs
+        ),
         tuple(sorted(source.event_tiers.items())),
         source.declarations,
         source.relations,
@@ -617,8 +585,8 @@ def _projection_signature(
         source.roots,
         preserved_relation_names,
         tuple(
-            (ref, name, tg.dump_bytes(graph))
-            for ref, name, graph, _ in _declared_values(source)
+            (ref, tg.JsonAttributeValue(name, value))
+            for ref, name, value in _declared_values(source)
         ),
     )
 
@@ -763,8 +731,12 @@ class ContainmentProjection:
                     tg.Item(
                         durable_id=ref,
                         attributes=tuple(
-                            tg.AttributeValue(_name(name), value_type, lexical)
-                            for name, value_type, lexical in payloads[ref]
+                            (
+                                tg.JsonAttributeValue(_name(name), value)
+                                if isinstance(value_type, tg.JsonType)
+                                else tg.AttributeValue(_name(name), value_type, value)
+                            )
+                            for name, value_type, value in payloads[ref]
                         ),
                     )
                     for ref in by_tier[tier]

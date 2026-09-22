@@ -25,7 +25,7 @@
       {
         "domain": "item",
         "name": "ipakit-containment:features-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "boundary",
@@ -70,17 +70,17 @@
       {
         "domain": "item",
         "name": "ipakit-containment:prosody-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "item",
         "name": "ipakit-containment:provenance-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "item",
         "name": "ipakit-containment:segment-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "item",
@@ -141,12 +141,91 @@
         "domain": "item",
         "name": "ipakit-containment:unit-index",
         "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "form:construction-id",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-application-order-integer",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-derivation-step-integer",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-mora-kind-string",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-phantom-boolean",
+        "value_type": "boolean"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-rule-string",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-source-site-order-integer",
+        "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-spelling-string",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-trace-string",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-value-segment-json",
+        "value_type": "json"
+      },
+      {
+        "domain": "item",
+        "name": "form:fact-value-string",
+        "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form:profile",
+        "value_type": "json"
+      },
+      {
+        "domain": "relation_declaration",
+        "name": "form:relation-role",
+        "value_type": "string"
+      },
+      {
+        "domain": "relation_instance",
+        "name": "form:source-order",
+        "value_type": "integer"
+      },
+      {
+        "domain": "tier",
+        "name": "form:tier-role",
+        "value_type": "string"
       }
     ],
     "namespaces": [
       {
         "namespace": "https://ipakit.dev/tiergraph/containment-projection/v1",
         "prefix": "ipakit-containment"
+      },
+      {
+        "namespace": "urn:ipakit:form",
+        "prefix": "form"
       }
     ],
     "position_values": [
@@ -298,6 +377,13 @@
     "relation_declarations": [
       {
         "acyclic": false,
+        "attributes": [
+          {
+            "lexical": "alternatives",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": true,
         "kind": "polyadic",
         "name": "ipakit-containment:alternatives",
@@ -322,6 +408,13 @@
       },
       {
         "acyclic": true,
+        "attributes": [
+          {
+            "lexical": "contains",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:contains-0",
@@ -346,6 +439,13 @@
       },
       {
         "acyclic": false,
+        "attributes": [
+          {
+            "lexical": "inserts",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:inserts",
@@ -466,6 +566,13 @@
       },
       {
         "acyclic": false,
+        "attributes": [
+          {
+            "lexical": "associates-with",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:relation-1",
@@ -502,6 +609,13 @@
       },
       {
         "acyclic": false,
+        "attributes": [
+          {
+            "lexical": "realized-by",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:relation-2",
@@ -526,6 +640,13 @@
       },
       {
         "acyclic": true,
+        "attributes": [
+          {
+            "lexical": "derived-from",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:relation-3",
@@ -550,6 +671,13 @@
       },
       {
         "acyclic": false,
+        "attributes": [
+          {
+            "lexical": "rewrites-to",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:relation-7",
@@ -599,6 +727,13 @@
       },
       {
         "acyclic": false,
+        "attributes": [
+          {
+            "lexical": "selects",
+            "name": "form:relation-role",
+            "value_type": "string"
+          }
+        ],
         "distinct_targets": false,
         "kind": "polyadic",
         "name": "ipakit-containment:selects",
@@ -623,10 +758,62 @@
           "ipakit-containment:alternatives"
         ],
         "unique_sources": true
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": true,
+        "kind": "polyadic",
+        "name": "form:source-events",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1,
+          "tiers": [
+            "form:metadata"
+          ]
+        },
+        "targets": {
+          "allow_empty": true,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 0,
+          "tiers": [
+            "ipakit-containment:tier-0",
+            "ipakit-containment:tier-1",
+            "ipakit-containment:tier-10",
+            "ipakit-containment:tier-11",
+            "ipakit-containment:tier-12",
+            "ipakit-containment:tier-13",
+            "ipakit-containment:tier-14",
+            "ipakit-containment:tier-15",
+            "ipakit-containment:tier-2",
+            "ipakit-containment:tier-3",
+            "ipakit-containment:tier-4",
+            "ipakit-containment:tier-5",
+            "ipakit-containment:tier-6",
+            "ipakit-containment:tier-7",
+            "ipakit-containment:tier-8",
+            "ipakit-containment:tier-9"
+          ]
+        },
+        "unique_sources": true
       }
     ],
     "relations": [
       {
+        "attributes": [
+          {
+            "lexical": "2",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:contains-0",
         "sources": [
           {
@@ -646,6 +833,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "9",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:contains-0",
         "sources": [
           {
@@ -661,6 +855,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "10",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:contains-0",
         "sources": [
           {
@@ -680,6 +881,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -695,6 +903,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -710,6 +925,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "3",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -725,6 +947,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "4",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -740,6 +969,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "5",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -755,6 +991,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "6",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -770,6 +1013,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "7",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -785,6 +1035,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "8",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -800,6 +1057,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "11",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:relation-7",
         "sources": [
           {
@@ -815,6 +1079,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "12",
+            "name": "form:source-order",
+            "value_type": "integer"
+          }
+        ],
         "declaration": "ipakit-containment:inserts",
         "sources": [
           {
@@ -834,10 +1105,92 @@
       },
       {
         "declaration": "ipakit-containment:roots"
+      },
+      {
+        "declaration": "form:source-events",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "form:metadata"
+          }
+        ],
+        "targets": [
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-0"
+          },
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-1"
+          },
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 0,
+            "tier": "ipakit-containment:tier-7"
+          },
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-0"
+          },
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-1"
+          },
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 3,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-0"
+          },
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-1"
+          },
+          {
+            "index": 4,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 5,
+            "tier": "ipakit-containment:tier-2"
+          },
+          {
+            "index": 1,
+            "tier": "ipakit-containment:tier-7"
+          },
+          {
+            "index": 2,
+            "tier": "ipakit-containment:tier-7"
+          },
+          {
+            "index": 6,
+            "tier": "ipakit-containment:tier-2"
+          }
+        ]
       }
     ],
     "tiers": [
       {
+        "attributes": [
+          {
+            "lexical": "broad",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "broad",
           "name": "ipakit-containment:tier-0"
@@ -851,9 +1204,19 @@
                 "value_type": "boolean"
               },
               {
-                "lexical": "{\"constituents\":[{\"base\":\"h\",\"modifiers\":[],\"approach\":[]}],\"junctures\":[],\"prosody\":[]}",
                 "name": "ipakit-containment:segment-json",
-                "value_type": "string"
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "h",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": []
+                },
+                "value_type": "json"
               },
               {
                 "lexical": "1",
@@ -869,6 +1232,16 @@
                 "lexical": "0",
                 "name": "ipakit-containment:unit-index",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-0",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "h",
+                "name": "form:fact-spelling-string",
+                "value_type": "string"
               }
             ],
             "durable_id": "/clock/0/broad/0"
@@ -881,9 +1254,19 @@
                 "value_type": "boolean"
               },
               {
-                "lexical": "{\"constituents\":[{\"base\":\"ɑ\",\"modifiers\":[],\"approach\":[]}],\"junctures\":[],\"prosody\":[]}",
                 "name": "ipakit-containment:segment-json",
-                "value_type": "string"
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "ɑ",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": []
+                },
+                "value_type": "json"
               },
               {
                 "lexical": "1",
@@ -899,6 +1282,16 @@
                 "lexical": "1",
                 "name": "ipakit-containment:unit-index",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-1",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "ɑ",
+                "name": "form:fact-spelling-string",
+                "value_type": "string"
               }
             ],
             "durable_id": "/clock/1/broad/0"
@@ -911,9 +1304,19 @@
                 "value_type": "boolean"
               },
               {
-                "lexical": "{\"constituents\":[{\"base\":\"t\",\"modifiers\":[],\"approach\":[]}],\"junctures\":[],\"prosody\":[]}",
                 "name": "ipakit-containment:segment-json",
-                "value_type": "string"
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "t",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": []
+                },
+                "value_type": "json"
               },
               {
                 "lexical": "1",
@@ -929,6 +1332,16 @@
                 "lexical": "2",
                 "name": "ipakit-containment:unit-index",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-2",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "t",
+                "name": "form:fact-spelling-string",
+                "value_type": "string"
               }
             ],
             "durable_id": "/clock/2/broad/0"
@@ -936,6 +1349,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "narrow",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "narrow",
           "name": "ipakit-containment:tier-1"
@@ -952,6 +1372,43 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-3",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "ɑ is short o",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "h",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/0/narrow/0"
@@ -972,6 +1429,58 @@
                 "lexical": "0",
                 "name": "ipakit-containment:target-index",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-4",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-application-order-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-derivation-step-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "ɑ is short o",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-source-site-order-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "ɑ is short o: ɑ -> o @1",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "o",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/1/narrow/0"
@@ -987,6 +1496,43 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-5",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "ɑ is short o",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "t",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/2/narrow/0"
@@ -994,6 +1540,13 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "allophonic",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "allophonic",
           "name": "ipakit-containment:tier-2"
@@ -1010,6 +1563,43 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-6",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "gemination (after a consonant)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "h",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/0/allophonic/0"
@@ -1025,6 +1615,43 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-9",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "o after a coronal stop (final)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "h",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/0/allophonic/1"
@@ -1040,6 +1667,43 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-7",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "gemination (after a consonant)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "o",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/1/allophonic/0"
@@ -1055,6 +1719,43 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-10",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "o after a coronal stop (final)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "o",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/1/allophonic/1"
@@ -1075,6 +1776,60 @@
                 "lexical": "0",
                 "name": "ipakit-containment:target-index",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-8",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-application-order-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "1",
+                "name": "form:fact-derivation-step-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "gemination (after a consonant)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-source-site-order-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "gemination (after a consonant): t -> tː @2",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "t",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [
+                    "ː"
+                  ],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/2/allophonic/0"
@@ -1090,6 +1845,45 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-11",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "o after a coronal stop (final)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "no-op",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "t",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [
+                    "ː"
+                  ],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/2/allophonic/1"
@@ -1110,6 +1904,58 @@
                 "lexical": "0",
                 "name": "ipakit-containment:target-index",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-12",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-application-order-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "2",
+                "name": "form:fact-derivation-step-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "o after a coronal stop (final)",
+                "name": "form:fact-rule-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "0",
+                "name": "form:fact-source-site-order-integer",
+                "value_type": "integer"
+              },
+              {
+                "lexical": "o after a coronal stop (final): ∅ -> o @3",
+                "name": "form:fact-trace-string",
+                "value_type": "string"
+              },
+              {
+                "name": "form:fact-value-segment-json",
+                "value": {
+                  "constituents": [
+                    {
+                      "approach": [],
+                      "base": "o",
+                      "modifiers": []
+                    }
+                  ],
+                  "junctures": [],
+                  "prosody": [],
+                  "type": "ipa-segment",
+                  "v": 3
+                },
+                "value_type": "json"
               }
             ],
             "durable_id": "/clock/3/allophonic/0"
@@ -1117,30 +1963,65 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "syllable",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "syllable",
           "name": "ipakit-containment:tier-3"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "word",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "word",
           "name": "ipakit-containment:tier-4"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "phrase",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "phrase",
           "name": "ipakit-containment:tier-5"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "utterance",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "utterance",
           "name": "ipakit-containment:tier-6"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "mora",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "mora",
           "name": "ipakit-containment:tier-7"
@@ -1157,6 +2038,26 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-13",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "ordinary",
+                "name": "form:fact-mora-kind-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "ho",
+                "name": "form:fact-value-string",
+                "value_type": "string"
               }
             ],
             "durable_id": "/clock/0/mora/0"
@@ -1172,6 +2073,26 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-14",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "geminate-half",
+                "name": "form:fact-mora-kind-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "t",
+                "name": "form:fact-value-string",
+                "value_type": "string"
               }
             ],
             "durable_id": "/clock/2/mora/0"
@@ -1187,6 +2108,26 @@
                 "lexical": "0",
                 "name": "ipakit-containment:structural-duration",
                 "value_type": "integer"
+              },
+              {
+                "lexical": "ipakit-event-15",
+                "name": "form:construction-id",
+                "value_type": "string"
+              },
+              {
+                "lexical": "ordinary",
+                "name": "form:fact-mora-kind-string",
+                "value_type": "string"
+              },
+              {
+                "lexical": "true",
+                "name": "form:fact-phantom-boolean",
+                "value_type": "boolean"
+              },
+              {
+                "lexical": "to",
+                "name": "form:fact-value-string",
+                "value_type": "string"
               }
             ],
             "durable_id": "/clock/2/mora/1"
@@ -1194,48 +2135,104 @@
         ]
       },
       {
+        "attributes": [
+          {
+            "lexical": "morph",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "morph",
           "name": "ipakit-containment:tier-8"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "foot",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "foot",
           "name": "ipakit-containment:tier-9"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "segment",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "segment",
           "name": "ipakit-containment:tier-10"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "zero",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "zero",
           "name": "ipakit-containment:tier-11"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "boundary",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "boundary",
           "name": "ipakit-containment:tier-12"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "prosody",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "prosody",
           "name": "ipakit-containment:tier-13"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "delivery",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "delivery",
           "name": "ipakit-containment:tier-14"
         }
       },
       {
+        "attributes": [
+          {
+            "lexical": "analysis",
+            "name": "form:tier-role",
+            "value_type": "string"
+          }
+        ],
         "declaration": {
           "long_name": "analysis",
           "name": "ipakit-containment:tier-15"
@@ -1267,6 +2264,665 @@
           },
           {
             "durable_id": "ipakit-clockcell-6"
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "Form profile metadata",
+          "name": "form:metadata"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "name": "form:profile",
+                "value": {
+                  "codecs": {
+                    "indices": [
+                      0,
+                      1,
+                      1,
+                      1,
+                      2,
+                      0,
+                      3,
+                      1,
+                      1,
+                      0,
+                      1,
+                      3,
+                      1,
+                      2,
+                      2,
+                      3
+                    ],
+                    "table": [
+                      {
+                        "input": [
+                          "attribute",
+                          "bool"
+                        ],
+                        "spelling": [
+                          "scalar",
+                          {
+                            "local_name": "fact-spelling-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "unit": [
+                          "unit"
+                        ],
+                        "unit-index": [
+                          "attribute",
+                          "int"
+                        ],
+                        "value": [
+                          "unit-value"
+                        ]
+                      },
+                      {
+                        "phantom": [
+                          "scalar",
+                          {
+                            "local_name": "fact-phantom-boolean",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "rule": [
+                          "scalar",
+                          {
+                            "local_name": "fact-rule-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "spelling": [
+                          "attribute",
+                          "str"
+                        ],
+                        "trace": [
+                          "scalar",
+                          {
+                            "local_name": "fact-trace-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "value": [
+                          "segment",
+                          {
+                            "local_name": "fact-value-segment-json",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ]
+                      },
+                      {
+                        "mora-kind": [
+                          "scalar",
+                          {
+                            "local_name": "fact-mora-kind-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "phantom": [
+                          "scalar",
+                          {
+                            "local_name": "fact-phantom-boolean",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "spelling": [
+                          "attribute",
+                          "str"
+                        ],
+                        "value": [
+                          "scalar",
+                          {
+                            "local_name": "fact-value-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ]
+                      },
+                      {
+                        "application-order": [
+                          "scalar",
+                          {
+                            "local_name": "fact-application-order-integer",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "derivation-step": [
+                          "scalar",
+                          {
+                            "local_name": "fact-derivation-step-integer",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "phantom": [
+                          "scalar",
+                          {
+                            "local_name": "fact-phantom-boolean",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "rule": [
+                          "scalar",
+                          {
+                            "local_name": "fact-rule-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "source-site-order": [
+                          "scalar",
+                          {
+                            "local_name": "fact-source-site-order-integer",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "spelling": [
+                          "attribute",
+                          "str"
+                        ],
+                        "target-index": [
+                          "attribute",
+                          "int"
+                        ],
+                        "trace": [
+                          "scalar",
+                          {
+                            "local_name": "fact-trace-string",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ],
+                        "value": [
+                          "segment",
+                          {
+                            "local_name": "fact-value-segment-json",
+                            "namespace": "urn:ipakit:form"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "endpoint-kinds": [
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "event",
+                      "event"
+                    ],
+                    [
+                      "coarse-tick",
+                      "event"
+                    ]
+                  ],
+                  "inventory": "sha256:f93c5989404e4e26a188cb954a27cbcc5fd7833175566993c5368315879d8925",
+                  "profile": "ipakit-form",
+                  "schema": {
+                    "closed": true,
+                    "features": [
+                      [
+                        "airstream",
+                        {}
+                      ],
+                      [
+                        "approach",
+                        {}
+                      ],
+                      [
+                        "articulator",
+                        {}
+                      ],
+                      [
+                        "backness",
+                        {}
+                      ],
+                      [
+                        "break",
+                        {}
+                      ],
+                      [
+                        "centralized",
+                        {}
+                      ],
+                      [
+                        "channel",
+                        {}
+                      ],
+                      [
+                        "class",
+                        {}
+                      ],
+                      [
+                        "constriction-location",
+                        {}
+                      ],
+                      [
+                        "contour",
+                        {}
+                      ],
+                      [
+                        "fortis",
+                        {}
+                      ],
+                      [
+                        "fronting",
+                        {}
+                      ],
+                      [
+                        "global",
+                        {}
+                      ],
+                      [
+                        "height",
+                        {}
+                      ],
+                      [
+                        "height-mod",
+                        {}
+                      ],
+                      [
+                        "input",
+                        {}
+                      ],
+                      [
+                        "interval-index",
+                        {}
+                      ],
+                      [
+                        "intrinsic-timing",
+                        {}
+                      ],
+                      [
+                        "labialized",
+                        {}
+                      ],
+                      [
+                        "labio-palatized",
+                        {}
+                      ],
+                      [
+                        "length",
+                        {}
+                      ],
+                      [
+                        "level",
+                        {}
+                      ],
+                      [
+                        "linking",
+                        {}
+                      ],
+                      [
+                        "manner",
+                        {}
+                      ],
+                      [
+                        "mid-centralized",
+                        {}
+                      ],
+                      [
+                        "nasalized",
+                        {}
+                      ],
+                      [
+                        "palatalized",
+                        {}
+                      ],
+                      [
+                        "phantom",
+                        {}
+                      ],
+                      [
+                        "pharyngealized",
+                        {}
+                      ],
+                      [
+                        "phonation",
+                        {}
+                      ],
+                      [
+                        "place",
+                        {}
+                      ],
+                      [
+                        "prominence",
+                        {}
+                      ],
+                      [
+                        "provenance",
+                        {}
+                      ],
+                      [
+                        "release",
+                        {}
+                      ],
+                      [
+                        "retroflex",
+                        {}
+                      ],
+                      [
+                        "rhotacized",
+                        {}
+                      ],
+                      [
+                        "rounded",
+                        {}
+                      ],
+                      [
+                        "rounding",
+                        {}
+                      ],
+                      [
+                        "spelling",
+                        {}
+                      ],
+                      [
+                        "step",
+                        {}
+                      ],
+                      [
+                        "stress",
+                        {}
+                      ],
+                      [
+                        "syllabic",
+                        {}
+                      ],
+                      [
+                        "symbol",
+                        {}
+                      ],
+                      [
+                        "tie",
+                        {}
+                      ],
+                      [
+                        "tier",
+                        {}
+                      ],
+                      [
+                        "tone",
+                        {}
+                      ],
+                      [
+                        "tongue-root",
+                        {}
+                      ],
+                      [
+                        "unit",
+                        {}
+                      ],
+                      [
+                        "unit-index",
+                        {}
+                      ],
+                      [
+                        "value",
+                        {}
+                      ],
+                      [
+                        "velarized",
+                        {}
+                      ],
+                      [
+                        "voiced",
+                        {}
+                      ],
+                      [
+                        "application-order",
+                        {}
+                      ],
+                      [
+                        "derivation-step",
+                        {}
+                      ],
+                      [
+                        "mora-kind",
+                        {}
+                      ],
+                      [
+                        "rule",
+                        {}
+                      ],
+                      [
+                        "source-site-order",
+                        {}
+                      ],
+                      [
+                        "target-index",
+                        {}
+                      ],
+                      [
+                        "trace",
+                        {}
+                      ]
+                    ],
+                    "relations": [
+                      [
+                        "contains",
+                        {}
+                      ],
+                      [
+                        "associates-with",
+                        {}
+                      ],
+                      [
+                        "realized-by",
+                        {}
+                      ],
+                      [
+                        "derived-from",
+                        {}
+                      ],
+                      [
+                        "inserts",
+                        {}
+                      ],
+                      [
+                        "alternatives",
+                        {}
+                      ],
+                      [
+                        "selects",
+                        {}
+                      ],
+                      [
+                        "rewrites-to",
+                        {
+                          "allow_empty_target": true,
+                          "target_arity": [
+                            0,
+                            null
+                          ]
+                        }
+                      ]
+                    ],
+                    "tiers": [
+                      [
+                        "broad",
+                        {
+                          "features": {
+                            "add": [
+                              "application-order",
+                              "derivation-step",
+                              "input",
+                              "mora-kind",
+                              "phantom",
+                              "rule",
+                              "source-site-order",
+                              "spelling",
+                              "target-index",
+                              "trace",
+                              "unit",
+                              "unit-index",
+                              "value"
+                            ],
+                            "remove": []
+                          }
+                        }
+                      ],
+                      [
+                        "narrow",
+                        {
+                          "features": {
+                            "add": [
+                              "application-order",
+                              "derivation-step",
+                              "input",
+                              "mora-kind",
+                              "phantom",
+                              "rule",
+                              "source-site-order",
+                              "spelling",
+                              "target-index",
+                              "trace",
+                              "unit",
+                              "unit-index",
+                              "value"
+                            ],
+                            "remove": []
+                          }
+                        }
+                      ],
+                      [
+                        "allophonic",
+                        {
+                          "features": {
+                            "add": [
+                              "application-order",
+                              "derivation-step",
+                              "input",
+                              "mora-kind",
+                              "phantom",
+                              "rule",
+                              "source-site-order",
+                              "spelling",
+                              "target-index",
+                              "trace",
+                              "unit",
+                              "unit-index",
+                              "value"
+                            ],
+                            "remove": []
+                          }
+                        }
+                      ],
+                      [
+                        "syllable",
+                        {}
+                      ],
+                      [
+                        "word",
+                        {}
+                      ],
+                      [
+                        "phrase",
+                        {}
+                      ],
+                      [
+                        "utterance",
+                        {}
+                      ],
+                      [
+                        "mora",
+                        {
+                          "features": {
+                            "add": [
+                              "application-order",
+                              "derivation-step",
+                              "mora-kind",
+                              "rule",
+                              "source-site-order",
+                              "target-index",
+                              "trace"
+                            ],
+                            "remove": []
+                          }
+                        }
+                      ],
+                      [
+                        "morph",
+                        {}
+                      ],
+                      [
+                        "foot",
+                        {}
+                      ],
+                      [
+                        "segment",
+                        {}
+                      ],
+                      [
+                        "zero",
+                        {}
+                      ],
+                      [
+                        "boundary",
+                        {}
+                      ],
+                      [
+                        "prosody",
+                        {}
+                      ],
+                      [
+                        "delivery",
+                        {}
+                      ],
+                      [
+                        "analysis",
+                        {}
+                      ]
+                    ]
+                  },
+                  "spelling": "hotːo"
+                },
+                "value_type": "json"
+              }
+            ]
           }
         ]
       }

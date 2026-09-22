@@ -400,8 +400,8 @@ form = Form.parse("#kæt.dɒɡ#")
 form.to_ipa()  # '#kæt.dɒɡ#'
 form.phones  # ('k', 'æ', 't', 'd', 'ɒ', 'ɡ')
 form.boundaries[1]
-# Boundary(text='.', level='syllable', at=3, features={'level': 'syllable',
-# 'href': 'Syllable', 'class': 'separator'})
+# Boundary(text='.', level='syllable', at=3, features={'class': 'separator',
+# 'href': 'Syllable', 'level': 'syllable'})
 ```
 
 Prosody rides on a segment rather than being one, so it survives the same way:
@@ -461,16 +461,19 @@ built.leaves(built.roots[0])
 # ('/clock/0/segment/0', '/clock/1/segment/0', '/clock/2/segment/0')
 ```
 
-`Form.to_json()` is the version 2 compatibility wire: it preserves the established unit and interval coordinates while the `Form` itself stores the canonical tier graph. The default wire is lean. `self_contained=True` additionally embeds each IPA segment's resolved feature view, so restoration can validate that snapshot against the structured segment source instead of resolving it only from the inventory.
+`Form.to_json()` writes the complete native tier graph, including typed facts,
+relations, optional timing, and the binding to the restoring inventory. Compact
+and indented output use the same TierGraph codec. `ipa.read_json()` validates
+the Form profile and restores a real Form; `ipakit.read_graph_json()` returns a
+native Graph for general graph documents. See [Graph JSON](graph-json.md) for
+the admission contract.
 
 ```python
 import json
 
-lean_wire = json.loads(built.to_json())
-snapshot_wire = json.loads(built.to_json(self_contained=True))
-lean_wire["type"], lean_wire["v"]  # ('ipakit.form', 2)
-"features" in lean_wire["units"][0]  # False
-"features" in snapshot_wire["units"][0]  # True
+native_wire = json.loads(built.to_json())
+native_wire["format_version"]  # '0.3.0'
+built.to_json() == ipa.read_json(built.to_json()).to_json()  # True
 ipa.read_json(built.to_json()).to_ipa()  # 'kæt'
 ```
 

@@ -26,7 +26,7 @@ class GraphBinding:
     """Ordered unique source occurrences and explicit finite value/clock roles.
 
     References may cross tiers; their caller-provided order is authoritative.
-    Values are existing qualified native JSON relations, never inferred from
+    Values are existing qualified native JSON attributes, never inferred from
     tier labels or concatenated spelling. Optional feature claims are validated
     against the model's typed domains and exact token rows.
     """
@@ -67,53 +67,61 @@ class GraphBinding:
             raise ModelRuleError(
                 "invalid-binding", "graph roles require qualified names"
             )
-        names = {declaration.name for declaration in self.graph.relation_declarations}
-        if any(
-            role not in names
-            for role in (
-                self.token_value,
-                self.model_value,
-                self.starts_at,
-                *self.feature_values.values(),
-            )
-        ):
-            raise ModelRuleError(
-                "invalid-binding", "source value/start relation is undeclared"
-            )
-        if not any(t.declaration.name == self.clock for t in self.graph.tiers):
-            raise ModelRuleError("invalid-binding", "source clock tier is undeclared")
-        for role in (
+        attribute_names = {
+            declaration.name for declaration in self.graph.attribute_declarations
+        }
+        value_roles = (
             self.token_value,
             self.model_value,
             *self.feature_values.values(),
-            self.starts_at,
-        ):
-            declaration = next(
-                d for d in self.graph.relation_declarations if d.name == role
+        )
+        if any(role not in attribute_names for role in value_roles):
+            raise ModelRuleError(
+                "invalid-binding", "source value attribute is undeclared"
             )
-            target_kind = (
-                tg.RelationEndpointKind.BOUNDARY
-                if role == self.starts_at
-                else tg.RelationEndpointKind.ITEM
+        relation_names = {
+            declaration.name for declaration in self.graph.relation_declarations
+        }
+        if self.starts_at not in relation_names:
+            raise ModelRuleError(
+                "invalid-binding", "source start relation is undeclared"
+            )
+        if not any(t.declaration.name == self.clock for t in self.graph.tiers):
+            raise ModelRuleError("invalid-binding", "source clock tier is undeclared")
+        for role in value_roles:
+            declaration = next(
+                d for d in self.graph.attribute_declarations if d.name == role
             )
             if (
-                not isinstance(declaration, tg.PolyadicRelationDeclaration)
-                or declaration.sources.endpoint_kinds != (tg.RelationEndpointKind.ITEM,)
-                or declaration.targets.endpoint_kinds != (target_kind,)
-                or declaration.sources.minimum != 1
-                or declaration.sources.maximum != 1
-                or declaration.targets.minimum != 1
-                or declaration.targets.maximum != 1
-                or (
-                    role == self.starts_at
-                    and declaration.targets.tiers is not None
-                    and self.clock not in declaration.targets.tiers
-                )
+                declaration.domain is not tg.AttributeDomain.ITEM
+                or declaration.value_type is not tg.JsonType.JSON
             ):
                 raise ModelRuleError(
                     "invalid-binding",
-                    "source roles require single-item value/start relations",
+                    "source value roles require item-domain JSON attributes",
                 )
+        start_declaration = next(
+            d for d in self.graph.relation_declarations if d.name == self.starts_at
+        )
+        if (
+            not isinstance(start_declaration, tg.PolyadicRelationDeclaration)
+            or start_declaration.sources.endpoint_kinds
+            != (tg.RelationEndpointKind.ITEM,)
+            or start_declaration.targets.endpoint_kinds
+            != (tg.RelationEndpointKind.BOUNDARY,)
+            or start_declaration.sources.minimum != 1
+            or start_declaration.sources.maximum != 1
+            or start_declaration.targets.minimum != 1
+            or start_declaration.targets.maximum != 1
+            or (
+                start_declaration.targets.tiers is not None
+                and self.clock not in start_declaration.targets.tiers
+            )
+        ):
+            raise ModelRuleError(
+                "invalid-binding",
+                "source start role requires a single-item clock relation",
+            )
         self.model.schema.validate({name: None for name in self.feature_values})
         tokens: list[str] = []
         anchors: list[tg.DurableBoundaryRef] = []
@@ -362,8 +370,8 @@ class _GraphWriter:
                 )
             )
             editor.declare(
-                tg.PolyadicRelationDeclaration(
-                    self.q("value"), item, item, unique_sources=True
+                tg.AttributeDeclaration(
+                    self.q("value"), tg.AttributeDomain.ITEM, tg.JsonType.JSON
                 )
             )
             editor.declare(
@@ -413,23 +421,17 @@ class _GraphWriter:
                 "trace": trace,
                 "order": [step, site, site, target_index],
             }
-            self.graph, _, root = tg.embed_json_value(
-                self.graph,
-                payload,
-                namespace=tg.NamespaceDeclaration(
-                    f"{self.prefix}-value-{self.count}",
-                    f"{self.namespace}/value/{self.count}",
-                ),
-            )
             index = next(
                 len(t.items) for t in self.graph.tiers if t.declaration.name == tier
             )
             ref = tg.ItemRef(tier, index)
             editor = self.graph.edit().insert_item(
-                tier, index, tg.Item(f"{self.prefix}-{self.count}")
-            )
-            editor.add_relation(
-                tg.PolyadicRelationInstance(self.q("value"), (ref,), (root,))
+                tier,
+                index,
+                tg.Item(
+                    f"{self.prefix}-{self.count}",
+                    attributes=(tg.JsonAttributeValue(self.q("value"), payload),),
+                ),
             )
             editor.add_relation(
                 tg.PolyadicRelationInstance(self.q("starts-at"), (ref,), (anchor,))

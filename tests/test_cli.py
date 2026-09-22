@@ -776,10 +776,8 @@ class TestRepresentationCommands:
         assert rc == 0
         assert err == ""
         representation = json.loads(out)
-        assert representation["type"] == "ipakit.form"
-        assert representation["v"] == 2
-        segment = next(unit for unit in representation["units"] if unit["segment"])
-        assert "features" not in segment
+        assert representation["format_version"] == "0.3.0"
+        assert "graph" in representation
 
         rc, out, err = run(
             monkeypatch,
@@ -787,18 +785,21 @@ class TestRepresentationCommands:
             "convert",
             "to-json",
             "a",
-            "--self-contained",
+            "--pretty",
         )
         assert rc == 0
         assert err == ""
-        assert "features" in json.loads(out)["units"][0]
-        assert representation["spelling"] == "kæt.ˈ.dɒɡ"
-        assert [
-            unit["segment"]["prosody"]
-            for unit in representation["units"]
-            if unit["segment"] is not None
-        ] == [[], [], [], [], ["ˈ"], []]
-        assert all("timing" in unit for unit in representation["units"])
+        assert ipakit.read_json(out).to_ipa() == "a"
+        restored = ipakit.Form.from_dict(representation)
+        assert restored.spelling == "kæt.ˈ.dɒɡ"
+        assert [unit.segment.prosody for unit in restored.units if unit.segment] == [
+            (),
+            (),
+            (),
+            (),
+            ("ˈ",),
+            (),
+        ]
 
     def test_json_round_trip_through_cli(self, monkeypatch, capsys):
         parsed = ipakit.read("#kæt.ˈ.dɒɡ#", strict=True)

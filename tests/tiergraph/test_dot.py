@@ -48,52 +48,39 @@ def test_dot_is_byte_identical_in_process_and_across_hash_seeds() -> None:
 
 def test_tier_rows_are_exactly_the_tiers_with_events_in_declaration_order() -> None:
     form = _example()
-    index = form.__dict__["_tiergraph_index"]
-    event_tiers = {
-        group.tier
-        for clock_node in index.clock
-        for group in clock_node.groups
-        if group.events
-    }
-    expected = [tier for tier in form._containment.tier_names if tier in event_tiers]
+    expected = [str(index) for index, tier in enumerate(form.graph.tiers) if tier.items]
 
     assert re.findall(r"^  subgraph tier_([^ ]+) \{$", form.to_dot(), re.M) == expected
     assert re.findall(
         r"^  subgraph tier_([^ ]+) \{$",
         form.to_dot(include_empty_tiers=True),
         re.M,
-    ) == list(form._containment.tier_names)
+    ) == [str(index) for index in range(len(form.graph.tiers))]
 
 
 def test_clock_and_populated_tier_rows_are_ordered_vertically() -> None:
     dot = _example().to_dot()
     labels = re.findall(r"^    (tier_label_\S+) \[shape=plaintext", dot, re.M)
     ordering = re.findall(
-        r'^  (\S+) -> (tier_label_\S+) \[dir=none, color="#333333", '
+        r'^  (tier_label_\S+) -> (tier_label_\S+) \[dir=none, color="#333333", '
         r"penwidth=2\.4, weight=100\];$",
         dot,
         re.M,
     )
 
-    assert ordering == list(
-        zip(["score_start_clock", *labels[:-1]], labels, strict=True)
-    )
+    assert ordering == list(zip(labels, labels[1:], strict=False))
 
 
 def test_successive_events_in_each_tier_have_visible_quiet_links() -> None:
     form = _example()
     dot = form.to_dot()
-    index = form.__dict__["_tiergraph_index"]
-    for tier in form._containment.tier_names:
-        references = [
-            reference
-            for reference in index.events
-            if form._containment.event_tiers[reference] == tier
-        ]
-        for left, right in zip(references, references[1:], strict=False):
+    for tier_index, tier in enumerate(form.graph.tiers):
+        for left, right in zip(
+            range(len(tier.items)), range(1, len(tier.items)), strict=False
+        ):
             edge = (
-                f"{_dot_node_id(left)} -> "
-                f"{_dot_node_id(right)} "
+                f"item_{tier_index}_{left} -> "
+                f"item_{tier_index}_{right} "
                 '[color="#888888", penwidth=0.8, arrowsize=0.55, constraint=false];'
             )
             assert dot.count(edge) == 1
@@ -120,23 +107,14 @@ def test_rendered_lanes_are_distinct_and_events_align_with_trigger_ticks() -> No
         if line.startswith("node ")
         for fields in (line.split(),)
     }
-    labels = [
-        "score_start_clock",
-        *re.findall(
-            r"^    (tier_label_\S+) \[shape=plaintext", _example().to_dot(), re.M
-        ),
-    ]
+    labels = re.findall(
+        r"^    (tier_label_\S+) \[shape=plaintext", _example().to_dot(), re.M
+    )
     lane_y = [nodes[label][1] for label in labels]
     assert all(upper > lower for upper, lower in zip(lane_y, lane_y[1:], strict=False))
 
-    # The horizontal claim -- every event sits in the column of the tick that
-    # triggers it -- is read from the emitted DOT, not from graphviz's laid-out
-    # x coordinates. Those coordinates are equal only up to the layout version
-    # (they matched on graphviz 15 but drifted apart on 2.43), whereas the
-    # source constraint that pins the column is stable: the event and its
-    # trigger tick carry the same ``group`` and are joined by a ``clock -> event``
-    # edge, and graphviz keeps same-group nodes joined by an edge on one
-    # vertical line. Assert those two facts instead of the resulting geometry.
+    # The generic renderer gives every item the same group as its tier guide.
+    # This is the stable source constraint behind horizontal alignment.
     form = _example()
     dot = form.to_dot()
 
@@ -147,24 +125,30 @@ def test_rendered_lanes_are_distinct_and_events_align_with_trigger_ticks() -> No
         assert match is not None, f"{node_id} carries no layout group"
         return match.group(1)
 
-    for reference in form.__dict__["_tiergraph_index"].events:
-        event_id = _dot_node_id(reference)
-        trigger = re.search(rf"^  (clock_\S+) -> {re.escape(event_id)} ", dot, re.M)
-        assert trigger is not None, f"{event_id} has no trigger-tick edge"
-        assert group_of(event_id) == group_of(trigger.group(1))
+    for tier_index, tier in enumerate(form.graph.tiers):
+        if not tier.items:
+            continue
+        for item_index in range(len(tier.items)):
+            assert group_of(f"item_{tier_index}_{item_index}") == group_of(
+                f"guide_{tier_index}_{item_index}"
+            )
 
 
 def test_clock_spine_is_strictly_ascending() -> None:
-    dot = _example().to_dot()
-    spine = dot.split("// The clock spine is the total order.", 1)[1].split("  }", 1)[0]
-    nodes = re.findall(r"^    (clock_\d+(?:_gap_\d+)?) \[shape=circle", spine, re.M)
-    expected = [
-        (f"clock_{tick}" if node.gap_count == 1 else f"clock_{tick}_gap_{gap}")
-        for tick, node in enumerate(_example().__dict__["_tiergraph_index"].clock)
-        for gap in range(node.gap_count)
-    ]
-    assert nodes == expected
-    edges = re.findall(r"^    (clock_\S+) -> (clock_\S+) \[weight=100\]", spine, re.M)
+    form = _example()
+    dot = form.to_dot()
+    clock_index, clock = next(
+        (index, tier)
+        for index, tier in enumerate(form.graph.tiers)
+        if tier.declaration.long_name == "clock"
+    )
+    expected = [f"item_{clock_index}_{index}" for index in range(len(clock.items))]
+    edges = re.findall(
+        rf"^    (item_{clock_index}_\d+) -> (item_{clock_index}_\d+) "
+        r'\[color="#888888", penwidth=0\.8, arrowsize=0\.55, constraint=false\];$',
+        dot,
+        re.M,
+    )
     assert edges == list(zip(expected, expected[1:], strict=False))
 
 
@@ -192,7 +176,7 @@ def test_example_is_one_phrase_and_a_is_reduced_without_stress() -> None:
     ]
     am_word = form.at(words[2])
     assert am_word is not None and am_word.features["prominence"] == "emphatic"
-    assert 'label="am\\nprominence: emphatic"' in _example().to_dot()
+    assert "prominence=emphatic\\nspelling=am" in _example().to_dot()
     a_word = words[3]
     segments = containment.direct_children(a_word, "segment")
     assert len(segments) == 1

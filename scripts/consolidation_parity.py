@@ -31,8 +31,8 @@ def _wire(graph: tiergraph.Graph) -> str:
 def corpus_bytes() -> bytes:
     inventory = IPAFeatures()
     parsed = inventory.read("k\u00e6t..\u02c8d\u0252\u0261")
-    parsed_wire = parsed.to_json(self_contained=True)
-    assert type(parsed).from_json(parsed_wire, inventory).to_json(True) == parsed_wire
+    parsed_wire = parsed.to_json()
+    assert type(parsed).from_json(parsed_wire, inventory).to_json() == parsed_wire
 
     builder = FormBuilder(inventory)
     utterance = builder.begin("utterance")
@@ -41,8 +41,8 @@ def corpus_bytes() -> bytes:
     builder.contain(utterance, segments)
     builder.add_root(utterance)
     built = builder.build()
-    built_wire = built.to_json(self_contained=True)
-    assert type(built).from_json(built_wire, inventory).to_json(True) == built_wire
+    built_wire = built.to_json()
+    assert type(built).from_json(built_wire, inventory).to_json() == built_wire
 
     cmu = read_cmu(("K", "AE1", "T"))
     pinyin = build_pinyin(

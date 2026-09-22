@@ -198,7 +198,9 @@ class FormBuilder:
 
     def build(self) -> Form:
         """Validate and return the immutable public representation."""
-        return Form._from_projection_input(self._builder.build_input())
+        return Form._from_projection_input(
+            self._builder.build_input(), features=self.features
+        )
 
 
 class _DerivedMapping(Mapping[str, str]):
@@ -1179,7 +1181,10 @@ class _UnitProjection:
         self,
         projection_input: ContainmentProjectionInput,
         inventory: IPAFeatures | None = None,
+        *,
+        graph: Any = None,
     ) -> None:
+        import tiergraph as tg
         from tiergraph import DurableItemRef
 
         from ._fact_builder import UnitCoordinates, UnitOccurrence
@@ -1188,13 +1193,18 @@ class _UnitProjection:
         self._inventory = inventory
         from ._containment_projection import ContainmentProjection
 
-        graph = ContainmentProjection.from_input(projection_input).graph
+        if graph is None:
+            graph = ContainmentProjection.from_input(projection_input).graph
         self._indexed = projection_input.unit_occurrences()
         self._units: tuple[Unit, ...] | None = None
         self._intervals: tuple[Interval, ...] | None = None
         self._attributes = {
             path: {
-                attribute.name.local_name: scalar_lexical(attribute)
+                attribute.name.local_name: (
+                    attribute.to_value()
+                    if isinstance(attribute, tg.JsonAttributeValue)
+                    else scalar_lexical(attribute)
+                )
                 for attribute in next(
                     tier
                     for tier in graph.tiers
@@ -1229,10 +1239,28 @@ class _UnitProjection:
 
         if self._inventory is None:
             raise FormProjectionError("unit inventory is not available")
-        out = [
-            _unit_from_attributes(self._attributes[path], self._inventory)
-            for _index, _stored, path in self._indexed
-        ]
+        out = []
+        for _index, stored, path in self._indexed:
+            rebuilt = _unit_from_attributes(self._attributes[path], self._inventory)
+            event_timing = self.projection_input.events[path].timing
+            stored_timing = (
+                None
+                if stored.timing is None
+                else (stored.timing.start, stored.timing.duration)
+            )
+            native_event_timing = (
+                None
+                if event_timing is None
+                else (event_timing.start, event_timing.duration)
+            )
+            # A Unit is an allowlisted domain value with timing of its own.
+            # When it intentionally differs from the containing Event timing,
+            # its JSON codec is the authority for that independent value.
+            out.append(
+                stored
+                if stored_timing is not None and stored_timing != native_event_timing
+                else rebuilt
+            )
         self._units = tuple(out)
         return self._units
 
@@ -1270,18 +1298,20 @@ class _UnitProjection:
                     attributes = self._attributes[path]
                     timing = (
                         Timing(
-                            float(attributes["timing-start"]),
-                            float(attributes["timing-duration"]),
+                            float(cast(Any, attributes["timing-start"])),
+                            float(cast(Any, attributes["timing-duration"])),
                         )
                         if "timing-start" in attributes
                         else None
                     )
                     if "span-start" in attributes:
-                        start = coordinate(attributes["span-start"])
-                        end = coordinate(attributes["span-end"])
+                        start = coordinate(cast(str, attributes["span-start"]))
+                        end = coordinate(cast(str, attributes["span-end"]))
                     elif "structural-duration" in attributes:
                         start = gap_prefix[tick]
-                        end = gap_prefix[tick + int(attributes["structural-duration"])]
+                        end = gap_prefix[
+                            tick + int(cast(Any, attributes["structural-duration"]))
+                        ]
                     else:
                         raise FormProjectionError("interval has no exact span")
                     interval = Interval.__new__(Interval)
@@ -1302,7 +1332,7 @@ def _clock_bounds(position_values: Sequence[Any]) -> tuple[int, tuple[int, ...]]
     encoded_gaps: dict[int, int] = {}
     for position in position_values:
         attributes = {
-            attribute.name.local_name: int(attribute.lexical)
+            attribute.name.local_name: int(scalar_lexical(attribute))
             for attribute in position.attributes
         }
         tick = attributes["tick"]
@@ -1386,7 +1416,7 @@ class _ClockPathProfile:
             )
         for position in clock_positions:
             attributes = {
-                attribute.name.local_name: int(attribute.lexical)
+                attribute.name.local_name: int(scalar_lexical(attribute))
                 for attribute in position.attributes
             }
             if attributes == {"gap": gap, "tick": tick}:
@@ -1457,7 +1487,11 @@ class _FormGraphIndex:
     def unit_projection(self) -> _UnitProjection:
         return self._memo(
             "_unit_projection",
-            lambda: _UnitProjection(self.containment_input, self.inventory),
+            lambda: _UnitProjection(
+                self.containment_input,
+                self.inventory,
+                graph=self.__dict__.get("_native_graph"),
+            ),
         )
 
     @property
@@ -1488,7 +1522,7 @@ class _FormGraphIndex:
             return self.containment_input.events[old]
         assert isinstance(resolved, ResolvedBoundary)
         attributes = {
-            attribute.name.local_name: int(attribute.lexical)
+            attribute.name.local_name: int(scalar_lexical(attribute))
             for position in graph.boundary_values
             if graph.resolve_boundary(position.reference) == resolved.current
             for attribute in position.attributes
@@ -1688,6 +1722,11 @@ class Form:
         return hash(self._identity())
 
     @property
+    def graph(self) -> Any:
+        """The authoritative native Graph, including its Form profile bindings."""
+        return self._graph
+
+    @property
     def _graph(self) -> Any:
         """The one validated authoritative tiergraph graph."""
         namespace = object.__getattribute__(self, "__dict__")
@@ -1696,8 +1735,18 @@ class Form:
             from ._containment_projection import ContainmentProjection
 
             index = namespace["_tiergraph_index"]
+            from ._form_profile import construct, provider_identity
+
+            if (
+                provider_identity(index.inventory)
+                != namespace["_tiergraph_inventory_identity"]
+            ):
+                raise FormProjectionError(
+                    "Form inventory declarations changed after construction"
+                )
             containment = ContainmentProjection.from_input(index.containment_input)
-            graph = containment.graph
+            graph = construct(index.containment_input, index.inventory, self.spelling)
+            containment = dataclasses.replace(containment, graph=graph)
             object.__setattr__(self, "_tiergraph_containment", containment)
             object.__setattr__(self, "_tiergraph_graph", graph)
         return graph
@@ -1725,17 +1774,24 @@ class Form:
         )
         index = _FormGraphIndex(projection_input, inventory)
         object.__setattr__(self, "_tiergraph_index", index)
+        from ._form_profile import provider_identity
+
+        object.__setattr__(
+            self, "_tiergraph_inventory_identity", provider_identity(inventory)
+        )
 
     @classmethod
     def _from_projection_input(
         cls,
         projection_input: ContainmentProjectionInput,
         spelling: str | None = None,
+        *,
+        features: IPAFeatures | None = None,
     ) -> Form:
         """Adopt native facts and build the authoritative graph directly."""
         form = cls.__new__(cls)
         object.__setattr__(form, "spelling", spelling)
-        form._install_projection_input(projection_input)
+        form._install_projection_input(projection_input, inventory=features)
         return form
 
     @property
@@ -2012,7 +2068,9 @@ class Form:
         local = spell(out)
         scanned = "".join(base + "".join(diacritics) for base, diacritics in parsed)
         return cls._from_projection_input(
-            builder.build_input(), spelling=scanned if scanned != local else None
+            builder.build_input(),
+            spelling=scanned if scanned != local else None,
+            features=features,
         )
 
     @classmethod
@@ -2064,167 +2122,66 @@ class Form:
             return render_graph(self, ipa_profile(exact=False))
         raise ValueError("IPA spelling mode must be 'exact' or 'canonical'")
 
-    def to_dict(self, self_contained: bool = False) -> dict[str, Any]:
-        """Serialize the versioned representation.
+    def to_dict(self) -> dict[str, Any]:
+        """Return the current native Graph document as strict JSON data."""
+        from tiergraph import wire
 
-        The default is lean: structured segments carry no redundant resolved
-        views. ``self_contained=True`` embeds those views for readers without
-        the declaring inventory. Boundaries and zeros always carry their
-        declared features because they have no segment to derive them from.
-        """
+        from ._form_profile import provider_identity
 
-        _ = self._graph
+        index = self.__dict__["_tiergraph_index"]
+        if (
+            provider_identity(index.inventory)
+            != self.__dict__["_tiergraph_inventory_identity"]
+        ):
+            raise FormProjectionError(
+                "Form inventory declarations changed after construction"
+            )
+        return wire.to_data(self.graph)
 
-        def encode_unit(unit: Unit) -> dict[str, Any]:
-            encoded: dict[str, Any] = {
-                "text": unit.text,
-                "segment": (
-                    unit.segment.to_dict() if unit.segment is not None else None
-                ),
-                "timing": (
-                    {"start": unit.timing.start, "duration": unit.timing.duration}
-                    if unit.timing is not None
-                    else None
-                ),
-            }
-            if unit.spelling is not None:
-                encoded["spelling"] = unit.spelling
-            if unit.segment is None or self_contained:
-                encoded.update(
-                    {
-                        "features": dict(unit.features),
-                        "prosody": dict(unit.prosody),
-                        "provenance": [list(item) for item in unit.provenance],
-                    }
-                )
-            return encoded
+    def to_json(self, *, pretty: bool = False) -> str:
+        """Write the complete native graph in compact canonical JSON."""
+        from .graph_json import write_graph_json
 
-        return {
-            "type": _JSON_TYPE,
-            "v": _JSON_VERSION,
-            "units": [encode_unit(unit) for unit in self.units],
-            "intervals": [
-                {
-                    "tier": span.tier,
-                    "start": span.start,
-                    "end": span.end,
-                    "timing": (
-                        {
-                            "start": span.timing.start,
-                            "duration": span.timing.duration,
-                        }
-                        if span.timing is not None
-                        else None
-                    ),
-                }
-                for span in self.intervals
-            ],
-            "spelling": self.spelling,
-        }
-
-    def to_json(self, self_contained: bool = False) -> str:
-        """Return the versioned units-and-intervals projection JSON.
-
-        Graph-only relations and derived event attributes require the native
-        tiergraph wire codec; this unit projection omits them.
-        """
-        return json.dumps(
-            self.to_dict(self_contained=self_contained), ensure_ascii=False
-        )
+        self.to_dict()
+        return write_graph_json(self.graph, pretty=pretty)
 
     def to_dot(self, *, include_empty_tiers: bool = False) -> str:
-        """Render the used tiers as deterministic Graphviz DOT.
-
-        By default, rows answer which tiers this form uses. Set
-        ``include_empty_tiers`` to show every tier its model permits.
-        """
+        """Render the complete native graph as deterministic Graphviz DOT."""
         from .tiergraph_dot import to_dot
 
-        _ = self._graph
         return to_dot(self, include_empty_tiers=include_empty_tiers)
 
     @classmethod
     def from_dict(
         cls, obj: Mapping[str, Any], features: IPAFeatures | None = None
     ) -> Form:
-        """Restore a form without reparsing its IPA surface spelling.
-
-        A lean document derives all its views coherently from this restoring
-        inventory. Use the self-contained mode to pin views across inventories.
-        """
-        if obj.get("type") != _JSON_TYPE:
-            raise ValueError(f"unsupported representation type: {obj.get('type')!r}")
-        if obj.get("v") != _JSON_VERSION:
-            raise ValueError(f"unsupported Form JSON version: {obj.get('v')!r}")
-        inventory = _default(features)
-        from .segment import Segment
-
-        restored: list[Unit] = []
-        for raw in obj.get("units", ()):
-            segment_data = raw.get("segment")
-            timing_data = raw.get("timing")
-            segment = (
-                Segment.from_dict(segment_data, inventory)
-                if segment_data is not None
-                else None
-            )
-            has_views = any(key in raw for key in ("features", "prosody", "provenance"))
-            supplied = (
-                dict(raw.get("features", {})),
-                dict(raw.get("prosody", {})),
-                tuple(tuple(item) for item in raw.get("provenance", ())),
-            )
-            view_arguments: dict[str, Any] = (
-                {
-                    "features": supplied[0],
-                    "prosody": supplied[1],
-                    "provenance": supplied[2],
-                }
-                if segment is None or has_views
-                else {}
-            )
-            unit = Unit(
-                text=raw["text"],
-                spelling=raw.get("spelling"),
-                segment=segment,
-                timing=(
-                    Timing(timing_data["start"], timing_data["duration"])
-                    if timing_data is not None
-                    else None
-                ),
-                _inventory=inventory if segment is not None else None,
-                **view_arguments,
-            )
-            restored.append(unit)
-        intervals = tuple(
-            Interval(
-                raw["tier"],
-                raw["start"],
-                raw["end"],
-                inventory,
-                (
-                    Timing(raw["timing"]["start"], raw["timing"]["duration"])
-                    if raw.get("timing") is not None
-                    else None
-                ),
-            )
-            for raw in obj.get("intervals", ())
+        """Restore the current native Form profile; historical documents refuse."""
+        return cls.from_json(
+            json.dumps(obj, ensure_ascii=False, allow_nan=False), features
         )
-        spelling = obj.get("spelling")
-        if spelling is not None and not isinstance(spelling, str):
-            raise ValueError("Form spelling must be a string or null")
-        return cls(tuple(restored), intervals, spelling)
 
     @classmethod
-    def from_json(cls, data: str, features: IPAFeatures | None = None) -> Form:
-        """Restore :meth:`to_json` output without a lossy IPA round trip.
+    def from_json(cls, data: str | bytes, features: IPAFeatures | None = None) -> Form:
+        """Read a native graph and validate its bindings before constructing Form."""
+        from tiergraph import wire
 
-        A lean document derives all its views coherently from this restoring
-        inventory. Self-contained JSON pins those views across inventories.
-        Graph-only relations and derived event labels are outside this
-        units-and-intervals format; use the native tiergraph wire codec for them.
-        """
-        return cls.from_dict(json.loads(data), features)
+        from ._containment_projection import ContainmentProjection
+        from ._form_profile import restore
+
+        graph = wire.loads(data)
+        inventory = _default(features)
+        try:
+            source, spelling = restore(graph, inventory)
+            form = cls._from_projection_input(source, spelling, features=inventory)
+            containment = dataclasses.replace(
+                ContainmentProjection.from_input(source), graph=graph
+            )
+        except (KeyError, TypeError, IndexError, StopIteration) as exc:
+            raise FormProjectionError(f"invalid current Form profile: {exc}") from exc
+        object.__setattr__(form, "_tiergraph_graph", graph)
+        object.__setattr__(form, "_tiergraph_containment", containment)
+        object.__setattr__(form.__dict__["_tiergraph_index"], "_native_graph", graph)
+        return form
 
     # -- projections, each named for what it drops -------------------------
 

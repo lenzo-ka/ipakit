@@ -40,6 +40,7 @@ from ipakit.form import (
     units,
 )
 
+import tiergraph
 from tests.corpus import assert_swept, self_spelling_phones
 
 FEATURES = ipakit.load_ipa_features()
@@ -111,16 +112,14 @@ class TestFormSerialization:
         form = Form.parse("kˌæn.tˈiːn", FEATURES)
         assert Form.from_dict(form.to_dict(), FEATURES) == form
         assert Form.from_json(form.to_json(), FEATURES).to_dict() == form.to_dict()
-        assert Form.from_dict(form.to_dict(self_contained=True), FEATURES) == form
-        assert Form.from_json(form.to_json(self_contained=True), FEATURES) == form
 
-    def test_self_contained_json_is_identical_warm_or_cold(self):
+    def test_native_json_is_identical_warm_or_cold(self):
         cold = Form.parse("ⁿd͡ʒʷ.ˈaː", FEATURES)
         warm = Form.parse("ⁿd͡ʒʷ.ˈaː", FEATURES)
         for unit in warm.units:
             _ = (unit.features, unit.prosody, unit.provenance)
 
-        assert cold.to_json(self_contained=True) == warm.to_json(self_contained=True)
+        assert cold.to_json() == warm.to_json()
 
 
 class TestLazyUnitViews:
@@ -166,27 +165,32 @@ class TestLazyUnitViews:
             assert sum("levels written on it" in str(w.message) for w in caught) == 1
 
     def test_unknown_version_is_refused(self):
-        with pytest.raises(ValueError, match="unsupported Form JSON version"):
-            Form.from_json(
-                '{"type": "ipakit.form", "v": 99, "units": [], "intervals": []}',
-                FEATURES,
-            )
+        representation = Form.parse("a", FEATURES).to_dict()
+        representation["format_version"] = "99"
+        with pytest.raises(ValueError):
+            Form.from_dict(representation, FEATURES)
 
     def test_representation_type_is_explicit(self):
-        assert Form.parse("a", FEATURES).to_dict()["type"] == "ipakit.form"
-        with pytest.raises(ValueError, match="unsupported representation type"):
+        representation = Form.parse("a", FEATURES).to_dict()
+        assert representation["format_version"] == "0.3.0"
+        assert "graph" in representation
+        with pytest.raises(ValueError):
             Form.from_json(
                 '{"type": "something.else", "v": 1, "units": [], "intervals": []}',
                 FEATURES,
             )
 
-    def test_self_contained_serialized_views_are_authoritative(self):
-        """Rejecting stored views contradicted self-contained mode's purpose."""
-        representation = Form.parse("ˈa", FEATURES).to_dict(self_contained=True)
-        representation["units"][0]["prosody"]["stress"] = "secondary"
-        restored = Form.from_dict(representation, FEATURES)
-
-        assert restored.units[0].prosody["stress"] == "secondary"
+    def test_native_segment_payload_is_a_json_attribute(self):
+        graph = Form.parse("ˈa", FEATURES).graph
+        segment = next(
+            attribute
+            for tier in graph.tiers
+            for item in tier.items
+            for attribute in item.attributes
+            if attribute.name.local_name == "segment-json"
+        )
+        assert isinstance(segment, tiergraph.JsonAttributeValue)
+        assert segment.to_value()["prosody"] == ["ˈ"]
 
     def test_occurrence_and_tier_timings_round_trip(self):
         source = Form.parse("a.ta", FEATURES)
@@ -205,10 +209,17 @@ class TestLazyUnitViews:
             unit.timing for unit in timed_units
         ]
         assert restored.intervals[0].timing == Timing(0.0, 0.4)
-        assert restored.to_dict()["units"][0]["timing"] == {
-            "start": 0.0,
-            "duration": 0.1,
-        }
+        attributes = next(
+            item.attributes
+            for tier in restored.graph.tiers
+            for item in tier.items
+            if item.durable_id == "/clock/0/segment/0"
+        )
+        assert {
+            attribute.name.local_name: float(attribute.lexical)
+            for attribute in attributes
+            if attribute.name.local_name.startswith("timing-")
+        } == {"timing-start": 0.0, "timing-duration": 0.1}
 
     @pytest.mark.parametrize(
         "start,duration,message",
