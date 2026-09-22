@@ -53,6 +53,7 @@ from .convert import ConvertGroup
 from .corpus import CorpusGroup
 from .distance import DistanceGroup
 from .features import FeaturesCommand
+from .graph_json import GraphJsonCommand
 from .hierarchy import HierarchyGroup
 from .info import InfoGroup
 from .inventory import InventoryGroup
@@ -92,6 +93,7 @@ STANDALONE: list[type[Command]] = [
     FeaturesCommand,
     DescribeCommand,
     NotebookCommand,
+    GraphJsonCommand,
     TiergraphCommand,
     SyllabifyCommand,
 ]

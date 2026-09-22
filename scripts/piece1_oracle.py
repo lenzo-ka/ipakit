@@ -162,8 +162,8 @@ def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
 
     units = held.units
     projected_intervals = held.intervals
-    lean = held.to_json()
-    self_contained = held.to_json(self_contained=True)
+    compact = held.to_json()
+    pretty = held.to_json(pretty=True)
     hierarchy_dot = hierarchy.to_dot()
     held_dot = held.to_dot()
     at_cases = (
@@ -188,17 +188,15 @@ def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
     return {
         "format": "ipakit-piece1-oracle-v1",
         "forms": {
-            "parsed": parsed.to_json(),
-            "held": lean,
-            "held_self_contained": self_contained,
-            "hierarchy": hierarchy.to_json(),
+            "parsed_sha256": _sha256(parsed.to_json()),
+            "held_sha256": _sha256(compact),
+            "held_pretty_sha256": _sha256(pretty),
+            "hierarchy_sha256": _sha256(hierarchy.to_json()),
         },
         "canonical_bytes": {
-            "held_sha256": _sha256(lean),
-            "held_self_contained_sha256": _sha256(self_contained),
-            "hierarchy_dot": hierarchy_dot,
+            "held_sha256": _sha256(compact),
+            "held_pretty_sha256": _sha256(pretty),
             "hierarchy_dot_sha256": _sha256(hierarchy_dot),
-            "held_dot": held_dot,
             "held_dot_sha256": _sha256(held_dot),
         },
         "contracts": {
@@ -244,7 +242,7 @@ def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
             ],
             "match_paths": list(match.paths),
             "unit_path_crosswalk": [[index, path] for index, path in paths.items()],
-            "wire_type_version": [json.loads(lean)["type"], json.loads(lean)["v"]],
+            "wire_format_version": json.loads(compact)["format_version"],
             "refusal_bytes": _refusal_bytes(inventory, hierarchy, input_units),
         },
     }
@@ -313,7 +311,7 @@ def mutate_contract(document: dict[str, Any], contract: str) -> None:
     elif contract == "wire_bytes":
         document["canonical_bytes"]["held_sha256"] = "0" * 64
     elif contract == "dot_identity":
-        document["canonical_bytes"]["held_dot"] += "// mutated\n"
+        document["canonical_bytes"]["held_dot_sha256"] = "0" * 64
     elif contract.startswith("refusal_bytes:"):
         refusal = contracts["refusal_bytes"][contract.partition(":")[2]]
         refusal["message"] += " (mutated)"

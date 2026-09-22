@@ -19,6 +19,15 @@ class Feature:
     values are exactly ``{"+", "-"}`` -- and does not depend on ``type``.
     """
 
+    def __setattr__(self, name: str, value: object) -> None:
+        state = self.__dict__.get("_ipakit_form_identity_state")
+        if state is not None and not name.startswith("_ipakit_"):
+            value = state.wrap(value)
+            object.__setattr__(self, name, value)
+            state.invalidate()
+            return
+        object.__setattr__(self, name, value)
+
     name: str
     values: list[str]  # Ordered - defines dimensional scale for ordinal
     default: str | None = None
@@ -418,6 +427,15 @@ class Phone:
     IPAFeatures instance, so a write here would corrupt the inventory
     every later call reads.
     """
+
+    def __setattr__(self, name: str, value: object) -> None:
+        state = self.__dict__.get("_ipakit_form_identity_state")
+        if state is not None and not name.startswith("_ipakit_"):
+            value = state.wrap(value)
+            object.__setattr__(self, name, value)
+            state.invalidate()
+            return
+        object.__setattr__(self, name, value)
 
     symbol: str
     features: Mapping[str, str]

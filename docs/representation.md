@@ -159,11 +159,20 @@ to native relation-side declarations and enforced there. This does not infer
 sound-kind restrictions or a global maximum-one-host policy from per-instance
 arity; those require a specific profile's additional constraints.
 
-## IPA values and linear JSON
+## IPA values and native Form admission
 
-Structured IPA segment events carry exact spelling and a versioned `ipa-segment` value containing constituents, approaches, modifiers, junctures, and prosody. The lean IPA mode derives resolved features and provenance from that source value; a self-contained snapshot is opt-in and restoration validates it against the structured source. CMU and Pinyin facts are already their profiles' authoritative values and are serialized directly.
+Structured IPA segment events retain constituents, approaches, modifiers,
+junctures and prosody. Native Form profile bindings distinguish those typed
+values from spelling strings. Resolved views derive from the explicitly bound
+restoring inventory unless supplied as native facts. CMU and Pinyin retain their
+own profile facts.
 
-`Form.to_json()` and `ipakit.read_json()` expose the `ipakit.form` version 2 linear projection in unit and interval coordinates. `to_json(self_contained=True)` embeds resolved IPA views. Tiergraph durable item IDs are authoritative for event identity; canonical `/clock/...` paths are the versioned ipakit coordinate projected from them. Every projected unit and interval endpoint round-trips through the compatibility adapter.
+`Form.to_json()` writes the complete current native graph, compact by default;
+`ipakit.read_json()` validates its profile and reconstructs an actual Form.
+`to_json(pretty=True)` uses the same codec with indentation. Historical linear
+documents are refused. Native durable IDs identify events; unit coordinates
+remain public computed views. See [native graph JSON](graph-json.md) for bindings,
+typed facts, native Graph readers, and CLI commands.
 
 ## Rendering and deferred mechanisms
 
@@ -224,8 +233,8 @@ builder supplied explicitly, around its six words.
 from pathlib import Path
 
 worked_dot = Path("docs/figures/perhaps-i-am-a-bad-man.dot").read_text()
-(worked_dot.count("subgraph tier_phrase"),
- worked_dot.count("subgraph tier_utterance"))  # (1, 1)
+(worked_dot.count('label="/clock/0/phrase/0'),
+ worked_dot.count('label="/clock/0/utterance/0'))  # (1, 1)
 ```
 
 Regenerate both figures with `python scripts/tiergraph_example.py`.

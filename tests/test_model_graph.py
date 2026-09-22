@@ -78,7 +78,7 @@ def fixture(tokens=("a", "sil", "b"), *, claims=None):
     # Declared source roles survive even when there are no occurrences.
     assert sum(ns.namespace == NS for ns in graph.namespaces) == 1
     assert {q(name) for name in names} <= {
-        declaration.name for declaration in graph.relation_declarations
+        declaration.name for declaration in graph.attribute_declarations
     }
     editor.declare(
         tg.AttributeDeclaration(

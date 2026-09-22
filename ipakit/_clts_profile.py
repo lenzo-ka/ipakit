@@ -372,10 +372,11 @@ def restore(
     refs = _items(graph, "source-token")
     for ref in refs:
         token = {"raw": declared_value(graph, ref, name("raw"))}
-        if any(
-            r.declaration == name("time") and r.sources == (ref,)
-            for r in graph.polyadic_relations
-        ):
+        resolved = graph.resolve_item(ref)
+        item = next(
+            tier for tier in graph.tiers if tier.declaration.name == resolved.tier
+        ).items[resolved.index]
+        if any(attribute.name == name("time") for attribute in item.attributes):
             token["time"] = declared_value(graph, ref, name("time"))
         tokens.append(token)
         status = declared_value(graph, ref, name("resolution"))
@@ -394,9 +395,14 @@ def restore(
             for declared in spec.fields:
                 assert declared.value_name is not None
                 qualified = tg.QualifiedName(*declared.value_name)
+                resolved_child = graph.resolve_item(child)
+                child_item = next(
+                    tier
+                    for tier in graph.tiers
+                    if tier.declaration.name == resolved_child.tier
+                ).items[resolved_child.index]
                 if any(
-                    r.declaration == qualified and r.sources == (child,)
-                    for r in graph.polyadic_relations
+                    attribute.name == qualified for attribute in child_item.attributes
                 ):
                     values[declared.name] = declared_value(graph, child, qualified)
             sounds.append(

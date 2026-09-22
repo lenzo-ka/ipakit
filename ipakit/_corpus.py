@@ -1,7 +1,7 @@
 """Storage-neutral corpus model and the directory-backed implementation.
 
 The module is private while the corpus surface settles.  Entry documents are
-ordinary canonical JSON; forms use :class:`ipakit.form.Form`'s self-contained
+ordinary canonical JSON; forms use :class:`ipakit.form.Form`'s native
 wire so reading a corpus never reparses IPA text.
 """
 
@@ -285,7 +285,7 @@ class Corpus:
                 raise CorpusError("form role names must be non-empty strings")
             if not isinstance(form, Form):
                 raise CorpusError(f"form {role!r} is not a Form")
-            encoded_forms[role] = form.to_dict(self_contained=True)
+            encoded_forms[role] = form.to_dict()
         document = {
             "type": _ENTRY_TYPE,
             "v": ENTRY_VERSION,
@@ -366,7 +366,7 @@ class Corpus:
         current = self.read(entry_id)
         raw_forms = document["forms"]
         assert isinstance(raw_forms, dict)
-        raw_forms[role] = form.to_dict(self_contained=True)
+        raw_forms[role] = form.to_dict()
         raw_provenance = document.setdefault("provenance", {})
         if not isinstance(raw_provenance, dict):
             raise CorpusError(f"entry {entry_id!r} provenance must be a JSON object")
@@ -681,7 +681,7 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 except (KeyError, TypeError, ValueError) as exc:
                     code = (
                         "form_version"
-                        if "unsupported Form JSON version" in str(exc)
+                        if "format_version" in str(exc) and "unsupported" in str(exc)
                         else "form_restore"
                     )
                     findings.append(

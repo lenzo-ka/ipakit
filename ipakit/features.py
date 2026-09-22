@@ -140,6 +140,15 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     from other conventions imports via :meth:`from_wild`.
     """
 
+    def __setattr__(self, name: str, value: object) -> None:
+        state = self.__dict__.get("_ipakit_form_identity_state")
+        if state is not None and name in state.root_names:
+            value = state.wrap(value)
+            object.__setattr__(self, name, value)
+            state.invalidate()
+            return
+        object.__setattr__(self, name, value)
+
     def __init__(
         self,
         xml_path: Path = DEFAULT_IPA_FEATS,

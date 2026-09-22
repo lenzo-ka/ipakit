@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import json
 from collections import Counter
 from pathlib import Path
 
@@ -36,7 +35,11 @@ def test_item_payload_round_trips_events_and_units_in_declared_order() -> None:
 
     for ref, event in source.events.items():
         attributes = {
-            attribute.name.local_name: attribute.lexical
+            attribute.name.local_name: (
+                attribute.to_value()
+                if isinstance(attribute, tg.JsonAttributeValue)
+                else attribute.lexical
+            )
             for attribute in items[ref].attributes
         }
         if "unit-index" in attributes:
@@ -51,7 +54,7 @@ def test_item_payload_round_trips_events_and_units_in_declared_order() -> None:
                 )
             )
             if "segment-json" in attributes:
-                encoded = json.loads(attributes["segment-json"])
+                encoded = attributes["segment-json"]
                 segment = Segment(
                     tuple(
                         Constituent(
@@ -75,11 +78,10 @@ def test_item_payload_round_trips_events_and_units_in_declared_order() -> None:
             else:
                 rebuilt = Unit(
                     attributes["symbol"],
-                    features=json.loads(attributes["features-json"]),
-                    prosody=json.loads(attributes["prosody-json"]),
+                    features=attributes["features-json"],
+                    prosody=attributes["prosody-json"],
                     provenance=tuple(
-                        tuple(value)
-                        for value in json.loads(attributes["provenance-json"])
+                        tuple(value) for value in attributes["provenance-json"]
                     ),
                     timing=timing,
                     spelling=attributes.get("spelling"),
@@ -161,9 +163,7 @@ def test_integer_timing_normalizes_to_float_so_units_round_trip() -> None:
     form = Form.of(timed, ())
 
     assert repr(form.units[0]) == repr(timed[0])
-    assert form.to_json(self_contained=True) == Form.of(timed, ()).to_json(
-        self_contained=True
-    )
+    assert form.to_json() == Form.of(timed, ()).to_json()
 
 
 def test_parsed_form_owns_graph_and_projects_unit_views() -> None:
@@ -218,10 +218,10 @@ def test_unit_projection_is_memoized_across_form_surface(
     constructions: dict[int, int] = {}
     original_init = form_module._UnitProjection.__init__
 
-    def counted_init(self, graph, inventory=None) -> None:
-        graph_id = id(graph)
+    def counted_init(self, projection_input, inventory=None, *, graph=None) -> None:
+        graph_id = id(projection_input)
         constructions[graph_id] = constructions.get(graph_id, 0) + 1
-        original_init(self, graph, inventory)
+        original_init(self, projection_input, inventory, graph=graph)
 
     monkeypatch.setattr(form_module._UnitProjection, "__init__", counted_init)
     form = Form.parse("#a.b#", FEATURES)
@@ -324,7 +324,7 @@ def test_form_read_paths_use_only_the_authoritative_tiergraph_graph() -> None:
     assert hierarchy.leaves(root)
     assert hierarchy.parents(child)
     assert hierarchy.ancestors(child)
-    assert json.loads(form.to_json())["type"] == "ipakit.form"
+    assert form.to_dict()["format_version"] == "0.3.0"
     assert form.to_dot().startswith("digraph tiergraph")
 
 

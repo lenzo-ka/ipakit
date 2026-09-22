@@ -464,7 +464,7 @@ def test_style_cli_text_and_json(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert json.loads(structured.stdout)["units"][0]["text"] == "ə"
+    assert Form.from_json(structured.stdout).units[0].text == "ə"
     unknown = subprocess.run(
         [
             sys.executable,

@@ -155,7 +155,7 @@ def test_native_roundtrip_clock_children_times_hosts():
         for item in children.items
     )
     assert tg.QualifiedName(NS, "unused") in {
-        d.name for d in graph.relation_declarations
+        d.name for d in graph.attribute_declarations
     }
 
 
@@ -168,7 +168,7 @@ def test_empty_schema_profile_and_presence():
         "tokens": [],
     }
     assert tg.QualifiedName(NS, "unused") in {
-        d.name for d in graph.relation_declarations
+        d.name for d in graph.attribute_declarations
     }
     explicit = {"format": FORMAT, "version": 1, "tokens": [], "relations": []}
     assert restore(construct(explicit, [], schema), schema)[0] == explicit
@@ -210,25 +210,27 @@ def test_unused_declaration_and_metadata_tamper_refuse():
     graph = construct([], [], schema)
     lost = replace(
         graph,
-        relation_declarations=tuple(
+        attribute_declarations=tuple(
             d
-            for d in graph.relation_declarations
+            for d in graph.attribute_declarations
             if d.name != tg.QualifiedName(NS, "unused")
         ),
     )
     with pytest.raises(ValueError, match="constructor layout"):
         restore(lost, schema)
-    # Alter a native JSON scalar without altering the claimed profile digest.
-    hits = [
-        (tg.ItemRef(t.declaration.name, i), a)
-        for t in graph.tiers
-        for i, item in enumerate(t.items)
-        for a in item.attributes
-        if a.lexical == "fixture-provider"
-    ]
-    assert hits
-    ref, attr = hits[0]
-    changed = graph.set_attribute(ref, replace(attr, lexical="tampered"))
+    # Alter the native JSON profile without changing its claimed fingerprint.
+    metadata_tier = next(
+        t for t in graph.tiers if t.declaration.name == name("metadata")
+    )
+    attr = next(
+        a for a in metadata_tier.items[0].attributes if a.name == name("profile")
+    )
+    assert isinstance(attr, tg.JsonAttributeValue)
+    payload = attr.to_value()
+    payload["provider"] = "tampered"
+    changed = graph.set_attribute(
+        tg.ItemRef(name("metadata"), 0), tg.JsonAttributeValue(attr.name, payload)
+    )
     with pytest.raises(ValueError, match="fingerprint mismatch"):
         restore(changed, schema)
 
@@ -371,16 +373,14 @@ def test_native_relation_constraint_mutation_refused():
 def test_declared_value_target_requires_native_json_profile():
     schema = spec()
     graph = construct(["x"], [resolution()], schema)
-    changed = replace(
-        graph,
-        polyadic_relations=tuple(
-            (
-                replace(r, targets=(tg.ItemRef(name("source-token"), 0),))
-                if r.declaration == name("raw")
-                else r
-            )
-            for r in graph.polyadic_relations
-        ),
+    token_tier = next(
+        tier for tier in graph.tiers if tier.declaration.name == name("source-token")
+    )
+    raw = next(a for a in token_tier.items[0].attributes if a.name == name("raw"))
+    assert isinstance(raw, tg.JsonAttributeValue)
+    changed = graph.set_attribute(
+        tg.ItemRef(name("source-token"), 0),
+        tg.JsonAttributeValue(raw.name, {"not": "a token string"}),
     )
     with pytest.raises(ValueError):
         restore(changed, schema)

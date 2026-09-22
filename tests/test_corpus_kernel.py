@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -26,7 +27,8 @@ def test_round_trip_and_canonical_entry_bytes(tmp_path: Path, text: str):
     assert reopened.read("utt-001").forms["utt"] == original
     assert before == (tmp_path / "speech" / "entries" / "utt-001.json").read_bytes()
     assert before.endswith(b"\n")
-    assert b'"features"' in before
+    assert b'"format_version":"0.3.0"' in before
+    assert b"features-json" in before
 
 
 def test_same_form_has_identical_entry_bytes(tmp_path: Path):
@@ -94,11 +96,22 @@ def test_named_split_is_explicit_durable_and_refuses_stale_ids(tmp_path: Path):
         corpus.split("test")
 
 
-def test_self_contained_views_survive_changed_ambient_inventory(
+def test_native_stored_views_survive_changed_resolution_function(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     corpus = _corpus.create(tmp_path / "corpus")
     original = _form("ˈkæt.dɒɡ")
+    original = form_module.Form.of(
+        tuple(
+            dataclasses.replace(
+                unit,
+                features=dict(unit.features),
+                prosody=dict(unit.prosody),
+                provenance=unit.provenance,
+            )
+            for unit in original.units
+        )
+    )
     stored_views = tuple(
         (dict(unit.features), dict(unit.prosody), unit.provenance)
         for unit in original.units
@@ -196,7 +209,7 @@ def test_distinct_tamper_findings(tmp_path: Path):
     bad_version["id"] = "versioned"
     bad_version["forms"] = dict(original["forms"])
     bad_version["forms"]["utt"] = dict(original["forms"]["utt"])
-    bad_version["forms"]["utt"]["v"] = 999
+    bad_version["forms"]["utt"]["format_version"] = "unsupported"
     (root / "entries" / "versioned.json").write_text(json.dumps(bad_version))
 
     mismatch = dict(original)

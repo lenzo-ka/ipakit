@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `Form.to_dict()`/`to_json()` emit the native tiergraph document, and `Form.from_json()` reads it back as the Form's authority.
+- A Form's profile travels as one JSON attribute on its untimed metadata point, with tier and relation roles as declared string attributes and source events as one native association.
+- `ipakit.graph_json` reads and writes an arbitrary native graph, with a CLI validator.
 - Requires tiergraph 0.3 (`>=0.3.0,<0.4.0`); native documents are written and read at format `0.3.0`.
 - Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
 - A sequential tie describes as the trajectory it is, naming every phase; `natural_class` states a sequential member's feature as its phase sequence, so trajectories share one where they move alike; and `minimal_pairs` rejects a sequential query rather than answering about its first phase.

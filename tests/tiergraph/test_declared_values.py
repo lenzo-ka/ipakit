@@ -367,9 +367,11 @@ def test_foreign_names_do_not_inherit_private_payload_semantics(name, value):
     ]
     # Independent literal expectation: only the real structural span, never a
     # private spelling, numeric attribute, or unit interpretation.
-    assert {a.name.local_name: a.lexical for a in item.attributes} == {
-        "structural-duration": "1"
-    }
+    assert {
+        a.name.local_name: a.lexical
+        for a in item.attributes
+        if isinstance(a, tg.AttributeValue)
+    } == {"structural-duration": "1"}
 
 
 def test_foreign_names_do_not_override_actual_timing_and_span():
@@ -403,7 +405,11 @@ def test_foreign_names_do_not_override_actual_timing_and_span():
     item = next(t for t in graph.tiers if t.declaration.name == event.tier).items[
         event.index
     ]
-    actual = {a.name.local_name: float(a.lexical) for a in item.attributes}
+    actual = {
+        a.name.local_name: float(a.lexical)
+        for a in item.attributes
+        if isinstance(a, tg.AttributeValue)
+    }
     assert actual == {
         "structural-duration": 1,
         "timing-start": 0.25,
@@ -512,7 +518,11 @@ def test_unit_and_independent_foreign_values_coexist():
     item = next(t for t in graph.tiers if t.declaration.name == event.tier).items[
         event.index
     ]
-    actual = {a.name.local_name: a.lexical for a in item.attributes}
+    actual = {
+        a.name.local_name: a.lexical
+        for a in item.attributes
+        if isinstance(a, tg.AttributeValue)
+    }
     assert actual["text"] == "a"
     assert actual["input"] == "true"
     assert actual["unit-index"] == "0"

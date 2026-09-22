@@ -100,6 +100,7 @@ from .form import (
     FormProjectionError as FormProjectionError,
 )
 from .form import declared_prosody as _declared_prosody
+from .graph_json import read_graph_json, write_graph_json
 from .inventories import (
     Inventory,
     Style,
@@ -1895,6 +1896,8 @@ __all__ = [
     "Boundary",
     "Form",
     "FormProjectionError",
+    "read_graph_json",
+    "write_graph_json",
     "Interval",
     "Node",
     "Timing",

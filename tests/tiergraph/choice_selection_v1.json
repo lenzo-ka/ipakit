@@ -25,7 +25,7 @@
       {
         "domain": "item",
         "name": "ipakit-containment:features-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "boundary",
@@ -70,17 +70,17 @@
       {
         "domain": "item",
         "name": "ipakit-containment:prosody-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "item",
         "name": "ipakit-containment:provenance-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "item",
         "name": "ipakit-containment:segment-json",
-        "value_type": "string"
+        "value_type": "json"
       },
       {
         "domain": "item",

@@ -179,7 +179,11 @@ def test_mfa_mapper_no_drop_form_has_empty_serializable_report() -> None:
     assert mapped.report.drops == ()
     encoded = json.loads(mapped.to_json())
     assert encoded["report"] == {"drops": []}
-    assert [unit["text"] for unit in encoded["form"]["units"]] == ["p", "a", "t"]
+    assert [unit.text for unit in Form.from_dict(encoded["form"]).units] == [
+        "p",
+        "a",
+        "t",
+    ]
 
 
 @pytest.mark.parametrize(

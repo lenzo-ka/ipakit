@@ -30,10 +30,11 @@ def test_declarations_are_referenced_and_fingerprinted_over_canonical_identity()
     assert graph.relation_declarations
 
 
-def test_ipa_resolved_views_are_opt_in_but_cmu_facts_are_authoritative() -> None:
+def test_ipa_native_graph_restores_views_and_cmu_facts_are_authoritative() -> None:
     form = IPAFeatures().read("a")
-    assert "features" not in form.to_dict()["units"][0]
-    assert "features" in form.to_dict(self_contained=True)["units"][0]
+    assert (
+        type(form).from_json(form.to_json()).units[0].features == form.units[0].features
+    )
     cmu = read_cmu(("AH1",))
     attributes = {
         value.name.local_name: value.lexical
@@ -75,7 +76,7 @@ def test_public_builder_renumbers_units_across_raw_appends() -> None:
 
     assert tuple(unit.text for unit in form.units) == ("k", "a", "t", "a")
     assert form.to_ipa() == "kata"
-    assert json.loads(form.to_json())["units"]
+    assert json.loads(form.to_json())["graph"]
     assert [
         event.features["unit-index"]
         for node in form.__dict__["_tiergraph_index"].clock

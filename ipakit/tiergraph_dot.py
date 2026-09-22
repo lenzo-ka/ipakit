@@ -35,20 +35,24 @@ _CONTAINMENT_NS = "https://ipakit.dev/tiergraph/containment-projection/v1"
 
 
 def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
-    import json
-
     import tiergraph as tg
     import tiergraph_dot as sibling
     from tiergraph import ClockCoordinate, ItemRef, QualifiedName
 
+    from ._form_profile import NS
     from .segment import Constituent, Segment, Sense
+
+    # The Form metadata point is intentionally untimed. Its native association
+    # is a separate concern from the phonetic clock, so use the generic layout.
+    if any(namespace.namespace == NS for namespace in graph.namespaces):
+        return sibling.dumps(graph, include_empty_tiers=include_empty_tiers)
 
     inventory = None  # resolved lazily; only segment labels need it
 
     # Index every item by identity: its ItemRef, durable id, and flat attributes.
     ref_of: dict[int, Any] = {}
     item_by_ref: dict[Any, Any] = {}
-    attrs_of: dict[int, dict[str, str]] = {}
+    attrs_of: dict[int, dict[str, Any]] = {}
     durable_of: dict[int, str] = {}
     for tier in graph.tiers:
         tier_qname = tier.declaration.name
@@ -57,7 +61,12 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
             ref_of[id(item)] = reference
             item_by_ref[reference] = item
             attrs_of[id(item)] = {
-                value.name.local_name: value.lexical for value in item.attributes
+                value.name.local_name: (
+                    value.to_value()
+                    if isinstance(value, tg.JsonAttributeValue)
+                    else value.lexical
+                )
+                for value in item.attributes
             }
             durable_of[id(item)] = item.durable_id
 
@@ -129,7 +138,7 @@ def _render_via_sibling(graph: Any, *, include_empty_tiers: bool) -> str:
                 from .form import _default
 
                 inventory = _default(None)
-            encoded = json.loads(attributes["segment-json"])
+            encoded = attributes["segment-json"]
             # Bare display grapheme: the segment spelled WITHOUT its prosody,
             # mirroring ``Unit.core`` so a stressed "ˈa" still labels as "a".
             segment = Segment(
