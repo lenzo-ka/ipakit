@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableSequence, MutableSet
 from dataclasses import fields, replace
+from types import MappingProxyType
 from typing import Any, cast
 
 import tiergraph as tg
@@ -102,11 +103,29 @@ class _ProviderIdentityState:
                     value, field.name, self.wrap(getattr(value, field.name))
                 )
             object.__setattr__(value, "_ipakit_form_identity_state", self)
+            return value
+        if isinstance(value, MappingProxyType) or isinstance(value, frozenset):
+            # Read-only views of declaration data: nothing can write through
+            # them, so the identity they contribute to cannot go stale.
+            return value
+        if isinstance(value, (Mapping, MutableSet, MutableSequence)):
+            # _snapshot reads this value into the identity, and nothing here
+            # can make a write to it bump the revision, so the identity would
+            # answer "unchanged" after an edit. Refuse at wrap time, where the
+            # field is named, rather than hand back a silently untracked value.
+            raise TypeError(
+                f"provider declaration holds {type(value).__name__}, which the "
+                f"identity reads but cannot track for mutation"
+            )
         return value
 
 
 class _TrackedDict(dict[Any, Any]):
     """Declaration mapping that invalidates its provider identity on writes."""
+
+    def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+        """Copy and pickle as a plain dict: a copy tracks no provider."""
+        return (dict, (dict(self),))
 
     def __init__(self, value: Mapping[Any, Any], state: _ProviderIdentityState):
         self._identity_state = state
@@ -160,6 +179,10 @@ class _TrackedDict(dict[Any, Any]):
 
 class _TrackedList(list[Any]):
     """Declaration sequence that invalidates its provider identity on writes."""
+
+    def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+        """Copy and pickle as a plain list: a copy tracks no provider."""
+        return (list, (list(self),))
 
     def __init__(self, value: list[Any], state: _ProviderIdentityState):
         self._identity_state = state
@@ -225,6 +248,10 @@ class _TrackedList(list[Any]):
 
 class _TrackedSet(set[Any]):
     """Declaration set that invalidates its provider identity on writes."""
+
+    def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+        """Copy and pickle as a plain set: a copy tracks no provider."""
+        return (set, (set(self),))
 
     def __init__(self, value: set[Any], state: _ProviderIdentityState):
         self._identity_state = state

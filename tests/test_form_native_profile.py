@@ -1,7 +1,13 @@
 """Native Form admission keeps facts the former linear projection omitted."""
 
+import copy
 import json
 import math
+import os
+import pickle
+import subprocess
+import sys
+from collections.abc import MutableMapping
 from dataclasses import replace
 
 import ipakit
@@ -510,3 +516,141 @@ def test_native_profile_registry_reports_its_partial_scope():
     graph, roles = profile.satisfaction_witness()
     reports = registry.reports(graph, roles)
     assert any(report.unconfirmed for report in reports)
+
+
+_IDENTITY_PROGRAM = """
+import sys
+from ipakit import IPAFeatures
+from ipakit._form_profile import provider_identity
+print(provider_identity(IPAFeatures()))
+"""
+
+_WRITE_PROGRAM = """
+import sys
+from ipakit import IPAFeatures
+sys.stdout.write(IPAFeatures().read("ˈpʰaː.ta").to_json())
+"""
+
+_READ_PROGRAM = """
+import sys
+from ipakit import Form, IPAFeatures
+encoded = sys.stdin.read()
+form = Form.from_json(encoded, IPAFeatures())
+print(form.to_ipa())
+print(form.to_json() == encoded)
+"""
+
+
+def _subprocess(program: str, seed: str, stdin: str | None = None):
+    environment = {**os.environ, "PYTHONHASHSEED": seed}
+    return subprocess.run(
+        [sys.executable, "-c", program],
+        capture_output=True,
+        text=True,
+        check=True,
+        input=stdin,
+        env=environment,
+    ).stdout
+
+
+@pytest.mark.parametrize("seed", ["0", "1", "12345"])
+def test_provider_identity_is_the_same_in_another_process(seed: str):
+    """Serializing here and restoring there needs one identity everywhere.
+
+    The identity hashes mappings as ordered pairs, because their keys are not
+    all strings, so nothing about the hash is order-free by construction.
+    """
+    assert _subprocess(_IDENTITY_PROGRAM, seed).strip() == provider_identity(
+        IPAFeatures()
+    )
+
+
+def test_a_form_written_in_one_process_restores_in_another():
+    written = _subprocess(_WRITE_PROGRAM, "1")
+    read = _subprocess(_READ_PROGRAM, "12345", stdin=written).split("\n")
+    assert read[0] == "ˈpʰaː.ta"
+    assert read[1] == "True"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(lambda d: d.pop(next(iter(d))), id="dict-pop"),
+        pytest.param(lambda d: d.popitem(), id="dict-popitem"),
+        pytest.param(lambda d: d.clear(), id="dict-clear"),
+        pytest.param(lambda d: d.setdefault("zz", None), id="dict-setdefault"),
+        pytest.param(lambda d: d.update({"zz": None}), id="dict-update"),
+        pytest.param(lambda d: d.__delitem__(next(iter(d))), id="dict-delitem"),
+        pytest.param(lambda d: d.__ior__({"zz": None}), id="dict-ior"),
+    ],
+)
+def test_every_mapping_mutator_invalidates_the_identity(mutate):
+    ipa = IPAFeatures()
+    before = provider_identity(ipa)
+    mutate(ipa.notations)
+    assert provider_identity(ipa) != before
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(lambda v: v.append("zz"), id="append"),
+        pytest.param(lambda v: v.extend(["zz"]), id="extend"),
+        pytest.param(lambda v: v.insert(0, "zz"), id="insert"),
+        pytest.param(lambda v: v.remove(v[0]), id="remove"),
+        pytest.param(lambda v: v.pop(), id="pop"),
+        pytest.param(lambda v: v.reverse(), id="reverse"),
+        pytest.param(lambda v: v.sort(), id="sort"),
+        pytest.param(lambda v: v.clear(), id="clear"),
+        pytest.param(lambda v: v.__iadd__(["zz"]), id="iadd"),
+        pytest.param(lambda v: v.__imul__(2), id="imul"),
+    ],
+)
+def test_every_sequence_mutator_invalidates_the_identity(mutate):
+    ipa = IPAFeatures()
+    provider_identity(ipa)
+    values = ipa.features["manner"].values
+    before = provider_identity(ipa)
+    mutate(values)
+    assert provider_identity(ipa) != before
+
+
+def test_a_declaration_the_identity_cannot_track_is_refused_at_wrap():
+    """A mutable container the identity reads but cannot watch would go stale."""
+
+    class Custom(MutableMapping):
+        def __init__(self):
+            self._data = {"a": 1}
+
+        def __getitem__(self, key):
+            return self._data[key]
+
+        def __setitem__(self, key, value):
+            self._data[key] = value
+
+        def __delitem__(self, key):
+            del self._data[key]
+
+        def __iter__(self):
+            return iter(self._data)
+
+        def __len__(self):
+            return len(self._data)
+
+    ipa = IPAFeatures()
+    object.__setattr__(ipa, "notations", Custom())
+    with pytest.raises(TypeError, match="cannot track for mutation"):
+        provider_identity(ipa)
+
+
+def test_a_provider_that_has_served_a_form_still_copies_and_pickles():
+    ipa = IPAFeatures()
+    ipa.read("pa").to_json()
+    before = provider_identity(ipa)
+    for copied in (
+        copy.deepcopy(ipa.notations),
+        pickle.loads(pickle.dumps(ipa.notations)),
+    ):
+        assert dict(copied) == dict(ipa.notations)
+        assert type(copied) is dict
+    assert provider_identity(ipa) == before
