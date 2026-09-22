@@ -71,6 +71,8 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 
+from ipakit._scalar_attribute import scalar_lexical
+
 from .constants import ZERO_CLASS
 from .segment import state_mark_value
 
@@ -1192,7 +1194,7 @@ class _UnitProjection:
         self._intervals: tuple[Interval, ...] | None = None
         self._attributes = {
             path: {
-                attribute.name.local_name: attribute.lexical
+                attribute.name.local_name: scalar_lexical(attribute)
                 for attribute in next(
                     tier
                     for tier in graph.tiers

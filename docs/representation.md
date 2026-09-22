@@ -90,7 +90,7 @@ in their declared order. Silence remains directly reachable on the segment tier.
 ## Tier-graph envelope
 
 The native store uses tiergraph's plain-JSON envelope with
-`format_version: "0.2.0"` and a `graph` member. Native namespace, tier, attribute
+`format_version: "0.3.0"` and a `graph` member. Native namespace, tier, attribute
 and relation declarations travel with the graph. `tiergraph.dumps(graph)` and
 `tiergraph.loads(document)` are its serializer and reader; there is no second
 ipakit native graph serializer. The older `type: "tiergraph", v: 1` description
@@ -99,7 +99,7 @@ was an earlier profile format, not the current authoritative native wire format.
 For example, the native constructor's namespace-only graph serializes as:
 
 ```json
-{"format_version":"0.2.0","graph":{"namespaces":[{"namespace":"urn:example","prefix":"example"}]}}
+{"format_version":"0.3.0","graph":{"namespaces":[{"namespace":"urn:example","prefix":"example"}]}}
 ```
 
 This minimal example contains only a namespace declaration. In the internal

@@ -1,6 +1,6 @@
 # Tier-graph acceptance coverage
 
-The graph kernel is the `tiergraph` library (`tiergraph>=0.2.1,<0.3.0`, <https://github.com/lenzo-ka/tiergraph>). A cell naming a test names a witness in this repository. A cell saying **tiergraph contract** names a guarantee carried by the library's own conformance suite.
+The graph kernel is the `tiergraph` library (`tiergraph>=0.3.0,<0.4.0`, <https://github.com/lenzo-ka/tiergraph>). A cell naming a test names a witness in this repository. A cell saying **tiergraph contract** names a guarantee carried by the library's own conformance suite.
 
 `tests/test_tiergraph_acceptance_docs.py` resolves every cited test path and node and rejects the table's former explicit gap marker. Renaming or deleting a witness, or recording a known local gap with that marker, therefore breaks the ordinary test gate instead of leaving a stale green claim here.
 

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import tiergraph as tg
+from ipakit._scalar_attribute import scalar_lexical
 
 from .vocabulary import Atom, VocabularyBridge
 
@@ -127,7 +128,7 @@ class PinyinBridge(VocabularyBridge):
             )
             if value is None or value.value_type != tg.XsdType.INTEGER:
                 raise ValueError("Pinyin tone requires a qualified integer value")
-            level = int(value.lexical)
+            level = int(scalar_lexical(value))
             if level not in range(1, 6):
                 raise ValueError("Pinyin tone must be an integer from 1 through 5")
             if target in tones:
@@ -142,7 +143,7 @@ class PinyinBridge(VocabularyBridge):
                 raise ValueError(
                     "Pinyin syllable requires a qualified string spelling attribute"
                 )
-            spelling = self.decode_input(spelling_value.lexical)
+            spelling = self.decode_input(scalar_lexical(spelling_value))
             if not spelling:
                 raise ValueError("Pinyin syllable spelling must be nonempty")
             if any(

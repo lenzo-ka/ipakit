@@ -37,7 +37,7 @@ import tomllib
 from pathlib import Path
 
 project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-next(dep for dep in project["project"]["dependencies"] if dep.startswith("tiergraph"))  # 'tiergraph>=0.2.1,<0.3.0'
+next(dep for dep in project["project"]["dependencies"] if dep.startswith("tiergraph"))  # 'tiergraph>=0.3.0,<0.4.0'
 gate_source = Path("scripts/gate_subject.py").read_text(encoding="utf-8")
 ("tiergraph_path=" in gate_source, "tiergraph_version=" in gate_source,
  "tiergraph_commit" in gate_source)  # (True, True, False)
