@@ -202,8 +202,12 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
-def test_wheel_requires_native_json_embedding_release(built_wheel):
-    """Installation must not admit a provider lacking model graph embedding."""
+def test_wheel_requires_the_tiergraph_line_its_documents_are_written_in(built_wheel):
+    """Installation admits exactly the tiergraph 0.3 line.
+
+    A tiergraph reader accepts only its own format version, so a provider from
+    another line refuses every document ipakit writes or ships.
+    """
     with zipfile.ZipFile(built_wheel) as archive:
         metadata_paths = [
             name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
@@ -217,9 +221,9 @@ def test_wheel_requires_native_json_embedding_release(built_wheel):
     assert len(native) == 1
     requirement = native[0]
     assert requirement.url is None and requirement.marker is None
-    assert "0.2.0" not in requirement.specifier
-    assert "0.2.1" in requirement.specifier
-    assert "0.3.0" not in requirement.specifier
+    assert "0.2.3" not in requirement.specifier
+    assert "0.3.0" in requirement.specifier
+    assert "0.4.0" not in requirement.specifier
 
 
 def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wheel):

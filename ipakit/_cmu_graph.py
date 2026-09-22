@@ -12,6 +12,7 @@ from tiergraph.build import document
 from tiergraph.build import item as graph_item
 
 import tiergraph as tg
+from ipakit._scalar_attribute import scalar_lexical
 
 _MAP = Path(__file__).parent / "data" / "phonemaps" / "cmu.xml"
 
@@ -143,7 +144,8 @@ def render(graph: tg.Graph, dialect: CMUDialect = BASE_CMUDICT) -> tuple[str, ..
             continue
         for phone_item in tier.items:
             attributes = {
-                value.name.local_name: value.lexical for value in phone_item.attributes
+                value.name.local_name: scalar_lexical(value)
+                for value in phone_item.attributes
             }
             stress = attributes.get("stress")
             result.append(

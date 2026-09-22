@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Requires tiergraph 0.3 (`>=0.3.0,<0.4.0`); native documents are written and read at format `0.3.0`.
 - Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
 - A sequential tie describes as the trajectory it is, naming every phase; `natural_class` states a sequential member's feature as its phase sequence, so trajectories share one where they move alike; and `minimal_pairs` rejects a sequential query rather than answering about its first phase.
 - A sequence-valued feature compares as a sequence, so tone and its derived contour price a difference in time order. Scalar tone costs and the phone-only confusion matrix are unchanged.

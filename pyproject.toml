@@ -26,9 +26,10 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    # Native declared JSON values require tiergraph 0.2.1. Use a publishable version
-    # requirement; alpha minor releases may break APIs, so stay within 0.2.x.
-    "tiergraph>=0.2.1,<0.3.0",
+    # A tiergraph reader accepts only its own format version, and ipakit's native
+    # documents are written at 0.3.0; alpha minor releases may break APIs, so stay
+    # within 0.3.x.
+    "tiergraph>=0.3.0,<0.4.0",
 ]
 
 [project.optional-dependencies]

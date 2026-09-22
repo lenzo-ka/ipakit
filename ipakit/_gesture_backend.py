@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import tiergraph
+from ipakit._scalar_attribute import scalar_lexical
 
 from ._gesture_graph import GESTURE_TIER, TARGET_TIER
 from ._graph_facts import Event, Timing
@@ -87,7 +88,8 @@ def _tier_events(graph: Any, tier: str) -> list[tuple[str, Event]]:
             continue
         for index, item in enumerate(native_tier.items):
             attributes = {
-                value.name.local_name: value.lexical for value in item.attributes
+                value.name.local_name: scalar_lexical(value)
+                for value in item.attributes
             }
             timing = (
                 Timing(
