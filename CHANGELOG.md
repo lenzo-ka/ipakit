@@ -7,17 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- `Form.to_dict()`/`to_json()` emit the native tiergraph document, and `Form.from_json()` reads it back as the Form's authority.
-- A Form's profile travels as one JSON attribute on its untimed metadata point, with tier and relation roles as declared string attributes and source events as one native association.
-- `ipakit.graph_json` reads and writes an arbitrary native graph, with a CLI validator.
-- Requires tiergraph 0.3 (`>=0.3.0,<0.4.0`); native documents are written and read at format `0.3.0`.
-- Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
-- A sequential tie describes as the trajectory it is, naming every phase; `natural_class` states a sequential member's feature as its phase sequence, so trajectories share one where they move alike; and `minimal_pairs` rejects a sequential query rather than answering about its first phase.
-- A sequence-valued feature compares as a sequence, so tone and its derived contour price a difference in time order. Scalar tone costs and the phone-only confusion matrix are unchanged.
-- Taps and trills are complete closures with distinct intrinsic timing.
-- Renamed `confusability`/`normalized_distance` to `similarity_position`/`distance_position`; `DistanceModel.confusability`/`.similarity` to `.similarity_position`, `.distance` to `.distance_position`, and `.nearest` to `.nearest_positions` returning `PhonePosition`; and CLI `distance confusability` (`conf`) to `distance positions` (`pos`) with matching output labels.
-
-## [0.3.0] - 2026-09-13
+## [0.3.0] - 2026-09-23
 
 ### Added
 
@@ -58,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Declared inventory provenance and generated per-family inventory cards.
 - Dictionary-derived inventories carry token and entry counts and report optional `min_entries` tail drops.
 - `DistanceModel` warns when its reference inventory holds too few distinct-phone pairs to place a percentile position.
+- `ipakit.graph_json` reads and writes an arbitrary native graph, with a CLI validator.
 
 ### Changed
 
@@ -69,6 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unsupported tokens through alignment shortcuts.
 - MFA dictionary inventories report marker-only placeholder entries; `refuse_unreadable` keeps them fatal.
 - Nearest-phone results include the query when it belongs to the reference inventory, and an open-upper empirical-CDF plotting position reserves distance 0 for identity; unregistered queries are not synthesized as answers.
+- `Form.to_dict()`/`to_json()` emit the native tiergraph document, and `Form.from_json()` reads it back as the Form's authority.
+- A Form's profile travels as one JSON attribute on its untimed metadata point, with tier and relation roles as declared string attributes and source events as one native association.
+- Requires tiergraph 0.3 (`>=0.3.0,<0.4.0`); native documents are written and read at format `0.3.0`.
+- Flat `features()` reads warn when they omit sequential constituents, prosody, or unread material, and `feature_values()` retains unit prosody.
+- A sequential tie describes as the trajectory it is, naming every phase; `natural_class` states a sequential member's feature as its phase sequence, so trajectories share one where they move alike; and `minimal_pairs` rejects a sequential query rather than answering about its first phase.
+- A sequence-valued feature compares as a sequence, so tone and its derived contour price a difference in time order. Scalar tone costs and the phone-only confusion matrix are unchanged.
+- Taps and trills are complete closures with distinct intrinsic timing.
+- Renamed `confusability`/`normalized_distance` to `similarity_position`/`distance_position`; `DistanceModel.confusability`/`.similarity` to `.similarity_position`, `.distance` to `.distance_position`, and `.nearest` to `.nearest_positions` returning `PhonePosition`; and CLI `distance confusability` (`conf`) to `distance positions` (`pos`) with matching output labels.
 
 ## [0.2.0] - 2026-09-07
 
