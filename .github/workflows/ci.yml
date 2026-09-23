@@ -167,6 +167,10 @@ jobs:
         run: python scripts/xsampa_table.py validate
       - name: Confusion matrix matches the metric
         run: python scripts/confusion.py validate
+      - name: Geometry figures in docs/distance.md match the metric (numpy; skipped in the matrix job)
+        env:
+          PYTHONHASHSEED: "0"
+        run: pytest tests/test_geometry_doc.py
       - name: Committed tiergraph baselines match their manifest
         run: PYTHONHASHSEED=0 python scripts/tiergraph_capture.py verify-baselines
       # The full invariant sweep, including "derived artifacts current", which
