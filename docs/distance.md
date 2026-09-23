@@ -326,10 +326,10 @@ leading-axis/compositeness correlation (silence excluded)  0.977
 
 The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.077`, from `0.977`); it correlates `0.917` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.268` against `0.323` from composites to atomics, no longer a constant, and the leading positive axis carries `43.5%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `12.3%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
 
-`scripts/geometry.py` prints these. They are a measurement of one commit, not a live invariant, and **nothing in `make check` recomputes them**: the eigendecomposition needs numpy, which is declared in the `compare` extra so the test jobs stay lean, and a gate no CI job can run is not a gate. So the reading below names the commit it was taken at, and the next reader re-takes it rather than trusting it:
+`scripts/geometry.py` prints these, and `scripts/geometry.py check` holds the reading below to a fresh measurement of the shipped metric, failing by name on any figure that has moved. The eigendecomposition needs numpy, which the `compare` extra declares; `tests/test_geometry_doc.py` makes the same comparison and runs in the CI job that installs `.[dev]`, skipping where numpy is absent:
 
 ```text
-$ pip install -e ".[compare]" && python scripts/geometry.py   # at 2378c91
+$ pip install -e ".[compare]" && python scripts/geometry.py
 confusion.json SHA-256                   8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e
 phones                                  138
 negative eigenvalue mass                12.3%
@@ -340,9 +340,9 @@ mean distance within composites         0.268
 mean distance composites to atomics     0.323
 ```
 
-A separate, stdlib-only fingerprint makes staleness gateable without claiming
-to check the figures themselves. If the matrix changes, the documentation gate
-fails here and says that the numpy-dependent figures above need to be re-taken:
+A stdlib-only fingerprint of the matrix is checked by the documentation gate,
+which runs without numpy. If the matrix changes, that gate fails here even in a
+job that cannot recompute the figures above:
 
 ```python
 from hashlib import sha256

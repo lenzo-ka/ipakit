@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 """Measure the geometry of the shipped distance matrix.
 
-``docs/distance.md`` quotes what this prints. The numbers are a
-*measurement of one commit*, not a live invariant, and nothing in
-``make check`` recomputes them: the eigendecomposition needs numpy,
-which is declared in the ``compare`` extra so the test jobs stay lean,
-and a gate no CI job can run is not a gate. So the document names the
-commit it measured and this script is how the next reader checks it::
+``docs/distance.md`` quotes what this prints, and ``check`` holds the
+quote to a fresh measurement: it fails, naming each figure, when the
+document and the shipped metric disagree. The eigendecomposition needs
+numpy, which is declared in the ``compare`` extra so the lean test jobs
+stay lean; ``tests/test_geometry_doc.py`` makes the same comparison and
+runs in the CI job that installs ``.[dev]``::
 
     pip install -e ".[compare]"
-    python scripts/geometry.py
+    python scripts/geometry.py          # print the figures
+    python scripts/geometry.py check    # compare them to the document
 
 The figures answer one question -- how far the dissimilarity is from
 being a Euclidean metric, and what the leading axis encodes. Classical
@@ -102,7 +103,49 @@ def _round(value: float) -> float:
     return round(float(value), 3)
 
 
-def main() -> int:
+DOC = ROOT / "docs" / "distance.md"
+QUOTE_COMMAND = "python scripts/geometry.py"
+
+
+def quoted(document: str) -> dict[str, str]:
+    """The figures a document quotes, read from its ``text`` fence.
+
+    The fence is the one whose command line runs this script; each line
+    after it is ``name  value`` with two or more spaces between.
+    """
+    lines = document.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("$ ") and QUOTE_COMMAND in line:
+            figures: dict[str, str] = {}
+            for entry in lines[index + 1 :]:
+                if entry.startswith("```"):
+                    return figures
+                name, _, value = entry.partition("  ")
+                figures[name.strip()] = value.strip()
+            break
+    raise ValueError(f"no fence quoting `{QUOTE_COMMAND}` output was found")
+
+
+def differences(measured: dict[str, object], document: str) -> list[str]:
+    """Every figure on which the document and the measurement disagree."""
+    stated = quoted(document)
+    found = {key: str(value) for key, value in measured.items()}
+    problems = [
+        f"{key}: the document says {stated[key]!r}, measured {found[key]!r}"
+        for key in found
+        if key in stated and stated[key] != found[key]
+    ]
+    problems += [
+        f"{key}: measured but not quoted" for key in found if key not in stated
+    ]
+    problems += [
+        f"{key}: quoted but not measured" for key in stated if key not in found
+    ]
+    return problems
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     try:
         measured = measure()
     except ImportError:
@@ -111,6 +154,15 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
+    if argv[:1] == ["check"]:
+        problems = differences(measured, DOC.read_text(encoding="utf-8"))
+        for problem in problems:
+            print(f"{DOC.relative_to(ROOT)}: {problem}", file=sys.stderr)
+        if problems:
+            print("re-take the figures: python scripts/geometry.py", file=sys.stderr)
+            return 1
+        print(f"{DOC.relative_to(ROOT)}: every quoted geometry figure is current")
+        return 0
     width = max(len(key) for key in measured)
     for key, value in measured.items():
         print(f"{key:<{width}}  {value}")
