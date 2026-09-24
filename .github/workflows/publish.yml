@@ -29,11 +29,22 @@ jobs:
       - name: Check distribution metadata
         run: python -m twine check dist/*
       - name: Verify version matches release tag
+        # Read the version from the built wheel's metadata, which is what
+        # uploads, rather than importing ipakit: this job installs only the
+        # build tools, and importing the package needs its dependencies.
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          VERSION=$(python -c "import ipakit; print(ipakit.__version__)")
-          echo "ipakit.__version__=$VERSION release tag=$TAG"
+          VERSION=$(python - <<'EOF'
+          import glob, zipfile
+          from email.parser import BytesParser
+          (wheel,) = glob.glob("dist/*.whl")
+          with zipfile.ZipFile(wheel) as archive:
+              (name,) = [n for n in archive.namelist() if n.endswith(".dist-info/METADATA")]
+              print(BytesParser().parsebytes(archive.read(name))["Version"])
+          EOF
+          )
+          echo "wheel metadata version=$VERSION release tag=$TAG"
           test "$VERSION" = "${TAG#v}"
       - uses: actions/upload-artifact@v7
         with:
