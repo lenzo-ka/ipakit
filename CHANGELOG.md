@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rest-posture lip, jaw and velum states reject unknown spellings.
 - The tract-anatomy guide describes and measures the current structured drawings.
 - Forms constructed from units use those units' custom inventory declarations in their graph facts.
+- An inventory refuses a declared unspelled value that one of its marks spells, and the metric anchors a prosodic feature at its declared unspelled value.
 
 ## [0.3.0] - 2026-09-23
 
