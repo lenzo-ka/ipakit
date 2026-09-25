@@ -27,6 +27,7 @@ from ipakit.clts_mapping import (
     read_authority,
     reviewed_rules,
 )
+from ipakit.features import FeatureNarrowingWarning
 
 
 def reseal(data: dict) -> dict:
@@ -75,7 +76,7 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
     assert data["version"] == 2
-    assert data["rules"]["version"] == 3
+    assert data["rules"]["version"] == 4
     assert data["rules"]["disposition_classes"] == [
         "exact under stated conditions",
         "conditional/composite",
@@ -192,8 +193,75 @@ def test_release_declarations_resolve_to_values_or_constituent_sequences() -> No
         assert data["native_witnesses"][rule_id]["observed_junctures"] == ["fuse"]
 
 
-@pytest.mark.slow
-def _supplied_consonants(entries: dict[str, list[str]]) -> Snapshot:
+def test_duration_declarations_preserve_distinct_native_length_values() -> None:
+    expected = {
+        ("vowel", "long"): ("aː", "long"),
+        ("vowel", "mid-long"): ("aˑ", "half-long"),
+        ("vowel", "ultra-long"): ("aːː", "overlong"),
+        ("vowel", "ultra-short"): ("ă", "extra-short"),
+        ("consonant", "long"): ("tː", "long"),
+        ("consonant", "mid-long"): ("tˑ", "half-long"),
+        ("consonant", "ultra-long"): ("tːː", "overlong"),
+    }
+    rules = {
+        (rule["source"][1], rule["source"][3]): rule
+        for rule in reviewed_rules()["declaration_rules"]
+        if rule["source"][2] == "duration"
+    }
+    assert set(rules) == set(expected)
+    for source, (witness, house_value) in expected.items():
+        rule = rules[source]
+        assert rule["disposition"] == "exact under stated conditions"
+        assert rule["preconditions"] == {"source": "asserted"}
+        assert rule["target"] == {
+            "form": "feature",
+            "path": ["ipakit", "length", house_value],
+            "witness": witness,
+        }
+    authority = read_authority().to_data()
+    rows = {
+        (row["source"][1], row["source"][3]): row
+        for row in authority["dispositions"]["clts_to_ipakit"]
+        if row["source"][2] == "duration"
+    }
+    observed = _native_witnesses(reviewed_rules(), load_ipa_features())
+    assert set(rows) == set(expected)
+    for source, (witness, house_value) in expected.items():
+        rule = rules[source]
+        assert rows[source]["status"] == "exact under stated conditions"
+        assert rows[source]["targets"] == [rule["target"]]
+        assert observed[rule["id"]] == {
+            "form": "feature",
+            "target": ["ipakit", "length", house_value],
+            "witness": witness,
+            "constituents": 1,
+            "read": "feature_values",
+            "observed_value": house_value,
+        }
+        assert authority["native_witnesses"][rule["id"]] == observed[rule["id"]]
+    assert {value for (kind, _), (_, value) in expected.items() if kind == "vowel"} == {
+        "long",
+        "half-long",
+        "overlong",
+        "extra-short",
+    }
+    assert {
+        value for (kind, _), (_, value) in expected.items() if kind == "consonant"
+    } == {"long", "half-long", "overlong"}
+
+
+def test_flat_read_would_collapse_duration_witnesses_to_normal() -> None:
+    ipa = load_ipa_features()
+    with pytest.warns(FeatureNarrowingWarning):
+        assert ipa.get_features("aˑ")["length"] == "normal"
+    with pytest.warns(FeatureNarrowingWarning):
+        assert ipa.get_features("aːː")["length"] == "normal"
+    observed = _native_witnesses(reviewed_rules(), ipa)
+    assert observed["vowel-duration-mid-long/1"]["observed_value"] == "half-long"
+    assert observed["vowel-duration-ultra-long/1"]["observed_value"] == "overlong"
+
+
+def _supplied_snapshot(entries: dict[str, tuple[str, list[str]]]) -> Snapshot:
     data = {k: v for k, v in read_snapshot().to_data().items() if k != "identity"}
     data["domain"] = "supplied-tokens"
     data["requested"] = sorted(entries)
@@ -204,12 +272,73 @@ def _supplied_consonants(entries: dict[str, list[str]]) -> Snapshot:
             "canonical": token,
             "declaration": None,
             "features": sorted(features),
-            "kind": "consonant",
+            "kind": kind,
             "normalized": False,
         }
-        for token, features in entries.items()
+        for token, (kind, features) in entries.items()
     }
     return Snapshot({**data, "identity": identity_fingerprint(data)})
+
+
+def _supplied_consonants(entries: dict[str, list[str]]) -> Snapshot:
+    return _supplied_snapshot(
+        {token: ("consonant", features) for token, features in entries.items()}
+    )
+
+
+def test_duration_targets_require_the_source_value_to_be_asserted() -> None:
+    snapshot = _supplied_snapshot(
+        {
+            "v-long": ("vowel", ["vowel", "long"]),
+            "v-mid": ("vowel", ["vowel", "mid-long"]),
+            "v-ultra": ("vowel", ["vowel", "ultra-long"]),
+            "v-short": ("vowel", ["vowel", "ultra-short"]),
+            "c-long": ("consonant", ["consonant", "long"]),
+            "c-mid": ("consonant", ["consonant", "mid-long"]),
+            "c-ultra": ("consonant", ["consonant", "ultra-long"]),
+            "v-plain": ("vowel", ["vowel"]),
+            "c-plain": ("consonant", ["consonant"]),
+        }
+    )
+    expected = {
+        ("vowel", "long", "v-long"): "long",
+        ("vowel", "mid-long", "v-mid"): "half-long",
+        ("vowel", "ultra-long", "v-ultra"): "overlong",
+        ("vowel", "ultra-short", "v-short"): "extra-short",
+        ("consonant", "long", "c-long"): "long",
+        ("consonant", "mid-long", "c-mid"): "half-long",
+        ("consonant", "ultra-long", "c-ultra"): "overlong",
+    }
+    authority = read_authority()
+    for (kind, source_value, token), house_value in expected.items():
+        source = ["clts", kind, "duration", source_value]
+        assert authority.declaration_target(source, token, snapshot)["path"] == [
+            "ipakit",
+            "length",
+            house_value,
+        ]
+        with pytest.raises(MappingInvalid, match="does not assert"):
+            authority.declaration_target(source, f"{kind[0]}-plain", snapshot)
+
+
+def test_macron_a_is_tone_not_a_duration_witness_without_live_clts() -> None:
+    ipa = load_ipa_features()
+    values = ipa.feature_values("ā")
+    assert values["tone"] == ("mid",)
+    assert values["length"] == ("normal",)
+    duration_witnesses = {
+        rule["target"]["witness"]
+        for rule in reviewed_rules()["declaration_rules"]
+        if rule["source"][2] == "duration"
+    }
+    assert "ā" not in duration_witnesses
+    snapshot = _supplied_snapshot(
+        {"ā": ("vowel", ["front", "open", "unrounded", "vowel", "with-mid_tone"])}
+    )
+    with pytest.raises(MappingInvalid, match="does not assert"):
+        read_authority().declaration_target(
+            ["clts", "vowel", "duration", "long"], "ā", snapshot
+        )
 
 
 @pytest.mark.parametrize(
@@ -255,6 +384,46 @@ def test_sequence_release_refuses_non_stop_host_from_master_tables() -> None:
             "fˢ",
             snapshot,
         )
+
+
+def test_duration_witnesses_and_macron_a_match_live_clts_resolver() -> None:
+    value = os.environ.get("IPAKIT_CLTS_DIR")
+    if not value:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for live duration witnesses")
+    expected = {
+        "aː": ("vowel", "long"),
+        "aˑ": ("vowel", "mid-long"),
+        "aːː": ("vowel", "ultra-long"),
+        "ă": ("vowel", "ultra-short"),
+        "tː": ("consonant", "long"),
+        "tˑ": ("consonant", "mid-long"),
+        "tːː": ("consonant", "ultra-long"),
+    }
+    snapshot = extract_snapshot(Path(value), tokens=[*expected, "ā"])
+    data = snapshot.to_data()
+    assert "data/sounds.tsv" not in data["source"]["inputs"]
+    rules = {
+        rule["target"]["witness"]: (rule["source"][1], rule["source"][3])
+        for rule in reviewed_rules()["declaration_rules"]
+        if rule["source"][2] == "duration"
+    }
+    assert rules == expected
+    for witness, (kind, source_value) in expected.items():
+        entry = data["entries"][witness]
+        assert entry["kind"] == kind
+        assert source_value in entry["features"]
+    macron = data["entries"]["ā"]
+    assert macron["kind"] == "vowel"
+    assert macron["features"] == [
+        "front",
+        "open",
+        "unrounded",
+        "vowel",
+        "with-mid_tone",
+    ]
+    assert not {"long", "mid-long", "ultra-long", "ultra-short"} & set(
+        macron["features"]
+    )
 
 
 def test_census_refuses_same_kind_cross_feature_value_spelling(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:6a42840120e87edbf2e3e91442cd185926b55a46f6ba50b1bf51bf660984f3b3`.
+Mapping identity: `sha256:2d8948d2fcfe858a03e0f7de21d77b37b35056415f96acb09e168ad15b3cf53b`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
@@ -16,9 +16,9 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | clts_to_ipakit | clts / consonant / aspiration / aspirated | unresolved pending evidence |  |
 | clts_to_ipakit | clts / consonant / breathiness / breathy | unresolved pending evidence |  |
 | clts_to_ipakit | clts / consonant / creakiness / creaky | unresolved pending evidence |  |
-| clts_to_ipakit | clts / consonant / duration / long | unresolved pending evidence |  |
-| clts_to_ipakit | clts / consonant / duration / mid-long | unresolved pending evidence |  |
-| clts_to_ipakit | clts / consonant / duration / ultra-long | unresolved pending evidence |  |
+| clts_to_ipakit | clts / consonant / duration / long | exact under stated conditions | consonant-duration-long/1 |
+| clts_to_ipakit | clts / consonant / duration / mid-long | exact under stated conditions | consonant-duration-mid-long/1 |
+| clts_to_ipakit | clts / consonant / duration / ultra-long | exact under stated conditions | consonant-duration-ultra-long/1 |
 | clts_to_ipakit | clts / consonant / ejection / ejective | unresolved pending evidence |  |
 | clts_to_ipakit | clts / consonant / friction / with-friction | unresolved pending evidence |  |
 | clts_to_ipakit | clts / consonant / glottalization / glottalized | unresolved pending evidence |  |
@@ -127,10 +127,10 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | clts_to_ipakit | clts / vowel / centrality / near-back | unresolved pending evidence |  |
 | clts_to_ipakit | clts / vowel / centrality / near-front | unresolved pending evidence |  |
 | clts_to_ipakit | clts / vowel / creakiness / creaky | unresolved pending evidence |  |
-| clts_to_ipakit | clts / vowel / duration / long | unresolved pending evidence |  |
-| clts_to_ipakit | clts / vowel / duration / mid-long | unresolved pending evidence |  |
-| clts_to_ipakit | clts / vowel / duration / ultra-long | unresolved pending evidence |  |
-| clts_to_ipakit | clts / vowel / duration / ultra-short | unresolved pending evidence |  |
+| clts_to_ipakit | clts / vowel / duration / long | exact under stated conditions | vowel-duration-long/1 |
+| clts_to_ipakit | clts / vowel / duration / mid-long | exact under stated conditions | vowel-duration-mid-long/1 |
+| clts_to_ipakit | clts / vowel / duration / ultra-long | exact under stated conditions | vowel-duration-ultra-long/1 |
+| clts_to_ipakit | clts / vowel / duration / ultra-short | exact under stated conditions | vowel-duration-ultra-short/1 |
 | clts_to_ipakit | clts / vowel / friction / with-friction | unresolved pending evidence |  |
 | clts_to_ipakit | clts / vowel / glottalization / glottalized | unresolved pending evidence |  |
 | clts_to_ipakit | clts / vowel / height / close | unresolved pending evidence |  |
@@ -343,6 +343,13 @@ A release realized as another segment is represented by a constituent sequence. 
 - `clts / consonant / release / with-sibilant-release` → plosive + sibilant fricative (`t͡s`) (release-sibilant-sequence/1).
 - `clts / consonant / release / with-trilled-release` → plosive + trill (`d͡r`) (release-trilled-sequence/1).
 - `clts / consonant / release / with-uvular-release` → plosive + uvular fricative (`d͡ʁ`) (release-uvular-sequence/1).
+- `clts / vowel / duration / long` → ipakit / length / long (vowel-duration-long/1).
+- `clts / vowel / duration / mid-long` → ipakit / length / half-long (vowel-duration-mid-long/1).
+- `clts / vowel / duration / ultra-long` → ipakit / length / overlong (vowel-duration-ultra-long/1).
+- `clts / vowel / duration / ultra-short` → ipakit / length / extra-short (vowel-duration-ultra-short/1).
+- `clts / consonant / duration / long` → ipakit / length / long (consonant-duration-long/1).
+- `clts / consonant / duration / mid-long` → ipakit / length / half-long (consonant-duration-mid-long/1).
+- `clts / consonant / duration / ultra-long` → ipakit / length / overlong (consonant-duration-ultra-long/1).
 
 ## Structural and enhancement dispositions
 

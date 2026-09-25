@@ -1,8 +1,8 @@
 """Reviewed directional predicates, distinct from declaration census and import.
 
 The authority is deliberately bounded to complete plain-stop witnesses and the
-adjudicated release declarations. Other declarations remain explicitly unresolved;
-B2 structural binding is pending.
+adjudicated release and duration declarations. Other declarations remain explicitly
+unresolved; B2 structural binding is pending.
 """
 
 from __future__ import annotations
@@ -93,22 +93,35 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
         witness = target["witness"]
         form = ipa.read(witness, strict=True)
         if len(form.units) != 1 or form.units[0].segment is None:
-            raise MappingInvalid("release witness is not one segment")
+            raise MappingInvalid("declaration witness is not one segment")
         segment = form.units[0].segment
         if target["form"] == "feature":
             path = target["path"]
-            if (
-                len(path) != 3
-                or path[:2] != ["ipakit", "release"]
-                or len(segment.constituents) != 1
-                or segment.constituents[0].bundle(ipa).get(path[1]) != path[2]
-            ):
-                raise MappingInvalid("native release-value witness changed")
+            if len(path) != 3 or path[0] != "ipakit" or len(segment.constituents) != 1:
+                raise MappingInvalid("invalid native feature-value witness")
+            if path[1] == "release":
+                observed_value = segment.constituents[0].bundle(ipa).get(path[1])
+                read = "constituent-bundle"
+            elif path[1] == "length":
+                values = ipa.feature_values(witness)
+                observed_values = values.get(path[1])
+                observed_value = (
+                    observed_values[0]
+                    if observed_values is not None and len(observed_values) == 1
+                    else None
+                )
+                read = "feature_values"
+            else:
+                raise MappingInvalid("unsupported native feature witness family")
+            if observed_value != path[2]:
+                raise MappingInvalid("native feature-value witness changed")
             results[rule["id"]] = {
                 "form": "feature",
                 "target": path,
                 "witness": witness,
                 "constituents": 1,
+                "read": read,
+                "observed_value": observed_value,
             }
         elif target["form"] == "sequence":
             expected = target["constituents"]
@@ -119,19 +132,19 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
                 target["witness_juncture"]
             ]:
                 raise MappingInvalid("native release sequence juncture changed")
-            observed = []
+            observed_constituents = []
             for constituent, predicates in zip(
                 segment.constituents, expected, strict=True
             ):
                 bundle = constituent.bundle(ipa)
                 if any(bundle.get(name) != value for name, value in predicates.items()):
                     raise MappingInvalid("native release sequence predicates changed")
-                observed.append(predicates)
+                observed_constituents.append(predicates)
             results[rule["id"]] = {
                 "form": "sequence",
                 "name": target["name"],
                 "witness": witness,
-                "constituents": observed,
+                "constituents": observed_constituents,
                 "juncture": target["juncture"],
                 "observed_junctures": observed_junctures,
             }
