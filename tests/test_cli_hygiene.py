@@ -19,11 +19,15 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import csv
+import dataclasses
 import io
+import shutil
 import string
 import sys
 import warnings
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import ipakit
@@ -36,6 +40,9 @@ from ipakit.cli.base import (
     Command,
     register_command,
 )
+from ipakit.form import Form
+from ipakit.segment import Constituent
+from ipakit.textgrid import write as write_textgrid
 
 #: A word in English spelling, and no kind of transcription. Every letter
 #: in it is a registered phone, so nothing in the reader can refuse it --
@@ -245,10 +252,10 @@ REFUSERS = [
     ["rules", "morae", "pin"],
 ]
 
-#: The notation-reading routes reached by neither witness nor refuser because
-#: they require a structured document or a file-backed collection rather than
-#: one plain transcription argument. They are named rather than silently
-#: dropped, so coverage remains a statement about every declared route.
+#: The notation-reading routes that need a constructed document or collection
+#: rather than one plain transcription argument.  The drop sweep below builds
+#: each input and probes every route; this table remains the coverage join
+#: between the parser inventory and those route-specific witnesses.
 NOT_PLAIN_TRANSCRIPTION_INPUTS = [
     ("corpus", "ingest-cmudict"),
     ("corpus", "validate"),
@@ -543,6 +550,19 @@ def _run_capturing(monkeypatch: Any, argv: list[str]) -> tuple[int, str]:
     return code, out.getvalue()
 
 
+def _run_capturing_streams(monkeypatch: Any, argv: list[str]) -> tuple[int, str, str]:
+    """Run one command and retain stdout and stderr as separate evidence."""
+    monkeypatch.setattr(sys, "argv", ["ipakit", *argv])
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    out, err = io.StringIO(), io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = ipakit.cli.main()
+    except SystemExit as exit_:  # argparse rejected the line
+        code = int(exit_.code or 0)
+    return code, out.getvalue(), err.getvalue()
+
+
 def _probe_argv(argv: list[str], probe: str) -> list[str]:
     """``argv`` with the probe spliced into the transcription it carries.
 
@@ -564,6 +584,215 @@ def _probe_argv(argv: list[str], probe: str) -> list[str]:
 #: by the sweep below rather than assumed.
 _PROBE_SYMBOL = "§"
 _PROBE = f"c{_PROBE_SYMBOL}t"
+
+
+def _form_carrying_probe() -> Form:
+    """A native Form built through public constructors, including one raw base."""
+    features = ipakit.IPAFeatures()
+    known = features.read("ct", strict=True)
+    template = known.units[0]
+    assert template.segment is not None
+    unknown_segment = dataclasses.replace(
+        template.segment,
+        constituents=(Constituent(_PROBE_SYMBOL),),
+    )
+    unknown = dataclasses.replace(
+        template,
+        text=_PROBE_SYMBOL,
+        segment=unknown_segment,
+    )
+    # Building the graph resolves its display facts and therefore observes the
+    # unsupported base.  That setup warning is not the command's report; the
+    # serialized graph still carries the base and is the input being probed.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return Form.of((known.units[0], unknown, known.units[1]))
+
+
+def _write_phoneset(path: Path, phones: list[str], name: str) -> Path:
+    """Write the line format from the project's Phoneset constructor."""
+    phoneset = ipakit.Phoneset.from_list(phones, name)
+    path.write_text("\n".join(phoneset.phones) + "\n", encoding="utf-8")
+    return path
+
+
+def _write_corpus(path: Path, roles: tuple[str, ...], *, probed: bool) -> Path:
+    stored = ipakit.corpus.create(path)
+    form = _form_carrying_probe() if probed else ipakit.read("ct", strict=True)
+    stored.add("probe", {}, {role: form for role in roles})
+    return path
+
+
+def _write_probe_rule(path: Path) -> Path:
+    """Inject the probe into a rule emitted by the shipped-rule constructor."""
+    source = ipakit.rules.shipped("american-english").rules[3].source
+    assert source.startswith("n ->")
+    path.write_text(source.replace("n", f"n{_PROBE_SYMBOL}", 1) + "\n")
+    return path
+
+
+def _write_probe_phoible(path: Path) -> Path:
+    """Derive a minimal mounted PHOIBLE source from the repository fixture."""
+    fixture = Path(__file__).parent / "fixtures" / "phoible"
+    shutil.copytree(fixture, path)
+    source = path / "data" / "phoible.csv"
+    with source.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    rows[0]["Phoneme"] = _PROBE
+    rows = rows[:1]
+    with source.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _structured_probe(path: tuple[str, ...], tmp_path: Path) -> list[str]:
+    """Build the smallest project-native input that reaches ``path``."""
+    if path == ("corpus", "ingest-cmudict"):
+        corpus = tmp_path / "corpus"
+        ipakit.corpus.create(corpus)
+        fixture = Path(__file__).parent / "fixtures" / "cmudict_excerpt.dict"
+        line = min(
+            (
+                line
+                for line in fixture.read_text(encoding="utf-8").splitlines()
+                if line and not line.startswith((";", "#"))
+            ),
+            key=len,
+        )
+        fields = line.split()
+        fields[1] = _PROBE_SYMBOL
+        source = tmp_path / "probe.dict"
+        source.write_text(" ".join(fields) + "\n", encoding="utf-8")
+        return [*path, str(corpus), str(source)]
+
+    if path in {
+        ("corpus", "validate"),
+        ("corpus", "show"),
+        ("corpus", "derives"),
+    }:
+        roles = ("source", "target") if path[-1] == "derives" else ("cited",)
+        corpus = _write_corpus(tmp_path / "corpus", roles, probed=True)
+        if path[-1] == "validate":
+            return [*path, "-C", str(corpus)]
+        if path[-1] == "show":
+            return [*path, "probe", "-C", str(corpus)]
+        return [
+            *path,
+            "-s",
+            "american-english",
+            "--source",
+            "source",
+            "--target",
+            "target",
+            "-C",
+            str(corpus),
+        ]
+
+    if path == ("corpus", "add"):
+        corpus = tmp_path / "corpus"
+        ipakit.corpus.create(corpus)
+        return [*path, "probe", _PROBE, "--role", "cited", "-C", str(corpus)]
+
+    if path == ("corpus", "query"):
+        corpus = _write_corpus(tmp_path / "corpus", ("cited",), probed=False)
+        return [*path, _PROBE, "-C", str(corpus)]
+
+    if path == ("convert", "from-json"):
+        return [*path, _form_carrying_probe().to_json()]
+
+    if path in {
+        ("distance", "map"),
+        ("distance", "compare"),
+    }:
+        source = _write_phoneset(tmp_path / "source.phones", [_PROBE], "source")
+        target = _write_phoneset(tmp_path / "target.phones", ["p"], "target")
+        return [*path, str(source), str(target)]
+
+    if path == ("convert", "phoneset"):
+        source = _write_phoneset(tmp_path / "source.phones", [_PROBE], "source")
+        return [*path, str(source)]
+
+    if path == ("inventory", "from-dict"):
+        fixture = Path(__file__).parent / "fixtures" / "cmudict_excerpt.dict"
+        line = min(
+            (
+                line
+                for line in fixture.read_text(encoding="utf-8").splitlines()
+                if line and not line.startswith((";", "#"))
+            ),
+            key=len,
+        )
+        fields = line.split()
+        fields[1] = _PROBE_SYMBOL
+        source = tmp_path / "probe.dict"
+        source.write_text(" ".join(fields) + "\n", encoding="utf-8")
+        return [*path, str(source), "--style", "cmudict"]
+
+    if path in {
+        ("phoible", "inventory"),
+        ("phoible", "audit"),
+    }:
+        source = _write_probe_phoible(tmp_path / "phoible")
+        if path[-1] == "inventory":
+            return [*path, "160", "--phoible", str(source)]
+        return [*path, "--phoible", str(source)]
+
+    if path == ("rules", "derives"):
+        corpus = _write_corpus(tmp_path / "corpus", ("source", "target"), probed=True)
+        return [
+            *path,
+            "-s",
+            "american-english",
+            "--corpus",
+            str(corpus),
+            "--source",
+            "source",
+            "--target",
+            "target",
+            "--report",
+            str(tmp_path / "report.json"),
+        ]
+
+    if path == ("rules", "list"):
+        return [*path, "--file", str(_write_probe_rule(tmp_path / "probe.rules"))]
+
+    if path == ("rules", "invertibility"):
+        source = _write_phoneset(tmp_path / "source.phones", [_PROBE], "source")
+        return [*path, "-s", "american-english", "--phoneset", str(source)]
+
+    if path == ("textgrid", "read"):
+        source = tmp_path / "probe.TextGrid"
+        document = write_textgrid(ipakit.read("c", strict=True), "segments")
+        source.write_text(
+            document.replace('text = "c"', f'text = "c{_PROBE_SYMBOL}"', 1),
+            encoding="utf-8",
+        )
+        return [*path, str(source), "--profile", "segments"]
+
+    raise AssertionError(f"no structured probe builder for {path}")
+
+
+STRUCTURED_PROBE_RESULTS = [
+    (("corpus", "ingest-cmudict"), 1),
+    (("corpus", "validate"), 3),
+    (("corpus", "show"), 0),
+    (("corpus", "derives"), 3),
+    (("corpus", "add"), 3),
+    (("corpus", "query"), 1),
+    (("convert", "from-json"), 0),
+    (("distance", "map"), 3),
+    (("distance", "compare"), 1),
+    (("convert", "phoneset"), 1),
+    (("inventory", "from-dict"), 1),
+    (("phoible", "inventory"), 3),
+    (("phoible", "audit"), 0),
+    (("rules", "derives"), 3),
+    (("rules", "list"), 1),
+    (("rules", "invertibility"), 3),
+    (("textgrid", "read"), 1),
+]
 
 
 class TestADroppedSymbolReachesTheExitStatus:
@@ -615,6 +844,8 @@ class TestADroppedSymbolReachesTheExitStatus:
         and getattr(_command_of(parser), "reads_notation", None) is not None
     ]
 
+    STRUCTURED_PROBED = [path for path, _ in STRUCTURED_PROBE_RESULTS]
+
     def test_the_probe_is_unregistered_in_every_declared_notation(self):
         """Without this the sweep can pass by being read rather than by
         being reported, and nothing would say which."""
@@ -636,15 +867,16 @@ class TestADroppedSymbolReachesTheExitStatus:
             read = {n: bool(fn(self.PROBE_SYMBOL)) for n, fn in readers.items()}
         assert not any(read.values()), f"probe is registered somewhere: {read}"
 
-    def test_the_sweep_reaches_most_of_the_declared_routes(self):
-        """A denominator, so the result can be judged rather than trusted."""
+    def test_the_sweep_reaches_every_declared_route(self):
+        """Plain and constructed witnesses jointly reach the full inventory."""
         declared = {
             path
             for path, parser in LEAVES
             if getattr(_command_of(parser), "reads_notation", None) is not None
         }
-        reached = {path for path, _ in self.PROBED}
-        assert len(reached) >= len(declared) - len(NOT_PLAIN_TRANSCRIPTION_INPUTS)
+        reached = {path for path, _ in self.PROBED} | set(self.STRUCTURED_PROBED)
+        assert set(self.STRUCTURED_PROBED) == set(NOT_PLAIN_TRANSCRIPTION_INPUTS)
+        assert reached == declared
 
     @pytest.mark.parametrize(
         "path, argv",
@@ -666,3 +898,25 @@ class TestADroppedSymbolReachesTheExitStatus:
                 f"{self.PROBE_SYMBOL!r} through: the symbol was dropped and "
                 "the status says the input was read in full"
             )
+
+    @pytest.mark.parametrize(
+        "path, expected",
+        STRUCTURED_PROBE_RESULTS,
+        ids=[" ".join(path) for path, _ in STRUCTURED_PROBE_RESULTS],
+    )
+    def test_a_structured_reader_carries_refuses_or_reports_the_probe(
+        self, monkeypatch, tmp_path, path, expected
+    ):
+        argv = _structured_probe(path, tmp_path)
+        code, out, err = _run_capturing_streams(monkeypatch, argv)
+        assert code != 2, (
+            f"{' '.join(argv)} exited on its argument list, so the probe never "
+            "reached the reader and this route measured nothing"
+        )
+        assert code == expected
+        assert self.PROBE_SYMBOL in out + err, (
+            f"{' '.join(argv)} did not carry or name {self.PROBE_SYMBOL!r}: "
+            f"stdout={out!r}, stderr={err!r}"
+        )
+        if code == 0:
+            assert self.PROBE_SYMBOL in out
