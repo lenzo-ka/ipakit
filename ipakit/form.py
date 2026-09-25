@@ -1059,7 +1059,8 @@ def with_prosody(
         if feature is None:
             raise ValueError(f"unknown feature {key!r}")
         if value is None or (
-            value == feature.default and features.declaring_mark(key, value) is None
+            value in {feature.default, features.unspelled_values.get(key)}
+            and features.declaring_mark(key, value) is None
         ):
             wanted.pop(key, None)
             cleared.add(key)
@@ -1550,14 +1551,18 @@ class _FormGraphIndex:
         return tuple(out)
 
 
-def _graph_from_units(units: Sequence[Unit], intervals: Sequence[Interval]) -> Any:
+def _graph_from_units(
+    units: Sequence[Unit],
+    intervals: Sequence[Interval],
+    inventory: IPAFeatures | None = None,
+) -> Any:
     """Build constructed/edited forms from units once, without lexical scanning."""
     from ._fact_builder import FactBuilder
     from ._graph_facts import Declarations, TierDeclaration
     from ._graph_facts import Timing as GraphTiming
     from ._ipa_graph import BOUNDARY_TIER, SEGMENT_TIER, ZERO_TIER, declarations
 
-    inventory = _default(None)
+    inventory = inventory or _default(None)
     declared = declarations(inventory)
     known = {tier.name for tier in declared.tiers}
     extras = tuple(
@@ -1697,7 +1702,19 @@ class Form:
                 )
         object.__setattr__(self, "_source_units", held_units)
         object.__setattr__(self, "_source_intervals", held_intervals)
-        self._install_projection_input(_graph_from_units(held_units, held_intervals))
+        inventory = next(
+            (
+                unit.__dict__["_inventory"]
+                for unit in held_units
+                if unit.segment is not None
+                and unit.__dict__.get("_inventory") is not None
+            ),
+            _default(None),
+        )
+        self._install_projection_input(
+            _graph_from_units(held_units, held_intervals, inventory),
+            inventory=inventory,
+        )
         # These names stay dataclass fields so the constructor,
         # dataclasses.fields/replace, equality, and hash behavior retain their
         # public coordinates.  The instance values are deliberately removed:
@@ -2367,7 +2384,10 @@ class Form:
                 spans.append(Interval(node.level, start, end, features))
             return start, end
 
-        walk(self.tree(features))
+        tree = self.tree(features)
+        if not tree.children:
+            return ()
+        walk(tree)
         return tuple(spans)
 
     def with_tier_intervals(self, features: IPAFeatures | None = None) -> Form:

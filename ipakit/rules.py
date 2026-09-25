@@ -3496,6 +3496,20 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
                     f"{rhs!r}: {value!r} is not a declared value of {key!r}; "
                     f"declared are {list(feature.values)}"
                 )
+            if prosodic and (
+                unwritable := [
+                    step
+                    for step in feature.steps(resolved)
+                    if features.declaring_mark(key, step) is None
+                    and step
+                    not in {feature.default, features.unspelled_values.get(key)}
+                ]
+            ):
+                raise RuleError(
+                    f"{rhs!r}: {key}={value!r} has no writable mark for "
+                    f"{unwritable}; "
+                    "it is derived-only and cannot be assigned"
+                )
             change[key] = resolved
         return change
     # A tier term on the right of the arrow. Refused by name rather than

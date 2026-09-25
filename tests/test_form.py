@@ -895,6 +895,12 @@ class TestABoundaryBecomesASpan:
             ("phrase", 2, 3),
         }
 
+    @pytest.mark.parametrize("text", [".", "#", "|", ""])
+    def test_a_form_with_no_segment_has_no_tier_intervals(self, text):
+        form = Form.parse(text, FEATURES)
+        assert form.tier_intervals(FEATURES) == ()
+        assert form.with_tier_intervals(FEATURES).intervals == ()
+
     def test_a_span_indexes_units_and_stops_before_the_mark_that_closed_it(self):
         """Indices are into ``units`` like every other interval's, so the
         boundary unit itself is in no span."""

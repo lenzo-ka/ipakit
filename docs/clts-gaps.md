@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:3f3c2ef243854a8576085893435a4b1e0f515ed9e70f37693fce6ad6464ad22e`.
+Mapping identity: `sha256:5c04663bed5f18ba3da8c3abf529e561d5aa69ab2844913b6a8bf9c47323bce6`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 

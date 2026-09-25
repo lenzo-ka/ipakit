@@ -391,17 +391,19 @@ ipa.rewrite("kˌat", "[vowel] -> [stress=primary]")        # 'kˈat'  restress
 ipa.rewrite("kˈat", "[vowel] -> [stress=∅]")              # 'kat'   destress
 ```
 
-**Removal is `∅`.** The notation already spells "nothing" three ways for a whole unit (`t -> ∅`); `[stress=∅]` is that same word applied to one dimension of one unit instead of to the unit. No new vocabulary, and it is needed only where a feature has no unmarked value to name — `length` declares a default of `normal` and *nothing declares that value*, because a bare vowel already says it, so shortening and clearing are one operation rather than two spellings of it:
+**Removal is `∅`.** The notation already spells "nothing" three ways for a whole unit (`t -> ∅`); `[stress=∅]` is that same word applied to one dimension of one unit instead of to the unit. A declared unspelled value is equivalent: `stress=none` is declared to write no mark, while `length=normal` is the default a bare unit already says, so assigning either removes the corresponding mark:
 
 ```python
 f = ipa.load_ipa_features()
 f.features["length"].default              # 'normal'
 f.declaring_mark("length", "long")[1]     # 'ː'
 f.declaring_mark("length", "normal")      # None -- so absence is how it is written
-f.features["stress"].default              # None -- nothing to name, hence '∅'
+f.unspelled_values["stress"]              # 'none'
+f.features["stress"].default              # None -- not filled into reads
 ```
 
 Clearing a *segmental* feature is refused rather than guessed at: every phone has some voicing, so `[voiced=∅]` names nothing.
+Likewise, a declared prosodic value that is neither a clearing spelling nor writable by a mark is refused: `contour=steady` is derived from equal adjacent tone levels and cannot be assigned on its own.
 
 ```python
 ipa.rule("[vowel] -> [voiced=∅]")

@@ -84,6 +84,12 @@ GLOTTAL_REST = 1.0
 #: where closure begins, not a rounding tolerance.
 FULL_CLOSURE_OFFSET = 0.995
 
+REST_POSTURE_VALUES = {
+    "lips": ("closed", "open"),
+    "jaw": ("closed", "open"),
+    "velum": ("lowered", "raised"),
+}
+
 
 class _DefaultAnchor(str):
     """Distinguish omitted ``anchor='center'`` from an explicit argument."""
@@ -192,6 +198,16 @@ class RestPosture:
     lips: str = "closed"
     jaw: str = "closed"
     velum: str = "lowered"
+
+    def __post_init__(self) -> None:
+        for field, allowed in REST_POSTURE_VALUES.items():
+            value = getattr(self, field)
+            if value not in allowed:
+                choices = ", ".join(repr(choice) for choice in allowed)
+                raise ValueError(
+                    f"unknown RestPosture {field} value {value!r}; "
+                    f"expected one of {choices}"
+                )
 
     @property
     def point(self) -> TractPoint:

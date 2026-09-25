@@ -603,10 +603,11 @@ class TestNoTermIsTrueOfEverything:
         """Absence happens only where the declaration leaves room for it.
 
         The negative arm of a query is satisfied by a bundle that omits
-        the feature, deliberately: ``stress`` declares two values and no
-        default, so a unit carrying no stress is unstressed and
-        ``[-primary -secondary]`` -- which is how the shipped American
-        English set says so -- has to hold of it.
+        the feature, deliberately: ``stress`` declares no default, so a unit
+        carrying no stress is unstressed and ``[-primary -secondary]`` --
+        which is how the shipped American English set says so -- has to hold
+        of it. Its declared ``none`` value is a spelling instruction, not a
+        value filled into reads.
 
         That reading is only safe while absence is confined to the
         features whose declaration allows it. A feature declaring a

@@ -423,3 +423,34 @@ def test_constructed_form_accepts_a_tier_declared_by_a_custom_inventory(
     interval = Interval("gesture", 1, 3, extended)
 
     assert Form.of(parsed.units, (interval,)).intervals == (interval,)
+
+
+def test_constructed_form_uses_its_units_custom_feature_declarations(tmp_path) -> None:
+    source = FEATURES.xml_path.read_text(encoding="utf-8")
+    feature_anchor = "  </features>"
+    phone_anchor = '<phone name="a" manner="vowel"'
+    assert source.count(feature_anchor) == source.count(phone_anchor) == 1
+    path = tmp_path / "ipa.xml"
+    path.write_text(
+        source.replace(
+            feature_anchor,
+            '    <feature name="audit" short="adt" desc="Audit-only feature">\n'
+            '      <value name="present" short="prs"/>\n'
+            "    </feature>\n"
+            f"{feature_anchor}",
+        ).replace(phone_anchor, '<phone name="a" audit="present" manner="vowel"'),
+        encoding="utf-8",
+    )
+    custom = ipakit.IPAFeatures(xml_path=path)
+
+    constructed = Form.of(Form.parse("a", custom).units)
+    segment = next(
+        tier
+        for tier in constructed.graph.tiers
+        if tier.declaration.long_name == "segment"
+    )
+    (item,) = segment.items
+    attributes = {attribute.name.local_name for attribute in item.attributes}
+
+    assert constructed.__dict__["_tiergraph_index"].inventory is custom
+    assert "fact-audit-string" in attributes

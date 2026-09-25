@@ -429,6 +429,25 @@ def test_no_grammar_names_the_inventory() -> None:
     )
 
 
+#: Grammars whose explicit choices are intentional, each with the reason.
+#: Pinned rather than silently ignored: the test below asserts that every
+#: exception is still a live copied vocabulary so stale exceptions fail.
+_ENUMERATION_ESCAPES = {
+    "heads.rng": (
+        "RestPosture rendering branches on three closed vocabularies. The "
+        "LEG-RESTPOSTURE audit requires the schema to enumerate them as well "
+        "as the constructor to refuse unknown values by field and value."
+    ),
+    "vocabulary.rng": (
+        "it enumerates fidelity, kind and source-style, and each is a second "
+        "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
+        "ipa.xml declares. The Python side already refuses an unknown value by "
+        "construction -- Fidelity(...) raises -- so the enumerations are "
+        "redundant, but removing them is a change to the bridges."
+    ),
+}
+
+
 def test_no_grammar_enumerates_a_declared_value() -> None:
     """``<value>`` in a grammar is an enumeration, and enumerations drift.
 
@@ -439,6 +458,8 @@ def test_no_grammar_enumerates_a_declared_value() -> None:
     """
     inventory = _inventory()
     for grammar in _grammars():
+        if grammar.name in _ENUMERATION_ESCAPES:
+            continue
         root = ET.parse(grammar).getroot()
         enumerated = {(node.text or "").strip() for node in root.iter(f"{RNG}value")}
         smuggled = sorted(enumerated & inventory)
@@ -446,21 +467,6 @@ def test_no_grammar_enumerates_a_declared_value() -> None:
             f"{grammar.name} enumerates {smuggled}, which ipa.xml declares. "
             f"The grammar describes structure; the vocabulary lives in the data."
         )
-
-
-#: Grammars whose enumerations the check below cannot ask about yet, each with
-#: the reason. Pinned rather than dropped, so the limit stays known: the test
-#: under this asserts that each one is still a live violation, and a grammar
-#: that stops enumerating fails there until its entry is removed.
-_ENUMERATION_ESCAPES = {
-    "vocabulary.rng": (
-        "it enumerates fidelity, kind and source-style, and each is a second "
-        "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
-        "ipa.xml declares. The Python side already refuses an unknown value by "
-        "construction -- Fidelity(...) raises -- so the enumerations are "
-        "redundant, but removing them is a change to the bridges."
-    ),
-}
 
 
 @functools.cache
@@ -642,6 +648,11 @@ def _mutations(
             (
                 "a midline point with no provenance",
                 lambda r: _first(r, "head/midline/point").attrib.pop("provenance"),
+                "RELAXNG_ERR_ATTRVALID",
+            ),
+            (
+                "a misspelled rest-posture state",
+                lambda r: _first(r, "head/rest").set("lips", "clsoed"),
                 "RELAXNG_ERR_ATTRVALID",
             ),
         ]
