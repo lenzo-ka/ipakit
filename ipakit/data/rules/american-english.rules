@@ -73,14 +73,11 @@
 # The following-vowel statement gets the second fact from the same
 # condition as the first, and it is what the standard generalization says.
 #
-# 'UNSTRESSED' IS THE ABSENCE OF THE FEATURE, NOT A VALUE OF IT. 'stress'
-# declares 'primary' and 'secondary' and NO DEFAULT -- MEASURED,
-# f.features['stress'].default is None -- so there is no unmarked value to
-# name. '∅' is how the absence is WRITTEN on the right of an arrow, and it
-# is not a declared VALUE, so a CONTEXT cannot ask for it: '[vowel
-# stress=∅]' beside the '_' is refused, while '[vowel] -> [stress=∅]' is
-# the documented way to clear one. The negation has to be per value, and
-# negating both values is exactly "carries no stress".
+# 'UNSTRESSED' IS THE ABSENCE OF THE FEATURE. 'stress' declares no default;
+# its value 'none' is declared unspelled, so writing stress=none or ∅ clears
+# a mark without filling that value into reads. '∅' is not a VALUE, so a
+# CONTEXT cannot ask for it: '[vowel stress=∅]' beside the '_' is refused.
+# The negation has to be per marked value, and excluding both is unstressed.
 #
 # AND NOT '[vowel -stress]', WHICH LOOKS LIKE IT SAYS THAT AND IS REFUSED.
 # A '-' term resolves as a feature VALUE first and as a BINARY feature

@@ -1345,6 +1345,7 @@ class TestProsodyIsWritableAndNotOnlyAskable:
             ("kˈat", "ˈa -> e", "ket"),
             ("kˌat", "[vowel] -> [stress=primary]", "kˈat"),
             ("kˈat", "[vowel] -> [stress=∅]", "kat"),
+            ("kˈat", "[vowel] -> [stress=none]", "kat"),
             ("ka", "[vowel] -> [tone=high] / _ #", "ka˦"),
             ("kaː", "[vowel] -> [length=half-long]", "kaˑ"),
         ],
@@ -1371,12 +1372,12 @@ class TestProsodyIsWritableAndNotOnlyAskable:
         for spec in ("[vowel] -> [length=normal]", "[vowel] -> [length=∅]"):
             assert ipakit.rewrite("kaː", spec) == "ka", spec
 
-    def test_stress_has_no_unmarked_value_to_name(self):
-        """Which is the whole reason removal needed notation: ``stress``
-        declares no default, so there is nothing to write for "unstressed"
-        and ``∅`` is the only way to say it."""
+    def test_stress_none_is_the_unmarked_value(self):
+        """The declared unstressed value and explicit clearing agree."""
         assert FEATURES.features["stress"].default is None, "premise moved"
-        assert ipakit.rewrite("kˈat", "[vowel] -> [stress=∅]") == "kat"
+        assert FEATURES.unspelled_values["stress"] == "none", "premise moved"
+        for spec in ("[vowel] -> [stress=none]", "[vowel] -> [stress=∅]"):
+            assert ipakit.rewrite("kˈat", spec) == "kat", spec
 
     def test_a_change_may_name_both_namespaces_at_once(self):
         """One bracket, split by declared mode, each half realized where it
@@ -1673,6 +1674,12 @@ class TestProsodyThatCannotBeWrittenIsRefusedOrDeclined:
         would be the one place a typo stayed quiet."""
         with pytest.raises(R.RuleError, match="not a declared value"):
             R.parse(f"a -> {bad}", FEATURES)
+
+    def test_a_derived_only_prosodic_value_is_refused(self):
+        """``contour=steady`` is inferred from equal adjacent levels; no
+        mark writes it, so accepting an assignment would be a silent no-op."""
+        with pytest.raises(R.RuleError, match="contour='steady'.*derived-only"):
+            R.parse("a -> [contour=steady]", FEATURES)
 
     def test_a_composition_colliding_with_a_registered_phone_declines(self):
         """The one escape the sweep below finds, pinned so it stays known.

@@ -7,10 +7,11 @@
      a head has a midline, an optional measured roof outline, a nasal branch,
      teeth, a velum body, a carriage profile, a tongue body and a rest posture, and that
      list is the anatomy the model knows. Another part would be a new kind of
-     declaration and belongs here. What it still does not name is vocabulary — `provenance`,
-     `carrier`, `lips`, `velum` are left as text, because how a coordinate
-     was arrived at and which rigid body carries it are facts the model
-     states, not shapes this grammar should be able to veto.
+     declaration and belongs here. What it still does not name is vocabulary —
+     `provenance` and `carrier` are left as text, because how a coordinate was
+     arrived at and which rigid body carries it are facts the model states,
+     not shapes this grammar should be able to veto. Rest-posture states are
+     closed vocabularies because the renderer branches on their values.
 
      Every coordinate is normalized: x and y are fractions of the drawing
      box, arc runs 0 at the lips to 1 at the glottis, diameter is a fraction
@@ -103,9 +104,15 @@
       <attribute name="offset"><ref name="normalized"/></attribute>
       <attribute name="tip-arc"><ref name="normalized"/></attribute>
       <attribute name="tip-offset"><ref name="normalized"/></attribute>
-      <attribute name="lips"><text/></attribute>
-      <attribute name="jaw"><text/></attribute>
-      <attribute name="velum"><text/></attribute>
+      <attribute name="lips">
+        <choice><value>closed</value><value>open</value></choice>
+      </attribute>
+      <attribute name="jaw">
+        <choice><value>closed</value><value>open</value></choice>
+      </attribute>
+      <attribute name="velum">
+        <choice><value>lowered</value><value>raised</value></choice>
+      </attribute>
     </element>
   </define>
 

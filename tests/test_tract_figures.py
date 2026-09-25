@@ -44,6 +44,7 @@ from ipakit.models import Feature
 from ipakit.tract import (
     GLOTTAL_AXIS,
     Head,
+    RestPosture,
     TractPoint,
     constrictions,
     glottal_aperture,
@@ -61,6 +62,17 @@ from ipakit.tract import (
 
 from tests import corpus
 from tests._renderers import needs_renderer, require_renderer
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("lips", "clsoed"), ("jaw", "clsoed"), ("velum", "lowred")],
+)
+def test_rest_posture_refuses_an_unknown_state(field: str, value: str) -> None:
+    values = {"lips": "closed", "jaw": "closed", "velum": "lowered", field: value}
+    with pytest.raises(ValueError, match=rf"RestPosture {field} value {value!r}"):
+        RestPosture(0.38, 0.18, 0.11, 1.0, **values)
+
 
 # Advances rounded up: a box narrower than the text it holds is the bug this
 # guards against, so erring wide is the safe direction.

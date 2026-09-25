@@ -160,6 +160,10 @@
                vocabularies are one, and they are not. -->
           <optional><attribute name="type"><text/></attribute></optional>
           <optional><attribute name="default"><text/></attribute></optional>
+          <!-- A declared value realized by writing no mark. Unlike a default,
+               it is not filled into reads or metric bundles; it tells a
+               writer how that value is spelled. -->
+          <optional><attribute name="unspelled"><text/></attribute></optional>
           <!-- An ordinal scale may name its unmarked comparison value
                without making it a default in segment feature bundles. This
                also supports a conditionally present segmental dimension:

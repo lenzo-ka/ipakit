@@ -183,6 +183,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         self.projections: dict[tuple[str, str], tuple[str, str]] = {}
         self.types: dict[str, list[str]] = {}
         self.features: dict[str, Feature] = {}
+        # Feature -> declared value realized by writing no mark. This is
+        # orthographic metadata, not part of Feature's comparison geometry.
+        self.unspelled_values: dict[str, str] = {}
         self.phones: dict[str, Phone] = {}
         self.diacritics: dict[str, Phone] = {}
         self.separators: dict[str, Phone] = {}
@@ -501,6 +504,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                         f"feature {name!r} declares mode {mode!r}, which is not "
                         f"one of the declared modes {self.modes}"
                     )
+                unspelled = feat_elem.get("unspelled")
                 self.features[name] = Feature(
                     name=name,
                     values=values,
@@ -528,6 +532,13 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     moves=moves,
                     bare=frozenset(bare_values),
                 )
+                if unspelled is not None:
+                    if unspelled not in self.features[name].values_set:
+                        raise ValueError(
+                            f"feature {name!r} declares unspelled={unspelled!r}, "
+                            "which is not one of its declared values"
+                        )
+                    self.unspelled_values[name] = unspelled
 
         # `applies` names a declared manner value, a natural class declared
         # over manner, or one of the derived classes below -- each a

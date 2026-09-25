@@ -520,10 +520,10 @@ class TestAmericanEnglishDerivesTheseForms:
     def test_unstressed_is_the_absence_of_the_feature_not_a_negative_value(self):
         """Why the rules spell it '-primary -secondary' and not '-stress'.
 
-        ``stress`` declares no default, so there is no unmarked value to
-        name. ``∅`` is how the absence is *written* on the right of an
-        arrow, but it is not a declared VALUE, so it cannot be asked for
-        in a context: ``[vowel stress=∅]`` there is refused.
+        ``stress`` declares no default, so an unmarked read carries no value.
+        Its declared ``none`` value is an unspelled write instruction: like
+        ``∅`` it clears on the right of an arrow, while ``∅`` is not a
+        declared VALUE and cannot be asked for in a context.
         ``[vowel -stress]`` reads like the thing wanted and is not: a '-'
         term resolves as a feature VALUE first and a BINARY feature name
         second, and ``stress`` is neither, so the term names nothing and
@@ -534,6 +534,7 @@ class TestAmericanEnglishDerivesTheseForms:
         parse, and the working one derives both forms.
         """
         assert FEATURES.features["stress"].default is None
+        assert FEATURES.unspelled_values["stress"] == "none"
         # '∅' clears a value; it does not name one, so a context cannot
         # ask for it.
         assert ipakit.rewrite("kˈat", "[vowel] -> [stress=∅]") == "kat"
