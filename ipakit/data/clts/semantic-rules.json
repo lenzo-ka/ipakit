@@ -1,6 +1,6 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 4,
+  "version": 5,
   "disposition_classes": [
     "exact under stated conditions",
     "conditional/composite",
@@ -51,8 +51,115 @@
     "Resolver witnesses aː, aˑ, aːː, ă, tː, tˑ and tːː assert the reviewed duration values; native feature_values preserves their distinct written length values."
   ],
   "enhancements": [
-    {"id": "nasal-approach", "decision": "rejected", "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing adapter support is not a missing feature.", "consequence": "Retain source-only claim until reviewed correspondence; do not infer a timed nasal child."},
-    {"id": "tie-conversion", "decision": "deferred", "reason": "CLTS collapses adjacency and both tie spellings; native already distinguishes their structures.", "consequence": "No unconditional inverse or new feature recovers erased tie evidence."},
-    {"id": "tone-host", "decision": "deferred", "reason": "Source tone association requires a declared host profile, not strict segment parsing.", "consequence": "Retain or refuse pending profile binding; never fabricate a nucleus or silence."}
+    {
+      "id": "nasal-approach",
+      "gap_kind": "adapter gap",
+      "decision": "rejected",
+      "affected_source_declarations": ["clts / consonant / preceding / pre-nasalized"],
+      "evidence": ["The strict native reader constructs ⁿd with approach=nasal on its one constituent."],
+      "native_construction_attempts": [
+        {"witness": "ⁿd", "expected": "succeeds", "distinction": "nasal approach on a stop"}
+      ],
+      "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing correspondence support is not a missing feature.",
+      "consequence": "Retain the source-only claim until a reviewed correspondence exists; do not infer a timed nasal child."
+    },
+    {
+      "id": "tie-conversion",
+      "gap_kind": "source-side collapse",
+      "decision": "deferred",
+      "affected_source_declarations": ["clts / consonant / manner / affricate"],
+      "evidence": ["The pinned BIPA resolver equates untied and superscript-sibilant affricate spellings while the strict native reader constructs adjacency, fused tie and sequential tie as distinct structures."],
+      "native_construction_attempts": [
+        {"witness": "ts", "expected": "succeeds", "distinction": "adjacent native segments"},
+        {"witness": "t͡s", "expected": "succeeds", "distinction": "fused native constituents"},
+        {"witness": "t͜s", "expected": "succeeds", "distinction": "sequential native constituents"}
+      ],
+      "reason": "The source does not retain enough evidence to choose among native adjacency and the two native tie senses.",
+      "consequence": "No unconditional inverse or new feature recovers erased tie evidence.",
+      "deciding_evidence": "An explicit lane F projection convention, with separate source and inferred house claims, would decide which native structure to construct."
+    },
+    {
+      "id": "tone-host",
+      "gap_kind": "adapter gap",
+      "decision": "deferred",
+      "affected_source_declarations": [
+        "clts / tone / start / *",
+        "clts / tone / middle / *",
+        "clts / tone / end / *",
+        "clts / tone / contour / *"
+      ],
+      "evidence": ["Pinned BIPA ¹³¹ separates from-low, via-mid, to-low and contour claims; the strict native reader constructs a hosted three-level pitch sequence and derives its contour."],
+      "native_construction_attempts": [
+        {"witness": "a˩˧˩", "expected": "succeeds", "distinction": "hosted bottom-mid-bottom tone sequence and rising-falling contour"}
+      ],
+      "reason": "The native pitch model is expressive, but source tone association requires an explicit host relation rather than strict segment parsing alone.",
+      "consequence": "Retain or refuse the source tone pending profile binding; never fabricate a nucleus or silence.",
+      "deciding_evidence": "A bound source profile with caller-supplied tone-host links and literal start, middle, end and contour projection tests would decide the adapter mapping."
+    },
+    {
+      "id": "superscript-releases",
+      "gap_kind": "notation gap",
+      "decision": "accepted",
+      "accepted_for": "H",
+      "affected_source_declarations": [
+        "clts / consonant / release / with-sibilant-release",
+        "clts / consonant / release / with-trilled-release",
+        "clts / consonant / release / with-uvular-release",
+        "clts / consonant / release / with-nasal-release"
+      ],
+      "evidence": ["The current house reader drops ˢ, ʳ, ʶ and ᵐ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ and reads tⁿ as release=nasal."],
+      "native_construction_attempts": [
+        {"witness": "tˢ", "expected": "fails", "distinction": "superscript sibilant release spelling"},
+        {"witness": "dʳ", "expected": "fails", "distinction": "superscript trilled release spelling"},
+        {"witness": "dʶ", "expected": "fails", "distinction": "superscript uvular release spelling"},
+        {"witness": "tᵐ", "expected": "fails", "distinction": "superscript bilabial nasal release spelling"}
+      ],
+      "reason": "K3 accepts all four BIPA superscript spellings into the house parser, not only a BIPA reader.",
+      "consequence": "Lane H owns parser admission and tests; A3 makes no parser or ipa.xml change."
+    },
+    {
+      "id": "nasal-release-place",
+      "gap_kind": "source-side collapse",
+      "decision": "accepted",
+      "accepted_for": "H",
+      "affected_source_declarations": ["clts / consonant / release / with-nasal-release"],
+      "evidence": ["The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader currently rejects tᵐ and reads tⁿ as release=nasal."],
+      "native_construction_attempts": [
+        {"witness": "tᵐ", "expected": "fails", "distinction": "bilabial rather than generic nasal release"},
+        {"witness": "tⁿ", "expected": "succeeds", "distinction": "existing generic nasal release"}
+      ],
+      "reason": "K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added.",
+      "consequence": "Lane H owns the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse."
+    },
+    {
+      "id": "unspecified-values",
+      "gap_kind": "model gap",
+      "decision": "deferred",
+      "affected_source_declarations": [
+        "clts / consonant / manner / unspecified-manner",
+        "clts / consonant / place / unspecified-place",
+        "clts / consonant / phonation / unspecified-voice"
+      ],
+      "evidence": ["Pinned BIPA Ø asserts all three unspecified values; the house has no such manner, place or voice values, and its strict reader rejects Ø."],
+      "native_construction_attempts": [
+        {"witness": "Ø", "expected": "fails", "distinction": "explicitly unspecified manner, place and voice rather than absent claims"}
+      ],
+      "reason": "The evidence establishes an explicit-source distinction and a native model gap, but not whether those placeholders should enter the computational house inventory.",
+      "consequence": "Preserve or refuse the source claims; do not turn explicit unspecified values into native defaults, absence or silence.",
+      "deciding_evidence": "The source-preserving Form contract and consumer behavior for explicit unknown values must show a need for computational house values rather than source-only retention."
+    },
+    {
+      "id": "whistled-sibilant",
+      "gap_kind": "model gap",
+      "decision": "deferred",
+      "affected_source_declarations": ["clts / consonant / airstream / whistled-sibilant"],
+      "evidence": ["Pinned BIPA declares s̫ as a whistled-sibilant fricative; the house airstream inventory has no whistled value and its strict reader rejects the whistling mark."],
+      "native_construction_attempts": [
+        {"witness": "s̫", "expected": "fails", "distinction": "whistled sibilant versus ordinary sibilant"}
+      ],
+      "reason": "The source establishes a distinction, but does not decide whether the house should model it as airstream, channel, a modifier or another articulatory property.",
+      "consequence": "Retain the source-only claim and do not map it to ordinary sibilance.",
+      "deciding_evidence": "A phonetic model proposal must locate the distinction in the house feature geometry and specify constructor, rendering and distance behavior."
+    }
   ]
 }
