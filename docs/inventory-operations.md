@@ -231,18 +231,32 @@ from unsupported-token rows returned by the corpus comparison.
 
 ## Command-line comparisons
 
-In a repository checkout, save the corpus as JSON and run:
+The installed CLI exposes the original-versus-binary finite-model experiment. Save
+the corpus as JSON and run:
 
 ```sh
-python scripts/costmodel_compare.py --tokens-json corpus.json --clts-snapshot \
-  --policy faithful --all-pairs --format json
+ipakit model compare --model panphon --tokens-json corpus.json \
+  --encoding two-predicate --encoding positive-only \
+  --binary-gap 1 --policy faithful --all-pairs -j
 ```
 
-This selects house, shipped Panphon and CLTS packs. `--declaration TABLE.xml`
-replaces the declared feature table; `--foreign-only` omits house. Policies can
-be repeated explicitly. Binary experiments have their own flags described in
-[feature transforms](feature-transforms.md#repeatable-originalbinary-experiments).
-The script currently keeps binary and CLTS modes separate.
+This selects the shipped Panphon declaration explicitly and compares its original
+cost family with both named binary encodings. Use `--model-declaration TABLE.xml`
+for a supplied table and `--include-house` to add house scoring. Policies and
+encodings can be repeated explicitly. Inputs remain exact token arrays; no arm
+infers a tokenizer or converts through house IPA.
+
+Inspect one transformation, including its decoded preimage and collision evidence,
+with the companion installed command:
+
+```sh
+ipakit model transform --model panphon --token p --encoding two-predicate -j
+```
+
+The repository's `scripts/costmodel_compare.py` remains the broader development
+runner for combined house, declared and CLTS packs. Its binary mode and the
+installed `model compare` command share `compare_declaration_encodings`; the script
+keeps binary and CLTS modes separate.
 
 ## Named metric selection
 

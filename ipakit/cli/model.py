@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, ClassVar
 
 from .. import feature_models
+from ..bridges.costmodel import FAITHFUL, PANPHON_CONSERVING, CostPolicy
+from ..feature_experiment import compare_declaration_encodings
+from ..feature_transform import BinaryEncoding, ternary_to_binary
 from ..finite_declaration import TernaryDeclaration, read_ternary_declaration
 from ..finite_model import FiniteModel
 from .base import NO_NOTATION, Command, CommandGroup, add_format_arg, add_output_arg
+
+_POLICIES: dict[str, CostPolicy] = {
+    "faithful": FAITHFUL,
+    "conserving": PANPHON_CONSERVING,
+}
 
 
 def add_model_selector(
@@ -206,13 +215,176 @@ class ModelQueryCommand(Command):
         return 0
 
 
+class ModelTransformCommand(Command):
+    """Apply an explicitly selected ternary-to-binary transform to one token.
+
+    The token is an exact spelling in the selected finite declaration. The
+    report includes the forward result, its decoded preimage and the transform's
+    domain and observed-inventory loss evidence.
+    """
+
+    name = "transform"
+    help = "Apply a declared binary encoding to one finite-model token"
+    reads_notation = NO_NOTATION
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        _selection(parser)
+        parser.add_argument("--token", required=True, help="One exact, opaque token")
+        parser.add_argument(
+            "--encoding",
+            type=BinaryEncoding,
+            choices=tuple(BinaryEncoding),
+            required=True,
+            help="Explicit ternary-to-binary encoding",
+        )
+
+    def run(self) -> int:
+        model = load_model_declaration(self.args).model
+        transform = ternary_to_binary(
+            model, self.args.encoding, missing="require-complete"
+        )
+        witness = transform.apply(model.read(self.args.token))
+        preimage = transform.decode(witness.target)
+        collisions = transform.collisions()
+        data = {
+            "operation": "ternary_to_binary",
+            "encoding": self.args.encoding.value,
+            "name": model.name,
+            "source_model_id": model.identity,
+            "target_model_id": transform.target.identity,
+            "transform_id": transform.identity,
+            "missing": transform.missing,
+            "input": self.args.token,
+            "source": {"values": witness.source.values},
+            "target": {
+                "features": transform.target.schema.features,
+                "values": witness.target.values,
+            },
+            "preimage": {
+                "source_model_id": preimage.source_model_id,
+                "operation_id": preimage.operation_id,
+                "choices": [
+                    {"feature": name, "values": values}
+                    for name, values in preimage.choices
+                ],
+                "count": preimage.count,
+                "inventory_candidates": preimage.inventory_candidates,
+            },
+            "loss": {
+                "domain_injective": transform.injective,
+                "observed_collision_groups": len(collisions),
+                "collisions": [
+                    {
+                        "target_values": collision.target.values,
+                        "source_values": [
+                            source.values for source in collision.sources
+                        ],
+                        "tokens": collision.tokens,
+                    }
+                    for collision in collisions
+                ],
+            },
+            "provenance": (
+                witness.provenance.to_dict() if witness.provenance is not None else None
+            ),
+        }
+        if self.format == "json":
+            self.output_json(data)
+        else:
+            for key, value in data.items():
+                self.print(f"{key}: {json.dumps(value, ensure_ascii=False)}")
+        return 0
+
+
+class ModelCompareCommand(Command):
+    """Compare original and transformed costs over exact token arrays.
+
+    The JSON document is an array containing at least two arrays of exact token
+    spellings. Encodings, gap policy and cost policies are all explicit; no
+    token is segmented, normalized or routed through the house model.
+    """
+
+    name = "compare"
+    help = "Compare original and transformed finite-model costs"
+    reads_notation = NO_NOTATION
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        _selection(parser)
+        parser.add_argument(
+            "--tokens-json",
+            type=Path,
+            required=True,
+            help="JSON file with at least two exact token arrays, or '-' for stdin",
+        )
+        parser.add_argument(
+            "--encoding",
+            type=BinaryEncoding,
+            choices=tuple(BinaryEncoding),
+            action="append",
+            required=True,
+            help="Select a binary encoding; repeatable",
+        )
+        parser.add_argument(
+            "--binary-gap",
+            type=float,
+            required=True,
+            help="Explicit constant gap price for transformed binary arms",
+        )
+        parser.add_argument(
+            "--policy",
+            choices=tuple(_POLICIES),
+            action="append",
+            required=True,
+            help="Select a named cost policy; repeatable",
+        )
+        parser.add_argument(
+            "--all-pairs",
+            action="store_true",
+            help="Compare every ordered pair of distinct corpus positions",
+        )
+        parser.add_argument(
+            "--include-house",
+            action="store_true",
+            help="Also include the native house cost arm",
+        )
+
+    def run(self) -> int:
+        declaration = load_model_declaration(self.args)
+        source = self.args.tokens_json
+        content = (
+            sys.stdin.read()
+            if source == Path("-")
+            else source.read_text(encoding="utf-8")
+        )
+        corpus = json.loads(content, parse_constant=_constant)
+        report = compare_declaration_encodings(
+            self.ipa,
+            declaration,
+            corpus,
+            encodings=self.args.encoding,
+            binary_gap=self.args.binary_gap,
+            policies=[_POLICIES[name] for name in self.args.policy],
+            all_pairs=self.args.all_pairs,
+            include_house=self.args.include_house,
+        )
+        if self.format == "json":
+            self.output_json(report)
+        else:
+            self.print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
+
+
 class ModelGroup(CommandGroup):
     name = "model"
     aliases: ClassVar[list[str]] = []
-    help = "Inspect, query and respell with explicitly selected finite feature models"
+    help = "Inspect and operate on explicitly selected finite feature models"
     commands: ClassVar[list[type[Command]]] = [
         ModelListCommand,
         ModelInspectCommand,
         ModelRespellCommand,
         ModelQueryCommand,
+        ModelTransformCommand,
+        ModelCompareCommand,
     ]

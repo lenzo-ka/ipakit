@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ipakit model transform` applies an explicit finite ternary-to-binary encoding and reports its preimage and loss evidence.
+- `ipakit model compare` compares original and explicitly selected binary encodings over exact token corpora.
 - Written `ːː` is the `overlong` value on the length scale.
 
 ### Changed
