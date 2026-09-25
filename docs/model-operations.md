@@ -88,13 +88,14 @@ its scoring policy and weight declaration. Bridge labels such as
 
 ## Command line
 
-Select the model to inspect, query or edit:
+Select the model to inspect, query, edit or transform:
 
 ```sh
 ipakit model list -j
 ipakit model inspect --model panphon -j
 ipakit model query --model panphon --features-json '{"voi":1}' -j
 ipakit model respell --model panphon --token p --changes-json '{"voi":1}' -j
+ipakit model transform --model panphon --token p --encoding two-predicate -j
 ipakit model inspect --model-declaration TABLE.xml --rows -j
 ```
 
@@ -116,6 +117,32 @@ candidates are successful answers, never a guessed first spelling. Missing or
 mixed selectors are command-line errors (exit 2). Producer packages, checkout
 fixtures and network access are not needed for named or supplied declarations.
 
+`model transform` uses the library's declared `ternary_to_binary` operation. Its
+report retains the source and target bundles, both model identities, the transform
+identity and missing-cell policy, the decoded preimage, domain injectivity and all
+observed inventory collision groups. `--encoding` is required and accepts
+`two-predicate` or `positive-only`; no binary meaning is inferred from ternary zero.
+The selected declaration must have complete integer-ternary rows, and an unknown
+token or invalid transform fails with exit 1.
+
+To compare the original declaration with selected transformed arms, put exact token
+arrays in `corpus.json` and run:
+
+```sh
+ipakit model compare --model panphon --tokens-json corpus.json \
+  --encoding two-predicate --encoding positive-only \
+  --binary-gap 1 --policy faithful --all-pairs -j
+```
+
+`--model` or `--model-declaration`, at least one `--encoding`, `--binary-gap`, and
+at least one `--policy` are all explicit. Policies may select `faithful` or
+`conserving`; repeated duplicate encodings or policies are refused by the shared
+experiment contract. The default comparison is foreign-only; `--include-house`
+adds the native arm deliberately. `--all-pairs` selects every ordered pair of
+distinct corpus positions instead of adjacent positions. The command delegates to
+`compare_declaration_encodings`, so its JSON is the library report unchanged and
+retains configuration identities, corpus identity, costs and per-input refusals.
+
 ## Scope and substrate
 
 These methods provide finite lookup, query, edit and realization. Productive
@@ -125,8 +152,9 @@ The shared [rules engine](rules.md) also accepts explicitly bound finite models
 for supported context-sensitive operations; its typed library contracts and
 capability refusals also govern the [finite rule commands](rules.md#explicit-finite-rules-on-the-command-line).
 Those commands share the explicit named/path selector above and receive exact
-token arrays via `--tokens-json`. Typed AST
-construction and feature transforms remain library composition interfaces.
+token arrays via `--tokens-json`. Typed AST construction remains a library
+composition interface; the declared ternary-to-binary transform and its comparison
+experiment have the command-line surfaces above.
 
 These immutable tables describe schema and inventory data. TierGraph provides
 occurrence graphs and is the shared computational substrate developed

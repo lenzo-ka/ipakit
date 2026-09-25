@@ -115,24 +115,24 @@ its existing alignment fold.
 
 ## Repeatable original/binary experiments
 
-The existing comparison script can select binary encodings explicitly:
+The installed finite-model command selects binary encodings explicitly:
 
 ```sh
-python scripts/costmodel_compare.py --tokens-json corpus.json --format json \
-  --policy faithful --binary-encoding two-predicate \
-  --binary-encoding positive-only --binary-gap 1 --foreign-only
+ipakit model compare --model panphon --tokens-json corpus.json \
+  --encoding two-predicate --encoding positive-only \
+  --binary-gap 1 --policy faithful -j
 ```
 
 Here `corpus.json` is an array of exact token arrays, for example
-`[["p"], ["b"], ["a"], []]`. The declaration defaults to the canonical shipped
-Panphon feature model; `--declaration` selects another compatible file. An explicitly
+`[["p"], ["b"], ["a"], []]`. Model selection, encodings, gap and policies are
+required. `--model-declaration` selects another compatible file. An explicitly
 selected missing or unreadable file refuses instead of producing house-only
-output. No Panphon runtime, download or inferred house conversion is needed. `--foreign-only`
-omits house scoring; without it the script preserves its usual house arm.
-Binary mode requires token JSON and a gap. It refuses combination with
-`--clts-snapshot`; the existing separate CLTS comparison mode remains available.
-Repeated identical encodings or policies refuse rather than duplicate arms or
-overwrite metadata. Existing text/table/TSV workflows are unchanged.
+output. No Panphon runtime, download or inferred house conversion is needed.
+The command is foreign-only unless `--include-house` is supplied. Repeated
+identical encodings or policies refuse rather than duplicate arms or overwrite
+metadata. The repository's broader `scripts/costmodel_compare.py` retains its
+house/declared/CLTS development workflows and uses the same library experiment in
+binary mode.
 
 The library entrypoint is
 `ipakit.feature_experiment.compare_declaration_encodings`. Pass an IPAFeatures
