@@ -87,7 +87,7 @@ Ordinal scales ascend a declared axis, recorded per feature in the data as `axis
 | `tone` | `+f0` | low → high |
 | `manner` | `+constriction` | open → closed |
 | `channel` | `+z` | lateral → flat → grooved (out → in) |
-| `length` | `+t` | short → long |
+| `length` | `+t` | extra-short → normal → half-long → long → overlong |
 | `phonation` | `+glottal-aperture` | creaky → devoiced |
 
 The frame is a left-facing mid-sagittal section: +x along the tract, +y from jaw to palate, +z from the sides to the midline.
@@ -241,6 +241,23 @@ round(ipa.distance("ɡ", "ɡ͡b"), 6), round(ipa.distance("t", "tʰ"), 6)
 
 **Prosodic tiers ride on the unit clock, and stress rides the nucleus.** Where a stress mark sits is a notation decision with a metric consequence: house style writes stress immediately before the nucleus that bears it rather than at a syllable margin, because a margin-style mark states two things at once — that the syllable is stressed, and where it begins — and only the first is always available ([house-style.md](house-style.md#stress-sits-on-the-nucleus)). So a stress rider attaches to the vowel it marks, and comparing `ˈkat` with `kat` moves one term on one unit rather than shifting an alignment. Stress, tone and length are `mode="prosodic"` marks that attach *to* a unit, unlike a boundary claim, which sits *between* units and is compared at its margin. Each rider adds one graded term to the unit it rides on at the same weight as a segmental feature. A scalar rider uses ordinary `value_distance` (primary vs secondary stress is half a step, primary vs unstressed a full one). A feature declaring `sequence="+"` uses ordered edit distance over its values: scalar value distance prices a substitution, insertion and deletion each cost one, and the total is capped at one. Dividing instead by the longer sequence would give each pair of forms its own scale, which does not satisfy the triangle inequality; capping at a constant does. Thus levels remain graded and `top>bottom` differs from `bottom>top`; time order is never sorted away. The riders are read for the metric only: the unit's stored features are untouched, so a form still spells back unchanged, and a unit carrying no rider — every shipped phone — adds no term and scores exactly as before.
 
+Written length uses the whole declared scale: extra-short, normal, half-long,
+long, overlong. The two-code-point mark `ːː` is longest-matched as one
+suprasegmental and states `overlong`, so its price is beyond `long` rather than
+collapsing onto it:
+
+```python
+ipakit.feature_values("aːː")["length"]             # ('overlong',)
+ipakit.distance("a", "aː")                        # 0.021739130434782608
+ipakit.distance("a", "aːː")                       # 0.03260869565217391
+ipakit.distance("aː", "aːː")                      # 0.010869565217391304
+```
+
+There is no point beyond `overlong`. A third `ː` is therefore read as the
+declared `ːː` followed by a contradictory `ː`; the existing single-valued-mark
+warning reports that the trailing `long` assertion is not recorded, while the
+spelling itself remains available for round-trip inspection.
+
 **Boundary claims sit between units and carry the same one-term mass.** They do not become phone tokens. Their segment-clock margin supplies position, and the declared ordinal `level` supplies type: a syllable-to-word change is one step while syllable-to-utterance is three. An unmarked margin stays unclaimed; it acquires no synthesized boundary, but comparing it with a claimed margin costs the claim's one-sided mass. Two glyphs resolving to the same level at the same margin compare equal. U+203F UNDERTIE is deliberately different: the liaison mark suppresses only the word claim it itself would make, so `lez‿ami` and `lezami` have the same distance claim while an explicitly written break at the same margin remains. Its `level="word"` declaration remains intact because rules still need to see the morphological division. A claim adds its mass to the cost and never to the normalizing scale, which is the phone null alignment: otherwise an intermediate form could buy a larger scale with a matching claim, and the normalized score would break the triangle inequality on forms sharing every phone.
 
 **A word comparison is inspectable.** `explain_transcription_distance(a, b)` returns one step per aligned position — `op` (match/sub/insert/delete), the two units, the position `cost`, and for a substitution the `(label, a, b, cost)` rows behind it, each comparable feature and every prosodic rider — so a score can be read term by term (`ˈk`~`ˌk` is `stress: primary vs secondary = 0.5`).
@@ -330,7 +347,7 @@ The same instrument over the repaired matrix reads differently, and the differen
 
 ```text
 $ pip install -e ".[compare]" && python scripts/geometry.py
-confusion.json SHA-256                   8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e
+confusion.json SHA-256                  c24769b18e2c4bd29489c9abba8e16e93839c2e9fab375af095e7816859c5c62
 phones                                  138
 negative eigenvalue mass                12.3%
 leading positive variance               43.5%
@@ -349,7 +366,7 @@ from hashlib import sha256
 from pathlib import Path
 
 sha256(Path("ipakit/data/confusion.json").read_bytes()).hexdigest()
-# '8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e'
+# 'c24769b18e2c4bd29489c9abba8e16e93839c2e9fab375af095e7816859c5c62'
 ```
 
 A distance change moves every one of these, so a reading taken at a different commit will differ. The script states the two predicates the correlations are taken against — a phone is composite when its segment reports more than one constituent, and a vowel when its description ends in the word — because a correlation against an unstated predicate cannot be reproduced at all.

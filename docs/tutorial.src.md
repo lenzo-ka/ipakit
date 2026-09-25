@@ -92,6 +92,16 @@ sequential-tie constituent or a prosodic mark, naming the omitted material;
 mark winning when prosodic marks contradict. Plain phones, represented segmental
 diacritics such as `pʰ`, and composing simultaneous ties stay silent.
 
+Written length runs from extra-short through normal, half-long and long to
+overlong. The doubled mark is one longest-matched suprasegmental rather than two
+copies of `long`:
+
+```python-run
+ipa.feature_values("aːː")["length"]
+ipa.distance("aː", "aːː")
+ipa.read("saːːt").to_ipa()
+```
+
 > **Feature display defaults.** `features(phone)` returns
 > the *full* bundle — every feature, defaults included — and `with_defaults=False` gives
 > only what the phone states. `ipakit features p` is the other way round: it shows only

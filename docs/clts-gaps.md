@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:e86f24267c3546fd9ca99642d20a3f724b1d114c22a74ae0b7d4a5d22b9625d3`.
+Mapping identity: `sha256:3f3c2ef243854a8576085893435a4b1e0f515ed9e70f37693fce6ad6464ad22e`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
@@ -244,6 +244,7 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | ipakit_to_clts | ipakit / length / normal | unresolved |  |
 | ipakit_to_clts | ipakit / length / half-long | unresolved |  |
 | ipakit_to_clts | ipakit / length / long | unresolved |  |
+| ipakit_to_clts | ipakit / length / overlong | unresolved |  |
 | ipakit_to_clts | ipakit / level / syllable | unresolved |  |
 | ipakit_to_clts | ipakit / level / word | unresolved |  |
 | ipakit_to_clts | ipakit / level / phrase | unresolved |  |

@@ -3,22 +3,22 @@
     {
       "bytes": 184718,
       "path": "ipakit/data/confusion.json",
-      "sha256": "8d574f1a2fc396ccc63a0e15b424e13ed66dbae2a820b5bc83284667fcff522e"
+      "sha256": "c24769b18e2c4bd29489c9abba8e16e93839c2e9fab375af095e7816859c5c62"
     },
     {
-      "bytes": 5843,
+      "bytes": 5877,
       "path": "ipakit/data/phonemaps/xsampa.xml",
-      "sha256": "0f7594d3e3aae1160321145cefd0c543bd5932db94d146e48007a20c655bb799"
+      "sha256": "8f16107857d30122e3e824f85115d7f6b1b9d6882e23995ee925cc3cd900c660"
     },
     {
-      "bytes": 39617,
+      "bytes": 39957,
       "path": "docs/tutorial.md",
-      "sha256": "d002e324d2664644e1687a7f6d048b1f9aa4f38902144cc2d031148ba6299232"
+      "sha256": "6558975bfc4f98eb8dcb69e1f7f42dd6873112ecb56ac592c9e27784fc6be489"
     },
     {
-      "bytes": 50719,
+      "bytes": 51241,
       "path": "ipakit/notebooks/ipakit-tutorial.ipynb",
-      "sha256": "5c87154040ba6e50e39196f08ad460217513c56fca2c2eab5f70436b1a3652e1"
+      "sha256": "94352d2f03499356c70bbb58086dd9ed4659483ee388b7a8293dea984152f906"
     },
     {
       "bytes": 45435,
@@ -88,12 +88,12 @@
     {
       "bytes": 42960,
       "path": "docs/figures/perhaps-i-am-a-bad-man.dot",
-      "sha256": "2bd4a688f9c0657722c8e9cb64621c2e1ecde1b336064c835c15608dcf5e8a54"
+      "sha256": "5fd6405ce74241d6e127e79b83bd49ca5ac8b68d5a48c1f1d6d0e4b2051a7550"
     },
     {
       "bytes": 120777,
       "path": "docs/figures/derived-from-boundaries.dot",
-      "sha256": "4471fdbe5d5fc49e3c3a3da079370ca655f741609a7c2579a2aa6608b88a5e87"
+      "sha256": "141decd9d925257806a7aed2361561905cdc4922073dab4f04c2c5a8fa7a12d9"
     }
   ],
   "format": 1,

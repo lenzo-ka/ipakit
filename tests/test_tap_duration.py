@@ -147,7 +147,7 @@ def test_written_and_intrinsic_brevity_remain_distinct(ipa: IPAFeatures) -> None
         ("intrinsic-timing", "brief", None, 0.5, 1.0)
     ]
     assert [row for row in terms if row[0] == "length (prosodic)"] == [
-        ("length (prosodic)", "normal", "extra-short", 1.0 / 3.0, 1.0)
+        ("length (prosodic)", "normal", "extra-short", 1.0 / 4.0, 1.0)
     ]
     assert ipa.distance("ɾ", "d̆") == sum(row[3] * row[4] for row in terms) / sum(
         row[4] for row in terms
@@ -236,7 +236,7 @@ def test_trill_and_plosive_agree_in_stricture_and_explain_timing(
                     "label": "length (prosodic)",
                     "a": "normal",
                     "b": "extra-short",
-                    "cost": 1 / 3,
+                    "cost": 1 / 4,
                 },
             ],
         ),
@@ -254,7 +254,7 @@ def test_trill_and_plosive_agree_in_stricture_and_explain_timing(
                     "label": "length (prosodic)",
                     "a": "extra-short",
                     "b": "normal",
-                    "cost": 1 / 3,
+                    "cost": 1 / 4,
                 },
             ],
         ),
@@ -294,8 +294,10 @@ def test_public_explanation_keeps_segmental_and_written_brevity_separate(
     ]
 
 
-def test_written_vowel_length_distance_is_unchanged(ipa: IPAFeatures) -> None:
-    assert ipa.distance("e", "eː") == 0.02898550724637681
+def test_written_vowel_length_distance_reflects_the_extended_scale(
+    ipa: IPAFeatures,
+) -> None:
+    assert ipa.distance("e", "eː") == 0.021739130434782608
 
 
 def test_every_pair_lacking_a_tap_or_trill_is_unchanged() -> None:

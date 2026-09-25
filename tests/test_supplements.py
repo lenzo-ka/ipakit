@@ -22,7 +22,7 @@ own derived data.
 
 The second is ``to_phone``, which picks a winner over the whole phone
 table. A new candidate can outrank an existing winner -- measured below
-at 25 bundles for one plausible supplement -- and that is a behavior
+at 26 bundles for one plausible supplement -- and that is a behavior
 change nothing announces. The
 rank key that stops it is asserted in both directions: monotone with it,
 and the movers it would otherwise let through, pinned.
@@ -571,7 +571,9 @@ class TestToPhoneOnlyGainsAnswers:
             for unit, bundle in asked.items()
             if (was := ipa.to_phone(bundle)) != f.to_phone(bundle) and was is not None
         ]
-        assert len(taken) == 25
+        # Written overlong adds the distinct mover ``t͡ʃːː`` to the 25
+        # units covered before the length scale grew its fifth point.
+        assert len(taken) == 26
 
 
 class TestTheShippedMetricDoesNotMove:

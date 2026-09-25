@@ -243,6 +243,7 @@
       <value name="normal" short="nml"/>
       <value name="half-long" short="hlg"/>
       <value name="long" short="lng"/>
+      <value name="overlong" short="ovl"/>
     </feature>
 
     <!-- Intrinsic timing is segmental organization, not a written length mark.
@@ -885,6 +886,7 @@
     <suprasegmental name="ˈ" stress="primary" href="Stress_(linguistics)"/>
     <suprasegmental name="ˌ" stress="secondary" href="Secondary_stress"/>
     <suprasegmental name="ː" length="long" href="Length_(phonetics)"/>
+    <suprasegmental name="ːː" length="overlong" href="Length_(phonetics)"/>
     <suprasegmental name="ˑ" length="half-long" href="Length_(phonetics)"/>
     <suprasegmental name="̆" length="extra-short" href="Length_(phonetics)"/>
     <suprasegmental name="˥" tone="top" href="Tone_letter"/>
