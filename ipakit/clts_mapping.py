@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -28,6 +29,16 @@ from .features import IPAFeatures
 from .metric import metric_fingerprint
 
 DATA = Path(__file__).parent / "data" / "clts"
+
+DISPOSITION_CLASSES = (
+    "exact under stated conditions",
+    "conditional/composite",
+    "convention-based or lossy",
+    "unsupported by the adapter despite native expressibility",
+    "not expressible in the target model",
+    "conflicting",
+    "unresolved pending evidence",
+)
 
 
 class MappingInvalid(ValueError):
@@ -103,6 +114,11 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
             expected = target["constituents"]
             if len(segment.constituents) != len(expected):
                 raise MappingInvalid("native release sequence structure changed")
+            observed_junctures = [juncture.value for juncture in segment.junctures]
+            if target["juncture"] != "unasserted" or observed_junctures != [
+                target["witness_juncture"]
+            ]:
+                raise MappingInvalid("native release sequence juncture changed")
             observed = []
             for constituent, predicates in zip(
                 segment.constituents, expected, strict=True
@@ -116,6 +132,8 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
                 "name": target["name"],
                 "witness": witness,
                 "constituents": observed,
+                "juncture": target["juncture"],
+                "observed_junctures": observed_junctures,
             }
         else:
             raise MappingInvalid("unknown release target form")
@@ -130,8 +148,15 @@ def _native_phones(rules: dict[str, Any]) -> tuple[str, ...]:
 
 
 def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
+    if tuple(rules["disposition_classes"]) != DISPOSITION_CLASSES:
+        raise MappingInvalid("reviewed disposition classes changed")
+    valid_classes = set(DISPOSITION_CLASSES)
     supported: dict[tuple[str, ...], list[str]] = {}
+    rule_classes: dict[str, str] = {}
     for rule in rules["rules"]:
+        if rule["disposition"] not in valid_classes:
+            raise MappingInvalid("unknown reviewed disposition class")
+        rule_classes[rule["id"]] = rule["disposition"]
         for name, value in rule["source"].items():
             supported.setdefault(
                 ("clts", rules["source_kind"], name, value), []
@@ -150,6 +175,8 @@ def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
             raise MappingInvalid("reviewed target predicate is no longer declared")
     declaration_rules: dict[tuple[str, ...], dict[str, Any]] = {}
     for rule in rules["declaration_rules"]:
+        if rule["disposition"] not in valid_classes:
+            raise MappingInvalid("unknown reviewed disposition class")
         source = tuple(rule["source"])
         if source in declaration_rules:
             raise MappingInvalid("duplicate declaration rule")
@@ -174,13 +201,21 @@ def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
                 else None
             )
             ids = [*witness_ids, *([declaration["id"]] if declaration else [])]
+            dispositions = {
+                *[rule_classes[rule_id] for rule_id in witness_ids],
+                *([declaration["disposition"]] if declaration else []),
+            }
             records.append(
                 {
                     **row,
                     "status": (
-                        "resolved"
-                        if declaration
-                        else "conditional-witness" if witness_ids else "unresolved"
+                        "conflicting"
+                        if len(dispositions) > 1
+                        else (
+                            next(iter(dispositions))
+                            if dispositions
+                            else "unresolved pending evidence"
+                        )
                     ),
                     "rule_ids": ids,
                     "targets": [declaration["target"]] if declaration else [],
@@ -232,7 +267,7 @@ class MappingAuthority:
         if (
             data["schema"] != "ipakit-clts-semantic-authority"
             or type(data["version"]) is not int
-            or data["version"] != 1
+            or data["version"] != 2
         ):
             raise MappingInvalid("unsupported authority version")
         if (
@@ -346,6 +381,32 @@ class MappingAuthority:
             "reason": "B2-profile-binding-pending",
         }
 
+    def declaration_target(
+        self, source: Sequence[str], token: str, snapshot: Snapshot
+    ) -> dict[str, Any]:
+        """Return one declaration target only when its occurrence conditions hold."""
+        source = tuple(source)
+        if len(source) != 4 or source[:1] != ("clts",):
+            raise MappingInvalid("invalid qualified declaration source")
+        rules = self.to_data()["rules"]["declaration_rules"]
+        matches = [rule for rule in rules if tuple(rule["source"]) == source]
+        if len(matches) != 1:
+            raise MappingInvalid("declaration has no unique reviewed rule")
+        entry = snapshot.to_data()["entries"].get(token)
+        if (
+            entry is None
+            or entry["kind"] != source[1]
+            or source[3] not in entry["features"]
+        ):
+            raise MappingInvalid("source occurrence does not assert the declaration")
+        rule = matches[0]
+        for feature, value in rule.get("preconditions", {}).get("host", {}).items():
+            if value not in entry["features"]:
+                raise MappingInvalid(
+                    f"declaration target requires host {feature}={value}"
+                )
+        return cast(dict[str, Any], json.loads(json.dumps(rule["target"])))
+
     def require_import_profile(self, fingerprint: str | None) -> None:
         """Never advertise structural compatibility before B2 has been bound."""
         raise ProfilePending("reviewed B2 profile binding is required before import")
@@ -422,7 +483,7 @@ def build_authority(
     phones = _native_phones(rules)
     data = {
         "schema": "ipakit-clts-semantic-authority",
-        "version": 1,
+        "version": 2,
         "bindings": {
             "source_policy": identity_fingerprint(source_policy()),
             "source_metadata": source.metadata.to_dict(),

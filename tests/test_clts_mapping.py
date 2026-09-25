@@ -3,16 +3,26 @@
 from __future__ import annotations
 
 import copy
+import json
+import os
 from pathlib import Path
 
 import pytest
 from ipakit import load_ipa_features
 from ipakit._identity import identity_fingerprint
-from ipakit.clts import Snapshot, read_snapshot
+from ipakit.clts import (
+    MASTER_FEATURES,
+    Snapshot,
+    declaration_audit,
+    extract_snapshot,
+    read_snapshot,
+)
 from ipakit.clts_mapping import (
+    DISPOSITION_CLASSES,
     MappingAuthority,
     MappingInvalid,
     ProfilePending,
+    _native_witnesses,
     _source_witnesses,
     read_authority,
     reviewed_rules,
@@ -64,22 +74,32 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
 
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
+    assert data["version"] == 2
+    assert data["rules"]["version"] == 3
+    assert data["rules"]["disposition_classes"] == [
+        "exact under stated conditions",
+        "conditional/composite",
+        "convention-based or lossy",
+        "unsupported by the adapter despite native expressibility",
+        "not expressible in the target model",
+        "conflicting",
+        "unresolved pending evidence",
+    ]
+    assert tuple(data["rules"]["disposition_classes"]) == DISPOSITION_CLASSES
     for direction in ("clts_to_ipakit", "ipakit_to_clts"):
         rows = data["dispositions"][direction]
         assert [r["source"] for r in rows] == [
             r["source"] for r in data["census"][direction]
         ]
-        assert all(
-            r["status"] in ("unresolved", "conditional-witness", "resolved")
-            for r in rows
-        )
+        assert all(r["status"] in DISPOSITION_CLASSES for r in rows)
     assert all(
-        r["status"] == "unresolved" for r in data["dispositions"]["ipakit_to_clts"]
+        r["status"] == "unresolved pending evidence"
+        for r in data["dispositions"]["ipakit_to_clts"]
     )
     reviewed = {
         tuple(r["source"])
         for r in data["dispositions"]["clts_to_ipakit"]
-        if r["status"] == "conditional-witness"
+        if r["status"] == "conditional/composite"
     }
     assert reviewed == {
         ("clts", "consonant", "manner", "stop"),
@@ -87,10 +107,14 @@ def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
         ("clts", "consonant", "place", "alveolar"),
         ("clts", "consonant", "phonation", "voiced"),
         ("clts", "consonant", "phonation", "voiceless"),
+        ("clts", "consonant", "release", "with-sibilant-release"),
+        ("clts", "consonant", "release", "with-trilled-release"),
+        ("clts", "consonant", "release", "with-uvular-release"),
     }
 
 
 def test_release_declarations_resolve_to_values_or_constituent_sequences() -> None:
+    observed = _native_witnesses(reviewed_rules(), load_ipa_features())
     data = read_authority().to_data()
     rows = {
         row["source"][-1]: row
@@ -98,21 +122,46 @@ def test_release_declarations_resolve_to_values_or_constituent_sequences() -> No
         if row["source"][1:3] == ["consonant", "release"]
     }
     expected = {
-        "unreleased": ("feature", ["ipakit", "release", "no-audible"]),
-        "with-lateral-release": ("feature", ["ipakit", "release", "lateral"]),
+        "unreleased": (
+            "feature",
+            ["ipakit", "release", "no-audible"],
+            "exact under stated conditions",
+        ),
+        "with-lateral-release": (
+            "feature",
+            ["ipakit", "release", "lateral"],
+            "exact under stated conditions",
+        ),
         "with-mid-central-vowel-release": (
             "feature",
             ["ipakit", "release", "schwa"],
+            "exact under stated conditions",
         ),
-        "with-nasal-release": ("feature", ["ipakit", "release", "nasal"]),
-        "with-sibilant-release": ("sequence", "plosive + sibilant fricative"),
-        "with-trilled-release": ("sequence", "plosive + trill"),
-        "with-uvular-release": ("sequence", "plosive + uvular fricative"),
+        "with-nasal-release": (
+            "feature",
+            ["ipakit", "release", "nasal"],
+            "exact under stated conditions",
+        ),
+        "with-sibilant-release": (
+            "sequence",
+            "plosive + sibilant fricative",
+            "conditional/composite",
+        ),
+        "with-trilled-release": (
+            "sequence",
+            "plosive + trill",
+            "conditional/composite",
+        ),
+        "with-uvular-release": (
+            "sequence",
+            "plosive + uvular fricative",
+            "conditional/composite",
+        ),
     }
     assert set(rows) == set(expected)
-    for source, (form, target) in expected.items():
+    for source, (form, target, disposition) in expected.items():
         row = rows[source]
-        assert row["status"] == "resolved"
+        assert row["status"] == disposition
         assert len(row["targets"]) == 1
         assert row["targets"][0]["form"] == form
         key = "path" if form == "feature" else "name"
@@ -120,10 +169,102 @@ def test_release_declarations_resolve_to_values_or_constituent_sequences() -> No
         assert len(row["rule_ids"]) == 1
     assert "another segment" in data["rules"]["release_adjudication"]
     assert all(
-        row["status"] == "unresolved"
+        row["status"] == "unresolved pending evidence"
         for row in data["dispositions"]["ipakit_to_clts"]
         if row["source"][1] == "release"
     )
+    sequence_rules = {
+        rule["id"]: rule
+        for rule in data["rules"]["declaration_rules"]
+        if rule["target"]["form"] == "sequence"
+    }
+    assert set(sequence_rules) == {
+        "release-sibilant-sequence/1",
+        "release-trilled-sequence/1",
+        "release-uvular-sequence/1",
+    }
+    for rule_id, rule in sequence_rules.items():
+        assert rule["preconditions"] == {"host": {"manner": "stop"}}
+        assert rule["target"]["juncture"] == "unasserted"
+        assert rule["target"]["witness_juncture"] == "fuse"
+        assert observed[rule_id]["observed_junctures"] == ["fuse"]
+        assert data["native_witnesses"][rule_id]["juncture"] == "unasserted"
+        assert data["native_witnesses"][rule_id]["observed_junctures"] == ["fuse"]
+
+
+@pytest.mark.slow
+def _supplied_consonants(entries: dict[str, list[str]]) -> Snapshot:
+    data = {k: v for k, v in read_snapshot().to_data().items() if k != "identity"}
+    data["domain"] = "supplied-tokens"
+    data["requested"] = sorted(entries)
+    data["excluded"] = {}
+    data["entries"] = {
+        token: {
+            "alias": False,
+            "canonical": token,
+            "declaration": None,
+            "features": sorted(features),
+            "kind": "consonant",
+            "normalized": False,
+        }
+        for token, features in entries.items()
+    }
+    return Snapshot({**data, "identity": identity_fingerprint(data)})
+
+
+@pytest.mark.parametrize(
+    ("release", "name"),
+    [
+        ("with-sibilant-release", "plosive + sibilant fricative"),
+        ("with-trilled-release", "plosive + trill"),
+        ("with-uvular-release", "plosive + uvular fricative"),
+    ],
+)
+def test_sequence_release_holds_only_on_a_stop_host(release: str, name: str) -> None:
+    snapshot = _supplied_consonants(
+        {
+            "stop": ["bilabial", "consonant", "stop", "voiceless", release],
+            "fricative": [
+                "consonant",
+                "fricative",
+                "labio-dental",
+                "voiceless",
+                release,
+            ],
+        }
+    )
+    source = ["clts", "consonant", "release", release]
+    authority = read_authority()
+    assert authority.declaration_target(source, "stop", snapshot)["name"] == name
+    with pytest.raises(MappingInvalid, match="host manner=stop"):
+        authority.declaration_target(source, "fricative", snapshot)
+
+
+def test_sequence_release_refuses_non_stop_host_from_master_tables() -> None:
+    value = os.environ.get("IPAKIT_CLTS_DIR")
+    if not value:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for the live CLTS master")
+    snapshot = extract_snapshot(Path(value), tokens=["fˢ"])
+    assert snapshot.features("fˢ") == frozenset(
+        {"consonant", "fricative", "labio-dental", "voiceless", "with-sibilant-release"}
+    )
+    assert "data/sounds.tsv" not in snapshot.to_data()["source"]["inputs"]
+    with pytest.raises(MappingInvalid, match="host manner=stop"):
+        read_authority().declaration_target(
+            ["clts", "consonant", "release", "with-sibilant-release"],
+            "fˢ",
+            snapshot,
+        )
+
+
+def test_census_refuses_same_kind_cross_feature_value_spelling(tmp_path: Path) -> None:
+    master = tmp_path.joinpath(*MASTER_FEATURES)
+    master.parent.mkdir(parents=True)
+    master.write_text(
+        json.dumps({"consonant": {"manner": ["shared"], "place": ["shared"]}})
+    )
+    with pytest.raises(ValueError, match="duplicate value spelling across features"):
+        declaration_audit(tmp_path, include_catalog=False)
 
 
 def test_extra_claim_absence_and_wrong_voicing_refuse_even_when_resealed() -> None:

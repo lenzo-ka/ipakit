@@ -1,6 +1,15 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 2,
+  "version": 3,
+  "disposition_classes": [
+    "exact under stated conditions",
+    "conditional/composite",
+    "convention-based or lossy",
+    "unsupported by the adapter despite native expressibility",
+    "not expressible in the target model",
+    "conflicting",
+    "unresolved pending evidence"
+  ],
   "direction": "clts-to-ipakit",
   "scope": "exact-plain-stop-witnesses-and-release-declarations",
   "profile_binding": null,
@@ -11,20 +20,20 @@
   "source_structure": "one resolved plain consonant; complete declared feature set equals the witness",
   "absence_policy": "unasserted-is-not-negative",
   "rules": [
-    {"id": "plain-p/1", "raw": "p", "target": "p", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "-"}},
-    {"id": "plain-b/1", "raw": "b", "target": "b", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "+"}},
-    {"id": "plain-t/1", "raw": "t", "target": "t", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "-"}},
-    {"id": "plain-d/1", "raw": "d", "target": "d", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "+"}}
+    {"id": "plain-p/1", "disposition": "conditional/composite", "raw": "p", "target": "p", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "-"}},
+    {"id": "plain-b/1", "disposition": "conditional/composite", "raw": "b", "target": "b", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "+"}},
+    {"id": "plain-t/1", "disposition": "conditional/composite", "raw": "t", "target": "t", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "-"}},
+    {"id": "plain-d/1", "disposition": "conditional/composite", "raw": "d", "target": "d", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "+"}}
   ],
   "release_adjudication": "A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.",
   "declaration_rules": [
-    {"id": "release-unreleased/1", "source": ["clts", "consonant", "release", "unreleased"], "target": {"form": "feature", "path": ["ipakit", "release", "no-audible"], "witness": "t̚"}},
-    {"id": "release-lateral/1", "source": ["clts", "consonant", "release", "with-lateral-release"], "target": {"form": "feature", "path": ["ipakit", "release", "lateral"], "witness": "tˡ"}},
-    {"id": "release-schwa/1", "source": ["clts", "consonant", "release", "with-mid-central-vowel-release"], "target": {"form": "feature", "path": ["ipakit", "release", "schwa"], "witness": "tᵊ"}},
-    {"id": "release-nasal/1", "source": ["clts", "consonant", "release", "with-nasal-release"], "target": {"form": "feature", "path": ["ipakit", "release", "nasal"], "witness": "tⁿ"}},
-    {"id": "release-sibilant-sequence/1", "source": ["clts", "consonant", "release", "with-sibilant-release"], "target": {"form": "sequence", "name": "plosive + sibilant fricative", "witness": "t͡s", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "channel": "grooved"}]}},
-    {"id": "release-trilled-sequence/1", "source": ["clts", "consonant", "release", "with-trilled-release"], "target": {"form": "sequence", "name": "plosive + trill", "witness": "d͡r", "constituents": [{"manner": "plosive"}, {"manner": "trill"}]}},
-    {"id": "release-uvular-sequence/1", "source": ["clts", "consonant", "release", "with-uvular-release"], "target": {"form": "sequence", "name": "plosive + uvular fricative", "witness": "d͡ʁ", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "place": "uvular"}]}}
+    {"id": "release-unreleased/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "unreleased"], "target": {"form": "feature", "path": ["ipakit", "release", "no-audible"], "witness": "t̚"}},
+    {"id": "release-lateral/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-lateral-release"], "target": {"form": "feature", "path": ["ipakit", "release", "lateral"], "witness": "tˡ"}},
+    {"id": "release-schwa/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-mid-central-vowel-release"], "target": {"form": "feature", "path": ["ipakit", "release", "schwa"], "witness": "tᵊ"}},
+    {"id": "release-nasal/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-nasal-release"], "target": {"form": "feature", "path": ["ipakit", "release", "nasal"], "witness": "tⁿ"}},
+    {"id": "release-sibilant-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-sibilant-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + sibilant fricative", "juncture": "unasserted", "witness": "t͡s", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "channel": "grooved"}]}},
+    {"id": "release-trilled-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-trilled-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + trill", "juncture": "unasserted", "witness": "d͡r", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "trill"}]}},
+    {"id": "release-uvular-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-uvular-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + uvular fricative", "juncture": "unasserted", "witness": "d͡ʁ", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "place": "uvular"}]}}
   ],
   "evidence": [
     "Pinned BIPA core rows: complete consonant, manner, place and phonation claims; contrasts p/b and t/d.",

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CLTS mapping dispositions use the reviewed audit classes, and segmental-release sequences state and enforce their host and juncture limits.
+- The CLTS declaration census refuses a same-kind value spelling declared under multiple features.
 - `ipakit corpus validate` exits 3 when a stored form holds a symbol the inventory does not register.
 - Assigning the declared unmarked `stress=none` value removes a written stress mark.
 - Empty and boundary-only forms return no inferred tier intervals instead of crashing.

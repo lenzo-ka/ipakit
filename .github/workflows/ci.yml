@@ -209,7 +209,7 @@ jobs:
       - name: CLTS snapshot regeneration and exhaustive scorer parity
         env:
           IPAKIT_CLTS_DIR: ${{ github.workspace }}/.clts-source
-        run: pytest tests/test_clts_snapshot.py
+        run: pytest tests/test_clts_snapshot.py tests/test_clts_mapping.py
       - name: Comparison extras tests (partition check skips in the matrix job)
         run: pytest tests/test_comparison_example.py
 

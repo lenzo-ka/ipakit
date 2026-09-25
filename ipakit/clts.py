@@ -109,6 +109,7 @@ def declaration_audit(root: Path, *, include_catalog: bool = True) -> dict[str, 
     for kind, domains in master.items():
         if not kind.strip() or not isinstance(domains, dict) or not domains:
             raise ValueError(f"invalid unit declaration: {kind!r}")
+        value_features: dict[str, str] = {}
         for feature, values in domains.items():
             if (
                 not feature.strip()
@@ -119,6 +120,13 @@ def declaration_audit(root: Path, *, include_catalog: bool = True) -> dict[str, 
                 raise ValueError(f"invalid domain: {kind}/{feature}")
             if len(values) != len(set(values)):
                 raise ValueError(f"duplicate value: {kind}/{feature}")
+            for value in values:
+                previous = value_features.setdefault(value, feature)
+                if previous != feature:
+                    raise ValueError(
+                        "duplicate value spelling across features: "
+                        f"{kind}/{previous} and {kind}/{feature}: {value!r}"
+                    )
             declared.update((kind, feature, value) for value in values)
     catalog = (
         _audit_tsv(inputs["/".join(FEATURES_TSV)], {"ID", "TYPE", "FEATURE", "VALUE"})
