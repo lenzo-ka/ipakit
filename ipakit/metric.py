@@ -406,6 +406,11 @@ def _prosodic_anchor(features: IPAFeatures, feature: str) -> str | None:
     feat = features.features.get(feature)
     if feat is None:
         return None
+    declared = features.unspelled_values.get(feature)
+    if declared is not None:
+        # The declaration is the authority where it exists; the inventory
+        # refuses one that a mark spells, so it is always an unmarked value.
+        return declared
     spelled = {
         v
         for d in features.diacritics.values()

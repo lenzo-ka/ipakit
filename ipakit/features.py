@@ -244,6 +244,25 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         if self.supplements:
             self._index_nfd()
             self._invalidate_derived_reads()
+        self._validate_unspelled_values()
+
+    def _validate_unspelled_values(self) -> None:
+        """Refuse a declared unspelled value that some mark spells.
+
+        ``unspelled`` names the value a feature takes when nothing is
+        written, and the metric anchors unmarked units on it.  A mark that
+        writes that same value would make the unmarked reading and the
+        marked one the same value by two routes, so the declaration and
+        the marks must agree.  Checked after supplements, which can add
+        marks.
+        """
+        for name, value in self.unspelled_values.items():
+            for mark, entry in self.diacritics.items():
+                if entry.features.get(name) == value:
+                    raise ValueError(
+                        f"feature {name!r} declares unspelled={value!r}, but "
+                        f"the mark {mark!r} spells it"
+                    )
 
     def _validate_prominence_contract(self) -> None:
         """Refuse inventory drift from the one unit-raising mechanism.
