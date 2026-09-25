@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ipakit --version` prints the installed version.
 - `ipakit model transform` applies an explicit finite ternary-to-binary encoding and reports its preimage and loss evidence.
 - `ipakit model compare` compares original and explicitly selected binary encodings over exact token corpora.
 - Written `ːː` is the `overlong` value on the length scale. Each length step is now a quarter of the scale rather than a third; `confusion.json` and `metric_fingerprint` move, so a distance matrix saved before this change is read as a different feature space.
