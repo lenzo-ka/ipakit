@@ -549,6 +549,7 @@ class DerivesCommand(RuleCommand):
     name = "derives"
     aliases: ClassVar[list[str]] = []
     help = "Classify derivability over a corpus or named split"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -1017,6 +1018,7 @@ class ListCommand(Command):
     name = "list"
     aliases: ClassVar[list[str]] = ["l"]
     help = "List the shipped rule sets, or the rules in one"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -1089,6 +1091,7 @@ class InvertibilityCommand(RuleCommand):
     name = "invertibility"
     aliases: ClassVar[list[str]] = ["invertible"]
     help = "Report rule and ruleset invertibility against an inventory"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

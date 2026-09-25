@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 from .. import feature_models
 from ..finite_declaration import TernaryDeclaration, read_ternary_declaration
 from ..finite_model import FiniteModel
-from .base import Command, CommandGroup, add_format_arg, add_output_arg
+from .base import NO_NOTATION, Command, CommandGroup, add_format_arg, add_output_arg
 
 
 def add_model_selector(
@@ -69,6 +69,7 @@ class ModelListCommand(Command):
 
     name = "list"
     help = "List shipped finite feature models"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -89,6 +90,7 @@ class ModelInspectCommand(Command):
 
     name = "inspect"
     help = "Inspect a finite model's schema, identity and provenance"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -135,6 +137,7 @@ class ModelRespellCommand(Command):
 
     name = "respell"
     help = "Respell one token under an explicitly selected finite model"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -172,6 +175,7 @@ class ModelQueryCommand(Command):
 
     name = "query"
     help = "List phones matching features in an explicitly selected finite model"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

@@ -9,7 +9,7 @@ from typing import ClassVar
 
 from .. import corpus, rules
 from .._corpus_query import _normalize_wild_query
-from .base import IPA, Command, CommandGroup
+from .base import CMU_ARPABET, IPA, NO_NOTATION, Command, CommandGroup
 
 
 def _location(parser: argparse.ArgumentParser) -> None:
@@ -30,6 +30,7 @@ class Init(Command):
     """
 
     name, aliases, help = "init", [], "Create an empty corpus"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -105,6 +106,7 @@ class IngestCMUdict(Command):
     """
 
     name, aliases, help = "ingest-cmudict", [], "Ingest an external CMUdict file"
+    reads_notation = CMU_ARPABET
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -137,6 +139,7 @@ class Validate(Command):
     """
 
     name, aliases, help = "validate", [], "Validate a corpus and its assets"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -172,6 +175,7 @@ class Ids(Command):
     """
 
     name, aliases, help = "ids", [], "List corpus entry IDs"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -187,6 +191,7 @@ class Show(Command):
     """Print one entry's forms as ID, role and IPA, one row per role."""
 
     name, aliases, help = "show", [], "Show an entry's named forms"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -267,6 +272,7 @@ class Derives(Command):
     """
 
     name, aliases, help = "derives", [], "Check role pairs under a rule set"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

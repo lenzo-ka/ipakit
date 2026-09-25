@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .base import Command, add_format_arg, add_output_arg
+from .base import NO_NOTATION, Command, add_format_arg, add_output_arg
 
 if TYPE_CHECKING:
     from ..distance_registry import DistanceRegistry
@@ -56,6 +56,7 @@ class MetricsCommand(Command):
 
     name = "metrics"
     help = "List registered distance metric names"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -80,6 +81,7 @@ class AcrossCommand(Command):
 
     name = "across"
     help = "Compare exact token sequences under selected named metrics"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

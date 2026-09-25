@@ -7,7 +7,7 @@ import warnings
 from typing import ClassVar
 
 from ..bridges.phoible import PhoibleBridge
-from .base import Command, CommandGroup, add_output_arg
+from .base import IPA, NO_NOTATION, Command, CommandGroup, add_output_arg
 
 
 def _bridge(args: argparse.Namespace) -> PhoibleBridge:
@@ -28,6 +28,7 @@ class PhoibleLanguageCommand(Command):
     name = "language"
     aliases: ClassVar[list[str]] = ["spread"]
     help = "Report the inventory spread for an ISO code or Glottocode"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -51,6 +52,7 @@ class PhoibleInventoryCommand(Command):
     name = "inventory"
     aliases: ClassVar[list[str]] = ["phoneset"]
     help = "Write one InventoryID as a --phoneset-compatible file"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -80,6 +82,7 @@ class PhoibleAuditCommand(Command):
     name = "audit"
     aliases: ClassVar[list[str]] = []
     help = "Count accepted/refused rows and inventories"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

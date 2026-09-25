@@ -73,10 +73,42 @@ the phones it encodes and answered confidently rather than refused -- and
 the reading is rarely the spelling's: 'cat' is read as the palatal plosive
 'c', then 'a', then 't'.
 """,
+    "CMU ARPABET": """
+Input is CMU ARPABET transcription, not orthography. Symbols are the
+space-delimited codes used by CMUdict (for example, K AE1 T); ordinary
+spelling is not a substitute for those codes.
+""",
+    "TIMIT": """
+Input is TIMIT phoneset transcription, not orthography. Symbols are
+space-delimited TIMIT phone codes; ordinary spelling is not a substitute
+for those codes.
+""",
+    "selected inventory style": """
+Input is phonetic transcription in the inventory style selected by the
+command, not orthography. The accepted symbols therefore depend on that
+selection; use the style's declared spelling rather than a written word.
+""",
 }
 
 #: The notation ipakit is written in, and the value most commands declare.
 IPA = "IPA"
+
+#: Other fixed notations read directly by command-line routes.
+CMU_ARPABET = "CMU ARPABET"
+TIMIT = "TIMIT"
+
+#: A notation selected at runtime by ``--style`` rather than fixed by the
+#: command class.
+SELECTED_STYLE = "selected inventory style"
+
+#: Explicitly says that a command reads no phonetic notation. ``None`` keeps
+#: the help-note branch's established behavior while giving leaf classes a
+#: named declaration to make.
+NO_NOTATION = None
+
+#: The base-class value. A leaf retaining this value has made no declaration;
+#: that is different from explicitly declaring :data:`NO_NOTATION`.
+NOTATION_UNDECLARED = object()
 
 
 class Command(ABC):
@@ -87,7 +119,8 @@ class Command(ABC):
     help: str  # Help text
 
     #: The phonetic notation the command reads from the command line, or
-    #: None where it reads no transcription at all.
+    #: :data:`NO_NOTATION` where it reads no transcription at all. Every leaf
+    #: overrides this: retaining :data:`NOTATION_UNDECLARED` is an omission.
     #:
     #: The only consumer is :func:`register_command`, which attaches the
     #: matching :data:`NOTATION_NOTES` entry to the command's help. It is a
@@ -97,7 +130,7 @@ class Command(ABC):
     #: is not IPA. It names the notation rather than answering "is this
     #: IPA?" for the same reason -- the routes that are not IPA are not
     #: thereby free of the hazard, they carry a different form of it.
-    reads_notation: str | None = None
+    reads_notation: str | None | object = NOTATION_UNDECLARED
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -289,9 +322,14 @@ def register_command(
     parser.description = cmd_cls.__doc__
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
     cmd_cls.add_arguments(parser)
-    if cmd_cls.reads_notation is not None:
+    notation = cmd_cls.reads_notation
+    if notation is not NO_NOTATION and notation is not NOTATION_UNDECLARED:
+        if not isinstance(notation, str):
+            raise TypeError(
+                f"{cmd_cls.name} declares non-string reads_notation={notation!r}"
+            )
         try:
-            note = NOTATION_NOTES[cmd_cls.reads_notation]
+            note = NOTATION_NOTES[notation]
         except KeyError:
             raise ValueError(
                 f"{cmd_cls.name} declares reads_notation="

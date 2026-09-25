@@ -15,6 +15,7 @@ from ..constants import MAX_EXAMPLE_PHONES
 from ..models import Feature
 from .base import (
     IPA,
+    NO_NOTATION,
     Command,
     CommandGroup,
     add_format_arg,
@@ -198,6 +199,7 @@ class MatchCommand(Command):
     name = "match"
     aliases: ClassVar[list[str]] = ["m"]
     help = "Find phones matching feature criteria (e.g., 'plosive bilabial')"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -254,6 +256,7 @@ class ListCommand(Command):
     name = "list"
     aliases: ClassVar[list[str]] = ["l"]
     help = "List phones with a specific feature value (e.g., 'manner=plosive')"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -309,6 +312,7 @@ class ClassesCommand(Command):
     name = "classes"
     aliases: ClassVar[list[str]] = []
     help = "List character classes (phone, diacritic, etc.)"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -358,6 +362,7 @@ class FeaturesListCommand(Command):
     name = "features"
     aliases: ClassVar[list[str]] = ["f"]
     help = "List all features or values for a specific feature"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -469,6 +474,7 @@ class ShortsCommand(Command):
     name = "shorts"
     aliases: ClassVar[list[str]] = []
     help = "Convert between feature names and short codes"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
