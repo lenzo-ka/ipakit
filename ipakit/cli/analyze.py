@@ -5,7 +5,13 @@ from __future__ import annotations
 import argparse
 from typing import ClassVar
 
-from .base import Command, CommandGroup, add_format_arg, add_no_defaults_arg
+from .base import (
+    NO_NOTATION,
+    Command,
+    CommandGroup,
+    add_format_arg,
+    add_no_defaults_arg,
+)
 
 
 class ValidateCommand(Command):
@@ -28,6 +34,7 @@ class ValidateCommand(Command):
     name = "validate"
     aliases: ClassVar[list[str]] = ["v"]
     help = "Validate IPA XML file for consistency errors"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -69,6 +76,7 @@ class SummaryCommand(Command):
     name = "summary"
     aliases: ClassVar[list[str]] = ["s"]
     help = "Summary statistics (counts, distributions)"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -124,6 +132,7 @@ class CountsCommand(Command):
     name = "counts"
     aliases: ClassVar[list[str]] = ["c"]
     help = "Detailed feature value counts"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -179,6 +188,7 @@ class PhonesCommand(Command):
     name = "phones"
     aliases: ClassVar[list[str]] = ["p"]
     help = "List all phones with features (text, tsv, csv, json)"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -245,6 +255,7 @@ class DiacriticsCommand(Command):
     name = "diacritics"
     aliases: ClassVar[list[str]] = ["d"]
     help = "List all diacritics with feature modifications"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -290,6 +301,7 @@ class ReportCommand(Command):
     name = "report"
     aliases: ClassVar[list[str]] = ["r"]
     help = "Full analysis report (summary, validation, samples)"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

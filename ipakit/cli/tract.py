@@ -13,7 +13,14 @@ import argparse
 from pathlib import Path
 from typing import ClassVar
 
-from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
+from .base import (
+    IPA,
+    NO_NOTATION,
+    Command,
+    CommandGroup,
+    add_format_arg,
+    add_output_arg,
+)
 
 
 class DrawCommand(Command):
@@ -112,6 +119,7 @@ class HeadsCommand(Command):
     name = "heads"
     aliases: ClassVar[list[str]] = []
     help = "List the declared head shapes"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

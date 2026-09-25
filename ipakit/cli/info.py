@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import ClassVar
 
-from .base import Command, CommandGroup, add_format_arg
+from .base import NO_NOTATION, Command, CommandGroup, add_format_arg
 
 
 class StressCommand(Command):
@@ -33,6 +33,7 @@ class StressCommand(Command):
     name = "stress"
     aliases: ClassVar[list[str]] = []
     help = "Show IPA stress marker symbols and meanings"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

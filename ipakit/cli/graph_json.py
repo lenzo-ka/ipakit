@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from ..graph_json import read_graph_json, write_graph_json
-from .base import Command, add_output_arg
+from .base import NO_NOTATION, Command, add_output_arg
 
 
 class GraphJsonCommand(Command):
@@ -22,6 +22,7 @@ class GraphJsonCommand(Command):
     name = "graph-json"
     aliases: ClassVar[list[str]] = []
     help = "Validate or canonicalize native Graph JSON"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

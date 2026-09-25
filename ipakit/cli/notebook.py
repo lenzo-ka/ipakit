@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from .._notebook import notebook
-from .base import Command
+from .base import NO_NOTATION, Command
 
 
 class NotebookCommand(Command):
@@ -31,6 +31,7 @@ class NotebookCommand(Command):
     name = "notebook"
     aliases: ClassVar[list[str]] = []
     help = "Write the tutorial notebook here, to run yourself"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

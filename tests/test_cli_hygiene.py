@@ -29,7 +29,13 @@ from typing import Any
 import ipakit
 import ipakit.cli
 import pytest
-from ipakit.cli.base import NOTATION_NOTES, Command, register_command
+from ipakit.cli.base import (
+    NO_NOTATION,
+    NOTATION_NOTES,
+    NOTATION_UNDECLARED,
+    Command,
+    register_command,
+)
 
 #: A word in English spelling, and no kind of transcription. Every letter
 #: in it is a registered phone, so nothing in the reader can refuse it --
@@ -169,6 +175,21 @@ class TestEveryCommandSaysWhatItIs:
         assert blank == [], f"{' '.join(path)} has arguments with no help"
 
 
+class TestEveryLeafDeclaresWhetherItReadsNotation:
+    """No leaf may inherit the base class's undeclared placeholder."""
+
+    def test_every_leaf_overrides_the_undeclared_value(self):
+        offenders = [
+            " ".join(path)
+            for path, parser in LEAVES
+            if _command_of(parser).reads_notation is NOTATION_UNDECLARED
+        ]
+        assert offenders == [], (
+            "leaf commands must declare reads_notation as a notation or "
+            f"NO_NOTATION; undeclared: {offenders}"
+        )
+
+
 #: One invocation per notation-reading route that ANSWERS a plain
 #: orthographic word, each spelling a real English word. Written out because the
 #: unconditional sweep below can only hand a leaf one word, and a command
@@ -207,6 +228,8 @@ WITNESSES = [
     # says a reading happened at all.
     ["convert", "from-xsampa", "cat"],
     ["convert", "from-kirshenbaum", "cat"],
+    ["convert", "from-cmu", "K", "AE1", "T"],
+    ["convert", "from-timit", "k", "ae", "t"],
     ["analysis", "describe", "cat"],
     ["analysis", "validate", "cat"],
     ["analysis", "natural-class", "c", "t"],
@@ -222,20 +245,28 @@ REFUSERS = [
     ["rules", "morae", "pin"],
 ]
 
-#: The IPA-reading routes reached by neither witness nor refuser, because
-#: each wants a file on disk before it reads anything: the corpus routes
-#: want a corpus, and the phoneset commands want phoneset files. The
-#: orthography hazard is real for all of them -- a phoneset file may hold
-#: English spelling as readily as an argument may -- so they are named
-#: here rather than dropped, and the coverage check below stays a
-#: statement about every declared route rather than about the ones easy
-#: to run from a command line.
-NEEDS_FILES_ON_DISK = [
+#: The notation-reading routes reached by neither witness nor refuser because
+#: they require a structured document or a file-backed collection rather than
+#: one plain transcription argument. They are named rather than silently
+#: dropped, so coverage remains a statement about every declared route.
+NOT_PLAIN_TRANSCRIPTION_INPUTS = [
+    ("corpus", "ingest-cmudict"),
+    ("corpus", "validate"),
+    ("corpus", "show"),
+    ("corpus", "derives"),
     ("corpus", "add"),
     ("corpus", "query"),
+    ("convert", "from-json"),
     ("distance", "map"),
     ("distance", "compare"),
     ("convert", "phoneset"),
+    ("inventory", "from-dict"),
+    ("phoible", "inventory"),
+    ("phoible", "audit"),
+    ("rules", "derives"),
+    ("rules", "list"),
+    ("rules", "invertibility"),
+    ("textgrid", "read"),
 ]
 
 
@@ -299,7 +330,7 @@ class TestOrthographyIsNotIPA:
         construction, and never be run against an orthographic word at
         all -- which is the half of the predicate that is evidence."""
         declared = {path for path, _ in self.NOTATION_ROUTES}
-        measured = set(NEEDS_FILES_ON_DISK)
+        measured = set(NOT_PLAIN_TRANSCRIPTION_INPUTS)
         for argv in [*WITNESSES, *REFUSERS]:
             measured.add(
                 next(path for path, _ in LEAVES if list(path) == argv[: len(path)])
@@ -433,8 +464,8 @@ class TestANotationCannotBeDeclaredWithoutItsNote:
             parser = self._register(self._leaf(notation))
             assert "orthograph" in parser.format_help(), notation
 
-    def test_a_leaf_that_declares_nothing_still_registers(self):
-        parser = self._register(self._leaf(None))
+    def test_a_leaf_that_explicitly_reads_no_notation_still_registers(self):
+        parser = self._register(self._leaf(NO_NOTATION))
         assert "orthograph" not in parser.format_help()
 
 
@@ -477,10 +508,10 @@ class TestTheNotesSayTheTrueThingAboutTheirAlphabet:
     #: which of the two the notes are about.
     KNOWN_UNASSIGNED = {"IPA": ["g"]}
 
-    def test_every_declared_notation_has_a_reader_here(self):
-        """Otherwise a notation could be added, get an unchecked note, and
-        this class would pass by not looking at it."""
-        assert set(self.READERS) == set(NOTATION_NOTES)
+    def test_every_lowercase_claim_has_a_reader_here(self):
+        """The three notes making the lowercase-alphabet claim are checked."""
+        assert set(self.READERS) == {"IPA", "X-SAMPA", "Kirshenbaum"}
+        assert set(self.READERS) <= set(NOTATION_NOTES)
 
     @pytest.mark.parametrize("notation", sorted(READERS))
     def test_every_lowercase_letter_is_a_symbol(self, notation):
@@ -591,8 +622,15 @@ class TestADroppedSymbolReachesTheExitStatus:
             "IPA": ipakit.tokenize,
             "X-SAMPA": ipakit.from_xsampa,
             "Kirshenbaum": ipakit.from_kirshenbaum,
+            "CMU ARPABET": lambda s: ipakit.CMUMapper().cmu_to_ipa([s]),
+            "TIMIT": lambda s: ipakit.from_timit([s]),
         }
-        assert set(readers) == set(NOTATION_NOTES), "a notation has no reader here"
+        probed_notations = {
+            _command_of(parser).reads_notation
+            for path, parser in LEAVES
+            if path in {route for route, _ in self.PROBED}
+        }
+        assert set(readers) == probed_notations, "a probed notation has no reader here"
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             read = {n: bool(fn(self.PROBE_SYMBOL)) for n, fn in readers.items()}
@@ -606,7 +644,7 @@ class TestADroppedSymbolReachesTheExitStatus:
             if getattr(_command_of(parser), "reads_notation", None) is not None
         }
         reached = {path for path, _ in self.PROBED}
-        assert len(reached) >= len(declared) - len(NEEDS_FILES_ON_DISK)
+        assert len(reached) >= len(declared) - len(NOT_PLAIN_TRANSCRIPTION_INPUTS)
 
     @pytest.mark.parametrize(
         "path, argv",

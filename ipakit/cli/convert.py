@@ -9,7 +9,9 @@ from typing import ClassVar
 
 from ..models import Phoneset
 from .base import (
+    CMU_ARPABET,
     IPA,
+    TIMIT,
     Command,
     CommandGroup,
     add_convert_strict_arg,
@@ -76,6 +78,7 @@ class FromCmuCommand(Command):
     name = "from-cmu"
     aliases: ClassVar[list[str]] = []
     help = "Convert CMU ARPABET to IPA (e.g., 'K AE1 T' → 'kˈæt')"
+    reads_notation = CMU_ARPABET
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -328,6 +331,7 @@ class FromJsonCommand(Command):
     name = "from-json"
     aliases: ClassVar[list[str]] = []
     help = "Restore the JSON representation and emit IPA"
+    reads_notation = IPA
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -477,6 +481,7 @@ class FromTimitCommand(Command):
     name = "from-timit"
     aliases: ClassVar[list[str]] = []
     help = "Convert TIMIT phoneset to IPA (e.g., 'k ae t' → 'kæt')"
+    reads_notation = TIMIT
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

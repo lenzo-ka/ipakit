@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 from typing import ClassVar
 
-from .base import Command, CommandGroup
+from .base import NO_NOTATION, Command, CommandGroup
 
 
 def add_features_arg(parser: argparse.ArgumentParser) -> None:
@@ -34,6 +34,7 @@ class TextCommand(Command):
     name = "text"
     aliases: ClassVar[list[str]] = []
     help = "Text tree grouped by features"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -74,6 +75,7 @@ class DotCommand(Command):
     name = "dot"
     aliases: ClassVar[list[str]] = []
     help = "DOT graph for Graphviz visualization"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -149,6 +151,7 @@ class JsonCommand(Command):
     name = "json"
     aliases: ClassVar[list[str]] = []
     help = "JSON hierarchy for programmatic use"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

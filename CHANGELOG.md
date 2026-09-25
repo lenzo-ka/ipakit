@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Every CLI command declares the notation it reads, or that it reads none; the fourteen that read one without saying so now name it in their help.
 ## [0.3.0] - 2026-09-23
 
 ### Added

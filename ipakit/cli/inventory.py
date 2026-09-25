@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import ClassVar
 
 from ..inventories import inventories, inventory, inventory_from_dictionary
-from .base import Command, CommandGroup, add_format_arg, add_output_arg
+from .base import (
+    NO_NOTATION,
+    SELECTED_STYLE,
+    Command,
+    CommandGroup,
+    add_format_arg,
+    add_output_arg,
+)
 
 
 class InventoryListCommand(Command):
@@ -17,6 +24,7 @@ class InventoryListCommand(Command):
     name = "list"
     aliases: ClassVar[list[str]] = []
     help = "List named inventories and styles"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -55,6 +63,7 @@ class InventoryShowCommand(Command):
     name = "show"
     aliases: ClassVar[list[str]] = []
     help = "Show one named inventory"
+    reads_notation = NO_NOTATION
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -99,6 +108,7 @@ class InventoryFromDictionaryCommand(Command):
     name = "from-dict"
     aliases: ClassVar[list[str]] = []
     help = "Derive an inventory from a pronunciation dictionary"
+    reads_notation = SELECTED_STYLE
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:

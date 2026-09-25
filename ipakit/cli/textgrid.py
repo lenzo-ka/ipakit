@@ -9,7 +9,14 @@ from typing import ClassVar
 
 from ..form import Form
 from ..textgrid import profiles, read, write
-from .base import IPA, Command, CommandGroup, add_format_arg, add_output_arg
+from .base import (
+    IPA,
+    SELECTED_STYLE,
+    Command,
+    CommandGroup,
+    add_format_arg,
+    add_output_arg,
+)
 
 
 def _tier_map(value: str) -> Mapping[str, str]:
@@ -73,7 +80,7 @@ class TextGridReadCommand(Command):
     """
 
     name, aliases, help = "read", [], "Read a Praat TextGrid as an IPA form"
-    reads_notation = None
+    reads_notation = SELECTED_STYLE
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
