@@ -1,6 +1,6 @@
 {
   "bindings": {
-    "native_metric": "c998dc46b8f2c665",
+    "native_metric": "c1af34747f887990",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
     "source_inputs": {
       ".zenodo.json": "74cccea55b3ce72643e12bd873cc03d3d51ff548ebc777e134c11b6a082cc9ae",
@@ -5843,41 +5843,77 @@
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "consonant-duration-long/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "duration",
           "long"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "long"
+            ],
+            "witness": "tː"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "consonant-duration-mid-long/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "duration",
           "mid-long"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "half-long"
+            ],
+            "witness": "tˑ"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "consonant-duration-ultra-long/1"
+        ],
         "source": [
           "clts",
           "consonant",
           "duration",
           "ultra-long"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "overlong"
+            ],
+            "witness": "tːː"
+          }
+        ]
       },
       {
         "declared": true,
@@ -7407,54 +7443,102 @@
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "vowel-duration-long/1"
+        ],
         "source": [
           "clts",
           "vowel",
           "duration",
           "long"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "long"
+            ],
+            "witness": "aː"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "vowel-duration-mid-long/1"
+        ],
         "source": [
           "clts",
           "vowel",
           "duration",
           "mid-long"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "half-long"
+            ],
+            "witness": "aˑ"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "vowel-duration-ultra-long/1"
+        ],
         "source": [
           "clts",
           "vowel",
           "duration",
           "ultra-long"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "overlong"
+            ],
+            "witness": "aːː"
+          }
+        ]
       },
       {
         "declared": true,
         "direction": "clts-to-ipakit",
-        "rule_ids": [],
+        "rule_ids": [
+          "vowel-duration-ultra-short/1"
+        ],
         "source": [
           "clts",
           "vowel",
           "duration",
           "ultra-short"
         ],
-        "status": "unresolved pending evidence",
-        "targets": []
+        "status": "exact under stated conditions",
+        "targets": [
+          {
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "length",
+              "extra-short"
+            ],
+            "witness": "ă"
+          }
+        ]
       },
       {
         "declared": true,
@@ -11866,8 +11950,44 @@
       }
     ]
   },
-  "identity": "sha256:6a42840120e87edbf2e3e91442cd185926b55a46f6ba50b1bf51bf660984f3b3",
+  "identity": "sha256:2d8948d2fcfe858a03e0f7de21d77b37b35056415f96acb09e168ad15b3cf53b",
   "native_witnesses": {
+    "consonant-duration-long/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "long",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "long"
+      ],
+      "witness": "tː"
+    },
+    "consonant-duration-mid-long/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "half-long",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "half-long"
+      ],
+      "witness": "tˑ"
+    },
+    "consonant-duration-ultra-long/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "overlong",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "overlong"
+      ],
+      "witness": "tːː"
+    },
     "plain-b/1": {
       "additional_native_claims": {
         "airstream": "pulmonic",
@@ -12019,6 +12139,8 @@
     "release-lateral/1": {
       "constituents": 1,
       "form": "feature",
+      "observed_value": "lateral",
+      "read": "constituent-bundle",
       "target": [
         "ipakit",
         "release",
@@ -12029,6 +12151,8 @@
     "release-nasal/1": {
       "constituents": 1,
       "form": "feature",
+      "observed_value": "nasal",
+      "read": "constituent-bundle",
       "target": [
         "ipakit",
         "release",
@@ -12039,6 +12163,8 @@
     "release-schwa/1": {
       "constituents": 1,
       "form": "feature",
+      "observed_value": "schwa",
+      "read": "constituent-bundle",
       "target": [
         "ipakit",
         "release",
@@ -12084,6 +12210,8 @@
     "release-unreleased/1": {
       "constituents": 1,
       "form": "feature",
+      "observed_value": "no-audible",
+      "read": "constituent-bundle",
       "target": [
         "ipakit",
         "release",
@@ -12108,6 +12236,54 @@
         "fuse"
       ],
       "witness": "d͡ʁ"
+    },
+    "vowel-duration-long/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "long",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "long"
+      ],
+      "witness": "aː"
+    },
+    "vowel-duration-mid-long/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "half-long",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "half-long"
+      ],
+      "witness": "aˑ"
+    },
+    "vowel-duration-ultra-long/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "overlong",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "overlong"
+      ],
+      "witness": "aːː"
+    },
+    "vowel-duration-ultra-short/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "extra-short",
+      "read": "feature_values",
+      "target": [
+        "ipakit",
+        "length",
+        "extra-short"
+      ],
+      "witness": "ă"
     }
   },
   "rules": {
@@ -12280,6 +12456,160 @@
           "witness": "d͡ʁ",
           "witness_juncture": "fuse"
         }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "vowel-duration-long/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "vowel",
+          "duration",
+          "long"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "long"
+          ],
+          "witness": "aː"
+        }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "vowel-duration-mid-long/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "vowel",
+          "duration",
+          "mid-long"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "half-long"
+          ],
+          "witness": "aˑ"
+        }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "vowel-duration-ultra-long/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "vowel",
+          "duration",
+          "ultra-long"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "overlong"
+          ],
+          "witness": "aːː"
+        }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "vowel-duration-ultra-short/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "vowel",
+          "duration",
+          "ultra-short"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "extra-short"
+          ],
+          "witness": "ă"
+        }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "consonant-duration-long/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "consonant",
+          "duration",
+          "long"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "long"
+          ],
+          "witness": "tː"
+        }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "consonant-duration-mid-long/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "consonant",
+          "duration",
+          "mid-long"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "half-long"
+          ],
+          "witness": "tˑ"
+        }
+      },
+      {
+        "disposition": "exact under stated conditions",
+        "id": "consonant-duration-ultra-long/1",
+        "preconditions": {
+          "source": "asserted"
+        },
+        "source": [
+          "clts",
+          "consonant",
+          "duration",
+          "ultra-long"
+        ],
+        "target": {
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "length",
+            "overlong"
+          ],
+          "witness": "tːː"
+        }
       }
     ],
     "direction": "clts-to-ipakit",
@@ -12317,7 +12647,8 @@
       "Native strict constructors: one bare constituent, no modifiers, approach, junctures or prosody; independent manner/place/voiced expectations.",
       "Native defaults remain native claims; these witnesses establish no reverse rule.",
       "Pinned BIPA release declarations use ̚, ˡ, ᵊ and ⁿ for the four feature-valued releases; the same marks strictly read as native release values no-audible, lateral, schwa and nasal.",
-      "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively."
+      "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively.",
+      "Resolver witnesses aː, aˑ, aːː, ă, tː, tˑ and tːː assert the reviewed duration values; native feature_values preserves their distinct written length values."
     ],
     "profile_binding": null,
     "release_adjudication": "A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.",
@@ -12388,7 +12719,7 @@
       }
     ],
     "schema": "ipakit-clts-reviewed-rules",
-    "scope": "exact-plain-stop-witnesses-and-release-declarations",
+    "scope": "exact-plain-stop-witnesses-release-and-duration-declarations",
     "source_feature_model": "clts",
     "source_kind": "consonant",
     "source_structure": "one resolved plain consonant; complete declared feature set equals the witness",
@@ -12400,7 +12731,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 3
+    "version": 4
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 2

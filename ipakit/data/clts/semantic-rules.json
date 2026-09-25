@@ -1,6 +1,6 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 3,
+  "version": 4,
   "disposition_classes": [
     "exact under stated conditions",
     "conditional/composite",
@@ -11,7 +11,7 @@
     "unresolved pending evidence"
   ],
   "direction": "clts-to-ipakit",
-  "scope": "exact-plain-stop-witnesses-and-release-declarations",
+  "scope": "exact-plain-stop-witnesses-release-and-duration-declarations",
   "profile_binding": null,
   "source_kind": "consonant",
   "source_feature_model": "clts",
@@ -33,14 +33,22 @@
     {"id": "release-nasal/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-nasal-release"], "target": {"form": "feature", "path": ["ipakit", "release", "nasal"], "witness": "tⁿ"}},
     {"id": "release-sibilant-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-sibilant-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + sibilant fricative", "juncture": "unasserted", "witness": "t͡s", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "channel": "grooved"}]}},
     {"id": "release-trilled-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-trilled-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + trill", "juncture": "unasserted", "witness": "d͡r", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "trill"}]}},
-    {"id": "release-uvular-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-uvular-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + uvular fricative", "juncture": "unasserted", "witness": "d͡ʁ", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "place": "uvular"}]}}
+    {"id": "release-uvular-sequence/1", "disposition": "conditional/composite", "source": ["clts", "consonant", "release", "with-uvular-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "sequence", "name": "plosive + uvular fricative", "juncture": "unasserted", "witness": "d͡ʁ", "witness_juncture": "fuse", "constituents": [{"manner": "plosive"}, {"manner": "fricative", "place": "uvular"}]}},
+    {"id": "vowel-duration-long/1", "disposition": "exact under stated conditions", "source": ["clts", "vowel", "duration", "long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "long"], "witness": "aː"}},
+    {"id": "vowel-duration-mid-long/1", "disposition": "exact under stated conditions", "source": ["clts", "vowel", "duration", "mid-long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "half-long"], "witness": "aˑ"}},
+    {"id": "vowel-duration-ultra-long/1", "disposition": "exact under stated conditions", "source": ["clts", "vowel", "duration", "ultra-long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "overlong"], "witness": "aːː"}},
+    {"id": "vowel-duration-ultra-short/1", "disposition": "exact under stated conditions", "source": ["clts", "vowel", "duration", "ultra-short"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "extra-short"], "witness": "ă"}},
+    {"id": "consonant-duration-long/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "duration", "long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "long"], "witness": "tː"}},
+    {"id": "consonant-duration-mid-long/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "duration", "mid-long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "half-long"], "witness": "tˑ"}},
+    {"id": "consonant-duration-ultra-long/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "duration", "ultra-long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "overlong"], "witness": "tːː"}}
   ],
   "evidence": [
     "Pinned BIPA core rows: complete consonant, manner, place and phonation claims; contrasts p/b and t/d.",
     "Native strict constructors: one bare constituent, no modifiers, approach, junctures or prosody; independent manner/place/voiced expectations.",
     "Native defaults remain native claims; these witnesses establish no reverse rule.",
     "Pinned BIPA release declarations use ̚, ˡ, ᵊ and ⁿ for the four feature-valued releases; the same marks strictly read as native release values no-audible, lateral, schwa and nasal.",
-    "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively."
+    "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively.",
+    "Resolver witnesses aː, aˑ, aːː, ă, tː, tˑ and tːː assert the reviewed duration values; native feature_values preserves their distinct written length values."
   ],
   "enhancements": [
     {"id": "nasal-approach", "decision": "rejected", "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing adapter support is not a missing feature.", "consequence": "Retain source-only claim until reviewed correspondence; do not infer a timed nasal child."},
