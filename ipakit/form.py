@@ -984,8 +984,16 @@ def split_prosody(text: str, features: IPAFeatures) -> tuple[str, tuple[str, ...
     """
     core: list[str] = []
     prosody: list[str] = []
-    for char in features.canonicalize_unicode(text):
-        (prosody if declared_prosody(char, features) else core).append(char)
+    canonical = features.canonicalize_unicode(text)
+    i = 0
+    while i < len(canonical):
+        mark, width = features._modifier_at(canonical, i)
+        if mark is not None and declared_prosody(mark, features):
+            prosody.append(mark)
+            i += width
+        else:
+            core.append(canonical[i])
+            i += 1
     return "".join(core), tuple(prosody)
 
 

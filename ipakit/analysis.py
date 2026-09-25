@@ -664,6 +664,9 @@ class AnalysisMixin(IPAFeaturesBase):
 
         while i < len(ipa):
             char = ipa[i]
+            matched_mark, matched_mark_len = self._modifier_at(ipa, i)
+            symbol = matched_mark or char
+            symbol_len = matched_mark_len or 1
 
             # Try to match multi-character phones first (affricates, etc.)
             matched_phone, matched_len = longest_match(
@@ -722,7 +725,7 @@ class AnalysisMixin(IPAFeaturesBase):
 
             # Standalone symbols (stress, length, tone, breaks, separators,
             # a declared zero)
-            if char in standalone:
+            if symbol in standalone:
                 saw_standalone = True
                 # A zero is the constituent's content, so it closes an
                 # open boundary run the way a phone does. It names no
@@ -735,9 +738,9 @@ class AnalysisMixin(IPAFeaturesBase):
                 # asserted and then discarded, and here it is asserted
                 # and kept, so warning would be a false positive against
                 # the check's own reason for existing.
-                if char in self.zeros:
+                if symbol in self.zeros:
                     pending = None
-                if (level := levels.get(char)) is not None:
+                if (level := levels.get(symbol)) is not None:
                     if pending is not None and pending[1] == level:
                         issues.append(
                             {
@@ -745,15 +748,18 @@ class AnalysisMixin(IPAFeaturesBase):
                                 "code": "empty_constituent",
                                 "message": (
                                     f"Empty {level}: '{pending[0]}' at "
-                                    f"{pending[2]} and '{char}' delimit no "
+                                    f"{pending[2]} and '{symbol}' delimit no "
                                     "segment"
                                 ),
                                 "position": str(i),
-                                "symbol": char,
+                                "symbol": symbol,
                             }
                         )
-                    pending = (char, level, i)
-                if (why := self._stress_reaches_no_unit(ipa, i)) is not None:
+                    pending = (symbol, level, i)
+                if (
+                    symbol in self.stress_markers
+                    and (why := self._stress_reaches_no_unit(ipa, i)) is not None
+                ):
                     issues.append(
                         {
                             "type": "error",
@@ -764,7 +770,7 @@ class AnalysisMixin(IPAFeaturesBase):
                                 else "Stress mark superseded by a nearer one"
                             ),
                             "position": str(i),
-                            "symbol": char,
+                            "symbol": symbol,
                         }
                     )
                 # These are valid on their own or after phones. A prosodic
@@ -776,18 +782,18 @@ class AnalysisMixin(IPAFeaturesBase):
                 # before what it scopes, so ``parse`` stops the modifier
                 # run at it and the unit before it is closed.
                 if not (
-                    char in self.diacritics
-                    and char not in self.stress_markers
-                    and modifier_mode(self, char) != "structural"
+                    symbol in self.diacritics
+                    and symbol not in self.stress_markers
+                    and modifier_mode(self, symbol) != "structural"
                 ):
                     last_was_phone = False
                     last_phone_features = None
                     current_segment_diacritics = set()
-                i += 1
+                i += symbol_len
                 continue
 
             # Check for diacritics (modifiers that require a base phone)
-            if char in known_diacritics:
+            if symbol in known_diacritics:
                 # A mark declaring an approach phase states it of the base
                 # written *after* it, so it needs no preceding phone --
                 # only a following one. Asked through ``approach_run``,
@@ -810,23 +816,23 @@ class AnalysisMixin(IPAFeaturesBase):
                         {
                             "type": "error",
                             "code": "orphan_diacritic",
-                            "message": f"Diacritic '{char}' without preceding base phone",
+                            "message": f"Diacritic '{symbol}' without preceding base phone",
                             "position": str(i),
-                            "symbol": char,
+                            "symbol": symbol,
                         }
                     )
-                elif char in current_segment_diacritics:
+                elif symbol in current_segment_diacritics:
                     issues.append(
                         {
                             "type": "warning",
                             "code": "duplicate_diacritic",
-                            "message": f"Duplicate diacritic '{char}' on same segment",
+                            "message": f"Duplicate diacritic '{symbol}' on same segment",
                             "position": str(i),
-                            "symbol": char,
+                            "symbol": symbol,
                         }
                     )
                 else:
-                    current_segment_diacritics.add(char)
+                    current_segment_diacritics.add(symbol)
                     host_features = last_phone_features
                     is_approach = bool(not last_was_phone and lead and ahead)
                     if is_approach:
@@ -838,7 +844,7 @@ class AnalysisMixin(IPAFeaturesBase):
                             check_modifier_hosts(
                                 cast(Any, self),
                                 host_features,
-                                [char],
+                                [symbol],
                                 approach=is_approach,
                             )
                         except ModifierHostError as exc:
@@ -848,10 +854,10 @@ class AnalysisMixin(IPAFeaturesBase):
                                     "code": "invalid_diacritic",
                                     "message": str(exc),
                                     "position": str(i),
-                                    "symbol": char,
+                                    "symbol": symbol,
                                 }
                             )
-                i += 1
+                i += symbol_len
                 continue
 
             # Check for tie bar (either sense)

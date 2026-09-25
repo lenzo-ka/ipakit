@@ -11,12 +11,12 @@
   "sweep": {
     "command": "PYTHONHASHSEED=0 python scripts/sweep.py diff captures/sweep-before-perturbation.json captures/sweep-after-perturbation.json --require-monotone",
     "comparison_failed": true,
-    "corpus_after": 9317,
-    "corpus_before": 9317,
-    "description_movers": 130,
+    "corpus_after": 9456,
+    "corpus_before": 9456,
+    "description_movers": 132,
     "distance_from_base_movers": 16,
-    "feature_movers": 130,
-    "movers": 134,
+    "feature_movers": 132,
+    "movers": 136,
     "perturbation": "temporarily changed phone p place from bilabial to labiodental in ipakit/data/ipa.xml",
     "perturbation_reverted": true
   }

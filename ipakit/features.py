@@ -3028,7 +3028,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             # next tie binds to.
             run = self._modifier_run(segment, i)
             result.extend(run)
-            i += len(run)
+            i += sum(map(len, run))
         return "".join(result)
 
     def normalize(
@@ -3135,11 +3135,12 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # Collect any diacritics
                 diacritics = []
                 j = i + best_len
-                while j < len(expanded) and expanded[j] in self.diacritics:
-                    if expanded[j] in self.stress_markers:
+                while j < len(expanded):
+                    mark, width = self._modifier_at(expanded, j)
+                    if mark is None or mark in self.stress_markers:
                         break
-                    diacritics.append(expanded[j])
-                    j += 1
+                    diacritics.append(mark)
+                    j += width
 
                 # Check if this segment is syllabic (a nucleus), through
                 # the same read the `nucleus` derived class resolves.
@@ -3174,11 +3175,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
                 i = j
             elif (
-                expanded[i] in self.diacritics
-                and expanded[i] not in self.stress_markers
-            ):
-                result.append(expanded[i])
-                i += 1
+                mark := self._modifier_at(expanded, i)[0]
+            ) is not None and mark not in self.stress_markers:
+                result.append(mark)
+                i += len(mark)
             else:
                 # Unknown character - keep as-is
                 result.append(expanded[i])
@@ -3412,7 +3412,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 chain = "".join(lead) + best_phone
                 j = i + len(lead) + best_len
                 diacritics = self._modifier_run(segment, j)
-                j += len(diacritics)
+                j += sum(map(len, diacritics))
                 # A tie joins the unit just read -- base *and* the
                 # modifiers written on it -- to the one after it.
                 # ``longest_match`` only spans ties between registered
@@ -3441,7 +3441,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     )
                     j += 1 + len(next_lead) + next_len
                     diacritics = self._modifier_run(segment, j)
-                    j += len(diacritics)
+                    j += sum(map(len, diacritics))
                 result.append((chain, diacritics))
                 i = j
             elif segment[i] in self.tie_bars:
@@ -3451,9 +3451,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 # asserted unit into two, so it is recorded, not emitted.
                 unbound_ties.append(segment[i])
                 i += 1
-            elif segment[i] in self.diacritics:
-                result.append((segment[i], []))
-                i += 1
+            elif (mark := self._modifier_at(segment, i)[0]) is not None:
+                result.append((mark, []))
+                i += len(mark)
             else:
                 # Registered separators (syllable break, word mark), a
                 # declared zero and whitespace are known symbols that
@@ -3519,6 +3519,21 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             item for item in scanned if not (item[0].isspace() or item[0] in dropped)
         ]
 
+    def _modifier_at(self, text: str, start: int) -> tuple[str | None, int]:
+        """Return the longest declared modifier beginning at ``start``.
+
+        Symbol names in ``ipa.rng`` are text, not single characters.  Phones
+        have always honored that declaration with longest-match tokenization;
+        modifiers must do the same or a declared spelling such as ``ːː`` is
+        silently re-read as two copies of its one-character prefix.
+        """
+        return longest_match(
+            text,
+            start,
+            self.diacritics,
+            max((len(mark) for mark in self.diacritics), default=0),
+        )
+
     def _modifier_run(self, text: str, start: int) -> list[str]:
         """The run of modifier diacritics starting at ``text[start]``.
 
@@ -3540,15 +3555,17 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         """
         run: list[str] = []
         j = start
-        while (
-            j < len(text)
-            and text[j] in self.diacritics
-            and text[j] not in self.tie_bars
-            and text[j] not in self.stress_markers
-            and modifier_mode(self, text[j]) != "structural"
-        ):
-            run.append(text[j])
-            j += 1
+        while j < len(text):
+            mark, width = self._modifier_at(text, j)
+            if (
+                mark is None
+                or mark in self.tie_bars
+                or mark in self.stress_markers
+                or modifier_mode(self, mark) == "structural"
+            ):
+                break
+            run.append(mark)
+            j += width
         return run
 
     def compose(
@@ -4166,8 +4183,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
             raise ValueError(f"no registered base phone in {part!r}")
         start = len(approach) + best_len
         modifiers = self._modifier_run(part, start)
-        if start + len(modifiers) != len(part):
-            stray = part[start + len(modifiers)]
+        consumed = sum(map(len, modifiers))
+        if start + consumed != len(part):
+            stray = part[start + consumed]
             raise ValueError(f"unknown modifier {stray!r} in {part!r}")
         base_features = self.phones[base].features
         check_modifier_hosts(self, base_features, approach, approach=True)

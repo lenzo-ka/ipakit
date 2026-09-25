@@ -140,7 +140,7 @@ import ipakit
 round(ipakit.distance("a", "ˈa"), 6)    # 0.043478
 round(ipakit.distance("a", "á"), 6)     # 0.043478
 round(ipakit.distance("a", "à"), 6)     # 0.043478
-round(ipakit.distance("a", "aː"), 6)    # 0.028986
+round(ipakit.distance("a", "aː"), 6)    # 0.021739
 round(ipakit.distance("a", "ǎ"), 6)     # 0.021739
 round(ipakit.distance("a", "a᷅"), 6)    # 0.0625
 round(ipakit.distance("á", "à"), 6)     # 0.021739

@@ -171,8 +171,9 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # 67 before the four phase marks declared their approach as well as
         # their release: one further pair each, at the other phase.
         # 73 after the strong-articulation mark added fortis=+.
-        assert len(pairs) == 73, f"{len(pairs)} declared pairs, not 73"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10147
+        # 74 after written overlong extended the prosodic length scale.
+        assert len(pairs) == 74, f"{len(pairs)} declared pairs, not 74"
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10286
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (
@@ -421,7 +422,8 @@ class TestWhatCannotBeComposedIsSaidOutLoud:
         # case added here, which is the whole point of reading the mode.
         # 24 before the six contour diacritics declared their level
         # sequences, which are prosodic and so outside the bag too.
-        assert len(outside) == 31, f"{len(outside)} pairs outside the bag"
+        # 32 after written overlong extended the prosodic length scale.
+        assert len(outside) == 32, f"{len(outside)} pairs outside the bag"
         # The one segmental request the inventory cannot spell cleanly. If
         # a mark for it is ever added, this fails and should.
         assert dead == outside | {"place=bilabial"}, sorted(dead ^ outside)

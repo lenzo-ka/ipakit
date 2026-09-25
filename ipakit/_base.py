@@ -111,6 +111,10 @@ class IPAFeaturesBase:
     def canonicalize_unicode(self, text: str) -> str:
         raise NotImplementedError
 
+    def _modifier_at(self, text: str, start: int) -> tuple[str | None, int]:
+        """Longest declared modifier at ``start``; implemented by IPAFeatures."""
+        raise NotImplementedError
+
     def notation_of(self, symbol: str) -> str:
         raise NotImplementedError
 

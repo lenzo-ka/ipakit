@@ -125,6 +125,7 @@ This is the half the brief called more important: a declaration that exists only
 | `length=extra-short` `̆` | none | **Yes** — on the IPA chart. |
 | `length=half-long` `ˑ` | none | **Yes** — on the IPA chart. |
 | `length=normal` | none (default) | **Yes** — it is the declared default, unmarked on both sides. |
+| `length=overlong` `ːː` | none | **Yes** — written overlong is used for Estonian Q3 transcription. |
 | `global=rise` `↗`, `global=fall` `↘` | none (see above; "global tone" is a scope, not symbols) | **Yes** — both are IPA chart symbols. |
 | `linking='+'` `‿` | none — and SAMPROSA has taken `+` for "higher pitch" | **Yes** — IPA chart, French liaison; already load-bearing in `docs/ties.md`. |
 | `break=major` `‖` | none — SAMPROSA has one tone group boundary plus directional brackets | **Yes** — IPA chart. |

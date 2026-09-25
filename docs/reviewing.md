@@ -69,7 +69,7 @@ sweep_ipa = ipakit.IPAFeatures()
 sweep_units = corpus(sweep_ipa)
 sweep_used = {mark for _, _, mark in sweep_units}
 [mark for mark in sweep_ipa.diacritics if mark not in sweep_used]  # ['͡', '͜', '‿', '^', '|', '‖']
-len(sweep_units)  # 9317
+len(sweep_units)  # 9456
 ```
 
 The corpus total is deliberately not hardcoded: it has legitimately moved three times in this repo's history as the inventory changed. What the script asserts is shape — a floor, every phone contributing its bare unit, every phone contributing at least one marked unit, most marks contributing something — so a sweep cannot go quietly vacuous. The exact totals live in the capture, and a change in them is the first line `diff` prints.

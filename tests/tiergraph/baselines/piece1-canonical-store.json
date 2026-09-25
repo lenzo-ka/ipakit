@@ -1,9 +1,9 @@
 {
   "canonical_bytes": {
-    "held_dot_sha256": "ea71e7e3d41eb3ab640a552326007c3a0bfaddd459f0a50db4699c2cc8f997a2",
-    "held_pretty_sha256": "5b5405dd987fd78d4bb6838ac91a7f330e1e4c4b0b54c95075149dfaf65c4d98",
-    "held_sha256": "af524245a56c0cfe71deac654118b40ab827c28aa471c446a7a7501c0b9f7fd7",
-    "hierarchy_dot_sha256": "300d2c65f40994f495dc1530edac331b3fdfcc65e1f61017097ef825a474ed39"
+    "held_dot_sha256": "9a625039683d100b03ef5ac2186eb8f5fa239478acfc0766f40b2ece957cf162",
+    "held_pretty_sha256": "ff4ff0103cae62e89aefc10b1ce7890da4914a6484fc90ca3b7082b928427683",
+    "held_sha256": "bf0c794e64542fba70e09613904608fec83ae0a29034757ae7d9b9201802364b",
+    "hierarchy_dot_sha256": "8cd666a3e39e8bd3739dcb201980849a74fde5930fc6c23429e68d9ea5e797f6"
   },
   "contracts": {
     "at_identity_matrix": [
@@ -240,9 +240,9 @@
   },
   "format": "ipakit-piece1-oracle-v1",
   "forms": {
-    "held_pretty_sha256": "5b5405dd987fd78d4bb6838ac91a7f330e1e4c4b0b54c95075149dfaf65c4d98",
-    "held_sha256": "af524245a56c0cfe71deac654118b40ab827c28aa471c446a7a7501c0b9f7fd7",
-    "hierarchy_sha256": "3df10cd44c2413342076df33be9fa22dca8e9b612700260ebf4f8eb708800c12",
-    "parsed_sha256": "e4a4818dbe7bdc75f9ae503c25e5e8171cdf58cee139b50513a05c83a8948284"
+    "held_pretty_sha256": "ff4ff0103cae62e89aefc10b1ce7890da4914a6484fc90ca3b7082b928427683",
+    "held_sha256": "bf0c794e64542fba70e09613904608fec83ae0a29034757ae7d9b9201802364b",
+    "hierarchy_sha256": "41ed6a00059aaf55920373e0def718a922f5c09c51ddc09bf378cb1fd859245f",
+    "parsed_sha256": "02960f8da0aa15ba5abfae62a1ee06cf0cb4d4e64ce461f51b811d50a1217ee3"
   }
 }
