@@ -434,16 +434,22 @@ def test_no_grammar_names_the_inventory() -> None:
 #: exception is still a live copied vocabulary so stale exceptions fail.
 _ENUMERATION_ESCAPES = {
     "heads.rng": (
-        "RestPosture rendering branches on three closed vocabularies. The "
-        "LEG-RESTPOSTURE audit requires the schema to enumerate them as well "
-        "as the constructor to refuse unknown values by field and value."
+        frozenset({"lips", "jaw", "velum"}),
+        (
+            "RestPosture rendering branches on three closed vocabularies. The "
+            "LEG-RESTPOSTURE audit requires the schema to enumerate them as well "
+            "as the constructor to refuse unknown values by field and value."
+        ),
     ),
     "vocabulary.rng": (
-        "it enumerates fidelity, kind and source-style, and each is a second "
-        "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
-        "ipa.xml declares. The Python side already refuses an unknown value by "
-        "construction -- Fidelity(...) raises -- so the enumerations are "
-        "redundant, but removing them is a change to the bridges."
+        frozenset({"fidelity", "kind", "source-style"}),
+        (
+            "it enumerates fidelity, kind and source-style, and each is a second "
+            "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
+            "ipa.xml declares. The Python side already refuses an unknown value by "
+            "construction -- Fidelity(...) raises -- so the enumerations are "
+            "redundant, but removing them is a change to the bridges."
+        ),
     ),
 }
 
@@ -545,14 +551,16 @@ def test_the_enumeration_check_states_what_it_does_not_cover() -> None:
     nobody will remove, so coverage can only change deliberately: fixing
     ``vocabulary.rng`` fails here until its entry goes.
     """
-    for name, reason in _ENUMERATION_ESCAPES.items():
+    for name, (attributes, reason) in _ENUMERATION_ESCAPES.items():
         grammar = next((g for g in _grammars() if g.name == name), None)
         assert grammar is not None, f"{name} is exempted but is not in the tree"
         assert len(reason) > 40, f"{name} is exempted without a reason"
-        assert _copied_vocabularies(grammar), (
-            f"{name} no longer enumerates any value a document supplies, so "
-            f"the exemption in _ENUMERATION_ESCAPES is stale; delete it and "
-            f"let the check cover this grammar."
+        copied = set(_copied_vocabularies(grammar))
+        assert copied == attributes, (
+            f"{name} is exempted for {sorted(attributes)}, but it copies "
+            f"{sorted(copied)}. An exemption covers exactly the vocabularies its "
+            f"reason names: remove the stale ones from the entry, or delete the "
+            f"entry and let the check cover this grammar."
         )
 
 
