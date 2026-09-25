@@ -677,7 +677,13 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 try:
                     if not isinstance(representation, dict):
                         raise ValueError("representation must be a JSON object")
-                    Form.from_dict(representation)
+                    restored = Form.from_dict(representation)
+                    # The native graph carries structured segments without
+                    # reparsing them. Validation is the deliberate exception:
+                    # exercise the lexical ingestion boundary as well, so an
+                    # unregistered base in an otherwise valid graph produces
+                    # the same lossy-read warning as every other CLI reader.
+                    Form.parse(restored.to_ipa())
                 except (KeyError, TypeError, ValueError) as exc:
                     code = (
                         "form_version"
