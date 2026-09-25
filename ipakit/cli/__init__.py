@@ -149,6 +149,14 @@ Exit status (uniform across every subcommand):
     # Global options
     parser.add_argument("--ipa-xml", type=Path, help="Path to ipa.xml")
     parser.add_argument("--cmu-xml", type=Path, help="Path to cmu.xml")
+    from .. import __version__
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Print the installed ipakit version and exit",
+    )
     add_lax_arg(parser, top_level=True)
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
