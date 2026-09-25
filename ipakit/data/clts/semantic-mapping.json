@@ -5746,7 +5746,7 @@
           "airstream",
           "lateral"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5759,7 +5759,7 @@
           "airstream",
           "sibilant"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5772,7 +5772,7 @@
           "airstream",
           "whistled-sibilant"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5785,7 +5785,7 @@
           "articulation",
           "strong"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5798,7 +5798,7 @@
           "articulation",
           "weak"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5811,7 +5811,7 @@
           "aspiration",
           "aspirated"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5824,7 +5824,7 @@
           "breathiness",
           "breathy"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5837,7 +5837,7 @@
           "creakiness",
           "creaky"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5850,7 +5850,7 @@
           "duration",
           "long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5863,7 +5863,7 @@
           "duration",
           "mid-long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5876,7 +5876,7 @@
           "duration",
           "ultra-long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5889,7 +5889,7 @@
           "ejection",
           "ejective"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5902,7 +5902,7 @@
           "friction",
           "with-friction"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5915,7 +5915,7 @@
           "glottalization",
           "glottalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5928,7 +5928,7 @@
           "labialization",
           "labialized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5941,7 +5941,7 @@
           "laminality",
           "apical"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5954,7 +5954,7 @@
           "laminality",
           "laminal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5967,7 +5967,7 @@
           "manner",
           "affricate"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5980,7 +5980,7 @@
           "manner",
           "approximant"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -5993,7 +5993,7 @@
           "manner",
           "click"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6006,7 +6006,7 @@
           "manner",
           "fricative"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6019,7 +6019,7 @@
           "manner",
           "implosive"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6032,7 +6032,7 @@
           "manner",
           "nasal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6045,7 +6045,7 @@
           "manner",
           "nasal-click"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6063,7 +6063,7 @@
           "manner",
           "stop"
         ],
-        "status": "conditional-witness",
+        "status": "conditional/composite",
         "targets": []
       },
       {
@@ -6076,7 +6076,7 @@
           "manner",
           "tap"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6089,7 +6089,7 @@
           "manner",
           "trill"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6102,7 +6102,7 @@
           "manner",
           "unspecified-manner"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6115,7 +6115,7 @@
           "nasalization",
           "nasalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6128,7 +6128,7 @@
           "palatalization",
           "labio-palatalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6141,7 +6141,7 @@
           "palatalization",
           "palatalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6154,7 +6154,7 @@
           "pharyngealization",
           "pharyngealized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6167,7 +6167,7 @@
           "phonation",
           "unspecified-voice"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6183,7 +6183,7 @@
           "phonation",
           "voiced"
         ],
-        "status": "conditional-witness",
+        "status": "conditional/composite",
         "targets": []
       },
       {
@@ -6199,7 +6199,7 @@
           "phonation",
           "voiceless"
         ],
-        "status": "conditional-witness",
+        "status": "conditional/composite",
         "targets": []
       },
       {
@@ -6215,7 +6215,7 @@
           "place",
           "alveolar"
         ],
-        "status": "conditional-witness",
+        "status": "conditional/composite",
         "targets": []
       },
       {
@@ -6228,7 +6228,7 @@
           "place",
           "alveolar-and-bilabial"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6241,7 +6241,7 @@
           "place",
           "alveolar-and-velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6254,7 +6254,7 @@
           "place",
           "alveolo-palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6270,7 +6270,7 @@
           "place",
           "bilabial"
         ],
-        "status": "conditional-witness",
+        "status": "conditional/composite",
         "targets": []
       },
       {
@@ -6283,7 +6283,7 @@
           "place",
           "bilabial-and-alveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6296,7 +6296,7 @@
           "place",
           "bilabial-and-velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6309,7 +6309,7 @@
           "place",
           "dental"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6322,7 +6322,7 @@
           "place",
           "epiglottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6335,7 +6335,7 @@
           "place",
           "glottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6348,7 +6348,7 @@
           "place",
           "labial"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6361,7 +6361,7 @@
           "place",
           "labio-dental"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6374,7 +6374,7 @@
           "place",
           "labio-palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6387,7 +6387,7 @@
           "place",
           "labio-velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6400,7 +6400,7 @@
           "place",
           "linguolabial"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6413,7 +6413,7 @@
           "place",
           "palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6426,7 +6426,7 @@
           "place",
           "palatal-velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6439,7 +6439,7 @@
           "place",
           "pharyngeal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6452,7 +6452,7 @@
           "place",
           "post-alveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6465,7 +6465,7 @@
           "place",
           "retroflex"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6478,7 +6478,7 @@
           "place",
           "unspecified-place"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6491,7 +6491,7 @@
           "place",
           "uvular"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6504,7 +6504,7 @@
           "place",
           "velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6517,7 +6517,7 @@
           "place",
           "velar-and-alveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6530,7 +6530,7 @@
           "place",
           "velar-and-bilabial"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6543,7 +6543,7 @@
           "place",
           "velar-and-uvular"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6556,7 +6556,7 @@
           "preceding",
           "pre-aspirated"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6569,7 +6569,7 @@
           "preceding",
           "pre-breathy-aspirated"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6582,7 +6582,7 @@
           "preceding",
           "pre-glottalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6595,7 +6595,7 @@
           "preceding",
           "pre-glottalized-and-nasalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6608,7 +6608,7 @@
           "preceding",
           "pre-labialized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6621,7 +6621,7 @@
           "preceding",
           "pre-nasalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6634,7 +6634,7 @@
           "preceding",
           "pre-palatalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6647,7 +6647,7 @@
           "raising",
           "lowered"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6660,7 +6660,7 @@
           "raising",
           "raised"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6673,7 +6673,7 @@
           "relative_articulation",
           "advanced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6686,7 +6686,7 @@
           "relative_articulation",
           "centralized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6699,7 +6699,7 @@
           "relative_articulation",
           "mid-centralized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6712,7 +6712,7 @@
           "relative_articulation",
           "retracted"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6727,7 +6727,7 @@
           "release",
           "unreleased"
         ],
-        "status": "resolved",
+        "status": "exact under stated conditions",
         "targets": [
           {
             "form": "feature",
@@ -6752,7 +6752,7 @@
           "release",
           "with-lateral-release"
         ],
-        "status": "resolved",
+        "status": "exact under stated conditions",
         "targets": [
           {
             "form": "feature",
@@ -6777,7 +6777,7 @@
           "release",
           "with-mid-central-vowel-release"
         ],
-        "status": "resolved",
+        "status": "exact under stated conditions",
         "targets": [
           {
             "form": "feature",
@@ -6802,7 +6802,7 @@
           "release",
           "with-nasal-release"
         ],
-        "status": "resolved",
+        "status": "exact under stated conditions",
         "targets": [
           {
             "form": "feature",
@@ -6827,7 +6827,7 @@
           "release",
           "with-sibilant-release"
         ],
-        "status": "resolved",
+        "status": "conditional/composite",
         "targets": [
           {
             "constituents": [
@@ -6840,8 +6840,10 @@
               }
             ],
             "form": "sequence",
+            "juncture": "unasserted",
             "name": "plosive + sibilant fricative",
-            "witness": "t͡s"
+            "witness": "t͡s",
+            "witness_juncture": "fuse"
           }
         ]
       },
@@ -6857,7 +6859,7 @@
           "release",
           "with-trilled-release"
         ],
-        "status": "resolved",
+        "status": "conditional/composite",
         "targets": [
           {
             "constituents": [
@@ -6869,8 +6871,10 @@
               }
             ],
             "form": "sequence",
+            "juncture": "unasserted",
             "name": "plosive + trill",
-            "witness": "d͡r"
+            "witness": "d͡r",
+            "witness_juncture": "fuse"
           }
         ]
       },
@@ -6886,7 +6890,7 @@
           "release",
           "with-uvular-release"
         ],
-        "status": "resolved",
+        "status": "conditional/composite",
         "targets": [
           {
             "constituents": [
@@ -6899,8 +6903,10 @@
               }
             ],
             "form": "sequence",
+            "juncture": "unasserted",
             "name": "plosive + uvular fricative",
-            "witness": "d͡ʁ"
+            "witness": "d͡ʁ",
+            "witness_juncture": "fuse"
           }
         ]
       },
@@ -6914,7 +6920,7 @@
           "stress",
           "primary-stress"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6927,7 +6933,7 @@
           "stress",
           "secondary-stress"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6940,7 +6946,7 @@
           "syllabicity",
           "syllabic"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6953,7 +6959,7 @@
           "tongue_root",
           "advanced-tongue-root"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6966,7 +6972,7 @@
           "tongue_root",
           "retracted-tongue-root"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6979,7 +6985,7 @@
           "velarization",
           "velarized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -6992,7 +6998,7 @@
           "voicing",
           "devoiced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7005,7 +7011,7 @@
           "voicing",
           "revoiced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7018,7 +7024,7 @@
           "contour",
           "contour"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7031,7 +7037,7 @@
           "contour",
           "falling"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7044,7 +7050,7 @@
           "contour",
           "flat"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7057,7 +7063,7 @@
           "contour",
           "rising"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7070,7 +7076,7 @@
           "contour",
           "short"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7083,7 +7089,7 @@
           "end",
           "to-high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7096,7 +7102,7 @@
           "end",
           "to-low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7109,7 +7115,7 @@
           "end",
           "to-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7122,7 +7128,7 @@
           "end",
           "to-mid-high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7135,7 +7141,7 @@
           "end",
           "to-mid-low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7148,7 +7154,7 @@
           "middle",
           "via-high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7161,7 +7167,7 @@
           "middle",
           "via-low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7174,7 +7180,7 @@
           "middle",
           "via-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7187,7 +7193,7 @@
           "middle",
           "via-mid-high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7200,7 +7206,7 @@
           "middle",
           "via-mid-low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7213,7 +7219,7 @@
           "start",
           "from-high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7226,7 +7232,7 @@
           "start",
           "from-low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7239,7 +7245,7 @@
           "start",
           "from-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7252,7 +7258,7 @@
           "start",
           "from-mid-high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7265,7 +7271,7 @@
           "start",
           "from-mid-low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7278,7 +7284,7 @@
           "start",
           "neutral"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7291,7 +7297,7 @@
           "articulation",
           "strong"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7304,7 +7310,7 @@
           "articulation",
           "weak"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7317,7 +7323,7 @@
           "breathiness",
           "breathy"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7330,7 +7336,7 @@
           "centrality",
           "back"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7343,7 +7349,7 @@
           "centrality",
           "central"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7356,7 +7362,7 @@
           "centrality",
           "front"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7369,7 +7375,7 @@
           "centrality",
           "near-back"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7382,7 +7388,7 @@
           "centrality",
           "near-front"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7395,7 +7401,7 @@
           "creakiness",
           "creaky"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7408,7 +7414,7 @@
           "duration",
           "long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7421,7 +7427,7 @@
           "duration",
           "mid-long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7434,7 +7440,7 @@
           "duration",
           "ultra-long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7447,7 +7453,7 @@
           "duration",
           "ultra-short"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7460,7 +7466,7 @@
           "friction",
           "with-friction"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7473,7 +7479,7 @@
           "glottalization",
           "glottalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7486,7 +7492,7 @@
           "height",
           "close"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7499,7 +7505,7 @@
           "height",
           "close-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7512,7 +7518,7 @@
           "height",
           "mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7525,7 +7531,7 @@
           "height",
           "near-close"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7538,7 +7544,7 @@
           "height",
           "near-open"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7551,7 +7557,7 @@
           "height",
           "open"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7564,7 +7570,7 @@
           "height",
           "open-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7577,7 +7583,7 @@
           "nasalization",
           "nasalized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7590,7 +7596,7 @@
           "pharyngealization",
           "pharyngealized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7603,7 +7609,7 @@
           "raising",
           "lowered"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7616,7 +7622,7 @@
           "raising",
           "raised"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7629,7 +7635,7 @@
           "relative_articulation",
           "advanced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7642,7 +7648,7 @@
           "relative_articulation",
           "centralized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7655,7 +7661,7 @@
           "relative_articulation",
           "mid-centralized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7668,7 +7674,7 @@
           "relative_articulation",
           "retracted"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7681,7 +7687,7 @@
           "rhotacization",
           "rhotacized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7694,7 +7700,7 @@
           "roundedness",
           "rounded"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7707,7 +7713,7 @@
           "roundedness",
           "unrounded"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7720,7 +7726,7 @@
           "rounding",
           "less-rounded"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7733,7 +7739,7 @@
           "rounding",
           "more-rounded"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7746,7 +7752,7 @@
           "stress",
           "primary-stress"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7759,7 +7765,7 @@
           "stress",
           "secondary-stress"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7772,7 +7778,7 @@
           "syllabicity",
           "non-syllabic"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7785,7 +7791,7 @@
           "tone",
           "with-downstep"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7798,7 +7804,7 @@
           "tone",
           "with-extra-high_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7811,7 +7817,7 @@
           "tone",
           "with-extra-low_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7824,7 +7830,7 @@
           "tone",
           "with-falling_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7837,7 +7843,7 @@
           "tone",
           "with-global_fall"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7850,7 +7856,7 @@
           "tone",
           "with-global_rise"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7863,7 +7869,7 @@
           "tone",
           "with-high_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7876,7 +7882,7 @@
           "tone",
           "with-low_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7889,7 +7895,7 @@
           "tone",
           "with-mid_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7902,7 +7908,7 @@
           "tone",
           "with-rising_tone"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7915,7 +7921,7 @@
           "tone",
           "with-upstep"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7928,7 +7934,7 @@
           "tongue_root",
           "advanced-tongue-root"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7941,7 +7947,7 @@
           "tongue_root",
           "retracted-tongue-root"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7954,7 +7960,7 @@
           "velarization",
           "velarized"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -7967,7 +7973,7 @@
           "voicing",
           "devoiced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       }
     ],
@@ -7993,7 +7999,7 @@
           "airstream",
           "pulmonic"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8017,7 +8023,7 @@
           "airstream",
           "ejective"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8041,7 +8047,7 @@
           "airstream",
           "implosive"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8065,7 +8071,7 @@
           "airstream",
           "velaric"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8089,7 +8095,7 @@
           "approach",
           "aspirated"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8113,7 +8119,7 @@
           "approach",
           "breathy"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8137,7 +8143,7 @@
           "approach",
           "nasal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8161,7 +8167,7 @@
           "approach",
           "glottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8185,7 +8191,7 @@
           "articulator",
           "lower-lip"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8209,7 +8215,7 @@
           "articulator",
           "tongue-tip"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8233,7 +8239,7 @@
           "articulator",
           "tongue-blade"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8257,7 +8263,7 @@
           "articulator",
           "tongue-front"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8281,7 +8287,7 @@
           "articulator",
           "tongue-dorsum"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8305,7 +8311,7 @@
           "articulator",
           "tongue-root"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8329,7 +8335,7 @@
           "articulator",
           "epiglottis"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8353,7 +8359,7 @@
           "articulator",
           "vocal-folds"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8377,7 +8383,7 @@
           "backness",
           "front"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8401,7 +8407,7 @@
           "backness",
           "near-front"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8425,7 +8431,7 @@
           "backness",
           "central"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8449,7 +8455,7 @@
           "backness",
           "near-back"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8473,7 +8479,7 @@
           "backness",
           "back"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8497,7 +8503,7 @@
           "break",
           "minor"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8521,7 +8527,7 @@
           "break",
           "major"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8545,7 +8551,7 @@
           "centralized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8569,7 +8575,7 @@
           "centralized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8595,7 +8601,7 @@
           "channel",
           "lateral"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8621,7 +8627,7 @@
           "channel",
           "flat"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8647,7 +8653,7 @@
           "channel",
           "grooved"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8673,7 +8679,7 @@
           "constriction-location",
           "bilabial"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8699,7 +8705,7 @@
           "constriction-location",
           "labiodental"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8725,7 +8731,7 @@
           "constriction-location",
           "dental"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8751,7 +8757,7 @@
           "constriction-location",
           "alveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8777,7 +8783,7 @@
           "constriction-location",
           "postalveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8803,7 +8809,7 @@
           "constriction-location",
           "alveolo-palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8829,7 +8835,7 @@
           "constriction-location",
           "palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8855,7 +8861,7 @@
           "constriction-location",
           "bilabial^palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8881,7 +8887,7 @@
           "constriction-location",
           "velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8907,7 +8913,7 @@
           "constriction-location",
           "bilabial^velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8933,7 +8939,7 @@
           "constriction-location",
           "uvular"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8959,7 +8965,7 @@
           "constriction-location",
           "pharyngeal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -8985,7 +8991,7 @@
           "constriction-location",
           "epiglottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9011,7 +9017,7 @@
           "constriction-location",
           "glottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9035,7 +9041,7 @@
           "contour",
           "falling"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9059,7 +9065,7 @@
           "contour",
           "steady"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9083,7 +9089,7 @@
           "contour",
           "rising"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9109,7 +9115,7 @@
           "fortis",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9135,7 +9141,7 @@
           "fortis",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9159,7 +9165,7 @@
           "fronting",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9183,7 +9189,7 @@
           "fronting",
           "0"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9207,7 +9213,7 @@
           "fronting",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9231,7 +9237,7 @@
           "global",
           "rise"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9255,7 +9261,7 @@
           "global",
           "fall"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9279,7 +9285,7 @@
           "height",
           "open"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9303,7 +9309,7 @@
           "height",
           "near-open"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9327,7 +9333,7 @@
           "height",
           "open-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9351,7 +9357,7 @@
           "height",
           "mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9375,7 +9381,7 @@
           "height",
           "close-mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9399,7 +9405,7 @@
           "height",
           "near-close"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9423,7 +9429,7 @@
           "height",
           "close"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9447,7 +9453,7 @@
           "height-mod",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9471,7 +9477,7 @@
           "height-mod",
           "0"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9495,7 +9501,7 @@
           "height-mod",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9519,7 +9525,7 @@
           "intrinsic-timing",
           "brief"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9543,7 +9549,7 @@
           "intrinsic-timing",
           "ordinary"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9567,7 +9573,7 @@
           "intrinsic-timing",
           "repeated"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9591,7 +9597,7 @@
           "labialized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9615,7 +9621,7 @@
           "labialized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9639,7 +9645,7 @@
           "labio-palatized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9663,7 +9669,7 @@
           "labio-palatized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9687,7 +9693,7 @@
           "length",
           "extra-short"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9711,7 +9717,7 @@
           "length",
           "normal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9735,7 +9741,7 @@
           "length",
           "half-long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9759,7 +9765,7 @@
           "length",
           "long"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9783,7 +9789,7 @@
           "length",
           "overlong"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9807,7 +9813,7 @@
           "level",
           "syllable"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9831,7 +9837,7 @@
           "level",
           "word"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9855,7 +9861,7 @@
           "level",
           "phrase"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9879,7 +9885,7 @@
           "level",
           "utterance"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9903,7 +9909,7 @@
           "linking",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9927,7 +9933,7 @@
           "manner",
           "silence"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9951,7 +9957,7 @@
           "manner",
           "vowel"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9975,7 +9981,7 @@
           "manner",
           "approximant"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -9999,7 +10005,7 @@
           "manner",
           "trill"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10023,7 +10029,7 @@
           "manner",
           "tap"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10047,7 +10053,7 @@
           "manner",
           "nasal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10071,7 +10077,7 @@
           "manner",
           "fricative"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10095,7 +10101,7 @@
           "manner",
           "plosive"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10119,7 +10125,7 @@
           "manner",
           "affricate"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10143,7 +10149,7 @@
           "mid-centralized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10167,7 +10173,7 @@
           "mid-centralized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10191,7 +10197,7 @@
           "nasalized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10215,7 +10221,7 @@
           "nasalized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10239,7 +10245,7 @@
           "palatalized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10263,7 +10269,7 @@
           "palatalized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10287,7 +10293,7 @@
           "pharyngealized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10311,7 +10317,7 @@
           "pharyngealized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10335,7 +10341,7 @@
           "phonation",
           "creaky"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10359,7 +10365,7 @@
           "phonation",
           "modal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10383,7 +10389,7 @@
           "phonation",
           "breathy"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10407,7 +10413,7 @@
           "phonation",
           "devoiced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10431,7 +10437,7 @@
           "place",
           "bilabial"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10455,7 +10461,7 @@
           "place",
           "labiodental"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10479,7 +10485,7 @@
           "place",
           "dental"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10503,7 +10509,7 @@
           "place",
           "alveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10527,7 +10533,7 @@
           "place",
           "postalveolar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10551,7 +10557,7 @@
           "place",
           "alveolo-palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10575,7 +10581,7 @@
           "place",
           "palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10599,7 +10605,7 @@
           "place",
           "bilabial^palatal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10623,7 +10629,7 @@
           "place",
           "velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10647,7 +10653,7 @@
           "place",
           "bilabial^velar"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10671,7 +10677,7 @@
           "place",
           "uvular"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10695,7 +10701,7 @@
           "place",
           "pharyngeal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10719,7 +10725,7 @@
           "place",
           "epiglottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10743,7 +10749,7 @@
           "place",
           "glottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10767,7 +10773,7 @@
           "prominence",
           "reduced"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10791,7 +10797,7 @@
           "prominence",
           "norm"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10815,7 +10821,7 @@
           "prominence",
           "emphatic"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10839,7 +10845,7 @@
           "prominence",
           "strong"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10863,7 +10869,7 @@
           "release",
           "aspirated"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10887,7 +10893,7 @@
           "release",
           "breathy"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10911,7 +10917,7 @@
           "release",
           "lateral"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10935,7 +10941,7 @@
           "release",
           "nasal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10959,7 +10965,7 @@
           "release",
           "no-audible"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -10983,7 +10989,7 @@
           "release",
           "glottal"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11007,7 +11013,7 @@
           "release",
           "schwa"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11033,7 +11039,7 @@
           "retroflex",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11059,7 +11065,7 @@
           "retroflex",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11085,7 +11091,7 @@
           "rhotacized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11111,7 +11117,7 @@
           "rhotacized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11135,7 +11141,7 @@
           "rounded",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11159,7 +11165,7 @@
           "rounded",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11183,7 +11189,7 @@
           "rounding",
           "less"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11207,7 +11213,7 @@
           "rounding",
           "more"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11231,7 +11237,7 @@
           "step",
           "down"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11255,7 +11261,7 @@
           "step",
           "up"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11279,7 +11285,7 @@
           "stress",
           "none"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11303,7 +11309,7 @@
           "stress",
           "secondary"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11327,7 +11333,7 @@
           "stress",
           "primary"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11351,7 +11357,7 @@
           "syllabic",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11375,7 +11381,7 @@
           "syllabic",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11399,7 +11405,7 @@
           "tie",
           "simultaneous"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11423,7 +11429,7 @@
           "tie",
           "sequential"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11447,7 +11453,7 @@
           "tier",
           "syllable"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11471,7 +11477,7 @@
           "tier",
           "word"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11495,7 +11501,7 @@
           "tier",
           "phrase"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11519,7 +11525,7 @@
           "tier",
           "utterance"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11543,7 +11549,7 @@
           "tier",
           "mora"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11567,7 +11573,7 @@
           "tier",
           "morph"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11591,7 +11597,7 @@
           "tone",
           "bottom"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11615,7 +11621,7 @@
           "tone",
           "low"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11639,7 +11645,7 @@
           "tone",
           "mid"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11663,7 +11669,7 @@
           "tone",
           "high"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11687,7 +11693,7 @@
           "tone",
           "top"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11711,7 +11717,7 @@
           "tongue-root",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11735,7 +11741,7 @@
           "tongue-root",
           "0"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11759,7 +11765,7 @@
           "tongue-root",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11783,7 +11789,7 @@
           "velarized",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11807,7 +11813,7 @@
           "velarized",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11831,7 +11837,7 @@
           "voiced",
           "-"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       },
       {
@@ -11855,12 +11861,12 @@
           "voiced",
           "+"
         ],
-        "status": "unresolved",
+        "status": "unresolved pending evidence",
         "targets": []
       }
     ]
   },
-  "identity": "sha256:5c04663bed5f18ba3da8c3abf529e561d5aa69ab2844913b6a8bf9c47323bce6",
+  "identity": "sha256:6a42840120e87edbf2e3e91442cd185926b55a46f6ba50b1bf51bf660984f3b3",
   "native_witnesses": {
     "plain-b/1": {
       "additional_native_claims": {
@@ -12051,7 +12057,11 @@
         }
       ],
       "form": "sequence",
+      "juncture": "unasserted",
       "name": "plosive + sibilant fricative",
+      "observed_junctures": [
+        "fuse"
+      ],
       "witness": "t͡s"
     },
     "release-trilled-sequence/1": {
@@ -12064,7 +12074,11 @@
         }
       ],
       "form": "sequence",
+      "juncture": "unasserted",
       "name": "plosive + trill",
+      "observed_junctures": [
+        "fuse"
+      ],
       "witness": "d͡r"
     },
     "release-unreleased/1": {
@@ -12088,7 +12102,11 @@
         }
       ],
       "form": "sequence",
+      "juncture": "unasserted",
       "name": "plosive + uvular fricative",
+      "observed_junctures": [
+        "fuse"
+      ],
       "witness": "d͡ʁ"
     }
   },
@@ -12096,6 +12114,7 @@
     "absence_policy": "unasserted-is-not-negative",
     "declaration_rules": [
       {
+        "disposition": "exact under stated conditions",
         "id": "release-unreleased/1",
         "source": [
           "clts",
@@ -12114,6 +12133,7 @@
         }
       },
       {
+        "disposition": "exact under stated conditions",
         "id": "release-lateral/1",
         "source": [
           "clts",
@@ -12132,6 +12152,7 @@
         }
       },
       {
+        "disposition": "exact under stated conditions",
         "id": "release-schwa/1",
         "source": [
           "clts",
@@ -12150,6 +12171,7 @@
         }
       },
       {
+        "disposition": "exact under stated conditions",
         "id": "release-nasal/1",
         "source": [
           "clts",
@@ -12168,7 +12190,13 @@
         }
       },
       {
+        "disposition": "conditional/composite",
         "id": "release-sibilant-sequence/1",
+        "preconditions": {
+          "host": {
+            "manner": "stop"
+          }
+        },
         "source": [
           "clts",
           "consonant",
@@ -12186,12 +12214,20 @@
             }
           ],
           "form": "sequence",
+          "juncture": "unasserted",
           "name": "plosive + sibilant fricative",
-          "witness": "t͡s"
+          "witness": "t͡s",
+          "witness_juncture": "fuse"
         }
       },
       {
+        "disposition": "conditional/composite",
         "id": "release-trilled-sequence/1",
+        "preconditions": {
+          "host": {
+            "manner": "stop"
+          }
+        },
         "source": [
           "clts",
           "consonant",
@@ -12208,12 +12244,20 @@
             }
           ],
           "form": "sequence",
+          "juncture": "unasserted",
           "name": "plosive + trill",
-          "witness": "d͡r"
+          "witness": "d͡r",
+          "witness_juncture": "fuse"
         }
       },
       {
+        "disposition": "conditional/composite",
         "id": "release-uvular-sequence/1",
+        "preconditions": {
+          "host": {
+            "manner": "stop"
+          }
+        },
         "source": [
           "clts",
           "consonant",
@@ -12231,12 +12275,23 @@
             }
           ],
           "form": "sequence",
+          "juncture": "unasserted",
           "name": "plosive + uvular fricative",
-          "witness": "d͡ʁ"
+          "witness": "d͡ʁ",
+          "witness_juncture": "fuse"
         }
       }
     ],
     "direction": "clts-to-ipakit",
+    "disposition_classes": [
+      "exact under stated conditions",
+      "conditional/composite",
+      "convention-based or lossy",
+      "unsupported by the adapter despite native expressibility",
+      "not expressible in the target model",
+      "conflicting",
+      "unresolved pending evidence"
+    ],
     "enhancements": [
       {
         "consequence": "Retain source-only claim until reviewed correspondence; do not infer a timed nasal child.",
@@ -12268,6 +12323,7 @@
     "release_adjudication": "A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.",
     "rules": [
       {
+        "disposition": "conditional/composite",
         "id": "plain-p/1",
         "raw": "p",
         "source": {
@@ -12283,6 +12339,7 @@
         }
       },
       {
+        "disposition": "conditional/composite",
         "id": "plain-b/1",
         "raw": "b",
         "source": {
@@ -12298,6 +12355,7 @@
         }
       },
       {
+        "disposition": "conditional/composite",
         "id": "plain-t/1",
         "raw": "t",
         "source": {
@@ -12313,6 +12371,7 @@
         }
       },
       {
+        "disposition": "conditional/composite",
         "id": "plain-d/1",
         "raw": "d",
         "source": {
@@ -12341,8 +12400,8 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 2
+    "version": 3
   },
   "schema": "ipakit-clts-semantic-authority",
-  "version": 1
+  "version": 2
 }
