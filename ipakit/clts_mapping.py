@@ -40,6 +40,14 @@ DISPOSITION_CLASSES = (
     "unresolved pending evidence",
 )
 
+ENHANCEMENT_GAP_KINDS = (
+    "adapter gap",
+    "notation gap",
+    "model gap",
+    "source-side collapse",
+)
+ENHANCEMENT_DECISIONS = ("accepted", "deferred", "rejected")
+
 
 class MappingInvalid(ValueError):
     """Invalid/stale mapping content or incompatible supplied evidence."""
@@ -150,6 +158,78 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
             }
         else:
             raise MappingInvalid("unknown release target form")
+    enhancement_ids: set[str] = set()
+    for item in rules["enhancements"]:
+        if set(item) != {
+            "id",
+            "gap_kind",
+            "decision",
+            "affected_source_declarations",
+            "evidence",
+            "native_construction_attempts",
+            "reason",
+            "consequence",
+            *({"accepted_for"} if item.get("decision") == "accepted" else set()),
+            *({"deciding_evidence"} if item.get("decision") == "deferred" else set()),
+        }:
+            raise MappingInvalid("invalid enhancement record fields")
+        if item["id"] in enhancement_ids:
+            raise MappingInvalid("duplicate enhancement id")
+        enhancement_ids.add(item["id"])
+        if item["gap_kind"] not in ENHANCEMENT_GAP_KINDS:
+            raise MappingInvalid("unknown enhancement gap kind")
+        if item["decision"] not in ENHANCEMENT_DECISIONS:
+            raise MappingInvalid("unknown enhancement decision")
+        if item.get("accepted_for") not in (None, "H"):
+            raise MappingInvalid("accepted enhancement has unknown owner")
+        if item["decision"] == "accepted" and item.get("accepted_for") != "H":
+            raise MappingInvalid("accepted enhancement is not assigned to H")
+        for field in ("affected_source_declarations", "evidence"):
+            if (
+                not isinstance(item[field], list)
+                or not item[field]
+                or not all(isinstance(value, str) and value for value in item[field])
+            ):
+                raise MappingInvalid(f"enhancement {field} must be non-empty text")
+        if item["decision"] == "deferred" and not item.get("deciding_evidence"):
+            raise MappingInvalid("deferred enhancement lacks deciding evidence")
+        attempts = item["native_construction_attempts"]
+        if not isinstance(attempts, list) or not attempts:
+            raise MappingInvalid("enhancement lacks a native construction attempt")
+        observed_attempts = []
+        for attempt in attempts:
+            if set(attempt) != {"witness", "expected", "distinction"}:
+                raise MappingInvalid("invalid native construction attempt")
+            if attempt["expected"] not in ("succeeds", "fails"):
+                raise MappingInvalid("unknown native construction outcome")
+            try:
+                ipa.read(attempt["witness"], strict=True)
+            except ValueError as exc:
+                observed = "fails"
+                detail = str(exc)
+            else:
+                observed = "succeeds"
+                detail = "strict native construction succeeded"
+            if observed != attempt["expected"]:
+                raise MappingInvalid("native enhancement construction outcome changed")
+            observed_attempts.append(
+                {
+                    "witness": attempt["witness"],
+                    "distinction": attempt["distinction"],
+                    "outcome": observed,
+                    "detail": detail,
+                }
+            )
+        if item["gap_kind"] == "model gap" and any(
+            attempt["outcome"] != "fails" for attempt in observed_attempts
+        ):
+            raise MappingInvalid(
+                "model gap is constructible by the strict native reader"
+            )
+        results[f"enhancement:{item['id']}"] = {
+            "gap_kind": item["gap_kind"],
+            "attempts": observed_attempts,
+        }
     return results
 
 
@@ -467,11 +547,31 @@ class MappingAuthority:
             lines.append(
                 f"- `{' / '.join(rule['source'])}` → {rendered} ({rule['id']})."
             )
-        lines.extend(["", "## Structural and enhancement dispositions", ""])
-        for item in data["rules"]["enhancements"]:
-            lines.append(
-                f"- {item['id']}: {item['decision']}. {item['reason']} {item['consequence']}"
-            )
+        enhancements = data["rules"]["enhancements"]
+        for heading, selected in (
+            (
+                "Accepted for lane H",
+                [item for item in enhancements if item["decision"] == "accepted"],
+            ),
+            (
+                "Other structural and enhancement dispositions",
+                [item for item in enhancements if item["decision"] != "accepted"],
+            ),
+        ):
+            lines.extend(["", f"## {heading}", ""])
+            for item in selected:
+                attempts = "; ".join(
+                    f"`{attempt['witness']}` {attempt['expected']} ({attempt['distinction']})"
+                    for attempt in item["native_construction_attempts"]
+                )
+                lines.append(
+                    f"- `{item['id']}` — {item['gap_kind']}; {item['decision']}. "
+                    f"{item['reason']} {item['consequence']} "
+                    f"Evidence: {' '.join(item['evidence'])} "
+                    f"Native construction: {attempts}."
+                )
+                if item["decision"] == "deferred":
+                    lines.append(f"  Deciding evidence: {item['deciding_evidence']}")
         lines.extend(
             [
                 "",

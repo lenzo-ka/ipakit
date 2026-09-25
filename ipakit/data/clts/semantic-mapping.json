@@ -11950,7 +11950,7 @@
       }
     ]
   },
-  "identity": "sha256:2d8948d2fcfe858a03e0f7de21d77b37b35056415f96acb09e168ad15b3cf53b",
+  "identity": "sha256:f4a5377e6cb9a7ac182f3b61d22d57337e2d8c4228748907452dcf066f2e23f7",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -11987,6 +11987,119 @@
         "overlong"
       ],
       "witness": "tːː"
+    },
+    "enhancement:nasal-approach": {
+      "attempts": [
+        {
+          "detail": "strict native construction succeeded",
+          "distinction": "nasal approach on a stop",
+          "outcome": "succeeds",
+          "witness": "ⁿd"
+        }
+      ],
+      "gap_kind": "adapter gap"
+    },
+    "enhancement:nasal-release-place": {
+      "attempts": [
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['ᵐ']",
+          "distinction": "bilabial rather than generic nasal release",
+          "outcome": "fails",
+          "witness": "tᵐ"
+        },
+        {
+          "detail": "strict native construction succeeded",
+          "distinction": "existing generic nasal release",
+          "outcome": "succeeds",
+          "witness": "tⁿ"
+        }
+      ],
+      "gap_kind": "source-side collapse"
+    },
+    "enhancement:superscript-releases": {
+      "attempts": [
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['ˢ']",
+          "distinction": "superscript sibilant release spelling",
+          "outcome": "fails",
+          "witness": "tˢ"
+        },
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['ʳ']",
+          "distinction": "superscript trilled release spelling",
+          "outcome": "fails",
+          "witness": "dʳ"
+        },
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['ʶ']",
+          "distinction": "superscript uvular release spelling",
+          "outcome": "fails",
+          "witness": "dʶ"
+        },
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['ᵐ']",
+          "distinction": "superscript bilabial nasal release spelling",
+          "outcome": "fails",
+          "witness": "tᵐ"
+        }
+      ],
+      "gap_kind": "notation gap"
+    },
+    "enhancement:tie-conversion": {
+      "attempts": [
+        {
+          "detail": "strict native construction succeeded",
+          "distinction": "adjacent native segments",
+          "outcome": "succeeds",
+          "witness": "ts"
+        },
+        {
+          "detail": "strict native construction succeeded",
+          "distinction": "fused native constituents",
+          "outcome": "succeeds",
+          "witness": "t͡s"
+        },
+        {
+          "detail": "strict native construction succeeded",
+          "distinction": "sequential native constituents",
+          "outcome": "succeeds",
+          "witness": "t͜s"
+        }
+      ],
+      "gap_kind": "source-side collapse"
+    },
+    "enhancement:tone-host": {
+      "attempts": [
+        {
+          "detail": "strict native construction succeeded",
+          "distinction": "hosted bottom-mid-bottom tone sequence and rising-falling contour",
+          "outcome": "succeeds",
+          "witness": "a˩˧˩"
+        }
+      ],
+      "gap_kind": "adapter gap"
+    },
+    "enhancement:unspecified-values": {
+      "attempts": [
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['Ø']",
+          "distinction": "explicitly unspecified manner, place and voice rather than absent claims",
+          "outcome": "fails",
+          "witness": "Ø"
+        }
+      ],
+      "gap_kind": "model gap"
+    },
+    "enhancement:whistled-sibilant": {
+      "attempts": [
+        {
+          "detail": "Cannot convert IPA segment: unknown symbols ['̫']",
+          "distinction": "whistled sibilant versus ordinary sibilant",
+          "outcome": "fails",
+          "witness": "s̫"
+        }
+      ],
+      "gap_kind": "model gap"
     },
     "plain-b/1": {
       "additional_native_claims": {
@@ -12624,22 +12737,188 @@
     ],
     "enhancements": [
       {
-        "consequence": "Retain source-only claim until reviewed correspondence; do not infer a timed nasal child.",
+        "affected_source_declarations": [
+          "clts / consonant / preceding / pre-nasalized"
+        ],
+        "consequence": "Retain the source-only claim until a reviewed correspondence exists; do not infer a timed nasal child.",
         "decision": "rejected",
+        "evidence": [
+          "The strict native reader constructs ⁿd with approach=nasal on its one constituent."
+        ],
+        "gap_kind": "adapter gap",
         "id": "nasal-approach",
-        "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing adapter support is not a missing feature."
+        "native_construction_attempts": [
+          {
+            "distinction": "nasal approach on a stop",
+            "expected": "succeeds",
+            "witness": "ⁿd"
+          }
+        ],
+        "reason": "Existing native approach expresses the reviewed nasal-approach witness; missing correspondence support is not a missing feature."
       },
       {
+        "affected_source_declarations": [
+          "clts / consonant / manner / affricate"
+        ],
         "consequence": "No unconditional inverse or new feature recovers erased tie evidence.",
+        "deciding_evidence": "An explicit lane F projection convention, with separate source and inferred house claims, would decide which native structure to construct.",
         "decision": "deferred",
+        "evidence": [
+          "The pinned BIPA resolver equates untied and superscript-sibilant affricate spellings while the strict native reader constructs adjacency, fused tie and sequential tie as distinct structures."
+        ],
+        "gap_kind": "source-side collapse",
         "id": "tie-conversion",
-        "reason": "CLTS collapses adjacency and both tie spellings; native already distinguishes their structures."
+        "native_construction_attempts": [
+          {
+            "distinction": "adjacent native segments",
+            "expected": "succeeds",
+            "witness": "ts"
+          },
+          {
+            "distinction": "fused native constituents",
+            "expected": "succeeds",
+            "witness": "t͡s"
+          },
+          {
+            "distinction": "sequential native constituents",
+            "expected": "succeeds",
+            "witness": "t͜s"
+          }
+        ],
+        "reason": "The source does not retain enough evidence to choose among native adjacency and the two native tie senses."
       },
       {
-        "consequence": "Retain or refuse pending profile binding; never fabricate a nucleus or silence.",
+        "affected_source_declarations": [
+          "clts / tone / start / *",
+          "clts / tone / middle / *",
+          "clts / tone / end / *",
+          "clts / tone / contour / *"
+        ],
+        "consequence": "Retain or refuse the source tone pending profile binding; never fabricate a nucleus or silence.",
+        "deciding_evidence": "A bound source profile with caller-supplied tone-host links and literal start, middle, end and contour projection tests would decide the adapter mapping.",
         "decision": "deferred",
+        "evidence": [
+          "Pinned BIPA ¹³¹ separates from-low, via-mid, to-low and contour claims; the strict native reader constructs a hosted three-level pitch sequence and derives its contour."
+        ],
+        "gap_kind": "adapter gap",
         "id": "tone-host",
-        "reason": "Source tone association requires a declared host profile, not strict segment parsing."
+        "native_construction_attempts": [
+          {
+            "distinction": "hosted bottom-mid-bottom tone sequence and rising-falling contour",
+            "expected": "succeeds",
+            "witness": "a˩˧˩"
+          }
+        ],
+        "reason": "The native pitch model is expressive, but source tone association requires an explicit host relation rather than strict segment parsing alone."
+      },
+      {
+        "accepted_for": "H",
+        "affected_source_declarations": [
+          "clts / consonant / release / with-sibilant-release",
+          "clts / consonant / release / with-trilled-release",
+          "clts / consonant / release / with-uvular-release",
+          "clts / consonant / release / with-nasal-release"
+        ],
+        "consequence": "Lane H owns parser admission and tests; A3 makes no parser or ipa.xml change.",
+        "decision": "accepted",
+        "evidence": [
+          "The current house reader drops ˢ, ʳ, ʶ and ᵐ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ and reads tⁿ as release=nasal."
+        ],
+        "gap_kind": "notation gap",
+        "id": "superscript-releases",
+        "native_construction_attempts": [
+          {
+            "distinction": "superscript sibilant release spelling",
+            "expected": "fails",
+            "witness": "tˢ"
+          },
+          {
+            "distinction": "superscript trilled release spelling",
+            "expected": "fails",
+            "witness": "dʳ"
+          },
+          {
+            "distinction": "superscript uvular release spelling",
+            "expected": "fails",
+            "witness": "dʶ"
+          },
+          {
+            "distinction": "superscript bilabial nasal release spelling",
+            "expected": "fails",
+            "witness": "tᵐ"
+          }
+        ],
+        "reason": "K3 accepts all four BIPA superscript spellings into the house parser, not only a BIPA reader."
+      },
+      {
+        "accepted_for": "H",
+        "affected_source_declarations": [
+          "clts / consonant / release / with-nasal-release"
+        ],
+        "consequence": "Lane H owns the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse.",
+        "decision": "accepted",
+        "evidence": [
+          "The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader currently rejects tᵐ and reads tⁿ as release=nasal."
+        ],
+        "gap_kind": "source-side collapse",
+        "id": "nasal-release-place",
+        "native_construction_attempts": [
+          {
+            "distinction": "bilabial rather than generic nasal release",
+            "expected": "fails",
+            "witness": "tᵐ"
+          },
+          {
+            "distinction": "existing generic nasal release",
+            "expected": "succeeds",
+            "witness": "tⁿ"
+          }
+        ],
+        "reason": "K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added."
+      },
+      {
+        "affected_source_declarations": [
+          "clts / consonant / manner / unspecified-manner",
+          "clts / consonant / place / unspecified-place",
+          "clts / consonant / phonation / unspecified-voice"
+        ],
+        "consequence": "Preserve or refuse the source claims; do not turn explicit unspecified values into native defaults, absence or silence.",
+        "deciding_evidence": "The source-preserving Form contract and consumer behavior for explicit unknown values must show a need for computational house values rather than source-only retention.",
+        "decision": "deferred",
+        "evidence": [
+          "Pinned BIPA Ø asserts all three unspecified values; the house has no such manner, place or voice values, and its strict reader rejects Ø."
+        ],
+        "gap_kind": "model gap",
+        "id": "unspecified-values",
+        "native_construction_attempts": [
+          {
+            "distinction": "explicitly unspecified manner, place and voice rather than absent claims",
+            "expected": "fails",
+            "witness": "Ø"
+          }
+        ],
+        "reason": "The evidence establishes an explicit-source distinction and a native model gap, but not whether those placeholders should enter the computational house inventory."
+      },
+      {
+        "affected_source_declarations": [
+          "clts / consonant / airstream / whistled-sibilant"
+        ],
+        "consequence": "Retain the source-only claim and do not map it to ordinary sibilance.",
+        "deciding_evidence": "A phonetic model proposal must locate the distinction in the house feature geometry and specify constructor, rendering and distance behavior.",
+        "decision": "deferred",
+        "evidence": [
+          "Pinned BIPA declares s̫ as a whistled-sibilant fricative; the house airstream inventory has no whistled value and its strict reader rejects the whistling mark."
+        ],
+        "gap_kind": "model gap",
+        "id": "whistled-sibilant",
+        "native_construction_attempts": [
+          {
+            "distinction": "whistled sibilant versus ordinary sibilant",
+            "expected": "fails",
+            "witness": "s̫"
+          }
+        ],
+        "reason": "The source establishes a distinction, but does not decide whether the house should model it as airstream, channel, a modifier or another articulatory property."
       }
     ],
     "evidence": [
@@ -12731,7 +13010,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 4
+    "version": 5
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 2

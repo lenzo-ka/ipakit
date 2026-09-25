@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:2d8948d2fcfe858a03e0f7de21d77b37b35056415f96acb09e168ad15b3cf53b`.
+Mapping identity: `sha256:f4a5377e6cb9a7ac182f3b61d22d57337e2d8c4228748907452dcf066f2e23f7`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
@@ -351,10 +351,21 @@ A release realized as another segment is represented by a constituent sequence. 
 - `clts / consonant / duration / mid-long` → ipakit / length / half-long (consonant-duration-mid-long/1).
 - `clts / consonant / duration / ultra-long` → ipakit / length / overlong (consonant-duration-ultra-long/1).
 
-## Structural and enhancement dispositions
+## Accepted for lane H
 
-- nasal-approach: rejected. Existing native approach expresses the reviewed nasal-approach witness; missing adapter support is not a missing feature. Retain source-only claim until reviewed correspondence; do not infer a timed nasal child.
-- tie-conversion: deferred. CLTS collapses adjacency and both tie spellings; native already distinguishes their structures. No unconditional inverse or new feature recovers erased tie evidence.
-- tone-host: deferred. Source tone association requires a declared host profile, not strict segment parsing. Retain or refuse pending profile binding; never fabricate a nucleus or silence.
+- `superscript-releases` — notation gap; accepted. K3 accepts all four BIPA superscript spellings into the house parser, not only a BIPA reader. Lane H owns parser admission and tests; A3 makes no parser or ipa.xml change. Evidence: The current house reader drops ˢ, ʳ, ʶ and ᵐ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ and reads tⁿ as release=nasal. Native construction: `tˢ` fails (superscript sibilant release spelling); `dʳ` fails (superscript trilled release spelling); `dʶ` fails (superscript uvular release spelling); `tᵐ` fails (superscript bilabial nasal release spelling).
+- `nasal-release-place` — source-side collapse; accepted. K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added. Lane H owns the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse. Evidence: The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader currently rejects tᵐ and reads tⁿ as release=nasal. Native construction: `tᵐ` fails (bilabial rather than generic nasal release); `tⁿ` succeeds (existing generic nasal release).
+
+## Other structural and enhancement dispositions
+
+- `nasal-approach` — adapter gap; rejected. Existing native approach expresses the reviewed nasal-approach witness; missing correspondence support is not a missing feature. Retain the source-only claim until a reviewed correspondence exists; do not infer a timed nasal child. Evidence: The strict native reader constructs ⁿd with approach=nasal on its one constituent. Native construction: `ⁿd` succeeds (nasal approach on a stop).
+- `tie-conversion` — source-side collapse; deferred. The source does not retain enough evidence to choose among native adjacency and the two native tie senses. No unconditional inverse or new feature recovers erased tie evidence. Evidence: The pinned BIPA resolver equates untied and superscript-sibilant affricate spellings while the strict native reader constructs adjacency, fused tie and sequential tie as distinct structures. Native construction: `ts` succeeds (adjacent native segments); `t͡s` succeeds (fused native constituents); `t͜s` succeeds (sequential native constituents).
+  Deciding evidence: An explicit lane F projection convention, with separate source and inferred house claims, would decide which native structure to construct.
+- `tone-host` — adapter gap; deferred. The native pitch model is expressive, but source tone association requires an explicit host relation rather than strict segment parsing alone. Retain or refuse the source tone pending profile binding; never fabricate a nucleus or silence. Evidence: Pinned BIPA ¹³¹ separates from-low, via-mid, to-low and contour claims; the strict native reader constructs a hosted three-level pitch sequence and derives its contour. Native construction: `a˩˧˩` succeeds (hosted bottom-mid-bottom tone sequence and rising-falling contour).
+  Deciding evidence: A bound source profile with caller-supplied tone-host links and literal start, middle, end and contour projection tests would decide the adapter mapping.
+- `unspecified-values` — model gap; deferred. The evidence establishes an explicit-source distinction and a native model gap, but not whether those placeholders should enter the computational house inventory. Preserve or refuse the source claims; do not turn explicit unspecified values into native defaults, absence or silence. Evidence: Pinned BIPA Ø asserts all three unspecified values; the house has no such manner, place or voice values, and its strict reader rejects Ø. Native construction: `Ø` fails (explicitly unspecified manner, place and voice rather than absent claims).
+  Deciding evidence: The source-preserving Form contract and consumer behavior for explicit unknown values must show a need for computational house values rather than source-only retention.
+- `whistled-sibilant` — model gap; deferred. The source establishes a distinction, but does not decide whether the house should model it as airstream, channel, a modifier or another articulatory property. Retain the source-only claim and do not map it to ordinary sibilance. Evidence: Pinned BIPA declares s̫ as a whistled-sibilant fricative; the house airstream inventory has no whistled value and its strict reader rejects the whistling mark. Native construction: `s̫` fails (whistled sibilant versus ordinary sibilant).
+  Deciding evidence: A phonetic model proposal must locate the distinction in the house feature geometry and specify constructor, rendering and distance behavior.
 
 Other gaps remain unresolved; labels or strict segment refusals do not prove house inexpressibility.

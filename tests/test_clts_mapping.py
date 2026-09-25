@@ -19,6 +19,8 @@ from ipakit.clts import (
 )
 from ipakit.clts_mapping import (
     DISPOSITION_CLASSES,
+    ENHANCEMENT_DECISIONS,
+    ENHANCEMENT_GAP_KINDS,
     MappingAuthority,
     MappingInvalid,
     ProfilePending,
@@ -76,7 +78,7 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
     assert data["version"] == 2
-    assert data["rules"]["version"] == 4
+    assert data["rules"]["version"] == 5
     assert data["rules"]["disposition_classes"] == [
         "exact under stated conditions",
         "conditional/composite",
@@ -515,19 +517,44 @@ def test_profile_pending_and_caller_mutation_do_not_change_authority() -> None:
 
 def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> None:
     authority = read_authority()
-    assert (
-        authority.gap_report()
-        == (Path(__file__).parents[1] / "docs/clts-gaps.md").read_text()
-    )
-    decisions = {
-        r["id"]: r["decision"] for r in authority.to_data()["rules"]["enhancements"]
-    }
+    report = authority.gap_report()
+    assert report == (Path(__file__).parents[1] / "docs/clts-gaps.md").read_text()
+    assert "## Accepted for lane H" in report
+    records = {r["id"]: r for r in authority.to_data()["rules"]["enhancements"]}
+    decisions = {record_id: record["decision"] for record_id, record in records.items()}
     assert decisions == {
         "nasal-approach": "rejected",
         "tie-conversion": "deferred",
         "tone-host": "deferred",
+        "superscript-releases": "accepted",
+        "nasal-release-place": "accepted",
+        "unspecified-values": "deferred",
+        "whistled-sibilant": "deferred",
     }
+    assert {record["gap_kind"] for record in records.values()} <= set(
+        ENHANCEMENT_GAP_KINDS
+    )
+    assert {record["decision"] for record in records.values()} <= set(
+        ENHANCEMENT_DECISIONS
+    )
+    assert {
+        record_id
+        for record_id, record in records.items()
+        if record.get("accepted_for") == "H"
+    } == {"superscript-releases", "nasal-release-place"}
+    assert records["nasal-release-place"]["reason"].find("release=bilabial-nasal") >= 0
+    assert "release=nasal remains" in records["nasal-release-place"]["reason"]
+    assert "no release-place dimension" in records["nasal-release-place"]["reason"]
+    assert records["tone-host"]["affected_source_declarations"] == [
+        "clts / tone / start / *",
+        "clts / tone / middle / *",
+        "clts / tone / end / *",
+        "clts / tone / contour / *",
+    ]
     ipa = load_ipa_features()
+    for spelling, retained in (("tˢ", "t"), ("dʳ", "d"), ("dʶ", "d"), ("tᵐ", "t")):
+        with pytest.warns(UserWarning, match="dropped 1 unregistered symbol"):
+            assert str(ipa.read(spelling)) == retained
     approach = ipa.read("ⁿd", strict=True).units[0].segment
     release = ipa.read("dⁿ", strict=True).units[0].segment
     assert approach is not None and release is not None
@@ -540,3 +567,98 @@ def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> No
         len({ipa.read(token, strict=True).to_json() for token in ("ts", "t͡s", "t͜s")})
         == 3
     )
+
+
+def test_every_model_gap_has_a_failed_strict_native_construction() -> None:
+    ipa = load_ipa_features()
+    records = reviewed_rules()["enhancements"]
+    for record in records:
+        assert record["gap_kind"] in ENHANCEMENT_GAP_KINDS
+        assert record["decision"] in ENHANCEMENT_DECISIONS
+        assert record["native_construction_attempts"]
+        if record["gap_kind"] == "model gap":
+            assert all(
+                attempt["expected"] == "fails"
+                for attempt in record["native_construction_attempts"]
+            )
+            for attempt in record["native_construction_attempts"]:
+                with pytest.raises(ValueError):
+                    ipa.read(attempt["witness"], strict=True)
+
+
+@pytest.mark.parametrize("missing", ["gap_kind", "decision"])
+def test_enhancement_record_requires_gap_kind_and_decision(missing: str) -> None:
+    rules = copy.deepcopy(reviewed_rules())
+    del rules["enhancements"][0][missing]
+    with pytest.raises(MappingInvalid, match="enhancement record fields"):
+        _native_witnesses(rules, load_ipa_features())
+
+
+def test_constructible_distinction_cannot_be_labeled_model_gap() -> None:
+    rules = copy.deepcopy(reviewed_rules())
+    nasal_approach = next(
+        record for record in rules["enhancements"] if record["id"] == "nasal-approach"
+    )
+    assert nasal_approach["native_construction_attempts"] == [
+        {
+            "witness": "ⁿd",
+            "expected": "succeeds",
+            "distinction": "nasal approach on a stop",
+        }
+    ]
+    nasal_approach["gap_kind"] = "model gap"
+    with pytest.raises(MappingInvalid, match="model gap is constructible"):
+        _native_witnesses(rules, load_ipa_features())
+
+
+def test_enhancement_source_evidence_has_an_offline_pinned_counterpart() -> None:
+    entries = read_snapshot().to_data()["entries"]
+    assert entries["tˢ"]["canonical"] == "ts"
+    assert entries["tⁿ"]["features"] == [
+        "alveolar",
+        "consonant",
+        "stop",
+        "voiceless",
+        "with-nasal-release",
+    ]
+    assert entries["Ø"]["features"] == [
+        "consonant",
+        "unspecified-manner",
+        "unspecified-place",
+        "unspecified-voice",
+    ]
+    assert "whistled-sibilant" in entries["s̫"]["features"]
+    assert entries["¹³¹"]["features"] == [
+        "contour",
+        "from-low",
+        "to-low",
+        "tone",
+        "via-mid",
+    ]
+
+
+def test_enhancement_source_evidence_matches_live_clts_master() -> None:
+    value = os.environ.get("IPAKIT_CLTS_DIR")
+    if not value:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for live enhancement evidence")
+    entries = extract_snapshot(
+        Path(value), tokens=["tˢ", "dʳ", "dʶ", "tᵐ", "tⁿ", "Ø", "s̫", "¹³¹"]
+    ).to_data()["entries"]
+    assert entries["tˢ"]["canonical"] == "ts"
+    assert entries["dʳ"]["features"][-1] == "with-trilled-release"
+    assert entries["dʶ"]["features"][-1] == "with-uvular-release"
+    assert entries["tᵐ"]["canonical"] == entries["tⁿ"]["canonical"] == "tⁿ"
+    assert entries["tᵐ"]["features"] == entries["tⁿ"]["features"]
+    assert entries["Ø"]["features"][-3:] == [
+        "unspecified-manner",
+        "unspecified-place",
+        "unspecified-voice",
+    ]
+    assert "whistled-sibilant" in entries["s̫"]["features"]
+    assert entries["¹³¹"]["features"] == [
+        "contour",
+        "from-low",
+        "to-low",
+        "tone",
+        "via-mid",
+    ]
