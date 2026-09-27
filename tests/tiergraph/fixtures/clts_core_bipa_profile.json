@@ -29,12 +29,22 @@
       },
       {
         "domain": "item",
+        "name": "ipakit-declared-0:coverage",
+        "value_type": "json"
+      },
+      {
+        "domain": "item",
         "name": "ipakit-declared-0:kind",
         "value_type": "json"
       },
       {
         "domain": "item",
         "name": "ipakit-declared-0:profile",
+        "value_type": "json"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-declared-0:projection",
         "value_type": "json"
       },
       {
@@ -196,6 +206,16 @@
         "domain": "item",
         "name": "ipakit-containment:unit-index",
         "value_type": "integer"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-feature-3:kind",
+        "value_type": "json"
+      },
+      {
+        "domain": "item",
+        "name": "ipakit-feature-3:symbol",
+        "value_type": "json"
       }
     ],
     "namespaces": [
@@ -210,6 +230,10 @@
       {
         "namespace": "https://ipakit.dev/tiergraph/containment-projection/v1",
         "prefix": "ipakit-containment"
+      },
+      {
+        "namespace": "https://ipakit.dev/tiergraph/house-projection/v1",
+        "prefix": "ipakit-feature-3"
       }
     ],
     "position_values": [
@@ -464,9 +488,75 @@
           "index": 13,
           "tier": "ipakit-containment:clock"
         }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "7",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 14,
+          "tier": "ipakit-containment:clock"
+        }
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-containment:gap",
+            "value_type": "integer"
+          },
+          {
+            "lexical": "7",
+            "name": "ipakit-containment:tick",
+            "value_type": "integer"
+          }
+        ],
+        "reference": {
+          "index": 15,
+          "tier": "ipakit-containment:clock"
+        }
       }
     ],
     "relation_declarations": [
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "ipakit-declared-0:projects",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1,
+          "tiers": [
+            "ipakit-declared-0:source-sound"
+          ]
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": -1,
+          "minimum": 1,
+          "tiers": [
+            "ipakit-declared-0:house-projection"
+          ]
+        },
+        "unique_sources": true
+      },
       {
         "acyclic": false,
         "distinct_targets": false,
@@ -579,6 +669,28 @@
     ],
     "relations": [
       {
+        "attributes": [
+          {
+            "lexical": "0",
+            "name": "ipakit-declared-0:source-order",
+            "value_type": "integer"
+          }
+        ],
+        "declaration": "ipakit-declared-0:projects",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "ipakit-declared-0:source-sound"
+          }
+        ],
+        "targets": [
+          {
+            "index": 0,
+            "tier": "ipakit-declared-0:house-projection"
+          }
+        ]
+      },
+      {
         "declaration": "ipakit-declared-0:resolves",
         "sources": [
           {
@@ -590,6 +702,28 @@
           {
             "index": 0,
             "tier": "ipakit-declared-0:source-sound"
+          }
+        ]
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "1",
+            "name": "ipakit-declared-0:source-order",
+            "value_type": "integer"
+          }
+        ],
+        "declaration": "ipakit-declared-0:projects",
+        "sources": [
+          {
+            "index": 1,
+            "tier": "ipakit-declared-0:source-sound"
+          }
+        ],
+        "targets": [
+          {
+            "index": 1,
+            "tier": "ipakit-declared-0:house-projection"
           }
         ]
       },
@@ -627,6 +761,28 @@
           {
             "index": 1,
             "tier": "ipakit-declared-0:source-sound"
+          }
+        ]
+      },
+      {
+        "attributes": [
+          {
+            "lexical": "2",
+            "name": "ipakit-declared-0:source-order",
+            "value_type": "integer"
+          }
+        ],
+        "declaration": "ipakit-declared-0:projects",
+        "sources": [
+          {
+            "index": 2,
+            "tier": "ipakit-declared-0:source-sound"
+          }
+        ],
+        "targets": [
+          {
+            "index": 2,
+            "tier": "ipakit-declared-0:house-projection"
           }
         ]
       },
@@ -673,6 +829,21 @@
         ]
       },
       {
+        "declaration": "ipakit-declared-0:resolves",
+        "sources": [
+          {
+            "index": 6,
+            "tier": "ipakit-declared-0:source-token"
+          }
+        ],
+        "targets": [
+          {
+            "index": 3,
+            "tier": "ipakit-declared-0:source-sound"
+          }
+        ]
+      },
+      {
         "declaration": "ipakit-containment:roots"
       }
     ],
@@ -685,6 +856,14 @@
         "items": [
           {
             "attributes": [
+              {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "supported"
+                },
+                "value_type": "json"
+              },
               {
                 "name": "ipakit-declared-0:raw",
                 "value": "t",
@@ -727,6 +906,14 @@
           {
             "attributes": [
               {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "supported"
+                },
+                "value_type": "json"
+              },
+              {
                 "name": "ipakit-declared-0:raw",
                 "value": "⁵",
                 "value_type": "json"
@@ -749,6 +936,14 @@
           },
           {
             "attributes": [
+              {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "supported"
+                },
+                "value_type": "json"
+              },
               {
                 "name": "ipakit-declared-0:raw",
                 "value": "t",
@@ -773,6 +968,14 @@
           {
             "attributes": [
               {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "not-attempted"
+                },
+                "value_type": "json"
+              },
+              {
                 "name": "ipakit-declared-0:raw",
                 "value": " ɺ̣",
                 "value_type": "json"
@@ -795,6 +998,14 @@
           },
           {
             "attributes": [
+              {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "not-attempted"
+                },
+                "value_type": "json"
+              },
               {
                 "name": "ipakit-declared-0:raw",
                 "value": "+",
@@ -819,6 +1030,14 @@
           {
             "attributes": [
               {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "not-attempted"
+                },
+                "value_type": "json"
+              },
+              {
                 "name": "ipakit-declared-0:raw",
                 "value": "☃",
                 "value_type": "json"
@@ -838,6 +1057,38 @@
               }
             ],
             "durable_id": "/clock/5/source-token/0"
+          },
+          {
+            "attributes": [
+              {
+                "name": "ipakit-declared-0:projection",
+                "value": {
+                  "code": "unasserted-house-juncture",
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+                  "status": "unsupported"
+                },
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-declared-0:raw",
+                "value": "ts",
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-declared-0:resolution",
+                "value": {
+                  "provider": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
+                  "status": "resolved"
+                },
+                "value_type": "json"
+              },
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/6/source-token/0"
           }
         ]
       },
@@ -980,6 +1231,52 @@
               }
             ],
             "durable_id": "/clock/2/source-sound/0"
+          },
+          {
+            "attributes": [
+              {
+                "name": "ipakit-feature-2:alias",
+                "value": false,
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-feature-2:declaration",
+                "value": "ts",
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-feature-2:features",
+                "value": [
+                  "affricate",
+                  "alveolar",
+                  "consonant",
+                  "sibilant",
+                  "voiceless"
+                ],
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-feature-2:normalized",
+                "value": false,
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-declared-0:canonical",
+                "value": "ts",
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-declared-0:kind",
+                "value": "consonant",
+                "value_type": "json"
+              },
+              {
+                "lexical": "1",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              }
+            ],
+            "durable_id": "/clock/6/source-sound/0"
           }
         ]
       },
@@ -987,7 +1284,69 @@
         "declaration": {
           "long_name": "house-projection",
           "name": "ipakit-declared-0:house-projection"
-        }
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "name": "ipakit-feature-3:kind",
+                "value": "segment",
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-feature-3:symbol",
+                "value": "t",
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/clock/0/house-projection/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "name": "ipakit-feature-3:kind",
+                "value": "prosody",
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-feature-3:symbol",
+                "value": "⁵",
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/clock/1/house-projection/0"
+          },
+          {
+            "attributes": [
+              {
+                "lexical": "0",
+                "name": "ipakit-containment:structural-duration",
+                "value_type": "integer"
+              },
+              {
+                "name": "ipakit-feature-3:kind",
+                "value": "segment",
+                "value_type": "json"
+              },
+              {
+                "name": "ipakit-feature-3:symbol",
+                "value": "t",
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/clock/2/house-projection/0"
+          }
+        ]
       },
       {
         "declaration": {
@@ -998,11 +1357,25 @@
           {
             "attributes": [
               {
+                "name": "ipakit-declared-0:coverage",
+                "value": {
+                  "house_complete": false,
+                  "source_complete": true,
+                  "status": "preserved"
+                },
+                "value_type": "json"
+              },
+              {
                 "name": "ipakit-declared-0:profile",
                 "value": {
+                  "coverage": {
+                    "house_complete": "true exactly when every input occurrence is supported; true for empty input",
+                    "source_complete": "one retained resolution record per input occurrence"
+                  },
                   "decides": [
                     "constructor-layout source retention and declared schema",
-                    "input clock, timings and caller tone-host links"
+                    "input clock, timings and caller tone-host links",
+                    "caller-supplied house facts, coverage and mapping identity"
                   ],
                   "domains": {},
                   "fields": {
@@ -1023,8 +1396,19 @@
                       "normalized"
                     ]
                   },
-                  "fingerprint": "sha256:3b451b6f3694f76007ab18e7870590a2384fc68783e50313c71f1a86b465a868",
+                  "fingerprint": "sha256:a295e108145c05383f332a2abb44576334989b50e5829fc23998950a680447aa",
+                  "house-fields": {
+                    "house-kind": [
+                      "https://ipakit.dev/tiergraph/house-projection/v1",
+                      "kind"
+                    ],
+                    "house-symbol": [
+                      "https://ipakit.dev/tiergraph/house-projection/v1",
+                      "symbol"
+                    ]
+                  },
                   "id": "ipakit-clts-source",
+                  "invalidation": "stored projection mapping identity must equal the profile mapping identity",
                   "kinds": [
                     "consonant",
                     "vowel",
@@ -1034,6 +1418,7 @@
                     "fingerprint": "sha256:6b1e7edea5cc60fa62fdb6304e03073a4baf10d9e1463040c8bf78c602d13eef",
                     "kind": "interim-core-bipa-source-policy-snapshot"
                   },
+                  "mapping": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
                   "provider": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
                   "relation-count": 1,
                   "relations-present": true,
@@ -1100,6 +1485,14 @@
                       {
                         "domain": "item",
                         "name": {
+                          "local_name": "coverage",
+                          "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
+                        },
+                        "value_type": "json"
+                      },
+                      {
+                        "domain": "item",
+                        "name": {
                           "local_name": "kind",
                           "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
                         },
@@ -1109,6 +1502,14 @@
                         "domain": "item",
                         "name": {
                           "local_name": "profile",
+                          "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
+                        },
+                        "value_type": "json"
+                      },
+                      {
+                        "domain": "item",
+                        "name": {
+                          "local_name": "projection",
                           "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
                         },
                         "value_type": "json"
@@ -1368,6 +1769,22 @@
                           "namespace": "https://ipakit.dev/tiergraph/containment-projection/v1"
                         },
                         "value_type": "integer"
+                      },
+                      {
+                        "domain": "item",
+                        "name": {
+                          "local_name": "kind",
+                          "namespace": "https://ipakit.dev/tiergraph/house-projection/v1"
+                        },
+                        "value_type": "json"
+                      },
+                      {
+                        "domain": "item",
+                        "name": {
+                          "local_name": "symbol",
+                          "namespace": "https://ipakit.dev/tiergraph/house-projection/v1"
+                        },
+                        "value_type": "json"
                       }
                     ],
                     "namespaces": [
@@ -1382,9 +1799,54 @@
                       {
                         "namespace": "https://ipakit.dev/tiergraph/containment-projection/v1",
                         "prefix": "ipakit-containment"
+                      },
+                      {
+                        "namespace": "https://ipakit.dev/tiergraph/house-projection/v1",
+                        "prefix": "ipakit-feature-3"
                       }
                     ],
                     "relations": [
+                      {
+                        "acyclic": false,
+                        "attributes": [],
+                        "distinct_targets": false,
+                        "kind": "polyadic",
+                        "name": {
+                          "local_name": "projects",
+                          "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
+                        },
+                        "single_parent": false,
+                        "sources": {
+                          "allow_empty": false,
+                          "endpoint_kinds": [
+                            "item"
+                          ],
+                          "maximum": -1,
+                          "minimum": 1,
+                          "tiers": [
+                            {
+                              "local_name": "source-sound",
+                              "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
+                            }
+                          ]
+                        },
+                        "targets": {
+                          "allow_empty": false,
+                          "endpoint_kinds": [
+                            "item"
+                          ],
+                          "maximum": -1,
+                          "minimum": 1,
+                          "tiers": [
+                            {
+                              "local_name": "house-projection",
+                              "namespace": "https://ipakit.dev/tiergraph/clts-source/v1"
+                            }
+                          ]
+                        },
+                        "targets_subset_of": [],
+                        "unique_sources": true
+                      },
                       {
                         "acyclic": false,
                         "attributes": [],
@@ -1610,7 +2072,7 @@
                     "version": "4da03b1d0bc2c96839df693d3123be72cfac8419"
                   },
                   "undecided": [
-                    "external resolver truth and house semantic coverage",
+                    "external resolver truth and house projection computation",
                     "public Form and downstream consumer admission"
                   ],
                   "version": 1
@@ -1671,6 +2133,12 @@
           },
           {
             "durable_id": "ipakit-clockcell-12"
+          },
+          {
+            "durable_id": "ipakit-clockcell-13"
+          },
+          {
+            "durable_id": "ipakit-clockcell-14"
           }
         ]
       }

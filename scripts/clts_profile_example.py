@@ -28,6 +28,7 @@ def example_document() -> dict[str, object]:
             {"raw": " ɺ̣"},
             {"raw": "+"},
             {"raw": "☃"},
+            {"raw": "ts"},
         ],
         "relations": [{"type": HOST, "source": "/tokens/1", "target": "/tokens/0"}],
     }
@@ -37,8 +38,35 @@ def generate() -> str:
     snapshot = read_snapshot()
     document = example_document()
     raws = [token["raw"] for token in document["tokens"]]  # type: ignore[index]
+    spec = core_bipa_spec(snapshot)
+    projections = [
+        {
+            "mapping": spec.mapping_identity,
+            "status": "supported",
+            "facts": [{"house-symbol": "t", "house-kind": "segment"}],
+        },
+        {
+            "mapping": spec.mapping_identity,
+            "status": "supported",
+            "facts": [{"house-symbol": "⁵", "house-kind": "prosody"}],
+        },
+        {
+            "mapping": spec.mapping_identity,
+            "status": "supported",
+            "facts": [{"house-symbol": "t", "house-kind": "segment"}],
+        },
+        *(
+            {"mapping": spec.mapping_identity, "status": "not-attempted"}
+            for _ in range(3)
+        ),
+        {
+            "mapping": spec.mapping_identity,
+            "status": "unsupported",
+            "code": "unasserted-house-juncture",
+        },
+    ]
     graph = construct(
-        document, core_bipa_resolutions(snapshot, raws), core_bipa_spec(snapshot)
+        document, core_bipa_resolutions(snapshot, raws), projections, spec
     )
     return tg.dumps(graph)
 

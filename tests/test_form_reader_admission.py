@@ -27,6 +27,7 @@ def _spec() -> SourceProfileSpec:
         SourceMetadata("fixture", "urn:fixture", "synthetic", "1", "fixture", "test"),
         "fixture-provider",
         "fixture-manifest",
+        "fixture-mapping",
         ("tone", "consonant"),
         (),
     )
@@ -75,7 +76,8 @@ def test_clts_profile_graph_is_still_not_a_form_document() -> None:
         "status": "unknown-sound",
         "sounds": [],
     }
-    graph = construct(["?"], [record], _spec())
+    projection = {"mapping": "fixture-mapping", "status": "not-attempted"}
+    graph = construct(["?"], [record], [projection], _spec())
     with pytest.raises(ValueError, match="Form profile"):
         Form.from_json(tg.dumps(graph))
 
