@@ -491,10 +491,18 @@ class TestAMisdeclaredProjectionFailsOnLoad:
             IPAFeatures(xml_path=path)
 
 
-#: Requests over two different features, sampled by stride. Two values of
-#: one feature are excluded because they are not two changes: the second
-#: undoes the first, and the order of an undoing is what an undoing means.
-CONFLUENCE_STRIDE = 7
+#: Fixed witnesses for every pair which can satisfy the conditional admission
+#: below. ``b`` admits the consonantal pairs and ``e`` adds the vowel-only
+#: pairs, including ``rhotacized=+`` with ``syllabic=+``. Together they admit
+#: every pair admitted by any self-spelling phone in the full inventory at the
+#: time this set was chosen. Keeping the witnesses fixed means a new declared
+#: pair cannot silently move an existing pair into or out of the sweep.
+CONFLUENCE_BASES = ("b", "e")
+
+ConfluenceCase = tuple[str, tuple[str, str], tuple[str, str]]
+ConfluenceRow = tuple[
+    str, tuple[str, str], tuple[str, str], str | None, str | None, str | None
+]
 
 
 def independent(
@@ -523,6 +531,17 @@ def independent(
     return (first[0], second[0]) not in joined and (second[0], first[0]) not in joined
 
 
+def independent_pairs(
+    features: IPAFeatures = FEATURES,
+) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+    """Every request pair for which confluence is a coherent claim."""
+    return [
+        (first, second)
+        for first, second in itertools.combinations(declared_pairs(features), 2)
+        if first[0] != second[0] and independent(first, second, features)
+    ]
+
+
 def _then(unit: str | None, change: tuple[str, str]) -> str | None:
     return (
         None if unit is None else FEATURES.compose_unit(unit, **{change[0]: change[1]})
@@ -530,41 +549,78 @@ def _then(unit: str | None, change: tuple[str, str]) -> str | None:
 
 
 @pytest.fixture(scope="module")
-def confluence() -> (
-    list[
-        tuple[str, tuple[str, str], tuple[str, str], str | None, str | None, str | None]
+def confluence_extent() -> tuple[list[ConfluenceCase], list[ConfluenceCase]]:
+    """The derived candidate and admitted extents of the fixed-base sweep."""
+    candidates = [
+        (base, first, second)
+        for base in CONFLUENCE_BASES
+        for first, second in independent_pairs()
     ]
+    admitted = [
+        (base, first, second)
+        for base, first, second in candidates
+        # Confluence compares two valid orders. A request that is inapplicable
+        # to the base but becomes applicable after the other request is a
+        # conditional admission, not two orders of the same pair of changes.
+        if _then(base, first) is not None and _then(base, second) is not None
+    ]
+    return candidates, admitted
+
+
+@pytest.fixture(scope="module")
+def confluence(
+    confluence_extent: tuple[list[ConfluenceCase], list[ConfluenceCase]],
+) -> list[ConfluenceRow]:
+    """Every admitted case composed in both orders and in one call."""
+    _, admitted = confluence_extent
+    return [
+        (
+            base,
+            first,
+            second,
+            _then(_then(base, first), second),
+            _then(_then(base, second), first),
+            FEATURES.compose_unit(base, **{first[0]: first[1], second[0]: second[1]}),
+        )
+        for base, first, second in admitted
+    ]
+
+
+def testable_pairs_missing_a_witness() -> (
+    dict[tuple[tuple[str, str], tuple[str, str]], str]
 ):
-    """Every base crossed with a sampled pair of independent requests,
-    composed three ways: first then second, second then first, and both at
-    once. Built once because four claims are made of it."""
-    pairs = [
-        (first, second)
-        for first, second in itertools.combinations(declared_pairs(), 2)
-        if first[0] != second[0] and independent(first, second)
-    ][::CONFLUENCE_STRIDE]
-    rows = []
-    for base in self_spelling_phones():
-        for first, second in pairs:
-            # Confluence compares two valid orders. A request that is
-            # inapplicable to the base but becomes applicable after the
-            # other request is a conditional admission, not two orders of
-            # the same pair of changes.
-            if _then(base, first) is None or _then(base, second) is None:
-                continue
-            rows.append(
-                (
-                    base,
-                    first,
-                    second,
-                    _then(_then(base, first), second),
-                    _then(_then(base, second), first),
-                    FEATURES.compose_unit(
-                        base, **{first[0]: first[1], second[0]: second[1]}
-                    ),
-                )
-            )
-    return rows
+    """Pairs some self-spelling phone admits but no fixed witness does.
+
+    A pair is testable on a base when each request applies to it alone, so
+    the single-step table decides it without composing any pair."""
+    requests = declared_pairs()
+    applies = {
+        base: {request for request in requests if _then(base, request) is not None}
+        for base in self_spelling_phones()
+    }
+    witnessed = {
+        pair
+        for base in CONFLUENCE_BASES
+        for pair in independent_pairs()
+        if pair[0] in applies[base] and pair[1] in applies[base]
+    }
+    missing = {}
+    for pair in independent_pairs():
+        if pair in witnessed:
+            continue
+        for base, ok in applies.items():
+            if pair[0] in ok and pair[1] in ok:
+                missing[pair] = base
+                break
+    return missing
+
+
+def test_every_testable_pair_has_a_fixed_witness() -> None:
+    missing = testable_pairs_missing_a_witness()
+    assert not missing, (
+        f"{len(missing)} pairs are admitted by some phone but by no base in "
+        f"CONFLUENCE_BASES; add a witness. First: {list(missing.items())[:3]}"
+    )
 
 
 class TestCompositionIsConfluent:
@@ -586,9 +642,15 @@ class TestCompositionIsConfluent:
     two routes cannot diverge. This sweep is what says they do not.
     """
 
-    def test_either_order_gives_one_spelling(self, confluence) -> None:
+    def test_either_order_gives_one_spelling(
+        self, confluence, confluence_extent
+    ) -> None:
+        candidates, admitted = confluence_extent
+        pairs = independent_pairs()
+        assert len(candidates) == len(CONFLUENCE_BASES) * len(pairs)
+        assert {(first, second) for _, first, second in candidates} == set(pairs)
+        assert len(confluence) == len(admitted)
         diverged = [row for row in confluence if row[3] != row[4]]
-        assert len(confluence) > 10000, f"sweep did not run: {len(confluence)}"
         assert not diverged, f"{len(diverged)} diverged, first: {diverged[:3]}"
 
     def test_one_call_says_what_two_calls_say(self, confluence) -> None:
@@ -597,7 +659,7 @@ class TestCompositionIsConfluent:
         picked for one request contradicted the other."""
         comparable = [row for row in confluence if row[3] and row[5]]
         disagreed = [row for row in comparable if row[3] != row[5]]
-        assert len(comparable) > 5000, f"sweep did not run: {len(comparable)}"
+        assert comparable, "no admitted composition completed both ways"
         assert not disagreed, f"{len(disagreed)} disagreed, first: {disagreed[:3]}"
 
     def test_no_composed_unit_states_one_feature_twice(self, confluence) -> None:
@@ -605,9 +667,10 @@ class TestCompositionIsConfluent:
         gives way to a mark writing the same key, rather than standing
         beside it. Two marks stating one feature is a contradiction, and
         the unit reads back as whichever the projection reaches first."""
-        checked, doubled = 0, []
-        for unit in {row[3] for row in confluence if row[3]}:
-            checked += 1
+        units = {row[3] for row in confluence if row[3]}
+        assert units, "no admitted composition produced a unit"
+        doubled = []
+        for unit in units:
             seen: dict[str, str] = {}
             for glyph in FEATURES.segment(unit).constituents[-1].modifiers:
                 mark = FEATURES.diacritics.get(glyph)
@@ -616,7 +679,6 @@ class TestCompositionIsConfluent:
                         continue
                     if seen.setdefault(key, value) != value:
                         doubled.append((unit, key, seen[key], value))
-        assert checked > 500, f"sweep did not run: {checked}"
         assert not doubled, f"{len(doubled)} doubled, first: {doubled[:3]}"
 
     def test_a_combining_mark_binds_to_the_phone_and_not_to_a_modifier(
@@ -629,9 +691,10 @@ class TestCompositionIsConfluent:
         ``dʰ̥`` rings the ``ʰ``. Mode precedence alone put ``release``
         ahead of ``overriding`` and emitted exactly that.
         """
-        checked, misbound = 0, []
-        for unit in {row[3] for row in confluence if row[3]}:
-            checked += 1
+        units = {row[3] for row in confluence if row[3]}
+        assert units, "no admitted composition produced a unit"
+        misbound = []
+        for unit in units:
             marks = FEATURES.segment(unit).constituents[-1].modifiers
             spacing = [
                 index
@@ -641,5 +704,4 @@ class TestCompositionIsConfluent:
             combining = [i for i in range(len(marks)) if i not in spacing]
             if spacing and combining and min(spacing) < max(combining):
                 misbound.append((unit, marks))
-        assert checked > 500, f"sweep did not run: {checked}"
         assert not misbound, f"{len(misbound)} misbound, first: {misbound[:3]}"
