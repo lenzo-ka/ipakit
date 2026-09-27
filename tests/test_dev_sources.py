@@ -368,14 +368,34 @@ def test_clts_invalid_existing_cache_is_never_repaired(
 def test_clts_mocked_build_and_missing_resolver(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    from ipakit import _clts_profile, clts_mapping
+
     policy = clts.source_policy()
     from ipakit.extraction import SourceIdentity
 
     identity = SourceIdentity(clts._source_metadata(policy), policy["inputs"])
     monkeypatch.setattr(clts, "validate_source", lambda path: identity)
-    result = BuildResult({Path("core.json"): b"core"}, source=identity)
+    core_path = Path("ipakit/data/clts/core.json")
+    result = BuildResult(
+        {core_path: clts.read_snapshot().dumps().encode()}, source=identity
+    )
+    mapping = BuildResult(
+        {
+            Path("ipakit/data/clts/semantic-mapping.json"): b"mapping\n",
+            Path("docs/clts-gaps.md"): b"gaps\n",
+        },
+        source=identity,
+    )
     with monkeypatch.context() as build_patch:
         build_patch.setattr(clts, "build_core", lambda path: result)
+        build_patch.setattr(
+            clts_mapping,
+            "build_mapping_artifacts",
+            lambda path, *, snapshot: mapping,
+        )
+        build_patch.setattr(
+            _clts_profile, "dumps_manifest", lambda *, snapshot: "manifest\n"
+        )
         argv = ["clts", "--source", str(tmp_path), "--output", str(tmp_path / "out")]
         assert dev_sources.main(["check", *argv]) == 1
         assert dev_sources.main(["build", *argv]) == 0
@@ -391,6 +411,46 @@ def test_clts_mocked_build_and_missing_resolver(
         json.loads(capsys.readouterr().out)["results"][0]["state"]
         == "resolver-unavailable"
     )
+
+
+def test_clts_producer_builds_every_derived_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit import _clts_profile, clts_mapping
+
+    policy = clts.source_policy()
+    from ipakit.extraction import SourceIdentity
+
+    identity = SourceIdentity(clts._source_metadata(policy), policy["inputs"])
+    core_path = Path("ipakit/data/clts/core.json")
+    core = BuildResult(
+        {core_path: clts.read_snapshot().dumps().encode()}, source=identity
+    )
+    mapping = BuildResult(
+        {
+            Path("ipakit/data/clts/semantic-mapping.json"): b"mapping\n",
+            Path("docs/clts-gaps.md"): b"gaps\n",
+        },
+        source=identity,
+    )
+    monkeypatch.setattr(clts, "build_core", lambda source: core)
+    monkeypatch.setattr(
+        clts_mapping,
+        "build_mapping_artifacts",
+        lambda source, *, snapshot: mapping,
+    )
+    monkeypatch.setattr(
+        _clts_profile, "dumps_manifest", lambda *, snapshot: "manifest\n"
+    )
+    result = dev_sources._clts_producer().build(tmp_path)
+    assert set(result.artifacts) == {
+        core_path,
+        Path("ipakit/data/clts/semantic-mapping.json"),
+        Path("docs/clts-gaps.md"),
+        Path("ipakit/data/clts/manifest.json"),
+    }
+    assert result.owned_globs == tuple(result.artifacts)
+    assert result.source == identity
 
 
 def test_multiple_producers_get_distinct_revision_caches(

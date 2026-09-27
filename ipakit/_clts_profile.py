@@ -567,14 +567,21 @@ def _file_sha256(path: Path) -> str:
 
 
 def manifest_metadata(
-    data_dir: Path = DATA, *, inventory: Any | None = None
+    data_dir: Path = DATA,
+    *,
+    inventory: Any | None = None,
+    snapshot: Snapshot | None = None,
 ) -> dict[str, Any]:
     """Recompute the final core-BIPA receipt from shipped bytes and declarations."""
     from . import load_ipa_features
     from ._form_profile import provider_identity
 
     snapshot_path = data_dir / "core.json"
-    snapshot = read_snapshot(snapshot_path)
+    if snapshot is None:
+        snapshot = read_snapshot(snapshot_path)
+        snapshot_bytes = snapshot_path.read_bytes()
+    else:
+        snapshot_bytes = snapshot.dumps().encode("utf-8")
     snapshot_data = snapshot.to_data()
     if snapshot_data["domain"] != "core-bipa":
         raise ArtifactInvalid("the final CLTS manifest requires the core-BIPA artifact")
@@ -592,7 +599,7 @@ def manifest_metadata(
         },
         "artifacts": {
             "ipakit/data/clts/core.json": {
-                "sha256": _file_sha256(snapshot_path),
+                "sha256": hashlib.sha256(snapshot_bytes).hexdigest(),
                 "identity": snapshot.identity,
                 "schema": {
                     "id": snapshot_data["schema"],
@@ -623,11 +630,11 @@ def manifest_metadata(
     return manifest
 
 
-def dumps_manifest(data_dir: Path = DATA) -> str:
+def dumps_manifest(data_dir: Path = DATA, *, snapshot: Snapshot | None = None) -> str:
     """Render the deterministic offline CLTS manifest."""
     return (
         json.dumps(
-            manifest_metadata(data_dir),
+            manifest_metadata(data_dir, snapshot=snapshot),
             ensure_ascii=False,
             allow_nan=False,
             sort_keys=True,
