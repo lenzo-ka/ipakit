@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "operations": {
+    "ipakit.align.align": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/align.py",
+        "line": 215,
+        "note": "returns a FormBuilder-built alignment from transcript phones"
+      }
+    },
+    "ipakit.align.align_entry": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/align.py",
+        "line": 245,
+        "note": "calls align after projecting any source-role Form to IPA text"
+      }
+    },
+    "ipakit.bridges.mfa.MFABridge.read_tokens": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/bridges/mfa.py",
+        "line": 53,
+        "note": "delegates external labels to the house-vocabulary reader"
+      }
+    },
+    "ipakit.bridges.vocabulary.VocabularyBridge.read": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/bridges/vocabulary.py",
+        "line": 442,
+        "note": "builds a new Form from parsed house IPA and vocabulary grouping facts"
+      }
+    },
+    "ipakit.features.IPAFeatures.read": {
+      "classification": "preserves",
+      "evidence": {
+        "file": "ipakit/features.py",
+        "line": 3689,
+        "note": "returns an input Form unchanged before any string parsing"
+      }
+    },
+    "ipakit.features.IPAFeatures.read_json": {
+      "classification": "refuses",
+      "evidence": {
+        "file": "ipakit/features.py",
+        "line": 3734,
+        "note": "delegates to Form.from_json and its source-only-tier refusal"
+      }
+    },
+    "ipakit.form.Form.from_dict": {
+      "classification": "refuses",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2184,
+        "note": "delegates native graph admission to Form.from_json"
+      }
+    },
+    "ipakit.form.Form.from_json": {
+      "classification": "refuses",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2218,
+        "note": "raises FormProjectionError when a declared-value tier has no house unit"
+      }
+    },
+    "ipakit.form.Form.from_parsed": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2095,
+        "note": "builds a new Form projection from the house inventory token scan"
+      }
+    },
+    "ipakit.form.Form.of": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2129,
+        "note": "constructs a Form from the supplied house units and intervals"
+      }
+    },
+    "ipakit.form.Form.parse": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2122,
+        "note": "routes a transcription through the house inventory reader"
+      }
+    },
+    "ipakit.form.Form.rebuild": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2513,
+        "note": "constructs from segment and boundary projections plus supplied intervals"
+      }
+    },
+    "ipakit.form.Form.with_tier_intervals": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2426,
+        "note": "calls Form.of with projected units and derived intervals"
+      }
+    },
+    "ipakit.form.Form.without_boundaries": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 2532,
+        "note": "constructs from filtered house units after its interval guard"
+      }
+    },
+    "ipakit.form.FormBuilder.build": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/form.py",
+        "line": 201,
+        "note": "builds a new Form from the builder's house-profile projection input"
+      }
+    },
+    "ipakit.read": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/__init__.py",
+        "line": 217,
+        "note": "parses a string through the default house inventory"
+      }
+    },
+    "ipakit.read_json": {
+      "classification": "refuses",
+      "evidence": {
+        "file": "ipakit/__init__.py",
+        "line": 222,
+        "note": "delegates to IPAFeatures.read_json and Form.from_json admission"
+      }
+    },
+    "ipakit.rules.Derivation.to_form": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/_rewrite_graph.py",
+        "line": 377,
+        "note": "projects trace spellings onto a new house rewrite graph"
+      }
+    },
+    "ipakit.rules.Rule.rewrite": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/rules.py",
+        "line": 2681,
+        "note": "wraps rewritten house units and rebased intervals with Form.of"
+      }
+    },
+    "ipakit.syllable.Syllabifier.__call__": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/syllable.py",
+        "line": 310,
+        "note": "the non-moraic path wraps input house units and derived spans with Form.of"
+      },
+      "uncertain": true
+    },
+    "ipakit.syllable.syllabify": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/syllable.py",
+        "line": 693,
+        "note": "delegates to Syllabifier and returns its Form inside Syllabification"
+      },
+      "uncertain": true
+    },
+    "ipakit.textgrid.read": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/textgrid.py",
+        "line": 802,
+        "note": "constructs from TextGrid-derived house units and intervals with Form.of"
+      }
+    }
+  }
+}
