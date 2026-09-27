@@ -7,8 +7,11 @@ profile refuses other graph layouts rather than dropping their extra content.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
@@ -28,7 +31,20 @@ from ._graph_facts import (
 )
 from ._identity import identity_fingerprint
 from ._provenance import SourceMetadata
-from .clts import Snapshot, read_snapshot, source_policy
+from ._source_receipt import (
+    RECEIPT_SCHEMA_ID,
+    RECEIPT_SCHEMA_VERSION,
+    loads_receipt,
+    validate_receipt,
+)
+from .clts import (
+    DATA,
+    EXTRACTOR_VERSION,
+    ArtifactInvalid,
+    Snapshot,
+    read_snapshot,
+    source_policy,
+)
 
 NAMESPACE = "https://ipakit.dev/tiergraph/clts-source/v1"
 CORE_BIPA_NAMESPACE = "https://ipakit.dev/tiergraph/clts-core-bipa/v1"
@@ -36,7 +52,31 @@ HOUSE_NAMESPACE = "https://ipakit.dev/tiergraph/house-projection/v1"
 PROFILE = "ipakit-clts-source"
 TIERS = ("source-token", "source-sound", "house-projection", "metadata")
 ORDER = tg.QualifiedName(NAMESPACE, "source-order")
-INTERIM_MANIFEST_KIND = "interim-core-bipa-source-policy-snapshot"
+FINAL_MANIFEST_KIND = "final"
+ADAPTER_SCHEMA = {"id": "ipakit-clts-core-bipa-resolution", "version": 1}
+ADAPTER_OUTCOMES: dict[str, Any] = {
+    "entry": "resolved",
+    "excluded": {
+        "marker": "marker",
+        "unknown-source-spelling": "unknown-sound",
+    },
+    "absent": "outside-artifact-domain",
+}
+PROJECTION_POLICY = {"name": "explicit-only", "version": 1, "unsupported": "error"}
+PROFILE_FAMILY = {"id": PROFILE, "version": 1}
+_MANIFEST_FIELDS = (
+    "schema",
+    "kind",
+    "domain",
+    "source-policy",
+    "extractor",
+    "artifacts",
+    "license",
+    "house-declarations",
+    "adapter",
+    "projection-policy",
+    "profile-family",
+)
 DECIDES = (
     "constructor-layout source retention and declared schema",
     "input clock, timings and caller tone-host links",
@@ -70,7 +110,7 @@ class SourceProfileSpec:
     fields: tuple[FeatureDeclaration, ...] = ()
     house_fields: tuple[FeatureDeclaration, ...] = ()
     domains: Mapping[str, tuple[Any, ...]] = field(default_factory=dict)
-    manifest_kind: str = "final"
+    manifest_kind: str = field(kw_only=True)
     identity: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -517,18 +557,111 @@ def _store_relation_order(
     return replace(graph, polyadic_relations=tuple(relations))
 
 
-def interim_manifest_metadata(snapshot: Snapshot) -> dict[str, Any]:
-    """Describe the temporary B4 binding; lane C must replace its kind."""
+def _file_sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise ArtifactInvalid(
+            f"required CLTS manifest input is unavailable: {path.name}"
+        ) from exc
+
+
+def manifest_metadata(
+    data_dir: Path = DATA, *, inventory: Any | None = None
+) -> dict[str, Any]:
+    """Recompute the final core-BIPA receipt from shipped bytes and declarations."""
+    from . import load_ipa_features
+    from ._form_profile import provider_identity
+
+    snapshot_path = data_dir / "core.json"
+    snapshot = read_snapshot(snapshot_path)
+    snapshot_data = snapshot.to_data()
+    if snapshot_data["domain"] != "core-bipa":
+        raise ArtifactInvalid("the final CLTS manifest requires the core-BIPA artifact")
+    if inventory is None:
+        inventory = load_ipa_features()
+    policy = source_policy()
     material = {
-        "kind": INTERIM_MANIFEST_KIND,
-        "source-policy": source_policy(),
-        "snapshot-identity": snapshot.identity,
+        "schema": {"id": RECEIPT_SCHEMA_ID, "version": RECEIPT_SCHEMA_VERSION},
+        "kind": FINAL_MANIFEST_KIND,
+        "domain": "core-bipa",
+        "source-policy": policy,
+        "extractor": {
+            "id": "ipakit.clts.extract_snapshot",
+            "version": EXTRACTOR_VERSION,
+        },
+        "artifacts": {
+            "ipakit/data/clts/core.json": {
+                "sha256": _file_sha256(snapshot_path),
+                "identity": snapshot.identity,
+                "schema": {
+                    "id": snapshot_data["schema"],
+                    "version": snapshot_data["version"],
+                },
+            }
+        },
+        "license": {
+            "id": policy["source"]["license"],
+            "notices": {
+                name: _file_sha256(data_dir / name)
+                for name in ("NOTICE.txt", "MAPPING-NOTICE.txt")
+            },
+        },
+        "house-declarations": {"fingerprint": provider_identity(inventory)},
+        "adapter": {
+            "schema": dict(ADAPTER_SCHEMA),
+            "outcomes": json.loads(json.dumps(ADAPTER_OUTCOMES)),
+        },
+        "projection-policy": dict(PROJECTION_POLICY),
+        "profile-family": dict(PROFILE_FAMILY),
     }
-    return {**material, "fingerprint": identity_fingerprint(material)}
+    manifest = {**material, "fingerprint": identity_fingerprint(material)}
+    try:
+        validate_receipt(manifest)
+    except ValueError as exc:
+        raise ArtifactInvalid(f"invalid generated CLTS manifest: {exc}") from exc
+    return manifest
+
+
+def dumps_manifest(data_dir: Path = DATA) -> str:
+    """Render the deterministic offline CLTS manifest."""
+    return (
+        json.dumps(
+            manifest_metadata(data_dir),
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+def verify_manifest(
+    path: Path | None = None,
+    *,
+    data_dir: Path = DATA,
+    inventory: Any | None = None,
+) -> str:
+    """Verify the committed receipt against the bytes and declarations it binds."""
+    manifest_path = path or data_dir / "manifest.json"
+    try:
+        actual = loads_receipt(manifest_path.read_bytes())
+        if not set(_MANIFEST_FIELDS) <= set(actual):
+            raise ValueError("CLTS manifest lacks required final fields")
+        expected = manifest_metadata(data_dir, inventory=inventory)
+        for field in _MANIFEST_FIELDS:
+            if actual[field] != expected[field]:
+                raise ArtifactInvalid(f"stale CLTS manifest field: {field}")
+        return str(actual["fingerprint"])
+    except (OSError, ValueError) as exc:
+        if isinstance(exc, ArtifactInvalid):
+            raise
+        raise ArtifactInvalid(f"invalid CLTS manifest: {exc}") from exc
 
 
 def require_manifest_kind(spec: SourceProfileSpec, expected: str) -> None:
-    """Let later bindings reject this explicitly non-final manifest kind."""
+    """Require an explicit manifest kind."""
     if not isinstance(expected, str) or not expected:
         raise ValueError("expected manifest kind must be a nonempty string")
     if spec.manifest_kind != expected:
@@ -536,6 +669,14 @@ def require_manifest_kind(spec: SourceProfileSpec, expected: str) -> None:
             f"manifest kind mismatch: expected {expected!r}, "
             f"found {spec.manifest_kind!r}"
         )
+
+
+def require_final_manifest(spec: SourceProfileSpec) -> None:
+    """Require the verified shipped final receipt bound by this profile."""
+    require_manifest_kind(spec, FINAL_MANIFEST_KIND)
+    fingerprint = verify_manifest()
+    if spec.manifest_fingerprint != fingerprint:
+        raise ArtifactInvalid("source profile does not bind the verified CLTS manifest")
 
 
 def core_bipa_spec(
@@ -550,8 +691,13 @@ def core_bipa_spec(
     data = snapshot.to_data()
     if data["domain"] != "core-bipa":
         raise ValueError("core-BIPA profile requires the finite core snapshot")
+    shipped = read_snapshot()
+    if snapshot.identity != shipped.identity:
+        raise ArtifactInvalid(
+            "core-BIPA profile requires the manifested shipped snapshot"
+        )
     source = data["source"]["source"]
-    interim = interim_manifest_metadata(snapshot)
+    manifest_fingerprint = verify_manifest()
     return SourceProfileSpec(
         SourceMetadata(
             source["upstream"],
@@ -562,7 +708,7 @@ def core_bipa_spec(
             source["kind"],
         ),
         snapshot.identity,
-        interim["fingerprint"],
+        manifest_fingerprint,
         mapping_identity,
         ("consonant", "vowel", "tone"),
         tuple(
@@ -573,7 +719,7 @@ def core_bipa_spec(
             FeatureDeclaration("house-symbol", (HOUSE_NAMESPACE, "symbol")),
             FeatureDeclaration("house-kind", (HOUSE_NAMESPACE, "kind")),
         ),
-        manifest_kind=INTERIM_MANIFEST_KIND,
+        manifest_kind=FINAL_MANIFEST_KIND,
     )
 
 
@@ -594,7 +740,7 @@ def core_bipa_resolutions(
             records.append(
                 {
                     "provider": snapshot.identity,
-                    "status": "resolved",
+                    "status": ADAPTER_OUTCOMES["entry"],
                     "sounds": [
                         {
                             "kind": entry["kind"],
@@ -614,11 +760,7 @@ def core_bipa_resolutions(
             )
             continue
         reason = excluded.get(raw)
-        status = {
-            "unknown-source-spelling": "unknown-sound",
-            "marker": "marker",
-            None: "outside-artifact-domain",
-        }[reason]
+        status = ADAPTER_OUTCOMES["excluded"].get(reason, ADAPTER_OUTCOMES["absent"])
         records.append({"provider": snapshot.identity, "status": status, "sounds": []})
     return tuple(records)
 

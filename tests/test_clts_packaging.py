@@ -20,6 +20,8 @@ def test_core_snapshot_and_credit_are_in_actual_wheel(built_wheel: Path) -> None
         assert {
             "ipakit/data/clts/core.json",
             "ipakit/data/clts/source.json",
+            "ipakit/data/clts/manifest.json",
+            "ipakit/data/clts/semantic-mapping.json",
             "ipakit/data/clts/NOTICE.txt",
             "ipakit/data/clts/MAPPING-NOTICE.txt",
         } <= set(archive.namelist())
@@ -63,6 +65,8 @@ def test_actual_sdist_contains_artifact_and_notices_not_untracked(
         assert {
             "ipakit/data/clts/core.json",
             "ipakit/data/clts/source.json",
+            "ipakit/data/clts/manifest.json",
+            "ipakit/data/clts/semantic-mapping.json",
             "ipakit/data/clts/NOTICE.txt",
             "ipakit/data/clts/MAPPING-NOTICE.txt",
         } <= set(names)
