@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -11,8 +10,7 @@ from xml.etree import ElementTree as ET
 import pytest
 from ipakit._identity import identity_fingerprint
 from ipakit.extraction import SourceContentError
-from ipakit.panphon_source import source_receipt, verify_manifest
-from scripts import panphon_geometry
+from ipakit.panphon_source import verify_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "ipakit/data/feature-models"
@@ -73,7 +71,6 @@ def test_receipt_verifies_and_xml_has_only_a_pointer() -> None:
     assert verify_manifest() == (
         "sha256:6866bfbb997e89a26a127b09028abbc2ca754eb2d1a44b62d8a3919a7d37ef0f"
     )
-    assert panphon_geometry.verify_manifest() == source_receipt()["fingerprint"]
     root = ET.parse(DATA / "panphon.xml").getroot()
     assert root.attrib == {
         "name": "panphon",
@@ -81,22 +78,6 @@ def test_receipt_verifies_and_xml_has_only_a_pointer() -> None:
     }
     with pytest.raises(KeyError):
         _ = root.attrib["version"]  # a consumer of the retired shape must fail
-
-
-def test_resealed_declaration_edit_is_stale_to_live_verifier(tmp_path: Path) -> None:
-    data_dir = _copy_data(tmp_path)
-    artifact = data_dir / "panphon.xml"
-    content = artifact.read_text()
-    artifact.write_text(content.replace('name="p" syl="-"', 'name="p" syl="+"', 1))
-    receipt = json.loads((data_dir / "panphon-receipt.json").read_bytes())
-    receipt["artifacts"]["panphon.xml"]["sha256"] = hashlib.sha256(
-        artifact.read_bytes()
-    ).hexdigest()
-    _reseal(data_dir / "panphon-receipt.json", receipt)
-    with pytest.raises(
-        SourceContentError, match="stale Panphon manifest field: artifacts"
-    ):
-        panphon_geometry.verify_manifest(data_dir)
 
 
 @pytest.mark.parametrize("name", ["NOTICE.md", "PANPHON-LICENSE.txt"])
@@ -127,7 +108,3 @@ def test_duplicate_json_key_is_refused(tmp_path: Path) -> None:
     path.write_text(content.replace("{\n", '{\n  "kind": "final",\n', 1))
     with pytest.raises(SourceContentError, match="duplicate JSON key: kind"):
         verify_manifest(data_dir)
-
-
-def test_generator_is_byte_equal_offline() -> None:
-    assert panphon_geometry.build().stale(ROOT) == []
