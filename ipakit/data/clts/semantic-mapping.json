@@ -1,6 +1,6 @@
 {
   "bindings": {
-    "native_metric": "c1af34747f887990",
+    "native_metric": "9297d8de733b833a",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
     "source_inputs": {
       ".zenodo.json": "74cccea55b3ce72643e12bd873cc03d3d51ff548ebc777e134c11b6a082cc9ae",
@@ -4847,7 +4847,7 @@
         "source": [
           "ipakit",
           "release",
-          "no-audible"
+          "bilabial-nasal"
         ],
         "status": "unclassified",
         "targets": []
@@ -4870,7 +4870,7 @@
         "source": [
           "ipakit",
           "release",
-          "glottal"
+          "no-audible"
         ],
         "status": "unclassified",
         "targets": []
@@ -4887,6 +4887,29 @@
           "sequence": false,
           "type": "categorical",
           "value_index": 6,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "release",
+          "glottal"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 7,
           "vocabulary": null
         },
         "direction": "ipakit-to-clts",
@@ -5729,7 +5752,7 @@
         "pkg/transcriptionsystems/features.json": "4a2964f6ccdfde87625b7adccc63323996bbf28ce469f62bcc08f437fde03211"
       },
       "ipakit": {
-        "ipa.xml": "514bb5b7c127db179eb0eb96be13e94667563760315a2efcc7d3f959ca43a263"
+        "ipa.xml": "f0c4174971078d95a2a4b35d502f1784e7d44d88e63f8b5b1f9130a9851dec19"
       }
     },
     "version": 1
@@ -11047,7 +11070,7 @@
         "source": [
           "ipakit",
           "release",
-          "no-audible"
+          "bilabial-nasal"
         ],
         "status": "unresolved pending evidence",
         "targets": []
@@ -11071,7 +11094,7 @@
         "source": [
           "ipakit",
           "release",
-          "glottal"
+          "no-audible"
         ],
         "status": "unresolved pending evidence",
         "targets": []
@@ -11088,6 +11111,30 @@
           "sequence": false,
           "type": "categorical",
           "value_index": 6,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "release",
+          "glottal"
+        ],
+        "status": "unresolved pending evidence",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 7,
           "vocabulary": null
         },
         "direction": "ipakit-to-clts",
@@ -11950,7 +11997,7 @@
       }
     ]
   },
-  "identity": "sha256:f4a5377e6cb9a7ac182f3b61d22d57337e2d8c4228748907452dcf066f2e23f7",
+  "identity": "sha256:aa16d48f4375d92760a47421d910deb92ed90101da0da09158b08daec28176be",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -12002,9 +12049,9 @@
     "enhancement:nasal-release-place": {
       "attempts": [
         {
-          "detail": "Cannot convert IPA segment: unknown symbols ['ᵐ']",
+          "detail": "strict native construction succeeded",
           "distinction": "bilabial rather than generic nasal release",
-          "outcome": "fails",
+          "outcome": "succeeds",
           "witness": "tᵐ"
         },
         {
@@ -12035,12 +12082,6 @@
           "distinction": "superscript uvular release spelling",
           "outcome": "fails",
           "witness": "dʶ"
-        },
-        {
-          "detail": "Cannot convert IPA segment: unknown symbols ['ᵐ']",
-          "distinction": "superscript bilabial nasal release spelling",
-          "outcome": "fails",
-          "witness": "tᵐ"
         }
       ],
       "gap_kind": "notation gap"
@@ -12816,13 +12857,12 @@
         "affected_source_declarations": [
           "clts / consonant / release / with-sibilant-release",
           "clts / consonant / release / with-trilled-release",
-          "clts / consonant / release / with-uvular-release",
-          "clts / consonant / release / with-nasal-release"
+          "clts / consonant / release / with-uvular-release"
         ],
-        "consequence": "Lane H owns parser admission and tests; A3 makes no parser or ipa.xml change.",
+        "consequence": "Their reading remains open; lane H measures the two ruled candidates without shipping either one.",
         "decision": "accepted",
         "evidence": [
-          "The current house reader drops ˢ, ʳ, ʶ and ᵐ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ and reads tⁿ as release=nasal."
+          "The current house reader drops ˢ, ʳ and ʶ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ."
         ],
         "gap_kind": "notation gap",
         "id": "superscript-releases",
@@ -12841,31 +12881,26 @@
             "distinction": "superscript uvular release spelling",
             "expected": "fails",
             "witness": "dʶ"
-          },
-          {
-            "distinction": "superscript bilabial nasal release spelling",
-            "expected": "fails",
-            "witness": "tᵐ"
           }
         ],
-        "reason": "K3 accepts all four BIPA superscript spellings into the house parser, not only a BIPA reader."
+        "reason": "K3 accepts these three BIPA superscript spellings into the house parser, not only a BIPA reader."
       },
       {
         "accepted_for": "H",
         "affected_source_declarations": [
           "clts / consonant / release / with-nasal-release"
         ],
-        "consequence": "Lane H owns the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse.",
+        "consequence": "Implemented by the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse.",
         "decision": "accepted",
         "evidence": [
-          "The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader currently rejects tᵐ and reads tⁿ as release=nasal."
+          "The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader now distinguishes release=bilabial-nasal on tᵐ from release=nasal on tⁿ."
         ],
         "gap_kind": "source-side collapse",
         "id": "nasal-release-place",
         "native_construction_attempts": [
           {
             "distinction": "bilabial rather than generic nasal release",
-            "expected": "fails",
+            "expected": "succeeds",
             "witness": "tᵐ"
           },
           {
@@ -13010,7 +13045,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 5
+    "version": 6
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 2

@@ -1,6 +1,6 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 5,
+  "version": 6,
   "disposition_classes": [
     "exact under stated conditions",
     "conditional/composite",
@@ -104,18 +104,16 @@
       "affected_source_declarations": [
         "clts / consonant / release / with-sibilant-release",
         "clts / consonant / release / with-trilled-release",
-        "clts / consonant / release / with-uvular-release",
-        "clts / consonant / release / with-nasal-release"
+        "clts / consonant / release / with-uvular-release"
       ],
-      "evidence": ["The current house reader drops ˢ, ʳ, ʶ and ᵐ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ and reads tⁿ as release=nasal."],
+      "evidence": ["The current house reader drops ˢ, ʳ and ʶ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ."],
       "native_construction_attempts": [
         {"witness": "tˢ", "expected": "fails", "distinction": "superscript sibilant release spelling"},
         {"witness": "dʳ", "expected": "fails", "distinction": "superscript trilled release spelling"},
-        {"witness": "dʶ", "expected": "fails", "distinction": "superscript uvular release spelling"},
-        {"witness": "tᵐ", "expected": "fails", "distinction": "superscript bilabial nasal release spelling"}
+        {"witness": "dʶ", "expected": "fails", "distinction": "superscript uvular release spelling"}
       ],
-      "reason": "K3 accepts all four BIPA superscript spellings into the house parser, not only a BIPA reader.",
-      "consequence": "Lane H owns parser admission and tests; A3 makes no parser or ipa.xml change."
+      "reason": "K3 accepts these three BIPA superscript spellings into the house parser, not only a BIPA reader.",
+      "consequence": "Their reading remains open; lane H measures the two ruled candidates without shipping either one."
     },
     {
       "id": "nasal-release-place",
@@ -123,13 +121,13 @@
       "decision": "accepted",
       "accepted_for": "H",
       "affected_source_declarations": ["clts / consonant / release / with-nasal-release"],
-      "evidence": ["The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader currently rejects tᵐ and reads tⁿ as release=nasal."],
+      "evidence": ["The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader now distinguishes release=bilabial-nasal on tᵐ from release=nasal on tⁿ."],
       "native_construction_attempts": [
-        {"witness": "tᵐ", "expected": "fails", "distinction": "bilabial rather than generic nasal release"},
+        {"witness": "tᵐ", "expected": "succeeds", "distinction": "bilabial rather than generic nasal release"},
         {"witness": "tⁿ", "expected": "succeeds", "distinction": "existing generic nasal release"}
       ],
       "reason": "K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added.",
-      "consequence": "Lane H owns the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse."
+      "consequence": "Implemented by the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse."
     },
     {
       "id": "unspecified-values",

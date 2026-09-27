@@ -189,6 +189,7 @@ class TestTheDataSaysWhatThePythonUsedTo:
                 ("manner", "nasal"),
                 ("nasalized", "+"),
                 ("release", "nasal"),
+                ("release", "bilabial-nasal"),
                 ("approach", "nasal"),
             ),
             "protrusion": (("rounded", "+"), ("labialized", "+")),

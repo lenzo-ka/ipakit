@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:f4a5377e6cb9a7ac182f3b61d22d57337e2d8c4228748907452dcf066f2e23f7`.
+Mapping identity: `sha256:aa16d48f4375d92760a47421d910deb92ed90101da0da09158b08daec28176be`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
@@ -293,6 +293,7 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | ipakit_to_clts | ipakit / release / breathy | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / lateral | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / nasal | unresolved pending evidence |  |
+| ipakit_to_clts | ipakit / release / bilabial-nasal | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / no-audible | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / glottal | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / schwa | unresolved pending evidence |  |
@@ -353,8 +354,8 @@ A release realized as another segment is represented by a constituent sequence. 
 
 ## Accepted for lane H
 
-- `superscript-releases` — notation gap; accepted. K3 accepts all four BIPA superscript spellings into the house parser, not only a BIPA reader. Lane H owns parser admission and tests; A3 makes no parser or ipa.xml change. Evidence: The current house reader drops ˢ, ʳ, ʶ and ᵐ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ and reads tⁿ as release=nasal. Native construction: `tˢ` fails (superscript sibilant release spelling); `dʳ` fails (superscript trilled release spelling); `dʶ` fails (superscript uvular release spelling); `tᵐ` fails (superscript bilabial nasal release spelling).
-- `nasal-release-place` — source-side collapse; accepted. K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added. Lane H owns the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse. Evidence: The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader currently rejects tᵐ and reads tⁿ as release=nasal. Native construction: `tᵐ` fails (bilabial rather than generic nasal release); `tⁿ` succeeds (existing generic nasal release).
+- `superscript-releases` — notation gap; accepted. K3 accepts these three BIPA superscript spellings into the house parser, not only a BIPA reader. Their reading remains open; lane H measures the two ruled candidates without shipping either one. Evidence: The current house reader drops ˢ, ʳ and ʶ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ. Native construction: `tˢ` fails (superscript sibilant release spelling); `dʳ` fails (superscript trilled release spelling); `dʶ` fails (superscript uvular release spelling).
+- `nasal-release-place` — source-side collapse; accepted. K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added. Implemented by the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse. Evidence: The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader now distinguishes release=bilabial-nasal on tᵐ from release=nasal on tⁿ. Native construction: `tᵐ` succeeds (bilabial rather than generic nasal release); `tⁿ` succeeds (existing generic nasal release).
 
 ## Other structural and enhancement dispositions
 

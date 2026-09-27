@@ -172,8 +172,9 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # their release: one further pair each, at the other phase.
         # 73 after the strong-articulation mark added fortis=+.
         # 74 after written overlong extended the prosodic length scale.
-        assert len(pairs) == 74, f"{len(pairs)} declared pairs, not 74"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10286
+        # 75 after bilabial nasal release became distinct from generic nasal.
+        assert len(pairs) == 75, f"{len(pairs)} declared pairs, not 75"
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10425
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (
@@ -544,6 +545,12 @@ def confluence() -> (
     rows = []
     for base in self_spelling_phones():
         for first, second in pairs:
+            # Confluence compares two valid orders. A request that is
+            # inapplicable to the base but becomes applicable after the
+            # other request is a conditional admission, not two orders of
+            # the same pair of changes.
+            if _then(base, first) is None or _then(base, second) is None:
+                continue
             rows.append(
                 (
                     base,
@@ -580,7 +587,7 @@ class TestCompositionIsConfluent:
 
     def test_either_order_gives_one_spelling(self, confluence) -> None:
         diverged = [row for row in confluence if row[3] != row[4]]
-        assert len(confluence) > 20000, f"sweep did not run: {len(confluence)}"
+        assert len(confluence) > 10000, f"sweep did not run: {len(confluence)}"
         assert not diverged, f"{len(diverged)} diverged, first: {diverged[:3]}"
 
     def test_one_call_says_what_two_calls_say(self, confluence) -> None:
