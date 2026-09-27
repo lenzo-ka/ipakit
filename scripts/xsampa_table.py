@@ -125,6 +125,12 @@ UNMAPPABLE: dict[str, str] = {
     # laminal (`̻`). Either spelling would erase or misstate K4's place
     # distinction, and X-SAMPA declares no separate bilabial-nasal release.
     "ᵐ": "bilabial nasal release: no distinct X-SAMPA diacritic",
+    # X-SAMPA declares no sibilant-, trilled-, or uvular-release diacritics.
+    # Reusing its existing s/r/uvular notation would state a whole segment or
+    # another diacritic rather than preserve these release-phase values.
+    "ˢ": "sibilant release: no X-SAMPA diacritic",
+    "ʳ": "trilled release: no X-SAMPA diacritic",
+    "ʶ": "uvular release: no X-SAMPA diacritic",
     # The extIPA strong-articulation mark has no X-SAMPA counterpart.
     "͈": "strong articulation: no X-SAMPA diacritic",
     # The one entry here that X-SAMPA COULD spell, declined rather than

@@ -47,12 +47,10 @@ cleared by the core-data notice. The
 artifact's sources, transformations and attribution.
 A conditional-witness rule applies only in its stated complete-token context.
 The release rows are narrower declaration correspondences: unreleased, lateral,
-nasal and schwa-colored release map to existing `release` values, while sibilant,
-trilled and uvular release name constituent-sequence forms. A segmental release
-is a constituent; a manner or phonation quality can remain a `release` value.
-No new value is introduced to flatten a segment into that feature. Unproven
-entries remain explicitly unresolved. Every reverse-direction entry remains
-unresolved.
+nasal, schwa-colored, sibilant, trilled and uvular release map to exact
+`release` values under their stated conditions. The superscript phase marks
+remain distinct from tied constituent sequences. Unproven entries remain
+explicitly unresolved. Every reverse-direction entry remains unresolved.
 
 The reviewed authored rules live in
 [semantic-rules.json](../ipakit/data/clts/semantic-rules.json). The generated

@@ -347,7 +347,7 @@ The same instrument over the repaired matrix reads differently, and the differen
 
 ```text
 $ pip install -e ".[compare]" && python scripts/geometry.py
-confusion.json SHA-256                  6ba779d45ac051c1bdbaed78dd664e7eceae86006018c48bf057a1034ba89edd
+confusion.json SHA-256                  026088774a47936a801bf09019ea0923ed1b6ebc53c9b1d977bcc52c23cfeb18
 phones                                  138
 negative eigenvalue mass                12.3%
 leading positive variance               43.5%
@@ -366,7 +366,7 @@ from hashlib import sha256
 from pathlib import Path
 
 sha256(Path("ipakit/data/confusion.json").read_bytes()).hexdigest()
-# '6ba779d45ac051c1bdbaed78dd664e7eceae86006018c48bf057a1034ba89edd'
+# '026088774a47936a801bf09019ea0923ed1b6ebc53c9b1d977bcc52c23cfeb18'
 ```
 
 A distance change moves every one of these, so a reading taken at a different commit will differ. The script states the two predicates the correlations are taken against — a phone is composite when its segment reports more than one constituent, and a vowel when its description ends in the word — because a correlation against an unstated predicate cannot be reproduced at all.

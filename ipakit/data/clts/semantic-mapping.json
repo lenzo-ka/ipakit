@@ -1,6 +1,6 @@
 {
   "bindings": {
-    "native_metric": "9297d8de733b833a",
+    "native_metric": "2de71245b8c290a3",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
     "source_inputs": {
       ".zenodo.json": "74cccea55b3ce72643e12bd873cc03d3d51ff548ebc777e134c11b6a082cc9ae",
@@ -4870,7 +4870,7 @@
         "source": [
           "ipakit",
           "release",
-          "no-audible"
+          "sibilant"
         ],
         "status": "unclassified",
         "targets": []
@@ -4893,7 +4893,7 @@
         "source": [
           "ipakit",
           "release",
-          "glottal"
+          "trilled"
         ],
         "status": "unclassified",
         "targets": []
@@ -4910,6 +4910,75 @@
           "sequence": false,
           "type": "categorical",
           "value_index": 7,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "release",
+          "uvular"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 8,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "release",
+          "no-audible"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 9,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "source": [
+          "ipakit",
+          "release",
+          "glottal"
+        ],
+        "status": "unclassified",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 10,
           "vocabulary": null
         },
         "direction": "ipakit-to-clts",
@@ -5752,7 +5821,7 @@
         "pkg/transcriptionsystems/features.json": "4a2964f6ccdfde87625b7adccc63323996bbf28ce469f62bcc08f437fde03211"
       },
       "ipakit": {
-        "ipa.xml": "f0c4174971078d95a2a4b35d502f1784e7d44d88e63f8b5b1f9130a9851dec19"
+        "ipa.xml": "0404fb2a3673a786d299f48bb17c17eca0f2177de9439e22a17fdbd5a159a511"
       }
     },
     "version": 1
@@ -6878,7 +6947,7 @@
         "declared": true,
         "direction": "clts-to-ipakit",
         "rule_ids": [
-          "release-sibilant-sequence/1"
+          "release-sibilant/1"
         ],
         "source": [
           "clts",
@@ -6886,23 +6955,16 @@
           "release",
           "with-sibilant-release"
         ],
-        "status": "conditional/composite",
+        "status": "exact under stated conditions",
         "targets": [
           {
-            "constituents": [
-              {
-                "manner": "plosive"
-              },
-              {
-                "channel": "grooved",
-                "manner": "fricative"
-              }
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "sibilant"
             ],
-            "form": "sequence",
-            "juncture": "unasserted",
-            "name": "plosive + sibilant fricative",
-            "witness": "t͡s",
-            "witness_juncture": "fuse"
+            "witness": "tˢ"
           }
         ]
       },
@@ -6910,7 +6972,7 @@
         "declared": true,
         "direction": "clts-to-ipakit",
         "rule_ids": [
-          "release-trilled-sequence/1"
+          "release-trilled/1"
         ],
         "source": [
           "clts",
@@ -6918,22 +6980,16 @@
           "release",
           "with-trilled-release"
         ],
-        "status": "conditional/composite",
+        "status": "exact under stated conditions",
         "targets": [
           {
-            "constituents": [
-              {
-                "manner": "plosive"
-              },
-              {
-                "manner": "trill"
-              }
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "trilled"
             ],
-            "form": "sequence",
-            "juncture": "unasserted",
-            "name": "plosive + trill",
-            "witness": "d͡r",
-            "witness_juncture": "fuse"
+            "witness": "dʳ"
           }
         ]
       },
@@ -6941,7 +6997,7 @@
         "declared": true,
         "direction": "clts-to-ipakit",
         "rule_ids": [
-          "release-uvular-sequence/1"
+          "release-uvular/1"
         ],
         "source": [
           "clts",
@@ -6949,23 +7005,16 @@
           "release",
           "with-uvular-release"
         ],
-        "status": "conditional/composite",
+        "status": "exact under stated conditions",
         "targets": [
           {
-            "constituents": [
-              {
-                "manner": "plosive"
-              },
-              {
-                "manner": "fricative",
-                "place": "uvular"
-              }
+            "form": "feature",
+            "path": [
+              "ipakit",
+              "release",
+              "uvular"
             ],
-            "form": "sequence",
-            "juncture": "unasserted",
-            "name": "plosive + uvular fricative",
-            "witness": "d͡ʁ",
-            "witness_juncture": "fuse"
+            "witness": "dʶ"
           }
         ]
       },
@@ -11094,7 +11143,7 @@
         "source": [
           "ipakit",
           "release",
-          "no-audible"
+          "sibilant"
         ],
         "status": "unresolved pending evidence",
         "targets": []
@@ -11118,7 +11167,7 @@
         "source": [
           "ipakit",
           "release",
-          "glottal"
+          "trilled"
         ],
         "status": "unresolved pending evidence",
         "targets": []
@@ -11135,6 +11184,78 @@
           "sequence": false,
           "type": "categorical",
           "value_index": 7,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "release",
+          "uvular"
+        ],
+        "status": "unresolved pending evidence",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 8,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "release",
+          "no-audible"
+        ],
+        "status": "unresolved pending evidence",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 9,
+          "vocabulary": null
+        },
+        "direction": "ipakit-to-clts",
+        "rule_ids": [],
+        "source": [
+          "ipakit",
+          "release",
+          "glottal"
+        ],
+        "status": "unresolved pending evidence",
+        "targets": []
+      },
+      {
+        "context": {
+          "applies": [],
+          "axis": null,
+          "center": null,
+          "default": null,
+          "locus": null,
+          "mode": "release",
+          "offscale": false,
+          "sequence": false,
+          "type": "categorical",
+          "value_index": 10,
           "vocabulary": null
         },
         "direction": "ipakit-to-clts",
@@ -11997,7 +12118,7 @@
       }
     ]
   },
-  "identity": "sha256:aa16d48f4375d92760a47421d910deb92ed90101da0da09158b08daec28176be",
+  "identity": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -12066,21 +12187,21 @@
     "enhancement:superscript-releases": {
       "attempts": [
         {
-          "detail": "Cannot convert IPA segment: unknown symbols ['ˢ']",
+          "detail": "strict native construction succeeded",
           "distinction": "superscript sibilant release spelling",
-          "outcome": "fails",
+          "outcome": "succeeds",
           "witness": "tˢ"
         },
         {
-          "detail": "Cannot convert IPA segment: unknown symbols ['ʳ']",
+          "detail": "strict native construction succeeded",
           "distinction": "superscript trilled release spelling",
-          "outcome": "fails",
+          "outcome": "succeeds",
           "witness": "dʳ"
         },
         {
-          "detail": "Cannot convert IPA segment: unknown symbols ['ʶ']",
+          "detail": "strict native construction succeeded",
           "distinction": "superscript uvular release spelling",
-          "outcome": "fails",
+          "outcome": "succeeds",
           "witness": "dʶ"
         }
       ],
@@ -12326,40 +12447,29 @@
       ],
       "witness": "tᵊ"
     },
-    "release-sibilant-sequence/1": {
-      "constituents": [
-        {
-          "manner": "plosive"
-        },
-        {
-          "channel": "grooved",
-          "manner": "fricative"
-        }
+    "release-sibilant/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "sibilant",
+      "read": "constituent-bundle",
+      "target": [
+        "ipakit",
+        "release",
+        "sibilant"
       ],
-      "form": "sequence",
-      "juncture": "unasserted",
-      "name": "plosive + sibilant fricative",
-      "observed_junctures": [
-        "fuse"
-      ],
-      "witness": "t͡s"
+      "witness": "tˢ"
     },
-    "release-trilled-sequence/1": {
-      "constituents": [
-        {
-          "manner": "plosive"
-        },
-        {
-          "manner": "trill"
-        }
+    "release-trilled/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "trilled",
+      "read": "constituent-bundle",
+      "target": [
+        "ipakit",
+        "release",
+        "trilled"
       ],
-      "form": "sequence",
-      "juncture": "unasserted",
-      "name": "plosive + trill",
-      "observed_junctures": [
-        "fuse"
-      ],
-      "witness": "d͡r"
+      "witness": "dʳ"
     },
     "release-unreleased/1": {
       "constituents": 1,
@@ -12373,23 +12483,17 @@
       ],
       "witness": "t̚"
     },
-    "release-uvular-sequence/1": {
-      "constituents": [
-        {
-          "manner": "plosive"
-        },
-        {
-          "manner": "fricative",
-          "place": "uvular"
-        }
+    "release-uvular/1": {
+      "constituents": 1,
+      "form": "feature",
+      "observed_value": "uvular",
+      "read": "constituent-bundle",
+      "target": [
+        "ipakit",
+        "release",
+        "uvular"
       ],
-      "form": "sequence",
-      "juncture": "unasserted",
-      "name": "plosive + uvular fricative",
-      "observed_junctures": [
-        "fuse"
-      ],
-      "witness": "d͡ʁ"
+      "witness": "dʶ"
     },
     "vowel-duration-long/1": {
       "constituents": 1,
@@ -12520,8 +12624,8 @@
         }
       },
       {
-        "disposition": "conditional/composite",
-        "id": "release-sibilant-sequence/1",
+        "disposition": "exact under stated conditions",
+        "id": "release-sibilant/1",
         "preconditions": {
           "host": {
             "manner": "stop"
@@ -12534,25 +12638,18 @@
           "with-sibilant-release"
         ],
         "target": {
-          "constituents": [
-            {
-              "manner": "plosive"
-            },
-            {
-              "channel": "grooved",
-              "manner": "fricative"
-            }
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "sibilant"
           ],
-          "form": "sequence",
-          "juncture": "unasserted",
-          "name": "plosive + sibilant fricative",
-          "witness": "t͡s",
-          "witness_juncture": "fuse"
+          "witness": "tˢ"
         }
       },
       {
-        "disposition": "conditional/composite",
-        "id": "release-trilled-sequence/1",
+        "disposition": "exact under stated conditions",
+        "id": "release-trilled/1",
         "preconditions": {
           "host": {
             "manner": "stop"
@@ -12565,24 +12662,18 @@
           "with-trilled-release"
         ],
         "target": {
-          "constituents": [
-            {
-              "manner": "plosive"
-            },
-            {
-              "manner": "trill"
-            }
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "trilled"
           ],
-          "form": "sequence",
-          "juncture": "unasserted",
-          "name": "plosive + trill",
-          "witness": "d͡r",
-          "witness_juncture": "fuse"
+          "witness": "dʳ"
         }
       },
       {
-        "disposition": "conditional/composite",
-        "id": "release-uvular-sequence/1",
+        "disposition": "exact under stated conditions",
+        "id": "release-uvular/1",
         "preconditions": {
           "host": {
             "manner": "stop"
@@ -12595,20 +12686,13 @@
           "with-uvular-release"
         ],
         "target": {
-          "constituents": [
-            {
-              "manner": "plosive"
-            },
-            {
-              "manner": "fricative",
-              "place": "uvular"
-            }
+          "form": "feature",
+          "path": [
+            "ipakit",
+            "release",
+            "uvular"
           ],
-          "form": "sequence",
-          "juncture": "unasserted",
-          "name": "plosive + uvular fricative",
-          "witness": "d͡ʁ",
-          "witness_juncture": "fuse"
+          "witness": "dʶ"
         }
       },
       {
@@ -12859,31 +12943,31 @@
           "clts / consonant / release / with-trilled-release",
           "clts / consonant / release / with-uvular-release"
         ],
-        "consequence": "Their reading remains open; lane H measures the two ruled candidates without shipping either one.",
+        "consequence": "Implemented by the bounded native values, parser behavior and tests; the tied constituent sequences remain distinct.",
         "decision": "accepted",
         "evidence": [
-          "The current house reader drops ˢ, ʳ and ʶ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ."
+          "The strict house reader now constructs tˢ, dʳ and dʶ as one-constituent release-marked stops, distinct from the tied t͡s, d͡r and d͡ʁ forms."
         ],
         "gap_kind": "notation gap",
         "id": "superscript-releases",
         "native_construction_attempts": [
           {
             "distinction": "superscript sibilant release spelling",
-            "expected": "fails",
+            "expected": "succeeds",
             "witness": "tˢ"
           },
           {
             "distinction": "superscript trilled release spelling",
-            "expected": "fails",
+            "expected": "succeeds",
             "witness": "dʳ"
           },
           {
             "distinction": "superscript uvular release spelling",
-            "expected": "fails",
+            "expected": "succeeds",
             "witness": "dʶ"
           }
         ],
-        "reason": "K3 accepts these three BIPA superscript spellings into the house parser, not only a BIPA reader."
+        "reason": "R1 reads the three superscripts as the release=sibilant, release=trilled and release=uvular phase values."
       },
       {
         "accepted_for": "H",
@@ -12965,7 +13049,7 @@
       "Resolver witnesses aː, aˑ, aːː, ă, tː, tˑ and tːː assert the reviewed duration values; native feature_values preserves their distinct written length values."
     ],
     "profile_binding": null,
-    "release_adjudication": "A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.",
+    "release_adjudication": "A superscript phase mark is represented by a value of the release feature. A tie asserts a constituent sequence and remains distinct from that release value.",
     "rules": [
       {
         "disposition": "conditional/composite",
@@ -13045,7 +13129,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 6
+    "version": 7
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 2

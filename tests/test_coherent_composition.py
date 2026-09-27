@@ -173,8 +173,9 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # 73 after the strong-articulation mark added fortis=+.
         # 74 after written overlong extended the prosodic length scale.
         # 75 after bilabial nasal release became distinct from generic nasal.
-        assert len(pairs) == 75, f"{len(pairs)} declared pairs, not 75"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10425
+        # 78 after sibilant, trilled and uvular release became phase values.
+        assert len(pairs) == 78, f"{len(pairs)} declared pairs, not 78"
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10842
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (

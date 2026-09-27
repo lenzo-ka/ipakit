@@ -3,7 +3,7 @@
     {
       "bytes": 184718,
       "path": "ipakit/data/confusion.json",
-      "sha256": "6ba779d45ac051c1bdbaed78dd664e7eceae86006018c48bf057a1034ba89edd"
+      "sha256": "026088774a47936a801bf09019ea0923ed1b6ebc53c9b1d977bcc52c23cfeb18"
     },
     {
       "bytes": 5877,
@@ -88,12 +88,12 @@
     {
       "bytes": 42960,
       "path": "docs/figures/perhaps-i-am-a-bad-man.dot",
-      "sha256": "4bb3f60b28f945cb2238baaef01a5fdfca567e310e0d0e2fb7a24fb1e07bb6b8"
+      "sha256": "c26d0951b0e2f2c98e159968da5f0a75394891dc3bf1c18fa855e481f951512e"
     },
     {
       "bytes": 120777,
       "path": "docs/figures/derived-from-boundaries.dot",
-      "sha256": "2eaed3f4cc5dcb42c3a787bc0c24883bafdbd22af47c5eedc29707930bad525d"
+      "sha256": "4667c76dd4e46d0635ddbaaa3c3e5a4c9367ab07529052ca80d43066272aa3f4"
     }
   ],
   "format": 1,
