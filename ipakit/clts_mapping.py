@@ -410,6 +410,11 @@ class MappingAuthority:
                 "B2 binding is not implemented by this authority version"
             )
         validate_declaration_census(data["census"])
+        for name, actual in data["census"]["sources"]["clts"].items():
+            if pin["inputs"].get(name) != actual:
+                raise MappingInvalid(
+                    f"census source input differs from accepted policy: {name}"
+                )
         if "catalog" in data["census"]:
             raise MappingInvalid(
                 "catalog research payload is not admitted in shipped mapping authority"
@@ -660,9 +665,11 @@ def read_authority(path: Path | None = None) -> MappingAuthority:
     )
 
 
-def build_mapping_artifacts(root: Path) -> BuildResult:
+def build_mapping_artifacts(
+    root: Path, *, snapshot: Snapshot | None = None
+) -> BuildResult:
     """Explicit development output using the shared artifact-build contract."""
-    authority = build_authority(root)
+    authority = build_authority(root, snapshot=snapshot)
     path = Path("ipakit/data/clts/semantic-mapping.json")
     report = Path("docs/clts-gaps.md")
     return BuildResult(

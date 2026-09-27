@@ -27,6 +27,7 @@ from ipakit.clts_mapping import (
     _native_witnesses,
     _queues,
     _source_witnesses,
+    build_mapping_artifacts,
     read_authority,
     reviewed_rules,
 )
@@ -38,6 +39,41 @@ def reseal(data: dict) -> dict:
         {k: v for k, v in data.items() if k != "identity"}
     )
     return data
+
+
+def test_resealed_census_with_wrong_source_hash_is_refused_offline() -> None:
+    data = read_authority().to_data()
+    data["census"]["clts_to_ipakit"].pop()
+    name = "pkg/transcriptionsystems/features.json"
+    data["census"]["sources"]["clts"][name] = "0" * 64
+    data["dispositions"] = _queues(data["census"], data["rules"])
+    with pytest.raises(MappingInvalid, match=f"accepted policy: {name}"):
+        MappingAuthority(reseal(data))
+
+
+def test_offline_mapping_artifacts_match_their_committed_bytes() -> None:
+    root = Path(__file__).resolve().parents[1]
+    authority = read_authority()
+    assert (
+        authority.dumps().encode()
+        == (root / "ipakit/data/clts/semantic-mapping.json").read_bytes()
+    )
+    assert authority.gap_report().encode() == (root / "docs/clts-gaps.md").read_bytes()
+
+
+def test_live_mapping_regeneration_is_current_and_deterministic() -> None:
+    value = os.environ.get("IPAKIT_CLTS_DIR")
+    if not value:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for live mapping regeneration")
+    pytest.importorskip("pyclts")
+    root = Path(__file__).resolve().parents[1]
+    first = build_mapping_artifacts(Path(value))
+    assert set(first.artifacts) == {
+        Path("ipakit/data/clts/semantic-mapping.json"),
+        Path("docs/clts-gaps.md"),
+    }
+    assert first.stale(root) == []
+    assert build_mapping_artifacts(Path(value)).artifacts == first.artifacts
 
 
 def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:

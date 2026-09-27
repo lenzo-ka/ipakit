@@ -76,8 +76,26 @@ def _clts_producer() -> _Producer:
         source["upstream-url"],
         tuple("/" + name for name in sorted(policy["inputs"])),
         lambda path: clts.validate_source(path).digests,
-        clts.build_core,
+        _build_clts,
     )
+
+
+def _build_clts(source: Path) -> BuildResult:
+    """Build every CLTS-derived artifact as one refresh transaction."""
+    from ipakit._clts_profile import dumps_manifest
+    from ipakit.clts_mapping import build_mapping_artifacts
+
+    core = clts.build_core(source)
+    core_path = Path("ipakit/data/clts/core.json")
+    snapshot = clts.Snapshot(json.loads(core.artifacts[core_path]))
+    mapping = build_mapping_artifacts(source, snapshot=snapshot)
+    manifest_path = Path("ipakit/data/clts/manifest.json")
+    artifacts = {
+        **core.artifacts,
+        **mapping.artifacts,
+        manifest_path: dumps_manifest(snapshot=snapshot).encode("utf-8"),
+    }
+    return BuildResult(artifacts, tuple(artifacts), core.source)
 
 
 def _phoible_producer() -> _Producer:
