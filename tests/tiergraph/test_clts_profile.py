@@ -222,7 +222,7 @@ def test_core_bipa_spec_binds_snapshot_and_labeled_interim_manifest():
     interim = interim_manifest_metadata(snapshot)
     assert schema.provider_fingerprint == snapshot.identity
     assert schema.mapping_identity == (
-        "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa"
+        "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb"
     )
     assert schema.manifest_kind == interim["kind"] == INTERIM_MANIFEST_KIND
     assert schema.manifest_fingerprint == interim["fingerprint"]
@@ -265,7 +265,7 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         "outside-artifact-domain",
         "resolved",
     ]
-    mapping = "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa"
+    mapping = "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb"
     assert projections == (
         {
             "mapping": mapping,

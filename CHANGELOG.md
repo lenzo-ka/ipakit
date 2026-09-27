@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Feature-valued CLTS release rules now state and enforce their source-assertion condition.
 - The public Form reader refuses declared source facts on a tier with no house unit.
 - Source-profile host relations preserve their supplied order through native graph restoration.
 - CLTS mapping dispositions use the reviewed audit classes, and segmental-release sequences state and enforce their host and juncture limits.

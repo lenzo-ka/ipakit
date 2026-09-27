@@ -1,6 +1,6 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 7,
+  "version": 8,
   "disposition_classes": [
     "exact under stated conditions",
     "conditional/composite",
@@ -27,10 +27,10 @@
   ],
   "release_adjudication": "A superscript phase mark is represented by a value of the release feature. A tie asserts a constituent sequence and remains distinct from that release value.",
   "declaration_rules": [
-    {"id": "release-unreleased/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "unreleased"], "target": {"form": "feature", "path": ["ipakit", "release", "no-audible"], "witness": "t̚"}},
-    {"id": "release-lateral/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-lateral-release"], "target": {"form": "feature", "path": ["ipakit", "release", "lateral"], "witness": "tˡ"}},
-    {"id": "release-schwa/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-mid-central-vowel-release"], "target": {"form": "feature", "path": ["ipakit", "release", "schwa"], "witness": "tᵊ"}},
-    {"id": "release-nasal/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-nasal-release"], "target": {"form": "feature", "path": ["ipakit", "release", "nasal"], "witness": "tⁿ"}},
+    {"id": "release-unreleased/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "unreleased"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "release", "no-audible"], "witness": "t̚"}},
+    {"id": "release-lateral/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-lateral-release"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "release", "lateral"], "witness": "tˡ"}},
+    {"id": "release-schwa/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-mid-central-vowel-release"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "release", "schwa"], "witness": "tᵊ"}},
+    {"id": "release-nasal/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-nasal-release"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "release", "nasal"], "witness": "tⁿ"}},
     {"id": "release-sibilant/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-sibilant-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "feature", "path": ["ipakit", "release", "sibilant"], "witness": "tˢ"}},
     {"id": "release-trilled/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-trilled-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "feature", "path": ["ipakit", "release", "trilled"], "witness": "dʳ"}},
     {"id": "release-uvular/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "release", "with-uvular-release"], "preconditions": {"host": {"manner": "stop"}}, "target": {"form": "feature", "path": ["ipakit", "release", "uvular"], "witness": "dʶ"}},
