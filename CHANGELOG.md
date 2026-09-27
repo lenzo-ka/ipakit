@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The public Form reader refuses declared source facts on a tier with no house unit.
 - CLTS mapping dispositions use the reviewed audit classes, and segmental-release sequences state and enforce their host and juncture limits.
 - The CLTS declaration census refuses a same-kind value spelling declared under multiple features.
 - `ipakit corpus validate` exits 3 when a stored form holds a symbol the inventory does not register.
