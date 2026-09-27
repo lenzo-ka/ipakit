@@ -115,9 +115,9 @@ item references resolve these events; rebuilding requires a declared identity
 policy rather than assuming an array offset is a cross-revision identifier.
 
 Full native restoration is distinct from restoring a public Form. The public
-Form JSON API remains the linear version 2 projection described below; native
-source-profile restoration, identity and complete-projection guards must be
-implemented before exposing incomplete foreign-source Forms.
+Form JSON API writes and reads the current native graph bound to the Form
+profile, and refuses historical linear documents. Internal source-profile
+graphs have their own bound restorer and are not admitted as public Forms.
 
 Only edges of the same relation declaration marked `acyclic` participate in one cycle check. A cycle formed by combining two separately acyclic relation types is allowed unless a future declaration explicitly gives that union a shared constraint.
 
@@ -144,15 +144,15 @@ qualified JSON values independently of the house views.
 An explicitly selected custom render lane may read its declared qualified
 values.
 
-Opted-in values use tiergraph's `json_value_graph` constructors and
-`JsonValueProfile`, including for scalar values. A qualified relation connects
-each event to its value root; native value nodes, membership relations and typed
-attributes retain nested objects and ordered arrays. Null, false and absence
-remain distinct. The internal `declared_value` reader uses the same native
-profile after graph restoration. Python objects, byte strings, non-string
-object keys and nonfinite numbers are refused. Values are stored as native
-graph structure. This internal storage facility preserves ordinary IPA Form
-equality; CLTS import requires the additional source-profile contracts above.
+Opted-in values use one item-domain JSON attribute declaration and one
+`JsonAttributeValue` directly on the owning event, including for scalars.
+Nested objects and ordered arrays remain JSON inside that attribute; they do
+not add value tiers or relations. Null, false and absence remain distinct. The
+internal `declared_value` reader requires that exact qualified JSON attribute
+after graph restoration. Python objects, byte strings, non-string object keys
+and nonfinite numbers are refused. This internal storage facility preserves
+ordinary IPA Form equality; CLTS import requires the additional source-profile
+contracts above.
 
 Declared source/target tier restrictions on event-only relations are lowered
 to native relation-side declarations and enforced there. This does not infer
