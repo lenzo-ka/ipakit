@@ -48,5 +48,5 @@ prune tests/.pytest_cache
 # Bridge declarations and the grammars stating their shape.
 recursive-include ipakit/data/bridges *.xml *.rng
 recursive-include ipakit/data/textgrid *.json
-recursive-include ipakit/data/feature-models *.xml *.txt *.md
+recursive-include ipakit/data/feature-models *.xml *.txt *.md *-receipt.json
 recursive-include ipakit/data/phoible *.gz *.txt *.json

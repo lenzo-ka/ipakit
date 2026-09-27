@@ -87,6 +87,7 @@ ipakit = [
     "data/feature-models/*.xml",
     "data/feature-models/*.txt",
     "data/feature-models/*.md",
+    "data/feature-models/*-receipt.json",
     "data/phonemaps/*.xml",
     "data/phonemaps/*.rng",
     "data/supplements/*.xml",

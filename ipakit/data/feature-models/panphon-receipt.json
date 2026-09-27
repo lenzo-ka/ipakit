@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "panphon.xml": {
+      "sha256": "dc782cfbb1fd61cd8845ff0db583bb7095c5f130ec5b06bbc3932bf65375f4da"
+    }
+  },
+  "domain": "panphon-feature-table",
+  "extractor": {
+    "id": "scripts.panphon_geometry.render",
+    "version": "1"
+  },
+  "fingerprint": "sha256:6866bfbb997e89a26a127b09028abbc2ca754eb2d1a44b62d8a3919a7d37ef0f",
+  "kind": "final",
+  "license": {
+    "id": "MIT",
+    "notices": {
+      "NOTICE.md": "e47c862a3c0fa5c4179639a4b8be0d5e5c2b0f7d0b09eed895c0c17cd734c870",
+      "PANPHON-LICENSE.txt": "c9c55ddd90b622c3d63cb13ef7e3632699c8ce60490eb6ee0414d25cb3671ab0"
+    }
+  },
+  "schema": {
+    "id": "ipakit-source-receipt",
+    "version": 1
+  },
+  "source-policy": {
+    "inputs": {
+      "feature_weights.csv": "03e80a6489e4993de6f17e063eaa74eb59c1d9ba9bc0dec9bec6ffce0cb8080d",
+      "ipa_all.csv": "0ec0052edf4e58c8c23eda10c0195687eb167ce9bd206cf9a85b9cce8b181f0a"
+    },
+    "source": {
+      "artifact": "ipa_all.csv and feature_weights.csv",
+      "kind": "phonetic-feature-table",
+      "license": "MIT",
+      "upstream": "Panphon",
+      "upstream-url": "https://github.com/dmort27/panphon",
+      "version": "0.22.2"
+    },
+    "version": 1
+  }
+}

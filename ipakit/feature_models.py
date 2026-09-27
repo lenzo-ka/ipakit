@@ -29,4 +29,8 @@ def resource_path(name: str) -> Path:
 
 def read(name: str) -> TernaryDeclaration:
     """Read one named model through the existing validated ternary codec."""
+    if name == "panphon":
+        from .panphon_source import verify_manifest
+
+        verify_manifest()
     return read_ternary_declaration(resource_path(name))

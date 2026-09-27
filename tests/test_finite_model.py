@@ -18,8 +18,17 @@ from ipakit.finite_model import (
     MissingToken,
     ModelMismatch,
 )
+from ipakit.panphon_source import source_metadata
 
 DECLARATION = resource_path("panphon")
+
+
+def detached_fixture_root() -> ET.Element:
+    """Make a caller-owned declaration whose provenance travels inline."""
+    root = ET.parse(DECLARATION).getroot()
+    root.attrib.pop("source-receipt")
+    root.attrib.update(source_metadata().to_dict())
+    return root
 
 
 def fixture_model() -> FiniteModel:
@@ -264,7 +273,7 @@ def test_row_and_domain_sequences_are_defensively_copied() -> None:
 
 
 def test_codec_normalizes_input_but_direct_model_does_not(tmp_path: Path) -> None:
-    root = ET.parse(DECLARATION).getroot()
+    root = detached_fixture_root()
     segments = root.find("segments")
     assert segments is not None
     segments.clear()
@@ -319,7 +328,7 @@ def test_frozen_declaration_parity_and_ambiguous_realization() -> None:
 def test_malformed_declarations_refused_by_both_consumers(
     tmp_path: Path, mutation: str, match: str
 ) -> None:
-    root = ET.parse(DECLARATION).getroot()
+    root = detached_fixture_root()
     features, segments = root.find("features"), root.find("segments")
     assert features is not None and segments is not None
     if mutation == "duplicate":

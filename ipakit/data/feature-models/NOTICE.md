@@ -12,13 +12,14 @@ The original development XML inferred a Git tag URL from the distribution
 version. That tag does not exist; only this provenance URL is corrected to the
 confirmed project home. Version and original CSV digest receipts are unchanged.
 
-The XML root records the source version, license, both original CSV SHA-256
-digests and the artifact names. `scripts/panphon_geometry.py` transcribes the
-frozen table deterministically: token keys are normalized to NFD; ternary zero,
-feature order and the separately ordered weight columns are preserved. The XML
-also records directional mapping limitations. This is a finite source model,
-not a claim of complete house correspondence or perceptual validation. No
-Panphon Python implementation or runtime dependency is included.
+The XML root points to `panphon-receipt.json`, the sole source-provenance
+authority. The receipt records the source version, license, both original CSV
+SHA-256 digests and the generated artifact hash. `scripts/panphon_geometry.py`
+transcribes the frozen table deterministically: token keys are normalized to
+NFD; ternary zero, feature order and the separately ordered weight columns are
+preserved. The XML also records directional mapping limitations. This is a
+finite source model, not a claim of complete house correspondence or perceptual
+validation. No Panphon Python implementation or runtime dependency is included.
 
 The upstream distribution's README metadata credits the HsSPE data files and
 Bruce Hayes's feature spreadsheet as inspirations, and states that subsequent

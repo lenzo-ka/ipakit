@@ -100,10 +100,12 @@ def _build_clts(source: Path) -> BuildResult:
 
 def _phoible_producer() -> _Producer:
     policy = phoible.source_policy()
+    source = policy["source"]
+    origin = source["upstream-url"].partition("/tree/")[0] + ".git"
     return _Producer(
-        policy["revision"],
-        policy["revision"],
-        policy["origin"],
+        source["version"],
+        source["version"],
+        origin,
         tuple("/" + name for name in sorted(policy["inputs"])),
         lambda path: phoible.validate_source(path).digests,
         phoible.build,

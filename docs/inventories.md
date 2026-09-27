@@ -358,4 +358,4 @@ The shipped finite declaration supports model-relative operations and comparison
 - The declaration contains `6367` segment rows over `24` features and `22` supplied weights; generation normalizes every segment key to NFD and refuses a duplicate normalized key.
 - Feature and weight order differ at the tail, and the generated declaration retains that order instead of quietly repairing the comparison target.
 
-<!-- SPDX identifiers checked: 176. -->
+<!-- SPDX identifiers checked: 178. -->

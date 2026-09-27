@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import io
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -131,7 +132,10 @@ def test_fresh_fetch_uses_declared_pin_and_all_consumed_paths(tmp_path, monkeypa
     )
     producer = dev_sources._phoible_producer()
     dev_sources._acquire(tmp_path / "new-source", producer)
-    assert any(call[-1] == phoible_source.source_policy()["revision"] for call in calls)
+    assert any(
+        call[-1] == phoible_source.source_policy()["source"]["version"]
+        for call in calls
+    )
     sparse = next(call for call in calls if "sparse-checkout" in call)
     assert set(sparse[4:]) == {
         "/" + name for name in phoible_source.source_policy()["inputs"]
@@ -141,27 +145,29 @@ def test_fresh_fetch_uses_declared_pin_and_all_consumed_paths(tmp_path, monkeypa
 @pytest.mark.parametrize("failure", ["missing", "corrupt", "manifest", "content"])
 def test_resource_integrity_refuses(failure, tmp_path, monkeypatch):
     root = tmp_path / "data/phoible"
-    root.mkdir(parents=True)
     real = Path(phoible_source.__file__).parent / "data/phoible"
+    shutil.copytree(real, root)
     manifest = json.loads((real / "manifest.json").read_text())
     name = "data/phoible.csv.gz"
     packed = (real / name).read_bytes()
     if failure == "corrupt":
         packed = b"broken gzip"
-        manifest["transport-sha256"][name] = hashlib.sha256(packed).hexdigest()
+        manifest["artifacts"][name]["sha256"] = hashlib.sha256(packed).hexdigest()
     if failure == "content":
         packed = gzip.compress(b"modified")
-        manifest["transport-sha256"][name] = hashlib.sha256(packed).hexdigest()
+        manifest["artifacts"][name]["sha256"] = hashlib.sha256(packed).hexdigest()
     if failure == "manifest":
-        manifest["source-sha256"] = {}
+        manifest["source-policy"]["inputs"] = {}
+    material = {key: value for key, value in manifest.items() if key != "fingerprint"}
+    from ipakit._identity import identity_fingerprint
+
+    manifest["fingerprint"] = identity_fingerprint(material)
     (root / "manifest.json").write_text(json.dumps(manifest))
-    (root / "data").mkdir()
-    if failure != "missing":
+    if failure == "missing":
+        (root / name).unlink()
+    else:
         (root / name).write_bytes(packed)
     monkeypatch.setattr(phoible_source, "files", lambda package: tmp_path)
-    # Keep policy itself fixed: the manipulated resource is not its own oracle.
-    policy = json.loads((real.parent / "phoible-policy.json").read_text())
-    monkeypatch.setattr(phoible_source, "source_policy", lambda: policy)
     with pytest.raises(
         SourceMissingError if failure == "missing" else SourceContentError
     ):

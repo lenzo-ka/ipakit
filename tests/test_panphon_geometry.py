@@ -11,6 +11,7 @@ import pytest
 from ipakit.bridges.base import Fidelity
 from ipakit.bridges.costmodel import pack_from_declaration
 from ipakit.feature_models import resource_path
+from ipakit.panphon_source import source_receipt
 
 DECLARATION = resource_path("panphon")
 
@@ -19,18 +20,17 @@ def _root() -> ET.Element:
     return ET.parse(DECLARATION).getroot()
 
 
-def test_declaration_has_the_full_ternary_table_and_provenance() -> None:
+def test_declaration_has_the_full_ternary_table_and_receipt_pointer() -> None:
     root = _root()
     features = [item.get("name") for item in root.findall("features/feature")]
     segments = root.findall("segments/segment")
     assert len(features) == 24
     assert len(segments) == 6367
-    assert root.get("version") == "0.22.2"
-    assert root.get("upstream") == "Panphon"
-    assert root.get("license") == "MIT"
-    assert "provenance" not in root.attrib
-    assert len(root.get("ipa-all-sha256", "")) == 64
-    assert len(root.get("feature-weights-sha256", "")) == 64
+    assert root.attrib == {
+        "name": "panphon",
+        "source-receipt": "panphon-receipt.json",
+    }
+    assert source_receipt()["source-policy"]["source"]["version"] == "0.22.2"
     assert all(
         item.get(name) in {"-", "0", "+"} for item in segments for name in features
     )

@@ -9,14 +9,7 @@
   <start>
     <element name="feature-table">
       <attribute name="name"><text/></attribute>
-      <attribute name="version"><text/></attribute>
-      <attribute name="upstream"><text/></attribute>
-      <attribute name="upstream-url"><text/></attribute>
-      <attribute name="artifact"><text/></attribute>
-      <attribute name="license"><text/></attribute>
-      <attribute name="kind"><text/></attribute>
-      <attribute name="ipa-all-sha256"><ref name="sha256"/></attribute>
-      <attribute name="feature-weights-sha256"><ref name="sha256"/></attribute>
+      <attribute name="source-receipt"><text/></attribute>
       <ref name="round-trip"/>
       <ref name="features"/>
       <ref name="weights"/>
@@ -86,11 +79,5 @@
       <value>0</value>
       <value>+</value>
     </choice>
-  </define>
-
-  <define name="sha256">
-    <data type="string">
-      <param name="pattern">[0-9a-f]{64}</param>
-    </data>
   </define>
 </grammar>
