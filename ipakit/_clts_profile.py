@@ -8,7 +8,7 @@ profile refuses other graph layouts rather than dropping their extra content.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any
 
@@ -28,10 +28,14 @@ from ._graph_facts import (
 )
 from ._identity import identity_fingerprint
 from ._provenance import SourceMetadata
+from .clts import Snapshot, read_snapshot, source_policy
 
 NAMESPACE = "https://ipakit.dev/tiergraph/clts-source/v1"
+CORE_BIPA_NAMESPACE = "https://ipakit.dev/tiergraph/clts-core-bipa/v1"
 PROFILE = "ipakit-clts-source"
 TIERS = ("source-token", "source-sound", "house-projection", "metadata")
+ORDER = tg.QualifiedName(NAMESPACE, "source-order")
+INTERIM_MANIFEST_KIND = "interim-core-bipa-source-policy-snapshot"
 DECIDES = (
     "constructor-layout source retention and declared schema",
     "input clock, timings and caller tone-host links",
@@ -62,6 +66,7 @@ class SourceProfileSpec:
     kinds: tuple[str, ...]
     fields: tuple[FeatureDeclaration, ...] = ()
     domains: Mapping[str, tuple[Any, ...]] = field(default_factory=dict)
+    manifest_kind: str = "final"
     identity: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -72,7 +77,11 @@ class SourceProfileSpec:
         object.__setattr__(self, "fields", tuple(self.fields))
         if any(
             not isinstance(v, str) or not v
-            for v in (self.provider_fingerprint, self.manifest_fingerprint)
+            for v in (
+                self.provider_fingerprint,
+                self.manifest_fingerprint,
+                self.manifest_kind,
+            )
         ):
             raise ValueError("explicit provider and manifest identities are required")
         object.__setattr__(self, "kinds", tuple(self.kinds))
@@ -156,6 +165,7 @@ def _schema(spec: SourceProfileSpec) -> dict[str, Any]:
     empty = ContainmentProjection.from_input(
         FactBuilder(declarations(spec)).build_input()
     ).graph
+    empty = _declare_relation_order(empty)
     return {
         "namespaces": [item.to_data() for item in empty.namespaces],
         "tiers": [tier.declaration.to_data() for tier in empty.tiers],
@@ -178,7 +188,10 @@ def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
         "kinds": list(spec.kinds),
         "source": spec.source.to_dict(),
         "provider": spec.provider_fingerprint,
-        "manifest": spec.manifest_fingerprint,
+        "manifest": {
+            "kind": spec.manifest_kind,
+            "fingerprint": spec.manifest_fingerprint,
+        },
         "decides": list(DECIDES),
         "undecided": list(UNDECIDED),
     }
@@ -216,7 +229,13 @@ def _resolutions(
             )
         status, sounds = value["status"], value["sounds"]
         if (
-            status not in ("resolved", "unknown-sound", "outside-artifact-domain")
+            status
+            not in (
+                "resolved",
+                "unknown-sound",
+                "marker",
+                "outside-artifact-domain",
+            )
             or not isinstance(sounds, (list, tuple))
             or bool(sounds) != (status == "resolved")
         ):
@@ -266,6 +285,146 @@ def _resolutions(
             {"provider": spec.provider_fingerprint, "status": status, "sounds": copied}
         )
     return output
+
+
+def _declare_relation_order(graph: tg.Graph) -> tg.Graph:
+    declaration = tg.AttributeDeclaration(
+        ORDER, tg.AttributeDomain.RELATION_INSTANCE, tg.XsdType.INTEGER
+    )
+    if declaration in graph.attribute_declarations:
+        return graph
+    return graph.edit().declare(declaration).freeze()
+
+
+def _store_relation_order(graph: tg.Graph, document: Mapping[str, Any]) -> tg.Graph:
+    """Annotate host instances with the caller's order after native lowering."""
+    graph = _declare_relation_order(graph)
+    relations = list(graph.polyadic_relations)
+    used: set[int] = set()
+    for rank, relation in enumerate(document.get("relations", [])):
+        source_index = endpoint(
+            relation["source"], len(document["tokens"]), f"/relations/{rank}/source"
+        )
+        target_index = endpoint(
+            relation["target"], len(document["tokens"]), f"/relations/{rank}/target"
+        )
+        source = tg.ItemRef(name("source-token"), source_index)
+        target = tg.ItemRef(name("source-token"), target_index)
+        matches = [
+            index
+            for index, candidate in enumerate(relations)
+            if index not in used
+            and candidate.declaration == name("source-tone-host")
+            and candidate.sources == (source,)
+            and candidate.targets == (target,)
+        ]
+        if len(matches) != 1:
+            raise ValueError("source host relation order cannot be represented")
+        index = matches[0]
+        used.add(index)
+        relations[index] = replace(
+            relations[index],
+            attributes=(
+                *relations[index].attributes,
+                tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
+            ),
+        )
+    return replace(graph, polyadic_relations=tuple(relations))
+
+
+def interim_manifest_metadata(snapshot: Snapshot) -> dict[str, Any]:
+    """Describe the temporary B4 binding; lane C must replace its kind."""
+    material = {
+        "kind": INTERIM_MANIFEST_KIND,
+        "source-policy": source_policy(),
+        "snapshot-identity": snapshot.identity,
+    }
+    return {**material, "fingerprint": identity_fingerprint(material)}
+
+
+def require_manifest_kind(spec: SourceProfileSpec, expected: str) -> None:
+    """Let later bindings reject this explicitly non-final manifest kind."""
+    if not isinstance(expected, str) or not expected:
+        raise ValueError("expected manifest kind must be a nonempty string")
+    if spec.manifest_kind != expected:
+        raise ValueError(
+            f"manifest kind mismatch: expected {expected!r}, "
+            f"found {spec.manifest_kind!r}"
+        )
+
+
+def core_bipa_spec(snapshot: Snapshot | None = None) -> SourceProfileSpec:
+    """Bind the internal source profile to the shipped finite core snapshot."""
+    snapshot = read_snapshot() if snapshot is None else snapshot
+    data = snapshot.to_data()
+    if data["domain"] != "core-bipa":
+        raise ValueError("core-BIPA profile requires the finite core snapshot")
+    source = data["source"]["source"]
+    interim = interim_manifest_metadata(snapshot)
+    return SourceProfileSpec(
+        SourceMetadata(
+            source["upstream"],
+            source["upstream-url"],
+            source["artifact"],
+            source["version"],
+            source["license"],
+            source["kind"],
+        ),
+        snapshot.identity,
+        interim["fingerprint"],
+        ("consonant", "vowel", "tone"),
+        tuple(
+            FeatureDeclaration(field, (CORE_BIPA_NAMESPACE, field))
+            for field in ("features", "alias", "normalized", "declaration")
+        ),
+        manifest_kind=INTERIM_MANIFEST_KIND,
+    )
+
+
+def core_bipa_resolutions(
+    snapshot: Snapshot, raws: Sequence[str]
+) -> tuple[dict[str, Any], ...]:
+    """Resolve exact core keys without normalization or productive fallback."""
+    data = snapshot.to_data()
+    if data["domain"] != "core-bipa":
+        raise ValueError("core-BIPA adapter requires the finite core snapshot")
+    entries, excluded = data["entries"], data["excluded"]
+    records = []
+    for raw in raws:
+        if not isinstance(raw, str) or not raw:
+            raise ValueError("core-BIPA lookup keys must be nonempty strings")
+        if raw in entries:
+            entry = entries[raw]
+            records.append(
+                {
+                    "provider": snapshot.identity,
+                    "status": "resolved",
+                    "sounds": [
+                        {
+                            "kind": entry["kind"],
+                            "canonical": entry["canonical"],
+                            "values": {
+                                key: entry[key]
+                                for key in (
+                                    "features",
+                                    "alias",
+                                    "normalized",
+                                    "declaration",
+                                )
+                            },
+                        }
+                    ],
+                }
+            )
+            continue
+        reason = excluded.get(raw)
+        status = {
+            "unknown-source-spelling": "unknown-sound",
+            "marker": "marker",
+            None: "outside-artifact-domain",
+        }[reason]
+        records.append({"provider": snapshot.identity, "status": status, "sounds": []})
+    return tuple(records)
 
 
 def _construct(
@@ -324,10 +483,17 @@ def _construct(
     builder.add_event(
         "metadata",
         0,
-        {"profile": {**metadata(spec), "relations-present": "relations" in document}},
+        {
+            "profile": {
+                **metadata(spec),
+                "relations-present": "relations" in document,
+                "relation-count": len(document.get("relations", [])),
+            }
+        },
         duration=0,
     )
-    return ContainmentProjection.from_input(builder.build_input()).graph
+    graph = ContainmentProjection.from_input(builder.build_input()).graph
+    return _store_relation_order(graph, document)
 
 
 def construct(
@@ -363,9 +529,17 @@ def restore(
     if len(points) != 1:
         raise ValueError("expected one source profile metadata point")
     held = declared_value(graph, points[0], name("profile"))
-    if not isinstance(held, dict) or type(held.get("relations-present")) is not bool:
+    if (
+        not isinstance(held, dict)
+        or type(held.get("relations-present")) is not bool
+        or type(held.get("relation-count")) is not int
+        or held["relation-count"] < 0
+    ):
         raise ValueError("malformed source profile metadata")
     present = held.pop("relations-present")
+    relation_count = held.pop("relation-count")
+    if not present and relation_count != 0:
+        raise ValueError("malformed source relation presence metadata")
     if identity_fingerprint(held) != identity_fingerprint(metadata(spec)):
         raise ValueError("source profile declaration or provider fingerprint mismatch")
     tokens, resolutions = [], []
@@ -417,10 +591,17 @@ def restore(
         resolutions.append({**status, "sounds": sounds})
     document: dict[str, Any] = {"format": FORMAT, "version": 1, "tokens": tokens}
     if present:
-        relations = []
-        for relation in graph.polyadic_relations:
-            if relation.declaration != name("source-tone-host"):
-                continue
+        from ._scalar_attribute import scalar_lexical
+
+        ordered = []
+        host_relations = [
+            relation
+            for relation in graph.polyadic_relations
+            if relation.declaration == name("source-tone-host")
+        ]
+        if len(host_relations) != relation_count:
+            raise ValueError("stored source relation count mismatch")
+        for relation in host_relations:
             if (
                 len(relation.sources) != 1
                 or len(relation.targets) != 1
@@ -428,6 +609,19 @@ def restore(
                 or relation.targets[0] not in refs
             ):
                 raise ValueError("malformed stored host relation")
+            order_values = [
+                attribute
+                for attribute in relation.attributes
+                if attribute.name == ORDER
+            ]
+            if len(order_values) != 1:
+                raise ValueError("source host relation requires one source-order")
+            ordered.append((int(scalar_lexical(order_values[0])), relation))
+        ordered.sort(key=lambda pair: pair[0])
+        if [rank for rank, _ in ordered] != list(range(relation_count)):
+            raise ValueError("source host relation order is not contiguous")
+        relations = []
+        for _, relation in ordered:
             relations.append(
                 {
                     "type": HOST,
@@ -436,6 +630,11 @@ def restore(
                 }
             )
         document["relations"] = relations
+    elif relation_count != 0 or any(
+        relation.declaration == name("source-tone-host")
+        for relation in graph.polyadic_relations
+    ):
+        raise ValueError("stored source relation count mismatch")
     document = decode(document)
     validated = _resolutions(spec, resolutions, len(tokens))
     expected = _construct(document, validated, spec)

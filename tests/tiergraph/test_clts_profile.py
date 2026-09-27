@@ -4,17 +4,24 @@ import os
 import subprocess
 import sys
 from dataclasses import replace
+from importlib import metadata as package_metadata
 from pathlib import Path
 
 import pytest
 from ipakit._clts_input import FORMAT, HOST, InputError
 from ipakit._clts_profile import (
+    INTERIM_MANIFEST_KIND,
+    ORDER,
     SourceProfileSpec,
     construct,
+    core_bipa_resolutions,
+    core_bipa_spec,
     declarations,
     graph_profile,
+    interim_manifest_metadata,
     metadata,
     name,
+    require_manifest_kind,
     restore,
 )
 from ipakit._containment_projection import ContainmentProjection
@@ -27,10 +34,13 @@ from ipakit._graph_facts import (
     TierDeclaration,
 )
 from ipakit._provenance import SourceMetadata
+from ipakit.clts import read_snapshot, source_policy
 
 import tiergraph as tg
 
 NS = "urn:fixture:source"
+HERE = Path(__file__).parent
+CORE_EXAMPLE = HERE / "fixtures" / "clts_core_bipa_profile.json"
 
 
 def spec(**changes):
@@ -114,6 +124,136 @@ def test_unknown_sound_status_roundtrips():
     assert restore(construct(["?"], [record], schema), schema)[1] == (record,)
 
 
+def test_marker_status_roundtrips_without_calling_it_unknown():
+    record = {"provider": "fixture-provider", "status": "marker", "sounds": []}
+    schema = spec()
+    assert restore(construct(["+"], [record], schema), schema)[1] == (record,)
+
+
+def test_core_bipa_adapter_exact_records_and_miss_statuses():
+    snapshot = read_snapshot()
+    records = core_bipa_resolutions(snapshot, ("t", "⁵", " ɺ̣", "+", "☃"))
+    assert records[0] == {
+        "provider": (
+            "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4"
+        ),
+        "status": "resolved",
+        "sounds": [
+            {
+                "kind": "consonant",
+                "canonical": "t",
+                "values": {
+                    "features": ["alveolar", "consonant", "stop", "voiceless"],
+                    "alias": False,
+                    "normalized": False,
+                    "declaration": "t",
+                },
+            }
+        ],
+    }
+    assert records[1]["sounds"] == [
+        {
+            "kind": "tone",
+            "canonical": "⁵",
+            "values": {
+                "features": ["from-high", "short", "tone"],
+                "alias": False,
+                "normalized": False,
+                "declaration": "⁵",
+            },
+        }
+    ]
+    assert [record["status"] for record in records] == [
+        "resolved",
+        "resolved",
+        "unknown-sound",
+        "marker",
+        "outside-artifact-domain",
+    ]
+    assert all(not record["sounds"] for record in records[2:])
+
+
+def test_core_bipa_exact_nfc_nfd_spellings_keep_their_raws():
+    snapshot = read_snapshot()
+    schema = core_bipa_spec(snapshot)
+    raws = ["ç", "ç"]
+    records = core_bipa_resolutions(snapshot, raws)
+    document, restored = restore(construct(raws, records, schema), schema)
+    assert [token["raw"] for token in document["tokens"]] == ["ç", "ç"]
+    assert [record["sounds"][0]["values"]["normalized"] for record in restored] == [
+        True,
+        True,
+    ]
+    assert [record["sounds"][0]["values"]["declaration"] for record in restored] == [
+        "ç",
+        "ç",
+    ]
+
+
+def test_core_bipa_spec_binds_snapshot_and_labeled_interim_manifest():
+    snapshot = read_snapshot()
+    schema = core_bipa_spec(snapshot)
+    interim = interim_manifest_metadata(snapshot)
+    assert schema.provider_fingerprint == snapshot.identity
+    assert schema.manifest_kind == interim["kind"] == INTERIM_MANIFEST_KIND
+    assert schema.manifest_fingerprint == interim["fingerprint"]
+    assert interim == {
+        "kind": "interim-core-bipa-source-policy-snapshot",
+        "source-policy": source_policy(),
+        "snapshot-identity": snapshot.identity,
+        "fingerprint": interim["fingerprint"],
+    }
+    with pytest.raises(ValueError, match="manifest kind mismatch"):
+        require_manifest_kind(schema, "final")
+
+
+def test_core_bipa_committed_example_has_hand_authored_facts():
+    graph = tg.loads(CORE_EXAMPLE.read_text())
+    document, records = restore(graph, core_bipa_spec())
+    assert [token["raw"] for token in document["tokens"]] == [
+        "t",
+        "⁵",
+        "t",
+        " ɺ̣",
+        "+",
+        "☃",
+    ]
+    assert document["tokens"][0]["time"] == {"start": 1.25, "duration": 0.5}
+    assert document["relations"] == [
+        {
+            "type": "clts:source-tone-host",
+            "source": "/tokens/1",
+            "target": "/tokens/0",
+        }
+    ]
+    assert [record["status"] for record in records] == [
+        "resolved",
+        "resolved",
+        "resolved",
+        "unknown-sound",
+        "marker",
+        "outside-artifact-domain",
+    ]
+    ticks = {
+        int(attribute.lexical)
+        for boundary in graph.boundary_values
+        for attribute in boundary.attributes
+        if attribute.name.local_name == "tick"
+    }
+    assert ticks == {0, 1, 2, 3, 4, 5, 6}
+
+
+def test_core_bipa_example_regeneration_is_byte_equal():
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [sys.executable, "scripts/clts_profile_example.py"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    )
+    assert result.stdout == CORE_EXAMPLE.read_bytes()
+
+
 def test_native_roundtrip_clock_children_times_hosts():
     schema = spec()
     doc = {
@@ -194,6 +334,7 @@ def test_empty_schema_profile_and_presence():
     [
         {"provider_fingerprint": "different"},
         {"manifest_fingerprint": "different"},
+        {"manifest_kind": "different"},
         {"domains": {"unused": (True,)}},
         {"fields": (FeatureDeclaration("different", (NS, "different")),)},
         {"kinds": ("tone",)},
@@ -274,6 +415,59 @@ def test_native_unique_source_not_single_parent():
     doc["relations"][1]["source"] = "/tokens/1"
     with pytest.raises(ValueError):
         construct(doc, records, spec())
+
+
+def test_supplied_relation_order_is_native_and_restores_exactly():
+    document = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "x"}, {"raw": "y"}, {"raw": "z"}],
+        "relations": [
+            {"type": HOST, "source": "/tokens/2", "target": "/tokens/0"},
+            {"type": HOST, "source": "/tokens/1", "target": "/tokens/0"},
+        ],
+    }
+    records = [resolution(), resolution("tone"), resolution("tone")]
+    graph = construct(document, records, spec())
+    other = {
+        **document,
+        "relations": list(reversed(document["relations"])),
+    }
+    assert restore(tg.loads(tg.dumps(graph)), spec())[0] == document
+    assert tg.dumps(graph) != tg.dumps(construct(other, records, spec()))
+    orders = sorted(
+        int(attribute.lexical)
+        for relation in graph.polyadic_relations
+        if relation.declaration == name("source-tone-host")
+        for attribute in relation.attributes
+        if attribute.name == ORDER
+    )
+    assert orders == [0, 1]
+
+
+def test_hand_added_relation_refused_by_constructor_layout_count():
+    document = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "x"}, {"raw": "y"}, {"raw": "z"}],
+        "relations": [{"type": HOST, "source": "/tokens/1", "target": "/tokens/0"}],
+    }
+    schema = spec()
+    graph = construct(
+        document, [resolution(), resolution("tone"), resolution("tone")], schema
+    )
+    editor = graph.edit()
+    editor.add_relation(
+        tg.PolyadicRelationInstance(
+            name("source-tone-host"),
+            (tg.ItemRef(name("source-token"), 2),),
+            (tg.ItemRef(name("source-token"), 0),),
+            attributes=(tg.AttributeValue(ORDER, tg.XsdType.INTEGER, "1"),),
+        )
+    )
+    changed = editor.freeze()
+    with pytest.raises(ValueError, match="relation count mismatch"):
+        restore(changed, schema)
 
 
 def test_domain_types_and_unknown_claims():
@@ -421,12 +615,10 @@ def test_resolution_boundary_refuses_without_guessing(records):
 
 
 def test_fresh_process_restores_without_optional_providers(tmp_path):
-    graph = construct(
-        ["t͜s", "é", "é"], [resolution(), resolution(), resolution()], spec()
-    )
     root = Path(__file__).resolve().parents[2]
     code = """
 import builtins, sys
+from importlib import metadata
 from pathlib import Path
 original = builtins.__import__
 def blocked(name, *args, **kwargs):
@@ -437,20 +629,31 @@ builtins.__import__ = blocked
 import ipakit
 assert Path(ipakit.__file__).resolve().parent.parent == Path(sys.argv[1])
 import tiergraph as tg
-from ipakit._clts_profile import SourceProfileSpec, restore
-from ipakit._graph_facts import FeatureDeclaration
-from ipakit._provenance import SourceMetadata
-spec = SourceProfileSpec(SourceMetadata('fixture','urn:fixture','synthetic','1','fixture','test'), 'fixture-provider', 'fixture-manifest', ('tone','consonant'), (FeatureDeclaration('claims',('urn:fixture:source','claims')), FeatureDeclaration('unused',('urn:fixture:source','unused'))))
-document, records = restore(tg.loads(sys.stdin.read()), spec)
-assert [token['raw'] for token in document['tokens']] == ['t͜s','é','é']
-assert len(records) == 3
+assert metadata.version('tiergraph') == sys.argv[2]
+from ipakit._clts_profile import core_bipa_spec, restore
+document, records = restore(tg.loads(sys.stdin.read()), core_bipa_spec())
+assert [token['raw'] for token in document['tokens']] == ['t','⁵','t',' ɺ̣','+','☃']
+assert [record['status'] for record in records] == ['resolved','resolved','resolved','unknown-sound','marker','outside-artifact-domain']
 """
+    python_path = os.pathsep.join(
+        str(root) if entry == "" else entry for entry in sys.path
+    )
     result = subprocess.run(
-        [sys.executable, "-c", code, str(root)],
-        input=tg.dumps(graph),
+        [
+            sys.executable,
+            "-c",
+            code,
+            str(root),
+            package_metadata.version("tiergraph"),
+        ],
+        input=CORE_EXAMPLE.read_text(),
         text=True,
         capture_output=True,
         cwd=tmp_path,
-        env={**os.environ, "PYTHONPATH": str(root), "PYTHONDONTWRITEBYTECODE": "1"},
+        env={
+            **os.environ,
+            "PYTHONPATH": python_path,
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
     )
     assert result.returncode == 0, result.stderr
