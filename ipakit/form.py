@@ -2197,6 +2197,29 @@ class Form:
         inventory = _default(features)
         try:
             source, spelling = restore(graph, inventory)
+            declared_features = {
+                declaration.name
+                for declaration in source.declarations.features
+                if declaration.value_name is not None
+            }
+            declared_tiers = {
+                source.event_tiers[path]
+                for path in source.refs
+                if declared_features & source.events[path].features.keys()
+            }
+            house_unit_tiers = {
+                source.event_tiers[path]
+                for path in source.refs
+                if isinstance(
+                    source.house_features(source.events[path]).get("unit"), Unit
+                )
+            }
+            source_only_tiers = sorted(declared_tiers - house_unit_tiers)
+            if source_only_tiers:
+                raise FormProjectionError(
+                    "Form profile declared-value codec tier has no house unit: "
+                    + ", ".join(repr(tier) for tier in source_only_tiers)
+                )
             form = cls._from_projection_input(source, spelling, features=inventory)
             containment = dataclasses.replace(
                 ContainmentProjection.from_input(source), graph=graph

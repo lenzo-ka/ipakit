@@ -20,6 +20,7 @@ from ipakit._form_profile import (
     TIER_ROLE,
     provider_identity,
 )
+from ipakit._form_profile import restore as restore_form_profile
 from ipakit._graph_facts import (
     ClockNode,
     Declarations,
@@ -113,12 +114,11 @@ def test_typed_qualified_json_and_optional_timing():
         roots=("/clock/0/token/0",),
     )
     original = Form._from_projection_input(source, features=ipa)
-    restored = Form.from_json(original.to_json(), ipa)
-    assert tg.to_data(restored.graph) == tg.to_data(original.graph)
-    facts = restored.tier_events("token")[0]["fact"]
+    restored, _ = restore_form_profile(wire.loads(original.to_json()), ipa)
+    facts = restored.events["/clock/0/token/0"].features["fact"]
     assert facts["null"] is None and facts["false"] is False
     assert type(facts["integer"]) is int and type(facts["double"]) is float
-    assert restored.at("/clock/0/token/0").timing.duration == 0.3
+    assert restored.events["/clock/0/token/0"].timing == GraphTiming(0.2, 0.3)
 
 
 def test_json_literal_kinds_empty_values_unicode_qname_shape_and_absence():
@@ -135,19 +135,18 @@ def test_json_literal_kinds_empty_values_unicode_qname_shape_and_absence():
         {"κλειδί": "値🙂"},
     )
     original, ipa = _literal_form(values)
-    restored = Form.from_json(original.to_json(), ipa)
+    graph = wire.loads(original.to_json())
+    restore_form_profile(graph, ipa)
     relation = next(
         relation
-        for relation in restored.graph.polyadic_relations
+        for relation in graph.polyadic_relations
         if relation.declaration == SOURCE_EVENTS
     )
     name = tg.QualifiedName("urn:test:literals", "fact")
     actual = []
     for target in relation.targets:
         item = next(
-            tier
-            for tier in restored.graph.tiers
-            if tier.declaration.name == target.tier
+            tier for tier in graph.tiers if tier.declaration.name == target.tier
         ).items[target.index]
         values_on_item = [value for value in item.attributes if value.name == name]
         actual.append(values_on_item[0].to_value() if values_on_item else ...)
@@ -164,8 +163,8 @@ def test_json_attachment_snapshots_caller_containers():
     original, ipa = _literal_form((caller,))
     encoded = original.to_json()
     caller["values"].append("mutated")
-    restored = Form.from_json(encoded, ipa)
-    assert restored.at("/clock/0/token/0").features["fact"] == {
+    restored, _ = restore_form_profile(wire.loads(encoded), ipa)
+    assert restored.events["/clock/0/token/0"].features["fact"] == {
         "values": (False, 0, -0.0, None)
     }
 
@@ -205,8 +204,8 @@ def test_json_attribute_survives_edit_machine_and_wire_roundtrips():
         .set_attribute(owner, tg.JsonAttributeValue(name, {"edited": [1, 1.0]}))
         .freeze()
     )
-    restored = Form.from_json(wire.dump_compact(edited), ipa)
-    assert restored.at("/clock/0/token/0").features["fact"] == {"edited": (1, 1.0)}
+    restored, _ = restore_form_profile(wire.loads(wire.dump_compact(edited)), ipa)
+    assert restored.events["/clock/0/token/0"].features["fact"] == {"edited": (1, 1.0)}
     assert wire.loads(wire.dump_compact(edited)) == edited
 
     from tiergraph.machine import (
