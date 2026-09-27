@@ -14,8 +14,7 @@ version, and complete implementation-input hash map. The extractor always has
 an id and version. `license` carries the source license id and every shipped
 notice hash.
 
-CLTS writes this schema today. PHOIBLE and Panphon still ship their earlier
-receipt shapes; the fills below say how each maps onto the schema.
+CLTS, PHOIBLE and Panphon all ship this schema today.
 
 - CLTS fills the common fields from `source.json`, including the pyclts resolver
   version and hashes. Its derived artifact is `core.json`, with both byte hash
@@ -24,12 +23,15 @@ receipt shapes; the fills below say how each maps onto the schema.
   is receipt data used by the runtime adapter. Mapping identity and profile
   fingerprint are deliberately not receipt fields because either creates a
   fingerprint cycle.
-- PHOIBLE will fill `source` and `inputs` from its policy and current manifest,
-  record the versioned gzip extractor, list each transported `.gz` file and
-  shipped license as a derived artifact, and hash its MIT and GPL notices. It
-  has no resolver or CLTS profile extensions.
-- Panphon will fill `source` from the current XML root metadata, `inputs` from
-  the `ipa_all.csv` and `feature_weights.csv` hashes, identify and version the
-  `panphon_geometry.py` extractor, hash `panphon.xml` as its derived artifact,
-  and hash the shipped MIT license and notice. It has no resolver or CLTS
-  profile extensions.
+- PHOIBLE fills `source` and `inputs` in `data/phoible/manifest.json`, records
+  the versioned deterministic-gzip extractor, lists every transported `.gz`
+  file and copied upstream license as a derived artifact, and hashes every
+  shipped notice and license. The former `data/phoible-policy.json` and the old
+  `source-sha256`/`transport-sha256` manifest shape are gone; the receipt is the
+  sole authority. PHOIBLE has no resolver or CLTS profile extensions.
+- Panphon fills `source` and `inputs` in
+  `data/feature-models/panphon-receipt.json`, identifies and versions the
+  `panphon_geometry.py` extractor, hashes `panphon.xml` as its derived artifact,
+  and hashes the shipped MIT license and notice. The XML root carries only a
+  `source-receipt` pointer, not a second provenance record. Panphon has no
+  resolver or CLTS profile extensions.

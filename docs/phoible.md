@@ -21,7 +21,8 @@ original_csv = read_source("data/phoible.csv")  # exact upstream bytes
 The complete frozen source has 105,484 rows, 3,020 inventories and 49 columns.
 All foreign feature values and original spellings remain in the source bytes,
 even when house conversion refuses them. `source_files()` discovers the four
-original CSV/BibTeX paths; `source_policy()` returns the revision and hashes.
+original CSV/BibTeX paths; `source_policy()` returns the receipt's nested
+source identity and input hashes.
 `read_source()` verifies compressed transport and decompressed source identity.
 Missing or corrupted packaged resources raise typed extraction source errors.
 The independent original mapping tables and reference bibliography are included.

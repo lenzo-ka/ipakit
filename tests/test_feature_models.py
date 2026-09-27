@@ -13,24 +13,17 @@ def test_named_resource_matches_existing_codec_and_frozen_artifact():
     path = feature_models.resource_path("panphon")
     assert (
         hashlib.sha256(path.read_bytes()).hexdigest()
-        == "0f3046ac49d6ff0abdcf1aa87430f14c3b9afbe7bc169a5bb64e0a65bae32106"
+        == "dc782cfbb1fd61cd8845ff0db583bb7095c5f130ec5b06bbc3932bf65375f4da"
     )
     assert feature_models.read("panphon") == read_ternary_declaration(path)
     assert not (Path(__file__).parent / "panphon/panphon.xml").exists()
 
 
-def test_original_payload_differs_only_in_corrected_project_url():
-    current = feature_models.resource_path("panphon").read_bytes()
-    original = current.replace(
-        b'upstream-url="https://github.com/dmort27/panphon"',
-        b'upstream-url="https://github.com/dmort27/panphon/tree/0.22.2"',
-        1,
-    )
-    assert current != original
-    assert (
-        hashlib.sha256(original).hexdigest()
-        == "f2c9dda2abdfd6394c8f000bf4f4ae0fe10f41a47b90b7ff3fb89440026646b1"
-    )
+def test_declaration_has_no_second_source_authority():
+    root = feature_models.resource_path("panphon").read_text()
+    assert 'source-receipt="panphon-receipt.json"' in root.splitlines()[1]
+    for removed in ("upstream=", "version=", "license=", "ipa-all-sha256="):
+        assert removed not in root.splitlines()[1]
 
 
 @pytest.mark.parametrize(

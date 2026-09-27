@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import importlib.util
+import json
 import re
+import shutil
 import unicodedata
 from importlib.resources import files
 from itertools import combinations_with_replacement
 from pathlib import Path
 
 import pytest
+from ipakit._identity import identity_fingerprint
 from ipakit.bridges.costmodel import compare, pack_from_declaration
+from ipakit.extraction import SourceContentError
 from ipakit.feature_models import resource_path
 from ipakit.features import IPAFeatures
+from ipakit.panphon_source import source_receipt
 
 panphon = pytest.importorskip("panphon")
 panphon_distance = pytest.importorskip("panphon.distance")
@@ -34,6 +40,34 @@ def _generator():  # type: ignore[no-untyped-def]
 
 def test_declaration_round_trips_from_the_live_library() -> None:
     assert DECLARATION.read_text(encoding="utf-8") == _generator().render()
+
+
+def test_receipt_matches_what_the_live_library_generates() -> None:
+    generator = _generator()
+    assert generator.verify_manifest() == source_receipt()["fingerprint"]
+    assert generator.build().stale(ROOT) == []
+
+
+def test_resealed_declaration_edit_is_stale_to_the_live_verifier(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "feature-models"
+    shutil.copytree(DECLARATION.parent, data_dir)
+    artifact = data_dir / "panphon.xml"
+    content = artifact.read_text()
+    artifact.write_text(content.replace('name="p" syl="-"', 'name="p" syl="+"', 1))
+    path = data_dir / "panphon-receipt.json"
+    receipt = json.loads(path.read_bytes())
+    receipt["artifacts"]["panphon.xml"]["sha256"] = hashlib.sha256(
+        artifact.read_bytes()
+    ).hexdigest()
+    material = {key: value for key, value in receipt.items() if key != "fingerprint"}
+    receipt["fingerprint"] = identity_fingerprint(material)
+    path.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
+    with pytest.raises(
+        SourceContentError, match="stale Panphon manifest field: artifacts"
+    ):
+        _generator().verify_manifest(data_dir)
 
 
 def _raw_and_normalized_spellings() -> tuple[list[str], list[str]]:

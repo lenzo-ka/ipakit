@@ -130,7 +130,7 @@ class PhoibleBridge(ProviderBridge):
             (
                 "external-checkout"
                 if self.root is not None
-                else source_policy()["revision"]
+                else source_policy()["source"]["version"]
             ),
             (
                 f"generated from {self.root}"

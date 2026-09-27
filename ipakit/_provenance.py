@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from os import PathLike
+from pathlib import Path
 from xml.etree.ElementTree import Element
+
+from ._source_receipt import loads_receipt
 
 SOURCE_ATTRIBUTES = (
     "upstream",
@@ -32,11 +36,47 @@ class SourceMetadata:
     def from_root(
         cls, root: Element, declaration: str | PathLike[str]
     ) -> SourceMetadata:
-        """Read required source attributes and refuse a stored prose duplicate."""
+        """Read source fields or the declaration's sole receipt pointer.
+
+        Existing declaration families keep their inline source attributes.  A
+        generated declaration may instead point at one adjacent source receipt;
+        mixing the two would restore the duplicate authority the pointer removes.
+        """
         where = str(declaration)
         if "provenance" in root.attrib:
             raise ValueError(
                 f"{where} stores `provenance`; derive it from the source attributes"
+            )
+        if receipt_name := root.get("source-receipt"):
+            duplicated = [name for name in SOURCE_ATTRIBUTES if name in root.attrib]
+            if duplicated:
+                raise ValueError(
+                    f"{where} mixes source-receipt with source attributes: "
+                    f"{', '.join(duplicated)}"
+                )
+            relative = Path(receipt_name)
+            if relative.name != receipt_name or relative.is_absolute():
+                raise ValueError(f"{where} has an invalid source-receipt pointer")
+            declaration_path = Path(declaration)
+            receipt_path = declaration_path.parent / relative
+            try:
+                receipt = loads_receipt(receipt_path.read_bytes())
+                artifact = receipt["artifacts"][declaration_path.name]
+                digest = hashlib.sha256(declaration_path.read_bytes()).hexdigest()
+            except (OSError, KeyError, TypeError, ValueError) as error:
+                raise ValueError(
+                    f"{where} has an invalid source receipt: {error}"
+                ) from error
+            if artifact["sha256"] != digest:
+                raise ValueError(f"{where} has a stale source receipt field: artifacts")
+            source = receipt["source-policy"]["source"]
+            return cls(
+                source["upstream"],
+                source["upstream-url"],
+                source["artifact"],
+                source["version"],
+                source["license"],
+                source["kind"],
             )
         missing = [name for name in SOURCE_ATTRIBUTES if not root.get(name, "").strip()]
         if missing:

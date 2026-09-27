@@ -233,7 +233,12 @@ def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wh
         assert [n for n in names if n.endswith("panphon.xml")] == [
             prefix + "panphon.xml"
         ]
-        for filename in ("panphon.xml", "PANPHON-LICENSE.txt", "NOTICE.md"):
+        for filename in (
+            "panphon.xml",
+            "panphon-receipt.json",
+            "PANPHON-LICENSE.txt",
+            "NOTICE.md",
+        ):
             assert (
                 zf.read(prefix + filename)
                 == (PKG / "data/feature-models" / filename).read_bytes()
@@ -251,7 +256,12 @@ def test_sdist_carries_one_canonical_panphon_declaration_and_credit(built_wheel)
         assert [n for n in members if n.endswith("panphon.xml")] == [
             prefix + "panphon.xml"
         ]
-        for filename in ("panphon.xml", "PANPHON-LICENSE.txt", "NOTICE.md"):
+        for filename in (
+            "panphon.xml",
+            "panphon-receipt.json",
+            "PANPHON-LICENSE.txt",
+            "NOTICE.md",
+        ):
             stream = archive.extractfile(prefix + filename)
             assert stream is not None
             assert (

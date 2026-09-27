@@ -9,7 +9,13 @@ import json
 import subprocess
 from pathlib import Path
 
-from ..phoible_source import source_files, source_metadata, source_policy
+from ..phoible_source import (
+    NOTICE_FILES,
+    receipt_metadata,
+    source_files,
+    source_metadata,
+    source_policy,
+)
 from . import (
     BuildResult,
     SourceContentError,
@@ -24,6 +30,7 @@ OUT = Path("ipakit/data/phoible")
 def validate_source(source: Path) -> SourceIdentity:
     """Validate all consumed bytes, and the revision when a Git root is supplied."""
     policy = source_policy()
+    revision_pin = policy["source"]["version"]
     if (source / ".git").exists():
         try:
             revision = subprocess.run(
@@ -35,9 +42,9 @@ def validate_source(source: Path) -> SourceIdentity:
             ).stdout.strip()
         except (OSError, subprocess.SubprocessError) as error:
             raise SourceVersionError("cannot identify PHOIBLE Git revision") from error
-        if revision != policy["revision"]:
+        if revision != revision_pin:
             raise SourceVersionError(
-                f"PHOIBLE revision {revision}; required {policy['revision']}"
+                f"PHOIBLE revision {revision}; required {revision_pin}"
             )
     digests = {}
     for name, expected in policy["inputs"].items():
@@ -74,15 +81,23 @@ def build(source: Path) -> BuildResult:
         if hashlib.sha256(content).hexdigest() != identity.digests[original]:
             raise SourceContentError(f"PHOIBLE notice changed during build: {original}")
         artifacts[OUT / target] = content
-    manifest = {
+    policy = {
+        "version": 1,
         "source": identity.metadata.to_dict(),
-        "source-sha256": dict(identity.digests),
-        "transport-sha256": {
-            str(path.relative_to(OUT)): hashlib.sha256(content).hexdigest()
-            for path, content in artifacts.items()
-        },
-        "transport": "gzip (empty filename, mtime=0); original decompressed bytes unchanged",
+        "inputs": dict(identity.digests),
     }
+    relative_artifacts = {
+        str(path.relative_to(OUT)): content for path, content in artifacts.items()
+    }
+    notices = {
+        name: (
+            relative_artifacts[name]
+            if name in relative_artifacts
+            else (OUT / name).read_bytes()
+        )
+        for name in NOTICE_FILES
+    }
+    manifest = receipt_metadata(policy, relative_artifacts, notices)
     artifacts[OUT / "manifest.json"] = (
         json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     ).encode()

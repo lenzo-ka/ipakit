@@ -30,6 +30,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ipakit._provenance import SourceMetadata  # noqa: E402
+from ipakit._source_receipt import RECEIPT_SCHEMA_ID, loads_receipt  # noqa: E402
 from ipakit.feature_models import resource_path  # noqa: E402
 from ipakit.inventories import (  # noqa: E402
     inventories,
@@ -116,7 +117,7 @@ def _spdx(identifier: str) -> None:
 
 
 def validate_spdx() -> int:
-    """Validate every license identifier declared by an XML document."""
+    """Validate every license identifier declared by XML or a source receipt."""
     checked = 0
     for path in sorted((*ROOT.glob("ipakit/**/*.xml"), *ROOT.glob("tests/**/*.xml"))):
         for element in ET.parse(path).getroot().iter():
@@ -129,6 +130,21 @@ def validate_spdx() -> int:
                             f"{path.relative_to(ROOT)}: {error}"
                         ) from error
                     checked += 1
+    for path in sorted(ROOT.glob("ipakit/data/**/*.json")):
+        content = path.read_bytes()
+        if RECEIPT_SCHEMA_ID.encode() not in content:
+            continue
+        receipt = loads_receipt(content)
+        identifier = receipt["license"]["id"]
+        if receipt["source-policy"]["source"]["license"] != identifier:
+            raise ValueError(
+                f"{path.relative_to(ROOT)}: receipt source and license disagree"
+            )
+        try:
+            _spdx(identifier)
+        except ValueError as error:
+            raise ValueError(f"{path.relative_to(ROOT)}: {error}") from error
+        checked += 1
     if not checked:
         raise ValueError("no declared SPDX license identifiers were checked")
     return checked
