@@ -24,7 +24,7 @@ from ipakit._clts_profile import (
     require_manifest_kind,
     restore,
 )
-from ipakit._containment_projection import ContainmentProjection
+from ipakit._containment_projection import ContainmentProjection, declared_value
 from ipakit._fact_builder import FactBuilder
 from ipakit._graph_facts import (
     Declarations,
@@ -39,6 +39,8 @@ from ipakit.clts import read_snapshot, source_policy
 import tiergraph as tg
 
 NS = "urn:fixture:source"
+HOUSE_NS = "urn:fixture:house"
+MAPPING = "fixture-mapping"
 HERE = Path(__file__).parent
 CORE_EXAMPLE = HERE / "fixtures" / "clts_core_bipa_profile.json"
 
@@ -51,11 +53,13 @@ def spec(**changes):
             ),
             "fixture-provider",
             "fixture-manifest",
+            MAPPING,
             ("tone", "consonant"),
             (
                 FeatureDeclaration("claims", (NS, "claims")),
                 FeatureDeclaration("unused", (NS, "unused")),
             ),
+            (FeatureDeclaration("house-symbol", (HOUSE_NS, "symbol")),),
         ),
         **changes,
     )
@@ -67,6 +71,18 @@ def resolution(kind="consonant", values=None):
         "status": "resolved",
         "sounds": [{"kind": kind, "canonical": "synthetic", "values": values or {}}],
     }
+
+
+def projection(status="not-attempted", **values):
+    return {"mapping": MAPPING, "status": status, **values}
+
+
+def not_attempted(count):
+    return [projection() for _ in range(count)]
+
+
+def supported(symbol):
+    return projection("supported", facts=[{"house-symbol": symbol}])
 
 
 @pytest.mark.parametrize(
@@ -121,13 +137,17 @@ def test_bound_profile_registry_names_are_distinct():
 def test_unknown_sound_status_roundtrips():
     record = {"provider": "fixture-provider", "status": "unknown-sound", "sounds": []}
     schema = spec()
-    assert restore(construct(["?"], [record], schema), schema)[1] == (record,)
+    assert restore(construct(["?"], [record], not_attempted(1), schema), schema)[1] == (
+        record,
+    )
 
 
 def test_marker_status_roundtrips_without_calling_it_unknown():
     record = {"provider": "fixture-provider", "status": "marker", "sounds": []}
     schema = spec()
-    assert restore(construct(["+"], [record], schema), schema)[1] == (record,)
+    assert restore(construct(["+"], [record], not_attempted(1), schema), schema)[1] == (
+        record,
+    )
 
 
 def test_core_bipa_adapter_exact_records_and_miss_statuses():
@@ -178,7 +198,12 @@ def test_core_bipa_exact_nfc_nfd_spellings_keep_their_raws():
     schema = core_bipa_spec(snapshot)
     raws = ["ç", "ç"]
     records = core_bipa_resolutions(snapshot, raws)
-    document, restored = restore(construct(raws, records, schema), schema)
+    projections_in = [
+        {"mapping": schema.mapping_identity, "status": "not-attempted"} for _ in raws
+    ]
+    document, restored, projections = restore(
+        construct(raws, records, projections_in, schema), schema
+    )
     assert [token["raw"] for token in document["tokens"]] == ["ç", "ç"]
     assert [record["sounds"][0]["values"]["normalized"] for record in restored] == [
         True,
@@ -188,6 +213,7 @@ def test_core_bipa_exact_nfc_nfd_spellings_keep_their_raws():
         "ç",
         "ç",
     ]
+    assert list(projections) == projections_in
 
 
 def test_core_bipa_spec_binds_snapshot_and_labeled_interim_manifest():
@@ -195,6 +221,9 @@ def test_core_bipa_spec_binds_snapshot_and_labeled_interim_manifest():
     schema = core_bipa_spec(snapshot)
     interim = interim_manifest_metadata(snapshot)
     assert schema.provider_fingerprint == snapshot.identity
+    assert schema.mapping_identity == (
+        "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa"
+    )
     assert schema.manifest_kind == interim["kind"] == INTERIM_MANIFEST_KIND
     assert schema.manifest_fingerprint == interim["fingerprint"]
     assert interim == {
@@ -209,7 +238,7 @@ def test_core_bipa_spec_binds_snapshot_and_labeled_interim_manifest():
 
 def test_core_bipa_committed_example_has_hand_authored_facts():
     graph = tg.loads(CORE_EXAMPLE.read_text())
-    document, records = restore(graph, core_bipa_spec())
+    document, records, projections = restore(graph, core_bipa_spec())
     assert [token["raw"] for token in document["tokens"]] == [
         "t",
         "⁵",
@@ -217,6 +246,7 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         " ɺ̣",
         "+",
         "☃",
+        "ts",
     ]
     assert document["tokens"][0]["time"] == {"start": 1.25, "duration": 0.5}
     assert document["relations"] == [
@@ -233,14 +263,46 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         "unknown-sound",
         "marker",
         "outside-artifact-domain",
+        "resolved",
     ]
+    mapping = "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa"
+    assert projections == (
+        {
+            "mapping": mapping,
+            "status": "supported",
+            "facts": [{"house-symbol": "t", "house-kind": "segment"}],
+        },
+        {
+            "mapping": mapping,
+            "status": "supported",
+            "facts": [{"house-symbol": "⁵", "house-kind": "prosody"}],
+        },
+        {
+            "mapping": mapping,
+            "status": "supported",
+            "facts": [{"house-symbol": "t", "house-kind": "segment"}],
+        },
+        {"mapping": mapping, "status": "not-attempted"},
+        {"mapping": mapping, "status": "not-attempted"},
+        {"mapping": mapping, "status": "not-attempted"},
+        {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "unasserted-house-juncture",
+        },
+    )
+    assert declared_value(graph, tg.ItemRef(name("metadata"), 0), name("coverage")) == {
+        "status": "preserved",
+        "source_complete": True,
+        "house_complete": False,
+    }
     ticks = {
         int(attribute.lexical)
         for boundary in graph.boundary_values
         for attribute in boundary.attributes
         if attribute.name.local_name == "tick"
     }
-    assert ticks == {0, 1, 2, 3, 4, 5, 6}
+    assert ticks == {0, 1, 2, 3, 4, 5, 6, 7}
 
 
 def test_core_bipa_example_regeneration_is_byte_equal():
@@ -277,9 +339,13 @@ def test_native_roundtrip_clock_children_times_hosts():
             "sounds": [],
         },
     ]
-    graph = construct(doc, records, schema)
+    graph = construct(doc, records, not_attempted(3), schema)
     restored = tg.loads(tg.dumps(graph))
-    assert restore(restored, schema) == (doc, tuple(records))
+    assert restore(restored, schema) == (
+        doc,
+        tuple(records),
+        tuple(not_attempted(3)),
+    )
     assert {
         a.lexical
         for boundary in graph.boundary_values
@@ -301,7 +367,7 @@ def test_native_roundtrip_clock_children_times_hosts():
 
 def test_empty_schema_profile_and_presence():
     schema = spec()
-    graph = construct([], [], schema)
+    graph = construct([], [], [], schema)
     assert restore(tg.loads(tg.dumps(graph)), schema)[0] == {
         "format": FORMAT,
         "version": 1,
@@ -310,8 +376,13 @@ def test_empty_schema_profile_and_presence():
     assert tg.QualifiedName(NS, "unused") in {
         d.name for d in graph.attribute_declarations
     }
+    assert declared_value(graph, tg.ItemRef(name("metadata"), 0), name("coverage")) == {
+        "status": "complete",
+        "source_complete": True,
+        "house_complete": True,
+    }
     explicit = {"format": FORMAT, "version": 1, "tokens": [], "relations": []}
-    assert restore(construct(explicit, [], schema), schema)[0] == explicit
+    assert restore(construct(explicit, [], [], schema), schema)[0] == explicit
     assert (
         metadata(schema)["fingerprint"]
         != metadata(spec(domains={"unused": (False, 0)}))["fingerprint"]
@@ -329,26 +400,158 @@ def test_empty_schema_profile_and_presence():
     )
 
 
+def test_supported_house_facts_roundtrip_in_supplied_projects_order_without_ticks():
+    schema = spec()
+    records = [resolution(), resolution()]
+    projections = [supported("first"), supported("second")]
+    graph = construct(["x", "y"], records, projections, schema)
+
+    assert restore(tg.loads(tg.dumps(graph)), schema)[2] == tuple(projections)
+    house = next(
+        tier
+        for tier in graph.tiers
+        if tier.declaration.name == name("house-projection")
+    )
+    assert len(house.items) == 2
+    assert {
+        int(attribute.lexical)
+        for boundary in graph.boundary_values
+        for attribute in boundary.attributes
+        if attribute.name.local_name == "tick"
+    } == {0, 1, 2}
+    assert all(
+        next(
+            attribute
+            for attribute in item.attributes
+            if attribute.name.local_name == "structural-duration"
+        ).lexical
+        == "0"
+        for item in house.items
+    )
+    projects = [
+        relation
+        for relation in graph.polyadic_relations
+        if relation.declaration == name("projects")
+    ]
+    assert sorted(
+        int(attribute.lexical)
+        for relation in projects
+        for attribute in relation.attributes
+        if attribute.name == ORDER
+    ) == [0, 1]
+
+
+def test_unsupported_projection_cannot_carry_a_house_fact():
+    bad = projection(
+        "unsupported",
+        code="unasserted-house-juncture",
+        facts=[{"house-symbol": "invented"}],
+    )
+    with pytest.raises(InputError, match="status and projection fields disagree"):
+        construct(["ts"], [resolution()], [bad], spec())
+
+    schema = spec()
+    graph = construct(["ts"], [resolution()], [supported("invented")], schema)
+    changed = graph.set_attribute(
+        tg.ItemRef(name("source-token"), 0),
+        tg.JsonAttributeValue(
+            name("projection"),
+            {
+                "mapping": MAPPING,
+                "status": "unsupported",
+                "code": "unasserted-house-juncture",
+            },
+        ),
+    )
+    with pytest.raises(ValueError, match="not owned by a supported projection"):
+        restore(changed, schema)
+
+
+def test_not_attempted_projection_cannot_claim_house_complete():
+    schema = spec()
+    graph = construct(["x"], [resolution()], not_attempted(1), schema)
+    changed = graph.set_attribute(
+        tg.ItemRef(name("metadata"), 0),
+        tg.JsonAttributeValue(
+            name("coverage"),
+            {
+                "status": "complete",
+                "source_complete": True,
+                "house_complete": True,
+            },
+        ),
+    )
+    with pytest.raises(ValueError, match="coverage does not match"):
+        restore(changed, schema)
+
+
+def test_projection_refuses_a_foreign_mapping_identity():
+    foreign = {"mapping": "foreign-mapping", "status": "not-attempted"}
+    with pytest.raises(InputError, match="another mapping"):
+        construct(["x"], [resolution()], [foreign], spec())
+
+    schema = spec()
+    graph = construct(["x"], [resolution()], not_attempted(1), schema)
+    changed = graph.set_attribute(
+        tg.ItemRef(name("source-token"), 0),
+        tg.JsonAttributeValue(name("projection"), foreign),
+    )
+    with pytest.raises(InputError, match="another mapping"):
+        restore(changed, schema)
+
+
+def test_restore_refuses_reversed_projects_order():
+    schema = spec()
+    graph = construct(
+        ["x", "y"],
+        [resolution(), resolution()],
+        [supported("first"), supported("second")],
+        schema,
+    )
+    relations = []
+    for relation in graph.polyadic_relations:
+        if relation.declaration != name("projects"):
+            relations.append(relation)
+            continue
+        attributes = []
+        for attribute in relation.attributes:
+            attributes.append(
+                replace(attribute, lexical=str(1 - int(attribute.lexical)))
+                if attribute.name == ORDER
+                else attribute
+            )
+        relations.append(replace(relation, attributes=tuple(attributes)))
+    changed = replace(graph, polyadic_relations=tuple(relations))
+    with pytest.raises(ValueError, match="projects relation order"):
+        restore(changed, schema)
+
+
 @pytest.mark.parametrize(
     "change",
     [
         {"provider_fingerprint": "different"},
         {"manifest_fingerprint": "different"},
         {"manifest_kind": "different"},
+        {"mapping_identity": "different"},
         {"domains": {"unused": (True,)}},
         {"fields": (FeatureDeclaration("different", (NS, "different")),)},
+        {
+            "house_fields": (
+                FeatureDeclaration("different-house", (HOUSE_NS, "different")),
+            )
+        },
         {"kinds": ("tone",)},
     ],
 )
 def test_bound_profile_refuses_changed_declarations(change):
-    graph = construct([], [], spec())
+    graph = construct([], [], [], spec())
     with pytest.raises(ValueError, match="fingerprint mismatch"):
         restore(graph, spec(**change))
 
 
 def test_unused_declaration_and_metadata_tamper_refuse():
     schema = spec()
-    graph = construct([], [], schema)
+    graph = construct([], [], [], schema)
     lost = replace(
         graph,
         attribute_declarations=tuple(
@@ -396,7 +599,7 @@ def test_host_kind_refusals(source, target):
         "relations": [{"type": HOST, "source": "/tokens/1", "target": "/tokens/0"}],
     }
     with pytest.raises(InputError, match="resolved tone"):
-        construct(doc, records, spec())
+        construct(doc, records, not_attempted(2), spec())
 
 
 def test_native_unique_source_not_single_parent():
@@ -410,11 +613,11 @@ def test_native_unique_source_not_single_parent():
         ],
     }
     records = [resolution(), resolution("tone"), resolution("tone")]
-    graph = construct(doc, records, spec())
+    graph = construct(doc, records, not_attempted(3), spec())
     assert restore(graph, spec())[0] == doc
     doc["relations"][1]["source"] = "/tokens/1"
     with pytest.raises(ValueError):
-        construct(doc, records, spec())
+        construct(doc, records, not_attempted(3), spec())
 
 
 def test_supplied_relation_order_is_native_and_restores_exactly():
@@ -428,13 +631,15 @@ def test_supplied_relation_order_is_native_and_restores_exactly():
         ],
     }
     records = [resolution(), resolution("tone"), resolution("tone")]
-    graph = construct(document, records, spec())
+    graph = construct(document, records, not_attempted(3), spec())
     other = {
         **document,
         "relations": list(reversed(document["relations"])),
     }
     assert restore(tg.loads(tg.dumps(graph)), spec())[0] == document
-    assert tg.dumps(graph) != tg.dumps(construct(other, records, spec()))
+    assert tg.dumps(graph) != tg.dumps(
+        construct(other, records, not_attempted(3), spec())
+    )
     orders = sorted(
         int(attribute.lexical)
         for relation in graph.polyadic_relations
@@ -454,7 +659,10 @@ def test_hand_added_relation_refused_by_constructor_layout_count():
     }
     schema = spec()
     graph = construct(
-        document, [resolution(), resolution("tone"), resolution("tone")], schema
+        document,
+        [resolution(), resolution("tone"), resolution("tone")],
+        not_attempted(3),
+        schema,
     )
     editor = graph.edit()
     editor.add_relation(
@@ -472,11 +680,11 @@ def test_hand_added_relation_refused_by_constructor_layout_count():
 
 def test_domain_types_and_unknown_claims():
     schema = spec(domains={"claims": (False,)})
-    construct(["x"], [resolution(values={"claims": False})], schema)
+    construct(["x"], [resolution(values={"claims": False})], not_attempted(1), schema)
     with pytest.raises(InputError, match="outside declared"):
-        construct(["x"], [resolution(values={"claims": 0})], schema)
+        construct(["x"], [resolution(values={"claims": 0})], not_attempted(1), schema)
     with pytest.raises(InputError, match="undeclared"):
-        construct(["x"], [resolution(values={"other": 1})], schema)
+        construct(["x"], [resolution(values={"other": 1})], not_attempted(1), schema)
 
 
 def test_native_qualified_names_and_endpoint_restrictions():
@@ -524,7 +732,7 @@ def test_nested_domain_and_input_mutation_do_not_change_graph():
     schema = spec(domains={"claims": (value,)})
     before = metadata(schema)
     record = resolution(values={"claims": {"nested": [False, 0, None]}})
-    graph = construct(["x"], [record], schema)
+    graph = construct(["x"], [record], not_attempted(1), schema)
     value["nested"].append("changed")
     record["sounds"][0]["values"]["claims"]["nested"].append("changed")
     assert metadata(schema) == before
@@ -535,7 +743,7 @@ def test_nested_domain_and_input_mutation_do_not_change_graph():
 
 def test_unrelated_native_content_refused_not_dropped():
     schema = spec()
-    graph = construct([], [], schema)
+    graph = construct([], [], [], schema)
     extra = replace(
         graph,
         tiers=graph.tiers
@@ -548,7 +756,7 @@ def test_unrelated_native_content_refused_not_dropped():
 
 def test_native_relation_constraint_mutation_refused():
     schema = spec()
-    graph = construct([], [], schema)
+    graph = construct([], [], [], schema)
     changed = replace(
         graph,
         relation_declarations=tuple(
@@ -566,7 +774,7 @@ def test_native_relation_constraint_mutation_refused():
 
 def test_declared_value_target_requires_native_json_profile():
     schema = spec()
-    graph = construct(["x"], [resolution()], schema)
+    graph = construct(["x"], [resolution()], not_attempted(1), schema)
     token_tier = next(
         tier for tier in graph.tiers if tier.declaration.name == name("source-token")
     )
@@ -582,7 +790,7 @@ def test_declared_value_target_requires_native_json_profile():
 
 def test_clock_and_role_mutations_refuse():
     schema = spec()
-    graph = construct(["x"], [resolution()], schema)
+    graph = construct(["x"], [resolution()], not_attempted(1), schema)
     boundary = graph.boundary_values[0]
     tick = next(a for a in boundary.attributes if a.name.local_name == "tick")
     changed = graph.set_attribute(boundary.reference, replace(tick, lexical="9"))
@@ -611,7 +819,7 @@ def test_clock_and_role_mutations_refuse():
 )
 def test_resolution_boundary_refuses_without_guessing(records):
     with pytest.raises(InputError):
-        construct(["unknown"], records, spec())
+        construct(["unknown"], records, not_attempted(1), spec())
 
 
 def test_fresh_process_restores_without_optional_providers(tmp_path):
@@ -631,9 +839,11 @@ assert Path(ipakit.__file__).resolve().parent.parent == Path(sys.argv[1])
 import tiergraph as tg
 assert metadata.version('tiergraph') == sys.argv[2]
 from ipakit._clts_profile import core_bipa_spec, restore
-document, records = restore(tg.loads(sys.stdin.read()), core_bipa_spec())
-assert [token['raw'] for token in document['tokens']] == ['t','⁵','t',' ɺ̣','+','☃']
-assert [record['status'] for record in records] == ['resolved','resolved','resolved','unknown-sound','marker','outside-artifact-domain']
+document, records, projections = restore(tg.loads(sys.stdin.read()), core_bipa_spec())
+assert [token['raw'] for token in document['tokens']] == ['t','⁵','t',' ɺ̣','+','☃','ts']
+assert [record['status'] for record in records] == ['resolved','resolved','resolved','unknown-sound','marker','outside-artifact-domain','resolved']
+assert [record['status'] for record in projections] == ['supported','supported','supported','not-attempted','not-attempted','not-attempted','unsupported']
+assert projections[-1]['code'] == 'unasserted-house-juncture'
 """
     python_path = os.pathsep.join(
         str(root) if entry == "" else entry for entry in sys.path

@@ -32,6 +32,7 @@ from .clts import Snapshot, read_snapshot, source_policy
 
 NAMESPACE = "https://ipakit.dev/tiergraph/clts-source/v1"
 CORE_BIPA_NAMESPACE = "https://ipakit.dev/tiergraph/clts-core-bipa/v1"
+HOUSE_NAMESPACE = "https://ipakit.dev/tiergraph/house-projection/v1"
 PROFILE = "ipakit-clts-source"
 TIERS = ("source-token", "source-sound", "house-projection", "metadata")
 ORDER = tg.QualifiedName(NAMESPACE, "source-order")
@@ -39,9 +40,10 @@ INTERIM_MANIFEST_KIND = "interim-core-bipa-source-policy-snapshot"
 DECIDES = (
     "constructor-layout source retention and declared schema",
     "input clock, timings and caller tone-host links",
+    "caller-supplied house facts, coverage and mapping identity",
 )
 UNDECIDED = (
-    "external resolver truth and house semantic coverage",
+    "external resolver truth and house projection computation",
     "public Form and downstream consumer admission",
 )
 
@@ -63,8 +65,10 @@ class SourceProfileSpec:
     source: SourceMetadata
     provider_fingerprint: str
     manifest_fingerprint: str
+    mapping_identity: str
     kinds: tuple[str, ...]
     fields: tuple[FeatureDeclaration, ...] = ()
+    house_fields: tuple[FeatureDeclaration, ...] = ()
     domains: Mapping[str, tuple[Any, ...]] = field(default_factory=dict)
     manifest_kind: str = "final"
     identity: str = field(init=False)
@@ -81,9 +85,12 @@ class SourceProfileSpec:
                 self.provider_fingerprint,
                 self.manifest_fingerprint,
                 self.manifest_kind,
+                self.mapping_identity,
             )
         ):
-            raise ValueError("explicit provider and manifest identities are required")
+            raise ValueError(
+                "explicit provider, manifest and mapping identities are required"
+            )
         object.__setattr__(self, "kinds", tuple(self.kinds))
         if (
             not self.kinds
@@ -91,9 +98,24 @@ class SourceProfileSpec:
             or len(set(self.kinds)) != len(self.kinds)
         ):
             raise ValueError("provider must declare its distinct resolved sound kinds")
-        reserved = {"raw", "time", "resolution", "kind", "canonical", "profile"}
-        if any(f.value_name is None or f.name in reserved for f in self.fields):
-            raise ValueError("source fields require distinct qualified identities")
+        object.__setattr__(self, "house_fields", tuple(self.house_fields))
+        reserved = {
+            "raw",
+            "time",
+            "resolution",
+            "projection",
+            "kind",
+            "canonical",
+            "profile",
+            "coverage",
+        }
+        declared_fields = (*self.fields, *self.house_fields)
+        if any(
+            f.value_name is None or f.name in reserved for f in declared_fields
+        ) or len({f.name for f in declared_fields}) != len(declared_fields):
+            raise ValueError(
+                "source and house fields require distinct qualified identities"
+            )
         domains = {
             key: tuple(_owned_json(value) for value in values)
             for key, values in self.domains.items()
@@ -122,20 +144,29 @@ def declarations(spec: SourceProfileSpec) -> Declarations:
     """Declare roles and source claims independently of observed events."""
     own = tuple(
         FeatureDeclaration(key, (NAMESPACE, key))
-        for key in ("raw", "time", "resolution", "kind", "canonical", "profile")
+        for key in (
+            "raw",
+            "time",
+            "resolution",
+            "projection",
+            "kind",
+            "canonical",
+            "profile",
+            "coverage",
+        )
     )
     admitted: tuple[set[str], ...] = (
-        {"raw", "time", "resolution"},
+        {"raw", "time", "resolution", "projection"},
         {"kind", "canonical", *(f.name for f in spec.fields)},
-        set(),
-        {"profile"},
+        {f.name for f in spec.house_fields},
+        {"profile", "coverage"},
     )
     return Declarations(
         tuple(
             TierDeclaration(tier, frozenset(keys), (NAMESPACE, tier))
             for tier, keys in zip(TIERS, admitted, strict=True)
         ),
-        own + spec.fields,
+        own + spec.fields + spec.house_fields,
         (
             RelationDeclaration(
                 "resolves",
@@ -155,6 +186,15 @@ def declarations(spec: SourceProfileSpec) -> Declarations:
                 source_arity=(1, 1),
                 target_arity=(1, 1),
                 native_name=(NAMESPACE, "source-tone-host"),
+                unique_sources=True,
+            ),
+            RelationDeclaration(
+                "projects",
+                source_tiers=frozenset({"source-sound"}),
+                target_tiers=frozenset({"house-projection"}),
+                source_arity=(1, None),
+                target_arity=(1, None),
+                native_name=(NAMESPACE, "projects"),
                 unique_sources=True,
             ),
         ),
@@ -182,6 +222,9 @@ def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
         "roles": {key: value.to_data() for key, value in spec.roles().items()},
         "schema": _schema(spec),
         "fields": {item.name: list(item.value_name or ()) for item in spec.fields},
+        "house-fields": {
+            item.name: list(item.value_name or ()) for item in spec.house_fields
+        },
         "domains": {
             key: [_thaw(v) for v in values] for key, values in spec.domains.items()
         },
@@ -192,6 +235,16 @@ def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
             "kind": spec.manifest_kind,
             "fingerprint": spec.manifest_fingerprint,
         },
+        "mapping": spec.mapping_identity,
+        "coverage": {
+            "source_complete": "one retained resolution record per input occurrence",
+            "house_complete": (
+                "true exactly when every input occurrence is supported; true for empty input"
+            ),
+        },
+        "invalidation": (
+            "stored projection mapping identity must equal the profile mapping identity"
+        ),
         "decides": list(DECIDES),
         "undecided": list(UNDECIDED),
     }
@@ -287,6 +340,103 @@ def _resolutions(
     return output
 
 
+def projection_coverage(
+    projections: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Derive the declared transaction flags from per-occurrence outcomes."""
+    house_complete = all(item.get("status") == "supported" for item in projections)
+    return {
+        "status": "complete" if house_complete else "preserved",
+        "source_complete": True,
+        "house_complete": house_complete,
+    }
+
+
+def _projections(
+    spec: SourceProfileSpec,
+    values: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+    count: int,
+) -> list[dict[str, Any]]:
+    if (
+        not isinstance(values, Sequence)
+        or isinstance(values, (str, bytes))
+        or len(values) != count
+    ):
+        raise InputError(
+            "invalid-projection",
+            "",
+            "one supplied projection per source token is required",
+        )
+    output = []
+    fields = {item.name for item in spec.house_fields}
+    for index, (value, resolution) in enumerate(zip(values, resolutions, strict=True)):
+        path = f"/tokens/{index}/projection"
+        if not isinstance(value, Mapping):
+            raise InputError("invalid-projection", path, "projection must be a record")
+        status = value.get("status")
+        expected = (
+            {
+                "supported": {"mapping", "status", "facts"},
+                "unsupported": {"mapping", "status", "code"},
+                "not-attempted": {"mapping", "status"},
+            }.get(status)
+            if isinstance(status, str)
+            else None
+        )
+        if expected is None or set(value) != expected:
+            raise InputError(
+                "invalid-projection", path, "status and projection fields disagree"
+            )
+        if value["mapping"] != spec.mapping_identity:
+            raise InputError(
+                "mapping-mismatch", path, "projection belongs to another mapping"
+            )
+        if status == "unsupported":
+            if not isinstance(value["code"], str) or not value["code"]:
+                raise InputError(
+                    "invalid-projection", path, "unsupported projection needs a code"
+                )
+            output.append(
+                {
+                    "mapping": spec.mapping_identity,
+                    "status": status,
+                    "code": value["code"],
+                }
+            )
+            continue
+        if status == "not-attempted":
+            output.append({"mapping": spec.mapping_identity, "status": status})
+            continue
+        facts = value["facts"]
+        if (
+            not resolution["sounds"]
+            or not isinstance(facts, (list, tuple))
+            or not facts
+        ):
+            raise InputError(
+                "invalid-projection",
+                path,
+                "supported projection needs a resolved source and house facts",
+            )
+        copied = []
+        for fact in facts:
+            if not isinstance(fact, Mapping) or not fact or set(fact) - fields:
+                raise InputError(
+                    "invalid-projection", path, "undeclared or empty house fact"
+                )
+            for claim in fact.values():
+                try:
+                    tg.json_value_graph(claim)
+                except (TypeError, ValueError) as error:
+                    raise InputError("invalid-value", path, str(error)) from error
+            copied.append(dict(fact))
+        output.append(
+            {"mapping": spec.mapping_identity, "status": status, "facts": copied}
+        )
+    return output
+
+
 def _declare_relation_order(graph: tg.Graph) -> tg.Graph:
     declaration = tg.AttributeDeclaration(
         ORDER, tg.AttributeDomain.RELATION_INSTANCE, tg.XsdType.INTEGER
@@ -296,8 +446,12 @@ def _declare_relation_order(graph: tg.Graph) -> tg.Graph:
     return graph.edit().declare(declaration).freeze()
 
 
-def _store_relation_order(graph: tg.Graph, document: Mapping[str, Any]) -> tg.Graph:
-    """Annotate host instances with the caller's order after native lowering."""
+def _store_relation_order(
+    graph: tg.Graph,
+    document: Mapping[str, Any],
+    projections: Sequence[Mapping[str, Any]],
+) -> tg.Graph:
+    """Annotate host and projection instances with caller order after lowering."""
     graph = _declare_relation_order(graph)
     relations = list(graph.polyadic_relations)
     used: set[int] = set()
@@ -329,6 +483,37 @@ def _store_relation_order(graph: tg.Graph, document: Mapping[str, Any]) -> tg.Gr
                 tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
             ),
         )
+    project_rank = 0
+    for token_index, projection in enumerate(projections):
+        if projection["status"] != "supported":
+            continue
+        token = tg.ItemRef(name("source-token"), token_index)
+        resolves = [
+            relation
+            for relation in relations
+            if relation.declaration == name("resolves") and relation.sources == (token,)
+        ]
+        if len(resolves) != 1:
+            raise ValueError("projection source order cannot be represented")
+        matches = [
+            index
+            for index, candidate in enumerate(relations)
+            if index not in used
+            and candidate.declaration == name("projects")
+            and candidate.sources == resolves[0].targets
+        ]
+        if len(matches) != 1:
+            raise ValueError("projection relation order cannot be represented")
+        index = matches[0]
+        used.add(index)
+        relations[index] = replace(
+            relations[index],
+            attributes=(
+                *relations[index].attributes,
+                tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(project_rank)),
+            ),
+        )
+        project_rank += 1
     return replace(graph, polyadic_relations=tuple(relations))
 
 
@@ -353,9 +538,15 @@ def require_manifest_kind(spec: SourceProfileSpec, expected: str) -> None:
         )
 
 
-def core_bipa_spec(snapshot: Snapshot | None = None) -> SourceProfileSpec:
+def core_bipa_spec(
+    snapshot: Snapshot | None = None, mapping_identity: str | None = None
+) -> SourceProfileSpec:
     """Bind the internal source profile to the shipped finite core snapshot."""
     snapshot = read_snapshot() if snapshot is None else snapshot
+    if mapping_identity is None:
+        from .clts_mapping import read_authority
+
+        mapping_identity = read_authority().identity
     data = snapshot.to_data()
     if data["domain"] != "core-bipa":
         raise ValueError("core-BIPA profile requires the finite core snapshot")
@@ -372,10 +563,15 @@ def core_bipa_spec(snapshot: Snapshot | None = None) -> SourceProfileSpec:
         ),
         snapshot.identity,
         interim["fingerprint"],
+        mapping_identity,
         ("consonant", "vowel", "tone"),
         tuple(
             FeatureDeclaration(field, (CORE_BIPA_NAMESPACE, field))
             for field in ("features", "alias", "normalized", "declaration")
+        ),
+        (
+            FeatureDeclaration("house-symbol", (HOUSE_NAMESPACE, "symbol")),
+            FeatureDeclaration("house-kind", (HOUSE_NAMESPACE, "kind")),
         ),
         manifest_kind=INTERIM_MANIFEST_KIND,
     )
@@ -428,16 +624,24 @@ def core_bipa_resolutions(
 
 
 def _construct(
-    document: dict[str, Any], resolutions: list[dict[str, Any]], spec: SourceProfileSpec
+    document: dict[str, Any],
+    resolutions: list[dict[str, Any]],
+    projections: list[dict[str, Any]],
+    spec: SourceProfileSpec,
 ) -> tg.Graph:
     builder = FactBuilder(declarations(spec))
     tokens = []
-    for index, (token, resolution) in enumerate(
-        zip(document["tokens"], resolutions, strict=True)
+    for index, (token, resolution, projection) in enumerate(
+        zip(document["tokens"], resolutions, projections, strict=True)
     ):
         features = {
             "raw": token["raw"],
             "resolution": {key: resolution[key] for key in ("provider", "status")},
+            "projection": {
+                key: projection[key]
+                for key in ("mapping", "status", "code")
+                if key in projection
+            },
         }
         timing = None
         if "time" in token:
@@ -464,6 +668,16 @@ def _construct(
             application_order=0,
         )
         builder.relate([handle], "resolves", children)
+        if projection["status"] == "supported":
+            house = builder.add_ordered_sequence(
+                "house-projection",
+                index,
+                [EventSpec(fact, duration=0) for fact in projection["facts"]],
+                derivation_step=1,
+                source_site_order=index,
+                application_order=0,
+            )
+            builder.relate(children, "projects", house)
     for index, relation in enumerate(document.get("relations", [])):
         left = endpoint(relation["source"], len(tokens), f"/relations/{index}/source")
         right = endpoint(relation["target"], len(tokens), f"/relations/{index}/target")
@@ -488,22 +702,27 @@ def _construct(
                 **metadata(spec),
                 "relations-present": "relations" in document,
                 "relation-count": len(document.get("relations", [])),
-            }
+            },
+            "coverage": projection_coverage(projections),
         },
         duration=0,
     )
     graph = ContainmentProjection.from_input(builder.build_input()).graph
-    return _store_relation_order(graph, document)
+    return _store_relation_order(graph, document, projections)
 
 
 def construct(
-    value: Any, resolutions: Sequence[Mapping[str, Any]], spec: SourceProfileSpec
+    value: Any,
+    resolutions: Sequence[Mapping[str, Any]],
+    projections: Sequence[Mapping[str, Any]],
+    spec: SourceProfileSpec,
 ) -> tg.Graph:
-    """Lower strict ingress and explicitly supplied outcomes to native facts."""
+    """Lower strict ingress and caller-supplied source/house outcomes."""
     document = decode(value)
     records = _resolutions(spec, resolutions, len(document["tokens"]))
+    projected = _projections(spec, projections, records, len(document["tokens"]))
     try:
-        return _construct(document, records, spec)
+        return _construct(document, records, projected, spec)
     except InputError:
         raise
     except ValueError as error:
@@ -517,9 +736,11 @@ def _items(graph: tg.Graph, tier: str) -> tuple[tg.ItemRef, ...]:
     return tuple(tg.ItemRef(name(tier), index) for index in range(len(tiers[0].items)))
 
 
-def restore(
-    graph: tg.Graph, spec: SourceProfileSpec
-) -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
+def restore(graph: tg.Graph, spec: SourceProfileSpec) -> tuple[
+    dict[str, Any],
+    tuple[dict[str, Any], ...],
+    tuple[dict[str, Any], ...],
+]:
     """Validate and restore this constructor layout, without live resolution.
 
     Extra content or alternate equivalent layouts are refused, never discarded.
@@ -542,7 +763,11 @@ def restore(
         raise ValueError("malformed source relation presence metadata")
     if identity_fingerprint(held) != identity_fingerprint(metadata(spec)):
         raise ValueError("source profile declaration or provider fingerprint mismatch")
-    tokens, resolutions = [], []
+    stored_coverage = declared_value(graph, points[0], name("coverage"))
+    tokens: list[dict[str, Any]] = []
+    resolutions: list[dict[str, Any]] = []
+    stored_projections: list[dict[str, Any]] = []
+    sound_refs: list[tuple[tg.ItemRef, ...]] = []
     refs = _items(graph, "source-token")
     for ref in refs:
         token = {"raw": declared_value(graph, ref, name("raw"))}
@@ -561,9 +786,14 @@ def restore(
         ]
         if len(links) != 1:
             raise ValueError("expected one ordered resolution relation")
+        current_sound_refs = tuple(
+            child for child in links[0].targets if isinstance(child, tg.ItemRef)
+        )
+        if len(current_sound_refs) != len(links[0].targets):
+            raise ValueError("invalid resolution child")
         sounds = []
-        for child in links[0].targets:
-            if not isinstance(child, tg.ItemRef) or child.tier != name("source-sound"):
+        for child in current_sound_refs:
+            if child.tier != name("source-sound"):
                 raise ValueError("invalid resolution child")
             values = {}
             for declared in spec.fields:
@@ -589,10 +819,81 @@ def restore(
         if not isinstance(status, dict) or set(status) != {"provider", "status"}:
             raise ValueError("malformed stored resolution status")
         resolutions.append({**status, "sounds": sounds})
+        projection = declared_value(graph, ref, name("projection"))
+        if not isinstance(projection, dict):
+            raise ValueError("malformed stored projection status")
+        stored_projections.append(projection)
+        sound_refs.append(current_sound_refs)
+    from ._scalar_attribute import scalar_lexical
+
+    projections = []
+    ordered_projects = []
+    used_projects: set[int] = set()
+    project_relations = [
+        relation
+        for relation in graph.polyadic_relations
+        if relation.declaration == name("projects")
+    ]
+    supported_tokens = []
+    for token_index, (projection, source_children) in enumerate(
+        zip(stored_projections, sound_refs, strict=True)
+    ):
+        if projection.get("status") != "supported":
+            projections.append(projection)
+            continue
+        supported_tokens.append(token_index)
+        matches = [
+            (index, relation)
+            for index, relation in enumerate(project_relations)
+            if index not in used_projects and relation.sources == source_children
+        ]
+        if len(matches) != 1:
+            raise ValueError("supported projection requires one projects relation")
+        project_index, relation = matches[0]
+        used_projects.add(project_index)
+        if not relation.targets or any(
+            not isinstance(target, tg.ItemRef)
+            or target.tier != name("house-projection")
+            for target in relation.targets
+        ):
+            raise ValueError("invalid house projection child")
+        house_children = tuple(
+            target for target in relation.targets if isinstance(target, tg.ItemRef)
+        )
+        order_values = [
+            attribute for attribute in relation.attributes if attribute.name == ORDER
+        ]
+        if len(order_values) != 1:
+            raise ValueError("projects relation requires one source-order")
+        rank = int(scalar_lexical(order_values[0]))
+        ordered_projects.append((rank, token_index))
+        facts = []
+        for child in house_children:
+            fact = {}
+            resolved_child = graph.resolve_item(child)
+            child_item = next(
+                tier
+                for tier in graph.tiers
+                if tier.declaration.name == resolved_child.tier
+            ).items[resolved_child.index]
+            for declared in spec.house_fields:
+                assert declared.value_name is not None
+                qualified = tg.QualifiedName(*declared.value_name)
+                if any(
+                    attribute.name == qualified for attribute in child_item.attributes
+                ):
+                    fact[declared.name] = declared_value(graph, child, qualified)
+            facts.append(fact)
+        projections.append({**projection, "facts": facts})
+    if len(used_projects) != len(project_relations):
+        raise ValueError("house fact is not owned by a supported projection")
+    ordered_projects.sort()
+    if [rank for rank, _ in ordered_projects] != list(range(len(ordered_projects))) or [
+        token for _, token in ordered_projects
+    ] != supported_tokens:
+        raise ValueError("projects relation order does not match supplied token order")
     document: dict[str, Any] = {"format": FORMAT, "version": 1, "tokens": tokens}
     if present:
-        from ._scalar_attribute import scalar_lexical
-
         ordered = []
         host_relations = [
             relation
@@ -637,10 +938,15 @@ def restore(
         raise ValueError("stored source relation count mismatch")
     document = decode(document)
     validated = _resolutions(spec, resolutions, len(tokens))
-    expected = _construct(document, validated, spec)
+    validated_projections = _projections(spec, projections, validated, len(tokens))
+    if stored_coverage != projection_coverage(validated_projections):
+        raise ValueError(
+            "stored projection coverage does not match occurrence outcomes"
+        )
+    expected = _construct(document, validated, validated_projections, spec)
     if tg.to_data(expected) != tg.to_data(graph):
         raise ValueError("graph is outside the declared source constructor layout")
-    return document, tuple(validated)
+    return document, tuple(validated), tuple(validated_projections)
 
 
 def graph_profile(spec: SourceProfileSpec) -> type[tg.GraphProfile]:
@@ -660,7 +966,7 @@ def graph_profile(spec: SourceProfileSpec) -> type[tg.GraphProfile]:
 
         @classmethod
         def satisfaction_witness(cls) -> tuple[tg.Graph, tg.RoleBinding]:
-            return construct([], [], spec), spec.roles()
+            return construct([], [], [], spec), spec.roles()
 
         @classmethod
         def refusal_witness(cls) -> tuple[tg.Graph, tg.RoleBinding]:
