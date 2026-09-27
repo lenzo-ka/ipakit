@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from ipakit._clts_input import FORMAT, HOST, InputError
 from ipakit._clts_profile import (
-    INTERIM_MANIFEST_KIND,
+    FINAL_MANIFEST_KIND,
     ORDER,
     SourceProfileSpec,
     construct,
@@ -18,9 +18,10 @@ from ipakit._clts_profile import (
     core_bipa_spec,
     declarations,
     graph_profile,
-    interim_manifest_metadata,
+    manifest_metadata,
     metadata,
     name,
+    require_final_manifest,
     require_manifest_kind,
     restore,
 )
@@ -34,7 +35,7 @@ from ipakit._graph_facts import (
     TierDeclaration,
 )
 from ipakit._provenance import SourceMetadata
-from ipakit.clts import read_snapshot, source_policy
+from ipakit.clts import read_snapshot
 
 import tiergraph as tg
 
@@ -60,6 +61,7 @@ def spec(**changes):
                 FeatureDeclaration("unused", (NS, "unused")),
             ),
             (FeatureDeclaration("house-symbol", (HOUSE_NS, "symbol")),),
+            manifest_kind="fixture",
         ),
         **changes,
     )
@@ -216,24 +218,19 @@ def test_core_bipa_exact_nfc_nfd_spellings_keep_their_raws():
     assert list(projections) == projections_in
 
 
-def test_core_bipa_spec_binds_snapshot_and_labeled_interim_manifest():
+def test_core_bipa_spec_binds_verified_final_manifest():
     snapshot = read_snapshot()
     schema = core_bipa_spec(snapshot)
-    interim = interim_manifest_metadata(snapshot)
+    manifest = manifest_metadata()
     assert schema.provider_fingerprint == snapshot.identity
     assert schema.mapping_identity == (
         "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb"
     )
-    assert schema.manifest_kind == interim["kind"] == INTERIM_MANIFEST_KIND
-    assert schema.manifest_fingerprint == interim["fingerprint"]
-    assert interim == {
-        "kind": "interim-core-bipa-source-policy-snapshot",
-        "source-policy": source_policy(),
-        "snapshot-identity": snapshot.identity,
-        "fingerprint": interim["fingerprint"],
-    }
+    assert schema.manifest_kind == manifest["kind"] == FINAL_MANIFEST_KIND
+    assert schema.manifest_fingerprint == manifest["fingerprint"]
+    require_final_manifest(schema)
     with pytest.raises(ValueError, match="manifest kind mismatch"):
-        require_manifest_kind(schema, "final")
+        require_manifest_kind(schema, "interim")
 
 
 def test_core_bipa_committed_example_has_hand_authored_facts():

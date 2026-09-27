@@ -30,6 +30,7 @@ def _spec() -> SourceProfileSpec:
         "fixture-mapping",
         ("tone", "consonant"),
         (),
+        manifest_kind="fixture",
     )
 
 

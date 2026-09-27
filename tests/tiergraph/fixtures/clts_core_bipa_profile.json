@@ -1396,7 +1396,7 @@
                       "normalized"
                     ]
                   },
-                  "fingerprint": "sha256:99f35b2d7b23e0c2386a79dc635a82f3868b63c98ad25b104059d221b840c6b4",
+                  "fingerprint": "sha256:20baa4f94b5038095b43f695e1693192658073cf7239d31ca7e60de0c70a5cbf",
                   "house-fields": {
                     "house-kind": [
                       "https://ipakit.dev/tiergraph/house-projection/v1",
@@ -1415,8 +1415,8 @@
                     "tone"
                   ],
                   "manifest": {
-                    "fingerprint": "sha256:6b1e7edea5cc60fa62fdb6304e03073a4baf10d9e1463040c8bf78c602d13eef",
-                    "kind": "interim-core-bipa-source-policy-snapshot"
+                    "fingerprint": "sha256:2d8aa509068014cbec6a3fb017f6ed6fd72e98b0b02eeeec03dd86eb2408070b",
+                    "kind": "final"
                   },
                   "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
                   "provider": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
