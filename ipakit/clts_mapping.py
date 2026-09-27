@@ -244,6 +244,13 @@ def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
     if tuple(rules["disposition_classes"]) != DISPOSITION_CLASSES:
         raise MappingInvalid("reviewed disposition classes changed")
     valid_classes = set(DISPOSITION_CLASSES)
+    for rule in [*rules["rules"], *rules["declaration_rules"]]:
+        if rule["disposition"] == "exact under stated conditions" and not rule.get(
+            "preconditions"
+        ):
+            raise MappingInvalid(
+                "exact under stated conditions rule lacks preconditions"
+            )
     supported: dict[tuple[str, ...], list[str]] = {}
     rule_classes: dict[str, str] = {}
     for rule in rules["rules"]:
@@ -276,6 +283,24 @@ def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
         declaration_rules[source] = rule
         if source not in declared:
             raise MappingInvalid("reviewed declaration source is no longer declared")
+        preconditions = rule.get("preconditions", {})
+        if not isinstance(preconditions, dict):
+            raise MappingInvalid("declaration preconditions must be an object")
+        unknown = set(preconditions) - {"source", "host"}
+        if unknown:
+            raise MappingInvalid("unknown declaration precondition")
+        if "source" in preconditions and preconditions["source"] != "asserted":
+            raise MappingInvalid("unknown source precondition")
+        host = preconditions.get("host", {})
+        if not isinstance(host, dict) or ("host" in preconditions and not host):
+            raise MappingInvalid("host precondition must state features")
+        for feature, value in host.items():
+            if (
+                not isinstance(feature, str)
+                or not isinstance(value, str)
+                or ("clts", source[1], feature, value) not in declared
+            ):
+                raise MappingInvalid("unknown host precondition declaration")
         target = rule["target"]
         if target["form"] == "feature" and tuple(target["path"]) not in native:
             raise MappingInvalid("reviewed declaration target is no longer declared")
@@ -493,11 +518,23 @@ class MappingAuthority:
         ):
             raise MappingInvalid("source occurrence does not assert the declaration")
         rule = matches[0]
-        for feature, value in rule.get("preconditions", {}).get("host", {}).items():
-            if value not in entry["features"]:
-                raise MappingInvalid(
-                    f"declaration target requires host {feature}={value}"
-                )
+        for condition, value in rule.get("preconditions", {}).items():
+            if condition == "source":
+                if value != "asserted":
+                    raise MappingInvalid("unknown source precondition")
+                if source[3] not in entry["features"]:
+                    raise MappingInvalid(
+                        "source occurrence does not assert the declaration"
+                    )
+            elif condition == "host":
+                for feature, feature_value in value.items():
+                    if feature_value not in entry["features"]:
+                        raise MappingInvalid(
+                            "declaration target requires host "
+                            f"{feature}={feature_value}"
+                        )
+            else:
+                raise MappingInvalid("unknown declaration precondition")
         return cast(dict[str, Any], json.loads(json.dumps(rule["target"])))
 
     def require_import_profile(self, fingerprint: str | None) -> None:

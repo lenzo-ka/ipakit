@@ -12118,7 +12118,7 @@
       }
     ]
   },
-  "identity": "sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa",
+  "identity": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -12550,6 +12550,9 @@
       {
         "disposition": "exact under stated conditions",
         "id": "release-unreleased/1",
+        "preconditions": {
+          "source": "asserted"
+        },
         "source": [
           "clts",
           "consonant",
@@ -12569,6 +12572,9 @@
       {
         "disposition": "exact under stated conditions",
         "id": "release-lateral/1",
+        "preconditions": {
+          "source": "asserted"
+        },
         "source": [
           "clts",
           "consonant",
@@ -12588,6 +12594,9 @@
       {
         "disposition": "exact under stated conditions",
         "id": "release-schwa/1",
+        "preconditions": {
+          "source": "asserted"
+        },
         "source": [
           "clts",
           "consonant",
@@ -12607,6 +12616,9 @@
       {
         "disposition": "exact under stated conditions",
         "id": "release-nasal/1",
+        "preconditions": {
+          "source": "asserted"
+        },
         "source": [
           "clts",
           "consonant",
@@ -13129,7 +13141,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 7
+    "version": 8
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 2

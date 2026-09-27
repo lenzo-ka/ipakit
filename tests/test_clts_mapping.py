@@ -25,6 +25,7 @@ from ipakit.clts_mapping import (
     MappingInvalid,
     ProfilePending,
     _native_witnesses,
+    _queues,
     _source_witnesses,
     read_authority,
     reviewed_rules,
@@ -78,7 +79,7 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
     assert data["version"] == 2
-    assert data["rules"]["version"] == 7
+    assert data["rules"]["version"] == 8
     assert data["rules"]["disposition_classes"] == [
         "exact under stated conditions",
         "conditional/composite",
@@ -195,6 +196,26 @@ def test_release_declarations_resolve_to_exact_values() -> None:
         assert data["native_witnesses"][rule_id]["constituents"] == 1
 
 
+def test_feature_release_rules_state_source_assertion() -> None:
+    rules = {
+        rule["source"][-1]: rule["preconditions"]
+        for rule in reviewed_rules()["declaration_rules"]
+        if rule["id"]
+        in {
+            "release-unreleased/1",
+            "release-lateral/1",
+            "release-schwa/1",
+            "release-nasal/1",
+        }
+    }
+    assert rules == {
+        "unreleased": {"source": "asserted"},
+        "with-lateral-release": {"source": "asserted"},
+        "with-mid-central-vowel-release": {"source": "asserted"},
+        "with-nasal-release": {"source": "asserted"},
+    }
+
+
 def test_duration_declarations_preserve_distinct_native_length_values() -> None:
     expected = {
         ("vowel", "long"): ("aː", "long"),
@@ -250,6 +271,43 @@ def test_duration_declarations_preserve_distinct_native_length_values() -> None:
     assert {
         value for (kind, _), (_, value) in expected.items() if kind == "consonant"
     } == {"long", "half-long", "overlong"}
+
+
+@pytest.mark.parametrize(
+    "rule_id",
+    [
+        "release-unreleased/1",
+        "release-lateral/1",
+        "release-schwa/1",
+        "release-nasal/1",
+    ],
+)
+def test_exact_release_rule_requires_its_stated_precondition(rule_id: str) -> None:
+    rules = copy.deepcopy(reviewed_rules())
+    rule = next(rule for rule in rules["declaration_rules"] if rule["id"] == rule_id)
+    del rule["preconditions"]
+    with pytest.raises(
+        MappingInvalid, match="exact under stated conditions rule lacks preconditions"
+    ):
+        _queues(read_authority().to_data()["census"], rules)
+
+
+@pytest.mark.parametrize(
+    ("preconditions", "message"),
+    [
+        ({"source": "inferred"}, "unknown source precondition"),
+        ({"unchecked": "value"}, "unknown declaration precondition"),
+        ({"host": {}}, "host precondition must state features"),
+        ({"host": {"manner": "not-declared"}}, "unknown host precondition"),
+    ],
+)
+def test_declaration_precondition_vocabulary_is_enforced(
+    preconditions: dict, message: str
+) -> None:
+    rules = copy.deepcopy(reviewed_rules())
+    rules["declaration_rules"][0]["preconditions"] = preconditions
+    with pytest.raises(MappingInvalid, match=message):
+        _queues(read_authority().to_data()["census"], rules)
 
 
 def test_flat_read_would_collapse_duration_witnesses_to_normal() -> None:
@@ -323,6 +381,35 @@ def test_duration_targets_require_the_source_value_to_be_asserted() -> None:
             authority.declaration_target(source, f"{kind[0]}-plain", snapshot)
 
 
+@pytest.mark.parametrize(
+    ("release", "value"),
+    [
+        ("unreleased", "no-audible"),
+        ("with-lateral-release", "lateral"),
+        ("with-mid-central-vowel-release", "schwa"),
+        ("with-nasal-release", "nasal"),
+    ],
+)
+def test_feature_release_targets_require_the_source_value_to_be_asserted(
+    release: str, value: str
+) -> None:
+    snapshot = _supplied_consonants(
+        {
+            "asserted": ["consonant", "fricative", "velar", "voiceless", release],
+            "plain": ["consonant", "fricative", "velar", "voiceless"],
+        }
+    )
+    source = ["clts", "consonant", "release", release]
+    authority = read_authority()
+    assert authority.declaration_target(source, "asserted", snapshot)["path"] == [
+        "ipakit",
+        "release",
+        value,
+    ]
+    with pytest.raises(MappingInvalid, match="does not assert"):
+        authority.declaration_target(source, "plain", snapshot)
+
+
 def test_macron_a_is_tone_not_a_duration_witness_without_live_clts() -> None:
     ipa = load_ipa_features()
     values = ipa.feature_values("ā")
@@ -390,6 +477,30 @@ def test_sibilant_release_refuses_non_stop_host_from_master_tables() -> None:
             "fˢ",
             snapshot,
         )
+
+
+@pytest.mark.parametrize(
+    ("release", "token", "value"),
+    [
+        ("unreleased", "ð̚", "no-audible"),
+        ("with-lateral-release", "xˡ", "lateral"),
+        ("with-mid-central-vowel-release", "xᵊ", "schwa"),
+        ("with-nasal-release", "ǂⁿ", "nasal"),
+    ],
+)
+def test_feature_releases_accept_non_stop_hosts_from_master_tables(
+    release: str, token: str, value: str
+) -> None:
+    clts = os.environ.get("IPAKIT_CLTS_DIR")
+    if not clts:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for the live CLTS master")
+    snapshot = extract_snapshot(Path(clts), tokens=[token])
+    entry = snapshot.to_data()["entries"][token]
+    assert release in entry["features"]
+    assert "stop" not in entry["features"]
+    assert read_authority().declaration_target(
+        ["clts", "consonant", "release", release], token, snapshot
+    )["path"] == ["ipakit", "release", value]
 
 
 def test_duration_witnesses_and_macron_a_match_live_clts_resolver() -> None:
