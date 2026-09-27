@@ -121,6 +121,10 @@ UNMAPPABLE: dict[str, str] = {
     # (_h _w ' _G _?\ ...) with no glottal or schwa member.
     "ˀ": "glottalization: no X-SAMPA diacritic",
     "ᵊ": "schwa release: no X-SAMPA diacritic",
+    # `_n` already encodes generic nasal release (`ⁿ`), while `_m` means
+    # laminal (`̻`). Either spelling would erase or misstate K4's place
+    # distinction, and X-SAMPA declares no separate bilabial-nasal release.
+    "ᵐ": "bilabial nasal release: no distinct X-SAMPA diacritic",
     # The extIPA strong-articulation mark has no X-SAMPA counterpart.
     "͈": "strong articulation: no X-SAMPA diacritic",
     # The one entry here that X-SAMPA COULD spell, declined rather than

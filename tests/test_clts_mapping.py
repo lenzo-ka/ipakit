@@ -78,7 +78,7 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
     assert data["version"] == 2
-    assert data["rules"]["version"] == 5
+    assert data["rules"]["version"] == 6
     assert data["rules"]["disposition_classes"] == [
         "exact under stated conditions",
         "conditional/composite",
@@ -545,6 +545,7 @@ def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> No
     assert records["nasal-release-place"]["reason"].find("release=bilabial-nasal") >= 0
     assert "release=nasal remains" in records["nasal-release-place"]["reason"]
     assert "no release-place dimension" in records["nasal-release-place"]["reason"]
+    assert records["nasal-release-place"]["consequence"].startswith("Implemented")
     assert records["tone-host"]["affected_source_declarations"] == [
         "clts / tone / start / *",
         "clts / tone / middle / *",
@@ -552,9 +553,10 @@ def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> No
         "clts / tone / contour / *",
     ]
     ipa = load_ipa_features()
-    for spelling, retained in (("tˢ", "t"), ("dʳ", "d"), ("dʶ", "d"), ("tᵐ", "t")):
+    for spelling, retained in (("tˢ", "t"), ("dʳ", "d"), ("dʶ", "d")):
         with pytest.warns(UserWarning, match="dropped 1 unregistered symbol"):
             assert str(ipa.read(spelling)) == retained
+    assert ipa.get_features("tᵐ", with_defaults=False)["release"] == "bilabial-nasal"
     approach = ipa.read("ⁿd", strict=True).units[0].segment
     release = ipa.read("dⁿ", strict=True).units[0].segment
     assert approach is not None and release is not None
