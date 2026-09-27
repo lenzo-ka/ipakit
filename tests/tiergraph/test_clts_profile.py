@@ -1,5 +1,6 @@
 """Synthetic source facts exercise native structure, not CLTS resolution."""
 
+import builtins
 import os
 import subprocess
 import sys
@@ -8,6 +9,7 @@ from importlib import metadata as package_metadata
 from pathlib import Path
 
 import pytest
+from ipakit import clts
 from ipakit._clts_input import FORMAT, HOST, InputError
 from ipakit._clts_profile import (
     FINAL_MANIFEST_KIND,
@@ -34,6 +36,7 @@ from ipakit._graph_facts import (
     RelationDeclaration,
     TierDeclaration,
 )
+from ipakit._identity import identity_fingerprint
 from ipakit._provenance import SourceMetadata
 from ipakit.clts import read_snapshot
 
@@ -193,6 +196,58 @@ def test_core_bipa_adapter_exact_records_and_miss_statuses():
         "outside-artifact-domain",
     ]
     assert all(not record["sounds"] for record in records[2:])
+
+
+def test_reduced_core_bipa_distinguishes_unknown_from_artifact_miss():
+    data = read_snapshot().to_data()
+    data["requested"] = ["t", "☃"]
+    data["entries"] = {"t": data["entries"]["t"]}
+    data["excluded"] = {"☃": "unknown-source-spelling"}
+    material = {key: value for key, value in data.items() if key != "identity"}
+    snapshot = clts.Snapshot({**material, "identity": identity_fingerprint(material)})
+
+    raws = ("t", "☃", "ai")
+    records = core_bipa_resolutions(snapshot, raws)
+
+    assert {
+        raw: record["status"] for raw, record in zip(raws, records, strict=True)
+    } == {
+        "t": "resolved",
+        "☃": "unknown-sound",
+        "ai": "outside-artifact-domain",
+    }
+    assert records[0]["sounds"][0]["canonical"] == "t"
+    assert records[1]["sounds"] == records[2]["sounds"] == []
+
+
+def test_live_resolvable_omission_stays_outside_artifact_domain(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    value = os.environ.get("IPAKIT_CLTS_DIR")
+    if not value:
+        pytest.skip("explicit IPAKIT_CLTS_DIR required for the live resolver witness")
+    pytest.importorskip("pyclts")
+    live = clts.extract_snapshot(Path(value), tokens=["ai", "☃"])
+    assert live.to_data()["entries"]["ai"]["kind"] == "diphthong"
+    assert live.to_data()["excluded"] == {"☃": "unknown-sound"}
+
+    original = builtins.__import__
+
+    def blocked(name, *args, **kwargs):
+        if name == "pyclts" or name.startswith("pyclts."):
+            raise AssertionError("profile adapter attempted a live resolver fallback")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked)
+    assert core_bipa_resolutions(read_snapshot(), ("ai",)) == (
+        {
+            "provider": (
+                "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4"
+            ),
+            "status": "outside-artifact-domain",
+            "sounds": [],
+        },
+    )
 
 
 def test_core_bipa_exact_nfc_nfd_spellings_keep_their_raws():
