@@ -82,6 +82,9 @@ ipakit.segment("ⁿd").constituents[0]     # Constituent(base='d', modifiers=(),
 ipakit.describe("ⁿd")                    # 'voiced pre-nasalized alveolar plosive'
 ipakit.describe("dⁿ")                    # 'voiced nasally-released alveolar plosive'
 ipakit.features("tᵐ")["release"]        # 'bilabial-nasal'
+ipakit.features("tˢ")["release"]        # 'sibilant'
+ipakit.features("dʳ")["release"]        # 'trilled'
+ipakit.features("dʶ")["release"]        # 'uvular'
 ```
 
 The release-only `ᵐ` preserves a distinction that BIPA folds into `ⁿ`: `tᵐ`
@@ -89,6 +92,12 @@ has a bilabial nasal release and `tⁿ` has a generic nasal release. It attaches
 where `ⁿ` attaches after a base; no narrower host-manner rule is declared. It
 does not write an approach. The measured pre-articulation inventory below is
 exactly `ⁿ ˀ ʰ ʱ`, and supplies no evidence for a leading `ᵐ`.
+
+The release-only `ˢ`, `ʳ`, and `ʶ` likewise keep one constituent and write
+only the final phase. They are therefore distinct from the tied `t͡s`, `d͡r`,
+and `d͡ʁ`, whose two constituents and tie assert segmental structure. None of
+the three writes an approach: the measured leading-mark inventory remains
+exactly the four marks named below.
 
 The four marks that can do this declare a key at each phase, and *where the mark stands* selects which one it contributes — so one declaration serves both ends and neither end says both. `approach` is a declared feature over the values `release` already declares, so the counterpart coined no vocabulary of its own; it is called `approach` and not `onset` because a phonologist reads "onset" as the syllable margin, which is a different question this library also answers.
 

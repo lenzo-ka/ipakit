@@ -1,6 +1,6 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:aa16d48f4375d92760a47421d910deb92ed90101da0da09158b08daec28176be`.
+Mapping identity: `sha256:1b07fbf604c750249e4ec025e522d087ce342b05a7ef1a32be91840171c0b4aa`.
 
 Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
 
@@ -86,9 +86,9 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | clts_to_ipakit | clts / consonant / release / with-lateral-release | exact under stated conditions | release-lateral/1 |
 | clts_to_ipakit | clts / consonant / release / with-mid-central-vowel-release | exact under stated conditions | release-schwa/1 |
 | clts_to_ipakit | clts / consonant / release / with-nasal-release | exact under stated conditions | release-nasal/1 |
-| clts_to_ipakit | clts / consonant / release / with-sibilant-release | conditional/composite | release-sibilant-sequence/1 |
-| clts_to_ipakit | clts / consonant / release / with-trilled-release | conditional/composite | release-trilled-sequence/1 |
-| clts_to_ipakit | clts / consonant / release / with-uvular-release | conditional/composite | release-uvular-sequence/1 |
+| clts_to_ipakit | clts / consonant / release / with-sibilant-release | exact under stated conditions | release-sibilant/1 |
+| clts_to_ipakit | clts / consonant / release / with-trilled-release | exact under stated conditions | release-trilled/1 |
+| clts_to_ipakit | clts / consonant / release / with-uvular-release | exact under stated conditions | release-uvular/1 |
 | clts_to_ipakit | clts / consonant / stress / primary-stress | unresolved pending evidence |  |
 | clts_to_ipakit | clts / consonant / stress / secondary-stress | unresolved pending evidence |  |
 | clts_to_ipakit | clts / consonant / syllabicity / syllabic | unresolved pending evidence |  |
@@ -294,6 +294,9 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 | ipakit_to_clts | ipakit / release / lateral | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / nasal | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / bilabial-nasal | unresolved pending evidence |  |
+| ipakit_to_clts | ipakit / release / sibilant | unresolved pending evidence |  |
+| ipakit_to_clts | ipakit / release / trilled | unresolved pending evidence |  |
+| ipakit_to_clts | ipakit / release / uvular | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / no-audible | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / glottal | unresolved pending evidence |  |
 | ipakit_to_clts | ipakit / release / schwa | unresolved pending evidence |  |
@@ -335,15 +338,15 @@ Generated from the [reviewed mapping authority](clts-mapping.md). Only master de
 
 ## Release adjudication
 
-A release realized as another segment is represented by a constituent sequence. A release that is a manner or phonation quality remains a value of the release feature. No release value is added solely to absorb a segmental release.
+A superscript phase mark is represented by a value of the release feature. A tie asserts a constituent sequence and remains distinct from that release value.
 
 - `clts / consonant / release / unreleased` → ipakit / release / no-audible (release-unreleased/1).
 - `clts / consonant / release / with-lateral-release` → ipakit / release / lateral (release-lateral/1).
 - `clts / consonant / release / with-mid-central-vowel-release` → ipakit / release / schwa (release-schwa/1).
 - `clts / consonant / release / with-nasal-release` → ipakit / release / nasal (release-nasal/1).
-- `clts / consonant / release / with-sibilant-release` → plosive + sibilant fricative (`t͡s`) (release-sibilant-sequence/1).
-- `clts / consonant / release / with-trilled-release` → plosive + trill (`d͡r`) (release-trilled-sequence/1).
-- `clts / consonant / release / with-uvular-release` → plosive + uvular fricative (`d͡ʁ`) (release-uvular-sequence/1).
+- `clts / consonant / release / with-sibilant-release` → ipakit / release / sibilant (release-sibilant/1).
+- `clts / consonant / release / with-trilled-release` → ipakit / release / trilled (release-trilled/1).
+- `clts / consonant / release / with-uvular-release` → ipakit / release / uvular (release-uvular/1).
 - `clts / vowel / duration / long` → ipakit / length / long (vowel-duration-long/1).
 - `clts / vowel / duration / mid-long` → ipakit / length / half-long (vowel-duration-mid-long/1).
 - `clts / vowel / duration / ultra-long` → ipakit / length / overlong (vowel-duration-ultra-long/1).
@@ -354,7 +357,7 @@ A release realized as another segment is represented by a constituent sequence. 
 
 ## Accepted for lane H
 
-- `superscript-releases` — notation gap; accepted. K3 accepts these three BIPA superscript spellings into the house parser, not only a BIPA reader. Their reading remains open; lane H measures the two ruled candidates without shipping either one. Evidence: The current house reader drops ˢ, ʳ and ʶ with its lossy warning, and the strict reader rejects them as unknown notation; it already constructs t͡s, d͡r and d͡ʁ. Native construction: `tˢ` fails (superscript sibilant release spelling); `dʳ` fails (superscript trilled release spelling); `dʶ` fails (superscript uvular release spelling).
+- `superscript-releases` — notation gap; accepted. R1 reads the three superscripts as the release=sibilant, release=trilled and release=uvular phase values. Implemented by the bounded native values, parser behavior and tests; the tied constituent sequences remain distinct. Evidence: The strict house reader now constructs tˢ, dʳ and dʶ as one-constituent release-marked stops, distinct from the tied t͡s, d͡r and d͡ʁ forms. Native construction: `tˢ` succeeds (superscript sibilant release spelling); `dʳ` succeeds (superscript trilled release spelling); `dʶ` succeeds (superscript uvular release spelling).
 - `nasal-release-place` — source-side collapse; accepted. K4 accepts a new release=bilabial-nasal value for ᵐ; release=nasal remains the value for ⁿ, and no release-place dimension is added. Implemented by the bounded native value, parser behavior and tests; CLTS projection cannot recover the distinction after BIPA collapse. Evidence: The pinned BIPA resolver canonicalizes tᵐ to tⁿ with the same with-nasal-release claim, while the strict house reader now distinguishes release=bilabial-nasal on tᵐ from release=nasal on tⁿ. Native construction: `tᵐ` succeeds (bilabial rather than generic nasal release); `tⁿ` succeeds (existing generic nasal release).
 
 ## Other structural and enhancement dispositions

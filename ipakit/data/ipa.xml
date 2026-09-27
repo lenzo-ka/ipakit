@@ -339,6 +339,9 @@
       <value name="lateral" label="lateral-released" short="lrl" href="Lateral_release_(phonetics)"/>
       <value name="nasal" label="nasally-released" short="nrl" href="Nasal_release"/>
       <value name="bilabial-nasal" label="bilabial-nasally-released" short="bnr" href="Nasal_release"/>
+      <value name="sibilant" label="sibilant-released" short="sbr" href="Sibilant"/>
+      <value name="trilled" label="trilled-released" short="trl" href="Trill_consonant"/>
+      <value name="uvular" label="uvular-released" short="uvr" href="Uvular_consonant"/>
       <value name="no-audible" label="unreleased" short="nau" href="No_audible_release"/>
       <value name="glottal" label="glottalized" short="grl" href="Glottalization"/>  <!-- the glottal phase of a pre-glottalized stop: a phase, not the segment's own place -->
       <value name="schwa" label="schwa-released" short="srl" href="Schwa"/>  <!-- the schwa-colored release of a stop: a phase, not the segment's own vowel quality -->
@@ -880,6 +883,9 @@
     <diacritic name="ᶣ" labio-palatized="+"/>
     <diacritic name="ⁿ" release="nasal" approach="nasal" href="Nasal_release"/>
     <diacritic name="ᵐ" release="bilabial-nasal" href="Nasal_release"/>
+    <diacritic name="ˢ" release="sibilant" href="Sibilant"/>
+    <diacritic name="ʳ" release="trilled" href="Trill_consonant"/>
+    <diacritic name="ʶ" release="uvular" href="Uvular_consonant"/>
     <diacritic name="ʻ" release="aspirated" href="Aspirated_consonant"/>
     <diacritic name="ˀ" release="glottal" approach="glottal" href="Glottal_stop"/>
     <diacritic name="ᵊ" release="schwa" href="Schwa"/>

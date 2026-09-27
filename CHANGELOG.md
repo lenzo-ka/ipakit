@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ˢ`, `ʳ`, and `ʶ` write distinct sibilant, trilled, and uvular release values.
 - `ᵐ` writes the distinct `bilabial-nasal` release value; `ⁿ` remains generic nasal release.
 - `ipakit --version` prints the installed version.
 - `ipakit model transform` applies an explicit finite ternary-to-binary encoding and reports its preimage and loss evidence.

@@ -78,7 +78,7 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
     assert data["version"] == 2
-    assert data["rules"]["version"] == 6
+    assert data["rules"]["version"] == 7
     assert data["rules"]["disposition_classes"] == [
         "exact under stated conditions",
         "conditional/composite",
@@ -110,13 +110,10 @@ def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
         ("clts", "consonant", "place", "alveolar"),
         ("clts", "consonant", "phonation", "voiced"),
         ("clts", "consonant", "phonation", "voiceless"),
-        ("clts", "consonant", "release", "with-sibilant-release"),
-        ("clts", "consonant", "release", "with-trilled-release"),
-        ("clts", "consonant", "release", "with-uvular-release"),
     }
 
 
-def test_release_declarations_resolve_to_values_or_constituent_sequences() -> None:
+def test_release_declarations_resolve_to_exact_values() -> None:
     observed = _native_witnesses(reviewed_rules(), load_ipa_features())
     data = read_authority().to_data()
     rows = {
@@ -146,19 +143,19 @@ def test_release_declarations_resolve_to_values_or_constituent_sequences() -> No
             "exact under stated conditions",
         ),
         "with-sibilant-release": (
-            "sequence",
-            "plosive + sibilant fricative",
-            "conditional/composite",
+            "feature",
+            ["ipakit", "release", "sibilant"],
+            "exact under stated conditions",
         ),
         "with-trilled-release": (
-            "sequence",
-            "plosive + trill",
-            "conditional/composite",
+            "feature",
+            ["ipakit", "release", "trilled"],
+            "exact under stated conditions",
         ),
         "with-uvular-release": (
-            "sequence",
-            "plosive + uvular fricative",
-            "conditional/composite",
+            "feature",
+            ["ipakit", "release", "uvular"],
+            "exact under stated conditions",
         ),
     }
     assert set(rows) == set(expected)
@@ -167,32 +164,35 @@ def test_release_declarations_resolve_to_values_or_constituent_sequences() -> No
         assert row["status"] == disposition
         assert len(row["targets"]) == 1
         assert row["targets"][0]["form"] == form
-        key = "path" if form == "feature" else "name"
-        assert row["targets"][0][key] == target
+        assert row["targets"][0]["path"] == target
         assert len(row["rule_ids"]) == 1
-    assert "another segment" in data["rules"]["release_adjudication"]
+    assert "superscript phase mark" in data["rules"]["release_adjudication"]
+    assert "tie asserts a constituent sequence" in data["rules"]["release_adjudication"]
     assert all(
         row["status"] == "unresolved pending evidence"
         for row in data["dispositions"]["ipakit_to_clts"]
         if row["source"][1] == "release"
     )
-    sequence_rules = {
+    ruled_releases = {
         rule["id"]: rule
         for rule in data["rules"]["declaration_rules"]
-        if rule["target"]["form"] == "sequence"
+        if rule["id"]
+        in {
+            "release-sibilant/1",
+            "release-trilled/1",
+            "release-uvular/1",
+        }
     }
-    assert set(sequence_rules) == {
-        "release-sibilant-sequence/1",
-        "release-trilled-sequence/1",
-        "release-uvular-sequence/1",
+    assert set(ruled_releases) == {
+        "release-sibilant/1",
+        "release-trilled/1",
+        "release-uvular/1",
     }
-    for rule_id, rule in sequence_rules.items():
+    for rule_id, rule in ruled_releases.items():
         assert rule["preconditions"] == {"host": {"manner": "stop"}}
-        assert rule["target"]["juncture"] == "unasserted"
-        assert rule["target"]["witness_juncture"] == "fuse"
-        assert observed[rule_id]["observed_junctures"] == ["fuse"]
-        assert data["native_witnesses"][rule_id]["juncture"] == "unasserted"
-        assert data["native_witnesses"][rule_id]["observed_junctures"] == ["fuse"]
+        assert rule["target"]["form"] == "feature"
+        assert observed[rule_id]["observed_value"] == rule["target"]["path"][-1]
+        assert data["native_witnesses"][rule_id]["constituents"] == 1
 
 
 def test_duration_declarations_preserve_distinct_native_length_values() -> None:
@@ -344,14 +344,14 @@ def test_macron_a_is_tone_not_a_duration_witness_without_live_clts() -> None:
 
 
 @pytest.mark.parametrize(
-    ("release", "name"),
+    ("release", "value"),
     [
-        ("with-sibilant-release", "plosive + sibilant fricative"),
-        ("with-trilled-release", "plosive + trill"),
-        ("with-uvular-release", "plosive + uvular fricative"),
+        ("with-sibilant-release", "sibilant"),
+        ("with-trilled-release", "trilled"),
+        ("with-uvular-release", "uvular"),
     ],
 )
-def test_sequence_release_holds_only_on_a_stop_host(release: str, name: str) -> None:
+def test_ruled_release_holds_only_on_a_stop_host(release: str, value: str) -> None:
     snapshot = _supplied_consonants(
         {
             "stop": ["bilabial", "consonant", "stop", "voiceless", release],
@@ -366,12 +366,16 @@ def test_sequence_release_holds_only_on_a_stop_host(release: str, name: str) -> 
     )
     source = ["clts", "consonant", "release", release]
     authority = read_authority()
-    assert authority.declaration_target(source, "stop", snapshot)["name"] == name
+    assert authority.declaration_target(source, "stop", snapshot)["path"] == [
+        "ipakit",
+        "release",
+        value,
+    ]
     with pytest.raises(MappingInvalid, match="host manner=stop"):
         authority.declaration_target(source, "fricative", snapshot)
 
 
-def test_sequence_release_refuses_non_stop_host_from_master_tables() -> None:
+def test_sibilant_release_refuses_non_stop_host_from_master_tables() -> None:
     value = os.environ.get("IPAKIT_CLTS_DIR")
     if not value:
         pytest.skip("explicit IPAKIT_CLTS_DIR required for the live CLTS master")
@@ -546,6 +550,7 @@ def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> No
     assert "release=nasal remains" in records["nasal-release-place"]["reason"]
     assert "no release-place dimension" in records["nasal-release-place"]["reason"]
     assert records["nasal-release-place"]["consequence"].startswith("Implemented")
+    assert records["superscript-releases"]["consequence"].startswith("Implemented")
     assert records["tone-host"]["affected_source_declarations"] == [
         "clts / tone / start / *",
         "clts / tone / middle / *",
@@ -553,9 +558,8 @@ def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> No
         "clts / tone / contour / *",
     ]
     ipa = load_ipa_features()
-    for spelling, retained in (("tˢ", "t"), ("dʳ", "d"), ("dʶ", "d")):
-        with pytest.warns(UserWarning, match="dropped 1 unregistered symbol"):
-            assert str(ipa.read(spelling)) == retained
+    for spelling, value in (("tˢ", "sibilant"), ("dʳ", "trilled"), ("dʶ", "uvular")):
+        assert ipa.get_features(spelling, with_defaults=False)["release"] == value
     assert ipa.get_features("tᵐ", with_defaults=False)["release"] == "bilabial-nasal"
     approach = ipa.read("ⁿd", strict=True).units[0].segment
     release = ipa.read("dⁿ", strict=True).units[0].segment
