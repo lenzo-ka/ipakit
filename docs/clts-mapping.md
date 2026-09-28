@@ -1,31 +1,33 @@
 # Reviewed CLTS correspondences
 
 The `ipakit.clts_mapping` library provides a bounded, directional correspondence
-authority for the exact plain-stop witnesses `p`, `b`, `t`, and `d`, and for the
+authority for the reviewed plain-stop witnesses `p`, `b`, `t`, and `d`, and for the
 seven CLTS consonant-release declarations, from CLTS to IPAkit. Its token rules
-establish eligibility in the declared direction and context.
-Reverse conversion and TierGraph/Form import require separate reviewed bindings.
+establish eligibility and profile-bound house projections in the declared direction
+and context. Reverse conversion and public TierGraph/Form import remain separate.
 Each inventory retains its own semantics.
 
 ```python
 from ipakit.clts import read_snapshot
+from ipakit._clts_profile import core_bipa_spec
 from ipakit.clts_mapping import read_authority
 
 authority = read_authority()
-result = authority.eligibility("p", read_snapshot())
+result = authority.eligibility("p", read_snapshot(), profile=core_bipa_spec())
 assert result["status"] == "eligible-witness"
 assert result["target"] == "p"
-assert result["import_ready"] is False
+assert result["import_ready"] is True
 ```
 
 This works offline with shipped artifacts; it does not load pyclts. Eligibility
 requires the complete source claim set, exact source spelling, and the reviewed
 native structural context. Every extra claim participates in the eligibility check.
 Native defaults absent from CLTS claims are recorded with their native provenance.
-Other tokens remain unresolved, including affricates, approach/release token
-forms, vowels, and tone. The declaration-level release adjudications do not make
-those tokens import-ready. Exact source recovery is a separate operation from
-reverse phonetic conversion.
+Resolved affricates carry the reviewed `unasserted-house-juncture` refusal;
+other resolved tokens outside the four rules carry
+`outside-reviewed-token-context`. Unresolved spellings are not attempted. The
+declaration-level release adjudications do not make those tokens import-ready.
+Exact source recovery is a separate operation from reverse phonetic conversion.
 
 The authority binds the accepted CLTS policy, source input hashes, frozen core
 identity, native declaration hash, effective native metric fingerprint, its own
@@ -35,7 +37,7 @@ cycle while making `require_import_profile(...)` refuse a different profile or
 mapping. Changed populations or provider bindings require reconciliation. These
 fingerprints detect changed inputs. Authentication and phonetic equivalence
 require separate evidence. The `target` field identifies the research witness;
-public Form import remains pending.
+the reviewed projection record does not itself perform public Form import.
 
 ## Declarations, rules, and token eligibility
 

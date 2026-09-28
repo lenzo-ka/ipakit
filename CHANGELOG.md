@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Profile-bound CLTS eligibility now derives reviewed plain-stop projections and affricate-juncture refusals.
 - Public soft-reader warnings are classified as input loss even when their warning location names the library caller.
 
 ### Added

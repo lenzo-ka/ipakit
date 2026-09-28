@@ -1,8 +1,8 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9`.
+Mapping identity: `sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860`.
 
-Finite declaration accounting is not complete semantic conversion. The mapping is bound to the reviewed source-profile basis; public Form import remains pending.
+Finite declaration accounting is not complete semantic conversion. Reviewed token projections are bound to the source profile; public Form import remains pending.
 
 Generated from the [reviewed mapping authority](clts-mapping.md). Only master declarations are included; catalog observations remain external research. CLTS master declarations are CC BY 4.0; see the [mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt), [source policy](../ipakit/data/clts/source.json) and [CLTS audit](clts-audit.md). Native declarations retain their repository license.
 
@@ -354,6 +354,10 @@ A superscript phase mark is represented by a value of the release feature. A tie
 - `clts / consonant / duration / long` → ipakit / length / long (consonant-duration-long/1).
 - `clts / consonant / duration / mid-long` → ipakit / length / half-long (consonant-duration-mid-long/1).
 - `clts / consonant / duration / ultra-long` → ipakit / length / overlong (consonant-duration-ultra-long/1).
+
+## Projection refusals
+
+- `clts / consonant / manner / affricate` → `unasserted-house-juncture` (affricate-juncture/1; deferred by `tie-conversion`).
 
 ## Accepted for lane H
 

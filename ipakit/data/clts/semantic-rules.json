@@ -1,6 +1,6 @@
 {
   "schema": "ipakit-clts-reviewed-rules",
-  "version": 8,
+  "version": 9,
   "disposition_classes": [
     "exact under stated conditions",
     "conditional/composite",
@@ -20,10 +20,10 @@
   "source_structure": "one resolved plain consonant; complete declared feature set equals the witness",
   "absence_policy": "unasserted-is-not-negative",
   "rules": [
-    {"id": "plain-p/1", "disposition": "conditional/composite", "raw": "p", "target": "p", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "-"}},
-    {"id": "plain-b/1", "disposition": "conditional/composite", "raw": "b", "target": "b", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "+"}},
-    {"id": "plain-t/1", "disposition": "conditional/composite", "raw": "t", "target": "t", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "-"}},
-    {"id": "plain-d/1", "disposition": "conditional/composite", "raw": "d", "target": "d", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "+"}}
+    {"id": "plain-p/1", "disposition": "conditional/composite", "raw": "p", "target": "p", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "-"}, "house_projection": [{"house-symbol": "p", "house-kind": "segment"}]},
+    {"id": "plain-b/1", "disposition": "conditional/composite", "raw": "b", "target": "b", "source": {"manner": "stop", "place": "bilabial", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "bilabial", "voiced": "+"}, "house_projection": [{"house-symbol": "b", "house-kind": "segment"}]},
+    {"id": "plain-t/1", "disposition": "conditional/composite", "raw": "t", "target": "t", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiceless"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "-"}, "house_projection": [{"house-symbol": "t", "house-kind": "segment"}]},
+    {"id": "plain-d/1", "disposition": "conditional/composite", "raw": "d", "target": "d", "source": {"manner": "stop", "place": "alveolar", "phonation": "voiced"}, "target_predicates": {"manner": "plosive", "place": "alveolar", "voiced": "+"}, "house_projection": [{"house-symbol": "d", "house-kind": "segment"}]}
   ],
   "release_adjudication": "A superscript phase mark is represented by a value of the release feature. A tie asserts a constituent sequence and remains distinct from that release value.",
   "declaration_rules": [
@@ -41,6 +41,9 @@
     {"id": "consonant-duration-long/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "duration", "long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "long"], "witness": "tː"}},
     {"id": "consonant-duration-mid-long/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "duration", "mid-long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "half-long"], "witness": "tˑ"}},
     {"id": "consonant-duration-ultra-long/1", "disposition": "exact under stated conditions", "source": ["clts", "consonant", "duration", "ultra-long"], "preconditions": {"source": "asserted"}, "target": {"form": "feature", "path": ["ipakit", "length", "overlong"], "witness": "tːː"}}
+  ],
+  "projection_refusals": [
+    {"id": "affricate-juncture/1", "source": ["clts", "consonant", "manner", "affricate"], "code": "unasserted-house-juncture", "deferred_by": "tie-conversion"}
   ],
   "evidence": [
     "Pinned BIPA core rows: complete consonant, manner, place and phonation claims; contrasts p/b and t/d.",

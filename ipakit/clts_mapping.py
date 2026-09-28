@@ -1,8 +1,8 @@
 """Reviewed directional predicates, distinct from declaration census and import.
 
-The authority is deliberately bounded to complete plain-stop witnesses and the
+The authority is deliberately bounded to reviewed plain-stop projections and the
 adjudicated release and duration declarations. Other declarations remain explicitly
-unresolved; B2 structural binding is pending.
+unresolved; public Form import remains pending.
 """
 
 from __future__ import annotations
@@ -113,6 +113,26 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
         features = ipa._get_features(rule["target"])
         if any(features.get(k) != v for k, v in rule["target_predicates"].items()):
             raise MappingInvalid("native witness predicates changed")
+        projection = rule.get("house_projection")
+        if projection is not None:
+            if rule["disposition"] not in {
+                "exact under stated conditions",
+                "conditional/composite",
+            }:
+                raise MappingInvalid(
+                    "house projection is not licensed by the rule disposition"
+                )
+            if (
+                not isinstance(projection, list)
+                or len(projection) != 1
+                or not isinstance(projection[0], dict)
+                or set(projection[0]) != {"house-symbol", "house-kind"}
+                or projection[0]["house-symbol"] != rule["target"]
+                or projection[0]["house-kind"] != "segment"
+            ):
+                raise MappingInvalid(
+                    "house projection differs from the strict native witness"
+                )
         results[rule["id"]] = {
             "structure": structure,
             "asserted_target_predicates": rule["target_predicates"],
@@ -121,6 +141,10 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
             },
         }
     for rule in rules["declaration_rules"]:
+        if "house_projection" in rule:
+            raise MappingInvalid(
+                "house projection is not licensed on a declaration rule"
+            )
         target = rule["target"]
         witness = target["witness"]
         form = ipa.read(witness, strict=True)
@@ -291,6 +315,39 @@ def _queues(census: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any]:
         raise MappingInvalid(
             "reviewed source predicate is no longer declared/cataloged"
         )
+    refusal_ids: set[str] = set()
+    enhancements = {item["id"]: item for item in rules["enhancements"]}
+    for refusal in rules.get("projection_refusals", []):
+        if set(refusal) != {"id", "source", "code", "deferred_by"}:
+            raise MappingInvalid("invalid projection refusal fields")
+        if (
+            not all(
+                isinstance(refusal[field], str) and refusal[field]
+                for field in ("id", "code", "deferred_by")
+            )
+            or refusal["id"] in refusal_ids
+        ):
+            raise MappingInvalid("invalid projection refusal identity")
+        refusal_ids.add(refusal["id"])
+        source = refusal["source"]
+        if (
+            not isinstance(source, list)
+            or len(source) != 4
+            or not all(isinstance(value, str) and value for value in source)
+            or source[0] != "clts"
+            or tuple(source) not in declared
+        ):
+            raise MappingInvalid("projection refusal source is not declared")
+        enhancement = enhancements.get(refusal["deferred_by"])
+        if (
+            enhancement is None
+            or enhancement.get("decision") != "deferred"
+            or " / ".join(source)
+            not in enhancement.get("affected_source_declarations", [])
+        ):
+            raise MappingInvalid(
+                "projection refusal is not backed by its deferred enhancement"
+            )
     for rule in rules["rules"]:
         if any(
             ("ipakit", name, value) not in native
@@ -490,7 +547,12 @@ class MappingAuthority:
         _source_witnesses(data["rules"], snapshot)
 
     def eligibility(
-        self, token: str, snapshot: Snapshot, *, direction: str = "clts-to-ipakit"
+        self,
+        token: str,
+        snapshot: Snapshot,
+        *,
+        direction: str = "clts-to-ipakit",
+        profile: Any = None,
     ) -> dict[str, Any]:
         """Return finite complete-claim eligibility, not a projected Form."""
         data = self.to_data()
@@ -509,21 +571,74 @@ class MappingAuthority:
             "target": None,
             "import_ready": False,
             "losses": [],
-            "reason": "outside-reviewed-token-context",
+            "reason": "import-profile-not-supplied",
+            "projection": None,
         }
-        if not matches:
-            return result
-        if len(matches) != 1:
+        if len(matches) > 1:
             raise MappingInvalid("conflicting eligibility rules")
-        _source_witnesses(data["rules"], snapshot)
-        rule = matches[0]
+        if matches:
+            _source_witnesses(data["rules"], snapshot)
+            rule = matches[0]
+            result.update(
+                status="eligible-witness",
+                rule_id=rule["id"],
+                target=rule["target"],
+            )
+        if profile is None:
+            return result
+        self.require_import_profile(profile)
+        projection = self._projection_record(token, snapshot, profile)
+        result["projection"] = projection
+        if projection["status"] == "supported":
+            result.update(import_ready=True, reason="reviewed-house-projection")
+        elif projection["status"] == "unsupported":
+            result["reason"] = projection["code"]
+        else:
+            result["reason"] = "outside-reviewed-token-context"
+        return result
+
+    def _projection_record(
+        self, token: str, snapshot: Snapshot, profile: Any
+    ) -> dict[str, Any]:
+        """Derive one projection after the caller has validated the full context."""
+        rules = self.to_data()["rules"]
+        entry = snapshot.to_data()["entries"].get(token)
+        record: dict[str, Any] = {"mapping": profile.mapping_identity}
+        if entry is None:
+            return {**record, "status": "not-attempted"}
+        token_rules = [rule for rule in rules["rules"] if rule["raw"] == token]
+        refusals = [
+            refusal
+            for refusal in rules.get("projection_refusals", [])
+            if entry["kind"] == refusal["source"][1]
+            and refusal["source"][3] in entry["features"]
+        ]
+        if len(token_rules) > 1 or len(refusals) > 1 or (token_rules and refusals):
+            raise MappingInvalid("conflicting projection rules and refusals")
+        if token_rules and token_rules[0].get("house_projection") is not None:
+            return {
+                **record,
+                "status": "supported",
+                "facts": json.loads(json.dumps(token_rules[0]["house_projection"])),
+            }
+        if refusals:
+            return {**record, "status": "unsupported", "code": refusals[0]["code"]}
         return {
-            **result,
-            "status": "eligible-witness",
-            "rule_id": rule["id"],
-            "target": rule["target"],
-            "reason": "B2-profile-binding-pending",
+            **record,
+            "status": "unsupported",
+            "code": "outside-reviewed-token-context",
         }
+
+    def _projection_records(
+        self, tokens: Sequence[str], snapshot: Snapshot, profile: Any
+    ) -> tuple[dict[str, Any], ...]:
+        """Derive a batch while validating its source and profile context once."""
+        data = self.to_data()
+        self.validate_context(data["census"], snapshot, load_ipa_features())
+        self.require_import_profile(profile)
+        return tuple(
+            self._projection_record(token, snapshot, profile) for token in tokens
+        )
 
     def declaration_target(
         self, source: Sequence[str], token: str, snapshot: Snapshot
@@ -579,7 +694,10 @@ class MappingAuthority:
 
         if not isinstance(spec, SourceProfileSpec):
             raise MappingInvalid("import profile must be a SourceProfileSpec")
-        require_final_manifest(spec)
+        try:
+            require_final_manifest(spec)
+        except ValueError as error:
+            raise MappingInvalid(str(error)) from error
         if spec.mapping_identity != self.identity:
             raise MappingInvalid("source profile mapping identity mismatch")
         self._require_profile_basis(spec)
@@ -593,7 +711,7 @@ class MappingAuthority:
             f"Mapping identity: `{self.identity}`.",
             "",
             "Finite declaration accounting is not complete semantic conversion. "
-            "The mapping is bound to the reviewed source-profile basis; public Form import remains pending.",
+            "Reviewed token projections are bound to the source profile; public Form import remains pending.",
             "",
             "Generated from the [reviewed mapping authority](clts-mapping.md). "
             "Only master declarations are included; catalog observations remain external research. "
@@ -626,6 +744,12 @@ class MappingAuthority:
             )
             lines.append(
                 f"- `{' / '.join(rule['source'])}` → {rendered} ({rule['id']})."
+            )
+        lines.extend(["", "## Projection refusals", ""])
+        for refusal in data["rules"].get("projection_refusals", []):
+            lines.append(
+                f"- `{' / '.join(refusal['source'])}` → `{refusal['code']}` "
+                f"({refusal['id']}; deferred by `{refusal['deferred_by']}`)."
             )
         enhancements = data["rules"]["enhancements"]
         for heading, selected in (
