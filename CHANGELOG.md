@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CLTS input documents refuse a second host for one tone, a duplicate relation, an unencodable raw, and an out-of-range integer time, each at its location.
 - PHOIBLE's shipped `manifest.json` now uses the shared source-receipt schema, and Panphon provenance lives only in its adjacent receipt.
 - Every CLI command declares the notation it reads, or that it reads none; the fourteen that read one without saying so now name it in their help.
 

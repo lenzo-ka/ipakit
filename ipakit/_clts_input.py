@@ -8,6 +8,7 @@ from typing import Any
 
 FORMAT = "ipakit-clts-input"
 HOST = "clts:source-tone-host"
+_MAX_SAFE_INTEGER = 2**53 - 1
 
 
 class InputError(ValueError):
@@ -48,6 +49,8 @@ def endpoint(value: Any, count: int, path: str) -> int:
 def _valid_time(value: Any) -> bool:
     if type(value) not in (int, float) or value < 0:
         return False
+    if type(value) is int and abs(value) > _MAX_SAFE_INTEGER:
+        return False
     try:
         return math.isfinite(value)
     except OverflowError:
@@ -84,6 +87,12 @@ def decode(value: Any) -> dict[str, Any]:
             raise InputError(
                 "invalid-input", path + "/raw", "raw must be a nonempty string"
             )
+        try:
+            raw.encode("utf-8")
+        except UnicodeEncodeError:
+            raise InputError(
+                "invalid-input", path + "/raw", "raw must be UTF-8 encodable"
+            ) from None
         copied: dict[str, Any] = {"raw": raw}
         if "time" in token:
             timing = token["time"]
@@ -106,6 +115,7 @@ def decode(value: Any) -> dict[str, Any]:
                 "invalid-relation", "/relations", "relations must be an array"
             )
         relations = []
+        hosted_sources: set[int] = set()
         for index, value in enumerate(source["relations"]):
             path = f"/relations/{index}"
             relation = _object(value, {"type", "source", "target"}, set(), path)
@@ -117,6 +127,13 @@ def decode(value: Any) -> dict[str, Any]:
             right = endpoint(relation["target"], len(tokens), path + "/target")
             if left == right:
                 raise InputError("invalid-relation", path, "a tone cannot host itself")
+            if left in hosted_sources:
+                raise InputError(
+                    "invalid-relation",
+                    path + "/source",
+                    "a tone cannot have more than one host",
+                )
+            hosted_sources.add(left)
             relations.append(dict(relation))
         result["relations"] = relations
     return result
